@@ -32,5 +32,47 @@ namespace tik4net.Objects
         /// </summary>
         [TikProperty("topics", IsReadOnly = true, IsMandatory = true)]
         public string Topics { get; private set; }
+
+        #region -- static methods --
+
+        private static void WriteToLog(ITikConnection connection, string message, string logLevelCommandSufix)
+        {
+            var cmd =connection.CreateCommand("/log/" + logLevelCommandSufix,
+                connection.CreateParameter("message", message));
+            cmd.ExecuteNonQuery();
+        }
+
+        /// <summary>
+        /// Writes debug message into mikrotik log.
+        /// </summary>
+        public static void Debug(ITikConnection connection, string message)
+        {
+            WriteToLog(connection, message, "debug");
+        }
+
+        /// <summary>
+        /// Writes info message into mikrotik log.
+        /// </summary>
+        public static void Info(ITikConnection connection, string message)
+        {
+            WriteToLog(connection, message, "info");
+        }
+
+        /// <summary>
+        /// Writes warning message into mikrotik log.
+        /// </summary>
+        public static void Warning(ITikConnection connection, string message)
+        {
+            WriteToLog(connection, message, "warning");
+        }
+
+        /// <summary>
+        /// Writes error message into mikrotik log.
+        /// </summary>
+        public static void WriteErrorMessage(ITikConnection connection, string message)
+        {
+            WriteToLog(connection, message, "error");
+        }
+        #endregion
     }
 }
