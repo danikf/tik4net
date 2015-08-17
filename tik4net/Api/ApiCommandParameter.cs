@@ -30,6 +30,8 @@ namespace tik4net.Api
 
         public ApiCommandParameter(string name)
         {
+            Guard.ArgumentNotNullOrEmptyString(name, "name");
+
             _name = name;
         }
 

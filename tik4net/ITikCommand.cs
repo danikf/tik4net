@@ -24,6 +24,8 @@ namespace tik4net
 
         void ExecuteAsync(Action<ITikReSentence> oneResponseCallback);
 
+        ITikCommandParameter AddParameter(string name, string value);
+
         void Cancel();
     }
 }

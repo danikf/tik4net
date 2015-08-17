@@ -4,11 +4,11 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{DD32E354-19C0-4992-902B-9CDD8E53E879}</ProjectGuid>
-    <OutputType>Library</OutputType>
+    <ProjectGuid>{2DAABB3C-E415-481E-AC71-F637BCC7927D}</ProjectGuid>
+    <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>tik4net.Objects</RootNamespace>
-    <AssemblyName>tik4net.objects</AssemblyName>
+    <RootNamespace>tik4net.console</RootNamespace>
+    <AssemblyName>tik4net.console</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -32,11 +32,9 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
-  <PropertyGroup>
-    <StartupObject />
-  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -46,15 +44,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Ip\Firewall\AddressList.cs" />
-    <Compile Include="Log.cs" />
+    <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TikEntityAttribute.cs" />
-    <Compile Include="TikEntityMetadata.cs" />
-    <Compile Include="TikEntityMetadataCache.cs" />
-    <Compile Include="TikEntityPropertyAccessor.cs" />
-    <Compile Include="TikConnectionExtensions.cs" />
-    <Compile Include="TikPropertyAttribute.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\tik4net\tik4net.csproj">

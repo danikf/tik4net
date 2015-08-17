@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using tik4net.Api;
 using tik4net.Objects;
+using tik4net.Objects.Ip.Firewall;
 
 namespace tik4net.examples
 {
@@ -20,8 +21,14 @@ namespace tik4net.examples
                 connection.Open(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
 
                 //Identity(connection);
+
                 //Torch(connection);
-                Log(connection);
+
+                //Log(connection);
+
+                //PrintAddressList(connection);
+                //CreateAddressList(connection);
+                //PrintAddressList(connection);
 
                 Console.WriteLine("Finito - press ENTER");
                 Console.ReadLine();
@@ -68,10 +75,35 @@ namespace tik4net.examples
         private static void Log(ITikConnection connection)
         {
             var logs = connection.LoadList<Log>();
-            foreach(Log log in logs)
+            foreach (Log log in logs)
             {
                 Console.WriteLine("{0}[{1}]: {2}", log.Time, log.Topics, log.Message);
             }
+        }
+
+
+        const string listName = "TEST_LIST";
+        private static void PrintAddressList(ITikConnection connection)
+        {
+            const string listName = "TEST_LIST";
+            var addressLists = connection.LoadList<AddressList>(
+                connection.CreateParameter("list", listName));
+            foreach (AddressList addressList in addressLists)
+            {
+                Console.WriteLine("{0}{1}: {2} {3}", addressList.Disabled ? "X" : " ", addressList.Dynamic ? "D" : " ", addressList.Address, addressList.List);
+            }
+        }
+
+        private static void CreateAddressList(ITikConnection connection)
+        {
+            var newAddressList = new AddressList()
+            {
+                Address = "192.168.1.1",
+                List = listName,
+                Comment = "test comment",
+            };
+
+            connection.Save(newAddressList);
         }
     }
 }

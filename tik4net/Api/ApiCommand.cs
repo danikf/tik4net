@@ -16,6 +16,8 @@ namespace tik4net.Api
         private ApiConnection _connection;
         private string _commandText;
 
+        private enum ApiCommandParameterFormat { Filter, Data }
+
         public ITikConnection Connection
         {
             get { return _connection; }
@@ -83,12 +85,26 @@ namespace tik4net.Api
                 throw new InvalidOperationException("CommandText is not set.");
         }
 
-        private string[] ConstructCommandText()
+        private string[] ConstructCommandText(ApiCommandParameterFormat parameterFormat)
         {
             EnsureCommandTextSet();
 
-            return new string[] { CommandText }
-                .Concat(_parameters.Select(p => string.Format("={0}={1}", p.Name, p.Value))).ToArray();
+            string commandText = CommandText;
+            if (!string.IsNullOrWhiteSpace(commandText) && !commandText.Contains("\n") && !commandText.StartsWith("/"))
+                commandText = "/" + commandText;
+
+            if (parameterFormat == ApiCommandParameterFormat.Data)
+            {
+                return new string[] { commandText }
+                    .Concat(_parameters.Select(p => string.Format("={0}={1}", p.Name, p.Value))).ToArray();
+            }
+            else if (parameterFormat == ApiCommandParameterFormat.Filter)
+            {
+                return new string[] { commandText }
+                    .Concat(_parameters.Select(p => string.Format("?{0}={1}", p.Name, p.Value))).ToArray();
+            }
+            else
+                throw new NotImplementedException(string.Format("ApiCommandParameterFormat {0} not supported.", parameterFormat));
         }
 
         private IEnumerable<ApiSentence> EnsureApiSentences(IEnumerable<ITikSentence> sentences)
@@ -155,7 +171,7 @@ namespace tik4net.Api
             _isRuning = true;
             try
             {
-                string[] commandRows = ConstructCommandText();
+                string[] commandRows = ConstructCommandText(ApiCommandParameterFormat.Data);
                 IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
                 ThrowPossibleResponseError(response.ToArray());
 
@@ -177,7 +193,7 @@ namespace tik4net.Api
             _isRuning = true;
             try
             {
-                string[] commandRows = ConstructCommandText();
+                string[] commandRows = ConstructCommandText(ApiCommandParameterFormat.Data);
                 IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
                 ThrowPossibleResponseError(response.ToArray());
 
@@ -200,7 +216,7 @@ namespace tik4net.Api
             _isRuning = true;
             try
             {
-                string[] commandRows = ConstructCommandText();
+                string[] commandRows = ConstructCommandText(ApiCommandParameterFormat.Filter);
                 IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
                 ThrowPossibleResponseError(response.ToArray());
 
@@ -225,7 +241,7 @@ namespace tik4net.Api
             _isRuning = true;
             try
             {
-                string[] commandRows = ConstructCommandText();
+                string[] commandRows = ConstructCommandText(ApiCommandParameterFormat.Filter);
                 IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
                 ThrowPossibleResponseError(response.ToArray());
 
@@ -251,7 +267,7 @@ namespace tik4net.Api
 
             try
             {
-                string[] commandRows = ConstructCommandText();
+                string[] commandRows = ConstructCommandText(ApiCommandParameterFormat.Data);
                 _connection.CallCommandAsync(commandRows, tag.ToString(),
                                         response =>
                                         {
@@ -290,6 +306,14 @@ namespace tik4net.Api
                 ApiCommand cancellCommand = new ApiCommand(_connection, "/cancel", new ApiCommandParameter("tag", _runningTag.ToString()));
                 cancellCommand.ExecuteNonQuery();
             }
+        }
+
+        public ITikCommandParameter AddParameter(string name, string value)
+        {
+            ApiCommandParameter result = new ApiCommandParameter(name, value);
+            _parameters.Add(result);
+
+            return result;
         }
 
         public override string ToString()

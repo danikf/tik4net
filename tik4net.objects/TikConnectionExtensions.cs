@@ -8,19 +8,42 @@ namespace tik4net.Objects
 {
     public static class TikConnectionExtensions
     {
-        public static IEnumerable<TEntity> LoadList<TEntity>(this ITikConnection connection)
+        #region -- LOAD --
+        /// <summary>
+        /// Alias to <see cref="LoadList{TEntity}(ITikConnection, ITikCommandParameter[])"/> without filter.
+        /// </summary>
+        /// <typeparam name="TEntity">Loaded entities type.</typeparam>
+        /// <param name="connection">Tik connection used to load.</param>
+        /// <returns>Loaded list of entities.</returns>
+        public static IEnumerable<TEntity> LoadAll<TEntity>(this ITikConnection connection)
+            where TEntity : new()
+        {
+            return LoadList<TEntity>(connection);
+        }
+
+        public static TEntity LoadById<TEntity>(this ITikConnection connection, string id)
+            where TEntity : new()
+        {
+            return LoadList<TEntity>(connection, connection.CreateParameter(".id", id)).SingleOrDefault();
+        }
+
+        public static IEnumerable<TEntity> LoadList<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filter)
             where TEntity : new()
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
 
             ITikCommand command = connection.CreateCommand(metadata.EntityPath + "/print");
             if (metadata.IncludeDetails)
-                command.Parameters.Add(connection.CreateParameter("detail", ""));
+                command.AddParameter("detail", "");
+            foreach(ITikCommandParameter filterParam in filter)
+            {
+                command.Parameters.Add(filterParam);
+            }
 
             return LoadList<TEntity>(command);
         }
 
-        public static IEnumerable<TEntity> LoadList<TEntity>(ITikCommand command)
+        private static IEnumerable<TEntity> LoadList<TEntity>(ITikCommand command)
             where TEntity : new()
         {            
             var responseSentences = command.ExecuteList();
@@ -36,32 +59,61 @@ namespace tik4net.Objects
             TEntity result = new TEntity();
             foreach(var property in metadata.Properties)
             {
-                object propValue = GetValueFromSentence(sentence, property);
-                property.PropertyIfo.SetValue(result, propValue); //NOTE: works event if setter is private
+                property.SetEntityValue(result, GetValueFromSentence(sentence, property)); 
             }
 
             return result;
         }
 
-        private static object GetValueFromSentence(ITikReSentence sentence, TikEntityPropertyDescriptor property)
+        private static string GetValueFromSentence(ITikReSentence sentence, TikEntityPropertyAccessor property)
         {
             //Read field value (or get default value)
-            string wordValue;
             if (property.IsMandatory)
-                wordValue = sentence.GetResponseField(property.FieldName);
+                return sentence.GetResponseField(property.FieldName);
             else
-                wordValue = sentence.GetResponseFieldOrDefault(property.FieldName, property.DefaultValue);
+            {
+                string defaultValue = property.DefaultValue;
+                if (defaultValue == null)
+                {
+                    if (property.PropertyType.IsValueType)
+                    {
+                        defaultValue = Convert.ToString(Activator.CreateInstance(property.PropertyType)); //default value
+                    }
+                    else
+                        defaultValue = "";
+                }
 
-
-            //convert to property type            
-            if (property.PropertyType == typeof(string))
-                return wordValue;
-            else if (property.PropertyType == typeof(int))
-                return int.Parse(wordValue);
-            else if (property.PropertyType == typeof(long))
-                return long.Parse(wordValue);
-            else
-                throw new NotImplementedException(string.Format("Property type {0} not supported.", property.PropertyType));
+                return sentence.GetResponseFieldOrDefault(property.FieldName, defaultValue);
+            }
         }
+
+        #endregion
+
+        #region -- SAVE --
+        public static void Save<TEntity>(this ITikConnection connection, TEntity entity)
+            where TEntity : new()
+        {            
+            var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
+            string id = metadata.IdProperty.GetEntityValue(entity, false);
+
+            ITikCommand cmd = connection.CreateCommand(metadata.EntityPath + (string.IsNullOrEmpty(id) ? "/add" : "/set"));
+            if (!string.IsNullOrEmpty(id))
+                cmd.AddParameter(".id", id);
+            foreach (var property in metadata.Properties.Where(pm => !pm.IsReadOnly))
+            {
+                cmd.AddParameter(property.FieldName, property.GetEntityValue(entity, true) ?? "");
+            }
+
+            if (string.IsNullOrEmpty(id)) //create
+            {
+                id = cmd.ExecuteScalar();
+                metadata.IdProperty.SetEntityValue(entity, id); // update saved id into entity                
+            }
+            else //update
+            {
+                cmd.ExecuteNonQuery();
+            }
+        }
+        #endregion
     }
 }

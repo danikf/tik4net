@@ -9,16 +9,21 @@ namespace tik4net.Objects
 {
     public class TikEntityMetadata
     {
-        private List<TikEntityPropertyDescriptor> _properties;
+        private Dictionary<string, TikEntityPropertyAccessor> _properties;
 
-        public IReadOnlyList<TikEntityPropertyDescriptor> Properties
+        public IEnumerable<TikEntityPropertyAccessor> Properties
         {
-            get { return _properties.AsReadOnly(); }
+            get { return _properties.Values; }
         }        
 
         public string EntityPath { get; private set; }
         public bool IsReadOnly { get; private set; }
         public bool IncludeDetails { get; private set; }
+
+        public TikEntityPropertyAccessor IdProperty
+        {
+            get { return GetPopertyDescriptor(".id"); }
+        }
 
         public TikEntityMetadata(Type entityType)
         {
@@ -33,8 +38,13 @@ namespace tik4net.Objects
             //properties
             _properties = entityType.GetProperties()
                 .Where(propInfo => propInfo.GetCustomAttribute<TikPropertyAttribute>(true) != null)
-                .Select(propInfo => new TikEntityPropertyDescriptor(propInfo))
-                .ToList();
+                .Select(propInfo => new TikEntityPropertyAccessor(propInfo))
+                .ToDictionary(propDescriptor => propDescriptor.FieldName);                
+        }
+
+        public TikEntityPropertyAccessor GetPopertyDescriptor(string propertyName)
+        {
+            return _properties[propertyName];
         }
     }
 }
