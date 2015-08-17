@@ -91,7 +91,6 @@ namespace tik4net.Objects
 
         #region -- SAVE --
         public static void Save<TEntity>(this ITikConnection connection, TEntity entity)
-            where TEntity : new()
         {            
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             string id = metadata.IdProperty.GetEntityValue(entity, false);
@@ -113,6 +112,20 @@ namespace tik4net.Objects
             {
                 cmd.ExecuteNonQuery();
             }
+        }
+        #endregion
+
+        #region -- DELETE --
+        public static void Delete<TEntity>(this ITikConnection connection, TEntity entity)
+        {
+            var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
+            string id = metadata.IdProperty.GetEntityValue(entity, false);
+            if (string.IsNullOrEmpty(id))
+                throw new ArgumentException("Entity has no .id (entity is not loaded from mikrotik router)", "entity");
+
+            ITikCommand cmd = connection.CreateCommand(metadata.EntityPath + "/remove",
+                connection.CreateParameter(".id", id));
+            cmd.ExecuteNonQuery();
         }
         #endregion
     }

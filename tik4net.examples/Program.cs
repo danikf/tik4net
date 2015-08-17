@@ -26,9 +26,13 @@ namespace tik4net.examples
 
                 //Log(connection);
 
-                //PrintAddressList(connection);
-                //CreateAddressList(connection);
-                //PrintAddressList(connection);
+                PrintAddressList(connection);
+                CreateOrUpdateAddressList(connection);
+                PrintAddressList(connection);
+                CreateOrUpdateAddressList(connection);
+                PrintAddressList(connection);
+                DeleteAddressList(connection);
+                PrintAddressList(connection);
 
                 Console.WriteLine("Finito - press ENTER");
                 Console.ReadLine();
@@ -83,27 +87,49 @@ namespace tik4net.examples
 
 
         const string listName = "TEST_LIST";
+        const string ipAddress = "192.168.1.1";
         private static void PrintAddressList(ITikConnection connection)
         {
-            const string listName = "TEST_LIST";
             var addressLists = connection.LoadList<AddressList>(
                 connection.CreateParameter("list", listName));
             foreach (AddressList addressList in addressLists)
             {
-                Console.WriteLine("{0}{1}: {2} {3}", addressList.Disabled ? "X" : " ", addressList.Dynamic ? "D" : " ", addressList.Address, addressList.List);
+                Console.WriteLine("{0}{1}: {2} {3} ({4})", addressList.Disabled ? "X" : " ", addressList.Dynamic ? "D" : " ", addressList.Address, addressList.List, addressList.Comment);
             }
         }
 
-        private static void CreateAddressList(ITikConnection connection)
+        private static void CreateOrUpdateAddressList(ITikConnection connection)
         {
-            var newAddressList = new AddressList()
+            var existingAddressList = connection.LoadList<AddressList>(
+                connection.CreateParameter("list", listName),
+                connection.CreateParameter("address", ipAddress)).SingleOrDefault();
+            if (existingAddressList == null)
             {
-                Address = "192.168.1.1",
-                List = listName,
-                Comment = "test comment",
-            };
+                //Create
+                var newAddressList = new AddressList()
+                {
+                    Address = ipAddress,
+                    List = listName,
+                };
+                connection.Save(newAddressList);
+            }
+            else
+            {
+                //Update
+                existingAddressList.Comment = "Comment update: " + DateTime.Now.ToShortTimeString();
 
-            connection.Save(newAddressList);
+                connection.Save(existingAddressList);
+            }
+        }
+
+        private static void DeleteAddressList(ITikConnection connection)
+        {
+            var existingAddressList = connection.LoadList<AddressList>(
+                connection.CreateParameter("list", listName),
+                connection.CreateParameter("address", ipAddress)).SingleOrDefault();
+
+            if (existingAddressList != null)
+                connection.Delete(existingAddressList);
         }
     }
 }
