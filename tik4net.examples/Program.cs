@@ -26,12 +26,20 @@ namespace tik4net.examples
 
                 //Log(connection);
 
+                //PrintAddressList(connection);
+                //CreateOrUpdateAddressList(connection);
+                //PrintAddressList(connection);
+                //CreateOrUpdateAddressList(connection);
+                //PrintAddressList(connection);
+                //DeleteAddressList(connection);
+                //PrintAddressList(connection);
+
                 PrintAddressList(connection);
-                CreateOrUpdateAddressList(connection);
+                CreateOrUpdateAddressListMulti(connection);
                 PrintAddressList(connection);
-                CreateOrUpdateAddressList(connection);
+                CreateOrUpdateAddressListMulti(connection);
                 PrintAddressList(connection);
-                DeleteAddressList(connection);
+                DeleteAddressListMulti(connection);
                 PrintAddressList(connection);
 
                 Console.WriteLine("Finito - press ENTER");
@@ -88,6 +96,7 @@ namespace tik4net.examples
 
         const string listName = "TEST_LIST";
         const string ipAddress = "192.168.1.1";
+        const string ipAddress2 = "192.168.1.2";
         private static void PrintAddressList(ITikConnection connection)
         {
             var addressLists = connection.LoadList<AddressList>(
@@ -131,5 +140,53 @@ namespace tik4net.examples
             if (existingAddressList != null)
                 connection.Delete(existingAddressList);
         }
+
+        private static void CreateOrUpdateAddressListMulti(ITikConnection connection)
+        {
+            var existingAddressList = connection.LoadList<AddressList>(
+                connection.CreateParameter("list", listName)).ToList();
+            var listClonedBackup = existingAddressList.CloneEntityList(); //creates clone of all entities in list
+
+            if (existingAddressList.Count() <= 0)
+            {
+                //Create (just in memory)
+                existingAddressList.Add(
+                    new AddressList()
+                    {
+                        Address = ipAddress,
+                        List = listName,
+                    });
+                existingAddressList.Add(
+                    new AddressList()
+                    {
+                        Address = ipAddress2,
+                        List = listName,
+                    });
+            }
+            else
+            {
+                //Update (just in memory)
+                foreach (var addressList in existingAddressList)
+                {
+                    addressList.Comment = "Comment update: " + DateTime.Now.ToShortTimeString();
+                }
+            }
+
+            //save differences into mikrotik  (existingAddressList=modified, listClonedBackup=unmodified)
+            connection.SaveListDifferences(existingAddressList, listClonedBackup);
+        }
+
+        private static void DeleteAddressListMulti(ITikConnection connection)
+        {
+            var existingAddressList = connection.LoadList<AddressList>(
+                connection.CreateParameter("list", listName)).ToList();
+            var listClonedBackup = existingAddressList.CloneEntityList(); //creates clone of all entities in list
+
+            existingAddressList.Clear();
+
+            //save differences into mikrotik  (existingAddressList=modified, listClonedBackup=unmodified)
+            connection.SaveListDifferences(existingAddressList, listClonedBackup);
+        }
+
     }
 }

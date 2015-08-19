@@ -8,7 +8,7 @@ using tik4net.Api;
 
 namespace tik4net.console
 {
-    class Program
+    class ConsoleProgram
     {
         static void Main(string[] args)
         {

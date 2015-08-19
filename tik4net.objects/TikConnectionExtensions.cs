@@ -93,7 +93,7 @@ namespace tik4net.Objects
         public static void Save<TEntity>(this ITikConnection connection, TEntity entity)
         {            
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
-            string id = metadata.IdProperty.GetEntityValue(entity, false);
+            string id = metadata.IdProperty.GetEntityValue(entity);
 
             ITikCommand cmd = connection.CreateCommand(metadata.EntityPath + (string.IsNullOrEmpty(id) ? "/add" : "/set"));
             if (!string.IsNullOrEmpty(id))
@@ -113,6 +113,47 @@ namespace tik4net.Objects
                 cmd.ExecuteNonQuery();
             }
         }
+
+        public static void SaveListDifferences<TEntity>(this ITikConnection connection, IEnumerable<TEntity> modifiedList, IEnumerable<TEntity> unmodifiedList)
+        {
+            var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
+            var idProperty = metadata.IdProperty;
+            
+            var entitiesToCreate = modifiedList.Where(entity => string.IsNullOrEmpty(idProperty.GetEntityValue(entity))).ToList(); // new items in modifiedList
+
+            Dictionary<string, TEntity> modifiedEntities = modifiedList
+                .Where(entity => !string.IsNullOrEmpty(idProperty.GetEntityValue(entity)))
+                .ToDictionary(entity => idProperty.GetEntityValue(entity)); //all entities from modified list with ids
+            Dictionary<string, TEntity> unmodifiedEntities = unmodifiedList
+                //.Where(entity => !string.IsNullOrEmpty(idProperty.GetEntityValue(entity))) - entity in unmodified list has id (is loaded from miktrotik)
+                .ToDictionary(entity => idProperty.GetEntityValue(entity)); //all entities from unmodified list with ids
+
+            //DELETE
+            foreach(string entityId in unmodifiedEntities.Keys.Where(id => !modifiedEntities.ContainsKey(id))) //missing in modified -> deleted
+            {
+                Delete(connection, unmodifiedEntities[entityId]);
+            }
+
+            //CREATE
+            foreach (TEntity entity in entitiesToCreate)
+            {
+                Save(connection, entity);
+            }
+
+            //UPDATE
+            foreach(string entityId in unmodifiedEntities.Keys.Where(id=> modifiedEntities.ContainsKey(id))) // are in both modified and unmodified -> compare values (update/skip)
+            {
+                TEntity modifiedEntity = modifiedEntities[entityId];
+                TEntity unmodifiedEntity = unmodifiedEntities[entityId];
+
+                if (!modifiedEntity.EntityEquals(unmodifiedEntity))
+                {
+                    Save(connection, modifiedEntity);
+                }
+            }
+
+            //TODO support for order!
+        }
         #endregion
 
         #region -- DELETE --
@@ -127,6 +168,29 @@ namespace tik4net.Objects
                 connection.CreateParameter(".id", id));
             cmd.ExecuteNonQuery();
         }
+        #endregion
+
+        #region -- MOVE --
+        public static void Move<TEntity>(this ITikConnection connection, TEntity entityToMove, TEntity entityToMoveBefore)
+        {
+            var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
+            string idToMove = metadata.IdProperty.GetEntityValue(entityToMove, false);
+            string idToMoveBefore = entityToMoveBefore != null ? metadata.IdProperty.GetEntityValue(entityToMoveBefore, false) : null;
+
+            ITikCommand cmd = connection.CreateCommand(metadata.EntityPath + "/move",
+                connection.CreateParameter("numbers", idToMove));
+
+            if (entityToMoveBefore != null)
+                cmd.AddParameter("destination", idToMoveBefore);
+
+            cmd.ExecuteNonQuery();
+        }
+
+        public static void MoveToEnd<TEntity>(this ITikConnection connection, TEntity entityToMove)
+        {
+            Move(connection, entityToMove, default(TEntity));
+        }
+
         #endregion
     }
 }

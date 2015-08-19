@@ -21,8 +21,8 @@ namespace tik4net.Objects
 
         public string DefaultValue { get; private set; }
 
-        private PropertyInfo PropertyInfo { get; set; }     
-        
+        private PropertyInfo PropertyInfo { get; set; }
+
         public TikEntityPropertyAccessor(PropertyInfo propertyInfo)
         {
             PropertyInfo = propertyInfo;
@@ -90,6 +90,11 @@ namespace tik4net.Objects
                 return null;
             else
                 return ConvertToString(propValue);
+        }
+
+        public string GetEntityValue(object entity)
+        {
+            return GetEntityValue(entity, false);
         }
     }
 }
