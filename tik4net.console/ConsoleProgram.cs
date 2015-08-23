@@ -32,7 +32,7 @@ namespace tik4net.console
                     {
                         if (commandRows.Any())
                         {
-                            connection.CallCommandSync(commandRows);
+                            connection.CallCommandSync(commandRows.Where(row=>!string.IsNullOrWhiteSpace(row)));
                             commandRows.Clear();
                         }
                         else

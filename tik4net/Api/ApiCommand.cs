@@ -197,10 +197,22 @@ namespace tik4net.Api
                 IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
                 ThrowPossibleResponseError(response.ToArray());
 
-                ApiSentence responseSentence = EnsureSingleResponse(response);
-                ApiDoneSentence doneSentence =  EnsureDoneResponse(responseSentence);
+                if (response.Count() ==1) //!done + =ret=result word
+                {
+                    ApiDoneSentence doneSentence = EnsureDoneResponse(response.Single());
+                    return doneSentence.GetResponseWord("ret");
+                }
+                else if (response.Count() >= 2)
+                {
+                    EnsureReReponse(response.First());
+                    ApiReSentence reResponse = (ApiReSentence)response.First();
+                    EnsureDoneResponse(response.Last());
 
-                return doneSentence.GetResponseWord("ret");
+                    return reResponse.Words.First().Value; //first word value from !re
+                }
+                else
+                    throw new TikConnectionException("Single !done response or at least one !re sentences expected. (1x!done or Nx!re + 1x!done )", this, response);
+
             }
             finally
             {

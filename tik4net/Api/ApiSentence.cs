@@ -9,7 +9,12 @@ namespace tik4net.Api
 {
     internal abstract class ApiSentence: ITikSentence
     {
-        private readonly string[] _words;
+        private readonly Dictionary<string, string> _words = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase); // <fieldName, value>
+
+        public IReadOnlyDictionary<string,string> Words
+        {
+            get { return _words; }
+        }
 
         public string Tag
         {
@@ -18,24 +23,36 @@ namespace tik4net.Api
 
         public ApiSentence(IEnumerable<string> words)
         {
-            _words = words.ToArray();
+            Regex keyValueRegex = new Regex("^=?(?<KEY>.+)=(?<VALUE>.+)$");
+            foreach(string word in words)
+            {
+                Match match = keyValueRegex.Match(word);
+                if (match.Success)
+                {
+                    string key = match.Groups["KEY"].Value;
+                    string value = match.Groups["VALUE"].Value;
+                    if (!_words.ContainsKey(key))
+                        _words.Add(key, value);
+                    else if (_words[key] != value)
+                        throw new TikSentenceException(string.Format("Duplicit key '{0}' with deffirent values '{1}' vs. '{2}'", key, _words[key], value) , this);
+                    //else - duplicit key but the same value -> OK (workaround mikrotik bug?)
+                }
+            }
         }
 
         protected bool TryGetWordValue(string wordName, out string value)
-        {            
-            Regex keyValueRegex = new Regex("^=?" + wordName.Replace(".", @"\.") +"=(?<VALUE>.+)$");
-            foreach (string row in _words)
-            {
-                Match regexMatch = keyValueRegex.Match(row);
-                if (regexMatch.Success)
-                {
-                    value = regexMatch.Groups["VALUE"].Value;
-                    return true;
-                }
-            }
-
-            value = null;
-            return false;
+        {
+            //Regex keyValueRegex = new Regex("^=?" + wordName.Replace(".", @"\.") +"=(?<VALUE>.+)$");
+            //foreach (string row in _words)
+            //{
+            //    Match regexMatch = keyValueRegex.Match(row);
+            //    if (regexMatch.Success)
+            //    {
+            //        value = regexMatch.Groups["VALUE"].Value;
+            //        return true;
+            //    }
+            //}
+            return _words.TryGetValue(wordName, out value);
         }
 
         protected string GetWordValueOrDefault(string wordName, string defaultValue)

@@ -12,6 +12,11 @@ namespace tik4net
     public interface ITikSentence
     {
         /// <summary>
+        /// All sentence words (properties). {fieldName, value}
+        /// </summary>
+        IReadOnlyDictionary<string, string> Words { get; }
+
+        /// <summary>
         /// Tag of sentence (see asynchronous commands fro details).
         /// </summary>
         /// <seealso cref="ITikConnection.CallCommandAsync(IEnumerable{string}, string, Action{ITikSentence})"/>

@@ -70,8 +70,8 @@ namespace tik4net.examples
         private static void Identity(ITikConnection connection)
         {
             ITikCommand cmd = connection.CreateCommand("/system/identity/print");
-            var identity = cmd.ExecuteSingleRow();
-            Console.WriteLine("Identity: " + identity.GetResponseField("name"));
+            var identity = cmd.ExecuteScalar(); //cmd.ExecuteSIngleRow()
+            Console.WriteLine("Identity: " + /*identity.GetResponseField("name")*/ identity);
 
             Console.WriteLine("Press ENTER");
             Console.ReadLine();

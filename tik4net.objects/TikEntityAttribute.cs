@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace tik4net.Objects
 {
     /// <summary>
-    /// Attribute that should decorates <see cref="ITikEntity"/> implementor class.
+    /// Attribute that is used to decorate tik entity class.
     /// </summary>
     [AttributeUsage(AttributeTargets.Class)]
     public sealed class TikEntityAttribute : Attribute
@@ -18,10 +18,6 @@ namespace tik4net.Objects
         /// <value>The entity path.</value>
         public string EntityPath { get; private set; }
 
-        /// <summary>
-        /// Gets the entity edit mode.
-        /// </summary>
-        /// <value>The edit mode.</value>
         public bool IsReadOnly { get; set; }
 
         public bool IncludeDetails { get; set; }
@@ -30,7 +26,6 @@ namespace tik4net.Objects
         /// Initializes a new instance of the <see cref="TikEntityAttribute"/> class.
         /// </summary>
         /// <param name="entityPath">The entity path in API notation (/ip/firewall/mangle).</param>
-        /// <param name="editMode">The entity edit mode.</param>
         public TikEntityAttribute(string entityPath, bool isReadOnly, bool includeDetails)
         {
             Guard.ArgumentNotNullOrEmptyString(entityPath, "entityPath");
@@ -40,7 +35,7 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="TikEntityAttribute"/> class.
+        /// Initializes a new instance of the <see cref="TikEntityAttribute"/> class. ReadOnly = false, IncludeDetails=false.
         /// </summary>
         /// <param name="entityPath">The entity path in API notation (/ip/firewall/mangle).</param>
         public TikEntityAttribute(string entityPath)
