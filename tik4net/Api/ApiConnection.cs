@@ -215,7 +215,7 @@ namespace tik4net.Api
             return GetAll(string.Empty).ToList();
         }
 
-        public string CallCommandAsync(IEnumerable<string> commandRows, string tag, 
+        public void CallCommandAsync(IEnumerable<string> commandRows, string tag, 
             Action<ITikSentence> oneResponseCallback)
         {
             //TODO warning do dokumentace, ze callback je v jinem threadu + example synchronizace
@@ -251,8 +251,6 @@ namespace tik4net.Api
                     //sezereme pripadnou vyjimku z GetOne a nechame dojet thread ko konce
                 }
             }).Start();
-
-            return tag;
         }
 
         public ITikCommand CreateCommand()
@@ -264,6 +262,17 @@ namespace tik4net.Api
         {
             return new ApiCommand(this, commandText, parameters);
         }
+
+        public ITikCommand CreateCommandAndParameters(string commandText, params string[] parameterNamesAndValues)
+        {
+            List<ApiCommandParameter> parameters = new List<ApiCommandParameter>();
+            for (int idx = 0; idx < parameterNamesAndValues.Length / 2; idx++)   // name, value, name, value, ... sequence
+            {
+                parameters.Add(new ApiCommandParameter(parameterNamesAndValues[idx * 2], parameterNamesAndValues[idx * 2 + 1]));
+            }
+
+            return new ApiCommand(this, commandText, parameters.ToArray());
+        }        
 
         public ITikCommandParameter CreateParameter(string name, string value)
         {

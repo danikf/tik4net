@@ -9,22 +9,29 @@ namespace tik4net.Objects
 {
     public sealed class TikEntityPropertyAccessor
     {
+        private readonly TikEntityMetadata _owner;
+        private bool _isReadOnly;
+
         public string PropertyName { get; private set; }
 
         public Type PropertyType { get; private set; }
 
         public string FieldName { get; private set; }
 
-        public bool IsReadOnly { get; private set; }
-
+        public bool IsReadOnly
+        {
+            get { return _isReadOnly || _owner.IsReadOnly; }
+        }
         public bool IsMandatory { get; private set; }
 
         public string DefaultValue { get; private set; }
 
         private PropertyInfo PropertyInfo { get; set; }
 
-        public TikEntityPropertyAccessor(PropertyInfo propertyInfo)
+        public TikEntityPropertyAccessor(TikEntityMetadata owner, PropertyInfo propertyInfo)
         {
+            _owner = owner;
+
             PropertyInfo = propertyInfo;
 
             //From property code
@@ -36,7 +43,7 @@ namespace tik4net.Objects
             if (propertyAttribute == null)
                 throw new ArgumentException("Property must be decorated by TikPropertyAttribute.", "propertyInfo");
             FieldName = propertyAttribute.FieldName;
-            IsReadOnly = (propertyInfo.SetMethod == null) || (!propertyInfo.CanWrite) || (propertyAttribute.IsReadOnly);
+            _isReadOnly = (propertyInfo.SetMethod == null) || (!propertyInfo.CanWrite) || (propertyAttribute.IsReadOnly);
             IsMandatory = propertyAttribute.IsMandatory;
             DefaultValue = propertyAttribute.DefaultValue;
         }

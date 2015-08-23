@@ -90,9 +90,16 @@ namespace tik4net.Objects
         #endregion
 
         #region -- SAVE --
+        private static void EnsureNotReadonlyEntity(TikEntityMetadata entityMetadata)
+        {
+            if (entityMetadata.IsReadOnly)
+                throw new InvalidOperationException("Can not save R/O entity.");
+        }
+
         public static void Save<TEntity>(this ITikConnection connection, TEntity entity)
         {            
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
+            EnsureNotReadonlyEntity(metadata);
             string id = metadata.IdProperty.GetEntityValue(entity);
 
             ITikCommand cmd = connection.CreateCommand(metadata.EntityPath + (string.IsNullOrEmpty(id) ? "/add" : "/set"));
@@ -117,6 +124,7 @@ namespace tik4net.Objects
         public static void SaveListDifferences<TEntity>(this ITikConnection connection, IEnumerable<TEntity> modifiedList, IEnumerable<TEntity> unmodifiedList)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
+            EnsureNotReadonlyEntity(metadata);
             var idProperty = metadata.IdProperty;
             
             var entitiesToCreate = modifiedList.Where(entity => string.IsNullOrEmpty(idProperty.GetEntityValue(entity))).ToList(); // new items in modifiedList
@@ -160,12 +168,13 @@ namespace tik4net.Objects
         public static void Delete<TEntity>(this ITikConnection connection, TEntity entity)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
+            EnsureNotReadonlyEntity(metadata);
             string id = metadata.IdProperty.GetEntityValue(entity, false);
             if (string.IsNullOrEmpty(id))
                 throw new ArgumentException("Entity has no .id (entity is not loaded from mikrotik router)", "entity");
 
-            ITikCommand cmd = connection.CreateCommand(metadata.EntityPath + "/remove",
-                connection.CreateParameter(".id", id));
+            ITikCommand cmd = connection.CreateCommandAndParameters(metadata.EntityPath + "/remove",
+                ".id", id);
             cmd.ExecuteNonQuery();
         }
         #endregion
@@ -177,8 +186,8 @@ namespace tik4net.Objects
             string idToMove = metadata.IdProperty.GetEntityValue(entityToMove, false);
             string idToMoveBefore = entityToMoveBefore != null ? metadata.IdProperty.GetEntityValue(entityToMoveBefore, false) : null;
 
-            ITikCommand cmd = connection.CreateCommand(metadata.EntityPath + "/move",
-                connection.CreateParameter("numbers", idToMove));
+            ITikCommand cmd = connection.CreateCommandAndParameters(metadata.EntityPath + "/move",
+                "numbers", idToMove);
 
             if (entityToMoveBefore != null)
                 cmd.AddParameter("destination", idToMoveBefore);

@@ -38,7 +38,7 @@ namespace tik4net.Objects
             //properties
             _properties = entityType.GetProperties()
                 .Where(propInfo => propInfo.GetCustomAttribute<TikPropertyAttribute>(true) != null)
-                .Select(propInfo => new TikEntityPropertyAccessor(propInfo))
+                .Select(propInfo => new TikEntityPropertyAccessor(this, propInfo))
                 .ToDictionary(propDescriptor => propDescriptor.FieldName);                
         }
 

@@ -16,15 +16,20 @@ namespace tik4net.examples
         {
             using (ITikConnection connection = new ApiConnection())
             {
-                connection.OnReadRow += Connection_OnReadRow;
-                connection.OnWriteRow += Connection_OnWriteRow;
+                connection.OnReadRow += Connection_OnReadRow;   // logging commands to cosole
+                connection.OnWriteRow += Connection_OnWriteRow; // logging commands to cosole
                 connection.Open(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
 
+                //------------------------------------------------
+                //  LOW LEVEL API (hint: uncomment any example call and debug)
                 //Identity(connection);
 
                 //Torch(connection);
 
                 //Log(connection);
+
+                //-------------------------------------------------
+                // HIGHLEVEL API (hint: uncomment any example call and debug)
 
                 //PrintAddressList(connection);
                 //CreateOrUpdateAddressList(connection);
