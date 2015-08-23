@@ -6,8 +6,16 @@ using System.Threading.Tasks;
 
 namespace tik4net
 {
+    /// <summary>
+    /// Base of all sentences returned from mikrotik router as response to request.
+    /// </summary>
     public interface ITikSentence
     {
+        /// <summary>
+        /// Tag of sentence (see asynchronous commands fro details).
+        /// </summary>
+        /// <seealso cref="ITikConnection.CallCommandAsync(IEnumerable{string}, string, Action{ITikSentence})"/>
+        /// <seealso cref="ITikCommand.ExecuteAsync(Action{ITikReSentence})"/>
         string Tag { get; }
     }
 }

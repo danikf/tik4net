@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace tik4net.Api
 {
-    public class ApiCommandParameter: ITikCommandParameter
+    internal class ApiCommandParameter: ITikCommandParameter
     {
         private string _name;
         private string _value;

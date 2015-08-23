@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace tik4net
 {
     /// <summary>
-    /// Provides ADO.NET like api to mikrotik router.
+    /// Provides ADO.NET like api to mikrotik router. Should be used inside of opened <seealso cref="ITikConnection"/>.s
     /// </summary>
     /// <seealso cref="ITikConnection"/>
     /// <seealso cref="TikCommandException"/>
@@ -68,6 +68,13 @@ namespace tik4net
         /// <param name="value">Parameter value</param>
         /// <returns></returns>
         ITikCommandParameter AddParameter(string name, string value);
+
+        /// <summary>
+        /// Adds newly created instances of <see cref="ITikCommand.Parameters"/>.
+        /// </summary>
+        /// <param name="parameterNamesAndValues">Name and value of parameters for command. (name, value, name2, value2, ..., name9, value9, ...)</param>
+        /// <returns>List of created parameters.</returns>
+        IEnumerable<ITikCommandParameter> AddParameterAndValues(params string[] parameterNamesAndValues);
 
         /// <summary>
         /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteAsync"/> has been called).

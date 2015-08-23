@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace tik4net.Api
 {
-    public sealed class ApiConnection : ITikConnection
+    internal sealed class ApiConnection : ITikConnection
     {
         //Inspiration:
         //  http://ayufan.eu/projects/rosapi/repository/entry/trunk/routeros.class.php
@@ -265,19 +265,15 @@ namespace tik4net.Api
 
         public ITikCommand CreateCommandAndParameters(string commandText, params string[] parameterNamesAndValues)
         {
-            List<ApiCommandParameter> parameters = new List<ApiCommandParameter>();
-            for (int idx = 0; idx < parameterNamesAndValues.Length / 2; idx++)   // name, value, name, value, ... sequence
-            {
-                parameters.Add(new ApiCommandParameter(parameterNamesAndValues[idx * 2], parameterNamesAndValues[idx * 2 + 1]));
-            }
+            var result = new ApiCommand(this, commandText);
+            result.AddParameterAndValues(parameterNamesAndValues);
 
-            return new ApiCommand(this, commandText, parameters.ToArray());
-        }        
+            return result;
+        }
 
         public ITikCommandParameter CreateParameter(string name, string value)
         {
             return new ApiCommandParameter(name, value);
         }
-
     }
 }

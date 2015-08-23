@@ -7,6 +7,9 @@ using tik4net.Api;
 
 namespace tik4net
 {
+    /// <summary>
+    /// Factory to create and open mikrotik connection of given type.
+    /// </summary>
     public static class ConnectionFactory
     {
         /// <summary>
@@ -33,7 +36,6 @@ namespace tik4net
         /// </summary>
         /// <param name="connectionType">Type of technology used to connect to mikrotik router.</param>
         /// <param name="host">The host (name or ip).</param>
-        /// <param name="port">TCPIP port.</param>
         /// <param name="user">The user.</param>
         /// <param name="password">The password.</param>
         /// <returns>Opened instance of mikrotik Connection.</returns>

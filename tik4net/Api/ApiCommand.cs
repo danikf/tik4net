@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace tik4net.Api
 {
-    public class ApiCommand: ITikCommand
+    internal class ApiCommand: ITikCommand
     {
         private static volatile int _tagCounter = 0;
         private volatile bool _isRuning;
@@ -295,10 +295,6 @@ namespace tik4net.Api
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <seealso cref="ExcecuteAsyncReader"/>
         public void Cancel()
         {
             if (_isRuning && _runningTag >= 0)
@@ -319,6 +315,17 @@ namespace tik4net.Api
         public override string ToString()
         {
             return string.Join("\n", new string[] { CommandText }.Concat(Parameters.Select(p => "  =" + p.Name + "=" + p.Value)));
+        }
+
+        public IEnumerable<ITikCommandParameter> AddParameterAndValues(params string[] parameterNamesAndValues)
+        {
+            List<ApiCommandParameter> parameters = new List<ApiCommandParameter>();
+            for (int idx = 0; idx < parameterNamesAndValues.Length / 2; idx++)   // name, value, name, value, ... sequence
+            {
+                parameters.Add(new ApiCommandParameter(parameterNamesAndValues[idx * 2], parameterNamesAndValues[idx * 2 + 1]));
+            }
+
+            return parameters;
         }
     }
 }

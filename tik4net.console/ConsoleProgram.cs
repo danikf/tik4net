@@ -12,7 +12,7 @@ namespace tik4net.console
     {
         static void Main(string[] args)
         {
-            using (ITikConnection connection = new ApiConnection())
+            using (ITikConnection connection = ConnectionFactory.CreateConnection(TikConnectionType.Api))
             {
                 connection.OnReadRow += Connection_OnReadRow;
                 connection.OnWriteRow += Connection_OnWriteRow;

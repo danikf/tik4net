@@ -14,7 +14,7 @@ namespace tik4net.examples
     {
         static void Main(string[] args)
         {
-            using (ITikConnection connection = new ApiConnection())
+            using (ITikConnection connection = ConnectionFactory.CreateConnection(TikConnectionType.Api))
             {
                 connection.OnReadRow += Connection_OnReadRow;   // logging commands to cosole
                 connection.OnWriteRow += Connection_OnWriteRow; // logging commands to cosole
@@ -69,7 +69,7 @@ namespace tik4net.examples
 
         private static void Identity(ITikConnection connection)
         {
-            ApiCommand cmd = new ApiCommand(connection, "/system/identity/print");
+            ITikCommand cmd = connection.CreateCommand("/system/identity/print");
             var identity = cmd.ExecuteSingleRow();
             Console.WriteLine("Identity: " + identity.GetResponseField("name"));
 
@@ -79,7 +79,7 @@ namespace tik4net.examples
 
         private static void Torch(ITikConnection connection)
         {
-            ApiCommand torchCmd = new ApiCommand(connection, "/tool/torch", new ApiCommandParameter("interface", "ether1"));
+            ITikCommand torchCmd = connection.CreateCommand("/tool/torch", connection.CreateParameter("interface", "ether1"));
             torchCmd.ExecuteAsync(response =>
             {
                 Console.WriteLine("Row: " + response.GetResponseField("tx"));
