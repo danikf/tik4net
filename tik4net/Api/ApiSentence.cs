@@ -23,7 +23,7 @@ namespace tik4net.Api
 
         public ApiSentence(IEnumerable<string> words)
         {
-            Regex keyValueRegex = new Regex("^=?(?<KEY>.+)=(?<VALUE>.+)$");
+            Regex keyValueRegex = new Regex("^=?(?<KEY>[^=]+)=(?<VALUE>.+)$");
             foreach(string word in words)
             {
                 Match match = keyValueRegex.Match(word);

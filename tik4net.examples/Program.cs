@@ -24,32 +24,32 @@ namespace tik4net.examples
 
                 //------------------------------------------------
                 //  LOW LEVEL API (hint: uncomment any example call and debug)
-                //Identity(connection);
+                Identity(connection);
 
-                //Torch(connection);
+                Torch(connection);
 
-                //Log(connection);
+                Log(connection);
 
                 //-------------------------------------------------
                 // HIGHLEVEL API (hint: uncomment any example call and debug)
 
-                //PrintAddressList(connection);
-                //CreateOrUpdateAddressList(connection);
-                //PrintAddressList(connection);
-                //CreateOrUpdateAddressList(connection);
-                //PrintAddressList(connection);
-                //DeleteAddressList(connection);
-                //PrintAddressList(connection);
+                PrintAddressList(connection);
+                CreateOrUpdateAddressList(connection);
+                PrintAddressList(connection);
+                CreateOrUpdateAddressList(connection);
+                PrintAddressList(connection);
+                DeleteAddressList(connection);
+                PrintAddressList(connection);
 
-                //PrintAddressList(connection);
-                //CreateOrUpdateAddressListMulti(connection);
-                //PrintAddressList(connection);
-                //CreateOrUpdateAddressListMulti(connection);
-                //PrintAddressList(connection);
-                //DeleteAddressListMulti(connection);
-                //PrintAddressList(connection);
+                PrintAddressList(connection);
+                CreateOrUpdateAddressListMulti(connection);
+                PrintAddressList(connection);
+                CreateOrUpdateAddressListMulti(connection);
+                PrintAddressList(connection);
+                DeleteAddressListMulti(connection);
+                PrintAddressList(connection);
 
-                //PrintIpAddresses(connection);
+                PrintIpAddresses(connection);
 
                 PrintSystemResource(connection);
 

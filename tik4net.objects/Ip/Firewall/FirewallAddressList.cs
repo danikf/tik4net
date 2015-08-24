@@ -39,7 +39,7 @@ namespace tik4net.Objects.Ip.Firewall
         [TikProperty("dynamic", IsReadOnly = true)]
         public bool Dynamic { get; private set; }
 
-        [TikProperty("timeout")]
+        [TikProperty("timeout", DefaultValue = "0:00:00")]
         public string Timeout { get; set; }
 
         /// <summary>
