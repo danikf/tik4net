@@ -53,6 +53,8 @@
     <Compile Include="Ip\Firewall\FirewallAddressList.cs" />
     <Compile Include="Log.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Queue\QueueSimple.cs" />
+    <Compile Include="Queue\QueueTree.cs" />
     <Compile Include="Queue\QueueType.cs" />
     <Compile Include="System\SystemResource.cs" />
     <Compile Include="TikEntityAttribute.cs" />

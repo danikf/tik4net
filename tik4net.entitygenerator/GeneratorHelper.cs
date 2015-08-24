@@ -56,7 +56,7 @@ namespace tik4net.entitygenerator
 
         public static bool DetermineFieldMandatory(string name, string value)
         {
-            if (name == ".id")
+            if (name == ".id" || name == "name")
                 return true;
             else if (name == "comment")
                 return false;

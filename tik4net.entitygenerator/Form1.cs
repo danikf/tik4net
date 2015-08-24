@@ -18,13 +18,20 @@ namespace tik4net.entitygenerator
             InitializeComponent();
         }
 
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            tbHost.Text = ConfigurationManager.AppSettings["host"];
+            tbUser.Text = ConfigurationManager.AppSettings["user"];
+            tbPass.Text = ConfigurationManager.AppSettings["pass"];
+        }
+
         private void btnGenerate_Click(object sender, EventArgs e)
         {
             try
             {
                 using (ITikConnection connection = ConnectionFactory.CreateConnection(TikConnectionType.Api))
                 {
-                    connection.Open(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
+                    connection.Open(tbHost.Text, tbUser.Text, tbPass.Text);
 
                     var cmd = connection.CreateCommand(tbPath.Text + "/print");
                     if (cbIncludeDetails.Checked)
@@ -55,7 +62,7 @@ namespace tik4net.entitygenerator
             source.AppendLine("\t{");
 
             Dictionary<string, string> words = new Dictionary<string, string>();
-            foreach(ITikReSentence sentence in tikReSentences)
+            foreach (ITikReSentence sentence in tikReSentences)
             {
                 foreach (var propPair in sentence.Words)
                 {
@@ -89,7 +96,7 @@ namespace tik4net.entitygenerator
                 attrParams.Add("IsMandatory = true");
 
             source.AppendLine(string.Format("\t\t[TikProperty({0})]", string.Join(", ", attrParams)));
-            source.AppendLine(string.Format("\t\tpublic {0} {1} *< get; {2}set; >*", propType, propName, (isReadOnly ? "private " : "")).Replace("*<","{").Replace(">*", "}"));
+            source.AppendLine(string.Format("\t\tpublic {0} {1} *< get; {2}set; >*", propType, propName, (isReadOnly ? "private " : "")).Replace("*<", "{").Replace(">*", "}"));
             source.AppendLine();
         }
     }
