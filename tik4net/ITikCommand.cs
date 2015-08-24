@@ -29,6 +29,11 @@ namespace tik4net
         List<ITikCommandParameter> Parameters { get; }
 
         /// <summary>
+        /// True if =detail= command extension should be added to comamnd request
+        /// </summary>
+        bool IncludeDetails { get; set; }
+
+        /// <summary>
         /// Excecutes given <see cref="CommandText"/> on router and ensures that operation was sucessfull.
         /// </summary>
         void ExecuteNonQuery();

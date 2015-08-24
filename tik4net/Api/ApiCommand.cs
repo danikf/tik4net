@@ -45,6 +45,8 @@ namespace tik4net.Api
             get { return _parameters; }
         }
 
+        public bool IncludeDetails { get; set; }
+
         public ApiCommand()
         {
 
@@ -93,18 +95,23 @@ namespace tik4net.Api
             if (!string.IsNullOrWhiteSpace(commandText) && !commandText.Contains("\n") && !commandText.StartsWith("/"))
                 commandText = "/" + commandText;
 
+            List<string> result = new List<string> { commandText };
+
+            if (IncludeDetails)
+                result.Add("=detail=");
+
             if (parameterFormat == ApiCommandParameterFormat.Data)
             {
-                return new string[] { commandText }
-                    .Concat(_parameters.Select(p => string.Format("={0}={1}", p.Name, p.Value))).ToArray();
+                result.AddRange(_parameters.Select(p => string.Format("={0}={1}", p.Name, p.Value)));
             }
             else if (parameterFormat == ApiCommandParameterFormat.Filter)
             {
-                return new string[] { commandText }
-                    .Concat(_parameters.Select(p => string.Format("?{0}={1}", p.Name, p.Value))).ToArray();
+                result.AddRange(_parameters.Select(p => string.Format("?{0}={1}", p.Name, p.Value)));
             }
             else
                 throw new NotImplementedException(string.Format("ApiCommandParameterFormat {0} not supported.", parameterFormat));
+
+            return result.ToArray();
         }
 
         private IEnumerable<ApiSentence> EnsureApiSentences(IEnumerable<ITikSentence> sentences)

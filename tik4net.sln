@@ -12,6 +12,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.objects", "tik4net.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.console", "tik4net.console\tik4net.console.csproj", "{2DAABB3C-E415-481E-AC71-F637BCC7927D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.entitygenerator", "tik4net.entitygenerator\tik4net.entitygenerator.csproj", "{85F6F563-8858-4626-8AFD-C6F6B245914C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -34,6 +36,10 @@ Global
 		{2DAABB3C-E415-481E-AC71-F637BCC7927D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2DAABB3C-E415-481E-AC71-F637BCC7927D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2DAABB3C-E415-481E-AC71-F637BCC7927D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{85F6F563-8858-4626-8AFD-C6F6B245914C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{85F6F563-8858-4626-8AFD-C6F6B245914C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{85F6F563-8858-4626-8AFD-C6F6B245914C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{85F6F563-8858-4626-8AFD-C6F6B245914C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -41,5 +47,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{07A7C449-8593-4375-8659-AB902C55FF36} = {0436FBF0-DA39-41EC-B052-255BCA0DC913}
 		{2DAABB3C-E415-481E-AC71-F637BCC7927D} = {0436FBF0-DA39-41EC-B052-255BCA0DC913}
+		{85F6F563-8858-4626-8AFD-C6F6B245914C} = {0436FBF0-DA39-41EC-B052-255BCA0DC913}
 	EndGlobalSection
 EndGlobal

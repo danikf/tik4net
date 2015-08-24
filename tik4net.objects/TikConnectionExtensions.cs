@@ -34,7 +34,7 @@ namespace tik4net.Objects
 
             ITikCommand command = connection.CreateCommand(metadata.EntityPath + "/print");
             if (metadata.IncludeDetails)
-                command.AddParameter("detail", "");
+                command.IncludeDetails = true;
             foreach(ITikCommandParameter filterParam in filter)
             {
                 command.Parameters.Add(filterParam);
