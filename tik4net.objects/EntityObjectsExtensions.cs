@@ -46,5 +46,19 @@ namespace tik4net.Objects
 
             return true;
         }
+
+        public static string EntityToString<TEntity>(this TEntity entity)
+        {
+            var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
+
+            StringBuilder sb = new StringBuilder(typeof(TEntity).FullName + ":");
+
+            foreach (var property in metadata.Properties)
+            {
+                sb.AppendLine(string.Format("  {0}={1}", property.FieldName, property.GetEntityValue(entity)));
+            }
+
+            return sb.ToString();
+        }
     }
 }

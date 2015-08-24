@@ -8,6 +8,7 @@ using tik4net.Api;
 using tik4net.Objects;
 using tik4net.Objects.Ip;
 using tik4net.Objects.Ip.Firewall;
+using tik4net.Objects.System;
 
 namespace tik4net.examples
 {
@@ -48,7 +49,9 @@ namespace tik4net.examples
                 //DeleteAddressListMulti(connection);
                 //PrintAddressList(connection);
 
-                PrintIpAddresses(connection);
+                //PrintIpAddresses(connection);
+
+                PrintSystemResource(connection);
 
                 Console.WriteLine("Finito - press ENTER");
                 Console.ReadLine();
@@ -201,9 +204,14 @@ namespace tik4net.examples
             var ipAddresses = connection.LoadList<IpAddress>();
             foreach(IpAddress addr in ipAddresses)
             {
-                Console.WriteLine("{0}: {1}", addr.Interface, addr.Address);
+                Console.WriteLine(addr.EntityToString());
             }
         }
 
+        private static void PrintSystemResource(ITikConnection connection)
+        {
+            var sysRes = connection.LoadAll<SystemResource>().Single();
+            Console.WriteLine(sysRes.EntityToString());
+        }
     }
 }
