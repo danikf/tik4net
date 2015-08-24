@@ -107,9 +107,9 @@ namespace tik4net.examples
         const string ipAddress2 = "192.168.1.2";
         private static void PrintAddressList(ITikConnection connection)
         {
-            var addressLists = connection.LoadList<AddressList>(
+            var addressLists = connection.LoadList<FirewallAddressList>(
                 connection.CreateParameter("list", listName));
-            foreach (AddressList addressList in addressLists)
+            foreach (FirewallAddressList addressList in addressLists)
             {
                 Console.WriteLine("{0}{1}: {2} {3} ({4})", addressList.Disabled ? "X" : " ", addressList.Dynamic ? "D" : " ", addressList.Address, addressList.List, addressList.Comment);
             }
@@ -117,13 +117,13 @@ namespace tik4net.examples
 
         private static void CreateOrUpdateAddressList(ITikConnection connection)
         {
-            var existingAddressList = connection.LoadList<AddressList>(
+            var existingAddressList = connection.LoadList<FirewallAddressList>(
                 connection.CreateParameter("list", listName),
                 connection.CreateParameter("address", ipAddress)).SingleOrDefault();
             if (existingAddressList == null)
             {
                 //Create
-                var newAddressList = new AddressList()
+                var newAddressList = new FirewallAddressList()
                 {
                     Address = ipAddress,
                     List = listName,
@@ -141,7 +141,7 @@ namespace tik4net.examples
 
         private static void DeleteAddressList(ITikConnection connection)
         {
-            var existingAddressList = connection.LoadList<AddressList>(
+            var existingAddressList = connection.LoadList<FirewallAddressList>(
                 connection.CreateParameter("list", listName),
                 connection.CreateParameter("address", ipAddress)).SingleOrDefault();
 
@@ -151,7 +151,7 @@ namespace tik4net.examples
 
         private static void CreateOrUpdateAddressListMulti(ITikConnection connection)
         {
-            var existingAddressList = connection.LoadList<AddressList>(
+            var existingAddressList = connection.LoadList<FirewallAddressList>(
                 connection.CreateParameter("list", listName)).ToList();
             var listClonedBackup = existingAddressList.CloneEntityList(); //creates clone of all entities in list
 
@@ -159,13 +159,13 @@ namespace tik4net.examples
             {
                 //Create (just in memory)
                 existingAddressList.Add(
-                    new AddressList()
+                    new FirewallAddressList()
                     {
                         Address = ipAddress,
                         List = listName,
                     });
                 existingAddressList.Add(
-                    new AddressList()
+                    new FirewallAddressList()
                     {
                         Address = ipAddress2,
                         List = listName,
@@ -186,7 +186,7 @@ namespace tik4net.examples
 
         private static void DeleteAddressListMulti(ITikConnection connection)
         {
-            var existingAddressList = connection.LoadList<AddressList>(
+            var existingAddressList = connection.LoadList<FirewallAddressList>(
                 connection.CreateParameter("list", listName)).ToList();
             var listClonedBackup = existingAddressList.CloneEntityList(); //creates clone of all entities in list
 

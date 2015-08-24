@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace tik4net.Objects
 {
-    [TikEntity("/interface")]
+    [TikEntity("/interface", IncludeDetails = true)]
     public class Interface
     {
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
@@ -59,6 +59,12 @@ namespace tik4net.Objects
 
         [TikProperty("disabled")]
         public bool Disabled { get; set; }
+
+        /// <summary>
+        /// Row comment property.
+        /// </summary>
+        [TikProperty("comment")]
+        public string Comment { get; set; }
     }
 
 }

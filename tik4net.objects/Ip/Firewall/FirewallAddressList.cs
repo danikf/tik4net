@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace tik4net.Objects.Ip.Firewall
 {
-    [TikEntity("/ip/firewall/address-list")]
-    public class AddressList
+    [TikEntity("/ip/firewall/address-list", IncludeDetails = true)]
+    public class FirewallAddressList
     {
         /// <summary>
         /// Row .id property.
@@ -38,6 +38,9 @@ namespace tik4net.Objects.Ip.Firewall
         /// </summary>
         [TikProperty("dynamic", IsReadOnly = true)]
         public bool Dynamic { get; private set; }
+
+        [TikProperty("timeout")]
+        public string Timeout { get; set; }
 
         /// <summary>
         /// Row list property.

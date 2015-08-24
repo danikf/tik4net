@@ -27,12 +27,13 @@ namespace tik4net.entitygenerator
                     connection.Open(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
 
                     var cmd = connection.CreateCommand(tbPath.Text + "/print");
-                    cmd.IncludeDetails = true;
+                    if (cbIncludeDetails.Checked)
+                        cmd.IncludeDetails = true;
                     var rows = cmd.ExecuteList();
 
                     if (rows.Any())
                     {
-                        tbSourceCode.Text = Generate(tbPath.Text, rows.First());
+                        tbSourceCode.Text = Generate(tbPath.Text, cbIncludeDetails.Checked, rows.First());
                         tbSourceCode.SelectAll();
                         tbSourceCode.Focus();
                     }
@@ -46,10 +47,10 @@ namespace tik4net.entitygenerator
             }
         }
 
-        private static string Generate(string entityPath, ITikReSentence tikReSentence)
+        private static string Generate(string entityPath, bool includeDetails, ITikReSentence tikReSentence)
         {
             StringBuilder source = new StringBuilder();
-            source.AppendLine(string.Format("\t[TikEntity(\"{0}\")]", entityPath));
+            source.AppendLine(string.Format("\t[TikEntity(\"{0}\"{1})]", entityPath, includeDetails ? ", IncludeDetails = true" : ""));
             source.AppendLine(string.Format("\tpublic class {0}", "ENTITY_NAME"));
             source.AppendLine("\t{");
             foreach (var propPair in tikReSentence.Words)
