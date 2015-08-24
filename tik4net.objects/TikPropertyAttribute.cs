@@ -32,6 +32,8 @@ namespace tik4net.Objects
 
         public string DefaultValue { get; set; }
 
+        public bool UnsetWhenDefault { get; set; }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="TikPropertyAttribute"/> class.
         /// </summary>
@@ -39,7 +41,7 @@ namespace tik4net.Objects
         /// <param name="propertyType">Data type of the property.</param>
         /// <param name="mandatory">if set to <c>true</c> [mandatory].</param>
         /// <param name="editMode">The property edit mode.</param>
-        public TikPropertyAttribute(string fieldName, bool isMandatory, bool isReadOnly, string defaultValue)
+        public TikPropertyAttribute(string fieldName, bool isMandatory, bool isReadOnly, string defaultValue, bool unsetWhenDefault)
         {
             Guard.ArgumentNotNullOrEmptyString(fieldName, "fieldName");
 
@@ -47,6 +49,7 @@ namespace tik4net.Objects
             IsMandatory = isMandatory;
             IsReadOnly = isReadOnly;
             DefaultValue = defaultValue;
+            UnsetWhenDefault = unsetWhenDefault;
         }
 
         public TikPropertyAttribute(string fieldName)
@@ -56,6 +59,7 @@ namespace tik4net.Objects
             IsMandatory = false;
             IsReadOnly = false;
             DefaultValue = null;
+            UnsetWhenDefault = false;
         }
     }
 }

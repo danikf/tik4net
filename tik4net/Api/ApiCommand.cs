@@ -336,6 +336,7 @@ namespace tik4net.Api
             {
                 parameters.Add(new ApiCommandParameter(parameterNamesAndValues[idx * 2], parameterNamesAndValues[idx * 2 + 1]));
             }
+            _parameters.AddRange(parameters);
 
             return parameters;
         }

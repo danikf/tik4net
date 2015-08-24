@@ -25,7 +25,7 @@ namespace tik4net.Objects
             //copy all "field" properties
             foreach(var property in metadata.Properties)
             {
-                property.SetEntityValue(result, property.GetEntityValue(entity, false));
+                property.SetEntityValue(result, property.GetEntityValue(entity));
             }
 
             return result;                      

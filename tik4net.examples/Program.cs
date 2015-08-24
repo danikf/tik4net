@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using tik4net.Api;
 using tik4net.Objects;
+using tik4net.Objects.Ip;
 using tik4net.Objects.Ip.Firewall;
 
 namespace tik4net.examples
@@ -39,13 +40,15 @@ namespace tik4net.examples
                 //DeleteAddressList(connection);
                 //PrintAddressList(connection);
 
-                PrintAddressList(connection);
-                CreateOrUpdateAddressListMulti(connection);
-                PrintAddressList(connection);
-                CreateOrUpdateAddressListMulti(connection);
-                PrintAddressList(connection);
-                DeleteAddressListMulti(connection);
-                PrintAddressList(connection);
+                //PrintAddressList(connection);
+                //CreateOrUpdateAddressListMulti(connection);
+                //PrintAddressList(connection);
+                //CreateOrUpdateAddressListMulti(connection);
+                //PrintAddressList(connection);
+                //DeleteAddressListMulti(connection);
+                //PrintAddressList(connection);
+
+                PrintIpAddresses(connection);
 
                 Console.WriteLine("Finito - press ENTER");
                 Console.ReadLine();
@@ -191,6 +194,15 @@ namespace tik4net.examples
 
             //save differences into mikrotik  (existingAddressList=modified, listClonedBackup=unmodified)
             connection.SaveListDifferences(existingAddressList, listClonedBackup);
+        }
+
+        private static void PrintIpAddresses(ITikConnection connection)
+        {
+            var ipAddresses = connection.LoadList<IpAddress>();
+            foreach(IpAddress addr in ipAddresses)
+            {
+                Console.WriteLine("{0}: {1}", addr.Interface, addr.Address);
+            }
         }
 
     }

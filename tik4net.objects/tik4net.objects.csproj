@@ -48,6 +48,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="EntityObjectsExtensions.cs" />
+    <Compile Include="Ip\IpAddress.cs" />
     <Compile Include="Ip\Firewall\AddressList.cs" />
     <Compile Include="Log.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

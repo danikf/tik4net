@@ -71,20 +71,7 @@ namespace tik4net.Objects
             if (property.IsMandatory)
                 return sentence.GetResponseField(property.FieldName);
             else
-            {
-                string defaultValue = property.DefaultValue;
-                if (defaultValue == null)
-                {
-                    if (property.PropertyType.IsValueType)
-                    {
-                        defaultValue = Convert.ToString(Activator.CreateInstance(property.PropertyType)); //default value
-                    }
-                    else
-                        defaultValue = "";
-                }
-
-                return sentence.GetResponseFieldOrDefault(property.FieldName, defaultValue);
-            }
+                return sentence.GetResponseFieldOrDefault(property.FieldName, property.DefaultValue);
         }
 
         #endregion
@@ -102,22 +89,55 @@ namespace tik4net.Objects
             EnsureNotReadonlyEntity(metadata);
             string id = metadata.IdProperty.GetEntityValue(entity);
 
-            ITikCommand cmd = connection.CreateCommand(metadata.EntityPath + (string.IsNullOrEmpty(id) ? "/add" : "/set"));
-            if (!string.IsNullOrEmpty(id))
-                cmd.AddParameter(".id", id);
-            foreach (var property in metadata.Properties.Where(pm => !pm.IsReadOnly))
+            if (string.IsNullOrEmpty(id))
             {
-                cmd.AddParameter(property.FieldName, property.GetEntityValue(entity, true) ?? "");
-            }
+                //create
+                ITikCommand createCmd = connection.CreateCommand(metadata.EntityPath + "/add");
 
-            if (string.IsNullOrEmpty(id)) //create
-            {
-                id = cmd.ExecuteScalar();
-                metadata.IdProperty.SetEntityValue(entity, id); // update saved id into entity                
+                foreach (var property in metadata.Properties.Where(pm => !pm.IsReadOnly))
+                {
+                    if (!property.HasDefaultValue(entity))
+                    {
+                        createCmd.AddParameter(property.FieldName, property.GetEntityValue(entity));
+                    }
+                }
+
+                id = createCmd.ExecuteScalar();
+                metadata.IdProperty.SetEntityValue(entity, id); // update saved id into entity
             }
-            else //update
+            else
             {
-                cmd.ExecuteNonQuery();
+                //update (set+unset)
+                ITikCommand setCmd = connection.CreateCommand(metadata.EntityPath + "/set");
+                ITikCommand unsetCmd = connection.CreateCommand(metadata.EntityPath + "/unset");
+
+                foreach (var property in metadata.Properties.Where(pm => !pm.IsReadOnly))
+                {
+                    if (property.HasDefaultValue(entity) && property.UnsetWhenDefault)
+                        unsetCmd.AddParameter(property.FieldName, "");
+                    else
+                        setCmd.AddParameter(property.FieldName, property.GetEntityValue(entity)); //full update (all values)                        
+                }
+
+                if (unsetCmd.Parameters.Any())
+                {
+                    //    //ip/address/unset
+                    //    //=.id=...ID...
+                    //    //=address=
+                    //    //>!done
+                    unsetCmd.AddParameter(".id", id);
+                    unsetCmd.ExecuteNonQuery();
+                    
+                    //TODO this should also work (see http://forum.mikrotik.com/viewtopic.php?t=28821 )
+                    //ip/route/unset
+                    //=.id = *1
+                    //= value - name = routing - mark
+                }
+                if (setCmd.Parameters.Any())
+                {
+                    setCmd.AddParameter(".id", id);
+                    setCmd.ExecuteNonQuery();
+                }
             }
         }
 
@@ -169,7 +189,7 @@ namespace tik4net.Objects
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             EnsureNotReadonlyEntity(metadata);
-            string id = metadata.IdProperty.GetEntityValue(entity, false);
+            string id = metadata.IdProperty.GetEntityValue(entity);
             if (string.IsNullOrEmpty(id))
                 throw new ArgumentException("Entity has no .id (entity is not loaded from mikrotik router)", "entity");
 
@@ -183,8 +203,8 @@ namespace tik4net.Objects
         public static void Move<TEntity>(this ITikConnection connection, TEntity entityToMove, TEntity entityToMoveBefore)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
-            string idToMove = metadata.IdProperty.GetEntityValue(entityToMove, false);
-            string idToMoveBefore = entityToMoveBefore != null ? metadata.IdProperty.GetEntityValue(entityToMoveBefore, false) : null;
+            string idToMove = metadata.IdProperty.GetEntityValue(entityToMove);
+            string idToMoveBefore = entityToMoveBefore != null ? metadata.IdProperty.GetEntityValue(entityToMoveBefore) : null;
 
             ITikCommand cmd = connection.CreateCommandAndParameters(metadata.EntityPath + "/move",
                 "numbers", idToMove);

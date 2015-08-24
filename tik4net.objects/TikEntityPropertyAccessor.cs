@@ -26,6 +26,8 @@ namespace tik4net.Objects
 
         public string DefaultValue { get; private set; }
 
+        public bool UnsetWhenDefault { get; private set; }
+
         private PropertyInfo PropertyInfo { get; set; }
 
         public TikEntityPropertyAccessor(TikEntityMetadata owner, PropertyInfo propertyInfo)
@@ -45,7 +47,16 @@ namespace tik4net.Objects
             FieldName = propertyAttribute.FieldName;
             _isReadOnly = (propertyInfo.SetMethod == null) || (!propertyInfo.CanWrite) || (propertyAttribute.IsReadOnly);
             IsMandatory = propertyAttribute.IsMandatory;
-            DefaultValue = propertyAttribute.DefaultValue;
+            if (propertyAttribute.DefaultValue != null)
+                DefaultValue = propertyAttribute.DefaultValue;
+            else
+            {
+                if (PropertyType.IsValueType)
+                    DefaultValue = ConvertToString(Activator.CreateInstance(PropertyType)); //default value of value type. for example: (default)int
+                else
+                    DefaultValue = "";
+            }
+            UnsetWhenDefault = propertyAttribute.UnsetWhenDefault;
         }
 
         public override string ToString()
@@ -83,25 +94,29 @@ namespace tik4net.Objects
                 throw new NotImplementedException(string.Format("Property type {0} not supported.", PropertyType));
         }
 
+        public bool HasDefaultValue(object entity)
+        {
+            string propValue = GetEntityValue(entity);
+
+            return (propValue == null) || (Convert.ToString(propValue) == DefaultValue);
+        }
+
         public void SetEntityValue(object entity, string propValue)
         {
             PropertyInfo.SetValue(entity, ConvertFromString(propValue)); //NOTE: works even if setter is private
         }
 
-        public string GetEntityValue(object entity, bool presentDefaultAsNull)
+        public string GetEntityValue(object entity)
         {
             object propValue = PropertyInfo.GetValue(entity);
             if (propValue == null)
-                return null; //not set
-            else if (presentDefaultAsNull && (Convert.ToString(propValue) == DefaultValue)) //has default value
-                return null;
-            else
-                return ConvertToString(propValue);
+                propValue = DefaultValue;   
+            return ConvertToString(propValue);
         }
 
-        public string GetEntityValue(object entity)
-        {
-            return GetEntityValue(entity, false);
-        }
+        //public string GetEntityValue(object entity)
+        //{
+        //    return GetEntityValue(entity, false);
+        //}
     }
 }

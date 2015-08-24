@@ -114,14 +114,22 @@ namespace tik4net.Api
             {
                 long wordLength = ReadWordLength();
 
-                StringBuilder resultBuilder = new StringBuilder((int)wordLength);
-                for (int i = 0; i < wordLength; i++)
+                if (wordLength < 0) //workaround (after !fatal response MinInt is returned) 
                 {
-                    byte readByte = (byte)_tcpConnectionStream.ReadByte();
-                    resultBuilder.Append((Char)readByte);
+                    result = "";
+                    break;
                 }
+                else
+                {
+                    StringBuilder resultBuilder = new StringBuilder((int)wordLength);
+                    for (int i = 0; i < wordLength; i++)
+                    {
+                        byte readByte = (byte)_tcpConnectionStream.ReadByte();
+                        resultBuilder.Append((Char)readByte);
+                    }
 
-                result = resultBuilder.ToString();
+                    result = resultBuilder.ToString();
+                }
             } while (skipEmptyRow && string.IsNullOrWhiteSpace(result));
 
             if (OnReadRow != null)
@@ -203,7 +211,8 @@ namespace tik4net.Api
             {
                 sentence = GetOne(tag);
                 yield return sentence;
-            } while (!(sentence is ApiDoneSentence || sentence is ApiTrapSentence ||sentence is ApiFatalSentence)); //nacita vety volanim TryGetOne(wait) pro TAG dokud nedostane !trap nebo !done                       
+            } while (!(sentence is ApiDoneSentence || sentence is ApiFatalSentence /*|| sentence is ApiTrapSentence */)); //nacita vety volanim TryGetOne(wait) pro TAG dokud nedostane !done                       
+            //NOTE both !trap and !fatal are in pair with !done
         }
 
         public IEnumerable<ITikSentence> CallCommandSync(IEnumerable<string> commandRows)
