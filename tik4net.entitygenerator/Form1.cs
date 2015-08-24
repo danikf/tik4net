@@ -33,7 +33,7 @@ namespace tik4net.entitygenerator
 
                     if (rows.Any())
                     {
-                        tbSourceCode.Text = Generate(tbPath.Text, cbIncludeDetails.Checked, rows.First());
+                        tbSourceCode.Text = Generate(tbPath.Text, cbIncludeDetails.Checked, rows);
                         tbSourceCode.SelectAll();
                         tbSourceCode.Focus();
                     }
@@ -47,16 +47,28 @@ namespace tik4net.entitygenerator
             }
         }
 
-        private static string Generate(string entityPath, bool includeDetails, ITikReSentence tikReSentence)
+        private static string Generate(string entityPath, bool includeDetails, IEnumerable<ITikReSentence> tikReSentences)
         {
             StringBuilder source = new StringBuilder();
             source.AppendLine(string.Format("\t[TikEntity(\"{0}\"{1})]", entityPath, includeDetails ? ", IncludeDetails = true" : ""));
             source.AppendLine(string.Format("\tpublic class {0}", "ENTITY_NAME"));
             source.AppendLine("\t{");
-            foreach (var propPair in tikReSentence.Words)
+
+            Dictionary<string, string> words = new Dictionary<string, string>();
+            foreach(ITikReSentence sentence in tikReSentences)
+            {
+                foreach (var propPair in sentence.Words)
+                {
+                    if (!words.ContainsKey(propPair.Key)) //union over all field names
+                        words.Add(propPair.Key, propPair.Value);
+                }
+            }
+
+            foreach (var propPair in words)
             {
                 GenerateProperty(propPair.Key, propPair.Value, source);
             }
+
             source.AppendLine("\t}");
 
             return source.ToString();
