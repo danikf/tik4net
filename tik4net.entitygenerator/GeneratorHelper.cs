@@ -19,7 +19,7 @@ namespace tik4net.entitygenerator
 
         public static string DetermineFieldType(string name, string value)
         {
-            if (name == ".id")
+            if (name == TikSpecialProperties.Id)
                 return "string";
             else if (name == "disabled" || name == "invalid" || name == "active" || name == "dynamic")
                 return "bool";
@@ -46,7 +46,7 @@ namespace tik4net.entitygenerator
 
         public static bool DetermineFieldReadOnly(string name, string value)
         {
-            if (name == ".id")
+            if (name == TikSpecialProperties.Id)
                 return true;
             else if (name == "invalid" || name == "dynamic")
                 return true;
@@ -56,7 +56,7 @@ namespace tik4net.entitygenerator
 
         public static bool DetermineFieldMandatory(string name, string value)
         {
-            if (name == ".id" || name == "name")
+            if (name == TikSpecialProperties.Id || name == "name")
                 return true;
             else if (name == "comment")
                 return false;

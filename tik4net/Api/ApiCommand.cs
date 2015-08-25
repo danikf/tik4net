@@ -13,10 +13,9 @@ namespace tik4net.Api
         private volatile bool _isRuning;
         private volatile int _runningTag;
         private readonly List<ITikCommandParameter> _parameters = new List<ITikCommandParameter>();
+        private readonly List<ITikCommandParameter> _filters= new List<ITikCommandParameter>();
         private ApiConnection _connection;
-        private string _commandText;
-
-        private enum ApiCommandParameterFormat { Filter, Data }
+        private string _commandText;        
 
         public ITikConnection Connection
         {
@@ -40,12 +39,20 @@ namespace tik4net.Api
             }
         }
 
-        public List<ITikCommandParameter> Parameters
+        public bool IsRunning
+        {
+            get { return _isRuning; }
+        }
+
+        public IList<ITikCommandParameter> Parameters
         {
             get { return _parameters; }
         }
 
-        public bool IncludeDetails { get; set; }
+        public IList<ITikCommandParameter> Filters
+        {
+            get { return _filters; }
+        }
 
         public ApiCommand()
         {
@@ -87,7 +94,7 @@ namespace tik4net.Api
                 throw new InvalidOperationException("CommandText is not set.");
         }
 
-        private string[] ConstructCommandText(ApiCommandParameterFormat parameterFormat)
+        private string[] ConstructCommandText()
         {
             EnsureCommandTextSet();
 
@@ -97,19 +104,9 @@ namespace tik4net.Api
 
             List<string> result = new List<string> { commandText };
 
-            if (IncludeDetails)
-                result.Add("=detail=");
-
-            if (parameterFormat == ApiCommandParameterFormat.Data)
-            {
-                result.AddRange(_parameters.Select(p => string.Format("={0}={1}", p.Name, p.Value)));
-            }
-            else if (parameterFormat == ApiCommandParameterFormat.Filter)
-            {
-                result.AddRange(_parameters.Select(p => string.Format("?{0}={1}", p.Name, p.Value)));
-            }
-            else
-                throw new NotImplementedException(string.Format("ApiCommandParameterFormat {0} not supported.", parameterFormat));
+            //parameters
+            result.AddRange(_parameters.Select(p => string.Format("={0}={1}", p.Name, p.Value)));
+            result.AddRange(_filters.Select(p => string.Format("?{0}={1}", p.Name, p.Value)));
 
             return result.ToArray();
         }
@@ -178,7 +175,7 @@ namespace tik4net.Api
             _isRuning = true;
             try
             {
-                string[] commandRows = ConstructCommandText(ApiCommandParameterFormat.Data);
+                string[] commandRows = ConstructCommandText();
                 IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
                 ThrowPossibleResponseError(response.ToArray());
 
@@ -200,7 +197,7 @@ namespace tik4net.Api
             _isRuning = true;
             try
             {
-                string[] commandRows = ConstructCommandText(ApiCommandParameterFormat.Data);
+                string[] commandRows = ConstructCommandText();
                 IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
                 ThrowPossibleResponseError(response.ToArray());
 
@@ -235,7 +232,7 @@ namespace tik4net.Api
             _isRuning = true;
             try
             {
-                string[] commandRows = ConstructCommandText(ApiCommandParameterFormat.Filter);
+                string[] commandRows = ConstructCommandText();
                 IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
                 ThrowPossibleResponseError(response.ToArray());
 
@@ -260,7 +257,7 @@ namespace tik4net.Api
             _isRuning = true;
             try
             {
-                string[] commandRows = ConstructCommandText(ApiCommandParameterFormat.Filter);
+                string[] commandRows = ConstructCommandText();
                 IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
                 ThrowPossibleResponseError(response.ToArray());
 
@@ -275,7 +272,7 @@ namespace tik4net.Api
             }
         }
 
-        public void ExecuteAsync(Action<ITikReSentence> oneResponseCallback)
+        public void ExecuteAsync(Action<ITikReSentence> oneResponseCallback, Action<ITikTrapSentence> errorCallback = null)
         {
             EnsureConnectionSet();
             EnsureNotRunning();
@@ -286,32 +283,70 @@ namespace tik4net.Api
 
             try
             {
-                string[] commandRows = ConstructCommandText(ApiCommandParameterFormat.Data);
+                string[] commandRows = ConstructCommandText();
                 _connection.CallCommandAsync(commandRows, tag.ToString(),
                                         response =>
                                         {
                                             ApiReSentence reResponse = response as ApiReSentence;
                                             if (reResponse != null)
-                                                oneResponseCallback(reResponse);
-                                            else 
+                                            {
+                                                if (oneResponseCallback != null)
+                                                    oneResponseCallback(reResponse);
+                                            }
+                                            else
                                             {
                                                 ApiTrapSentence trapResponse = response as ApiTrapSentence;
-                                                if (response is ApiDoneSentence 
-                                                || ((trapResponse != null) && (trapResponse.CategoryCode == "2") && (trapResponse.Message == "interrupted"))) //listening finished
+                                                if (trapResponse != null)
+                                                {
+                                                    if (trapResponse.CategoryCode == "2" && trapResponse.Message == "interrupted")
+                                                    {
+                                                        //correct state - async operation has been Cancelled.
+                                                    }
+                                                    else
+                                                    {
+                                                        //incorrect - any error occurs
+                                                        if (errorCallback != null)
+                                                            errorCallback(trapResponse);
+                                                    }
+                                                }
+                                                else if (response is ApiDoneSentence || response is ApiFatalSentence)
                                                 {
                                                     _isRuning = false;
                                                     _runningTag = -1;
                                                 }
-                                                //else 
-                                                //TODO Done Fail, cancel, ...
-                                                //How to propagate it to users code???
                                             }
                                         });
+            }
+            catch
+            {
+                _isRuning = false;
+                _runningTag = -1;
+                throw;
             }
             finally
             {
                 //still running
             }
+        }
+
+        public IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec)
+        {
+            Exception asyncException = null;
+            List<ITikReSentence> result = new List<ITikReSentence>();
+            ExecuteAsync(
+                reSentence => result.Add(reSentence),
+                error => asyncException = new TikCommandException(this, error));
+            for (int i = 0; i < durationSec * 10; i++) //step per 100ms
+            {
+                Thread.Sleep(100);
+                if (asyncException != null)
+                    throw asyncException;
+                if (!_isRuning) //already ended (somehow)
+                    break;
+            }
+            Cancel();
+
+            return result;
         }
 
         public void Cancel()
@@ -331,19 +366,44 @@ namespace tik4net.Api
             return result;
         }
 
-        public override string ToString()
+        public ITikCommandParameter AddFilter(string name, string value)
         {
-            return string.Join("\n", new string[] { CommandText }.Concat(Parameters.Select(p => "  =" + p.Name + "=" + p.Value)));
+            ApiCommandParameter result = new ApiCommandParameter(name, value);
+            _filters.Add(result);
+
+            return result;
         }
 
-        public IEnumerable<ITikCommandParameter> AddParameterAndValues(params string[] parameterNamesAndValues)
+        public override string ToString()
+        {
+            return string.Join("\n", new string[] { CommandText }
+                                                        .Concat(Parameters.Select(p => "  =" + p.Name + "=" + p.Value))
+                                                        .Concat(Filters.Select(p => "  ?" + p.Name + "=" + p.Value)));
+        }
+
+        private IEnumerable<ITikCommandParameter> CreateParameters(string[] parameterNamesAndValues)
         {
             List<ApiCommandParameter> parameters = new List<ApiCommandParameter>();
             for (int idx = 0; idx < parameterNamesAndValues.Length / 2; idx++)   // name, value, name, value, ... sequence
             {
                 parameters.Add(new ApiCommandParameter(parameterNamesAndValues[idx * 2], parameterNamesAndValues[idx * 2 + 1]));
             }
+
+            return parameters;
+        }
+
+        public IEnumerable<ITikCommandParameter> AddParameterAndValues(params string[] parameterNamesAndValues)
+        {
+            var parameters = CreateParameters(parameterNamesAndValues);
             _parameters.AddRange(parameters);
+
+            return parameters;
+        }
+
+        public IEnumerable<ITikCommandParameter> AddFilterAndValues(params string[] filterNamesAndValues)
+        {
+            var parameters = CreateParameters(filterNamesAndValues);
+            _filters.AddRange(parameters);
 
             return parameters;
         }

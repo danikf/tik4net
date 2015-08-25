@@ -6,6 +6,7 @@ using System.Data;
 using System.Drawing;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -27,16 +28,24 @@ namespace tik4net.entitygenerator
 
         private void btnGenerate_Click(object sender, EventArgs e)
         {
+            btnGenerate.Enabled = false;
             try
             {
                 using (ITikConnection connection = ConnectionFactory.CreateConnection(TikConnectionType.Api))
                 {
                     connection.Open(tbHost.Text, tbUser.Text, tbPass.Text);
 
-                    var cmd = connection.CreateCommand(tbPath.Text + "/print");
+                    var cmd = connection.CreateCommand(tbPath.Text);
                     if (cbIncludeDetails.Checked)
-                        cmd.IncludeDetails = true;
-                    var rows = cmd.ExecuteList();
+                        cmd.AddParameter("detail", "");
+                    if (!string.IsNullOrWhiteSpace(tbParameters.Text))
+                        cmd.AddParameterAndValues(tbParameters.Text.Split(';', '|'));
+
+                    List<ITikReSentence> rows;
+                    if (!cbExecuteAsync.Checked)
+                        rows = cmd.ExecuteList().ToList();
+                    else
+                        rows = cmd.ExecuteListWithDuration(10).ToList();
 
                     if (rows.Any())
                     {
@@ -52,6 +61,7 @@ namespace tik4net.entitygenerator
             {
                 MessageBox.Show(ex.ToString());
             }
+            btnGenerate.Enabled = true;
         }
 
         private static string Generate(string entityPath, bool includeDetails, IEnumerable<ITikReSentence> tikReSentences)

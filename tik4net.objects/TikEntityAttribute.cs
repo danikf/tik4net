@@ -22,6 +22,8 @@ namespace tik4net.Objects
 
         public bool IncludeDetails { get; set; }
 
+        public bool IncludeProplist { get; set; }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="TikEntityAttribute"/> class.
         /// </summary>
@@ -45,6 +47,7 @@ namespace tik4net.Objects
 
             IsReadOnly = false;
             IncludeDetails = false;
+            IncludeProplist = false;
         }
     }
 

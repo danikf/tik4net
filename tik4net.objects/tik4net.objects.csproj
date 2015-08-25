@@ -66,6 +66,7 @@
     <Compile Include="TikEntityPropertyAccessor.cs" />
     <Compile Include="TikConnectionExtensions.cs" />
     <Compile Include="TikPropertyAttribute.cs" />
+    <Compile Include="Tool\ToolTorch.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\tik4net\tik4net.csproj">

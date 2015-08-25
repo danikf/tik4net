@@ -12,7 +12,7 @@ using tik4net.Objects.System;
 
 namespace tik4net.examples
 {
-    class Program
+    class ProgramExamples
     {
         static void Main(string[] args)
         {
@@ -85,7 +85,12 @@ namespace tik4net.examples
 
         private static void Torch(ITikConnection connection)
         {
-            ITikCommand torchCmd = connection.CreateCommand("/tool/torch", connection.CreateParameter("interface", "ether1"));
+            ITikCommand torchCmd = connection.CreateCommand("/tool/torch", 
+                connection.CreateParameter("interface", "ether1"), 
+                connection.CreateParameter("port", "any"),
+                connection.CreateParameter("src-address", "0.0.0.0/0"),
+                connection.CreateParameter("dst-address", "0.0.0.0/0")
+                );
             torchCmd.ExecuteAsync(response =>
             {
                 Console.WriteLine("Row: " + response.GetResponseField("tx"));

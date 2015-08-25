@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace tik4net.Objects
@@ -24,23 +25,56 @@ namespace tik4net.Objects
         public static TEntity LoadById<TEntity>(this ITikConnection connection, string id)
             where TEntity : new()
         {
-            return LoadList<TEntity>(connection, connection.CreateParameter(".id", id)).SingleOrDefault();
+            return LoadList<TEntity>(connection, connection.CreateParameter(TikSpecialProperties.Id, id)).SingleOrDefault();
         }
 
-        public static IEnumerable<TEntity> LoadList<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filter)
+        public static IEnumerable<TEntity> LoadList<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filterParameters)
             where TEntity : new()
+        {
+            var command = CreateCommandWithFilter<TEntity>(connection, "/print", filterParameters, null);
+            return LoadList<TEntity>(command);
+        }
+
+        public static IEnumerable<TEntity> LoadWithDuration<TEntity>(this ITikConnection connection, int durationSec, params ITikCommandParameter[] parameters)
+            where TEntity : new()
+        {
+            var command = CreateCommandWithFilter<TEntity>(connection, "", null, parameters);
+
+            var responseSentences = command.ExecuteListWithDuration(durationSec);
+
+            return responseSentences.Select(sentence => CreateObject<TEntity>(sentence)).ToList();            
+        }
+
+        private static ITikCommand CreateCommandWithFilter<TEntity> (ITikConnection connection, string commandSufix, ITikCommandParameter[] filterParameters, ITikCommandParameter[] parameters)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
 
-            ITikCommand command = connection.CreateCommand(metadata.EntityPath + "/print");
+            ITikCommand command = connection.CreateCommand(metadata.EntityPath + commandSufix);
+
+            // =detail=
             if (metadata.IncludeDetails)
-                command.IncludeDetails = true;
-            foreach(ITikCommandParameter filterParam in filter)
+                command.AddParameter("detail", "");
+            //.proplist
+            if (metadata.IncludeProplist)
+                command.AddParameter(TikSpecialProperties.Proplist, string.Join(",", metadata.Properties.Select(prop => prop.FieldName)));
+            //filter
+            if (filterParameters != null)
             {
-                command.Parameters.Add(filterParam);
+                foreach (ITikCommandParameter filterParam in filterParameters)
+                {
+                    command.Filters.Add(filterParam);
+                }
+            }
+            //parameters
+            if (parameters != null)
+            {
+                foreach (ITikCommandParameter param in parameters)
+                {
+                    command.Parameters.Add(param);
+                }
             }
 
-            return LoadList<TEntity>(command);
+            return command;
         }
 
         private static IEnumerable<TEntity> LoadList<TEntity>(ITikCommand command)
@@ -125,7 +159,7 @@ namespace tik4net.Objects
                     //    //=.id=...ID...
                     //    //=address=
                     //    //>!done
-                    unsetCmd.AddParameter(".id", id);
+                    unsetCmd.AddParameter(TikSpecialProperties.Id, id);
                     unsetCmd.ExecuteNonQuery();
                     
                     //TODO this should also work (see http://forum.mikrotik.com/viewtopic.php?t=28821 )
@@ -135,7 +169,7 @@ namespace tik4net.Objects
                 }
                 if (setCmd.Parameters.Any())
                 {
-                    setCmd.AddParameter(".id", id);
+                    setCmd.AddParameter(TikSpecialProperties.Id, id);
                     setCmd.ExecuteNonQuery();
                 }
             }
@@ -194,7 +228,7 @@ namespace tik4net.Objects
                 throw new ArgumentException("Entity has no .id (entity is not loaded from mikrotik router)", "entity");
 
             ITikCommand cmd = connection.CreateCommandAndParameters(metadata.EntityPath + "/remove",
-                ".id", id);
+                TikSpecialProperties.Id, id);
             cmd.ExecuteNonQuery();
         }
         #endregion

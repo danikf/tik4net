@@ -37,6 +37,8 @@
             this.tbHost = new System.Windows.Forms.TextBox();
             this.tbUser = new System.Windows.Forms.TextBox();
             this.tbPass = new System.Windows.Forms.TextBox();
+            this.cbExecuteAsync = new System.Windows.Forms.CheckBox();
+            this.tbParameters = new System.Windows.Forms.TextBox();
             label1 = new System.Windows.Forms.Label();
             label2 = new System.Windows.Forms.Label();
             this.SuspendLayout();
@@ -49,6 +51,15 @@
             label1.Size = new System.Drawing.Size(57, 13);
             label1.TabIndex = 3;
             label1.Text = "Entity path";
+            // 
+            // label2
+            // 
+            label2.AutoSize = true;
+            label2.Location = new System.Drawing.Point(12, 15);
+            label2.Name = "label2";
+            label2.Size = new System.Drawing.Size(81, 13);
+            label2.TabIndex = 8;
+            label2.Text = "Host/user/pass";
             // 
             // btnGenerate
             // 
@@ -63,13 +74,11 @@
             // 
             // tbPath
             // 
-            this.tbPath.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
             this.tbPath.Location = new System.Drawing.Point(75, 39);
             this.tbPath.Name = "tbPath";
-            this.tbPath.Size = new System.Drawing.Size(674, 20);
+            this.tbPath.Size = new System.Drawing.Size(157, 20);
             this.tbPath.TabIndex = 1;
-            this.tbPath.Text = "/";
+            this.tbPath.Text = "/print";
             // 
             // tbSourceCode
             // 
@@ -115,20 +124,33 @@
             this.tbPass.Size = new System.Drawing.Size(138, 20);
             this.tbPass.TabIndex = 7;
             // 
-            // label2
+            // cbExecuteAsync
             // 
-            label2.AutoSize = true;
-            label2.Location = new System.Drawing.Point(12, 15);
-            label2.Name = "label2";
-            label2.Size = new System.Drawing.Size(81, 13);
-            label2.TabIndex = 8;
-            label2.Text = "Host/user/pass";
+            this.cbExecuteAsync.AutoSize = true;
+            this.cbExecuteAsync.Location = new System.Drawing.Point(136, 65);
+            this.cbExecuteAsync.Name = "cbExecuteAsync";
+            this.cbExecuteAsync.Size = new System.Drawing.Size(96, 17);
+            this.cbExecuteAsync.TabIndex = 9;
+            this.cbExecuteAsync.Text = "Execute async";
+            this.cbExecuteAsync.UseVisualStyleBackColor = true;
+            // 
+            // tbParameters
+            // 
+            this.tbParameters.AccessibleRole = System.Windows.Forms.AccessibleRole.ScrollBar;
+            this.tbParameters.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.tbParameters.Location = new System.Drawing.Point(246, 39);
+            this.tbParameters.Name = "tbParameters";
+            this.tbParameters.Size = new System.Drawing.Size(503, 20);
+            this.tbParameters.TabIndex = 10;
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(761, 440);
+            this.Controls.Add(this.tbParameters);
+            this.Controls.Add(this.cbExecuteAsync);
             this.Controls.Add(label2);
             this.Controls.Add(this.tbPass);
             this.Controls.Add(this.tbUser);
@@ -155,6 +177,8 @@
         private System.Windows.Forms.TextBox tbHost;
         private System.Windows.Forms.TextBox tbUser;
         private System.Windows.Forms.TextBox tbPass;
+        private System.Windows.Forms.CheckBox cbExecuteAsync;
+        private System.Windows.Forms.TextBox tbParameters;
     }
 }
 

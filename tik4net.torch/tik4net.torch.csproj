@@ -4,15 +4,17 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{15288F76-5A85-418E-87B2-B22265726601}</ProjectGuid>
-    <OutputType>Library</OutputType>
+    <ProjectGuid>{AE25F73D-7CE5-4C14-8AAC-1A32ECC38DA5}</ProjectGuid>
+    <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>tik4net</RootNamespace>
-    <AssemblyName>tik4net</AssemblyName>
+    <RootNamespace>tik4net.torch</RootNamespace>
+    <AssemblyName>tik4net.torch</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -20,10 +22,9 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <DocumentationFile>bin\Debug\tik4net.XML</DocumentationFile>
-    <UseVSHostingProcess>true</UseVSHostingProcess>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
@@ -33,6 +34,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -42,31 +44,21 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Api\ApiCommand.cs" />
-    <Compile Include="Api\ApiConnection.cs" />
-    <Compile Include="Api\ApiConnectionHelper.cs" />
-    <Compile Include="Api\ApiCommandParameter.cs" />
-    <Compile Include="Api\ApiDoneSentence.cs" />
-    <Compile Include="Api\ApiFatalSentence.cs" />
-    <Compile Include="Api\ApiReSentence.cs" />
-    <Compile Include="Api\ApiSentence.cs" />
-    <Compile Include="Api\ApiTrapSentence.cs" />
-    <Compile Include="Api\SentenceList.cs" />
-    <Compile Include="Guard.cs" />
-    <Compile Include="ITikCommandParameter.cs" />
-    <Compile Include="ITikCommand.cs" />
-    <Compile Include="ITikConnection.cs" />
-    <Compile Include="ITikDoneSentence.cs" />
-    <Compile Include="ITikReSentence.cs" />
-    <Compile Include="ITikSentence.cs" />
-    <Compile Include="ITikTrapSentence.cs" />
+    <Compile Include="ProgramTorch.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ConnectionFactory.cs" />
-    <Compile Include="TikCommandException.cs" />
-    <Compile Include="TikConnectionException.cs" />
-    <Compile Include="TikConnectionType.cs" />
-    <Compile Include="TikSentenceException.cs" />
-    <Compile Include="TikSpecialProperties.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\tik4net.objects\tik4net.objects.csproj">
+      <Project>{dd32e354-19c0-4992-902b-9cdd8e53e879}</Project>
+      <Name>tik4net.objects</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\tik4net\tik4net.csproj">
+      <Project>{15288f76-5a85-418e-87b2-b22265726601}</Project>
+      <Name>tik4net</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

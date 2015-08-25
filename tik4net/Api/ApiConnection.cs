@@ -252,7 +252,7 @@ namespace tik4net.Api
                         {
                             //Do not crash reading thread because of implementation error in called code
                         }
-                    } while (!(sentence is ApiDoneSentence || sentence is ApiTrapSentence || sentence is ApiFatalSentence)); //nacita vety volanim TryGetOne(wait) pro TAG dokud nedostane !trap nebo !done                 
+                    } while (!(sentence is ApiDoneSentence /*|| sentence is ApiTrapSentence*/ || sentence is ApiFatalSentence)); //nacita vety volanim TryGetOne(wait) pro TAG dokud nedostane !trap nebo !done                 
                                                                     //NOTE: Musi dojet samo na !done nebo !trap  (ktery vpasuje cancel z jineho TAGu)
                 }
                 catch

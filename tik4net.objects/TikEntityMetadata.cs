@@ -20,9 +20,11 @@ namespace tik4net.Objects
         public bool IsReadOnly { get; private set; }
         public bool IncludeDetails { get; private set; }
 
+        public bool IncludeProplist { get; private set; }
+
         public TikEntityPropertyAccessor IdProperty
         {
-            get { return GetPopertyDescriptor(".id"); }
+            get { return GetPopertyDescriptor(TikSpecialProperties.Id); }
         }
 
         public TikEntityMetadata(Type entityType)
@@ -34,6 +36,7 @@ namespace tik4net.Objects
             EntityPath = entityAttribute.EntityPath;
             IsReadOnly = entityAttribute.IsReadOnly;
             IncludeDetails = entityAttribute.IncludeDetails;
+            IncludeProplist = entityAttribute.IncludeProplist;
 
             //properties
             _properties = entityType.GetProperties()

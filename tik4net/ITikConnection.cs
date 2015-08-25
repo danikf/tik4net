@@ -129,7 +129,7 @@ namespace tik4net
         /// <seealso cref="ITikReSentence"/>
         /// <seealso cref="ITikDoneSentence"/>
         /// <seealso cref="ITikTrapSentence"/>
-        /// <seealso cref="ITikCommand.ExecuteAsync(Action{ITikReSentence})"/>
+        /// <seealso cref="ITikCommand.ExecuteAsync"/>
         void CallCommandAsync(IEnumerable<string> commandRows, string tag, Action<ITikSentence> oneResponseCallback);
     }
 }
