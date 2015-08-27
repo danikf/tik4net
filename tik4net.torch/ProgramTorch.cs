@@ -29,7 +29,7 @@ namespace tik4net.torch
 
                 Console.Clear();
 
-                var rows = connection.LoadAsync<ToolTorch>(
+                var loadingContext = connection.LoadAsync<ToolTorch>(
                     TorchItemRead, error => Console.WriteLine(error.ToString()),                                                
                     connection.CreateParameter("interface", interfaceName),
                     //connection.CreateParameter("ip-protocol", "any"),
@@ -38,6 +38,8 @@ namespace tik4net.torch
                     connection.CreateParameter("dst-address", "0.0.0.0/0"));
 
                 Console.ReadLine();
+
+                loadingContext.Cancel();
             }
         }
 
