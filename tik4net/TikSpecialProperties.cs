@@ -20,5 +20,10 @@ namespace tik4net
         /// Proplist property = .proplist
         /// </summary>
         public const string Proplist = ".proplist";
+
+        /// <summary>
+        /// .tag property - used to correlate simultaneous command responses.
+        /// </summary>
+        public const string Tag = ".tag";
     }
 }

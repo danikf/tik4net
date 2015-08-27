@@ -230,7 +230,7 @@ namespace tik4net.Api
             //TODO warning do dokumentace, ze callback je v jinem threadu + example synchronizace
             Guard.ArgumentNotNullOrEmptyString(tag, "tag");
 
-            commandRows = commandRows.Concat(new string[] { string.Format(".tag={0}", tag) });
+            commandRows = commandRows.Concat(new string[] { string.Format("{0}={1}", TikSpecialProperties.Tag, tag) });
             lock (_writeLockObj)
             {
                 WriteCommand(commandRows);

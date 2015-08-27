@@ -333,18 +333,35 @@ namespace tik4net.Api
         {
             Exception asyncException = null;
             List<ITikReSentence> result = new List<ITikReSentence>();
+
+            //Async execute, responses are stored in result list
             ExecuteAsync(
-                reSentence => result.Add(reSentence),
-                error => asyncException = new TikCommandException(this, error));
+                reSentence =>
+                {
+                    if (_isRuning)
+                        result.Add(reSentence);
+                },
+                error =>
+                {
+                    asyncException = new TikCommandException(this, error);
+                });
+
+            //wait for results (in calling =UI? thread)
             for (int i = 0; i < durationSec * 10; i++) //step per 100ms
             {
                 Thread.Sleep(100);
-                if (asyncException != null)
+                if (asyncException != null) //ended with exception
                     throw asyncException;
                 if (!_isRuning) //already ended (somehow)
                     break;
             }
             Cancel();
+            
+            //wait for real cancel
+            while (_isRuning)//TODO loadingThread.Join();
+            {
+                Thread.Sleep(10);
+            }
 
             return result;
         }
@@ -353,7 +370,7 @@ namespace tik4net.Api
         {
             if (_isRuning && _runningTag >= 0)
             {
-                ApiCommand cancellCommand = new ApiCommand(_connection, "/cancel", new ApiCommandParameter("tag", _runningTag.ToString()));
+                ApiCommand cancellCommand = new ApiCommand(_connection, "/cancel", new ApiCommandParameter(TikSpecialProperties.Tag, _runningTag.ToString())); //REMARKS: =tag=1234 and not =.tag=1234
                 cancellCommand.ExecuteNonQuery();
             }
         }

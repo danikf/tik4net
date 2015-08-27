@@ -18,7 +18,7 @@ namespace tik4net.Api
 
         public string Tag
         {
-            get { return GetWordValueOrDefault(".tag", ""); }
+            get { return GetWordValueOrDefault(TikSpecialProperties.Tag, ""); }
         }
 
         public ApiSentence(IEnumerable<string> words)

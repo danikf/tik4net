@@ -45,6 +45,27 @@ namespace tik4net.Objects
             return responseSentences.Select(sentence => CreateObject<TEntity>(sentence)).ToList();            
         }
 
+        public static LoadingContext LoadAsync<TEntity>(this ITikConnection connection,
+            Action<TEntity> onLoadItemCallback, Action<Exception> onExceptionCallback = null,
+            params ITikCommandParameter[] parameters)
+            where TEntity : new()
+        {
+            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(onLoadItemCallback, "onLoadItemCallback");
+
+            var command = CreateCommandWithFilter<TEntity>(connection, "", null, parameters);
+
+            command.ExecuteAsync(
+                reSentence => onLoadItemCallback(CreateObject<TEntity>(reSentence)),
+                trapSentence =>
+                {
+                    if (onExceptionCallback != null)
+                        onExceptionCallback(new TikCommandException(command, trapSentence));
+                });
+
+            return new LoadingContext(command); 
+        }
+
         private static ITikCommand CreateCommandWithFilter<TEntity> (ITikConnection connection, string commandSufix, ITikCommandParameter[] filterParameters, ITikCommandParameter[] parameters)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
