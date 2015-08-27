@@ -35,5 +35,19 @@ namespace tik4net.Objects.Tool
 
         [TikProperty("rx-packets", IsReadOnly = true)]
         public long RxPackets { get; private set; }
+
+        private static string FormatAddress(string ip, string port)
+        {
+            return (ip + ":" + port).PadRight(21);
+        }
+
+        public override string ToString()
+        {
+            return string.Format("{0}{1} -> {2} ({3}/{4})",
+                (IpProtocol ?? "").PadRight(10),
+                FormatAddress(SrcAddress, SrcPort),
+                FormatAddress(DstAddress, DstPort),
+                Tx, Rx);
+        }
     }
 }
