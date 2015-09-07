@@ -9,6 +9,9 @@ namespace tik4net.Objects
     /// <summary>
     /// Attribute that is used to decorate tik entity class.
     /// </summary>
+    /// <seealso cref="TikConnectionExtensions"/>
+    /// <seealso cref="TikEntityObjectsExtensions"/>
+    /// <seealso cref="TikEntityAttribute"/>
     [AttributeUsage(AttributeTargets.Class)]
     public sealed class TikEntityAttribute : Attribute
     {
@@ -18,10 +21,19 @@ namespace tik4net.Objects
         /// <value>The entity path.</value>
         public string EntityPath { get; private set; }
 
+        /// <summary>
+        /// If the whole entity is R/O.
+        /// </summary>
         public bool IsReadOnly { get; set; }
 
+        /// <summary>
+        /// If entity should be loaded with =detail= option.
+        /// </summary>
         public bool IncludeDetails { get; set; }
 
+        /// <summary>
+        /// If entity fields should be listed explicitly via .proplist option.
+        /// </summary>
         public bool IncludeProplist { get; set; }
 
         /// <summary>

@@ -67,6 +67,9 @@ namespace tik4net.entitygenerator
         private static string Generate(string entityPath, bool includeDetails, IEnumerable<ITikReSentence> tikReSentences)
         {
             StringBuilder source = new StringBuilder();
+            source.AppendLine(@"\\\ <summary>");
+            source.AppendLine(@"\\\ " + entityPath);
+            source.AppendLine(@"\\\ </summary>");
             source.AppendLine(string.Format("\t[TikEntity(\"{0}\"{1})]", entityPath, includeDetails ? ", IncludeDetails = true" : ""));
             source.AppendLine(string.Format("\tpublic class {0}", "ENTITY_NAME"));
             source.AppendLine("\t{");
@@ -105,6 +108,9 @@ namespace tik4net.entitygenerator
             if (isMandatory)
                 attrParams.Add("IsMandatory = true");
 
+            source.AppendLine(@"\\\ <summary>");
+            source.AppendLine(@"\\\ " + name);
+            source.AppendLine(@"\\\ </summary>");
             source.AppendLine(string.Format("\t\t[TikProperty({0})]", string.Join(", ", attrParams)));
             source.AppendLine(string.Format("\t\tpublic {0} {1} *< get; {2}set; >*", propType, propName, (isReadOnly ? "private " : "")).Replace("*<", "{").Replace(">*", "}"));
             source.AppendLine();

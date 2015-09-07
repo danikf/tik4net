@@ -45,7 +45,7 @@ namespace tik4net.Objects
             return responseSentences.Select(sentence => CreateObject<TEntity>(sentence)).ToList();            
         }
 
-        public static LoadingContext LoadAsync<TEntity>(this ITikConnection connection,
+        public static AsyncLoadingContext LoadAsync<TEntity>(this ITikConnection connection,
             Action<TEntity> onLoadItemCallback, Action<Exception> onExceptionCallback = null,
             params ITikCommandParameter[] parameters)
             where TEntity : new()
@@ -55,7 +55,7 @@ namespace tik4net.Objects
 
             var command = CreateCommandWithFilter<TEntity>(connection, "", null, parameters);
 
-            command.ExecuteAsync(
+            var loadingThread = command.ExecuteAsync(
                 reSentence => onLoadItemCallback(CreateObject<TEntity>(reSentence)),
                 trapSentence =>
                 {
@@ -63,7 +63,7 @@ namespace tik4net.Objects
                         onExceptionCallback(new TikCommandException(command, trapSentence));
                 });
 
-            return new LoadingContext(command); 
+            return new AsyncLoadingContext(command, loadingThread); 
         }
 
         private static ITikCommand CreateCommandWithFilter<TEntity> (ITikConnection connection, string commandSufix, ITikCommandParameter[] filterParameters, ITikCommandParameter[] parameters)
@@ -186,7 +186,7 @@ namespace tik4net.Objects
                     //TODO this should also work (see http://forum.mikrotik.com/viewtopic.php?t=28821 )
                     //ip/route/unset
                     //=.id = *1
-                    //= value - name = routing - mark
+                    //= value-name=routing-mark
                 }
                 if (setCmd.Parameters.Any())
                 {

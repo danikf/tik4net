@@ -125,11 +125,12 @@ namespace tik4net
         /// <param name="commandRows">Rows of one command to be send to mikrotik router (in conection specific format).</param>
         /// <param name="tag">Tag that allows to perform cancel operation. Should be unique!</param>
         /// <param name="oneResponseCallback">Callback called periodically when response sentence is read from mikrotik.</param>
+        /// <returns>Wrapper to loading thread.</returns>
         /// <remarks>This is extremly low-level API and should be used only if there is no other way (for example <see cref="ITikCommand.ExecuteAsync"/>).</remarks>
         /// <seealso cref="ITikReSentence"/>
         /// <seealso cref="ITikDoneSentence"/>
         /// <seealso cref="ITikTrapSentence"/>
         /// <seealso cref="ITikCommand.ExecuteAsync"/>
-        void CallCommandAsync(IEnumerable<string> commandRows, string tag, Action<ITikSentence> oneResponseCallback);
+        TikAsyncLoadingThread CallCommandAsync(IEnumerable<string> commandRows, string tag, Action<ITikSentence> oneResponseCallback);
     }
 }

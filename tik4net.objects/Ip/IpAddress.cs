@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace tik4net.Objects.Ip
 {
+    /// <summary>
+    /// /ip/address
+    /// </summary>
     [TikEntity("/ip/address", IncludeDetails = true)]
     public class IpAddress
     {

@@ -77,11 +77,12 @@ namespace tik4net
         /// REMARKS: <paramref name="oneResponseCallback"/> is called from another NON-GUI thread. If you want to show response in UI, 
         /// you should use some kind of synchronization like BeginInvoke in WinForms or SynchronizationContext. You can not touch UI controls directly without it.
         /// </summary>
+        /// <returns>Wrapper to loading thread.</returns>
         /// <param name="oneResponseCallback">Callback called periodically when response sentence is read from mikrotik.</param>
         /// <param name="errorCallback">Callback called when error occurs (command operation is than ended).</param>
         /// <seealso cref="Cancel"/>
         /// <seealso cref="ITikReSentence"/>
-        void ExecuteAsync(Action<ITikReSentence> oneResponseCallback, Action<ITikTrapSentence> errorCallback = null);        
+        TikAsyncLoadingThread ExecuteAsync(Action<ITikReSentence> oneResponseCallback, Action<ITikTrapSentence> errorCallback = null);        
 
         /// <summary>
         /// Adds new instance of parameter to <see cref="Parameters"/> list.

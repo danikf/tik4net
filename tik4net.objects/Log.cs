@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace tik4net.Objects
 {
+    /// <summary>
+    /// /log
+    /// </summary>
     [TikEntity("/log", IsReadOnly = true)]
     public class Log
     {

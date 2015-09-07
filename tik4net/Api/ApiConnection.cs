@@ -11,7 +11,7 @@ namespace tik4net.Api
     internal sealed class ApiConnection : ITikConnection
     {
         //Inspiration:
-        //  http://ayufan.eu/projects/rosapi/repository/entry/trunk/routeros.class.php
+        // http://ayufan.eu/projects/rosapi/repository/entry/trunk/routeros.class.php
         // http://forum.mikrotik.com/viewtopic.php?f=9&t=31555&start=0
 
         private const int API_DEFAULT_PORT = 8728;
@@ -181,14 +181,14 @@ namespace tik4net.Api
             do
             {
                 ITikSentence result;
-                //najit  v _sentences
-                if (_readSentences.TryDequeue(tag, out result)) //nasli jsme (+ odstrani se v sen
+                // try to find in in _readSentences
+                if (_readSentences.TryDequeue(tag, out result)) // found => removed from _readSentences and return as result
                     return result;
 
                 lock (_readLockObj)
                 {
-                    //najit  v _sentences (co kdyby ji tam nekdo v mezicase pridal)
-                    if (_readSentences.TryDequeue(tag, out result)) //nasli jsme (+ odstrani se v sen
+                    // again - try to find in in _readSentences (could be added between last try and lock)  (see double check lock pattern)
+                    if (_readSentences.TryDequeue(tag, out result)) // found => removed from _readSentences and return as result
                         return result;
 
                     ITikSentence sentenceFromTcp = ReadSentence();
@@ -196,12 +196,12 @@ namespace tik4net.Api
                     {
                         return sentenceFromTcp;
                     }
-                    else //vetu pro neznamy tag naopak do sentences pridam
+                    else // another tag => add to _readSentences for another reading thread
                     {
                         _readSentences.Enqueue(sentenceFromTcp);
                     }
                 }
-            } while (true); //TODO max attempts???  //Opakujeme dokud neco nedostaneme
+            } while (true); //TODO max attempts???  //repeat until get any response for specific tag
         }
         
         private IEnumerable<ITikSentence> GetAll(string tag)
@@ -211,8 +211,8 @@ namespace tik4net.Api
             {
                 sentence = GetOne(tag);
                 yield return sentence;
-            } while (!(sentence is ApiDoneSentence || sentence is ApiFatalSentence /*|| sentence is ApiTrapSentence */)); //nacita vety volanim TryGetOne(wait) pro TAG dokud nedostane !done                       
-            //NOTE both !trap and !fatal are in pair with !done
+            } while (!(sentence is ApiDoneSentence || sentence is ApiFatalSentence /*|| sentence is ApiTrapSentence */)); // read sentences via TryGetOne(wait) for TAG until !done or !fatal is returned
+            //NOTE both !trap and !fatal are followed with !done
         }
 
         public IEnumerable<ITikSentence> CallCommandSync(IEnumerable<string> commandRows)
@@ -224,10 +224,9 @@ namespace tik4net.Api
             return GetAll(string.Empty).ToList();
         }
 
-        public void CallCommandAsync(IEnumerable<string> commandRows, string tag, 
+        public TikAsyncLoadingThread CallCommandAsync(IEnumerable<string> commandRows, string tag, 
             Action<ITikSentence> oneResponseCallback)
-        {
-            //TODO warning do dokumentace, ze callback je v jinem threadu + example synchronizace
+        {            
             Guard.ArgumentNotNullOrEmptyString(tag, "tag");
 
             commandRows = commandRows.Concat(new string[] { string.Format("{0}={1}", TikSpecialProperties.Tag, tag) });
@@ -236,7 +235,7 @@ namespace tik4net.Api
                 WriteCommand(commandRows);
             }
 
-            new Thread(() =>
+            TikAsyncLoadingThread result = new TikAsyncLoadingThread(() =>
             {
                 try
                 {
@@ -252,14 +251,18 @@ namespace tik4net.Api
                         {
                             //Do not crash reading thread because of implementation error in called code
                         }
-                    } while (!(sentence is ApiDoneSentence /*|| sentence is ApiTrapSentence*/ || sentence is ApiFatalSentence)); //nacita vety volanim TryGetOne(wait) pro TAG dokud nedostane !trap nebo !done                 
-                                                                    //NOTE: Musi dojet samo na !done nebo !trap  (ktery vpasuje cancel z jineho TAGu)
+                    } while (!(sentence is ApiDoneSentence /*|| sentence is ApiTrapSentence*/ || sentence is ApiFatalSentence)); // read sentences via TryGetOne(wait) for TAG until !done or !fatal is returned
+                    //NOTE: Should be ended via !done or !trap+!done (called via Cancel() command for specific tag)
                 }
                 catch
                 {
-                    //sezereme pripadnou vyjimku z GetOne a nechame dojet thread ko konce
+                    //catch all exceptions from GetOne -> thread should end via !done read sentence
+                    //TODO: implement "timeoutException" for GetOne and cancell gracefully thraed if this exception happens
                 }
-            }).Start();
+            });
+            result.Start();
+
+            return result;
         }
 
         public ITikCommand CreateCommand()

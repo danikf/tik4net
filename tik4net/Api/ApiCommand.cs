@@ -272,7 +272,7 @@ namespace tik4net.Api
             }
         }
 
-        public void ExecuteAsync(Action<ITikReSentence> oneResponseCallback, Action<ITikTrapSentence> errorCallback = null)
+        public TikAsyncLoadingThread ExecuteAsync(Action<ITikReSentence> oneResponseCallback, Action<ITikTrapSentence> errorCallback = null)
         {
             EnsureConnectionSet();
             EnsureNotRunning();
@@ -284,7 +284,7 @@ namespace tik4net.Api
             try
             {
                 string[] commandRows = ConstructCommandText();
-                _connection.CallCommandAsync(commandRows, tag.ToString(),
+                return _connection.CallCommandAsync(commandRows, tag.ToString(),
                                         response =>
                                         {
                                             ApiReSentence reResponse = response as ApiReSentence;

@@ -7,29 +7,66 @@ using System.Threading.Tasks;
 
 namespace tik4net.Objects
 {
+    /// <summary>
+    /// Accessor to one tik entity property.
+    /// </summary>
+    /// <seealso cref="TikPropertyAttribute"/>
+    /// <seealso cref="TikEntityMetadata"/>
     public sealed class TikEntityPropertyAccessor
     {
         private readonly TikEntityMetadata _owner;
         private bool _isReadOnly;
 
+        /// <summary>
+        /// Name of the property in C# code of the entity.
+        /// </summary>
         public string PropertyName { get; private set; }
 
+        /// <summary>
+        /// Type of the property in C# code of the entity.
+        /// </summary>
         public Type PropertyType { get; private set; }
 
+        /// <summary>
+        /// Name of the field in mikrotik router.
+        /// </summary>
+        /// <seealso cref="TikPropertyAttribute.FieldName"/>
         public string FieldName { get; private set; }
 
+        /// <summary>
+        /// If property (and mikrotik field) is R/O.
+        /// </summary>
+        /// <seealso cref="TikPropertyAttribute.IsReadOnly"/>
         public bool IsReadOnly
         {
             get { return _isReadOnly || _owner.IsReadOnly; }
         }
+
+        /// <summary>
+        /// If property (and mikrotik field) are madatory during load - should be present in resultset.
+        /// </summary>
+        /// <seealso cref="TikPropertyAttribute.IsMandatory"/>
         public bool IsMandatory { get; private set; }
 
+        /// <summary>
+        /// Defaukt value of the property.
+        /// </summary>
+        /// <seealso cref="TikPropertyAttribute.DefaultValue"/>
         public string DefaultValue { get; private set; }
 
+        /// <summary>
+        /// If value should be unset during update (save modified entity) when property contains default value.
+        /// </summary>
+        /// <seealso cref="TikPropertyAttribute.UnsetWhenDefault"/>
         public bool UnsetWhenDefault { get; private set; }
 
         private PropertyInfo PropertyInfo { get; set; }
 
+        /// <summary>
+        /// .ctor
+        /// </summary>
+        /// <param name="owner">Metadata of the owning entity.</param>
+        /// <param name="propertyInfo">PropertyInfo of the accessed  entity property.</param>
         public TikEntityPropertyAccessor(TikEntityMetadata owner, PropertyInfo propertyInfo)
         {
             _owner = owner;
@@ -59,6 +96,10 @@ namespace tik4net.Objects
             UnsetWhenDefault = propertyAttribute.UnsetWhenDefault;
         }
 
+        /// <summary>
+        /// Readable description of the accessor.
+        /// </summary>
+        /// <returns>Readable description of the accessor.</returns>
         public override string ToString()
         {
             return PropertyName + "(" + FieldName + ")";
@@ -94,6 +135,11 @@ namespace tik4net.Objects
                 throw new NotImplementedException(string.Format("Property type {0} not supported.", PropertyType));
         }
 
+        /// <summary>
+        /// Returns if accessed property of given <paramref name="entity"/> contains null or <see cref="DefaultValue"/>.
+        /// </summary>
+        /// <param name="entity"></param>
+        /// <returns>True if accessed property od given entity contains default value.</returns>
         public bool HasDefaultValue(object entity)
         {
             string propValue = GetEntityValue(entity);
@@ -101,11 +147,21 @@ namespace tik4net.Objects
             return (propValue == null) || (Convert.ToString(propValue) == DefaultValue);
         }
 
+        /// <summary>
+        /// Sets the value of accesed property on given <paramref name="entity"/>.
+        /// </summary>
+        /// <param name="entity">Entity to be modified.</param>
+        /// <param name="propValue">New property value.</param>
         public void SetEntityValue(object entity, string propValue)
         {
             PropertyInfo.SetValue(entity, ConvertFromString(propValue)); //NOTE: works even if setter is private
         }
 
+        /// <summary>
+        /// Gets the value of accesed property from given <paramref name="entity"/>.
+        /// </summary>
+        /// <param name="entity">Entity to read peroperty value from.</param>
+        /// <returns>Property value from giuven entity</returns>
         public string GetEntityValue(object entity)
         {
             object propValue = PropertyInfo.GetValue(entity);
@@ -113,10 +169,5 @@ namespace tik4net.Objects
                 propValue = DefaultValue;   
             return ConvertToString(propValue);
         }
-
-        //public string GetEntityValue(object entity)
-        //{
-        //    return GetEntityValue(entity, false);
-        //}
     }
 }
