@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace tik4net.Objects
 {
     /// <summary>
-    /// Attribute to mark object property as auto-readable from mikrotik router.
+    /// Attribute to mark object property as readable/writable from/to mikrotik router.
     /// </summary>
     [AttributeUsage(AttributeTargets.Property)]
     public sealed class TikPropertyAttribute : Attribute
@@ -19,28 +19,35 @@ namespace tik4net.Objects
         public string FieldName { get; private set; }
 
         /// <summary>
-        /// Gets a value indicating whether this property is mandatory.
+        /// Gets a value indicating whether this property is mandatory - should be present in loading resultset.
         /// </summary>
         /// <value><c>true</c> if mandatory; otherwise, <c>false</c>.</value>
         public bool IsMandatory { get; set; }
 
         /// <summary>
-        /// Gets the edit mode of property.
+        /// If the property is R/O (should not be updated during save modified entity).
         /// </summary>
         /// <value>The edit mode of property.</value>
         public bool IsReadOnly { get; set; }
 
+        /// <summary>
+        /// Property default value (if is different from type default).
+        /// </summary>
         public string DefaultValue { get; set; }
 
+        /// <summary>
+        /// If unset command should be called when saving modified object and marked property contains <see cref="DefaultValue"/> or null.
+        /// </summary>
         public bool UnsetWhenDefault { get; set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TikPropertyAttribute"/> class.
         /// </summary>
         /// <param name="fieldName">Name of the property (on mikrotik).</param>
-        /// <param name="propertyType">Data type of the property.</param>
-        /// <param name="mandatory">if set to <c>true</c> [mandatory].</param>
-        /// <param name="editMode">The property edit mode.</param>
+        /// <param name="isMandatory">If this property is mandatory - should be present in loading resultset</param>
+        /// <param name="isReadOnly">If the property is R/O (should not be updated during save modified entity).</param>
+        /// <param name="defaultValue">Property default value (if is different from type default).</param>
+        /// <param name="unsetWhenDefault">If unset command should be called when saving modified object and marked property contains <see cref="DefaultValue"/> or null.</param>
         public TikPropertyAttribute(string fieldName, bool isMandatory, bool isReadOnly, string defaultValue, bool unsetWhenDefault)
         {
             Guard.ArgumentNotNullOrEmptyString(fieldName, "fieldName");
@@ -52,6 +59,10 @@ namespace tik4net.Objects
             UnsetWhenDefault = unsetWhenDefault;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TikPropertyAttribute"/> class.
+        /// </summary>
+        /// <param name="fieldName">Name of the property (on mikrotik).</param>
         public TikPropertyAttribute(string fieldName)
         {
             Guard.ArgumentNotNullOrEmptyString(fieldName, "fieldName");
