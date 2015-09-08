@@ -211,6 +211,14 @@ namespace tik4net.Objects
                 throw new InvalidOperationException("Can not save R/O entity.");
         }
 
+        /// <summary>
+        /// Saves entity to mikrotik router. Does insert (/add) whan entity has empty id and update(/set + /unset) when id is present).
+        /// Behavior of save is modified via <see cref="TikPropertyAttribute"/> on properties.
+        /// See <see cref="TikPropertyAttribute.DefaultValue"/>, <see cref="TikPropertyAttribute.UnsetWhenDefault"/>.
+        /// </summary>
+        /// <typeparam name="TEntity">Saved entitie type.</typeparam>
+        /// <param name="connection">Tik connection used to save.</param>
+        /// <param name="entity">Saved entity.</param>
         public static void Save<TEntity>(this ITikConnection connection, TEntity entity)
         {            
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
@@ -269,6 +277,25 @@ namespace tik4net.Objects
             }
         }
 
+        /// <summary>
+        /// List version of <see cref="Save"/> method. Saves differencec between given <paramref name="modifiedList"/> and <paramref name="unmodifiedList"/>.
+        /// Typical usage is: Load, create list clone, modify list, save diferences.
+        /// </summary>
+        /// <example>
+        /// var list = connection.LoadList{FirewallAddressList}(connection.CreateParameter("list", listName), connection.CreateParameter("address", ipAddress));
+        /// var listClonedBackup = list.CloneEntityList(); //creates clone of all entities in list
+        /// list.Add(new FirewallAddressList() {Address = ipAddress, List = listName, }); //insert
+        /// list[0].Comment = "test comment"; //update
+        /// list.RemoveAt(1); //delete
+        /// connection.SaveListDifferences(list, listClonedBackup);
+        /// </example>
+        /// <typeparam name="TEntity">Saved entitie type.</typeparam>
+        /// <param name="connection">Tik connection used to save.</param>
+        /// <param name="modifiedList">List with modifications.</param>
+        /// <param name="unmodifiedList">Original (cloned) unmodified list.</param>
+        /// <seealso cref="TikEntityObjectsExtensions.CloneEntity"/>
+        /// <seealso cref="TikEntityObjectsExtensions.CloneEntityList"/>
+        /// <seealso cref="Save"/>
         public static void SaveListDifferences<TEntity>(this ITikConnection connection, IEnumerable<TEntity> modifiedList, IEnumerable<TEntity> unmodifiedList)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
