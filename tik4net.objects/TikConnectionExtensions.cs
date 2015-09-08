@@ -7,6 +7,43 @@ using System.Threading.Tasks;
 
 namespace tik4net.Objects
 {
+    /// <summary>
+    /// Main mapper extension - extends <see cref="ITikConnection"/>.
+    /// Supports CRUD and move functions.
+    /// <para>
+    /// <list type="bullet">
+    /// <listheader>Load:</listheader>
+    /// <item><see cref="LoadAll"/></item>
+    /// <item><see cref="LoadById"/></item>
+    /// <item><see cref="LoadList{TEntity}(ITikConnection, ITikCommandParameter[])"/></item>
+    /// <item><see cref="LoadWithDuration"/></item>
+    /// <item><see cref="LoadAsync"/></item>
+    /// </list>
+    /// </para>
+    /// 
+    /// <para>
+    /// <list type="bullet">
+    /// <listheader>Save:</listheader>
+    /// <item><see cref="Save"/> (Insert/Update)</item>
+    /// <item><see cref="SaveListDifferences"/> (Insert/Update/Delete)</item>
+    /// </list>
+    /// </para>
+    /// 
+    /// <para>
+    /// <list type="bullet">
+    /// <listheader>Delete:</listheader>
+    /// <item><see cref="Delete"/></item>
+    /// </list>
+    /// </para>
+    /// 
+    /// <para>
+    /// <list type="bullet">
+    /// <listheader>Move:</listheader>
+    /// <item><see cref="Move"/></item>
+    /// <item><see cref="MoveToEnd"/></item>
+    /// </list>
+    /// </para>
+    /// </summary>
     public static class TikConnectionExtensions
     {
         #region -- LOAD --
@@ -22,12 +59,26 @@ namespace tik4net.Objects
             return LoadList<TEntity>(connection);
         }
 
+        /// <summary>
+        /// Loads entity with specified id. Returns null if not found.
+        /// </summary>
+        /// <typeparam name="TEntity">Loaded entities type.</typeparam>
+        /// <param name="connection">Tik connection used to load.</param>
+        /// <param name="id">Entity id.</param>
+        /// <returns>Loaded entity or null.</returns>
         public static TEntity LoadById<TEntity>(this ITikConnection connection, string id)
             where TEntity : new()
         {
             return LoadList<TEntity>(connection, connection.CreateParameter(TikSpecialProperties.Id, id)).SingleOrDefault();
         }
 
+        /// <summary>
+        /// Loads entity list. Could be filtered with <paramref name="filterParameters"/>.
+        /// </summary>
+        /// <typeparam name="TEntity">Loaded entities type.</typeparam>
+        /// <param name="connection">Tik connection used to load.</param>
+        /// <param name="filterParameters">Optional list of filter parameters (interpreted as connected with AND)</param>
+        /// <returns>List (or empty list) of loaded entities.</returns>
         public static IEnumerable<TEntity> LoadList<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filterParameters)
             where TEntity : new()
         {
@@ -35,6 +86,16 @@ namespace tik4net.Objects
             return LoadList<TEntity>(command);
         }
 
+        /// <summary>
+        /// Calls command and reads all returned rows for given <paramref name="durationSec"/> period.
+        /// After this period calls cancell to mikrotik router and returns all loaded rows.
+        /// Throws exception if any 'trap' row occurs.
+        /// </summary>
+        /// <typeparam name="TEntity">Loaded entities type.</typeparam>
+        /// <param name="connection">Tik connection used to load.</param>
+        /// <param name="durationSec">Loading period.</param>
+        /// <param name="parameters">Optional list of filters/parameters (interpreted as connected with AND)</param>
+        /// <returns>List (or empty list) of loaded entities.</returns>
         public static IEnumerable<TEntity> LoadWithDuration<TEntity>(this ITikConnection connection, int durationSec, params ITikCommandParameter[] parameters)
             where TEntity : new()
         {
@@ -45,6 +106,18 @@ namespace tik4net.Objects
             return responseSentences.Select(sentence => CreateObject<TEntity>(sentence)).ToList();            
         }
 
+
+        /// <summary>
+        /// Calls command and starts backgroud reading thread. After that returns control to calling thread.
+        /// All read rows are returned as callbacks (<paramref name="onLoadItemCallback"/>, <paramref name="onExceptionCallback"/>) from loading thread.
+        /// REMARKS: if you want to propagate loaded values to GUI, you should use some kind of synchronization or Invoke, because 
+        /// callbacks are called from non-ui thread.
+        /// </summary>
+        /// <typeparam name="TEntity">Loaded entities type.</typeparam>
+        /// <param name="connection">Tik connection used to load.</param>
+        /// <param name="onLoadItemCallback">Callback called for each loaded !re row</param>
+        /// <param name="onExceptionCallback">Callback called when error occurs (!trap row is returned)</param>
+        /// <param name="parameters">Optional list of filters/parameters (interpreted as connected with AND)</param>
         public static AsyncLoadingContext LoadAsync<TEntity>(this ITikConnection connection,
             Action<TEntity> onLoadItemCallback, Action<Exception> onExceptionCallback = null,
             params ITikCommandParameter[] parameters)
