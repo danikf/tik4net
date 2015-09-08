@@ -40,6 +40,8 @@ namespace tik4net.Objects
         /// Initializes a new instance of the <see cref="TikEntityAttribute"/> class.
         /// </summary>
         /// <param name="entityPath">The entity path in API notation (/ip/firewall/mangle).</param>
+        /// <param name="isReadOnly">If the whole entity is R/O.</param>
+        /// <param name="includeDetails">If entity should be loaded with =detail= option.</param>
         public TikEntityAttribute(string entityPath, bool isReadOnly, bool includeDetails)
         {
             Guard.ArgumentNotNullOrEmptyString(entityPath, "entityPath");
