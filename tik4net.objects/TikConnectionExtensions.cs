@@ -340,6 +340,12 @@ namespace tik4net.Objects
         #endregion
 
         #region -- DELETE --
+        /// <summary>
+        /// Deletes entity (.id is the key) on mikrotik router.
+        /// </summary>
+        /// <typeparam name="TEntity">Deleted entity type.</typeparam>
+        /// <param name="connection">Tik connection used to delete entity.</param>
+        /// <param name="entity">Entity to be deleted (.id property is the key)</param>
         public static void Delete<TEntity>(this ITikConnection connection, TEntity entity)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
@@ -355,6 +361,13 @@ namespace tik4net.Objects
         #endregion
 
         #region -- MOVE --
+        /// <summary>
+        /// Moves given <paramref name="entityToMove"/> before given <paramref name="entityToMoveBefore"/>.
+        /// </summary>
+        /// <typeparam name="TEntity">Moved entity type.</typeparam>
+        /// <param name="connection">Tik connection used to move entity.</param>
+        /// <param name="entityToMove">Entity to be moved.</param>
+        /// <param name="entityToMoveBefore">Entity before which is given <paramref name="entityToMove"/> moved.</param>
         public static void Move<TEntity>(this ITikConnection connection, TEntity entityToMove, TEntity entityToMoveBefore)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
@@ -370,6 +383,12 @@ namespace tik4net.Objects
             cmd.ExecuteNonQuery();
         }
 
+        /// <summary>
+        /// Moves given <paramref name="entityToMove"/> to the end (make it last entity in the list).
+        /// </summary>
+        /// <typeparam name="TEntity">Moved entity type.</typeparam>
+        /// <param name="connection">Tik connection used to move entity.</param>
+        /// <param name="entityToMove">Entity to be moved.</param>
         public static void MoveToEnd<TEntity>(this ITikConnection connection, TEntity entityToMove)
         {
             Move(connection, entityToMove, default(TEntity));
