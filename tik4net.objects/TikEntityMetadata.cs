@@ -40,6 +40,12 @@ namespace tik4net.Objects
         public bool IsReadOnly { get; private set; }
 
         /// <summary>
+        /// If entity list is ordered (move operation does make sense).
+        /// </summary>
+        /// <seealso cref="TikEntityAttribute.IsOrdered"/>
+        public bool IsOrdered { get; private set; }
+
+        /// <summary>
         /// If =detail= option should be used during entity load.
         /// </summary>
         /// <seealso cref="TikEntityAttribute.IncludeDetails"/>
@@ -72,6 +78,7 @@ namespace tik4net.Objects
 
             EntityPath = entityAttribute.EntityPath;
             IsReadOnly = entityAttribute.IsReadOnly;
+            IsOrdered = entityAttribute.IsOrdered;
             IncludeDetails = entityAttribute.IncludeDetails;
             IncludeProplist = entityAttribute.IncludeProplist;
 

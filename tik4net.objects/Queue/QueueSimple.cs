@@ -9,7 +9,7 @@ namespace tik4net.Objects.Queue
     /// <summary>
     /// /queue/simple
     /// </summary>
-    [TikEntity("/queue/simple", IncludeDetails = true)]
+    [TikEntity("/queue/simple", IncludeDetails = true, IsOrdered = true)]
     public class QueueSimple
     {
         /// <summary>

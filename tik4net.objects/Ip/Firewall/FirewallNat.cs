@@ -9,7 +9,7 @@ namespace tik4net.Objects.Ip.Firewall
     /// <summary>
     /// /ip/firewall/nat
     /// </summary>
-    [TikEntity("/ip/firewall/nat", IncludeDetails = true)]
+    [TikEntity("/ip/firewall/nat", IncludeDetails = true, IsOrdered = true)]
     public class FirewallNat
     {
         /// <summary>

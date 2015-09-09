@@ -27,6 +27,11 @@ namespace tik4net.Objects
         public bool IsReadOnly { get; set; }
 
         /// <summary>
+        /// If entity list is ordered (move operation does make sense)
+        /// </summary>
+        public bool IsOrdered { get; set; }
+
+        /// <summary>
         /// If entity should be loaded with =detail= option.
         /// </summary>
         public bool IncludeDetails { get; set; }
@@ -41,12 +46,14 @@ namespace tik4net.Objects
         /// </summary>
         /// <param name="entityPath">The entity path in API notation (/ip/firewall/mangle).</param>
         /// <param name="isReadOnly">If the whole entity is R/O.</param>
+        /// <param name="isOrdered">If entity list is ordered (move operation does make sense).</param>
         /// <param name="includeDetails">If entity should be loaded with =detail= option.</param>
-        public TikEntityAttribute(string entityPath, bool isReadOnly, bool includeDetails)
+        public TikEntityAttribute(string entityPath, bool isReadOnly, bool isOrdered, bool includeDetails)
         {
             Guard.ArgumentNotNullOrEmptyString(entityPath, "entityPath");
             EntityPath = entityPath;
             IsReadOnly = isReadOnly;
+            IsOrdered = isOrdered;
             IncludeDetails = includeDetails;
         }
 

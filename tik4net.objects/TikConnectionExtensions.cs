@@ -211,6 +211,12 @@ namespace tik4net.Objects
                 throw new InvalidOperationException("Can not save R/O entity.");
         }
 
+        private static void EnsureSupportsOrdering(TikEntityMetadata entityMetadata)
+        {
+            if (!entityMetadata.IsOrdered)
+                throw new InvalidOperationException("Can not move entity without ordering support.");
+        }
+
         /// <summary>
         /// Saves entity to mikrotik router. Does insert (/add) whan entity has empty id and update(/set + /unset) when id is present).
         /// Behavior of save is modified via <see cref="TikPropertyAttribute"/> on properties.
@@ -371,6 +377,8 @@ namespace tik4net.Objects
         public static void Move<TEntity>(this ITikConnection connection, TEntity entityToMove, TEntity entityToMoveBefore)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
+            EnsureSupportsOrdering(metadata);
+
             string idToMove = metadata.IdProperty.GetEntityValue(entityToMove);
             string idToMoveBefore = entityToMoveBefore != null ? metadata.IdProperty.GetEntityValue(entityToMoveBefore) : null;
 

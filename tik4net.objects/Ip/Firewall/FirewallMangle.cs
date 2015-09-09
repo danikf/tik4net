@@ -9,7 +9,7 @@ namespace tik4net.Objects.Ip.Firewall
     /// <summary>
     /// /ip/firewall/mangle
     /// </summary>
-    [TikEntity("/ip/firewall/mangle", IncludeDetails = true)]
+    [TikEntity("/ip/firewall/mangle", IncludeDetails = true, IsOrdered = true)]
     public class FirewallMangle
     {
         /// <summary>
