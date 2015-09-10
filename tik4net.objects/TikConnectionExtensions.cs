@@ -425,6 +425,22 @@ namespace tik4net.Objects
         /// <param name="expected">Expected state on mikrotik router (Missing items will be added, others will be updated if are different).</param>
         /// <param name="original">Actual state on mikrotik router. (Surplus items will be deleted).</param>
         /// <returns>Merge object, that should be setuped (via fluent API) and finaly <see cref="TikListMerge{TEntity}.Save"/> must be called on this object to perform operations on mikrotik router.</returns>
+        /// <example>
+        /// var original = connection.LoadAll{QueueTree}().Where(q => q.Name == "Q1" || q.Name == "Q2" || q.Name.StartsWith("Q3")); //just subset of actual QT items
+        /// string unique = Guid.NewGuid().ToString();
+        /// List{QueueTree} expected = new List{QueueTree}()  //new expected subset of QT items
+        ///    {
+        ///        new QueueTree() { Name = "Q1", Parent = "global", PacketMark = "PM1" },
+        ///        new QueueTree() { Name = "Q2", Parent = "global", PacketMark = "PM2", Comment = unique }, //always update
+        ///        new QueueTree() { Name = "Q3 " + unique, Parent = "global", PacketMark = "PM3" }, // always insert + delete from previous run
+        ///    };
+        /// connection.CreateMerge(expected, original) //access to merge object            
+        ///    .WithKey(queue => queue.Name) // items with the same name are the same (name is the key)
+        ///    .Field(q => q.Parent)         // we are updating just Parent, PacketMark and Comment fields
+        ///    .Field(q => q.PacketMark)
+        ///    .Field(q => q.Comment)
+        ///    .Save();                      // modify mikrotik router QueueTree 
+        /// </example>
         public static TikListMerge<TEntity> CreateMerge<TEntity>(this ITikConnection connection, IEnumerable<TEntity> expected, IEnumerable<TEntity> original)
         {
             return new TikListMerge<TEntity>(connection, expected, original);
