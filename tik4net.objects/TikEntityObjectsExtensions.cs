@@ -55,22 +55,42 @@ namespace tik4net.Objects
         /// <typeparam name="TEntity"></typeparam>
         /// <param name="entity1">First entity.</param>
         /// <param name="entity2">Seconf entity.</param>
+        /// <param name="skipIdCompare">If is true, than coparation of .id property is skipped.</param>
         /// <returns>True if all entity fields are equals.</returns>
         /// <remarks>Compares only fields marked with <see cref="TikPropertyAttribute"/>.</remarks>
-        public static bool EntityEquals<TEntity>(this TEntity entity1, TEntity entity2)
+        public static bool EntityEquals<TEntity>(this TEntity entity1, TEntity entity2, bool skipIdCompare = false)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
 
             foreach (var property in metadata.Properties)
             {
-                string prop1 = property.GetEntityValue(entity1);
-                string prop2 = property.GetEntityValue(entity2);
+                if (!skipIdCompare || property.FieldName != TikSpecialProperties.Id)
+                {
+                    string prop1 = property.GetEntityValue(entity1);
+                    string prop2 = property.GetEntityValue(entity2);
 
-                if (!string.Equals(prop1, prop2))
-                    return false;
+                    if (!string.Equals(prop1, prop2))
+                        return false;
+                }
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Compares IDs (.id) of two instances of entity. 
+        /// </summary>
+        /// <param name="entity1">First entity.</param>
+        /// <param name="entity2">Seconf entity.</param>
+        /// <returns>True if ids are equal.</returns>
+        public static bool IdEquals<TEntity>(this TEntity entity1, TEntity entity2)
+        {
+            var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
+
+            string id1 = metadata.IdProperty.GetEntityValue(entity1);
+            string id2 = metadata.IdProperty.GetEntityValue(entity2);
+
+            return string.Equals(id1, id2);
         }
 
         /// <summary>

@@ -89,9 +89,9 @@ namespace tik4net.Objects
                 .ToDictionary(propDescriptor => propDescriptor.FieldName);                
         }
 
-        private TikEntityPropertyAccessor GetPopertyDescriptor(string propertyName)
+        private TikEntityPropertyAccessor GetPopertyDescriptor(string fieldName)
         {
-            return _properties[propertyName];
+            return _properties[fieldName];
         }
     }
 }

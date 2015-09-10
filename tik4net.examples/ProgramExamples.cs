@@ -8,6 +8,7 @@ using tik4net.Api;
 using tik4net.Objects;
 using tik4net.Objects.Ip;
 using tik4net.Objects.Ip.Firewall;
+using tik4net.Objects.Queue;
 using tik4net.Objects.System;
 
 namespace tik4net.examples
@@ -24,34 +25,38 @@ namespace tik4net.examples
 
                 //------------------------------------------------
                 //  LOW LEVEL API (hint: uncomment any example call and debug)
-                Identity(connection);
+                //Identity(connection);
 
-                Torch(connection);
+                //Torch(connection);
 
-                Log(connection);
+                //Log(connection);
 
                 //-------------------------------------------------
                 // HIGHLEVEL API (hint: uncomment any example call and debug)
 
-                PrintAddressList(connection);
-                CreateOrUpdateAddressList(connection);
-                PrintAddressList(connection);
-                CreateOrUpdateAddressList(connection);
-                PrintAddressList(connection);
-                DeleteAddressList(connection);
-                PrintAddressList(connection);
+                //PrintAddressList(connection);
+                //CreateOrUpdateAddressList(connection);
+                //PrintAddressList(connection);
+                //CreateOrUpdateAddressList(connection);
+                //PrintAddressList(connection);
+                //DeleteAddressList(connection);
+                //PrintAddressList(connection);
 
-                PrintAddressList(connection);
-                CreateOrUpdateAddressListMulti(connection);
-                PrintAddressList(connection);
-                CreateOrUpdateAddressListMulti(connection);
-                PrintAddressList(connection);
-                DeleteAddressListMulti(connection);
-                PrintAddressList(connection);
+                //PrintAddressList(connection);
+                //CreateOrUpdateAddressListMulti(connection);
+                //PrintAddressList(connection);
+                //CreateOrUpdateAddressListMulti(connection);
+                //PrintAddressList(connection);
+                //DeleteAddressListMulti(connection);
+                //PrintAddressList(connection);
 
-                PrintIpAddresses(connection);
+                //PrintIpAddresses(connection);
 
-                PrintSystemResource(connection);
+                //PrintSystemResource(connection);
+
+                //---------------------------------------------------------
+                // Advanced merge support (hint: uncomment any example call and debug)
+                QueueTreeMerge(connection);
 
                 Console.WriteLine("Finito - press ENTER");
                 Console.ReadLine();
@@ -215,8 +220,29 @@ namespace tik4net.examples
 
         private static void PrintSystemResource(ITikConnection connection)
         {
-            var sysRes = connection.LoadAll<SystemResource>().Single();
+            var sysRes = connection.LoadSingle<SystemResource>();
             Console.WriteLine(sysRes.EntityToString());
+        }
+
+        private static void QueueTreeMerge(ITikConnection connection)
+        {
+            var original = connection.LoadAll<QueueTree>().Where(q=> q.Name == "Q1" || q.Name == "Q2" || q.Name.StartsWith("Q3"));
+
+            string unique = Guid.NewGuid().ToString();
+            List<QueueTree> expected = new List<QueueTree>()
+            {
+                new QueueTree() { Name = "Q1", Parent = "global", PacketMark = "PM1" },
+                new QueueTree() { Name = "Q2", Parent = "global", PacketMark = "PM2", Comment = unique }, //always update
+                new QueueTree() { Name = "Q3 " + unique, Parent = "global", PacketMark = "PM3" }, // always insert + delete from previous run
+            };
+
+            //Merge with Name as key - can not save via SaveListDifferences because all items in 'expected' are new (.id=null) => insert will be done, not CUD
+            connection.CreateMerge(expected, original)            
+                .WithKey(queue => queue.Name)
+                .Field(q => q.Parent)
+                .Field(q => q.PacketMark)
+                .Field(q => q.Comment)
+                .Save();
         }
     }
 }

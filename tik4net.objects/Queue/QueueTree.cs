@@ -131,6 +131,12 @@ namespace tik4net.Objects.Queue
         /// </summary>
         [TikProperty("disabled")]
         public bool Disabled { get; set; }
+
+        /// <summary>
+        /// comment
+        /// </summary>
+        [TikProperty("comment")]
+        public string Comment { get; set; }
     }
 
 }

@@ -60,6 +60,18 @@ namespace tik4net.Objects
         }
 
         /// <summary>
+        /// Alias to <see cref="LoadList{TEntity}(ITikConnection, ITikCommandParameter[])"/> without filter, ensures that result contains exactly one row.
+        /// </summary>
+        /// <typeparam name="TEntity">Loaded entities type.</typeparam>
+        /// <param name="connection">Tik connection used to load.</param>
+        /// <returns>Loaded single entity.</returns>
+        public static TEntity LoadSingle<TEntity>(this ITikConnection connection)
+            where TEntity : new()
+        {
+            return LoadList<TEntity>(connection).Single();
+        }
+
+        /// <summary>
         /// Loads entity with specified id. Returns null if not found.
         /// </summary>
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
@@ -307,7 +319,7 @@ namespace tik4net.Objects
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             EnsureNotReadonlyEntity(metadata);
             var idProperty = metadata.IdProperty;
-            
+
             var entitiesToCreate = modifiedList.Where(entity => string.IsNullOrEmpty(idProperty.GetEntityValue(entity))).ToList(); // new items in modifiedList
 
             Dictionary<string, TEntity> modifiedEntities = modifiedList
@@ -318,7 +330,7 @@ namespace tik4net.Objects
                 .ToDictionary(entity => idProperty.GetEntityValue(entity)); //all entities from unmodified list with ids
 
             //DELETE
-            foreach(string entityId in unmodifiedEntities.Keys.Where(id => !modifiedEntities.ContainsKey(id))) //missing in modified -> deleted
+            foreach (string entityId in unmodifiedEntities.Keys.Where(id => !modifiedEntities.ContainsKey(id))) //missing in modified -> deleted
             {
                 Delete(connection, unmodifiedEntities[entityId]);
             }
@@ -330,7 +342,7 @@ namespace tik4net.Objects
             }
 
             //UPDATE
-            foreach(string entityId in unmodifiedEntities.Keys.Where(id=> modifiedEntities.ContainsKey(id))) // are in both modified and unmodified -> compare values (update/skip)
+            foreach (string entityId in unmodifiedEntities.Keys.Where(id => modifiedEntities.ContainsKey(id))) // are in both modified and unmodified -> compare values (update/skip)
             {
                 TEntity modifiedEntity = modifiedEntities[entityId];
                 TEntity unmodifiedEntity = unmodifiedEntities[entityId];
@@ -400,6 +412,22 @@ namespace tik4net.Objects
         public static void MoveToEnd<TEntity>(this ITikConnection connection, TEntity entityToMove)
         {
             Move(connection, entityToMove, default(TEntity));
+        }
+
+        #endregion
+
+        #region -- MERGE --
+        /// <summary>
+        /// Creates merge object. This object should be setuped (via fluent API) and finaly <see cref="TikListMerge{TEntity}.Save"/> must be called.
+        /// </summary>
+        /// <typeparam name="TEntity">Type of the entity in list to merge.</typeparam>
+        /// <param name="connection">Tik connection used to update state of entities.</param>
+        /// <param name="expected">Expected state on mikrotik router (Missing items will be added, others will be updated if are different).</param>
+        /// <param name="original">Actual state on mikrotik router. (Surplus items will be deleted).</param>
+        /// <returns>Merge object, that should be setuped (via fluent API) and finaly <see cref="TikListMerge{TEntity}.Save"/> must be called on this object to perform operations on mikrotik router.</returns>
+        public static TikListMerge<TEntity> CreateMerge<TEntity>(this ITikConnection connection, IEnumerable<TEntity> expected, IEnumerable<TEntity> original)
+        {
+            return new TikListMerge<TEntity>(connection, expected, original);
         }
 
         #endregion
