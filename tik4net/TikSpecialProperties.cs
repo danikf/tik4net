@@ -25,5 +25,10 @@ namespace tik4net
         /// .tag property - used to correlate simultaneous command responses.
         /// </summary>
         public const string Tag = ".tag";
+
+        /// <summary>
+        /// value-name property used to set name of unset field in unset command
+        /// </summary>
+        public const string UnsetValueName = "value-name";
     }
 }

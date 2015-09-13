@@ -6,10 +6,11 @@ using System.Threading.Tasks;
 
 namespace tik4net.Api
 {
-    internal class ApiCommandParameter: ITikCommandParameter
+    internal class ApiCommandParameter : ITikCommandParameter
     {
         private string _name;
         private string _value;
+        private TikCommandParameterFormat _parameterFormat;
 
         public string Name
         {
@@ -21,6 +22,12 @@ namespace tik4net.Api
         {
             get { return _value; }
             set { _value = value; }
+        }
+
+        public TikCommandParameterFormat ParameterFormat
+        {
+            get { return _parameterFormat; }
+            set { _parameterFormat = value; }
         }
 
         public ApiCommandParameter()
@@ -41,9 +48,15 @@ namespace tik4net.Api
             _value = value;
         }
 
+        public ApiCommandParameter(string name, string value, TikCommandParameterFormat parameterFormat)
+            : this(name, value)
+        {
+            _parameterFormat = parameterFormat;
+        }
+
         public override string ToString()
         {
-            return string.Format("{0}={1}", Name, Value);
+            return string.Format("{0}={1}", Name, Value);            
         }
     }
 }

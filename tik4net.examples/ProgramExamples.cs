@@ -56,7 +56,8 @@ namespace tik4net.examples
 
                 //---------------------------------------------------------
                 // Advanced merge support (hint: uncomment any example call and debug)
-                QueueTreeMerge(connection);
+                //QueueTreeMerge(connection);
+                FirewallMangleMerge(connection);
 
                 Console.WriteLine("Finito - press ENTER");
                 Console.ReadLine();
@@ -241,6 +242,83 @@ namespace tik4net.examples
                 .WithKey(queue => queue.Name)
                 .Field(q => q.Parent)
                 .Field(q => q.PacketMark)
+                .Field(q => q.Comment)
+                .Save();
+        }
+
+        private static void FirewallMangleMerge(ITikConnection connection)
+        {
+            //manage just subset before rules marked with comment =START= and =END=
+
+            //Create subset boundaries if not present
+            const string startComment = "=START=";
+            const string endComment = "=END=";
+            var startMangle = connection.LoadSingleOrDefault<FirewallMangle>(connection.CreateParameter("comment", startComment));
+            if (startMangle == null)
+            {
+                startMangle = new FirewallMangle()
+                {
+                    Chain = "forward",
+                    Action = "passthrough",
+                    Comment = startComment,
+                    Disabled = true,
+                };
+                connection.Save(startMangle);
+            };
+            var endMangle = connection.LoadSingleOrDefault<FirewallMangle>(connection.CreateParameter("comment", endComment));
+            if (endMangle == null)
+            {
+                endMangle = new FirewallMangle()
+                {
+                    Chain = "forward",
+                    Action = "passthrough",
+                    Comment = endComment,
+                    Disabled = true,
+                };
+                connection.Save(endMangle);
+            };
+
+            //Merge subset between boundaries
+            string unique = Guid.NewGuid().ToString();
+            List<FirewallMangle> original = connection.LoadAll<FirewallMangle>().SkipWhile(m=>m.Comment != startComment).TakeWhile(m=>m.Comment != endComment)
+                .Concat(new List<FirewallMangle> { endMangle})
+                .ToList(); //just subset between =START= and =END= (not very elegant but functional and short ;-) )
+            List<FirewallMangle> expected = new List<FirewallMangle>();
+            expected.Add(startMangle);
+            expected.Add(new FirewallMangle()
+            {
+                Chain = "forward",
+                SrcAddress = "192.168.1.1",
+                Action = "mark-packet",
+                NewPacketMark = "mark-001",
+                Passthrough = false,
+            });
+            expected.Add(new FirewallMangle()
+            {
+                Chain = "forward",
+                SrcAddress = "192.168.1.2",
+                Action = "mark-packet",
+                NewPacketMark = "mark-002",
+                Passthrough = false,
+            });
+            expected.Add(new FirewallMangle()
+            {
+                Chain = "forward",
+                SrcAddress = "192.168.1.3",
+                Action = "mark-packet",
+                NewPacketMark = "mark-003",
+                Passthrough = false,
+                Comment = unique,
+            });
+            expected.Add(endMangle);
+
+            connection.CreateMerge(expected, original)
+                .WithKey(mangle => mangle.SrcAddress + ":" + mangle.Comment) //Use src-address as key
+                .Field(q => q.Chain) 
+                .Field(q => q.SrcAddress) //Do not forget include also key fields !!!
+                .Field(q => q.Action)
+                .Field(q => q.NewPacketMark)
+                .Field(q => q.Passthrough)
                 .Field(q => q.Comment)
                 .Save();
         }

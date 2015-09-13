@@ -99,6 +99,15 @@ namespace tik4net.Objects
             return true;
         }
 
+        private IEnumerable<string> ResolveFieldsFieldNames()
+        {
+            foreach(var field in _fields)
+            {
+                var attr = ((PropertyInfo)field.Member).GetCustomAttribute<TikPropertyAttribute>();
+                yield return attr.FieldName;
+            }
+        }
+
         /// <summary>
         /// Performs update operations on mikrotik router.
         /// Items which are present in 'expected' and are not present in 'original' will be created on mikrotik router.
@@ -113,31 +122,46 @@ namespace tik4net.Objects
             Dictionary<string, TEntity> expectedDict = _expected.ToDictionary(_keyExtractor);
             Dictionary<string, TEntity> originalDict = _original.ToDictionary(_keyExtractor);
 
-            foreach (var expectedEntityPair in expectedDict)
+            //Delete
+            foreach (var originalEntityPair in originalDict.Reverse()) //delete from end to begining of the list (just for better show in WinBox)
+            {
+                if (!expectedDict.ContainsKey(originalEntityPair.Key)) //present in original + not present in expected => delete
+                    _connection.Delete(originalEntityPair.Value);
+            }
+
+            //Insert+Update
+            var mergedFieldNames = ResolveFieldsFieldNames().ToArray();
+            foreach (var expectedEntityPair in expectedDict.Reverse()) //from last to first ( <= move is indexed as moveBeforeEntity)
             {
                 TEntity originalEntity;
+                TEntity resultEntity;
                 if (originalDict.TryGetValue(expectedEntityPair.Key, out originalEntity))
                 { //Update //present in both expected and original => update or NOOP
                   //copy .id from original to expected & save
                     if (!EntityFieldEquals(originalEntity, expectedEntityPair.Value)) //modified
                     {
                         UpdateEntityFields(originalEntity, expectedEntityPair.Value);
-                        _connection.Save(originalEntity);
+                        _connection.Save(originalEntity, mergedFieldNames);
                     }
-                    result.Add(originalEntity);
+                    resultEntity = originalEntity;
                 }
                 else
                 { //Insert //present in expected and not present in original => insert
-                    _connection.Save(expectedEntityPair.Value);
-                    result.Add(expectedEntityPair.Value);
+                    _connection.Save(expectedEntityPair.Value, mergedFieldNames);
+                    resultEntity = expectedEntityPair.Value;
                 }
-            }
 
-            //Delete
-            foreach (var originalEntityPair in originalDict)
-            {
-                if (!expectedDict.ContainsKey(originalEntityPair.Key)) //present in original + not present in expected => delete
-                    _connection.Delete(originalEntityPair.Value);
+                //Move entity to the right position
+                if (_metadata.IsOrdered)
+                {
+                    if (result.Count > 0) // last one in the list (first taken) should be just added/leavedOnPosition and the next should be moved before the one which was added immediatelly before <=> result[0]
+                    {
+                        //TODO: only if is in different position
+                        _connection.Move(resultEntity, result[0]); //before lastly added entity (foreach in reversed order)
+                    }
+                }
+
+                result.Insert(0, resultEntity); //foreach in reversed order => put as first in result list
             }
 
             return result;

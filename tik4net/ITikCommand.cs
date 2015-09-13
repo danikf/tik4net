@@ -31,14 +31,14 @@ namespace tik4net
         bool IsRunning { get; }
 
         /// <summary>
-        /// Parameters of command (without '=').
+        /// Parameters of command (without '=') or filter of query (without '?').
         /// </summary>
         IList<ITikCommandParameter> Parameters { get; }
 
         /// <summary>
-        /// Filters of command (without '?').
+        /// Default value, how will be command parameters formated in mikrotik request. Could be overriden per parameter.
         /// </summary>
-        IList<ITikCommandParameter> Filters { get; }
+        TikCommandParameterFormat DefaultParameterFormat { get; set; }
 
         /// <summary>
         /// Excecutes given <see cref="CommandText"/> on router and ensures that operation was sucessfull.
@@ -93,26 +93,20 @@ namespace tik4net
         ITikCommandParameter AddParameter(string name, string value);
 
         /// <summary>
+        /// Adds new instance of parameter to <see cref="Parameters"/> list.
+        /// </summary>
+        /// <param name="name">Parameter name.</param>
+        /// <param name="value">Parameter value</param>
+        /// <param name="parameterFormat">How will be parameter formated in mikrotik command.</param>
+        /// <returns>Instance of added parameter.</returns>
+        ITikCommandParameter AddParameter(string name, string value, TikCommandParameterFormat parameterFormat);
+
+        /// <summary>
         /// Adds newly created instances of <see cref="ITikCommand.Parameters"/>.
         /// </summary>
         /// <param name="parameterNamesAndValues">Name and value of parameters for command. (name, value, name2, value2, ..., name9, value9, ...)</param>
         /// <returns>List of created parameters.</returns>
         IEnumerable<ITikCommandParameter> AddParameterAndValues(params string[] parameterNamesAndValues);
-
-        /// <summary>
-        /// Adds new instance of parameter to <see cref="Filters"/> list.
-        /// </summary>
-        /// <param name="name">Parameter name.</param>
-        /// <param name="value">Parameter value</param>
-        /// <returns>nstance of added filter parameter.</returns>
-        ITikCommandParameter AddFilter(string name, string value);
-
-        /// <summary>
-        /// Adds newly created instances of <see cref="ITikCommand.Parameters"/>.
-        /// </summary>
-        /// <param name="filterNamesAndValues">Name and value of parameters for command. (name, value, name2, value2, ..., name9, value9, ...)</param>
-        /// <returns>List of created filter parameters.</returns>
-        IEnumerable<ITikCommandParameter> AddFilterAndValues(params string[] filterNamesAndValues);
 
         /// <summary>
         /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteAsync"/> has been called).

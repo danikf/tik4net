@@ -55,10 +55,10 @@ namespace tik4net.Objects
         public string DefaultValue { get; private set; }
 
         /// <summary>
-        /// If value should be unset during update (save modified entity) when property contains default value.
+        /// If value should be unset during update (save modified entity) when property contains default value (set to default will be called when false).
         /// </summary>
-        /// <seealso cref="TikPropertyAttribute.UnsetWhenDefault"/>
-        public bool UnsetWhenDefault { get; private set; }
+        /// <seealso cref="TikPropertyAttribute.UnsetOnDefault"/>
+        public bool UnsetOnDefault { get; private set; }
 
         private PropertyInfo PropertyInfo { get; set; }
 
@@ -93,7 +93,7 @@ namespace tik4net.Objects
                 else
                     DefaultValue = "";
             }
-            UnsetWhenDefault = propertyAttribute.UnsetWhenDefault;
+            UnsetOnDefault = propertyAttribute.UnsetOnDefault;
         }
 
         /// <summary>
@@ -115,7 +115,7 @@ namespace tik4net.Objects
             else if (PropertyType == typeof(long))
                 return long.Parse(strValue);
             else if (PropertyType == typeof(bool))
-                return bool.Parse(strValue);
+                return string.Equals(strValue, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(strValue, "yes", StringComparison.OrdinalIgnoreCase);
             else
                 throw new NotImplementedException(string.Format("Property type {0} not supported.", PropertyType));
         }
@@ -130,7 +130,7 @@ namespace tik4net.Objects
             else if (PropertyType == typeof(long))
                 return ((long)propValue).ToString();
             else if (PropertyType == typeof(bool))
-                return ((bool)propValue) ? "true" : "false";
+                return ((bool)propValue) ? "yes" : "no"; //TODO add attribute definition for support true/false
             else
                 throw new NotImplementedException(string.Format("Property type {0} not supported.", PropertyType));
         }

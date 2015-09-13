@@ -60,15 +60,29 @@ namespace tik4net.Objects
         }
 
         /// <summary>
+        /// Alias to <see cref="LoadList{TEntity}(ITikConnection, ITikCommandParameter[])"/> optionaly with filter, ensures that result contains exactly one row.
+        /// </summary>
+        /// <typeparam name="TEntity">Loaded entities type.</typeparam>
+        /// <param name="connection">Tik connection used to load.</param>
+        /// <param name="filterParameters">Optional list of filter parameters (interpreted as connected with AND)</param>
+        /// <returns>Loaded single entity.</returns>
+        public static TEntity LoadSingle<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filterParameters)
+            where TEntity : new()
+        {
+            return LoadList<TEntity>(connection, filterParameters).Single();
+        }
+
+        /// <summary>
         /// Alias to <see cref="LoadList{TEntity}(ITikConnection, ITikCommandParameter[])"/> without filter, ensures that result contains exactly one row.
         /// </summary>
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
         /// <param name="connection">Tik connection used to load.</param>
-        /// <returns>Loaded single entity.</returns>
-        public static TEntity LoadSingle<TEntity>(this ITikConnection connection)
+        /// <param name="filterParameters">Optional list of filter parameters (interpreted as connected with AND)</param>
+        /// <returns>Loaded single entity or null.</returns>
+        public static TEntity LoadSingleOrDefault<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filterParameters)
             where TEntity : new()
         {
-            return LoadList<TEntity>(connection).Single();
+            return LoadList<TEntity>(connection, filterParameters).SingleOrDefault();
         }
 
         /// <summary>
@@ -94,7 +108,7 @@ namespace tik4net.Objects
         public static IEnumerable<TEntity> LoadList<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filterParameters)
             where TEntity : new()
         {
-            var command = CreateCommandWithFilter<TEntity>(connection, "/print", filterParameters, null);
+            var command = CreateLoadCommandWithFilter<TEntity>(connection, "/print", TikCommandParameterFormat.Filter, filterParameters);
             return LoadList<TEntity>(command);
         }
 
@@ -111,7 +125,7 @@ namespace tik4net.Objects
         public static IEnumerable<TEntity> LoadWithDuration<TEntity>(this ITikConnection connection, int durationSec, params ITikCommandParameter[] parameters)
             where TEntity : new()
         {
-            var command = CreateCommandWithFilter<TEntity>(connection, "", null, parameters);
+            var command = CreateLoadCommandWithFilter<TEntity>(connection, "", TikCommandParameterFormat.NameValue, parameters);
 
             var responseSentences = command.ExecuteListWithDuration(durationSec);
 
@@ -138,7 +152,7 @@ namespace tik4net.Objects
             Guard.ArgumentNotNull(connection, "connection");
             Guard.ArgumentNotNull(onLoadItemCallback, "onLoadItemCallback");
 
-            var command = CreateCommandWithFilter<TEntity>(connection, "", null, parameters);
+            var command = CreateLoadCommandWithFilter<TEntity>(connection, "", TikCommandParameterFormat.NameValue, parameters);
 
             var loadingThread = command.ExecuteAsync(
                 reSentence => onLoadItemCallback(CreateObject<TEntity>(reSentence)),
@@ -151,26 +165,19 @@ namespace tik4net.Objects
             return new AsyncLoadingContext(command, loadingThread); 
         }
 
-        private static ITikCommand CreateCommandWithFilter<TEntity> (ITikConnection connection, string commandSufix, ITikCommandParameter[] filterParameters, ITikCommandParameter[] parameters)
+        private static ITikCommand CreateLoadCommandWithFilter<TEntity> (ITikConnection connection, string commandSufix, TikCommandParameterFormat defaultParameterFormat, ITikCommandParameter[] parameters)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
 
-            ITikCommand command = connection.CreateCommand(metadata.EntityPath + commandSufix);
+            ITikCommand command = connection.CreateCommand(metadata.EntityPath + commandSufix, defaultParameterFormat);
 
             // =detail=
             if (metadata.IncludeDetails)
-                command.AddParameter("detail", "");
+                command.AddParameter("detail", "", TikCommandParameterFormat.NameValue);
             //.proplist
             if (metadata.IncludeProplist)
-                command.AddParameter(TikSpecialProperties.Proplist, string.Join(",", metadata.Properties.Select(prop => prop.FieldName)));
+                command.AddParameter(TikSpecialProperties.Proplist, string.Join(",", metadata.Properties.Select(prop => prop.FieldName)), TikCommandParameterFormat.NameValue);
             //filter
-            if (filterParameters != null)
-            {
-                foreach (ITikCommandParameter filterParam in filterParameters)
-                {
-                    command.Filters.Add(filterParam);
-                }
-            }
             //parameters
             if (parameters != null)
             {
@@ -232,12 +239,13 @@ namespace tik4net.Objects
         /// <summary>
         /// Saves entity to mikrotik router. Does insert (/add) whan entity has empty id and update(/set + /unset) when id is present).
         /// Behavior of save is modified via <see cref="TikPropertyAttribute"/> on properties.
-        /// See <see cref="TikPropertyAttribute.DefaultValue"/>, <see cref="TikPropertyAttribute.UnsetWhenDefault"/>.
+        /// See <see cref="TikPropertyAttribute.DefaultValue"/>, <see cref="TikPropertyAttribute.UnsetOnDefault"/>.
         /// </summary>
         /// <typeparam name="TEntity">Saved entitie type.</typeparam>
         /// <param name="connection">Tik connection used to save.</param>
         /// <param name="entity">Saved entity.</param>
-        public static void Save<TEntity>(this ITikConnection connection, TEntity entity)
+        /// <param name="usedFieldsFilter">List of field names (on mikrotik) which should be modified. If is not null, only listed fields will be modified.</param>
+        public static void Save<TEntity>(this ITikConnection connection, TEntity entity, IEnumerable<string> usedFieldsFilter = null)
         {            
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             EnsureNotReadonlyEntity(metadata);
@@ -246,9 +254,11 @@ namespace tik4net.Objects
             if (string.IsNullOrEmpty(id))
             {
                 //create
-                ITikCommand createCmd = connection.CreateCommand(metadata.EntityPath + "/add");
+                ITikCommand createCmd = connection.CreateCommand(metadata.EntityPath + "/add", TikCommandParameterFormat.NameValue);
 
-                foreach (var property in metadata.Properties.Where(pm => !pm.IsReadOnly))
+                foreach (var property in metadata.Properties
+                    .Where(pm => !pm.IsReadOnly)
+                    .Where(pm => usedFieldsFilter == null || usedFieldsFilter.Contains(pm.FieldName, StringComparer.OrdinalIgnoreCase)))
                 {
                     if (!property.HasDefaultValue(entity))
                     {
@@ -262,34 +272,38 @@ namespace tik4net.Objects
             else
             {
                 //update (set+unset)
-                ITikCommand setCmd = connection.CreateCommand(metadata.EntityPath + "/set");
-                ITikCommand unsetCmd = connection.CreateCommand(metadata.EntityPath + "/unset");
+                ITikCommand setCmd = connection.CreateCommand(metadata.EntityPath + "/set", TikCommandParameterFormat.NameValue);
+                List<string> fieldsToUnset = new List<string>();
 
-                foreach (var property in metadata.Properties.Where(pm => !pm.IsReadOnly))
+                foreach (var property in metadata.Properties
+                    .Where(pm => !pm.IsReadOnly)
+                    .Where(pm => usedFieldsFilter == null || usedFieldsFilter.Contains(pm.FieldName, StringComparer.OrdinalIgnoreCase)))
                 {
-                    if (property.HasDefaultValue(entity) && property.UnsetWhenDefault)
-                        unsetCmd.AddParameter(property.FieldName, "");
+                    if (property.HasDefaultValue(entity) && property.UnsetOnDefault)
+                        fieldsToUnset.Add(property.FieldName);
                     else
                         setCmd.AddParameter(property.FieldName, property.GetEntityValue(entity)); //full update (all values)                        
                 }
 
-                if (unsetCmd.Parameters.Any())
+                if (fieldsToUnset.Count > 0)
                 {
-                    //    //ip/address/unset
-                    //    //=.id=...ID...
-                    //    //=address=
-                    //    //>!done
-                    unsetCmd.AddParameter(TikSpecialProperties.Id, id);
-                    unsetCmd.ExecuteNonQuery();
-                    
-                    //TODO this should also work (see http://forum.mikrotik.com/viewtopic.php?t=28821 )
+                    // this should also work (see http://forum.mikrotik.com/viewtopic.php?t=28821 )
                     //ip/route/unset
                     //=.id = *1
                     //= value-name=routing-mark
+
+                    foreach (string fld in fieldsToUnset)
+                    {
+                        ITikCommand unsetCmd = connection.CreateCommand(metadata.EntityPath + "/unset", TikCommandParameterFormat.NameValue);
+                        unsetCmd.AddParameter(TikSpecialProperties.Id, id, TikCommandParameterFormat.NameValue);
+                        unsetCmd.AddParameter(TikSpecialProperties.UnsetValueName, fld);
+
+                        unsetCmd.ExecuteNonQuery();
+                    }
                 }
                 if (setCmd.Parameters.Any())
                 {
-                    setCmd.AddParameter(TikSpecialProperties.Id, id);
+                    setCmd.AddParameter(TikSpecialProperties.Id, id, TikCommandParameterFormat.NameValue);
                     setCmd.ExecuteNonQuery();
                 }
             }
@@ -372,7 +386,7 @@ namespace tik4net.Objects
             if (string.IsNullOrEmpty(id))
                 throw new ArgumentException("Entity has no .id (entity is not loaded from mikrotik router)", "entity");
 
-            ITikCommand cmd = connection.CreateCommandAndParameters(metadata.EntityPath + "/remove",
+            ITikCommand cmd = connection.CreateCommandAndParameters(metadata.EntityPath + "/remove", TikCommandParameterFormat.NameValue,
                 TikSpecialProperties.Id, id);
             cmd.ExecuteNonQuery();
         }
@@ -394,7 +408,7 @@ namespace tik4net.Objects
             string idToMove = metadata.IdProperty.GetEntityValue(entityToMove);
             string idToMoveBefore = entityToMoveBefore != null ? metadata.IdProperty.GetEntityValue(entityToMoveBefore) : null;
 
-            ITikCommand cmd = connection.CreateCommandAndParameters(metadata.EntityPath + "/move",
+            ITikCommand cmd = connection.CreateCommandAndParameters(metadata.EntityPath + "/move", TikCommandParameterFormat.NameValue,
                 "numbers", idToMove);
 
             if (entityToMoveBefore != null)

@@ -31,21 +31,21 @@ namespace tik4net.Objects.Ip.Firewall
         public string Action { get; set; }
 
         /// <summary>
-        /// new-priority
+        /// new-priorityne
         /// </summary>
-        [TikProperty("new-priority")]
-        public long NewPriority { get; set; }
+        [TikProperty("new-priority", DefaultValue = "0")]
+        public string NewPriority { get; set; }
 
         /// <summary>
         /// passthrough
         /// </summary>
-        [TikProperty("passthrough")]
+        [TikProperty("passthrough", DefaultValue = "yes")]
         public bool Passthrough { get; set; }
 
         /// <summary>
         /// src-address-list
         /// </summary>
-        [TikProperty("src-address-list")]
+        [TikProperty("src-address-list", UnsetOnDefault = true)]
         public string SrcAddressList { get; set; }
 
         /// <summary>
@@ -81,25 +81,25 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// dst-address-list
         /// </summary>
-        [TikProperty("dst-address-list")]
+        [TikProperty("dst-address-list", UnsetOnDefault = true)]
         public string DstAddressList { get; set; }
 
         /// <summary>
         /// protocol
         /// </summary>
-        [TikProperty("protocol")]
+        [TikProperty("protocol", UnsetOnDefault = true)]
         public string Protocol { get; set; }
 
         /// <summary>
         /// src-address
         /// </summary>
-        [TikProperty("src-address")]
+        [TikProperty("src-address", UnsetOnDefault = true)]
         public string SrcAddress { get; set; }
 
         /// <summary>
         /// dst-address
         /// </summary>
-        [TikProperty("dst-address")]
+        [TikProperty("dst-address", UnsetOnDefault = true)]
         public string DstAddress { get; set; }
 
         /// <summary>
@@ -107,7 +107,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// </summary>
         [TikProperty("jump-target")]
         public string JumpTarget { get; set; }
-
+        
         /// <summary>
         /// address-list
         /// </summary>
@@ -117,7 +117,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// address-list-timeout
         /// </summary>
-        [TikProperty("address-list-timeout")]
+        [TikProperty("address-list-timeout", DefaultValue = "00:00:00")]
         public string AddressListTimeout { get; set; }
     }
 

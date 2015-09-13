@@ -64,6 +64,7 @@
     <Compile Include="ConnectionFactory.cs" />
     <Compile Include="TikAsyncLoadingThread.cs" />
     <Compile Include="TikCommandException.cs" />
+    <Compile Include="TikCommandParameterFormat.cs" />
     <Compile Include="TikConnectionException.cs" />
     <Compile Include="TikConnectionType.cs" />
     <Compile Include="TikSentenceException.cs" />

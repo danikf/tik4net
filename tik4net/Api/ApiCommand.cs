@@ -13,9 +13,9 @@ namespace tik4net.Api
         private volatile bool _isRuning;
         private volatile int _runningTag;
         private readonly List<ITikCommandParameter> _parameters = new List<ITikCommandParameter>();
-        private readonly List<ITikCommandParameter> _filters= new List<ITikCommandParameter>();
         private ApiConnection _connection;
-        private string _commandText;        
+        private string _commandText;
+        private TikCommandParameterFormat _defaultParameterFormat;      
 
         public ITikConnection Connection
         {
@@ -49,17 +49,30 @@ namespace tik4net.Api
             get { return _parameters; }
         }
 
-        public IList<ITikCommandParameter> Filters
+        public TikCommandParameterFormat DefaultParameterFormat
         {
-            get { return _filters; }
+            get { return _defaultParameterFormat; }
+            set { _defaultParameterFormat = value; }
         }
 
         public ApiCommand()
         {
+            _defaultParameterFormat = TikCommandParameterFormat.Default;
+        }
 
+        public ApiCommand(TikCommandParameterFormat defaultParameterFormat)            
+        {
+            _defaultParameterFormat = defaultParameterFormat;
         }
 
         public ApiCommand(ITikConnection connection)
+            : this()
+        {
+            Connection = connection;
+        }
+
+        public ApiCommand(ITikConnection connection, TikCommandParameterFormat defaultParameterFormat)
+            : this(defaultParameterFormat)
         {
             Connection = connection;
         }
@@ -70,10 +83,23 @@ namespace tik4net.Api
             CommandText = commandText;
         }
 
+        public ApiCommand(ITikConnection connection, string commandText, TikCommandParameterFormat defaultParameterFormat)
+            : this(connection, defaultParameterFormat)
+        {
+            CommandText = commandText;
+        }
+
+
         public ApiCommand(ITikConnection connection, string commandText, params ITikCommandParameter[] parameters)
             : this(connection, commandText)
         {
             _parameters.AddRange(parameters);            
+        }
+
+        public ApiCommand(ITikConnection connection, string commandText, TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] parameters)
+            : this(connection, commandText, defaultParameterFormat)
+        {
+            _parameters.AddRange(parameters);
         }
 
         private void EnsureNotRunning()
@@ -94,7 +120,19 @@ namespace tik4net.Api
                 throw new InvalidOperationException("CommandText is not set.");
         }
 
-        private string[] ConstructCommandText()
+        private TikCommandParameterFormat ResolveParameterFormat(TikCommandParameterFormat usecaseDefaultFormat, TikCommandParameterFormat commandDefaultFormat, TikCommandParameterFormat parameterFormat)
+        {
+            if (parameterFormat != TikCommandParameterFormat.Default)
+                return parameterFormat;
+            else if (commandDefaultFormat != TikCommandParameterFormat.Default)
+                return commandDefaultFormat;
+            else if (usecaseDefaultFormat != TikCommandParameterFormat.Default)
+                return usecaseDefaultFormat;
+            else
+                return TikCommandParameterFormat.NameValue;
+        }
+
+        private string[] ConstructCommandText(TikCommandParameterFormat defaultParameterFormat)
         {
             EnsureCommandTextSet();
 
@@ -105,9 +143,20 @@ namespace tik4net.Api
             List<string> result = new List<string> { commandText };
 
             //parameters
-            result.AddRange(_parameters.Select(p => string.Format("={0}={1}", p.Name, p.Value)));
-            result.AddRange(_filters.Select(p => string.Format("?{0}={1}", p.Name, p.Value)));
-
+            result.AddRange(_parameters.Select(p =>
+            {
+                switch (ResolveParameterFormat(defaultParameterFormat, _defaultParameterFormat, p.ParameterFormat))
+                {
+                    case TikCommandParameterFormat.Filter:
+                        return string.Format("?{0}={1}", p.Name, p.Value);
+                    case TikCommandParameterFormat.NameValue:
+                        return string.Format("={0}={1}", p.Name, p.Value);
+                    //case TikCommandParameterFormat.NameOnly:
+                    //      return string.Format("={0}", p.Name);
+                    default:
+                        throw new NotImplementedException();
+                }
+            }));
             return result.ToArray();
         }
 
@@ -175,7 +224,7 @@ namespace tik4net.Api
             _isRuning = true;
             try
             {
-                string[] commandRows = ConstructCommandText();
+                string[] commandRows = ConstructCommandText(TikCommandParameterFormat.NameValue);
                 IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
                 ThrowPossibleResponseError(response.ToArray());
 
@@ -197,7 +246,7 @@ namespace tik4net.Api
             _isRuning = true;
             try
             {
-                string[] commandRows = ConstructCommandText();
+                string[] commandRows = ConstructCommandText(TikCommandParameterFormat.NameValue);
                 IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
                 ThrowPossibleResponseError(response.ToArray());
 
@@ -232,7 +281,7 @@ namespace tik4net.Api
             _isRuning = true;
             try
             {
-                string[] commandRows = ConstructCommandText();
+                string[] commandRows = ConstructCommandText(TikCommandParameterFormat.Filter);
                 IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
                 ThrowPossibleResponseError(response.ToArray());
 
@@ -257,7 +306,7 @@ namespace tik4net.Api
             _isRuning = true;
             try
             {
-                string[] commandRows = ConstructCommandText();
+                string[] commandRows = ConstructCommandText(TikCommandParameterFormat.Filter);
                 IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
                 ThrowPossibleResponseError(response.ToArray());
 
@@ -283,7 +332,7 @@ namespace tik4net.Api
 
             try
             {
-                string[] commandRows = ConstructCommandText();
+                string[] commandRows = ConstructCommandText(TikCommandParameterFormat.NameValue);
                 return _connection.CallCommandAsync(commandRows, tag.ToString(),
                                         response =>
                                         {
@@ -383,10 +432,10 @@ namespace tik4net.Api
             return result;
         }
 
-        public ITikCommandParameter AddFilter(string name, string value)
+        public ITikCommandParameter AddParameter(string name, string value, TikCommandParameterFormat parameterFormat)
         {
-            ApiCommandParameter result = new ApiCommandParameter(name, value);
-            _filters.Add(result);
+            ITikCommandParameter result = AddParameter(name, value);
+            result.ParameterFormat = parameterFormat;            
 
             return result;
         }
@@ -394,8 +443,7 @@ namespace tik4net.Api
         public override string ToString()
         {
             return string.Join("\n", new string[] { CommandText }
-                                                        .Concat(Parameters.Select(p => "  =" + p.Name + "=" + p.Value))
-                                                        .Concat(Filters.Select(p => "  ?" + p.Name + "=" + p.Value)));
+                                                        .Concat(Parameters.Select(p => p.ToString())));
         }
 
         private IEnumerable<ITikCommandParameter> CreateParameters(string[] parameterNamesAndValues)
@@ -413,14 +461,6 @@ namespace tik4net.Api
         {
             var parameters = CreateParameters(parameterNamesAndValues);
             _parameters.AddRange(parameters);
-
-            return parameters;
-        }
-
-        public IEnumerable<ITikCommandParameter> AddFilterAndValues(params string[] filterNamesAndValues)
-        {
-            var parameters = CreateParameters(filterNamesAndValues);
-            _filters.AddRange(parameters);
 
             return parameters;
         }

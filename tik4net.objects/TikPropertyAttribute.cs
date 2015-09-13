@@ -9,7 +9,7 @@ namespace tik4net.Objects
     /// <summary>
     /// Attribute to mark object property as readable/writable from/to mikrotik router.
     /// </summary>
-    [AttributeUsage(AttributeTargets.Property)]
+    [AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
     public sealed class TikPropertyAttribute : Attribute
     {
         /// <summary>
@@ -36,9 +36,9 @@ namespace tik4net.Objects
         public string DefaultValue { get; set; }
 
         /// <summary>
-        /// If unset command should be called when saving modified object and marked property contains <see cref="DefaultValue"/> or null.
+        /// If unset command should be called when saving modified object and marked property contains <see cref="DefaultValue"/> or null (set to default value will be used when false).
         /// </summary>
-        public bool UnsetWhenDefault { get; set; }
+        public bool UnsetOnDefault { get; set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TikPropertyAttribute"/> class.
@@ -47,8 +47,8 @@ namespace tik4net.Objects
         /// <param name="isMandatory">If this property is mandatory - should be present in loading resultset</param>
         /// <param name="isReadOnly">If the property is R/O (should not be updated during save modified entity).</param>
         /// <param name="defaultValue">Property default value (if is different from type default).</param>
-        /// <param name="unsetWhenDefault">If unset command should be called when saving modified object and marked property contains <see cref="DefaultValue"/> or null.</param>
-        public TikPropertyAttribute(string fieldName, bool isMandatory, bool isReadOnly, string defaultValue, bool unsetWhenDefault)
+        /// <param name="unsetOnDefault">If unset command should be called when saving modified object and marked property contains <see cref="DefaultValue"/> or null (set to default value will be used when false).</param>
+        public TikPropertyAttribute(string fieldName, bool isMandatory, bool isReadOnly, string defaultValue, bool unsetOnDefault)
         {
             Guard.ArgumentNotNullOrEmptyString(fieldName, "fieldName");
 
@@ -56,7 +56,7 @@ namespace tik4net.Objects
             IsMandatory = isMandatory;
             IsReadOnly = isReadOnly;
             DefaultValue = defaultValue;
-            UnsetWhenDefault = unsetWhenDefault;
+            UnsetOnDefault = unsetOnDefault;
         }
 
         /// <summary>
@@ -70,7 +70,7 @@ namespace tik4net.Objects
             IsMandatory = false;
             IsReadOnly = false;
             DefaultValue = null;
-            UnsetWhenDefault = false;
+            UnsetOnDefault = false;
         }
     }
 }

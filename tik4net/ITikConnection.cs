@@ -75,6 +75,13 @@ namespace tik4net
         ITikCommand CreateCommand();
 
         /// <summary>
+        /// Factory method - creates empty command specific for connection type with assiged <see cref="ITikCommand.Connection"/>.
+        /// </summary>
+        /// <param name="defaultParameterFormat">How will be parameter formated in mikrotik command - default value for command (could be overriden per parameter).</param>
+        /// <returns>Commend with assiged <see cref="ITikCommand.Connection"/>.</returns>
+        ITikCommand CreateCommand(TikCommandParameterFormat defaultParameterFormat);
+
+        /// <summary>
         /// Factory method - creates command specific for connection type with assiged <see cref="ITikCommand.Connection"/>.
         /// Setups <see cref="ITikCommand.CommandText"/> and <see cref="ITikCommand.Parameters"/>.
         /// </summary>
@@ -89,9 +96,29 @@ namespace tik4net
         /// Setups <see cref="ITikCommand.CommandText"/> and <see cref="ITikCommand.Parameters"/>.
         /// </summary>
         /// <param name="commandText">Command text in mikrotik API format</param>
+        /// <param name="defaultParameterFormat">How will be parameter formated in mikrotik command - default value for command (could be overriden per parameter).</param>
+        /// <param name="parameters">Parameters to be added to newly created command.</param>
+        /// <returns>Commend with assiged <see cref="ITikCommand.Connection"/>.</returns>
+        ITikCommand CreateCommand(string commandText, TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] parameters);        
+
+        /// <summary>
+        /// Factory method - creates command specific for connection type with assiged <see cref="ITikCommand.Connection"/>.
+        /// Setups <see cref="ITikCommand.CommandText"/> and <see cref="ITikCommand.Parameters"/>.
+        /// </summary>
+        /// <param name="commandText">Command text in mikrotik API format</param>
         /// <param name="parameterNamesAndValues">Name and value of parameters for command. (name, value, name2, value2, ..., name9, value9, ...)</param>
         /// <returns>Command with assiged <see cref="ITikCommand.Connection"/>.</returns>
         ITikCommand CreateCommandAndParameters(string commandText, params string[] parameterNamesAndValues);
+
+        /// <summary>
+        /// Factory method - creates command specific for connection type with assiged <see cref="ITikCommand.Connection"/>.
+        /// Setups <see cref="ITikCommand.CommandText"/> and <see cref="ITikCommand.Parameters"/>.
+        /// </summary>
+        /// <param name="commandText">Command text in mikrotik API format</param>
+        /// <param name="defaultParameterFormat">How will be parameter formated in mikrotik command - default value for command (could be overriden per parameter).</param>
+        /// <param name="parameterNamesAndValues">Name and value of parameters for command. (name, value, name2, value2, ..., name9, value9, ...)</param>
+        /// <returns>Command with assiged <see cref="ITikCommand.Connection"/>.</returns>
+        ITikCommand CreateCommandAndParameters(string commandText, TikCommandParameterFormat defaultParameterFormat, params string[] parameterNamesAndValues);        
 
         /// <summary>
         /// Factory method - creates parameters instance specific for connection and command type.
@@ -101,6 +128,16 @@ namespace tik4net
         /// <returns>Created parameter with name and value.</returns>
         /// <seealso cref="ITikCommand.Parameters"/>
         ITikCommandParameter CreateParameter(string name, string value);
+
+        /// <summary>
+        /// Factory method - creates parameters instance specific for connection and command type.
+        /// </summary>
+        /// <param name="name">Name of the parameter (without '=')</param>
+        /// <param name="value">Value of the parameter</param>
+        /// <param name="parameterFormat">How will be parameter formated in mikrotik command.</param>
+        /// <returns>Created parameter with name and value.</returns>
+        /// <seealso cref="ITikCommand.Parameters"/>
+        ITikCommandParameter CreateParameter(string name, string value, TikCommandParameterFormat parameterFormat);
 
         /// <summary>
         /// Calls command to mikrotik (in connection specific format) and waits for response. Command is called without .tag.

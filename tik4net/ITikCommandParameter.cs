@@ -20,5 +20,10 @@ namespace tik4net
         /// Parameter value (formated to string as expected by <see cref="ITikConnection"/>).
         /// </summary>
         string Value { get; set; }
+
+        /// <summary>
+        /// Parameter specific format how will be parameter formated in mikrotik request.
+        /// </summary>
+        TikCommandParameterFormat ParameterFormat { get; set; }
     }
 }

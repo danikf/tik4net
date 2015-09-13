@@ -17,7 +17,7 @@ namespace tik4net.Objects
     /// <seealso cref="TikEntityMetadataCache"/>
     public class TikEntityMetadata
     {
-        private Dictionary<string, TikEntityPropertyAccessor> _properties;
+        private Dictionary<string, TikEntityPropertyAccessor> _properties; //<field_name_on_mikrotik, propertyAccessor>
 
         /// <summary>
         /// All properties of the entity which are decorated by <seealso cref="TikPropertyAttribute"/>

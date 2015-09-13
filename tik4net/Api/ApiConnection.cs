@@ -66,7 +66,8 @@ namespace tik4net.Api
 
             //login connection
             string hashedPass = ApiConnectionHelper.EncodePassword(password, responseHash);
-            ApiCommand loginCommand = new ApiCommand(this, "/login", new ApiCommandParameter("name", user), new ApiCommandParameter("response", hashedPass));
+            ApiCommand loginCommand = new ApiCommand(this, "/login", TikCommandParameterFormat.NameValue,
+                new ApiCommandParameter("name", user), new ApiCommandParameter("response", hashedPass));            
             loginCommand.ExecuteNonQuery();
 
             _isOpened = true;
@@ -270,10 +271,28 @@ namespace tik4net.Api
             return new ApiCommand(this);
         }
 
+        public ITikCommand CreateCommand(TikCommandParameterFormat defaultParameterFormat)
+        {
+            var result = CreateCommand();
+            result.DefaultParameterFormat = defaultParameterFormat;
+
+            return result;
+        }
+
+
         public ITikCommand CreateCommand(string commandText, params ITikCommandParameter[] parameters)
         {
             return new ApiCommand(this, commandText, parameters);
         }
+
+        public ITikCommand CreateCommand(string commandText, TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] parameters)
+        {
+            var result = CreateCommand(commandText, parameters);
+            result.DefaultParameterFormat = defaultParameterFormat;
+
+            return result;
+        }
+
 
         public ITikCommand CreateCommandAndParameters(string commandText, params string[] parameterNamesAndValues)
         {
@@ -283,9 +302,25 @@ namespace tik4net.Api
             return result;
         }
 
+        public ITikCommand CreateCommandAndParameters(string commandText, TikCommandParameterFormat defaultParameterFormat, params string[] parameterNamesAndValues)
+        {
+            var result = CreateCommandAndParameters(commandText, parameterNamesAndValues);
+            result.DefaultParameterFormat = defaultParameterFormat;
+
+            return result;
+        }
+
         public ITikCommandParameter CreateParameter(string name, string value)
         {
             return new ApiCommandParameter(name, value);
+        }
+
+        public ITikCommandParameter CreateParameter(string name, string value, TikCommandParameterFormat parameterFormat)
+        {
+            var result = CreateParameter(name, value);
+            result.ParameterFormat = parameterFormat;
+
+            return result;
         }
     }
 }

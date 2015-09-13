@@ -12,7 +12,7 @@ namespace tik4net.Objects
     /// <seealso cref="TikConnectionExtensions"/>
     /// <seealso cref="TikEntityObjectsExtensions"/>
     /// <seealso cref="TikEntityAttribute"/>
-    [AttributeUsage(AttributeTargets.Class)]
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
     public sealed class TikEntityAttribute : Attribute
     {
         /// <summary>
