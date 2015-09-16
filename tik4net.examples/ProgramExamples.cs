@@ -64,17 +64,17 @@ namespace tik4net.examples
             }
         }
 
-        private static void Connection_OnWriteRow(object sender, string word)
+        private static void Connection_OnWriteRow(object sender, TikConnectionCommCallbackEventArgs args)
         {
             Console.BackgroundColor = ConsoleColor.Magenta;
-            Console.WriteLine(">" + word);
+            Console.WriteLine(">" + args.Word);
             Console.BackgroundColor = ConsoleColor.Black;
         }
 
-        private static void Connection_OnReadRow(object sender, string word)
+        private static void Connection_OnReadRow(object sender, TikConnectionCommCallbackEventArgs args)
         {
             Console.BackgroundColor = ConsoleColor.Green;
-            Console.WriteLine("<" + word);
+            Console.WriteLine("<" + args.Word);
             Console.BackgroundColor = ConsoleColor.Black;
 
         }
@@ -298,7 +298,7 @@ namespace tik4net.examples
                 Chain = "forward",
                 SrcAddress = "192.168.1.2",
                 Action = "mark-packet",
-                NewPacketMark = "mark-002",
+                NewPacketMark = "mark-002" + "-" +  unique,
                 Passthrough = false,
             });
             expected.Add(new FirewallMangle()

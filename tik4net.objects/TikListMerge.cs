@@ -4,7 +4,6 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace tik4net.Objects
 {
@@ -103,7 +102,7 @@ namespace tik4net.Objects
         {
             foreach(var field in _fields)
             {
-                var attr = ((PropertyInfo)field.Member).GetCustomAttribute<TikPropertyAttribute>();
+                var attr = ((PropertyInfo)field.Member).GetCustomAttribute<TikPropertyAttribute>(true);
                 yield return attr.FieldName;
             }
         }

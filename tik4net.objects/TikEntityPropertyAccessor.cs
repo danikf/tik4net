@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace tik4net.Objects
 {
@@ -82,7 +81,7 @@ namespace tik4net.Objects
             if (propertyAttribute == null)
                 throw new ArgumentException("Property must be decorated by TikPropertyAttribute.", "propertyInfo");
             FieldName = propertyAttribute.FieldName;
-            _isReadOnly = (propertyInfo.SetMethod == null) || (!propertyInfo.CanWrite) || (propertyAttribute.IsReadOnly);
+            _isReadOnly = (propertyInfo.GetSetMethod() == null) || (!propertyInfo.CanWrite) || (propertyAttribute.IsReadOnly);
             IsMandatory = propertyAttribute.IsMandatory;
             if (propertyAttribute.DefaultValue != null)
                 DefaultValue = propertyAttribute.DefaultValue;

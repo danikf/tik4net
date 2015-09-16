@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace tik4net.Api
 {
@@ -52,7 +51,7 @@ namespace tik4net.Api
             lock(_lockObj)
             {
                 List<ITikSentence> list;
-                string sentenceTag = string.IsNullOrWhiteSpace(sentence.Tag) ? EMPTY_TAG_KEY : sentence.Tag;
+                string sentenceTag = StringHelper.IsNullOrWhiteSpace(sentence.Tag) ? EMPTY_TAG_KEY : sentence.Tag;
                 if (!_sentencesForTags.TryGetValue(sentenceTag, out list))
                 {
                     list = new List<ITikSentence>();

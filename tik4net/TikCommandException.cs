@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace tik4net
 {
@@ -27,7 +26,7 @@ namespace tik4net
         /// Code description of the error.
         /// </summary>
         /// <seealso cref="ITikTrapSentence.CategoryDescription"/>
-        public string CodeDescription { get; } 
+        public string CodeDescription { get; private set; } 
 
         /// <summary>
         /// ctor.

@@ -4,7 +4,6 @@ using System.Globalization;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace tik4net.Api
 {

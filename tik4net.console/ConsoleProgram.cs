@@ -55,17 +55,17 @@ namespace tik4net.console
             Console.ReadLine();
         }
 
-        private static void Connection_OnWriteRow(object sender, string word)
+        private static void Connection_OnWriteRow(object sender, TikConnectionCommCallbackEventArgs args)
         {
             Console.BackgroundColor = ConsoleColor.Magenta;
-            Console.WriteLine(">" + word);
+            Console.WriteLine(">" + args.Word);
             Console.BackgroundColor = ConsoleColor.Black;
         }
 
-        private static void Connection_OnReadRow(object sender, string word)
+        private static void Connection_OnReadRow(object sender, TikConnectionCommCallbackEventArgs args)
         {
             Console.BackgroundColor = ConsoleColor.Green;
-            Console.WriteLine("<" + word);
+            Console.WriteLine("<" + args.Word);
             Console.BackgroundColor = ConsoleColor.Black;
         }
     }

@@ -4,7 +4,6 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace tik4net.Api
 {
@@ -22,8 +21,8 @@ namespace tik4net.Api
         private NetworkStream _tcpConnectionStream;
         private SentenceList _readSentences = new SentenceList();
 
-        public event EventHandler<string> OnReadRow;
-        public event EventHandler<string> OnWriteRow;
+        public event EventHandler<TikConnectionCommCallbackEventArgs> OnReadRow;
+        public event EventHandler<TikConnectionCommCallbackEventArgs> OnWriteRow;
 
         public bool IsOpened
         {
@@ -131,10 +130,10 @@ namespace tik4net.Api
 
                     result = resultBuilder.ToString();
                 }
-            } while (skipEmptyRow && string.IsNullOrWhiteSpace(result));
+            } while (skipEmptyRow && StringHelper.IsNullOrWhiteSpace(result));
 
             if (OnReadRow != null)
-                OnReadRow(this, result);
+                OnReadRow(this, new TikConnectionCommCallbackEventArgs(result));
             return result;
         }
 
@@ -147,9 +146,9 @@ namespace tik4net.Api
             do
             {
                 sentenceWord = ReadWord(false);
-                if (!string.IsNullOrWhiteSpace(sentenceWord)) //read ending empty row, but skip it from result
+                if (!StringHelper.IsNullOrWhiteSpace(sentenceWord)) //read ending empty row, but skip it from result
                     sentenceWords.Add(sentenceWord);
-            } while (!string.IsNullOrWhiteSpace(sentenceWord));
+            } while (!StringHelper.IsNullOrWhiteSpace(sentenceWord));
 
             switch (sentenceName)
             {
@@ -171,7 +170,7 @@ namespace tik4net.Api
                 _tcpConnectionStream.Write(length, 0, length.Length); //write length of comming sentence
                 _tcpConnectionStream.Write(bytes, 0, bytes.Length);   //write sentence body
                 if (OnWriteRow != null)
-                    OnWriteRow(this, row);
+                    OnWriteRow(this, new TikConnectionCommCallbackEventArgs(row));
             }
 
             _tcpConnectionStream.WriteByte(0); //final zero byte

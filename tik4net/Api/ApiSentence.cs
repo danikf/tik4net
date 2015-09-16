@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace tik4net.Api
 {
@@ -11,7 +10,11 @@ namespace tik4net.Api
     {
         private readonly Dictionary<string, string> _words = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase); // <fieldName, value>
 
+#if V35 || V40
+        public IDictionary<string,string> Words
+#else
         public IReadOnlyDictionary<string,string> Words
+#endif
         {
             get { return _words; }
         }
@@ -75,7 +78,7 @@ namespace tik4net.Api
 
         public override string ToString()
         {
-            return GetType().Name + ":" + string.Join("|", _words);
+            return GetType().Name + ":" + string.Join("|", _words.Select(w => string.Format("{0}={1}", w.Key, w.Value)).ToArray());
         }
     }
 }

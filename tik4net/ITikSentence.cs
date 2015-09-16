@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace tik4net
 {
@@ -14,7 +13,11 @@ namespace tik4net
         /// <summary>
         /// All sentence words (properties). {fieldName, value}
         /// </summary>
+#if V35 || V40
+        IDictionary<string, string> Words { get; }
+#else
         IReadOnlyDictionary<string, string> Words { get; }
+#endif
 
         /// <summary>
         /// Tag of sentence (see asynchronous commands fro details).

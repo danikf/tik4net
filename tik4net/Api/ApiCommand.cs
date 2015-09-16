@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace tik4net.Api
 {
@@ -115,8 +114,8 @@ namespace tik4net.Api
         }
 
         private void EnsureCommandTextSet()
-        {
-            if (string.IsNullOrWhiteSpace(_commandText))
+       { 
+            if (StringHelper.IsNullOrWhiteSpace(_commandText))
                 throw new InvalidOperationException("CommandText is not set.");
         }
 
@@ -137,7 +136,7 @@ namespace tik4net.Api
             EnsureCommandTextSet();
 
             string commandText = CommandText;
-            if (!string.IsNullOrWhiteSpace(commandText) && !commandText.Contains("\n") && !commandText.StartsWith("/"))
+            if (!StringHelper.IsNullOrWhiteSpace(commandText) && !commandText.Contains("\n") && !commandText.StartsWith("/"))
                 commandText = "/" + commandText;
 
             List<string> result = new List<string> { commandText };
@@ -171,7 +170,7 @@ namespace tik4net.Api
         private ApiSentence EnsureSingleResponse(IEnumerable<ApiSentence> response)
         {
             if (response.Count() != 1)
-                throw new TikConnectionException("Single response sentence expected.", this, response);
+                throw new TikConnectionException("Single response sentence expected.", this, response.Cast<ITikSentence>());
 
             return response.Single();
         }
@@ -179,7 +178,7 @@ namespace tik4net.Api
         private void EnsureExcatNumberOfResponses(IEnumerable<ApiSentence> response, int nrOfResponses)
         {
             if (response.Count() != nrOfResponses)
-                throw new TikConnectionException(string.Format("Command expected {0} sentences as response, but got {1} response sentences.", nrOfResponses, response.Count()), this, response);
+                throw new TikConnectionException(string.Format("Command expected {0} sentences as response, but got {1} response sentences.", nrOfResponses, response.Count()), this, response.Cast<ITikSentence>());
         }
 
         private void ThrowPossibleResponseError(params ApiSentence[] responseSentences)
@@ -264,7 +263,7 @@ namespace tik4net.Api
                     return reResponse.Words.First().Value; //first word value from !re
                 }
                 else
-                    throw new TikConnectionException("Single !done response or at least one !re sentences expected. (1x!done or Nx!re + 1x!done )", this, response);
+                    throw new TikConnectionException("Single !done response or at least one !re sentences expected. (1x!done or Nx!re + 1x!done )", this, response.Cast<ITikSentence>());
 
             }
             finally
@@ -313,7 +312,7 @@ namespace tik4net.Api
                 EnsureReReponse(response.Take(response.Count() -1 ).ToArray());   //!re  - reapeating 
                 EnsureDoneResponse(response.Last()); //!done
 
-                return response.Take(response.Count() - 1).Cast<ApiReSentence>().ToList();
+                return response.Take(response.Count() - 1).Cast<ITikReSentence>().ToList();
             }
             finally
             {
@@ -443,7 +442,7 @@ namespace tik4net.Api
         public override string ToString()
         {
             return string.Join("\n", new string[] { CommandText }
-                                                        .Concat(Parameters.Select(p => p.ToString())));
+                                                        .Concat(Parameters.Select(p => p.ToString())).ToArray());
         }
 
         private IEnumerable<ITikCommandParameter> CreateParameters(string[] parameterNamesAndValues)
@@ -454,7 +453,7 @@ namespace tik4net.Api
                 parameters.Add(new ApiCommandParameter(parameterNamesAndValues[idx * 2], parameterNamesAndValues[idx * 2 + 1]));
             }
 
-            return parameters;
+            return parameters.Cast<ITikCommandParameter>();
         }
 
         public IEnumerable<ITikCommandParameter> AddParameterAndValues(params string[] parameterNamesAndValues)

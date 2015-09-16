@@ -16,6 +16,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.entitygenerator", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.torch", "tik4net.torch\tik4net.torch.csproj", "{AE25F73D-7CE5-4C14-8AAC-1A32ECC38DA5}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7B14F760-B710-4DE6-9204-7CED5F9B30E7}"
+	ProjectSection(SolutionItems) = preProject
+		CreateRelease.bat = CreateRelease.bat
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

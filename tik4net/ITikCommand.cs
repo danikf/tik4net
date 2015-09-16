@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace tik4net
 {
@@ -82,7 +81,7 @@ namespace tik4net
         /// <param name="errorCallback">Callback called when error occurs (command operation is than ended).</param>
         /// <seealso cref="Cancel"/>
         /// <seealso cref="ITikReSentence"/>
-        TikAsyncLoadingThread ExecuteAsync(Action<ITikReSentence> oneResponseCallback, Action<ITikTrapSentence> errorCallback = null);        
+        TikAsyncLoadingThread ExecuteAsync(Action<ITikReSentence> oneResponseCallback, Action<ITikTrapSentence> errorCallback=null);        
 
         /// <summary>
         /// Adds new instance of parameter to <see cref="Parameters"/> list.

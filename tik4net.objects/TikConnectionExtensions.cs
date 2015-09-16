@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace tik4net.Objects
 {
@@ -176,7 +175,7 @@ namespace tik4net.Objects
                 command.AddParameter("detail", "", TikCommandParameterFormat.NameValue);
             //.proplist
             if (metadata.IncludeProplist)
-                command.AddParameter(TikSpecialProperties.Proplist, string.Join(",", metadata.Properties.Select(prop => prop.FieldName)), TikCommandParameterFormat.NameValue);
+                command.AddParameter(TikSpecialProperties.Proplist, string.Join(",", metadata.Properties.Select(prop => prop.FieldName).ToArray()), TikCommandParameterFormat.NameValue);
             //filter
             //parameters
             if (parameters != null)
