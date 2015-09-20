@@ -1,0 +1,9 @@
+﻿Main goal of this helper application is support for semi-automatic creating tik entities (C# source code generator)
+from official mikrotik wiki.
+
+Just start application, fill wiki page url, parse it (you can manually fill html of property tables (<table> ... </table>) into textboxes if parser does not work properly) and generate source.
+
+Remarks: this application uses HtmlAgility pack (as nuGet package).
+
+Enjoy,
+D

@@ -1,0 +1,9 @@
+﻿Main goal of this helper application is support for semi-automatic creating tik entities (C# source code generator)
+from youd mikrotik router.
+
+Just prepare entity on router, start application, fill entity path and generate source.
+
+REMARKS: update your credentials in *.config file!
+
+Enjoy,
+D
