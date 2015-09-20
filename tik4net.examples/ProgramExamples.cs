@@ -259,7 +259,7 @@ namespace tik4net.examples
                 startMangle = new FirewallMangle()
                 {
                     Chain = "forward",
-                    Action = "passthrough",
+                    Action = FirewallMangle.ActionType.Passthrough,
                     Comment = startComment,
                     Disabled = true,
                 };
@@ -271,7 +271,7 @@ namespace tik4net.examples
                 endMangle = new FirewallMangle()
                 {
                     Chain = "forward",
-                    Action = "passthrough",
+                    Action = FirewallMangle.ActionType.Passthrough,
                     Comment = endComment,
                     Disabled = true,
                 };
@@ -289,7 +289,7 @@ namespace tik4net.examples
             {
                 Chain = "forward",
                 SrcAddress = "192.168.1.1",
-                Action = "mark-packet",
+                Action = FirewallMangle.ActionType.MarkPacket,
                 NewPacketMark = "mark-001",
                 Passthrough = false,
             });
@@ -297,7 +297,7 @@ namespace tik4net.examples
             {
                 Chain = "forward",
                 SrcAddress = "192.168.1.2",
-                Action = "mark-packet",
+                Action = FirewallMangle.ActionType.MarkPacket,
                 NewPacketMark = "mark-002" + "-" +  unique,
                 Passthrough = false,
             });
@@ -305,7 +305,7 @@ namespace tik4net.examples
             {
                 Chain = "forward",
                 SrcAddress = "192.168.1.3",
-                Action = "mark-packet",
+                Action = FirewallMangle.ActionType.MarkPacket,
                 NewPacketMark = "mark-003",
                 Passthrough = false,
                 Comment = unique,

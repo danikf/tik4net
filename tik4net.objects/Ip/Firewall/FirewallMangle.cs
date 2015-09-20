@@ -12,6 +12,121 @@ namespace tik4net.Objects.Ip.Firewall
     public class FirewallMangle
     {
         /// <summary>
+        /// Mangle action type - <see cref="FirewallMangle.Action"/>
+        /// </summary>
+        public enum ActionType
+        {
+            /// <summary>
+            /// accept - accept the packet. Packet is not passed to next firewall rule.
+            /// </summary>
+            [TikEnum("accept")]
+            Accept,
+
+            /// <summary>
+            /// add-dst-to-address-list - add destination address to Address list specified by address-list parameter
+            /// </summary>
+            [TikEnum("add-dst-to-address-list")]            
+            AddDstToAddressList,
+
+            /// <summary>
+            /// add-src-to-address-list - add source address to Address list specified by address-list parameter
+            /// </summary>
+            [TikEnum("add-dst-to-address-list")]
+            AddSrcToAddressList,
+
+            /// <summary>
+            /// change-dscp - change Differentiated Services Code Point (DSCP) field value specified by the new-dscp parameter
+            /// </summary>
+            [TikEnum("change-dscp")]
+            ChangeDscp,
+
+            /// <summary>
+            /// change-mss - change Maximum Segment Size field value of the packet to a value specified by the new-mss parameter
+            /// </summary>
+            [TikEnum("change-mss")]
+            ChangeMms,
+
+            /// <summary>
+            /// change-ttl - change Time to Live field value of the packet to a value specified by the new-ttl parameter
+            /// </summary>
+            [TikEnum("change-ttl")]        
+            ChangeTtl,
+
+            /// <summary>
+            /// clear-df - clear 'Do Not Fragment' Flag
+            /// </summary>
+            [TikEnum("clear-df")]
+            ClearDf,
+
+            /// <summary>
+            /// jump - jump to the user defined chain specified by the value of jump-target parameter
+            /// </summary>
+            [TikEnum("jump")]
+            Jump,
+
+            /// <summary>
+            /// log - add a message to the system log containing following data: in-interface, out-interface, src-mac, protocol, src-ip:port->dst-ip:port and length of the packet.After packet is matched it is passed to next rule in the list, similar as passthrough
+            /// </summary>
+            [TikEnum("log")]
+            Log,
+
+            /// <summary>
+            /// mark-connection - place a mark specified by the new-connection-mark parameter on the entire connection that matches the rule
+            /// </summary>
+            [TikEnum("mark-connection")]
+            MarkConnection,
+
+            /// <summary>
+            /// place a mark specified by the new-packet-mark parameter on a packet that matches the rule
+            /// </summary>
+            [TikEnum("mark-packet")]
+            MarkPacket,
+
+            /// <summary>
+            /// 
+            /// </summary>
+            [TikEnum("")]
+            MarkRouting,
+            //mark-routing - place a mark specified by the new-routing-mark parameter on a packet.This kind of marks is used for policy routing purposes only
+
+            /// <summary>
+            /// ignore this rule and go to next one (useful for statistics).
+            /// </summary>
+            [TikEnum("passthrough")]
+            Passthrough,
+
+            /// <summary>
+            /// return - pass control back to the chain from where the jump took place
+            /// </summary>
+            [TikEnum("return")]
+            Return,
+
+            /// <summary>
+            /// set-priority - set priority specified by the new- priority parameter on the packets sent out through a link that is capable of transporting priority(VLAN or WMM - enabled wireless interface). Read more>
+            /// </summary>
+            [TikEnum("set-priority")]
+            SetPriority,
+
+            /// <summary>
+            /// sniff-pc
+            /// </summary>
+            [TikEnum("sniff-pc")]
+            SniffPc,
+
+            /// <summary>
+            /// sniff-tzsp - send packet to a remote TZSP compatible system(such as Wireshark). Set remote target with sniff-target and sniff-target-port parameters(Wireshark recommends port 37008)
+            /// </summary>
+            [TikEnum("sniff-tzsp")]
+            SniffTzsp,
+
+            /// <summary>
+            /// strip-ipv4-options - strip IPv4 option fields from IP header.
+            /// </summary>
+            [TikEnum("strip-ipv4-options")]
+            StripIpv4Options,
+        }
+
+        /// <summary>
         /// .id
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
@@ -27,7 +142,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// action
         /// </summary>
         [TikProperty("action")]
-        public string Action { get; set; }
+        public ActionType Action { get; set; }
 
         /// <summary>
         /// new-priorityne

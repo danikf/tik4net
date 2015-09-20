@@ -115,6 +115,11 @@ namespace tik4net.Objects
                 return long.Parse(strValue);
             else if (PropertyType == typeof(bool))
                 return string.Equals(strValue, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(strValue, "yes", StringComparison.OrdinalIgnoreCase);
+            else if (PropertyType.IsEnum)
+                return Enum.GetNames(PropertyType)
+                    .Where(en => string.Equals(PropertyType.GetMember(en)[0].GetCustomAttribute<TikEnumAttribute>(false).Value, strValue, StringComparison.OrdinalIgnoreCase))
+                    .Select(en => Enum.Parse(PropertyType, en, true))
+                    .Single(); //TODO safer implementation
             else
                 throw new NotImplementedException(string.Format("Property type {0} not supported.", PropertyType));
         }
@@ -130,6 +135,8 @@ namespace tik4net.Objects
                 return ((long)propValue).ToString();
             else if (PropertyType == typeof(bool))
                 return ((bool)propValue) ? "yes" : "no"; //TODO add attribute definition for support true/false
+            else if (PropertyType.IsEnum)
+                return PropertyType.GetMember(propValue.ToString())[0].GetCustomAttribute<TikEnumAttribute>(false).Value; //TODO safer implementation
             else
                 throw new NotImplementedException(string.Format("Property type {0} not supported.", PropertyType));
         }

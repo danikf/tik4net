@@ -12,9 +12,9 @@ using System.Windows.Forms;
 
 namespace tik4net.entitygenerator
 {
-    public partial class Form1 : Form
+    public partial class EntityCodeGenaratorMainForm : Form
     {
-        public Form1()
+        public EntityCodeGenaratorMainForm()
         {
             InitializeComponent();
         }
@@ -66,54 +66,27 @@ namespace tik4net.entitygenerator
 
         private static string Generate(string entityPath, bool includeDetails, IEnumerable<ITikReSentence> tikReSentences)
         {
-            StringBuilder source = new StringBuilder();
-            source.AppendLine(@"\\\ <summary>");
-            source.AppendLine(@"\\\ " + entityPath);
-            source.AppendLine(@"\\\ </summary>");
-            source.AppendLine(string.Format("\t[TikEntity(\"{0}\"{1})]", entityPath, includeDetails ? ", IncludeDetails = true" : ""));
-            source.AppendLine(string.Format("\tpublic class {0}", "ENTITY_NAME"));
-            source.AppendLine("\t{");
-
-            Dictionary<string, string> words = new Dictionary<string, string>();
+            List<ParsedProperty> properties = new List<ParsedProperty>();
             foreach (ITikReSentence sentence in tikReSentences)
             {
                 foreach (var propPair in sentence.Words)
                 {
-                    if (!words.ContainsKey(propPair.Key)) //union over all field names
-                        words.Add(propPair.Key, propPair.Value);
+                    if (!properties.Any(prop => prop.FieldName == propPair.Key)) //union over all field names from all rows
+                    {
+                        string fieldName = propPair.Key;
+                        string fielValue = propPair.Value;
+
+                        string propName = GeneratorHelper.Camelize(fieldName);
+                        string propType = GeneratorHelper.DetermineFieldType(fieldName, fielValue);
+                        bool isReadOnly = GeneratorHelper.DetermineFieldReadOnly(fieldName, fielValue);
+                        bool isMandatory = GeneratorHelper.DetermineFieldMandatory(fieldName, fielValue);
+
+                        properties.Add(new ParsedProperty(propName, fieldName, "", propType, isReadOnly, isMandatory, null));
+                    }
                 }
             }
 
-            foreach (var propPair in words)
-            {
-                GenerateProperty(propPair.Key, propPair.Value, source);
-            }
-
-            source.AppendLine("\t}");
-
-            return source.ToString();
-        }
-
-        private static void GenerateProperty(string name, string value, StringBuilder source)
-        {
-            string propName = GeneratorHelper.Camelize(name);
-            string propType = GeneratorHelper.DetermineFieldType(name, value);
-            bool isReadOnly = GeneratorHelper.DetermineFieldReadOnly(name, value);
-            bool isMandatory = GeneratorHelper.DetermineFieldMandatory(name, value);
-
-            List<string> attrParams = new List<string>();
-            attrParams.Add(string.Format("\"{0}\"", name));
-            if (isReadOnly)
-                attrParams.Add("IsReadOnly = true");
-            if (isMandatory)
-                attrParams.Add("IsMandatory = true");
-
-            source.AppendLine(@"\\\ <summary>");
-            source.AppendLine(@"\\\ " + name);
-            source.AppendLine(@"\\\ </summary>");
-            source.AppendLine(string.Format("\t\t[TikProperty({0})]", string.Join(", ", attrParams)));
-            source.AppendLine(string.Format("\t\tpublic {0} {1} *< get; {2}set; >*", propType, propName, (isReadOnly ? "private " : "")).Replace("*<", "{").Replace(">*", "}"));
-            source.AppendLine();
+            return EntityCodeGenerator.Generate(entityPath, "", includeDetails, properties);
         }
     }
 }

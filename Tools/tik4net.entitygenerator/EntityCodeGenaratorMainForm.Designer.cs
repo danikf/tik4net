@@ -1,6 +1,6 @@
 ﻿namespace tik4net.entitygenerator
 {
-    partial class Form1
+    partial class EntityCodeGenaratorMainForm
     {
         /// <summary>
         /// Required designer variable.

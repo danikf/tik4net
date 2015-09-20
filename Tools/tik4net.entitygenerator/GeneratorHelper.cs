@@ -44,6 +44,35 @@ namespace tik4net.entitygenerator
             }
         }
 
+        public static string DetermineFieldTypeFromDocumentation(string documentationFiledType, string fieldName, bool isReadOnly)
+        {
+            if (fieldName == TikSpecialProperties.Id)
+                return "string";
+            else if (fieldName == "disabled" || fieldName == "invalid" || fieldName == "active" || fieldName == "dynamic")
+                return "bool";
+            else if (fieldName == "comment")
+                return "string";
+
+            else if (string.Equals(documentationFiledType, "string", StringComparison.OrdinalIgnoreCase))
+                return "string";
+            else if (string.Equals(documentationFiledType, "IP/netmask", StringComparison.OrdinalIgnoreCase))
+                return "IpAdddress";
+            else if (string.Equals(documentationFiledType, "IP", StringComparison.OrdinalIgnoreCase))
+                return "IpAdddress";
+            else if (string.Equals(documentationFiledType, "yes|no", StringComparison.OrdinalIgnoreCase))
+                return "bool";
+            else if (string.Equals(documentationFiledType, "yes | no", StringComparison.OrdinalIgnoreCase))
+                return "bool";
+            else if (string.Equals(documentationFiledType, "integer", StringComparison.OrdinalIgnoreCase))
+                return "int";
+            else if (string.IsNullOrWhiteSpace(documentationFiledType))
+                return "string";
+            else if (isReadOnly)
+                return "string"; //string fallback for R/O properties - strong typed property is not necessary
+            else
+                return "string" + "/*" + documentationFiledType + "*/";
+        }
+
         public static bool DetermineFieldReadOnly(string name, string value)
         {
             if (name == TikSpecialProperties.Id)

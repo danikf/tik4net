@@ -52,6 +52,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="PropertyInfoExtensions.cs" />
+    <Compile Include="TikEnumAttribute.cs" />
     <Compile Include="TikListMerge.cs" />
     <Compile Include="TikEntityObjectsExtensions.cs" />
     <Compile Include="Interface.cs" />

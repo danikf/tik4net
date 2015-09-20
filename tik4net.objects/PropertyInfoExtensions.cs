@@ -31,7 +31,7 @@ namespace tik4net.Objects
         /// <summary>
         /// See <see cref="MemberInfo.GetCustomAttributes(bool)"/> - takes first of <typeparamref name="TAttribute"/> or null.
         /// </summary>
-        public static TAttribute GetCustomAttribute<TAttribute>(this PropertyInfo propertyInfo,  bool inherit)
+        public static TAttribute GetCustomAttribute<TAttribute>(this MemberInfo propertyInfo,  bool inherit)
             where TAttribute: Attribute
         {
             return propertyInfo.GetCustomAttributes(inherit).OfType<TAttribute>().FirstOrDefault();

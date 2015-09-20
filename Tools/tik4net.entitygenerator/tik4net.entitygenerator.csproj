@@ -48,17 +48,19 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Form1.cs">
+    <Compile Include="EntityCodeGenerator.cs" />
+    <Compile Include="EntityCodeGenaratorMainForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Form1.Designer.cs">
-      <DependentUpon>Form1.cs</DependentUpon>
+    <Compile Include="EntityCodeGenaratorMainForm.Designer.cs">
+      <DependentUpon>EntityCodeGenaratorMainForm.cs</DependentUpon>
     </Compile>
     <Compile Include="GeneratorHelper.cs" />
+    <Compile Include="ParsedProperty.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <EmbeddedResource Include="Form1.resx">
-      <DependentUpon>Form1.cs</DependentUpon>
+    <EmbeddedResource Include="EntityCodeGenaratorMainForm.resx">
+      <DependentUpon>EntityCodeGenaratorMainForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
@@ -84,10 +86,15 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\tik4net\tik4net.csproj">
+    <ProjectReference Include="..\..\tik4net\tik4net.csproj">
       <Project>{15288f76-5a85-418e-87b2-b22265726601}</Project>
       <Name>tik4net</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Info.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
