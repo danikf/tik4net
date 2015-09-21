@@ -55,13 +55,13 @@ namespace tik4net.entitygenerator
 
             else if (string.Equals(documentationFiledType, "string", StringComparison.OrdinalIgnoreCase))
                 return "string";
-            else if (string.Equals(documentationFiledType, "IP/netmask", StringComparison.OrdinalIgnoreCase))
-                return "IpAdddress";
-            else if (string.Equals(documentationFiledType, "IP", StringComparison.OrdinalIgnoreCase))
-                return "IpAdddress";
-            else if (string.Equals(documentationFiledType, "yes|no", StringComparison.OrdinalIgnoreCase))
-                return "bool";
-            else if (string.Equals(documentationFiledType, "yes | no", StringComparison.OrdinalIgnoreCase))
+            //else if (string.Equals(documentationFiledType, "IP/netmask", StringComparison.OrdinalIgnoreCase))
+            //    return "Ipv4Address";
+            //else if (string.Equals(documentationFiledType, "IP", StringComparison.OrdinalIgnoreCase))
+            //    return "Ipv4Address";
+            //else if (string.Equals(documentationFiledType, "MAC", StringComparison.OrdinalIgnoreCase))
+            //    return "MacAddress";
+            else if (string.Equals(documentationFiledType.Replace(" ",  ""), "yes|no", StringComparison.OrdinalIgnoreCase))
                 return "bool";
             else if (string.Equals(documentationFiledType, "integer", StringComparison.OrdinalIgnoreCase))
                 return "int";

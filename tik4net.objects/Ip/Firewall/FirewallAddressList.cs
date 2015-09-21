@@ -44,7 +44,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// timeout  (00:00:00)
         /// </summary>
-        [TikProperty("timeout", DefaultValue = "0:00:00")]
+        [TikProperty("timeout", DefaultValue = "00:00:00")]
         public string Timeout { get; set; }
 
         /// <summary>

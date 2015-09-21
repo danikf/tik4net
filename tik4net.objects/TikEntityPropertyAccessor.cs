@@ -120,12 +120,21 @@ namespace tik4net.Objects
                     .Where(en => string.Equals(PropertyType.GetMember(en)[0].GetCustomAttribute<TikEnumAttribute>(false).Value, strValue, StringComparison.OrdinalIgnoreCase))
                     .Select(en => Enum.Parse(PropertyType, en, true))
                     .Single(); //TODO safer implementation
+            //else if (PropertyType == typeof(Ipv4Address))
+            //    return new Ipv4Address(strValue);
+            //else if (PropertyType == typeof(Ipv4AddressWithSubnet))
+            //    return new Ipv4AddressWithSubnet(strValue);
+            //else if (PropertyType == typeof(MacAddress))
+            //    return new MacAddress(strValue);
             else
                 throw new NotImplementedException(string.Format("Property type {0} not supported.", PropertyType));
         }
 
         private string ConvertToString(object propValue)
         {
+            if (propValue is string)
+                return (string)propValue;
+
             //convert to string used in mikrotik            
             if (PropertyType == typeof(string))
                 return propValue.ToString();
@@ -137,6 +146,12 @@ namespace tik4net.Objects
                 return ((bool)propValue) ? "yes" : "no"; //TODO add attribute definition for support true/false
             else if (PropertyType.IsEnum)
                 return PropertyType.GetMember(propValue.ToString())[0].GetCustomAttribute<TikEnumAttribute>(false).Value; //TODO safer implementation
+            //else if (PropertyType == typeof(Ipv4Address))
+            //    return ((Ipv4Address)propValue).Address;
+            //else if (PropertyType == typeof(Ipv4AddressWithSubnet))
+            //    return ((Ipv4AddressWithSubnet)propValue).Address;
+            //else if (PropertyType == typeof(MacAddress))
+            //    return ((MacAddress)propValue).Address;
             else
                 throw new NotImplementedException(string.Format("Property type {0} not supported.", PropertyType));
         }

@@ -51,6 +51,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Ipv4Address.cs" />
+    <Compile Include="Ipv4AddressWithSubnet.cs" />
+    <Compile Include="Ip\IpAccounting.cs" />
+    <Compile Include="Ip\IpArp.cs" />
+    <Compile Include="MacAddress.cs" />
     <Compile Include="PropertyInfoExtensions.cs" />
     <Compile Include="TikEnumAttribute.cs" />
     <Compile Include="TikListMerge.cs" />

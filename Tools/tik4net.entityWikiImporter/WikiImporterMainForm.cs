@@ -46,7 +46,7 @@ namespace tik4net.entityWikiImporter
             var roProperties = ParsePropertiesFromHtml(tbROProperties.Text, true).ToList();
 
             tbSourceCode.Text = EntityCodeGenerator.Generate(tbEntityPath.Text, tbDescription.Text, false, 
-                new List<ParsedProperty> { new ParsedProperty("Id", ".id", ".id: primary key of row", "string", true, true, null)}                
+                new List<ParsedProperty> { new ParsedProperty("Id", ".id", "primary key of row", "string", true, true, null)}                
                 .Concat(properties)
                 .Concat(roProperties));
             tbSourceCode.SelectAll();

@@ -245,12 +245,18 @@ namespace tik4net.Objects
         /// <param name="entity">Saved entity.</param>
         /// <param name="usedFieldsFilter">List of field names (on mikrotik) which should be modified. If is not null, only listed fields will be modified.</param>
         public static void Save<TEntity>(this ITikConnection connection, TEntity entity, IEnumerable<string> usedFieldsFilter = null)
+            where TEntity:new()
         {            
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             EnsureNotReadonlyEntity(metadata);
-            string id = metadata.IdProperty.GetEntityValue(entity);
 
-            if (string.IsNullOrEmpty(id))
+            string id;
+            if (metadata.IsSingleton)
+                id = null;
+            else
+                id = metadata.IdProperty.GetEntityValue(entity);
+
+            if (!metadata.IsSingleton && string.IsNullOrEmpty(id))
             {
                 //create
                 ITikCommand createCmd = connection.CreateCommand(metadata.EntityPath + "/add", TikCommandParameterFormat.NameValue);
@@ -272,6 +278,14 @@ namespace tik4net.Objects
             {
                 //update (set+unset)
                 ITikCommand setCmd = connection.CreateCommand(metadata.EntityPath + "/set", TikCommandParameterFormat.NameValue);
+
+                if (!metadata.IsSingleton && usedFieldsFilter == null)
+                {
+                    //compare state on mikrotik and update different fields only
+                    var unmodifiedEntity =  connection.LoadById<TEntity>(id); //TODO some kind of "loaded entities" session cache could be used to avoid another load before save.
+                    usedFieldsFilter = entity.GetDifferentFields(unmodifiedEntity);
+                }
+
                 List<string> fieldsToUnset = new List<string>();
 
                 foreach (var property in metadata.Properties
@@ -302,7 +316,8 @@ namespace tik4net.Objects
                 }
                 if (setCmd.Parameters.Any())
                 {
-                    setCmd.AddParameter(TikSpecialProperties.Id, id, TikCommandParameterFormat.NameValue);
+                    if (!metadata.IsSingleton)
+                        setCmd.AddParameter(TikSpecialProperties.Id, id, TikCommandParameterFormat.NameValue);
                     setCmd.ExecuteNonQuery();
                 }
             }
@@ -328,6 +343,7 @@ namespace tik4net.Objects
         /// <seealso cref="TikEntityObjectsExtensions.CloneEntityList"/>
         /// <seealso cref="Save"/>
         public static void SaveListDifferences<TEntity>(this ITikConnection connection, IEnumerable<TEntity> modifiedList, IEnumerable<TEntity> unmodifiedList)
+            where TEntity : new()
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             EnsureNotReadonlyEntity(metadata);
@@ -455,6 +471,7 @@ namespace tik4net.Objects
         ///    .Save();                      // modify mikrotik router QueueTree 
         /// </example>
         public static TikListMerge<TEntity> CreateMerge<TEntity>(this ITikConnection connection, IEnumerable<TEntity> expected, IEnumerable<TEntity> original)
+            where TEntity: new()
         {
             return new TikListMerge<TEntity>(connection, expected, original);
         }

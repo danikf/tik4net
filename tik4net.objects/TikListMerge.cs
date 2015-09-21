@@ -14,6 +14,7 @@ namespace tik4net.Objects
     /// </summary>
     /// <typeparam name="TEntity"></typeparam>
     public class TikListMerge<TEntity>
+                    where TEntity : new()
     {
         private readonly ITikConnection _connection;
         private readonly IEnumerable<TEntity> _expected;

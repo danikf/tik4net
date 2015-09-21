@@ -59,6 +59,20 @@ namespace tik4net.Objects
         /// <remarks>Compares only fields marked with <see cref="TikPropertyAttribute"/>.</remarks>
         public static bool EntityEquals<TEntity>(this TEntity entity1, TEntity entity2, bool skipIdCompare = false)
         {
+            return !GetDifferentFields(entity1, entity2, skipIdCompare).Any();
+        }
+
+        /// <summary>
+        /// Compares two instances of entity by their fields and returns different fields (field names).
+        /// </summary>
+        /// <typeparam name="TEntity"></typeparam>
+        /// <param name="entity1">First entity.</param>
+        /// <param name="entity2">Seconf entity.</param>
+        /// <param name="skipIdCompare">If is true, than coparation of .id property is skipped.</param>
+        /// <returns>List of different fields.</returns>
+        /// <remarks>Compares only fields marked with <see cref="TikPropertyAttribute"/>.</remarks>
+        public static IEnumerable<string> GetDifferentFields<TEntity>(this TEntity entity1, TEntity entity2, bool skipIdCompare = false)
+        {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
 
             foreach (var property in metadata.Properties)
@@ -69,11 +83,9 @@ namespace tik4net.Objects
                     string prop2 = property.GetEntityValue(entity2);
 
                     if (!string.Equals(prop1, prop2))
-                        return false;
+                        yield return property.FieldName;
                 }
             }
-
-            return true;
         }
 
         /// <summary>

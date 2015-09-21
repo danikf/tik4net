@@ -37,8 +37,8 @@ msbuild.exe Tools\tik4net.entitygenerator\tik4net.entitygenerator.csproj /p:Conf
 msbuild.exe Tools\tik4net.entityWikiImporter\tik4net.entityWikiImporter.csproj /p:Configuration=Release /t:Clean
 msbuild.exe Tools\tik4net.entityWikiImporter\tik4net.entityWikiImporter.csproj /p:Configuration=Release /t:Rebuild
 
-copy tik4net\bin\Release\Tools\tik4net.dll ..\release\Tools\ /Y
-copy tik4net.objects\bin\Release\Tools\tik4net.objects.dll ..\release\Tools\ /Y
+copy tik4net\bin\Release\tik4net.dll ..\release\Tools\ /Y
+copy tik4net.objects\bin\Release\tik4net.objects.dll ..\release\Tools\ /Y
 copy Tools\tik4net.entityWikiImporter\bin\Release\HtmlAgilityPack.dll ..\release\Tools\ /Y
 copy Tools\tik4net.entityWikiImporter\bin\Release\tik4net.entityWikiImporter.exe.config   ..\release\Tools\ /Y
 copy Tools\tik4net.entityWikiImporter\bin\Release\tik4net.entityWikiImporter.exe  ..\release\Tools\ /Y

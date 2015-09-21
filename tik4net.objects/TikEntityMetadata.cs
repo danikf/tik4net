@@ -57,6 +57,11 @@ namespace tik4net.Objects
         public bool IncludeProplist { get; private set; }
 
         /// <summary>
+        /// If entity exists in single instance.
+        /// </summary>
+        public bool IsSingleton { get; private set; }
+
+        /// <summary>
         /// The .id property of the entity or null (if no property is decorated by <see cref="TikPropertyAttribute.FieldName"/> = .id).
         /// </summary>
         public TikEntityPropertyAccessor IdProperty
@@ -80,6 +85,7 @@ namespace tik4net.Objects
             IsOrdered = entityAttribute.IsOrdered;
             IncludeDetails = entityAttribute.IncludeDetails;
             IncludeProplist = entityAttribute.IncludeProplist;
+            IsSingleton = entityAttribute.IsSingleton;
 
             //properties
             _properties = entityType.GetProperties()

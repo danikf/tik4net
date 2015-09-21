@@ -11,9 +11,17 @@ namespace tik4net.entitygenerator
         public static string Generate(string entityPath, string description, bool includeDetails, IEnumerable<ParsedProperty> properties)
         {
             StringBuilder source = new StringBuilder();
-            source.AppendLine("\t" + @"\\\ <summary>");
-            source.AppendLine("\t" + string.Format(@"\\\ {0}: {1}", entityPath, description));
-            source.AppendLine("\t" + @"\\\ </summary>");
+            source.AppendLine("\t" + @"/// <summary>");
+            if (description.Contains("\n"))
+            {
+                source.AppendLine("\t" + string.Format(@"/// {0}", entityPath));
+                foreach(string descrRow in description.Split(new string[] { "\n" }, StringSplitOptions.RemoveEmptyEntries))
+                    source.AppendLine("\t" + string.Format(@"/// {0}", descrRow));
+            }
+            else
+                source.AppendLine("\t" + string.Format(@"/// {0}: {1}", entityPath, description));
+
+            source.AppendLine("\t" + @"/// </summary>");
             source.AppendLine(string.Format("\t[TikEntity(\"{0}\"{1})]", entityPath, includeDetails ? ", IncludeDetails = true" : ""));
             source.AppendLine(string.Format("\tpublic class {0}", "ENTITY_NAME"));
             source.AppendLine("\t{");
@@ -39,9 +47,9 @@ namespace tik4net.entitygenerator
             if (!string.IsNullOrWhiteSpace(property.DefaultValue))
                 attrParams.Add("DefaultValue = \"" + property.DefaultValue + "\"");
 
-            source.AppendLine("\t\t" + @"\\\ <summary>");
-            source.AppendLine("\t\t" + string.Format(@"\\\ {0}: {1}", property.FieldName, property.Description));
-            source.AppendLine("\t\t" + @"\\\ </summary>");
+            source.AppendLine("\t\t" + @"/// <summary>");
+            source.AppendLine("\t\t" + string.Format(@"/// {0}: {1}", property.FieldName, property.Description));
+            source.AppendLine("\t\t" + @"/// </summary>");
             source.AppendLine(string.Format("\t\t[TikProperty({0})]", string.Join(", ", attrParams)));
             source.AppendLine(string.Format("\t\tpublic {0} {1} *< get; {2}set; >*", 
                 property.PropType, 

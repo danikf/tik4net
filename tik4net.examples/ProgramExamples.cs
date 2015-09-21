@@ -25,38 +25,42 @@ namespace tik4net.examples
 
                 //------------------------------------------------
                 //  LOW LEVEL API (hint: uncomment any example call and debug)
-                //Identity(connection);
+                Identity(connection);
 
-                //Torch(connection);
+                Torch(connection);
 
-                //Log(connection);
+                Log(connection);
 
                 //-------------------------------------------------
                 // HIGHLEVEL API (hint: uncomment any example call and debug)
 
-                //PrintAddressList(connection);
-                //CreateOrUpdateAddressList(connection);
-                //PrintAddressList(connection);
-                //CreateOrUpdateAddressList(connection);
-                //PrintAddressList(connection);
-                //DeleteAddressList(connection);
-                //PrintAddressList(connection);
+                PrintAddressList(connection);
+                CreateOrUpdateAddressList(connection);
+                PrintAddressList(connection);
+                CreateOrUpdateAddressList(connection);
+                PrintAddressList(connection);
+                DeleteAddressList(connection);
+                PrintAddressList(connection);
 
-                //PrintAddressList(connection);
-                //CreateOrUpdateAddressListMulti(connection);
-                //PrintAddressList(connection);
-                //CreateOrUpdateAddressListMulti(connection);
-                //PrintAddressList(connection);
-                //DeleteAddressListMulti(connection);
-                //PrintAddressList(connection);
+                PrintAddressList(connection);
+                CreateOrUpdateAddressListMulti(connection);
+                PrintAddressList(connection);
+                CreateOrUpdateAddressListMulti(connection);
+                PrintAddressList(connection);
+                DeleteAddressListMulti(connection);
+                PrintAddressList(connection);
 
-                //PrintIpAddresses(connection);
+                PrintIpAddresses(connection);
 
-                //PrintSystemResource(connection);
+                PrintSystemResource(connection);
+
+                ModifyIpAccounting(connection);
+
+                AddFirewalFilter(connection);
 
                 //---------------------------------------------------------
                 // Advanced merge support (hint: uncomment any example call and debug)
-                //QueueTreeMerge(connection);
+                QueueTreeMerge(connection);
                 FirewallMangleMerge(connection);
 
                 Console.WriteLine("Finito - press ENTER");
@@ -213,7 +217,7 @@ namespace tik4net.examples
         private static void PrintIpAddresses(ITikConnection connection)
         {
             var ipAddresses = connection.LoadList<IpAddress>();
-            foreach(IpAddress addr in ipAddresses)
+            foreach(var addr in ipAddresses)
             {
                 Console.WriteLine(addr.EntityToString());
             }
@@ -322,5 +326,25 @@ namespace tik4net.examples
                 .Field(q => q.Comment)
                 .Save();
         }
+        private static void ModifyIpAccounting(ITikConnection connection)
+        {
+            var accounting = connection.LoadSingle<IpAccounting>();
+            accounting.Threshold = 257;
+            connection.Save(accounting);
+        }
+
+        private static void AddFirewalFilter(ITikConnection connection)
+        {
+            var firewallFilter = new FirewallFilter();
+            firewallFilter.Chain = FirewallFilter.ChainType.Forward;
+            firewallFilter.Action = FirewallFilter.ActionType.Accept;
+
+            connection.Save(firewallFilter);
+
+            var loaded = connection.LoadAll<FirewallFilter>().First();
+            loaded.Comment = "TEST";
+            connection.Save(loaded);
+        }
+
     }
 }
