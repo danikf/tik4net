@@ -87,7 +87,7 @@ namespace tik4net.entityWikiImporter
             }
         }
 
-        private static Regex fieldRegex = new Regex(@"^(?<FLD>[\w\-]+)\s*\((?<TYPE>\w+)\s*;\s*Default:\s*(?<DEFAULT>.*)\)$", RegexOptions.IgnoreCase);
+        private static Regex fieldRegex = new Regex(@"^(?<FLD>[\w\-]+)\s*\((?<TYPE>.+)\s*;\s*Default:\s*(?<DEFAULT>.*)\)$", RegexOptions.IgnoreCase);
         private static Regex fieldRegexFallback = new Regex(@"^(?<FLD>[\w\-]+)\s*\(.*Default:\s*(?<DEFAULT>.*)\)$", RegexOptions.IgnoreCase);
         private static Regex fieldRegexFallback2 = new Regex(@"^(?<FLD>[\w\-]+)\s*\((?<TYPE>.*)\s*(?<DEFAULT>.*)\)$", RegexOptions.IgnoreCase);
         private static void ParseFieldText(string fieldText, bool isReadOnly, out string fieldName, out string fieldType, out string defaultValue)

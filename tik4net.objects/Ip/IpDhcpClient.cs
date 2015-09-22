@@ -13,6 +13,7 @@ namespace tik4net.Objects.Ip
     [TikEntity("ip/dhcp-client", IncludeDetails = true)]
     public class IpDhcpClient
     {
+        #region -- Enums ---
         /// <summary>
         /// Mode of adding default route. See <see cref="IpDhcpClient.AddDefaultRoute"/>.
         /// </summary>
@@ -36,6 +37,7 @@ namespace tik4net.Objects.Ip
             [TikEnum("special-classless")]
             SpecialClassless,
         }
+        #endregion
 
         /// <summary>
         /// .id: primary key of row

@@ -32,7 +32,7 @@ namespace tik4net.entityWikiImporter
             var rootDoc = doc.DocumentNode.FirstChild;
             if (rootDoc.Name == "table")
             {
-                return rootDoc.ParsePropertyTable(isReadOnly);
+                return rootDoc.ParsePropertyTable(isReadOnly).ToArray();
             }
             else
             {
@@ -49,7 +49,7 @@ namespace tik4net.entityWikiImporter
                 Split('\n')
                 .Select(line => line.Trim())
                 .Where(line => !string.IsNullOrEmpty(line))
-                .Select(line => line.Split('-').Select(i => i.Trim()).First())
+                .Select(line => line.Split(new string[] { "--" }, StringSplitOptions.RemoveEmptyEntries).Select(i => i.Trim()).First())
                 .ToArray(); //first column for each row
 
             foreach(var unsetProp in unsetProperties)
