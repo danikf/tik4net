@@ -15,7 +15,7 @@ namespace tik4net.entitygenerator
         public bool IsReadOnly { get; private set; }
         public bool IsMandatory { get; private set; }
         public string DefaultValue { get; private set; }
-
+        public bool UseUnset { get; set; }
 
         public ParsedProperty(string propertyName, string fieldName, string description, string propType, bool isReadOnly, bool isMandatory, string defaultValue)
         {

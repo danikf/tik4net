@@ -512,5 +512,22 @@ namespace tik4net.Objects.Ip.Firewall
         [TikProperty("ttl", UnsetOnDefault = true)]
         public string Ttl { get; set; }
 
+        /// <summary>
+        /// Row disabled property.
+        /// </summary>
+        [TikProperty("disabled")]
+        public bool Disabled { get; set; }
+
+        /// <summary>
+        /// Row dynamic property.
+        /// </summary>
+        [TikProperty("dynamic", IsReadOnly = true)]
+        public bool Dynamic { get; set; }
+
+        /// <summary>
+        /// Row invalid property.
+        /// </summary>
+        [TikProperty("invalid", IsReadOnly = true)]
+        public bool Invalid { get; set; }
     }
 }

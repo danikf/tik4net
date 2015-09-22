@@ -58,6 +58,8 @@ namespace tik4net.examples
 
                 AddFirewalFilter(connection);
 
+                DhcpClientRelease(connection);
+
                 //---------------------------------------------------------
                 // Advanced merge support (hint: uncomment any example call and debug)
                 QueueTreeMerge(connection);
@@ -346,5 +348,9 @@ namespace tik4net.examples
             connection.Save(loaded);
         }
 
+        private static void DhcpClientRelease(ITikConnection connection)
+        {
+            connection.LoadAll<IpDhcpClient>().First().Release(connection);
+        }
     }
 }

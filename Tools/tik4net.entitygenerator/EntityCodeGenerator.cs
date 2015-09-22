@@ -46,9 +46,18 @@ namespace tik4net.entitygenerator
                 attrParams.Add("IsMandatory = true");
             if (!string.IsNullOrWhiteSpace(property.DefaultValue))
                 attrParams.Add("DefaultValue = \"" + property.DefaultValue + "\"");
+            if (property.UseUnset)
+                attrParams.Add("UnsetOnDefault = true");
 
             source.AppendLine("\t\t" + @"/// <summary>");
-            source.AppendLine("\t\t" + string.Format(@"/// {0}: {1}", property.FieldName, property.Description));
+            if (property.Description.Contains("\n"))
+            {
+                source.AppendLine("\t" + string.Format(@"/// {0}", property.FieldName));
+                foreach (string descrRow in property.Description.Split(new string[] { "\n" }, StringSplitOptions.RemoveEmptyEntries))
+                    source.AppendLine("\t" + string.Format(@"/// {0}", descrRow));
+            }
+            else
+                source.AppendLine("\t\t" + string.Format(@"/// {0}: {1}", property.FieldName, property.Description));
             source.AppendLine("\t\t" + @"/// </summary>");
             source.AppendLine(string.Format("\t\t[TikProperty({0})]", string.Join(", ", attrParams)));
             source.AppendLine(string.Format("\t\tpublic {0} {1} *< get; {2}set; >*", 

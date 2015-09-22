@@ -45,6 +45,18 @@ namespace tik4net.entityWikiImporter
             var properties = ParsePropertiesFromHtml(tbProperties.Text, false).ToList();
             var roProperties = ParsePropertiesFromHtml(tbROProperties.Text, true).ToList();
 
+            var unsetProperties = tbUnsetProperties.Text.
+                Split('\n')
+                .Select(line => line.Trim())
+                .Where(line => !string.IsNullOrEmpty(line))
+                .Select(line => line.Split('-').Select(i => i.Trim()).First())
+                .ToArray(); //first column for each row
+
+            foreach(var unsetProp in unsetProperties)
+            {
+                properties.Single(prop => prop.FieldName == unsetProp).UseUnset = true;
+            }
+
             tbSourceCode.Text = EntityCodeGenerator.Generate(tbEntityPath.Text, tbDescription.Text, false, 
                 new List<ParsedProperty> { new ParsedProperty("Id", ".id", "primary key of row", "string", true, true, null)}                
                 .Concat(properties)
