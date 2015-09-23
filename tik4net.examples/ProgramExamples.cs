@@ -339,9 +339,11 @@ namespace tik4net.examples
 
         private static void AddFirewalFilter(ITikConnection connection)
         {
-            var firewallFilter = new FirewallFilter();
-            firewallFilter.Chain = FirewallFilter.ChainType.Forward;
-            firewallFilter.Action = FirewallFilter.ActionType.Accept;
+            var firewallFilter = new FirewallFilter()
+            {
+                Chain = FirewallFilter.ChainType.Forward,
+                Action = FirewallFilter.ActionType.Accept,
+            };
 
             connection.Save(firewallFilter);
 
