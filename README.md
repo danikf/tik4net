@@ -11,6 +11,11 @@ It has 3 parts:
 
 # Getting started and documentation
 ```cs
+   using (ITikConnection connection = ConnectionFactory.CreateConnection(TikConnectionType.Api))
+   {
+      connection.Open(HOST, USER, PASSS);
+```
+```cs
    ITikCommand cmd = connection.CreateCommand("/system/identity/print");
    var identity = cmd.ExecuteScalar(); 
    Console.WriteLine("Identity: {0}", identity);
