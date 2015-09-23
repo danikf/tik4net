@@ -58,6 +58,7 @@
     <Compile Include="Ip\IpArp.cs" />
     <Compile Include="Ip\IpDhcpClient.cs" />
     <Compile Include="Ip\IpDhcpRelay.cs" />
+    <Compile Include="Ip\IpDns.cs" />
     <Compile Include="MacAddress.cs" />
     <Compile Include="PropertyInfoExtensions.cs" />
     <Compile Include="TikEnumAttribute.cs" />
