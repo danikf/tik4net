@@ -60,6 +60,8 @@ namespace tik4net.examples
 
                 DhcpClientRelease(connection);
 
+                DnsCachePrint(connection);
+
                 //---------------------------------------------------------
                 // Advanced merge support (hint: uncomment any example call and debug)
                 QueueTreeMerge(connection);
@@ -351,6 +353,15 @@ namespace tik4net.examples
         private static void DhcpClientRelease(ITikConnection connection)
         {
             connection.LoadAll<IpDhcpClient>().First().Release(connection);
+        }
+
+        private static void DnsCachePrint(ITikConnection connection)
+        {
+            var cache = connection.LoadAll<IpDns.DnsCache>();
+            foreach(var c in cache)
+            {
+                Console.WriteLine(c.EntityToString());
+            }
         }
     }
 }
