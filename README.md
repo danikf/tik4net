@@ -13,7 +13,7 @@ It has 3 parts:
 ```cs
    using (ITikConnection connection = ConnectionFactory.CreateConnection(TikConnectionType.Api))
    {
-      connection.Open(HOST, USER, PASSS);
+      connection.Open(HOST, USER, PASS);
 ```
 ```cs
    ITikCommand cmd = connection.CreateCommand("/system/identity/print");
