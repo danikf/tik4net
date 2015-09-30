@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace tik4net.Objects.Ip.hotspot
+namespace tik4net.Objects.Ip.Hotspot
 {
     /// <summary>
     /// ip/hotspot/user

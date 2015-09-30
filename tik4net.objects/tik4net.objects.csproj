@@ -51,7 +51,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Ip\hotspot\HotspotUser.cs" />
+    <Compile Include="Ip\Hotspot\HotspotUser.cs" />
     <Compile Include="Ip\IpDhcpServer.cs" />
     <Compile Include="Ipv4Address.cs" />
     <Compile Include="Ipv4AddressWithSubnet.cs" />

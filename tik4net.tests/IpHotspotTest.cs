@@ -2,7 +2,7 @@
 using System.Configuration;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using tik4net.Objects.Ip.hotspot;
+using tik4net.Objects.Ip.Hotspot;
 using tik4net.Objects;
 using System.Collections.Generic;
 
@@ -33,6 +33,7 @@ namespace tik4net.tests
             {
                 Name = "TEST " + DateTime.Now.ToString(),
                 LimitUptime = "1:00:00",
+                Password = "secretpass",
             };
 
             _connection.Save(user);
