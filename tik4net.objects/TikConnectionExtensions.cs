@@ -405,6 +405,23 @@ namespace tik4net.Objects
                 TikSpecialProperties.Id, id);
             cmd.ExecuteNonQuery();
         }
+
+        /// <summary>
+        /// Deletes all entities of given type on mikrotik router.
+        /// </summary>
+        /// <typeparam name="TEntity">Deleted entity type.</typeparam>
+        /// <param name="connection">Tik connection used to delete entity.</param>
+        /// <returns>Number of deleted entities. </returns>
+        public static int DeleteAll<TEntity>(this ITikConnection connection)
+            where TEntity : new()
+        {
+            var list = connection.LoadAll<TEntity>();
+            int result = list.Count();
+
+            connection.SaveListDifferences(new List<TEntity>() /*empty list as expected => delete all*/, list);
+
+            return result;
+        }
         #endregion
 
         #region -- MOVE --

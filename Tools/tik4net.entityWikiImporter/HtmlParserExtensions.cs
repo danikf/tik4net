@@ -39,17 +39,19 @@ namespace tik4net.entityWikiImporter
                 && node.SelectSingleNode("span[@class='mw-headline']") != null;
         }
 
-        public static IEnumerable<string> GetTextOfParagraph(this HtmlDocument doc, string paragraphName)
+        public static IEnumerable<string> GetTextOfParagraph(this HtmlDocument doc, params string[] paragraphNames)
         {
-            var paragraphHeader = doc.GetParagraphNode(paragraphName);
-
-            var node = paragraphHeader.NextSibling;
-            while(node != null && !node.IsParagraphNode())
+            var paragraphHeader = doc.GetParagraphNode(paragraphNames);
+            if (paragraphHeader != null)
             {
-                if (node.Name == "p" && node.Attributes.Count == 0)
-                    yield return node.InnerText;
+                var node = paragraphHeader.NextSibling;
+                while (node != null && !node.IsParagraphNode())
+                {
+                    if (node.Name == "p" && node.Attributes.Count == 0)
+                        yield return node.InnerText;
 
-                node = node.NextSibling;
+                    node = node.NextSibling;
+                }
             }
         }
 

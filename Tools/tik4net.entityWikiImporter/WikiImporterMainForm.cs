@@ -54,7 +54,9 @@ namespace tik4net.entityWikiImporter
 
             foreach(var unsetProp in unsetProperties)
             {
-                properties.Single(prop => prop.FieldName == unsetProp).UseUnset = true;
+                var p = properties.SingleOrDefault(prop => prop.FieldName == unsetProp);
+                if (p != null)
+                    p.UseUnset = true;
             }
 
             tbSourceCode.Text = EntityCodeGenerator.Generate(tbEntityPath.Text, tbDescription.Text, false, 
@@ -77,9 +79,11 @@ namespace tik4net.entityWikiImporter
             HtmlAgilityPack.HtmlDocument doc = web.Load(tbWikiUrl.Text);
             //var rootContentDiv = doc.DocumentNode.SelectSingleNode("/html/body/div[@id='content']");
             //var documentationContentNode = rootContentDiv.SelectSingleNode("div[@id='bodyContent']/div[@id='mw-content-text']");
-            
-            tbEntityPath.Text = doc.ParseEntityPath(); //entity path from article header
-            tbDescription.Lines = doc.GetTextOfParagraph("Summary").ToArray(); //description from text of "Summary" paragraph
+
+            string entityPath = doc.ParseEntityPath();
+            tbEntityPath.Text = entityPath; //entity path from article header
+            string entityName = ("blablabla/" + entityPath).Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries).Last();
+            tbDescription.Lines = doc.GetTextOfParagraph("Summary", entityName, entityName + "s", GeneratorHelper.Camelize(entityName), GeneratorHelper.Camelize(entityName + "s")).ToArray(); //description from text of "Summary" paragraph
 
             var propertiesPara = doc.GetParagraphNode("Properties", "Property Description"); //properties from "Properties" or "Property Description" paragraph
             if (propertiesPara != null)
@@ -88,7 +92,7 @@ namespace tik4net.entityWikiImporter
                 tbProperties.Text = propertiesTable.OuterHtml;
             }
 
-            var roPropertiesPara = doc.GetParagraphNode("Read-only properties", "Read only properties"); // R/O properties from "Read-only properties" or "Read only properties" paragraph
+            var roPropertiesPara = doc.GetParagraphNode("Read-only properties", "Read only properties", "Read-only proterties"); // R/O properties from "Read-only properties" or "Read only properties" paragraph
             if (roPropertiesPara != null)
             {
                 var roPropertiesTable = roPropertiesPara.GetNextSiblingOfType("table");
