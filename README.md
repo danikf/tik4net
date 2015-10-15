@@ -35,17 +35,30 @@ It has 3 parts:
    };
    connection.Save(firewallFilter);
 ```
+```cs
+   ITikCommand torchCmd = connection.CreateCommand("/tool/torch", 
+      connection.CreateParameter("interface", "ether1"), 
+      connection.CreateParameter("port", "any"),
+      connection.CreateParameter("src-address", "0.0.0.0/0"),
+      connection.CreateParameter("dst-address", "0.0.0.0/0"));
 
+  torchCmd.ExecuteAsync(response =>
+      {
+         Console.WriteLine("Row: " + response.GetResponseField("tx"));
+      });
+  Console.WriteLine("Press ENTER");
+  Console.ReadLine();
+  torchCmd.Cancel();
+```
 See [project wiki](https://github.com/danikf/tik4net/wiki) or [example project](https://github.com/danikf/tik4net/blob/master/tik4net.examples/ProgramExamples.cs) for examples.
 
   
 # Looking for help
-* Importing of ip/hotspot menu into classes (and betatest it) - it used to be frequent question about previous version but unfortunattely I am not using this feature.
 * Importing other classes
-* Looking for betatesters !!!
+* Looking for betatesters
 
 # Roadmap
-* creating highlevel classes for all mikrotik entities (you can also generate your own classes)
+* creating highlevel classes for all mikrotik entities (you can still generate your own classes)
 * add SSL support
 * add examples and documentation
 * convert examples to separate unittests
