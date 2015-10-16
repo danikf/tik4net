@@ -51,6 +51,7 @@ It has 3 parts:
   torchCmd.Cancel();
 ```
 See [project wiki](https://github.com/danikf/tik4net/wiki) or [example project](https://github.com/danikf/tik4net/blob/master/tik4net.examples/ProgramExamples.cs) for examples.
+Builded binaries (dlls) could be downloaded from [mikrotik official forum](http://forum.mikrotik.com/viewtopic.php?t=99954).
 
   
 # Looking for help
