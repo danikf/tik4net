@@ -97,6 +97,15 @@
             label5.TabIndex = 15;
             label5.Text = "List of unset-supported properties. Paste it from mikrotik console:";
             // 
+            // label6
+            // 
+            label6.AutoSize = true;
+            label6.Location = new System.Drawing.Point(475, 15);
+            label6.Name = "label6";
+            label6.Size = new System.Drawing.Size(60, 13);
+            label6.TabIndex = 18;
+            label6.Text = "Entity path:";
+            // 
             // tbDescription
             // 
             this.tbDescription.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
@@ -158,6 +167,7 @@
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.tbProperties.Location = new System.Drawing.Point(4, 117);
+            this.tbProperties.MaxLength = 0;
             this.tbProperties.Multiline = true;
             this.tbProperties.Name = "tbProperties";
             this.tbProperties.Size = new System.Drawing.Size(849, 97);
@@ -207,15 +217,6 @@
             this.textBox1.Size = new System.Drawing.Size(439, 20);
             this.textBox1.TabIndex = 17;
             this.textBox1.Text = "unset 1 value-name=?";
-            // 
-            // label6
-            // 
-            label6.AutoSize = true;
-            label6.Location = new System.Drawing.Point(475, 15);
-            label6.Name = "label6";
-            label6.Size = new System.Drawing.Size(60, 13);
-            label6.TabIndex = 18;
-            label6.Text = "Entity path:";
             // 
             // WikiImporterMainForm
             // 
