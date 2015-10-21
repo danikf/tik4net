@@ -106,28 +106,39 @@ namespace tik4net.Objects
 
         private object ConvertFromString(string strValue)
         {
-            //convert to property real type            
-            if (PropertyType == typeof(string))
-                return strValue;
-            else if (PropertyType == typeof(int))
-                return int.Parse(strValue);
-            else if (PropertyType == typeof(long))
-                return long.Parse(strValue);
-            else if (PropertyType == typeof(bool))
-                return string.Equals(strValue, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(strValue, "yes", StringComparison.OrdinalIgnoreCase);
-            else if (PropertyType.IsEnum)
-                return Enum.GetNames(PropertyType)
-                    .Where(en => string.Equals(PropertyType.GetMember(en)[0].GetCustomAttribute<TikEnumAttribute>(false).Value, strValue, StringComparison.OrdinalIgnoreCase))
-                    .Select(en => Enum.Parse(PropertyType, en, true))
-                    .Single(); //TODO safer implementation
-            //else if (PropertyType == typeof(Ipv4Address))
-            //    return new Ipv4Address(strValue);
-            //else if (PropertyType == typeof(Ipv4AddressWithSubnet))
-            //    return new Ipv4AddressWithSubnet(strValue);
-            //else if (PropertyType == typeof(MacAddress))
-            //    return new MacAddress(strValue);
-            else
-                throw new NotImplementedException(string.Format("Property type {0} not supported.", PropertyType));
+            try
+            {
+                //convert to property real type            
+                if (PropertyType == typeof(string))
+                    return strValue;
+                else if (PropertyType == typeof(int))
+                    return int.Parse(strValue);
+                else if (PropertyType == typeof(long))
+                    return long.Parse(strValue);
+                else if (PropertyType == typeof(bool))
+                    return string.Equals(strValue, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(strValue, "yes", StringComparison.OrdinalIgnoreCase);
+                else if (PropertyType.IsEnum)
+                    return Enum.GetNames(PropertyType)
+                        .Where(en => string.Equals(PropertyType.GetMember(en)[0].GetCustomAttribute<TikEnumAttribute>(false).Value, strValue, StringComparison.OrdinalIgnoreCase))
+                        .Select(en => Enum.Parse(PropertyType, en, true))
+                        .Single(); //TODO safer implementation
+                                   //else if (PropertyType == typeof(Ipv4Address))
+                                   //    return new Ipv4Address(strValue);
+                                   //else if (PropertyType == typeof(Ipv4AddressWithSubnet))
+                                   //    return new Ipv4AddressWithSubnet(strValue);
+                                   //else if (PropertyType == typeof(MacAddress))
+                                   //    return new MacAddress(strValue);
+                else
+                    throw new NotImplementedException(string.Format("Property type {0} not supported.", PropertyType));
+            }
+            catch(NotImplementedException)
+            {
+                throw;
+            }
+            catch(Exception ex)
+            {
+                throw new FormatException(string.Format("Value '{0}' for property '{1}({2})' is not in expected format '{3}'.", strValue, PropertyName, FieldName, PropertyType), ex);
+            }
         }
 
         private string ConvertToString(object propValue)
