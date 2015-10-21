@@ -11,6 +11,7 @@ namespace tik4net.Api
         private static volatile int _tagCounter = 0;
         private volatile bool _isRuning;
         private volatile int _runningTag;
+        private volatile Thread _asyncLoadingThread;
         private readonly List<ITikCommandParameter> _parameters = new List<ITikCommandParameter>();
         private ApiConnection _connection;
         private string _commandText;
@@ -320,10 +321,11 @@ namespace tik4net.Api
             }
         }
 
-        public TikAsyncLoadingThread ExecuteAsync(Action<ITikReSentence> oneResponseCallback, Action<ITikTrapSentence> errorCallback = null)
+        public void ExecuteAsync(Action<ITikReSentence> oneResponseCallback, Action<ITikTrapSentence> errorCallback = null)
         {
             EnsureConnectionSet();
             EnsureNotRunning();
+            System.Diagnostics.Debug.Assert(_asyncLoadingThread == null);
 
             int tag = Interlocked.Increment(ref _tagCounter);
             _isRuning = true;
@@ -332,7 +334,7 @@ namespace tik4net.Api
             try
             {
                 string[] commandRows = ConstructCommandText(TikCommandParameterFormat.NameValue);
-                return _connection.CallCommandAsync(commandRows, tag.ToString(),
+                _asyncLoadingThread = _connection.CallCommandAsync(commandRows, tag.ToString(),
                                         response =>
                                         {
                                             ApiReSentence reResponse = response as ApiReSentence;
@@ -359,8 +361,10 @@ namespace tik4net.Api
                                                 }
                                                 else if (response is ApiDoneSentence || response is ApiFatalSentence)
                                                 {
+                                                    //REMARKS: we are expecting !trap + !done sentences when any error occurs
                                                     _isRuning = false;
                                                     _runningTag = -1;
+                                                    _asyncLoadingThread = null;
                                                 }
                                             }
                                         });
@@ -414,13 +418,43 @@ namespace tik4net.Api
             return result;
         }
 
-        public void Cancel()
+        private bool CancelInternal(bool joinLoadingThread, int milisecondsTimeout)
         {
             if (_isRuning && _runningTag >= 0)
             {
-                ApiCommand cancellCommand = new ApiCommand(_connection, "/cancel", new ApiCommandParameter(TikSpecialProperties.Tag, _runningTag.ToString())); //REMARKS: =tag=1234 and not =.tag=1234
-                cancellCommand.ExecuteNonQuery();
+                 ApiCommand cancellCommand = new ApiCommand(_connection, "/cancel", new ApiCommandParameter(TikSpecialProperties.Tag, _runningTag.ToString())); //REMARKS: =tag=1234 and not =.tag=1234                
+                 cancellCommand.ExecuteNonQuery();
+                if (joinLoadingThread)
+                {
+                    Thread loadingThread = _asyncLoadingThread;
+                    if (loadingThread != null)
+                    {
+                        if (milisecondsTimeout > 0)
+                            return loadingThread.Join(milisecondsTimeout);
+                        else
+                        {
+                            loadingThread.Join();
+                            return true;
+                        }
+                    }
+                }                
             }
+            return true;
+        }
+
+        public void Cancel()
+        {
+            CancelInternal(false, 0);
+        }
+
+        public void CancelAndJoin()
+        {
+            CancelInternal(true, -1);
+        }
+
+        public bool CancelAndJoin(int milisecondsTimeout)
+        {
+            return CancelInternal(true, milisecondsTimeout);
         }
 
         public ITikCommandParameter AddParameter(string name, string value)

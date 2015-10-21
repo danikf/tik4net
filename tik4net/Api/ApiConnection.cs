@@ -224,7 +224,7 @@ namespace tik4net.Api
             return GetAll(string.Empty).ToList();
         }
 
-        public TikAsyncLoadingThread CallCommandAsync(IEnumerable<string> commandRows, string tag, 
+        public Thread CallCommandAsync(IEnumerable<string> commandRows, string tag, 
             Action<ITikSentence> oneResponseCallback)
         {            
             Guard.ArgumentNotNullOrEmptyString(tag, "tag");
@@ -235,7 +235,7 @@ namespace tik4net.Api
                 WriteCommand(commandRows);
             }
 
-            TikAsyncLoadingThread result = new TikAsyncLoadingThread(() =>
+            Thread result = new Thread(() =>
             {
                 try
                 {
@@ -260,6 +260,7 @@ namespace tik4net.Api
                     //TODO: implement "timeoutException" for GetOne and cancell gracefully thraed if this exception happens
                 }
             });
+            result.IsBackground = true;
             result.Start();
 
             return result;

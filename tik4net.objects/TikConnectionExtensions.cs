@@ -137,13 +137,16 @@ namespace tik4net.Objects
         /// All read rows are returned as callbacks (<paramref name="onLoadItemCallback"/>, <paramref name="onExceptionCallback"/>) from loading thread.
         /// REMARKS: if you want to propagate loaded values to GUI, you should use some kind of synchronization or Invoke, because 
         /// callbacks are called from non-ui thread.
+        /// The running load can be terminated by <see cref="ITikCommand.Cancel"/> or <see cref="ITikCommand.CancelAndJoin()"/> call. 
+        /// Command is returned as result of the method.
         /// </summary>
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
         /// <param name="connection">Tik connection used to load.</param>
         /// <param name="onLoadItemCallback">Callback called for each loaded !re row</param>
         /// <param name="onExceptionCallback">Callback called when error occurs (!trap row is returned)</param>
         /// <param name="parameters">Optional list of filters/parameters (interpreted as connected with AND)</param>
-        public static AsyncLoadingContext LoadAsync<TEntity>(this ITikConnection connection,
+        /// <returns><see cref="ITikCommand"/> which is already running the async load operation. You can cancel the running operation by <see cref="ITikCommand.Cancel"/> method call.</returns>
+        public static ITikCommand LoadAsync<TEntity>(this ITikConnection connection,
             Action<TEntity> onLoadItemCallback, Action<Exception> onExceptionCallback = null,
             params ITikCommandParameter[] parameters)
             where TEntity : new()
@@ -153,7 +156,7 @@ namespace tik4net.Objects
 
             var command = CreateLoadCommandWithFilter<TEntity>(connection, "", TikCommandParameterFormat.NameValue, parameters);
 
-            var loadingThread = command.ExecuteAsync(
+            command.ExecuteAsync(
                 reSentence => onLoadItemCallback(CreateObject<TEntity>(reSentence)),
                 trapSentence =>
                 {
@@ -161,7 +164,7 @@ namespace tik4net.Objects
                         onExceptionCallback(new TikCommandException(command, trapSentence));
                 });
 
-            return new AsyncLoadingContext(command, loadingThread); 
+            return command;
         }
 
         private static ITikCommand CreateLoadCommandWithFilter<TEntity> (ITikConnection connection, string commandSufix, TikCommandParameterFormat defaultParameterFormat, ITikCommandParameter[] parameters)

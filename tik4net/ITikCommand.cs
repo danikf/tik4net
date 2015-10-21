@@ -76,12 +76,11 @@ namespace tik4net
         /// REMARKS: <paramref name="oneResponseCallback"/> is called from another NON-GUI thread. If you want to show response in UI, 
         /// you should use some kind of synchronization like BeginInvoke in WinForms or SynchronizationContext. You can not touch UI controls directly without it.
         /// </summary>
-        /// <returns>Wrapper to loading thread.</returns>
         /// <param name="oneResponseCallback">Callback called periodically when response sentence is read from mikrotik.</param>
         /// <param name="errorCallback">Callback called when error occurs (command operation is than ended).</param>
         /// <seealso cref="Cancel"/>
         /// <seealso cref="ITikReSentence"/>
-        TikAsyncLoadingThread ExecuteAsync(Action<ITikReSentence> oneResponseCallback, Action<ITikTrapSentence> errorCallback=null);        
+        void ExecuteAsync(Action<ITikReSentence> oneResponseCallback, Action<ITikTrapSentence> errorCallback=null);        
 
         /// <summary>
         /// Adds new instance of parameter to <see cref="Parameters"/> list.
@@ -112,5 +111,23 @@ namespace tik4net
         /// </summary>
         /// <seealso cref="ExecuteAsync"/>
         void Cancel();
+
+        /// <summary>
+        /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteAsync"/> has been called)
+        /// Blocks the calling thread until a thread terminates or the specified time elapses,
+        /// while continuing to perform standard COM and SendMessage pumping.
+        /// </summary>
+        /// <seealso cref="ExecuteAsync"/>
+        void CancelAndJoin();
+
+        /// <summary>
+        /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteAsync"/> has been called)
+        /// Blocks the calling thread until a thread terminates or the specified time elapses,
+        /// while continuing to perform standard COM and SendMessage pumping.
+        /// </summary>
+        /// <param name="milisecondsTimeout">Wait timeout.</param>
+        /// <returns>True if loading thread ends before given timeout.</returns>
+        /// <seealso cref="ExecuteAsync"/>
+        bool CancelAndJoin(int milisecondsTimeout);
     }
 }

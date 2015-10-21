@@ -111,7 +111,7 @@ namespace tik4net.examples
             });
             Console.WriteLine("Press ENTER");
             Console.ReadLine();
-            torchCmd.Cancel();
+            torchCmd.CancelAndJoin();
         }
 
         private static void Log(ITikConnection connection)
