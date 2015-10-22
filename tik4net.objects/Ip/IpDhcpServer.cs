@@ -594,6 +594,12 @@ namespace tik4net.Objects.Ip
         public bool UseRadius { get; set; }
 
         /// <summary>
+        /// disabled: Whether DHCP server is disabled or not
+        /// </summary>
+        [TikProperty("disabled", DefaultValue = "no")]
+        public bool Disabled { get; set; }
+
+        /// <summary>
         /// ctor
         /// </summary>
         public IpDhcpServer()
