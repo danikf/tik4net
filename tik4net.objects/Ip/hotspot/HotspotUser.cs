@@ -221,19 +221,19 @@ namespace tik4net.Objects.Ip.Hotspot
         /// limit-bytes-in: Maximal amount of bytes that can be received from the user. User is disconnected from HotSpot after the limit is reached.
         /// </summary>
         [TikProperty("limit-bytes-in", DefaultValue = "0")]
-        public int LimitBytesIn { get; set; }
+        public long LimitBytesIn { get; set; }
 
         /// <summary>
         /// limit-bytes-out: Maximal amount of bytes that can be transmitted from the user. User is disconnected from HotSpot after the limit is reached.
         /// </summary>
         [TikProperty("limit-bytes-out", DefaultValue = "0")]
-        public int LimitBytesOut { get; set; }
+        public long LimitBytesOut { get; set; }
 
         /// <summary>
         /// limit-bytes-total: (limit-bytes-in+limit-bytes-out). User is disconnected from HotSpot after the limit is reached.
         /// </summary>
         [TikProperty("limit-bytes-total", DefaultValue = "0")]
-        public int LimitBytesTotal { get; set; }
+        public long LimitBytesTotal { get; set; }
 
         /// <summary>
         /// limit-uptime: Uptime limit for the HotSpot client, user is disconnected from HotSpot as soon as uptime is reached.
@@ -287,25 +287,25 @@ namespace tik4net.Objects.Ip.Hotspot
         /// bytes-in: 
         /// </summary>
         [TikProperty("bytes-in", IsReadOnly = true)]
-        public int BytesIn { get; private set; }
+        public long BytesIn { get; private set; }
 
         /// <summary>
         /// bytes-out: 
         /// </summary>
         [TikProperty("bytes-out", IsReadOnly = true)]
-        public int BytesOut { get; private set; }
+        public long BytesOut { get; private set; }
 
         /// <summary>
         /// packets-in: 
         /// </summary>
         [TikProperty("packets-in", IsReadOnly = true)]
-        public int PacketsIn { get; private set; }
+        public long PacketsIn { get; private set; }
 
         /// <summary>
         /// packets-out: 
         /// </summary>
         [TikProperty("packets-out", IsReadOnly = true)]
-        public int PacketsOut { get; private set; }
+        public long PacketsOut { get; private set; }
 
         /// <summary>
         /// uptime: 
