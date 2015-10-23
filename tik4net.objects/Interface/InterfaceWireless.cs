@@ -17,6 +17,125 @@ namespace tik4net.Objects.Interface
     {
         #region Submenu classes
         /// <summary>
+        /// Wireless security profiles
+        /// </summary>
+        [TikEntity("interface/wireless/security-profiles")]
+        public class WirelessSecurityProfile
+        {
+            /// <summary>
+            /// .id: primary key of row
+            /// </summary>
+            [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+            public string Id { get; private set; }
+
+            /// <summary>
+            /// comment
+            /// </summary>
+            [TikProperty("comment")]
+            public String Comment { get; set; }
+
+            /// <summary>
+            /// Mode for <see cref="Mode"/>.
+            /// </summary>
+            public enum SecurityMode
+            {
+                /// <summary>
+                /// dynamic-keys - WPA mode.
+                /// </summary>
+                [TikEnum("dynamic-keys")]
+                DynamicKeys,
+
+                /// <summary>
+                /// none - Encryption is not used. Encrypted frames are not accepted.
+                /// </summary>
+                [TikEnum("none")]
+                None,
+
+                /// <summary>
+                /// static-keys-optional - WEP mode. Support encryption and decryption, but allow also to receive and send unencrypted frames. Device will send unencrypted frames if encryption algorithm is specified as none. 
+                /// Station in static-keys-optional mode will not connect to an access point in static-keys-required mode.
+                /// </summary>
+                [TikEnum("static-keys-optional")]
+                StaticKeysOptional,
+
+                /// <summary>
+                /// static-keys-required - WEP mode. Do not accept and do not send unencrypted frames. 
+                /// </summary>
+                [TikEnum("static-keys-required")]
+                StaticKeysRequiered
+            }
+
+            /// <summary>
+            /// mode
+            /// </summary>
+            [TikProperty("mode", IsMandatory = true)]
+            public SecurityMode /* none, static-keys-optional, static-keys-required, dynamic-keys*/Mode { get; set; }
+
+            /// <summary>
+            /// name
+            /// </summary>
+            [TikProperty("name", IsMandatory = true)]
+            public String Name { get; set; }
+
+            /// <summary>
+            /// management-protection
+            /// </summary>
+            [TikProperty("management-protection")]
+            public bool ManagementProtection { get; set; }
+
+            /// <summary>
+            /// management-protection-key
+            /// </summary>
+            [TikProperty("management-protection-key")]
+            public String ManagementProtectionKey { get; set; }
+
+            /// <summary>
+            /// wpa-pre-shared-key
+            /// </summary>
+            [TikProperty("wpa-pre-shared-key")]
+            public String WpaPreSharedKey { get; set; }
+
+            /// <summary>
+            /// wpa2-pre-shared-key
+            /// </summary>
+            [TikProperty("wpa2-pre-shared-key")]
+            public String Wpa2PreSharedKey { get; set; }
+
+            /// <summary>
+            /// authentication-types
+            /// Comma seperated string
+            /// </summary>
+            [TikProperty("authentication-types")]
+            public String AuthenticationTypes { get; set; }
+
+            /// <summary>
+            /// group-ciphers
+            /// Comma seperated string
+            /// </summary>
+            [TikProperty("group-ciphers")]
+            public String /*tkip, aes-ccm*/GroupCiphers { get; set; }
+
+            /// <summary>
+            /// unicast-ciphers
+            /// Comma seperated string
+            /// </summary>
+            [TikProperty("unicast-ciphers")]
+            public String /*tkip, aes-ccm*/UnicastCiphers { get; set; }
+
+            /// <summary>
+            /// supplicant-identity
+            /// </summary>
+            [TikProperty("supplicant-identity")]
+            public String /*tkip, aes-ccm*/SupplicantIdentiy { get; set; }
+
+            /// <summary>
+            /// group-key-update - (time interval in the 30s..1h range; default value: 5m) : Controls how often access point updates group key. This key is used to encrypt all broadcast and multicast frames.
+            /// </summary>
+            [TikProperty("group-key-update")]
+            public String GroupKeyUpdate { get; set; }
+        }
+
+        /// <summary>
         /// Access list is used by access point to restrict allowed connections from other devices, and to control connection parameters.
         /// Operation:
         ///     Access list rules are checked sequentially.
@@ -378,13 +497,13 @@ namespace tik4net.Objects.Interface
             /// rx-rate: receive data rate
             /// </summary>
             [TikProperty("rx-rate", IsReadOnly = true)]
-            public int RxRate { get; private set; }
+            public string RxRate { get; private set; }
 
             /// <summary>
             /// signal-strength: average strength of the client signal recevied by the AP
             /// </summary>
             [TikProperty("signal-strength", IsReadOnly = true)]
-            public int SignalStrength { get; private set; }
+            public string SignalStrength { get; private set; }
 
             /// <summary>
             /// signal-strength-ch0: 
@@ -741,7 +860,7 @@ namespace tik4net.Objects.Interface
         /// integer [0..4294967295]
         /// </summary>
         [TikProperty("frequency")]
-        public long/*integer [0..4294967295]*/ Frequency { get; set; }
+        public String/*integer [0..4294967295], string "auto"*/ Frequency { get; set; }
 
         /// <summary>
         /// frequency-mode
