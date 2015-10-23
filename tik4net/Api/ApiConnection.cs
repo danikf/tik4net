@@ -88,19 +88,29 @@ namespace tik4net.Api
             // We repeat this for the second and third bits.
             // If the fourth bit is set, we need to remove anything left in the first byte
             // and then read in yet another byte.
-            if ((readByte & 0x80) != 0x00) {
-                if ((readByte & 0xC0) == 0x80) {
+            if ((readByte & 0x80) != 0x00)
+            {
+                if ((readByte & 0xC0) == 0x80)
+                {
                     length = ((readByte & 0x3F) << 8) + (byte)_tcpConnectionStream.ReadByte();
-                } else {
-                    if ((readByte & 0xE0) == 0xC0) {
+                }
+                else
+                {
+                    if ((readByte & 0xE0) == 0xC0)
+                    {
                         length = ((readByte & 0x1F) << 8) + (byte)_tcpConnectionStream.ReadByte();
                         length = (length << 8) + (byte)_tcpConnectionStream.ReadByte();
-                    } else {
-                        if ((readByte & 0XF0) == 0XE0) {
+                    }
+                    else
+                    {
+                        if ((readByte & 0XF0) == 0XE0)
+                        {
                             length = ((readByte & 0xF) << 8) + (byte)_tcpConnectionStream.ReadByte();
                             length = (length << 8) + (byte)_tcpConnectionStream.ReadByte();
                             length = (length << 8) + (byte)_tcpConnectionStream.ReadByte();
-                        } else {
+                        }
+                        else
+                        {
                             length = (byte)_tcpConnectionStream.ReadByte();
                             length = (length << 8) + (byte)_tcpConnectionStream.ReadByte();
                             length = (length << 8) + (byte)_tcpConnectionStream.ReadByte();
@@ -108,7 +118,9 @@ namespace tik4net.Api
                         }
                     }
                 }
-            } else {
+            }
+            else
+            {
                 length = readByte;
             }
 
