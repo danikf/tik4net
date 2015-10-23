@@ -80,30 +80,39 @@ namespace tik4net.Api
 
         private long ReadWordLength()
         {
-            int result = (byte)_tcpConnectionStream.ReadByte();
+            byte readByte = (byte)_tcpConnectionStream.ReadByte();
+            int length = 0;
 
-            // 1 byte length
-            if (result <= 0x7F)
-                return result;
+            // If the first bit is set then we need to remove the first four bits, shift left 8
+            // and then read another byte in.
+            // We repeat this for the second and third bits.
+            // If the fourth bit is set, we need to remove anything left in the first byte
+            // and then read in yet another byte.
+            if ((readByte & 0x80) != 0x00) {
+                if ((readByte & 0xC0) == 0x80) {
+                    length = ((readByte & 0x3F) << 8) + (byte)_tcpConnectionStream.ReadByte();
+                } else {
+                    if ((readByte & 0xE0) == 0xC0) {
+                        length = ((readByte & 0x1F) << 8) + (byte)_tcpConnectionStream.ReadByte();
+                        length = (length << 8) + (byte)_tcpConnectionStream.ReadByte();
+                    } else {
+                        if ((readByte & 0XF0) == 0XE0) {
+                            length = ((readByte & 0xF) << 8) + (byte)_tcpConnectionStream.ReadByte();
+                            length = (length << 8) + (byte)_tcpConnectionStream.ReadByte();
+                            length = (length << 8) + (byte)_tcpConnectionStream.ReadByte();
+                        } else {
+                            length = (byte)_tcpConnectionStream.ReadByte();
+                            length = (length << 8) + (byte)_tcpConnectionStream.ReadByte();
+                            length = (length << 8) + (byte)_tcpConnectionStream.ReadByte();
+                            length = (length << 8) + (byte)_tcpConnectionStream.ReadByte();
+                        }
+                    }
+                }
+            } else {
+                length = readByte;
+            }
 
-            // 2 bytes length
-            result = result * 256 + (byte)_tcpConnectionStream.ReadByte();
-            if (result <= 0x3FFF)
-                return result ^ 0x8000;
-
-            // 3bytes length
-            result = result * 256 + (byte)_tcpConnectionStream.ReadByte();
-            if (result <= 0x1FFFFF)
-                return result ^ 0xC00000;
-
-            //4 bytes length
-            result = result * 256 + (byte)_tcpConnectionStream.ReadByte();
-            if (result <= 0xFFFFFFF)
-                return result ^ 0xE0000000;
-
-            //5 bytes length
-            //TBD
-            throw new InvalidOperationException("Unsuported length schema in response packet.");
+            return length;
         }
 
         private string ReadWord(bool skipEmptyRow)
