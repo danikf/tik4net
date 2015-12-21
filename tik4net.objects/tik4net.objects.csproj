@@ -53,6 +53,7 @@
   <ItemGroup>
     <Compile Include="Interface\InterfaceEthernet.cs" />
     <Compile Include="Interface\InterfaceWireless.cs" />
+    <Compile Include="Ip\Firewall\FirewallConnection.cs" />
     <Compile Include="Ip\Hotspot\HotspotUser.cs" />
     <Compile Include="Ip\IpDhcpServer.cs" />
     <Compile Include="Ipv4Address.cs" />
