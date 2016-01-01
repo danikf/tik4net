@@ -327,7 +327,7 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// List version of <see cref="Save"/> method. Saves differencec between given <paramref name="modifiedList"/> and <paramref name="unmodifiedList"/>.
+        /// List version of <see cref="Save"/> method. Saves differences between given <paramref name="modifiedList"/> and <paramref name="unmodifiedList"/>.
         /// Typical usage is: Load, create list clone, modify list, save diferences.
         /// </summary>
         /// <example>
