@@ -31,7 +31,7 @@ namespace tik4net.Objects.Ip.Firewall
             /// <summary>
             /// add-src-to-address-list - add source address to Address list specified by address-list parameter
             /// </summary>
-            [TikEnum("add-dst-to-address-list")]
+            [TikEnum("add-src-to-address-list")]
             AddSrcToAddressList,
 
             /// <summary>
@@ -233,6 +233,14 @@ namespace tik4net.Objects.Ip.Firewall
         /// </summary>
         [TikProperty("address-list-timeout", DefaultValue = "00:00:00")]
         public string AddressListTimeout { get; set; }
+
+        /// <summary>
+        /// ToString override.
+        /// </summary>
+        public override string ToString()
+        {
+            return base.ToString() + string.Format(" (Chain:{0}, Action:{1}, SrcAddress:{2}, DstAddress:{3}, Comment:{4})", Chain, Action, SrcAddress, DstAddress, Comment);
+        }
     }
 
 }
