@@ -140,7 +140,15 @@ namespace tik4net.Api
             if (!StringHelper.IsNullOrWhiteSpace(commandText) && !commandText.Contains("\n") && !commandText.StartsWith("/"))
                 commandText = "/" + commandText;
 
-            List<string> result = new List<string> { commandText };
+            List<string> result;
+            if (commandText.Contains('\n'))
+            {
+                result = new List<string>(commandText.Split('\n').Select(row => row.Trim()));
+            }
+            else
+            {
+                result = new List<string> { commandText };
+            }
 
             //parameters
             result.AddRange(_parameters.Select(p =>

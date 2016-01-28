@@ -35,5 +35,30 @@ namespace tik4net.tests
             var list = Connection.LoadAll<InterfaceEthernet>();
             Assert.IsNotNull(list);
         }
+
+        [TestMethod]
+        public void FilteredUntypedListOfInterfacesWillNotFail()
+        {
+            var cmd = Connection.CreateCommandAndParameters(@"/interface/print
+                            ?type=ether
+                            ?type=wlan
+                            ?#|");
+            var list = cmd.ExecuteList();
+
+            Assert.IsNotNull(list);
+        }
+
+        [TestMethod]
+        public void FilteredTypedListOfInterfacesWillNotFail()
+        {
+            var cmd = Connection.CreateCommandAndParameters(@"/interface/print
+                            ?type=ether
+                            ?type=wlan
+                            ?#|");
+            var list = cmd.LoadList<Interface>();
+
+            Assert.IsNotNull(list);
+        }
+
     }
 }

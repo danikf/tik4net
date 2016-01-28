@@ -66,6 +66,7 @@
     <Compile Include="Ip\IpPool.cs" />
     <Compile Include="MacAddress.cs" />
     <Compile Include="PropertyInfoExtensions.cs" />
+    <Compile Include="TikCommandExtensions.cs" />
     <Compile Include="TikEnumAttribute.cs" />
     <Compile Include="TikListMerge.cs" />
     <Compile Include="TikEntityObjectsExtensions.cs" />

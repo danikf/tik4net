@@ -104,11 +104,12 @@ namespace tik4net.Objects
         /// <param name="connection">Tik connection used to load.</param>
         /// <param name="filterParameters">Optional list of filter parameters (interpreted as connected with AND)</param>
         /// <returns>List (or empty list) of loaded entities.</returns>
+        /// <seealso cref="TikCommandExtensions.LoadList{TEntity}(ITikCommand)"/>
         public static IEnumerable<TEntity> LoadList<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filterParameters)
             where TEntity : new()
         {
             var command = CreateLoadCommandWithFilter<TEntity>(connection, "/print", TikCommandParameterFormat.Filter, filterParameters);
-            return LoadList<TEntity>(command);
+            return command.LoadList<TEntity>();
         }
 
         /// <summary>
@@ -121,14 +122,15 @@ namespace tik4net.Objects
         /// <param name="durationSec">Loading period.</param>
         /// <param name="parameters">Optional list of filters/parameters (interpreted as connected with AND)</param>
         /// <returns>List (or empty list) of loaded entities.</returns>
+        /// <seealso cref="TikCommandExtensions.LoadWithDuration{TEntity}(ITikCommand, int)"/>
         public static IEnumerable<TEntity> LoadWithDuration<TEntity>(this ITikConnection connection, int durationSec, params ITikCommandParameter[] parameters)
             where TEntity : new()
         {
+            Guard.ArgumentNotNull(connection, "connection");
+
             var command = CreateLoadCommandWithFilter<TEntity>(connection, "", TikCommandParameterFormat.NameValue, parameters);
 
-            var responseSentences = command.ExecuteListWithDuration(durationSec);
-
-            return responseSentences.Select(sentence => CreateObject<TEntity>(sentence)).ToList();            
+            return command.LoadWithDuration<TEntity>(durationSec);
         }
 
 
@@ -146,6 +148,7 @@ namespace tik4net.Objects
         /// <param name="onExceptionCallback">Callback called when error occurs (!trap row is returned)</param>
         /// <param name="parameters">Optional list of filters/parameters (interpreted as connected with AND)</param>
         /// <returns><see cref="ITikCommand"/> which is already running the async load operation. You can cancel the running operation by <see cref="ITikCommand.Cancel"/> method call.</returns>
+        /// <seealso cref="TikCommandExtensions.LoadAsync{TEntity}(ITikCommand, Action{TEntity}, Action{Exception})"/>
         public static ITikCommand LoadAsync<TEntity>(this ITikConnection connection,
             Action<TEntity> onLoadItemCallback, Action<Exception> onExceptionCallback = null,
             params ITikCommandParameter[] parameters)
@@ -156,14 +159,7 @@ namespace tik4net.Objects
 
             var command = CreateLoadCommandWithFilter<TEntity>(connection, "", TikCommandParameterFormat.NameValue, parameters);
 
-            command.ExecuteAsync(
-                reSentence => onLoadItemCallback(CreateObject<TEntity>(reSentence)),
-                trapSentence =>
-                {
-                    if (onExceptionCallback != null)
-                        onExceptionCallback(new TikCommandException(command, trapSentence));
-                });
-
+            command.LoadAsync<TEntity>(onLoadItemCallback, onExceptionCallback);
             return command;
         }
 
@@ -190,37 +186,6 @@ namespace tik4net.Objects
             }
 
             return command;
-        }
-
-        private static IEnumerable<TEntity> LoadList<TEntity>(ITikCommand command)
-            where TEntity : new()
-        {            
-            var responseSentences = command.ExecuteList();
-
-            return responseSentences.Select(sentence => CreateObject<TEntity>(sentence)).ToList();
-        }
-
-        private static TEntity CreateObject<TEntity>(ITikReSentence sentence)
-            where TEntity: new()
-        {
-            var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
-
-            TEntity result = new TEntity();
-            foreach(var property in metadata.Properties)
-            {
-                property.SetEntityValue(result, GetValueFromSentence(sentence, property)); 
-            }
-
-            return result;
-        }
-
-        private static string GetValueFromSentence(ITikReSentence sentence, TikEntityPropertyAccessor property)
-        {
-            //Read field value (or get default value)
-            if (property.IsMandatory)
-                return sentence.GetResponseField(property.FieldName);
-            else
-                return sentence.GetResponseFieldOrDefault(property.FieldName, property.DefaultValue);
         }
 
         #endregion

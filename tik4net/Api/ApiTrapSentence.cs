@@ -34,7 +34,7 @@ namespace tik4net.Api
 
         public string Message
         {
-            get { return GetWordValue("message"); }
+            get { return GetWordValueOrDefault("message", string.Empty); }
         }
 
         public ApiTrapSentence(IEnumerable<string> words)
