@@ -2,6 +2,8 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Interface;
+using System.Collections.Generic;
+using System.Threading;
 
 namespace tik4net.tests
 {
@@ -60,5 +62,20 @@ namespace tik4net.tests
             Assert.IsNotNull(list);
         }
 
+        [TestMethod]
+        public void FilteredTypedAsyncListOfInterfacesWillNotFail()
+        {
+            var cmd = Connection.CreateCommandAndParameters(@"/interface/print
+                            ?type=ether
+                            ?type=wlan
+                            ?#|");
+            var list = new List<Interface>();
+            cmd.LoadAsync<Interface>(i=>list.Add(i));
+            Thread.Sleep(1000);
+            cmd.CancelAndJoin();
+
+            Assert.IsNotNull(list);
+            Assert.IsTrue(list.Count > 0);
+        }
     }
 }
