@@ -51,6 +51,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Interface\InterfaceBridge.cs" />
     <Compile Include="Interface\InterfaceEthernet.cs" />
     <Compile Include="Interface\InterfaceWireless.cs" />
     <Compile Include="Ip\Firewall\FirewallConnection.cs" />
