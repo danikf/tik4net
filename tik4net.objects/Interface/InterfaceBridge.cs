@@ -640,7 +640,7 @@ namespace tik4net.Objects.Interface
         /// l2mtu: Layer2 Maximum transmission unit.  read more&#187; 
         /// </summary>
         [TikProperty("l2mtu", IsReadOnly = true)]
-        public string/*integer; read-only*/ L2mtu { get;}
+        public string/*integer; read-only*/ L2mtu { get; private set; }
 
         /// <summary>
         /// max-message-age: How long to remember Hello messages received from other bridges
