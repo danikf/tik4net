@@ -28,7 +28,7 @@ namespace tik4net.tests
             string name = Guid.NewGuid().ToString();
             var filter = new InterfaceBridge.BridgeFilter()
             {
-                Chain = InterfaceBridge.BridgeFilter.ChainType.Forward,
+                Chain = InterfaceBridge.BridgeFirewallBase.ChainType.Forward,
                 Comment = name,
                 Action = InterfaceBridge.BridgeFilter.ActionType.Accept,
             };
@@ -43,5 +43,26 @@ namespace tik4net.tests
             Connection.Delete<InterfaceBridge.BridgeFilter>(loadedFilter);
         }
 
+
+        [TestMethod]
+        public void AddBridgeNatWillNotFail()
+        {
+            string name = Guid.NewGuid().ToString();
+            var nat = new InterfaceBridge.BridgeNat()
+            {
+                Chain = InterfaceBridge.BridgeFirewallBase.ChainType.Forward,
+                Comment = name,
+                Action = InterfaceBridge.BridgeNat.ActionType.Accept,
+            };
+            Connection.Save(nat);
+
+            var loadedNat = Connection.LoadById<InterfaceBridge.BridgeNat>(nat.Id);
+
+            Assert.IsNotNull(loadedNat);
+            Assert.AreEqual(nat.Chain, loadedNat.Chain);
+            Assert.AreEqual(nat.Action, loadedNat.Action);
+
+            Connection.Delete<InterfaceBridge.BridgeNat>(loadedNat);
+        }
     }
 }
