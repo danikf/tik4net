@@ -15,6 +15,10 @@ namespace tik4net
         /// </summary>
         Api,
         /// <summary>
+        /// Mikrotik API-SSL connection (supports only mode with certificate on mikrotik). See https://github.com/danikf/tik4net/wiki/SSL-connection for details.
+        /// </summary>
+        ApiSsl,
+        /// <summary>
         /// SSH connection - NOT IMPLEMENTED YET.
         /// </summary>
         [Obsolete("For future use.", true)]        

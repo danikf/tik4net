@@ -1,12 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 
 namespace tik4net.Api
-{
+{  
     internal sealed class ApiConnection : ITikConnection
     {
         //Inspiration:
@@ -14,11 +18,14 @@ namespace tik4net.Api
         // http://forum.mikrotik.com/viewtopic.php?f=9&t=31555&start=0
 
         private const int API_DEFAULT_PORT = 8728;
+        private const int APISSL_DEFAULT_PORT = 8729;
+
         private readonly object _writeLockObj = new object();
         private readonly object _readLockObj = new object();
         private volatile bool _isOpened = false;
+        private bool _isSsl = false;
         private TcpClient _tcpConnection;
-        private NetworkStream _tcpConnectionStream;
+        private /*NetworkStream*/System.IO.Stream _tcpConnectionStream;
         private SentenceList _readSentences = new SentenceList();
 
         public event EventHandler<TikConnectionCommCallbackEventArgs> OnReadRow;
@@ -29,9 +36,14 @@ namespace tik4net.Api
             get { return _isOpened; }
         }
 
-        public ApiConnection()
+        public bool IsSsl
         {
+            get { return _isSsl; }
+        }
 
+        public ApiConnection(bool isSsl)
+        {
+            _isSsl = isSsl;
         }
 
         private void EnsureOpened()
@@ -41,15 +53,23 @@ namespace tik4net.Api
         }
 
         public void Close()
-        {
-            //NOTE: returns !fatal => can not use standard ExecuteNonQuery call (should not throw exception)
-            var responseSentences = CallCommandSync(new string[] { "/quit" });
-            //TODO should return single response of ApiFatalSentence with message "session terminated on request" - test and warning if not?
+        {            
+            if (!_isSsl)
+            {
+                //NOTE: returns !fatal => can not use standard ExecuteNonQuery call (should not throw exception)
+                var responseSentences = CallCommandSync(new string[] { "/quit" });
+                //TODO should return single response of ApiFatalSentence with message "session terminated on request" - test and warning if not?
+            }
+            else
+            {
+                //NOTE: No result returned when SSL & /quit => do not read response (possible bug in SSL-API?)
+                WriteCommand(new string[] { "/quit" }); 
+            }            
         }
 
         public void Open(string host, string user, string password)
         {
-            Open(host, API_DEFAULT_PORT, user, password);
+            Open(host, _isSsl ? APISSL_DEFAULT_PORT : API_DEFAULT_PORT, user, password);
         }
 
         public void Open(string host, int port, string user, string password)
@@ -57,8 +77,26 @@ namespace tik4net.Api
             //open connection
             _tcpConnection = new TcpClient();
             _tcpConnection.Connect(host, port);
-            _tcpConnectionStream = _tcpConnection.GetStream();
 
+            if (!_isSsl)
+            {
+                _tcpConnectionStream = _tcpConnection.GetStream();
+            }
+            else
+            {
+                var sslStream = new SslStream(_tcpConnection.GetStream(), false,
+                    new RemoteCertificateValidationCallback(ValidateServerCertificate), null);
+                sslStream.AuthenticateAsClient(host/*, cCollection, SslProtocols.Default, true*/);
+                _tcpConnectionStream = sslStream;
+            }
+
+            //login
+            Login(user, password);
+            _isOpened = true;
+        }
+
+        private void Login(string user, string password)
+        {
             //Get login hash
             ApiCommand readLoginHashCommand = new ApiCommand(this, "/login");
             string responseHash = readLoginHashCommand.ExecuteScalar();
@@ -66,10 +104,13 @@ namespace tik4net.Api
             //login connection
             string hashedPass = ApiConnectionHelper.EncodePassword(password, responseHash);
             ApiCommand loginCommand = new ApiCommand(this, "/login", TikCommandParameterFormat.NameValue,
-                new ApiCommandParameter("name", user), new ApiCommandParameter("response", hashedPass));            
+                new ApiCommandParameter("name", user), new ApiCommandParameter("response", hashedPass));
             loginCommand.ExecuteNonQuery();
+        }
 
-            _isOpened = true;
+        private static bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
+        {            
+            return true; // Accept all certificates
         }
 
         public void Dispose()

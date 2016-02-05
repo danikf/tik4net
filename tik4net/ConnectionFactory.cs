@@ -19,15 +19,15 @@ namespace tik4net
         /// <seealso cref="ITikConnection.Open(string, string, string)"/>
         public static ITikConnection CreateConnection(TikConnectionType connectionType)
         {
-            ITikConnection result;
-            if (connectionType == TikConnectionType.Api)
+            switch (connectionType)
             {
-                result = new ApiConnection();
+                case TikConnectionType.Api:
+                    return new ApiConnection(false);
+                case TikConnectionType.ApiSsl:
+                    return new ApiConnection(true);
+                default:
+                    throw new NotImplementedException(string.Format("Connection type '{0}' not supported.", connectionType));
             }
-            else
-                throw new NotImplementedException(string.Format("Connection type '{0}' not supported.", connectionType));
-
-            return result;
         }
 
         /// <summary>

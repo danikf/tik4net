@@ -59,6 +59,7 @@
     <Compile Include="TestBase.cs" />
     <Compile Include="IpFirewallTest.cs" />
     <Compile Include="InterfaceBridgeTest.cs" />
+    <Compile Include="ApiSslTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\tik4net.objects\tik4net.objects.csproj">
