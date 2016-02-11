@@ -11,7 +11,7 @@ namespace VLife.Choreographer.Utilities {
         /// <param name="seconds"></param>
         /// <returns>A string in the format the MikroTik expects for it's timespan fields</returns>
         public static string ToMTikTime(int? seconds) {
-            return ToMTikTime((long)seconds);
+            return ToMTikTime((long?)seconds);
         }
         /// <summary>
         /// Convert the seconds passed in to a MikroTik time string
