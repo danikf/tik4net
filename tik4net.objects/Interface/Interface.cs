@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
+﻿namespace tik4net.Objects.Interface {
 namespace tik4net.Objects.Interface
 {
     /// <summary>
@@ -39,7 +35,7 @@ namespace tik4net.Objects.Interface
         /// mtu
         /// </summary>
         [TikProperty("mtu")]
-        public long Mtu { get; set; }
+        public string Mtu { get; set; }
 
         /// <summary>
         /// mac-address
