@@ -74,6 +74,7 @@
     <Compile Include="TikSentenceException.cs" />
     <Compile Include="TikConnectionCommCallbackEventArgs.cs" />
     <Compile Include="TikSpecialProperties.cs" />
+    <Compile Include="Utilities\MTikTimeUtil.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
