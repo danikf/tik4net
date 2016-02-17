@@ -63,40 +63,40 @@ namespace tik4net.Objects.Interface
         public bool DisableRunningCheck { get; set; }
 
         /// <summary>
-        /// Options for Yes-No-Auto properties.
+        /// Options for Yes-No properties.
         /// </summary>
-        public enum YesNoAutoOptions
+        public enum YesNoOptions
         {
             /// <summary>
             /// yes
             /// </summary>
-            [TikEnum("yes")]
+            [TikEnum("true")]
             Yes,
 
             /// <summary>
             /// no
             /// </summary>
-            [TikEnum("off")]
+            [TikEnum("false")]
             No,
-
-            /// <summary>
-            /// auto
-            /// </summary>
-            [TikEnum("auto")]
-            Auto
         }
 
         /// <summary>
-        /// tx-flow-control: When set to on, port will send pause frames when specific buffer usage thresholds is met. auto is the same as on except when auto-negotiation=yes flow control status is resolved by taking into account what other end advertises. Feature is supported on AR724x, AR9xxx, QCA9xxx CPU ports, all CCR ports and all Atheros switch chip ports.
+        /// flow-control-tx: When set to on, port will send pause frames when specific buffer usage thresholds is met. auto is the same as on except when auto-negotiation=yes flow control status is resolved by taking into account what other end advertises. Feature is supported on AR724x, AR9xxx, QCA9xxx CPU ports, all CCR ports and all Atheros switch chip ports.
         /// </summary>
-        [TikProperty("tx-flow-control")]
-        public YesNoAutoOptions/*yes | no | auto*/ TxFlowControl { get; set; }
+        [TikProperty("flow-control-tx")]
+        public YesNoOptions/*yes | no | auto*/ FlowControlTx { get; set; }
 
         /// <summary>
-        /// rx-flow-control: When set to on, port will process received pause frames and suspend transmission if required. auto is the same as on except when auto-negotiation=yes flow control status is resolved by taking into account what other end advertises. Feature is supported on AR724x, AR9xxx, QCA9xxx CPU ports, all CCR ports and all Atheros switch chip ports.
+        /// flow-control-rx: When set to on, port will process received pause frames and suspend transmission if required. auto is the same as on except when auto-negotiation=yes flow control status is resolved by taking into account what other end advertises. Feature is supported on AR724x, AR9xxx, QCA9xxx CPU ports, all CCR ports and all Atheros switch chip ports.
         /// </summary>
-        [TikProperty("rx-flow-control")]
-        public YesNoAutoOptions/*yes | no | auto*/ RxFlowControl { get; set; }
+        [TikProperty("flow-control-rx")]
+        public YesNoOptions/*yes | no | auto*/ FlowControlRx { get; set; }
+
+        /// <summary>
+        /// flow-control-auto
+        /// </summary>
+        [TikProperty("flow-control-auto")]
+        public YesNoOptions/*yes | no | auto*/ FlowControlAuto { get; set; }
 
         /// <summary>
         /// full-duplex: Defines whether the transmission of data appears in two directions simultaneously

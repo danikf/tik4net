@@ -54,6 +54,7 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="InterfaceEthernetTest.cs" />
     <Compile Include="IpHotspotActiveTest.cs" />
     <Compile Include="IpHotspotUserTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
