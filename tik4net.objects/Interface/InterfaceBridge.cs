@@ -325,7 +325,7 @@ namespace tik4net.Objects.Interface
         /// General bridge firewall properties are described in this section. Some parameters that differ between nat and filter rules are described in further sections.
         /// </summary>
         [TikEntity("/interface/bridge/filter")]
-        public class BridgeFilter: BridgeFirewallBase
+        public class BridgeFilter : BridgeFirewallBase
         {
             /// <summary>
             /// Firewall filter action type - <see cref="InterfaceBridge.BridgeFilter.Action"/>
@@ -652,7 +652,7 @@ namespace tik4net.Objects.Interface
         /// mtu: Maximum Transmission Unit
         /// </summary>
         [TikProperty("mtu", DefaultValue = "1500")]
-        public int Mtu { get; set; }
+        public string Mtu { get; set; }
 
         /// <summary>
         /// name: Name of the bridge interface
@@ -713,7 +713,7 @@ namespace tik4net.Objects.Interface
             AutoMac = true;
             ForwardDelay = "00:00:15";
             MaxMessageAge = "00:00:20";
-            Mtu = 1500;
+            Mtu = "1500";
             Priority = "8000";
             ProtocolMode = ProtocolModeModes.Rstp;
             TransmitHoldCount = 6;

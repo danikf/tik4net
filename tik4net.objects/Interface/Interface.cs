@@ -39,7 +39,7 @@ namespace tik4net.Objects.Interface
         /// mtu
         /// </summary>
         [TikProperty("mtu")]
-        public long Mtu { get; set; }
+        public string Mtu { get; set; }
 
         /// <summary>
         /// mac-address

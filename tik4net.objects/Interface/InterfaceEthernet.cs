@@ -66,7 +66,7 @@ namespace tik4net.Objects.Interface
         /// Options for Yes-No-Auto properties.
         /// </summary>
         public enum YesNoAutoOptions
-        { 
+        {
             /// <summary>
             /// yes
             /// </summary>
@@ -76,7 +76,7 @@ namespace tik4net.Objects.Interface
             /// <summary>
             /// no
             /// </summary>
-            [TikEnum("no")]
+            [TikEnum("off")]
             No,
 
             /// <summary>
@@ -242,7 +242,7 @@ namespace tik4net.Objects.Interface
         /// rx-bytes: Total count of received bytes
         /// </summary>
         [TikProperty("rx-bytes", IsReadOnly = true)]
-        public int RxBytes { get; private set; }
+        public long RxBytes { get; private set; }
 
         /// <summary>
         /// rx-fcs-error: Total count of received frames with incorrect checksum
@@ -298,7 +298,7 @@ namespace tik4net.Objects.Interface
         /// switch: ID to which switch chip interface belongs to.
         /// </summary>
         [TikProperty("switch", IsReadOnly = true)]
-        public int Switch { get; private set; }
+        public string Switch { get; private set; }
 
         /// <summary>
         /// tx-1024-1518: Total count of transmitted 1024 to 1518 byte packets
@@ -358,7 +358,7 @@ namespace tik4net.Objects.Interface
         /// tx-bytes: Total count of transmitted bytes
         /// </summary>
         [TikProperty("tx-bytes", IsReadOnly = true)]
-        public int TxBytes { get; private set; }
+        public long TxBytes { get; private set; }
 
         /// <summary>
         /// tx-fcs-error: Total count of transmitted frames with incorrect checksum
