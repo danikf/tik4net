@@ -94,7 +94,7 @@ namespace tik4net.Objects
         /// <param name="entity1">First entity.</param>
         /// <param name="entity2">Seconf entity.</param>
         /// <returns>True if ids are equal.</returns>
-        public static bool IdEquals<TEntity>(this TEntity entity1, TEntity entity2)
+        public static bool IdEquals<TEntity>(this TEntity entity1, TEntity entity2) where TEntity : class
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
 

@@ -66,7 +66,7 @@ namespace tik4net.Objects
         /// </summary>
         public TikEntityPropertyAccessor IdProperty
         {
-            get { return GetPopertyDescriptor(TikSpecialProperties.Id); }
+            get { return GetPropertyDescriptor(TikSpecialProperties.Id); }
         }
 
         /// <summary>
@@ -94,9 +94,9 @@ namespace tik4net.Objects
                 .ToDictionary(propDescriptor => propDescriptor.FieldName);                
         }
 
-        private TikEntityPropertyAccessor GetPopertyDescriptor(string fieldName)
+        private TikEntityPropertyAccessor GetPropertyDescriptor(string fieldName) 
         {
-            return _properties[fieldName];
+            return _properties.ContainsKey(fieldName) ? _properties[fieldName] : null;
         }
     }
 }
