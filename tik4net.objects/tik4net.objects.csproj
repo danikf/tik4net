@@ -55,6 +55,7 @@
     <Compile Include="Interface\InterfaceEthernet.cs" />
     <Compile Include="Interface\InterfaceWireless.cs" />
     <Compile Include="Ip\Firewall\FirewallConnection.cs" />
+    <Compile Include="Ip\Firewall\FirewallConnectionTracking.cs" />
     <Compile Include="Ip\Hotspot\HotspotActive.cs" />
     <Compile Include="Ip\Hotspot\HotspotUserProfile.cs" />
     <Compile Include="Ip\Hotspot\HotspotUser.cs" />
