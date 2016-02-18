@@ -63,7 +63,7 @@ Builded binaries (dlls) could be downloaded from [mikrotik official forum](http:
 * add SSL support (in progress)
 * add examples and documentation
 * convert examples to separate unittests (in progress)
-* publish as nuget package
+* publish as nuget package (in progress)
 
 Future:
 * create and contribute to tiktop (see linux iftop) project 
