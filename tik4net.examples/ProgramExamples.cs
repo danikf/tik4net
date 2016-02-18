@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using tik4net.Api;
 using tik4net.Objects;
 using tik4net.Objects.Ip;
+using tik4net.Objects.Ip.Dns;
 using tik4net.Objects.Ip.Firewall;
 using tik4net.Objects.Queue;
 using tik4net.Objects.System;
@@ -359,7 +360,7 @@ namespace tik4net.examples
 
         private static void DnsCachePrint(ITikConnection connection)
         {
-            var cache = connection.LoadAll<IpDns.DnsCache>();
+            var cache = connection.LoadAll<DnsCache>();
             foreach(var c in cache)
             {
                 Console.WriteLine(c.EntityToString());
