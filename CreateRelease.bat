@@ -3,9 +3,9 @@ ECHO Must be run from VisualStudio 2015 command prompt
 ECHO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 mkdir ..\release
-mkdir ..\release\NET3.5
-mkdir ..\release\NET4.0
-mkdir ..\release\NET4.5
+mkdir ..\release\NET35
+mkdir ..\release\NET40
+mkdir ..\release\NET45
 mkdir ..\release\Tools
 
 REM .NET 3.5
