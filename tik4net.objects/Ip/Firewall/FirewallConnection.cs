@@ -15,7 +15,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// Obsolete: use FirewallConnectionTracking class.
         /// </summary>
-        [Obsolete("use FirewallConnectionTracking class.")]
+        [Obsolete("use FirewallConnectionTracking class.", true)]
         public abstract class ConnectionTracking
         {
         }

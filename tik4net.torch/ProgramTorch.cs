@@ -4,7 +4,6 @@ using System.Configuration;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using tik4net.Objects;
 using tik4net.Objects.Tool;
 

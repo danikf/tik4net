@@ -16,7 +16,7 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// Obsolete: use Dns.DnsCache class.
         /// </summary>
-        [Obsolete("use Dns.DnsCache class.")]
+        [Obsolete("use Dns.DnsCache class.", true)]
         public abstract class DnsCache
         {
 
@@ -25,7 +25,7 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// Obsolete: use Dns.DnsStatic class.
         /// </summary>
-        [Obsolete("use Dns.DnsStatic class.")]
+        [Obsolete("use Dns.DnsStatic class.", true)]
         public abstract class DnsStatic
         {
 

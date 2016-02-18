@@ -15,7 +15,7 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// Obsolete: use Accounting.AccountingSnapshot class.
         /// </summary>
-        [Obsolete("use Accounting.AccountingSnapshot class.")]
+        [Obsolete("use Accounting.AccountingSnapshot class.", true)]
         public abstract class AccountingSnapshot
         {
         }
@@ -23,7 +23,7 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// Obsolete: use Accounting.AccountingUncounted class.
         /// </summary>
-        [Obsolete("use Accounting.AccountingUncounted class.")]
+        [Obsolete("use Accounting.AccountingUncounted class.", true)]
 
         public abstract class AccountingUncounted
         {
@@ -33,7 +33,7 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// Obsolete: use Accounting.AccountingWebAccess class.
         /// </summary>
-        [Obsolete("use Accounting.AccountingWebAccess class.")]
+        [Obsolete("use Accounting.AccountingWebAccess class.", true)]
         public class AccountingWebAccess
         {
 

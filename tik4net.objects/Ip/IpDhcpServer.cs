@@ -25,7 +25,7 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// Obsolete: use DhcpServer.DhcpServerConfig class.
         /// </summary>
-        [Obsolete("use DhcpServer.DhcpServerConfig class.")]
+        [Obsolete("use DhcpServer.DhcpServerConfig class.", true)]
         public abstract class DhcpServerConfig
         {
         }
@@ -33,7 +33,7 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// Obsolete: use DhcpServer.DhcpServerNetwork class.
         /// </summary>
-        [Obsolete("use DhcpServer.DhcpServerNetwork class.")]
+        [Obsolete("use DhcpServer.DhcpServerNetwork class.", true)]
         public abstract class DhcpServerNetwork
         {
 
@@ -42,7 +42,7 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// Obsolete: use DhcpServer.DhcpServerLease class.
         /// </summary>
-        [Obsolete("use DhcpServer.DhcpServerLease class.")]
+        [Obsolete("use DhcpServer.DhcpServerLease class.", true)]
         public abstract class DhcpServerLease
         {
 
@@ -51,7 +51,7 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// Obsolete: use DhcpServer.DhcpServerAlert class.
         /// </summary>
-        [Obsolete("use DhcpServer.DhcpServerAlert class.")]
+        [Obsolete("use DhcpServer.DhcpServerAlert class.", true)]
         public abstract class DhcpServerAlert
         {
 
@@ -60,7 +60,7 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// Obsolete: use DhcpServer.DhcpServerOption class.
         /// </summary>
-        [Obsolete("use DhcpServer.DhcpServerOption class.")]
+        [Obsolete("use DhcpServer.DhcpServerOption class.", true)]
         public abstract class DhcpServerOption
         {
 

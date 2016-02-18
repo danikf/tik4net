@@ -4,6 +4,7 @@ using tik4net.Objects;
 using tik4net.Objects.Interface;
 using System.Collections.Generic;
 using System.Threading;
+using tik4net.Objects.Interface.Wireless;
 
 namespace tik4net.tests
 {
@@ -27,7 +28,7 @@ namespace tik4net.tests
         [TestMethod]
         public void ListAllWirelessRegistrationsWillNotFail()
         {
-            var list = Connection.LoadAll<InterfaceWireless.WirelessRegistrationTable>();
+            var list = Connection.LoadAll<WirelessRegistrationTable>();
             Assert.IsNotNull(list);
         }
 

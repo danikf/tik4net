@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using tik4net.Api;
 using tik4net.Objects;
 using tik4net.Objects.Ip;

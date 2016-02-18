@@ -2,6 +2,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects.Interface;
 using tik4net.Objects;
+using tik4net.Objects.Interface.Bridge;
 
 namespace tik4net.tests
 {
@@ -18,7 +19,7 @@ namespace tik4net.tests
         [TestMethod]
         public void ListAllBridgeFiltersWillNotFail()
         {
-            var list = Connection.LoadAll<InterfaceBridge.BridgeFilter>();
+            var list = Connection.LoadAll<BridgeFilter>();
             Assert.IsNotNull(list);
         }
 
@@ -26,21 +27,21 @@ namespace tik4net.tests
         public void AddBridgeFilterWillNotFail()
         {
             string name = Guid.NewGuid().ToString();
-            var filter = new InterfaceBridge.BridgeFilter()
+            var filter = new BridgeFilter()
             {
-                Chain = InterfaceBridge.BridgeFirewallBase.ChainType.Forward,
+                Chain = BridgeFirewallChainType.Forward,
                 Comment = name,
-                Action = InterfaceBridge.BridgeFilter.ActionType.Accept,
+                Action = BridgeFilter.ActionType.Accept,
             };
             Connection.Save(filter);
 
-            var loadedFilter = Connection.LoadById<InterfaceBridge.BridgeFilter>(filter.Id);
+            var loadedFilter = Connection.LoadById<BridgeFilter>(filter.Id);
 
             Assert.IsNotNull(loadedFilter);
             Assert.AreEqual(filter.Chain, loadedFilter.Chain);
             Assert.AreEqual(filter.Action, loadedFilter.Action);
 
-            Connection.Delete<InterfaceBridge.BridgeFilter>(loadedFilter);
+            Connection.Delete<BridgeFilter>(loadedFilter);
         }
 
 
@@ -48,21 +49,21 @@ namespace tik4net.tests
         public void AddBridgeNatWillNotFail()
         {
             string name = Guid.NewGuid().ToString();
-            var nat = new InterfaceBridge.BridgeNat()
+            var nat = new BridgeNat()
             {
-                Chain = InterfaceBridge.BridgeFirewallBase.ChainType.Forward,
+                Chain = BridgeFirewallChainType.Forward,
                 Comment = name,
-                Action = InterfaceBridge.BridgeNat.ActionType.Accept,
+                Action = BridgeNat.ActionType.Accept,
             };
             Connection.Save(nat);
 
-            var loadedNat = Connection.LoadById<InterfaceBridge.BridgeNat>(nat.Id);
+            var loadedNat = Connection.LoadById<BridgeNat>(nat.Id);
 
             Assert.IsNotNull(loadedNat);
             Assert.AreEqual(nat.Chain, loadedNat.Chain);
             Assert.AreEqual(nat.Action, loadedNat.Action);
 
-            Connection.Delete<InterfaceBridge.BridgeNat>(loadedNat);
+            Connection.Delete<BridgeNat>(loadedNat);
         }
     }
 }

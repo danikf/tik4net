@@ -51,9 +51,18 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Interface\Bridge\BridgeFilter.cs" />
+    <Compile Include="Interface\Bridge\BridgeFirewallBase.cs" />
+    <Compile Include="Interface\Bridge\BridgeFirewallChainType.cs" />
+    <Compile Include="Interface\Bridge\BridgeNat.cs" />
+    <Compile Include="Interface\Bridge\BridgePort.cs" />
+    <Compile Include="Interface\Bridge\BridgeSettings.cs" />
     <Compile Include="Interface\InterfaceBridge.cs" />
     <Compile Include="Interface\InterfaceEthernet.cs" />
     <Compile Include="Interface\InterfaceWireless.cs" />
+    <Compile Include="Interface\Wireless\WirelessAccessList.cs" />
+    <Compile Include="Interface\Wireless\WirelessRegistrationTable.cs" />
+    <Compile Include="Interface\Wireless\WirelessSecurityProfile.cs" />
     <Compile Include="Ip\DhcpServer\DhcpServerAlert.cs" />
     <Compile Include="Ip\DhcpServer\DhcpServerLease.cs" />
     <Compile Include="Ip\DhcpServer\DhcpServerNetwork.cs" />
@@ -112,6 +121,7 @@
       <Name>tik4net</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
