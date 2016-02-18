@@ -8,6 +8,11 @@
     [TikEntity("ip/hotspot/active", IsReadOnly = true)]
     public class HotspotActive
     {
+        /// <summary>
+        /// .id: primary key of row
+        /// </summary>
+        [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+        public string Id { get; private set; }
 
         /// <summary>
         /// Server

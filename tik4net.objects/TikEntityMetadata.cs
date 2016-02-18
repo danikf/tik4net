@@ -17,6 +17,7 @@ namespace tik4net.Objects
     public class TikEntityMetadata
     {
         private Dictionary<string, TikEntityPropertyAccessor> _properties; //<field_name_on_mikrotik, propertyAccessor>
+        private Type _entityType;
 
         /// <summary>
         /// All properties of the entity which are decorated by <seealso cref="TikPropertyAttribute"/>
@@ -66,7 +67,7 @@ namespace tik4net.Objects
         /// </summary>
         public TikEntityPropertyAccessor IdProperty
         {
-            get { return GetPopertyDescriptor(TikSpecialProperties.Id); }
+            get { return GetPropertyDescriptor(TikSpecialProperties.Id); }
         }
 
         /// <summary>
@@ -79,6 +80,8 @@ namespace tik4net.Objects
             TikEntityAttribute entityAttribute = (TikEntityAttribute)entityType.GetCustomAttributes(true).FirstOrDefault(a => a is TikEntityAttribute);
             if (entityAttribute == null)
                 throw new ArgumentException("Entity class must be decorated by TikEntityAttribute attribute.");
+
+            _entityType = entityType;
 
             EntityPath = entityAttribute.EntityPath;
             IsReadOnly = entityAttribute.IsReadOnly;
@@ -94,9 +97,13 @@ namespace tik4net.Objects
                 .ToDictionary(propDescriptor => propDescriptor.FieldName);                
         }
 
-        private TikEntityPropertyAccessor GetPopertyDescriptor(string fieldName)
+        private TikEntityPropertyAccessor GetPropertyDescriptor(string fieldName) 
         {
-            return _properties[fieldName];
+            TikEntityPropertyAccessor result;
+            if (_properties.TryGetValue(fieldName, out result))
+                return result;
+            else
+                throw new KeyNotFoundException(string.Format("Property for field '{0}' not found in '{1}' class.", fieldName, _entityType));
         }
     }
 }
