@@ -203,6 +203,12 @@ namespace tik4net.Objects
                 throw new InvalidOperationException("Can not move entity without ordering support.");
         }
 
+        private static void EnsureHasIdProperty(TikEntityMetadata metadata)
+        {
+            if (!metadata.HasIdProperty)
+                throw new InvalidOperationException(string.Format("Can not update/delete non-sigleton entity which doesn't contains property for '{0}' field.", TikSpecialProperties.Id));
+        }
+
         /// <summary>
         /// Saves entity to mikrotik router. Does insert (/add) whan entity has empty id and update(/set + /unset) when id is present).
         /// Behavior of save is modified via <see cref="TikPropertyAttribute"/> on properties.
@@ -222,7 +228,10 @@ namespace tik4net.Objects
             if (metadata.IsSingleton)
                 id = null;
             else
+            {
+                EnsureHasIdProperty(metadata);
                 id = metadata.IdProperty.GetEntityValue(entity);
+            }
 
             if (!metadata.IsSingleton && string.IsNullOrEmpty(id))
             {
@@ -240,7 +249,8 @@ namespace tik4net.Objects
                 }
 
                 id = createCmd.ExecuteScalar();
-                metadata.IdProperty.SetEntityValue(entity, id); // update saved id into entity
+                if (metadata.HasIdProperty)
+                    metadata.IdProperty.SetEntityValue(entity, id); // update saved id into entity
             }
             else
             {
@@ -315,6 +325,7 @@ namespace tik4net.Objects
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             EnsureNotReadonlyEntity(metadata);
+            EnsureHasIdProperty(metadata);
             var idProperty = metadata.IdProperty;
 
             var entitiesToCreate = modifiedList.Where(entity => string.IsNullOrEmpty(idProperty.GetEntityValue(entity))).ToList(); // new items in modifiedList
@@ -365,6 +376,7 @@ namespace tik4net.Objects
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             EnsureNotReadonlyEntity(metadata);
+            EnsureHasIdProperty(metadata);
             string id = metadata.IdProperty.GetEntityValue(entity);
             if (string.IsNullOrEmpty(id))
                 throw new ArgumentException("Entity has no .id (entity is not loaded from mikrotik router)", "entity");
@@ -404,6 +416,7 @@ namespace tik4net.Objects
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             EnsureSupportsOrdering(metadata);
+            EnsureHasIdProperty(metadata);
 
             string idToMove = metadata.IdProperty.GetEntityValue(entityToMove);
             string idToMoveBefore = entityToMoveBefore != null ? metadata.IdProperty.GetEntityValue(entityToMoveBefore) : null;

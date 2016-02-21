@@ -67,7 +67,21 @@ namespace tik4net.Objects
         /// </summary>
         public TikEntityPropertyAccessor IdProperty
         {
-            get { return GetPropertyDescriptor(TikSpecialProperties.Id); }
+            get
+            {
+                if (HasIdProperty)
+                    return GetPropertyDescriptor(TikSpecialProperties.Id);
+                else
+                    return null;
+            }
+        }
+
+        /// <summary>
+        /// Determines if entity has property for .id field (property which is decorated by <see cref="TikPropertyAttribute.FieldName"/> = .id)
+        /// </summary>
+        public bool HasIdProperty
+        {
+            get { return _properties.ContainsKey(TikSpecialProperties.Id); }
         }
 
         /// <summary>

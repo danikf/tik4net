@@ -97,6 +97,8 @@ namespace tik4net.Objects
         public static bool IdEquals<TEntity>(this TEntity entity1, TEntity entity2)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
+            if (!metadata.HasIdProperty)
+                throw new InvalidOperationException(string.Format("Can not compare ids of entity which doesn't contains property for '{0}' field.", TikSpecialProperties.Id));
 
             string id1 = metadata.IdProperty.GetEntityValue(entity1);
             string id2 = metadata.IdProperty.GetEntityValue(entity2);
