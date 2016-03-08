@@ -10,6 +10,13 @@ It has 3 parts:
 * Tools - semi-automatic generators of custom entity C# code (for usage with tik4net.objects.dll)
 
 # Getting started and documentation
+Project wiki:
+* [wiki root](https://github.com/danikf/tik4net/wiki) 
+* [how to use](https://github.com/danikf/tik4net/wiki/How-to-use-tik4net-library)
+Examples:
+* [example project](https://github.com/danikf/tik4net/blob/master/tik4net.examples/ProgramExamples.cs)
+* [support forum](http://forum.mikrotik.com/viewtopic.php?t=99954)
+
 ```cs
    using (ITikConnection connection = ConnectionFactory.CreateConnection(TikConnectionType.Api))
    {
@@ -50,7 +57,7 @@ It has 3 parts:
   Console.ReadLine();
   torchCmd.Cancel();
 ```
-See [project wiki](https://github.com/danikf/tik4net/wiki) or [example project](https://github.com/danikf/tik4net/blob/master/tik4net.examples/ProgramExamples.cs) for examples.
+
 Builded binaries (dlls) could be downloaded from [mikrotik official forum](http://forum.mikrotik.com/viewtopic.php?t=99954).
 
   
