@@ -54,6 +54,7 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="ConnectionTest.cs" />
     <Compile Include="InterfaceEthernetTest.cs" />
     <Compile Include="IpHotspotActiveTest.cs" />
     <Compile Include="IpHotspotUserTest.cs" />
@@ -63,6 +64,7 @@
     <Compile Include="IpFirewallTest.cs" />
     <Compile Include="InterfaceBridgeTest.cs" />
     <Compile Include="TikTimeHelperTests.cs" />
+    <Compile Include="IpDnsTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\tik4net.objects\tik4net.objects.csproj">

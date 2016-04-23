@@ -24,6 +24,7 @@ namespace tik4net.Api
         private readonly object _readLockObj = new object();
         private volatile bool _isOpened = false;
         private bool _isSsl = false;
+        private Encoding _encoding = Encoding.ASCII;
         private TcpClient _tcpConnection;
         private /*NetworkStream*/System.IO.Stream _tcpConnectionStream;
         private SentenceList _readSentences = new SentenceList();
@@ -34,6 +35,12 @@ namespace tik4net.Api
         public bool IsOpened
         {
             get { return _isOpened; }
+        }
+
+        public Encoding Encoding
+        {
+            get { return _encoding; }
+            set { _encoding = value; }
         }
 
         public bool IsSsl
@@ -64,7 +71,10 @@ namespace tik4net.Api
             {
                 //NOTE: No result returned when SSL & /quit => do not read response (possible bug in SSL-API?)
                 WriteCommand(new string[] { "/quit" }); 
-            }            
+            }
+            if (_tcpConnection.Connected)
+                _tcpConnection.Close();
+            _isOpened = false;        
         }
 
         public void Open(string host, string user, string password)
@@ -187,12 +197,12 @@ namespace tik4net.Api
                     for (int i = 0; i < wordLength; i++)
                     {
                         byte readByte = (byte)_tcpConnectionStream.ReadByte();
-                        resultBuilder.Append((Char)readByte);
+                        resultBuilder.Append(Encoding.GetChars(new byte[] { readByte }));
                     }
 
                     result = resultBuilder.ToString();
                 }
-            } while (skipEmptyRow && StringHelper.IsNullOrWhiteSpace(result));
+            } while (skipEmptyRow && StringHelper.IsNullOrWhiteSpace(result));            
 
             if (OnReadRow != null)
                 OnReadRow(this, new TikConnectionCommCallbackEventArgs(result));
@@ -226,7 +236,7 @@ namespace tik4net.Api
         {
             foreach (string row in commandRows)
             {
-                byte[] bytes = Encoding.ASCII.GetBytes(row.ToCharArray());
+                byte[] bytes = _encoding.GetBytes(row.ToCharArray());
                 byte[] length = ApiConnectionHelper.EncodeLength(bytes.Length);
 
                 _tcpConnectionStream.Write(length, 0, length.Length); //write length of comming sentence

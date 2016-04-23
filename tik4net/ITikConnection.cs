@@ -30,6 +30,11 @@ namespace tik4net
         bool IsOpened { get; }
 
         /// <summary>
+        /// Gets or sets communication encoding (how string values are converted to bytes sent to mikrotik router). Default is ASCII.
+        /// </summary>
+        Encoding Encoding { get; set; }
+
+        /// <summary>
         /// Event called when row (word) from mikrotik is read by connection.
         /// </summary>
         /// <remarks>Could be used for debug/logging</remarks>

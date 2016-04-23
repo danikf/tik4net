@@ -36,7 +36,10 @@ namespace tik4net.console
                             {
                                 rows.AddRange(row.Split('|').Where(r => !string.IsNullOrEmpty(r)));
                             }
-                            connection.CallCommandSync(rows);
+                            var result = connection.CallCommandSync(rows);
+                            foreach (var resultItem in result)
+                                Console.WriteLine(resultItem.Words);
+
                             commandRows.Clear();
                         }
                         else

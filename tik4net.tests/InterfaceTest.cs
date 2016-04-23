@@ -5,6 +5,7 @@ using tik4net.Objects.Interface;
 using System.Collections.Generic;
 using System.Threading;
 using tik4net.Objects.Interface.Wireless;
+using System.Linq;
 
 namespace tik4net.tests
 {
@@ -77,6 +78,26 @@ namespace tik4net.tests
 
             Assert.IsNotNull(list);
             Assert.IsTrue(list.Count > 0);
+        }
+
+        [TestMethod]
+        public void UpdateCommentOnEth1WillNotFail()
+        {
+            var list = Connection.LoadAll<Interface>();
+            Assert.IsNotNull(list);
+
+            var eth = list.Where(iface => iface.DefaultName == "ether1").Single();
+            eth.Comment = "My comment";
+            Connection.Save(eth);
+        }
+
+        [TestMethod]
+        public void UpdateCommentOnEth1_2_WillNotFail()
+        {
+            var cmd = Connection.CreateCommand("/interface/set");
+            cmd.AddParameter(TikSpecialProperties.Id, "ether1");
+            cmd.AddParameter("comment", "My next comment");
+            cmd.ExecuteNonQuery();
         }
     }
 }
