@@ -68,10 +68,7 @@ Builded binaries (dlls) could be downloaded from [mikrotik official forum](http:
 
 # Roadmap
 * creating highlevel classes for all mikrotik entities (you can still generate your own classes)
-* add SSL support (in progress)
-* add examples and documentation
 * convert examples to separate unittests (in progress)
-* publish as nuget package (beta)
 
 Future:
 * create and contribute to tiktop (see linux iftop) project 
