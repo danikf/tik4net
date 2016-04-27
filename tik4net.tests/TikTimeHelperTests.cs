@@ -54,41 +54,41 @@ namespace tik4net.tests
         [TestMethod]
         public void ToTestMethod_Second()
         {
-            Assert.AreEqual(10, TikTimeHelper.FromTikTime("10s"));
+            Assert.AreEqual(10, TikTimeHelper.FromTikTimeToSeconds("10s"));
         }
         [TestMethod]
         public void ToTestMethod_Minute()
         {
-            Assert.AreEqual(60, TikTimeHelper.FromTikTime("1m"));
+            Assert.AreEqual(60, TikTimeHelper.FromTikTimeToSeconds("1m"));
         }
 
         [TestMethod]
         public void ToTestMethod_Hour()
         {
-            Assert.AreEqual(3600, TikTimeHelper.FromTikTime("1h"));
+            Assert.AreEqual(3600, TikTimeHelper.FromTikTimeToSeconds("1h"));
         }
         [TestMethod]
         public void ToTestMethod_Day()
         {
-            Assert.AreEqual((3600 * 24 * 2), TikTimeHelper.FromTikTime("2d"));
+            Assert.AreEqual((3600 * 24 * 2), TikTimeHelper.FromTikTimeToSeconds("2d"));
         }
 
         [TestMethod]
         public void ToTestMethod_Week()
         {
-            Assert.AreEqual((3600 * 24 * 7), TikTimeHelper.FromTikTime("1w"));
+            Assert.AreEqual((3600 * 24 * 7), TikTimeHelper.FromTikTimeToSeconds("1w"));
         }
 
         [TestMethod]
         public void ToTestMethod_AllFields()
         {
-            Assert.AreEqual((1 + 120 + 3600 + 3600 * 24 * 10), TikTimeHelper.FromTikTime("1w3d1h2m1s"));
+            Assert.AreEqual((1 + 120 + 3600 + 3600 * 24 * 10), TikTimeHelper.FromTikTimeToSeconds("1w3d1h2m1s"));
         }
 
         [TestMethod]
         public void ToTestMethod_Over1Year()
         {
-            Assert.AreEqual((3600 * 24 * 500), TikTimeHelper.FromTikTime("71w3d"));
+            Assert.AreEqual((3600 * 24 * 500), TikTimeHelper.FromTikTimeToSeconds("71w3d"));
         }
     }
 }

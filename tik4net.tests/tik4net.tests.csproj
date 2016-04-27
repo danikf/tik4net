@@ -54,6 +54,7 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="PingTest.cs" />
     <Compile Include="ConnectionTest.cs" />
     <Compile Include="InterfaceEthernetTest.cs" />
     <Compile Include="IpHotspotActiveTest.cs" />

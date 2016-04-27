@@ -43,7 +43,7 @@ namespace tik4net
         /// </summary>
         /// <param name="time">The time as specified by MikroTik</param>
         /// <returns></returns>
-        public static int FromTikTime(string time)
+        public static int FromTikTimeToSeconds(string time)
         {
             // DAF: code review: What about usage of Regex to parse this format? 
 

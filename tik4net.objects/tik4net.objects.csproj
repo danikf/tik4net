@@ -113,6 +113,7 @@
     <Compile Include="TikEntityPropertyAccessor.cs" />
     <Compile Include="TikConnectionExtensions.cs" />
     <Compile Include="TikPropertyAttribute.cs" />
+    <Compile Include="Tool\ToolPing.cs" />
     <Compile Include="Tool\ToolTorch.cs" />
   </ItemGroup>
   <ItemGroup>
