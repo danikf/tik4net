@@ -19,13 +19,18 @@ namespace tik4net.tests
         [TestInitialize]
         public void Init()
         {
-            _connection = ConnectionFactory.OpenConnection(TikConnectionType.Api, ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
+            RecreateConnection();
         }
 
         [TestCleanup]
         public void Cleanup()
         {
             _connection.Dispose();
+        }
+
+        protected void RecreateConnection()
+        {
+            _connection = ConnectionFactory.OpenConnection(TikConnectionType.Api, ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
         }
     }
 }

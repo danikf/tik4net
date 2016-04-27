@@ -323,7 +323,7 @@ namespace tik4net.Api
                         {
                             //Do not crash reading thread because of implementation error in called code
                         }
-                    } while (!(sentence is ApiDoneSentence /*|| sentence is ApiTrapSentence*/ || sentence is ApiFatalSentence)); // read sentences via TryGetOne(wait) for TAG until !done or !fatal is returned
+                    } while (_isOpened && !(sentence is ApiDoneSentence /*|| sentence is ApiTrapSentence*/ || sentence is ApiFatalSentence)); // read sentences via TryGetOne(wait) for TAG until !done or !fatal is returned
                     //NOTE: Should be ended via !done or !trap+!done (called via Cancel() command for specific tag)
                 }
                 catch
