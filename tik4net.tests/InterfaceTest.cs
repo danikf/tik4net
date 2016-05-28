@@ -99,5 +99,17 @@ namespace tik4net.tests
             cmd.AddParameter("comment", "My next comment");
             cmd.ExecuteNonQuery();
         }
+
+        [TestMethod]
+        public void InterfaceTraficAsync_WillNotFail()
+        {
+            var cmd = Connection.CreateCommandAndParameters("/interface/monitor-traffic", "interface", "ether1");
+            List<ITikReSentence> responses = new List<ITikReSentence>();
+            cmd.ExecuteAsync(re => responses.Add(re));
+            Thread.Sleep(5 * 1000);
+
+            Assert.IsTrue(responses.Count > 0);
+            cmd.CancelAndJoin(2 * 1000);
+        }
     }
 }
