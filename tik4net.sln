@@ -17,6 +17,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7B14F760-B710-4DE6-9204-7CED5F9B30E7}"
 	ProjectSection(SolutionItems) = preProject
 		CreateRelease.bat = CreateRelease.bat
+		LICENSE = LICENSE
+		README.md = README.md
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.tests", "tik4net.tests\tik4net.tests.csproj", "{2FB8E75F-9F49-4A8A-BC57-7CD299807EEE}"

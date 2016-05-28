@@ -9,6 +9,10 @@ It has 3 parts:
 * O/R mapper like highlevel API with imported mikrotik strong-typed entities. (tik4net.objects.dll) 
 * Tools - semi-automatic generators of custom entity C# code (for usage with tik4net.objects.dll)
 
+# Binaries
+* [nuget](https://www.nuget.org/packages/tik4net/)
+* [dlls download](http://forum.mikrotik.com/viewtopic.php?t=99954)
+
 # Getting started and documentation
 Project wiki:
 * [wiki root](https://github.com/danikf/tik4net/wiki) 
