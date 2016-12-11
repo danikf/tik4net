@@ -5,8 +5,8 @@ Unique complex mikrotik API communication solution.
 
 The tik4net project provides easy to use API to connect and manage mikrotik routers via mikrotik API protocol.
 It has 3 parts:
-* Basic ADO.NET like API - to perform R/W access to mikrotik in both sync and async code (tik4net.dll).
-* O/R mapper like highlevel API with imported mikrotik strong-typed entities. (tik4net.objects.dll) 
+* [Basic ADO.NET like API](https://github.com/danikf/tik4net/wiki/ADO.NET-like-API) - to perform R/W access to mikrotik in both sync and async code (tik4net.dll).
+* [O/R mapper like highlevel API](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper) with imported mikrotik strong-typed entities. (tik4net.objects.dll) 
 * Tools - semi-automatic generators of custom entity C# code (for usage with tik4net.objects.dll)
 
 # Binaries
@@ -71,6 +71,7 @@ Builded binaries (dlls) could be downloaded from [mikrotik official forum](http:
 * Looking for betatesters
 
 # Roadmap
+* .NET core support & build
 * creating highlevel classes for all mikrotik entities (you can still generate your own classes)
 * convert examples to separate unittests (in progress)
 
