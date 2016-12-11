@@ -16,6 +16,7 @@ It has 3 parts:
 # Getting started and documentation
 Project wiki:
 * [wiki root](https://github.com/danikf/tik4net/wiki) 
+* [CRUD examples for all APIs](https://github.com/danikf/tik4net/wiki/CRUD-examples-for-all-APIs)
 * [how to use](https://github.com/danikf/tik4net/wiki/How-to-use-tik4net-library)
 
 Examples:

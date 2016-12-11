@@ -135,13 +135,14 @@ namespace tik4net.tests
             const string IP = "192.168.1.1/24";
             const string INTERFACE = "ether1";
             Cleanup_DeteleAddressByIp(IP);
-            Init_CreateAddress(IP, INTERFACE);
+            var id = Init_CreateAddress(IP, INTERFACE);
 
             var loadCmd = Connection.CreateCommandAndParameters("/ip/address/print", "address", IP);
             var response = loadCmd.ExecuteList();
 
             Assert.IsNotNull(response);
             Assert.AreEqual(1, response.Count());
+            Assert.AreEqual(id, response.Single().GetId());
             Assert.AreEqual(IP, response.Single().GetResponseField("address"));
             Assert.AreEqual(INTERFACE, response.Single().GetResponseField("interface"));
 
@@ -248,9 +249,9 @@ namespace tik4net.tests
             Cleanup_DeteleAddressByIp(IP);
             var id = Init_CreateAddress(IP, INTERFACE);
 
-            var updateCmd = Connection.CreateCommandAndParameters("/ip/address/remove",
+            var deleteCmd = Connection.CreateCommandAndParameters("/ip/address/remove",
                 TikSpecialProperties.Id, id);
-            updateCmd.ExecuteNonQuery();
+            deleteCmd.ExecuteNonQuery();
         }
 
         [TestMethod]
