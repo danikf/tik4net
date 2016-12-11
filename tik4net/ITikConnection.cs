@@ -144,6 +144,23 @@ namespace tik4net
         /// <seealso cref="ITikCommand.Parameters"/>
         ITikCommandParameter CreateParameter(string name, string value, TikCommandParameterFormat parameterFormat);
 
+
+
+        /// <summary>
+        /// Calls command to mikrotik (in connection specific format) and waits for response. Command is called without .tag.
+        /// </summary>
+        /// <param name="commandRows">Rows of one command to be send to mikrotik router (in conection specific format).</param>
+        /// <returns>List of returned sentences.</returns>
+        /// <remarks>This is extremly low-level API and should be used only if there is no other way (for example <seealso cref="ITikCommand"/>).</remarks>
+        /// <seealso cref="ITikReSentence"/>
+        /// <seealso cref="ITikDoneSentence"/>
+        /// <seealso cref="ITikTrapSentence"/>
+        /// <seealso cref="ITikCommand.ExecuteNonQuery"/>
+        /// <seealso cref="ITikCommand.ExecuteScalar"/>
+        /// <seealso cref="ITikCommand.ExecuteSingleRow"/>
+        /// <seealso cref="ITikCommand.ExecuteList"/>
+        IEnumerable<ITikSentence> CallCommandSync(params string[] commandRows);
+
         /// <summary>
         /// Calls command to mikrotik (in connection specific format) and waits for response. Command is called without .tag.
         /// </summary>

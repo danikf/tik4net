@@ -261,7 +261,7 @@ namespace tik4net.Api
                 if (response.Count() ==1) //!done + =ret=result word
                 {
                     ApiDoneSentence doneSentence = EnsureDoneResponse(response.Single());
-                    return doneSentence.GetResponseWord("ret");
+                    return doneSentence.GetResponseWord();
                 }
                 else if (response.Count() >= 2)
                 {

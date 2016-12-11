@@ -14,6 +14,15 @@ namespace tik4net
     /// <seealso cref="ITikTrapSentence"/>
     public interface ITikReSentence: ITikSentence
     {
+
+        /// <summary>
+        /// Gets the .id property. Throws exception if property .id has not been returned from mikrotik router as part of response sentence.
+        /// </summary>
+        /// <returns>Value of the .id property.  =.id=value</returns>
+        /// <exception cref="TikSentenceException">When word/property has not been found in response sentence.</exception>
+        /// <seealso cref="TikSpecialProperties.Id"/>
+        string GetId();
+
         /// <summary>
         /// Gets the sentence word (one property). Throws exception if property with given name has not been returned from mikrotik router as part of response sentence.
         /// </summary>

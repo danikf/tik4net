@@ -12,9 +12,9 @@ namespace tik4net.Api
         {
         }
 
-        public string GetResponseWord(string wordName)
+        public string GetResponseWord()
         {
-            return GetWordValue(wordName);
+            return GetWordValue(TikSpecialProperties.Ret);
         }
     }
 }

@@ -29,5 +29,10 @@ namespace tik4net
         /// value-name property used to set name of unset field in unset command
         /// </summary>
         public const string UnsetValueName = "value-name";
+
+        /// <summary>
+        /// Return value from =done sentence. See <see cref="ITikDoneSentence"/>
+        /// </summary>
+        public const string Ret = "ret";
     }
 }

@@ -12,6 +12,11 @@ namespace tik4net.Api
         {
         }
 
+        public string GetId()
+        {
+            return GetResponseField(TikSpecialProperties.Id);
+        }
+
         public string GetResponseField(string fieldName)
         {
             return GetWordValue(fieldName);

@@ -287,6 +287,15 @@ namespace tik4net.Api
             //NOTE both !trap and !fatal are followed with !done
         }
 
+        public IEnumerable<ITikSentence> CallCommandSync(params string[] commandRows)
+        {
+            lock (_writeLockObj)
+            {
+                WriteCommand(commandRows);
+            }
+            return GetAll(string.Empty).ToList();
+        }
+
         public IEnumerable<ITikSentence> CallCommandSync(IEnumerable<string> commandRows)
         {
             lock (_writeLockObj)

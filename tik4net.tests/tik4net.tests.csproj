@@ -54,6 +54,7 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="CrudTest.cs" />
     <Compile Include="PingTest.cs" />
     <Compile Include="ConnectionTest.cs" />
     <Compile Include="InterfaceEthernetTest.cs" />
@@ -64,6 +65,7 @@
     <Compile Include="TestBase.cs" />
     <Compile Include="IpFirewallTest.cs" />
     <Compile Include="InterfaceBridgeTest.cs" />
+    <Compile Include="TikCommandTest.cs" />
     <Compile Include="TikTimeHelperTests.cs" />
     <Compile Include="IpDnsTest.cs" />
   </ItemGroup>
