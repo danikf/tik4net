@@ -111,6 +111,8 @@ namespace tik4net.Objects
                 //convert to property real type            
                 if (PropertyType == typeof(string))
                     return strValue;
+                else if (PropertyType == typeof(TimeSpan))
+                    return TikTimeHelper.FromTikTimeToTimeSpan(strValue);
                 else if (PropertyType == typeof(int))
                     return int.Parse(strValue);
                 else if (PropertyType == typeof(long))

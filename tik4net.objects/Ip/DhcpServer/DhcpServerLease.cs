@@ -59,10 +59,10 @@ namespace tik4net.Objects.Ip.DhcpServer
         public string ClientId { get; set; }
 
         /// <summary>
-        /// lease-time: Time that the client may use the address. If set to 0s lease will never expire.
+        /// lease-time: Time that the client may use the address. If set to TimeSpan.Min lease will never expire.
         /// </summary>
         [TikProperty("lease-time", DefaultValue = "0s")]
-        public string/*time*/ LeaseTime { get; set; }
+        public TimeSpan/*time*/ LeaseTime { get; set; }
 
         /// <summary>
         /// mac-address: If specified, must match the MAC address of the client
@@ -128,7 +128,7 @@ namespace tik4net.Objects.Ip.DhcpServer
         /// expires-after: Time until lease expires
         /// </summary>
         [TikProperty("expires-after", IsReadOnly = true)]
-        public string ExpiresAfter { get; private set; }
+        public TimeSpan ExpiresAfter { get; private set; }
 
         /// <summary>
         /// host-name: Shows host name option from last received DHCP request

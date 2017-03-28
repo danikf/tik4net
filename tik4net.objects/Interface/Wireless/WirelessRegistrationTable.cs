@@ -371,7 +371,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// uptime: time the client is associated with the access point
         /// </summary>
         [TikProperty("uptime", IsReadOnly = true)]
-        public string Uptime { get; private set; }
+        public TimeSpan Uptime { get; private set; }
 
         /// <summary>
         /// wds: whether the connected client is using wds or not
