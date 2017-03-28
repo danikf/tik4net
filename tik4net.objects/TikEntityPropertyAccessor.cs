@@ -151,6 +151,8 @@ namespace tik4net.Objects
             //convert to string used in mikrotik            
             if (PropertyType == typeof(string))
                 return propValue.ToString();
+            else if (PropertyType == typeof(TimeSpan))
+                return TikTimeHelper.ToTikTime((int)((TimeSpan)propValue).TotalSeconds);
             else if (PropertyType == typeof(int))
                 return ((int)propValue).ToString();
             else if (PropertyType == typeof(long))
