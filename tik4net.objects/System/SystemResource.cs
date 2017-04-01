@@ -15,7 +15,7 @@ namespace tik4net.Objects.System
         /// uptime
         /// </summary>
         [TikProperty("uptime", IsReadOnly = true)]
-        public string Uptime { get; private set; }
+        public TimeSpan Uptime { get; private set; }
 
         /// <summary>
         /// version

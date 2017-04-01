@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>tik4net.Objects</RootNamespace>
     <AssemblyName>tik4net.objects</AssemblyName>
-    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <TargetFrameworkProfile />
@@ -51,6 +51,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CapsMan\CapsManRegistrationTable.cs" />
     <Compile Include="Interface\Bridge\BridgeFilter.cs" />
     <Compile Include="Interface\Bridge\BridgeFirewallBase.cs" />
     <Compile Include="Interface\Bridge\BridgeFirewallChainType.cs" />
