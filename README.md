@@ -22,6 +22,7 @@ Project wiki:
 Examples:
 * [example project](https://github.com/danikf/tik4net/blob/master/tik4net.examples/ProgramExamples.cs)
 * [support forum](http://forum.mikrotik.com/viewtopic.php?t=99954)
+* For VisualBasic trivial example see [VB example](https://github.com/danikf/tik4net/wiki/VB-trivial-example)
 
 ```cs
    using (ITikConnection connection = ConnectionFactory.CreateConnection(TikConnectionType.Api))

@@ -252,6 +252,8 @@ namespace tik4net.Objects
         }
 
 
+
+
         private IEnumerable<TEntity> SaveInternal(bool simulateOnly, out int insertCnt, out int updateCnt, out int deleteCnt, out int moveCnt)
         {
             insertCnt = 0;
@@ -261,10 +263,10 @@ namespace tik4net.Objects
 
             //TODO ensure all fields set                
             List<TEntity> result = new List<TEntity>();
-            Dictionary<string, TEntity> expectedDict = _expected.ToDictionary(_keyExtractor);
-            Dictionary<string, TEntity> originalDict = _original.ToDictionary(_keyExtractor);
+            Dictionary<string, TEntity> expectedDict = _expected.ToDictionaryEx(_keyExtractor);
+            Dictionary<string, TEntity> originalDict = _original.ToDictionaryEx(_keyExtractor);
             int idx = 0;
-            Dictionary<string, int> originalIndexes = _original.ToDictionary(_keyExtractor, i => idx++);
+            Dictionary<string, int> originalIndexes = _original.ToDictionaryEx(_keyExtractor, i => idx++);
 
             //Delete
             foreach (var originalEntityPair in originalDict.Reverse()) //delete from end to begining of the list (just for better show in WinBox)

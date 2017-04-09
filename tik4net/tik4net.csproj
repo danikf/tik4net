@@ -63,6 +63,7 @@
     <Compile Include="ITikReSentence.cs" />
     <Compile Include="ITikSentence.cs" />
     <Compile Include="ITikTrapSentence.cs" />
+    <Compile Include="LinqEx.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ConnectionFactory.cs" />
     <Compile Include="StringHelper.cs" />
