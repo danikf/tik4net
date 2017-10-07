@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Tik4Net.Api
@@ -22,9 +23,7 @@ namespace Tik4Net.Api
             hash_byte.CopyTo(heslo, 1 + password.Length);
 
             Byte[] hotovo;
-            System.Security.Cryptography.MD5 md5;
-
-            md5 = new System.Security.Cryptography.MD5CryptoServiceProvider();
+            MD5 md5 = MD5.Create();
 
             hotovo = md5.ComputeHash(heslo);
 

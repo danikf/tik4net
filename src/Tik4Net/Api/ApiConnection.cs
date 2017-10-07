@@ -8,6 +8,7 @@ using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Tik4Net.Api
 {  
@@ -73,20 +74,20 @@ namespace Tik4Net.Api
                 WriteCommand(new string[] { "/quit" }); 
             }
             if (_tcpConnection.Connected)
-                _tcpConnection.Close();
-            _isOpened = false;        
+            {
+                _tcpConnection.Dispose();
+            }
+            _isOpened = false;
         }
 
-        public void Open(string host, string user, string password)
-        {
-            Open(host, _isSsl ? APISSL_DEFAULT_PORT : API_DEFAULT_PORT, user, password);
-        }
+        public Task OpenAsync(string host, string user, string password) =>
+            OpenAsync(host, _isSsl ? APISSL_DEFAULT_PORT : API_DEFAULT_PORT, user, password);
 
-        public void Open(string host, int port, string user, string password)
+        public async Task OpenAsync(string host, int port, string user, string password)
         {
             //open connection
             _tcpConnection = new TcpClient();
-            _tcpConnection.Connect(host, port);
+            await _tcpConnection.ConnectAsync(host, port);
 
             if (!_isSsl)
             {
@@ -96,7 +97,7 @@ namespace Tik4Net.Api
             {
                 var sslStream = new SslStream(_tcpConnection.GetStream(), false,
                     new RemoteCertificateValidationCallback(ValidateServerCertificate), null);
-                sslStream.AuthenticateAsClient(host/*, cCollection, SslProtocols.Default, true*/);
+                await sslStream.AuthenticateAsClientAsync(host/*, cCollection, SslProtocols.Default, true*/);
                 _tcpConnectionStream = sslStream;
             }
 

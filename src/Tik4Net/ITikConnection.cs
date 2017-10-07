@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Tik4Net
 {
@@ -11,7 +12,7 @@ namespace Tik4Net
     /// Implementation of interface depends on technology that 
     /// is used to access mikrotik (API, SSH, TELNET, ...).
     /// <example>
-    /// using(ITikConnection connection = ConnectionFactory.OpenConnection(TikConnectionType.Api, "192.168.1.1", "user", "pass"))
+    /// using(ITikConnection connection = ConnectionFactory.OpenConnectionAsync(TikConnectionType.Api, "192.168.1.1", "user", "pass"))
     /// {
     ///     // ... do work ... 
     ///     // ... do query ...
@@ -24,7 +25,7 @@ namespace Tik4Net
     public interface ITikConnection: IDisposable
     {
         /// <summary>
-        /// Gets a value indicating whether is logged on (<see cref="Open(string, int, string, string)"/>).
+        /// Gets a value indicating whether is logged on (<see cref="OpenAsync(string, int, string, string)"/>).
         /// </summary>
         /// <value><c>true</c> if is logged on; otherwise, <c>false</c>.</value>
         bool IsOpened { get; }
@@ -55,7 +56,7 @@ namespace Tik4Net
         /// <param name="user">The user.</param>
         /// <param name="password">The password.</param>
         /// <seealso cref="Close"/>
-        void Open(string host, string user, string password);
+        Task OpenAsync(string host, string user, string password);
 
         /// <summary>
         /// Opens connection to the specified mikrotik host on specified port and perform the logon operation.
@@ -65,12 +66,12 @@ namespace Tik4Net
         /// <param name="user">The user.</param>
         /// <param name="password">The password.</param>
         /// <seealso cref="Close"/>
-        void Open(string host, int port, string user, string password);
+        Task OpenAsync(string host, int port, string user, string password);
 
         /// <summary>
         /// Performs the logoff operation and closes connection. Called also via Dispose of connector.
         /// </summary>
-        /// <seealso cref="Open(string, int, string, string)"/>
+        /// <seealso cref="OpenAsync(string, int, string, string)"/>
         void Close();
 
         /// <summary>
@@ -143,8 +144,6 @@ namespace Tik4Net
         /// <returns>Created parameter with name and value.</returns>
         /// <seealso cref="ITikCommand.Parameters"/>
         ITikCommandParameter CreateParameter(string name, string value, TikCommandParameterFormat parameterFormat);
-
-
 
         /// <summary>
         /// Calls command to mikrotik (in connection specific format) and waits for response. Command is called without .tag.

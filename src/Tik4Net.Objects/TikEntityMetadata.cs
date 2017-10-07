@@ -91,7 +91,7 @@ namespace Tik4Net.Objects
         /// <remarks>Slow operation.</remarks>
         public TikEntityMetadata(Type entityType)
         {
-            TikEntityAttribute entityAttribute = (TikEntityAttribute)entityType.GetCustomAttributes(true).FirstOrDefault(a => a is TikEntityAttribute);
+            TikEntityAttribute entityAttribute = (TikEntityAttribute)entityType.GetTypeInfo().GetCustomAttributes(true).FirstOrDefault(a => a is TikEntityAttribute);
             if (entityAttribute == null)
                 throw new ArgumentException("Entity class must be decorated by TikEntityAttribute attribute.");
 
@@ -105,7 +105,7 @@ namespace Tik4Net.Objects
             IsSingleton = entityAttribute.IsSingleton;
 
             //properties
-            _properties = entityType.GetProperties()
+            _properties = entityType.GetTypeInfo().DeclaredProperties
                 .Where(propInfo => propInfo.GetCustomAttribute<TikPropertyAttribute>(true) != null)
                 .Select(propInfo => new TikEntityPropertyAccessor(this, propInfo))
                 .ToDictionary(propDescriptor => propDescriptor.FieldName);                

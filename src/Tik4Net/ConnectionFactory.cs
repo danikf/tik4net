@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using Tik4Net.Api;
 
 namespace Tik4Net
@@ -16,7 +17,7 @@ namespace Tik4Net
         /// </summary>
         /// <param name="connectionType">Type of technology used to connect to mikrotik router.</param>
         /// <returns>Instance of mikrotik Connection.</returns>
-        /// <seealso cref="ITikConnection.Open(string, string, string)"/>
+        /// <seealso cref="ITikConnection.OpenAsync(string, string, string)"/>
         public static ITikConnection CreateConnection(TikConnectionType connectionType)
         {
             switch (connectionType)
@@ -39,10 +40,10 @@ namespace Tik4Net
         /// <param name="password">The password.</param>
         /// <returns>Opened instance of mikrotik Connection.</returns>
         /// <seealso cref="ITikConnection.Close"/>
-        public static ITikConnection OpenConnection(TikConnectionType connectionType, string host, string user, string password)
+        public static async Task<ITikConnection> OpenConnectionAsync(TikConnectionType connectionType, string host, string user, string password)
         {
             ITikConnection result = CreateConnection(connectionType);
-            result.Open(host, user, password);
+            await result.OpenAsync(host, user, password);
 
             return result;
         }
@@ -57,10 +58,10 @@ namespace Tik4Net
         /// <param name="password">The password.</param>
         /// <returns>Opened instance of mikrotik Connection.</returns>
         /// <seealso cref="ITikConnection.Close"/>
-        public static ITikConnection OpenConnection(TikConnectionType connectionType, string host, int port, string user, string password)
+        public static async Task<ITikConnection> OpenConnectionAsync(TikConnectionType connectionType, string host, int port, string user, string password)
         {
             ITikConnection result = CreateConnection(connectionType);
-            result.Open(host, port, user, password);
+            await result.OpenAsync(host, port, user, password);
 
             return result;
         }
