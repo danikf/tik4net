@@ -4,6 +4,7 @@ using System.Configuration;
 using System.Linq;
 using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Threading.Tasks;
 
 namespace Tik4Net.Tests
 {
@@ -17,9 +18,9 @@ namespace Tik4Net.Tests
         }
 
         [TestInitialize]
-        public void Init()
+        public async Task Init()
         {
-            RecreateConnection();
+            await RecreateConnection();
         }
 
         [TestCleanup]
@@ -28,9 +29,9 @@ namespace Tik4Net.Tests
             _connection.Dispose();
         }
 
-        protected void RecreateConnection()
+        protected async Task RecreateConnection()
         {
-            _connection = ConnectionFactory.OpenConnection(TikConnectionType.Api, ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
+            _connection = await ConnectionFactory.OpenConnectionAsync(TikConnectionType.Api, ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
         }
     }
 }

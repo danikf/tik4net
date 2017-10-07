@@ -36,7 +36,7 @@ namespace Tik4Net.Tests
         }
 
         [TestMethod]
-        public void PingLocalhostWithCloseWillNotFail()
+        public async Task PingLocalhostWithCloseWillNotFail()
         {
             const string HOST = "127.0.0.1";
             const int MAX_CNT = 100;
@@ -60,7 +60,7 @@ namespace Tik4Net.Tests
             Assert.IsTrue(responseList.Count < MAX_CNT);
             Assert.IsTrue(!responseList.Any(ping => ping.Host != HOST));
 
-            RecreateConnection(); //Cleanup
+            await RecreateConnection(); //Cleanup
         }
     }
 }

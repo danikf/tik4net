@@ -21,7 +21,8 @@ namespace Tik4Net.examples
             {
                 connection.OnReadRow += Connection_OnReadRow;   // logging commands to cosole
                 connection.OnWriteRow += Connection_OnWriteRow; // logging commands to cosole
-                connection.Open(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
+                connection.OpenAsync(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"])
+                          .Wait();
 
                 //------------------------------------------------
                 //  LOW LEVEL API (hint: uncomment any example call and debug)

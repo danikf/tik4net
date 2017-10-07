@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
 using System.Text;
-using tik4net.Api;
+using Tik4Net.Api;
 
-namespace tik4net.console
+namespace Tik4Net.console
 {
     class ConsoleProgram
     {
@@ -15,7 +15,8 @@ namespace tik4net.console
             {
                 connection.OnReadRow += Connection_OnReadRow;
                 connection.OnWriteRow += Connection_OnWriteRow;
-                connection.Open(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
+                connection.OpenAsync(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"])
+                          .Wait();
 
                 List<string> commandRows = new List<string>();
                 string command;

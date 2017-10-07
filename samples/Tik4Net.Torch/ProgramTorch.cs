@@ -23,7 +23,8 @@ namespace Tik4Net.torch
 
             using (ITikConnection connection = ConnectionFactory.CreateConnection(TikConnectionType.Api))
             {                
-                connection.Open(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
+                connection.OpenAsync(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"])
+                          .Wait();
                 string interfaceName = ConfigurationManager.AppSettings["interface"];
 
                 Console.Clear();
