@@ -1,10 +1,10 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using tik4net.Objects.Interface;
-using tik4net.Objects;
-using tik4net.Objects.Interface.Bridge;
+using Tik4Net.Objects.Interface;
+using Tik4Net.Objects;
+using Tik4Net.Objects.Interface.Bridge;
 
-namespace tik4net.tests
+namespace Tik4Net.Tests
 {
     [TestClass]
     public class InterfaceBridgeTest: TestBase

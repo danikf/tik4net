@@ -1,6 +1,6 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace tik4net.tests
+namespace Tik4Net.tests
 {
     [TestClass]
     public class IntToTimeStringTestMethods

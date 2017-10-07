@@ -2,11 +2,11 @@
 using System.Configuration;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using tik4net.Objects.Ip.Hotspot;
-using tik4net.Objects;
+using Tik4Net.Objects.Ip.Hotspot;
+using Tik4Net.Objects;
 using System.Collections.Generic;
 
-namespace tik4net.tests
+namespace Tik4Net.tests
 {
     [TestClass]
     public class IpHotspotTest: TestBase

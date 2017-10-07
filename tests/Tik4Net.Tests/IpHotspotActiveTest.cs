@@ -1,8 +1,8 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using tik4net.Objects;
-using tik4net.Objects.Ip.Hotspot;
+using Tik4Net.Objects;
+using Tik4Net.Objects.Ip.Hotspot;
 
-namespace tik4net.tests
+namespace Tik4Net.Tests
 {
     [TestClass]
     public class IpHotspotActiveTest : TestBase

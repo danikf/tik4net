@@ -3,10 +3,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using tik4net.Objects;
-using tik4net.Objects.Interface;
+using Tik4Net.Objects;
+using Tik4Net.Objects.Interface;
 
-namespace tik4net.tests
+namespace Tik4Net.Tests
 {
     [TestClass]
     public class InterfaceEthernetTest: TestBase

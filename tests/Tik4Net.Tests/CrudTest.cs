@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using tik4net.Objects;
+using Tik4Net.Objects;
 
-namespace tik4net.tests
+namespace Tik4Net.Tests
 {
     [TestClass]
     public class CrudTest: TestBase

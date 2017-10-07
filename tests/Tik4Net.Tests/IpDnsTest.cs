@@ -1,9 +1,9 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using tik4net.Objects.Ip;
-using tik4net.Objects;
+using Tik4Net.Objects.Ip;
+using Tik4Net.Objects;
 
-namespace tik4net.tests
+namespace Tik4Net.Tests
 {
     [TestClass]
     public class IpDnsTest : TestBase

@@ -5,10 +5,10 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using tik4net.Objects;
-using tik4net.Objects.Tool;
+using Tik4Net.Objects;
+using Tik4Net.Objects.Tool;
 
-namespace tik4net.tests
+namespace Tik4Net.Tests
 {
     [TestClass]
     public class PingTest : TestBase

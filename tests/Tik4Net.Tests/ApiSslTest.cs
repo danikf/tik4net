@@ -2,10 +2,10 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Configuration;
 using System.Text;
-using tik4net.Objects.Interface;
-using tik4net.Objects;
+using Tik4Net.Objects.Interface;
+using Tik4Net.Objects;
 
-namespace tik4net.tests
+namespace Tik4Net.tests
 {
     [TestClass]
     public class ApiSslTest

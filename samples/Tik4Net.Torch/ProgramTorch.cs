@@ -4,10 +4,10 @@ using System.Configuration;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using tik4net.Objects;
-using tik4net.Objects.Tool;
+using Tik4Net.Objects;
+using Tik4Net.Objects.Tool;
 
-namespace tik4net.torch
+namespace Tik4Net.torch
 {
     class ProgramTorch
     {

@@ -3,15 +3,15 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
 using System.Text;
-using tik4net.Api;
-using tik4net.Objects;
-using tik4net.Objects.Ip;
-using tik4net.Objects.Ip.Dns;
-using tik4net.Objects.Ip.Firewall;
-using tik4net.Objects.Queue;
-using tik4net.Objects.System;
+using Tik4Net.Api;
+using Tik4Net.Objects;
+using Tik4Net.Objects.Ip;
+using Tik4Net.Objects.Ip.Dns;
+using Tik4Net.Objects.Ip.Firewall;
+using Tik4Net.Objects.Queue;
+using Tik4Net.Objects.System;
 
-namespace tik4net.examples
+namespace Tik4Net.examples
 {
     class ProgramExamples
     {

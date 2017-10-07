@@ -1,13 +1,13 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using tik4net.Objects;
-using tik4net.Objects.Interface;
+using Tik4Net.Objects;
+using Tik4Net.Objects.Interface;
 using System.Collections.Generic;
 using System.Threading;
-using tik4net.Objects.Interface.Wireless;
+using Tik4Net.Objects.Interface.Wireless;
 using System.Linq;
 
-namespace tik4net.tests
+namespace Tik4Net.Tests
 {
     [TestClass]
     public class InterfaceTest: TestBase

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace tik4net.tests
+namespace Tik4Net.Tests
 {
     public class TestBase
     {

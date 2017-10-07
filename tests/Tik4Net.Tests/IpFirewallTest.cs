@@ -1,9 +1,9 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using tik4net.Objects;
-using tik4net.Objects.Ip.Firewall;
+using Tik4Net.Objects;
+using Tik4Net.Objects.Ip.Firewall;
 
-namespace tik4net.tests
+namespace Tik4Net.Tests
 {
     [TestClass]
     public class IpFirewallTest : TestBase
