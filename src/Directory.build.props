@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Project>
+
+  <PropertyGroup>
+    <Product>$(AssemblyName) ($(TargetFramework))</Product>
+    <Authors>danikf</Authors>
+    <VersionPrefix Condition=" '$(BUILD_BUILDNUMBER)' == '' Or '$(RELEASEBUILD)' == 'True' ">3.0.0</VersionPrefix>
+    <VersionSuffix Condition=" '$(BUILD_BUILDNUMBER)' != '' ">CI$(BUILD_BUILDNUMBER)</VersionSuffix>
+    <VersionSuffix Condition=" '$(PREVIEW_NUMBER)' != '' ">pre$(PREVIEW_NUMBER)</VersionSuffix>
+    <VersionSuffix Condition=" '$(VersionSuffix)' == '' ">pre1</VersionSuffix>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)Build</PackageOutputPath>
+    <PackageOutputPath Condition=" '$(BUILD_ARTIFACTSTAGINGDIRECTORY)' != '' ">$(BUILD_ARTIFACTSTAGINGDIRECTORY)</PackageOutputPath>
+    <NeutralLanguage>en</NeutralLanguage>
+    <IncludeSymbols>True</IncludeSymbols>
+    <IncludeSource>True</IncludeSource>
+    <LicenseUrl>https://github.com/danikf/Tik4Net/blob/master/LICENSE</LicenseUrl>
+    <ProjectUrl>https://github.com/danikf/Tik4Net</ProjectUrl>
+    <Tags>tik4net,mikrotik,.net</Tags>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <ReleaseNotes>
+
+    </ReleaseNotes>
+  </PropertyGroup>
+
+</Project>
