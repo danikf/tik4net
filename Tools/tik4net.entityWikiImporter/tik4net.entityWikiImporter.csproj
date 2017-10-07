@@ -7,8 +7,8 @@
     <ProjectGuid>{082F22E7-4DF1-4423-9D65-FD4CE9157FAD}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>tik4net.entityWikiImporter</RootNamespace>
-    <AssemblyName>tik4net.entityWikiImporter</AssemblyName>
+    <RootNamespace>Tik4Net.entityWikiImporter</RootNamespace>
+    <AssemblyName>Tik4Net.entityWikiImporter</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -108,9 +108,9 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\tik4net.entitygenerator\tik4net.entitygenerator.csproj">
+    <ProjectReference Include="..\Tik4Net.entitygenerator\Tik4Net.entitygenerator.csproj">
       <Project>{85f6f563-8858-4626-8afd-c6f6b245914c}</Project>
-      <Name>tik4net.entitygenerator</Name>
+      <Name>Tik4Net.entitygenerator</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

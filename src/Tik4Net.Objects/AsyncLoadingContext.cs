@@ -3,7 +3,7 @@
 //using System.Linq;
 //using System.Text;
 
-//namespace tik4net.Objects
+//namespace Tik4Net.Objects
 //{
 //    /// <summary>
 //    /// Context of running asynchronous operation on mikrotik router.

@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using tik4net.Api;
+using Tik4Net.Api;
 
-namespace tik4net
+namespace Tik4Net
 {
     /// <summary>
     /// Exception called when response sentence from mikrotik router is not in proper format.

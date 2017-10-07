@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace tik4net
+namespace Tik4Net
 {
     /// <summary>
     /// Base of all sentences returned from mikrotik router as response to request.

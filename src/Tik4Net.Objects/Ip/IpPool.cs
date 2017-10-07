@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace tik4net.Objects.Ip
+namespace Tik4Net.Objects.Ip
 {
     /// <summary>
     /// /ip/pool: IP pools containing address pools for DHCP and PPP

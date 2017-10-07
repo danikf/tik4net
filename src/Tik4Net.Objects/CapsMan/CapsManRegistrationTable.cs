@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace tik4net.Objects.CapsMan
+namespace Tik4Net.Objects.CapsMan
 {
     /// <summary>
     /// /caps-man/registration-table: In the registration table you can see various information about currently connected clients. It is used only for Controlled Access Points. All properties are read-only.

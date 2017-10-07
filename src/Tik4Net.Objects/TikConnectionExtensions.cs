@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 
-namespace tik4net.Objects
+namespace Tik4Net.Objects
 {
     /// <summary>
     /// Main mapper extension - extends <see cref="ITikConnection"/>.

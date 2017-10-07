@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace tik4net
+namespace Tik4Net
 {
     /// <summary>
     /// EventArgs used to pass written or read WORD to/from mikrotik router by <see cref="ITikConnection"/>.

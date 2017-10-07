@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace tik4net.Objects.Tool
+namespace Tik4Net.Objects.Tool
 {
     /// <summary>
     /// /tool/torch (R/O). Should be loaded via async API.

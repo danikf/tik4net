@@ -10,7 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace tik4net.entitygenerator
+namespace Tik4Net.entitygenerator
 {
     public partial class EntityCodeGenaratorMainForm : Form
     {

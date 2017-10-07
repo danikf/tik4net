@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace tik4net.Objects.Queue
+namespace Tik4Net.Objects.Queue
 {
     /// <summary>
     /// /queue/tree

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 
-namespace tik4net.Objects
+namespace Tik4Net.Objects
 {
     /// <summary>
     /// Accessor to one tik entity property.

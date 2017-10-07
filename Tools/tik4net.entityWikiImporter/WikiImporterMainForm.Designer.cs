@@ -1,4 +1,4 @@
-﻿namespace tik4net.entityWikiImporter
+﻿namespace tTik4NetentityWikiImporter
 {
     partial class WikiImporterMainForm
     {

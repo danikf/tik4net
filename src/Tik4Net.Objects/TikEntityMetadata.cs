@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Reflection;
 
-namespace tik4net.Objects
+namespace Tik4Net.Objects
 {
     /// <summary>
     /// Metadata of one mikrotik entity (scaned via reflection of entity class and its attributes).

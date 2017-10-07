@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace tik4net.Objects.Ip.Dns
+namespace Tik4Net.Objects.Ip.Dns
 {
     /// <summary>
     /// ip/dns

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 
-namespace tik4net.Api
+namespace Tik4Net.Api
 {
     internal class ApiCommand: ITikCommand
     {

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace tik4net.Objects
+namespace Tik4Net.Objects
 {
     /// <summary>
     /// Attribute to mark object property as readable/writable from/to mikrotik router.

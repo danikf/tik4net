@@ -5,7 +5,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 
-namespace tik4net.Objects
+namespace Tik4Net.Objects
 {
     /// <summary>
     /// Provides support to merge actual state on mikrotik (list of entities) with expected state (list of entities).

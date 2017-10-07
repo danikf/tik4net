@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace tik4net.Objects.Ip.DhcpServer
+namespace Tik4Net.Objects.Ip.DhcpServer
 {
     /// <summary>
     /// ip/dhcp-server/network : 

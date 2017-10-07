@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace tik4net.Objects.Interface.Bridge
+namespace Tik4Net.Objects.Interface.Bridge
 {
     /// <summary>
     /// The bridge firewall implements packet filtering and thereby provides security functions that are used to manage data flow to, from and through bridge.

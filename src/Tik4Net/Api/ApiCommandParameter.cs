@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace tik4net.Api
+namespace Tik4Net.Api
 {
     internal class ApiCommandParameter : ITikCommandParameter
     {

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace tik4net.Objects.Interface.Bridge
+namespace Tik4Net.Objects.Interface.Bridge
 {
     /// <summary>
     /// interface/bridge/port: Port submenu is used to enslave interfaces in a particular bridge interface.

@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using tik4net.Api;
+using Tik4Net.Api;
 
-namespace tik4net
+namespace Tik4Net
 {
     /// <summary>
     /// Factory to create and open mikrotik connection of given type.

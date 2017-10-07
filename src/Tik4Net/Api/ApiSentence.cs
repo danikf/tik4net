@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace tik4net.Api
+namespace Tik4Net.Api
 {
     internal abstract class ApiSentence: ITikSentence
     {

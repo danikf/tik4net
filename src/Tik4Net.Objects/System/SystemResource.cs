@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace tik4net.Objects.System
+namespace Tik4Net.Objects.System
 {
     /// <summary>
     /// /system/resource (single R/O entity)

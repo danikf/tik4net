@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 
-namespace tik4net
+namespace Tik4Net
 {
     /// <summary>
     /// Helper class with methods used for checking arguments, type compatibility and so on.

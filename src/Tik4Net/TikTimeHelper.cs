@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Text.RegularExpressions;
 
-namespace tik4net
+namespace Tik4Net
 {
     /// <summary>
     /// Functions to convert MikroTik timespans to useable formats.

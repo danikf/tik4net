@@ -6,7 +6,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace tik4net
+namespace Tik4Net
 {
     /// <summary>
     /// Any exception from mikrotik session.

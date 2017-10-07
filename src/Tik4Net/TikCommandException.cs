@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace tik4net
+namespace Tik4Net
 {
     /// <summary>
     /// Exception thrown if any error is returned from mikrotik router call or if any commadn related error occurs.

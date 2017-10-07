@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace tik4net
+namespace Tik4Net
 {
     /// <summary>
     /// IEnumerable extensions.

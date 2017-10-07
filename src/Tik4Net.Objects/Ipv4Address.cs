@@ -4,7 +4,7 @@
 //using System.Text;
 //using System.Text.RegularExpressions;
 
-//namespace tik4net.Objects
+//namespace Tik4Net.Objects
 //{
 //    /// <summary>
 //    /// IP address in format 192.168.1.1

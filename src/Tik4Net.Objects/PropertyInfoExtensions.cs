@@ -4,7 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 
-namespace tik4net.Objects
+namespace Tik4Net.Objects
 {
 #if V35 || V40
     /// <summary>

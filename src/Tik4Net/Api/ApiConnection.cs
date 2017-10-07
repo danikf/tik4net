@@ -9,7 +9,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 
-namespace tik4net.Api
+namespace Tik4Net.Api
 {  
     internal sealed class ApiConnection : ITikConnection
     {

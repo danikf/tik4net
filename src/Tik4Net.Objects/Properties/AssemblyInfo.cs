@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("tik4net.objects")]
+[assembly: AssemblyTitle("Tik4Net.objects")]
 [assembly: AssemblyDescription("Mikrotik API library - O/R mapper API")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Daniel Frantik")]
-[assembly: AssemblyProduct("tik4net.objects")]
+[assembly: AssemblyProduct("Tik4Net.objects")]
 [assembly: AssemblyCopyright("Copyright © Daniel Frantik 2015")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace tik4net.Objects.Interface.Wireless
+namespace Tik4Net.Objects.Interface.Wireless
 {
     /// <summary>
     /// Access list is used by access point to restrict allowed connections from other devices, and to control connection parameters.

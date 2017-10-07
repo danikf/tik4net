@@ -4,7 +4,7 @@
 //using System.Text;
 //using System.Threading;
 
-//namespace tik4net
+//namespace Tik4Net
 //{
 //    /// <summary>
 //    /// Wrapper to ti async operation loading thread.

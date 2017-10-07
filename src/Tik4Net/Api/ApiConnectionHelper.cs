@@ -5,7 +5,7 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 
-namespace tik4net.Api
+namespace Tik4Net.Api
 {
     internal static class ApiConnectionHelper
     {

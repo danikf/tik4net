@@ -7,8 +7,8 @@
     <ProjectGuid>{15288F76-5A85-418E-87B2-B22265726601}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>tik4net</RootNamespace>
-    <AssemblyName>tik4net</AssemblyName>
+    <RootNamespace>Tik4Net</RootNamespace>
+    <AssemblyName>Tik4Net</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
@@ -21,7 +21,7 @@
     <DefineConstants>TRACE;DEBUG</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <DocumentationFile>bin\Debug\tik4net.XML</DocumentationFile>
+    <DocumentationFile>bin\Debug\Tik4Net.XML</DocumentationFile>
     <UseVSHostingProcess>true</UseVSHostingProcess>
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>

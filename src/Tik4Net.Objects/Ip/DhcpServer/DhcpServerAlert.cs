@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace tik4net.Objects.Ip.DhcpServer
+namespace Tik4Net.Objects.Ip.DhcpServer
 {
     /// <summary>
     ///  To find any rogue DHCP servers as soon as they appear in your network, DHCP Alert tool can be used. It will monitor the ethernet interface for all DHCP replies and check if this reply comes from a valid DHCP server. If a reply from an unknown DHCP server is detected, alert gets triggered:

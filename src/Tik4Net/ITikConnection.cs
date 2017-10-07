@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 
-namespace tik4net
+namespace Tik4Net
 {
     /// <summary>
     /// Mikrotik Connection. Main object to access mikrotik router.

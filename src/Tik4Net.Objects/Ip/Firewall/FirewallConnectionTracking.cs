@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace tik4net.Objects.Ip.Firewall
+namespace Tik4Net.Objects.Ip.Firewall
 {
     /// <summary>
     /// Allows to disable or enable connection tracking. Disabling connection tracking will cause several firewall features to stop working. 

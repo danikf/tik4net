@@ -1,4 +1,4 @@
-﻿namespace tik4net.entitygenerator
+﻿namespace tTik4Netentitygenerator
 {
     partial class EntityCodeGenaratorMainForm
     {

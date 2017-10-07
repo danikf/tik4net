@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace tik4net.Objects.Ip.Firewall
+namespace Tik4Net.Objects.Ip.Firewall
 {
     /// <summary>
     /// /ip/firewall/address-list

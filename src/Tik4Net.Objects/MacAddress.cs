@@ -4,7 +4,7 @@
 //using System.Text;
 //using System.Text.RegularExpressions;
 
-//namespace tik4net.Objects
+//namespace Tik4Net.Objects
 //{
 //    /// <summary>
 //    /// MAC address in format 00:00:00:00:00:00

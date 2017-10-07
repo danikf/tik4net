@@ -7,8 +7,8 @@
     <ProjectGuid>{DD32E354-19C0-4992-902B-9CDD8E53E879}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>tik4net.Objects</RootNamespace>
-    <AssemblyName>tik4net.objects</AssemblyName>
+    <RootNamespace>Tik4Net.Objects</RootNamespace>
+    <AssemblyName>Tik4Net.objects</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -24,7 +24,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <UseVSHostingProcess>true</UseVSHostingProcess>
-    <DocumentationFile>bin\Debug\tik4net.objects.XML</DocumentationFile>
+    <DocumentationFile>bin\Debug\Tik4Net.objects.XML</DocumentationFile>
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
@@ -118,9 +118,9 @@
     <Compile Include="Tool\ToolTorch.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\tik4net\tik4net.csproj">
+    <ProjectReference Include="..\Tik4Net\Tik4Net.csproj">
       <Project>{15288f76-5a85-418e-87b2-b22265726601}</Project>
-      <Name>tik4net</Name>
+      <Name>Tik4Net</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup />
