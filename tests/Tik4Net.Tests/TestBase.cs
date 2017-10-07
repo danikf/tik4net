@@ -18,9 +18,9 @@ namespace Tik4Net.Tests
         }
 
         [TestInitialize]
-        public async Task Init()
+        public void Init()
         {
-            await RecreateConnection();
+            RecreateConnection().Wait();
         }
 
         [TestCleanup]
