@@ -7,8 +7,8 @@
     <ProjectGuid>{85F6F563-8858-4626-8AFD-C6F6B245914C}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>tik4net.entitygenerator</RootNamespace>
-    <AssemblyName>tik4net.entitygenerator</AssemblyName>
+    <RootNamespace>Tik4Net.entitygenerator</RootNamespace>
+    <AssemblyName>Tik4Net.entitygenerator</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -86,9 +86,9 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\tik4net\tik4net.csproj">
+    <ProjectReference Include="..\..\Tik4Net\Tik4Net.csproj">
       <Project>{15288f76-5a85-418e-87b2-b22265726601}</Project>
-      <Name>tik4net</Name>
+      <Name>Tik4Net</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

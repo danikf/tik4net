@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace tik4net.entityWikiImporter
+namespace Tik4Net.entityWikiImporter
 {
     static class Program
     {

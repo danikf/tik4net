@@ -10,9 +10,9 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using HtmlAgilityPack;
-using tik4net.entitygenerator;
+using Tik4Net.entitygenerator;
 
-namespace tik4net.entityWikiImporter
+namespace Tik4Net.entityWikiImporter
 {
     public partial class WikiImporterMainForm : Form
     {

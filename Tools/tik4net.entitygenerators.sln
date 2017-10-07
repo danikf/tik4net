@@ -3,13 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.entitygenerator", "tik4net.entitygenerator\tik4net.entitygenerator.csproj", "{85F6F563-8858-4626-8AFD-C6F6B245914C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tik4Net.entitygenerator", "Tik4Net.entitygenerator\Tik4Net.entitygenerator.csproj", "{85F6F563-8858-4626-8AFD-C6F6B245914C}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tik4net", "tik4net", "{15D078A1-456D-4435-B113-7543068C3725}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tik4Net", "Tik4Net", "{15D078A1-456D-4435-B113-7543068C3725}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net", "..\tik4net\tik4net.csproj", "{15288F76-5A85-418E-87B2-B22265726601}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tik4Net", "..\Tik4Net\Tik4Net.csproj", "{15288F76-5A85-418E-87B2-B22265726601}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.entityWikiImporter", "tik4net.entityWikiImporter\tik4net.entityWikiImporter.csproj", "{082F22E7-4DF1-4423-9D65-FD4CE9157FAD}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tik4Net.entityWikiImporter", "Tik4Net.entityWikiImporter\Tik4Net.entityWikiImporter.csproj", "{082F22E7-4DF1-4423-9D65-FD4CE9157FAD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

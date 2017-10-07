@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace tik4net.entitygenerator
+namespace Tik4Net.entitygenerator
 {
     public static class GeneratorHelper
     {

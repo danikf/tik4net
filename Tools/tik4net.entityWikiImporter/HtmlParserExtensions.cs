@@ -5,9 +5,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using HtmlAgilityPack;
-using tik4net.entitygenerator;
+using Tik4Net.entitygenerator;
 
-namespace tik4net.entityWikiImporter
+namespace Tik4Net.entityWikiImporter
 {
     public static class HtmlParserExtensions
     {
