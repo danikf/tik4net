@@ -20,8 +20,7 @@ namespace tik4net.Api
         private const int API_DEFAULT_PORT = 8728;
         private const int APISSL_DEFAULT_PORT = 8729;
 
-        private readonly object _writeLockObj = new object();
-        private readonly object _readLockObj = new object();
+        private readonly object sync = new object();
         private volatile bool _isOpened = false;
         private bool _isSsl = false;
         private Encoding _encoding = Encoding.ASCII;
@@ -60,21 +59,23 @@ namespace tik4net.Api
         }
 
         public void Close()
-        {            
-            if (!_isSsl)
-            {
-                //NOTE: returns !fatal => can not use standard ExecuteNonQuery call (should not throw exception)
-                var responseSentences = CallCommandSync(new string[] { "/quit" });
-                //TODO should return single response of ApiFatalSentence with message "session terminated on request" - test and warning if not?
+        {
+            lock (sync) {
+                if (!_isSsl)
+                {
+                    //NOTE: returns !fatal => can not use standard ExecuteNonQuery call (should not throw exception)
+                    var responseSentences = CallCommandSync(new string[] { "/quit" });
+                    //TODO should return single response of ApiFatalSentence with message "session terminated on request" - test and warning if not?
+                }
+                else
+                {
+                    //NOTE: No result returned when SSL & /quit => do not read response (possible bug in SSL-API?)
+                    WriteCommand(new string[] { "/quit" }); 
+                }
+                if (_tcpConnection.Connected)
+                    _tcpConnection.Close();
+                _isOpened = false;    
             }
-            else
-            {
-                //NOTE: No result returned when SSL & /quit => do not read response (possible bug in SSL-API?)
-                WriteCommand(new string[] { "/quit" }); 
-            }
-            if (_tcpConnection.Connected)
-                _tcpConnection.Close();
-            _isOpened = false;        
         }
 
         public void Open(string host, string user, string password)
@@ -84,25 +85,28 @@ namespace tik4net.Api
 
         public void Open(string host, int port, string user, string password)
         {
-            //open connection
-            _tcpConnection = new TcpClient();
-            _tcpConnection.Connect(host, port);
-
-            if (!_isSsl)
+            lock (sync) 
             {
-                _tcpConnectionStream = _tcpConnection.GetStream();
-            }
-            else
-            {
-                var sslStream = new SslStream(_tcpConnection.GetStream(), false,
-                    new RemoteCertificateValidationCallback(ValidateServerCertificate), null);
-                sslStream.AuthenticateAsClient(host/*, cCollection, SslProtocols.Default, true*/);
-                _tcpConnectionStream = sslStream;
-            }
+                //open connection
+                _tcpConnection = new TcpClient();
+                _tcpConnection.Connect(host, port);
 
-            //login
-            Login(user, password);
-            _isOpened = true;
+                if (!_isSsl)
+                {
+                    _tcpConnectionStream = _tcpConnection.GetStream();
+                }
+                else
+                {
+                    var sslStream = new SslStream(_tcpConnection.GetStream(), false,
+                        new RemoteCertificateValidationCallback(ValidateServerCertificate), null);
+                    sslStream.AuthenticateAsClient(host/*, cCollection, SslProtocols.Default, true*/);
+                    _tcpConnectionStream = sslStream;
+                }
+
+                //login
+                Login(user, password);
+                _isOpened = true;
+            }
         }
 
         private void Login(string user, string password)
@@ -256,22 +260,19 @@ namespace tik4net.Api
                 // try to find in in _readSentences
                 if (_readSentences.TryDequeue(tag, out result)) // found => removed from _readSentences and return as result
                     return result;
+                
+                // again - try to find in in _readSentences (could be added between last try and lock)  (see double check lock pattern)
+                if (_readSentences.TryDequeue(tag, out result)) // found => removed from _readSentences and return as result
+                    return result;
 
-                lock (_readLockObj)
+                ITikSentence sentenceFromTcp = ReadSentence();
+                if (sentenceFromTcp.Tag == tag)
                 {
-                    // again - try to find in in _readSentences (could be added between last try and lock)  (see double check lock pattern)
-                    if (_readSentences.TryDequeue(tag, out result)) // found => removed from _readSentences and return as result
-                        return result;
-
-                    ITikSentence sentenceFromTcp = ReadSentence();
-                    if (sentenceFromTcp.Tag == tag)
-                    {
-                        return sentenceFromTcp;
-                    }
-                    else // another tag => add to _readSentences for another reading thread
-                    {
-                        _readSentences.Enqueue(sentenceFromTcp);
-                    }
+                    return sentenceFromTcp;
+                }
+                else // another tag => add to _readSentences for another reading thread
+                {
+                    _readSentences.Enqueue(sentenceFromTcp);
                 }
             } while (true); //TODO max attempts???  //repeat until get any response for specific tag
         }
@@ -289,32 +290,30 @@ namespace tik4net.Api
 
         public IEnumerable<ITikSentence> CallCommandSync(params string[] commandRows)
         {
-            lock (_writeLockObj)
+            lock (sync) 
             {
                 WriteCommand(commandRows);
+                return GetAll(string.Empty).ToList();
             }
-            return GetAll(string.Empty).ToList();
         }
 
         public IEnumerable<ITikSentence> CallCommandSync(IEnumerable<string> commandRows)
         {
-            lock (_writeLockObj)
+            lock (sync)
             {
                 WriteCommand(commandRows);
+                return GetAll(string.Empty).ToList();
             }
-            return GetAll(string.Empty).ToList();
         }
-
+        
+        /// <remarks>This method is not at all thread-safe. Don't issue multiple calls concurrently or it will break.</remarks>
         public Thread CallCommandAsync(IEnumerable<string> commandRows, string tag, 
             Action<ITikSentence> oneResponseCallback)
         {            
             Guard.ArgumentNotNullOrEmptyString(tag, "tag");
 
             commandRows = commandRows.Concat(new string[] { string.Format("{0}={1}", TikSpecialProperties.Tag, tag) });
-            lock (_writeLockObj)
-            {
-                WriteCommand(commandRows);
-            }
+            WriteCommand(commandRows);
 
             Thread result = new Thread(() =>
             {
