@@ -5,10 +5,14 @@ using System.Security.Cryptography;
 using System.Text;
 
 namespace InvertedTomato.TikLink.Commands {
-    public class Login : Command {
-        
+    public static class LoginCommand {
+        public static void Login(this Link link, string username, string password) {
+            if(!link.TryLogin(username, password, out var message)) {
+                throw new AccessDeniedException(message);
+            }
+        }
 
-        public static bool TryLogin(Link link, string username, string password, out string  message) {
+        public static bool TryLogin(this Link link, string username, string password, out string  message) {
             if (null == link) {
                 throw new ArgumentNullException(nameof(link));
             }
