@@ -1,0 +1,56 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.26730.15
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.objects", "tik4net.objects\tik4net.objects.csproj", "{DD32E354-19C0-4992-902B-9CDD8E53E879}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7B14F760-B710-4DE6-9204-7CED5F9B30E7}"
+	ProjectSection(SolutionItems) = preProject
+		LICENSE = LICENSE
+		README.md = README.md
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Library", "Library\Library.csproj", "{28D454E9-C5CB-4EE7-BAAC-C33E0242E60B}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tests", "Tests\Tests.csproj", "{2F96CCF9-46C1-49A0-B13B-1FA295E3398E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DD32E354-19C0-4992-902B-9CDD8E53E879}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DD32E354-19C0-4992-902B-9CDD8E53E879}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DD32E354-19C0-4992-902B-9CDD8E53E879}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{DD32E354-19C0-4992-902B-9CDD8E53E879}.Debug|x86.Build.0 = Debug|Any CPU
+		{DD32E354-19C0-4992-902B-9CDD8E53E879}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DD32E354-19C0-4992-902B-9CDD8E53E879}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DD32E354-19C0-4992-902B-9CDD8E53E879}.Release|x86.ActiveCfg = Release|Any CPU
+		{DD32E354-19C0-4992-902B-9CDD8E53E879}.Release|x86.Build.0 = Release|Any CPU
+		{28D454E9-C5CB-4EE7-BAAC-C33E0242E60B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{28D454E9-C5CB-4EE7-BAAC-C33E0242E60B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{28D454E9-C5CB-4EE7-BAAC-C33E0242E60B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{28D454E9-C5CB-4EE7-BAAC-C33E0242E60B}.Debug|x86.Build.0 = Debug|Any CPU
+		{28D454E9-C5CB-4EE7-BAAC-C33E0242E60B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{28D454E9-C5CB-4EE7-BAAC-C33E0242E60B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{28D454E9-C5CB-4EE7-BAAC-C33E0242E60B}.Release|x86.ActiveCfg = Release|Any CPU
+		{28D454E9-C5CB-4EE7-BAAC-C33E0242E60B}.Release|x86.Build.0 = Release|Any CPU
+		{2F96CCF9-46C1-49A0-B13B-1FA295E3398E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2F96CCF9-46C1-49A0-B13B-1FA295E3398E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2F96CCF9-46C1-49A0-B13B-1FA295E3398E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2F96CCF9-46C1-49A0-B13B-1FA295E3398E}.Debug|x86.Build.0 = Debug|Any CPU
+		{2F96CCF9-46C1-49A0-B13B-1FA295E3398E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2F96CCF9-46C1-49A0-B13B-1FA295E3398E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2F96CCF9-46C1-49A0-B13B-1FA295E3398E}.Release|x86.ActiveCfg = Release|Any CPU
+		{2F96CCF9-46C1-49A0-B13B-1FA295E3398E}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A67F8B8C-3074-46CB-8039-2386375B1AB3}
+	EndGlobalSection
+EndGlobal
