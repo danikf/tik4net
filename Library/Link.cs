@@ -10,6 +10,8 @@ using System.Threading;
 using System.Linq;
 
 namespace InvertedTomato.TikLink {
+
+    // TODO: mandatory properties
     public class Link : IDisposable {
         /// <summary>
         /// Connect without SSL on the default port.
@@ -68,7 +70,7 @@ namespace InvertedTomato.TikLink {
             var socketStream = new NetworkStream(socket, true);
 
             // Wrap stream in SSL
-            var sslStream = new SslStream(socketStream, false, new RemoteCertificateValidationCallback((object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors ) => {
+            var sslStream = new SslStream(socketStream, false, new RemoteCertificateValidationCallback((object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) => {
                 if (null == publicKey) { // TODO: May need refinement
                     return sslPolicyErrors == SslPolicyErrors.None;
                 } else {
@@ -267,6 +269,106 @@ namespace InvertedTomato.TikLink {
             }
 
             return result;
+        }
+
+        public void Login(string username, string password) {
+            if (!TryLogin(username, password, out var message)) {
+                throw new AccessDeniedException(message);
+            }
+        }
+
+        public bool TryLogin(string username, string password, out string message) {
+            if (null == username) {
+                throw new ArgumentNullException(nameof(username));
+            }
+            if (null == password) {
+                throw new ArgumentNullException(nameof(password));
+            }
+
+            // Get challenge
+            var r1 = Call("/login").Wait();
+            var challenge = r1.GetDoneAttribute("ret");
+
+            // Compute response
+            var hash = PasswordEncoding.Hash(password, challenge);
+
+            // Attempt login
+            var r2 = Call("/login", new Dictionary<string, string>() { { "name", username }, { "response", hash } }).Wait();
+            if (r2.IsError) {
+                r2.TryGetTrapAttribute("message", out message);
+                return false;
+            } else {
+                message = null;
+                return true;
+            }
+        }
+
+        public IList<T> Scan<T>(List<string> includeProperties = null, List<string> query = null) where T : IRecord, new() {
+            // Build sentence
+            var sentence = new Sentence();
+            sentence.Command = RecordReflection.GetPath<T>() + "/print";
+            if (null != includeProperties) {
+                sentence.Attributes[".proplist"] = string.Join(",", includeProperties);
+            }
+            if (null != query) {
+                sentence.Queries = query;
+            }
+
+            // Make call
+            var result = Call(sentence).Wait();
+            if (result.IsError) {
+                throw new QueryFailedException();
+            }
+
+            // Convert record sentences records
+            var output = new List<T>();
+            foreach (var s in result.Sentences) {
+                if (s.Command == "re") {
+                    var record = new T();
+                    RecordReflection.SetProperties(new T(), s.Attributes);
+                    output.Add(record);
+                }
+            }
+            return output;
+        }
+
+        public T Get<T>(string id, List<string> includeProperties = null) where T : IRecord, new() {
+            if (null == id) {
+                throw new ArgumentNullException(nameof(id));
+            }
+
+            var scan = Scan<T>(includeProperties, new List<string>() { "id=" + id });
+
+            if (scan.Count == 0) {
+                throw new KeyNotFoundException();
+            }
+
+            return scan.SingleOrDefault();
+        }
+
+        public void Set<T>(T record) where T : IRecord, new() {
+            if (null == record) {
+                throw new ArgumentNullException(nameof(record));
+            }
+
+            // Build sentence
+            var sentence = new Sentence();
+            sentence.Command = RecordReflection.GetPath<T>() + (record.Id == null ? "/add" : "/set");
+            sentence.Attributes = RecordReflection.GetProperties(record);
+
+            // Make call
+            var result = Call(sentence).Wait();
+            if (result.IsError) {
+                throw new QueryFailedException();
+            }
+        }
+
+        public IList<T> Delete<T>(string id) where T : IRecord, new() {
+            throw new NotImplementedException();
+        }
+
+        public IList<T> Move<T>(string id, string afterId) where T : IRecord, new() {
+            throw new NotImplementedException();
         }
 
         /// <summary>

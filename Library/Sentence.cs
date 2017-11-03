@@ -1,4 +1,6 @@
 ﻿using System.Collections.Generic;
+using System.Text;
+using System.Linq;
 
 namespace InvertedTomato.TikLink {
     public class Sentence {
@@ -26,5 +28,20 @@ namespace InvertedTomato.TikLink {
         /// See https://wiki.mikrotik.com/wiki/Manual:API#Queries for details
         /// </remarks>
         public List<string> Queries { get; set; } = new List<string>();
+
+        public override string ToString() {
+            var sb = new StringBuilder();
+            sb.Append(Command);
+
+            if (Attributes.TryGetValue(".id", out var id)) {
+                sb.Append($",id='{id}'");
+            }
+
+            if (Attributes.TryGetValue("name", out var name)) {
+                sb.Append($",name='{name}'");
+            }
+
+            return sb.ToString();
+        }
     }
 }

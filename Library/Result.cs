@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading;
-using System.Linq;
-using System.Collections.Concurrent;
+
+// TODO: Add query cancelation support
 
 namespace InvertedTomato.TikLink {
     public class Result {
@@ -49,7 +51,7 @@ namespace InvertedTomato.TikLink {
         /// If there is one scalar sentence returned, get the attribute with the given key.
         /// </summary>
         public string GetDoneAttribute(string key) {
-            if(!TryGetDoneAttribute(key, out var value)) {
+            if (!TryGetDoneAttribute(key, out var value)) {
                 throw new KeyNotFoundException();
             }
 
@@ -70,7 +72,7 @@ namespace InvertedTomato.TikLink {
 
             // Get single sentence
             var sentences = Sentences.Where(a => a.Command == "done");
-            if(sentences.Count() != 1) {
+            if (sentences.Count() != 1) {
                 value = null;
                 return false;
             }
@@ -107,6 +109,20 @@ namespace InvertedTomato.TikLink {
                 return false;
             }
             return sentences.Single().Attributes.TryGetValue(key, out value);
+        }
+
+        public override string ToString() {
+            var sb = new StringBuilder();
+            if (IsDone) {
+                sb.Append("done,");
+            }
+            if (IsError) {
+                sb.Append("error,");
+            }
+            sb.Append(Sentences.Count);
+            sb.Append(" sentences");
+
+            return sb.ToString();
         }
     }
 }

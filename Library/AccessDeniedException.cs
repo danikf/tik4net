@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace InvertedTomato.TikLink.Commands {
+namespace InvertedTomato.TikLink {
     public class AccessDeniedException : Exception {
         public AccessDeniedException() {
         }
