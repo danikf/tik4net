@@ -6,16 +6,16 @@ namespace InvertedTomato.TikLink {
     public class LoginTests {
         [Fact]
         public void TryLogin_Success() {
-            using (var link = Link.Connect("52.64.228.166")) {
-                Assert.True(link.TryLogin( "agent", "test1234", out var message));
+            using (var link = Link.Connect(Credentials.Current.Host)) {
+                Assert.True(link.TryLogin( Credentials.Current.Username, Credentials.Current.Password, out var message));
                 Assert.Null(message);
             }
         }
 
         [Fact]
         public void TryLogin_Failure() {
-            using (var link = Link.Connect("52.64.228.166")) {
-                Assert.False(LoginCommand.TryLogin(link, "agent", "test1234a", out var message));
+            using (var link = Link.Connect(Credentials.Current.Host)) {
+                Assert.False(LoginCommand.TryLogin(link, Credentials.Current.Username, Credentials.Current.Password + "BAD", out var message));
                 Assert.True(message != string.Empty);
             }
         }
@@ -23,16 +23,16 @@ namespace InvertedTomato.TikLink {
 
         [Fact]
         public void Login_Success() {
-            using (var link = Link.Connect("52.64.228.166")) {
-                link.Login("agent", "test1234");
+            using (var link = Link.Connect(Credentials.Current.Host)) {
+                link.Login(Credentials.Current.Username, Credentials.Current.Password);
             }
         }
 
         [Fact]
         public void Login_Failure() {
-            using (var link = Link.Connect("52.64.228.166")) {
+            using (var link = Link.Connect(Credentials.Current.Host)) {
                 Assert.Throws<AccessDeniedException>(() => {
-                    link.Login("agent", "test1234a");
+                    link.Login(Credentials.Current.Username, Credentials.Current.Password + "BAD");
                 });
             }
         }
