@@ -1,13 +1,14 @@
+using InvertedTomato.TikLink;
 using InvertedTomato.TikLink.Commands;
 using System;
 using Xunit;
 
-namespace InvertedTomato.TikLink {
+namespace Tests {
     public class LoginTests {
         [Fact]
         public void TryLogin_Success() {
             using (var link = Link.Connect(Credentials.Current.Host)) {
-                Assert.True(link.TryLogin( Credentials.Current.Username, Credentials.Current.Password, out var message));
+                Assert.True(link.TryLogin(Credentials.Current.Username, Credentials.Current.Password, out var message));
                 Assert.Null(message);
             }
         }

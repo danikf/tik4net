@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System.IO;
 
-namespace InvertedTomato.TikLink {
+namespace Tests {
     public class Credentials {
         [JsonProperty("host")]
         public string Host { get; private set; }

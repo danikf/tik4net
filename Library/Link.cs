@@ -68,7 +68,7 @@ namespace InvertedTomato.TikLink {
             var socketStream = new NetworkStream(socket, true);
 
             // Wrap stream in SSL
-            var sslStream = new SslStream(socketStream, false, new RemoteCertificateValidationCallback((object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) => {
+            var sslStream = new SslStream(socketStream, false, new RemoteCertificateValidationCallback((object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors ) => {
                 if (null == publicKey) { // TODO: May need refinement
                     return sslPolicyErrors == SslPolicyErrors.None;
                 } else {

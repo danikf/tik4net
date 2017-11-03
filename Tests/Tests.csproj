@@ -7,7 +7,7 @@
 
     <AssemblyName>InvertedTomato.TikLink.Tests</AssemblyName>
 
-    <RootNamespace>InvertedTomato.TikLink</RootNamespace>
+    <RootNamespace>Tests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
