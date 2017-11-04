@@ -304,7 +304,7 @@ namespace InvertedTomato.TikLink {
             return result;
         }
 
-        public IList<T> Scan<T>(List<string> includeProperties = null, List<string> query = null) where T : IRecord, new() {
+        public IList<T> Scan<T>(List<string> includeProperties = null, List<string> query = null) where T : new() {
             // Build sentence
             var sentence = new Sentence();
             sentence.Command = RecordReflection.GetPath<T>() + "/print";
@@ -318,7 +318,8 @@ namespace InvertedTomato.TikLink {
             // Make call
             var result = Call(sentence).Wait();
             if (result.IsError) {
-                throw new QueryFailedException();
+                result.TryGetTrapAttribute("message", out var message);
+                throw new QueryException(message);
             }
 
             // Convert record sentences records
@@ -360,7 +361,7 @@ namespace InvertedTomato.TikLink {
             // Make call
             var result = Call(sentence).Wait();
             if (result.IsError) {
-                throw new QueryFailedException();
+                throw new QueryException();
             }
         }
 
