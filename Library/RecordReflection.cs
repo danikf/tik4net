@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Linq;
+using InvertedTomato.TikLink.Encodings;
 
 namespace InvertedTomato.TikLink {
     public static class RecordReflection {
@@ -42,20 +43,24 @@ namespace InvertedTomato.TikLink {
                     object v;
                     if (property.ValueType == typeof(string)) {
                         v = value;
-                    } else if (property.ValueType == typeof(TimeSpan)) {
-                        v = TimeEncoding.Decode(value);
-                    } else if (property.ValueType == typeof(TimeSpan?)) {
-                        v = TimeEncoding.DecodeNullable(value);
-                    } else if (property.ValueType == typeof(int)) {
-                        v = int.Parse(value);
+                    } else if (property.ValueType == typeof(double)) {
+                        v = DoubleEncoding.Decode(value);
+                    } else if (property.ValueType == typeof(double?)) {
+                        v = DoubleEncoding.DecodeNullable(value);
                     } else if (property.ValueType == typeof(long)) {
-                        v = long.Parse(value);
+                        v = LongEncoding.Decode(value);
+                    } else if (property.ValueType == typeof(long?)) {
+                        v = LongEncoding.DecodeNullable(value);
                     } else if (property.ValueType == typeof(bool)) {
                         v = BoolEncoding.Decode(value);
                     } else if (property.ValueType == typeof(bool?)) {
                         v = BoolEncoding.DecodeNullable(value);
                     } else if (property.ValueTypeInfo.IsEnum) {
-                        v = GetValueFromDescription(property.ValueType, value);
+                        if (Nullable.GetUnderlyingType(property.ValueType) == null) {
+                            v = EnumEncoding.Decode(value, property.ValueType);
+                        } else {
+                            v = EnumEncoding.DecodeNullable(value, property.ValueType);
+                        }
                     } else {
                         throw new NotSupportedException();
                     }
@@ -138,28 +143,6 @@ namespace InvertedTomato.TikLink {
             }
 
             return meta;
-        }
-
-
-        public static object GetValueFromDescription(Type type, string description) {
-            if (!type.GetTypeInfo().IsEnum) {
-                throw new InvalidOperationException();
-            }
-
-            foreach (var field in type.GetRuntimeFields()) {
-                var attribute = field.GetCustomAttribute<TikEnumAttribute>(true);
-                if (attribute == null) {
-                    if (field.Name == description) {
-                        return field.GetValue(null);
-                    }
-                } else {
-                    if (attribute.Value == description) {
-                        return field.GetValue(null);
-                    }
-                }
-            }
-
-            throw new KeyNotFoundException();
         }
     }
 }

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
 
-namespace InvertedTomato.TikLink {
+namespace InvertedTomato.TikLink.Encodings {
     public static class LengthEncoding {
         public static void WriteLength(int length, Stream stream) { // TODO: rewrite more efficently
             if (length < 0) {

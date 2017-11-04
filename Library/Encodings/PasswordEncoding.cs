@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace InvertedTomato.TikLink {
+namespace InvertedTomato.TikLink.Encodings {
     public static class PasswordEncoding {
         public static string Hash(string password, string challenge) { // TODO: Optimise
             var hash_byte = new byte[challenge.Length / 2];

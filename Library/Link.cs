@@ -8,6 +8,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Linq;
+using InvertedTomato.TikLink.Encodings;
 
 namespace InvertedTomato.TikLink {
 

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Text.RegularExpressions;
 
-namespace InvertedTomato.TikLink {
+namespace InvertedTomato.TikLink.Encodings {
     /// <summary>
     /// Support for converting MikroTik time strings into TimeSpans.
     /// Credits: D-Bullock 
@@ -12,7 +12,7 @@ namespace InvertedTomato.TikLink {
         /// <summary>
         /// Encode nullable TimeSpan into a MikroTik time string.
         /// </summary>
-        public static string EncodeNullable(TimeSpan? value) {
+        public static string EncodeNullable(double? value) {
             // Handle nulls
             if (null == value) {
                 return string.Empty;
@@ -24,35 +24,36 @@ namespace InvertedTomato.TikLink {
         /// <summary>
         /// Encode TimeSpan into a MikroTik time string.
         /// </summary>
-        public static string Encode(TimeSpan value) {
-            var weeks = (long)value.TotalDays / 7;
-            value -= TimeSpan.FromDays(weeks * 7);
+        public static string Encode(double value) {
+            var v = TimeSpan.FromSeconds(value);
+            var weeks = (long)v.TotalDays / 7;
+            v -= TimeSpan.FromDays(weeks * 7);
             return
                 (weeks != 0 ? weeks + "w" : string.Empty) +
-                (value.Days != 0 ? value.Days + "d" : string.Empty) +
-                (value.Hours != 0 ? value.Hours + "h" : string.Empty) +
-                (value.Minutes != 0 ? value.Minutes + "m" : string.Empty) +
-                (value.Seconds != 0 ? value.Seconds + "s" : string.Empty);
+                (v.Days != 0 ? v.Days + "d" : string.Empty) +
+                (v.Hours != 0 ? v.Hours + "h" : string.Empty) +
+                (v.Minutes != 0 ? v.Minutes + "m" : string.Empty) +
+                (v.Seconds != 0 ? v.Seconds + "s" : string.Empty);
         }
 
         /// <summary>
         /// Decode MikroTik time string into a nullable TimeSpan.
         /// </summary>
-        public static TimeSpan? DecodeNullable(string time) {
+        public static double? DecodeNullable(string value) {
             // Handle blank/null
-            if (time == string.Empty || time == "none") {
+            if (value == string.Empty || value == "none") {
                 return null;
             }
 
-            return Decode(time);
+            return Decode(value);
         }
         
         /// <summary>
         /// Decode MikroTik time string into a TimeSpan.
         /// </summary>
-        public static TimeSpan? Decode(string time) {
+        public static double Decode(string value) {
             // Parse
-            var match = Pattern.Match(time);
+            var match = Pattern.Match(value);
             if (!match.Success) {
                 throw new FormatException();
             }
@@ -61,24 +62,24 @@ namespace InvertedTomato.TikLink {
             double ms = 0;
             for (int i = 1; i < match.Groups.Count; i += 2) {
                 if (!string.IsNullOrEmpty(match.Groups[i].Value)) {
-                    var value = double.Parse(match.Groups[i + 1].Value);
+                    var v = double.Parse(match.Groups[i + 1].Value);
                     if (match.Groups[i].Value.EndsWith("w")) {
-                        ms += value * 604800000;
+                        ms += v * 604800;
                     } else if (match.Groups[i].Value.EndsWith("d")) {
-                        ms += value * 86400000;
+                        ms += v * 86400;
                     } else if (match.Groups[i].Value.EndsWith("h")) {
-                        ms += value * 3600000;
+                        ms += v * 3600;
                     } else if (match.Groups[i].Value.EndsWith("m")) {
-                        ms += value * 60000;
-                    } else if (match.Groups[i].Value.EndsWith("ms")) {
-                        ms += value;
+                        ms += v * 60;
                     } else if (match.Groups[i].Value.EndsWith("s")) {
-                        ms += value * 1000;
+                        ms += v ;
+                    } else if (match.Groups[i].Value.EndsWith("ms")) {
+                        ms += v/1000;
                     }
                 }
             }
 
-            return TimeSpan.FromMilliseconds(ms);
+            return ms;
         }
     }
 }

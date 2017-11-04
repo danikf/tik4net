@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace InvertedTomato.TikLink {
+namespace InvertedTomato.TikLink.Encodings {
     public static class BoolEncoding {
         public static string EncodeNullable(bool? value) {
             if (null == value) {
