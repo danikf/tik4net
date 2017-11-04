@@ -10,10 +10,7 @@ namespace InvertedTomato.TikLink {
         /// Mikrotik enum value.
         /// </summary>
         public string Value { get; private set; }
-
-        /// <summary>
-        /// .ctor
-        /// </summary>
+        
         public TikEnumAttribute(string value) {
             if (string.IsNullOrEmpty(value)) {
                 throw new ArgumentException(nameof(value));

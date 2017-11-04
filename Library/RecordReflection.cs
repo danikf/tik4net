@@ -2,21 +2,27 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Linq;
 
 namespace InvertedTomato.TikLink {
     public static class RecordReflection {
-        private class MetaRecord {
-            public TikRecordAttribute RecordAttribute { get; set; }
-            public Dictionary<string, TikPropertyAttribute> PropertyAttributes { get; set; }
-            public Dictionary<string, PropertyInfo> PropertyInfos { get; set; }
+        private class RecordMeta {
+            public TikRecordAttribute Attribute { get; set; }
+            public List<PropertyMeta> Properties { get; set; } = new List<PropertyMeta>();
         }
-        private static ConcurrentDictionary<Type, MetaRecord> MetaRecords = new ConcurrentDictionary<Type, MetaRecord>();
+        private class PropertyMeta {
+            public TikPropertyAttribute Attribute { get; set; }
+            public PropertyInfo PropertyInfo { get; set; }
+            public Type ValueType { get; set; }
+            public TypeInfo ValueTypeInfo { get; set; }
+        }
+        private static ConcurrentDictionary<Type, RecordMeta> MetaRecords = new ConcurrentDictionary<Type, RecordMeta>();
 
         public static string GetPath<T>() {
             // Get metadata
             var meta = GetGenerateMeta<T>();
 
-            return meta.RecordAttribute.Path;
+            return meta.Attribute.Path;
         }
 
         public static void SetProperties<T>(T record, Dictionary<string, string> attributes) {
@@ -31,9 +37,30 @@ namespace InvertedTomato.TikLink {
             var meta = GetGenerateMeta<T>();
 
             // Set all properties
-            foreach (var item in meta.PropertyInfos) {
-                if (attributes.TryGetValue(item.Key, out var value)) {
-                    item.Value.SetValue(record, value);
+            foreach (var property in meta.Properties) {
+                if (attributes.TryGetValue(property.Attribute.FieldName, out var value)) {
+                    object v;
+                    if (property.ValueType == typeof(string)) {
+                        v = value;
+                    } else if (property.ValueType == typeof(TimeSpan)) {
+                        v = TimeEncoding.Decode(value);
+                    } else if (property.ValueType == typeof(TimeSpan?)) {
+                        v = TimeEncoding.DecodeNullable(value);
+                    } else if (property.ValueType == typeof(int)) {
+                        v = int.Parse(value);
+                    } else if (property.ValueType == typeof(long)) {
+                        v = long.Parse(value);
+                    } else if (property.ValueType == typeof(bool)) {
+                        v = BoolEncoding.Decode(value);
+                    } else if (property.ValueType == typeof(bool?)) {
+                        v = BoolEncoding.DecodeNullable(value);
+                    } else if (property.ValueTypeInfo.IsEnum) {
+                        v = GetValueFromDescription(property.ValueType, value);
+                    } else {
+                        throw new NotSupportedException();
+                    }
+
+                    property.PropertyInfo.SetValue(record, v);
                 }
             }
         }
@@ -48,36 +75,44 @@ namespace InvertedTomato.TikLink {
 
             // Get all properties
             var output = new Dictionary<string, string>();
-            foreach (var item in meta.PropertyInfos) {
-                output[item.Key] = (string)item.Value.GetValue(record);
+            foreach (var properties in meta.Properties) {
+                var value = properties.PropertyInfo.GetValue(record);
+
+                var propertyType = properties.GetType();
+
+
+                output[properties.Attribute.FieldName] = (string)value;  // TODO: Naieve!!!
             }
             return output;
         }
 
-        private static MetaRecord GetGenerateMeta<T>() {
+        private static RecordMeta GetGenerateMeta<T>() {
             var type = typeof(T);
 
             // If not in cache...
             if (!MetaRecords.TryGetValue(type, out var meta)) {
-                meta = new MetaRecord();
+                meta = new RecordMeta();
 
                 // Check record attribute
-                meta.RecordAttribute = type.GetTypeInfo().GetCustomAttribute<TikRecordAttribute>();
-                if (null == meta.RecordAttribute) {
+                meta.Attribute = type.GetTypeInfo().GetCustomAttribute<TikRecordAttribute>();
+                if (null == meta.Attribute) {
                     throw new ArgumentException("Not decorated with TikRecordAttribute.");
                 }
 
                 // Build lookup of property infos
-                meta.PropertyAttributes = new Dictionary<string, TikPropertyAttribute>();
-                meta.PropertyInfos = new Dictionary<string, PropertyInfo>();
                 foreach (var property in type.GetRuntimeProperties()) {
                     var propertyAttribute = property.GetCustomAttribute<TikPropertyAttribute>();
                     if (null == propertyAttribute) {
                         continue;
                     }
 
-                    meta.PropertyAttributes[propertyAttribute.FieldName] = propertyAttribute;
-                    meta.PropertyInfos[propertyAttribute.FieldName] = property;
+                    // Create meta record for property
+                    meta.Properties.Add(new PropertyMeta() {
+                        Attribute = propertyAttribute,
+                        PropertyInfo = property,
+                        ValueType = property.PropertyType,
+                        ValueTypeInfo = property.PropertyType.GetTypeInfo()
+                    });
                 }
 
                 // Add to cache
@@ -87,5 +122,26 @@ namespace InvertedTomato.TikLink {
             return meta;
         }
 
+
+        public static object GetValueFromDescription(Type type, string description) {
+            if (!type.GetTypeInfo().IsEnum) {
+                throw new InvalidOperationException();
+            }
+
+            foreach (var field in type.GetRuntimeFields()) {
+                var attribute = field.GetCustomAttribute<TikEnumAttribute>(true);
+                if (attribute == null) {
+                    if (field.Name == description) {
+                        return field.GetValue(null);
+                    }
+                } else {
+                    if (attribute.Value == description) {
+                        return field.GetValue(null);
+                    }
+                }
+            }
+
+            throw new KeyNotFoundException();
+        }
     }
 }
