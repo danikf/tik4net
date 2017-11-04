@@ -16,14 +16,20 @@ namespace InvertedTomato.TikLink {
         /// <summary>
         /// Connect without SSL on the default port.
         /// </summary>
-        public static Link Connect(string host) { return Connect(host, 8728); }
+        public static Link Connect(string host, string username, string password) { return Connect(host, 8728, username, password); }
 
         /// <summary>
         /// Connect without SSL on a specified port.
         /// </summary>
-        public static Link Connect(string host, int port) {
+        public static Link Connect(string host, int port, string username, string password) {
             if (null == host) {
                 throw new ArgumentNullException(nameof(host));
+            }
+            if (null == username) {
+                throw new ArgumentNullException(nameof(username));
+            }
+            if (null == password) {
+                throw new ArgumentNullException(nameof(password));
             }
             if (port < 1) {
                 throw new ArgumentOutOfRangeException(nameof(port));
@@ -34,7 +40,7 @@ namespace InvertedTomato.TikLink {
             socket.Connect(host, port);
             var socketStream = new NetworkStream(socket, true);
 
-            return new Link(socketStream, true);
+            return new Link(socketStream, true, username, password);
         }
 
         /// <summary>
@@ -43,7 +49,7 @@ namespace InvertedTomato.TikLink {
         /// <remarks>
         /// This will only work if the router has a properly CA-signed certificate installed.
         /// </remarks>
-        public static Link ConnectSecure(string host) { return ConnectSecure(host, null, 8729); }
+        public static Link ConnectSecure(string host, string username, string password) { return ConnectSecure(host, 8729, null, username, password); }
 
         /// <summary>
         /// Connect with SSL on the default port, using a public key to identify the remote router.
@@ -51,17 +57,23 @@ namespace InvertedTomato.TikLink {
         /// <remarks>
         /// This is handy, so you don't need to install a CA-signed certificate on the router.
         /// </remarks>
-        public static Link ConnectSecure(string host, byte[] publicKey) { return ConnectSecure(host, publicKey, 8729); }
+        public static Link ConnectSecure(string host, byte[] publicKey, string username, string password) { return ConnectSecure(host, 8729, publicKey, username, password); }
 
         /// <summary>
         /// Connect with SSL on a specified port, using a public key to identify the remote router.
         /// </summary>
         /// <remarks>
-        /// This is handy, so you don't need to install a CA-signed certificate on the router.
+        /// This can be handy, so you don't need to install a CA-signed certificate on the router.
         /// </remarks>
-        public static Link ConnectSecure(string host, byte[] publicKey, int port) {
+        public static Link ConnectSecure(string host, int port, byte[] publicKey, string username, string password) {
             if (null == host) {
                 throw new ArgumentNullException(nameof(host));
+            }
+            if (null == username) {
+                throw new ArgumentNullException(nameof(username));
+            }
+            if (null == password) {
+                throw new ArgumentNullException(nameof(password));
             }
 
             // Connect
@@ -79,7 +91,7 @@ namespace InvertedTomato.TikLink {
             }), null);
             sslStream.AuthenticateAsClientAsync(host).Wait();
 
-            return new Link(sslStream, true);
+            return new Link(sslStream, true, username, password);
         }
 
         /// <summary>
@@ -100,17 +112,38 @@ namespace InvertedTomato.TikLink {
 
         private long NextTag;
 
-        public Link(Stream stream, bool ownsStream) {
+        public Link(Stream stream, bool ownsStream, string username, string password) {
             if (null == stream) {
                 throw new ArgumentNullException(nameof(stream));
+            }
+            if (null == username) {
+                throw new ArgumentNullException(nameof(username));
+            }
+            if (null == password) {
+                throw new ArgumentNullException(nameof(password));
             }
 
             // Store options
             UnderlyingStream = stream;
             OwnsUnderlyingStream = ownsStream;
 
+            // Start read thread
             ReadThread = new Thread(ReadThread_Spin);
             ReadThread.Start();
+
+            // Get challenge
+            var r1 = Call("/login").Wait();
+            var challenge = r1.GetDoneAttribute("ret");
+
+            // Compute response
+            var hash = PasswordEncoding.Hash(password, challenge);
+
+            // Attempt login
+            var r2 = Call("/login", new Dictionary<string, string>() { { "name", username }, { "response", hash } }).Wait();
+            if (r2.IsError) {
+                r2.TryGetTrapAttribute("message", out var message);
+                throw new AccessDeniedException(message);
+            }
         }
 
         private void ReadThread_Spin(object obj) {
@@ -271,38 +304,6 @@ namespace InvertedTomato.TikLink {
             return result;
         }
 
-        public void Login(string username, string password) {
-            if (!TryLogin(username, password, out var message)) {
-                throw new AccessDeniedException(message);
-            }
-        }
-
-        public bool TryLogin(string username, string password, out string message) {
-            if (null == username) {
-                throw new ArgumentNullException(nameof(username));
-            }
-            if (null == password) {
-                throw new ArgumentNullException(nameof(password));
-            }
-
-            // Get challenge
-            var r1 = Call("/login").Wait();
-            var challenge = r1.GetDoneAttribute("ret");
-
-            // Compute response
-            var hash = PasswordEncoding.Hash(password, challenge);
-
-            // Attempt login
-            var r2 = Call("/login", new Dictionary<string, string>() { { "name", username }, { "response", hash } }).Wait();
-            if (r2.IsError) {
-                r2.TryGetTrapAttribute("message", out message);
-                return false;
-            } else {
-                message = null;
-                return true;
-            }
-        }
-
         public IList<T> Scan<T>(List<string> includeProperties = null, List<string> query = null) where T : IRecord, new() {
             // Build sentence
             var sentence = new Sentence();
@@ -325,7 +326,7 @@ namespace InvertedTomato.TikLink {
             foreach (var s in result.Sentences) {
                 if (s.Command == "re") {
                     var record = new T();
-                    RecordReflection.SetProperties(new T(), s.Attributes);
+                    RecordReflection.SetProperties(record, s.Attributes);
                     output.Add(record);
                 }
             }
