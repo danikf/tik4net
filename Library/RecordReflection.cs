@@ -86,6 +86,24 @@ namespace InvertedTomato.TikLink {
             return output;
         }
 
+        public static string ResolveProperty<T>(string name) {
+            if (null == name) {
+                throw new ArgumentNullException(nameof(name));
+            }
+
+            // Get metadata
+            var meta = GetGenerateMeta<T>();
+
+            // Get property
+            var property = meta.Properties.SingleOrDefault(a => a.PropertyInfo.Name == name);
+            if (null == property) {
+                throw new KeyNotFoundException();
+            }
+
+            // Return field
+            return property.Attribute.FieldName;
+        }
+
         private static RecordMeta GetGenerateMeta<T>() {
             var type = typeof(T);
 

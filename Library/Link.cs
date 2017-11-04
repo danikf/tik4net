@@ -312,15 +312,17 @@ namespace InvertedTomato.TikLink {
         }
 
 
-        public IList<T> Scan<T>(List<string> readProperties = null, List<string> query = null) where T : new() {
+        public IList<T> List<T>(string[] properties = null, IDictionary<string, string> filter = null) where T : new() {
             // Build sentence
             var sentence = new Sentence();
             sentence.Command = RecordReflection.GetPath<T>() + "/print";
-            if (null != readProperties) {
-                sentence.Attributes[".proplist"] = string.Join(",", readProperties);
+            if (null != properties) {
+                sentence.Attributes[".proplist"] = string.Join(",", properties.Select(a => RecordReflection.ResolveProperty<T>(a)));
             }
-            if (null != query) {
-                sentence.Queries = query;
+            if (null != filter) {
+                foreach (var f in filter) {
+                    sentence.Queries.Add($"{RecordReflection.ResolveProperty<T>(f.Key)}={f.Value}");
+                }
             }
 
             // Make call
@@ -342,12 +344,12 @@ namespace InvertedTomato.TikLink {
             return output;
         }
 
-        public T Get<T>(string id, List<string> readProperties = null) where T : IHasId, new() {
+        public T Get<T>(string id, string[] properties = null) where T : IHasId, new() {
             if (null == id) {
                 throw new ArgumentNullException(nameof(id));
             }
 
-            var scan = Scan<T>(readProperties, new List<string>() { "id=" + id });
+            var scan = List<T>(properties, new Dictionary<string, string>() { { "Id", id } });
 
             if (scan.Count == 0) {
                 throw new KeyNotFoundException();
@@ -356,7 +358,7 @@ namespace InvertedTomato.TikLink {
             return scan.SingleOrDefault();
         }
 
-        public void Set<T>(T record, List<string> writeProperties = null) where T : IHasId, new() {
+        public void Put<T>(T record, string[] properties = null) where T : IHasId, new() {
             if (null == record) {
                 throw new ArgumentNullException(nameof(record));
             }
@@ -365,11 +367,11 @@ namespace InvertedTomato.TikLink {
             var sentence = new Sentence();
             sentence.Command = RecordReflection.GetPath<T>() + (record.Id == null ? "/add" : "/set");
             var attributes = RecordReflection.GetProperties(record);
-            if (null == writeProperties) {
+            if (null == properties) {
                 sentence.Attributes = attributes;
             } else {
-                foreach (var includeProperty in writeProperties) {
-                    sentence.Attributes[includeProperty] = attributes[includeProperty];
+                foreach (var includeProperty in properties) {
+                    sentence.Attributes[includeProperty] = RecordReflection.ResolveProperty<T>(attributes[includeProperty]);
                 }
             }
 
