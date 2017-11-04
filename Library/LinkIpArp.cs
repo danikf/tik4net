@@ -9,8 +9,12 @@ namespace InvertedTomato.TikLink {
             Link = link;
         }
 
-        public IList<IpArp> Scan(string[] properties = null, Dictionary<string, string> query = null) {
+        public IList<IpArp> List(string[] properties = null, Dictionary<string, string> query = null) {
             return Link.List<IpArp>(properties, query);
+        }
+
+        public IpArp Get(string id, string[] properties = null) {
+            return Link.Get<IpArp>(id, properties);
         }
 
         public void Put(IpArp record, string[] properties = null) {
