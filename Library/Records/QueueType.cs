@@ -8,12 +8,12 @@ namespace InvertedTomato.TikLink.Records {
     /// /queue/type
     /// </summary>
     [TikRecord("/queue/type", IncludeDetails = true)]
-    public class QueueType {
+    public class QueueType  : IHasId {
         /// <summary>
         /// .id
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// name

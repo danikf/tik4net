@@ -12,12 +12,12 @@ namespace InvertedTomato.TikLink.Records {
     /// As DHCP replies can be unicast, the 'rogue dhcp detector' may not receive any offer to other dhcp clients at all. To deal with this, the rogue dhcp detector acts as a dhcp client as well - it sends out dhcp discover requests once a minute 
     /// </summary>
     [TikRecord("/ip/dhcp-server/alert")]
-    public class DhcpServerAlert {
+    public class DhcpServerAlert  : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// alert-timeout: Time after which alert will be forgotten. If after that time the same server is detected, new alert will be generated. If set to none timeout will never expire.

@@ -5,12 +5,12 @@
     /// This is the menu, where client's user/password information is actually added, additional configuration options for HotSpot users are configured here as well.
     /// </summary>
     [TikRecord("/ip/hotspot/user")]
-    public class HotspotUser {
+    public class HotspotUser  : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// address: IP address, when specified client will get the address from the HotSpot one-to-one NAT translations. Address does not restrict HotSpot login only from this address

@@ -9,12 +9,12 @@ namespace InvertedTomato.TikLink.Records {
     ///        According to the DHCP protocol, a parameter is returned to the DHCP client only if it requests this parameter, specifying the respective code in DHCP request Parameter-List(code 55) attribute.If the code is not included in Parameter-List attribute, DHCP server will not send it to the DHCP client.
     /// </summary>
     [TikRecord("/ip/dhcp-server/option")]
-    public class DhcpServerOption {
+    public class DhcpServerOption  : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// code: dhcp option code. All codes are available at http://www.iana.org/assignments/bootp-dhcp-parameters

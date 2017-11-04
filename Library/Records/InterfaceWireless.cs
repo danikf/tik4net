@@ -12,7 +12,7 @@ namespace InvertedTomato.TikLink.Records {
     /// Wireless can operate in several modes: client (station), access point, wireless bridge etc. Client/station also can operate in different modes, complete list of supported modes can be found here. 
     /// </summary>
     [TikRecord("/interface/wireless")]
-    public class InterfaceWireless {
+    public class InterfaceWireless  : IHasId {
         #region Submenu classes - Obsolete
 
         /// <summary>
@@ -45,7 +45,7 @@ namespace InvertedTomato.TikLink.Records {
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// adaptive-noise-immunity: This property is only effective for cards based on Atheros chipset.

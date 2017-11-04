@@ -8,12 +8,12 @@ namespace InvertedTomato.TikLink.Records {
     /// /ip/pool: IP pools containing address pools for DHCP and PPP
     /// </summary>
     [TikRecord("/ip/pool", IncludeDetails = true)]
-    public class IpPool {
+    public class IpPool  : IHasId {
         /// <summary>
         /// Row .id property.
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// Row name property.

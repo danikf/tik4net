@@ -8,12 +8,12 @@ namespace InvertedTomato.TikLink.Records {
     /// ip/dns: This menu provides a complete list with all DNS records stored on the server 
     /// </summary>
     [TikRecord("/ip/dns/cache/all", IsReadOnly = true)]
-    public class DnsCacheAll {
+    public class DnsCacheAll  : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// data

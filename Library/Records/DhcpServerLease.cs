@@ -19,12 +19,12 @@ namespace InvertedTomato.TikLink.Records {
     /// A client may free the leased address. The dynamic lease is removed, and the allocated address is returned to the address pool. But the static lease becomes busy until the client reacquires the address. 
     /// </summary>
     [TikRecord("/ip/dhcp-server/lease")]
-    public class DhcpServerLease {
+    public class DhcpServerLease  : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// address: Specify IP address (or ip pool) for static lease. If set to 0.0.0.0 - pool from server will be used

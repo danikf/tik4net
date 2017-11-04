@@ -3,12 +3,12 @@
     /// ip/hotspot/user: User profile menu is used for common HotSpot client settings. Profiles are like User groups with the same set of settings, rate-limit, filter chain name, etc. 
     /// </summary>
     [TikRecord("/ip/hotspot/user/profile")]
-    public class HotspotUserProfile {
+    public class HotspotUserProfile  : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// add-mac-cookie: Allows to add mac cookie for users. Read more&gt;&gt;

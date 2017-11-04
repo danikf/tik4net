@@ -16,12 +16,12 @@ namespace InvertedTomato.TikLink.Records {
     /// Regular expression matching is significantly slower than of the plain entries, so it is advised to minimize the number of regular expression rules and optimize the expressions themselves
     /// </summary>
     [TikRecord("/ip/dns/static", IsOrdered = true)]
-    public class DnsStatic {
+    public class DnsStatic  : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// address

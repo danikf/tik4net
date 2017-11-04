@@ -26,13 +26,6 @@ namespace InvertedTomato.TikLink.Records {
 
         }
 
-        /// <summary>
-        /// Obsolete: use Accounting.AccountingWebAccess class.
-        /// </summary>
-        [Obsolete("use Accounting.AccountingWebAccess class.", true)]
-        public class AccountingWebAccess {
-
-        }
         #endregion
 
         private const string DEFAULT_TRESHOLD = "256";

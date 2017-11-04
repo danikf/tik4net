@@ -8,12 +8,12 @@ namespace InvertedTomato.TikLink.Records {
     /// /ip/accounting/snapshot: When a snapshot is made for data collection, the accounting table is cleared and new IP pairs and traffic data are added. The more frequently traffic data is collected, the less likelihood that the IP pairs thereshold limit will be reached.
     /// </summary>
     [TikRecord("/ip/accounting/snapshot", IsReadOnly = true)]
-    public class AccountingSnapshot {
+    public class AccountingSnapshot : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// bytes: total number of bytes, matched by this entry

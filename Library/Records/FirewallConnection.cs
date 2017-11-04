@@ -8,12 +8,12 @@ namespace InvertedTomato.TikLink.Records {
     /// ip/firewall/connection tracking: 
     /// </summary>
     [TikRecord("/ip/firewall/connection", IsReadOnly = true)]
-    public class FirewallConnection {
+    public class FirewallConnection  : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// assured: "assured" flag indicates that this connection is assured and that it will not be erased if maximum possible tracked connection count is reached.

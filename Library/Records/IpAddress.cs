@@ -8,12 +8,12 @@ namespace InvertedTomato.TikLink.Records {
     /// /ip/address: IP addresses serve for a general host identification purposes in IP networks. Typical (IPv4) address consists of four octets. For proper addressing the router also needs the network mask value, id est which bits of the complete IP address refer to the address of the host, and which - to the address of the network. The network address value is calculated by binary AND operation from network mask and IP address values. It's also possible to specify IP address followed by slash "/" and the amount of bits that form the network address. 
     /// </summary>
     [TikRecord("/ip/address", IncludeDetails = true)]
-    public class IpAddress {
+    public class IpAddress  : IHasId {
         /// <summary>
         /// Row .id property.
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// Row actual-interface property.

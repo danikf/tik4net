@@ -10,12 +10,12 @@ namespace InvertedTomato.TikLink.Records {
     /// 
     /// </summary>
     [TikRecord("/ip/dhcp-relay")]
-    public class IpDhcpRelay {
+    public class IpDhcpRelay  : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// add-relay-info: Adds DHCP relay agent information if enabled according to RFC 3046.  Agent Circuit ID Sub-option contains mac address of an interface, Agent Remote ID Sub-option contains MAC address of the client from which request was received.

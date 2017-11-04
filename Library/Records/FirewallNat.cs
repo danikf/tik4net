@@ -8,12 +8,12 @@ namespace InvertedTomato.TikLink.Records {
     /// /ip/firewall/nat
     /// </summary>
     [TikRecord("/ip/firewall/nat", IncludeDetails = true, IsOrdered = true)]
-    public class FirewallNat {
+    public class FirewallNat  : IHasId {
         /// <summary>
         /// .id
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// chain

@@ -14,12 +14,12 @@ namespace InvertedTomato.TikLink.Records {
     ///     If remote device is matched by rule that has authentication = no value, the connection from that remote device is rejected.
     /// </summary>
     [TikRecord("/interface/wireless/access-list")]
-    public class WirelessAccessList {
+    public class WirelessAccessList  : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// ap-tx-limit: Limit rate of data transmission to this client. Value 0 means no limit. Value is in bits per second.

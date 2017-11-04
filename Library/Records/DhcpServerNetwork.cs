@@ -8,12 +8,12 @@ namespace InvertedTomato.TikLink.Records {
     /// ip/dhcp-server/network : 
     /// </summary>
     [TikRecord("/ip/dhcp-server/network")]
-    public class DhcpServerNetwork {
+    public class DhcpServerNetwork  : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// address: the network DHCP server(s) will lease addresses from

@@ -18,7 +18,7 @@ namespace InvertedTomato.TikLink.Records {
     /// Note: DHCP server requires a real interface to receive raw ethernet packets. If the interface is a Bridge interface, then the Bridge must have a real interface attached as a port to that bridge which will receive the raw ethernet packets. It cannot function correctly on a dummy (empty bridge) interface. 
     /// </remarks>
     [TikRecord("/ip/dhcp-server")]
-    public class IpDhcpServer {
+    public class IpDhcpServer  : IHasId {
         #region Submenu classes - OBSOLETE
         /// <summary>
         /// Obsolete: use DhcpServer.DhcpServerConfig class.
@@ -114,7 +114,7 @@ namespace InvertedTomato.TikLink.Records {
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// add-arp: Whether to add dynamic ARP entry.  If set to no either  ARP mode should be enabled on that interface or static  ARP entries should be administratively defined in /ip arp submenu.

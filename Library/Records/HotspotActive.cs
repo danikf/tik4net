@@ -5,12 +5,12 @@
     /// This is the menu, where client's user/password information is actually added, additional configuration options for HotSpot users are configured here as well.
     /// </summary>
     [TikRecord("/ip/hotspot/active", IsReadOnly = true)]
-    public class HotspotActive {
+    public class HotspotActive  : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// Server

@@ -8,7 +8,7 @@ namespace InvertedTomato.TikLink.Records {
     /// /ip/firewall/mangle
     /// </summary>
     [TikRecord("/ip/firewall/mangle", IncludeDetails = true, IsOrdered = true)]
-    public class FirewallMangle {
+    public class FirewallMangle  : IHasId {
         /// <summary>
         /// Mangle action type - <see cref="FirewallMangle.Action"/>
         /// </summary>
@@ -127,7 +127,7 @@ namespace InvertedTomato.TikLink.Records {
         /// .id
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// chain

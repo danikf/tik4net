@@ -304,12 +304,12 @@ namespace InvertedTomato.TikLink {
             return result;
         }
 
-        public IList<T> Scan<T>(List<string> includeProperties = null, List<string> query = null) where T : new() {
+        public IList<T> Scan<T>(List<string> readProperties = null, List<string> query = null) where T : new() {
             // Build sentence
             var sentence = new Sentence();
             sentence.Command = RecordReflection.GetPath<T>() + "/print";
-            if (null != includeProperties) {
-                sentence.Attributes[".proplist"] = string.Join(",", includeProperties);
+            if (null != readProperties) {
+                sentence.Attributes[".proplist"] = string.Join(",", readProperties);
             }
             if (null != query) {
                 sentence.Queries = query;
@@ -334,12 +334,12 @@ namespace InvertedTomato.TikLink {
             return output;
         }
 
-        public T Get<T>(string id, List<string> includeProperties = null) where T : IRecord, new() {
+        public T Get<T>(string id, List<string> readProperties = null) where T : IHasId, new() {
             if (null == id) {
                 throw new ArgumentNullException(nameof(id));
             }
 
-            var scan = Scan<T>(includeProperties, new List<string>() { "id=" + id });
+            var scan = Scan<T>(readProperties, new List<string>() { "id=" + id });
 
             if (scan.Count == 0) {
                 throw new KeyNotFoundException();
@@ -348,7 +348,7 @@ namespace InvertedTomato.TikLink {
             return scan.SingleOrDefault();
         }
 
-        public void Set<T>(T record) where T : IRecord, new() {
+        public void Set<T>(T record, List<string> writeProperties = null) where T : IHasId, new() {
             if (null == record) {
                 throw new ArgumentNullException(nameof(record));
             }
@@ -356,7 +356,14 @@ namespace InvertedTomato.TikLink {
             // Build sentence
             var sentence = new Sentence();
             sentence.Command = RecordReflection.GetPath<T>() + (record.Id == null ? "/add" : "/set");
-            sentence.Attributes = RecordReflection.GetProperties(record);
+            var attributes = RecordReflection.GetProperties(record);
+            if (null == writeProperties) {
+                sentence.Attributes = attributes;
+            } else {
+                foreach (var includeProperty in writeProperties) {
+                    sentence.Attributes[includeProperty] = attributes[includeProperty];
+                }
+            }
 
             // Make call
             var result = Call(sentence).Wait();
@@ -365,11 +372,11 @@ namespace InvertedTomato.TikLink {
             }
         }
 
-        public IList<T> Delete<T>(string id) where T : IRecord, new() {
+        public IList<T> Delete<T>(string id) where T : IHasId, new() {
             throw new NotImplementedException();
         }
 
-        public IList<T> Move<T>(string id, string afterId) where T : IRecord, new() {
+        public IList<T> Move<T>(string id, string afterId) where T : IHasId, new() {
             throw new NotImplementedException();
         }
 

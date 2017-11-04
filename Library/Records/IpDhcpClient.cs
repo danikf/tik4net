@@ -10,7 +10,7 @@ namespace InvertedTomato.TikLink.Records {
     /// RouterOS DHCP cilent asks for following options:
     /// </summary>
     [TikRecord("/ip/dhcp-client", IncludeDetails = true)]
-    public class IpDhcpClient {
+    public class IpDhcpClient  : IHasId {
         #region -- Enums ---
         /// <summary>
         /// Mode of adding default route. See <see cref="IpDhcpClient.AddDefaultRoute"/>.
@@ -40,7 +40,7 @@ namespace InvertedTomato.TikLink.Records {
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// add-default-route: Whether to install default route in routing table received from dhcp server. By default RouterOS client complies to RFC and ignores option 3 if classless option 121 is received. To force client not to ignore option 3 set special-classless. This parameter is available in v6rc12+

@@ -8,7 +8,7 @@ namespace InvertedTomato.TikLink.Records {
     /// /ip/firewall/filter
     /// </summary>
     [TikRecord("/ip/firewall/filter", IncludeDetails = true, IsOrdered = true)]
-    public class FirewallFilter {
+    public class FirewallFilter  : IHasId {
         /// <summary>
         /// Firewall filter action type - <see cref="FirewallFilter.Action"/>
         /// </summary>
@@ -133,7 +133,7 @@ namespace InvertedTomato.TikLink.Records {
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// action: Action to take if packet is matched by the rule: 

@@ -8,12 +8,12 @@ namespace InvertedTomato.TikLink.Records {
     /// Wireless security profiles
     /// </summary>
     [TikRecord("/interface/wireless/security-profiles")]
-    public class WirelessSecurityProfile {
+    public class WirelessSecurityProfile  : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string Id { get; set; }
 
         /// <summary>
         /// comment

@@ -1,5 +1,5 @@
 
 
-public interface IRecord {
+public interface IHasId {
     string Id { get; set; }
 }
