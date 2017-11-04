@@ -104,6 +104,9 @@ namespace InvertedTomato.TikLink {
         /// </summary>
         public Sentence LastFatal { get; private set; }
 
+        public readonly LinkInterface Interfaces;
+        public readonly LinkIp Ip;
+
         private readonly Thread ReadThread;
         private readonly Stream UnderlyingStream;
         private readonly bool OwnsUnderlyingStream;
@@ -144,6 +147,10 @@ namespace InvertedTomato.TikLink {
                 r2.TryGetTrapAttribute("message", out var message);
                 throw new AccessDeniedException(message);
             }
+
+            // Setup vanity interface
+            Interfaces = new LinkInterface(this);
+            Ip = new LinkIp(this);
         }
 
         private void ReadThread_Spin(object obj) {
@@ -304,6 +311,7 @@ namespace InvertedTomato.TikLink {
             return result;
         }
 
+
         public IList<T> Scan<T>(List<string> readProperties = null, List<string> query = null) where T : new() {
             // Build sentence
             var sentence = new Sentence();
@@ -379,6 +387,7 @@ namespace InvertedTomato.TikLink {
         public IList<T> Move<T>(string id, string afterId) where T : IHasId, new() {
             throw new NotImplementedException();
         }
+
 
         /// <summary>
         /// Disconnect and dispose link.
