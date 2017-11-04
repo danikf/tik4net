@@ -9,7 +9,7 @@ namespace InvertedTomato.TikLink.Records {
     /// DHCP Relay is just a proxy that is able to receive a DHCP request and resend it to the real DHCP server.
     /// 
     /// </summary>
-    [TikRecord("ip/dhcp-relay")]
+    [TikRecord("/ip/dhcp-relay")]
     public class IpDhcpRelay {
         /// <summary>
         /// .id: primary key of row

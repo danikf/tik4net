@@ -2,7 +2,7 @@
     /// <summary>
     /// ip/hotspot/user: User profile menu is used for common HotSpot client settings. Profiles are like User groups with the same set of settings, rate-limit, filter chain name, etc. 
     /// </summary>
-    [TikRecord("ip/hotspot/user/profile")]
+    [TikRecord("/ip/hotspot/user/profile")]
     public class HotspotUserProfile {
         /// <summary>
         /// .id: primary key of row

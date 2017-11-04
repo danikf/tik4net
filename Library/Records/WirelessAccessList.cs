@@ -13,7 +13,7 @@ namespace InvertedTomato.TikLink.Records {
     ///     If there are no matching rules for the remote connection, then the default values from the wireless interface configuration are used.
     ///     If remote device is matched by rule that has authentication = no value, the connection from that remote device is rejected.
     /// </summary>
-    [TikRecord("interface/wireless/access-list")]
+    [TikRecord("/interface/wireless/access-list")]
     public class WirelessAccessList {
         /// <summary>
         /// .id: primary key of row

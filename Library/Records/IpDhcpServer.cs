@@ -17,7 +17,7 @@ namespace InvertedTomato.TikLink.Records {
     /// <remarks>
     /// Note: DHCP server requires a real interface to receive raw ethernet packets. If the interface is a Bridge interface, then the Bridge must have a real interface attached as a port to that bridge which will receive the raw ethernet packets. It cannot function correctly on a dummy (empty bridge) interface. 
     /// </remarks>
-    [TikRecord("ip/dhcp-server")]
+    [TikRecord("/ip/dhcp-server")]
     public class IpDhcpServer {
         #region Submenu classes - OBSOLETE
         /// <summary>

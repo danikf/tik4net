@@ -4,7 +4,7 @@
     /// 
     /// This is the menu, where client's user/password information is actually added, additional configuration options for HotSpot users are configured here as well.
     /// </summary>
-    [TikRecord("ip/hotspot/user")]
+    [TikRecord("/ip/hotspot/user")]
     public class HotspotUser {
         /// <summary>
         /// .id: primary key of row

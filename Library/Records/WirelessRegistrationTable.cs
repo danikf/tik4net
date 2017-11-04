@@ -7,7 +7,7 @@ namespace InvertedTomato.TikLink.Records {
     /// <summary>
     /// /interface wireless registration-table: In the registration table you can see various information about currently connected clients. It is used only for Access Points. All properties are read-only.
     /// </summary>
-    [TikRecord("interface/wireless/registration-table", IsReadOnly = true)]
+    [TikRecord("/interface/wireless/registration-table", IsReadOnly = true)]
     public class WirelessRegistrationTable {
         /// <summary>
         /// .id: primary key of row

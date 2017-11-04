@@ -7,7 +7,7 @@ namespace InvertedTomato.TikLink.Records {
     /// <summary>
     /// ip/firewall/connection tracking: 
     /// </summary>
-    [TikRecord("ip/firewall/connection", IsReadOnly = true)]
+    [TikRecord("/ip/firewall/connection", IsReadOnly = true)]
     public class FirewallConnection {
         /// <summary>
         /// .id: primary key of row

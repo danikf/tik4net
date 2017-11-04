@@ -7,7 +7,7 @@ namespace InvertedTomato.TikLink.Records {
     /// <summary>
     /// ip/dhcp-server/network : 
     /// </summary>
-    [TikRecord("ip/dhcp-server/network")]
+    [TikRecord("/ip/dhcp-server/network")]
     public class DhcpServerNetwork {
         /// <summary>
         /// .id: primary key of row

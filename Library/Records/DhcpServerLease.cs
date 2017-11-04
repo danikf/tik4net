@@ -18,7 +18,7 @@ namespace InvertedTomato.TikLink.Records {
     /// 
     /// A client may free the leased address. The dynamic lease is removed, and the allocated address is returned to the address pool. But the static lease becomes busy until the client reacquires the address. 
     /// </summary>
-    [TikRecord("ip/dhcp-server/lease")]
+    [TikRecord("/ip/dhcp-server/lease")]
     public class DhcpServerLease {
         /// <summary>
         /// .id: primary key of row

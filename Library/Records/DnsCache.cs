@@ -7,7 +7,7 @@ namespace InvertedTomato.TikLink.Records {
     /// <summary>
     /// ip/dns: This menu provides a list with all address (DNS type "A") records stored on the server 
     /// </summary>
-    [TikRecord("ip/dns/cache", IsReadOnly = true)]
+    [TikRecord("/ip/dns/cache", IsReadOnly = true)]
     public class DnsCache {
         /// <summary>
         /// .id: primary key of row

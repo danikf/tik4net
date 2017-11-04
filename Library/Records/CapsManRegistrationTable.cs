@@ -7,7 +7,7 @@ namespace InvertedTomato.TikLink.Records {
     /// <summary>
     /// /caps-man/registration-table: In the registration table you can see various information about currently connected clients. It is used only for Controlled Access Points. All properties are read-only.
     /// </summary>
-    [TikRecord("caps-man/registration-table", IsReadOnly = true)]
+    [TikRecord("/caps-man/registration-table", IsReadOnly = true)]
     public class CapsManRegistrationTable {
         /// <summary>
         /// .id: primary key of row

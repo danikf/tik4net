@@ -7,7 +7,7 @@ namespace InvertedTomato.TikLink.Records {
     /// <summary>
     /// interface/bridge/settings: 
     /// </summary>
-    [TikRecord("interface/bridge/settings", IsSingleton = true)]
+    [TikRecord("/interface/bridge/settings", IsSingleton = true)]
     public class BridgeSettings {
         /// <summary>
         /// allow-fast-path: Allows  fast path

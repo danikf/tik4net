@@ -8,7 +8,7 @@ namespace InvertedTomato.TikLink.Records {
     /// interface/ethernet
     /// MikroTik RouterOS supports various types of Ethernet interfaces. 
     /// </summary>
-    [TikRecord("interface/ethernet")]
+    [TikRecord("/interface/ethernet")]
     public class InterfaceEthernet {
         /// <summary>
         /// .id: primary key of row

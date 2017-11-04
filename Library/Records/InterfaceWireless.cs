@@ -11,7 +11,7 @@ namespace InvertedTomato.TikLink.Records {
     /// 
     /// Wireless can operate in several modes: client (station), access point, wireless bridge etc. Client/station also can operate in different modes, complete list of supported modes can be found here. 
     /// </summary>
-    [TikRecord("interface/wireless")]
+    [TikRecord("/interface/wireless")]
     public class InterfaceWireless {
         #region Submenu classes - Obsolete
 

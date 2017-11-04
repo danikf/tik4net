@@ -7,7 +7,7 @@ namespace InvertedTomato.TikLink.Records {
     /// <summary>
     /// interface/bridge/port: Port submenu is used to enslave interfaces in a particular bridge interface.
     /// </summary>
-    [TikRecord("interface/bridge/port")]
+    [TikRecord("/interface/bridge/port")]
     public class BridgePort {
         /// <summary>
         /// .id: primary key of row
