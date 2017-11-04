@@ -5,7 +5,7 @@ using System.Text;
 
 namespace InvertedTomato.TikLink.Records {
     [TikRecord("/interface", IncludeDetails = true)]
-    public class InterfaceRecord : IRecord {
+    public class Interface : IRecord {
         /// <summary>
         /// .id
         /// </summary>

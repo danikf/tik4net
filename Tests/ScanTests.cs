@@ -11,7 +11,7 @@ namespace Tests {
         [Fact]
         public void Scan() {
             using (var link = Link.Connect(Credentials.Current.Host, Credentials.Current.Username, Credentials.Current.Password)) {
-                var interfaces = link.Scan<InterfaceRecord>();
+                var interfaces = link.Scan<Interface>();
                 Assert.True(interfaces.Count > 1);
 
                 var eth1 = interfaces.Single(a => a.DefaultName == "ether1");
