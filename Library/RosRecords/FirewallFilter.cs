@@ -13,7 +13,7 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
-        [RosProperty(".id", typeof(RosIdentifier), IsReadOnly = true, IsRequired = true)]
+        [RosProperty(".id", typeof(RosIdentifier), IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
