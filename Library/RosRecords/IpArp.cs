@@ -1,4 +1,5 @@
-﻿using System;
+﻿using InvertedTomato.TikLink.RosDataTypes;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,49 +13,49 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// Unique identifier
         /// </summary>
-        [RosProperty(".id", RosDataType.Id, IsRequired = true)]
+        [RosProperty(".id", typeof(RosIdentifier), IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
         /// IP Address
         /// </summary>
-        [RosProperty("address", RosDataType.String)]
+        [RosProperty("address", typeof(RosString))]
         public string Address { get; set; }
 
         /// <summary>
         /// Interface name the IP address is assigned to
         /// </summary>
-        [RosProperty("interface", RosDataType.String)]
+        [RosProperty("interface", typeof(RosString))]
         public string Interface { get; set; }
 
         /// <summary>
         /// MAC address to be mapped to
         /// </summary>
-        [RosProperty("mac-address", RosDataType.MacAddress, DefaultValue = "00:00:00:00:00:00")]
-        public string MacAddress { get; set; }
+        [RosProperty("mac-address", typeof(RosMacAddress))]
+        public string MacAddress { get; set; } = "00:00:00:00:00:00";
 
         /// <summary>
         /// IP Address
         /// </summary>
-        [RosProperty("comment", RosDataType.String)]
+        [RosProperty("comment", typeof(RosString))]
         public string Comment { get; set; }
 
         /// <summary>
         /// Whether ARP entry is added by DHCP server
         /// </summary>
-        [RosProperty("dhcp", RosDataType.Boolean, IsReadOnly = true)]
+        [RosProperty("dhcp", typeof(RosBoolean), IsReadOnly = true)]
         public bool Dhcp { get; private set; }
 
         /// <summary>
         /// Whether entry is dynamically created
         /// </summary>
-        [RosProperty("dynamic", RosDataType.Boolean, IsReadOnly = true)]
+        [RosProperty("dynamic", typeof(RosBoolean), IsReadOnly = true)]
         public bool Dynamic { get; private set; }
 
         /// <summary>
         /// Whether entry is not valid
         /// </summary>
-        [RosProperty("invalid", RosDataType.Boolean, IsReadOnly = true)]
+        [RosProperty("invalid", typeof(RosBoolean), IsReadOnly = true)]
         public bool Invalid { get; private set; }
     }
 

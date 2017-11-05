@@ -16,6 +16,7 @@ namespace InvertedTomato.TikLink {
             public PropertyInfo PropertyInfo { get; set; }
             public Type ValueType { get; set; }
             public TypeInfo ValueTypeInfo { get; set; }
+            public IRosDataType RosDataType { get; set; }
         }
         private static ConcurrentDictionary<Type, RecordMeta> MetaRecords = new ConcurrentDictionary<Type, RecordMeta>();
 
@@ -42,64 +43,8 @@ namespace InvertedTomato.TikLink {
 
             // Set all properties
             foreach (var property in meta.Properties) {
-                if (attributes.TryGetValue(property.Attribute.Name, out var mtvalue)) {
-                    object localvalue;
-                    switch (property.Attribute.RosData) {
-                        case RosDataType.String:
-                            localvalue = mtvalue;
-                            break;
-                        case RosDataType.Integer:
-                            if (property.Attribute.IsRequired) {
-                                localvalue = IntegerEncoding.Decode(mtvalue);
-                            } else {
-                                localvalue = IntegerEncoding.DecodeNullable(mtvalue);
-                            }
-                            break;
-                        case RosDataType.Decimal:
-                            if (property.Attribute.IsRequired) {
-                                localvalue = DecimalEncoding.Decode(mtvalue);
-                            } else {
-                                localvalue = DecimalEncoding.DecodeNullable(mtvalue);
-                            }
-                            break;
-                        case RosDataType.Boolean:
-                            if (property.Attribute.IsRequired) {
-                                localvalue = BooleanEncoding.Decode(mtvalue);
-                            } else {
-                                localvalue = BooleanEncoding.DecodeNullable(mtvalue);
-                            }
-                            break;
-                        case RosDataType.Enum:
-                            if (property.Attribute.IsRequired) {
-                                localvalue = EnumEncoding.Decode(mtvalue, property.ValueType);
-                            } else {
-                                localvalue = EnumEncoding.DecodeNullable(mtvalue, property.ValueType);
-                            }
-                            break;
-
-                        case RosDataType.Id:
-                            localvalue = mtvalue;
-                            break;
-                        case RosDataType.Duration:
-                            if (property.Attribute.IsRequired) {
-                                localvalue = DurationEncoding.Decode(mtvalue);
-                            } else {
-                                localvalue = DurationEncoding.DecodeNullable(mtvalue);
-                            }
-                            break;
-                        case RosDataType.MacAddress:
-                            localvalue = mtvalue;
-                            break;
-                        case RosDataType.IPAddress:
-                            localvalue = mtvalue;
-                            break;
-                        case RosDataType.IPAddressWithMask:
-                            localvalue = mtvalue;
-                            break;
-                        default:
-                            throw new NotImplementedException();
-                    }
-
+                if (attributes.TryGetValue(property.Attribute.RosName, out var mtvalue)) {
+                    var localvalue = property.RosDataType.Decode(mtvalue, property.ValueType);
                     property.PropertyInfo.SetValue(record, localvalue);
                 }
             }
@@ -123,67 +68,12 @@ namespace InvertedTomato.TikLink {
                 if (property.Attribute.IsReadOnly) {
                     continue;
                 }
-
-                var localvalue = property.PropertyInfo.GetValue(record);
-                string mtvalue;
-
-                switch (property.Attribute.RosData) {
-                    case RosDataType.String:
-                        mtvalue = (string)localvalue;
-                        break;
-                    case RosDataType.Integer:
-                        if (property.Attribute.IsRequired) {
-                            mtvalue = IntegerEncoding.Encode((long)localvalue);
-                        } else {
-                            mtvalue = IntegerEncoding.EncodeNullable((long?)localvalue);
-                        }
-                        break;
-                    case RosDataType.Decimal:
-                        if (property.Attribute.IsRequired) {
-                            mtvalue = DecimalEncoding.Encode((double)localvalue);
-                        } else {
-                            mtvalue = DecimalEncoding.EncodeNullable((double?)localvalue);
-                        }
-                        break;
-                    case RosDataType.Boolean:
-                        if (property.Attribute.IsRequired) {
-                            mtvalue = BooleanEncoding.Encode((bool)localvalue);
-                        } else {
-                            mtvalue = BooleanEncoding.EncodeNullable((bool?)localvalue);
-                        }
-                        break;
-                    case RosDataType.Enum:
-                        if (property.Attribute.IsRequired) {
-                            mtvalue = EnumEncoding.Encode((Enum)localvalue);
-                        } else {
-                            mtvalue = EnumEncoding.EncodeNullable((Enum)localvalue);
-                        }
-                        break;
-
-                    case RosDataType.Id:
-                        mtvalue = (string)localvalue;
-                        break;
-                    case RosDataType.Duration:
-                        if (property.Attribute.IsRequired) {
-                            mtvalue = DurationEncoding.Encode((double)localvalue);
-                        } else {
-                            mtvalue = DurationEncoding.EncodeNullable((double?)localvalue);
-                        }
-                        break;
-                    case RosDataType.MacAddress:
-                        mtvalue = (string)localvalue;
-                        break;
-                    case RosDataType.IPAddress:
-                        mtvalue = (string)localvalue;
-                        break;
-                    case RosDataType.IPAddressWithMask:
-                        mtvalue = (string)localvalue;
-                        break;
-                    default:
-                        throw new NotImplementedException();
-                }
                 
-                output[property.Attribute.Name] = mtvalue; 
+                var localvalue = property.PropertyInfo.GetValue(record);
+
+                string mtvalue = property.RosDataType.Encode(localvalue, property.ValueType);
+                
+                output[property.Attribute.RosName] = mtvalue;
             }
             return output;
         }
@@ -203,7 +93,7 @@ namespace InvertedTomato.TikLink {
             }
 
             // Return field
-            return property.Attribute.Name;
+            return property.Attribute.RosName;
         }
 
         private static RecordMeta GetGenerateMeta<T>() {
@@ -231,7 +121,8 @@ namespace InvertedTomato.TikLink {
                         Attribute = propertyAttribute,
                         PropertyInfo = property,
                         ValueType = property.PropertyType,
-                        ValueTypeInfo = property.PropertyType.GetTypeInfo()
+                        ValueTypeInfo = property.PropertyType.GetTypeInfo(),
+                        RosDataType = (IRosDataType)Activator.CreateInstance(propertyAttribute.RosDataType)
                     });
                 }
 

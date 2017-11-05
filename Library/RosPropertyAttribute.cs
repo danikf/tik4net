@@ -1,4 +1,5 @@
-﻿using System;
+﻿using InvertedTomato.TikLink.RosDataTypes;
+using System;
 
 namespace InvertedTomato.TikLink {
     /// <summary>
@@ -9,12 +10,12 @@ namespace InvertedTomato.TikLink {
         /// <summary>
         /// Property name, according to RouterOS
         /// </summary>
-        public string Name { get; private set; }
+        public string RosName { get; private set; }
 
         /// <summary>
         /// Data type, according to RouterOS
         /// </summary>
-        public RosDataType RosData { get; set; }
+        public Type RosDataType { get; set; }
 
         /// <summary>
         /// If the property is read-only - this will cause the property to ignore during PUT operations
@@ -26,8 +27,7 @@ namespace InvertedTomato.TikLink {
         /// <summary>
         /// Gets a value indicating whether this property is mandatory - should be present in loading resultset.
         /// </summary>
-        [Obsolete("TODO: Is this needed? Adds any value?")]
-        public bool IsRequired { get; set; } // TODO: Is this needed? Won't ROS police this by itself?
+        public bool IsRequired { get; set; }
 
         /// <summary>
         /// Property default value (if is different from type default).
@@ -45,15 +45,15 @@ namespace InvertedTomato.TikLink {
         /// Initializes a new instance of the <see cref="RosPropertyAttribute"/> class.
         /// </summary>
         /// <param name="name">Name of the property (on mikrotik).</param>
-        public RosPropertyAttribute(string name, RosDataType dataType = RosDataType.String, bool isReadOnly = false) {
+        public RosPropertyAttribute(string name, Type rosDataType = null, bool isReadOnly = false) {
             if (null == name) {
                 throw new ArgumentNullException(nameof(name));
             }
 
             // TODO: make dataType required
 
-            Name = name;
-            RosData = dataType;
+            RosName = name;
+            RosDataType = rosDataType;
             IsReadOnly = isReadOnly;
         }
     }

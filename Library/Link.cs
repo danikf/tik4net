@@ -11,8 +11,6 @@ using System.Linq;
 using InvertedTomato.TikLink.RosDataTypes;
 
 namespace InvertedTomato.TikLink {
-
-    // TODO: mandatory properties
     public class Link : IDisposable {
         /// <summary>
         /// Connect without SSL on the default port.
@@ -107,6 +105,7 @@ namespace InvertedTomato.TikLink {
 
         public readonly LinkInterface Interfaces;
         public readonly LinkIp Ip;
+        public readonly LinkFirewall Firewall;
 
         private readonly Thread ReadThread;
         private readonly Stream UnderlyingStream;
@@ -152,6 +151,7 @@ namespace InvertedTomato.TikLink {
             // Setup vanity interface
             Interfaces = new LinkInterface(this);
             Ip = new LinkIp(this);
+            Firewall = new LinkFirewall(this);
         }
 
         private void ReadThread_Spin(object obj) {

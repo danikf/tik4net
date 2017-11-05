@@ -6,26 +6,19 @@ namespace InvertedTomato.TikLink.RosDataTypes {
     /// Support for converting MikroTik time strings into TimeSpans.
     /// Credits: D-Bullock 
     /// </summary>
-    public static class DurationEncoding {
+    public class RosDuration : IRosDataType {
         private static readonly Regex Pattern = new Regex(@"((\d+)w)?((\d+)d)?((\d+)h)?((\d+)m)?((\d+)s)?((\d+)ms)?", RegexOptions.Compiled);
-        
-        /// <summary>
-        /// Encode nullable TimeSpan into a MikroTik time string.
-        /// </summary>
-        public static string EncodeNullable(double? value) {
-            // Handle nulls
-            if (null == value) {
-                return string.Empty;
-            }
-
-            return Encode(value.Value);
-        }
 
         /// <summary>
         /// Encode TimeSpan into a MikroTik time string.
         /// </summary>
-        public static string Encode(double value) {
-            var v = TimeSpan.FromSeconds(value);
+        public string Encode(object localvalue, Type localtype) {
+            // Handle nulls
+            if (null == localvalue) {
+                return null;
+            }
+
+            var v = TimeSpan.FromSeconds((double)localvalue);
             var weeks = (long)v.TotalDays / 7;
             v -= TimeSpan.FromDays(weeks * 7);
             return
@@ -37,23 +30,20 @@ namespace InvertedTomato.TikLink.RosDataTypes {
         }
 
         /// <summary>
-        /// Decode MikroTik time string into a nullable TimeSpan.
+        /// Decode MikroTik time string into a TimeSpan.
         /// </summary>
-        public static double? DecodeNullable(string value) {
+        public object Decode(string rosvalue, Type localtype) {
+            if (null == rosvalue) {
+                throw new ArgumentNullException(nameof(rosvalue));
+            }
+
             // Handle blank/null
-            if (value == string.Empty || value == "none") {
+            if (rosvalue == string.Empty || rosvalue == "none") {
                 return null;
             }
 
-            return Decode(value);
-        }
-        
-        /// <summary>
-        /// Decode MikroTik time string into a TimeSpan.
-        /// </summary>
-        public static double Decode(string value) {
             // Parse
-            var match = Pattern.Match(value);
+            var match = Pattern.Match(rosvalue);
             if (!match.Success) {
                 throw new FormatException();
             }
@@ -72,9 +62,9 @@ namespace InvertedTomato.TikLink.RosDataTypes {
                     } else if (match.Groups[i].Value.EndsWith("m")) {
                         ms += v * 60;
                     } else if (match.Groups[i].Value.EndsWith("s")) {
-                        ms += v ;
+                        ms += v;
                     } else if (match.Groups[i].Value.EndsWith("ms")) {
-                        ms += v/1000;
+                        ms += v / 1000;
                     }
                 }
             }
