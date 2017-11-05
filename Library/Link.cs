@@ -330,7 +330,7 @@ namespace InvertedTomato.TikLink {
             var result = Call(sentence).Wait();
             if (result.IsError) {
                 result.TryGetTrapAttribute("message", out var message);
-                throw new QueryException(message);
+                throw new CallException(message);
             }
 
             // Convert record sentences records
@@ -379,7 +379,8 @@ namespace InvertedTomato.TikLink {
             // Make call
             var result = Call(sentence).Wait();
             if (result.IsError) {
-                throw new QueryException();
+                result.TryGetTrapAttribute("message", out var message);
+                throw new CallException(message);
             }
         }
 
