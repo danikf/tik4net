@@ -420,8 +420,31 @@ namespace InvertedTomato.TikLink {
             }
         }
 
-        public IList<T> Move<T>(string id, string afterId) where T : IHasId, new() {
-            throw new NotImplementedException();
+        /// <summary>
+        /// Move a set of records before another record.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="beforeId">ID of record to move before. Set as NULL to make the item last.</param>
+        /// <param name="ids">One or more IDs to move.</param>
+        public void Move<T>(string beforeId, params string[] ids) where T : IHasId, new() {
+            if (ids.Length == 0) {
+                throw new ArgumentException("Must be at least one id provided.", nameof(ids));
+            }
+
+            // Build sentence
+            var sentence = new Sentence();
+            sentence.Command = RecordReflection.GetPath<T>() + "/move";
+            sentence.Attributes["numbers"] = string.Join(",", ids);
+            if (null != beforeId) {
+                sentence.Attributes["destination"] = beforeId;
+            };
+
+            // Make call
+            var result = Call(sentence).Wait();
+            if (result.IsError) {
+                result.TryGetTrapAttribute("message", out var message);
+                throw new CallException(message);
+            }
         }
 
 
