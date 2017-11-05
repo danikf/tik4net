@@ -368,7 +368,7 @@ namespace InvertedTomato.TikLink {
             }
 
             // Get attributes
-            var attributes = RecordReflection.GetWritableRosProperties(record);
+            var attributes = RecordReflection.GetRosProperties(record);
 
             // If filtering properties, remove attributes not wanted
             if (null != properties) {

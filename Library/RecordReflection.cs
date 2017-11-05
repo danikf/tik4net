@@ -51,9 +51,9 @@ namespace InvertedTomato.TikLink {
         }
 
         /// <summary>
-        /// Get all RouterOS Properties as a dictionary, excluding read-only.
+        /// Get all RouterOS Properties as a dictionary, excluding read-only and null.
         /// </summary>
-        public static Dictionary<string, string> GetWritableRosProperties<T>(T record) {
+        public static Dictionary<string, string> GetRosProperties<T>(T record) {
             if (null == record) {
                 throw new ArgumentNullException(nameof(record));
             }
@@ -72,6 +72,11 @@ namespace InvertedTomato.TikLink {
                 var localvalue = property.PropertyInfo.GetValue(record);
 
                 string mtvalue = property.RosDataType.Encode(localvalue, property.ValueType);
+
+                // Skip null properties
+                if (null == mtvalue) {
+                    continue;
+                }
                 
                 output[property.Attribute.RosName] = mtvalue;
             }

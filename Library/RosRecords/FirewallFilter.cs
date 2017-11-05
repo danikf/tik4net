@@ -50,7 +50,7 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// </summary>
         /// <seealso cref="ChainType"/>
         [RosProperty("chain", typeof(RosString))]
-        public string/*name*/ Chain { get; set; }
+        public string/*name*/ Chain { get; set; } = "forward"; // This is not an enum, as custom chains can be created
 
         /// <summary>
         /// connection-bytes: Matches packets only if a given amount of bytes has been transfered through the particular connection. 0 - means infinity, for example connection-bytes=2000000-0 means that the rule matches if more than 2MB has been transfered through the relevant connection 
@@ -508,26 +508,6 @@ namespace InvertedTomato.TikLink.RosRecords {
             /// </summary>
             [RosEnum("related")]
             Related,
-        }
-
-        /// <summary>
-        /// Firewall chain type - <see cref="FirewallFilter.Chain"/>
-        /// </summary>
-        public static class ChainType {
-            /// <summary>
-            /// input - used to process packets entering the router through one of the interfaces with the destination IP address which is one of the router's addresses. Packets passing through the router are not processed against the rules of the input chain
-            /// </summary>
-            public const string Input = "input";
-
-            /// <summary>
-            /// forward - used to process packets passing through the router
-            /// </summary>
-            public const string Forward = "forward";
-
-            /// <summary>
-            ///  output - used to process packets originated from the router and leaving it through one of the interfaces.Packets passing through the router are not processed against the rules of the output chain
-            /// </summary>
-            public const string Output = "output";
         }
     }
 }

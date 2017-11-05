@@ -48,8 +48,8 @@ namespace Tests {
                 // Create record
                 var obj1 = new FirewallFilter() {
                     Action = FirewallFilter.ActionType.Passthrough,
-                    SrcAddress = "1.1.1.1/24",
-                    DstAddress = "1.1.1.1/24",
+                    SrcAddress = "1.1.1.1",
+                    DstAddress = "1.1.1.1",
                     Comment = "<test>"
                 };
                 link.Firewall.Filter.Put(obj1);
