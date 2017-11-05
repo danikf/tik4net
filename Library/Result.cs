@@ -21,7 +21,7 @@ namespace InvertedTomato.TikLink {
         public ConcurrentBag<Sentence> Sentences { get; set; } = new ConcurrentBag<Sentence>();
 
 
-        internal AutoResetEvent Block = new AutoResetEvent(false);
+        internal ManualResetEvent Block = new ManualResetEvent(false);
 
         /// <summary>
         /// Wait until the result is no longer pending.
