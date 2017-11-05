@@ -8,7 +8,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Linq;
-using InvertedTomato.TikLink.MTEncodings;
+using InvertedTomato.TikLink.RosDataTypes;
 
 namespace InvertedTomato.TikLink {
 
@@ -338,7 +338,7 @@ namespace InvertedTomato.TikLink {
             foreach (var s in result.Sentences) {
                 if (s.Command == "re") {
                     var record = new T();
-                    RecordReflection.SetProperties(record, s.Attributes);
+                    RecordReflection.SetRosProperties(record, s.Attributes);
                     output.Add(record);
                 }
             }
@@ -364,18 +364,31 @@ namespace InvertedTomato.TikLink {
                 throw new ArgumentNullException(nameof(record));
             }
 
-            // Build sentence
-            var sentence = new Sentence();
-            sentence.Command = RecordReflection.GetPath<T>() + (record.Id == null ? "/add" : "/set");
-            var attributes = RecordReflection.GetProperties(record);
-            if (null == properties) {
-                sentence.Attributes = attributes;
-            } else {
-                foreach (var includeProperty in properties) {
-                    sentence.Attributes[includeProperty] = RecordReflection.ResolveProperty<T>(attributes[includeProperty]);
+            // Get attributes
+            var attributes = RecordReflection.GetWritableRosProperties(record);
+
+            // If filtering properties, remove attributes not wanted
+            if (null != properties) {
+                var remove = attributes.Keys.Where(a => !properties.Contains(RecordReflection.ResolveProperty<T>(a))).ToList();
+                foreach (var k in remove) {
+                    attributes.Remove(k);
                 }
             }
 
+            // Prepare sentence
+            var sentence = new Sentence();
+            sentence.Attributes = attributes;
+            if (null == record.Id) { // If CREATE ("add")
+                // Set command
+                sentence.Command = RecordReflection.GetPath<T>() + "/add";
+
+                // Remove (blank) id
+                sentence.Attributes.Remove(".id");
+            } else { // If UPDATE ("set")
+                // Set command
+                sentence.Command = RecordReflection.GetPath<T>() + "/set";
+            }
+            
             // Make call
             var result = Call(sentence).Wait();
             if (result.IsError) {

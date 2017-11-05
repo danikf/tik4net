@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using Xunit;
 using System.Linq;
-using InvertedTomato.TikLink.Records;
+using InvertedTomato.TikLink.RosRecords;
 
 namespace Tests {
     public class GetTests {

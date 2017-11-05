@@ -1,5 +1,5 @@
 ﻿using InvertedTomato.TikLink;
-using InvertedTomato.TikLink.Records;
+using InvertedTomato.TikLink.RosRecords;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -11,8 +11,10 @@ namespace Tests {
         public void Put_Basic() {
             using (var link = Link.Connect(Credentials.Current.Host, Credentials.Current.Username, Credentials.Current.Password)) {
                 link.Ip.Arp.Put(new IpArp() {
-                    MacAddress = "00:00:00:00:01",
-                    Address = "0.0.0.1"
+                    MacAddress = "00:00:00:00:00:01",
+                    Address = "0.0.0.1",
+                    Interface = "eth01",
+                    Comment = "<test>"
                 });
             }
         }
