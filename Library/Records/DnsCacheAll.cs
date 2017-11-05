@@ -12,7 +12,7 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
-        [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+        [TikProperty(".id", IsReadOnly = true, IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
@@ -26,7 +26,7 @@ namespace InvertedTomato.TikLink.Records {
         /// name
         /// DNS name of the host
         /// </summary>
-        [TikProperty("name", IsMandatory = true, IsReadOnly = true)]
+        [TikProperty("name", IsRequired = true, IsReadOnly = true)]
         public string/*read-only: name*/ Name { get; private set; }
 
         /// <summary>

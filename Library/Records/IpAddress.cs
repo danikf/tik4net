@@ -12,7 +12,7 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// Row .id property.
         /// </summary>
-        [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+        [TikProperty(".id", IsReadOnly = true, IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
@@ -24,13 +24,13 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// address: IP address
         /// </summary>
-        [TikProperty("address", IsMandatory = true)]
+        [TikProperty("address", IsRequired = true)]
         public string Address { get; set; }
 
         /// <summary>
         /// interface: Interface name the IP address is assigned to
         /// </summary>
-        [TikProperty("interface", IsMandatory = true)]
+        [TikProperty("interface", IsRequired = true)]
         public string Interface { get; set; }
 
         /// <summary>

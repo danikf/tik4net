@@ -8,17 +8,8 @@ namespace InvertedTomato.TikLink.Records {
     /// Ping uses Internet Control Message Protocol (ICMP) Echo messages to determine if a remote host is active or inactive and to determine the round-trip delay when communicating with it. Ping tool sends ICMP (type 8) message to the host and waits for the ICMP echo-reply (type 0). The interval between these events is called round trip. If the response (that is called pong) has not come until the end of the interval, we assume it has timed out. The second significant parameter reported is ttl (Time to Live). Is is decremented at each machine in which the packet is processed. The packet will reach its destination only when the ttl is greater than the number of routers between the source and the destination.
     /// Author: seho85
     /// </summary>
-    [TikRecord("/ping", IsReadOnly = true, IncludeProplist = false)]
+    [TikRecord("/ping", IsReadOnly = true)]
     public class ToolPing {
-        //    [TikProperty("address", IsReadOnly = true)]
-        //    public string Address { get; set; }
-
-        //    [TikProperty("count", IsReadOnly = true)]
-        //    public string Count { get; set; }
-
-        //    [TikProperty("size", IsReadOnly = true)]
-        //    public string Size { get; set; }
-
         /// <summary>
         /// Sequence number
         /// </summary>

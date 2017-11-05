@@ -39,7 +39,7 @@ namespace InvertedTomato.TikLink {
 
             // Set all properties
             foreach (var property in meta.Properties) {
-                if (attributes.TryGetValue(property.Attribute.FieldName, out var value)) {
+                if (attributes.TryGetValue(property.Attribute.Name, out var value)) {
                     object v;
                     if (property.ValueType == typeof(string)) {
                         v = value;
@@ -86,7 +86,7 @@ namespace InvertedTomato.TikLink {
                 var propertyType = properties.GetType();
 
 
-                output[properties.Attribute.FieldName] = (string)value;  // TODO: Naieve!!!
+                output[properties.Attribute.Name] = (string)value;  // TODO: Naieve!!!
             }
             return output;
         }
@@ -106,7 +106,7 @@ namespace InvertedTomato.TikLink {
             }
 
             // Return field
-            return property.Attribute.FieldName;
+            return property.Attribute.Name;
         }
 
         private static RecordMeta GetGenerateMeta<T>() {

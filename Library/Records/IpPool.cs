@@ -12,20 +12,20 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// Row .id property.
         /// </summary>
-        [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+        [TikProperty(".id", IsReadOnly = true, IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
         /// Row name property.
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
+        [TikProperty("name", IsRequired = true)]
         public string Name { get; set; }
 
         /// <summary>
         /// Row ranges property.
         /// comma seperated list of DNS server IP addresses
         /// </summary>
-        [TikProperty("ranges", IsMandatory = true)]
+        [TikProperty("ranges", IsRequired = true)]
         public string/*IPv4/IPv6 range list*/ Ranges { get; set; }
 
         /// <summary>

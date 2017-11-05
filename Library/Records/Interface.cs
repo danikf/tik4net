@@ -9,13 +9,13 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// .id
         /// </summary>
-        [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+        [TikProperty(".id", IsReadOnly = true, IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
         /// name
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
+        [TikProperty("name", IsRequired = true)]
         public string Name { get; set; }
 
         /// <summary>

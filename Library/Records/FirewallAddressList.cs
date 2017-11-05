@@ -12,13 +12,13 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// .id
         /// </summary>
-        [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+        [TikProperty(".id", IsReadOnly = true, IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
         /// address
         /// </summary>
-        [TikProperty("address", IsMandatory = true)]
+        [TikProperty("address", IsRequired = true)]
         public string Address { get; set; }
 
         /// <summary>
@@ -48,7 +48,7 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// list
         /// </summary>
-        [TikProperty("list", IsMandatory = true)]
+        [TikProperty("list", IsRequired = true)]
         public string List { get; set; }
     }
 }

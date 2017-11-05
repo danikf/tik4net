@@ -12,7 +12,7 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
-        [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+        [TikProperty(".id", IsReadOnly = true, IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
@@ -54,13 +54,13 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// mode
         /// </summary>
-        [TikProperty("mode", IsMandatory = true)]
+        [TikProperty("mode", IsRequired = true)]
         public SecurityMode /* none, static-keys-optional, static-keys-required, dynamic-keys*/Mode { get; set; }
 
         /// <summary>
         /// name
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
+        [TikProperty("name", IsRequired = true)]
         public string Name { get; set; }
 
         /// <summary>

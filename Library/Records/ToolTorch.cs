@@ -5,9 +5,9 @@ using System.Text;
 
 namespace InvertedTomato.TikLink.Records {
     /// <summary>
-    /// /tool/torch (R/O). Should be loaded via async API.
+    /// /tool/torch. Should be loaded via async API.
     /// </summary>
-    [TikRecord("/tool/torch", IsReadOnly = true, IncludeProplist = false)]
+    [TikRecord("/tool/torch", IsReadOnly = true)]
     public class ToolTorch {
         /// <summary>
         /// src-address

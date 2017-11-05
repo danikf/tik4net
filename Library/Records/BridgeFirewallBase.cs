@@ -11,7 +11,7 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
-        [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+        [TikProperty(".id", IsReadOnly = true, IsRequired = true)]
         public string Id { get; protected set; }
 
         /// <summary>

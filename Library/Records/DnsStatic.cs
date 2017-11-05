@@ -20,7 +20,7 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
-        [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+        [TikProperty(".id", IsReadOnly = true, IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
@@ -34,7 +34,7 @@ namespace InvertedTomato.TikLink.Records {
         /// name
         /// DNS name to be resolved to a given IP address. May be a regular expression
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
+        [TikProperty("name", IsRequired = true)]
         public string/*text*/ Name { get; set; }
 
         /// <summary>

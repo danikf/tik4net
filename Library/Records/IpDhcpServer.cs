@@ -113,7 +113,7 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
-        [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+        [TikProperty(".id", IsReadOnly = true, IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
@@ -188,7 +188,7 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// name: Reference name
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
+        [TikProperty("name", IsRequired = true)]
         public string Name { get; set; }
 
         /// <summary>

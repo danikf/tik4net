@@ -9,7 +9,7 @@
         /// <summary>
         /// .id: primary key of row
         /// </summary>
-        [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+        [TikProperty(".id", IsReadOnly = true, IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
@@ -63,7 +63,7 @@
         /// <summary>
         /// name: HotSpot login page username, when MAC-address authentication is used name is configured as client's MAC-address
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
+        [TikProperty("name", IsRequired = true)]
         public string Name { get; set; }
 
         /// <summary>
