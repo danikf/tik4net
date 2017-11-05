@@ -11,6 +11,8 @@ namespace InvertedTomato.TikLink {
         /// </summary>
         public string Name { get; private set; }
 
+        public DataType DataType { get; set; }
+
         /// <summary>
         /// Gets a value indicating whether this property is mandatory - should be present in loading resultset.
         /// </summary>
@@ -35,12 +37,13 @@ namespace InvertedTomato.TikLink {
         /// Initializes a new instance of the <see cref="TikPropertyAttribute"/> class.
         /// </summary>
         /// <param name="name">Name of the property (on mikrotik).</param>
-        public TikPropertyAttribute(string name) {
+        public TikPropertyAttribute(string name, DataType dataType = DataType.String) {
             if (null == name) {
                 throw new ArgumentNullException(nameof(name));
             }
 
             Name = name;
+            DataType = dataType;
         }
     }
 }

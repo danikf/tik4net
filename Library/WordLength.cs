@@ -1,8 +1,8 @@
 ﻿using System;
 using System.IO;
 
-namespace InvertedTomato.TikLink.Encodings {
-    public static class LengthEncoding {
+namespace InvertedTomato.TikLink {
+    public static class WordLength {
         public static void WriteLength(int length, Stream stream) { // TODO: rewrite more efficently
             if (length < 0) {
                 throw new ArgumentOutOfRangeException(nameof(length), "Must be at least 0.");

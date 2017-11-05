@@ -8,7 +8,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Linq;
-using InvertedTomato.TikLink.Encodings;
+using InvertedTomato.TikLink.MTEncodings;
 
 namespace InvertedTomato.TikLink {
 
@@ -140,7 +140,7 @@ namespace InvertedTomato.TikLink {
             var challenge = r1.GetDoneAttribute("ret");
 
             // Compute response
-            var hash = PasswordEncoding.Hash(password, challenge);
+            var hash = Password.Hash(password, challenge);
 
             // Attempt login
             var r2 = Call("/login", new Dictionary<string, string>() { { "name", username }, { "response", hash } }).Wait();
@@ -419,7 +419,7 @@ namespace InvertedTomato.TikLink {
 
         private string ReadWord() {
             // Get length
-            var length = LengthEncoding.ReadLength(UnderlyingStream);
+            var length = WordLength.ReadLength(UnderlyingStream);
             if (length == 0) {
                 return string.Empty; // End of sentence
             }
@@ -444,7 +444,7 @@ namespace InvertedTomato.TikLink {
             var payload = Encoding.ASCII.GetBytes(word);
 
             // Write word
-            LengthEncoding.WriteLength(payload.Length, UnderlyingStream);
+            WordLength.WriteLength(payload.Length, UnderlyingStream);
             UnderlyingStream.Write(payload, 0, payload.Length);
         }
     }

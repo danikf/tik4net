@@ -1,118 +1,119 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace InvertedTomato.TikLink.Records {
+﻿namespace InvertedTomato.TikLink.Records {
+    /// <summary>
+    /// Network interface
+    /// </summary>
     [TikRecord("/interface", IncludeDetails = true)]
     public class Interface : IHasId {
         /// <summary>
-        /// .id
+        /// Unique identifier
         /// </summary>
-        [TikProperty(".id", IsReadOnly = true, IsRequired = true)]
+        [TikProperty(".id", DataType.Id, IsReadOnly = true, IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
-        /// name
+        /// Name
         /// </summary>
-        [TikProperty("name", IsRequired = true)]
+        [TikProperty("name", DataType.String, IsRequired = true)]
         public string Name { get; set; }
 
         /// <summary>
-        /// default-name
+        /// Underlying technology type
         /// </summary>
-        [TikProperty("default-name")]
-        public string DefaultName { get; set; }
+        [TikProperty("type", DataType.String)]
+        public string Type { get; set; } // TODO: convert to enum
 
         /// <summary>
-        /// type
+        /// Maximum transmission unit
         /// </summary>
-        [TikProperty("type")]
-        public string Type { get; set; }
-
-        /// <summary>
-        /// mtu
-        /// </summary>
-        [TikProperty("mtu")]
+        [TikProperty("mtu", DataType.String)]
         public string Mtu { get; set; }
 
         /// <summary>
-        /// mac-address
+        /// L2 MAC addrewss
         /// </summary>
-        [TikProperty("mac-address")]
+        [TikProperty("mac-address", DataType.MacAddress)]
         public string MacAddress { get; set; }
 
         /// <summary>
-        /// fast-path
+        /// If fast-path is enabled
         /// </summary>
-        [TikProperty("fast-path")]
+        [TikProperty("fast-path", DataType.Boolean)]
         public bool FastPath { get; set; }
-
+        
         /// <summary>
-        /// rx-byte
+        /// If the interface is disabled (shutdown)
         /// </summary>
-        [TikProperty("rx-byte", IsReadOnly = true)]
-        public long RxByte { get; private set; }
-
-        /// <summary>
-        /// tx-byte
-        /// </summary>
-        [TikProperty("tx-byte", IsReadOnly = true)]
-        public long TxByte { get; private set; }
-
-        /// <summary>
-        /// rx-packet
-        /// </summary>
-        [TikProperty("rx-packet", IsReadOnly = true)]
-        public long RxPacket { get; private set; }
-
-        /// <summary>
-        /// tx-packet
-        /// </summary>
-        [TikProperty("tx-packet", IsReadOnly = true)]
-        public long TxPacket { get; private set; }
-
-        /// <summary>
-        /// rx-drop
-        /// </summary>
-        [TikProperty("rx-drop", IsReadOnly = true)]
-        public long RxDrop { get; private set; }
-
-        /// <summary>
-        /// tx-drop
-        /// </summary>
-        [TikProperty("tx-drop", IsReadOnly = true)]
-        public long TxDrop { get; private set; }
-
-        /// <summary>
-        /// rx-error
-        /// </summary>
-        [TikProperty("rx-error", IsReadOnly = true)]
-        public long RxError { get; private set; }
-
-        /// <summary>
-        /// tx-error
-        /// </summary>
-        [TikProperty("tx-error", IsReadOnly = true)]
-        public long TxError { get; private set; }
-
-        /// <summary>
-        /// running
-        /// </summary>
-        [TikProperty("running", IsReadOnly = true)]
-        public bool Running { get; private set; }
-
-        /// <summary>
-        /// disabled
-        /// </summary>
-        [TikProperty("disabled")]
+        [TikProperty("disabled", DataType.Boolean)]
         public bool Disabled { get; set; }
 
         /// <summary>
-        /// comment
+        /// Comment
         /// </summary>
-        [TikProperty("comment")]
+        [TikProperty("comment", DataType.String)]
         public string Comment { get; set; }
+
+
+
+        /// <summary>
+        /// Initial name from factory before renamed by user
+        /// </summary>
+        [TikProperty("default-name", DataType.String, IsReadOnly = true)]
+        public string DefaultName { get; set; }
+
+        /// <summary>
+        /// Total received bytes
+        /// </summary>
+        [TikProperty("rx-byte", DataType.Integer, IsReadOnly = true)]
+        public long RxByte { get; private set; }
+
+        /// <summary>
+        /// Total transmit bytes
+        /// </summary>
+        [TikProperty("tx-byte", DataType.Integer, IsReadOnly = true)]
+        public long TxByte { get; private set; }
+
+        /// <summary>
+        /// Total received packets
+        /// </summary>
+        [TikProperty("rx-packet", DataType.Integer, IsReadOnly = true)]
+        public long RxPacket { get; private set; }
+
+        /// <summary>
+        /// Total transmitted packets
+        /// </summary>
+        [TikProperty("tx-packet", DataType.Integer, IsReadOnly = true)]
+        public long TxPacket { get; private set; }
+
+        /// <summary>
+        /// Total received packets that have been dropped
+        /// </summary>
+        [TikProperty("rx-drop", DataType.Integer, IsReadOnly = true)]
+        public long RxDrop { get; private set; }
+
+        /// <summary>
+        /// Total transmitted packets that have been dropped
+        /// </summary>
+        [TikProperty("tx-drop", DataType.Integer, IsReadOnly = true)]
+        public long TxDrop { get; private set; }
+
+        /// <summary>
+        /// Total receive errors
+        /// </summary>
+        [TikProperty("rx-error", DataType.Integer, IsReadOnly = true)]
+        public long RxError { get; private set; }
+
+        /// <summary>
+        /// Total transmission errors
+        /// </summary>
+        [TikProperty("tx-error", DataType.Integer, IsReadOnly = true)]
+        public long TxError { get; private set; }
+
+        /// <summary>
+        /// If the interface is running (active)
+        /// </summary>
+        [TikProperty("running", DataType.Boolean, IsReadOnly = true)]
+        public bool Running { get; private set; }
+
 
         public override string ToString() {
             return $"id={Id},name={Name},comment={Comment}";

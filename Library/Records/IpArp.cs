@@ -10,45 +10,46 @@ namespace InvertedTomato.TikLink.Records {
     [TikRecord("/ip/arp")]
     public class IpArp : IHasId {
         /// <summary>
-        /// .id: primary key of row
+        /// Unique identifier
         /// </summary>
-        [TikProperty(".id", IsReadOnly = true, IsRequired = true)]
+        [TikProperty(".id", DataType.Id, IsReadOnly = true, IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
-        /// address: IP address to be mapped
+        /// IP Address
         /// </summary>
-        [TikProperty("address")]
+        [TikProperty("address", DataType.String)]
         public string Address { get; set; }
 
         /// <summary>
-        /// interface: Interface name the IP address is assigned to
+        /// Interface name the IP address is assigned to
         /// </summary>
-        [TikProperty("interface")]
+        [TikProperty("interface", DataType.String)]
         public string Interface { get; set; }
 
         /// <summary>
-        /// mac-address: MAC address to be mapped to
+        /// MAC address to be mapped to
         /// </summary>
-        [TikProperty("mac-address", DefaultValue = "00:00:00:00:00:00")]
+        [TikProperty("mac-address", DataType.MacAddress, DefaultValue = "00:00:00:00:00:00")]
         public string MacAddress { get; set; }
 
+
         /// <summary>
-        /// dhcp: Whether ARP entry is added by DHCP server
+        /// Whether ARP entry is added by DHCP server
         /// </summary>
-        [TikProperty("dhcp", IsReadOnly = true)]
+        [TikProperty("dhcp", DataType.Boolean, IsReadOnly = true)]
         public bool Dhcp { get; private set; }
 
         /// <summary>
-        /// dynamic: Whether entry is dynamically created
+        /// Whether entry is dynamically created
         /// </summary>
-        [TikProperty("dynamic", IsReadOnly = true)]
+        [TikProperty("dynamic", DataType.Boolean, IsReadOnly = true)]
         public bool Dynamic { get; private set; }
 
         /// <summary>
-        /// invalid: Whether entry is not valid
+        /// Whether entry is not valid
         /// </summary>
-        [TikProperty("invalid", IsReadOnly = true)]
+        [TikProperty("invalid", DataType.Boolean, IsReadOnly = true)]
         public bool Invalid { get; private set; }
     }
 

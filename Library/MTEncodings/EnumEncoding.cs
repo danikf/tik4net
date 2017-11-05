@@ -2,8 +2,24 @@
 using System.Collections.Generic;
 using System.Reflection;
 
-namespace InvertedTomato.TikLink.Encodings {
+namespace InvertedTomato.TikLink.MTEncodings {
     public static class EnumEncoding {
+        public static string EncodeNullable(Enum value) {
+            if (null == value) {
+                return string.Empty;
+            }
+
+            return Encode(value);
+        }
+
+        public static string Encode(Enum value) {
+            if (null == value) {
+                throw new ArgumentNullException(nameof(value));
+            }
+
+            return value.ToString();
+        }
+
         public static object DecodeNullable(string value, Type type) {
             if (!type.GetTypeInfo().IsEnum) {
                 throw new InvalidOperationException();

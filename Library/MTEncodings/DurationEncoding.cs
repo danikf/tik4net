@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Text.RegularExpressions;
 
-namespace InvertedTomato.TikLink.Encodings {
+namespace InvertedTomato.TikLink.MTEncodings {
     /// <summary>
     /// Support for converting MikroTik time strings into TimeSpans.
     /// Credits: D-Bullock 
     /// </summary>
-    public static class TimeEncoding {
+    public static class DurationEncoding {
         private static readonly Regex Pattern = new Regex(@"((\d+)w)?((\d+)d)?((\d+)h)?((\d+)m)?((\d+)s)?((\d+)ms)?", RegexOptions.Compiled);
         
         /// <summary>

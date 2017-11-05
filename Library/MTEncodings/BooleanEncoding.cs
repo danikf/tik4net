@@ -2,8 +2,8 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace InvertedTomato.TikLink.Encodings {
-    public static class BoolEncoding {
+namespace InvertedTomato.TikLink.MTEncodings {
+    public static class BooleanEncoding {
         public static string EncodeNullable(bool? value) {
             if (null == value) {
                 return string.Empty;

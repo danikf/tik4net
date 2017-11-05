@@ -1,8 +1,8 @@
 ﻿using System;
 
-namespace InvertedTomato.TikLink.Encodings {
-    public static class DoubleEncoding {
-        public static string EncodeNullable(double? value) {
+namespace InvertedTomato.TikLink.MTEncodings {
+    public static class IntegerEncoding {
+        public static string EncodeNullable(long? value) {
             if (null == value) {
                 return string.Empty;
             }
@@ -10,11 +10,11 @@ namespace InvertedTomato.TikLink.Encodings {
             return Encode(value.Value);
         }
 
-        public static string Encode(double value) {
+        public static string Encode(long value) {
             return value.ToString();
         }
 
-        public static double? DecodeNullable(string value) {
+        public static long? DecodeNullable(string value) {
             if (null == value) {
                 throw new ArgumentNullException(nameof(value));
             }
@@ -26,12 +26,12 @@ namespace InvertedTomato.TikLink.Encodings {
             return Decode(value);
         }
 
-        public static double Decode(string value) {
+        public static long Decode(string value) {
             if (null == value) {
                 throw new ArgumentNullException(nameof(value));
             }
 
-            return double.Parse(value);
+            return long.Parse(value);
         }
     }
 }

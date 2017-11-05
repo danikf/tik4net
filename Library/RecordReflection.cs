@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Linq;
-using InvertedTomato.TikLink.Encodings;
+using InvertedTomato.TikLink.MTEncodings;
 
 namespace InvertedTomato.TikLink {
     public static class RecordReflection {
@@ -39,33 +39,65 @@ namespace InvertedTomato.TikLink {
 
             // Set all properties
             foreach (var property in meta.Properties) {
-                if (attributes.TryGetValue(property.Attribute.Name, out var value)) {
-                    object v;
-                    if (property.ValueType == typeof(string)) {
-                        v = value;
-                    } else if (property.ValueType == typeof(double)) {
-                        v = DoubleEncoding.Decode(value);
-                    } else if (property.ValueType == typeof(double?)) {
-                        v = DoubleEncoding.DecodeNullable(value);
-                    } else if (property.ValueType == typeof(long)) {
-                        v = LongEncoding.Decode(value);
-                    } else if (property.ValueType == typeof(long?)) {
-                        v = LongEncoding.DecodeNullable(value);
-                    } else if (property.ValueType == typeof(bool)) {
-                        v = BoolEncoding.Decode(value);
-                    } else if (property.ValueType == typeof(bool?)) {
-                        v = BoolEncoding.DecodeNullable(value);
-                    } else if (property.ValueTypeInfo.IsEnum) {
-                        if (Nullable.GetUnderlyingType(property.ValueType) == null) {
-                            v = EnumEncoding.Decode(value, property.ValueType);
-                        } else {
-                            v = EnumEncoding.DecodeNullable(value, property.ValueType);
-                        }
-                    } else {
-                        throw new NotSupportedException();
+                if (attributes.TryGetValue(property.Attribute.Name, out var mtvalue)) {
+                    object localvalue;
+                    switch (property.Attribute.DataType) {
+                        case DataType.String:
+                            localvalue = mtvalue;
+                            break;
+                        case DataType.Integer:
+                            if (property.Attribute.IsRequired) {
+                                localvalue = IntegerEncoding.Decode(mtvalue);
+                            } else {
+                                localvalue = IntegerEncoding.DecodeNullable(mtvalue);
+                            }
+                            break;
+                        case DataType.Decimal:
+                            if (property.Attribute.IsRequired) {
+                                localvalue = DecimalEncoding.Decode(mtvalue);
+                            } else {
+                                localvalue = DecimalEncoding.DecodeNullable(mtvalue);
+                            }
+                            break;
+                        case DataType.Boolean:
+                            if (property.Attribute.IsRequired) {
+                                localvalue = BooleanEncoding.Decode(mtvalue);
+                            } else {
+                                localvalue = BooleanEncoding.DecodeNullable(mtvalue);
+                            }
+                            break;
+                        case DataType.Enum:
+                            if (property.Attribute.IsRequired) {
+                                localvalue = EnumEncoding.Decode(mtvalue, property.ValueType);
+                            } else {
+                                localvalue = EnumEncoding.DecodeNullable(mtvalue, property.ValueType);
+                            }
+                            break;
+
+                        case DataType.Id:
+                            localvalue = mtvalue;
+                            break;
+                        case DataType.Duration:
+                            if (property.Attribute.IsRequired) {
+                                localvalue = DurationEncoding.Decode(mtvalue);
+                            } else {
+                                localvalue = DurationEncoding.DecodeNullable(mtvalue);
+                            }
+                            break;
+                        case DataType.MacAddress:
+                            localvalue = mtvalue;
+                            break;
+                        case DataType.IPAddress:
+                            localvalue = mtvalue;
+                            break;
+                        case DataType.IPAddressWithMask:
+                            localvalue = mtvalue;
+                            break;
+                        default:
+                            throw new NotImplementedException();
                     }
 
-                    property.PropertyInfo.SetValue(record, v);
+                    property.PropertyInfo.SetValue(record, localvalue);
                 }
             }
         }
@@ -80,13 +112,68 @@ namespace InvertedTomato.TikLink {
 
             // Get all properties
             var output = new Dictionary<string, string>();
-            foreach (var properties in meta.Properties) {
-                var value = properties.PropertyInfo.GetValue(record);
+            foreach (var property in meta.Properties) {
+                var localvalue = property.PropertyInfo.GetValue(record);
+                string mtvalue;
 
-                var propertyType = properties.GetType();
+                switch (property.Attribute.DataType) {
+                    case DataType.String:
+                        mtvalue = (string)localvalue;
+                        break;
+                    case DataType.Integer:
+                        if (property.Attribute.IsRequired) {
+                            mtvalue = IntegerEncoding.Encode((long)localvalue);
+                        } else {
+                            mtvalue = IntegerEncoding.EncodeNullable((long?)localvalue);
+                        }
+                        break;
+                    case DataType.Decimal:
+                        if (property.Attribute.IsRequired) {
+                            mtvalue = DecimalEncoding.Encode((double)localvalue);
+                        } else {
+                            mtvalue = DecimalEncoding.EncodeNullable((double?)localvalue);
+                        }
+                        break;
+                    case DataType.Boolean:
+                        if (property.Attribute.IsRequired) {
+                            mtvalue = BooleanEncoding.Encode((bool)localvalue);
+                        } else {
+                            mtvalue = BooleanEncoding.EncodeNullable((bool?)localvalue);
+                        }
+                        break;
+                    case DataType.Enum:
+                        if (property.Attribute.IsRequired) {
+                            mtvalue = EnumEncoding.Encode((Enum)localvalue);
+                        } else {
+                            mtvalue = EnumEncoding.EncodeNullable((Enum)localvalue);
+                        }
+                        break;
+
+                    case DataType.Id:
+                        mtvalue = (string)localvalue;
+                        break;
+                    case DataType.Duration:
+                        if (property.Attribute.IsRequired) {
+                            mtvalue = DurationEncoding.Encode((double)localvalue);
+                        } else {
+                            mtvalue = DurationEncoding.EncodeNullable((double?)localvalue);
+                        }
+                        break;
+                    case DataType.MacAddress:
+                        mtvalue = (string)localvalue;
+                        break;
+                    case DataType.IPAddress:
+                        mtvalue = (string)localvalue;
+                        break;
+                    case DataType.IPAddressWithMask:
+                        mtvalue = (string)localvalue;
+                        break;
+                    default:
+                        throw new NotImplementedException();
+                }
 
 
-                output[properties.Attribute.Name] = (string)value;  // TODO: Naieve!!!
+                output[property.Attribute.Name] = (string)mtvalue;  // TODO: Naieve!!!
             }
             return output;
         }
