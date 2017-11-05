@@ -9,8 +9,8 @@ namespace InvertedTomato.TikLink {
             Link = link;
         }
 
-        public IList<Interface> List(string[] properties = null, Dictionary<string, string> query = null) {
-            return Link.List<Interface>(properties, query);
+        public IList<Interface> List(string[] properties = null, Dictionary<string, string> filter = null) {
+            return Link.List<Interface>(properties, filter);
         }
 
         public Interface Get(string id, string[] properties = null) {
