@@ -7,40 +7,45 @@ namespace InvertedTomato.TikLink {
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
     public sealed class RosPropertyAttribute : Attribute {
         /// <summary>
-        /// Gets the name of the property (on mikrotik).
+        /// Property name, according to RouterOS
         /// </summary>
         public string Name { get; private set; }
 
         /// <summary>
-        /// RouterOS data type.
+        /// Data type, according to RouterOS
         /// </summary>
         public RosDataType RosData { get; set; }
 
         /// <summary>
-        /// Gets a value indicating whether this property is mandatory - should be present in loading resultset.
-        /// </summary>
-        public bool IsRequired { get; set; }
-
-        /// <summary>
-        /// If the property is R/O (should not be updated during save modified entity).
+        /// If the property is read-only - this will cause the property to ignore during PUT operations
         /// </summary>
         public bool IsReadOnly { get; set; }
+
+
+
+        /// <summary>
+        /// Gets a value indicating whether this property is mandatory - should be present in loading resultset.
+        /// </summary>
+        [Obsolete("TODO: Is this needed? Adds any value?")]
+        public bool IsRequired { get; set; } // TODO: Is this needed? Won't ROS police this by itself?
 
         /// <summary>
         /// Property default value (if is different from type default).
         /// </summary>
-        public string DefaultValue { get; set; }
+        [Obsolete("TODO: Is this needed? Adds any value?")]
+        public string DefaultValue { get; set; } // TODO: This needed? Adds any value?
 
         /// <summary>
         /// If unset command should be called when saving modified object and marked property contains <see cref="DefaultValue"/> or null (set to default value will be used when false).
         /// </summary>
-        public bool UnsetOnDefault { get; set; }
+        [Obsolete("TODO: Is this needed? Adds any value?")]
+        public bool UnsetOnDefault { get; set; } // TODO: This needed? Adds any value?
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RosPropertyAttribute"/> class.
         /// </summary>
         /// <param name="name">Name of the property (on mikrotik).</param>
-        public RosPropertyAttribute(string name, RosDataType dataType = RosDataType.String, bool isReadOnly=false) {
+        public RosPropertyAttribute(string name, RosDataType dataType = RosDataType.String, bool isReadOnly = false) {
             if (null == name) {
                 throw new ArgumentNullException(nameof(name));
             }

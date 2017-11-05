@@ -322,7 +322,10 @@ namespace InvertedTomato.TikLink {
             }
             if (null != filter) {
                 foreach (var f in filter) {
-                    sentence.Queries.Add($"{RecordReflection.ResolveProperty<T>(f.Key)}={f.Value}");
+                    var k = RecordReflection.ResolveProperty<T>(f.Key);
+                    var v = f.Value.Substring(1);
+                    var op = f.Value.Substring(0, 1);
+                    sentence.Queries.Add($"{op}{k}={v}");
                 }
             }
 
@@ -350,7 +353,7 @@ namespace InvertedTomato.TikLink {
                 throw new ArgumentNullException(nameof(id));
             }
 
-            var scan = List<T>(properties, new Dictionary<string, string>() { { "Id", id } });
+            var scan = List<T>(properties, new Dictionary<string, string>() { { "Id", $"={id}" } });
 
             if (scan.Count == 0) {
                 throw new KeyNotFoundException();
@@ -388,7 +391,7 @@ namespace InvertedTomato.TikLink {
                 // Set command
                 sentence.Command = RecordReflection.GetPath<T>() + "/set";
             }
-            
+
             // Make call
             var result = Call(sentence).Wait();
             if (result.IsError) {
@@ -397,8 +400,24 @@ namespace InvertedTomato.TikLink {
             }
         }
 
-        public IList<T> Delete<T>(string id) where T : IHasId, new() {
-            throw new NotImplementedException();
+        public void Delete<T>(string id) where T : IHasId, new() {
+            if (null == id) {
+                throw new ArgumentNullException(nameof(id));
+            }
+
+            // Build sentence
+            var sentence = new Sentence();
+            sentence.Command = RecordReflection.GetPath<T>() + "/remove";
+            sentence.Attributes = new Dictionary<string, string>() {
+                {".id", id }
+            };
+
+            // Make call
+            var result = Call(sentence).Wait();
+            if (result.IsError) {
+                result.TryGetTrapAttribute("message", out var message);
+                throw new CallException(message);
+            }
         }
 
         public IList<T> Move<T>(string id, string afterId) where T : IHasId, new() {
