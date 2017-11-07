@@ -8,7 +8,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Linq;
-using InvertedTomato.TikLink.RosDataTypes;
 
 namespace InvertedTomato.TikLink {
     public class Link : IDisposable {
