@@ -1,10 +1,4 @@
-﻿
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace InvertedTomato.TikLink.RosRecords {
+﻿namespace InvertedTomato.TikLink.RosRecords {
     /// <summary>
     /// ip/arp: Even though IP packets are addressed using  IP addresses, hardware addresses must be used to actually transport data from one host to another.Address Resolution Protocol is used to map OSI level 3 IP addresses to OSI level 2 MAC addreses. Router has a table of currently used ARP entries.Normally the table is built dynamically, but to increase network security, it can be partialy or completely built statically by means of adding static entries.
     /// </summary>
@@ -13,7 +7,7 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// Unique identifier
         /// </summary>
-        [RosProperty(".id", IsRequired = true)]
+        [RosProperty(".id")]
         public string Id { get; set; }
 
         /// <summary>
@@ -32,13 +26,14 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// MAC address to be mapped to
         /// </summary>
         [RosProperty("mac-address")]
-        public string MacAddress { get; set; } = "00:00:00:00:00:00";
+        public string MacAddress { get; set; }
 
         /// <summary>
         /// IP Address
         /// </summary>
         [RosProperty("comment")]
         public string Comment { get; set; }
+
 
         /// <summary>
         /// Whether ARP entry is added by DHCP server

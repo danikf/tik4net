@@ -19,73 +19,73 @@ namespace InvertedTomato.TikLink.RosRecords {
     [RosRecord("/ip/dhcp-server/lease")]
     public class IpDhcpServerLease : IHasId {
         /// <summary>
-        /// .id: primary key of row
+        /// Unique identifier
         /// </summary>
         [RosProperty(".id", IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
-        /// address: Specify IP address (or ip pool) for static lease. If set to 0.0.0.0 - pool from server will be used
+        /// IP address (or ip pool) for static lease. If set to 0.0.0.0 pool from server will be used
         /// </summary>
         [RosProperty("address")]
         public string/*IP*/ Address { get; set; }
 
         /// <summary>
-        /// address-list: Address list to which address will be added if lease is bound.
+        /// Address list to which address will be added if lease is bound.
         /// </summary>
         [RosProperty("address-list")]
         public string AddressList { get; set; }
 
         /// <summary>
-        /// always-broadcast: Send all replies as broadcasts
+        /// Send all replies as broadcasts
         /// </summary>
         [RosProperty("always-broadcast")]
         public bool AlwaysBroadcast { get; set; }
 
         /// <summary>
-        /// block-access: Block access for this client
+        /// Block access for this client
         /// </summary>
         [RosProperty("block-access")]
         public bool BlockAccess { get; set; }
 
         /// <summary>
-        /// client-id: If specified, must match DHCP 'client identifier' option of the request
+        /// If specified, must match DHCP 'client identifier' option of the request
         /// </summary>
         [RosProperty("client-id")]
         public string ClientId { get; set; }
 
         /// <summary>
-        /// lease-time: Time that the client may use the address. If set to TimeSpan.Min lease will never expire.
+        /// Time that the client may use the address. If set to TimeSpan.Min lease will never expire.
         /// </summary>
         [RosProperty("lease-time")]
-        public TimeSpan?/*time*/ LeaseTime { get; set; }
+        public TimeSpan? LeaseTime { get; set; }
 
         /// <summary>
-        /// mac-address: If specified, must match the MAC address of the client
+        /// If specified, must match the MAC address of the client
         /// </summary>
         [RosProperty("mac-address")]
-        public string/*MAC*/ MacAddress { get; set; } = "00:00:00:00:00:00";
+        public string/*MAC*/ MacAddress { get; set; }
 
         /// <summary>
-        /// src-mac-address: Source MAC address
+        /// Source MAC address
         /// </summary>
         [RosProperty("src-mac-address")]
         public string/*MAC*/ SrcMacAddress { get; set; }
 
         /// <summary>
-        /// use-src-mac: Use this source MAC address instead
+        /// Use this source MAC address instead
         /// </summary>
         [RosProperty("use-src-mac")]
-        public string/*MAC*/ UseSrcMac { get; set; }
+        public bool UseSrcMac { get; set; }
         
         /// <summary>
-        /// disabled: 
+        /// Is this record ignored
         /// </summary>
         [RosProperty("disabled")]
         public bool Disabled { get; set; }
 
         /// <summary>
-        /// comment: Short description of the client
+        /// Short description of the client
         /// </summary>
         [RosProperty("comment")]
         public string Comment { get; set; }
