@@ -1,4 +1,4 @@
-TLDR, how does it work?
+TLDR, do I make it go?
 ===
 ```c#
 // Connect to the router
