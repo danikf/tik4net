@@ -1,8 +1,8 @@
-TLDR, how does it work?
+TLDR, do I make it go?
 ===
-```
+```c#
 // Connect to the router
-using (var link = Link.Connect(Credentials.Current.Host, Credentials.Current.Username, Credentials.Current.Password)) {
+using (var link = Link.Connect("{router-host}", "{router-user}", "{router-password}")) {
     // Get list of interfaces
     var ifaces = link.Interfaces.List();
     foreach (var iface in ifaces) {
@@ -34,7 +34,14 @@ TikLink allows you to control MikoTik routers (RouterOS) from .NET applications.
 
 Functionality
 ===
-Not all router records and methods are implimented currently. Feel free to raise a Pull Request to have your changes incorporated. Or otherwise raise a [Issue](https://github.com/invertedtomato/tiklink/issues) and we'll probably pop that functionality in within a week.
+Not all router records and methods are implimented currently. Feel free to raise a Pull Request to have your changes incorporated. Or otherwise raise a [issue](https://github.com/invertedtomato/tiklink/issues) and we'll probably pop that functionality in within a week.
+
+Getting Started
+===
+Grab it on [NuGet](https://www.nuget.org/packages/InvertedTomato.TikLink/):
+```
+PM> Install-Package InvertedTomato.TikLink
+```
 
 Credits
 ===
