@@ -9,7 +9,7 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// /interface wireless registration-table: In the registration table you can see various information about currently connected clients. It is used only for Access Points. All properties are read-only.
     /// </summary>
     [RosRecord("/interface/wireless/registration-table", IsReadOnly = true)]
-    public class WirelessRegistrationTable : IHasId {
+    public class InterfaceWirelessRegistrationTable : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>

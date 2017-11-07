@@ -10,23 +10,23 @@ namespace InvertedTomato.TikLink {
             Link = link;
         }
 
-        public IList<FirewallFilter> List(string[] properties = null, Dictionary<string, string> filter = null) {
-            return Link.List<FirewallFilter>(properties, filter);
+        public IList<IpFirewallFilter> List(string[] properties = null, Dictionary<string, string> filter = null) {
+            return Link.List<IpFirewallFilter>(properties, filter);
         }
 
-        public FirewallFilter Get(string id, string[] properties = null) {
-            return Link.Get<FirewallFilter>(id, properties);
+        public IpFirewallFilter Get(string id, string[] properties = null) {
+            return Link.Get<IpFirewallFilter>(id, properties);
         }
 
-        public void Put(FirewallFilter record, string[] properties = null) {
+        public void Put(IpFirewallFilter record, string[] properties = null) {
             Link.Put(record, properties);
         }
 
         public void Delete(string id) {
-            Link.Delete<FirewallFilter>(id);
+            Link.Delete<IpFirewallFilter>(id);
         }
 
-        public void Delete(FirewallFilter record) {
+        public void Delete(IpFirewallFilter record) {
             Link.Delete(record);
         }
     }

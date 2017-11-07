@@ -9,7 +9,7 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// /ip/firewall/filter
     /// </summary>
     [RosRecord("/ip/firewall/filter", IncludeDetails = true, IsOrdered = true)]
-    public class FirewallFilter : IHasId {
+    public class IpFirewallFilter : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
@@ -411,7 +411,7 @@ namespace InvertedTomato.TikLink.RosRecords {
 
 
         /// <summary>
-        /// Firewall filter action type - <see cref="FirewallFilter.Action"/>
+        /// Firewall filter action type - <see cref="IpFirewallFilter.Action"/>
         /// </summary>
         public enum ActionType {
             /// <summary>
@@ -476,7 +476,7 @@ namespace InvertedTomato.TikLink.RosRecords {
         }
 
         /// <summary>
-        /// Firewall filter connection state - <see cref="FirewallFilter.ConnectionState"/>
+        /// Firewall filter connection state - <see cref="IpFirewallFilter.ConnectionState"/>
         /// </summary>
         public enum ConnectionStateType {
             /// <summary>

@@ -8,7 +8,7 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// /ip/firewall/nat
     /// </summary>
     [RosRecord("/ip/firewall/nat", IncludeDetails = true, IsOrdered = true)]
-    public class FirewallNat  : IHasId {
+    public class IpFirewallNat  : IHasId {
         /// <summary>
         /// .id
         /// </summary>

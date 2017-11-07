@@ -64,8 +64,8 @@ namespace Tests {
         public void Crud_FirewallFilter() {
             using (var link = Link.Connect(Credentials.Current.Host, Credentials.Current.Username, Credentials.Current.Password)) {
                 // Create record
-                var obj1 = new FirewallFilter() {
-                    Action = FirewallFilter.ActionType.Passthrough,
+                var obj1 = new IpFirewallFilter() {
+                    Action = IpFirewallFilter.ActionType.Passthrough,
                     SrcAddress = "1.1.1.1",
                     DstAddress = "1.1.1.1",
                     Comment = "<test>"
@@ -74,8 +74,8 @@ namespace Tests {
 
                 // Find record
                 var objs1 = link.Firewall.Filter.List(null, new Dictionary<string, string>() {
-                    {nameof(FirewallFilter.SrcAddress), $"={obj1.SrcAddress}" },
-                    {nameof(FirewallFilter.DstAddress), $"={obj1.DstAddress}" }
+                    {nameof(IpFirewallFilter.SrcAddress), $"={obj1.SrcAddress}" },
+                    {nameof(IpFirewallFilter.DstAddress), $"={obj1.DstAddress}" }
                 });
                 Assert.Equal(1, objs1.Count);
                 var obj2 = objs1.Single();
@@ -90,8 +90,8 @@ namespace Tests {
 
                 // Find record again
                 var objs2 = link.Firewall.Filter.List(null, new Dictionary<string, string>() {
-                    {nameof(FirewallFilter.SrcAddress), $"={obj2.SrcAddress}" },
-                    {nameof(FirewallFilter.DstAddress), $"={obj2.DstAddress}" }
+                    {nameof(IpFirewallFilter.SrcAddress), $"={obj2.SrcAddress}" },
+                    {nameof(IpFirewallFilter.DstAddress), $"={obj2.DstAddress}" }
                 });
                 Assert.Equal(1, objs2.Count);
                 var obj3 = objs1.Single();
@@ -105,8 +105,8 @@ namespace Tests {
 
                 // Make sure we can't find the record any more
                 var objs3 = link.Firewall.Filter.List(null, new Dictionary<string, string>() {
-                    {nameof(FirewallFilter.SrcAddress), $"={obj3.SrcAddress}" },
-                    {nameof(FirewallFilter.DstAddress), $"={obj3.DstAddress}" }
+                    {nameof(IpFirewallFilter.SrcAddress), $"={obj3.SrcAddress}" },
+                    {nameof(IpFirewallFilter.DstAddress), $"={obj3.DstAddress}" }
                 });
                 Assert.Equal(0, objs3.Count);
             }
@@ -117,8 +117,8 @@ namespace Tests {
         public void Crud_QueuesSimple() {
             using (var link = Link.Connect(Credentials.Current.Host, Credentials.Current.Username, Credentials.Current.Password)) {
                 // Create record
-                var obj1 = new FirewallFilter() {
-                    Action = FirewallFilter.ActionType.Passthrough,
+                var obj1 = new IpFirewallFilter() {
+                    Action = IpFirewallFilter.ActionType.Passthrough,
                     SrcAddress = "1.1.1.1",
                     DstAddress = "1.1.1.1",
                     Comment = "<test>"
@@ -127,8 +127,8 @@ namespace Tests {
 
                 // Find record
                 var objs1 = link.Firewall.Filter.List(null, new Dictionary<string, string>() {
-                    {nameof(FirewallFilter.SrcAddress), $"={obj1.SrcAddress}" },
-                    {nameof(FirewallFilter.DstAddress), $"={obj1.DstAddress}" }
+                    {nameof(IpFirewallFilter.SrcAddress), $"={obj1.SrcAddress}" },
+                    {nameof(IpFirewallFilter.DstAddress), $"={obj1.DstAddress}" }
                 });
                 Assert.Equal(1, objs1.Count);
                 var obj2 = objs1.Single();
@@ -142,8 +142,8 @@ namespace Tests {
 
                 // Find record again
                 var objs2 = link.Firewall.Filter.List(null, new Dictionary<string, string>() {
-                    {nameof(FirewallFilter.SrcAddress), $"={obj2.SrcAddress}" },
-                    {nameof(FirewallFilter.DstAddress), $"={obj2.DstAddress}" }
+                    {nameof(IpFirewallFilter.SrcAddress), $"={obj2.SrcAddress}" },
+                    {nameof(IpFirewallFilter.DstAddress), $"={obj2.DstAddress}" }
                 });
                 Assert.Equal(1, objs2.Count);
                 var obj3 = objs1.Single();
@@ -156,8 +156,8 @@ namespace Tests {
 
                 // Make sure we can't find the record any more
                 var objs3 = link.Firewall.Filter.List(null, new Dictionary<string, string>() {
-                    {nameof(FirewallFilter.SrcAddress), $"={obj3.SrcAddress}" },
-                    {nameof(FirewallFilter.DstAddress), $"={obj3.DstAddress}" }
+                    {nameof(IpFirewallFilter.SrcAddress), $"={obj3.SrcAddress}" },
+                    {nameof(IpFirewallFilter.DstAddress), $"={obj3.DstAddress}" }
                 });
                 Assert.Equal(0, objs3.Count);
             }

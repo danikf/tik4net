@@ -8,7 +8,7 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// Firewall chain type - <see cref="BridgeFirewallBase.Chain"/>
     /// </summary>
     /// <seealso cref="BridgeFirewallBase.Chain"/>
-    public static class BridgeFirewallChainType {
+    public static class BridgeFirewallChain {
         /// <summary>
         /// input - used to process packets entering the router through one of the interfaces with the destination IP address which is one of the router's addresses. Packets passing through the router are not processed against the rules of the input chain
         /// </summary>

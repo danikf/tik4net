@@ -9,9 +9,9 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// /ip/firewall/mangle
     /// </summary>
     [RosRecord("/ip/firewall/mangle", IncludeDetails = true, IsOrdered = true)]
-    public class FirewallMangle : IHasId {
+    public class IpFirewallMangle : IHasId {
         /// <summary>
-        /// Mangle action type - <see cref="FirewallMangle.Action"/>
+        /// Mangle action type - <see cref="IpFirewallMangle.Action"/>
         /// </summary>
         public enum ActionType {
             /// <summary>

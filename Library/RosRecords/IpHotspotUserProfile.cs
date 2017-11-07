@@ -5,7 +5,7 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// ip/hotspot/user: User profile menu is used for common HotSpot client settings. Profiles are like User groups with the same set of settings, rate-limit, filter chain name, etc. 
     /// </summary>
     [RosRecord("/ip/hotspot/user/profile")]
-    public class HotspotUserProfile : IHasId {
+    public class IpHotspotUserProfile : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>

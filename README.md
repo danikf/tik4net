@@ -36,6 +36,54 @@ Functionality
 ===
 Not all router records and methods are implimented currently. Feel free to raise a Pull Request to have your changes incorporated. Or otherwise raise a [issue](https://github.com/invertedtomato/tiklink/issues) and we'll probably pop that functionality in within a week.
 
+| Function                            | Type        | Status     |
+|-------------------------------------|-------------|------------|
+| /bridge/filter                      | Records     | Untested   |
+| /bridge/nat                         | Records     | Untested   |
+| /bridge/port                        | Records     | Untested   |
+| /bridge/settings                    | Singleton   | Untested   |
+| /caps-man/registration-table        | RO Records  | Untested   |
+| /interface                          | Records     | Untested   |
+| /interface/bridge                   | Records     | Untested   |
+| /interface/ethernet                 | Records     | Untested   |
+| /interface/wireless                 | Records     | Untested   |
+| /interface/wireless/access-list     | Records     | Untested   |
+| /interface/wireless/registration-table | RO Records     | Untested   |
+| /interface/wireless/security-profiles | Records     | Untested   |
+| /ip/accounting                      | Singleton   | Untested   |
+| /ip/accounting/snapshot             | RO Records  | Untested   |
+| /ip/accounting/uncounted            | Singleton   | Untested   |
+| /ip/accounting/web-access           | Singleton   | Untested   |
+| /ip/address                         | Records     | Untested   |
+| /ip/arp                             | Records     | *Ready*    |
+| /ip/dhcp-client                     | Records     | Untested   |
+| /ip/dhcp-server                     | Records     | Untested   |
+| /ip/dhcp-server/alert               | Records     | Untested   |
+| /ip/dhcp-server/config              | Singleton   | Untested   |
+| /ip/dhcp-server/lease               | Records     | *Ready*    |
+| /ip/dhcp-server/network             | Records     | *Ready*    |
+| /ip/dhcp-server/option              | Records     | Untested   |
+| /ip/dns                             | Singleton   | Untested   |
+| /ip/dns/cache                       | RO Records  | Untested   |
+| /ip/dns/cache/all                   | RO Records  | Untested   |
+| /ip/dns/static                      | Records     | Untested   |
+| /ip/firewall/address-list           | Records     | Untested   |
+| /ip/firewall/connection             | Records     | Untested   |
+| /ip/firewall/connection/tracking    | Singleton   | Untested   |
+| /ip/firewall/filter                 | Records     | *Ready*    |
+| /ip/firewall/mangle                 | Records     | Untested   |
+| /ip/firewall/nat                    | Records     | Untested   |
+| /ip/hotspot/active                  | RO Records  | Untested   |
+| /ip/hotspot/user                    | Records     | Untested   |
+| /ip/hotspot/user-profile            | Records     | Untested   |
+| /ip/pool                            | Records     | Untested   |
+| /queue/simple                       | Records     | *Ready*    |
+| /queue/tree                         | Records     | Untested   |
+| /queue/type                         | Records     | Untested   |
+| /system/resource                    | RO Singleton| Untested   |
+| /tool/pint                          | RO Records  | Untested   |
+| /tool/torch                         | RO Records  | Untested   |
+
 Getting Started
 ===
 Grab it on [NuGet](https://www.nuget.org/packages/InvertedTomato.TikLink/):
