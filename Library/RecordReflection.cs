@@ -35,13 +35,6 @@ namespace InvertedTomato.TikLink {
 
             return meta.Attribute.Path;
         }
-        /*
-         * string       <=> RosString
-         * int, long <=> RosInteger
-         * bool         <=> RosBoolean
-         * enum         <=> RosEnum
-         * TimeSpan     <=> RosTimeSpan ("5d 00:00:00")
-         */
 
         /// <summary>
         /// Set all RouterOS properties from a provided dictionary.

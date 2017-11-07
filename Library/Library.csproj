@@ -4,6 +4,18 @@
     <TargetFramework>netstandard1.3</TargetFramework>
     <AssemblyName>InvertedTomato.TikLink</AssemblyName>
     <RootNamespace>InvertedTomato.TikLink</RootNamespace>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Description>Connect and control MikroTik routers from .NET.</Description>
+    <Product>TikLink</Product>
+    <PackageProjectUrl>https://github.com/invertedtomato/tiklink</PackageProjectUrl>
+    <PackageLicenseUrl>https://github.com/invertedtomato/tiklink/blob/master/LICENSE</PackageLicenseUrl>
+    <RepositoryUrl>https://github.com/invertedtomato/tiklink</RepositoryUrl>
+    <RepositoryType>GitHub</RepositoryType>
+    <PackageTags>MikroTik</PackageTags>
+    <NeutralLanguage>en-US</NeutralLanguage>
+    <AssemblyVersion>1.0.54.0</AssemblyVersion>
+    <FileVersion>1.0.54.0</FileVersion>
+    <Version>1.0.54</Version>
   </PropertyGroup>
 
   <ItemGroup>
