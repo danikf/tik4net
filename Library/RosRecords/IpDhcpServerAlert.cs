@@ -12,11 +12,11 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// As DHCP replies can be unicast, the 'rogue dhcp detector' may not receive any offer to other dhcp clients at all. To deal with this, the rogue dhcp detector acts as a dhcp client as well - it sends out dhcp discover requests once a minute 
     /// </summary>
     [RosRecord("/ip/dhcp-server/alert")]
-    public class DhcpServerAlert  : IHasId {
+    public class IpDhcpServerAlert  : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
-        [RosProperty(".id", IsReadOnly = true, IsRequired = true)]
+        [RosProperty(".id", IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
@@ -46,7 +46,7 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// unknown-server: List of MAC addresses of detected unknown DHCP servers. Server is removed from this list after alert-timeout
         /// </summary>
-        [RosProperty("unknown-server", IsReadOnly = true)]
+        [RosProperty("unknown-server",IsReadOnly = true)]
         public string UnknownServer { get; private set; }
 
         /* TODO

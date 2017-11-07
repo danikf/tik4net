@@ -8,11 +8,11 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// ip/dhcp-server/network : 
     /// </summary>
     [RosRecord("/ip/dhcp-server/network")]
-    public class DhcpServerNetwork  : IHasId {
+    public class IpDhcpServerNetwork  : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
-        [RosProperty(".id", IsReadOnly = true, IsRequired = true)]
+        [RosProperty(".id", IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>

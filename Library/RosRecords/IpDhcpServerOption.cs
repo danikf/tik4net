@@ -9,11 +9,11 @@ namespace InvertedTomato.TikLink.RosRecords {
     ///        According to the DHCP protocol, a parameter is returned to the DHCP client only if it requests this parameter, specifying the respective code in DHCP request Parameter-List(code 55) attribute.If the code is not included in Parameter-List attribute, DHCP server will not send it to the DHCP client.
     /// </summary>
     [RosRecord("/ip/dhcp-server/option")]
-    public class DhcpServerOption  : IHasId {
+    public class IpDhcpServerOption  : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
-        [RosProperty(".id", IsReadOnly = true, IsRequired = true)]
+        [RosProperty(".id", IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
@@ -25,7 +25,7 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// name: Descriptive name of the option
         /// </summary>
-        [RosProperty("name", IsRequired = true)]
+        [RosProperty("name",IsRequired = true)]
         public string Name { get; set; }
 
         /// <summary>

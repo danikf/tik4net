@@ -12,13 +12,13 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// bytes: byte count
         /// </summary>
-        [RosProperty("bytes", IsReadOnly = true)]
+        [RosProperty("bytes",IsReadOnly = true)]
         public int Bytes { get; private set; }
 
         /// <summary>
         /// packets: packet count
         /// </summary>
-        [RosProperty("packets", IsReadOnly = true)]
+        [RosProperty("packets",IsReadOnly = true)]
         public int Packets { get; private set; }
     }
 }

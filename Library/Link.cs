@@ -106,6 +106,8 @@ namespace InvertedTomato.TikLink {
         public readonly LinkInterface Interfaces;
         public readonly LinkIp Ip;
         public readonly LinkFirewall Firewall;
+        public readonly LinkQueue Queue;
+        public readonly LinkHotspot Hotspot;
 
         private readonly Thread ReadThread;
         private readonly Stream UnderlyingStream;
@@ -135,16 +137,16 @@ namespace InvertedTomato.TikLink {
             ReadThread.Start();
 
             // Get challenge
-            var r1 = Call("/login").Wait();
-            var challenge = r1.GetDoneAttribute("ret");
+            var result1 = Call("/login").Wait();
+            var challenge = result1.GetDoneAttribute("ret");
 
             // Compute response
             var hash = Password.Hash(password, challenge);
 
             // Attempt login
-            var r2 = Call("/login", new Dictionary<string, string>() { { "name", username }, { "response", hash } }).Wait();
-            if (r2.IsError) {
-                r2.TryGetTrapAttribute("message", out var message);
+            var result2 = Call("/login", new Dictionary<string, string>() { { "name", username }, { "response", hash } }).Wait();
+            if (result2.IsError) {
+                result2.TryGetTrapAttribute("message", out var message);
                 throw new AccessDeniedException(message);
             }
 
@@ -152,6 +154,8 @@ namespace InvertedTomato.TikLink {
             Interfaces = new LinkInterface(this);
             Ip = new LinkIp(this);
             Firewall = new LinkFirewall(this);
+            Queue = new LinkQueue(this);
+            Hotspot = new LinkHotspot(this);
         }
 
         private void ReadThread_Spin(object obj) {
@@ -322,9 +326,20 @@ namespace InvertedTomato.TikLink {
             }
             if (null != filter) {
                 foreach (var f in filter) {
-                    var k = RecordReflection.ResolveProperty<T>(f.Key);
+                    string k;
+                    try {
+                        k = RecordReflection.ResolveProperty<T>(f.Key);
+                    } catch (KeyNotFoundException) {
+                        throw new ArgumentException($"Unknown filter field '{f.Key}'.", nameof(filter));
+                    }
+                    if (f.Value.Length < 1) {
+                        throw new ArgumentException($"Filter value must be at least 1 character long.", nameof(filter));
+                    }
                     var v = f.Value.Substring(1);
                     var op = f.Value.Substring(0, 1);
+                    if (op != ">" && op != "<" && op != "=") {
+                        throw new ArgumentException($"Unknown filter operation '{op}' on '{f.Key}'.", nameof(filter));
+                    }
                     sentence.Queries.Add($"{op}{k}={v}");
                 }
             }
@@ -400,6 +415,14 @@ namespace InvertedTomato.TikLink {
             }
         }
 
+        public void Delete<T>(T record) where T : IHasId, new() {
+            if (null == record) {
+                throw new ArgumentNullException(nameof(record));
+            }
+
+            Delete<T>(record.Id);
+        }
+
         public void Delete<T>(string id) where T : IHasId, new() {
             if (null == id) {
                 throw new ArgumentNullException(nameof(id));
@@ -419,6 +442,8 @@ namespace InvertedTomato.TikLink {
                 throw new CallException(message);
             }
         }
+
+
 
         /// <summary>
         /// Move a set of records before another record.

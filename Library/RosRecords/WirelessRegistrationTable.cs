@@ -1,4 +1,5 @@
-﻿using System;
+﻿using InvertedTomato.TikLink.RosDataTypes;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,11 +9,11 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// /interface wireless registration-table: In the registration table you can see various information about currently connected clients. It is used only for Access Points. All properties are read-only.
     /// </summary>
     [RosRecord("/interface/wireless/registration-table", IsReadOnly = true)]
-    public class WirelessRegistrationTable  : IHasId {
+    public class WirelessRegistrationTable : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
-        [RosProperty(".id", IsReadOnly = true, IsRequired = true)]
+        [RosProperty(".id", IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>

@@ -9,7 +9,7 @@
         /// <summary>
         /// .id: primary key of row
         /// </summary>
-        [RosProperty(".id", IsReadOnly = true, IsRequired = true)]
+        [RosProperty(".id", IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
@@ -63,7 +63,7 @@
         /// <summary>
         /// name: HotSpot login page username, when MAC-address authentication is used name is configured as client's MAC-address
         /// </summary>
-        [RosProperty("name", IsRequired = true)]
+        [RosProperty("name",IsRequired = true)]
         public string Name { get; set; }
 
         /// <summary>
@@ -99,31 +99,31 @@
         /// <summary>
         /// bytes-in: 
         /// </summary>
-        [RosProperty("bytes-in", IsReadOnly = true)]
+        [RosProperty("bytes-in",IsReadOnly = true)]
         public long BytesIn { get; private set; }
 
         /// <summary>
         /// bytes-out: 
         /// </summary>
-        [RosProperty("bytes-out", IsReadOnly = true)]
+        [RosProperty("bytes-out",IsReadOnly = true)]
         public long BytesOut { get; private set; }
 
         /// <summary>
         /// packets-in: 
         /// </summary>
-        [RosProperty("packets-in", IsReadOnly = true)]
+        [RosProperty("packets-in",IsReadOnly = true)]
         public long PacketsIn { get; private set; }
 
         /// <summary>
         /// packets-out: 
         /// </summary>
-        [RosProperty("packets-out", IsReadOnly = true)]
+        [RosProperty("packets-out",IsReadOnly = true)]
         public long PacketsOut { get; private set; }
 
         /// <summary>
         /// uptime: 
         /// </summary>
-        [RosProperty("uptime", IsReadOnly = true)]
+        [RosProperty("uptime",IsReadOnly = true)]
         public string Uptime { get; private set; }
 
         /// <summary>

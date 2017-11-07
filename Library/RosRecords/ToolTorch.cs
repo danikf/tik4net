@@ -12,55 +12,55 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// src-address
         /// </summary>
-        [RosProperty("src-address", IsReadOnly = true)]
+        [RosProperty("src-address",IsReadOnly = true)]
         public string SrcAddress { get; private set; }
 
         /// <summary>
         /// dst-address
         /// </summary>
-        [RosProperty("dst-address", IsReadOnly = true)]
+        [RosProperty("dst-address",IsReadOnly = true)]
         public string DstAddress { get; private set; }
 
         /// <summary>
         /// ip-protocol
         /// </summary>
-        [RosProperty("ip-protocol", IsReadOnly = true)]
+        [RosProperty("ip-protocol",IsReadOnly = true)]
         public string IpProtocol { get; private set; }
 
         /// <summary>
         /// src-port
         /// </summary>
-        [RosProperty("src-port", IsReadOnly = true)]
+        [RosProperty("src-port",IsReadOnly = true)]
         public string SrcPort { get; private set; }
 
         /// <summary>
         /// dst-port
         /// </summary>
-        [RosProperty("dst-port", IsReadOnly = true)]
+        [RosProperty("dst-port",IsReadOnly = true)]
         public string DstPort { get; private set; }
 
         /// <summary>
         /// tx
         /// </summary>
-        [RosProperty("tx", IsReadOnly = true)]
+        [RosProperty("tx",IsReadOnly = true)]
         public long Tx { get; private set; }
 
         /// <summary>
         /// rx
         /// </summary>
-        [RosProperty("rx", IsReadOnly = true)]
+        [RosProperty("rx",IsReadOnly = true)]
         public long Rx { get; private set; }
 
         /// <summary>
         /// tx-packets
         /// </summary>
-        [RosProperty("tx-packets", IsReadOnly = true)]
+        [RosProperty("tx-packets",IsReadOnly = true)]
         public long TxPackets { get; private set; }
 
         /// <summary>
         /// rx-packets
         /// </summary>
-        [RosProperty("rx-packets", IsReadOnly = true)]
+        [RosProperty("rx-packets",IsReadOnly = true)]
         public long RxPackets { get; private set; }
 
         private static string FormatAddress(string ip, string port) {

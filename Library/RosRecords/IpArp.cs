@@ -13,49 +13,49 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// Unique identifier
         /// </summary>
-        [RosProperty(".id", typeof(RosIdentifier), IsRequired = true)]
+        [RosProperty(".id", IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
         /// IP Address
         /// </summary>
-        [RosProperty("address", typeof(RosString))]
+        [RosProperty("address")]
         public string Address { get; set; }
 
         /// <summary>
         /// Interface name the IP address is assigned to
         /// </summary>
-        [RosProperty("interface", typeof(RosString))]
+        [RosProperty("interface")]
         public string Interface { get; set; }
 
         /// <summary>
         /// MAC address to be mapped to
         /// </summary>
-        [RosProperty("mac-address", typeof(RosMacAddress))]
+        [RosProperty("mac-address")]
         public string MacAddress { get; set; } = "00:00:00:00:00:00";
 
         /// <summary>
         /// IP Address
         /// </summary>
-        [RosProperty("comment", typeof(RosString))]
+        [RosProperty("comment")]
         public string Comment { get; set; }
 
         /// <summary>
         /// Whether ARP entry is added by DHCP server
         /// </summary>
-        [RosProperty("dhcp", typeof(RosBoolean), IsReadOnly = true)]
+        [RosProperty("dhcp", IsReadOnly = true)]
         public bool Dhcp { get; private set; }
 
         /// <summary>
         /// Whether entry is dynamically created
         /// </summary>
-        [RosProperty("dynamic", typeof(RosBoolean), IsReadOnly = true)]
+        [RosProperty("dynamic", IsReadOnly = true)]
         public bool Dynamic { get; private set; }
 
         /// <summary>
         /// Whether entry is not valid
         /// </summary>
-        [RosProperty("invalid", typeof(RosBoolean), IsReadOnly = true)]
+        [RosProperty("invalid", IsReadOnly = true)]
         public bool Invalid { get; private set; }
     }
 

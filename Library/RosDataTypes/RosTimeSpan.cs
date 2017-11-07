@@ -6,7 +6,7 @@ namespace InvertedTomato.TikLink.RosDataTypes {
     /// Support for converting MikroTik time strings into TimeSpans.
     /// Credits: D-Bullock 
     /// </summary>
-    public class RosDuration : IRosDataType {
+    public class RosTimeSpan : IRosDataType {
         private static readonly Regex Pattern = new Regex(@"((\d+)w)?((\d+)d)?((\d+)h)?((\d+)m)?((\d+)s)?((\d+)ms)?", RegexOptions.Compiled);
 
         /// <summary>
@@ -18,7 +18,7 @@ namespace InvertedTomato.TikLink.RosDataTypes {
                 return null;
             }
 
-            var v = TimeSpan.FromSeconds((double)localvalue);
+            var v = (TimeSpan)localvalue;
             var weeks = (long)v.TotalDays / 7;
             v -= TimeSpan.FromDays(weeks * 7);
             return
@@ -69,7 +69,7 @@ namespace InvertedTomato.TikLink.RosDataTypes {
                 }
             }
 
-            return ms;
+            return TimeSpan.FromMilliseconds( ms);
         }
     }
 }

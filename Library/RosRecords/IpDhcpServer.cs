@@ -113,7 +113,7 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
-        [RosProperty(".id", IsReadOnly = true, IsRequired = true)]
+        [RosProperty(".id", IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
@@ -188,7 +188,7 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// name: Reference name
         /// </summary>
-        [RosProperty("name", IsRequired = true)]
+        [RosProperty("name",IsRequired = true)]
         public string Name { get; set; }
 
         /// <summary>

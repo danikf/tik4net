@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using InvertedTomato.TikLink.RosDataTypes;
+using System;
 
 namespace InvertedTomato.TikLink.RosRecords {
     /// <summary>
@@ -19,11 +17,11 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// A client may free the leased address. The dynamic lease is removed, and the allocated address is returned to the address pool. But the static lease becomes busy until the client reacquires the address. 
     /// </summary>
     [RosRecord("/ip/dhcp-server/lease")]
-    public class DhcpServerLease  : IHasId {
+    public class IpDhcpServerLease : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
-        [RosProperty(".id", IsReadOnly = true, IsRequired = true)]
+        [RosProperty(".id", IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
@@ -47,7 +45,7 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// block-access: Block access for this client
         /// </summary>
-        [RosProperty("block-access", DefaultValue = "no")]
+        [RosProperty("block-access")]
         public bool BlockAccess { get; set; }
 
         /// <summary>
@@ -59,14 +57,14 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// lease-time: Time that the client may use the address. If set to TimeSpan.Min lease will never expire.
         /// </summary>
-        [RosProperty("lease-time", DefaultValue = "0s")]
-        public TimeSpan/*time*/ LeaseTime { get; set; }
+        [RosProperty("lease-time")]
+        public TimeSpan?/*time*/ LeaseTime { get; set; }
 
         /// <summary>
         /// mac-address: If specified, must match the MAC address of the client
         /// </summary>
-        [RosProperty("mac-address", DefaultValue = "00:00:00:00:00:00")]
-        public string/*MAC*/ MacAddress { get; set; }
+        [RosProperty("mac-address")]
+        public string/*MAC*/ MacAddress { get; set; } = "00:00:00:00:00:00";
 
         /// <summary>
         /// src-mac-address: Source MAC address
@@ -79,6 +77,19 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// </summary>
         [RosProperty("use-src-mac")]
         public string/*MAC*/ UseSrcMac { get; set; }
+        
+        /// <summary>
+        /// disabled: 
+        /// </summary>
+        [RosProperty("disabled")]
+        public bool Disabled { get; set; }
+
+        /// <summary>
+        /// comment: Short description of the client
+        /// </summary>
+        [RosProperty("comment")]
+        public string Comment { get; set; }
+
 
         /// <summary>
         /// active-address: Actual IP address for this lease
@@ -166,36 +177,6 @@ namespace InvertedTomato.TikLink.RosRecords {
         ///     
         /// </summary>
         [RosProperty("status", IsReadOnly = true)]
-        public string Status { get; private set; }
-
-        /// <summary>
-        /// disabled: 
-        /// </summary>
-        [RosProperty("disabled")]
-        public bool Disabled { get; set; }
-
-        /// <summary>
-        /// comment: Short description of the client
-        /// </summary>
-        [RosProperty("comment")]
-        public string Comment { get; set; }
-
-        /* TODO
-        /// <summary>
-        /// Check status of a given busy dynamic lease, and free it in case of no response
-        /// </summary>
-        public void CheckStatus(ITikConnection connection) {
-            connection.CreateCommandAndParameters("ip/dhcp-server/lease/check-status",
-                TikSpecialProperties.Id, Id).ExecuteNonQuery();
-        }
-
-        /// <summary>
-        /// Convert a dynamic lease to a static one
-        /// </summary>
-        public void MakeStatic(ITikConnection connection) {
-            connection.CreateCommandAndParameters("ip/dhcp-server/lease/make-static",
-                TikSpecialProperties.Id, Id).ExecuteNonQuery();
-        }
-        */
+        public string Status { get; private set; } // TODO: Make enum        
     }
 }

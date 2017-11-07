@@ -1,22 +1,31 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Linq;
-using InvertedTomato.TikLink.RosDataTypes;
+using System.Reflection;
+using System.Text.RegularExpressions;
 
 namespace InvertedTomato.TikLink {
     public static class RecordReflection {
+        private static Regex TimePattern = new Regex(@"$((\d+)d)? (\d+):(\d+):(\d+)^");
+
         private class RecordMeta {
             public RosRecordAttribute Attribute { get; set; }
             public List<PropertyMeta> Properties { get; set; } = new List<PropertyMeta>();
+
+            public override string ToString() {
+                return Attribute?.Path;
+            }
         }
         private class PropertyMeta {
             public RosPropertyAttribute Attribute { get; set; }
             public PropertyInfo PropertyInfo { get; set; }
             public Type ValueType { get; set; }
             public TypeInfo ValueTypeInfo { get; set; }
-            public IRosDataType RosDataType { get; set; }
+
+            public override string ToString() {
+                return PropertyInfo.Name + "/" + Attribute?.RosName;
+            }
         }
         private static ConcurrentDictionary<Type, RecordMeta> MetaRecords = new ConcurrentDictionary<Type, RecordMeta>();
 
@@ -26,6 +35,13 @@ namespace InvertedTomato.TikLink {
 
             return meta.Attribute.Path;
         }
+        /*
+         * string       <=> RosString
+         * int, long <=> RosInteger
+         * bool         <=> RosBoolean
+         * enum         <=> RosEnum
+         * TimeSpan     <=> RosTimeSpan ("5d 00:00:00")
+         */
 
         /// <summary>
         /// Set all RouterOS properties from a provided dictionary.
@@ -43,9 +59,148 @@ namespace InvertedTomato.TikLink {
 
             // Set all properties
             foreach (var property in meta.Properties) {
-                if (attributes.TryGetValue(property.Attribute.RosName, out var mtvalue)) {
-                    var localvalue = property.RosDataType.Decode(mtvalue, property.ValueType);
-                    property.PropertyInfo.SetValue(record, localvalue);
+                if (attributes.TryGetValue(property.Attribute.RosName, out var rosValue)) {
+                    object localValue = null;
+                    if (property.ValueType == typeof(string)) { // RosString => string
+                        if (rosValue == string.Empty) {
+                            localValue = null;
+                        } else {
+                            localValue = rosValue;
+                        }
+                    } else if (property.ValueType == typeof(int?)) {// RosInteger => int?
+                        if (rosValue == string.Empty) {
+                            localValue = null;
+                        } else if (int.TryParse(rosValue, out var intValue)) {
+                            localValue = intValue;
+                        } else {
+                            throw new PropertyConverstionException($"Unable to parse '{rosValue}' as int? for '{property.Attribute.RosName}'");
+                        }
+                    } else if (property.ValueType == typeof(int)) {// RosInteger => int
+                        if (rosValue == string.Empty) {
+                            throw new PropertyConverstionException($"Unable to parse '{rosValue}' as int for '{property.Attribute.RosName}'");
+                        } else if (int.TryParse(rosValue, out var intValue)) {
+                            localValue = intValue;
+                        } else {
+                            throw new PropertyConverstionException($"Unable to parse '{rosValue}' as int for '{property.Attribute.RosName}'");
+                        }
+                    } else if (property.ValueType == typeof(long?)) { // RosInteger => long?
+                        if (rosValue == string.Empty) {
+                            localValue = null;
+                        } else if (long.TryParse(rosValue, out var intValue)) {
+                            localValue = intValue;
+                        } else {
+                            throw new PropertyConverstionException($"Unable to parse '{rosValue}' as long? for '{property.Attribute.RosName}'");
+                        }
+                    } else if (property.ValueType == typeof(long)) { // RosInteger => long
+                        if (rosValue == string.Empty) {
+                            throw new PropertyConverstionException($"Unable to parse '{rosValue}' as long for '{property.Attribute.RosName}'");
+                        } else if (long.TryParse(rosValue, out var intValue)) {
+                            localValue = intValue;
+                        } else {
+                            throw new PropertyConverstionException($"Unable to parse '{rosValue}' as long for '{property.Attribute.RosName}'");
+                        }
+                    } else if (property.ValueType == typeof(bool?)) { // RosBoolean => bool?
+                        if (rosValue == string.Empty) {
+                            localValue = null;
+                        } else if (rosValue == "true" || rosValue == "yes") {
+                            localValue = true;
+                        } else if (rosValue == "false" || rosValue == "no") {
+                            localValue = false;
+                        } else {
+                            throw new PropertyConverstionException($"Unable to parse '{rosValue}' as bool? for '{property.Attribute.RosName}'");
+                        }
+                    } else if (property.ValueType == typeof(bool)) { // RosBoolean => bool
+                        if (rosValue == string.Empty) {
+                            throw new PropertyConverstionException($"Unable to parse '{rosValue}' as bool for '{property.Attribute.RosName}'");
+                        } else if (rosValue == "true" || rosValue == "yes") {
+                            localValue = true;
+                        } else if (rosValue == "false" || rosValue == "no") {
+                            localValue = false;
+                        } else {
+                            throw new PropertyConverstionException($"Unable to parse '{rosValue}' as bool for '{property.Attribute.RosName}'");
+                        }
+                    } else if (property.ValueType == typeof(TimeSpan?)) { // RosTimeSpan => TimeSpan?
+                        if (rosValue == string.Empty) {
+                            localValue = null;
+                        } else {
+                            var match = TimePattern.Match(rosValue);
+                            if (!match.Success) {
+                                throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan for '{property.Attribute.RosName}'");
+                            }
+                            if (!int.TryParse(string.Empty, out var d)) {
+                                throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan for '{property.Attribute.RosName}'");
+                            }
+                            if (!int.TryParse(string.Empty, out var h)) {
+                                throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan for '{property.Attribute.RosName}'");
+                            }
+                            if (!int.TryParse(string.Empty, out var m)) {
+                                throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan for '{property.Attribute.RosName}'");
+                            }
+                            if (!int.TryParse(string.Empty, out var s)) {
+                                throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan for '{property.Attribute.RosName}'");
+                            }
+
+                            localValue = new TimeSpan(d, h, m, s, 0);
+                        }
+
+                    } else if (property.ValueType == typeof(TimeSpan)) { // RosTimeSpan => TimeSpan
+                        if (rosValue == string.Empty) {
+                            throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan? for '{property.Attribute.RosName}'");
+                        } else {
+                            var match = TimePattern.Match(rosValue);
+                            if (!match.Success) {
+                                throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan? for '{property.Attribute.RosName}'");
+                            }
+                            if (!int.TryParse(string.Empty, out var d)) {
+                                throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan? for '{property.Attribute.RosName}'");
+                            }
+                            if (!int.TryParse(string.Empty, out var h)) {
+                                throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan? for '{property.Attribute.RosName}'");
+                            }
+                            if (!int.TryParse(string.Empty, out var m)) {
+                                throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan? for '{property.Attribute.RosName}'");
+                            }
+                            if (!int.TryParse(string.Empty, out var s)) {
+                                throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan? for '{property.Attribute.RosName}'");
+                            }
+
+                            localValue = new TimeSpan(d, h, m, s, 0);
+                        }
+                    } else if (property.ValueTypeInfo.IsGenericType && property.ValueType.GetGenericTypeDefinition() == typeof(Nullable<>) && property.ValueTypeInfo.GenericTypeParameters[0].GetTypeInfo().IsEnum) { // RosEnum => Enum?
+                        if (rosValue == string.Empty) {
+                            localValue = null;
+                        } else {
+                            foreach (var field in property.ValueTypeInfo.GenericTypeParameters[0].GetRuntimeFields()) {
+                                var attribute = field.GetCustomAttribute<RosEnumAttribute>(true);
+                                if (attribute != null && attribute.Value == rosValue) {
+                                    localValue = field.GetValue(null);
+                                    break;
+                                }
+                            }
+                            if (null == localValue) {
+                                throw new PropertyConverstionException($"Unable to parse '{rosValue}' as Enum? for '{property.Attribute.RosName}'");
+                            }
+                        }
+                    } else if (property.ValueTypeInfo.IsEnum) { // RosEnum => Enum
+                        if (rosValue == string.Empty) {
+                            throw new PropertyConverstionException($"Unable to parse '{rosValue}' as Enum for '{property.Attribute.RosName}'");
+                        } else {
+                            foreach (var field in property.ValueType.GetRuntimeFields()) {
+                                var attribute = field.GetCustomAttribute<RosEnumAttribute>(true);
+                                if (attribute != null && attribute.Value == rosValue) {
+                                    localValue = field.GetValue(null);
+                                    break;
+                                }
+                            }
+                            if (null == localValue) {
+                                throw new PropertyConverstionException($"Unable to parse '{rosValue}' as Enum for '{property.Attribute.RosName}'");
+                            }
+                        }
+                    } else {
+                        throw new PropertyConverstionException($"Data type '{property.ValueType.Name}' is not supported. '{property.Attribute.RosName}'");
+                    }
+
+                    property.PropertyInfo.SetValue(record, localValue);
                 }
             }
         }
@@ -62,25 +217,67 @@ namespace InvertedTomato.TikLink {
             var meta = GetGenerateMeta<T>();
 
             // Get all properties
-            var output = new Dictionary<string, string>();
+            var rosValues = new Dictionary<string, string>();
             foreach (var property in meta.Properties) {
                 // Skip read-only properties
                 if (property.Attribute.IsReadOnly) {
                     continue;
                 }
-                
-                var localvalue = property.PropertyInfo.GetValue(record);
 
-                string mtvalue = property.RosDataType.Encode(localvalue, property.ValueType);
+                // Get local value
+                var localValue = property.PropertyInfo.GetValue(record);
 
-                // Skip null properties
-                if (null == mtvalue) {
-                    continue;
+                // Convert to ROS value
+                string rosValue = null;
+                if (property.ValueType == typeof(string)) { // string => RosString
+                    if (localValue != null) {
+                        rosValues[property.Attribute.RosName] = (string)localValue;
+                    }
+                } else if (property.ValueType == typeof(int?)) {// int? => RosInteger
+                    if (localValue != null) {
+                        rosValues[property.Attribute.RosName] = localValue.ToString();
+                    }
+                } else if (property.ValueType == typeof(int)) {// int => RosInteger
+                    rosValue = localValue.ToString();
+                } else if (property.ValueType == typeof(long?)) { // long? => RosInteger
+                    if (localValue != null) {
+                        rosValues[property.Attribute.RosName] = localValue.ToString();
+                    }
+                } else if (property.ValueType == typeof(long)) { // long => RosInteger
+                    rosValues[property.Attribute.RosName] = localValue.ToString();
+                } else if (property.ValueType == typeof(bool?)) { // bool => RosBoolean
+                    if (localValue != null) {
+                        rosValues[property.Attribute.RosName] = ((bool)localValue) ? "yes" : "no";
+                    }
+                } else if (property.ValueType == typeof(bool)) { // bool => RosBoolean
+                    rosValues[property.Attribute.RosName] = ((bool)localValue) ? "yes" : "no";
+                } else if (property.ValueType == typeof(TimeSpan?)) { // TimeSpan? => RosTimeSpan
+                    if (localValue != null) {
+                        rosValues[property.Attribute.RosName] = ((TimeSpan)localValue).ToString(@"d\d hh:mm:ss");
+                    }
+                } else if (property.ValueType == typeof(TimeSpan)) { // TimeSpan => RosTimeSpan
+                    rosValues[property.Attribute.RosName] = ((TimeSpan)localValue).ToString(@"d\d hh:mm:ss");
+                } else if (property.ValueTypeInfo.IsGenericType && property.ValueType.GetGenericTypeDefinition() == typeof(Nullable<>) && property.ValueType.GenericTypeArguments[0].GetTypeInfo().IsEnum) { // Enum? => RosEnum
+                    if (localValue != null) {
+                        foreach (var field in property.ValueTypeInfo.GenericTypeParameters[0].GetRuntimeFields()) { // TODO: What if the seleted enum doesn't have an attribute? Should throw exception
+                            var attribute = field.GetCustomAttribute<RosEnumAttribute>(true);
+                            if (attribute != null && field.Name == localValue.ToString()) {
+                                rosValues[property.Attribute.RosName] = attribute.Value;
+                            }
+                        }
+                    }
+                } else if (property.ValueTypeInfo.IsEnum) { // enum => RosEnum
+                    foreach (var field in property.ValueType.GetRuntimeFields()) { // TODO: What if the seleted enum doesn't have an attribute? Should throw exception
+                        var attribute = field.GetCustomAttribute<RosEnumAttribute>(true);
+                        if (attribute != null && field.Name == localValue.ToString()) {
+                            rosValues[property.Attribute.RosName] = attribute.Value;
+                        }
+                    }
+                } else {
+                    throw new PropertyConverstionException($"Data type '{property.ValueType.Name}' is not supported. '{property.Attribute.RosName}'");
                 }
-                
-                output[property.Attribute.RosName] = mtvalue;
             }
-            return output;
+            return rosValues;
         }
 
         public static string ResolveProperty<T>(string name) {
@@ -126,8 +323,8 @@ namespace InvertedTomato.TikLink {
                         Attribute = propertyAttribute,
                         PropertyInfo = property,
                         ValueType = property.PropertyType,
-                        ValueTypeInfo = property.PropertyType.GetTypeInfo(),
-                        RosDataType = (IRosDataType)Activator.CreateInstance(propertyAttribute.RosDataType)
+                        ValueTypeInfo = property.PropertyType.GetTypeInfo()
+                        //RosDataType = (IRosDataType)Activator.CreateInstance(propertyAttribute.RosDataType)
                     });
                 }
 

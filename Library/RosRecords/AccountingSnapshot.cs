@@ -1,4 +1,5 @@
-﻿using System;
+﻿using InvertedTomato.TikLink.RosDataTypes;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,43 +13,43 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
-        [RosProperty(".id", IsReadOnly = true, IsRequired = true)]
+        [RosProperty(".id", IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
         /// bytes: total number of bytes, matched by this entry
         /// </summary>
-        [RosProperty("bytes", IsReadOnly = true)]
+        [RosProperty("bytes",IsReadOnly = true)]
         public int Bytes { get; private set; }
 
         /// <summary>
         /// dst-address: destination IP address
         /// </summary>
-        [RosProperty("dst-address", IsReadOnly = true)]
+        [RosProperty("dst-address",IsReadOnly = true)]
         public string DstAddress { get; private set; }
 
         /// <summary>
         /// dst-user: recipient's name (if applicable)
         /// </summary>
-        [RosProperty("dst-user", IsReadOnly = true)]
+        [RosProperty("dst-user",IsReadOnly = true)]
         public string DstUser { get; private set; }
 
         /// <summary>
         /// packets: total number of packets, matched by this entry
         /// </summary>
-        [RosProperty("packets", IsReadOnly = true)]
+        [RosProperty("packets",IsReadOnly = true)]
         public int Packets { get; private set; }
 
         /// <summary>
         /// src-address: source IP address
         /// </summary>
-        [RosProperty("src-address", IsReadOnly = true)]
+        [RosProperty("src-address",IsReadOnly = true)]
         public string SrcAddress { get; private set; }
 
         /// <summary>
         /// src-user: sender's name (if aplicable)
         /// </summary>
-        [RosProperty("src-user", IsReadOnly = true)]
+        [RosProperty("src-user",IsReadOnly = true)]
         public string SrcUser { get; private set; }
 
         /* TODO

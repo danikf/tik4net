@@ -1,5 +1,6 @@
 ﻿using InvertedTomato.TikLink.RosRecords;
 using System.Collections.Generic;
+using System;
 
 namespace InvertedTomato.TikLink {
     public class LinkFirewallFilter {
@@ -23,6 +24,10 @@ namespace InvertedTomato.TikLink {
 
         public void Delete(string id) {
             Link.Delete<FirewallFilter>(id);
+        }
+
+        public void Delete(FirewallFilter record) {
+            Link.Delete(record);
         }
     }
 }

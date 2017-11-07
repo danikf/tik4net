@@ -12,14 +12,14 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
-        [RosProperty(".id", IsReadOnly = true, IsRequired = true)]
+        [RosProperty(".id", IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
         /// data
         /// DNS data field. IP address for type "A" records. Other record types may have different contents of the data field (like hostname or arbitrary text)
         /// </summary>
-        [RosProperty("data", IsReadOnly = true)]
+        [RosProperty("data",IsReadOnly = true)]
         public string/*read-only: text*/ Data { get; private set; }
 
         /// <summary>
@@ -33,14 +33,14 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// ttl
         /// remaining time-to-live for the record
         /// </summary>
-        [RosProperty("ttl", IsReadOnly = true)]
+        [RosProperty("ttl",IsReadOnly = true)]
         public string/*read-only: time*/ Ttl { get; private set; }
 
         /// <summary>
         /// type
         /// DNS record type
         /// </summary>
-        [RosProperty("type", IsReadOnly = true)]
+        [RosProperty("type",IsReadOnly = true)]
         public string/*read-only: text*/ Type { get; private set; }
     }
 }

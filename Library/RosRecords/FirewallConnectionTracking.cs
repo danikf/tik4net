@@ -93,13 +93,13 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// max-entries: Max amount of entries that connection tracking table can hold. This value depends on installed amount of RAM. Note that system does not create maximum size connection tracking table when it starts, maximum entry amount can increase if situation demands it and router still has free ram left.
         /// </summary>
-        [RosProperty("max-entries", IsReadOnly = true)]
+        [RosProperty("max-entries",IsReadOnly = true)]
         public int MaxEntries { get; private set; }
 
         /// <summary>
         /// total-entries: Amount of connections that currently connection table holds.
         /// </summary>
-        [RosProperty("total-entries", IsReadOnly = true)]
+        [RosProperty("total-entries",IsReadOnly = true)]
         public int TotalEntries { get; private set; }
     }
 }

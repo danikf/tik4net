@@ -12,13 +12,13 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// .id
         /// </summary>
-        [RosProperty(".id", IsReadOnly = true, IsRequired = true)]
+        [RosProperty(".id", IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
         /// address
         /// </summary>
-        [RosProperty("address", IsRequired = true)]
+        [RosProperty("address",IsRequired = true)]
         public string Address { get; set; }
 
         /// <summary>
@@ -36,7 +36,7 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// dynamic
         /// </summary>
-        [RosProperty("dynamic", IsReadOnly = true)]
+        [RosProperty("dynamic",IsReadOnly = true)]
         public bool Dynamic { get; private set; }
 
         /// <summary>
@@ -48,7 +48,7 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// list
         /// </summary>
-        [RosProperty("list", IsRequired = true)]
+        [RosProperty("list",IsRequired = true)]
         public string List { get; set; }
     }
 }

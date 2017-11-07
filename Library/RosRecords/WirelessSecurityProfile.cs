@@ -1,4 +1,5 @@
-﻿using System;
+﻿using InvertedTomato.TikLink.RosDataTypes;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,11 +9,11 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// Wireless security profiles
     /// </summary>
     [RosRecord("/interface/wireless/security-profiles")]
-    public class WirelessSecurityProfile  : IHasId {
+    public class WirelessSecurityProfile : IHasId {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
-        [RosProperty(".id", IsReadOnly = true, IsRequired = true)]
+        [RosProperty(".id", IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>

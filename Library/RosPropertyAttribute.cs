@@ -1,5 +1,4 @@
-﻿using InvertedTomato.TikLink.RosDataTypes;
-using System;
+﻿using System;
 
 namespace InvertedTomato.TikLink {
     /// <summary>
@@ -13,11 +12,6 @@ namespace InvertedTomato.TikLink {
         public string RosName { get; private set; }
 
         /// <summary>
-        /// Data type, according to RouterOS
-        /// </summary>
-        public Type RosDataType { get; set; }
-
-        /// <summary>
         /// If the property is read-only - this will cause the property to ignore during PUT operations
         /// </summary>
         public bool IsReadOnly { get; set; }
@@ -27,6 +21,7 @@ namespace InvertedTomato.TikLink {
         /// <summary>
         /// Gets a value indicating whether this property is mandatory - should be present in loading resultset.
         /// </summary>
+        [Obsolete("TODO: Is this needed? Adds any value?")]
         public bool IsRequired { get; set; }
 
         /// <summary>
@@ -41,20 +36,17 @@ namespace InvertedTomato.TikLink {
         [Obsolete("TODO: Is this needed? Adds any value?")]
         public bool UnsetOnDefault { get; set; } // TODO: This needed? Adds any value?
 
+
         /// <summary>
         /// Initializes a new instance of the <see cref="RosPropertyAttribute"/> class.
         /// </summary>
         /// <param name="name">Name of the property (on mikrotik).</param>
-        public RosPropertyAttribute(string name, Type rosDataType = null, bool isReadOnly = false) {
+        public RosPropertyAttribute(string name) {
             if (null == name) {
                 throw new ArgumentNullException(nameof(name));
             }
 
-            // TODO: make dataType required
-
             RosName = name;
-            RosDataType = rosDataType;
-            IsReadOnly = isReadOnly;
         }
     }
 }

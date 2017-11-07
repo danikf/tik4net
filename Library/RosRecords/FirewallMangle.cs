@@ -1,4 +1,5 @@
-﻿using System;
+﻿using InvertedTomato.TikLink.RosDataTypes;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,7 +9,7 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// /ip/firewall/mangle
     /// </summary>
     [RosRecord("/ip/firewall/mangle", IncludeDetails = true, IsOrdered = true)]
-    public class FirewallMangle  : IHasId {
+    public class FirewallMangle : IHasId {
         /// <summary>
         /// Mangle action type - <see cref="FirewallMangle.Action"/>
         /// </summary>
@@ -126,7 +127,7 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// .id
         /// </summary>
-        [RosProperty(".id", IsReadOnly = true, IsRequired = true)]
+        [RosProperty(".id", IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
@@ -144,14 +145,14 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// new-priorityne
         /// </summary>
-        [RosProperty("new-priority", DefaultValue = "0")]
-        public string NewPriority { get; set; }
+        [RosProperty("new-priority")]
+        public string NewPriority { get; set; } = "0";
 
         /// <summary>
         /// passthrough
         /// </summary>
-        [RosProperty("passthrough", DefaultValue = "yes")]
-        public bool Passthrough { get; set; }
+        [RosProperty("passthrough")]
+        public bool Passthrough { get; set; } = true;
 
         /// <summary>
         /// src-address-list
@@ -228,8 +229,8 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// address-list-timeout
         /// </summary>
-        [RosProperty("address-list-timeout", DefaultValue = "00:00:00")]
-        public string AddressListTimeout { get; set; }
+        [RosProperty("address-list-timeout")]
+        public string AddressListTimeout { get; set; } = "00:00:00";
 
         /// <summary>
         /// ToString override.

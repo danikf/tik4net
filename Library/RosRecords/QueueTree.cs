@@ -12,13 +12,13 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// .id
         /// </summary>
-        [RosProperty(".id", IsReadOnly = true, IsRequired = true)]
+        [RosProperty(".id", IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
         /// Name
         /// </summary>
-        [RosProperty("name", IsRequired = true)]
+        [RosProperty("name",IsRequired = true)]
         public string Name { get; set; }
 
         /// <summary>
@@ -78,49 +78,49 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// bytes
         /// </summary>
-        [RosProperty("bytes", IsReadOnly = true)]
+        [RosProperty("bytes",IsReadOnly = true)]
         public long Bytes { get; private set; }
 
         /// <summary>
         /// packets
         /// </summary>
-        [RosProperty("packets", IsReadOnly = true)]
+        [RosProperty("packets",IsReadOnly = true)]
         public long Packets { get; private set; }
 
         /// <summary>
         /// dropped
         /// </summary>
-        [RosProperty("dropped", IsReadOnly = true)]
+        [RosProperty("dropped",IsReadOnly = true)]
         public long Dropped { get; private set; }
 
         /// <summary>
         /// rate
         /// </summary>
-        [RosProperty("rate", IsReadOnly = true)]
+        [RosProperty("rate",IsReadOnly = true)]
         public long Rate { get; private set; }
 
         /// <summary>
         /// packet-rate
         /// </summary>
-        [RosProperty("packet-rate", IsReadOnly = true)]
+        [RosProperty("packet-rate",IsReadOnly = true)]
         public long PacketRate { get; private set; }
 
         /// <summary>
         /// queued-packets
         /// </summary>
-        [RosProperty("queued-packets", IsReadOnly = true)]
+        [RosProperty("queued-packets",IsReadOnly = true)]
         public long QueuedPackets { get; private set; }
 
         /// <summary>
         /// queued-bytes
         /// </summary>
-        [RosProperty("queued-bytes", IsReadOnly = true)]
+        [RosProperty("queued-bytes",IsReadOnly = true)]
         public long QueuedBytes { get; private set; }
 
         /// <summary>
         /// invalid
         /// </summary>
-        [RosProperty("invalid", IsReadOnly = true)]
+        [RosProperty("invalid",IsReadOnly = true)]
         public bool Invalid { get; private set; }
 
         /// <summary>

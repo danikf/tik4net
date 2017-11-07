@@ -34,7 +34,7 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// cache-used
         /// displays the current cache size in KiB
         /// </summary>
-        [RosProperty("cache-used", IsReadOnly = true)]
+        [RosProperty("cache-used",IsReadOnly = true)]
         public string/*read-only: integer*/ CacheUsed { get; private set; }
 
         /// <summary>

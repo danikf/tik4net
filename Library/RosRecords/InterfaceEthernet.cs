@@ -13,7 +13,7 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
-        [RosProperty(".id", IsReadOnly = true, IsRequired = true)]
+        [RosProperty(".id", IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
@@ -138,7 +138,7 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// name: Name of an interface
         /// </summary>
-        [RosProperty("name", IsRequired = true)]
+        [RosProperty("name",IsRequired = true)]
         public string Name { get; set; }
 
         /// <summary>
@@ -178,7 +178,7 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// running: Whether interface is running. Note that some interface does not have running check and they are always reported as "running"
         /// </summary>
-        [RosProperty("running", IsReadOnly = true)]
+        [RosProperty("running",IsReadOnly = true)]
         public bool Running { get; private set; }
 
         /// <summary>
@@ -226,49 +226,49 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// rx-align-error: Total count of received align error messages
         /// </summary>
-        [RosProperty("rx-align-error", IsReadOnly = true)]
+        [RosProperty("rx-align-error",IsReadOnly = true)]
         public int RxAlignError { get; private set; }
 
         /// <summary>
         /// rx-broadcast: Total count of received broadcast packets
         /// </summary>
-        [RosProperty("rx-broadcast", IsReadOnly = true)]
+        [RosProperty("rx-broadcast",IsReadOnly = true)]
         public int RxBroadcast { get; private set; }
 
         /// <summary>
         /// rx-bytes: Total count of received bytes
         /// </summary>
-        [RosProperty("rx-bytes", IsReadOnly = true)]
+        [RosProperty("rx-bytes",IsReadOnly = true)]
         public long RxBytes { get; private set; }
 
         /// <summary>
         /// rx-fcs-error: Total count of received frames with incorrect checksum
         /// </summary>
-        [RosProperty("rx-fcs-error", IsReadOnly = true)]
+        [RosProperty("rx-fcs-error",IsReadOnly = true)]
         public int RxFcsError { get; private set; }
 
         /// <summary>
         /// rx-fragment: Total count of received fragmented frames
         /// </summary>
-        [RosProperty("rx-fragment", IsReadOnly = true)]
+        [RosProperty("rx-fragment",IsReadOnly = true)]
         public int RxFragment { get; private set; }
 
         /// <summary>
         /// rx-multicast: Total count of received multicast packets
         /// </summary>
-        [RosProperty("rx-multicast", IsReadOnly = true)]
+        [RosProperty("rx-multicast",IsReadOnly = true)]
         public int RxMulticast { get; private set; }
 
         /// <summary>
         /// rx-overflow: Total count of received overflowed packets
         /// </summary>
-        [RosProperty("rx-overflow", IsReadOnly = true)]
+        [RosProperty("rx-overflow",IsReadOnly = true)]
         public int RxOverflow { get; private set; }
 
         /// <summary>
         /// rx-pause: Total count of received pause frames
         /// </summary>
-        [RosProperty("rx-pause", IsReadOnly = true)]
+        [RosProperty("rx-pause",IsReadOnly = true)]
         public int RxPause { get; private set; }
 
         /// <summary>
@@ -276,25 +276,25 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// Total count of received frames shorter than the minimum 64 bytes
         /// but with a valid CRC
         /// </summary>
-        [RosProperty("rx-runt", IsReadOnly = true)]
+        [RosProperty("rx-runt",IsReadOnly = true)]
         public int RxRunt { get; private set; }
 
         /// <summary>
         /// rx-too-long: Total count of received packets that were larger than the maximum packet size
         /// </summary>
-        [RosProperty("rx-too-long", IsReadOnly = true)]
+        [RosProperty("rx-too-long",IsReadOnly = true)]
         public int RxTooLong { get; private set; }
 
         /// <summary>
         /// slave: Whether interface is configured as a slave of another interface (for example Bonding)
         /// </summary>
-        [RosProperty("slave", IsReadOnly = true)]
+        [RosProperty("slave",IsReadOnly = true)]
         public bool Slave { get; private set; }
 
         /// <summary>
         /// switch: ID to which switch chip interface belongs to.
         /// </summary>
-        [RosProperty("switch", IsReadOnly = true)]
+        [RosProperty("switch",IsReadOnly = true)]
         public string Switch { get; private set; }
 
         /// <summary>
@@ -342,49 +342,49 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// tx-align-error: Total count of transmitted align error messages
         /// </summary>
-        [RosProperty("tx-align-error", IsReadOnly = true)]
+        [RosProperty("tx-align-error",IsReadOnly = true)]
         public int TxAlignError { get; private set; }
 
         /// <summary>
         /// tx-broadcast: Total count of transmitted broadcast packets
         /// </summary>
-        [RosProperty("tx-broadcast", IsReadOnly = true)]
+        [RosProperty("tx-broadcast",IsReadOnly = true)]
         public int TxBroadcast { get; private set; }
 
         /// <summary>
         /// tx-bytes: Total count of transmitted bytes
         /// </summary>
-        [RosProperty("tx-bytes", IsReadOnly = true)]
+        [RosProperty("tx-bytes",IsReadOnly = true)]
         public long TxBytes { get; private set; }
 
         /// <summary>
         /// tx-fcs-error: Total count of transmitted frames with incorrect checksum
         /// </summary>
-        [RosProperty("tx-fcs-error", IsReadOnly = true)]
+        [RosProperty("tx-fcs-error",IsReadOnly = true)]
         public int TxFcsError { get; private set; }
 
         /// <summary>
         /// tx-fragment: Total count of transmitted fragmented frames
         /// </summary>
-        [RosProperty("tx-fragment", IsReadOnly = true)]
+        [RosProperty("tx-fragment",IsReadOnly = true)]
         public int TxFragment { get; private set; }
 
         /// <summary>
         /// tx-multicast: Total count of transmitted multicast packets
         /// </summary>
-        [RosProperty("tx-multicast", IsReadOnly = true)]
+        [RosProperty("tx-multicast",IsReadOnly = true)]
         public int TxMulticast { get; private set; }
 
         /// <summary>
         /// tx-overflow: Total count of transmitted overflowed packets
         /// </summary>
-        [RosProperty("tx-overflow", IsReadOnly = true)]
+        [RosProperty("tx-overflow",IsReadOnly = true)]
         public int TxOverflow { get; private set; }
 
         /// <summary>
         /// tx-pause: Total count of transmitted pause frames
         /// </summary>
-        [RosProperty("tx-pause", IsReadOnly = true)]
+        [RosProperty("tx-pause",IsReadOnly = true)]
         public int TxPause { get; private set; }
 
         /// <summary>
@@ -392,13 +392,13 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// Total count of transmitted frames shorter than the minimum 64 bytes
         /// but with a valid CRC
         /// </summary>
-        [RosProperty("tx-runt", IsReadOnly = true)]
+        [RosProperty("tx-runt",IsReadOnly = true)]
         public int TxRunt { get; private set; }
 
         /// <summary>
         /// tx-too-long: Total count of transmitted packets that were larger than the maximum packet size
         /// </summary>
-        [RosProperty("tx-too-long", IsReadOnly = true)]
+        [RosProperty("tx-too-long",IsReadOnly = true)]
         public int TxTooLong { get; private set; }
 
         /// <summary>

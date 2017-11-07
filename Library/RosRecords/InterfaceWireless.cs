@@ -1,4 +1,5 @@
-﻿using System;
+﻿using InvertedTomato.TikLink.RosDataTypes;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,7 +13,7 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// Wireless can operate in several modes: client (station), access point, wireless bridge etc. Client/station also can operate in different modes, complete list of supported modes can be found here. 
     /// </summary>
     [RosRecord("/interface/wireless")]
-    public class InterfaceWireless  : IHasId {
+    public class InterfaceWireless : IHasId {
         #region Submenu classes - Obsolete
 
         /// <summary>
@@ -44,7 +45,7 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
-        [RosProperty(".id", IsReadOnly = true, IsRequired = true)]
+        [RosProperty(".id", IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
@@ -52,19 +53,19 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// 
         /// ap-and-client-mode | client-mode | none
         /// </summary>
-        [RosProperty("adaptive-noise-immunity", DefaultValue = "none")]
-        public string/*ap-and-client-mode | client-mode | none*/ AdaptiveNoiseImmunity { get; set; }
+        [RosProperty("adaptive-noise-immunity")]
+        public string/*ap-and-client-mode | client-mode | none*/ AdaptiveNoiseImmunity { get; set; } = "none";
 
         /// <summary>
         /// allow-sharedkey: Allow WEP Shared Key cilents to connect. Note that no authentication is done for these clients (WEP Shared keys are not compared to anything) - they are just accepted at once (if access list allows that)
         /// </summary>
-        [RosProperty("allow-sharedkey", DefaultValue = "no")]
+        [RosProperty("allow-sharedkey")]
         public bool AllowSharedkey { get; set; }
 
         /// <summary>
         /// antenna-gain: Antenna gain in dBi, used to calculate maximum transmit power according to country regulations.
         /// </summary>
-        [RosProperty("antenna-gain", DefaultValue = "0")]
+        [RosProperty("antenna-gain")]
         public long/*integer [0..4294967295]*/ AntennaGain { get; set; }
 
         /// <summary>
@@ -90,8 +91,8 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// arp:  Read more &gt;&gt;
         /// disabled | enabled | proxy-arp | reply-only
         /// </summary>
-        [RosProperty("arp", DefaultValue = "enabled")]
-        public string/*disabled | enabled | proxy-arp | reply-only*/ Arp { get; set; }
+        [RosProperty("arp")]
+        public string/*disabled | enabled | proxy-arp | reply-only*/ Arp { get; set; } = "enabled";
 
         /// <summary>
         /// band: Defines set of used data rates, channel frequencies and widths.

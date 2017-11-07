@@ -12,25 +12,25 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// Row .id property.
         /// </summary>
-        [RosProperty(".id", IsReadOnly = true, IsRequired = true)]
+        [RosProperty(".id", IsRequired = true)]
         public string Id { get; set; }
 
         /// <summary>
         /// Row actual-interface property.
         /// </summary>
-        [RosProperty("actual-interface", IsReadOnly = true)]
+        [RosProperty("actual-interface",IsReadOnly = true)]
         public string ActualInterface { get; private set; }
 
         /// <summary>
         /// address: IP address
         /// </summary>
-        [RosProperty("address", IsRequired = true)]
+        [RosProperty("address",IsRequired = true)]
         public string Address { get; set; }
 
         /// <summary>
         /// interface: Interface name the IP address is assigned to
         /// </summary>
-        [RosProperty("interface", IsRequired = true)]
+        [RosProperty("interface",IsRequired = true)]
         public string Interface { get; set; }
 
         /// <summary>
@@ -66,13 +66,13 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// Row dynamic property.
         /// </summary>
-        [RosProperty("dynamic", IsReadOnly = true)]
+        [RosProperty("dynamic",IsReadOnly = true)]
         public bool Dynamic { get; set; }
 
         /// <summary>
         /// Row invalid property.
         /// </summary>
-        [RosProperty("invalid", IsReadOnly = true)]
+        [RosProperty("invalid",IsReadOnly = true)]
         public bool Invalid { get; set; }
     }
 }

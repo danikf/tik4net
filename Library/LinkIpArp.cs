@@ -1,5 +1,6 @@
 ﻿using InvertedTomato.TikLink.RosRecords;
 using System.Collections.Generic;
+using System;
 
 namespace InvertedTomato.TikLink {
     public class LinkIpArp {
@@ -23,6 +24,10 @@ namespace InvertedTomato.TikLink {
         
         public void Delete(string id) {
             Link.Delete<IpArp>(id);
+        }
+
+        public void Delete(IpArp record) {
+            Link.Delete(record);
         }
     }
 }
