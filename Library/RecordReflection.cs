@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 
 namespace InvertedTomato.TikLink {
     public static class RecordReflection {
-        private static Regex TimePattern = new Regex(@"$((\d+)d)? (\d+):(\d+):(\d+)^");
+        private static Regex TimePattern = new Regex(@"^((\d+)d)?((\d+)h)?((\d+)m)?((\d+)s)?$");
 
         private class RecordMeta {
             public RosRecordAttribute Attribute { get; set; }
@@ -127,22 +127,21 @@ namespace InvertedTomato.TikLink {
                             if (!match.Success) {
                                 throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan for '{property.Attribute.RosName}'");
                             }
-                            if (!int.TryParse(string.Empty, out var d)) {
+                            if (!int.TryParse(match.Groups[2].Value, out var d)) {
                                 throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan for '{property.Attribute.RosName}'");
                             }
-                            if (!int.TryParse(string.Empty, out var h)) {
+                            if (!int.TryParse(match.Groups[4].Value, out var h)) {
                                 throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan for '{property.Attribute.RosName}'");
                             }
-                            if (!int.TryParse(string.Empty, out var m)) {
+                            if (!int.TryParse(match.Groups[6].Value, out var m)) {
                                 throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan for '{property.Attribute.RosName}'");
                             }
-                            if (!int.TryParse(string.Empty, out var s)) {
+                            if (!int.TryParse(match.Groups[8].Value, out var s)) {
                                 throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan for '{property.Attribute.RosName}'");
                             }
 
                             localValue = new TimeSpan(d, h, m, s, 0);
                         }
-
                     } else if (property.ValueType == typeof(TimeSpan)) { // RosTimeSpan => TimeSpan
                         if (rosValue == string.Empty) {
                             throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan? for '{property.Attribute.RosName}'");
@@ -151,16 +150,16 @@ namespace InvertedTomato.TikLink {
                             if (!match.Success) {
                                 throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan? for '{property.Attribute.RosName}'");
                             }
-                            if (!int.TryParse(string.Empty, out var d)) {
+                            if (!int.TryParse(match.Groups[2].Value, out var d)) {
                                 throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan? for '{property.Attribute.RosName}'");
                             }
-                            if (!int.TryParse(string.Empty, out var h)) {
+                            if (!int.TryParse(match.Groups[4].Value, out var h)) {
                                 throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan? for '{property.Attribute.RosName}'");
                             }
-                            if (!int.TryParse(string.Empty, out var m)) {
+                            if (!int.TryParse(match.Groups[6].Value, out var m)) {
                                 throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan? for '{property.Attribute.RosName}'");
                             }
-                            if (!int.TryParse(string.Empty, out var s)) {
+                            if (!int.TryParse(match.Groups[8].Value, out var s)) {
                                 throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan? for '{property.Attribute.RosName}'");
                             }
 
@@ -253,10 +252,10 @@ namespace InvertedTomato.TikLink {
                     rosValues[property.Attribute.RosName] = ((bool)localValue) ? "yes" : "no";
                 } else if (property.ValueType == typeof(TimeSpan?)) { // TimeSpan? => RosTimeSpan
                     if (localValue != null) {
-                        rosValues[property.Attribute.RosName] = ((TimeSpan)localValue).ToString(@"d\d hh:mm:ss");
+                        rosValues[property.Attribute.RosName] = ((TimeSpan)localValue).ToString(@"d\dh\hm\ms\s");
                     }
                 } else if (property.ValueType == typeof(TimeSpan)) { // TimeSpan => RosTimeSpan
-                    rosValues[property.Attribute.RosName] = ((TimeSpan)localValue).ToString(@"d\d hh:mm:ss");
+                    rosValues[property.Attribute.RosName] = ((TimeSpan)localValue).ToString(@"d\dh\hm\ms\s");
                 } else if (property.ValueTypeInfo.IsGenericType && property.ValueType.GetGenericTypeDefinition() == typeof(Nullable<>) && property.ValueType.GenericTypeArguments[0].GetTypeInfo().IsEnum) { // Enum? => RosEnum
                     if (localValue != null) {
                         foreach (var field in property.ValueTypeInfo.GenericTypeParameters[0].GetRuntimeFields()) { // TODO: What if the seleted enum doesn't have an attribute? Should throw exception

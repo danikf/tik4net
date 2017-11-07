@@ -79,6 +79,7 @@ namespace Tests {
                 });
                 Assert.Equal(1, objs1.Count);
                 var obj2 = objs1.Single();
+                Assert.Equal(obj1.Action, obj2.Action);
                 Assert.Equal(obj1.SrcAddress, obj2.SrcAddress);
                 Assert.Equal(obj1.DstAddress, obj2.DstAddress);
                 Assert.Equal(obj1.Comment, obj2.Comment);
@@ -94,6 +95,7 @@ namespace Tests {
                 });
                 Assert.Equal(1, objs2.Count);
                 var obj3 = objs1.Single();
+                Assert.Equal(obj2.Action, obj3.Action);
                 Assert.Equal(obj2.SrcAddress, obj3.SrcAddress);
                 Assert.Equal(obj2.DstAddress, obj3.DstAddress);
                 Assert.Equal(obj2.Comment, obj3.Comment);
@@ -169,6 +171,7 @@ namespace Tests {
                 var obj1 = new IpDhcpServerLease() {
                     Address = RandomAddress.GenerateIpAddress(),
                     MacAddress = RandomAddress.GenerateMacAddress(),
+                    LeaseTime = new TimeSpan(1, 2, 3, 4, 0),
                     Comment = "<test>"
                 };
                 link.Ip.DhcpServer.Lease.Put(obj1);
@@ -182,6 +185,7 @@ namespace Tests {
                 var obj2 = objs1.Single();
                 Assert.Equal(obj1.Address, obj2.Address);
                 Assert.Equal(obj1.MacAddress, obj2.MacAddress);
+                Assert.Equal(obj1.LeaseTime, obj2.LeaseTime);
                 Assert.Equal(obj1.Comment, obj2.Comment);
 
                 // Edit record
