@@ -36,6 +36,13 @@ Functionality
 ===
 Not all router records and methods are implimented currently. Feel free to raise a Pull Request to have your changes incorporated. Or otherwise raise a [issue](https://github.com/invertedtomato/tiklink/issues) and we'll probably pop that functionality in within a week.
 
+Getting Started
+===
+Grab it on [NuGet](https://www.nuget.org/packages/InvertedTomato.TikLink/):
+```
+PM> Install-Package InvertedTomato.TikLink
+```
+
 Credits
 ===
 TikLink is a significant fork of the inspirational [Tik4Net](https://github.com/danikf/tik4net) library. Thank you Danikf and the guys for all your fantastic work!
