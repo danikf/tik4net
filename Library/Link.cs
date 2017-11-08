@@ -8,7 +8,8 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Linq;
-using InvertedTomato.TikLink.RosRecords;
+using InvertedTomato.TikLink.Records;
+using InvertedTomato.TikLink.Vanity;
 
 namespace InvertedTomato.TikLink {
     public class Link : IDisposable {
@@ -150,7 +151,7 @@ namespace InvertedTomato.TikLink {
             var result2 = Call("/login", new Dictionary<string, string>() { { "name", username }, { "response", hash } }).Wait();
             if (result2.IsError) {
                 result2.TryGetTrapAttribute("message", out var message);
-                throw new AccessDeniedException(message);
+                throw new IOException("Access denied - invalid username and/or password");
             }
 
             // Setup vanity interfaces
