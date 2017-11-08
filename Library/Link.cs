@@ -14,14 +14,9 @@ using InvertedTomato.TikLink.Vanity;
 namespace InvertedTomato.TikLink {
     public class Link : IDisposable {
         /// <summary>
-        /// Connect without SSL on the default port.
+        /// Open a new link to a router.
         /// </summary>
-        public static Link Connect(string host, string username, string password) { return Connect(host, 8728, username, password); }
-
-        /// <summary>
-        /// Connect without SSL on a specified port.
-        /// </summary>
-        public static Link Connect(string host, int port, string username, string password) {
+        public static Link Connect(string host, string username, string password, int port = 8728) {
             if (null == host) {
                 throw new ArgumentNullException(nameof(host));
             }
@@ -42,30 +37,11 @@ namespace InvertedTomato.TikLink {
 
             return new Link(socketStream, true, username, password);
         }
-
+        
         /// <summary>
-        /// Connect with SSL on the default port, using the host name to validate the remote CA-signed certificate. 
+        /// Open a new SSL link to a router.
         /// </summary>
-        /// <remarks>
-        /// This will only work if the router has a properly CA-signed certificate installed.
-        /// </remarks>
-        public static Link ConnectSecure(string host, string username, string password) { return ConnectSecure(host, 8729, null, username, password); }
-
-        /// <summary>
-        /// Connect with SSL on the default port, using a public key to identify the remote router.
-        /// </summary>
-        /// <remarks>
-        /// This is handy, so you don't need to install a CA-signed certificate on the router.
-        /// </remarks>
-        public static Link ConnectSecure(string host, byte[] publicKey, string username, string password) { return ConnectSecure(host, 8729, publicKey, username, password); }
-
-        /// <summary>
-        /// Connect with SSL on a specified port, using a public key to identify the remote router.
-        /// </summary>
-        /// <remarks>
-        /// This can be handy, so you don't need to install a CA-signed certificate on the router.
-        /// </remarks>
-        public static Link ConnectSecure(string host, int port, byte[] publicKey, string username, string password) {
+        public static Link ConnectSecure(string host, string username, string password, int port = 8729, byte[] publicKey = null) {
             if (null == host) {
                 throw new ArgumentNullException(nameof(host));
             }
@@ -503,7 +479,7 @@ namespace InvertedTomato.TikLink {
                 throw new CallException(message);
             }
         }
-        
+
         /// <summary>
         /// Move a set of records before another record.
         /// </summary>
@@ -530,7 +506,7 @@ namespace InvertedTomato.TikLink {
                 throw new CallException(message);
             }
         }
-        
+
         /// <summary>
         /// Disconnect and dispose link.
         /// </summary>
@@ -646,7 +622,7 @@ namespace InvertedTomato.TikLink {
                 }
             }
         }
-        
+
         private string ReadWord() {
             // Get length
             var length = WordLength.ReadLength(UnderlyingStream);
