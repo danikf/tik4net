@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 
 namespace InvertedTomato.TikLink {
     public static class RecordReflection {
-        private static Regex TimePattern = new Regex(@"^((\d+)d)?((\d+)h)?((\d+)m)?((\d+)s)?$");
+        private static Regex TimePattern = new Regex(@"^((\d+)d)?((\d+)h)?((\d+)m)?((\d+)s)?((\d+)ms)?$");
 
         private class RecordMeta {
             public RosRecordAttribute Attribute { get; set; }
@@ -120,20 +120,28 @@ namespace InvertedTomato.TikLink {
                             if (!match.Success) {
                                 throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan for '{property.Attribute.RosName}'");
                             }
-                            if (!int.TryParse(match.Groups[2].Value, out var d)) {
+                            int d = 0;
+                            if (match.Groups[2].Value != string.Empty && !int.TryParse(match.Groups[2].Value, out d)) {
                                 throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan for '{property.Attribute.RosName}'");
                             }
-                            if (!int.TryParse(match.Groups[4].Value, out var h)) {
+                            int h = 0;
+                            if (match.Groups[4].Value != string.Empty && !int.TryParse(match.Groups[4].Value, out h)) {
                                 throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan for '{property.Attribute.RosName}'");
                             }
-                            if (!int.TryParse(match.Groups[6].Value, out var m)) {
+                            int m = 0;
+                            if (match.Groups[6].Value != string.Empty && !int.TryParse(match.Groups[6].Value, out m)) {
                                 throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan for '{property.Attribute.RosName}'");
                             }
-                            if (!int.TryParse(match.Groups[8].Value, out var s)) {
+                            int s = 0;
+                            if (match.Groups[8].Value != string.Empty && !int.TryParse(match.Groups[8].Value, out s)) {
+                                throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan for '{property.Attribute.RosName}'");
+                            }
+                            int ms = 0;
+                            if (match.Groups[10].Value != string.Empty && !int.TryParse(match.Groups[10].Value, out ms)) {
                                 throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan for '{property.Attribute.RosName}'");
                             }
 
-                            localValue = new TimeSpan(d, h, m, s, 0);
+                            localValue = new TimeSpan(d, h, m, s, ms);
                         }
                     } else if (property.ValueType == typeof(TimeSpan)) { // RosTimeSpan => TimeSpan
                         if (rosValue == string.Empty) {
@@ -143,20 +151,28 @@ namespace InvertedTomato.TikLink {
                             if (!match.Success) {
                                 throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan? for '{property.Attribute.RosName}'");
                             }
-                            if (!int.TryParse(match.Groups[2].Value, out var d)) {
+                            int d = 0;
+                            if (match.Groups[2].Value != string.Empty && !int.TryParse(match.Groups[2].Value, out d)) {
                                 throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan? for '{property.Attribute.RosName}'");
                             }
-                            if (!int.TryParse(match.Groups[4].Value, out var h)) {
+                            int h = 0;
+                            if (match.Groups[4].Value != string.Empty && !int.TryParse(match.Groups[4].Value, out h)) {
                                 throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan? for '{property.Attribute.RosName}'");
                             }
-                            if (!int.TryParse(match.Groups[6].Value, out var m)) {
+                            int m = 0;
+                            if (match.Groups[6].Value != string.Empty && !int.TryParse(match.Groups[6].Value, out m)) {
                                 throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan? for '{property.Attribute.RosName}'");
                             }
-                            if (!int.TryParse(match.Groups[8].Value, out var s)) {
+                            int s = 0;
+                            if (match.Groups[8].Value != string.Empty && !int.TryParse(match.Groups[8].Value, out s)) {
+                                throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan? for '{property.Attribute.RosName}'");
+                            }
+                            int ms = 0;
+                            if (match.Groups[10].Value != string.Empty && !int.TryParse(match.Groups[10].Value, out ms)) {
                                 throw new PropertyConverstionException($"Unable to parse '{rosValue}' as TimeSpan? for '{property.Attribute.RosName}'");
                             }
 
-                            localValue = new TimeSpan(d, h, m, s, 0);
+                            localValue = new TimeSpan(d, h, m, s, ms);
                         }
                     } else if (property.ValueTypeInfo.IsGenericType && property.ValueType.GetGenericTypeDefinition() == typeof(Nullable<>) && property.ValueTypeInfo.GenericTypeParameters[0].GetTypeInfo().IsEnum) { // RosEnum => Enum?
                         if (rosValue == string.Empty) {

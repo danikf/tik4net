@@ -110,6 +110,7 @@ namespace InvertedTomato.TikLink {
         public readonly LinkIpFirewall Firewall;
         public readonly LinkQueue Queue;
         public readonly LinkSystem System;
+        public readonly LinkTool Tool;
 
         private readonly Thread ReadThread;
         private readonly Stream UnderlyingStream;
@@ -160,6 +161,7 @@ namespace InvertedTomato.TikLink {
             Firewall = new LinkIpFirewall(this);
             Queue = new LinkQueue(this);
             System = new LinkSystem(this);
+            Tool = new LinkTool(this);
         }
 
         private void ReadThread_Spin(object obj) {
@@ -364,6 +366,7 @@ namespace InvertedTomato.TikLink {
                     output.Add(record);
                 }
             }
+
             return output;
         }
 

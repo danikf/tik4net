@@ -9,66 +9,66 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// Author: seho85
     /// </summary>
     [RosRecord("/ping", IsReadOnly = true)]
-    public class ToolPing {
+    public class ToolPing : ISetRecord {
         /// <summary>
         /// Sequence number
         /// </summary>
-        [RosProperty("seq",IsReadOnly = true)]
-        public long SequenceNo { get; private set; }
+        [RosProperty("seq", IsReadOnly = true)]
+        public string Id { get; set; }
 
         /// <summary>
         /// Pinged host.
         /// </summary>
-        [RosProperty("host",IsReadOnly = true)]
+        [RosProperty("host", IsReadOnly = true)]
         public string Host { get; private set; }
 
         /// <summary>
         /// Time to live parameter adjustment
         /// </summary>
-        [RosProperty("ttl",IsReadOnly = true)]
+        [RosProperty("ttl", IsReadOnly = true)]
         public string TimeToLive { get; private set; }
 
         /// <summary>
         /// The ping time.
         /// </summary>
-        [RosProperty("time",IsReadOnly = true)]
+        [RosProperty("time", IsReadOnly = true)]
         public TimeSpan Time { get; private set; }
 
         /// <summary>
         /// sent
         /// </summary>
-        [RosProperty("sent",IsReadOnly = true)]
-        public string Sent { get; private set; }
+        [RosProperty("sent", IsReadOnly = true)]
+        public int Sent { get; private set; }
 
         /// <summary>
         /// received
         /// </summary>
-        [RosProperty("received",IsReadOnly = true)]
-        public string Received { get; private set; }
+        [RosProperty("received", IsReadOnly = true)]
+        public int Received { get; private set; }
 
         /// <summary>
         /// packet-loss
         /// </summary>
-        [RosProperty("packet-loss",IsReadOnly = true)]
+        [RosProperty("packet-loss", IsReadOnly = true)]
         public string PacketLoss { get; private set; }
 
         /// <summary>
         /// min-rtt
         /// </summary>
-        [RosProperty("min-rtt",IsReadOnly = true)]
-        public string MinRtt { get; private set; }
+        [RosProperty("min-rtt", IsReadOnly = true)]
+        public TimeSpan? MinRtt { get; private set; }
 
         /// <summary>
         /// avg-rtt
         /// </summary>
-        [RosProperty("avg-rtt",IsReadOnly = true)]
-        public string AvgRtt { get; private set; }
+        [RosProperty("avg-rtt", IsReadOnly = true)]
+        public TimeSpan? AvgRtt { get; private set; }
 
         /// <summary>
         /// max-rtt
         /// </summary>
-        [RosProperty("max-rtt",IsReadOnly = true)]
-        public string MaxRtt { get; private set; }
+        [RosProperty("max-rtt", IsReadOnly = true)]
+        public TimeSpan? MaxRtt { get; private set; }
         //        <=seq=0
         //<=host=172.16.100.1
         //<=size=56
@@ -80,10 +80,7 @@ namespace InvertedTomato.TikLink.RosRecords {
         //<=min-rtt=0ms
         //<=avg-rtt=0ms
         //<=max-rtt=0ms
-
-        private static string FormatAddress(string ip, string port) {
-            return (ip + ":" + port).PadRight(21);
-        }
+        
 
         /// <summary>
         /// ToString override to make life more easy.

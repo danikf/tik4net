@@ -14,12 +14,19 @@ using (var link = Link.Connect("{router-host}", "{router-user}", "{router-passwo
     Console.WriteLine(ether1.RxByte);
 
     // Create new static ARP entry
-    link.Ip.Arp.Put(new IpArp() {
+    link.Ip.Arp.Create(new IpArp() {
         MacAddress = "01:02:03:04:05:06",
         Address = "1.2.3.4",
         Interface = ether1.Name,
         Comment = "Demo ARP entry"
     });
+ 
+	// Ping address
+	if (link.Tool.Ping.IsAlive("8.8.8.8")){
+		Console.WriteLink("Target lives!");
+	} else {
+		Console.WriteLink("Target has left the house")
+	}
 }
 ```
 
@@ -80,8 +87,8 @@ Not all router records and methods are implimented currently. Feel free to raise
 | /queue/simple                       | Records     | *Ready*    |
 | /queue/tree                         | Records     | Untested   |
 | /queue/type                         | Records     | Untested   |
-| /system/resource                    | RO Singleton| Untested   |<
-| /tool/pint                          | RO Records  | Untested   |
+| /system/resource                    | RO Singleton| Untested   |
+| /tool/ping                          | RO Records  | Untested   |
 | /tool/torch                         | RO Records  | Untested   |
 
 Getting Started
