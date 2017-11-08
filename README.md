@@ -66,14 +66,14 @@ Not all router records and methods are implimented currently. Feel free to raise
 | /ip/dns                             | Singleton   | Untested   |
 | /ip/dns/cache                       | RO Records  | Untested   |
 | /ip/dns/cache/all                   | RO Records  | Untested   |
-| /ip/dns/static                      | Records     | Untested   |<
+| /ip/dns/static                      | Records     | Untested   |
 | /ip/firewall/address-list           | Records     | Untested   |
 | /ip/firewall/connection             | Records     | Untested   |
 | /ip/firewall/connection/tracking    | Singleton   | Untested   |
 | /ip/firewall/filter                 | Records     | *Ready*    |
 | /ip/firewall/mangle                 | Records     | Untested   |
 | /ip/firewall/nat                    | Records     | Untested   |
-| /ip/hotspot/active                  | RO Records  | Untested   |
+| /ip/hotspot/active                  | RO Records  | Untested   |<
 | /ip/hotspot/user                    | Records     | Untested   |
 | /ip/hotspot/user-profile            | Records     | Untested   |
 | /ip/pool                            | Records     | Untested   |
