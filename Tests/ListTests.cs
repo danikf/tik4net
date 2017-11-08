@@ -9,7 +9,7 @@ namespace Tests {
         [Fact]
         public void List_Basic1() {
             using (var link = Link.Connect(Credentials.Current.Host, Credentials.Current.Username, Credentials.Current.Password)) {
-                var result = link.Interfaces.List();
+                var result = link.Interface.List();
                 Assert.True(result.Count > 1);
 
                 var eth1 = result.Single(a => a.DefaultName == "ether1");
@@ -44,7 +44,7 @@ namespace Tests {
         [Fact]
         public void List_WithFilter() {
             using (var link = Link.Connect(Credentials.Current.Host, Credentials.Current.Username, Credentials.Current.Password)) {
-                var result = link.Interfaces.List(null, new Dictionary<string, string>() { { nameof(IpArp.Id), "=*1" } });
+                var result = link.Interface.List(null, new Dictionary<string, string>() { { nameof(IpArp.Id), "=*1" } });
                 Assert.Equal(1, result.Count);
                 var eth1 = result.Single(a => a.Id == "*1");
                 Assert.Equal("*1", eth1.Id);
@@ -55,7 +55,7 @@ namespace Tests {
         [Fact]
         public void List_LimitedProperties_WithFilter() {
             using (var link = Link.Connect(Credentials.Current.Host, Credentials.Current.Username, Credentials.Current.Password)) {
-                var result = link.Interfaces.List(new string[] { nameof(IpArp.Id) }, new Dictionary<string, string>() { { nameof(IpArp.Id), "=*1" } });
+                var result = link.Interface.List(new string[] { nameof(IpArp.Id) }, new Dictionary<string, string>() { { nameof(IpArp.Id), "=*1" } });
                 Assert.Equal(1, result.Count);
                 var eth1 = result.Single(a => a.Id == "*1");
                 Assert.Equal("*1", eth1.Id);

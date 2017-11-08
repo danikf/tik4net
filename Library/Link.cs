@@ -102,7 +102,8 @@ namespace InvertedTomato.TikLink {
         /// </summary>
         public Sentence LastFatal { get; private set; }
 
-        public readonly LinkInterface Interfaces;
+        public readonly LinkBridge Bridge;
+        public readonly LinkInterface Interface;
         public readonly LinkIp Ip;
         public readonly LinkFirewall Firewall;
         public readonly LinkQueue Queue;
@@ -149,8 +150,9 @@ namespace InvertedTomato.TikLink {
                 throw new AccessDeniedException(message);
             }
 
-            // Setup vanity interface
-            Interfaces = new LinkInterface(this);
+            // Setup vanity interfaces
+            Bridge = new LinkBridge(this);
+            Interface = new LinkInterface(this);
             Ip = new LinkIp(this);
             Firewall = new LinkFirewall(this);
             Queue = new LinkQueue(this);

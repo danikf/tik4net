@@ -11,7 +11,7 @@ namespace Tests {
         [Fact]
         public void Get_Basic() {
             using (var link = Link.Connect(Credentials.Current.Host, Credentials.Current.Username, Credentials.Current.Password)) {
-                var eth1 = link.Interfaces.Get("*1");
+                var eth1 = link.Interface.Get("*1");
                 Assert.Equal("*1", eth1.Id);
                 Assert.Equal("ether", eth1.Type);
             }
@@ -20,7 +20,7 @@ namespace Tests {
         [Fact]
         public void Get_LimitedProperties() {
             using (var link = Link.Connect(Credentials.Current.Host, Credentials.Current.Username, Credentials.Current.Password)) {
-                var eth1 = link.Interfaces.Get("*1", new string[] { nameof(Interface.Id) });
+                var eth1 = link.Interface.Get("*1", new string[] { nameof(Interface.Id) });
                 Assert.Equal("*1", eth1.Id);
                 Assert.Null(eth1.Type);
             }

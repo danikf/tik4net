@@ -11,7 +11,7 @@ namespace Tests {
             // Connect to the router
             using (var link = Link.Connect(Credentials.Current.Host, Credentials.Current.Username, Credentials.Current.Password)) {
                 // Get list of interfaces
-                var ifaces = link.Interfaces.List();
+                var ifaces = link.Interface.List();
                 foreach (var iface in ifaces) {
                     Console.WriteLine(iface.Name);
                 }
