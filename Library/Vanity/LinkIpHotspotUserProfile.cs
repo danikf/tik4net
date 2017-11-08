@@ -18,8 +18,8 @@ namespace InvertedTomato.TikLink.Vanity {
             return Link.Get<IpHotspotUserProfile>(id, properties);
         }
 
-        public void Create(IpHotspotUserProfile record, string[] properties = null) {
-            Link.Create(record, properties);
+        public void Add(IpHotspotUserProfile record, string[] properties = null) {
+            Link.Add(record, properties);
         }
 
         public void Update(IpHotspotUserProfile record, string[] properties = null) {

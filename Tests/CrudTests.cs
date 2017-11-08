@@ -18,7 +18,7 @@ namespace Tests {
                     Interface = "eth01",
                     Comment = "<test>"
                 };
-                link.Ip.Arp.Create(obj1);
+                link.Ip.Arp.Add(obj1);
 
                 // Find record
                 var objs1 = link.Ip.Arp.List(null, new Dictionary<string, string>() {
@@ -70,7 +70,7 @@ namespace Tests {
                     DstAddress = "1.1.1.1",
                     Comment = "<test>"
                 };
-                link.Ip.Firewall.Filter.Create(obj1);
+                link.Ip.Firewall.Filter.Add(obj1);
 
                 // Find record
                 var objs1 = link.Ip.Firewall.Filter.List(null, new Dictionary<string, string>() {
@@ -123,7 +123,7 @@ namespace Tests {
                     DstAddress = "1.1.1.1",
                     Comment = "<test>"
                 };
-                link.Ip.Firewall.Filter.Create(obj1);
+                link.Ip.Firewall.Filter.Add(obj1);
 
                 // Find record
                 var objs1 = link.Ip.Firewall.Filter.List(null, new Dictionary<string, string>() {
@@ -174,7 +174,7 @@ namespace Tests {
                     LeaseTime = new TimeSpan(1, 2, 3, 4, 0),
                     Comment = "<test>"
                 };
-                link.Ip.DhcpServer.Lease.Create(obj1);
+                link.Ip.DhcpServer.Lease.Add(obj1);
 
                 // Find record
                 var objs1 = link.Ip.DhcpServer.Lease.List(null, new Dictionary<string, string>() {
@@ -224,7 +224,7 @@ namespace Tests {
                     Address = "1.1.1.0/24",
                     Comment = "<test>"
                 };
-                link.Ip.DhcpServer.Network.Create(obj1);
+                link.Ip.DhcpServer.Network.Add(obj1);
 
                 // Find record
                 var objs1 = link.Ip.DhcpServer.Network.List(null, new Dictionary<string, string>() {

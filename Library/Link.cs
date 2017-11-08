@@ -380,7 +380,7 @@ namespace InvertedTomato.TikLink {
         /// <typeparam name="T"></typeparam>
         /// <param name="record"></param>
         /// <param name="properties"></param>
-        public void Create<T>(T record, string[] properties = null) where T : ISetRecord, new() {
+        public void Add<T>(T record, string[] properties = null) where T : ISetRecord, new() {
             if (null == record) {
                 throw new ArgumentNullException(nameof(record));
             }

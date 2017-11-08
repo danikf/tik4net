@@ -17,8 +17,8 @@ namespace InvertedTomato.TikLink.Vanity {
             return Link.Get<IpPool>(id, properties);
         }
 
-        public void Create(IpPool record, string[] properties = null) {
-            Link.Create(record, properties);
+        public void Add(IpPool record, string[] properties = null) {
+            Link.Add(record, properties);
         }
 
         public void Update(IpPool record, string[] properties = null) {

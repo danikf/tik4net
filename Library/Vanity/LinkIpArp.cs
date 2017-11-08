@@ -18,8 +18,8 @@ namespace InvertedTomato.TikLink.Vanity {
             return Link.Get<IpArp>(id, properties);
         }
 
-        public void Create(IpArp record, string[] properties = null) {
-            Link.Create(record, properties);
+        public void Add(IpArp record, string[] properties = null) {
+            Link.Add(record, properties);
         }
 
         public void Update(IpArp record, string[] properties = null) {

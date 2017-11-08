@@ -18,8 +18,8 @@ namespace InvertedTomato.TikLink.Vanity {
             return Link.Get<InterfaceEthernet>(id, properties);
         }
 
-        public void Create(InterfaceEthernet record, string[] properties = null) {
-            Link.Create(record, properties);
+        public void Add(InterfaceEthernet record, string[] properties = null) {
+            Link.Add(record, properties);
         }
 
         public void Update(InterfaceEthernet record, string[] properties = null) {

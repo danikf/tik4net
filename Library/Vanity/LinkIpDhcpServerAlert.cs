@@ -18,8 +18,8 @@ namespace InvertedTomato.TikLink.Vanity {
             return Link.Get<IpDhcpServerAlert>(id, properties);
         }
 
-        public void Create(IpDhcpServerAlert record, string[] properties = null) {
-            Link.Create(record, properties);
+        public void Add(IpDhcpServerAlert record, string[] properties = null) {
+            Link.Add(record, properties);
         }
 
         public void Update(IpDhcpServerAlert record, string[] properties = null) {

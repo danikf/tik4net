@@ -18,8 +18,8 @@ namespace InvertedTomato.TikLink.Vanity {
             return Link.Get<IpAddress>(id, properties);
         }
 
-        public void Create(IpAddress record, string[] properties = null) {
-            Link.Create(record, properties);
+        public void Add(IpAddress record, string[] properties = null) {
+            Link.Add(record, properties);
         }
 
         public void Update(IpAddress record, string[] properties = null) {

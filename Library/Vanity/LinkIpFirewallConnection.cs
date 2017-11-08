@@ -22,8 +22,8 @@ namespace InvertedTomato.TikLink.Vanity {
             return Link.Get<IpFirewallConnection>(id, properties);
         }
 
-        public void Create(IpFirewallConnection record, string[] properties = null) {
-            Link.Create(record, properties);
+        public void Add(IpFirewallConnection record, string[] properties = null) {
+            Link.Add(record, properties);
         }
 
         public void Update(IpFirewallConnection record, string[] properties = null) {

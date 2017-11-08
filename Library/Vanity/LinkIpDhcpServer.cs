@@ -29,8 +29,8 @@ namespace InvertedTomato.TikLink.Vanity {
             return Link.Get<IpDhcpServer>(id, properties);
         }
 
-        public void Create(IpDhcpServer record, string[] properties = null) {
-            Link.Create(record, properties);
+        public void Add(IpDhcpServer record, string[] properties = null) {
+            Link.Add(record, properties);
         }
 
         public void Update(IpDhcpServer record, string[] properties = null) {

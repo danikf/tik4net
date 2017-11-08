@@ -18,8 +18,8 @@ namespace InvertedTomato.TikLink.Vanity {
             return Link.Get<IpFirewallAddressList>(id, properties);
         }
 
-        public void Create(IpFirewallAddressList record, string[] properties = null) {
-            Link.Create(record, properties);
+        public void Add(IpFirewallAddressList record, string[] properties = null) {
+            Link.Add(record, properties);
         }
 
         public void Update(IpFirewallAddressList record, string[] properties = null) {

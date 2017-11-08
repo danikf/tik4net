@@ -17,8 +17,8 @@ namespace InvertedTomato.TikLink.Vanity {
             return Link.Get<QueueTree>(id, properties);
         }
 
-        public void Create(QueueTree record, string[] properties = null) {
-            Link.Create(record, properties);
+        public void Add(QueueTree record, string[] properties = null) {
+            Link.Add(record, properties);
         }
 
         public void Update(QueueTree record, string[] properties = null) {

@@ -18,8 +18,8 @@ namespace InvertedTomato.TikLink.Vanity {
             return Link.Get<InterfaceWirelessRegistrationTable>(id, properties);
         }
 
-        public void Create(InterfaceWirelessRegistrationTable record, string[] properties = null) {
-            Link.Create(record, properties);
+        public void Add(InterfaceWirelessRegistrationTable record, string[] properties = null) {
+            Link.Add(record, properties);
         }
 
         public void Update(InterfaceWirelessRegistrationTable record, string[] properties = null) {

@@ -25,8 +25,8 @@ namespace InvertedTomato.TikLink.Vanity {
             return Link.Get<Interface>(id, properties);
         }
 
-        public void Create(Interface record, string[] properties = null) {
-            Link.Create(record, properties);
+        public void Add(Interface record, string[] properties = null) {
+            Link.Add(record, properties);
         }
 
         public void Update(Interface record, string[] properties = null) {
