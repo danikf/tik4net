@@ -5,6 +5,7 @@
         public readonly LinkIpArp Arp;
         public readonly LinkIpDhcpClient DhcpClient;
         public readonly LinkIpDhcpServer DhcpServer;
+        public readonly LinkIpDns Dns;
 
         public readonly LinkIpHotspot Hotspot;
 
@@ -19,6 +20,8 @@
             Arp = new LinkIpArp(Link);
             DhcpClient = new LinkIpDhcpClient(Link);
             DhcpServer = new LinkIpDhcpServer(Link);
+            Dns = new LinkIpDns(Link);
+
             Hotspot = new LinkIpHotspot(Link);
         }
     }

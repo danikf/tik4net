@@ -57,7 +57,7 @@ Not all router records and methods are implimented currently. Feel free to raise
 | /ip/address                         | Records     | Untested   |
 | /ip/arp                             | Records     | *Ready*    |
 | /ip/dhcp-client                     | Records     | Untested   |
-| /ip/dhcp-server                     | Records     | Untested   |<
+| /ip/dhcp-server                     | Records     | Untested   |
 | /ip/dhcp-server/alert               | Records     | Untested   |
 | /ip/dhcp-server/config              | Singleton   | Untested   |
 | /ip/dhcp-server/lease               | Records     | *Ready*    |
@@ -66,7 +66,7 @@ Not all router records and methods are implimented currently. Feel free to raise
 | /ip/dns                             | Singleton   | Untested   |
 | /ip/dns/cache                       | RO Records  | Untested   |
 | /ip/dns/cache/all                   | RO Records  | Untested   |
-| /ip/dns/static                      | Records     | Untested   |
+| /ip/dns/static                      | Records     | Untested   |<
 | /ip/firewall/address-list           | Records     | Untested   |
 | /ip/firewall/connection             | Records     | Untested   |
 | /ip/firewall/connection/tracking    | Singleton   | Untested   |
