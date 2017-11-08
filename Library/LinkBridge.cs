@@ -6,6 +6,7 @@ namespace InvertedTomato.TikLink {
         public readonly LinkBridgeFilter Filter;
         public readonly LinkBridgeNat Nat;
         public readonly LinkBridgePort Port;
+        public readonly LinkBridgeSettings Settings;
 
         private readonly Link Link;
 
@@ -15,10 +16,7 @@ namespace InvertedTomato.TikLink {
             Filter = new LinkBridgeFilter(Link);
             Nat = new LinkBridgeNat(Link);
             Port = new LinkBridgePort(Link);
-        }
-
-        public BridgeSettings GetSettings() {
-            throw new NotImplementedException();
+            Settings = new LinkBridgeSettings(Link);
         }
     }
 }
