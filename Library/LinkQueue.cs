@@ -1,6 +1,8 @@
 ﻿namespace InvertedTomato.TikLink {
     public class LinkQueue {
         public readonly LinkQueueSimple Simple;
+        public readonly LinkQueueTree Tree;
+        public readonly LinkQueueType Type;
 
         private readonly Link Link;
 
@@ -8,6 +10,8 @@
             Link = link;
 
             Simple = new LinkQueueSimple(Link);
+            Tree = new LinkQueueTree(Link);
+            Type = new LinkQueueType(Link);
         }
     }
 }

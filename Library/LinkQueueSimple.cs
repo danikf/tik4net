@@ -28,5 +28,9 @@ namespace InvertedTomato.TikLink {
         public void Delete(string id) {
             Link.Delete<QueueSimple>(id);
         }
+
+        public void Delete(QueueSimple record) {
+            Link.Delete(record);
+        }
     }
 }

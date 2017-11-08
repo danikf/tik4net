@@ -76,11 +76,11 @@ Not all router records and methods are implimented currently. Feel free to raise
 | /ip/hotspot/active                  | RO Records  | Untested   |
 | /ip/hotspot/user                    | Records     | Untested   |
 | /ip/hotspot/user-profile            | Records     | Untested   |
-| /ip/pool                            | Records     | Untested   |<
+| /ip/pool                            | Records     | Untested   |
 | /queue/simple                       | Records     | *Ready*    |
 | /queue/tree                         | Records     | Untested   |
 | /queue/type                         | Records     | Untested   |
-| /system/resource                    | RO Singleton| Untested   |
+| /system/resource                    | RO Singleton| Untested   |<
 | /tool/pint                          | RO Records  | Untested   |
 | /tool/torch                         | RO Records  | Untested   |
 
