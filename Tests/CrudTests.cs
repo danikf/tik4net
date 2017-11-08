@@ -70,10 +70,10 @@ namespace Tests {
                     DstAddress = "1.1.1.1",
                     Comment = "<test>"
                 };
-                link.Firewall.Filter.Create(obj1);
+                link.Ip.Firewall.Filter.Create(obj1);
 
                 // Find record
-                var objs1 = link.Firewall.Filter.List(null, new Dictionary<string, string>() {
+                var objs1 = link.Ip.Firewall.Filter.List(null, new Dictionary<string, string>() {
                     {nameof(IpFirewallFilter.SrcAddress), $"={obj1.SrcAddress}" },
                     {nameof(IpFirewallFilter.DstAddress), $"={obj1.DstAddress}" }
                 });
@@ -86,10 +86,10 @@ namespace Tests {
 
                 // Edit record
                 obj2.SrcAddress = "2.2.2.2";
-                link.Firewall.Filter.Update(obj2);
+                link.Ip.Firewall.Filter.Update(obj2);
 
                 // Find record again
-                var objs2 = link.Firewall.Filter.List(null, new Dictionary<string, string>() {
+                var objs2 = link.Ip.Firewall.Filter.List(null, new Dictionary<string, string>() {
                     {nameof(IpFirewallFilter.SrcAddress), $"={obj2.SrcAddress}" },
                     {nameof(IpFirewallFilter.DstAddress), $"={obj2.DstAddress}" }
                 });
@@ -101,10 +101,10 @@ namespace Tests {
                 Assert.Equal(obj2.Comment, obj3.Comment);
 
                 // Delete record
-                link.Firewall.Filter.Delete(obj3);
+                link.Ip.Firewall.Filter.Delete(obj3);
 
                 // Make sure we can't find the record any more
-                var objs3 = link.Firewall.Filter.List(null, new Dictionary<string, string>() {
+                var objs3 = link.Ip.Firewall.Filter.List(null, new Dictionary<string, string>() {
                     {nameof(IpFirewallFilter.SrcAddress), $"={obj3.SrcAddress}" },
                     {nameof(IpFirewallFilter.DstAddress), $"={obj3.DstAddress}" }
                 });
@@ -123,10 +123,10 @@ namespace Tests {
                     DstAddress = "1.1.1.1",
                     Comment = "<test>"
                 };
-                link.Firewall.Filter.Create(obj1);
+                link.Ip.Firewall.Filter.Create(obj1);
 
                 // Find record
-                var objs1 = link.Firewall.Filter.List(null, new Dictionary<string, string>() {
+                var objs1 = link.Ip.Firewall.Filter.List(null, new Dictionary<string, string>() {
                     {nameof(IpFirewallFilter.SrcAddress), $"={obj1.SrcAddress}" },
                     {nameof(IpFirewallFilter.DstAddress), $"={obj1.DstAddress}" }
                 });
@@ -138,10 +138,10 @@ namespace Tests {
 
                 // Edit record
                 obj2.SrcAddress = "2.2.2.2";
-                link.Firewall.Filter.Update(obj2);
+                link.Ip.Firewall.Filter.Update(obj2);
 
                 // Find record again
-                var objs2 = link.Firewall.Filter.List(null, new Dictionary<string, string>() {
+                var objs2 = link.Ip.Firewall.Filter.List(null, new Dictionary<string, string>() {
                     {nameof(IpFirewallFilter.SrcAddress), $"={obj2.SrcAddress}" },
                     {nameof(IpFirewallFilter.DstAddress), $"={obj2.DstAddress}" }
                 });
@@ -152,10 +152,10 @@ namespace Tests {
                 Assert.Equal(obj2.Comment, obj3.Comment);
 
                 // Delete record
-                link.Firewall.Filter.Delete(obj3);
+                link.Ip.Firewall.Filter.Delete(obj3);
 
                 // Make sure we can't find the record any more
-                var objs3 = link.Firewall.Filter.List(null, new Dictionary<string, string>() {
+                var objs3 = link.Ip.Firewall.Filter.List(null, new Dictionary<string, string>() {
                     {nameof(IpFirewallFilter.SrcAddress), $"={obj3.SrcAddress}" },
                     {nameof(IpFirewallFilter.DstAddress), $"={obj3.DstAddress}" }
                 });

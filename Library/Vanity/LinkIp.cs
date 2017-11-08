@@ -6,6 +6,7 @@
         public readonly LinkIpDhcpClient DhcpClient;
         public readonly LinkIpDhcpServer DhcpServer;
         public readonly LinkIpDns Dns;
+        public readonly LinkIpFirewall Firewall;
         public readonly LinkIpHotspot Hotspot;
         public readonly LinkIpPool Pool;
 
@@ -20,6 +21,7 @@
             DhcpClient = new LinkIpDhcpClient(Link);
             DhcpServer = new LinkIpDhcpServer(Link);
             Dns = new LinkIpDns(Link);
+            Firewall = new LinkIpFirewall(Link);
             Hotspot = new LinkIpHotspot(Link);
             Pool = new LinkIpPool(Link);
         }
