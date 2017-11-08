@@ -103,6 +103,7 @@ namespace InvertedTomato.TikLink {
         public Sentence LastFatal { get; private set; }
 
         public readonly LinkBridge Bridge;
+        public readonly LinkCapsMan CapsMan;
         public readonly LinkInterface Interface;
         public readonly LinkIp Ip;
         public readonly LinkFirewall Firewall;
@@ -152,6 +153,7 @@ namespace InvertedTomato.TikLink {
 
             // Setup vanity interfaces
             Bridge = new LinkBridge(this);
+            CapsMan = new LinkCapsMan(this);
             Interface = new LinkInterface(this);
             Ip = new LinkIp(this);
             Firewall = new LinkFirewall(this);
