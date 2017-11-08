@@ -1,13 +1,17 @@
 ﻿namespace InvertedTomato.TikLink {
     public class LinkIpHotspot {
-        public readonly LinkIpArp Arp;
+        public readonly LinkIpHotspotActive Active;
+        public readonly LinkIpHotspotUser User;
+        public readonly LinkIpHotspotUserProfile UserProfile;
 
         private readonly Link Link;
 
         internal LinkIpHotspot(Link link) {
             Link = link;
 
-            Arp = new LinkIpArp(Link);
+            Active = new LinkIpHotspotActive(Link);
+            User = new LinkIpHotspotUser(Link);
+            UserProfile = new LinkIpHotspotUserProfile(Link);
         }
     }
 }
