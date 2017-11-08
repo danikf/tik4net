@@ -1,6 +1,7 @@
 ﻿namespace InvertedTomato.TikLink {
     public class LinkIp {
         public readonly LinkIpAccounting Accounting;
+        public readonly LinkIpAddress Address;
         public readonly LinkIpArp Arp;
         public readonly LinkIpDhcpServer DhcpServer;
 
@@ -13,6 +14,7 @@
             Link = link;
 
             Accounting = new LinkIpAccounting(Link);
+            Address = new LinkIpAddress(Link);
             Arp = new LinkIpArp(Link);
             DhcpServer = new LinkIpDhcpServer(Link);
             Hotspot = new LinkIpHotspot(Link);
