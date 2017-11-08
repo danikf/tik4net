@@ -5,8 +5,16 @@ namespace InvertedTomato.TikLink {
     public class LinkInterface {
         private readonly Link Link;
 
+        public readonly LinkInterfaceBridge Bridge;
+        public readonly LinkInterfaceEthernet Ethernet;
+        public readonly LinkInterfaceWireless Wireless;
+
         internal LinkInterface(Link link) {
             Link = link;
+
+            Bridge = new LinkInterfaceBridge(Link);
+            Ethernet = new LinkInterfaceEthernet(Link);
+            Wireless = new LinkInterfaceWireless(Link);
         }
 
         public IList<Interface> List(string[] properties = null, Dictionary<string, string> filter = null) {
