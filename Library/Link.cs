@@ -37,11 +37,11 @@ namespace InvertedTomato.TikLink {
 
             return new Link(socketStream, true, username, password);
         }
-        
+
         /// <summary>
         /// Open a new SSL link to a router.
         /// </summary>
-        public static Link ConnectSecure(string host, string username, string password, int port = 8729, byte[] publicKey = null) {
+        public static Link ConnectSecure(string host, string username, string password, string publicKey = null, int port = 8729) {
             if (null == host) {
                 throw new ArgumentNullException(nameof(host));
             }
@@ -51,6 +51,9 @@ namespace InvertedTomato.TikLink {
             if (null == password) {
                 throw new ArgumentNullException(nameof(password));
             }
+            if (port < 1) {
+                throw new ArgumentOutOfRangeException(nameof(port));
+            }
 
             // Connect
             var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
@@ -59,15 +62,43 @@ namespace InvertedTomato.TikLink {
 
             // Wrap stream in SSL
             var sslStream = new SslStream(socketStream, false, new RemoteCertificateValidationCallback((object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) => {
-                if (null == publicKey) { // TODO: May need refinement
+                var inboundPublicKey = BitConverter.ToString(certificate.GetPublicKey()).Replace("-", "");
+
+                if (null == publicKey) {
                     return sslPolicyErrors == SslPolicyErrors.None;
                 } else {
-                    return publicKey.SequenceEqual(certificate.GetPublicKey());
+                    return publicKey == inboundPublicKey;
                 }
             }), null);
             sslStream.AuthenticateAsClientAsync(host).Wait();
 
             return new Link(sslStream, true, username, password);
+        }
+
+        /// <summary>
+        /// Get the router's public key for use with ConnectSecure.
+        /// </summary>
+        public static string GetPublicKey(string host, int port = 8729) {
+            if (null == host) {
+                throw new ArgumentNullException(nameof(host));
+            }
+            if (port < 1) {
+                throw new ArgumentOutOfRangeException(nameof(port));
+            }
+
+            string inboundPublicKey = null;
+            using (var socket = new Socket(SocketType.Stream, ProtocolType.Tcp)) {
+                socket.Connect(host, port);
+                using (var socketStream = new NetworkStream(socket, true)) {
+                    var sslStream = new SslStream(socketStream, false, new RemoteCertificateValidationCallback((object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) => {
+                        inboundPublicKey = BitConverter.ToString(certificate.GetPublicKey()).Replace("-", "");
+                        return true;
+                    }), null);
+                    sslStream.AuthenticateAsClientAsync(host).Wait();
+                }
+            }
+
+            return inboundPublicKey;
         }
 
         /// <summary>

@@ -13,9 +13,9 @@
     <RepositoryType>GitHub</RepositoryType>
     <PackageTags>MikroTik</PackageTags>
     <NeutralLanguage>en-US</NeutralLanguage>
-    <AssemblyVersion>1.0.56.0</AssemblyVersion>
-    <FileVersion>1.0.56.0</FileVersion>
-    <Version>1.0.56</Version>
+    <AssemblyVersion>1.0.57.0</AssemblyVersion>
+    <FileVersion>1.0.57.0</FileVersion>
+    <Version>1.0.57</Version>
   </PropertyGroup>
 
   <ItemGroup>
