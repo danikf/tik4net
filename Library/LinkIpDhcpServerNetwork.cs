@@ -17,8 +17,12 @@ namespace InvertedTomato.TikLink {
             return Link.Get<IpDhcpServerNetwork>(id, properties);
         }
 
-        public void Put(IpDhcpServerNetwork record, string[] properties = null) {
-            Link.Put(record, properties);
+        public void Create(IpDhcpServerNetwork record, string[] properties = null) {
+            Link.Create(record, properties);
+        }
+
+        public void Update(IpDhcpServerNetwork record, string[] properties = null) {
+            Link.Update(record, properties);
         }
 
         public void Delete(string id) {

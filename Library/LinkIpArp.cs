@@ -18,10 +18,14 @@ namespace InvertedTomato.TikLink {
             return Link.Get<IpArp>(id, properties);
         }
 
-        public void Put(IpArp record, string[] properties = null) {
-            Link.Put(record, properties);
+        public void Create(IpArp record, string[] properties = null) {
+            Link.Create(record, properties);
         }
-        
+
+        public void Update(IpArp record, string[] properties = null) {
+            Link.Update(record, properties);
+        }
+
         public void Delete(string id) {
             Link.Delete<IpArp>(id);
         }

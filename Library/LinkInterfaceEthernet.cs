@@ -18,8 +18,12 @@ namespace InvertedTomato.TikLink {
             return Link.Get<InterfaceEthernet>(id, properties);
         }
 
-        public void Put(InterfaceEthernet record, string[] properties = null) {
-            Link.Put(record, properties);
+        public void Create(InterfaceEthernet record, string[] properties = null) {
+            Link.Create(record, properties);
+        }
+
+        public void Update(InterfaceEthernet record, string[] properties = null) {
+            Link.Update(record, properties);
         }
 
         public void Delete(string id) {

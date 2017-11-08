@@ -8,6 +8,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Linq;
+using InvertedTomato.TikLink.RosRecords;
 
 namespace InvertedTomato.TikLink {
     public class Link : IDisposable {
@@ -318,7 +319,7 @@ namespace InvertedTomato.TikLink {
         }
 
 
-        public IList<T> List<T>(string[] properties = null, IDictionary<string, string> filter = null) where T : new() {
+        public IList<T> List<T>(string[] properties = null, IDictionary<string, string> filter = null) where T : IRecord, new() {
             // Build sentence
             var sentence = new Sentence();
             sentence.Command = RecordReflection.GetPath<T>() + "/print";
@@ -364,21 +365,31 @@ namespace InvertedTomato.TikLink {
             return output;
         }
 
-        public T Get<T>(string id, string[] properties = null) where T : IHasId, new() {
+        public T Get<T>(string id, string[] properties = null) where T : ISetRecord, new() {
             if (null == id) {
                 throw new ArgumentNullException(nameof(id));
             }
 
             var scan = List<T>(properties, new Dictionary<string, string>() { { "Id", $"={id}" } });
 
-            if (scan.Count == 0) {
-                throw new KeyNotFoundException();
+            if (scan.Count != 1) {
+                throw new CallException($"Record with ID '{id}' not found.");
             }
 
-            return scan.SingleOrDefault();
+            return scan.Single();
         }
 
-        public void Put<T>(T record, string[] properties = null) where T : IHasId, new() {
+        public T Get<T>(string[] properties = null) where T : ISingleRecord, new() {
+            var scan = List<T>(properties, new Dictionary<string, string>());
+
+            if (scan.Count != 1) {
+                throw new CallException($"Record with not found.");
+            }
+
+            return scan.Single();
+        }
+
+        public void Create<T>(T record, string[] properties = null) where T : ISetRecord, new() {
             if (null == record) {
                 throw new ArgumentNullException(nameof(record));
             }
@@ -397,16 +408,12 @@ namespace InvertedTomato.TikLink {
             // Prepare sentence
             var sentence = new Sentence();
             sentence.Attributes = attributes;
-            if (null == record.Id) { // If CREATE ("add")
-                // Set command
-                sentence.Command = RecordReflection.GetPath<T>() + "/add";
 
-                // Remove (blank) id
-                sentence.Attributes.Remove(".id");
-            } else { // If UPDATE ("set")
-                // Set command
-                sentence.Command = RecordReflection.GetPath<T>() + "/set";
-            }
+            // Set command
+            sentence.Command = RecordReflection.GetPath<T>() + "/add";
+
+            // Remove (blank) id
+            sentence.Attributes.Remove(".id");
 
             // Make call
             var result = Call(sentence).Wait();
@@ -416,7 +423,44 @@ namespace InvertedTomato.TikLink {
             }
         }
 
-        public void Delete<T>(T record) where T : IHasId, new() {
+        public void Update<T>(T record, string[] properties = null) where T : IRecord, new() {
+            if (null == record) {
+                throw new ArgumentNullException(nameof(record));
+            }
+
+            // Check ID is present for set records
+            var r = record as ISetRecord;
+            if (null != r && r.Id == null) {
+                throw new CallException("Attempting to updated a record with no ID set.");
+            }
+
+            // Get attributes
+            var attributes = RecordReflection.GetRosProperties(record);
+
+            // If filtering properties, remove attributes not wanted
+            if (null != properties) {
+                var remove = attributes.Keys.Where(a => !properties.Contains(RecordReflection.ResolveProperty<T>(a))).ToList();
+                foreach (var k in remove) {
+                    attributes.Remove(k);
+                }
+            }
+
+            // Prepare sentence
+            var sentence = new Sentence();
+            sentence.Attributes = attributes;
+
+            // Set command
+            sentence.Command = RecordReflection.GetPath<T>() + "/set";
+
+            // Make call
+            var result = Call(sentence).Wait();
+            if (result.IsError) {
+                result.TryGetTrapAttribute("message", out var message);
+                throw new CallException(message);
+            }
+        }
+
+        public void Delete<T>(T record) where T : ISetRecord, new() {
             if (null == record) {
                 throw new ArgumentNullException(nameof(record));
             }
@@ -424,7 +468,7 @@ namespace InvertedTomato.TikLink {
             Delete<T>(record.Id);
         }
 
-        public void Delete<T>(string id) where T : IHasId, new() {
+        public void Delete<T>(string id) where T : ISetRecord, new() {
             if (null == id) {
                 throw new ArgumentNullException(nameof(id));
             }
@@ -452,7 +496,7 @@ namespace InvertedTomato.TikLink {
         /// <typeparam name="T"></typeparam>
         /// <param name="beforeId">ID of record to move before. Set as NULL to make the item last.</param>
         /// <param name="ids">One or more IDs to move.</param>
-        public void Move<T>(string beforeId, params string[] ids) where T : IHasId, new() {
+        public void Move<T>(string beforeId, params string[] ids) where T : ISetRecord, new() {
             if (ids.Length == 0) {
                 throw new ArgumentException("Must be at least one id provided.", nameof(ids));
             }

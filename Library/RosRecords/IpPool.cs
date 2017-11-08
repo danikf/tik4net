@@ -8,7 +8,7 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// /ip/pool: IP pools containing address pools for DHCP and PPP
     /// </summary>
     [RosRecord("/ip/pool", IncludeDetails = true)]
-    public class IpPool  : IHasId {
+    public class IpPool  : ISetRecord {
         /// <summary>
         /// Row .id property.
         /// </summary>

@@ -12,7 +12,7 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// As DHCP replies can be unicast, the 'rogue dhcp detector' may not receive any offer to other dhcp clients at all. To deal with this, the rogue dhcp detector acts as a dhcp client as well - it sends out dhcp discover requests once a minute 
     /// </summary>
     [RosRecord("/ip/dhcp-server/alert")]
-    public class IpDhcpServerAlert  : IHasId {
+    public class IpDhcpServerAlert  : ISetRecord {
         /// <summary>
         /// .id: primary key of row
         /// </summary>

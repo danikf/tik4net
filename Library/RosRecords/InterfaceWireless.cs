@@ -13,7 +13,7 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// Wireless can operate in several modes: client (station), access point, wireless bridge etc. Client/station also can operate in different modes, complete list of supported modes can be found here. 
     /// </summary>
     [RosRecord("/interface/wireless")]
-    public class InterfaceWireless : IHasId {
+    public class InterfaceWireless : ISetRecord {
         #region Submenu classes - Obsolete
 
         /// <summary>

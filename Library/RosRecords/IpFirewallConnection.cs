@@ -8,7 +8,7 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// ip/firewall/connection tracking: 
     /// </summary>
     [RosRecord("/ip/firewall/connection", IsReadOnly = true)]
-    public class IpFirewallConnection  : IHasId {
+    public class IpFirewallConnection  : ISetRecord {
         /// <summary>
         /// .id: primary key of row
         /// </summary>

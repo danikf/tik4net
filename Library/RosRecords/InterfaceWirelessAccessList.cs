@@ -15,7 +15,7 @@ namespace InvertedTomato.TikLink.RosRecords {
     ///     If remote device is matched by rule that has authentication = no value, the connection from that remote device is rejected.
     /// </summary>
     [RosRecord("/interface/wireless/access-list")]
-    public class InterfaceWirelessAccessList : IHasId {
+    public class InterfaceWirelessAccessList : ISetRecord {
         /// <summary>
         /// .id: primary key of row
         /// </summary>

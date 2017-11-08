@@ -1,6 +1,5 @@
 ﻿using InvertedTomato.TikLink.RosRecords;
 using System.Collections.Generic;
-using System;
 
 namespace InvertedTomato.TikLink {
     public class LinkInterfaceWireless {
@@ -26,8 +25,12 @@ namespace InvertedTomato.TikLink {
             return Link.Get<InterfaceWireless>(id, properties);
         }
 
-        public void Put(InterfaceWireless record, string[] properties = null) {
-            Link.Put(record, properties);
+        public void Create(InterfaceWireless record, string[] properties = null) {
+            Link.Create(record, properties);
+        }
+
+        public void Update(InterfaceWireless record, string[] properties = null) {
+            Link.Update(record, properties);
         }
 
         public void Delete(string id) {

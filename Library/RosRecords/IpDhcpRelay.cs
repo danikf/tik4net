@@ -11,7 +11,7 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// 
     /// </summary>
     [RosRecord("/ip/dhcp-relay")]
-    public class IpDhcpRelay : IHasId {
+    public class IpDhcpRelay : ISetRecord {
         /// <summary>
         /// .id: primary key of row
         /// </summary>

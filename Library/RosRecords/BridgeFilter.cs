@@ -23,7 +23,7 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// General bridge firewall properties are described in this section. Some parameters that differ between nat and filter rules are described in further sections.
     /// </summary>
     [RosRecord("/interface/bridge/filter")]
-    public class BridgeFilter : IHasId {
+    public class BridgeFilter : ISetRecord {
         /// <summary>
         /// .id: primary key of row
         /// </summary>
@@ -33,7 +33,7 @@ namespace InvertedTomato.TikLink.RosRecords {
         /// <summary>
         /// chain: Bridge firewall chain, which the filter is functioning in (either a built-in one, or a user defined)
         /// </summary>
-        /// <seealso cref="BridgeFirewallChain"/>
+        /// <seealso cref="BridgeChainType"/>
         [RosProperty("chain")]
         public string/*text*/ Chain { get; set; }
 

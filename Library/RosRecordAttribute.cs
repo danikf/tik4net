@@ -23,11 +23,6 @@ namespace InvertedTomato.TikLink {
         public bool IsOrdered { get; set; }
 
         /// <summary>
-        /// If entity exists in single instance.
-        /// </summary>
-        public bool IsSingleton { get; set; }
-
-        /// <summary>
         /// If entity should be loaded with =detail= option.
         /// </summary>
         public bool IncludeDetails { get; set; }

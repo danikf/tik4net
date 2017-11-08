@@ -16,7 +16,7 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// Regular expression matching is significantly slower than of the plain entries, so it is advised to minimize the number of regular expression rules and optimize the expressions themselves
     /// </summary>
     [RosRecord("/ip/dns/static", IsOrdered = true)]
-    public class IpDnsStatic  : IHasId {
+    public class IpDnsStatic  : ISetRecord {
         /// <summary>
         /// .id: primary key of row
         /// </summary>

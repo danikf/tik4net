@@ -18,7 +18,7 @@ namespace Tests {
                     Interface = "eth01",
                     Comment = "<test>"
                 };
-                link.Ip.Arp.Put(obj1);
+                link.Ip.Arp.Create(obj1);
 
                 // Find record
                 var objs1 = link.Ip.Arp.List(null, new Dictionary<string, string>() {
@@ -34,7 +34,7 @@ namespace Tests {
 
                 // Edit record
                 obj2.Address = RandomAddress.GenerateIpAddress();
-                link.Ip.Arp.Put(obj2);
+                link.Ip.Arp.Update(obj2);
 
                 // Find record again
                 var objs2 = link.Ip.Arp.List(null, new Dictionary<string, string>() {
@@ -70,7 +70,7 @@ namespace Tests {
                     DstAddress = "1.1.1.1",
                     Comment = "<test>"
                 };
-                link.Firewall.Filter.Put(obj1);
+                link.Firewall.Filter.Create(obj1);
 
                 // Find record
                 var objs1 = link.Firewall.Filter.List(null, new Dictionary<string, string>() {
@@ -86,7 +86,7 @@ namespace Tests {
 
                 // Edit record
                 obj2.SrcAddress = "2.2.2.2";
-                link.Firewall.Filter.Put(obj2);
+                link.Firewall.Filter.Update(obj2);
 
                 // Find record again
                 var objs2 = link.Firewall.Filter.List(null, new Dictionary<string, string>() {
@@ -123,7 +123,7 @@ namespace Tests {
                     DstAddress = "1.1.1.1",
                     Comment = "<test>"
                 };
-                link.Firewall.Filter.Put(obj1);
+                link.Firewall.Filter.Create(obj1);
 
                 // Find record
                 var objs1 = link.Firewall.Filter.List(null, new Dictionary<string, string>() {
@@ -138,7 +138,7 @@ namespace Tests {
 
                 // Edit record
                 obj2.SrcAddress = "2.2.2.2";
-                link.Firewall.Filter.Put(obj2);
+                link.Firewall.Filter.Update(obj2);
 
                 // Find record again
                 var objs2 = link.Firewall.Filter.List(null, new Dictionary<string, string>() {
@@ -174,7 +174,7 @@ namespace Tests {
                     LeaseTime = new TimeSpan(1, 2, 3, 4, 0),
                     Comment = "<test>"
                 };
-                link.Ip.DhcpServer.Lease.Put(obj1);
+                link.Ip.DhcpServer.Lease.Create(obj1);
 
                 // Find record
                 var objs1 = link.Ip.DhcpServer.Lease.List(null, new Dictionary<string, string>() {
@@ -190,7 +190,7 @@ namespace Tests {
 
                 // Edit record
                 obj2.Address = "2.2.2.2";
-                link.Ip.DhcpServer.Lease.Put(obj2);
+                link.Ip.DhcpServer.Lease.Update(obj2);
 
                 // Find record again
                 var objs2 = link.Ip.DhcpServer.Lease.List(null, new Dictionary<string, string>() {
@@ -224,7 +224,7 @@ namespace Tests {
                     Address = "1.1.1.0/24",
                     Comment = "<test>"
                 };
-                link.Ip.DhcpServer.Network.Put(obj1);
+                link.Ip.DhcpServer.Network.Create(obj1);
 
                 // Find record
                 var objs1 = link.Ip.DhcpServer.Network.List(null, new Dictionary<string, string>() {
@@ -237,7 +237,7 @@ namespace Tests {
 
                 // Edit record
                 obj2.Address = "2.2.2.0/24";
-                link.Ip.DhcpServer.Network.Put(obj2);
+                link.Ip.DhcpServer.Network.Update(obj2);
 
                 // Find record again
                 var objs2 = link.Ip.DhcpServer.Network.List(null, new Dictionary<string, string>() {

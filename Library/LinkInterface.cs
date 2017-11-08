@@ -25,8 +25,12 @@ namespace InvertedTomato.TikLink {
             return Link.Get<Interface>(id, properties);
         }
 
-        public void Put(Interface record, string[] properties = null) {
-            Link.Put(record, properties);
+        public void Create(Interface record, string[] properties = null) {
+            Link.Create(record, properties);
+        }
+
+        public void Update(Interface record, string[] properties = null) {
+            Link.Update(record, properties);
         }
 
         public void Delete(string id) {

@@ -2,8 +2,8 @@
     /// <summary>
     /// ip/accounting: Authentication, Authorization and Accounting feature provides a possibility of local and/or remote (on RADIUS server) Point-to-Point and HotSpot user management and traffic accounting (all IP traffic passing the router is accounted; local traffic acocunting is an option).
     /// </summary>
-	[RosRecord("/ip/accounting", IsSingleton = true)]
-    public class IpAccounting {
+	[RosRecord("/ip/accounting")]
+    public class IpAccounting : ISingleRecord {
         /// <summary>
         /// account-local-traffic: whether to account the traffic to/from the router itself
         /// </summary>

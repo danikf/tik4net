@@ -18,8 +18,12 @@ namespace InvertedTomato.TikLink {
             return Link.Get<InterfaceWirelessAccessList>(id, properties);
         }
 
-        public void Put(InterfaceWirelessAccessList record, string[] properties = null) {
-            Link.Put(record, properties);
+        public void Create(InterfaceWirelessAccessList record, string[] properties = null) {
+            Link.Create(record, properties);
+        }
+
+        public void Update(InterfaceWirelessAccessList record, string[] properties = null) {
+            Link.Update(record, properties);
         }
 
         public void Delete(string id) {

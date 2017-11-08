@@ -5,7 +5,7 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// Network interface
     /// </summary>
     [RosRecord("/interface", IncludeDetails = true)]
-    public class Interface : IHasId {
+    public class Interface : ISetRecord {
         /// <summary>
         /// Unique identifier
         /// </summary>

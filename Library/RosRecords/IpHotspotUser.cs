@@ -5,7 +5,7 @@
     /// This is the menu, where client's user/password information is actually added, additional configuration options for HotSpot users are configured here as well.
     /// </summary>
     [RosRecord("/ip/hotspot/user")]
-    public class IpHotspotUser  : IHasId {
+    public class IpHotspotUser  : ISetRecord {
         /// <summary>
         /// .id: primary key of row
         /// </summary>

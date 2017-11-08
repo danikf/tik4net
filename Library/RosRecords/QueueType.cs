@@ -3,7 +3,7 @@
     /// /queue/type
     /// </summary>
     [RosRecord("/queue/type", IncludeDetails = true)]
-    public class QueueType : IHasId {
+    public class QueueType : ISetRecord {
         /// <summary>
         /// .id
         /// </summary>

@@ -10,13 +10,11 @@ namespace InvertedTomato.TikLink {
         }
 
         public IpAccountingWebAccess Get(string[] properties = null) {
-            throw new NotImplementedException(); // TODO
-            //return Link.Get<BridgeFilter>(id, properties);
+            return Link.Get<IpAccountingWebAccess>(properties);
         }
 
-        public void Put(IpAccountingWebAccess record, string[] properties = null) {
-            throw new NotImplementedException(); // TODO
-            //Link.Put(record, properties);
+        public void Update(IpAccountingWebAccess record, string[] properties = null) {
+            Link.Update(record, properties);
         }
     }
 }

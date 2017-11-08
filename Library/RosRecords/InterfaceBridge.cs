@@ -10,7 +10,7 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// Network loops may emerge (intentionally or not) in complex topologies. Without any special treatment, loops would prevent network from functioning normally, as they would lead to avalanche-like packet multiplication. Each bridge runs an algorithm which calculates how the loop can be prevented. STP and RSTP allows bridges to communicate with each other, so they can negotiate a loop free topology. All other alternative connections that would otherwise form loops, are put to standby, so that should the main connection fail, another connection could take its place. This algorithm exchanges  configuration messages (BPDU - Bridge Protocol Data Unit) periodically, so that all bridges are updated with the newest information about changes in network topology. (R)STP selects a root bridge which is responsible for network reconfiguration, such as blocking and opening ports on other bridges. The root bridge is the bridge with the lowest bridge ID.
     /// </summary>
     [RosRecord("/interface/bridge")]
-    public class InterfaceBridge  : IHasId {
+    public class InterfaceBridge  : ISetRecord {
         /// <summary>
         /// .id: primary key of row
         /// </summary>

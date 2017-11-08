@@ -1,14 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace InvertedTomato.TikLink.RosRecords {
+﻿namespace InvertedTomato.TikLink.RosRecords {
     /// <summary>
-    /// Firewall chain type - <see cref="BridgeFirewallBase.Chain"/>
+    /// Firewall chain type
     /// </summary>
     /// <seealso cref="BridgeFirewallBase.Chain"/>
-    public static class BridgeFirewallChain {
+    public static class BridgeChainType {
         /// <summary>
         /// input - used to process packets entering the router through one of the interfaces with the destination IP address which is one of the router's addresses. Packets passing through the router are not processed against the rules of the input chain
         /// </summary>

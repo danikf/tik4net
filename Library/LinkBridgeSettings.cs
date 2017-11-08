@@ -10,13 +10,11 @@ namespace InvertedTomato.TikLink {
         }
 
         public BridgeSettings Get(string[] properties = null) {
-            throw new NotImplementedException(); // TODO
-            //return Link.Get<BridgeFilter>(id, properties);
+            return Link.Get<BridgeSettings>(properties);
         }
 
-        public void Put(BridgeSettings record, string[] properties = null) {
-            throw new NotImplementedException(); // TODO
-            //Link.Put(record, properties);
+        public void Update(BridgeSettings record, string[] properties = null) {
+            Link.Update(record, properties);
         }
     }
 }

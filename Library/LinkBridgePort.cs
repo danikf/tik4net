@@ -18,8 +18,12 @@ namespace InvertedTomato.TikLink {
             return Link.Get<BridgePort>(id, properties);
         }
 
-        public void Put(BridgePort record, string[] properties = null) {
-            Link.Put(record, properties);
+        public void Create(BridgePort record, string[] properties = null) {
+            Link.Create(record, properties);
+        }
+
+        public void Update(BridgePort record, string[] properties = null) {
+            Link.Update(record, properties);
         }
 
         public void Delete(string id) {

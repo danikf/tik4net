@@ -9,7 +9,7 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// /ip/firewall/filter
     /// </summary>
     [RosRecord("/ip/firewall/filter", IncludeDetails = true, IsOrdered = true)]
-    public class IpFirewallFilter : IHasId {
+    public class IpFirewallFilter : ISetRecord {
         /// <summary>
         /// .id: primary key of row
         /// </summary>

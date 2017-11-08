@@ -10,7 +10,7 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// RouterOS DHCP cilent asks for following options:
     /// </summary>
     [RosRecord("/ip/dhcp-client", IncludeDetails = true)]
-    public class IpDhcpClient  : IHasId {
+    public class IpDhcpClient  : ISetRecord {
         #region -- Enums ---
         /// <summary>
         /// Mode of adding default route. See <see cref="IpDhcpClient.AddDefaultRoute"/>.

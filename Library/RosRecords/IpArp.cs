@@ -3,7 +3,7 @@
     /// ip/arp: Even though IP packets are addressed using  IP addresses, hardware addresses must be used to actually transport data from one host to another.Address Resolution Protocol is used to map OSI level 3 IP addresses to OSI level 2 MAC addreses. Router has a table of currently used ARP entries.Normally the table is built dynamically, but to increase network security, it can be partialy or completely built statically by means of adding static entries.
     /// </summary>
     [RosRecord("/ip/arp")]
-    public class IpArp : IHasId {
+    public class IpArp : ISetRecord {
         /// <summary>
         /// Unique identifier
         /// </summary>

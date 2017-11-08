@@ -9,7 +9,7 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// interface/bridge/port: Port submenu is used to enslave interfaces in a particular bridge interface.
     /// </summary>
     [RosRecord("/interface/bridge/port")]
-    public class BridgePort : IHasId {
+    public class BridgePort : ISetRecord {
         /// <summary>
         /// .id: primary key of row
         /// </summary>

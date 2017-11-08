@@ -9,7 +9,7 @@ namespace InvertedTomato.TikLink.RosRecords {
     /// /ip/accounting/snapshot: When a snapshot is made for data collection, the accounting table is cleared and new IP pairs and traffic data are added. The more frequently traffic data is collected, the less likelihood that the IP pairs thereshold limit will be reached.
     /// </summary>
     [RosRecord("/ip/accounting/snapshot", IsReadOnly = true)]
-    public class IpAccountingSnapshot : IHasId {
+    public class IpAccountingSnapshot : ISetRecord {
         /// <summary>
         /// .id: primary key of row
         /// </summary>

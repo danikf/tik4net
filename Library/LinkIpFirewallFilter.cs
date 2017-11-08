@@ -18,8 +18,12 @@ namespace InvertedTomato.TikLink {
             return Link.Get<IpFirewallFilter>(id, properties);
         }
 
-        public void Put(IpFirewallFilter record, string[] properties = null) {
-            Link.Put(record, properties);
+        public void Create(IpFirewallFilter record, string[] properties = null) {
+            Link.Create(record, properties);
+        }
+
+        public void Update(IpFirewallFilter record, string[] properties = null) {
+            Link.Update(record, properties);
         }
 
         public void Delete(string id) {
