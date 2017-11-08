@@ -38,6 +38,7 @@ TikLink allows you to control MikoTik routers (RouterOS) from .NET applications.
  - Written in .NET Standard 1.3, for maximum compadibility
  - We're a national ISP, and we use it and will continue to maintain it
  - Fully thread safe
+ - SSL-API supported, with a CA-signed cert or with a known public-key (SSH style)
  - Simple and easy to use
  - Ability to support multiple concurrent requests
  - Easy to add support for extra features that come along
