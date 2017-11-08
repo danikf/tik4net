@@ -1,4 +1,4 @@
-TLDR, do I make it go?
+TLDR, how do I make it go?
 ===
 Righteo, straight to it then:
 
