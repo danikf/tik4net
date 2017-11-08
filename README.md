@@ -54,7 +54,7 @@ Not all router records and methods are implimented currently. Feel free to raise
 | /ip/accounting/snapshot             | RO Records  | Untested   |
 | /ip/accounting/uncounted            | Singleton   | Untested   |
 | /ip/accounting/web-access           | Singleton   | Untested   |
-| /ip/address                         | Records     | Untested   |
+| /ip/address                         | Records     | Untested   | ------------------
 | /ip/arp                             | Records     | *Ready*    |
 | /ip/dhcp-client                     | Records     | Untested   |
 | /ip/dhcp-server                     | Records     | Untested   |

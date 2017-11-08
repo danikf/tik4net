@@ -2,10 +2,10 @@
 using System.Collections.Generic;
 
 namespace InvertedTomato.TikLink {
-    public class LinkHotspotIPBindings {
+    public class LinkIpHotspotIpBindings {
         private readonly Link Link;
 
-        internal LinkHotspotIPBindings(Link link) {
+        internal LinkIpHotspotIpBindings(Link link) {
             Link = link;
         }
 

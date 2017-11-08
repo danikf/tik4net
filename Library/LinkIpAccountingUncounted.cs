@@ -2,19 +2,19 @@
 using System;
 
 namespace InvertedTomato.TikLink {
-    public class LinkBridgeSettings {
+    public class LinkIpAccountingUncounted {
         private readonly Link Link;
 
-        internal LinkBridgeSettings(Link link) {
+        internal LinkIpAccountingUncounted(Link link) {
             Link = link;
         }
 
-        public BridgeSettings Get(string[] properties = null) {
+        public IpAccountingUncounted Get(string[] properties = null) {
             throw new NotImplementedException(); // TODO
             //return Link.Get<BridgeFilter>(id, properties);
         }
 
-        public void Put(BridgeSettings record, string[] properties = null) {
+        public void Put(IpAccountingUncounted record, string[] properties = null) {
             throw new NotImplementedException(); // TODO
             //Link.Put(record, properties);
         }

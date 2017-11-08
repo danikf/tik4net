@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System;
 
 namespace InvertedTomato.TikLink {
-    public class LinkFirewallFilter {
+    public class LinkIpFirewallFilter {
         private readonly Link Link;
 
-        internal LinkFirewallFilter(Link link) {
+        internal LinkIpFirewallFilter(Link link) {
             Link = link;
         }
 

@@ -106,9 +106,8 @@ namespace InvertedTomato.TikLink {
         public readonly LinkCapsMan CapsMan;
         public readonly LinkInterface Interface;
         public readonly LinkIp Ip;
-        public readonly LinkFirewall Firewall;
+        public readonly LinkIpFirewall Firewall;
         public readonly LinkQueue Queue;
-        public readonly LinkHotspot Hotspot;
 
         private readonly Thread ReadThread;
         private readonly Stream UnderlyingStream;
@@ -156,9 +155,8 @@ namespace InvertedTomato.TikLink {
             CapsMan = new LinkCapsMan(this);
             Interface = new LinkInterface(this);
             Ip = new LinkIp(this);
-            Firewall = new LinkFirewall(this);
+            Firewall = new LinkIpFirewall(this);
             Queue = new LinkQueue(this);
-            Hotspot = new LinkHotspot(this);
         }
 
         private void ReadThread_Spin(object obj) {
