@@ -5,15 +5,14 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 
-// TODO: Add query cancelation support
-
 namespace InvertedTomato.TikLink {
-    public class Result {
+    public class CallResult {
         /// <summary>
         /// Current state of the result.
         /// </summary>
         public bool IsDone { get; set; }
         public bool IsError { get; set; }
+        public string Tag { get; private set; }
 
         /// <summary>
         /// Returned sentences.
@@ -23,10 +22,18 @@ namespace InvertedTomato.TikLink {
 
         internal ManualResetEvent Block = new ManualResetEvent(false);
 
+        public CallResult(string tag) {
+            if (null == tag) {
+                throw new ArgumentNullException(nameof(tag));
+            }
+
+            Tag = tag;
+        }
+
         /// <summary>
         /// Wait until the result is no longer pending.
         /// </summary>
-        public Result Wait() {
+        public CallResult Wait() {
             if (IsDone) {
                 return this;
             }
@@ -38,7 +45,7 @@ namespace InvertedTomato.TikLink {
         /// <summary>
         /// Wait until the result is no longer pending with a given timeout
         /// </summary>
-        public Result Wait(TimeSpan timeout) {
+        public CallResult Wait(TimeSpan timeout) {
             if (IsDone) {
                 return this;
             }

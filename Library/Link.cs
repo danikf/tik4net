@@ -117,7 +117,7 @@ namespace InvertedTomato.TikLink {
         private readonly Stream UnderlyingStream;
         private readonly bool OwnsUnderlyingStream;
         private readonly object Sync = new object();
-        private readonly ConcurrentDictionary<string, Result> PendingResults = new ConcurrentDictionary<string, Result>();
+        private readonly ConcurrentDictionary<string, CallResult> PendingResults = new ConcurrentDictionary<string, CallResult>();
 
         private long NextTag;
 
@@ -260,7 +260,7 @@ namespace InvertedTomato.TikLink {
         /// <summary>
         /// Call a command without any attributes.
         /// </summary>
-        public Result Call(string command) {
+        public CallResult Call(string command) {
             return Call(new Sentence() {
                 Command = command
             });
@@ -269,7 +269,7 @@ namespace InvertedTomato.TikLink {
         /// <summary>
         /// Call a command with attributes.
         /// </summary>
-        public Result Call(string command, Dictionary<string, string> attributes) {
+        public CallResult Call(string command, Dictionary<string, string> attributes) {
             return Call(new Sentence() {
                 Command = command,
                 Attributes = attributes
@@ -279,7 +279,7 @@ namespace InvertedTomato.TikLink {
         /// <summary>
         /// Call a command with attributes and a set of queries (filters).
         /// </summary>
-        public Result Call(string command, Dictionary<string, string> attributes, List<string> queries) {
+        public CallResult Call(string command, Dictionary<string, string> attributes, List<string> queries) {
             return Call(new Sentence() {
                 Command = command,
                 Attributes = attributes,
@@ -290,7 +290,7 @@ namespace InvertedTomato.TikLink {
         /// <summary>
         /// Call a command with a pre-rolled sentence.
         /// </summary>
-        public Result Call(Sentence tx) {
+        public CallResult Call(Sentence tx) {
             if (null == tx) {
                 throw new ArgumentNullException(nameof(tx));
             }
@@ -302,7 +302,7 @@ namespace InvertedTomato.TikLink {
             var tag = Interlocked.Increment(ref NextTag).ToString();
 
             // Allocate result
-            var result = new Result();
+            var result = new CallResult(tag);
             PendingResults[tag] = result;
 
             lock (Sync) {
@@ -323,6 +323,20 @@ namespace InvertedTomato.TikLink {
             return result;
         }
 
+        public void Cancel(CallResult result) { // TODO: Test
+            if (null == result) {
+                throw new ArgumentNullException(nameof(result));
+            }
+
+            var result2 = Call("/cancel", new Dictionary<string, string>() {
+                {"tag", result.Tag }
+            }).Wait();
+
+            if (result2.IsError) {
+                result2.TryGetTrapAttribute("message", out var message);
+                throw new CallException(message);
+            }
+        }
 
         public IList<T> List<T>(string[] properties = null, IDictionary<string, string> filter = null) where T : IRecord, new() {
             // Build sentence

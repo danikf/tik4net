@@ -1,4 +1,5 @@
 using InvertedTomato.TikLink;
+using System.IO;
 using System.Net.Sockets;
 using Xunit;
 
@@ -21,14 +22,14 @@ namespace Tests {
 
         [Fact]
         public void Connect_BadUsername() {
-            Assert.Throws<AccessDeniedException>(() => {
+            Assert.Throws<IOException>(() => {
                 Link.Connect(Credentials.Current.Host, Credentials.Current.Username + "BAD", Credentials.Current.Password);
             });
         }
 
         [Fact]
         public void Connect_BadPassword() {
-            Assert.Throws<AccessDeniedException>(() => {
+            Assert.Throws<IOException>(() => {
                 Link.Connect(Credentials.Current.Host, Credentials.Current.Username, Credentials.Current.Password + "BAD");
             });
         }
