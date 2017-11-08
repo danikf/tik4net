@@ -3,6 +3,7 @@
         public readonly LinkIpAccounting Accounting;
         public readonly LinkIpAddress Address;
         public readonly LinkIpArp Arp;
+        public readonly LinkIpDhcpClient DhcpClient;
         public readonly LinkIpDhcpServer DhcpServer;
 
         public readonly LinkIpHotspot Hotspot;
@@ -16,6 +17,7 @@
             Accounting = new LinkIpAccounting(Link);
             Address = new LinkIpAddress(Link);
             Arp = new LinkIpArp(Link);
+            DhcpClient = new LinkIpDhcpClient(Link);
             DhcpServer = new LinkIpDhcpServer(Link);
             Hotspot = new LinkIpHotspot(Link);
         }
