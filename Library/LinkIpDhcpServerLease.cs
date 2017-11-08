@@ -30,6 +30,10 @@ namespace InvertedTomato.TikLink {
             Link.Delete<IpDhcpServerLease>(id);
         }
 
+        public void Delete(IpDhcpServerLease record) {
+            Link.Delete(record);
+        }
+
 
         /// <summary>
         /// Check status of a given busy dynamic lease, and free it in case of no response
@@ -59,10 +63,6 @@ namespace InvertedTomato.TikLink {
                 resut.TryGetTrapAttribute("message", out var message);
                 throw new CallException(message);
             }
-        }
-
-        public void Delete(IpDhcpServerLease record) {
-            Link.Delete(record);
         }
     }
 }

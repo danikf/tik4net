@@ -28,5 +28,9 @@ namespace InvertedTomato.TikLink {
         public void Delete(string id) {
             Link.Delete<IpDhcpServerNetwork>(id);
         }
+
+        public void Delete(IpDhcpServerNetwork record) {
+            Link.Delete(record);
+        }
     }
 }
