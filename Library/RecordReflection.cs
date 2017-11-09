@@ -236,7 +236,6 @@ namespace InvertedTomato.TikLink {
                 var localValue = property.PropertyInfo.GetValue(record);
 
                 // Convert to ROS value
-                string rosValue = null;
                 if (property.ValueType == typeof(string)) { // string => RosString
                     if (localValue != null) {
                         rosValues[property.Attribute.RosName] = (string)localValue;
@@ -246,7 +245,7 @@ namespace InvertedTomato.TikLink {
                         rosValues[property.Attribute.RosName] = localValue.ToString();
                     }
                 } else if (property.ValueType == typeof(int)) {// int => RosInteger
-                    rosValue = localValue.ToString();
+                    rosValues[property.Attribute.RosName] = localValue.ToString();
                 } else if (property.ValueType == typeof(long?)) { // long? => RosInteger
                     if (localValue != null) {
                         rosValues[property.Attribute.RosName] = localValue.ToString();
