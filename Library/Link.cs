@@ -9,7 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Linq;
 using InvertedTomato.TikLink.Records;
-using InvertedTomato.TikLink.Vanity;
+using InvertedTomato.TikLink.RecordHandlers;
 
 namespace InvertedTomato.TikLink {
     public class Link : IDisposable {
