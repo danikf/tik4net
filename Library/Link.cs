@@ -78,7 +78,7 @@ namespace InvertedTomato.TikLink {
         /// <summary>
         /// Get the router's public key for use with ConnectSecure.
         /// </summary>
-        public static string GetPublicKey(string host, int port = 8729) {
+        public static string GetSecurePublicKey(string host, int port = 8729) {
             if (null == host) {
                 throw new ArgumentNullException(nameof(host));
             }
@@ -99,6 +99,46 @@ namespace InvertedTomato.TikLink {
             }
 
             return inboundPublicKey;
+        }
+
+        /// <summary>
+        /// Create a new certificate, enable the secure API and set the new certificate for use with the API.
+        /// </summary>
+        /// <remarks>
+        /// This is the easiest way to get setup ready for ConnectSecure. If there is already a certificate setup, it will be replaced (read: the public key will change).
+        /// </remarks>
+        public static void EnableSecure(string host, string username, string password, int port = 8728, int days = 3650) {
+            if (days < 1) {
+                throw new ArgumentOutOfRangeException(nameof(days));
+            }
+
+            using (var link = Link.Connect(host, username, password, port)) {
+                // Create certificate
+                var cert = new SystemCertificate() {
+                    Name = DateTime.UtcNow.ToString(),
+                    CommonName = "self-signed",
+                    DaysValid = days,
+                    KeyUsage = "key-cert-sign,tls-server"
+                    //Trusted = true
+                };
+                link.System.Certificate.Add(cert);
+
+                // Get certificate
+                cert = link.System.Certificate.List(null, new Dictionary<string, string>(){
+                    {nameof(SystemCertificate.Name), $"={cert.Name}" }
+                }).Single();
+
+                // Sign certificate
+                link.System.Certificate.Sign(cert);
+
+                // Enable API-SSL and set it to use the new certificate
+                var sslApi = link.Ip.Service.List(null, new Dictionary<string, string>() {
+                    {nameof(IpService.Name), "=api-ssl" }
+                }).Single();
+                sslApi.Certificate = cert.Name;
+                sslApi.Disabled = false;
+                link.Ip.Service.Update(sslApi);
+            }
         }
 
         /// <summary>

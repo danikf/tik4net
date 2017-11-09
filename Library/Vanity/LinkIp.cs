@@ -9,6 +9,7 @@
         public readonly LinkIpFirewall Firewall;
         public readonly LinkIpHotspot Hotspot;
         public readonly LinkIpPool Pool;
+        public readonly LinkIpService Service;
 
         private readonly Link Link;
 
@@ -24,6 +25,7 @@
             Firewall = new LinkIpFirewall(Link);
             Hotspot = new LinkIpHotspot(Link);
             Pool = new LinkIpPool(Link);
+            Service = new LinkIpService(Link);
         }
     }
 }

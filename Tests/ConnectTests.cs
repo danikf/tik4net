@@ -36,22 +36,20 @@ namespace Tests {
 
         [Fact]
         public void ConnectSecure_Success() {
-            using (var link = Link.ConnectSecure(Credentials.Current.Host, Credentials.Current.Username, Credentials.Current.Password, Credentials.Current.PublicKey)) {
+            Link.EnableSecure(Credentials.Current.Host, Credentials.Current.Username, Credentials.Current.Password, 8728, 1);
+
+            var publicKey = Link.GetSecurePublicKey(Credentials.Current.Host);
+
+            using (var link = Link.ConnectSecure(Credentials.Current.Host, Credentials.Current.Username, Credentials.Current.Password, publicKey)) {
                 Assert.False(link.IsDisposed);
             }
         }
 
         [Fact]
-        public void GetPublicKey_Success() {
-            var publicKey = Link.GetPublicKey(Credentials.Current.Host);
-            Assert.Equal(Credentials.Current.PublicKey, publicKey);
-        }
-
-        [Fact]
         public void GetPublicKey_BadHost() {
             Assert.Throws<SocketException>(() => {
-                Link.GetPublicKey(Credentials.Current.Host + "BAD");
-            }); 
+                Link.GetSecurePublicKey(Credentials.Current.Host + "BAD");
+            });
         }
     }
 }
