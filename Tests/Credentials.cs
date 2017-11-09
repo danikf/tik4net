@@ -12,9 +12,6 @@ namespace Tests {
         [JsonProperty("password")]
         public string Password { get; private set; }
 
-        [JsonProperty("publicKey")]
-        public string PublicKey { get; private set; }
-
         private static Credentials _Current;
         public static Credentials Current {
             get {

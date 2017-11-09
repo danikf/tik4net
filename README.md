@@ -45,57 +45,7 @@ TikLink allows you to control MikoTik routers (RouterOS) from .NET applications.
 
 Functionality
 ===
-Most router functionality has been implemented - but there's a lot of it! We have tested the things that we use regularly, but you luck might vary for a feature we haven't used yet. If you find an issue, either feel free to fix it and send a pull-request, or raise a [GitHub issue](https://github.com/invertedtomato/tiklink/issues) and we'll probably fix it in the next week.
-
-Here's a summary of what's available, and what's tested:
-
-| Function                            | Type        | Status     |
-|-------------------------------------|-------------|------------|
-| /bridge/filter                      | Records     | Untested   |
-| /bridge/nat                         | Records     | Untested   |
-| /bridge/port                        | Records     | Untested   |
-| /bridge/settings                    | Singleton   | Untested   |
-| /caps-man/registration-table        | RO Records  | Untested   |
-| /interface                          | Records     | *Ready*    |
-| /interface/bridge                   | Records     | Untested   |
-| /interface/ethernet                 | Records     | Untested   |
-| /interface/wireless                 | Records     | Untested   |
-| /interface/wireless/access-list     | Records     | Untested   |
-| /interface/wireless/registration-table | RO Records     | Untested   |
-| /interface/wireless/security-profiles | Records     | Untested   |
-| /ip/accounting                      | Singleton   | Untested   |
-| /ip/accounting/snapshot             | RO Records  | Untested   |
-| /ip/accounting/uncounted            | Singleton   | Untested   |
-| /ip/accounting/web-access           | Singleton   | Untested   |
-| /ip/address                         | Records     | Untested   |
-| /ip/arp                             | Records     | *Ready*    |
-| /ip/dhcp-client                     | Records     | Untested   |
-| /ip/dhcp-server                     | Records     | Untested   |
-| /ip/dhcp-server/alert               | Records     | Untested   |
-| /ip/dhcp-server/config              | Singleton   | Untested   |
-| /ip/dhcp-server/lease               | Records     | *Ready*    |
-| /ip/dhcp-server/network             | Records     | *Ready*    |
-| /ip/dhcp-server/option              | Records     | Untested   |
-| /ip/dns                             | Singleton   | Untested   |
-| /ip/dns/cache                       | RO Records  | Untested   |
-| /ip/dns/cache/all                   | RO Records  | Untested   |
-| /ip/dns/static                      | Records     | Untested   |
-| /ip/firewall/address-list           | Records     | Untested   |
-| /ip/firewall/connection             | Records     | Untested   |
-| /ip/firewall/connection/tracking    | Singleton   | Untested   |
-| /ip/firewall/filter                 | Records     | *Ready*    |
-| /ip/firewall/mangle                 | Records     | Untested   |
-| /ip/firewall/nat                    | Records     | Untested   |
-| /ip/hotspot/active                  | RO Records  | Untested   |
-| /ip/hotspot/user                    | Records     | Untested   |
-| /ip/hotspot/user-profile            | Records     | Untested   |
-| /ip/pool                            | Records     | Untested   |
-| /queue/simple                       | Records     | *Ready*    |
-| /queue/tree                         | Records     | Untested   |
-| /queue/type                         | Records     | Untested   |
-| /system/resource                    | RO Singleton| Untested   |
-| /tool/ping                          | RO Records  | *Ready*    |
-| /tool/torch                         | RO Records  | Not implimented   |
+Most router functionality has been implemented - but there's a lot of it! We have tested the things that we use regularly, but you luck might vary for a feature we haven't used yet. If you find an issue, either feel free to fix it and send a pull-request, or raise a [GitHub issue](https://github.com/invertedtomato/tiklink/issues) and we'll probably fix it in the next week. See [Functionality](https://github.com/invertedtomato/tiklink/wiki/Functionality) for a list of features and testing status.
 
 Getting Started
 ===
