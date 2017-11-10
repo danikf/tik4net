@@ -227,7 +227,7 @@ namespace InvertedTomato.TikLink {
                 throw new CallException(message);
             }
 
-            // Setup vanity interfaces
+            // Setup record handler interfaces
             Bridge = new LinkBridge(this);
             CapsMan = new LinkCapsMan(this);
             Interface = new LinkInterface(this);
@@ -267,12 +267,15 @@ namespace InvertedTomato.TikLink {
         /// <summary>
         /// Call a raw command with a pre-rolled sentence. You shouldn't normally need this, it's for advanced users.
         /// </summary>
-        public CallResult Call(Sentence tx) {
-            if (null == tx) {
-                throw new ArgumentNullException(nameof(tx));
+        /// <remarks>
+        /// Internally attributes are converted to words in the following format "={attrib:key}={attrib:value}". Queries are converted as "?{query}".
+        /// </remarks>
+        public CallResult Call(Sentence sentence) {
+            if (null == sentence) {
+                throw new ArgumentNullException(nameof(sentence));
             }
-            if (string.IsNullOrWhiteSpace(tx.Command)) {
-                throw new ArgumentException("Command must not be blank or whitespace", nameof(tx));
+            if (string.IsNullOrWhiteSpace(sentence.Command)) {
+                throw new ArgumentException("Command must not be blank or whitespace", nameof(sentence));
             }
 
             // Get next tag
@@ -284,11 +287,11 @@ namespace InvertedTomato.TikLink {
 
             lock (Sync) {
                 // Write words
-                WriteWord(tx.Command);
-                foreach (var attribute in tx.Attributes) {
+                WriteWord(sentence.Command);
+                foreach (var attribute in sentence.Attributes) {
                     WriteWord("=" + attribute.Key + "=" + attribute.Value);
                 }
-                foreach (var query in tx.Queries) {
+                foreach (var query in sentence.Queries) {
                     WriteWord("?" + query);
                 }
                 WriteWord(".tag=" + tag);
