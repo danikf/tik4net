@@ -45,7 +45,7 @@ namespace Tests {
                 Assert.Equal(obj1.DaysValid, obj3.DaysValid);
 
                 // Delete certificate
-                link.System.Certificate.Delete(obj2.Id);
+                link.System.Certificate.Delete(obj2);
             }
         }
     }

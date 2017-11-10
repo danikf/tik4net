@@ -50,7 +50,7 @@ namespace Tests {
                 Assert.Equal(obj2.Comment, obj3.Comment);
 
                 // Delete record
-                link.Ip.Arp.Delete(obj3.Id);
+                link.Ip.Arp.Delete(obj3);
 
                 // Make sure we can't find the record any more
                 var objs3 = link.Ip.Arp.Query(new Dictionary<string, string>() {
@@ -102,7 +102,7 @@ namespace Tests {
                 Assert.Equal(obj2.Comment, obj3.Comment);
 
                 // Delete record
-                link.Ip.Firewall.Filter.Delete(obj3.Id);
+                link.Ip.Firewall.Filter.Delete(obj3);
 
                 // Make sure we can't find the record any more
                 var objs3 = link.Ip.Firewall.Filter.Query(new Dictionary<string, string>() {
@@ -162,7 +162,7 @@ namespace Tests {
                 Assert.Equal(obj2.Comment, obj3.Comment);
 
                 // Delete record
-                link.Ip.DhcpServer.Lease.Delete(obj3.Id);
+                link.Ip.DhcpServer.Lease.Delete(obj3);
 
                 // Make sure we can't find the record any more
                 var objs3 = link.Ip.DhcpServer.Lease.Query(new Dictionary<string, string>() {
@@ -207,7 +207,7 @@ namespace Tests {
                 Assert.Equal(obj2.Comment, obj3.Comment);
 
                 // Delete record
-                link.Ip.DhcpServer.Network.Delete(obj3.Id);
+                link.Ip.DhcpServer.Network.Delete(obj3);
 
                 // Make sure we can't find the record any more
                 var objs3 = link.Ip.DhcpServer.Network.Query(new Dictionary<string, string>() {
