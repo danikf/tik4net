@@ -320,7 +320,7 @@ namespace InvertedTomato.TikLink {
                 throw new CallException(message);
             }
         }
-        
+
         /// <summary>
         /// Disconnect and dispose link.
         /// </summary>
@@ -431,9 +431,11 @@ namespace InvertedTomato.TikLink {
                     result.Block.Set();
                 }
             } catch (IOException ex) {
-                if (!IsDisposed) {
-                    throw ex;
+                if (IsDisposed) {
+                    return;
                 }
+
+                Dispose();
             }
         }
 
