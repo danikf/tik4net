@@ -9,13 +9,7 @@ namespace InvertedTomato.TikLink.Records {
     /// MikroTik RouterOS supports various types of Ethernet interfaces. 
     /// </summary>
     [RosRecord("/interface/ethernet")]
-    public class InterfaceEthernet  : ISetRecord {
-        /// <summary>
-        /// .id: primary key of row
-        /// </summary>
-        [RosProperty(".id", IsRequired = true)]
-        public string Id { get; set; }
-
+    public class InterfaceEthernet  : SetRecordBase {
         /// <summary>
         /// arp
         /// Address Resolution Protocol mode:
@@ -55,7 +49,7 @@ namespace InvertedTomato.TikLink.Records {
         public string Comment { get; set; }
 
         /// <summary>
-        /// disable-running-check: Disable running check. If this value is set to 'no', the router automatically detects whether the NIC is connected with a device in the network or not. Default value is 'yes' because older NICs do not support it. (only applicable to x86)
+        /// disable-running-check: Disable running check. If this value is set to 'no', the router automatically detects whether the NIC is connected with a device in the Option or not. Default value is 'yes' because older NICs do not support it. (only applicable to x86)
         /// </summary>
         [RosProperty("disable-running-check", DefaultValue = "yes")]
         public bool DisableRunningCheck { get; set; }

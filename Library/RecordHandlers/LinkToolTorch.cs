@@ -7,7 +7,8 @@ namespace InvertedTomato.TikLink.RecordHandlers {
 
         internal LinkToolTorch(Link link) {
             Link = link;
-
         }
+
+        // TODO
     }
 }

@@ -22,14 +22,14 @@ namespace Tests {
 
         [Fact]
         public void Connect_BadUsername() {
-            Assert.Throws<IOException>(() => {
+            Assert.Throws<CallException>(() => {
                 Link.Connect(Credentials.Current.Host, Credentials.Current.Username + "BAD", Credentials.Current.Password);
             });
         }
 
         [Fact]
         public void Connect_BadPassword() {
-            Assert.Throws<IOException>(() => {
+            Assert.Throws<CallException>(() => {
                 Link.Connect(Credentials.Current.Host, Credentials.Current.Username, Credentials.Current.Password + "BAD");
             });
         }

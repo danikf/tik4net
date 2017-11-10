@@ -8,10 +8,10 @@ namespace InvertedTomato.TikLink.Records {
     /// ip/dns: A MikroTik router with DNS feature enabled can be set as a DNS server for any DNS-compliant client. Moreover, MikroTik router can be specified as a primary DNS server under its dhcp-server settings. When the remote requests are enabled, the MikroTik router responds to TCP and UDP DNS requests on port 53. 
     /// </summary>
     [RosRecord("/ip/dns")]
-    public class IpDns : ISingleRecord {
+    public class IpDns : SingleRecordBase {
         /// <summary>
         /// allow-remote-requests
-        /// specifies whether to allow network requests
+        /// specifies whether to allow Option requests
         /// </summary>
         [RosProperty("allow-remote-requests", DefaultValue = "no")]
         public bool AllowRemoteRequests { get; set; }

@@ -9,13 +9,7 @@ namespace InvertedTomato.TikLink.Records {
     /// /ip/firewall/filter
     /// </summary>
     [RosRecord("/ip/firewall/filter", IncludeDetails = true, IsOrdered = true)]
-    public class IpFirewallFilter : ISetRecord {
-        /// <summary>
-        /// .id: primary key of row
-        /// </summary>
-        [RosProperty(".id", IsRequired = true)]
-        public string Id { get; set; }
-
+    public class IpFirewallFilter : SetRecordBase {
         /// <summary>
         /// action: Action to take if packet is matched by the rule: 
         /// accept - accept the packet.Packet is not passed to next firewall rule.

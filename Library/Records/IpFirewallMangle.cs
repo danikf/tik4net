@@ -9,7 +9,116 @@ namespace InvertedTomato.TikLink.Records {
     /// /ip/firewall/mangle
     /// </summary>
     [RosRecord("/ip/firewall/mangle", IncludeDetails = true, IsOrdered = true)]
-    public class IpFirewallMangle : ISetRecord {
+    public class IpFirewallMangle : SetRecordBase {
+        /// <summary>
+        /// chain
+        /// </summary>
+        [RosProperty("chain")]
+        public string Chain { get; set; }
+
+        /// <summary>
+        /// action
+        /// </summary>
+        [RosProperty("action")]
+        public ActionType Action { get; set; }
+
+        /// <summary>
+        /// new-priorityne
+        /// </summary>
+        [RosProperty("new-priority")]
+        public string NewPriority { get; set; } = "0";
+
+        /// <summary>
+        /// passthrough
+        /// </summary>
+        [RosProperty("passthrough")]
+        public bool Passthrough { get; set; } = true;
+
+        /// <summary>
+        /// src-address-list
+        /// </summary>
+        [RosProperty("src-address-list", UnsetOnDefault = true)]
+        public string SrcAddressList { get; set; }
+
+        /// <summary>
+        /// invalid
+        /// </summary>
+        [RosProperty("invalid", IsReadOnly = true)]
+        public bool Invalid { get; private set; }
+
+        /// <summary>
+        /// dynamic
+        /// </summary>
+        [RosProperty("dynamic", IsReadOnly = true)]
+        public bool Dynamic { get; private set; }
+
+        /// <summary>
+        /// disabled
+        /// </summary>
+        [RosProperty("disabled")]
+        public bool Disabled { get; set; }
+
+        /// <summary>
+        /// new-packet-mark
+        /// </summary>
+        [RosProperty("new-packet-mark")]
+        public string NewPacketMark { get; set; }
+
+        /// <summary>
+        /// comment
+        /// </summary>
+        [RosProperty("comment")]
+        public string Comment { get; set; }
+
+        /// <summary>
+        /// dst-address-list
+        /// </summary>
+        [RosProperty("dst-address-list", UnsetOnDefault = true)]
+        public string DstAddressList { get; set; }
+
+        /// <summary>
+        /// protocol
+        /// </summary>
+        [RosProperty("protocol", UnsetOnDefault = true)]
+        public string Protocol { get; set; }
+
+        /// <summary>
+        /// src-address
+        /// </summary>
+        [RosProperty("src-address", UnsetOnDefault = true)]
+        public string SrcAddress { get; set; }
+
+        /// <summary>
+        /// dst-address
+        /// </summary>
+        [RosProperty("dst-address", UnsetOnDefault = true)]
+        public string DstAddress { get; set; }
+
+        /// <summary>
+        /// jump-target
+        /// </summary>
+        [RosProperty("jump-target")]
+        public string JumpTarget { get; set; }
+
+        /// <summary>
+        /// address-list
+        /// </summary>
+        [RosProperty("address-list")]
+        public string AddressList { get; set; }
+
+        /// <summary>
+        /// address-list-timeout
+        /// </summary>
+        [RosProperty("address-list-timeout")]
+        public string AddressListTimeout { get; set; } = "00:00:00";
+
+        /// <summary>
+        /// ToString override.
+        /// </summary>
+        public override string ToString() {
+            return base.ToString() + string.Format(" (Chain:{0}, Action:{1}, SrcAddress:{2}, DstAddress:{3}, Comment:{4})", Chain, Action, SrcAddress, DstAddress, Comment);
+        }
+
         /// <summary>
         /// Mangle action type - <see cref="IpFirewallMangle.Action"/>
         /// </summary>
@@ -122,121 +231,6 @@ namespace InvertedTomato.TikLink.Records {
             /// </summary>
             [RosEnum("strip-ipv4-options")]
             StripIpv4Options,
-        }
-
-        /// <summary>
-        /// .id
-        /// </summary>
-        [RosProperty(".id", IsRequired = true)]
-        public string Id { get; set; }
-
-        /// <summary>
-        /// chain
-        /// </summary>
-        [RosProperty("chain")]
-        public string Chain { get; set; }
-
-        /// <summary>
-        /// action
-        /// </summary>
-        [RosProperty("action")]
-        public ActionType Action { get; set; }
-
-        /// <summary>
-        /// new-priorityne
-        /// </summary>
-        [RosProperty("new-priority")]
-        public string NewPriority { get; set; } = "0";
-
-        /// <summary>
-        /// passthrough
-        /// </summary>
-        [RosProperty("passthrough")]
-        public bool Passthrough { get; set; } = true;
-
-        /// <summary>
-        /// src-address-list
-        /// </summary>
-        [RosProperty("src-address-list", UnsetOnDefault = true)]
-        public string SrcAddressList { get; set; }
-
-        /// <summary>
-        /// invalid
-        /// </summary>
-        [RosProperty("invalid", IsReadOnly = true)]
-        public bool Invalid { get; private set; }
-
-        /// <summary>
-        /// dynamic
-        /// </summary>
-        [RosProperty("dynamic", IsReadOnly = true)]
-        public bool Dynamic { get; private set; }
-
-        /// <summary>
-        /// disabled
-        /// </summary>
-        [RosProperty("disabled")]
-        public bool Disabled { get; set; }
-
-        /// <summary>
-        /// new-packet-mark
-        /// </summary>
-        [RosProperty("new-packet-mark")]
-        public string NewPacketMark { get; set; }
-
-        /// <summary>
-        /// comment
-        /// </summary>
-        [RosProperty("comment")]
-        public string Comment { get; set; }
-
-        /// <summary>
-        /// dst-address-list
-        /// </summary>
-        [RosProperty("dst-address-list", UnsetOnDefault = true)]
-        public string DstAddressList { get; set; }
-
-        /// <summary>
-        /// protocol
-        /// </summary>
-        [RosProperty("protocol", UnsetOnDefault = true)]
-        public string Protocol { get; set; }
-
-        /// <summary>
-        /// src-address
-        /// </summary>
-        [RosProperty("src-address", UnsetOnDefault = true)]
-        public string SrcAddress { get; set; }
-
-        /// <summary>
-        /// dst-address
-        /// </summary>
-        [RosProperty("dst-address", UnsetOnDefault = true)]
-        public string DstAddress { get; set; }
-
-        /// <summary>
-        /// jump-target
-        /// </summary>
-        [RosProperty("jump-target")]
-        public string JumpTarget { get; set; }
-
-        /// <summary>
-        /// address-list
-        /// </summary>
-        [RosProperty("address-list")]
-        public string AddressList { get; set; }
-
-        /// <summary>
-        /// address-list-timeout
-        /// </summary>
-        [RosProperty("address-list-timeout")]
-        public string AddressListTimeout { get; set; } = "00:00:00";
-
-        /// <summary>
-        /// ToString override.
-        /// </summary>
-        public override string ToString() {
-            return base.ToString() + string.Format(" (Chain:{0}, Action:{1}, SrcAddress:{2}, DstAddress:{3}, Comment:{4})", Chain, Action, SrcAddress, DstAddress, Comment);
         }
     }
 

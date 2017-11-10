@@ -6,7 +6,7 @@ using System.Text;
 namespace InvertedTomato.TikLink.Records {
     /// <summary>
     /// ip/dns
-    /// The MikroTik RouterOS has an embedded DNS server feature in DNS cache. It allows you to link the particular domain names with the respective IP addresses and advertize these links to the DNS clients using the router as their DNS server. This feature can also be used to provide fake DNS information to your network clients. For example, resolving any DNS request for a certain set of domains (or for the whole Internet) to your own page.
+    /// The MikroTik RouterOS has an embedded DNS server feature in DNS cache. It allows you to link the particular domain names with the respective IP addresses and advertize these links to the DNS clients using the router as their DNS server. This feature can also be used to provide fake DNS information to your Option clients. For example, resolving any DNS request for a certain set of domains (or for the whole Internet) to your own page.
     /// 
     /// The server is capable of resolving DNS requests based on POSIX basic regular expressions, so that multiple requets can be matched with the same entry. In case an entry does not conform with DNS naming standards, it is considered a regular expression and marked with ‘R’ flag. The list is ordered and is checked from top to bottom. Regular expressions are checked first, then the plain records. 
     /// Reverse DNS lookup (Address to Name) of the regular expression entries is not possible. You can, however, add an additional plain record with the same IP address and specify some name for it.
@@ -16,13 +16,7 @@ namespace InvertedTomato.TikLink.Records {
     /// Regular expression matching is significantly slower than of the plain entries, so it is advised to minimize the number of regular expression rules and optimize the expressions themselves
     /// </summary>
     [RosRecord("/ip/dns/static", IsOrdered = true)]
-    public class IpDnsStatic  : ISetRecord {
-        /// <summary>
-        /// .id: primary key of row
-        /// </summary>
-        [RosProperty(".id", IsRequired = true)]
-        public string Id { get; set; }
-
+    public class IpDnsStatic  : SetRecordBase {
         /// <summary>
         /// address
         /// IP address to resolve domain name with

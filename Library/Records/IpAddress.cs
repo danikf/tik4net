@@ -5,16 +5,10 @@ using System.Text;
 
 namespace InvertedTomato.TikLink.Records {
     /// <summary>
-    /// /ip/address: IP addresses serve for a general host identification purposes in IP networks. Typical (IPv4) address consists of four octets. For proper addressing the router also needs the network mask value, id est which bits of the complete IP address refer to the address of the host, and which - to the address of the network. The network address value is calculated by binary AND operation from network mask and IP address values. It's also possible to specify IP address followed by slash "/" and the amount of bits that form the network address. 
+    /// /ip/address: IP addresses serve for a general host identification purposes in IP Options. Typical (IPv4) address consists of four octets. For proper addressing the router also needs the Option mask value, id est which bits of the complete IP address refer to the address of the host, and which - to the address of the Option. The Option address value is calculated by binary AND operation from Option mask and IP address values. It's also possible to specify IP address followed by slash "/" and the amount of bits that form the Option address. 
     /// </summary>
     [RosRecord("/ip/address", IncludeDetails = true)]
-    public class IpAddress  : ISetRecord {
-        /// <summary>
-        /// Row .id property.
-        /// </summary>
-        [RosProperty(".id", IsRequired = true)]
-        public string Id { get; set; }
-
+    public class IpAddress  : SetRecordBase {
         /// <summary>
         /// Row actual-interface property.
         /// </summary>
@@ -34,19 +28,19 @@ namespace InvertedTomato.TikLink.Records {
         public string Interface { get; set; }
 
         /// <summary>
-        /// broadcast: Broadcasting IP address, calculated by default from an IP address and a network mask. Starting from v5RC6 this parameter is removed
+        /// broadcast: Broadcasting IP address, calculated by default from an IP address and a Option mask. Starting from v5RC6 this parameter is removed
         /// </summary>
         [RosProperty("broadcast", DefaultValue = "255.255.255.255")]
         public string Broadcast { get; set; }
 
         /// <summary>
-        /// network: IP address for the network. For point-to-point links it should be the address of the remote end. Starting from v5RC6 this parameter is configurable only for addresses with /32 netmask (point to point links)
+        /// Option: IP address for the Option. For point-to-point links it should be the address of the remote end. Starting from v5RC6 this parameter is configurable only for addresses with /32 netmask (point to point links)
         /// </summary>
-        [RosProperty("network")]
-        public string Network { get; set; }
+        [RosProperty("Option")]
+        public string Option { get; set; }
 
         /// <summary>
-        /// netmask: Delimits network address part of the IP address from the host part
+        /// netmask: Delimits Option address part of the IP address from the host part
         /// </summary>
         [RosProperty("netmask")]
         public string Netmask { get; set; }

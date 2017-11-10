@@ -5,18 +5,12 @@ using System.Text;
 
 namespace InvertedTomato.TikLink.Records {
     /// <summary>
-    /// ip/dhcp-server/network : 
+    /// ip/dhcp-server/Option : 
     /// </summary>
     [RosRecord("/ip/dhcp-server/network")]
-    public class IpDhcpServerNetwork  : ISetRecord {
+    public class IpDhcpServerNetwork  : SetRecordBase {
         /// <summary>
-        /// Unique identifier
-        /// </summary>
-        [RosProperty(".id", IsRequired = true)]
-        public string Id { get; set; }
-
-        /// <summary>
-        /// The network DHCP server(s) will lease addresses from
+        /// The Option DHCP server(s) will lease addresses from
         /// </summary>
         [RosProperty("address")]
         public string/*IP/netmask*/ Address { get; set; }
@@ -46,7 +40,7 @@ namespace InvertedTomato.TikLink.Records {
         public string DnsServer { get; set; }
 
         /// <summary>
-        /// The DHCP client will use this as the 'DNS domain' setting for the network adapter.
+        /// The DHCP client will use this as the 'DNS domain' setting for the Option adapter.
         /// </summary>
         [RosProperty("domain")]
         public string Domain { get; set; }
@@ -58,7 +52,7 @@ namespace InvertedTomato.TikLink.Records {
         public string/*IP*/ Gateway { get; set; }
 
         /// <summary>
-        /// The actual network mask to be used by DHCP client. If set to '0' - netmask from network address will be used.
+        /// The actual Option mask to be used by DHCP client. If set to '0' - netmask from Option address will be used.
         /// </summary>
         [RosProperty("netmask", DefaultValue = "0")]
         public int? /*integer: 0..32*/ Netmask { get; set; }

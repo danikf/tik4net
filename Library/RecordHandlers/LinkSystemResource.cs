@@ -2,15 +2,11 @@
 using System;
 
 namespace InvertedTomato.TikLink.RecordHandlers {
-    public class LinkSystemResource {
-        private readonly Link Link;
+    public class LinkSystemResource: SingleRecordHandlerBase<SystemResource> {
+        internal LinkSystemResource(Link link) : base(link) { }
 
-        internal LinkSystemResource(Link link) {
-            Link = link;
-        }
-
-        public SystemResource Get(string[] properties = null) {
-            return Link.Get<SystemResource>(properties);
+        public override void Update(SystemResource record, string[] properties = null) {
+            throw new NotSupportedException();
         }
     }
 }

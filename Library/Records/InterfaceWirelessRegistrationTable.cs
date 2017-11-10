@@ -9,13 +9,7 @@ namespace InvertedTomato.TikLink.Records {
     /// /interface wireless registration-table: In the registration table you can see various information about currently connected clients. It is used only for Access Points. All properties are read-only.
     /// </summary>
     [RosRecord("/interface/wireless/registration-table", IsReadOnly = true)]
-    public class InterfaceWirelessRegistrationTable : ISetRecord {
-        /// <summary>
-        /// .id: primary key of row
-        /// </summary>
-        [RosProperty(".id", IsRequired = true)]
-        public string Id { get; set; }
-
+    public class InterfaceWirelessRegistrationTable : SetRecordBase {
         /// <summary>
         /// Unknown: whether the data exchange is allowed with the peer (i.e., whether 802.1x authentication is completed, if needed)
         /// </summary>
@@ -209,7 +203,7 @@ namespace InvertedTomato.TikLink.Records {
         public string PackedFrames { get; private set; }
 
         /// <summary>
-        /// packets: number of sent and received network layer packets
+        /// packets: number of sent and received Option layer packets
         /// </summary>
         [RosProperty("packets", IsReadOnly = true)]
         public string Packets { get; private set; }

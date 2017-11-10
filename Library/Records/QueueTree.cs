@@ -3,13 +3,7 @@
     /// /queue/tree
     /// </summary>
     [RosRecord("/queue/tree", IncludeDetails = true)]
-    public class QueueTree  : ISetRecord {
-        /// <summary>
-        /// .id
-        /// </summary>
-        [RosProperty(".id", IsRequired = true)]
-        public string Id { get; set; }
-
+    public class QueueTree  : SetRecordBase {
         /// <summary>
         /// Name
         /// </summary>

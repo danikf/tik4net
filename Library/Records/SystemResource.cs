@@ -8,7 +8,7 @@ namespace InvertedTomato.TikLink.Records {
     /// /system/resource (single R/O entity)
     /// </summary>
     [RosRecord("/system/resource", IsReadOnly = true)]
-    public class SystemResource : ISingleRecord {
+    public class SystemResource : SingleRecordBase {
         /// <summary>
         /// uptime
         /// </summary>

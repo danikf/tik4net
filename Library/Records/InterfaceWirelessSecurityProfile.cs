@@ -9,13 +9,7 @@ namespace InvertedTomato.TikLink.Records {
     /// Wireless security profiles
     /// </summary>
     [RosRecord("/interface/wireless/security-profiles")]
-    public class InterfaceWirelessSecurityProfile : ISetRecord {
-        /// <summary>
-        /// .id: primary key of row
-        /// </summary>
-        [RosProperty(".id", IsRequired = true)]
-        public string Id { get; set; }
-
+    public class InterfaceWirelessSecurityProfile : SetRecordBase {
         /// <summary>
         /// comment
         /// </summary>

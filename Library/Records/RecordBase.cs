@@ -1,4 +1,4 @@
 ﻿namespace InvertedTomato.TikLink.Records {
-    public interface IRecord {
+    public class RecordBase {
     }
 }

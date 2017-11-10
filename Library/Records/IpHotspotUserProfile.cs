@@ -5,13 +5,7 @@ namespace InvertedTomato.TikLink.Records {
     /// ip/hotspot/user: User profile menu is used for common HotSpot client settings. Profiles are like User groups with the same set of settings, rate-limit, filter chain name, etc. 
     /// </summary>
     [RosRecord("/ip/hotspot/user/profile")]
-    public class IpHotspotUserProfile : ISetRecord {
-        /// <summary>
-        /// .id: primary key of row
-        /// </summary>
-        [RosProperty(".id", IsRequired = true)]
-        public string Id { get; set; }
-        
+    public class IpHotspotUserProfile : SetRecordBase {
         /// <summary>
         /// add-mac-cookie: Allows to add mac cookie for users. Read more&gt;&gt;
         /// </summary>
@@ -25,7 +19,7 @@ namespace InvertedTomato.TikLink.Records {
         public string AddressList { get; set; }
 
         /// <summary>
-        /// address-pool: IP pool name from which the user will get IP. When user has improper network settings configuration on the computer, HotSpot server makes translation and assigns correct IP address from the pool instead of incorrect one
+        /// address-pool: IP pool name from which the user will get IP. When user has improper Option settings configuration on the computer, HotSpot server makes translation and assigns correct IP address from the pool instead of incorrect one
         /// </summary>
         [RosProperty("address-pool")]
         public string/*string |none*/ AddressPool { get; set; } = "none";
@@ -43,7 +37,7 @@ namespace InvertedTomato.TikLink.Records {
         public string/*time[,time[,..]]*/ AdvertiseInterval { get; set; } = "30m,10m";
 
         /// <summary>
-        /// advertise-timeout: How long advertisement is shown, before blocking network access for HotSpot client. Connection to Internet is not allowed, when advertisement is not shown.
+        /// advertise-timeout: How long advertisement is shown, before blocking Option access for HotSpot client. Connection to Internet is not allowed, when advertisement is not shown.
         /// </summary>
         [RosProperty("advertise-timeout")]
         public string/*time | immediately | never*/ AdvertiseTimeout { get; set; } = "1m";

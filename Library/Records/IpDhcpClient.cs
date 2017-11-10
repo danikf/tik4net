@@ -10,38 +10,7 @@ namespace InvertedTomato.TikLink.Records {
     /// RouterOS DHCP cilent asks for following options:
     /// </summary>
     [RosRecord("/ip/dhcp-client", IncludeDetails = true)]
-    public class IpDhcpClient  : ISetRecord {
-        #region -- Enums ---
-        /// <summary>
-        /// Mode of adding default route. See <see cref="IpDhcpClient.AddDefaultRoute"/>.
-        /// </summary>
-        public enum AddDefaultRouteType {
-            /// <summary>
-            /// yes - adds classless route if received, if not then add default route (old behavior)
-            /// </summary>
-            [RosEnum("yes")]
-            Yes,
-
-            /// <summary>
-            /// no
-            /// </summary>
-            [RosEnum("no")]
-            No,
-
-            /// <summary>
-            /// adds both classless route if received and default route (MS style)
-            /// </summary>
-            [RosEnum("special-classless")]
-            SpecialClassless,
-        }
-        #endregion
-
-        /// <summary>
-        /// .id: primary key of row
-        /// </summary>
-        [RosProperty(".id", IsRequired = true)]
-        public string Id { get; set; }
-
+    public class IpDhcpClient  : SetRecordBase {
         /// <summary>
         /// add-default-route: Whether to install default route in routing table received from dhcp server. By default RouterOS client complies to RFC and ignores option 3 if classless option 121 is received. To force client not to ignore option 3 set special-classless. This parameter is available in v6rc12+
         /// yes - adds classless route if received, if not then add default route(old behavior)
@@ -51,7 +20,7 @@ namespace InvertedTomato.TikLink.Records {
         public AddDefaultRouteType AddDefaultRoute { get; set; }
 
         /// <summary>
-        /// client-id: Corresponds to the settings suggested by the network administrator or ISP. If not specified, client's MAC address will be sent
+        /// client-id: Corresponds to the settings suggested by the Option administrator or ISP. If not specified, client's MAC address will be sent
         /// </summary>
         [RosProperty("client-id")]
         public string ClientId { get; set; }
@@ -190,5 +159,27 @@ namespace InvertedTomato.TikLink.Records {
                 TikSpecialProperties.Id, Id).ExecuteNonQuery();
         }
         */
+
+        /// Mode of adding default route. See <see cref="IpDhcpClient.AddDefaultRoute"/>.
+        /// </summary>
+        public enum AddDefaultRouteType {
+            /// <summary>
+            /// yes - adds classless route if received, if not then add default route (old behavior)
+            /// </summary>
+            [RosEnum("yes")]
+            Yes,
+
+            /// <summary>
+            /// no
+            /// </summary>
+            [RosEnum("no")]
+            No,
+
+            /// <summary>
+            /// adds both classless route if received and default route (MS style)
+            /// </summary>
+            [RosEnum("special-classless")]
+            SpecialClassless,
+        }
     }
 }

@@ -3,36 +3,8 @@ using System;
 using System.Collections.Generic;
 
 namespace InvertedTomato.TikLink.RecordHandlers {
-    public class LinkSystemCertificate {
-        private readonly Link Link;
-
-        internal LinkSystemCertificate(Link link) {
-            Link = link;
-        }
-
-        public IList<SystemCertificate> List(string[] properties = null, Dictionary<string, string> filter = null) {
-            return Link.List<SystemCertificate>(properties, filter);
-        }
-
-        public SystemCertificate Get(string id, string[] properties = null) {
-            return Link.Get<SystemCertificate>(id, properties);
-        }
-
-        public void Add(SystemCertificate record, string[] properties = null) {
-            Link.Add(record, properties);
-        }
-
-        public void Update(SystemCertificate record, string[] properties = null) {
-            Link.Update(record, properties);
-        }
-
-        public void Delete(string id) {
-            Link.Delete<SystemCertificate>(id);
-        }
-
-        public void Delete(SystemCertificate record) {
-            Link.Delete(record);
-        }
+    public class LinkSystemCertificate : SetRecordHandlerBase<SystemCertificate> {
+        internal LinkSystemCertificate(Link link) : base(link) { }
 
         public void Sign(string id) { // TODO: Allow specifing CA
             if (null == id) {
@@ -49,7 +21,7 @@ namespace InvertedTomato.TikLink.RecordHandlers {
                 throw new CallException(message);
             }
         }
-        
+
         public void Sign(SystemCertificate record) {
             if (null == record) {
                 throw new ArgumentNullException(nameof(record));

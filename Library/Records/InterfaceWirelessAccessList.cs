@@ -15,13 +15,7 @@ namespace InvertedTomato.TikLink.Records {
     ///     If remote device is matched by rule that has authentication = no value, the connection from that remote device is rejected.
     /// </summary>
     [RosRecord("/interface/wireless/access-list")]
-    public class InterfaceWirelessAccessList : ISetRecord {
-        /// <summary>
-        /// .id: primary key of row
-        /// </summary>
-        [RosProperty(".id", IsRequired = true)]
-        public string Id { get; set; }
-
+    public class InterfaceWirelessAccessList : SetRecordBase {
         /// <summary>
         /// ap-tx-limit: Limit rate of data transmission to this client. Value 0 means no limit. Value is in bits per second.
         /// integer [0..4294967295]

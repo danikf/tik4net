@@ -8,13 +8,7 @@ namespace InvertedTomato.TikLink.Records {
     /// ip/dns: This menu provides a complete list with all DNS records stored on the server 
     /// </summary>
     [RosRecord("/ip/dns/cache/all", IsReadOnly = true)]
-    public class IpDnsCacheAll  : ISetRecord {
-        /// <summary>
-        /// .id: primary key of row
-        /// </summary>
-        [RosProperty(".id", IsRequired = true)]
-        public string Id { get; set; }
-
+    public class IpDnsCacheAll  : SetRecordBase {
         /// <summary>
         /// data
         /// DNS data field. IP address for type "A" records. Other record types may have different contents of the data field (like hostname or arbitrary text)

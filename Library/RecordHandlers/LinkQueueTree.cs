@@ -2,35 +2,7 @@
 using System.Collections.Generic;
 
 namespace InvertedTomato.TikLink.RecordHandlers {
-    public class LinkQueueTree {
-        private readonly Link Link;
-
-        internal LinkQueueTree(Link link) {
-            Link = link;
-        }
-
-        public IList<QueueTree> List(string[] properties = null, Dictionary<string, string> filter = null) {
-            return Link.List<QueueTree>(properties, filter);
-        }
-
-        public QueueTree Get(string id, string[] properties = null) {
-            return Link.Get<QueueTree>(id, properties);
-        }
-
-        public void Add(QueueTree record, string[] properties = null) {
-            Link.Add(record, properties);
-        }
-
-        public void Update(QueueTree record, string[] properties = null) {
-            Link.Update(record, properties);
-        }
-
-        public void Delete(string id) {
-            Link.Delete<QueueTree>(id);
-        }
-
-        public void Delete(QueueTree record) {
-            Link.Delete(record);
-        }
+    public class LinkQueueTree : SetRecordHandlerBase<QueueTree> {
+        internal LinkQueueTree(Link link) : base(link) { }
     }
 }

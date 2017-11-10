@@ -5,20 +5,14 @@ using System.Text;
 
 namespace InvertedTomato.TikLink.Records {
     /// <summary>
-    ///  To find any rogue DHCP servers as soon as they appear in your network, DHCP Alert tool can be used. It will monitor the ethernet interface for all DHCP replies and check if this reply comes from a valid DHCP server. If a reply from an unknown DHCP server is detected, alert gets triggered:
+    ///  To find any rogue DHCP servers as soon as they appear in your Option, DHCP Alert tool can be used. It will monitor the ethernet interface for all DHCP replies and check if this reply comes from a valid DHCP server. If a reply from an unknown DHCP server is detected, alert gets triggered:
     /// 
     /// When the system alerts about a rogue DHCP server, it can execute a custom script.
     /// 
     /// As DHCP replies can be unicast, the 'rogue dhcp detector' may not receive any offer to other dhcp clients at all. To deal with this, the rogue dhcp detector acts as a dhcp client as well - it sends out dhcp discover requests once a minute 
     /// </summary>
     [RosRecord("/ip/dhcp-server/alert")]
-    public class IpDhcpServerAlert  : ISetRecord {
-        /// <summary>
-        /// .id: primary key of row
-        /// </summary>
-        [RosProperty(".id", IsRequired = true)]
-        public string Id { get; set; }
-
+    public class IpDhcpServerAlert  : SetRecordBase {
         /// <summary>
         /// alert-timeout: Time after which alert will be forgotten. If after that time the same server is detected, new alert will be generated. If set to none timeout will never expire.
         /// </summary>

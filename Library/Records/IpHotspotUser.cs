@@ -5,13 +5,7 @@
     /// This is the menu, where client's user/password information is actually added, additional configuration options for HotSpot users are configured here as well.
     /// </summary>
     [RosRecord("/ip/hotspot/user")]
-    public class IpHotspotUser  : ISetRecord {
-        /// <summary>
-        /// .id: primary key of row
-        /// </summary>
-        [RosProperty(".id", IsRequired = true)]
-        public string Id { get; set; }
-
+    public class IpHotspotUser  : SetRecordBase {
         /// <summary>
         /// address: IP address, when specified client will get the address from the HotSpot one-to-one NAT translations. Address does not restrict HotSpot login only from this address
         /// </summary>

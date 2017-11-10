@@ -3,19 +3,11 @@ using System.Collections.Generic;
 using System;
 
 namespace InvertedTomato.TikLink.RecordHandlers {
-    public class LinkIpAccountingSnapshot {
-        private readonly Link Link;
+    public class LinkIpAccountingSnapshot:SetRecordHandlerBase<IpAccountingSnapshot> {
+        internal LinkIpAccountingSnapshot(Link link):base(link) {        }
 
-        internal LinkIpAccountingSnapshot(Link link) {
-            Link = link;
-        }
-
-        public IList<IpAccountingSnapshot> List(string[] properties = null, Dictionary<string, string> filter = null) {
-            return Link.List<IpAccountingSnapshot>(properties, filter);
-        }
-
-        public IpAccountingSnapshot Get(string id, string[] properties = null) {
-            return Link.Get<IpAccountingSnapshot>(id, properties);
+        public override void Update(IpAccountingSnapshot record, string[] properties = null) {
+            throw new NotSupportedException();
         }
     }
 }

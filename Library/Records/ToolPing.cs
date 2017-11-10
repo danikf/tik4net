@@ -9,12 +9,12 @@ namespace InvertedTomato.TikLink.Records {
     /// Author: seho85
     /// </summary>
     [RosRecord("/ping", IsReadOnly = true)]
-    public class ToolPing : ISetRecord {
+    public class ToolPing  {
         /// <summary>
         /// Sequence number
         /// </summary>
         [RosProperty("seq", IsReadOnly = true)]
-        public string Id { get; set; }
+        public string Sequence { get; set; }
 
         /// <summary>
         /// Pinged host.

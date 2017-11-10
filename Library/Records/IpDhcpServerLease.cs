@@ -17,13 +17,7 @@ namespace InvertedTomato.TikLink.Records {
     /// A client may free the leased address. The dynamic lease is removed, and the allocated address is returned to the address pool. But the static lease becomes busy until the client reacquires the address. 
     /// </summary>
     [RosRecord("/ip/dhcp-server/lease")]
-    public class IpDhcpServerLease : ISetRecord {
-        /// <summary>
-        /// Unique identifier
-        /// </summary>
-        [RosProperty(".id", IsRequired = true)]
-        public string Id { get; set; }
-
+    public class IpDhcpServerLease : SetRecordBase {
         /// <summary>
         /// IP address (or ip pool) for static lease. If set to 0.0.0.0 pool from server will be used
         /// </summary>
@@ -170,7 +164,7 @@ namespace InvertedTomato.TikLink.Records {
         ///               waiting - un-used static lease
         ///               testing - testing whether this address is used or not (only for dynamic leases) by pinging it with timeout of 0.5s 
         ///               authorizing - waiting for response from radius server 
-        ///               busy - this address is assigned statically to a client or already exists in the network, so it can not be leased 
+        ///               busy - this address is assigned statically to a client or already exists in the Option, so it can not be leased 
         ///               offered - server has offered this lease to a client, but did not receive confirmation from the client 
         ///               bound - server has received client's confirmation that it accepts offered address, it is using it now and will free the address no later than the lease time 
         ///        

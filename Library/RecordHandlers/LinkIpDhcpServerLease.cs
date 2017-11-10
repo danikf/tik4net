@@ -3,37 +3,8 @@ using System;
 using System.Collections.Generic;
 
 namespace InvertedTomato.TikLink.RecordHandlers {
-    public class LinkIpDhcpServerLease {
-        private readonly Link Link;
-
-        internal LinkIpDhcpServerLease(Link link) {
-            Link = link;
-        }
-
-        public IList<IpDhcpServerLease> List(string[] properties = null, Dictionary<string, string> filter = null) {
-            return Link.List<IpDhcpServerLease>(properties, filter);
-        }
-
-        public IpDhcpServerLease Get(string id, string[] properties = null) {
-            return Link.Get<IpDhcpServerLease>(id, properties);
-        }
-
-        public void Add(IpDhcpServerLease record, string[] properties = null) {
-            Link.Add(record, properties);
-        }
-
-        public void Update(IpDhcpServerLease record, string[] properties = null) {
-            Link.Update(record, properties);
-        }
-
-        public void Delete(string id) {
-            Link.Delete<IpDhcpServerLease>(id);
-        }
-
-        public void Delete(IpDhcpServerLease record) {
-            Link.Delete(record);
-        }
-
+    public class LinkIpDhcpServerLease : SetRecordHandlerBase<IpDhcpServerLease> {
+        internal LinkIpDhcpServerLease(Link link) : base(link) { }
 
         /// <summary>
         /// Check status of a given busy dynamic lease, and free it in case of no response

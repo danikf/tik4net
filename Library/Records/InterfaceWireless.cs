@@ -13,41 +13,7 @@ namespace InvertedTomato.TikLink.Records {
     /// Wireless can operate in several modes: client (station), access point, wireless bridge etc. Client/station also can operate in different modes, complete list of supported modes can be found here. 
     /// </summary>
     [RosRecord("/interface/wireless")]
-    public class InterfaceWireless : ISetRecord {
-        #region Submenu classes - Obsolete
-
-        /// <summary>
-        /// Obsolete: use Wireless.WirelessSecurityProfile class.
-        /// </summary>
-        [Obsolete("use Wireless.WirelessSecurityProfile class.", true)]
-        public abstract class WirelessSecurityProfile {
-
-        }
-
-        /// <summary>
-        /// Obsolete: use Wireless.WirelessAccessList class.
-        /// </summary>
-        [Obsolete("use Wireless.WirelessAccessList class.", true)]
-        public abstract class WirelessAccessList {
-
-        }
-
-        /// <summary>
-        /// Obsolete: use Wireless.WirelessRegistrationTable class.
-        /// </summary>
-        [Obsolete("use Wireless.WirelessRegistrationTable class.", true)]
-        public abstract class WirelessRegistrationTable {
-
-        }
-
-        #endregion
-
-        /// <summary>
-        /// .id: primary key of row
-        /// </summary>
-        [RosProperty(".id", IsRequired = true)]
-        public string Id { get; set; }
-
+    public class InterfaceWireless : SetRecordBase {
         /// <summary>
         /// adaptive-noise-immunity: This property is only effective for cards based on Atheros chipset.
         /// 
@@ -81,7 +47,7 @@ namespace InvertedTomato.TikLink.Records {
 
         /// <summary>
         /// area
-        /// Identifies group of wireless networks. This value is announced by AP, and can be matched in  connect-list by area-prefix. 
+        /// Identifies group of wireless Options. This value is announced by AP, and can be matched in  connect-list by area-prefix. 
         /// This is a proprietary extension.
         /// </summary>
         [RosProperty("area")]
@@ -129,7 +95,7 @@ namespace InvertedTomato.TikLink.Records {
         public string/*disabled | enabled*/ BridgeMode { get; set; }
 
         /// <summary>
-        /// burst-time: Time in microseconds which will be used to send data without stopping. Note that no other wireless cards in that network will be able to transmit data during burst-time microseconds. This setting is available only for AR5000, AR5001X, and AR5001X+ chipset based cards.
+        /// burst-time: Time in microseconds which will be used to send data without stopping. Note that no other wireless cards in that Option will be able to transmit data during burst-time microseconds. This setting is available only for AR5000, AR5001X, and AR5001X+ chipset based cards.
         /// 
         /// integer | disabled
         /// </summary>
@@ -195,8 +161,8 @@ namespace InvertedTomato.TikLink.Records {
         /// dfs-mode
         /// Controls DFS (Dynamic Frequency Selection).
         ///  none - disables DFS.
-        ///  no-radar-detect - Select channel from scan-list with the lowest number of detected networks. In 'wds-slave' mode this setting has no effect.
-        ///  radar-detect - Select channel with the lowest number of detected networks and use it if no radar is detected on it for 60 seconds. Otherwise, select different channel. This setting may be required by the country regulations.
+        ///  no-radar-detect - Select channel from scan-list with the lowest number of detected Options. In 'wds-slave' mode this setting has no effect.
+        ///  radar-detect - Select channel with the lowest number of detected Options and use it if no radar is detected on it for 60 seconds. Otherwise, select different channel. This setting may be required by the country regulations.
         /// This property has effect only in AP mode.
         /// 
         /// no-radar-detect | none | radar-detec
@@ -282,7 +248,7 @@ namespace InvertedTomato.TikLink.Records {
         /// .
         ///  yes - AP does not include SSID in the beacon frames, and does not reply to probe requests that have broadcast SSID.
         ///  no - AP includes SSID in the beacon frames, and replies to probe requests that have broadcast SSID.
-        /// This property has effect only in AP mode. Setting it to yes can remove this network from the list of wireless networks that are shown by some client software. Changing this setting does not improve security of the wireless network, because SSID is included in other frames sent by the AP.
+        /// This property has effect only in AP mode. Setting it to yes can remove this Option from the list of wireless Options that are shown by some client software. Changing this setting does not improve security of the wireless Option, because SSID is included in other frames sent by the AP.
         /// </summary>
         [RosProperty("hide-ssid", DefaultValue = "no")]
         public bool HideSsid { get; set; }
@@ -491,7 +457,7 @@ namespace InvertedTomato.TikLink.Records {
         /// Special modes:
         ///  alignment-only - Put interface in a continuous transmit mode that is used for aiming remote antenna.
         ///  nstreme-dual-slave - allow this interface to be used in nstreme-dual setup.
-        /// MAC address translation in pseudobridge modes works by inspecting packets and building table of corresponding IP and MAC addresses. All packets are sent to AP with the MAC address used by pseudobridge, and MAC addresses of received packets are restored from the address translation table. There is single entry in address translation table for all non-IP packets, hence more than one host in the bridged network cannot reliably use non-IP protocols. Note: Currently IPv6 doesn't work over Pseudobridge
+        /// MAC address translation in pseudobridge modes works by inspecting packets and building table of corresponding IP and MAC addresses. All packets are sent to AP with the MAC address used by pseudobridge, and MAC addresses of received packets are restored from the address translation table. There is single entry in address translation table for all non-IP packets, hence more than one host in the bridged Option cannot reliably use non-IP protocols. Note: Currently IPv6 doesn't work over Pseudobridge
         /// Virtual AP interfaces do not have this property, they follow the mode of their master interface.
         /// 
         /// station | station-wds | ap-bridge | bridge | alignment-only | nstreme-dual-slave | wds-slave | station-pseudobridge | station-pseudobridge-clone | station-bridge
@@ -696,7 +662,7 @@ namespace InvertedTomato.TikLink.Records {
         public string SecurityProfile { get; set; }
 
         /// <summary>
-        /// ssid: SSID (service set identifier) is a name that identifies wireless network.
+        /// ssid: SSID (service set identifier) is a name that identifies wireless Option.
         /// </summary>
         [RosProperty("ssid", DefaultValue = "value of system/identity")]
         public string/*string (0..32 chars)*/ Ssid { get; set; }

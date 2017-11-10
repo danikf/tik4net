@@ -6,11 +6,11 @@ using System.Text;
 namespace InvertedTomato.TikLink.Records {
     /// <summary>
     /// ip/dhcp server
-    /// The DHCP (Dynamic Host Configuration Protocol) is used for the easy distribution of IP addresses in a network. The MikroTik RouterOS implementation includes both server and client parts and is compliant with RFC 2131.
+    /// The DHCP (Dynamic Host Configuration Protocol) is used for the easy distribution of IP addresses in a Option. The MikroTik RouterOS implementation includes both server and client parts and is compliant with RFC 2131.
     /// 
-    /// The router supports an individual server for each Ethernet-like interface. The MikroTik RouterOS DHCP server supports the basic functions of giving each requesting client an IP address/netmask lease, default gateway, domain name, DNS-server(s) and WINS-server(s) (for Windows clients) information (set up in the DHCP networks submenu)
+    /// The router supports an individual server for each Ethernet-like interface. The MikroTik RouterOS DHCP server supports the basic functions of giving each requesting client an IP address/netmask lease, default gateway, domain name, DNS-server(s) and WINS-server(s) (for Windows clients) information (set up in the DHCP Options submenu)
     /// 
-    /// In order for the DHCP server to work, IP pools must also be configured (do not include the DHCP server's own IP address into the pool range) and the DHCP networks.
+    /// In order for the DHCP server to work, IP pools must also be configured (do not include the DHCP server's own IP address into the pool range) and the DHCP Options.
     /// 
     /// It is also possible to hand out leases for DHCP clients using the RADIUS server; the supported parameters for a RADIUS server is as follows:
     /// </summary>
@@ -18,62 +18,7 @@ namespace InvertedTomato.TikLink.Records {
     /// Note: DHCP server requires a real interface to receive raw ethernet packets. If the interface is a Bridge interface, then the Bridge must have a real interface attached as a port to that bridge which will receive the raw ethernet packets. It cannot function correctly on a dummy (empty bridge) interface. 
     /// </remarks>
     [RosRecord("/ip/dhcp-server")]
-    public class IpDhcpServer  : ISetRecord {
-        #region -- Enums --
-        /// <summary>
-        /// Type of <see cref="Authoritative"/>.
-        /// </summary>
-        public enum AuthoritativeType {
-            /// <summary>
-            /// after-2sec-delay - requests with "secs &lt; 2" will be processed as in "no" setting case and requests with "secs &gt;= 2" will be processed as in "yes" case.
-            /// </summary>
-            [RosEnum("after-2sec-delay")]
-            After2secDelay,
-            /// <summary>
-            /// yes - replies to clients request for an address that is not available from this server, dhcp server will send negative acknowledgment (DHCPNAK) 
-            /// </summary>
-            [RosEnum("yes")]
-            Yes,
-            /// <summary>
-            /// no - dhcp server ignores clients requests for addresses that are not available from this server
-            /// </summary>
-            [RosEnum("no")]
-            No,
-            /// <summary>
-            /// after-10sec-delay - requests with "secs &lt; 10" will be processed as in "no" setting case and requests with "secs &gt;= 10" will be processed as in "yes" case.
-            /// </summary>
-            [RosEnum("after-10sec-delay")]
-            After10secDelay,
-        }
-
-        /// <summary>
-        /// Types of <see cref="BootpSupport"/>.
-        /// </summary>
-        public enum BootpSupportType {
-            /// <summary>
-            /// static - offer only static leases to BOOTP clients 
-            /// </summary>
-            [RosEnum("static")]
-            Static,
-            /// <summary>
-            /// none - do not respond to BOOTP requests 
-            /// </summary>
-            [RosEnum("none")]
-            None,
-            /// <summary>
-            /// dynamic - offer static and dynamic leases for BOOTP clients
-            /// </summary>
-            [RosEnum("dynamic")]
-            Dynamic,
-        }
-        #endregion
-
-        /// <summary>
-        /// .id: primary key of row
-        /// </summary>
-        [RosProperty(".id", IsRequired = true)]
-        public string Id { get; set; }
-
+    public class IpDhcpServer  : SetRecordBase {
         /// <summary>
         /// add-arp: Whether to add dynamic ARP entry.  If set to no either  ARP mode should be enabled on that interface or static  ARP entries should be administratively defined in /ip arp submenu.
         /// </summary>
@@ -183,6 +128,54 @@ namespace InvertedTomato.TikLink.Records {
             AddressPool = "static-only";
             Authoritative = AuthoritativeType.After2secDelay;
             BootpSupport = BootpSupportType.Static;
+        }
+
+
+        /// <summary>
+        /// Type of <see cref="Authoritative"/>.
+        /// </summary>
+        public enum AuthoritativeType {
+            /// <summary>
+            /// after-2sec-delay - requests with "secs &lt; 2" will be processed as in "no" setting case and requests with "secs &gt;= 2" will be processed as in "yes" case.
+            /// </summary>
+            [RosEnum("after-2sec-delay")]
+            After2secDelay,
+            /// <summary>
+            /// yes - replies to clients request for an address that is not available from this server, dhcp server will send negative acknowledgment (DHCPNAK) 
+            /// </summary>
+            [RosEnum("yes")]
+            Yes,
+            /// <summary>
+            /// no - dhcp server ignores clients requests for addresses that are not available from this server
+            /// </summary>
+            [RosEnum("no")]
+            No,
+            /// <summary>
+            /// after-10sec-delay - requests with "secs &lt; 10" will be processed as in "no" setting case and requests with "secs &gt;= 10" will be processed as in "yes" case.
+            /// </summary>
+            [RosEnum("after-10sec-delay")]
+            After10secDelay,
+        }
+
+        /// <summary>
+        /// Types of <see cref="BootpSupport"/>.
+        /// </summary>
+        public enum BootpSupportType {
+            /// <summary>
+            /// static - offer only static leases to BOOTP clients 
+            /// </summary>
+            [RosEnum("static")]
+            Static,
+            /// <summary>
+            /// none - do not respond to BOOTP requests 
+            /// </summary>
+            [RosEnum("none")]
+            None,
+            /// <summary>
+            /// dynamic - offer static and dynamic leases for BOOTP clients
+            /// </summary>
+            [RosEnum("dynamic")]
+            Dynamic,
         }
     }
 

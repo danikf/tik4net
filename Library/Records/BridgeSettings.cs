@@ -8,7 +8,7 @@ namespace InvertedTomato.TikLink.Records {
     /// interface/bridge/settings: 
     /// </summary>
     [RosRecord("/interface/bridge/settings")]
-    public class BridgeSettings : ISingleRecord {
+    public class BridgeSettings : SingleRecordBase {
         /// <summary>
         /// allow-fast-path: Allows  fast path
         /// </summary>

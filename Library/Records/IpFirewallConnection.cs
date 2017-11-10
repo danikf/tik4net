@@ -8,13 +8,7 @@ namespace InvertedTomato.TikLink.Records {
     /// ip/firewall/connection tracking: 
     /// </summary>
     [RosRecord("/ip/firewall/connection", IsReadOnly = true)]
-    public class IpFirewallConnection  : ISetRecord {
-        /// <summary>
-        /// .id: primary key of row
-        /// </summary>
-        [RosProperty(".id", IsRequired = true)]
-        public string Id { get; set; }
-
+    public class IpFirewallConnection  : SetRecordBase {
         /// <summary>
         /// assured: "assured" flag indicates that this connection is assured and that it will not be erased if maximum possible tracked connection count is reached.
         /// </summary>

@@ -8,13 +8,7 @@ namespace InvertedTomato.TikLink.Records {
     /// /caps-man/registration-table: In the registration table you can see various information about currently connected clients. It is used only for Controlled Access Points. All properties are read-only.
     /// </summary>
     [RosRecord("/caps-man/registration-table", IsReadOnly = true)]
-    public class CapsManRegistrationTable  : ISetRecord {
-        /// <summary>
-        /// .id: primary key of row
-        /// </summary>
-        [RosProperty(".id", IsRequired = true)]
-        public string Id { get; set; }
-
+    public class CapsManRegistrationTable  : SetRecordBase {
         /// <summary>
         /// mac-address: MAC address of the registered client
         /// </summary>
@@ -34,7 +28,7 @@ namespace InvertedTomato.TikLink.Records {
         public TimeSpan Uptime { get; set; }
 
         /// <summary>
-        /// ssid: SSID (service set identifier) is a name that identifies wireless network.
+        /// ssid: SSID (service set identifier) is a name that identifies wireless Option.
         /// </summary>
         [RosProperty("ssid",IsReadOnly = true)]
         public string SSID { get; set; }
@@ -64,7 +58,7 @@ namespace InvertedTomato.TikLink.Records {
         public int Signal { get; set; }
 
         /// <summary>
-        /// packets: number of sent and received network layer packets
+        /// packets: number of sent and received Option layer packets
         /// </summary>
         [RosProperty("packets",IsReadOnly = true)]
         public string Packets { get; set; }

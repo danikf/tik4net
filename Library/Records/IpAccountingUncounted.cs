@@ -8,7 +8,7 @@ namespace InvertedTomato.TikLink.Records {
     /// /ip/accounting/uncounted: In case no more IP pairs can be added to the accounting table (the accounting threshold has been reached), all traffic that does not belong to any of the known IP pairs is summed together and totals are shown in this menu
     /// </summary>
     [RosRecord("/ip/accounting/uncounted", IsReadOnly = true)]
-    public class IpAccountingUncounted : ISingleRecord {
+    public class IpAccountingUncounted : SingleRecordBase {
         /// <summary>
         /// bytes: byte count
         /// </summary>

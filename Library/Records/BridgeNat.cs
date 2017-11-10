@@ -16,21 +16,15 @@ namespace InvertedTomato.TikLink.Records {
     /// input - filters packets, where the destination is the bridge (including those packets that will be routed, as they are destined to the bridge MAC address anyway)
     /// output - filters packets, which come from the bridge (including those packets that has been routed normally)
     /// forward - filters packets, which are to be bridged (note: this chain is not applied to the packets that should be routed through the router, just to those that are traversing between the ports of the same bridge)
-    /// nat - bridge network address translation provides ways for changing source/destination MAC addresses of the packets traversing a bridge. Has two built-in chains:
-    /// srcnat - used for "hiding" a host or a network behind a different MAC address. This chain is applied to the packets leaving the router through a bridged interface
+    /// nat - bridge Option address translation provides ways for changing source/destination MAC addresses of the packets traversing a bridge. Has two built-in chains:
+    /// srcnat - used for "hiding" a host or a Option behind a different MAC address. This chain is applied to the packets leaving the router through a bridged interface
     /// dstnat - used for redirecting some packets to other destinations
     /// You can put packet marks in bridge firewall (filter and NAT), which are the same as the packet marks in IP firewall put by '/ip firewall mangle'. In this way, packet marks put by bridge firewall can be used in 'IP firewall', and vice versa.
     /// 
     /// General bridge firewall properties are described in this section. Some parameters that differ between nat and filter rules are described in further sections.
     /// </summary>
     [RosRecord("/interface/bridge/nat")]
-    public class BridgeNat : ISetRecord {
-        /// <summary>
-        /// .id: primary key of row
-        /// </summary>
-        [RosProperty(".id", IsRequired = true)]
-        public string Id { get; set; }
-
+    public class BridgeNat : SetRecordBase {
         /// <summary>
         /// chain: Bridge firewall chain, which the filter is functioning in (either a built-in one, or a user defined)
         /// </summary>
@@ -81,7 +75,7 @@ namespace InvertedTomato.TikLink.Records {
         /// arp - Type 0x0806 - ARP
         /// ip - Type 0x0800 - IPv4
         /// ipv6 - Type 0x86dd - IPv6
-        /// ipx - Type 0x8137 - "Internetwork Packet Exchange"
+        /// ipx - Type 0x8137 - "InterOption Packet Exchange"
         /// length
         /// mpls-multicast - Type 0x8848 - MPLS Multicast
         /// mpls-unicast - Type 0x8847 - MPLS Unicast

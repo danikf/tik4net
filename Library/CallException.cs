@@ -1,7 +1,7 @@
 ﻿using System;
 
 namespace InvertedTomato.TikLink {
-    internal class CallException : Exception {
+    public class CallException : Exception {
         public CallException() { }
 
         public CallException(string message) : base(message) { }

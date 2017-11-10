@@ -11,7 +11,7 @@ namespace InvertedTomato.TikLink.Records {
     /// * firewall: connection-bytes, connection-mark, connection-type, connection-state, connection-limit, connection-rate, layer7-protocol, p2p, new-connection-mark, tarpit, p2p matching in simple queues
     /// </summary>
     [RosRecord("/ip/firewall/connection/tracking")]
-    public class IpFirewallConnectionTracking : ISingleRecord {
+    public class IpFirewallConnectionTracking : SingleRecordBase {
         /// <summary>
         /// enabled: Allows to disable or enable connection tracking. Disabling connection tracking will cause several firewall features to stop working. See the  list of affected features. Starting from v6.0rc2 default value is auto. Which means that connection tracing is disabled until at least one firewall rule is added.
         /// </summary>

@@ -8,10 +8,7 @@ namespace InvertedTomato.TikLink.Records {
     /// /system/certificate
     /// </summary>
     [RosRecord("/certificate")]
-    public class SystemCertificate : ISetRecord {
-        [RosProperty(".id")]
-        public string Id { get; set; }
-
+    public class SystemCertificate : SetRecordBase {
         /// <summary>
         /// Name of the certificate.Name can be edited.
         /// </summary>

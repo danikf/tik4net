@@ -3,19 +3,11 @@ using System.Collections.Generic;
 using System;
 
 namespace InvertedTomato.TikLink.RecordHandlers {
-    public class LinkCapsManRegistrationTable {
-        private readonly Link Link;
+    public class LinkCapsManRegistrationTable : FixedSetRecordHandlerBase<CapsManRegistrationTable> {
+        public LinkCapsManRegistrationTable(Link link) : base(link) { }
 
-        internal LinkCapsManRegistrationTable(Link link) {
-            Link = link;
-        }
-
-        public IList<CapsManRegistrationTable> List(string[] properties = null, Dictionary<string, string> filter = null) {
-            return Link.List<CapsManRegistrationTable>(properties, filter);
-        }
-
-        public CapsManRegistrationTable Get(string id, string[] properties = null) {
-            return Link.Get<CapsManRegistrationTable>(id, properties);
+        public override void Update(CapsManRegistrationTable record, string[] properties = null) {
+            throw new NotSupportedException();
         }
     }
 }

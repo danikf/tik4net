@@ -1,33 +1,16 @@
 ﻿using InvertedTomato.TikLink.Records;
-using System.Collections.Generic;
 using System;
 
 namespace InvertedTomato.TikLink.RecordHandlers {
-    public class LinkIpDnsCache {
+    public class LinkIpDnsCache : SetRecordHandlerBase<IpDnsCache> {
         public readonly LinkIpDnsCacheAll All;
 
-        private readonly Link Link;
-
-        internal LinkIpDnsCache(Link link) {
-            Link = link;
-
+        internal LinkIpDnsCache(Link link) : base(link) {
             All = new LinkIpDnsCacheAll(Link);
         }
 
-        public IList<IpDnsCache> List(string[] properties = null, Dictionary<string, string> filter = null) {
-            return Link.List<IpDnsCache>(properties, filter);
-        }
-
-        public IpDnsCache Get(string id, string[] properties = null) {
-            return Link.Get<IpDnsCache>(id, properties);
-        }
-
-        public void Delete(string id) {
-            Link.Delete<IpDnsCache>(id);
-        }
-
-        public void Delete(IpDnsCache record) {
-            Link.Delete(record);
+        public override void Update(IpDnsCache record, string[] properties = null) {
+            throw new NotSupportedException();
         }
     }
 }

@@ -3,13 +3,7 @@
     /// /queue/type
     /// </summary>
     [RosRecord("/queue/type", IncludeDetails = true)]
-    public class QueueType : ISetRecord {
-        /// <summary>
-        /// .id
-        /// </summary>
-        [RosProperty(".id", IsRequired = true)]
-        public string Id { get; set; }
-
+    public class QueueType : SetRecordBase {
         /// <summary>
         /// name
         /// </summary>
