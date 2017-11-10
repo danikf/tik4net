@@ -19,7 +19,7 @@ namespace Tests {
                     Comment = "<test>"
                 };
                 link.Ip.Arp.Add(obj1);
-                Assert.NotEmpty(obj1.Id);
+                //Assert.NotEmpty(obj1.Id);
 
                 // Find record
                 var objs1 = link.Ip.Arp.Query(new Dictionary<string, string>() {
@@ -112,15 +112,6 @@ namespace Tests {
                 Assert.Equal(0, objs3.Count);
             }
         }
-
-
-        [Fact]
-        public void Crud_QueuesSimple() {
-            using (var link = Link.Connect(Credentials.Current.Host, Credentials.Current.Username, Credentials.Current.Password)) {
-                throw new NotImplementedException();
-            }
-        }
-
 
         [Fact]
         public void Crud_IpDhcpServerLease() {
