@@ -9,16 +9,13 @@ namespace InvertedTomato.TikLink.RecordHandlers {
         internal FixedSetRecordHandlerBase(Link link) : base(link) { }
         
         /// <summary>
-        /// Retreive a list of all records of a given type.
+        /// Retreive records, potentially with a given filter.
         /// </summary>
-        /// <remarks>
-        /// While it's perfectly fine to use these methods directly, it's intended that you use the vanity methods instead (eg. link.Ip.Arp.List()).
-        /// </remarks>
         /// <typeparam name="T"></typeparam>
+        /// <param name="filter">Only include records who's fields match this filter. NULL returns all records.</param>
         /// <param name="properties">Properties to include in listing. Reduces amount of data required for the call. NULL returns all properties.</param>
-        /// <param name="filter">Only include records whos fields match this filter.</param>
         /// <returns></returns>
-        public IList<T> List(string[] properties = null, Dictionary<string, string> filter = null) {
+        public IList<T> Query(Dictionary<string, string> filter = null, string[] properties = null) {
             // Build sentence
             var sentence = new Sentence();
             sentence.Command = RecordReflection.GetPath<T>() + "/print";
@@ -65,6 +62,7 @@ namespace InvertedTomato.TikLink.RecordHandlers {
             return output;
         }
 
+        /* In retrospect, this doesn't make sense. You can't be garanteed the ID of a record without first having executed a List
         /// <summary>
         /// Retrieve a single object with a specific ID.
         /// </summary>
@@ -86,6 +84,6 @@ namespace InvertedTomato.TikLink.RecordHandlers {
             }
 
             return scan.Single();
-        }
+        }*/
     }
 }

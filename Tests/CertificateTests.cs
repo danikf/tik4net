@@ -22,9 +22,9 @@ namespace Tests {
                 link.System.Certificate.Add(obj1);
 
                 // Check certificate was created correctly
-                var objs1 = link.System.Certificate.List(null, new Dictionary<string, string>(){
+                var objs1 = link.System.Certificate.Query(new Dictionary<string, string>(){
                     {nameof(SystemCertificate.Name), $"={obj1.Name}" }
-                });
+                }, null);
                 Assert.Equal(1, objs1.Count);
                 var obj2 = objs1.Single();
                 Assert.Equal(obj1.Name, obj2.Name);
@@ -35,9 +35,9 @@ namespace Tests {
                 link.System.Certificate.Sign(obj2);
 
                 // Check certificate was created correctly
-                var objs2 = link.System.Certificate.List(null, new Dictionary<string, string>(){
+                var objs2 = link.System.Certificate.Query(new Dictionary<string, string>(){
                     {nameof(SystemCertificate.Name), $"={obj1.Name}" }
-                });
+                }, null);
                 Assert.Equal(1, objs2.Count);
                 var obj3 = objs2.Single();
                 Assert.Equal(obj1.Name, obj3.Name);

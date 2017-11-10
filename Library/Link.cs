@@ -124,17 +124,17 @@ namespace InvertedTomato.TikLink {
                 link.System.Certificate.Add(cert);
 
                 // Get certificate
-                cert = link.System.Certificate.List(null, new Dictionary<string, string>(){
+                cert = link.System.Certificate.Query(new Dictionary<string, string>(){
                     {nameof(SystemCertificate.Name), $"={cert.Name}" }
-                }).Single();
+                }, null).Single();
 
                 // Sign certificate
                 link.System.Certificate.Sign(cert);
 
                 // Enable API-SSL and set it to use the new certificate
-                var sslApi = link.Ip.Service.List(null, new Dictionary<string, string>() {
+                var sslApi = link.Ip.Service.Query(new Dictionary<string, string>() {
                     {nameof(IpService.Name), "=api-ssl" }
-                }).Single();
+                }, null).Single();
                 sslApi.Certificate = cert.Name;
                 sslApi.Disabled = false;
                 link.Ip.Service.Update(sslApi);
