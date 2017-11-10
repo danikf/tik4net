@@ -77,17 +77,20 @@ namespace InvertedTomato.TikLink.RecordHandlers {
         /// While it's perfectly fine to use these methods directly, it's intended that you use the vanity methods instead (eg. link.Ip.Arp.Get()).
         /// </remarks>
         /// <typeparam name="T"></typeparam>
-        /// <param name="id"></param>
-        public virtual void Delete(string id) {
-            if (null == id) {
-                throw new ArgumentNullException(nameof(id));
+        /// <param name="record"></param>
+        public virtual void Delete(T record) {
+            if (null == record) {
+                throw new ArgumentNullException(nameof(record));
+            }
+            if (null == record.Id) {
+                throw new ArgumentException("ID cannot be null.", nameof(record));
             }
 
             // Build sentence
             var sentence = new Sentence();
             sentence.Command = RecordReflection.GetPath<T>() + "/remove";
             sentence.Attributes = new Dictionary<string, string>() {
-                {".id", id }
+                {".id", record.Id }
             };
 
             // Make call
