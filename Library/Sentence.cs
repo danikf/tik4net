@@ -33,12 +33,12 @@ namespace InvertedTomato.TikLink {
             var sb = new StringBuilder();
             sb.Append(Command);
 
-            if (Attributes.TryGetValue(".id", out var id)) {
-                sb.Append($",id='{id}'");
+            foreach (var attribute in Attributes) {
+                sb.Append($",={attribute.Key}={attribute.Value}");
             }
 
-            if (Attributes.TryGetValue("name", out var name)) {
-                sb.Append($",name='{name}'");
+            foreach (var query in Queries) {
+                sb.Append($",?{query}");
             }
 
             return sb.ToString();

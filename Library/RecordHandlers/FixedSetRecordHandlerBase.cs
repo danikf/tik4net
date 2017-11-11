@@ -8,13 +8,7 @@ namespace InvertedTomato.TikLink.RecordHandlers {
     public abstract class FixedSetRecordHandlerBase<T> : RecordHandlerBase<T> where T : SetRecordBase, new() {
         internal FixedSetRecordHandlerBase(Link link) : base(link) { }
         
-        /// <summary>
-        /// Retreive records, potentially with a given filter.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="filter">Only include records who's fields match this filter. NULL returns all records.</param>
-        /// <param name="properties">Properties to include in listing. Reduces amount of data required for the call. NULL returns all properties.</param>
-        /// <returns></returns>
+        [Obsolete("Use other query methods instead. This will be removed in a future release.")]
         public IList<T> Query(Dictionary<string, string> filter = null, string[] properties = null) {
             // Build sentence
             var sentence = new Sentence();
@@ -62,28 +56,83 @@ namespace InvertedTomato.TikLink.RecordHandlers {
             return output;
         }
 
-        /* In retrospect, this doesn't make sense. You can't be garanteed the ID of a record without first having executed a List
         /// <summary>
-        /// Retrieve a single object with a specific ID.
+        /// Retrieve a set of records, with an optional filter
         /// </summary>
-        /// <remarks>
-        /// While it's perfectly fine to use these methods directly, it's intended that you use the vanity methods instead (eg. link.Ip.Arp.Get()).
-        /// </remarks>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="id"></param>
-        /// <param name="properties">Properties to include in listing. Reduces amount of data required for the call. NULL returns all properties.</param>
-        /// <returns></returns>
-        public T Get(string id, string[] properties = null) {
+        /// <param name="mode">Use QUICK for a fast response, or DETAILED for a comprehensive set of fields.</param>
+        /// <param name="filters">Filters to limit which records are returned.</param>
+        public IList<T> Query(QueryModeType mode, params QueryFilter[] filters) { return Query(mode, null, filters); }
+
+        /// <summary>
+        /// Retrieve a set of records, with an optional filter
+        /// </summary>
+        /// <param name="mode">Use QUICK for a fast response, or DETAILED for a comprehensive set of fields.</param>
+        /// <param name="properties">List of properties to be returned.</param>
+        /// <param name="filters">Filters to limit which records are returned.</param>
+        public IList<T> Query(QueryModeType mode, string[] properties = null, params QueryFilter[] filters) {
+            var sentence = new Sentence();
+            sentence.Command = RecordReflection.GetPath<T>() + "/print";
+
+            if (mode == QueryModeType.Detailed) {
+                sentence.Attributes["detailed"] = string.Empty;
+            }
+
+            if (null != properties) {
+                sentence.Attributes[".proplist"] = string.Join(",", properties.Select(a => RecordReflection.ResolveProperty<T>(a)));
+            }
+
+            foreach (var filter in filters) {
+                string rosProperty;
+                try {
+                    rosProperty = RecordReflection.ResolveProperty<T>(filter.Property);
+                } catch (KeyNotFoundException) {
+                    throw new ArgumentException($"Unknown filter property '{filter.Property}'.", nameof(filter));
+                }
+                sentence.Queries.Add($"{(char)filter.Operation}{rosProperty}={filter.Value.ToString()}");
+            }
+
+            // Make call
+            var result = Link.Call(sentence).Wait();
+            if (result.IsError) {
+                result.TryGetTrapAttribute("message", out var message);
+                throw new CallException(message);
+            }
+
+            // Convert record sentences records
+            var output = new List<T>();
+            foreach (var s in result.Sentences) {
+                if (s.Command == "re") {
+                    var record = new T();
+                    RecordReflection.SetRosProperties(record, s.Attributes);
+                    output.Add(record);
+                }
+            }
+
+            return output;
+        }
+
+        public T QueryById(QueryModeType mode, string id) {
             if (null == id) {
                 throw new ArgumentNullException(nameof(id));
             }
 
-            var scan = List(properties, new Dictionary<string, string>() { { "Id", $"={id}" } });
-            if (scan.Count != 1) {
+            var records = Query(mode, new QueryFilter("Id", QueryOperationType.Equal, id));
+            if (records.Count != 1) {
                 throw new CallException($"Record with ID '{id}' not found.");
             }
+            return records.Single();
+        }
 
-            return scan.Single();
-        }*/
+        public T QueryByName(QueryModeType mode, string name) {
+            if (null == name) {
+                throw new ArgumentNullException(nameof(name));
+            }
+
+            var records = Query(mode, new QueryFilter("Name", QueryOperationType.Equal, name));
+            if (records.Count != 1) {
+                throw new CallException($"Expecting 1 record with name '{name}', instead {records.Count} found.");
+            }
+            return records.Single();
+        }
     }
 }
