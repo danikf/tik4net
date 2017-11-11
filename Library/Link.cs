@@ -282,7 +282,7 @@ namespace InvertedTomato.TikLink {
             var tag = Interlocked.Increment(ref NextTag).ToString();
 
             // Allocate result
-            var result = new CallResult(tag);
+            var result = new CallResult(this, tag);
             PendingResults[tag] = result;
 
             lock (Sync) {
@@ -301,24 +301,6 @@ namespace InvertedTomato.TikLink {
             }
 
             return result;
-        }
-
-        /// <summary>
-        /// Cancel a call that hasn't yet completed. You shouldn't normally need this, it's for advanced users.
-        /// </summary>
-        public void Cancel(CallResult result) { // TODO: Test
-            if (null == result) {
-                throw new ArgumentNullException(nameof(result));
-            }
-
-            var result2 = Call("/cancel", new Dictionary<string, string>() {
-                {"tag", result.Tag }
-            }).Wait();
-
-            if (result2.IsError) {
-                result2.TryGetTrapAttribute("message", out var message);
-                throw new CallException(message);
-            }
         }
 
         /// <summary>

@@ -8,26 +8,48 @@ using System.Threading;
 namespace InvertedTomato.TikLink {
     public class CallResult {
         /// <summary>
-        /// Current state of the result.
+        /// Is the call complete.
         /// </summary>
         public bool IsDone { get; set; }
+
+        /// <summary>
+        /// Did the call result in error.
+        /// </summary>
         public bool IsError { get; set; }
-        public string Tag { get; private set; }
 
         /// <summary>
         /// Returned sentences.
         /// </summary>
         public ConcurrentBag<Sentence> Sentences { get; set; } = new ConcurrentBag<Sentence>();
 
+        private readonly string Tag;
+        private readonly Link Link;
+        internal readonly ManualResetEvent Block = new ManualResetEvent(false);
 
-        internal ManualResetEvent Block = new ManualResetEvent(false);
-
-        public CallResult(string tag) {
+        public CallResult(Link link, string tag) {
+            if (null == link) {
+                throw new ArgumentException(nameof(link));
+            }
             if (null == tag) {
                 throw new ArgumentNullException(nameof(tag));
             }
 
+            Link = link;
             Tag = tag;
+        }
+
+        /// <summary>
+        /// Abort the request on the router.
+        /// </summary>
+        public void Cancel() { // TODO: Test
+            var result = Link.Call("/cancel", new Dictionary<string, string>() {
+                {"tag", Tag }
+            }).Wait();
+
+            if (result.IsError) {
+                result.TryGetTrapAttribute("message", out var message);
+                throw new CallException(message);
+            }
         }
 
         /// <summary>
