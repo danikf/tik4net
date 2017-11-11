@@ -42,12 +42,11 @@ namespace InvertedTomato.TikLink {
                 throw new ArgumentNullException(nameof(stream));
             }
 
-            int length = 0; 
+            int length = 0;
             byte readByte = (byte)stream.ReadByte();
             if ((readByte & 0x80) == 0x00) {
                 length = readByte;
-            } else
-            if ((readByte & 0xC0) == 0x80) {
+            } else if ((readByte & 0xC0) == 0x80) {
                 length = ((readByte & 0x3F) << 8) + (byte)stream.ReadByte();
             } else if ((readByte & 0xE0) == 0xC0) {
                 length = ((readByte & 0x1F) << 8) + (byte)stream.ReadByte();
@@ -62,6 +61,7 @@ namespace InvertedTomato.TikLink {
                 length = (length << 8) + (byte)stream.ReadByte();
                 length = (length << 8) + (byte)stream.ReadByte();
             }
+
             return length;
         }
     }
