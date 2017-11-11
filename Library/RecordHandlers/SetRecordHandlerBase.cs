@@ -17,23 +17,24 @@ namespace InvertedTomato.TikLink.RecordHandlers {
         /// <typeparam name="T"></typeparam>
         /// <param name="record">Record to be written</param>
         /// <param name="readBack">If TRUE, the record will be updated with a new copy of the record from the router</param>
-        public virtual void Add(T record, bool readBack = false) {
+        public virtual void Add(T record, QueryModeType? readBack = null) {
             if (null == record) {
                 throw new ArgumentNullException(nameof(record));
             }
+            if (null != record.Id) {
+                throw new ArgumentException("Id must be NULL.", nameof(record));
+            }
 
-            // Get attributes
-            var attributes = RecordReflection.GetRosProperties(record);
+            // If using readBack, get a list of existing IDs first
+            IEnumerable<string> beforeIds = null;
+            if (null != readBack) {
+                beforeIds = Query(QueryModeType.Brief, new string[] { "Id" }).Select(a => a.Id);
+            }
 
             // Prepare sentence
             var sentence = new Sentence();
-            sentence.Attributes = attributes;
-
-            // Set command
+            sentence.Attributes = RecordReflection.GetRosProperties(record);
             sentence.Command = RecordReflection.GetPath<T>() + "/add";
-
-            // Remove (blank) id
-            sentence.Attributes.Remove(".id");
 
             // Make call
             var result = Link.Call(sentence).Wait();
@@ -42,31 +43,40 @@ namespace InvertedTomato.TikLink.RecordHandlers {
                 throw new CallException(message);
             }
 
-            if (readBack) {
-                // Build sentence
-                sentence = new Sentence();
-                sentence.Command = RecordReflection.GetPath<T>() + "/print";
-                foreach (var f in attributes) {
-                    // Skip records that are known to vary TODO: may need to add more here
-                    if(f.Key == "interface"|| f.Key == "lease-time" || f.Key == "disabled") {
-                        continue;
+            // If using readBack...
+            if (null != readBack) {
+                // Get list of IDs
+                var afterIds = Query(QueryModeType.Brief, new string[] { "Id" }).Select(b => b.Id).ToList();
+
+                // Remove the IDs that existed first
+                afterIds.RemoveAll(b => beforeIds.Contains(b));
+
+                // If there's only one new ID (there should be)
+                if (afterIds.Count == 1) {
+                    // Store Id on record
+                    record.Id = afterIds.Single();
+
+                    // Build sentence
+                    sentence = new Sentence();
+                    sentence.Command = RecordReflection.GetPath<T>() + "/print";
+                    if (readBack == QueryModeType.Detailed) {
+                        sentence.Attributes["detailed"] = string.Empty;
                     }
-                    sentence.Queries.Add($"={f.Key}={f.Value}");
-                }
 
-                // Make call
-                result = Link.Call(sentence).Wait();
-                if (result.IsError) {
-                    result.TryGetTrapAttribute("message", out var message);
-                    throw new CallException(message);
-                }
+                    // Make call
+                    result = Link.Call(sentence).Wait();
+                    if (result.IsError) {
+                        result.TryGetTrapAttribute("message", out var message);
+                        throw new CallException(message);
+                    }
 
-                // Convert record sentence to record
-                var a = result.Sentences.Where(b => b.Command == "re");
-                if (a.Count() != 1) {
-                    throw new CallException($"Unexpected number of results returned. Expected 1, got {a.Count()}.");
+                    // Convert record sentence to record
+                    var a = result.Sentences.Where(b => b.Command == "re");
+                    if (a.Count() != 1) {
+                        throw new CallException($"Unexpected number of results returned. Expected 1, got {a.Count()}.");
+                    }
+                    RecordReflection.SetRosProperties(record, a.Single().Attributes);
                 }
-                RecordReflection.SetRosProperties(record, a.Single().Attributes);
             }
         }
 

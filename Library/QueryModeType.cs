@@ -1,6 +1,6 @@
 ﻿namespace InvertedTomato.TikLink {
     public enum QueryModeType {
-        Quick,
+        Brief,
         Detailed
     }
 }

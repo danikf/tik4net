@@ -1,5 +1,4 @@
 
-Query(type {quick, detailed}, (properties) query, query...)
 Add(record, readBack {null, quick, detailed)
 
 DateTime
