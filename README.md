@@ -6,7 +6,7 @@ Righteo, straight to it then:
 // Connect to the router
 using (var link = Link.Connect("{router-host}", "{router-user}", "{router-password}")) {
 	// Get list of interfaces
-	var ifaces = link.Interfaces.List();
+	var ifaces = link.Interfaces.Query();
 	foreach (var iface in ifaces) {
 		Console.WriteLine(iface.Name);
 	}
@@ -16,7 +16,7 @@ using (var link = Link.Connect("{router-host}", "{router-user}", "{router-passwo
 	Console.WriteLine(ether1.RxByte);
 
 	// Create new static ARP entry
-	link.Ip.Arp.Create(new IpArp() {
+	link.Ip.Arp.Add(new IpArp() {
 		MacAddress = "01:02:03:04:05:06",
 		Address = "1.2.3.4",
 		Interface = ether1.Name,

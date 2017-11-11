@@ -1,6 +1,0 @@
-
-Add(record, readBack {null, quick, detailed)
-
-DateTime
-Test moving records
-Add tests for all record types and resolve any issues (there will be!)
