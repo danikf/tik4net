@@ -9,14 +9,14 @@ namespace InvertedTomato.TikLink.RecordHandlers {
         internal SetRecordHandlerBase(Link link) : base(link) { }
 
         /// <summary>
-        /// Add a new record to a set of records.
+        /// Add a new record to this set.
         /// </summary>
-        /// <remarks>
-        /// While it's perfectly fine to use these methods directly, it's intended that you use the vanity methods instead (eg. link.Ip.Arp.Get()).
-        /// </remarks>W
         /// <typeparam name="T"></typeparam>
         /// <param name="record">Record to be written</param>
-        /// <param name="readBack">If TRUE, the record will be updated with a new copy of the record from the router</param>
+        /// <param name="readBack">If TRUE, the record will be updated with any changes the router made during acceptance.</param>
+        /// <remarks>
+        /// ReadBack is really handy to get the ID of the record that's just been created, however it comes at the penalty of an additional query to the router, and could fail to retrieve properties if it detects another Add() that occurs at the same moment.
+        /// </remarks>
         public virtual void Add(T record, bool readBack = false) {
             if (null == record) {
                 throw new ArgumentNullException(nameof(record));
