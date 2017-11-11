@@ -18,16 +18,15 @@ namespace Tests {
                     Interface = "eth01",
                     Comment = "<test>"
                 };
-                link.Ip.Arp.Add(obj1);
-                //Assert.NotEmpty(obj1.Id);
+                link.Ip.Arp.Add(obj1, true);
+                Assert.NotEmpty(obj1.Id);
 
                 // Find record
-                var objs1 = link.Ip.Arp.Query(new Dictionary<string, string>() {
-                    {nameof(IpArp.MacAddress), $"={obj1.MacAddress}" },
-                    {nameof(IpArp.Address), $"={obj1.Address}" }
-                }, null);
-                Assert.Equal(1, objs1.Count);
-                var obj2 = objs1.Single();
+                var obj2 = link.Ip.Arp.Query(
+                    new QueryFilter(nameof(IpArp.MacAddress), QueryOperationType.Equal, obj1.MacAddress),
+                    new QueryFilter(nameof(IpArp.Address), QueryOperationType.Equal, obj1.Address)
+                ).Single();
+                Assert.Equal(obj1.Id, obj2.Id);
                 Assert.Equal(obj1.MacAddress, obj2.MacAddress);
                 Assert.Equal(obj1.Address, obj2.Address);
                 Assert.StartsWith(obj1.Interface, obj2.Interface);
@@ -38,12 +37,10 @@ namespace Tests {
                 link.Ip.Arp.Update(obj2);
 
                 // Find record again
-                var objs2 = link.Ip.Arp.Query(new Dictionary<string, string>() {
-                    {nameof(IpArp.MacAddress), $"={obj2.MacAddress}" },
-                    {nameof(IpArp.Address), $"={obj2.Address}" }
-                }, null);
-                Assert.Equal(1, objs2.Count);
-                var obj3 = objs1.Single();
+                var obj3 = link.Ip.Arp.Query(
+                    new QueryFilter(nameof(IpArp.MacAddress), QueryOperationType.Equal, obj2.MacAddress),
+                    new QueryFilter(nameof(IpArp.Address), QueryOperationType.Equal, obj2.Address)
+                ).Single();
                 Assert.Equal(obj2.MacAddress, obj3.MacAddress);
                 Assert.Equal(obj2.Address, obj3.Address);
                 Assert.StartsWith(obj2.Interface, obj3.Interface);
@@ -53,11 +50,10 @@ namespace Tests {
                 link.Ip.Arp.Delete(obj3);
 
                 // Make sure we can't find the record any more
-                var objs3 = link.Ip.Arp.Query(new Dictionary<string, string>() {
-                    {nameof(IpArp.MacAddress), $"={obj1.MacAddress}" },
-                    {nameof(IpArp.Address), $"={obj1.Address}" }
-                }, null);
-                Assert.Equal(0, objs3.Count);
+                Assert.Equal(0, link.Ip.Arp.Query(
+                    new QueryFilter(nameof(IpArp.MacAddress), QueryOperationType.Equal, obj2.MacAddress),
+                    new QueryFilter(nameof(IpArp.Address), QueryOperationType.Equal, obj2.Address)
+                ).Count());
             }
         }
 

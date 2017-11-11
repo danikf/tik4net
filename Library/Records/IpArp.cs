@@ -46,6 +46,10 @@
         /// </summary>
         [RosProperty("invalid", IsReadOnly = true)]
         public bool Invalid { get; private set; }
+
+        public override string ToString() {
+            return $"{Address}=>{MacAddress}";
+        }
     }
 
 }

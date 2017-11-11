@@ -59,7 +59,8 @@ namespace InvertedTomato.TikLink.RecordHandlers {
                     // Build sentence
                     sentence = new Sentence();
                     sentence.Command = RecordReflection.GetPath<T>() + "/print";
-                    sentence.Attributes["detailed"] = string.Empty;
+                    sentence.Attributes["detail"] = string.Empty;
+                    sentence.Queries.Add($"=.id={record.Id}");
 
                     // Make call
                     result = Link.Call(sentence).Wait();
