@@ -1,4 +1,5 @@
 ﻿using InvertedTomato.TikLink.Records;
+using System;
 using System.Collections.Generic;
 
 namespace InvertedTomato.TikLink.RecordHandlers {
@@ -11,6 +12,10 @@ namespace InvertedTomato.TikLink.RecordHandlers {
             Bridge = new LinkInterfaceBridge(Link);
             Ethernet = new LinkInterfaceEthernet(Link);
             Wireless = new LinkInterfaceWireless(Link);
+        }
+
+        public override void Add(Interface record, bool readBack = false) {
+            throw new NotSupportedException();
         }
     }
 }

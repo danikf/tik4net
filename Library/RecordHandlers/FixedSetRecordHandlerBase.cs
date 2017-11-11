@@ -7,8 +7,8 @@ using System.Linq;
 namespace InvertedTomato.TikLink.RecordHandlers {
     public abstract class FixedSetRecordHandlerBase<T> : RecordHandlerBase<T> where T : SetRecordBase, new() {
         internal FixedSetRecordHandlerBase(Link link) : base(link) { }
-        
-        [Obsolete("Use other query methods instead. This will be removed in a future release.")]
+
+        [Obsolete("Use other Query() methods instead. This will be removed in a future release.")]
         public IList<T> Query(Dictionary<string, string> filter = null, string[] properties = null) {
             // Build sentence
             var sentence = new Sentence();
@@ -57,38 +57,50 @@ namespace InvertedTomato.TikLink.RecordHandlers {
         }
 
         /// <summary>
-        /// Retrieve a set of records, with an optional filter
+        /// Retrieve entire set of records.
         /// </summary>
-        /// <param name="mode">Use QUICK for a fast response, or DETAILED for a comprehensive set of fields.</param>
-        /// <param name="filters">Filters to limit which records are returned.</param>
-        public IList<T> Query(QueryModeType mode, params QueryFilter[] filters) { return Query(mode, null, filters); }
+        public IList<T> Query() { return Query((string[])null, (QueryFilter[])null); }
 
         /// <summary>
-        /// Retrieve a set of records, with an optional filter
+        /// Retrieve a set of records.
         /// </summary>
-        /// <param name="mode">Use QUICK for a fast response, or DETAILED for a comprehensive set of fields.</param>
-        /// <param name="properties">List of properties to be returned.</param>
-        /// <param name="filters">Filters to limit which records are returned.</param>
-        public IList<T> Query(QueryModeType mode, string[] properties = null, params QueryFilter[] filters) {
+        /// <param name="filters">Logic to restrict records returned. If omitted ALL records of this type are returned.</param>
+        public IList<T> Query(params QueryFilter[] filters) { return Query(null, filters); }
+
+        /// <summary>
+        /// Retreive a set of records.
+        /// </summary>
+        /// <param name="properties">Properties to return. This can vastly improve performance. If omitted ALL properties are returned.</param>
+        public IList<T> Query(params string[] properties) { return Query(properties, null); }
+
+        /// <summary>
+        /// Retreieve a set of records.
+        /// </summary>
+        /// <param name="properties">Properties to return. This can vastly improve performance. If omitted ALL properties are returned.</param>
+        /// <param name="filters">Logic to restrict records returned. If omitted ALL records of this type are returned.</param>
+        public IList<T> Query(string[] properties, QueryFilter[] filters) {
             var sentence = new Sentence();
             sentence.Command = RecordReflection.GetPath<T>() + "/print";
 
-            if (mode == QueryModeType.Detailed) {
-                sentence.Attributes["detailed"] = string.Empty;
-            }
+            // Add 'detail' flag (performance is compensated by .proplist)
+            sentence.Attributes["detail"] = string.Empty;
 
+            // Attach property list
             if (null != properties) {
                 sentence.Attributes[".proplist"] = string.Join(",", properties.Select(a => RecordReflection.ResolveProperty<T>(a)));
             }
 
-            foreach (var filter in filters) {
-                string rosProperty;
-                try {
-                    rosProperty = RecordReflection.ResolveProperty<T>(filter.Property);
-                } catch (KeyNotFoundException) {
-                    throw new ArgumentException($"Unknown filter property '{filter.Property}'.", nameof(filter));
+            // Attach filters
+            if (null != filters) {
+                foreach (var filter in filters) {
+                    string rosProperty;
+                    try {
+                        rosProperty = RecordReflection.ResolveProperty<T>(filter.Property);
+                    } catch (KeyNotFoundException) {
+                        throw new ArgumentException($"Unknown filter property '{filter.Property}'.", nameof(filter));
+                    }
+                    sentence.Queries.Add($"{(char)filter.Operation}{rosProperty}={filter.Value.ToString()}");
                 }
-                sentence.Queries.Add($"{(char)filter.Operation}{rosProperty}={filter.Value.ToString()}");
             }
 
             // Make call
@@ -111,24 +123,30 @@ namespace InvertedTomato.TikLink.RecordHandlers {
             return output;
         }
 
-        public T QueryById(QueryModeType mode, string id) {
+        public T QueryById(string id, params string[] properties) {
             if (null == id) {
                 throw new ArgumentNullException(nameof(id));
             }
 
-            var records = Query(mode, new QueryFilter("Id", QueryOperationType.Equal, id));
+            var records = Query(
+                properties,
+                new QueryFilter[] { new QueryFilter("Id", QueryOperationType.Equal, id) }
+            );
             if (records.Count != 1) {
                 throw new CallException($"Record with ID '{id}' not found.");
             }
             return records.Single();
         }
 
-        public T QueryByName(QueryModeType mode, string name) {
+        public T QueryByName(string name, params string[] properties) {
             if (null == name) {
                 throw new ArgumentNullException(nameof(name));
             }
 
-            var records = Query(mode, new QueryFilter("Name", QueryOperationType.Equal, name));
+            var records = Query(
+                properties,
+                new QueryFilter[] { new QueryFilter("Name", QueryOperationType.Equal, name) }
+            );
             if (records.Count != 1) {
                 throw new CallException($"Expecting 1 record with name '{name}', instead {records.Count} found.");
             }

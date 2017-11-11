@@ -17,7 +17,7 @@ namespace InvertedTomato.TikLink.RecordHandlers {
         /// <typeparam name="T"></typeparam>
         /// <param name="record">Record to be written</param>
         /// <param name="readBack">If TRUE, the record will be updated with a new copy of the record from the router</param>
-        public virtual void Add(T record, QueryModeType? readBack = null) {
+        public virtual void Add(T record, bool readBack = false) {
             if (null == record) {
                 throw new ArgumentNullException(nameof(record));
             }
@@ -27,8 +27,8 @@ namespace InvertedTomato.TikLink.RecordHandlers {
 
             // If using readBack, get a list of existing IDs first
             IEnumerable<string> beforeIds = null;
-            if (null != readBack) {
-                beforeIds = Query(QueryModeType.Brief, new string[] { "Id" }).Select(a => a.Id);
+            if (readBack) {
+                beforeIds = Query("Id").Select(a => a.Id);
             }
 
             // Prepare sentence
@@ -44,9 +44,9 @@ namespace InvertedTomato.TikLink.RecordHandlers {
             }
 
             // If using readBack...
-            if (null != readBack) {
+            if (readBack) {
                 // Get list of IDs
-                var afterIds = Query(QueryModeType.Brief, new string[] { "Id" }).Select(b => b.Id).ToList();
+                var afterIds = Query("Id").Select(b => b.Id).ToList();
 
                 // Remove the IDs that existed first
                 afterIds.RemoveAll(b => beforeIds.Contains(b));
@@ -59,9 +59,7 @@ namespace InvertedTomato.TikLink.RecordHandlers {
                     // Build sentence
                     sentence = new Sentence();
                     sentence.Command = RecordReflection.GetPath<T>() + "/print";
-                    if (readBack == QueryModeType.Detailed) {
-                        sentence.Attributes["detailed"] = string.Empty;
-                    }
+                    sentence.Attributes["detailed"] = string.Empty;
 
                     // Make call
                     result = Link.Call(sentence).Wait();

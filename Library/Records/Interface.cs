@@ -25,6 +25,12 @@ namespace InvertedTomato.TikLink.Records {
         public string Mtu { get; set; }
 
         /// <summary>
+        /// Layer 2 maxiumum transmission unit
+        /// </summary>
+        [RosProperty("l2mtu")]
+        public string L2Mtu { get; set; }
+
+        /// <summary>
         /// L2 MAC addrewss
         /// </summary>
         [RosProperty("mac-address")]
@@ -35,7 +41,7 @@ namespace InvertedTomato.TikLink.Records {
         /// </summary>
         [RosProperty("fast-path")]
         public bool FastPath { get; set; }
-        
+
         /// <summary>
         /// If the interface is disabled (shutdown)
         /// </summary>
@@ -95,21 +101,53 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// Total receive errors
         /// </summary>
-        [RosProperty("rx-error", IsReadOnly = true)]
+        [RosProperty("rx-errors", IsReadOnly = true)]
         public long RxError { get; private set; }
 
         /// <summary>
         /// Total transmission errors
         /// </summary>
-        [RosProperty("tx-error", IsReadOnly = true)]
+        [RosProperty("tx-errors", IsReadOnly = true)]
         public long TxError { get; private set; }
 
         /// <summary>
-        /// If the interface is running (active)
+        /// Whether interface is running.Note that some interfaces may not have a 'running check' and they will always be reported as "running" (e.g.EoIP)
         /// </summary>
         [RosProperty("running", IsReadOnly = true)]
         public bool Running { get; private set; }
 
+
+        [RosProperty("bindstr", IsReadOnly = true)]
+        public string BindStr { get; private set; }
+
+        [RosProperty("bindstr2", IsReadOnly = true)]
+        public string BindStr2 { get; private set; }
+
+        [RosProperty("caps", IsReadOnly = true)]
+        public string Caps { get; private set; }
+
+        //Whether interface is dynamically created
+        [RosProperty("dynamic", IsReadOnly = true)]
+        public bool Dynamic { get; private set; }
+
+        //interface index
+        [RosProperty("ifindex", IsReadOnly = true)]
+        public int IfIndex { get; private set; }
+
+        //interface name in Linux kernel
+        [RosProperty("ifname", IsReadOnly = true)]
+        public string IfName { get; private set; }
+
+        // Max supported L2MTU
+        [RosProperty("max-l2mtu", IsReadOnly = true)]
+        public int MaxL2Mtu { get; private set; }
+
+        //Whether interface is configured as a slave of another interface "]for example Bonding)
+        [RosProperty("slave", IsReadOnly = true)]
+        public bool Slave { get; private set; }
+
+        [RosProperty("status", IsReadOnly = true)]
+        public string Status { get; private set; }
 
         public override string ToString() {
             return $"id={Id},name={Name},comment={Comment}";
