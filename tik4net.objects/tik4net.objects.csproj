@@ -6,7 +6,7 @@
      <OutputType>Library</OutputType>
    </PropertyGroup>
    <PropertyGroup>
-     <TargetFrameworks>net35;net40;net452;net462;netcoreapp1.1;netcoreapp2.0;netstandard1.4;netstandard1.6</TargetFrameworks>
+     <TargetFrameworks>net35;net40;net452;net462;netcoreapp1.1;netcoreapp2.0;netstandard1.3;netstandard1.4;netstandard1.6</TargetFrameworks>
      <Description>Mikrotik API library - O/R mapper API</Description>
      <Authors>Daniel Frantik</Authors>
      <Copyright>Copyright (C) Daniel Frantik 2017</Copyright>

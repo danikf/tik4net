@@ -3,7 +3,7 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
    <PropertyGroup>
-     <TargetFrameworks>net35;net40;net452;net462;netcoreapp1.1;netcoreapp2.0;netstandard1.4;netstandard1.6</TargetFrameworks>
+     <TargetFrameworks>net35;net40;net452;net462;netcoreapp1.1;netcoreapp2.0;netstandard1.3;netstandard1.4;netstandard1.6</TargetFrameworks>
      <Description>Mikrotik API library</Description>
      <Authors>Daniel Frantik</Authors>
      <Copyright>Copyright (C) Daniel Frantik 2017</Copyright>
@@ -22,7 +22,7 @@
    <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net35|AnyCPU'">
      <OutputPath>bin\Debug\</OutputPath>
    </PropertyGroup>
-  <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard1.4' OR '$(TargetFramework)' == 'netstandard1.6' ">
+  <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard1.3' OR '$(TargetFramework)' == 'netstandard1.4' OR '$(TargetFramework)' == 'netstandard1.6' ">
     <PackageReference Include="System.Threading.Thread" version="4.0.0.0" /> 
     <PackageReference Include="System.Net.Security" version="4.0.0.0" />       
   </ItemGroup>
