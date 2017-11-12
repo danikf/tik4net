@@ -6,7 +6,7 @@ using System.Text;
 
 namespace tik4net.Objects
 {
-#if V35 || V40
+#if NET20 || NET35 || NET40
     /// <summary>
     /// Extension class to implement string fuctions from newer .NET - to support .NET 3.5 build.
     /// </summary>

@@ -24,7 +24,12 @@ namespace tik4net.Api
             Byte[] hotovo;
             System.Security.Cryptography.MD5 md5;
 
+
+#if NET20 || NET35 || NET40 || NET45 || NET451 || NET452 || NET46 || NET461 || NET462 || NET47 || NET471
             md5 = new System.Security.Cryptography.MD5CryptoServiceProvider();
+#else
+            md5 = System.Security.Cryptography.MD5.Create();
+#endif
 
             hotovo = md5.ComputeHash(heslo);
 

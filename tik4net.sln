@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.26403.3
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net", "tik4net\tik4net.csproj", "{15288F76-5A85-418E-87B2-B22265726601}"
 EndProject
@@ -16,12 +16,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.torch", "tik4net.to
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7B14F760-B710-4DE6-9204-7CED5F9B30E7}"
 	ProjectSection(SolutionItems) = preProject
-		CreateRelease.bat = CreateRelease.bat
 		LICENSE = LICENSE
 		README.md = README.md
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.tests", "tik4net.tests\tik4net.tests.csproj", "{2FB8E75F-9F49-4A8A-BC57-7CD299807EEE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.coreconsole", "tik4net.coreconsole\tik4net.coreconsole.csproj", "{98A3B7AB-1D5C-49B5-AD91-7BA87F876D98}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -79,6 +80,14 @@ Global
 		{2FB8E75F-9F49-4A8A-BC57-7CD299807EEE}.Release|Any CPU.Build.0 = Release|Any CPU
 		{2FB8E75F-9F49-4A8A-BC57-7CD299807EEE}.Release|x86.ActiveCfg = Release|Any CPU
 		{2FB8E75F-9F49-4A8A-BC57-7CD299807EEE}.Release|x86.Build.0 = Release|Any CPU
+		{98A3B7AB-1D5C-49B5-AD91-7BA87F876D98}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{98A3B7AB-1D5C-49B5-AD91-7BA87F876D98}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{98A3B7AB-1D5C-49B5-AD91-7BA87F876D98}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{98A3B7AB-1D5C-49B5-AD91-7BA87F876D98}.Debug|x86.Build.0 = Debug|Any CPU
+		{98A3B7AB-1D5C-49B5-AD91-7BA87F876D98}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{98A3B7AB-1D5C-49B5-AD91-7BA87F876D98}.Release|Any CPU.Build.0 = Release|Any CPU
+		{98A3B7AB-1D5C-49B5-AD91-7BA87F876D98}.Release|x86.ActiveCfg = Release|Any CPU
+		{98A3B7AB-1D5C-49B5-AD91-7BA87F876D98}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -88,5 +97,6 @@ Global
 		{2DAABB3C-E415-481E-AC71-F637BCC7927D} = {0436FBF0-DA39-41EC-B052-255BCA0DC913}
 		{AE25F73D-7CE5-4C14-8AAC-1A32ECC38DA5} = {0436FBF0-DA39-41EC-B052-255BCA0DC913}
 		{2FB8E75F-9F49-4A8A-BC57-7CD299807EEE} = {0436FBF0-DA39-41EC-B052-255BCA0DC913}
+		{98A3B7AB-1D5C-49B5-AD91-7BA87F876D98} = {0436FBF0-DA39-41EC-B052-255BCA0DC913}
 	EndGlobalSection
 EndGlobal

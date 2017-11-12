@@ -73,7 +73,11 @@ namespace tik4net.Api
                 WriteCommand(new string[] { "/quit" }); 
             }
             if (_tcpConnection.Connected)
+#if NET20 || NET35 || NET40 || NET45 || NET451 || NET452 || NET46 || NET461 || NET462 || NET47 || NET471
                 _tcpConnection.Close();
+#else
+                _tcpConnection.Dispose();
+#endif
             _isOpened = false;        
         }
 
@@ -86,7 +90,11 @@ namespace tik4net.Api
         {
             //open connection
             _tcpConnection = new TcpClient();
+#if NET20 || NET35 || NET40 || NET45 || NET451 || NET452 || NET46 || NET461 || NET462 || NET47 || NET471
             _tcpConnection.Connect(host, port);
+#else
+            _tcpConnection.ConnectAsync(host, port).Wait();
+#endif
 
             if (!_isSsl)
             {
@@ -96,7 +104,11 @@ namespace tik4net.Api
             {
                 var sslStream = new SslStream(_tcpConnection.GetStream(), false,
                     new RemoteCertificateValidationCallback(ValidateServerCertificate), null);
+#if NET20 || NET35 || NET40 || NET45 || NET451 || NET452 || NET46 || NET461 || NET462 || NET47 || NET471
                 sslStream.AuthenticateAsClient(host/*, cCollection, SslProtocols.Default, true*/);
+#else
+                sslStream.AuthenticateAsClientAsync(host).Wait();
+#endif
                 _tcpConnectionStream = sslStream;
             }
 

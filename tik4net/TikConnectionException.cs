@@ -2,18 +2,23 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
+#if NET20 || NET35 || NET40 || NET45 || NET451 || NET452 || NET46 || NET461 || NET462 || NET47 || NET471
+using System.Runtime.Serialization;
+#endif
 
 namespace tik4net
 {
     /// <summary>
     /// Any exception from mikrotik session.
     /// </summary>
+#if NET20 || NET35 || NET40 || NET45 || NET451 || NET452 || NET46 || NET461 || NET462 || NET47 || NET471
     [Serializable]
+#endif
     public class TikConnectionException : Exception
     {
+#if NET20 || NET35 || NET40 || NET45 || NET451 || NET452 || NET46 || NET461 || NET462 || NET47 || NET471
         /// <summary>
         /// Initializes a new instance of the <see cref="TikConnectionException"/> class.
         /// </summary>
@@ -23,6 +28,7 @@ namespace tik4net
             : base(info, context)
         {
         }
+#endif
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TikConnectionException"/> class.

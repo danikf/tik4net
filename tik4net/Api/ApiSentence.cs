@@ -10,7 +10,7 @@ namespace tik4net.Api
     {
         private readonly Dictionary<string, string> _words = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase); // <fieldName, value>
 
-#if V35 || V40
+#if NET20 || NET35 || NET40
         public IDictionary<string,string> Words
 #else
         public IReadOnlyDictionary<string,string> Words

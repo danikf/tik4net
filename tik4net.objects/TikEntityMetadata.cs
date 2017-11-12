@@ -91,7 +91,11 @@ namespace tik4net.Objects
         /// <remarks>Slow operation.</remarks>
         public TikEntityMetadata(Type entityType)
         {
+#if NET20 || NET35 || NET40 || NET45 || NET451 || NET452 || NET46 || NET461 || NET462 || NET47 || NET471
             TikEntityAttribute entityAttribute = (TikEntityAttribute)entityType.GetCustomAttributes(true).FirstOrDefault(a => a is TikEntityAttribute);
+#else
+            TikEntityAttribute entityAttribute = (TikEntityAttribute)entityType.GetTypeInfo().GetCustomAttributes(true).FirstOrDefault(a => a is TikEntityAttribute);
+#endif
             if (entityAttribute == null)
                 throw new ArgumentException("Entity class must be decorated by TikEntityAttribute attribute.");
 
@@ -105,7 +109,11 @@ namespace tik4net.Objects
             IsSingleton = entityAttribute.IsSingleton;
 
             //properties
+#if NET20 || NET35 || NET40 || NET45 || NET451 || NET452 || NET46 || NET461 || NET462 || NET47 || NET471
             _properties = entityType.GetProperties()
+#else
+            _properties = entityType.GetTypeInfo().DeclaredProperties
+#endif
                 .Where(propInfo => propInfo.GetCustomAttribute<TikPropertyAttribute>(true) != null)
                 .Select(propInfo => new TikEntityPropertyAccessor(this, propInfo))
                 .ToDictionary(propDescriptor => propDescriptor.FieldName);                

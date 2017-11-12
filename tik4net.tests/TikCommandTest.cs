@@ -78,5 +78,21 @@ namespace tik4net.tests
                 TikSpecialProperties.Id, id);
             deleteCommand.ExecuteNonQuery();
         }
+
+        [TestMethod]
+        public void ExecuteNonQuery_Update_Interface_Via_Name_In_Id_Will_Not_Fail()
+        {
+            const string IP = "192.168.1.1/24";
+            const string INTERFACE = "wlan1";
+
+            //update interface name
+            var updateCommand = Connection.CreateCommandAndParameters("/interface/wireless/set",
+                "ssid", "test_ssid",
+                ".id", INTERFACE);
+            updateCommand.ExecuteNonQuery();
+        }
     }
 }
+
+//http://forum.mikrotik.com/viewtopic.php?t=88694
+//http://wiki.microtik.com/viewtopic.php?f=9&p=576978

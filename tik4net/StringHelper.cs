@@ -18,7 +18,7 @@ namespace tik4net
         /// <returns> true if the value parameter is null or an empty string ("") or whitespace; otherwise, false.</returns>
         public static bool IsNullOrWhiteSpace(this string str)
         {
-#if V35
+#if NET20 || NET35
             if (string.IsNullOrEmpty(str))
                 return true;
             else if (string.IsNullOrEmpty(str.Trim()))
