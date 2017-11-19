@@ -9,7 +9,7 @@ namespace InvertedTomato.TikLink.Records {
     /// Author: seho85
     /// </summary>
     [RosRecord("/ping", IsReadOnly = true)]
-    public class ToolPing  {
+    public class ToolPing : RecordBase {
         /// <summary>
         /// Sequence number
         /// </summary>
@@ -80,7 +80,7 @@ namespace InvertedTomato.TikLink.Records {
         //<=min-rtt=0ms
         //<=avg-rtt=0ms
         //<=max-rtt=0ms
-        
+
 
         /// <summary>
         /// ToString override to make life more easy.

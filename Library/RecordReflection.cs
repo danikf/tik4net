@@ -1,4 +1,5 @@
-﻿using System;
+﻿using InvertedTomato.TikLink.Records;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,7 +30,7 @@ namespace InvertedTomato.TikLink {
         }
         private static ConcurrentDictionary<Type, RecordMeta> MetaRecords = new ConcurrentDictionary<Type, RecordMeta>();
 
-        public static string GetPath<T>() {
+        public static string GetPath<T>() where T : RecordBase {
             // Get metadata
             var meta = GetGenerateMeta<T>();
 
@@ -39,7 +40,7 @@ namespace InvertedTomato.TikLink {
         /// <summary>
         /// Set all RouterOS properties from a provided dictionary.
         /// </summary>
-        public static void SetRosProperties<T>(T record, Dictionary<string, string> attributes) {
+        public static void SetRosProperties<T>(T record, Dictionary<string, string> attributes) where T : RecordBase {
             if (null == record) {
                 throw new ArgumentNullException(nameof(record));
             }
@@ -208,15 +209,21 @@ namespace InvertedTomato.TikLink {
                         throw new PropertyConverstionException($"Data type '{property.ValueType.Name}' is not supported. '{property.Attribute.RosName}'");
                     }
 
+                    // Set value on field
                     property.PropertyInfo.SetValue(record, localValue);
+
+                    // Remove from inbound attributes
+                    attributes.Remove(property.Attribute.RosName);
                 }
             }
+
+            record.UnmatchedProperties = attributes;
         }
 
         /// <summary>
         /// Get all RouterOS Properties as a dictionary, excluding read-only and null.
         /// </summary>
-        public static Dictionary<string, string> GetRosProperties<T>(T record) {
+        public static Dictionary<string, string> GetRosProperties<T>(T record) where T : RecordBase {
             if (null == record) {
                 throw new ArgumentNullException(nameof(record));
             }
@@ -287,7 +294,7 @@ namespace InvertedTomato.TikLink {
             return rosValues;
         }
 
-        public static string ResolveProperty<T>(string name) {
+        public static string ResolveProperty<T>(string name) where T : RecordBase {
             if (null == name) {
                 throw new ArgumentNullException(nameof(name));
             }
@@ -305,7 +312,7 @@ namespace InvertedTomato.TikLink {
             return property.Attribute.RosName;
         }
 
-        private static RecordMeta GetGenerateMeta<T>() {
+        private static RecordMeta GetGenerateMeta<T>() where T : RecordBase {
             var type = typeof(T);
 
             // If not in cache...
