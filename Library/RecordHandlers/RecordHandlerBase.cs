@@ -32,10 +32,9 @@ namespace InvertedTomato.TikLink.RecordHandlers {
 
             // Check ID is present for set records
             var r = record as SetRecordBase;
-            /* Don't do this - there are cases where records can be updated that don't have IDs.
             if (null != r && r.Id == null) {
-                throw new CallException("Attempting to updated a record with no ID set.");
-            }*/
+                throw new CallException("Attempting to updated a record with no ID set. Did you forget to include the Id in your query?");
+            }
 
             // Get attributes
             var attributes = RecordReflection.GetRosProperties(record);

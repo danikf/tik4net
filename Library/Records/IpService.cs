@@ -7,7 +7,7 @@
         [RosProperty("port")]
         public int Port { get; set; }
 
-        [RosProperty(".id")]
+        [RosProperty("address")]
         public string Address { get; set; }
 
         [RosProperty("certificate")]
