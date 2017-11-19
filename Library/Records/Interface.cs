@@ -1,5 +1,7 @@
 ﻿
 
+using System;
+
 namespace InvertedTomato.TikLink.Records {
     /// <summary>
     /// Option interface
@@ -149,7 +151,7 @@ namespace InvertedTomato.TikLink.Records {
         public int ActualMtu { get; private set; }
 
         [RosProperty("last-link-up-time")]
-        public string LastLinkUpTime { get; private set; }
+        public DateTime? LastLinkUpTime { get; private set; }
 
         [RosProperty("link-downs")]
         public int LinkDowns { get; private set; }
