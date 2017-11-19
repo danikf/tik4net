@@ -128,10 +128,18 @@ namespace InvertedTomato.TikLink.RecordHandlers {
                 throw new ArgumentNullException(nameof(id));
             }
 
+            // If there's no properties, set to null, otherwise we'll get 0 properties
+            if (properties.Length == 0) {
+                properties = null;
+            }
+
+            // Execute query
             var records = Query(
                 properties,
                 new QueryFilter[] { new QueryFilter("Id", QueryOperationType.Equal, id) }
             );
+
+            // Unwrap single result
             if (records.Count != 1) {
                 throw new CallException($"Record with ID '{id}' not found.");
             }
@@ -142,14 +150,19 @@ namespace InvertedTomato.TikLink.RecordHandlers {
             if (null == name) {
                 throw new ArgumentNullException(nameof(name));
             }
+
+            // If there's no properties, set to null, otherwise we'll get 0 properties
             if (properties.Length == 0) {
                 properties = null;
             }
 
+            // Eecute query
             var records = Query(
                 properties,
                 new QueryFilter[] { new QueryFilter("Name", QueryOperationType.Equal, name) }
             );
+
+            // Unwrap single result
             if (records.Count != 1) {
                 throw new CallException($"Expecting 1 record with name '{name}', instead {records.Count} found.");
             }
