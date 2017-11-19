@@ -177,7 +177,7 @@ namespace InvertedTomato.TikLink {
 
                             localValue = new TimeSpan(d, h, m, s, ms);
                         }
-                    } else if (property.ValueType == typeof(DateTime?)) { // RosTimeSpan => DateTime?  nov/15/2017 09:08:21
+                    } else if (property.ValueType == typeof(DateTime?)) { // RosDateTime => DateTime?  nov/15/2017 09:08:21
                         if (rosValue == string.Empty) {
                             localValue = null;
                         } else {
@@ -186,7 +186,7 @@ namespace InvertedTomato.TikLink {
                             }
                             localValue = d;
                         }
-                    } else if (property.ValueType == typeof(DateTime)) { // RosTimeSpan => DateTime
+                    } else if (property.ValueType == typeof(DateTime)) { // RosDateTime => DateTime
                         if (rosValue == string.Empty) {
                             throw new PropertyConverstionException($"Unable to parse '{rosValue}' as DateTime for '{property.Attribute.RosName}'");
                         } else {
@@ -291,6 +291,12 @@ namespace InvertedTomato.TikLink {
                     }
                 } else if (property.ValueType == typeof(TimeSpan)) { // TimeSpan => RosTimeSpan
                     rosValues[property.Attribute.RosName] = ((TimeSpan)localValue).ToString(@"d\dh\hm\ms\s");
+                } else if (property.ValueType == typeof(DateTime?)) { // DateTime? => RosDateTime
+                    if (localValue != null) {
+                        rosValues[property.Attribute.RosName] = ((DateTime)localValue).ToString(@"MMM/dd/yyyy HH:mm:ss");
+                    }
+                } else if (property.ValueType == typeof(DateTime)) { // DateTime => RosDateTime
+                    rosValues[property.Attribute.RosName] = ((DateTime)localValue).ToString(@"MMM/dd/yyyy HH:mm:ss");
                 } else if (property.ValueTypeInfo.IsGenericType && property.ValueType.GetGenericTypeDefinition() == typeof(Nullable<>) && property.ValueType.GenericTypeArguments[0].GetTypeInfo().IsEnum) { // Enum? => RosEnum
                     if (localValue != null) {
                         foreach (var field in property.ValueTypeInfo.GenericTypeParameters[0].GetRuntimeFields()) { // TODO: What if the seleted enum doesn't have an attribute? Should throw exception

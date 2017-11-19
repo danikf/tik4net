@@ -142,6 +142,9 @@ namespace InvertedTomato.TikLink.RecordHandlers {
             if (null == name) {
                 throw new ArgumentNullException(nameof(name));
             }
+            if (properties.Length == 0) {
+                properties = null;
+            }
 
             var records = Query(
                 properties,

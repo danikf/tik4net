@@ -64,69 +64,69 @@ namespace InvertedTomato.TikLink.Records {
         public string KeyUsage { get; set; }
 
         [RosProperty("authority", IsReadOnly = true)]
-        public string Authority { get; set; }
+        public string Authority { get; private set; }
 
         [RosProperty("ca", IsReadOnly = true)]
-        public string Ca { get; set; }
+        public string Ca { get; private set; }
 
         [RosProperty("ca-crl-host", IsReadOnly = true)]
-        public string CaCrlHost { get; set; }
+        public string CaCrlHost { get; private set; }
 
         [RosProperty("ca-fingerprint", IsReadOnly = true)]
-        public string CaFingerprint { get; set; }
+        public string CaFingerprint { get; private set; }
 
         [RosProperty("crl", IsReadOnly = true)]
-        public string Crl { get; set; }
+        public string Crl { get; private set; }
 
         [RosProperty("dsa", IsReadOnly = true)]
-        public bool Dsa { get; set; }
+        public bool Dsa { get; private set; }
 
         [RosProperty("expired", IsReadOnly = true)]
-        public bool Expired { get; set; }
+        public bool Expired { get; private set; }
 
         [RosProperty("fingerprint", IsReadOnly = true)]
-        public string FingerPrint { get; set; }
+        public string FingerPrint { get; private set; }
 
         /// <summary>
         /// The date after which certificate wil be invalid.
         /// </summary>
         [RosProperty("invalid-after", IsReadOnly = true)]
-        public string InvalidAfter { get; set; } // TODO: Make DateTime
+        public DateTime? InvalidAfter { get; private set; }
 
         /// <summary>
         ///  The date before which certificate is invalid.
         /// </summary>
         [RosProperty("invalid-before", IsReadOnly = true)]
-        public string InvalidBefore { get; set; } // TODO: Make DateTime
+        public DateTime? InvalidBefore { get; private set; }
 
         [RosProperty("issued", IsReadOnly = true)]
-        public string Issued { get; set; } // TODO: Make DateTime
+        public DateTime? Issued { get; private set; } 
 
         [RosProperty("issuer", IsReadOnly = true)]
-        public string Issuer { get; set; }
+        public string Issuer { get; private set; }
 
         [RosProperty("private-key", IsReadOnly = true)]
-        public bool PrivateKey { get; set; }
+        public bool PrivateKey { get; private set; }
 
         [RosProperty("req-fingerprint", IsReadOnly = true)]
-        public string ReqFingerprint { get; set; }
+        public string ReqFingerprint { get; private set; }
 
         [RosProperty("revoked", IsReadOnly = true)]
-        public string Revoked { get; set; }
+        public string Revoked { get; private set; }
 
         [RosProperty("scep-url", IsReadOnly = true)]
-        public string ScepUrl { get; set; }
+        public string ScepUrl { get; private set; }
 
         [RosProperty("serial-number", IsReadOnly = true)]
-        public string SerialNumber { get; set; }
+        public string SerialNumber { get; private set; }
 
         [RosProperty("smart-card-key", IsReadOnly = true)]
-        public string SmartCardKey { get; set; }
+        public string SmartCardKey { get; private set; }
 
         /// <summary>
         /// Shows current status of scep client
         /// </summary>
         [RosProperty("status", IsReadOnly = true)]
-        public string Status { get; set; }
+        public string Status { get; private set; }
     }
 }

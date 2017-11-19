@@ -16,7 +16,7 @@ namespace InvertedTomato.TikLink.Records {
     /// Regular expression matching is significantly slower than of the plain entries, so it is advised to minimize the number of regular expression rules and optimize the expressions themselves
     /// </summary>
     [RosRecord("/ip/dns/static", IsOrdered = true)]
-    public class IpDnsStatic  : SetRecordBase {
+    public class IpDnsStatic : SetRecordBase {
         /// <summary>
         /// address
         /// IP address to resolve domain name with
@@ -28,7 +28,7 @@ namespace InvertedTomato.TikLink.Records {
         /// name
         /// DNS name to be resolved to a given IP address. May be a regular expression
         /// </summary>
-        [RosProperty("name",IsRequired = true)]
+        [RosProperty("name", IsRequired = true)]
         public string/*text*/ Name { get; set; }
 
         /// <summary>
