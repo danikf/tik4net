@@ -60,7 +60,7 @@ namespace InvertedTomato.TikLink.Records {
         /// Initial name from factory before renamed by user
         /// </summary>
         [RosProperty("default-name", IsReadOnly = true)]
-        public string DefaultName { get; set; }
+        public string DefaultName { get; private set; }
 
         /// <summary>
         /// Total received bytes
@@ -98,16 +98,19 @@ namespace InvertedTomato.TikLink.Records {
         [RosProperty("tx-drop", IsReadOnly = true)]
         public long TxDrop { get; private set; }
 
+        [RosProperty("tx-queue-drop", IsReadOnly = true)]
+        public long TxQueueDrop { get; private set; }
+
         /// <summary>
         /// Total receive errors
         /// </summary>
-        [RosProperty("rx-errors", IsReadOnly = true)]
+        [RosProperty("rx-error", IsReadOnly = true)]
         public long RxError { get; private set; }
 
         /// <summary>
         /// Total transmission errors
         /// </summary>
-        [RosProperty("tx-errors", IsReadOnly = true)]
+        [RosProperty("tx-error", IsReadOnly = true)]
         public long TxError { get; private set; }
 
         /// <summary>
@@ -141,6 +144,16 @@ namespace InvertedTomato.TikLink.Records {
         // Max supported L2MTU
         [RosProperty("max-l2mtu", IsReadOnly = true)]
         public int MaxL2Mtu { get; private set; }
+        
+        [RosProperty("actual-mtu")]
+        public int ActualMtu { get; private set; }
+
+        [RosProperty("last-link-up-time")]
+        public string LastLinkUpTime { get; private set; }
+
+        [RosProperty("link-downs")]
+        public int LinkDowns { get; private set; }
+
 
         //Whether interface is configured as a slave of another interface "]for example Bonding)
         [RosProperty("slave", IsReadOnly = true)]
