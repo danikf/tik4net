@@ -257,7 +257,7 @@ namespace InvertedTomato.TikLink {
             var rosValues = new Dictionary<string, string>();
             foreach (var property in meta.Properties) {
                 // Skip read-only properties
-                if (!property.PropertyInfo.CanWrite || (property.PropertyInfo.SetMethod.Attributes & MethodAttributes.Public) == 0) {
+                if (!property.PropertyInfo.CanWrite || (property.PropertyInfo.SetMethod.Attributes & MethodAttributes.Public) == 0) { // TODO: Is there a better way to do this?
                     continue;
                 }
                 // Skip read-only properties
