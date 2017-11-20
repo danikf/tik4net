@@ -237,7 +237,7 @@ namespace InvertedTomato.TikLink {
                 }
             }
 
-            record.UnmatchedProperties = attributes;
+            record.OtherProperties = attributes;
         }
 
         /// <summary>
