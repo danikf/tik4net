@@ -6,7 +6,7 @@ namespace InvertedTomato.TikLink.Records {
     /// <summary>
     /// Option interface
     /// </summary>
-    [RosRecord("/interface", IncludeDetails = true)]
+    [RosRecord("/interface")]
     public class Interface : SetRecordBase {
         /// <summary>
         /// Name
@@ -61,90 +61,90 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// Initial name from factory before renamed by user
         /// </summary>
-        [RosProperty("default-name", IsReadOnly = true)]
+        [RosProperty("default-name")] // Read-only
         public string DefaultName { get; private set; }
 
         /// <summary>
         /// Total received bytes
         /// </summary>
-        [RosProperty("rx-byte", IsReadOnly = true)]
+        [RosProperty("rx-byte")] // Read-only
         public long RxByte { get; private set; }
 
         /// <summary>
         /// Total transmit bytes
         /// </summary>
-        [RosProperty("tx-byte", IsReadOnly = true)]
+        [RosProperty("tx-byte")] // Read-only
         public long TxByte { get; private set; }
 
         /// <summary>
         /// Total received packets
         /// </summary>
-        [RosProperty("rx-packet", IsReadOnly = true)]
+        [RosProperty("rx-packet")] // Read-only
         public long RxPacket { get; private set; }
 
         /// <summary>
         /// Total transmitted packets
         /// </summary>
-        [RosProperty("tx-packet", IsReadOnly = true)]
+        [RosProperty("tx-packet")] // Read-only
         public long TxPacket { get; private set; }
 
         /// <summary>
         /// Total received packets that have been dropped
         /// </summary>
-        [RosProperty("rx-drop", IsReadOnly = true)]
+        [RosProperty("rx-drop")] // Read-only
         public long RxDrop { get; private set; }
 
         /// <summary>
         /// Total transmitted packets that have been dropped
         /// </summary>
-        [RosProperty("tx-drop", IsReadOnly = true)]
+        [RosProperty("tx-drop")] // Read-only
         public long TxDrop { get; private set; }
 
-        [RosProperty("tx-queue-drop", IsReadOnly = true)]
+        [RosProperty("tx-queue-drop")] // Read-only
         public long TxQueueDrop { get; private set; }
 
         /// <summary>
         /// Total receive errors
         /// </summary>
-        [RosProperty("rx-error", IsReadOnly = true)]
+        [RosProperty("rx-error")] // Read-only
         public long RxError { get; private set; }
 
         /// <summary>
         /// Total transmission errors
         /// </summary>
-        [RosProperty("tx-error", IsReadOnly = true)]
+        [RosProperty("tx-error")] // Read-only
         public long TxError { get; private set; }
 
         /// <summary>
         /// Whether interface is running.Note that some interfaces may not have a 'running check' and they will always be reported as "running" (e.g.EoIP)
         /// </summary>
-        [RosProperty("running", IsReadOnly = true)]
+        [RosProperty("running")] // Read-only
         public bool Running { get; private set; }
 
 
-        [RosProperty("bindstr", IsReadOnly = true)]
+        [RosProperty("bindstr")] // Read-only
         public string BindStr { get; private set; }
 
-        [RosProperty("bindstr2", IsReadOnly = true)]
+        [RosProperty("bindstr2")] // Read-only
         public string BindStr2 { get; private set; }
 
-        [RosProperty("caps", IsReadOnly = true)]
+        [RosProperty("caps")] // Read-only
         public string Caps { get; private set; }
 
         //Whether interface is dynamically created
-        [RosProperty("dynamic", IsReadOnly = true)]
+        [RosProperty("dynamic")] // Read-only
         public bool Dynamic { get; private set; }
 
         //interface index
-        [RosProperty("ifindex", IsReadOnly = true)]
+        [RosProperty("ifindex")] // Read-only
         public int IfIndex { get; private set; }
 
         //interface name in Linux kernel
-        [RosProperty("ifname", IsReadOnly = true)]
+        [RosProperty("ifname")] // Read-only
         public string IfName { get; private set; }
 
         // Max supported L2MTU
-        [RosProperty("max-l2mtu", IsReadOnly = true)]
+        [RosProperty("max-l2mtu")] // Read-only
         public int MaxL2Mtu { get; private set; }
         
         [RosProperty("actual-mtu")]
@@ -158,10 +158,10 @@ namespace InvertedTomato.TikLink.Records {
 
 
         //Whether interface is configured as a slave of another interface "]for example Bonding)
-        [RosProperty("slave", IsReadOnly = true)]
+        [RosProperty("slave")] // Read-only
         public bool Slave { get; private set; }
 
-        [RosProperty("status", IsReadOnly = true)]
+        [RosProperty("status")] // Read-only
         public string Status { get; private set; }
 
         public override string ToString() {

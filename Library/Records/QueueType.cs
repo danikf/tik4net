@@ -2,7 +2,7 @@
     /// <summary>
     /// /queue/type
     /// </summary>
-    [RosRecord("/queue/type", IncludeDetails = true)]
+    [RosRecord("/queue/type")]
     public class QueueType : SetRecordBase {
         /// <summary>
         /// name

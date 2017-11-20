@@ -178,43 +178,43 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// rx-1024-1518: Total count of received 1024 to 1518 byte packets
         /// </summary>
-        [RosProperty("rx-1024-1518", IsReadOnly = true)]
+        [RosProperty("rx-1024-1518")] // Read-only
         public int Rx10241518 { get; private set; }
 
         /// <summary>
         /// rx-128-255: Total count of received 128 to 255 byte packets
         /// </summary>
-        [RosProperty("rx-128-255", IsReadOnly = true)]
+        [RosProperty("rx-128-255")] // Read-only
         public int Rx128255 { get; private set; }
 
         /// <summary>
         /// rx-1519-max: Total count of received packets larger than 1519 bytes
         /// </summary>
-        [RosProperty("rx-1519-max", IsReadOnly = true)]
+        [RosProperty("rx-1519-max")] // Read-only
         public int Rx1519Max { get; private set; }
 
         /// <summary>
         /// rx-256-511: Total count of received 256 to 511 byte packets
         /// </summary>
-        [RosProperty("rx-256-511", IsReadOnly = true)]
+        [RosProperty("rx-256-511")] // Read-only
         public int Rx256511 { get; private set; }
 
         /// <summary>
         /// rx-512-1023: Total count of received 512 to 1023 byte packets
         /// </summary>
-        [RosProperty("rx-512-1023", IsReadOnly = true)]
+        [RosProperty("rx-512-1023")] // Read-only
         public int Rx5121023 { get; private set; }
 
         /// <summary>
         /// rx-64: Total count of received 64 byte packets
         /// </summary>
-        [RosProperty("rx-64", IsReadOnly = true)]
+        [RosProperty("rx-64")] // Read-only
         public int Rx64 { get; private set; }
 
         /// <summary>
         /// rx-65-127: Total count of received 65 to 127 byte packets
         /// </summary>
-        [RosProperty("rx-65-127", IsReadOnly = true)]
+        [RosProperty("rx-65-127")] // Read-only
         public int Rx65127 { get; private set; }
 
         /// <summary>
@@ -294,43 +294,43 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// tx-1024-1518: Total count of transmitted 1024 to 1518 byte packets
         /// </summary>
-        [RosProperty("tx-1024-1518", IsReadOnly = true)]
+        [RosProperty("tx-1024-1518")] // Read-only
         public int Tx10241518 { get; private set; }
 
         /// <summary>
         /// tx-128-255: Total count of transmitted 128 to 255 byte packets
         /// </summary>
-        [RosProperty("tx-128-255", IsReadOnly = true)]
+        [RosProperty("tx-128-255")] // Read-only
         public int Tx128255 { get; private set; }
 
         /// <summary>
         /// tx-1519-max: Total count of transmitted packets larger than 1519 bytes
         /// </summary>
-        [RosProperty("tx-1519-max", IsReadOnly = true)]
+        [RosProperty("tx-1519-max")] // Read-only
         public int Tx1519Max { get; private set; }
 
         /// <summary>
         /// tx-256-511: Total count of transmitted 256 to 511 byte packets
         /// </summary>
-        [RosProperty("tx-256-511", IsReadOnly = true)]
+        [RosProperty("tx-256-511")] // Read-only
         public int Tx256511 { get; private set; }
 
         /// <summary>
         /// tx-512-1023: Total count of transmitted 512 to 1023 byte packets
         /// </summary>
-        [RosProperty("tx-512-1023", IsReadOnly = true)]
+        [RosProperty("tx-512-1023")] // Read-only
         public int Tx5121023 { get; private set; }
 
         /// <summary>
         /// tx-64: Total count of transmitted 64 byte packets
         /// </summary>
-        [RosProperty("tx-64", IsReadOnly = true)]
+        [RosProperty("tx-64")] // Read-only
         public int Tx64 { get; private set; }
 
         /// <summary>
         /// tx-65-127: Total count of transmitted 65 to 127 byte packets
         /// </summary>
-        [RosProperty("tx-65-127", IsReadOnly = true)]
+        [RosProperty("tx-65-127")] // Read-only
         public int Tx65127 { get; private set; }
 
         /// <summary>

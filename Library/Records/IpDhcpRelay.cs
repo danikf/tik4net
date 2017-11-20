@@ -69,7 +69,7 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// invalid: Shows whether configuration is invalid.
         /// </summary>
-        [RosProperty("invalid", IsReadOnly = true)]
+        [RosProperty("invalid")] // Read-only
         public bool Invalid { get; private set; }
 
         /* TODO

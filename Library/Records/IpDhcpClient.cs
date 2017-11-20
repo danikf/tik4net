@@ -9,7 +9,7 @@ namespace InvertedTomato.TikLink.Records {
     /// The MikroTik RouterOS DHCP client may be enabled on any Ethernet-like interface at a time. The client will accept an address, netmask, default gateway, and two dns server addresses. The received IP address will be added to the interface with the respective netmask. The default gateway will be added to the routing table as a dynamic entry. Should the DHCP client be disabled or not renew an address, the dynamic default route will be removed. If there is already a default route installed prior the DHCP client obtains one, the route obtained by the DHCP client would be shown as invalid.
     /// RouterOS DHCP cilent asks for following options:
     /// </summary>
-    [RosRecord("/ip/dhcp-client", IncludeDetails = true)]
+    [RosRecord("/ip/dhcp-client")]
     public class IpDhcpClient  : SetRecordBase {
         /// <summary>
         /// add-default-route: Whether to install default route in routing table received from dhcp server. By default RouterOS client complies to RFC and ignores option 3 if classless option 121 is received. To force client not to ignore option 3 set special-classless. This parameter is available in v6rc12+

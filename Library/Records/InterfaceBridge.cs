@@ -77,7 +77,7 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// l2mtu: Layer2 Maximum transmission unit.  read more&#187; 
         /// </summary>
-        [RosProperty("l2mtu", IsReadOnly = true)]
+        [RosProperty("l2mtu")] // Read-only
         public string/*integer; read-only*/ L2mtu { get; private set; }
 
         /// <summary>

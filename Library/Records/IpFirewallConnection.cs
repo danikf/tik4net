@@ -7,7 +7,7 @@ namespace InvertedTomato.TikLink.Records {
     /// <summary>
     /// ip/firewall/connection tracking: 
     /// </summary>
-    [RosRecord("/ip/firewall/connection", IsReadOnly = true)]
+    [RosRecord("/ip/firewall/connection")] // Read-only
     public class IpFirewallConnection  : SetRecordBase {
         /// <summary>
         /// assured: "assured" flag indicates that this connection is assured and that it will not be erased if maximum possible tracked connection count is reached.
@@ -66,7 +66,7 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// p2p: Shows if connection is identified as p2p by firewall p2p matcher.
         /// </summary>
-        [RosProperty("p2p", IsReadOnly = true)]
+        [RosProperty("p2p")] // Read-only
         public bool P2p { get; private set; }
 
         /// <summary>

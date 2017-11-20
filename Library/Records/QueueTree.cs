@@ -2,7 +2,7 @@
     /// <summary>
     /// /queue/tree
     /// </summary>
-    [RosRecord("/queue/tree", IncludeDetails = true)]
+    [RosRecord("/queue/tree")]
     public class QueueTree  : SetRecordBase {
         /// <summary>
         /// Name

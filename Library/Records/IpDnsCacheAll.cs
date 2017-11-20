@@ -7,7 +7,7 @@ namespace InvertedTomato.TikLink.Records {
     /// <summary>
     /// ip/dns: This menu provides a complete list with all DNS records stored on the server 
     /// </summary>
-    [RosRecord("/ip/dns/cache/all", IsReadOnly = true)]
+    [RosRecord("/ip/dns/cache/all")] // Read-only
     public class IpDnsCacheAll  : SetRecordBase {
         /// <summary>
         /// data
@@ -20,7 +20,7 @@ namespace InvertedTomato.TikLink.Records {
         /// name
         /// DNS name of the host
         /// </summary>
-        [RosProperty("name", IsRequired = true, IsReadOnly = true)]
+        [RosProperty("name", IsRequired = true)] // Read-only
         public string/*read-only: name*/ Name { get; private set; }
 
         /// <summary>

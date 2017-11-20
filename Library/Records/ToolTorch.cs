@@ -7,7 +7,7 @@ namespace InvertedTomato.TikLink.Records {
     /// <summary>
     /// /tool/torch. Should be loaded via async API.
     /// </summary>
-    [RosRecord("/tool/torch", IsReadOnly = true)]
+    [RosRecord("/tool/torch")] // Read-only
     public class ToolTorch {
         /// <summary>
         /// src-address

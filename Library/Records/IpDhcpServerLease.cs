@@ -88,73 +88,73 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// active-address: Actual IP address for this lease
         /// </summary>
-        [RosProperty("active-address", IsReadOnly = true)]
+        [RosProperty("active-address")] // Read-only
         public string ActiveAddress { get; private set; }
 
         /// <summary>
         /// active-client-id: Actual client-id of the client
         /// </summary>
-        [RosProperty("active-client-id", IsReadOnly = true)]
+        [RosProperty("active-client-id")] // Read-only
         public string ActiveClientId { get; private set; }
 
         /// <summary>
         /// active-mac-address: Actual MAC address of the client
         /// </summary>
-        [RosProperty("active-mac-address", IsReadOnly = true)]
+        [RosProperty("active-mac-address")] // Read-only
         public string ActiveMacAddress { get; private set; }
 
         /// <summary>
         /// active-server: Actual dhcp server, which serves this client
         /// </summary>
-        [RosProperty("active-server", IsReadOnly = true)]
+        [RosProperty("active-server")] // Read-only
         public string ActiveServer { get; private set; }
 
         /// <summary>
         /// agent-circuit-id: Circuit ID of DHCP relay agent. If each character should be valid ASCII text symbol or else this value is displayed as hex dump.
         /// </summary>
-        [RosProperty("agent-circuit-id", IsReadOnly = true)]
+        [RosProperty("agent-circuit-id")] // Read-only
         public string AgentCircuitId { get; private set; }
 
         /// <summary>
         /// agent-remote-id: Remote ID, set by DHCP relay agent
         /// </summary>
-        [RosProperty("agent-remote-id", IsReadOnly = true)]
+        [RosProperty("agent-remote-id")] // Read-only
         public string AgentRemoteId { get; private set; }
 
         /// <summary>
         /// blocked: Whether the lease is blocked
         /// </summary>
-        [RosProperty("blocked", IsReadOnly = true)]
+        [RosProperty("blocked")] // Read-only
         public string Blocked { get; private set; }
 
         /// <summary>
         /// expires-after: Time until lease expires
         /// </summary>
-        [RosProperty("expires-after", IsReadOnly = true)]
+        [RosProperty("expires-after")] // Read-only
         public TimeSpan ExpiresAfter { get; private set; }
 
         /// <summary>
         /// host-name: Shows host name option from last received DHCP request
         /// </summary>
-        [RosProperty("host-name", IsReadOnly = true)]
+        [RosProperty("host-name")] // Read-only
         public string HostName { get; private set; }
 
         /// <summary>
         /// radius: Shows if this dynamic lease is authenticated by RADIUS or not
         /// </summary>
-        [RosProperty("radius", IsReadOnly = true)]
+        [RosProperty("radius")] // Read-only
         public bool Radius { get; private set; }
 
         /// <summary>
         /// rate-limit: Sets rate limit for active lease. Format is: rx-rate[/tx-rate] [rx-burst-rate[/tx-burst-rate] [rx-burst-threshold[/tx-burst-threshold] [rx-burst-time[/tx-burst-time]]]]. All rates should be numbers with optional 'k' (1,000s) or 'M' (1,000,000s). If tx-rate is not specified, rx-rate is as tx-rate too. Same goes for tx-burst-rate and tx-burst-threshold and tx-burst-time. If both rx-burst-threshold and tx-burst-threshold are not specified (but burst-rate is specified), rx-rate and tx-rate is used as burst thresholds. If both rx-burst-time and tx-burst-time are not specified, 1s is used as default
         /// </summary>
-        [RosProperty("rate-limit", IsReadOnly = true)]
+        [RosProperty("rate-limit")] // Read-only
         public string RateLimit { get; private set; }
 
         /// <summary>
         /// server: Server name which serves this client
         /// </summary>
-        [RosProperty("server", IsReadOnly = true)]
+        [RosProperty("server")] // Read-only
         public string Server { get; private set; }
 
         /// <summary>
@@ -170,7 +170,7 @@ namespace InvertedTomato.TikLink.Records {
         ///        
         ///     
         /// </summary>
-        [RosProperty("status", IsReadOnly = true)]
+        [RosProperty("status")] // Read-only
         public string Status { get; private set; } // TODO: Make enum        
     }
 }

@@ -8,8 +8,8 @@ namespace InvertedTomato.TikLink.Records {
     /// <summary>
     /// /ip/firewall/filter
     /// </summary>
-    [RosRecord("/ip/firewall/filter", IncludeDetails = true, IsOrdered = true)]
-    public class IpFirewallFilter : SetRecordBase {
+    [RosRecord("/ip/firewall/filter")]
+    public class IpFirewallFilter : OrderedSetRecordBase {
         /// <summary>
         /// action: Action to take if packet is matched by the rule: 
         /// accept - accept the packet.Packet is not passed to next firewall rule.
@@ -392,13 +392,13 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// Row dynamic property.
         /// </summary>
-        [RosProperty("dynamic", IsReadOnly = true)]
+        [RosProperty("dynamic")] // Read-only
         public bool Dynamic { get; set; }
 
         /// <summary>
         /// Row invalid property.
         /// </summary>
-        [RosProperty("invalid", IsReadOnly = true)]
+        [RosProperty("invalid")] // Read-only
         public bool Invalid { get; set; }
 
 

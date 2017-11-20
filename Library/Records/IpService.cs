@@ -1,7 +1,7 @@
 ﻿namespace InvertedTomato.TikLink.Records {
     [RosRecord("/ip/service")]
     public class IpService : SetRecordBase {
-        [RosProperty("name", IsReadOnly = true)]
+        [RosProperty("name")] // Read-only
         public string Name { get; set; }
 
         [RosProperty("port")]

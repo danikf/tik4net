@@ -7,7 +7,7 @@ namespace InvertedTomato.TikLink.Records {
     /// <summary>
     /// /ip/address: IP addresses serve for a general host identification purposes in IP Options. Typical (IPv4) address consists of four octets. For proper addressing the router also needs the Option mask value, id est which bits of the complete IP address refer to the address of the host, and which - to the address of the Option. The Option address value is calculated by binary AND operation from Option mask and IP address values. It's also possible to specify IP address followed by slash "/" and the amount of bits that form the Option address. 
     /// </summary>
-    [RosRecord("/ip/address", IncludeDetails = true)]
+    [RosRecord("/ip/address")]
     public class IpAddress  : SetRecordBase {
         /// <summary>
         /// Row actual-interface property.

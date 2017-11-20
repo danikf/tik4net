@@ -8,8 +8,8 @@ namespace InvertedTomato.TikLink.Records {
     /// <summary>
     /// /ip/firewall/mangle
     /// </summary>
-    [RosRecord("/ip/firewall/mangle", IncludeDetails = true, IsOrdered = true)]
-    public class IpFirewallMangle : SetRecordBase {
+    [RosRecord("/ip/firewall/mangle")]
+    public class IpFirewallMangle : OrderedSetRecordBase {
         /// <summary>
         /// chain
         /// </summary>
@@ -43,13 +43,13 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// invalid
         /// </summary>
-        [RosProperty("invalid", IsReadOnly = true)]
+        [RosProperty("invalid")] // Read-only
         public bool Invalid { get; private set; }
 
         /// <summary>
         /// dynamic
         /// </summary>
-        [RosProperty("dynamic", IsReadOnly = true)]
+        [RosProperty("dynamic")] // Read-only
         public bool Dynamic { get; private set; }
 
         /// <summary>

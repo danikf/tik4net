@@ -32,19 +32,19 @@
         /// <summary>
         /// Whether ARP entry is added by DHCP server
         /// </summary>
-        [RosProperty("dhcp", IsReadOnly = true)]
+        [RosProperty("dhcp")] // Read-only
         public bool Dhcp { get; private set; }
 
         /// <summary>
         /// Whether entry is dynamically created
         /// </summary>
-        [RosProperty("dynamic", IsReadOnly = true)]
+        [RosProperty("dynamic")] // Read-only
         public bool Dynamic { get; private set; }
 
         /// <summary>
         /// Whether entry is not valid
         /// </summary>
-        [RosProperty("invalid", IsReadOnly = true)]
+        [RosProperty("invalid")] // Read-only
         public bool Invalid { get; private set; }
 
         public override string ToString() {

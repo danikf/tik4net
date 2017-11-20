@@ -15,31 +15,28 @@ namespace InvertedTomato.TikLink.Records {
     /// 
     /// Regular expression matching is significantly slower than of the plain entries, so it is advised to minimize the number of regular expression rules and optimize the expressions themselves
     /// </summary>
-    [RosRecord("/ip/dns/static", IsOrdered = true)]
-    public class IpDnsStatic : SetRecordBase {
+    [RosRecord("/ip/dns/static")]
+    public class IpDnsStatic : OrderedSetRecordBase {
         /// <summary>
-        /// address
         /// IP address to resolve domain name with
         /// </summary>
         [RosProperty("address")]
         public string/*IP address*/ Address { get; set; }
 
         /// <summary>
-        /// name
         /// DNS name to be resolved to a given IP address. May be a regular expression
         /// </summary>
         [RosProperty("name", IsRequired = true)]
         public string/*text*/ Name { get; set; }
 
         /// <summary>
-        /// ttl
         /// time-to-live of the DNS record
         /// </summary>
         [RosProperty("ttl")]
         public string/*time*/ Ttl { get; set; }
 
         /// <summary>
-        /// disabled: 
+        /// disabled 
         /// </summary>
         [RosProperty("disabled")]
         public bool Disabled { get; set; }

@@ -4,7 +4,7 @@
     /// 
     /// This is the menu, where client's user/password information is actually added, additional configuration options for HotSpot users are configured here as well.
     /// </summary>
-    [RosRecord("/ip/hotspot/active", IsReadOnly = true)]
+    [RosRecord("/ip/hotspot/active")] // Read-only
     public class IpHotspotActive  : SetRecordBase {
         /// <summary>
         /// Server
