@@ -9,8 +9,8 @@
         /// <summary>
         /// address: IP address, when specified client will get the address from the HotSpot one-to-one NAT translations. Address does not restrict HotSpot login only from this address
         /// </summary>
-        [RosProperty("address", DefaultValue = "0.0.0.0")]
-        public string/*IP*/ Address { get; set; }
+        [RosProperty("address")]
+        public string/*IP*/ Address { get; set; } = "0.0.0.0";
 
         /// <summary>
         /// comment: descriptive information for HotSpot user, it might be used for scripts to change parameters for specific clients
@@ -45,14 +45,14 @@
         /// <summary>
         /// limit-uptime: Uptime limit for the HotSpot client, user is disconnected from HotSpot as soon as uptime is reached.
         /// </summary>
-        [RosProperty("limit-uptime", DefaultValue = "0")]
-        public string/*time*/ LimitUptime { get; set; }
+        [RosProperty("limit-uptime")]
+        public string/*time*/ LimitUptime { get; set; } = "0";
 
         /// <summary>
         /// mac-address: Client is allowed to login only from the specified MAC-address. If value is  00:00:00:00:00:00, any mac address is allowed.
         /// </summary>
-        [RosProperty("mac-address", DefaultValue = "00:00:00:00:00:00")]
-        public string/*MAC*/ MacAddress { get; set; }
+        [RosProperty("mac-address")]
+        public string/*MAC*/ MacAddress { get; set; } = "00:00:00:00:00:00";
 
         /// <summary>
         /// name: HotSpot login page username, when MAC-address authentication is used name is configured as client's MAC-address
@@ -69,8 +69,8 @@
         /// <summary>
         /// profile: User profile configured in  /ip hotspot user profile
         /// </summary>
-        [RosProperty("profile", DefaultValue = "default")]
-        public string Profile { get; set; }
+        [RosProperty("profile")]
+        public string Profile { get; set; } = "default";
 
         /// <summary>
         /// routes: Routes added to HotSpot gateway when client is connected. The route format dst-address gateway metric (for example, 192.168.1.0/24 192.168.0.1 1)
@@ -81,8 +81,8 @@
         /// <summary>
         /// server: HotSpot server's name to which user is allowed login
         /// </summary>
-        [RosProperty("server", DefaultValue = "all")]
-        public string/*string | all*/ Server { get; set; }
+        [RosProperty("server")]
+        public string/*string | all*/ Server { get; set; } = "all";
 
         /// <summary>
         /// disabled: 

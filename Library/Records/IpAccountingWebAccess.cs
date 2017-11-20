@@ -12,13 +12,13 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// accessible-via-web: whether the snapshot is available via web
         /// </summary>
-        [RosProperty("accessible-via-web", DefaultValue = "no")]
-        public string AccessibleViaWeb { get; set; }
+        [RosProperty("accessible-via-web")]
+        public string AccessibleViaWeb { get; set; } = "no";
 
         /// <summary>
         /// address: IP address range that is allowed to access the snapshot
         /// </summary>
-        [RosProperty("address", DefaultValue = "0.0.0.0/0")]
-        public string Address { get; set; }
+        [RosProperty("address")]
+        public string Address { get; set; } = "0.0.0.0/0";
     }
 }

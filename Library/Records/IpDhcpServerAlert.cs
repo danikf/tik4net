@@ -16,8 +16,8 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// alert-timeout: Time after which alert will be forgotten. If after that time the same server is detected, new alert will be generated. If set to none timeout will never expire.
         /// </summary>
-        [RosProperty("alert-timeout", DefaultValue = "none")]
-        public string/*none | time*/ AlertTimeout { get; set; }
+        [RosProperty("alert-timeout")]
+        public string/*none | time*/ AlertTimeout { get; set; } = "none";
 
         /// <summary>
         /// interface: Interface, on which to run rogue DHCP server finder.

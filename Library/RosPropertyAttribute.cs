@@ -25,12 +25,6 @@ namespace InvertedTomato.TikLink {
         public bool IsRequired { get; set; }
 
         /// <summary>
-        /// Property default value (if is different from type default).
-        /// </summary>
-        [Obsolete("TODO: Is this needed? Adds any value?")]
-        public string DefaultValue { get; set; } // TODO: This needed? Adds any value?
-
-        /// <summary>
         /// If unset command should be called when saving modified object and marked property contains <see cref="DefaultValue"/> or null (set to default value will be used when false).
         /// </summary>
         [Obsolete("TODO: Is this needed? Adds any value?")]

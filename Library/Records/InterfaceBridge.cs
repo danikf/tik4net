@@ -20,8 +20,8 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// ageing-time: How long a host's information will be kept in the bridge database
         /// </summary>
-        [RosProperty("ageing-time", DefaultValue = "00:05:00")]
-        public string/*time*/ AgeingTime { get; set; }
+        [RosProperty("ageing-time")]
+        public string/*time*/ AgeingTime { get; set; } = "00:05:00";
 
         /// <summary>
         /// Address Resolution Protocol setting  
@@ -59,20 +59,20 @@ namespace InvertedTomato.TikLink.Records {
         ///          reply-only - the interface will only reply to requests originated from matching IP address/MAC address combinations which are entered as static entries in the "/ip arp" table. No dynamic entries will be automatically stored in the "/ip arp" table. Therefore for communications to be successful, a valid static entry must already exist.
         /// </summary>
         /// <seealso cref="ArpMode"/>
-        [RosProperty("arp", DefaultValue = "enabled")]
-        public ArpMode Arp { get; set; }
+        [RosProperty("arp")]
+        public ArpMode Arp { get; set; } = ArpMode.Enabled;
 
         /// <summary>
         /// auto-mac: Automatically select the smallest MAC address of bridge ports as a bridge MAC address
         /// </summary>
-        [RosProperty("auto-mac", DefaultValue = "yes")]
-        public bool AutoMac { get; set; }
+        [RosProperty("auto-mac")]
+        public bool AutoMac { get; set; } = true;
 
         /// <summary>
         /// forward-delay: Time which is spent during the initialization phase of the bridge interface (i.e., after router startup or enabling the interface) in listening/learning state before the bridge will start functioning normally
         /// </summary>
-        [RosProperty("forward-delay", DefaultValue = "00:00:15")]
-        public string/*time*/ ForwardDelay { get; set; }
+        [RosProperty("forward-delay")]
+        public string/*time*/ ForwardDelay { get; set; } = "00:00:15";
 
         /// <summary>
         /// l2mtu: Layer2 Maximum transmission unit.  read more&#187; 
@@ -83,14 +83,14 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// max-message-age: How long to remember Hello messages received from other bridges
         /// </summary>
-        [RosProperty("max-message-age", DefaultValue = "00:00:20")]
-        public string/*time*/ MaxMessageAge { get; set; }
+        [RosProperty("max-message-age")]
+        public string/*time*/ MaxMessageAge { get; set; } = "00:00:20";
 
         /// <summary>
         /// mtu: Maximum Transmission Unit
         /// </summary>
-        [RosProperty("mtu", DefaultValue = "1500")]
-        public string Mtu { get; set; }
+        [RosProperty("mtu")]
+        public string Mtu { get; set; } = "1500";
 
         /// <summary>
         /// name: Name of the bridge interface
@@ -102,8 +102,8 @@ namespace InvertedTomato.TikLink.Records {
         /// priority
         /// Spanning tree protocol priority for bridge interface. Bridge with the smallest (lowest) bridge ID becomes a Root-Bridge. Bridge ID consists of two numbers - priority and MAC address of the bridge. To compare two bridge IDs, the priority is compared first. If two bridges have equal priority, then the MAC addresses are compared.
         /// </summary>
-        [RosProperty("priority", DefaultValue = "8000")]
-        public string/*integer: 0..65535 decimal format or 0x0000-0xffff hex format*/ Priority { get; set; }
+        [RosProperty("priority")]
+        public string/*integer: 0..65535 decimal format or 0x0000-0xffff hex format*/ Priority { get; set; } = "8000";
 
         /// <summary>
         /// protocol-mode: Select Spanning tree protocol (STP) or Rapid spanning tree protocol (RSTP) to ensure a loop-free topology for any bridged LAN. RSTP provides for faster spanning tree convergence after a topology change.
@@ -131,14 +131,14 @@ namespace InvertedTomato.TikLink.Records {
         /// protocol-mode: Select Spanning tree protocol (STP) or Rapid spanning tree protocol (RSTP) to ensure a loop-free topology for any bridged LAN. RSTP provides for faster spanning tree convergence after a topology change.
         /// </summary>
         /// <seealso cref="ProtocolModeModes"/>
-        [RosProperty("protocol-mode", DefaultValue = "rstp")]
-        public ProtocolModeModes ProtocolMode { get; set; }
+        [RosProperty("protocol-mode")]
+        public ProtocolModeModes ProtocolMode { get; set; } = ProtocolModeModes.Rstp;
 
         /// <summary>
         /// transmit-hold-count: The Transmit Hold Count used by the Port Transmit state machine to limit transmission rate
         /// </summary>
-        [RosProperty("transmit-hold-count", DefaultValue = "6")]
-        public int/*integer: 1..10*/ TransmitHoldCount { get; set; }
+        [RosProperty("transmit-hold-count")]
+        public int/*integer: 1..10*/ TransmitHoldCount { get; set; } = 6;
 
         /// <summary>
         /// ctor

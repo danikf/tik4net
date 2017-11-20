@@ -36,8 +36,8 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// timeout  (00:00:00)
         /// </summary>
-        [RosProperty("timeout", DefaultValue = "00:00:00")]
-        public string Timeout { get; set; }
+        [RosProperty("timeout")]
+        public string Timeout { get; set; } = "00:00:00";
 
         /// <summary>
         /// list

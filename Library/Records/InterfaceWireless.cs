@@ -83,32 +83,32 @@ namespace InvertedTomato.TikLink.Records {
         /// 
         /// 11Mbps | 1Mbps | 2Mbps | 5.5Mbps
         /// </summary>
-        [RosProperty("basic-rates-b", DefaultValue = "1Mbps")]
-        public string/*11Mbps | 1Mbps | 2Mbps | 5.5Mbps*/ BasicRatesB { get; set; }
+        [RosProperty("basic-rates-b")]
+        public string/*11Mbps | 1Mbps | 2Mbps | 5.5Mbps*/ BasicRatesB { get; set; } = "1Mbps";
 
         /// <summary>
         /// bridge-mode: Allows to use station-bridge mode.  Read more &gt;&gt;
         /// 
         /// disabled | enabled
         /// </summary>
-        [RosProperty("bridge-mode", DefaultValue = "enabled")]
-        public string/*disabled | enabled*/ BridgeMode { get; set; }
+        [RosProperty("bridge-mode")]
+        public string/*disabled | enabled*/ BridgeMode { get; set; } = "enabled";
 
         /// <summary>
         /// burst-time: Time in microseconds which will be used to send data without stopping. Note that no other wireless cards in that Option will be able to transmit data during burst-time microseconds. This setting is available only for AR5000, AR5001X, and AR5001X+ chipset based cards.
         /// 
         /// integer | disabled
         /// </summary>
-        [RosProperty("burst-time", DefaultValue = "disabled")]
-        public string/*integer | disabled*/ BurstTime { get; set; }
+        [RosProperty("burst-time")]
+        public string/*integer | disabled*/ BurstTime { get; set; } = "disabled";
 
         /// <summary>
         /// channel-width: ht above and ht below allows to use additional 20MHz extension channel and if it should be located below or above control (main) channel. Extension channel allows 11n device to use 40MHz of spectrum in total thus increasing max throughput.
         /// 
         /// 10mhz | 20/40mhz-ht-above | 20/40mhz-ht-below | 20mhz | 40mhz-turbo | 5mhz
         /// </summary>
-        [RosProperty("channel-width", DefaultValue = "20mhz")]
-        public string/*10mhz | 20/40mhz-ht-above | 20/40mhz-ht-below | 20mhz | 40mhz-turbo | 5mhz*/ ChannelWidth { get; set; }
+        [RosProperty("channel-width")]
+        public string/*10mhz | 20/40mhz-ht-above | 20/40mhz-ht-below | 20mhz | 40mhz-turbo | 5mhz*/ ChannelWidth { get; set; } = "20mhz";
 
         /// <summary>
         /// comment: Short description of the interface
@@ -119,7 +119,7 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// compression: Setting this property to yes will allow use of the hardware compression. Wireless interface must have support for hardware compression. Connections with devices that do not use compression will still work.
         /// </summary>
-        [RosProperty("compression", DefaultValue = "no")]
+        [RosProperty("compression")]
         public bool Compression { get; set; }
 
         /// <summary>
@@ -127,35 +127,35 @@ namespace InvertedTomato.TikLink.Records {
         /// 
         /// name of the country | no_country_set
         /// </summary>
-        [RosProperty("country", DefaultValue = "no_country_set")]
-        public string/*name of the country | no_country_set*/ Country { get; set; }
+        [RosProperty("country")]
+        public string/*name of the country | no_country_set*/ Country { get; set; } = "no_country_set";
 
         /// <summary>
         /// default-ap-tx-limit: This is the value of ap-tx-limit for clients that do not match any entry in the  access-list. 0 means no limit.
         /// integer [0..4294967295]
         /// </summary>
-        [RosProperty("default-ap-tx-limit", DefaultValue = "0")]
+        [RosProperty("default-ap-tx-limit")]
         public long/*integer [0..4294967295]*/ DefaultApTxLimit { get; set; }
 
         /// <summary>
         /// default-authentication: For AP mode, this is the value of authentication for clients that do not match any entry in the  access-list. For station mode, this is the value of connect for APs that do not match any entry in the  connect-list
         /// </summary>
-        [RosProperty("default-authentication", DefaultValue = "yes")]
-        public bool DefaultAuthentication { get; set; }
+        [RosProperty("default-authentication")]
+        public bool DefaultAuthentication { get; set; } = true;
 
         /// <summary>
         /// default-client-tx-limit: This is the value of client-tx-limit for clients that do not match any entry in the  access-list. 0 means no limit
         /// 
         /// integer [0..4294967295]
         /// </summary>
-        [RosProperty("default-client-tx-limit", DefaultValue = "0")]
+        [RosProperty("default-client-tx-limit")]
         public long/*integer [0..4294967295]*/ DefaultClientTxLimit { get; set; }
 
         /// <summary>
         /// default-forwarding: This is the value of forwarding for clients that do not match any entry in the  access-list
         /// </summary>
-        [RosProperty("default-forwarding", DefaultValue = "yes")]
-        public bool DefaultForwarding { get; set; }
+        [RosProperty("default-forwarding")]
+        public bool DefaultForwarding { get; set; } = true;
 
         /// <summary>
         /// dfs-mode
@@ -167,19 +167,19 @@ namespace InvertedTomato.TikLink.Records {
         /// 
         /// no-radar-detect | none | radar-detec
         /// </summary>
-        [RosProperty("dfs-mode", DefaultValue = "none")]
-        public string/*no-radar-detect | none | radar-detec*/ DfsMode { get; set; }
+        [RosProperty("dfs-mode")]
+        public string/*no-radar-detect | none | radar-detec*/ DfsMode { get; set; } = "none";
 
         /// <summary>
         /// disable-running-check: When set to yes interface will always have running flag.  If value is set to no', the router determines whether the card is up and running - for AP one or more clients have to be registered to it, for station, it should be connected to an AP.
         /// </summary>
-        [RosProperty("disable-running-check", DefaultValue = "no")]
+        [RosProperty("disable-running-check")]
         public bool DisableRunningCheck { get; set; }
 
         /// <summary>
         /// disabled: Whether interface is disabled
         /// </summary>
-        [RosProperty("disabled", DefaultValue = "yes")]
+        [RosProperty("disabled")]
         public bool Disabled { get; set; }
 
         /// <summary>
@@ -189,8 +189,8 @@ namespace InvertedTomato.TikLink.Records {
         /// 
         /// time [0s..15s]
         /// </summary>
-        [RosProperty("disconnect-timeout", DefaultValue = "3s")]
-        public string/*time [0s..15s]*/ DisconnectTimeout { get; set; }
+        [RosProperty("disconnect-timeout")]
+        public string/*time [0s..15s]*/ DisconnectTimeout { get; set; } = "3s"; // TODO: Convert to TimeSpan
 
         /// <summary>
         /// distance
@@ -199,15 +199,15 @@ namespace InvertedTomato.TikLink.Records {
         /// 
         /// integer | dynamic | indoors
         /// </summary>
-        [RosProperty("distance", DefaultValue = "dynamic")]
-        public string/*integer | dynamic | indoors*/ Distance { get; set; }
+        [RosProperty("distance")]
+        public string/*integer | dynamic | indoors*/ Distance { get; set; } = "dynamic";
 
         /// <summary>
         /// frame-lifetime: Discard frames that have been queued for sending longer than frame-lifetime. By default, when value of this property is 0, frames are discarded only after connection is closed.
         /// 
         /// integer [0..4294967295]
         /// </summary>
-        [RosProperty("frame-lifetime", DefaultValue = "0")]
+        [RosProperty("frame-lifetime")]
         public long/*integer [0..4294967295]*/ FrameLifetime { get; set; }
 
         /// <summary>
@@ -232,15 +232,15 @@ namespace InvertedTomato.TikLink.Records {
         /// 
         /// manual-txpower | regulatory-domain | superchannel
         /// </summary>
-        [RosProperty("frequency-mode", DefaultValue = "manual-txpower")]
-        public string/*manual-txpower | regulatory-domain | superchannel*/ FrequencyMode { get; set; }
+        [RosProperty("frequency-mode")]
+        public string/*manual-txpower | regulatory-domain | superchannel*/ FrequencyMode { get; set; } = "manual-txpower";
 
         /// <summary>
         /// frequency-offset: Allows to specify offset if the used wireless card operates at a different frequency than is shown in RouterOS, in case a frequency converter is used in the card. So if your card works at 4000MHz but RouterOS shows 5000MHz, set offset to 1000MHz and it will be displayed correctly. The value is in MHz and can be positive or negative.
         /// 
         /// integer [-2147483648..2147483647]
         /// </summary>
-        [RosProperty("frequency-offset", DefaultValue = "0")]
+        [RosProperty("frequency-offset")]
         public int/*integer [-2147483648..2147483647]*/ FrequencyOffset { get; set; }
 
         /// <summary>
@@ -250,7 +250,7 @@ namespace InvertedTomato.TikLink.Records {
         ///  no - AP includes SSID in the beacon frames, and replies to probe requests that have broadcast SSID.
         /// This property has effect only in AP mode. Setting it to yes can remove this Option from the list of wireless Options that are shown by some client software. Changing this setting does not improve security of the wireless Option, because SSID is included in other frames sent by the AP.
         /// </summary>
-        [RosProperty("hide-ssid", DefaultValue = "no")]
+        [RosProperty("hide-ssid")]
         public bool HideSsid { get; set; }
 
         /// <summary>
@@ -258,87 +258,87 @@ namespace InvertedTomato.TikLink.Records {
         /// 
         /// list of integer [0..7]
         /// </summary>
-        [RosProperty("ht-ampdu-priorities", DefaultValue = "0")]
-        public string/*list of integer [0..7]*/ HtAmpduPriorities { get; set; }
+        [RosProperty("ht-ampdu-priorities")]
+        public string/*list of integer [0..7]*/ HtAmpduPriorities { get; set; } = "0";
 
         /// <summary>
         /// ht-amsdu-limit: Max AMSDU that device is allowed to prepare when negotiated. AMSDU aggregation may significantly increase throughput especially for small frames, but may increase latency in case of packet loss due to retransmission of aggregated frame. Sending and receiving AMSDUs will also increase CPU usage.
         /// 
         /// integer [0..8192]
         /// </summary>
-        [RosProperty("ht-amsdu-limit", DefaultValue = "8192")]
-        public string/*integer [0..8192]*/ HtAmsduLimit { get; set; }
+        [RosProperty("ht-amsdu-limit")]
+        public string/*integer [0..8192]*/ HtAmsduLimit { get; set; } = "8192";
 
         /// <summary>
         /// ht-amsdu-threshold: Max frame size to allow including in AMSDU.
         /// 
         /// integer [0..8192]
         /// </summary>
-        [RosProperty("ht-amsdu-threshold", DefaultValue = "8192")]
-        public string/*integer [0..8192]*/ HtAmsduThreshold { get; set; }
+        [RosProperty("ht-amsdu-threshold")]
+        public string/*integer [0..8192]*/ HtAmsduThreshold { get; set; } = "8192";
 
         /// <summary>
         /// ht-basic-mcs: Modulation and Coding Schemes that every connecting client must support. Refer to 802.11n for MCS specification.
         /// 
         /// list of (mcs-0 | mcs-1 | mcs-2 | mcs-3 | mcs-4 | mcs-5 | mcs-6 | mcs-7 | mcs-8 | mcs-9 | mcs-10 | mcs-11 | mcs-12 | mcs-13 | mcs-14 | mcs-15 | mcs-16 | mcs-17 | mcs-18 | mcs-19 | mcs-20 | mcs-21 | mcs-22 | mcs-23)
         /// </summary>
-        [RosProperty("ht-basic-mcs", DefaultValue = "mcs-0; mcs-1; mcs-2; mcs-3; mcs-4; mcs-5; mcs-6; mcs-7")]
-        public string/*list of (mcs-0 | mcs-1 | mcs-2 | mcs-3 | mcs-4 | mcs-5 | mcs-6 | mcs-7 | mcs-8 | mcs-9 | mcs-10 | mcs-11 | mcs-12 | mcs-13 | mcs-14 | mcs-15 | mcs-16 | mcs-17 | mcs-18 | mcs-19 | mcs-20 | mcs-21 | mcs-22 | mcs-23)*/ HtBasicMcs { get; set; }
+        [RosProperty("ht-basic-mcs")]
+        public string/*list of (mcs-0 | mcs-1 | mcs-2 | mcs-3 | mcs-4 | mcs-5 | mcs-6 | mcs-7 | mcs-8 | mcs-9 | mcs-10 | mcs-11 | mcs-12 | mcs-13 | mcs-14 | mcs-15 | mcs-16 | mcs-17 | mcs-18 | mcs-19 | mcs-20 | mcs-21 | mcs-22 | mcs-23)*/ HtBasicMcs { get; set; } = "mcs-0; mcs-1; mcs-2; mcs-3; mcs-4; mcs-5; mcs-6; mcs-7";
 
         /// <summary>
         /// ht-guard-interval: Whether to  allow use of short guard interval (refer to 802.11n MCS specification to see how this may affect throughput). "any" will use either short or long, depending on data rate, "long" will use long.
         /// 
         /// any | long
         /// </summary>
-        [RosProperty("ht-guard-interval", DefaultValue = "any")]
-        public string/*any | long*/ HtGuardInterval { get; set; }
+        [RosProperty("ht-guard-interval")]
+        public string/*any | long*/ HtGuardInterval { get; set; } = "any";
 
         /// <summary>
         /// ht-rxchains: Which antennas to use for receive.
         /// 
         /// list of integer [0..2]
         /// </summary>
-        [RosProperty("ht-rxchains", DefaultValue = "0")]
-        public string/*list of integer [0..2]*/ HtRxchains { get; set; }
+        [RosProperty("ht-rxchains")]
+        public string/*list of integer [0..2]*/ HtRxchains { get; set; } = "0";
 
         /// <summary>
         /// ht-supported-mcs: Modulation and Coding Schemes that this device advertises as supported. Refer to 802.11n for MCS specification.
         /// 
         /// list of (mcs-0 | mcs-1 | mcs-2 | mcs-3 | mcs-4 | mcs-5 | mcs-6 | mcs-7 | mcs-8 | mcs-9 | mcs-10 | mcs-11 | mcs-12 | mcs-13 | mcs-14 | mcs-15 | mcs-16 | mcs-17 | mcs-18 | mcs-19 | mcs-20 | mcs-21 | mcs-22 | mcs-23)
         /// </summary>
-        [RosProperty("ht-supported-mcs", DefaultValue = "")]
-        public string/*list of (mcs-0 | mcs-1 | mcs-2 | mcs-3 | mcs-4 | mcs-5 | mcs-6 | mcs-7 | mcs-8 | mcs-9 | mcs-10 | mcs-11 | mcs-12 | mcs-13 | mcs-14 | mcs-15 | mcs-16 | mcs-17 | mcs-18 | mcs-19 | mcs-20 | mcs-21 | mcs-22 | mcs-23)*/ HtSupportedMcs { get; set; }
+        [RosProperty("ht-supported-mcs")]
+        public string/*list of (mcs-0 | mcs-1 | mcs-2 | mcs-3 | mcs-4 | mcs-5 | mcs-6 | mcs-7 | mcs-8 | mcs-9 | mcs-10 | mcs-11 | mcs-12 | mcs-13 | mcs-14 | mcs-15 | mcs-16 | mcs-17 | mcs-18 | mcs-19 | mcs-20 | mcs-21 | mcs-22 | mcs-23)*/ HtSupportedMcs { get; set; } = "";
 
         /// <summary>
         /// ht-txchains: Which antetnnas to use for transmit.
         /// 
         /// list of integer [0..2]
         /// </summary>
-        [RosProperty("ht-txchains", DefaultValue = "0")]
-        public string/*list of integer [0..2]*/ HtTxchains { get; set; }
+        [RosProperty("ht-txchains")]
+        public string/*list of integer [0..2]*/ HtTxchains { get; set; } = "0";
 
         /// <summary>
         /// hw-fragmentation-threshold: Specifies maximum fragment size in bytes when transmitted over wireless medium. 802.11 standard packet (MSDU in 802.11 terminology) fragmentation allows packets to be fragmented before transmiting over wireless medium to increase probability of successful transmission (only fragments that did not transmit correctly are retransmitted). Note that transmission of fragmented packet is less efficient than transmitting unfragmented packet because of protocol overhead and increased resource usage at both - transmitting and receiving party.
         /// 
         /// integer[256..3000] | disabled
         /// </summary>
-        [RosProperty("hw-fragmentation-threshold", DefaultValue = "0")]
-        public string/*integer[256..3000] | disabled*/ HwFragmentationThreshold { get; set; }
+        [RosProperty("hw-fragmentation-threshold")]
+        public string/*integer[256..3000] | disabled*/ HwFragmentationThreshold { get; set; } = "0";
 
         /// <summary>
         /// hw-protection-mode: Frame protection support property  read more &gt;&gt;
         /// 
         /// cts-to-self | none | rts-cts
         /// </summary>
-        [RosProperty("hw-protection-mode", DefaultValue = "none")]
-        public string/*cts-to-self | none | rts-cts*/ HwProtectionMode { get; set; }
+        [RosProperty("hw-protection-mode")]
+        public string/*cts-to-self | none | rts-cts*/ HwProtectionMode { get; set; } = "none";
 
         /// <summary>
         /// hw-protection-threshold: Frame protection support property read more &gt;&gt;
         /// 
         /// integer [0..65535]
         /// </summary>
-        [RosProperty("hw-protection-threshold", DefaultValue = "0")]
+        [RosProperty("hw-protection-threshold")]
         public int/*integer [0..65535]*/ HwProtectionThreshold { get; set; }
 
         /// <summary>
@@ -348,14 +348,14 @@ namespace InvertedTomato.TikLink.Records {
         /// 
         /// integer [0..15]
         /// </summary>
-        [RosProperty("hw-retries", DefaultValue = "7")]
-        public int/*integer [0..15]*/ HwRetries { get; set; }
+        [RosProperty("hw-retries")]
+        public int/*integer [0..15]*/ HwRetries { get; set; } = 7;
 
         /// <summary>
         /// l2mtu: integer [0..65536]
         /// </summary>
-        [RosProperty("l2mtu", DefaultValue = "1600")]
-        public int/*integer [0..65536]*/ L2mtu { get; set; }
+        [RosProperty("l2mtu")]
+        public int/*integer [0..65536]*/ L2mtu { get; set; } = 1600;
 
         /// <summary>
         /// mac-address: 
@@ -374,8 +374,8 @@ namespace InvertedTomato.TikLink.Records {
         /// 
         /// integer [1..2007]
         /// </summary>
-        [RosProperty("max-station-count", DefaultValue = "2007")]
-        public int/*integer [1..2007]*/ MaxStationCount { get; set; }
+        [RosProperty("max-station-count")]
+        public int/*integer [1..2007]*/ MaxStationCount { get; set; } = 2007;
 
         /// <summary>
         /// Mode for <see cref="Mode"/>.
@@ -462,14 +462,14 @@ namespace InvertedTomato.TikLink.Records {
         /// 
         /// station | station-wds | ap-bridge | bridge | alignment-only | nstreme-dual-slave | wds-slave | station-pseudobridge | station-pseudobridge-clone | station-bridge
         /// </summary>
-        [RosProperty("mode", DefaultValue = "station")]
-        public WirelessMode/*station | station-wds | ap-bridge | bridge | alignment-only | nstreme-dual-slave | wds-slave | station-pseudobridge | station-pseudobridge-clone | station-bridge*/ Mode { get; set; }
+        [RosProperty("mode")]
+        public WirelessMode/*station | station-wds | ap-bridge | bridge | alignment-only | nstreme-dual-slave | wds-slave | station-pseudobridge | station-pseudobridge-clone | station-bridge*/ Mode { get; set; } = WirelessMode.Station;
 
         /// <summary>
         /// mtu: [0..65536]
         /// </summary>
-        [RosProperty("mtu", DefaultValue = "1500")]
-        public int/*integer [0..65536]*/ Mtu { get; set; }
+        [RosProperty("mtu")]
+        public int/*integer [0..65536]*/ Mtu { get; set; } = 1500;
 
         /// <summary>
         /// multicast-helper
@@ -478,8 +478,8 @@ namespace InvertedTomato.TikLink.Records {
         /// full - all multicast packet mac address are changed to unicast mac addresses prior sending them out
         /// default - default choice that currently is set to disabled. Value can be changed in future releases.
         /// </summary>
-        [RosProperty("multicast-helper", DefaultValue = "default")]
-        public string/*default | disabled | full*/ MulticastHelper { get; set; }
+        [RosProperty("multicast-helper")]
+        public string/*default | disabled | full*/ MulticastHelper { get; set; } = "default";
 
         /// <summary>
         /// name: name of the interface
@@ -492,8 +492,8 @@ namespace InvertedTomato.TikLink.Records {
         /// 
         /// default | integer [-128..127]
         /// </summary>
-        [RosProperty("noise-floor-threshold", DefaultValue = "default")]
-        public string/*default | integer [-128..127]*/ NoiseFloorThreshold { get; set; }
+        [RosProperty("noise-floor-threshold")]
+        public string/*default | integer [-128..127]*/ NoiseFloorThreshold { get; set; } = "default";
 
         /// <summary>
         /// nv2-cell-radius
@@ -503,14 +503,14 @@ namespace InvertedTomato.TikLink.Records {
         /// 
         /// integer [10..200]
         /// </summary>
-        [RosProperty("nv2-cell-radius", DefaultValue = "30")]
-        public int/*integer [10..200]*/ Nv2CellRadius { get; set; }
+        [RosProperty("nv2-cell-radius")]
+        public int/*integer [10..200]*/ Nv2CellRadius { get; set; } = 30;
 
         /// <summary>
         /// nv2-noise-floor-offset: default | integer [0..20]
         /// </summary>
-        [RosProperty("nv2-noise-floor-offset", DefaultValue = "default")]
-        public string/*default | integer [0..20]*/ Nv2NoiseFloorOffset { get; set; }
+        [RosProperty("nv2-noise-floor-offset")]
+        public string/*default | integer [0..20]*/ Nv2NoiseFloorOffset { get; set; } = "default";
 
         /// <summary>
         /// nv2-preshared-key: 
@@ -524,28 +524,28 @@ namespace InvertedTomato.TikLink.Records {
         ///  frame-priority - manual setting that can be tuned with Mangle rules. 
         ///  default - default setting where small packets receive priority for best latency
         /// </summary>
-        [RosProperty("nv2-qos", DefaultValue = "default")]
-        public string/*default | frame-priority*/ Nv2Qos { get; set; }
+        [RosProperty("nv2-qos")]
+        public string/*default | frame-priority*/ Nv2Qos { get; set; } = "default";
 
         /// <summary>
         /// nv2-queue-count: 
         /// </summary>
-        [RosProperty("nv2-queue-count", DefaultValue = "2")]
-        public string/*integer [2..8]*/ Nv2QueueCount { get; set; }
+        [RosProperty("nv2-queue-count")]
+        public string/*integer [2..8]*/ Nv2QueueCount { get; set; } = "2";
 
         /// <summary>
         /// nv2-security: disabled | enabled
         /// </summary>
-        [RosProperty("nv2-security", DefaultValue = "disabled")]
-        public string/*disabled | enabled*/ Nv2Security { get; set; }
+        [RosProperty("nv2-security")]
+        public string/*disabled | enabled*/ Nv2Security { get; set; } = "disabled";
 
         /// <summary>
         /// on-fail-retry-time: After third sending failure on the lowest data rate, wait for specified time interval before retrying.
         /// 
         /// time [100ms..1s]
         /// </summary>
-        [RosProperty("on-fail-retry-time", DefaultValue = "100ms")]
-        public string/*time [100ms..1s]*/ OnFailRetryTime { get; set; }
+        [RosProperty("on-fail-retry-time")]
+        public string/*time [100ms..1s]*/ OnFailRetryTime { get; set; } = "100ms"; // TODO: Convert to TimeSpan
 
         /// <summary>
         /// periodic-calibration
@@ -554,16 +554,16 @@ namespace InvertedTomato.TikLink.Records {
         /// 
         /// default | disabled | enabled
         /// </summary>
-        [RosProperty("periodic-calibration", DefaultValue = "default")]
-        public string/*default | disabled | enabled*/ PeriodicCalibration { get; set; }
+        [RosProperty("periodic-calibration")]
+        public string/*default | disabled | enabled*/ PeriodicCalibration { get; set; } = "default";
 
         /// <summary>
         /// periodic-calibration-interval: This property is only effective for cards based on Atheros chipset.
         /// 
         /// [1..10000]
         /// </summary>
-        [RosProperty("periodic-calibration-interval", DefaultValue = "60")]
-        public int/*integer [1..10000]*/ PeriodicCalibrationInterval { get; set; }
+        [RosProperty("periodic-calibration-interval")]
+        public int/*integer [1..10000]*/ PeriodicCalibrationInterval { get; set; } = 60;
 
         /// <summary>
         /// Mode for <see cref="PreambleMode"/>.
@@ -600,8 +600,8 @@ namespace InvertedTomato.TikLink.Records {
         ///  short - do not connect to AP if it does not support short preamble.
         ///  both - Use short preamble if AP supports it.
         /// </summary>
-        [RosProperty("preamble-mode", DefaultValue = "both")]
-        public WirelessPreambleMode/*both | long | short*/ PreambleMode { get; set; }
+        [RosProperty("preamble-mode")]
+        public WirelessPreambleMode/*both | long | short*/ PreambleMode { get; set; } = WirelessPreambleMode.Both;
 
         /// <summary>
         /// prism-cardtype: Specify type of the installed Prism wireless card.
@@ -617,24 +617,24 @@ namespace InvertedTomato.TikLink.Records {
         ///  pre-2.9.25 - This is older method. It can interoperate with newer versions of RouterOS. This method is incompatible with some clients, for example, Centrino based ones.
         ///  post-2.9.25 - This uses standardized way of including vendor specific information, that is compatible with newer wireless clients.
         /// </summary>
-        [RosProperty("proprietary-extension", DefaultValue = "post-2.9.25")]
-        public string/*post-2.9.25 | pre-2.9.25*/ ProprietaryExtension { get; set; }
+        [RosProperty("proprietary-extension")]
+        public string/*post-2.9.25 | pre-2.9.25*/ ProprietaryExtension { get; set; } = "post-2.9.25";
 
         /// <summary>
         /// radio-name
         /// Descriptive name of the device, that is shown in registration table entries on the remote devices.
         /// This is a proprietary extension.
         /// </summary>
-        [RosProperty("radio-name", DefaultValue = "MAC address of an interface")]
-        public string RadioName { get; set; }
+        [RosProperty("radio-name")]
+        public string RadioName { get; set; } = "MAC address of an interface";
 
         /// <summary>
         /// rate-selection: Starting from v5.9 default value is advanced since legacy mode was inefficient.
         /// 
         /// advanced | legacy
         /// </summary>
-        [RosProperty("rate-selection", DefaultValue = "advanced")]
-        public string/*advanced | legacy*/ RateSelection { get; set; }
+        [RosProperty("rate-selection")]
+        public string/*advanced | legacy*/ RateSelection { get; set; } = "advanced";
 
         /// <summary>
         /// rate-set
@@ -642,8 +642,8 @@ namespace InvertedTomato.TikLink.Records {
         ///  default - default basic and supported rate sets are used. Values from basic-rates and supported-rates parameters have no effect.
         ///  configured - use values from basic-rates, supported-rates, basic-mcs, mcs.  Read more &gt;&gt;.
         /// </summary>
-        [RosProperty("rate-set", DefaultValue = "default")]
-        public string/*configured | default*/ RateSet { get; set; }
+        [RosProperty("rate-set")]
+        public string/*configured | default*/ RateSet { get; set; } = "default";
 
         /// <summary>
         /// scan-list
@@ -652,20 +652,20 @@ namespace InvertedTomato.TikLink.Records {
         /// 
         /// Comma separated list of frequencies and frequency ranges | default
         /// </summary>
-        [RosProperty("scan-list", DefaultValue = "default")]
-        public string/*Comma separated list of frequencies and frequency ranges | default*/ ScanList { get; set; }
+        [RosProperty("scan-list")]
+        public string/*Comma separated list of frequencies and frequency ranges | default*/ ScanList { get; set; } = "default";
 
         /// <summary>
         /// security-profile: Name of profile from  security-profiles
         /// </summary>
-        [RosProperty("security-profile", DefaultValue = "default")]
-        public string SecurityProfile { get; set; }
+        [RosProperty("security-profile")]
+        public string SecurityProfile { get; set; } = "default";
 
         /// <summary>
         /// ssid: SSID (service set identifier) is a name that identifies wireless Option.
         /// </summary>
-        [RosProperty("ssid", DefaultValue = "value of system/identity")]
-        public string/*string (0..32 chars)*/ Ssid { get; set; }
+        [RosProperty("ssid")]
+        public string/*string (0..32 chars)*/ Ssid { get; set; } = "value of system/identity";
 
         /// <summary>
         /// station-bridge-clone-mac
@@ -689,13 +689,13 @@ namespace InvertedTomato.TikLink.Records {
         /// 
         /// list of rates [11Mbps | 1Mbps | 2Mbps | 5.5Mbps]
         /// </summary>
-        [RosProperty("supported-rates-b", DefaultValue = "1Mbps; 2Mbps; 5.5Mbps; 11Mbps")]
-        public string/*list of rates [11Mbps | 1Mbps | 2Mbps | 5.5Mbps]*/ SupportedRatesB { get; set; }
+        [RosProperty("supported-rates-b")]
+        public string/*list of rates [11Mbps | 1Mbps | 2Mbps | 5.5Mbps]*/ SupportedRatesB { get; set; } = "1Mbps; 2Mbps; 5.5Mbps; 11Mbps";
 
         /// <summary>
         /// tdma-debug: [0..4294967295]
         /// </summary>
-        [RosProperty("tdma-debug", DefaultValue = "0")]
+        [RosProperty("tdma-debug")]
         public long/*integer [0..4294967295]*/ TdmaDebug { get; set; }
 
         /// <summary>
@@ -707,8 +707,8 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// tdma-override-rate: 12mbps | 18mbps | 24mbps | 36mbps | 48mbps | 54mbps | 6mbps | 9mbps | disabled | ht20-mcs... | ht40-mcs...
         /// </summary>
-        [RosProperty("tdma-override-rate", DefaultValue = "disabled")]
-        public string/*12mbps | 18mbps | 24mbps | 36mbps | 48mbps | 54mbps | 6mbps | 9mbps | disabled | ht20-mcs... | ht40-mcs...*/ TdmaOverrideRate { get; set; }
+        [RosProperty("tdma-override-rate")]
+        public string/*12mbps | 18mbps | 24mbps | 36mbps | 48mbps | 54mbps | 6mbps | 9mbps | disabled | ht20-mcs... | ht40-mcs...*/ TdmaOverrideRate { get; set; } = "disabled";
 
         /// <summary>
         /// tdma-override-size: integer [0..4294967295]
@@ -721,13 +721,13 @@ namespace InvertedTomato.TikLink.Records {
         /// 
         /// integer [1..10]
         /// </summary>
-        [RosProperty("tdma-period-size", DefaultValue = "2")]
-        public int/*integer [1..10]*/ TdmaPeriodSize { get; set; }
+        [RosProperty("tdma-period-size")]
+        public int/*integer [1..10]*/ TdmaPeriodSize { get; set; } = 2;
 
         /// <summary>
         /// tdma-test-mode: integer [0..4294967295]
         /// </summary>
-        [RosProperty("tdma-test-mode", DefaultValue = "0")]
+        [RosProperty("tdma-test-mode")]
         public long/*integer [0..4294967295]*/ TdmaTestMode { get; set; }
 
         /// <summary>
@@ -775,8 +775,8 @@ namespace InvertedTomato.TikLink.Records {
         ///  all-rated-fixed - use same transmit power for all data rates. Can damage the card if transmit power is set above rated value of the card for used rate
         ///  manual-table - define transmit power for each rate separately. Can damage the card if transmit power is set above rated value of the card for used rate.
         /// </summary>
-        [RosProperty("tx-power-mode", DefaultValue = "default")]
-        public WirelessTxPowerMode/*default, card-rates, all-rated-fixed, manual-table*/ TxPowerMode { get; set; }
+        [RosProperty("tx-power-mode")]
+        public WirelessTxPowerMode/*default, card-rates, all-rated-fixed, manual-table*/ TxPowerMode { get; set; } = WirelessTxPowerMode.Default;
 
         /// <summary>
         /// update-stats-interval
@@ -796,8 +796,8 @@ namespace InvertedTomato.TikLink.Records {
         ///  MCS 0-8 - client must support MCS-0 to MCS-8 
         ///  MCS 0-9 - client must support MCS-0 to MCS-9
         /// </summary>
-        [RosProperty("vht-basic-mcs", DefaultValue = "MCS 0-7")]
-        public string/*none | MCS 0-7 | MCS 0-8 | MCS 0-9*/ VhtBasicMcs { get; set; }
+        [RosProperty("vht-basic-mcs")]
+        public string/*none | MCS 0-7 | MCS 0-8 | MCS 0-9*/ VhtBasicMcs { get; set; } = "MCS 0-7";
 
         /// <summary>
         /// vht-supported-mcs
@@ -808,8 +808,8 @@ namespace InvertedTomato.TikLink.Records {
         ///  MCS 0-8 - devices will advertise as supported MCS-0 to MCS-8 
         ///  MCS 0-9 - devices will advertise as supported MCS-0 to MCS-9
         /// </summary>
-        [RosProperty("vht-supported-mcs", DefaultValue = "MCS 0-9")]
-        public string/*none | MCS 0-7 | MCS 0-8 | MCS 0-9*/ VhtSupportedMcs { get; set; }
+        [RosProperty("vht-supported-mcs")]
+        public string/*none | MCS 0-7 | MCS 0-8 | MCS 0-9*/ VhtSupportedMcs { get; set; } = "MCS 0-9";
 
         /// <summary>
         /// wds-cost-range
@@ -817,25 +817,25 @@ namespace InvertedTomato.TikLink.Records {
         /// Setting this property to 0 disables  automatic cost adjustment.
         /// Automatic adjustment does not work for WDS links that are manually configured as a bridge port.
         /// </summary>
-        [RosProperty("wds-cost-range", DefaultValue = "50-150")]
-        public string/*start [-end] integer[0..4294967295]*/ WdsCostRange { get; set; }
+        [RosProperty("wds-cost-range")]
+        public string/*start [-end] integer[0..4294967295]*/ WdsCostRange { get; set; } = "50-150";
 
         /// <summary>
         /// wds-default-bridge: When WDS link is established and status of the wds interface becomes running, it will be added as a bridge port to the bridge interface specified by this property. When WDS link is lost, wds interface is removed from the bridge. If wds interface is already included in a bridge setup when WDS link becomes active, it will not be added to bridge specified by , and will (needs editing)
         /// </summary>
-        [RosProperty("wds-default-bridge", DefaultValue = "none")]
-        public string/*string | none*/ WdsDefaultBridge { get; set; }
+        [RosProperty("wds-default-bridge")]
+        public string/*string | none*/ WdsDefaultBridge { get; set; } = "none";
 
         /// <summary>
         /// wds-default-cost: Initial bridge port cost of the WDS links.
         /// </summary>
-        [RosProperty("wds-default-cost", DefaultValue = "100")]
-        public string/*integer [0..4294967295]*/ WdsDefaultCost { get; set; }
+        [RosProperty("wds-default-cost")]
+        public string/*integer [0..4294967295]*/ WdsDefaultCost { get; set; } = "100";
 
         /// <summary>
         /// wds-ignore-ssid: By default, WDS link between two APs can be created only when they work on the same frequency and have the same SSID value. If this property is set to yes, then SSID of the remote AP will not be checked. This property has no effect on connections from clients in station-wds mode. It also does not work if wds-mode is static-mesh or dynamic-mesh.
         /// </summary>
-        [RosProperty("wds-ignore-ssid", DefaultValue = "no")]
+        [RosProperty("wds-ignore-ssid")]
         public bool WdsIgnoreSsid { get; set; }
 
         /// <summary>
@@ -850,8 +850,8 @@ namespace InvertedTomato.TikLink.Records {
         /// 
         /// disabled  | dynamic | dynamic-mesh | static | static-mesh
         /// </summary>
-        [RosProperty("wds-mode", DefaultValue = "disabled")]
-        public string/*disabled  | dynamic | dynamic-mesh | static | static-mesh*/ WdsMode { get; set; }
+        [RosProperty("wds-mode")]
+        public string/*disabled  | dynamic | dynamic-mesh | static | static-mesh*/ WdsMode { get; set; } = "disabled";
 
         /// <summary>
         /// Options for <see cref="WirelessProtocol"/>.
@@ -912,15 +912,15 @@ namespace InvertedTomato.TikLink.Records {
         ///  nv2-nstreme 802.11 - on AP - uses first wireless-protocol setting, always Nv2; on station - searches for Nv2 Access Point, then for Nstreme Access Point, then for regular 802.11 Access Point.
         /// Warning! Nv2 doesn't have support for Virtual AP
         /// </summary>
-        [RosProperty("wireless-protocol", DefaultValue = "unspecified")]
-        public WirelessWirelessProtocol/*802.11 | any | nstreme | nv2 | nv2-nstreme | nv2-nstreme-802.11 | unspecified*/ WirelessProtocol { get; set; }
+        [RosProperty("wireless-protocol")]
+        public WirelessWirelessProtocol/*802.11 | any | nstreme | nv2 | nv2-nstreme | nv2-nstreme-802.11 | unspecified*/ WirelessProtocol { get; set; } = WirelessWirelessProtocol.Unspecified;
 
         /// <summary>
         /// wmm-support: Specifies whether to enable  WMM.
         /// 
         /// disabled | enabled | required
         /// </summary>
-        [RosProperty("wmm-support", DefaultValue = "disabled")]
-        public string/*disabled | enabled | required*/ WmmSupport { get; set; }
+        [RosProperty("wmm-support")]
+        public string/*disabled | enabled | required*/ WmmSupport { get; set; } = "disabled";
     }
 }

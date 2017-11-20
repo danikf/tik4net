@@ -18,23 +18,23 @@ namespace InvertedTomato.TikLink.Records {
     /// Note: DHCP server requires a real interface to receive raw ethernet packets. If the interface is a Bridge interface, then the Bridge must have a real interface attached as a port to that bridge which will receive the raw ethernet packets. It cannot function correctly on a dummy (empty bridge) interface. 
     /// </remarks>
     [RosRecord("/ip/dhcp-server")]
-    public class IpDhcpServer  : SetRecordBase {
+    public class IpDhcpServer : SetRecordBase {
         /// <summary>
         /// add-arp: Whether to add dynamic ARP entry.  If set to no either  ARP mode should be enabled on that interface or static  ARP entries should be administratively defined in /ip arp submenu.
         /// </summary>
-        [RosProperty("add-arp", DefaultValue = "no")]
+        [RosProperty("add-arp")]
         public bool AddArp { get; set; }
 
         /// <summary>
         /// address-pool:  IP pool, from which to take IP addresses for the clients. If set to static-only, then only the clients that have a static lease (added in  lease submenu) will be allowed.
         /// </summary>
-        [RosProperty("address-pool", DefaultValue = "static-only")]
-        public string/*string | static-only*/ AddressPool { get; set; }
+        [RosProperty("address-pool")]
+        public string/*string | static-only*/ AddressPool { get; set; } = "static-only";
 
         /// <summary>
         /// always-broadcast: Always send replies as broadcasts.
         /// </summary>
-        [RosProperty("always-broadcast", DefaultValue = "no")]
+        [RosProperty("always-broadcast")]
         public bool AlwaysBroadcast { get; set; }
 
         /// <summary>
@@ -46,8 +46,8 @@ namespace InvertedTomato.TikLink.Records {
         ///  after-2sec-delay - requests with "secs &lt; 2" will be processed as in "no" setting case and requests with "secs &gt;= 2" will be processed as in "yes" case.
         /// If all requests with "secs &lt; x" should be ignored, then delay-threshold=x setting should be used.
         /// </summary>
-        [RosProperty("authoritative", DefaultValue = "after-2sec-delay")]
-        public AuthoritativeType Authoritative { get; set; }
+        [RosProperty("authoritative")]
+        public AuthoritativeType Authoritative { get; set; } = AuthoritativeType.After2secDelay;
 
         /// <summary>
         /// bootp-support
@@ -56,14 +56,14 @@ namespace InvertedTomato.TikLink.Records {
         ///  static - offer only static leases to BOOTP clients 
         ///  dynamic - offer static and dynamic leases for BOOTP clients
         /// </summary>
-        [RosProperty("bootp-support", DefaultValue = "static")]
-        public BootpSupportType BootpSupport { get; set; }
+        [RosProperty("bootp-support")]
+        public BootpSupportType BootpSupport { get; set; } = BootpSupportType.Static;
 
         /// <summary>
         /// delay-threshold: If secs field in DHCP packet is smaller than delay-threshold, then this packet is ignored. If set to none - there is no threshold (all DHCP packets are processed)
         /// </summary>
-        [RosProperty("delay-threshold", DefaultValue = "none")]
-        public string/*time | none*/ DelayThreshold { get; set; }
+        [RosProperty("delay-threshold")]
+        public string/*time | none*/ DelayThreshold { get; set; } = "none";
 
         /// <summary>
         /// interface: Interface on which server will be running.
@@ -85,13 +85,13 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// lease-time: The time that a client may use the assigned address. The client will try to renew this address after a half of this time and will request a new address after time limit expires.
         /// </summary>
-        [RosProperty("lease-time", DefaultValue = "72h")]
-        public string/*time*/ LeaseTime { get; set; }
+        [RosProperty("lease-time")]
+        public string/*time*/ LeaseTime { get; set; } = "72h"; // TODO: Make TimeSpan
 
         /// <summary>
         /// name: Reference name
         /// </summary>
-        [RosProperty("name",IsRequired = true)]
+        [RosProperty("name", IsRequired = true)]
         public string Name { get; set; }
 
         /// <summary>
@@ -100,25 +100,25 @@ namespace InvertedTomato.TikLink.Records {
         ///  0.0.0.0 - the DHCP server will be used only for direct requests from clients (no DHCP really allowed) 
         ///  255.255.255.255 - the DHCP server should be used for any incoming request from a DHCP relay except for those, which are processed by another DHCP server that exists in the /ip dhcp-server submenu.
         /// </summary>
-        [RosProperty("relay", DefaultValue = "0.0.0.0")]
-        public string/*IP*/ Relay { get; set; }
+        [RosProperty("relay")]
+        public string/*IP*/ Relay { get; set; } = "0.0.0.0";
 
         /// <summary>
         /// src-address: The address which the DHCP client must send requests to in order to renew an IP address lease. If there is only one static address on the DHCP server interface and the source-address is left as 0.0.0.0, then the static address will be used. If there are multiple addresses on the interface, an address in the same subnet as the range of given addresses should be used.
         /// </summary>
-        [RosProperty("src-address", DefaultValue = "0.0.0.0")]
-        public string/*IP*/ SrcAddress { get; set; }
+        [RosProperty("src-address")]
+        public string/*IP*/ SrcAddress { get; set; } = "0.0.0.0";
 
         /// <summary>
         /// use-radius: Whether to use RADIUS server for dynamic leases
         /// </summary>
-        [RosProperty("use-radius", DefaultValue = "no")]
+        [RosProperty("use-radius")]
         public bool UseRadius { get; set; }
 
         /// <summary>
         /// disabled: Whether DHCP server is disabled or not
         /// </summary>
-        [RosProperty("disabled", DefaultValue = "no")]
+        [RosProperty("disabled")]
         public bool Disabled { get; set; }
 
         /// <summary>

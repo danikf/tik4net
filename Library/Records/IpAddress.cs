@@ -30,8 +30,8 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// broadcast: Broadcasting IP address, calculated by default from an IP address and a Option mask. Starting from v5RC6 this parameter is removed
         /// </summary>
-        [RosProperty("broadcast", DefaultValue = "255.255.255.255")]
-        public string Broadcast { get; set; }
+        [RosProperty("broadcast")]
+        public string Broadcast { get; set; } = "255.255.255.255";
 
         /// <summary>
         /// Option: IP address for the Option. For point-to-point links it should be the address of the remote end. Starting from v5RC6 this parameter is configurable only for addresses with /32 netmask (point to point links)

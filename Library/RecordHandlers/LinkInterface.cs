@@ -14,7 +14,7 @@ namespace InvertedTomato.TikLink.RecordHandlers {
             Wireless = new LinkInterfaceWireless(Link);
         }
 
-        public override void Add(Interface record, bool readBack = false) {
+        public override void Add(Interface record, bool readBack = false, string[] properties = null) {
             throw new NotSupportedException();
         }
     }

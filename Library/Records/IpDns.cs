@@ -13,36 +13,36 @@ namespace InvertedTomato.TikLink.Records {
         /// allow-remote-requests
         /// specifies whether to allow Option requests
         /// </summary>
-        [RosProperty("allow-remote-requests", DefaultValue = "no")]
+        [RosProperty("allow-remote-requests")]
         public bool AllowRemoteRequests { get; set; }
 
         /// <summary>
         /// cache-max-ttl
         /// specifies maximum time-to-live for cache records. In other words, cache records will expire unconditionally after cache-max-ttl time. Shorter TTL received from DNS servers are respected
         /// </summary>
-        [RosProperty("cache-max-ttl", DefaultValue = "1w")]
-        public string/*time*/ CacheMaxTtl { get; set; }
+        [RosProperty("cache-max-ttl")]
+        public string/*time*/ CacheMaxTtl { get; set; } = "1w"; // TODO: Make TimeSpan
 
         /// <summary>
         /// cache-size
         /// specifies the size of DNS cache in KiB
         /// </summary>
-        [RosProperty("cache-size", DefaultValue = "2M")]
-        public string/*integer: 512..10240*/ CacheSize { get; set; }
+        [RosProperty("cache-size")]
+        public string/*integer: 512..10240*/ CacheSize { get; set; } = "2M";
 
         /// <summary>
         /// cache-used
         /// displays the current cache size in KiB
         /// </summary>
-        [RosProperty("cache-used",IsReadOnly = true)]
+        [RosProperty("cache-used", IsReadOnly = true)]
         public string/*read-only: integer*/ CacheUsed { get; private set; }
 
         /// <summary>
         /// servers
         /// comma seperated list of DNS server IP addresses
         /// </summary>
-        [RosProperty("servers", DefaultValue = "0.0.0.0")]
-        public string/*IPv4/IPv6 address list*/ Servers { get; set; }
+        [RosProperty("servers")]
+        public string/*IPv4/IPv6 address list*/ Servers { get; set; } = "0.0.0.0";
     }
 
 }

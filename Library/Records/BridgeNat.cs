@@ -267,8 +267,8 @@ namespace InvertedTomato.TikLink.Records {
         /// set-priority - set priority specified by the new- priority parameter on the packets sent out through a link that is capable of transporting priority(VLAN or WMM - enabled wireless interface). Read more>
         /// src-nat - change source MAC address of a packet(only valid in srcnat chain)            
         /// </summary>
-        [RosProperty("action", DefaultValue = "accept")]
-        public ActionType Action { get; set; }
+        [RosProperty("action")]
+        public ActionType Action { get; set; } = ActionType.Accept;
 
         /// <summary>
         /// to-arp-reply-mac-address: Source MAC address to put in Ethernet frame and ARP payload, when action=arp-reply is selected

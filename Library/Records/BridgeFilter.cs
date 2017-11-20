@@ -236,8 +236,8 @@ namespace InvertedTomato.TikLink.Records {
         /// passthrough - ignore this rule and go to next one (useful for statistics).
         /// return  - passes control back to the chain from where the jump took place
         /// </summary>
-        [RosProperty("action", DefaultValue = "accept")]
-        public ActionType Action { get; set; }
+        [RosProperty("action")]
+        public ActionType Action { get; set; } = ActionType.Accept;
 
         /// <summary>
         /// jump-target: If action=jump specified, then specifies the user-defined firewall chain to process the packet
@@ -260,13 +260,13 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// new-priorityne
         /// </summary>
-        [RosProperty("new-priority", DefaultValue = "0")]
-        public string NewPriority { get; set; }
+        [RosProperty("new-priority")]
+        public string NewPriority { get; set; } = "0";
 
         /// <summary>
         /// passthrough
         /// </summary>
-        [RosProperty("passthrough", DefaultValue = "yes")]
-        public bool Passthrough { get; set; }
+        [RosProperty("passthrough")]
+        public bool Passthrough { get; set; } = true;
     }
 }

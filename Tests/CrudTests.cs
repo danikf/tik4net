@@ -18,7 +18,12 @@ namespace Tests {
                     Interface = "eth01",
                     Comment = "<test>"
                 };
-                link.Ip.Arp.Add(obj1, true);
+                link.Ip.Arp.Add(obj1, true, new string[]{
+                    nameof(IpArp.Address),
+                    nameof(IpArp.Interface),
+                    nameof(IpArp.MacAddress),
+                    nameof(IpArp.Comment)
+                });
                 Assert.NotEmpty(obj1.Id);
 
                 // Find record

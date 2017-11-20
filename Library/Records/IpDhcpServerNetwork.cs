@@ -48,14 +48,14 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// The default gateway to be used by DHCP Client.
         /// </summary>
-        [RosProperty("gateway", DefaultValue = "0.0.0.0")]
-        public string/*IP*/ Gateway { get; set; }
+        [RosProperty("gateway")]
+        public string/*IP*/ Gateway { get; set; } = "0.0.0.0";
 
         /// <summary>
         /// The actual Option mask to be used by DHCP client. If set to '0' - netmask from Option address will be used.
         /// </summary>
-        [RosProperty("netmask", DefaultValue = "0")]
-        public int? /*integer: 0..32*/ Netmask { get; set; }
+        [RosProperty("netmask")]
+        public int? /*integer: 0..32*/ Netmask { get; set; } = 0;
 
         /// <summary>
         /// IP address of next server to use in bootstrap.

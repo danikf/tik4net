@@ -14,10 +14,11 @@ namespace InvertedTomato.TikLink.RecordHandlers {
         /// <typeparam name="T"></typeparam>
         /// <param name="record">Record to be written</param>
         /// <param name="readBack">If TRUE, the record will be updated with any changes the router made during acceptance.</param>
+        /// <param name="properties"></param>
         /// <remarks>
         /// ReadBack is really handy to get the ID of the record that's just been created, however it comes at the penalty of an additional query to the router, and could fail to retrieve properties if it detects another Add() that occurs at the same moment.
         /// </remarks>
-        public virtual void Add(T record, bool readBack = false) {
+        public virtual void Add(T record, bool readBack = false, string[] properties = null) {
             if (null == record) {
                 throw new ArgumentNullException(nameof(record));
             }
@@ -31,9 +32,24 @@ namespace InvertedTomato.TikLink.RecordHandlers {
                 beforeIds = Query("Id").Select(a => a.Id);
             }
 
+            // Get attributes
+            var attributes = RecordReflection.GetRosProperties(record);
+
+            // If filtering properties, remove attributes not wanted
+            if (null != properties) {
+                for(var i = 0; i< properties.Length; i++) {
+                    properties[i] = RecordReflection.ResolveProperty<T>(properties[i]);
+                }
+
+                var remove = attributes.Keys.Where(k => !properties.Contains(k)).ToList();
+                foreach (var k in remove) {
+                    attributes.Remove(k);
+                }
+            }
+
             // Prepare sentence
             var sentence = new Sentence();
-            sentence.Attributes = RecordReflection.GetRosProperties(record);
+            sentence.Attributes = attributes;
             sentence.Command = RecordReflection.GetPath<T>() + "/add";
 
             // Make call

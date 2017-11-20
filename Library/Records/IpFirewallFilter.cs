@@ -23,7 +23,7 @@ namespace InvertedTomato.TikLink.Records {
         /// return  - passes control back to the chain from where the jump took place
         /// tarpit - captures and holds TCP connections(replies with SYN/ACK to the inbound TCP SYN packet)
         /// </summary>
-        [RosProperty("action", IsRequired = true, DefaultValue = "accept")]
+        [RosProperty("action", IsRequired = true)]
         public ActionType Action { get; set; } = ActionType.Accept;
 
         /// <summary>
@@ -36,7 +36,7 @@ namespace InvertedTomato.TikLink.Records {
         /// address-list-timeout: Time interval after which the address will be removed from the address list specified by address-list parameter. Used in conjunction with add-dst-to-address-list or add-src-to-address-list actions
         /// Value of 00:00:00 will leave the address in the address list forever
         /// </summary>
-        [RosProperty("address-list-timeout", DefaultValue = "00:00:00")] // TODO: Not correct RosDataType
+        [RosProperty("address-list-timeout")] // TODO: Not correct RosDataType
         public string/*time*/ AddressListTimeout { get; set; } = "00:00:00";
 
         /// <summary>
@@ -278,7 +278,7 @@ namespace InvertedTomato.TikLink.Records {
         /// <summary>
         /// protocol: Matches particular IP protocol specified by protocol name or number
         /// </summary>
-        [RosProperty("protocol", DefaultValue = "tcp", UnsetOnDefault = true)]
+        [RosProperty("protocol", UnsetOnDefault = true)]
         public string Protocol { get; set; }
 
         /// <summary>

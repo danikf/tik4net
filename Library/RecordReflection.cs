@@ -237,7 +237,9 @@ namespace InvertedTomato.TikLink {
                 }
             }
 
+#pragma warning disable CS0618 // Type or member is obsolete
             record.OtherProperties = attributes;
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         /// <summary>
@@ -254,6 +256,10 @@ namespace InvertedTomato.TikLink {
             // Get all properties
             var rosValues = new Dictionary<string, string>();
             foreach (var property in meta.Properties) {
+                // Skip read-only properties
+                if (!property.PropertyInfo.CanWrite || (property.PropertyInfo.SetMethod.Attributes & MethodAttributes.Public) == 0) {
+                    continue;
+                }
                 // Skip read-only properties
                 if (property.Attribute.IsReadOnly) {
                     continue;
