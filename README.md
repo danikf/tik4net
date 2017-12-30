@@ -73,8 +73,9 @@ Builded binaries (dlls) could be downloaded from [mikrotik official forum](http:
 * Looking for betatesters
 
 # Roadmap
-* .NET core support & build
-* creating highlevel classes for all mikrotik entities (you can still generate your own classes)
+* .NET core support & build - in BETA version (sice 3.0.0.0 version)
+* create highlevel classes for all mikrotik entities (you can still generate your own classes)
+* create tiklink project - easy use-to wrapper over mikrotik router with fluent API 
 * convert examples to separate unittests (in progress)
 
 Future:

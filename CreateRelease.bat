@@ -5,71 +5,63 @@ ECHO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 REM https://docs.microsoft.com/en-us/nuget/schema/target-frameworks#supported-frameworks
 
 mkdir ..\release
-mkdir ..\release\NET35
-mkdir ..\release\NET40
-mkdir ..\release\NET45
-mkdir ..\release\NET46
-mkdir ..\release\netstandard14
-mkdir ..\release\netstandard16
-mkdir ..\release\netstandard20
+mkdir ..\release\net35
+mkdir ..\release\net40
+mkdir ..\release\net452
+mkdir ..\release\net462
+mkdir ..\release\netcoreapp1.1
+mkdir ..\release\netcoreapp2.0
+mkdir ..\release\netstandard1.3
+mkdir ..\release\netstandard1.4
+mkdir ..\release\netstandard1.6
+REM mkdir ..\release\netstandard2.0
 mkdir ..\release\Tools
 
-del ..\release\NET35\*.* /Q 
-del ..\release\NET40\*.* /Q
-del ..\release\NET45\*.* /Q
-del ..\release\NET46\*.* /Q
+del ..\release\net35\*.* /Q 
+del ..\release\net40\*.* /Q
+del ..\release\net452\*.* /Q
+del ..\release\net462\*.* /Q
+del ..\release\netcoreapp1.1\*.* /Q
+del ..\release\netcoreapp2.0\*.* /Q
+del ..\release\netstandard1.3\*.* /Q
+del ..\release\netstandard1.4\*.* /Q
+del ..\release\netstandard1.6\*.* /Q
+REM del ..\release\netstandard2.0\*.* /Q
 del ..\release\Tools\*.* /Q
 
-REM .NET 3.5
-msbuild.exe tik4net/tik4net.csproj /p:DefineConstants="V35";TargetFrameworkVersion=v3.5;Configuration=Release /tv:14.0 /t:Clean
-msbuild.exe tik4net.objects/tik4net.objects.csproj /p:DefineConstants="V35";TargetFrameworkVersion=v3.5;Configuration=Release /tv:14.0 /t:Clean
-msbuild.exe tik4net/tik4net.csproj /p:DefineConstants="V35";TargetFrameworkVersion=v3.5;Configuration=Release /tv:14.0 /t:Rebuild
-msbuild.exe tik4net.objects/tik4net.objects.csproj /p:DefineConstants="V35";TargetFrameworkVersion=v3.5;Configuration=Release /tv:14.0 /t:Rebuild
-copy tik4net\bin\Release\tik4net.dll ..\release\NET35\ /Y
-copy tik4net.objects\bin\Release\tik4net.objects.dll ..\release\NET35\ /Y
+REM Build - Clean
+msbuild.exe tik4net/tik4net.csproj /p:Configuration=Release /t:Clean
+msbuild.exe tik4net.objects/tik4net.objects.csproj /p:Configuration=Release /t:Clean
+msbuild.exe Tools\tik4net.entitygenerator\tik4net.entitygenerator.csproj /p:Configuration=Release /t:Clean
+msbuild.exe Tools\tik4net.entityWikiImporter\tik4net.entityWikiImporter.csproj /p:Configuration=Release /t:Clean
+REM Build - Rebuild
+msbuild.exe tik4net/tik4net.csproj /p:Configuration=Release /t:Rebuild
+msbuild.exe tik4net.objects/tik4net.objects.csproj /p:Configuration=Release /t:Rebuild 
+msbuild.exe Tools\tik4net.entitygenerator\tik4net.entitygenerator.csproj /p:Configuration=Release /t:Rebuild
+msbuild.exe Tools\tik4net.entityWikiImporter\tik4net.entityWikiImporter.csproj /p:Configuration=Release /t:Rebuild
 
-REM .NET 4.0
-msbuild.exe tik4net/tik4net.csproj /p:DefineConstants="V40";TargetFrameworkVersion=v4.0;Configuration=Release /tv:14.0 /t:Clean
-msbuild.exe tik4net.objects/tik4net.objects.csproj /p:DefineConstants="V40";TargetFrameworkVersion=v4.0;Configuration=Release /tv:14.0 /t:Clean
-msbuild.exe tik4net/tik4net.csproj /p:DefineConstants="V40";TargetFrameworkVersion=v4.0;Configuration=Release /tv:14.0 /t:Rebuild
-msbuild.exe tik4net.objects/tik4net.objects.csproj /p:DefineConstants="V40";TargetFrameworkVersion=v4.0;Configuration=Release /tv:14.0 /t:Rebuild
-copy tik4net\bin\Release\tik4net.dll ..\release\NET40\ /Y
-copy tik4net.objects\bin\Release\tik4net.objects.dll ..\release\NET40\ /Y
-
-REM .NET 4.5.2
-msbuild.exe tik4net/tik4net.csproj /p:TargetFrameworkVersion=v4.5.2;Configuration=Release /tv:14.0 /t:Clean
-msbuild.exe tik4net.objects/tik4net.objects.csproj /p:TargetFrameworkVersion=v4.5.2;Configuration=Release /tv:14.0 /t:Clean
-msbuild.exe tik4net/tik4net.csproj /p:TargetFrameworkVersion=v4.5.2;Configuration=Release /tv:14.0 /t:Rebuild
-msbuild.exe tik4net.objects/tik4net.objects.csproj /p:TargetFrameworkVersion=v4.5.2;Configuration=Release /tv:14.0 /t:Rebuild
-copy tik4net\bin\Release\tik4net.dll ..\release\NET45\ /Y
-copy tik4net.objects\bin\Release\tik4net.objects.dll ..\release\NET45\ /Y
-
-REM .NET 4.6.1 (or defined in *.csproj)
-msbuild.exe tik4net/tik4net.csproj /p:Configuration=Release /tv:14.0 /t:Clean
-msbuild.exe tik4net.objects/tik4net.objects.csproj /p:Configuration=Release /tv:14.0 /t:Clean
-msbuild.exe tik4net/tik4net.csproj /p:Configuration=Release /tv:14.0 /t:Rebuild
-msbuild.exe tik4net.objects/tik4net.objects.csproj /p:Configuration=Release /tv:14.0 /t:Rebuild
-copy tik4net\bin\Release\tik4net.dll ..\release\NET46\ /Y
-copy tik4net.objects\bin\Release\tik4net.objects.dll ..\release\NET46\ /Y
-
-REM netstandard14, netstandard16
-msbuild.exe tik4net/tik4net.Core.csproj /p:DefineConstants="VCORE";Configuration=Release /t:Clean
-msbuild.exe tik4net.objects/tik4net.objects.Core.csproj /p:DefineConstants="VCORE";Configuration=Release /tv:15.0 /t:Clean
-msbuild.exe tik4net/tik4net.Core.csproj /p:DefineConstants="VCORE";Configuration=Release /tv:15.0  /t:Rebuild
-msbuild.exe tik4net.objects/tik4net.objects.Core.csproj /p:DefineConstants="VCORE";Configuration=Release /tv:15.0 /t:Rebuild
-copy tik4net\bin\Release\netstandard1.4\tik4net.dll ..\release\netstandard14\ /Y
-copy tik4net.objects\bin\Release\netstandard1.4\tik4net.objects.dll ..\release\netstandard14\ /Y
-copy tik4net\bin\Release\netstandard1.6\tik4net.dll ..\release\netstandard16\ /Y
-copy tik4net.objects\bin\Release\netstandard1.6\tik4net.objects.dll ..\release\netstandard16\ /Y
-
-REM tools
-msbuild.exe Tools\tik4net.entitygenerator\tik4net.entitygenerator.csproj /p:Configuration=Release /tv:14.0 /t:Clean
-msbuild.exe Tools\tik4net.entitygenerator\tik4net.entitygenerator.csproj /p:Configuration=Release /tv:14.0 /t:Rebuild
-msbuild.exe Tools\tik4net.entityWikiImporter\tik4net.entityWikiImporter.csproj /p:Configuration=Release /tv:14.0 /t:Clean
-msbuild.exe Tools\tik4net.entityWikiImporter\tik4net.entityWikiImporter.csproj /p:Configuration=Release /tv:14.0 /t:Rebuild
-
-copy tik4net\bin\Release\tik4net.dll ..\release\Tools\ /Y
-copy tik4net.objects\bin\Release\tik4net.objects.dll ..\release\Tools\ /Y
+REM Copyt to release dir
+copy tik4net\bin\Release\net35\tik4net.dll ..\release\net35\ /Y
+copy tik4net.objects\bin\Release\net35\tik4net.objects.dll ..\release\net35\ /Y
+copy tik4net\bin\Release\net40\tik4net.dll ..\release\net40\ /Y
+copy tik4net.objects\bin\Release\net40\tik4net.objects.dll ..\release\net40\ /Y
+copy tik4net\bin\Release\net452\tik4net.dll ..\release\net452\ /Y
+copy tik4net.objects\bin\Release\net452\tik4net.objects.dll ..\release\net452\ /Y
+copy tik4net\bin\Release\net462\tik4net.dll ..\release\net462\ /Y
+copy tik4net.objects\bin\Release\net462\tik4net.objects.dll ..\release\net462\ /Y
+copy tik4net\bin\Release\netcoreapp1.1\tik4net.dll ..\release\netcoreapp1.1\ /Y
+copy tik4net.objects\bin\Release\netcoreapp1.1\tik4net.objects.dll ..\release\netcoreapp1.1\ /Y
+copy tik4net\bin\Release\netcoreapp2.0\tik4net.dll ..\release\netcoreapp2.0\ /Y
+copy tik4net.objects\bin\Release\netcoreapp2.0\tik4net.objects.dll ..\release\netcoreapp2.0\ /Y
+copy tik4net\bin\Release\netstandard1.3\tik4net.dll ..\release\netstandard1.3\ /Y
+copy tik4net.objects\bin\Release\netstandard1.3\tik4net.objects.dll ..\release\netstandard1.3\ /Y
+copy tik4net\bin\Release\netstandard1.4\tik4net.dll ..\release\netstandard1.4\ /Y
+copy tik4net.objects\bin\Release\netstandard1.4\tik4net.objects.dll ..\release\netstandard1.4\ /Y
+copy tik4net\bin\Release\netstandard1.6\tik4net.dll ..\release\netstandard1.6\ /Y
+copy tik4net.objects\bin\Release\netstandard1.6\tik4net.objects.dll ..\release\netstandard1.6\ /Y
+REM copy tools
+copy tik4net\bin\Release\net462\tik4net.dll ..\release\Tools\ /Y
+copy tik4net.objects\bin\Release\net462\tik4net.objects.dll ..\release\Tools\ /Y
 copy Tools\tik4net.entityWikiImporter\bin\Release\HtmlAgilityPack.dll ..\release\Tools\ /Y
 copy Tools\tik4net.entityWikiImporter\bin\Release\tik4net.entityWikiImporter.exe.config   ..\release\Tools\ /Y
 copy Tools\tik4net.entityWikiImporter\bin\Release\tik4net.entityWikiImporter.exe  ..\release\Tools\ /Y
