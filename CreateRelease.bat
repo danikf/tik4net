@@ -59,6 +59,25 @@ copy tik4net\bin\Release\netstandard1.4\tik4net.dll ..\release\netstandard1.4\ /
 copy tik4net.objects\bin\Release\netstandard1.4\tik4net.objects.dll ..\release\netstandard1.4\ /Y
 copy tik4net\bin\Release\netstandard1.6\tik4net.dll ..\release\netstandard1.6\ /Y
 copy tik4net.objects\bin\Release\netstandard1.6\tik4net.objects.dll ..\release\netstandard1.6\ /Y
+REM documentation to release dir
+copy tik4net\bin\Release\net35\tik4net.xml ..\release\net35\ /Y
+copy tik4net.objects\bin\Release\net35\tik4net.objects.xml ..\release\net35\ /Y
+copy tik4net\bin\Release\net35\tik4net.xml ..\release\net40\ /Y
+copy tik4net.objects\bin\Release\net35\tik4net.objects.xml ..\release\net40\ /Y
+copy tik4net\bin\Release\net35\tik4net.xml ..\release\net452\ /Y
+copy tik4net.objects\bin\Release\net35\tik4net.objects.xml ..\release\net452\ /Y
+copy tik4net\bin\Release\net35\tik4net.xml ..\release\net462\ /Y
+copy tik4net.objects\bin\Release\net35\tik4net.objects.xml ..\release\net462\ /Y
+copy tik4net\bin\Release\net35\tik4net.xml ..\release\netcoreapp1.1\ /Y
+copy tik4net.objects\bin\Release\net35\tik4net.objects.xml ..\release\netcoreapp1.1\ /Y
+copy tik4net\bin\Release\net35\tik4net.xml ..\release\netcoreapp2.0\ /Y
+copy tik4net.objects\bin\Release\net35\tik4net.objects.xml ..\release\netcoreapp2.0\ /Y
+copy tik4net\bin\Release\net35\tik4net.xml ..\release\netstandard1.3\ /Y
+copy tik4net.objects\bin\Release\net35\tik4net.objects.xml ..\release\netstandard1.3\ /Y
+copy tik4net\bin\Release\net35\tik4net.xml ..\release\netstandard1.4\ /Y
+copy tik4net.objects\bin\Release\net35\tik4net.objects.xml ..\release\netstandard1.4\ /Y
+copy tik4net\bin\Release\net35\tik4net.xml ..\release\netstandard1.6\ /Y
+copy tik4net.objects\bin\Release\net35\tik4net.objects.xml ..\release\netstandard1.6\ /Y
 REM copy tools
 copy tik4net\bin\Release\net462\tik4net.dll ..\release\Tools\ /Y
 copy tik4net.objects\bin\Release\net462\tik4net.objects.dll ..\release\Tools\ /Y

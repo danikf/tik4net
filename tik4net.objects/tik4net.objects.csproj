@@ -28,6 +28,9 @@
    <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net35|AnyCPU'">
      <OutputPath>bin\Debug\</OutputPath>
    </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net35|AnyCPU'">
+     <DocumentationFile>bin\Release\net35\tik4net.objects.xml</DocumentationFile>
+   </PropertyGroup>
    <ItemGroup>
    </ItemGroup>
    <ItemGroup>
