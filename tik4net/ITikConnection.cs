@@ -35,6 +35,18 @@ namespace tik4net
         Encoding Encoding { get; set; }
 
         /// <summary>
+        ///     Gets or sets the amount of time a ITikConnection will wait for a send operation to complete successfully. In miliseconds.
+        /// </summary>
+        /// <remarks>Must be called before <see cref="Open(string, string, string)"/> call.</remarks>
+        int SendTimeout { get; set; }
+
+        /// <summary>
+        ///     Gets or sets the amount of time a ITikConnection will wait to receive data once a read operation is initiated. In miliseconds.
+        /// </summary>
+        /// <remarks>Must be called before <see cref="Open(string, string, string)"/> call.</remarks>
+        int ReceiveTimeout { get; set; }
+
+        /// <summary>
         /// Event called when row (word) from mikrotik is read by connection.
         /// </summary>
         /// <remarks>Could be used for debug/logging</remarks>

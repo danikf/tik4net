@@ -25,6 +25,8 @@ namespace tik4net.Api
         private volatile bool _isOpened = false;
         private bool _isSsl = false;
         private Encoding _encoding = Encoding.ASCII;
+        private int _sendTimeout;
+        private int _receiveTimeout;
         private TcpClient _tcpConnection;
         private /*NetworkStream*/System.IO.Stream _tcpConnectionStream;
         private SentenceList _readSentences = new SentenceList();
@@ -41,6 +43,18 @@ namespace tik4net.Api
         {
             get { return _encoding; }
             set { _encoding = value; }
+        }
+
+        public int SendTimeout
+        {
+            get { return _sendTimeout; }
+            set { _sendTimeout = value; }
+        }
+
+        public int ReceiveTimeout
+        {
+            get { return _receiveTimeout; }
+            set { _receiveTimeout = value; }
         }
 
         public bool IsSsl
@@ -88,11 +102,18 @@ namespace tik4net.Api
 
         public void Open(string host, int port, string user, string password)
         {
-            OpenAsyncIfPossible(host, port, user, password)
-#if !(NET20 || NET35 || NET40)
-                .Wait()
+#if NET20 || NET35 || NET40
+            OpenAsyncIfPossible(host, port, user, password);          
+#else
+            try
+            {
+                OpenAsyncIfPossible(host, port, user, password).Wait(); 
+            }
+            catch(Exception ex)
+            {
+                throw ex.InnerException; //for backward compatibility - we could not change exception types
+            }
 #endif
-                ;
         }
 
 #if !(NET20 || NET35 || NET40)
@@ -115,19 +136,28 @@ namespace tik4net.Api
         {
             //open connection
             _tcpConnection = new TcpClient();
+            if (_sendTimeout > 0)
+                _tcpConnection.SendTimeout = _sendTimeout;
+            if (_receiveTimeout > 0)
+                _tcpConnection.ReceiveTimeout = _receiveTimeout;
 #if NET20 || NET35 || NET40
             _tcpConnection.Connect(host, port);
 #else
             await _tcpConnection.ConnectAsync(host, port);
 #endif
 
+            var tcpStream = _tcpConnection.GetStream();
+            if (_receiveTimeout > 0)
+                tcpStream.ReadTimeout = _receiveTimeout;
+            if (_sendTimeout > 0)
+                tcpStream.WriteTimeout = _sendTimeout;
             if (!_isSsl)
             {
-                _tcpConnectionStream = _tcpConnection.GetStream();
+                _tcpConnectionStream = tcpStream;
             }
             else
             {
-                var sslStream = new SslStream(_tcpConnection.GetStream(), false,
+                var sslStream = new SslStream(tcpStream, false,
                     new RemoteCertificateValidationCallback(ValidateServerCertificate), null);                
 #if NET20 || NET35 || NET40
                 sslStream.AuthenticateAsClient(host/*, cCollection, SslProtocols.Default, true*/);

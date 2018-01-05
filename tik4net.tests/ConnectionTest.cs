@@ -1,6 +1,7 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -39,5 +40,25 @@ namespace tik4net.tests
             setCmd.ExecuteNonQuery();
         }
 
+        [TestMethod]
+        public void OpenSslConnectionWillNotFail()
+        {
+            using (var connection = ConnectionFactory.OpenConnection(TikConnectionType.ApiSsl, ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]))
+            {
+                connection.Close();
+            }
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(System.IO.IOException))]
+        public void OpenConnectionReceiveTimeoutWillThrowExceptionWhenShortTimeout()
+        {
+            using (var connection = ConnectionFactory.CreateConnection(TikConnectionType.ApiSsl))
+            {                
+                connection.ReceiveTimeout = 1;
+                connection.Open(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
+                connection.Close();
+            }
+        }
     }
 }
