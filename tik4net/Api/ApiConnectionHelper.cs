@@ -25,7 +25,7 @@ namespace tik4net.Api
             System.Security.Cryptography.MD5 md5;
 
 
-#if NET20 || NET35 || NET40 || NET45 || NET451 || NET452 || NET46 || NET461 || NET462 || NET47 || NET471
+#if NET20 || NET35 || NET40
             md5 = new System.Security.Cryptography.MD5CryptoServiceProvider();
 #else
             md5 = System.Security.Cryptography.MD5.Create();

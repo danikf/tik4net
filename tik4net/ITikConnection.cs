@@ -67,6 +67,29 @@ namespace tik4net
         /// <seealso cref="Close"/>
         void Open(string host, int port, string user, string password);
 
+#if !(NET20 || NET35 || NET40)
+        /// <summary>
+        /// Opens connection to the specified mikrotik host on default port (depends on technology) and perform the logon operation.
+        /// Awaitable version.
+        /// </summary>
+        /// <param name="host">The host.</param>
+        /// <param name="user">The user.</param>
+        /// <param name="password">The password.</param>
+        /// <seealso cref="Close"/>
+        System.Threading.Tasks.Task OpenAsync(string host, string user, string password);
+
+        /// <summary>
+        /// Opens connection to the specified mikrotik host on specified port and perform the logon operation.
+        /// Awaitable version.
+        /// </summary>
+        /// <param name="host">The host (name or ip).</param>
+        /// <param name="port">TCPIP port.</param>
+        /// <param name="user">The user.</param>
+        /// <param name="password">The password.</param>
+        /// <seealso cref="Close"/>
+        System.Threading.Tasks.Task OpenAsync(string host, int port, string user, string password);
+#endif
+
         /// <summary>
         /// Performs the logoff operation and closes connection. Called also via Dispose of connector.
         /// </summary>

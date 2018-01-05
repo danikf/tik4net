@@ -82,7 +82,7 @@ namespace tik4net.tests
         [TestMethod]
         public void ExecuteNonQuery_Update_Interface_Via_Name_In_Id_Will_Not_Fail()
         {
-            const string IP = "192.168.1.1/24";
+            //const string IP = "192.168.1.1/24";
             const string INTERFACE = "wlan1";
 
             //update interface name

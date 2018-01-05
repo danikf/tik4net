@@ -82,7 +82,7 @@ namespace tik4net.Objects
                 throw new ArgumentException("Property must be decorated by TikPropertyAttribute.", "propertyInfo");
             FieldName = propertyAttribute.FieldName;
             _isReadOnly =
-#if NET20 || NET35 || NET40 || NET45 || NET451 || NET452 || NET46 || NET461 || NET462 || NET47 || NET471
+#if NET20 || NET35 || NET40 
                 (propertyInfo.GetSetMethod() == null) 
 #else
                 (propertyInfo.SetMethod == null)
@@ -93,7 +93,7 @@ namespace tik4net.Objects
                 DefaultValue = propertyAttribute.DefaultValue;
             else
             {
-#if NET20 || NET35 || NET40 || NET45 || NET451 || NET452 || NET46 || NET461 || NET462 || NET47 || NET471
+#if NET20 || NET35 || NET40 
                 if (PropertyType.IsValueType)
 #else
                 if (PropertyType.GetTypeInfo().IsValueType)
@@ -129,7 +129,7 @@ namespace tik4net.Objects
                     return long.Parse(strValue);
                 else if (PropertyType == typeof(bool))
                     return string.Equals(strValue, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(strValue, "yes", StringComparison.OrdinalIgnoreCase);
-#if NET20 || NET35 || NET40 || NET45 || NET451 || NET452 || NET46 || NET461 || NET462 || NET47 || NET471
+#if NET20 || NET35 || NET40
                 else if (PropertyType.IsEnum)
                     return Enum.GetNames(PropertyType)
                         .Where(en => string.Equals(PropertyType.GetMember(en)[0].GetCustomAttribute<TikEnumAttribute>(false).Value, strValue, StringComparison.OrdinalIgnoreCase))
@@ -175,7 +175,7 @@ namespace tik4net.Objects
                 return ((long)propValue).ToString();
             else if (PropertyType == typeof(bool))
                 return ((bool)propValue) ? "yes" : "no"; //TODO add attribute definition for support true/false
-#if NET20 || NET35 || NET40 || NET45 || NET451 || NET452 || NET46 || NET461 || NET462 || NET47 || NET471
+#if NET20 || NET35 || NET40 
             else if (PropertyType.IsEnum)
                 return PropertyType.GetMember(propValue.ToString())[0].GetCustomAttribute<TikEnumAttribute>(false).Value; //TODO safer implementation
 #else

@@ -73,7 +73,7 @@ namespace tik4net.Api
                 WriteCommand(new string[] { "/quit" }); 
             }
             if (_tcpConnection.Connected)
-#if NET20 || NET35 || NET40 || NET45 || NET451 || NET452 || NET46 || NET461 || NET462 || NET47 || NET471
+#if NET20 || NET35 || NET40 || NET45 || NET451 || NET452
                 _tcpConnection.Close();
 #else
                 _tcpConnection.Dispose();
@@ -88,12 +88,37 @@ namespace tik4net.Api
 
         public void Open(string host, int port, string user, string password)
         {
+            OpenAsyncIfPossible(host, port, user, password)
+#if !(NET20 || NET35 || NET40)
+                .Wait()
+#endif
+                ;
+        }
+
+#if !(NET20 || NET35 || NET40)
+        public async System.Threading.Tasks.Task OpenAsync(string host, string user, string password)
+        {
+            await OpenAsync(host, _isSsl ? APISSL_DEFAULT_PORT : API_DEFAULT_PORT, user, password);
+        }
+
+        public async System.Threading.Tasks.Task OpenAsync(string host, int port, string user, string password)
+        {
+            await OpenAsyncIfPossible(host, port, user, password);
+        }
+#endif
+
+#if NET20 || NET35 || NET40
+        private void OpenAsyncIfPossible(string host, int port, string user, string password)
+#else
+        private async System.Threading.Tasks.Task OpenAsyncIfPossible(string host, int port, string user, string password)
+#endif
+        {
             //open connection
             _tcpConnection = new TcpClient();
-#if NET20 || NET35 || NET40 || NET45 || NET451 || NET452 || NET46 || NET461 || NET462 || NET47 || NET471
+#if NET20 || NET35 || NET40
             _tcpConnection.Connect(host, port);
 #else
-            _tcpConnection.ConnectAsync(host, port).Wait();
+            await _tcpConnection.ConnectAsync(host, port);
 #endif
 
             if (!_isSsl)
@@ -103,11 +128,11 @@ namespace tik4net.Api
             else
             {
                 var sslStream = new SslStream(_tcpConnection.GetStream(), false,
-                    new RemoteCertificateValidationCallback(ValidateServerCertificate), null);
-#if NET20 || NET35 || NET40 || NET45 || NET451 || NET452 || NET46 || NET461 || NET462 || NET47 || NET471
+                    new RemoteCertificateValidationCallback(ValidateServerCertificate), null);                
+#if NET20 || NET35 || NET40
                 sslStream.AuthenticateAsClient(host/*, cCollection, SslProtocols.Default, true*/);
 #else
-                sslStream.AuthenticateAsClientAsync(host).Wait();
+                await sslStream.AuthenticateAsClientAsync(host);
 #endif
                 _tcpConnectionStream = sslStream;
             }
@@ -253,6 +278,7 @@ namespace tik4net.Api
 
                 _tcpConnectionStream.Write(length, 0, length.Length); //write length of comming sentence
                 _tcpConnectionStream.Write(bytes, 0, bytes.Length);   //write sentence body
+
                 if (OnWriteRow != null)
                     OnWriteRow(this, new TikConnectionCommCallbackEventArgs(row));
             }
