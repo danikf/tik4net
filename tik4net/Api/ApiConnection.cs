@@ -103,13 +103,13 @@ namespace tik4net.Api
         public void Open(string host, int port, string user, string password)
         {
 #if NET20 || NET35 || NET40
-            OpenAsyncIfPossible(host, port, user, password);          
+            OpenSyncInternal(host, port, user, password);          
 #else
             bool success;
             try
             {
                 int waitMiliseconds = ReceiveTimeout > 0 ? ReceiveTimeout * 2 : 5 * 1000;
-                success = OpenAsyncIfPossible(host, port, user, password).Wait(waitMiliseconds);
+                success = OpenAsyncInternal(host, port, user, password).Wait(waitMiliseconds);
             }
             catch(Exception ex)
             {
@@ -129,14 +129,14 @@ namespace tik4net.Api
 
         public async System.Threading.Tasks.Task OpenAsync(string host, int port, string user, string password)
         {
-            await OpenAsyncIfPossible(host, port, user, password);
+            await OpenAsyncInternal(host, port, user, password);
         }
 #endif
 
 #if NET20 || NET35 || NET40
-        private void OpenAsyncIfPossible(string host, int port, string user, string password)
+        private void OpenSyncInternal(string host, int port, string user, string password)
 #else
-        private async System.Threading.Tasks.Task OpenAsyncIfPossible(string host, int port, string user, string password)
+        private async System.Threading.Tasks.Task OpenAsyncInternal(string host, int port, string user, string password)
 #endif
         {
             //open connection
