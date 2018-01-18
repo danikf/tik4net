@@ -82,7 +82,8 @@ namespace tik4net
 #if !(NET20 || NET35 || NET40)
         /// <summary>
         /// Opens connection to the specified mikrotik host on default port (depends on technology) and perform the logon operation.
-        /// Awaitable version.
+        /// Awaitable version. Default timeout is <see cref="ReceiveTimeout"/>x2 or 5s if not set.
+        /// REMARKS: don't forget to use Wait overload with timeout if you use it in OpenAsync(...).Wait(timeout) way.
         /// </summary>
         /// <param name="host">The host.</param>
         /// <param name="user">The user.</param>

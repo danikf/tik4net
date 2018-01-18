@@ -105,14 +105,19 @@ namespace tik4net.Api
 #if NET20 || NET35 || NET40
             OpenAsyncIfPossible(host, port, user, password);          
 #else
+            bool success;
             try
             {
-                OpenAsyncIfPossible(host, port, user, password).Wait(); 
+                int waitMiliseconds = ReceiveTimeout > 0 ? ReceiveTimeout * 2 : 5 * 1000;
+                success = OpenAsyncIfPossible(host, port, user, password).Wait(waitMiliseconds);
             }
             catch(Exception ex)
             {
                 throw ex.InnerException; //for backward compatibility - we could not change exception types
             }
+
+            if (!success)
+                throw new TikConnectionException("Connection could not be opened.");
 #endif
         }
 
