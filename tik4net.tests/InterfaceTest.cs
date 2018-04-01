@@ -111,5 +111,13 @@ namespace tik4net.tests
             Assert.IsTrue(responses.Count > 0);
             cmd.CancelAndJoin(2 * 1000);
         }
+
+        [TestMethod]
+        public void WirelessInterfaceResaveWillNotFail()
+        {
+            var iface = Connection.LoadAll<InterfaceWireless>().First(wlan => wlan.Name == "wlan1");
+            iface.Comment = "test";
+            Connection.Save(iface);
+        }
     }
 }

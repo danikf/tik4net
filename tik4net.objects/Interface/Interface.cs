@@ -26,8 +26,8 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// default-name
         /// </summary>
-        [TikProperty("default-name")]
-        public string DefaultName { get; set; }
+        [TikProperty("default-name", IsReadOnly = true)]
+        public string DefaultName { get; private set; }
 
         /// <summary>
         /// type
