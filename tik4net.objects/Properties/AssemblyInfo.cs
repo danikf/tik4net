@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Daniel Frantik")]
 [assembly: AssemblyProduct("tik4net.objects")]
-[assembly: AssemblyCopyright("Copyright © Daniel Frantik 2015")]
+[assembly: AssemblyCopyright("Copyright © Daniel Frantik 2018")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 // Setting ComVisible to false makes the types in this assembly not visible 

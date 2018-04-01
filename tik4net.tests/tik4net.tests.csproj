@@ -68,6 +68,7 @@
     <Compile Include="TikCommandTest.cs" />
     <Compile Include="TikTimeHelperTests.cs" />
     <Compile Include="IpDnsTest.cs" />
+    <Compile Include="ToolTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\tik4net.objects\tik4net.objects.csproj">

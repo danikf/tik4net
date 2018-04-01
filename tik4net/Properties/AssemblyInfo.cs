@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Daniel Frantik")]
 [assembly: AssemblyProduct("tik4net")]
-[assembly: AssemblyCopyright("Copyright © Daniel Frantik 2015")]
+[assembly: AssemblyCopyright("Copyright © Daniel Frantik 2018")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
