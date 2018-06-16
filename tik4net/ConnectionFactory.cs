@@ -15,16 +15,17 @@ namespace tik4net
         /// Creates mikrotik Connection of given type.
         /// </summary>
         /// <param name="connectionType">Type of technology used to connect to mikrotik router.</param>
+        /// <param name="oldLogin">Set "true" for older then RouterOS version 6.43 Login method.</param>
         /// <returns>Instance of mikrotik Connection.</returns>
         /// <seealso cref="ITikConnection.Open(string, string, string)"/>
-        public static ITikConnection CreateConnection(TikConnectionType connectionType)
+        public static ITikConnection CreateConnection(TikConnectionType connectionType, bool oldLogin = false)
         {
             switch (connectionType)
             {
                 case TikConnectionType.Api:
-                    return new ApiConnection(false);
+                    return new ApiConnection(false, oldLogin);
                 case TikConnectionType.ApiSsl:
-                    return new ApiConnection(true);
+                    return new ApiConnection(true, oldLogin);
                 default:
                     throw new NotImplementedException(string.Format("Connection type '{0}' not supported.", connectionType));
             }

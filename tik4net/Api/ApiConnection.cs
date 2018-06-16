@@ -24,6 +24,7 @@ namespace tik4net.Api
         private readonly object _readLockObj = new object();
         private volatile bool _isOpened = false;
         private bool _isSsl = false;
+        private bool _isOldLogin = false;
         private Encoding _encoding = Encoding.ASCII;
         private int _sendTimeout;
         private int _receiveTimeout;
@@ -62,9 +63,15 @@ namespace tik4net.Api
             get { return _isSsl; }
         }
 
-        public ApiConnection(bool isSsl)
+        public bool IsOldLogin
+        {
+            get { return _isOldLogin; }
+        }
+
+        public ApiConnection(bool isSsl,bool isOldLogin = false)
         {
             _isSsl = isSsl;
+            _isOldLogin = isOldLogin;
         }
 
         private void EnsureOpened()
@@ -173,11 +180,23 @@ namespace tik4net.Api
             }
 
             //login
-            Login(user, password);
+            if (_isOldLogin)
+                LoginOld(user, password);
+            else
+                Login(user, password);
+
             _isOpened = true;
         }
 
         private void Login(string user, string password)
+        {
+            //login connection
+            ApiCommand loginCommand = new ApiCommand(this, "/login", TikCommandParameterFormat.NameValue,
+                new ApiCommandParameter("name", user), new ApiCommandParameter("password", password));
+            loginCommand.ExecuteNonQuery();
+        }
+
+        private void LoginOld(string user, string password)
         {
             //Get login hash
             ApiCommand readLoginHashCommand = new ApiCommand(this, "/login");
