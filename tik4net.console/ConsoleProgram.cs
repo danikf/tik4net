@@ -38,7 +38,8 @@ namespace tik4net.console
                             }
                             var result = connection.CallCommandSync(rows.ToArray());
                             foreach (var resultItem in result)
-                                Console.WriteLine(resultItem.Words);
+                                foreach(var word in resultItem.Words)
+                                    Console.WriteLine(word);
 
                             commandRows.Clear();
                         }
