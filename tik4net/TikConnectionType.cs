@@ -19,6 +19,14 @@ namespace tik4net
         /// </summary>
         ApiSsl,
         /// <summary>
+        /// Mikrotik API connection for then RouterOS version 6.43 and newer.
+        /// </summary>
+        Api_v2,
+        /// <summary>
+        /// Mikrotik API-SSL connection for then RouterOS version 6.43 and newer. (supports only mode with certificate on mikrotik). See https://github.com/danikf/tik4net/wiki/SSL-connection for details. 
+        /// </summary>
+        ApiSsl_v2,
+        /// <summary>
         /// SSH connection - NOT IMPLEMENTED YET.
         /// </summary>
         [Obsolete("For future use.", true)]        
