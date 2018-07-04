@@ -131,16 +131,26 @@ namespace tik4net.Api
             bool success;
             try
             {
-                int waitMiliseconds = ReceiveTimeout > 0 ? ReceiveTimeout * 2 : 5 * 1000;
-                success = OpenAsyncInternal(host, port, user, password).Wait(waitMiliseconds);
+                int waitForConnectionOpenMiliseconds;
+                if (ReceiveTimeout > 0)
+                    waitForConnectionOpenMiliseconds = ReceiveTimeout * 2;
+                else if (_isSsl)
+                    waitForConnectionOpenMiliseconds = 20 * 1000;
+                else
+                    waitForConnectionOpenMiliseconds = 10 * 1000;
+                success = OpenAsyncInternal(host, port, user, password).Wait(waitForConnectionOpenMiliseconds);
+
+                if (!success)
+                    throw new TikConnectionException("Connection open timeout.");
+            }
+            catch(TikConnectionException)
+            {
+                throw;
             }
             catch(Exception ex)
             {
                 throw ex.InnerException; //for backward compatibility - we could not change exception types
             }
-
-            if (!success)
-                throw new TikConnectionException("Connection could not be opened.");
 #endif
         }
 

@@ -9,6 +9,14 @@ It has 3 parts:
 * [O/R mapper like highlevel API](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper) with imported mikrotik strong-typed entities. (tik4net.objects.dll) 
 * Tools - semi-automatic generators of custom entity C# code (for usage with tik4net.objects.dll)
 
+#Features
+* Easy to use with [O/R mapper like highlevel API](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper)
+* Low level access supported by [low level API](https://github.com/danikf/tik4net/wiki/Low-level-API) 
+* Stable interface and backward compatibility
+* Broad range of .NET runtimes supported (including .NET core 2 and Xamarin)
+* New mikrotik v.6.43 login process supported
+* Easy to understand and well documented code
+
 # Binaries
 * [nuget](https://www.nuget.org/packages/tik4net/)
 * [dlls download](http://forum.mikrotik.com/viewtopic.php?t=99954)
@@ -73,7 +81,6 @@ Builded binaries (dlls) could be downloaded from [mikrotik official forum](http:
 * Looking for betatesters
 
 # Roadmap
-* .NET core support & build - in BETA version (sice 3.0.0.0 version)
 * create highlevel classes for all mikrotik entities (you can still generate your own classes)
 * create tiklink project - easy use-to wrapper over mikrotik router with fluent API 
 * convert examples to separate unittests (in progress)
