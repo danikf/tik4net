@@ -110,11 +110,15 @@ namespace tik4net.Api
                 WriteCommand(new string[] { "/quit" }); 
             }
             if (_tcpConnection.Connected)
+            {
 #if NET20 || NET35 || NET40 || NET45 || NET451 || NET452
+                _tcpConnectionStream.Close();
                 _tcpConnection.Close();
 #else
+                _tcpConnectionStream.Dispose();
                 _tcpConnection.Dispose();
 #endif
+            }
             _isOpened = false;        
         }
 
@@ -125,63 +129,16 @@ namespace tik4net.Api
 
         public void Open(string host, int port, string user, string password)
         {
-#if NET20 || NET35 || NET40
-            OpenSyncInternal(host, port, user, password);          
-#else
-            bool success;
-            try
-            {
-                int waitForConnectionOpenMiliseconds;
-                if (ReceiveTimeout > 0)
-                    waitForConnectionOpenMiliseconds = ReceiveTimeout * 2;
-                else if (_isSsl)
-                    waitForConnectionOpenMiliseconds = 20 * 1000;
-                else
-                    waitForConnectionOpenMiliseconds = 10 * 1000;
-                success = OpenAsyncInternal(host, port, user, password).Wait(waitForConnectionOpenMiliseconds);
-
-                if (!success)
-                    throw new TikConnectionException("Connection open timeout.");
-            }
-            catch(TikConnectionException)
-            {
-                throw;
-            }
-            catch(Exception ex)
-            {
-                throw ex.InnerException; //for backward compatibility - we could not change exception types
-            }
-#endif
-        }
-
-#if !(NET20 || NET35 || NET40)
-        public async System.Threading.Tasks.Task OpenAsync(string host, string user, string password)
-        {
-            await OpenAsync(host, _isSsl ? APISSL_DEFAULT_PORT : API_DEFAULT_PORT, user, password);
-        }
-
-        public async System.Threading.Tasks.Task OpenAsync(string host, int port, string user, string password)
-        {
-            await OpenAsyncInternal(host, port, user, password);
-        }
-#endif
-
-#if NET20 || NET35 || NET40
-        private void OpenSyncInternal(string host, int port, string user, string password)
-#else
-        private async System.Threading.Tasks.Task OpenAsyncInternal(string host, int port, string user, string password)
-#endif
-        {
             //open connection
             _tcpConnection = new TcpClient();
             if (_sendTimeout > 0)
                 _tcpConnection.SendTimeout = _sendTimeout;
             if (_receiveTimeout > 0)
                 _tcpConnection.ReceiveTimeout = _receiveTimeout;
-#if NET20 || NET35 || NET40
-            _tcpConnection.Connect(host, port);
+#if (NETCOREAPP1_1 || NETSTANDARD1_3 || NETSTANDARD1_4 || NETSTANDARD1_6)
+            _tcpConnection.ConnectAsync(host, port).GetAwaiter().GetResult();
 #else
-            await _tcpConnection.ConnectAsync(host, port);
+            _tcpConnection.Connect(host, port);
 #endif
 
             var tcpStream = _tcpConnection.GetStream();
@@ -196,17 +153,65 @@ namespace tik4net.Api
             else
             {
                 var sslStream = new SslStream(tcpStream, false,
-                    new RemoteCertificateValidationCallback(ValidateServerCertificate), null);                
-#if NET20 || NET35 || NET40
-                sslStream.AuthenticateAsClient(host/*, cCollection, SslProtocols.Default, true*/);
+                    new RemoteCertificateValidationCallback(ValidateServerCertificate), null);
+
+#if (NETCOREAPP1_1 || NETSTANDARD1_3 || NETSTANDARD1_4 || NETSTANDARD1_6)
+                sslStream.AuthenticateAsClientAsync(host).GetAwaiter().GetResult();
 #else
-                await sslStream.AuthenticateAsClientAsync(host);
+                sslStream.AuthenticateAsClient(host);
 #endif
                 _tcpConnectionStream = sslStream;
             }
 
-            //login
-            switch(_loginProcessVersion)
+            LoginInternal(user, password);
+
+            _isOpened = true;
+        }
+
+#if !(NET20 || NET35 || NET40)
+        public async System.Threading.Tasks.Task OpenAsync(string host, string user, string password)
+        {
+            await OpenAsync(host, _isSsl ? APISSL_DEFAULT_PORT : API_DEFAULT_PORT, user, password);
+        }
+
+        public async System.Threading.Tasks.Task OpenAsync(string host, int port, string user, string password)
+        {
+            //open connection
+            _tcpConnection = new TcpClient();
+            if (_sendTimeout > 0)
+                _tcpConnection.SendTimeout = _sendTimeout;
+            if (_receiveTimeout > 0)
+                _tcpConnection.ReceiveTimeout = _receiveTimeout;
+
+            await _tcpConnection.ConnectAsync(host, port);
+
+            var tcpStream = _tcpConnection.GetStream();
+            if (_receiveTimeout > 0)
+                tcpStream.ReadTimeout = _receiveTimeout;
+            if (_sendTimeout > 0)
+                tcpStream.WriteTimeout = _sendTimeout;
+            if (!_isSsl)
+            {
+                _tcpConnectionStream = tcpStream;
+            }
+            else
+            {
+                var sslStream = new SslStream(tcpStream, false,
+                    new RemoteCertificateValidationCallback(ValidateServerCertificate), null);
+                await sslStream.AuthenticateAsClientAsync(host);
+                _tcpConnectionStream = sslStream;
+            }
+
+            LoginInternal(user, password);
+
+            _isOpened = true;
+
+        }
+#endif
+
+        private void LoginInternal(string user, string password)
+        {            
+            switch (_loginProcessVersion)
             {
                 case LoginProcessVersion.Version1:
                     Login_v1(user, password, true);
@@ -217,7 +222,6 @@ namespace tik4net.Api
                 default:
                     throw new NotImplementedException(string.Format("Unsuported login process version {0}", _loginProcessVersion));
             }
-            _isOpened = true;
         }
 
         private void Login_v1(string user, string password, bool allowLoginProcessVersion2Fallback)

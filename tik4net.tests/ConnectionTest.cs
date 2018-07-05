@@ -56,13 +56,13 @@ namespace tik4net.tests
         }
 
         [TestMethod]
-        [ExpectedException(typeof(AggregateException))]
+        [ExpectedException(typeof(System.IO.IOException))]
         public void OpenConnectionReceiveTimeoutWillThrowExceptionWhenShortTimeout()
         {
             using (var connection = ConnectionFactory.CreateConnection(TikConnectionType.ApiSsl))
             {                
-                connection.ReceiveTimeout = 1; //very short timeout + using async version to avoid conflict with Wait(timeout) code in sync version.
-                connection.OpenAsync(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]).Wait();
+                connection.ReceiveTimeout = 1; //very short timeout
+                connection.Open(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
                 connection.Close();
             }
         }
@@ -79,7 +79,7 @@ namespace tik4net.tests
         }
 
         [TestMethod]
-        [ExpectedException(typeof(TikConnectionException))]
+        [ExpectedException(typeof(System.Net.Sockets.SocketException))]
         public void OpenConnectionToUnaccessibleAddressThrowsExceptionAfterTimeout()
         {
             using (var connection = ConnectionFactory.CreateConnection(TikConnectionType.ApiSsl))
@@ -88,6 +88,34 @@ namespace tik4net.tests
                 connection.Open("192.168.99.1" /*Not accessible IP*/, ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
                 connection.Close();
             }
+        }
+
+        [TestMethod]
+        public void OpenAsyncWillNotFail()
+        {
+            Task.Run(async () =>
+                {
+                    using (var connection = ConnectionFactory.CreateConnection(TikConnectionType.ApiSsl))
+                    {
+                        connection.ReceiveTimeout = 500; //wait for 2x 500ms
+                        await connection.OpenAsync(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
+                    }
+                }).GetAwaiter().GetResult();
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(System.IO.IOException))]
+        public void OpenConnectionAsyncReceiveTimeoutWillThrowExceptionWhenShortTimeout()
+        {
+            Task.Run(async () =>
+            {
+                using (var connection = ConnectionFactory.CreateConnection(TikConnectionType.ApiSsl))
+                {
+                    connection.ReceiveTimeout = 1; //very short timeout + using async version 
+                    connection.OpenAsync(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]).GetAwaiter().GetResult();
+                    connection.Close();
+                }
+            }).GetAwaiter().GetResult();
         }
     }
 }
