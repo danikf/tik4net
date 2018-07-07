@@ -117,5 +117,24 @@ namespace tik4net.tests
                 }
             }).GetAwaiter().GetResult();
         }
+
+        [TestMethod]
+        public void CallCommandSync_With_Inlined_Tag_Will_Not_HangUp_Or_Fail()
+        {
+            // read with tag formated directly in command
+            using (var connection = ConnectionFactory.OpenConnection(TikConnectionType.ApiSsl, ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]))
+            {
+                string[] commandRows = new string[]
+                {
+                    "/system/health/print",
+                    TikSpecialProperties.Tag+"=1234"
+                };
+                var result = connection.CallCommandSync(commandRows);
+
+                Assert.IsTrue(result.Count() == 2);
+                Assert.IsTrue(result.Count(s=>s is ITikReSentence) == 1);
+                Assert.IsTrue(result.Count(s => s is ITikDoneSentence) == 1);
+            }            
+        }
     }
 }

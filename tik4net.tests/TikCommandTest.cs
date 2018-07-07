@@ -91,6 +91,13 @@ namespace tik4net.tests
                 ".id", INTERFACE);
             updateCommand.ExecuteNonQuery();
         }
+
+        [TestMethod]
+        public void ExecuteSingleRow_With_Tag_Parameter_Will_Not_HangUp_Or_Fail()
+        {
+            var command = Connection.CreateCommandAndParameters("/system/health/print", TikSpecialProperties.Tag, "1234");
+            command.ExecuteSingleRow();
+        }
     }
 }
 

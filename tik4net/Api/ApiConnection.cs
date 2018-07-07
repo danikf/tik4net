@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 
 namespace tik4net.Api
@@ -163,9 +164,8 @@ namespace tik4net.Api
                 _tcpConnectionStream = sslStream;
             }
 
-            LoginInternal(user, password);
-
             _isOpened = true;
+            LoginInternal(user, password);            
         }
 
 #if !(NET20 || NET35 || NET40)
@@ -202,10 +202,8 @@ namespace tik4net.Api
                 _tcpConnectionStream = sslStream;
             }
 
-            LoginInternal(user, password);
-
             _isOpened = true;
-
+            LoginInternal(user, password);           
         }
 #endif
 
@@ -429,28 +427,40 @@ namespace tik4net.Api
             //NOTE both !trap and !fatal are followed with !done
         }
 
+        private static readonly Regex tagRegex = new Regex($"^{TikSpecialProperties.Tag}=(?<TAG>.+)$");
         public IEnumerable<ITikSentence> CallCommandSync(params string[] commandRows)
         {
+            EnsureOpened();
+
+            //read .tag from commandRows - if present
+            var tagOrEmptyString = string.Empty;            
+            foreach(var row in commandRows)
+            {
+                var match = tagRegex.Match(row);
+                if (match.Success)
+                {
+                    tagOrEmptyString = match.Groups["TAG"].Value;
+                    break;
+                }
+            }
+
             lock (_writeLockObj)
             {
                 WriteCommand(commandRows);
             }
-            return GetAll(string.Empty).ToList();
+            return GetAll(tagOrEmptyString).ToList();
         }
 
         public IEnumerable<ITikSentence> CallCommandSync(IEnumerable<string> commandRows)
         {
-            lock (_writeLockObj)
-            {
-                WriteCommand(commandRows);
-            }
-            return GetAll(string.Empty).ToList();
+            return CallCommandSync(commandRows.ToArray());
         }
 
         public Thread CallCommandAsync(IEnumerable<string> commandRows, string tag, 
             Action<ITikSentence> oneResponseCallback)
         {            
             Guard.ArgumentNotNullOrEmptyString(tag, "tag");
+            EnsureOpened();
 
             commandRows = commandRows.Concat(new string[] { string.Format("{0}={1}", TikSpecialProperties.Tag, tag) });
             lock (_writeLockObj)

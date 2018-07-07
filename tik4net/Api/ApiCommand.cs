@@ -10,7 +10,7 @@ namespace tik4net.Api
     {
         private static volatile int _tagCounter = 0;
         private volatile bool _isRuning;
-        private volatile int _runningTag;
+        private volatile int _asynchronouslyRunningTag;
         private volatile Thread _asyncLoadingThread;
         private readonly List<ITikCommandParameter> _parameters = new List<ITikCommandParameter>();
         private ApiConnection _connection;
@@ -120,10 +120,12 @@ namespace tik4net.Api
                 throw new InvalidOperationException("CommandText is not set.");
         }
 
-        private TikCommandParameterFormat ResolveParameterFormat(TikCommandParameterFormat usecaseDefaultFormat, TikCommandParameterFormat commandDefaultFormat, TikCommandParameterFormat parameterFormat)
+        private TikCommandParameterFormat ResolveParameterFormat(TikCommandParameterFormat usecaseDefaultFormat, TikCommandParameterFormat commandDefaultFormat, ITikCommandParameter parameter)
         {
-            if (parameterFormat != TikCommandParameterFormat.Default)
-                return parameterFormat;
+            if (parameter.ParameterFormat != TikCommandParameterFormat.Default)
+                return parameter.ParameterFormat;
+            else if (parameter.Name == TikSpecialProperties.Tag)
+                return TikCommandParameterFormat.Tag; //.tag=1231
             else if (commandDefaultFormat != TikCommandParameterFormat.Default)
                 return commandDefaultFormat;
             else if (usecaseDefaultFormat != TikCommandParameterFormat.Default)
@@ -153,12 +155,14 @@ namespace tik4net.Api
             //parameters
             result.AddRange(_parameters.Select(p =>
             {
-                switch (ResolveParameterFormat(defaultParameterFormat, _defaultParameterFormat, p.ParameterFormat))
+                switch (ResolveParameterFormat(defaultParameterFormat, _defaultParameterFormat, p))
                 {
                     case TikCommandParameterFormat.Filter:
                         return string.Format("?{0}={1}", p.Name, p.Value);
                     case TikCommandParameterFormat.NameValue:
                         return string.Format("={0}={1}", p.Name, p.Value);
+                    case TikCommandParameterFormat.Tag:
+                        return string.Format("{0}={1}", p.Name, p.Value);
                     //case TikCommandParameterFormat.NameOnly:
                     //      return string.Format("={0}", p.Name);
                     default:
@@ -337,7 +341,7 @@ namespace tik4net.Api
 
             int tag = Interlocked.Increment(ref _tagCounter);
             _isRuning = true;
-            _runningTag = tag;
+            _asynchronouslyRunningTag = tag;
 
             try
             {
@@ -371,7 +375,7 @@ namespace tik4net.Api
                                                 {
                                                     //REMARKS: we are expecting !trap + !done sentences when any error occurs
                                                     _isRuning = false;
-                                                    _runningTag = -1;
+                                                    _asynchronouslyRunningTag = -1;
                                                     _asyncLoadingThread = null;
                                                 }
                                             }
@@ -380,7 +384,7 @@ namespace tik4net.Api
             catch
             {
                 _isRuning = false;
-                _runningTag = -1;
+                _asynchronouslyRunningTag = -1;
                 throw;
             }
             finally
@@ -428,9 +432,9 @@ namespace tik4net.Api
 
         private bool CancelInternal(bool joinLoadingThread, int milisecondsTimeout)
         {
-            if (_isRuning && _runningTag >= 0)
+            if (_isRuning && _asynchronouslyRunningTag >= 0)
             {
-                 ApiCommand cancellCommand = new ApiCommand(_connection, "/cancel", new ApiCommandParameter(TikSpecialProperties.Tag, _runningTag.ToString())); //REMARKS: =tag=1234 and not =.tag=1234                
+                 ApiCommand cancellCommand = new ApiCommand(_connection, "/cancel", new ApiCommandParameter(TikSpecialProperties.Tag, _asynchronouslyRunningTag.ToString(), TikCommandParameterFormat.NameValue)); //REMARKS: =tag=1234 and not =.tag=1234                
                  cancellCommand.ExecuteNonQuery();
                 if (joinLoadingThread)
                 {

@@ -6,9 +6,10 @@ using System.Text;
 namespace tik4net
 {
     /// <summary>
-    /// Provides ADO.NET like api to mikrotik router. Should be used inside of opened <seealso cref="ITikConnection"/>.s
+    /// Provides ADO.NET like api to mikrotik router. Should be used inside of opened <seealso cref="ITikConnection"/>.
     /// </summary>
     /// <seealso cref="ITikConnection"/>
+    /// <seealso cref="ITikConnection.CreateCommand"/>
     /// <seealso cref="TikCommandException"/>
     public interface ITikCommand
     {
@@ -51,7 +52,7 @@ namespace tik4net
         string ExecuteScalar();
 
         /// <summary>
-        /// Executes given <see cref="CommandText"/> on router and ensures that operation returns exactly one row (1x !re and 1x !done) as result.
+        /// Executes given <see cref="CommandText"/> on router and ensures that operation returns exactly one row (1x !re and 1x !done) as result.        
         /// </summary>
         /// <returns>Content of !re sentence.</returns>
         ITikReSentence ExecuteSingleRow();

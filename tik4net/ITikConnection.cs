@@ -183,7 +183,7 @@ namespace tik4net
 
 
         /// <summary>
-        /// Calls command to mikrotik (in connection specific format) and waits for response. Command is called without .tag.
+        /// Calls command to mikrotik (in connection specific format) and waits for response. Command is called without .tag. If you want to use it, just add it as usual parameter (.tag=1234) as last row.
         /// </summary>
         /// <param name="commandRows">Rows of one command to be send to mikrotik router (in conection specific format).</param>
         /// <returns>List of returned sentences.</returns>
@@ -198,7 +198,7 @@ namespace tik4net
         IEnumerable<ITikSentence> CallCommandSync(params string[] commandRows);
 
         /// <summary>
-        /// Calls command to mikrotik (in connection specific format) and waits for response. Command is called without .tag.
+        /// Calls command to mikrotik (in connection specific format) and waits for response. Command is called without .tag. If you want to use it, just add it as usual parameter (.tag=1234) as last row.
         /// </summary>
         /// <param name="commandRows">Rows of one command to be send to mikrotik router (in conection specific format).</param>
         /// <returns>List of returned sentences.</returns>
