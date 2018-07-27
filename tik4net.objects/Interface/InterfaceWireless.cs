@@ -798,7 +798,7 @@ namespace tik4net.Objects.Interface
             /// <summary>
             /// all-rated-fixed - use same transmit power for all data rates. Can damage the card if transmit power is set above rated value of the card for used rate
             /// </summary>
-            [TikEnum("all-rated-fixed")]
+            [TikEnum("all-rates-fixed")]
             AllRatesFixed,
 
             /// <summary>
