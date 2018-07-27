@@ -60,7 +60,7 @@ namespace tik4net.tests
         public void OpenConnectionReceiveTimeoutWillThrowExceptionWhenShortTimeout()
         {
             using (var connection = ConnectionFactory.CreateConnection(TikConnectionType.ApiSsl))
-            {                
+            {
                 connection.ReceiveTimeout = 1; //very short timeout
                 connection.Open(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
                 connection.Close();
@@ -132,9 +132,21 @@ namespace tik4net.tests
                 var result = connection.CallCommandSync(commandRows);
 
                 Assert.IsTrue(result.Count() == 2);
-                Assert.IsTrue(result.Count(s=>s is ITikReSentence) == 1);
+                Assert.IsTrue(result.Count(s => s is ITikReSentence) == 1);
                 Assert.IsTrue(result.Count(s => s is ITikDoneSentence) == 1);
-            }            
+            }
         }
+
+        //[TestMethod]
+        //public void CallCommandSync_Reboot_Will_Not_HangUp()
+        //{
+        //    // read with tag formated directly in command
+        //    using (var connection = ConnectionFactory.OpenConnection(TikConnectionType.ApiSsl, ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]))
+        //    {
+        //        //var result = connection.CallCommandSync("/system/reboot");                
+        //        var command = connection.CreateCommand("/system/reboot");
+        //        command.ExecuteNonQuery();
+        //    }
+        //}
     }
 }

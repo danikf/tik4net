@@ -98,20 +98,28 @@ namespace tik4net.Api
         }
 
         public void Close()
-        {            
-            if (!_isSsl)
+        {
+            try
             {
-                //NOTE: returns !fatal => can not use standard ExecuteNonQuery call (should not throw exception)
-                var responseSentences = CallCommandSync(new string[] { "/quit" });
-                //TODO should return single response of ApiFatalSentence with message "session terminated on request" - test and warning if not?
+                if (!_isSsl)
+                {
+                    //NOTE: returns !fatal => can not use standard ExecuteNonQuery call (should not throw exception)
+                    var responseSentences = CallCommandSync(new string[] { "/quit" });
+                    //TODO should return single response of ApiFatalSentence with message "session terminated on request" - test and warning if not?
+                }
+                else
+                {
+                    //NOTE: No result returned when SSL & /quit => do not read response (possible bug in SSL-API?)
+                    WriteCommand(new string[] { "/quit" });
+                }
             }
-            else
+            catch(IOException)
             {
-                //NOTE: No result returned when SSL & /quit => do not read response (possible bug in SSL-API?)
-                WriteCommand(new string[] { "/quit" }); 
+                // catch exception if connection is closed
             }
-            if (_tcpConnection.Connected)
-            {
+
+            //if (_tcpConnection.Connected)
+            //{
 #if NET20 || NET35 || NET40 || NET45 || NET451 || NET452
                 _tcpConnectionStream.Close();
                 _tcpConnection.Close();
@@ -119,7 +127,7 @@ namespace tik4net.Api
                 _tcpConnectionStream.Dispose();
                 _tcpConnection.Dispose();
 #endif
-            }
+            //}
             _isOpened = false;        
         }
 
