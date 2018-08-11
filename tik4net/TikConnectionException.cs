@@ -97,7 +97,7 @@ namespace tik4net
                 result.AppendLine("  COMMAND: " + command.CommandText);
                 foreach (ITikCommandParameter param in command.Parameters)
                 {
-                    result.AppendLine("    " + param.ToString());
+                    result.AppendLine("    " + param.ToString() + "    Format: " + param.ParameterFormat);
                 }
             }
 

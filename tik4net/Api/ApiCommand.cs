@@ -188,7 +188,7 @@ namespace tik4net.Api
             return response.Single();
         }
 
-        private void EnsureExcatNumberOfResponses(IEnumerable<ApiSentence> response, int nrOfResponses)
+        private void EnsureExactNumberOfResponses(IEnumerable<ApiSentence> response, int nrOfResponses)
         {
             if (response.Count() != nrOfResponses)
                 throw new TikConnectionException(string.Format("Command expected {0} sentences as response, but got {1} response sentences.", nrOfResponses, response.Count()), this, response.Cast<ITikSentence>());
@@ -297,7 +297,7 @@ namespace tik4net.Api
                 IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
                 ThrowPossibleResponseError(response.ToArray());
 
-                EnsureExcatNumberOfResponses(response, 2);
+                EnsureExactNumberOfResponses(response, 2);
                 EnsureReReponse(response.First());   //!re
                 ApiReSentence result = (ApiReSentence)response.First();
                 EnsureDoneResponse(response.Last()); //!done
@@ -434,7 +434,10 @@ namespace tik4net.Api
         {
             if (_isRuning && _asynchronouslyRunningTag >= 0)
             {
-                 ApiCommand cancellCommand = new ApiCommand(_connection, "/cancel", new ApiCommandParameter(TikSpecialProperties.Tag, _asynchronouslyRunningTag.ToString(), TikCommandParameterFormat.NameValue)); //REMARKS: =tag=1234 and not =.tag=1234                
+                 ApiCommand cancellCommand = new ApiCommand(_connection, "/cancel", 
+                     new ApiCommandParameter("tag", _asynchronouslyRunningTag.ToString(), TikCommandParameterFormat.NameValue), // tag we are cancelling: REMARKS: =tag=1234 and not =.tag=1234 
+                     new ApiCommandParameter(TikSpecialProperties.Tag, "c_"+_asynchronouslyRunningTag.ToString(), TikCommandParameterFormat.Tag) //tag of cancell command itself
+                     );                
                  cancellCommand.ExecuteNonQuery();
                 if (joinLoadingThread)
                 {

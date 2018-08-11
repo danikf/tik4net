@@ -24,6 +24,11 @@ namespace tik4net
     public interface ITikConnection: IDisposable
     {
         /// <summary>
+        /// If communication should be traced via <see cref="System.Diagnostics.Debug"/>. Default is false.
+        /// </summary>
+        bool DebugEnabled { get; set; }
+
+        /// <summary>
         /// Gets a value indicating whether is logged on (<see cref="Open(string, int, string, string)"/>).
         /// </summary>
         /// <value><c>true</c> if is logged on; otherwise, <c>false</c>.</value>

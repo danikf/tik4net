@@ -65,6 +65,14 @@ namespace tik4net.tests
         }
 
         [TestMethod]
+        public void ReadEthernetInterfaceRXWillNotFail()
+        {
+            var ethIface = Connection.LoadSingle<Interface>(Connection.CreateParameter("name", "ether1"));
+            var rx = ethIface.RxByte;
+        }
+
+
+        [TestMethod]
         public void FilteredTypedAsyncListOfInterfacesWillNotFail()
         {
             var cmd = Connection.CreateCommandAndParameters(@"/interface/print
@@ -118,6 +126,30 @@ namespace tik4net.tests
             var iface = Connection.LoadAll<InterfaceWireless>().First(wlan => wlan.Name == "wlan1");
             iface.Comment = "test";
             Connection.Save(iface);
+        }
+
+        [TestMethod]
+        public void ParallelSniffCommandsAreCorrectlyCancelled()
+        {
+            Connection.DebugEnabled = true;
+
+            var cmdWlan = Connection.CreateCommandAndParameters("/interface/monitor-traffic", "interface", "wlan1");
+            List<ITikReSentence> responsesWlan = new List<ITikReSentence>();
+            cmdWlan.ExecuteAsync(re => responsesWlan.Add(re));
+
+            var cmdEth = Connection.CreateCommandAndParameters("/interface/monitor-traffic", "interface", "ether1");
+            List<ITikReSentence> responsesEth = new List<ITikReSentence>();
+            cmdEth.ExecuteAsync(re => responsesEth.Add(re));
+
+            Thread.Sleep(1000);
+            cmdWlan.CancelAndJoin();
+            var cnt = responsesEth.Count;
+
+            Thread.Sleep(1000);
+            Assert.IsTrue(cmdEth.IsRunning);
+            cmdEth.CancelAndJoin();
+
+            Assert.IsTrue(responsesEth.Count > cnt);
         }
     }
 }

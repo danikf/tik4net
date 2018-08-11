@@ -52,6 +52,8 @@ namespace tik4net.Api
         public event EventHandler<TikConnectionCommCallbackEventArgs> OnReadRow;
         public event EventHandler<TikConnectionCommCallbackEventArgs> OnWriteRow;
 
+        public bool DebugEnabled { get; set; }
+
         public bool IsOpened
         {
             get { return _isOpened; }
@@ -353,6 +355,8 @@ namespace tik4net.Api
 
             if (OnReadRow != null)
                 OnReadRow(this, new TikConnectionCommCallbackEventArgs(result));
+            if (DebugEnabled)
+                System.Diagnostics.Debug.WriteLine("< " + result);
             return result;
         }
 
@@ -391,6 +395,8 @@ namespace tik4net.Api
 
                 if (OnWriteRow != null)
                     OnWriteRow(this, new TikConnectionCommCallbackEventArgs(row));
+                if (DebugEnabled)
+                    System.Diagnostics.Debug.WriteLine("> " + row);
             }
 
             _tcpConnectionStream.WriteByte(0); //final zero byte
@@ -435,7 +441,7 @@ namespace tik4net.Api
             //NOTE both !trap and !fatal are followed with !done
         }
 
-        private static readonly Regex tagRegex = new Regex($"^{TikSpecialProperties.Tag}=(?<TAG>.+)$");
+        private static readonly Regex tagRegex = new Regex($"^\\{TikSpecialProperties.Tag}=(?<TAG>.+)$"); // .tag=1234
         public IEnumerable<ITikSentence> CallCommandSync(params string[] commandRows)
         {
             EnsureOpened();
@@ -470,7 +476,7 @@ namespace tik4net.Api
             Guard.ArgumentNotNullOrEmptyString(tag, "tag");
             EnsureOpened();
 
-            commandRows = commandRows.Concat(new string[] { string.Format("{0}={1}", TikSpecialProperties.Tag, tag) });
+            commandRows = commandRows.Concat(new string[] { string.Format("{0}={1}", TikSpecialProperties.Tag, tag) }); // .tag=1234
             lock (_writeLockObj)
             {
                 WriteCommand(commandRows);
