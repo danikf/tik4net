@@ -67,7 +67,7 @@ namespace tik4net.tests
         [TestMethod]
         public void ReadEthernetInterfaceRXWillNotFail()
         {
-            var ethIface = Connection.LoadSingle<Interface>(Connection.CreateParameter("name", "ether1"));
+            var ethIface = Connection.LoadByName<Interface>( "ether1");
             var rx = ethIface.RxByte;
         }
 

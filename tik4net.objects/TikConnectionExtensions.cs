@@ -98,6 +98,19 @@ namespace tik4net.Objects
         }
 
         /// <summary>
+        /// Loads entity with specified name. Returns null if not found.
+        /// </summary>
+        /// <typeparam name="TEntity">Loaded entities type.</typeparam>
+        /// <param name="connection">Tik connection used to load.</param>
+        /// <param name="name">Entity name.</param>
+        /// <returns>Loaded entity or null.</returns>
+        public static TEntity LoadByName<TEntity>(this ITikConnection connection, string name)
+            where TEntity : new()
+        {
+            return LoadList<TEntity>(connection, connection.CreateParameter("name", name)).SingleOrDefault();
+        }
+
+        /// <summary>
         /// Loads entity list. Could be filtered with <paramref name="filterParameters"/>.
         /// </summary>
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
