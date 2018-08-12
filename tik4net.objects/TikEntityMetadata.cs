@@ -34,6 +34,16 @@ namespace tik4net.Objects
         public string EntityPath { get; private set; }
 
         /// <summary>
+        /// Sufix added to entity path when loading. eq. /print
+        /// </summary>
+        public string LoadCommand { get; private set; }
+
+        /// <summary>
+        /// Parameter format (when parameter itself is set to <see cref="TikCommandParameterFormat.Default"/>) during  load operation.
+        /// </summary>
+        public TikCommandParameterFormat LoadDefaultParameneterFormat { get; set; }
+
+        /// <summary>
         /// If the whole entity is R/O.
         /// </summary>
         /// <seealso cref="TikEntityAttribute.IsReadOnly"/>
@@ -102,6 +112,8 @@ namespace tik4net.Objects
             _entityType = entityType;
 
             EntityPath = entityAttribute.EntityPath;
+            LoadCommand = entityAttribute.LoadCommand;
+            LoadDefaultParameneterFormat = entityAttribute.LoadDefaultParameneterFormat;
             IsReadOnly = entityAttribute.IsReadOnly;
             IsOrdered = entityAttribute.IsOrdered;
             IncludeDetails = entityAttribute.IncludeDetails;

@@ -9,7 +9,7 @@ namespace tik4net.Objects.Interface
     /// /interface/monitor-traffic
     /// NOTE: use <see cref="InterfaceMonitorTraffic.GetSnapshot"/> or with some kind of bulk/async load
     /// </summary>
-    [TikEntity("/interface", IncludeDetails = true, IsReadOnly = true)]
+    [TikEntity("/interface/monitor-traffic", LoadCommand ="", LoadDefaultParameneterFormat = TikCommandParameterFormat.NameValue, IncludeDetails = false, IsReadOnly = true)]
     public class InterfaceMonitorTraffic
     {
         /// <summary>
@@ -85,10 +85,9 @@ namespace tik4net.Objects.Interface
         /// </summary>
         public static InterfaceMonitorTraffic GetInterfaceMonitorTrafficSnapshot(this ITikConnection connection, string interfaceName)
         {
-            var cmd = connection.CreateCommand("/interface/monitor-traffic",
+            var result = connection.LoadSingle<InterfaceMonitorTraffic>(
                 connection.CreateParameter("interface", interfaceName, TikCommandParameterFormat.NameValue),
                 connection.CreateParameter("once", "", TikCommandParameterFormat.NameValue));
-            var result = cmd.LoadSingle<InterfaceMonitorTraffic>();
 
             return result;
         }

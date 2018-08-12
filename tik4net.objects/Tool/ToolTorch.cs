@@ -8,7 +8,7 @@ namespace tik4net.Objects.Tool
     /// <summary>
     /// /tool/torch (R/O). Should be loaded via async API.
     /// </summary>
-    [TikEntity("/tool/torch", IsReadOnly = true, IncludeProplist = false)]
+    [TikEntity("/tool/torch", LoadCommand = "", LoadDefaultParameneterFormat = TikCommandParameterFormat.NameValue, IsReadOnly = true, IncludeProplist = false)]
     public class ToolTorch
     {
         /// <summary>

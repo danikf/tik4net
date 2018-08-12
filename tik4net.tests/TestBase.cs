@@ -31,6 +31,7 @@ namespace tik4net.tests
         protected void RecreateConnection()
         {
             _connection = ConnectionFactory.OpenConnection(TikConnectionType.Api, ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
+            _connection.DebugEnabled = true;
         }
     }
 }

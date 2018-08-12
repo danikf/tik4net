@@ -108,7 +108,7 @@ namespace tik4net.Objects
         public static IEnumerable<TEntity> LoadList<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filterParameters)
             where TEntity : new()
         {
-            var command = CreateLoadCommandWithFilter<TEntity>(connection, "/print", TikCommandParameterFormat.Filter, filterParameters);
+            var command = CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
             return command.LoadList<TEntity>();
         }
 
@@ -128,7 +128,7 @@ namespace tik4net.Objects
         {
             Guard.ArgumentNotNull(connection, "connection");
 
-            var command = CreateLoadCommandWithFilter<TEntity>(connection, "", TikCommandParameterFormat.NameValue, parameters);
+            var command = CreateLoadCommandWithFilter<TEntity>(connection, parameters);
 
             return command.LoadWithDuration<TEntity>(durationSec);
         }
@@ -157,17 +157,17 @@ namespace tik4net.Objects
             Guard.ArgumentNotNull(connection, "connection");
             Guard.ArgumentNotNull(onLoadItemCallback, "onLoadItemCallback");
 
-            var command = CreateLoadCommandWithFilter<TEntity>(connection, "", TikCommandParameterFormat.NameValue, parameters);
+            var command = CreateLoadCommandWithFilter<TEntity>(connection, parameters);
 
             command.LoadAsync<TEntity>(onLoadItemCallback, onExceptionCallback);
             return command;
         }
 
-        private static ITikCommand CreateLoadCommandWithFilter<TEntity> (ITikConnection connection, string commandSufix, TikCommandParameterFormat defaultParameterFormat, ITikCommandParameter[] parameters)
+        private static ITikCommand CreateLoadCommandWithFilter<TEntity> (ITikConnection connection, ITikCommandParameter[] parameters)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
 
-            ITikCommand command = connection.CreateCommand(metadata.EntityPath + commandSufix, defaultParameterFormat);
+            ITikCommand command = connection.CreateCommand(metadata.EntityPath + metadata.LoadCommand, metadata.LoadDefaultParameneterFormat);
 
             // =detail=
             if (metadata.IncludeDetails)
