@@ -28,6 +28,29 @@ namespace tik4net.Objects
         }
 
         /// <summary>
+        /// Alias to <see cref="LoadList{TEntity}(ITikConnection, ITikCommandParameter[])"/> optionaly with filter, ensures that result contains exactly one row.
+        /// </summary>
+        /// <typeparam name="TEntity">Loaded entities type.</typeparam>
+        /// <returns>Loaded single entity.</returns>
+        public static TEntity LoadSingle<TEntity>(this ITikCommand command)
+            where TEntity : new()
+        {
+            return LoadList<TEntity>(command).Single();
+        }
+
+        /// <summary>
+        /// Alias to <see cref="LoadList{TEntity}(ITikConnection, ITikCommandParameter[])"/> without filter, ensures that result contains exactly one row.
+        /// </summary>
+        /// <typeparam name="TEntity">Loaded entities type.</typeparam>
+        /// <param name="filterParameters">Optional list of filter parameters (interpreted as connected with AND)</param>
+        /// <returns>Loaded single entity or null.</returns>
+        public static TEntity LoadSingleOrDefault<TEntity>(this ITikCommand command)
+            where TEntity : new()
+        {
+            return LoadList<TEntity>(command).SingleOrDefault();
+        }
+
+        /// <summary>
         /// Calls command and reads all returned rows for given <paramref name="durationSec"/> period.
         /// After this period calls cancell to mikrotik router and returns all loaded rows.
         /// Throws exception if any 'trap' row occurs.

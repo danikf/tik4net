@@ -55,6 +55,7 @@
   </Choose>
   <ItemGroup>
     <Compile Include="CrudTest.cs" />
+    <Compile Include="InterfaceMonitorTrafficTest.cs" />
     <Compile Include="PingTest.cs" />
     <Compile Include="ConnectionTest.cs" />
     <Compile Include="InterfaceEthernetTest.cs" />
