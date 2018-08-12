@@ -59,6 +59,20 @@ namespace tik4net.Objects.Ip
         /// <param name="connection"></param>
         public static void Take(ITikConnection connection)
         {
+            AccountingSnapshotConnectionExtensions.TakeAccountingSnapshot(connection);
+        }
+    }
+
+    /// <summary>
+    /// Connection extension class for <see cref="InterfaceMonitorTraffic"/>
+    /// </summary>
+    public static class AccountingSnapshotConnectionExtensions
+    {
+        /// <summary>
+        /// Takes new accounting snapshot (/ip/accounting/snapshot/take)
+        /// </summary>
+        public static void TakeAccountingSnapshot(this ITikConnection connection)
+        {
             var cmd = connection.CreateCommand("/ip/accounting/snapshot/take");
             cmd.ExecuteNonQuery();
         }

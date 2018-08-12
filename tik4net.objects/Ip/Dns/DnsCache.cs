@@ -52,9 +52,24 @@ namespace tik4net.Objects.Ip.Dns
         /// <summary>
         /// clears internal DNS cache 
         /// </summary>
-        public void Flush(ITikConnection connection)
+        public static void Flush(ITikConnection connection)
         {
-            connection.CreateCommand("ip/dns/cache/flush").ExecuteNonQuery();
+            AccountingSnapshotConnectionExtensions.FlushDnsCache(connection);
+        }
+    }
+
+    /// <summary>
+    /// Connection extension class for <see cref="DnsCache"/>
+    /// </summary>
+    public static class AccountingSnapshotConnectionExtensions
+    {
+        /// <summary>
+        /// Takes new accounting snapshot (/ip/accounting/snapshot/take)
+        /// </summary>
+        public static void FlushDnsCache(this ITikConnection connection)
+        {
+            var cmd = connection.CreateCommand("ip/dns/cache/flush");
+            cmd.ExecuteNonQuery();
         }
     }
 }

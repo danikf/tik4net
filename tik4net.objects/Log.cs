@@ -37,19 +37,12 @@ namespace tik4net.Objects
 
         #region -- static methods --
 
-        private static void WriteToLog(ITikConnection connection, string message, string logLevelCommandSufix)
-        {
-            var cmd =connection.CreateCommand("/log/" + logLevelCommandSufix,
-                connection.CreateParameter("message", message));
-            cmd.ExecuteNonQuery();
-        }
-
         /// <summary>
         /// Writes debug message into mikrotik log.
         /// </summary>
         public static void Debug(ITikConnection connection, string message)
         {
-            WriteToLog(connection, message, "debug");
+            LogConnectionExtensions.LogDebug(connection, message);
         }
 
         /// <summary>
@@ -57,7 +50,7 @@ namespace tik4net.Objects
         /// </summary>
         public static void Info(ITikConnection connection, string message)
         {
-            WriteToLog(connection, message, "info");
+            LogConnectionExtensions.LogInfo(connection, message);
         }
 
         /// <summary>
@@ -65,7 +58,7 @@ namespace tik4net.Objects
         /// </summary>
         public static void Warning(ITikConnection connection, string message)
         {
-            WriteToLog(connection, message, "warning");
+            LogConnectionExtensions.LogWarning(connection, message);
         }
 
         /// <summary>
@@ -73,8 +66,53 @@ namespace tik4net.Objects
         /// </summary>
         public static void WriteErrorMessage(ITikConnection connection, string message)
         {
-            WriteToLog(connection, message, "error");
+            LogConnectionExtensions.LogError(connection, message);
         }
         #endregion
+    }
+
+    /// <summary>
+    /// Connection extension class for <see cref="DnsCache"/>
+    /// </summary>
+    public static class LogConnectionExtensions
+    {
+        private static void WriteToLog(ITikConnection connection, string message, string logLevelCommandSufix)
+        {
+            var cmd = connection.CreateCommand("/log/" + logLevelCommandSufix,
+                connection.CreateParameter("message", message));
+            cmd.ExecuteNonQuery();
+        }
+
+        /// <summary>
+        /// Writes debug message into mikrotik log.
+        /// </summary>
+        public static void LogDebug(this ITikConnection connection, string message)
+        {
+            WriteToLog(connection, message, "debug");
+        }
+
+        /// <summary>
+        /// Writes info message into mikrotik log.
+        /// </summary>
+        public static void LogInfo(this ITikConnection connection, string message)
+        {
+            WriteToLog(connection, message, "info");
+        }
+
+        /// <summary>
+        /// Writes warning message into mikrotik log.
+        /// </summary>
+        public static void LogWarning(this ITikConnection connection, string message)
+        {
+            WriteToLog(connection, message, "warning");
+        }
+
+        /// <summary>
+        /// Writes error message into mikrotik log.
+        /// </summary>
+        public static void LogError(this ITikConnection connection, string message)
+        {
+            WriteToLog(connection, message, "error");
+        }
     }
 }
