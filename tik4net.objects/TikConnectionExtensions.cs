@@ -488,5 +488,32 @@ namespace tik4net.Objects
         }
 
         #endregion
+
+        #region -- EXECUTE --
+        /// <summary>
+        /// Excecutes given <see cref="commandText"/> on router and ensures that operation was sucessfull.
+        /// </summary>
+        /// <param name="connection">Tik connection used to load.</param>
+        /// <param name="commandText">Command text</param>
+        /// <param name="parameters">Optional list of parameters</param>
+        public static void ExecuteNonQuery(this ITikConnection connection, string commandText, params ITikCommandParameter[] parameters)
+        {
+            var command = connection.CreateCommand(commandText, parameters);
+            command.ExecuteNonQuery();
+        }
+
+        /// <summary>
+        /// Executes given <see cref="commandText"/> on router and ensures that operation returns one value (=ret parameter), which is returned as result.
+        /// </summary>
+        /// <param name="connection">Tik connection used to load.</param>
+        /// <param name="commandText">Command text</param>
+        /// <param name="parameters">Optional list of parameters</param>
+        /// <returns>Value returned by router.</returns>
+        public static string ExecuteScalar(this ITikConnection connection, string commandText, params ITikCommandParameter[] parameters)
+        {
+            var command = connection.CreateCommand(commandText, parameters);
+            return command.ExecuteScalar();
+        }
+        #endregion
     }
 }
