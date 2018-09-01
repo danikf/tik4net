@@ -6,7 +6,7 @@ using System.Text;
 namespace tik4net.Objects.Interface.Wireless
 {
     /// <summary>
-    /// Advanced Channels feature provides extended opportunities in wireless interface configuration:
+    /// interface/wireless/channels: Advanced Channels feature provides extended opportunities in wireless interface configuration:
     /// * scan-list that covers multiple bands and channel widths;
     /// * non-standard channel center frequencies(specified with KHz granularity) for hardware that allows that;
     /// * non-standard channel widths(specified with KHz granularity) for hardware that allows that.
