@@ -333,7 +333,9 @@ namespace tik4net.Api
             }
         }
 
-        public void ExecuteAsync(Action<ITikReSentence> oneResponseCallback, Action<ITikTrapSentence> errorCallback = null)
+        public void ExecuteAsync(Action<ITikReSentence> oneResponseCallback, 
+            Action<ITikTrapSentence> errorCallback = null,
+            Action onDoneCallback = null)
         {
             EnsureConnectionSet();
             EnsureNotRunning();
@@ -377,6 +379,9 @@ namespace tik4net.Api
                                                     _isRuning = false;
                                                     _asynchronouslyRunningTag = -1;
                                                     _asyncLoadingThread = null;
+
+                                                    if (response is ApiDoneSentence && onDoneCallback != null)
+                                                        onDoneCallback();
                                                 }
                                             }
                                         });

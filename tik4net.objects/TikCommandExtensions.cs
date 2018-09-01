@@ -82,9 +82,12 @@ namespace tik4net.Objects
         /// <param name="command">Tik command executed to load.</param>
         /// <param name="onLoadItemCallback">Callback called for each loaded !re row</param>
         /// <param name="onExceptionCallback">Callback called when error occurs (!trap row is returned)</param>
+        /// <param name="onDoneCallback">Callback called at the end of command run (!done row is returned). Usefull for cleanup operations at the end of command lifecycle. You can also use synchronous call <see cref="ITikCommand.CancelAndJoin"/> from calling thread and do cleanup after it.</param>
         /// <seealso cref="TikConnectionExtensions.LoadAsync{TEntity}(ITikConnection, Action{TEntity}, Action{Exception}, ITikCommandParameter[])"/>
         public static void LoadAsync<TEntity>(this ITikCommand command,
-                    Action<TEntity> onLoadItemCallback, Action<Exception> onExceptionCallback = null)
+                    Action<TEntity> onLoadItemCallback, 
+                    Action<Exception> onExceptionCallback = null,
+                    Action onDoneCallback = null)
                     where TEntity : new()
         {
             Guard.ArgumentNotNull(command, "command");
@@ -96,6 +99,11 @@ namespace tik4net.Objects
                 {
                     if (onExceptionCallback != null)
                         onExceptionCallback(new TikCommandException(command, trapSentence));
+                },
+                () =>
+                {
+                    if (onDoneCallback != null)
+                        onDoneCallback();
                 });
         }
 

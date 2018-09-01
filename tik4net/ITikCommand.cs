@@ -79,9 +79,10 @@ namespace tik4net
         /// </summary>
         /// <param name="oneResponseCallback">Callback called periodically when response sentence is read from mikrotik.</param>
         /// <param name="errorCallback">Callback called when error occurs (command operation is than ended).</param>
+        /// <param name="onDoneCallback">Callback called at the end of command run (when command is successfully finished - !done is returned). Usefull for cleanup operations at the end of command lifecycle. You can also use synchronous call <see cref="CancelAndJoin"/> from calling thread and do cleanup after it.</param>
         /// <seealso cref="Cancel"/>
         /// <seealso cref="ITikReSentence"/>
-        void ExecuteAsync(Action<ITikReSentence> oneResponseCallback, Action<ITikTrapSentence> errorCallback=null);        
+        void ExecuteAsync(Action<ITikReSentence> oneResponseCallback, Action<ITikTrapSentence> errorCallback=null, Action onDoneCallback = null);        
 
         /// <summary>
         /// Adds new instance of parameter to <see cref="Parameters"/> list.
