@@ -47,6 +47,44 @@ namespace tik4net.tests
         }
 
         [TestMethod]
+        public void ConnectionSendTagWithSyncCommandEnabled_WorksCorrectly()
+        {
+            using (var connection = ConnectionFactory.OpenConnection(TikConnectionType.ApiSsl, ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]))
+            {
+                connection.SendTagWithSyncCommand = true;
+                List<string> sentWords = new List<string>();
+                connection.OnWriteRow += (e, args) =>
+                    {
+                        sentWords.Add(args.Word);
+                    };
+
+                ITikCommand readCmd = connection.CreateCommand("/system/identity/print");
+                readCmd.ExecuteScalar();
+
+                Assert.IsTrue(sentWords.Any(w => w.StartsWith(TikSpecialProperties.Tag)));
+            }
+        }
+
+        [TestMethod]
+        public void ConnectionSendTagWithSyncCommandDisabled_WorksCorrectly()
+        {
+            using (var connection = ConnectionFactory.OpenConnection(TikConnectionType.ApiSsl, ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]))
+            {
+                connection.SendTagWithSyncCommand = false;
+                List<string> sentWords = new List<string>();
+                connection.OnWriteRow += (e, args) =>
+                {
+                    sentWords.Add(args.Word);
+                };
+
+                ITikCommand readCmd = connection.CreateCommand("/system/identity/print");
+                readCmd.ExecuteScalar();
+
+                Assert.IsFalse(sentWords.Any(w => w.StartsWith(TikSpecialProperties.Tag)));
+            }
+        }
+
+        [TestMethod]
         public void OpenSslConnectionWillNotFail()
         {
             using (var connection = ConnectionFactory.OpenConnection(TikConnectionType.ApiSsl, ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]))
@@ -136,6 +174,8 @@ namespace tik4net.tests
                 Assert.IsTrue(result.Count(s => s is ITikDoneSentence) == 1);
             }
         }
+
+
 
         //[TestMethod]
         //public void CallCommandSync_Reboot_Will_Not_HangUp()

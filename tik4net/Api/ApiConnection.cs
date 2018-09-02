@@ -43,6 +43,7 @@ namespace tik4net.Api
         private bool _isSsl = false;
         private readonly LoginProcessVersion _loginProcessVersion;
         private Encoding _encoding = Encoding.ASCII;
+        private bool _sendTagWithSyncCommand = false;
         private int _sendTimeout;
         private int _receiveTimeout;
         private TcpClient _tcpConnection;
@@ -63,6 +64,12 @@ namespace tik4net.Api
         {
             get { return _encoding; }
             set { _encoding = value; }
+        }
+
+        public bool SendTagWithSyncCommand
+        {
+            get { return _sendTagWithSyncCommand; }
+            set { _sendTagWithSyncCommand = value; }
         }
 
         public int SendTimeout
@@ -482,6 +489,12 @@ namespace tik4net.Api
                     tagOrEmptyString = match.Groups["TAG"].Value;
                     break;
                 }
+            }
+
+            if (_sendTagWithSyncCommand && string.IsNullOrEmpty(tagOrEmptyString))
+            {
+                tagOrEmptyString = TagSequence.Next().ToString();
+                commandRows = commandRows.Concat(new string[] { string.Format("{0}={1}", TikSpecialProperties.Tag, tagOrEmptyString) }).ToArray();
             }
 
             lock (_writeLockObj)

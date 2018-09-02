@@ -40,6 +40,11 @@ namespace tik4net
         Encoding Encoding { get; set; }
 
         /// <summary>
+        /// If set to true, .tag is sent also inside of sync commands (mandatory for multi thread connection usage). Default is false.
+        /// </summary>
+        bool SendTagWithSyncCommand { get; set; }
+
+        /// <summary>
         ///     Gets or sets the amount of time a ITikConnection will wait for a send operation to complete successfully. In miliseconds.
         /// </summary>
         /// <remarks>Must be called before <see cref="Open(string, string, string)"/> call.</remarks>

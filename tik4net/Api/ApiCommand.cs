@@ -8,7 +8,6 @@ namespace tik4net.Api
 {
     internal class ApiCommand: ITikCommand
     {
-        private static volatile int _tagCounter = 0;
         private volatile bool _isRuning;
         private volatile int _asynchronouslyRunningTag;
         private volatile Thread _asyncLoadingThread;
@@ -341,7 +340,7 @@ namespace tik4net.Api
             EnsureNotRunning();
             System.Diagnostics.Debug.Assert(_asyncLoadingThread == null);
 
-            int tag = Interlocked.Increment(ref _tagCounter);
+            int tag = TagSequence.Next();
             _isRuning = true;
             _asynchronouslyRunningTag = tag;
 
