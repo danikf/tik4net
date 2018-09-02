@@ -103,16 +103,19 @@ namespace tik4net.Api
         {
             try
             {
-                if (!_isSsl)
+                if (IsOpened)
                 {
-                    //NOTE: returns !fatal => can not use standard ExecuteNonQuery call (should not throw exception)
-                    var responseSentences = CallCommandSync(new string[] { "/quit" });
-                    //TODO should return single response of ApiFatalSentence with message "session terminated on request" - test and warning if not?
-                }
-                else
-                {
-                    //NOTE: No result returned when SSL & /quit => do not read response (possible bug in SSL-API?)
-                    WriteCommand(new string[] { "/quit" });
+                    if (!_isSsl)
+                    {
+                        //NOTE: returns !fatal => can not use standard ExecuteNonQuery call (should not throw exception)
+                        var responseSentences = CallCommandSync(new string[] { "/quit" });
+                        //TODO should return single response of ApiFatalSentence with message "session terminated on request" - test and warning if not?
+                    }
+                    else
+                    {
+                        //NOTE: No result returned when SSL & /quit => do not read response (possible bug in SSL-API?)
+                        WriteCommand(new string[] { "/quit" });
+                    }
                 }
             }
             catch(IOException)
@@ -362,50 +365,73 @@ namespace tik4net.Api
 
         private ITikSentence ReadSentence()
         {
-            string sentenceName = ReadWord(true);
-
-            List<string> sentenceWords = new List<string>();
-            string sentenceWord;
-            do
+            try
             {
-                sentenceWord = ReadWord(false);
-                if (!StringHelper.IsNullOrWhiteSpace(sentenceWord)) //read ending empty row, but skip it from result
-                    sentenceWords.Add(sentenceWord);
-            } while (!StringHelper.IsNullOrWhiteSpace(sentenceWord));
+                string sentenceName = ReadWord(true);
 
-            switch (sentenceName)
+                List<string> sentenceWords = new List<string>();
+                string sentenceWord;
+                do
+                {
+                    sentenceWord = ReadWord(false);
+                    if (!StringHelper.IsNullOrWhiteSpace(sentenceWord)) //read ending empty row, but skip it from result
+                        sentenceWords.Add(sentenceWord);
+                } while (!StringHelper.IsNullOrWhiteSpace(sentenceWord));
+
+                switch (sentenceName)
+                {
+                    case "!done": return new ApiDoneSentence(sentenceWords);
+                    case "!trap": return new ApiTrapSentence(sentenceWords);
+                    case "!re": return new ApiReSentence(sentenceWords);
+                    case "!fatal": return new ApiFatalSentence(sentenceWords);
+                    case "": throw new IOException("Can not read sentence from connection");
+                    default: throw new NotImplementedException(string.Format("Response type '{0}' not supported", sentenceName));
+                }
+            }
+            catch(IOException)
             {
-                case "!done": return new ApiDoneSentence(sentenceWords);
-                case "!trap": return new ApiTrapSentence(sentenceWords);
-                case "!re": return new ApiReSentence(sentenceWords);
-                case "!fatal": return new ApiFatalSentence(sentenceWords);
-                default: throw new NotImplementedException(string.Format("Response type '{0}' not supported", sentenceName));
+                _isOpened = _tcpConnection.Connected;
+                throw;
             }
         }
 
         private void WriteCommand(IEnumerable<string> commandRows)
         {
-            foreach (string row in commandRows)
+            try
             {
-                byte[] bytes = _encoding.GetBytes(row.ToCharArray());
-                byte[] length = ApiConnectionHelper.EncodeLength(bytes.Length);
+                foreach (string row in commandRows)
+                {
+                    byte[] bytes = _encoding.GetBytes(row.ToCharArray());
+                    byte[] length = ApiConnectionHelper.EncodeLength(bytes.Length);
 
-                _tcpConnectionStream.Write(length, 0, length.Length); //write length of comming sentence
-                _tcpConnectionStream.Write(bytes, 0, bytes.Length);   //write sentence body
+                    _tcpConnectionStream.Write(length, 0, length.Length); //write length of comming sentence
+                    _tcpConnectionStream.Write(bytes, 0, bytes.Length);   //write sentence body
 
-                if (OnWriteRow != null)
-                    OnWriteRow(this, new TikConnectionCommCallbackEventArgs(row));
-                if (DebugEnabled)
-                    System.Diagnostics.Debug.WriteLine("> " + row);
+                    if (OnWriteRow != null)
+                        OnWriteRow(this, new TikConnectionCommCallbackEventArgs(row));
+                    if (DebugEnabled)
+                        System.Diagnostics.Debug.WriteLine("> " + row);
+                }
+
+                _tcpConnectionStream.WriteByte(0); //final zero byte
             }
-
-            _tcpConnectionStream.WriteByte(0); //final zero byte
+            catch(IOException)
+            {
+                _isOpened = _tcpConnection.Connected;
+                throw;
+            }
         }
 
         private ITikSentence GetOne(string tag)
         {
             do
             {
+                if (!_tcpConnection.Connected)
+                    _isOpened = false;
+
+                if (!_isOpened)
+                    return new ApiTrapSentence(new string[] { "=category=-1", "=message=connection closed" });
+
                 ITikSentence result;
                 // try to find in in _readSentences
                 if (_readSentences.TryDequeue(tag, out result)) // found => removed from _readSentences and return as result

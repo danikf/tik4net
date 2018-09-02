@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using tik4net.Objects;
 using tik4net.Objects.Ip;
@@ -97,6 +98,63 @@ namespace tik4net.tests
         {
             var command = Connection.CreateCommandAndParameters("/system/health/print", TikSpecialProperties.Tag, "1234");
             command.ExecuteSingleRow();
+        }
+
+        [Ignore]
+        [TestMethod]
+        [ExpectedException(typeof(System.IO.IOException))]
+        public void AsyncExecuteClosed_AfterReboot_AndNextCommandThrowsException()
+        {
+            var torchAsyncCmd = Connection.LoadAsync<Objects.Tool.ToolTorch>(t => { ; },
+                null, 
+                Connection.CreateParameter("interface", "ether1"));
+
+            Thread.Sleep(3000);
+            Connection.ExecuteNonQuery("/system/reboot");
+            Thread.Sleep(3000);
+
+            Assert.IsFalse(torchAsyncCmd.IsRunning);
+
+            Connection.ExecuteScalar("/system/identity/print"); // throws IO exception (rebooted router)
+        }
+
+        [Ignore]
+        [TestMethod]
+        [ExpectedException(typeof(System.IO.IOException))]
+        public void AsyncExecuteWithDurationExecuteClosed_AfterReboot_AndNextCommandThrowsException()
+        {
+            var torchCommand = Connection.CreateCommandAndParameters("/tool/torch", "interface", "ether1");
+
+            new Thread(() =>
+            {
+                Thread.Sleep(1000);
+                Connection.ExecuteNonQuery("/system/reboot");
+            }).Start();
+            var result = torchCommand.ExecuteListWithDuration(20);
+            Thread.Sleep(3000);
+                    
+            Assert.IsFalse(torchCommand.IsRunning);
+
+            Connection.ExecuteScalar("/system/identity/print"); // throws IO exception (rebooted router)
+        }
+
+        [TestMethod]
+        public void InvalidCommandThrowsExceptionButConnectionRemainsOpened()
+        {
+            Exception thrownException = null;
+            try
+            {
+                Connection.ExecuteNonQuery("blah blah");
+            }
+            catch (Exception ex)
+            {
+                thrownException = ex;
+            }
+
+            Assert.IsNotNull(thrownException);
+            Assert.IsTrue(Connection.IsOpened);
+            var result = Connection.ExecuteScalar("/system/identity/print");
+            Assert.IsNotNull(result);
         }
     }
 }
