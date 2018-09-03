@@ -16,7 +16,7 @@ namespace tik4net.Objects
         /// </summary>
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
         /// <returns>List (or empty list) of loaded entities.</returns>
-        /// <seealso cref="TikConnectionExtensions.LoadList{TEntity}(ITikConnection, ITikCommandParameter[])"/>
+        /// <seealso cref="TikConnectionExtensions.LoadSingle{TEntity}(ITikConnection, ITikCommandParameter[])/>
         public static IEnumerable<TEntity> LoadList<TEntity>(this ITikCommand command)
             where TEntity : new()
         {
@@ -28,8 +28,9 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// Alias to <see cref="LoadList{TEntity}(ITikConnection, ITikCommandParameter[])"/> optionaly with filter, ensures that result contains exactly one row.
+        /// Alias to <see cref="LoadList{TEntity}(ITikCommand)"/>, ensures that result contains exactly one row.
         /// </summary>
+        /// <param name="command">Command</param>
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
         /// <returns>Loaded single entity.</returns>
         public static TEntity LoadSingle<TEntity>(this ITikCommand command)
@@ -39,10 +40,10 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// Alias to <see cref="LoadList{TEntity}(ITikConnection, ITikCommandParameter[])"/> without filter, ensures that result contains exactly one row.
+        /// Alias to <see cref="LoadList{TEntity}(ITikCommand)"/> without filter, ensures that result contains exactly one row.
         /// </summary>
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
-        /// <param name="filterParameters">Optional list of filter parameters (interpreted as connected with AND)</param>
+        /// <param name="command">Command</param>
         /// <returns>Loaded single entity or null.</returns>
         public static TEntity LoadSingleOrDefault<TEntity>(this ITikCommand command)
             where TEntity : new()
@@ -82,8 +83,7 @@ namespace tik4net.Objects
         /// <param name="command">Tik command executed to load.</param>
         /// <param name="onLoadItemCallback">Callback called for each loaded !re row</param>
         /// <param name="onExceptionCallback">Callback called when error occurs (!trap row is returned)</param>
-        /// <param name="onDoneCallback">Callback called at the end of command run (!done row is returned). Usefull for cleanup operations at the end of command lifecycle. You can also use synchronous call <see cref="ITikCommand.CancelAndJoin"/> from calling thread and do cleanup after it.</param>
-        /// <seealso cref="TikConnectionExtensions.LoadAsync{TEntity}(ITikConnection, Action{TEntity}, Action{Exception}, ITikCommandParameter[])"/>
+        /// <param name="onDoneCallback">Callback called at the end of command run (!done row is returned). Usefull for cleanup operations at the end of command lifecycle. You can also use synchronous call <see cref="ITikCommand.CancelAndJoin()"/> from calling thread and do cleanup after it.</param>
         public static void LoadAsync<TEntity>(this ITikCommand command,
                     Action<TEntity> onLoadItemCallback, 
                     Action<Exception> onExceptionCallback = null,

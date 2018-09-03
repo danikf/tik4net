@@ -491,7 +491,7 @@ namespace tik4net.Objects
 
         #region -- EXECUTE --
         /// <summary>
-        /// Excecutes given <see cref="commandText"/> on router and ensures that operation was sucessfull.
+        /// Excecutes given <paramref name="commandText"/> on router and ensures that operation was sucessfull.
         /// </summary>
         /// <param name="connection">Tik connection used to load.</param>
         /// <param name="commandText">Command text</param>
@@ -503,7 +503,7 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// Executes given <see cref="commandText"/> on router and ensures that operation returns one value (=ret parameter), which is returned as result.
+        /// Executes given <paramref name="commandText"/> on router and ensures that operation returns one value (=ret parameter), which is returned as result.
         /// </summary>
         /// <param name="connection">Tik connection used to load.</param>
         /// <param name="commandText">Command text</param>
