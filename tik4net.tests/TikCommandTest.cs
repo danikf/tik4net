@@ -105,8 +105,8 @@ namespace tik4net.tests
         [ExpectedException(typeof(System.IO.IOException))]
         public void AsyncExecuteClosed_AfterReboot_AndNextCommandThrowsException()
         {
-            var torchAsyncCmd = Connection.LoadAsync<Objects.Tool.ToolTorch>(t => { ; },
-                null, 
+            var torchAsyncCmd = Connection.LoadAsync<Objects.Tool.ToolTorch>(t => {; },
+                null,
                 Connection.CreateParameter("interface", "ether1"));
 
             Thread.Sleep(3000);
@@ -132,7 +132,7 @@ namespace tik4net.tests
             }).Start();
             var result = torchCommand.ExecuteListWithDuration(20);
             Thread.Sleep(3000);
-                    
+
             Assert.IsFalse(torchCommand.IsRunning);
 
             Connection.ExecuteScalar("/system/identity/print"); // throws IO exception (rebooted router)
@@ -155,6 +155,19 @@ namespace tik4net.tests
             Assert.IsTrue(Connection.IsOpened);
             var result = Connection.ExecuteScalar("/system/identity/print");
             Assert.IsNotNull(result);
+        }
+
+        [TestMethod]
+        public void ExecuteAsync_OnDoneCallback_Called()
+        {
+            bool onDoneCallbackCalled = false;
+
+            var torchCommand = Connection.CreateCommandAndParameters("/tool/torch", "interface", "ether1");
+            torchCommand.ExecuteAsync(response => { }, error => { }, () => { onDoneCallbackCalled = true; });
+            Thread.Sleep(3000);
+            torchCommand.CancelAndJoin();
+
+            Assert.IsTrue(onDoneCallbackCalled);
         }
     }
 }
