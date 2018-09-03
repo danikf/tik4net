@@ -64,7 +64,7 @@ namespace tik4net.Objects.Ip
     }
 
     /// <summary>
-    /// Connection extension class for <see cref="InterfaceMonitorTraffic"/>
+    /// Connection extension class for <see cref="AccountingSnapshot"/>
     /// </summary>
     public static class AccountingSnapshotConnectionExtensions
     {

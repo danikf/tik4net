@@ -72,7 +72,7 @@ namespace tik4net.Objects
     }
 
     /// <summary>
-    /// Connection extension class for <see cref="DnsCache"/>
+    /// Connection extension class for <see cref="Log"/>
     /// </summary>
     public static class LogConnectionExtensions
     {
