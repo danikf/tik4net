@@ -16,7 +16,7 @@ namespace tik4net.Objects
         /// </summary>
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
         /// <returns>List (or empty list) of loaded entities.</returns>
-        /// <seealso cref="TikConnectionExtensions.LoadSingle{TEntity}(ITikConnection, ITikCommandParameter[])/>
+        /// <seealso cref="LoadSingle{TEntity}(ITikCommand)"/>
         public static IEnumerable<TEntity> LoadList<TEntity>(this ITikCommand command)
             where TEntity : new()
         {

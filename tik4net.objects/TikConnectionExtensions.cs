@@ -161,7 +161,7 @@ namespace tik4net.Objects
         /// <param name="onExceptionCallback">Callback called when error occurs (!trap row is returned)</param>
         /// <param name="parameters">Optional list of filters/parameters (interpreted as connected with AND)</param>
         /// <returns><see cref="ITikCommand"/> which is already running the async load operation. You can cancel the running operation by <see cref="ITikCommand.Cancel"/> method call.</returns>
-        /// <seealso cref="TikCommandExtensions.LoadAsync{TEntity}(ITikCommand, Action{TEntity}, Action{Exception})"/>
+        /// <seealso cref="TikCommandExtensions.LoadAsync{TEntity}(ITikCommand, Action{TEntity}, Action{Exception}, Action)"/>
         public static ITikCommand LoadAsync<TEntity>(this ITikConnection connection,
             Action<TEntity> onLoadItemCallback, Action<Exception> onExceptionCallback = null,
             params ITikCommandParameter[] parameters)
