@@ -422,6 +422,8 @@ namespace tik4net.Api
                     throw asyncException;
                 if (!_isRuning) //already ended (somehow)
                     break;
+                if (!_connection.IsOpened)
+                    return result;
             }
             Cancel();
             
