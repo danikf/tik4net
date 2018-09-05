@@ -120,8 +120,8 @@ namespace tik4net.tests
 
         [Ignore]
         [TestMethod]
-        [ExpectedException(typeof(System.IO.IOException))]
-        public void AsyncExecuteWithDurationExecuteClosed_AfterReboot_AndNextCommandThrowsException()
+        [ExpectedException(typeof(TikCommandException))]
+        public void AsyncExecuteWithDurationExecuteThrowsException_AfterReboot()
         {
             var torchCommand = Connection.CreateCommandAndParameters("/tool/torch", "interface", "ether1");
 
@@ -130,12 +130,39 @@ namespace tik4net.tests
                 Thread.Sleep(1000);
                 Connection.ExecuteNonQuery("/system/reboot");
             }).Start();
-            var result = torchCommand.ExecuteListWithDuration(20);
+
+            try
+            {
+                var result = torchCommand.ExecuteListWithDuration(20);
+                Thread.Sleep(3000);
+            }
+            catch
+            {
+                Assert.IsFalse(torchCommand.IsRunning);
+                throw;
+            }
+        }
+
+        [Ignore]
+        [TestMethod]
+        public void AsyncExecuteWithDurationExecuteReturnsCorrectReason_AfterReboot()
+        {
+            var torchCommand = Connection.CreateCommandAndParameters("/tool/torch", "interface", "ether1");
+
+            new Thread(() =>
+            {
+                Thread.Sleep(1000);
+                Connection.ExecuteNonQuery("/system/reboot");
+            }).Start();
+
+            bool wasAborted;
+            string abortReason;
+            var result = torchCommand.ExecuteListWithDuration(20, out wasAborted, out abortReason);
             Thread.Sleep(3000);
 
             Assert.IsFalse(torchCommand.IsRunning);
-
-            Connection.ExecuteScalar("/system/identity/print"); // throws IO exception (rebooted router)
+            Assert.IsTrue(wasAborted);
+            Assert.AreEqual(abortReason, "Cancelled"); //TODO - Cancelled is returned because !done sentence is retrieved before connection is closed!
         }
 
         [TestMethod]

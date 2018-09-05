@@ -399,8 +399,22 @@ namespace tik4net.Api
 
         public IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec)
         {
-            Exception asyncException = null;
+            bool wasAborted;
+            string abortReason;
+            var result = ExecuteListWithDuration(durationSec, out wasAborted, out abortReason);
+
+            if (wasAborted)
+                throw new TikCommandException(this, abortReason);
+            else
+                return result;
+        }
+
+        public IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string abortReason)
+        {
+            string asyncExceptionMessage = null;
             List<ITikReSentence> result = new List<ITikReSentence>();
+            wasAborted = false;
+            abortReason = null;
 
             //Async execute, responses are stored in result list
             ExecuteAsync(
@@ -411,27 +425,35 @@ namespace tik4net.Api
                 },
                 error =>
                 {
-                    asyncException = new TikCommandException(this, error);
+                    asyncExceptionMessage = error.Message;
                 });
 
             //wait for results (in calling =UI? thread)
             for (int i = 0; i < durationSec * 10; i++) //step per 100ms
             {
                 Thread.Sleep(100);
-                if (asyncException != null) //ended with exception
-                    throw asyncException;
-                if (!_isRuning) //already ended (somehow)
-                    break;
-                if (!_connection.IsOpened)
+                if (asyncExceptionMessage != null) //ended with exception
+                {                    
+                    _isRuning = false;
+                    wasAborted = true;
+                    abortReason = asyncExceptionMessage;
+                }
+                if (!_connection.IsOpened) 
+                {
+                    _isRuning = false;
+                    wasAborted = true;
+                    abortReason = "Connection has been closed";
                     return result;
+                }
+                if (!_isRuning) //already ended (cancelled froum outside?)
+                {                    
+                    wasAborted = true;
+                    abortReason = "Cancelled";
+                    return result;
+                }
+
             }
-            Cancel();
-            
-            //wait for real cancel
-            while (_isRuning)//TODO loadingThread.Join();
-            {
-                Thread.Sleep(10);
-            }
+            CancelInternal(true, -1); //Join loading thread
 
             return result;
         }

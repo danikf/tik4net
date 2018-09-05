@@ -65,12 +65,24 @@ namespace tik4net
 
         /// <summary>
         /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) which are returned during <paramref name="durationSec"/> wait.
-        /// After this period, command is automatically stopped via <see cref="Cancel"/>.
+        /// After this period, command is automatically stopped via <see cref="CancelAndJoin"/>.
         /// </summary>
         /// <param name="durationSec">How long will method wait for results.</param>
         /// <returns>List of !re sentences read.</returns>
         /// <remarks>If no error occurs, calling this method blocks calling thread for <paramref name="durationSec"/>.</remarks>
+        /// <exception cref="TikCommandException">If command was aborted before <paramref name="durationSec"/></exception>
         IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec);
+
+        /// <summary>
+        /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) which are returned during <paramref name="durationSec"/> wait.
+        /// After this period, command is automatically stopped via <see cref="CancelAndJoin"/>.
+        /// </summary>
+        /// <param name="durationSec">How long will method wait for results.</param>
+        /// <param name="wasAborted">If command has been terminated before <paramref name="durationSec"/>.</param>
+        /// <param name="abortReason">Detail info if <paramref name="wasAborted"/> is true.</param>
+        /// <returns>List of !re sentences read.</returns>
+        /// <remarks>If no error occurs, calling this method blocks calling thread for <paramref name="durationSec"/>.</remarks>
+        IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string abortReason);
 
         /// <summary>
         /// Calls given <see cref="CommandText"/> to router. Response is returned via <paramref name="oneResponseCallback"/> callback when it is read from mikrotik (for tag, which has been dynamically assigned).
