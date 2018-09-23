@@ -32,14 +32,16 @@ namespace tik4net.Objects.Interface
 
         /// <summary>
         /// rx-drops-per-second
+        /// REMARKS: not available in all versions
         /// </summary>
-        [TikProperty("rx-drops-per-second", IsMandatory = true, IsReadOnly = true)]
-        public string RxSropsPerSecond { get; private set; }
+        [TikProperty("rx-drops-per-second", IsMandatory = false, IsReadOnly = true)]
+        public string RxDropsPerSecond { get; private set; }
 
         /// <summary>
         /// rx-errors-per-second
+        /// REMARKS: not available in all versions
         /// </summary>
-        [TikProperty("rx-errors-per-second", IsMandatory = true, IsReadOnly = true)]
+        [TikProperty("rx-errors-per-second", IsMandatory = false, IsReadOnly = true)]
         public string RxErrorsPerSecond { get; private set; }        
 
         /// <summary>
@@ -56,15 +58,23 @@ namespace tik4net.Objects.Interface
 
         /// <summary>
         /// tx-drops-per-second
+        /// REMARKS: not available in all versions
         /// </summary>
-        [TikProperty("tx-drops-per-second", IsMandatory = true, IsReadOnly = true)]
-        public string TxSropsPerSecond { get; private set; }
+        [TikProperty("tx-drops-per-second", IsMandatory = false, IsReadOnly = true)]
+        public string TxDropsPerSecond { get; private set; }
 
         /// <summary>
         /// tx-errors-per-second
+        /// REMARKS: not available in all versions
         /// </summary>
-        [TikProperty("tx-errors-per-second", IsMandatory = true, IsReadOnly = true)]
+        [TikProperty("tx-errors-per-second", IsMandatory = false, IsReadOnly = true)]
         public string TxErrorsPerSecond { get; private set; }
+
+        /// <summary>
+        /// tx-queue-drops-per-second
+        /// </summary>
+        [TikProperty("tx-queue-drops-per-second", IsMandatory = false, IsReadOnly = true)]
+        public string TxQueueDropsPerSecond { get; private set; }
 
         /// <summary>
         /// Gets snapshot of actual values for given <paramref name="interfaceName"/>.
