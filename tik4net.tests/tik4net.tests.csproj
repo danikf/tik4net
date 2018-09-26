@@ -57,7 +57,6 @@
     <Compile Include="CrudTest.cs" />
     <Compile Include="InterfaceMonitorTrafficTest.cs" />
     <Compile Include="InterfaceWirelessTest.cs" />
-    <Compile Include="PingTest.cs" />
     <Compile Include="ConnectionTest.cs" />
     <Compile Include="InterfaceEthernetTest.cs" />
     <Compile Include="IpHotspotActiveTest.cs" />

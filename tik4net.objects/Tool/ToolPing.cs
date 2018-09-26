@@ -104,5 +104,32 @@ namespace tik4net.Objects.Tool
         {
             return string.Format("{0} ....... {1}", Host, TikTimeHelper.FromTikTimeToSeconds(Time));
         }
+
+        /// <summary>
+        /// Pings given <see paramref="address"/>. Returns <paramref name="cnt"/> of ping results to the <paramref name="address"/>.
+        /// </summary>
+        public static IEnumerable<ToolPing> Execute(ITikConnection connection, string address, int cnt)
+        {
+            return ToolPingConnectionExtensions.Ping(connection, address, cnt);
+        }
     }
+
+    /// <summary>
+    /// Connection extension class for <see cref="ToolPing"/>
+    /// </summary>
+    public static class ToolPingConnectionExtensions
+    {
+        /// <summary>
+        /// Pings given <see paramref="address"/>. Returns <paramref name="cnt"/> of ping results to the <paramref name="address"/>.
+        /// </summary>
+        public static IEnumerable<ToolPing> Ping(this ITikConnection connection, string address, int cnt)
+        {
+            var result = connection.LoadList<ToolPing>(
+                connection.CreateParameter("address", address, TikCommandParameterFormat.NameValue),
+                connection.CreateParameter("count", cnt.ToString(), TikCommandParameterFormat.NameValue));
+
+            return result;
+        }
+    }
+
 }
