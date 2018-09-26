@@ -1,3 +1,5 @@
+[![NuGet](https://img.shields.io/nuget/v/tik4net.svg)](https://www.nuget.org/packages/tik4net)
+
 tik4net
 ====
 
