@@ -1,5 +1,3 @@
-[![NuGet](https://img.shields.io/nuget/v/tik4net.svg)](https://www.nuget.org/packages/tik4net)
-
 tik4net
 ====
 
@@ -11,7 +9,7 @@ It has 3 parts:
 * [O/R mapper like highlevel API](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper) with imported mikrotik strong-typed entities. (tik4net.objects.dll) 
 * Tools - semi-automatic generators of custom entity C# code (for usage with tik4net.objects.dll)
 
-#Features
+# Features
 * Easy to use with [O/R mapper like highlevel API](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper)
 * Low level access supported by [low level API](https://github.com/danikf/tik4net/wiki/Low-level-API) 
 * Stable interface and backward compatibility
@@ -20,7 +18,7 @@ It has 3 parts:
 * Easy to understand and well documented code
 
 # Binaries
-* [nuget](https://www.nuget.org/packages/tik4net/)
+* [![NuGet](https://img.shields.io/nuget/v/tik4net.svg)](https://www.nuget.org/packages/tik4net)
 * [dlls download](http://forum.mikrotik.com/viewtopic.php?t=99954)
 
 # Getting started and documentation
