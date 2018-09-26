@@ -65,7 +65,9 @@ namespace tik4net
 
         /// <summary>
         /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) which are returned during <paramref name="durationSec"/> wait.
-        /// After this period, command is automatically stopped via <see cref="CancelAndJoin"/>.
+        /// After this period, command is automatically stopped via <see cref="CancelAndJoin"/>. 
+        /// Throws <see cref="TikCommandException"/> if command is aborted before <paramref name="durationSec"/>.
+        /// Returns data if command ends before <paramref name="durationSec"/> (!done received).
         /// </summary>
         /// <param name="durationSec">How long will method wait for results.</param>
         /// <returns>List of !re sentences read.</returns>
@@ -76,6 +78,8 @@ namespace tik4net
         /// <summary>
         /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) which are returned during <paramref name="durationSec"/> wait.
         /// After this period, command is automatically stopped via <see cref="CancelAndJoin"/>.
+        /// Don't throw any exception if command is aborted before <paramref name="durationSec"/>. Returns <paramref name="wasAborted"/>=true instead (usefull if incomplete result is still expected).
+        /// Returns data if command ends before <paramref name="durationSec"/> (!done received).
         /// </summary>
         /// <param name="durationSec">How long will method wait for results.</param>
         /// <param name="wasAborted">If command has been terminated before <paramref name="durationSec"/>.</param>

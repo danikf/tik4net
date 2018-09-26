@@ -50,5 +50,47 @@ namespace tik4net.tests
         }
 
         #endregion
+
+        #region /tool/traceroute
+
+        [TestMethod]
+        public void TracerouteToLocalhostWillNotFail()
+        {            
+            const string IP = "127.0.0.1";            
+
+            var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
+                "address", IP,
+                "count", "1");
+            var result = cmd.ExecuteList();
+            Assert.IsTrue(result.Count() == 2);
+        }
+
+
+        [TestMethod]
+        public void TracerouteToGoogleDnsWillNotFail()
+        {
+            const string IP = "8.8.8.8";
+
+            var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
+                "address", IP,
+                "count", "1");
+            var result = cmd.ExecuteList();
+            Assert.IsTrue(result.Count() > 1);
+        }
+
+        [TestMethod]
+        public void TracerouteUnreachableAddressWillNotFail()
+        {
+            const string IP = "192.168.4.255";
+
+            var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
+                "address", IP,
+                "count", "1");
+            var result = cmd.ExecuteList();
+            Assert.IsTrue(result.Count() > 1); //returns exactly 20 rows ...
+        }
+
+
+        #endregion
     }
 }
