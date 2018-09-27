@@ -64,9 +64,9 @@ namespace tik4net
         IEnumerable<ITikReSentence> ExecuteList();
 
         /// <summary>
-        /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) which are returned during <paramref name="durationSec"/> wait.
-        /// After this period, command is automatically stopped via <see cref="CancelAndJoin()"/>. 
-        /// Throws <see cref="TikCommandException"/> if command is aborted before <paramref name="durationSec"/>.
+        /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) which are returned during <paramref name="durationSec"/> wait.<br>
+        /// After this period, command is automatically stopped via <see cref="CancelAndJoin()"/>.<br>
+        /// Throws <see cref="TikCommandException"/> if command is aborted before <paramref name="durationSec"/>.<br>
         /// Returns data if command ends before <paramref name="durationSec"/> (!done received).
         /// </summary>
         /// <param name="durationSec">How long will method wait for results.</param>
@@ -76,9 +76,9 @@ namespace tik4net
         IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec);
 
         /// <summary>
-        /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) which are returned during <paramref name="durationSec"/> wait.
-        /// After this period, command is automatically stopped via <see cref="CancelAndJoin()"/>.
-        /// Don't throw any exception if command is aborted before <paramref name="durationSec"/>. Returns <paramref name="wasAborted"/>=true instead (usefull if incomplete result is still expected).
+        /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) which are returned during <paramref name="durationSec"/> wait.<br>
+        /// After this period, command is automatically stopped via <see cref="CancelAndJoin()"/>.<br>
+        /// Don't throw any exception if command is aborted before <paramref name="durationSec"/>. Returns <paramref name="wasAborted"/>=true instead (usefull if incomplete result is still expected).<br>
         /// Returns data if command ends before <paramref name="durationSec"/> (!done received).
         /// </summary>
         /// <param name="durationSec">How long will method wait for results.</param>
@@ -89,7 +89,7 @@ namespace tik4net
         IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string abortReason);
 
         /// <summary>
-        /// Calls given <see cref="CommandText"/> to router. Response is returned via <paramref name="oneResponseCallback"/> callback when it is read from mikrotik (for tag, which has been dynamically assigned).
+        /// Calls given <see cref="CommandText"/> to router. Response is returned via <paramref name="oneResponseCallback"/> callback when it is read from mikrotik (for tag, which has been dynamically assigned).<br>
         /// REMARKS: <paramref name="oneResponseCallback"/> is called from another NON-GUI thread. If you want to show response in UI, 
         /// you should use some kind of synchronization like BeginInvoke in WinForms or SynchronizationContext. You can not touch UI controls directly without it.
         /// </summary>
@@ -131,17 +131,15 @@ namespace tik4net
         void Cancel();
 
         /// <summary>
-        /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteAsync"/> has been called)
-        /// Blocks the calling thread until a thread terminates or the specified time elapses,
-        /// while continuing to perform standard COM and SendMessage pumping.
+        /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteAsync"/> has been called).<br>
+        /// Blocks the calling thread until a thread terminates or the specified time elapses, while continuing to perform standard COM and SendMessage pumping.
         /// </summary>
         /// <seealso cref="ExecuteAsync"/>
         void CancelAndJoin();
 
         /// <summary>
-        /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteAsync"/> has been called)
-        /// Blocks the calling thread until a thread terminates or the specified time elapses,
-        /// while continuing to perform standard COM and SendMessage pumping.
+        /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteAsync"/> has been called).<br>
+        /// Blocks the calling thread until a thread terminates or the specified time elapses, while continuing to perform standard COM and SendMessage pumping.
         /// </summary>
         /// <param name="milisecondsTimeout">Wait timeout.</param>
         /// <returns>True if loading thread ends before given timeout.</returns>
