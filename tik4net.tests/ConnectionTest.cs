@@ -175,7 +175,25 @@ namespace tik4net.tests
             }
         }
 
+        [TestMethod]
+        public void ReSentenceWithRepeatingFields_WillWorkaroundThisIssue()
+        {
+            // https://forum.mikrotik.com/viewtopic.php?f=9&t=99954&p=691864#p691858
+            var rows = new List<string>()
+            {
+                "=value=1234",
+                "=duplicit=123",
+                "=duplicit=123",
+                "=duplicit=456",
+            };
+            var reSentence = Activator.CreateInstance(typeof(ITikReSentence).Assembly.GetType("tik4net.Api.ApiReSentence"), rows as IEnumerable<string>) as ITikReSentence;
+            Assert.IsNotNull(reSentence);
+            Assert.AreEqual(reSentence.GetResponseField("value"), "1234");
+            Assert.AreEqual(reSentence.GetResponseField("duplicit"), "123");
+            Assert.AreEqual(reSentence.GetResponseField("duplicit2"), "123");
+            Assert.AreEqual(reSentence.GetResponseField("duplicit3"), "456");
 
+        }
 
         //[TestMethod]
         //public void CallCommandSync_Reboot_Will_Not_HangUp()

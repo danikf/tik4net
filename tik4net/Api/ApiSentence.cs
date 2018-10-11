@@ -34,10 +34,22 @@ namespace tik4net.Api
                 {
                     string key = match.Groups["KEY"].Value;
                     string value = match.Groups["VALUE"].Value;
+                    
                     if (!_words.ContainsKey(key))
                         _words.Add(key, value);
-                    else if (_words[key] != value)
-                        throw new TikSentenceException(string.Format("Duplicit key '{0}' with deffirent values '{1}' vs. '{2}'", key, _words[key], value) , this);
+                    else
+                    {   //WORKAROUND
+                        //REMARKS: there are mikrotik objects with multiple fields with the same name (e.q. /ip/ipsec/remote-peers)
+                        //https://forum.mikrotik.com/viewtopic.php?f=9&t=99954&p=691864#p691858
+                        int idx = 2;
+                        while (_words.ContainsKey(key + idx))
+                        {
+                            idx++;
+                        }
+                        _words.Add(key + idx, value);
+                    }
+                    //if (_words[key] != value)
+                    //    throw new TikSentenceException(string.Format("Duplicit key '{0}' with deffirent values '{1}' vs. '{2}'", key, _words[key], value) , this);
                     //else - duplicit key but the same value -> OK (workaround mikrotik bug?)
                 }
             }
