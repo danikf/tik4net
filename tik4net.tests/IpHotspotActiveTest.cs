@@ -7,10 +7,6 @@ namespace tik4net.tests
     [TestClass]
     public class IpHotspotActiveTest : TestBase
     {
-        [TestMethod]
-        public void LoadAllActiveWillNotFail()
-        {
-            Connection.LoadAll<HotspotActive>();
-        }
+
     }
 }

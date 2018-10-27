@@ -11,6 +11,15 @@ namespace tik4net.tests
     [TestClass]
     public class IpHotspotTest: TestBase
     {
+        #region HotspotActive
+        [TestMethod]
+        public void LoadAllActiveWillNotFail()
+        {
+            Connection.LoadAll<HotspotActive>();
+        }
+        #endregion
+
+        #region HotspotUser
         [TestMethod]
         public void AddSingleUserWillNotFail()
         {
@@ -44,7 +53,7 @@ namespace tik4net.tests
         public void AddUserWithProfileWillNotFail()
         {
             string profileName = "TEST " + DateTime.Now.ToString();
-            var profile = new HotspotUser.UserProfile()
+            var profile = new HotspotUserProfile()
             {
                 Name = profileName,
             };
@@ -62,8 +71,34 @@ namespace tik4net.tests
         [TestMethod]
         public void DeleteAllUserProfilesWillNotFail()
         {
-            var list = Connection.LoadAll<HotspotUser.UserProfile>();
+            var list = Connection.LoadAll<HotspotUserProfile>();
             Connection.SaveListDifferences(list.Where(l=>l.Name == "default") /*list with "default" as expected => delete all others*/, list);
         }
+        #endregion
+
+        #region HotspotIpBinding
+        [TestMethod]
+        public void LoadAllHotspotIpBindingsWillNotFail()
+        {
+            Connection.LoadAll<HotspotIpBinding>();
+        }
+
+        [TestMethod]
+        public void CreateAndRemoveHotspotIpBindingsWillNotFail()
+        {
+            const string ADDRESS = "192.168.168.1";
+            var binding = new HotspotIpBinding()
+            {
+                Address = ADDRESS,
+            };
+            
+            Connection.Save(binding);
+            var loadedBinding = Connection.LoadAll<HotspotIpBinding>().SingleOrDefault(ib => ib.Address == ADDRESS);
+            Assert.IsNotNull(loadedBinding);
+
+            Connection.Delete(binding);
+        }
+
+        #endregion
     }
 }
