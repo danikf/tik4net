@@ -91,8 +91,8 @@ namespace tik4net
 
 #if !(NET20 || NET35 || NET40)
         /// <summary>
-        /// Opens connection to the specified mikrotik host on default port (depends on technology) and perform the logon operation.
-        /// Awaitable version. Default timeout is <see cref="ReceiveTimeout"/>x2 or 5s if not set.
+        /// Opens connection to the specified mikrotik host on default port (depends on technology) and perform the logon operation.<br>
+        /// Awaitable version. Default timeout is <see cref="ReceiveTimeout"/>x2 or 5s if not set.<br>
         /// REMARKS: don't forget to use Wait overload with timeout if you use it in OpenAsync(...).Wait(timeout) way.
         /// </summary>
         /// <param name="host">The host.</param>
@@ -133,7 +133,7 @@ namespace tik4net
         ITikCommand CreateCommand(TikCommandParameterFormat defaultParameterFormat);
 
         /// <summary>
-        /// Factory method - creates command specific for connection type with assiged <see cref="ITikCommand.Connection"/>.
+        /// Factory method - creates command specific for connection type with assiged <see cref="ITikCommand.Connection"/>.<br>
         /// Setups <see cref="ITikCommand.CommandText"/> and <see cref="ITikCommand.Parameters"/>.
         /// </summary>
         /// <param name="commandText">Command text in mikrotik API format</param>
@@ -143,7 +143,7 @@ namespace tik4net
         ITikCommand CreateCommand(string commandText, params ITikCommandParameter[] parameters);
 
         /// <summary>
-        /// Factory method - creates command specific for connection type with assiged <see cref="ITikCommand.Connection"/>.
+        /// Factory method - creates command specific for connection type with assiged <see cref="ITikCommand.Connection"/>.<br>
         /// Setups <see cref="ITikCommand.CommandText"/> and <see cref="ITikCommand.Parameters"/>.
         /// </summary>
         /// <param name="commandText">Command text in mikrotik API format</param>
@@ -153,7 +153,7 @@ namespace tik4net
         ITikCommand CreateCommand(string commandText, TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] parameters);        
 
         /// <summary>
-        /// Factory method - creates command specific for connection type with assiged <see cref="ITikCommand.Connection"/>.
+        /// Factory method - creates command specific for connection type with assiged <see cref="ITikCommand.Connection"/>.<br>
         /// Setups <see cref="ITikCommand.CommandText"/> and <see cref="ITikCommand.Parameters"/>.
         /// </summary>
         /// <param name="commandText">Command text in mikrotik API format</param>
@@ -162,7 +162,7 @@ namespace tik4net
         ITikCommand CreateCommandAndParameters(string commandText, params string[] parameterNamesAndValues);
 
         /// <summary>
-        /// Factory method - creates command specific for connection type with assiged <see cref="ITikCommand.Connection"/>.
+        /// Factory method - creates command specific for connection type with assiged <see cref="ITikCommand.Connection"/>.<br>
         /// Setups <see cref="ITikCommand.CommandText"/> and <see cref="ITikCommand.Parameters"/>.
         /// </summary>
         /// <param name="commandText">Command text in mikrotik API format</param>
@@ -223,7 +223,7 @@ namespace tik4net
         IEnumerable<ITikSentence> CallCommandSync(IEnumerable<string> commandRows);
 
         /// <summary>
-        /// Calls command to mikrotik (in connection specific format). Response is returned via <paramref name="oneResponseCallback"/> callback when it is read from mikrotik (for given <paramref name="tag"/>).
+        /// Calls command to mikrotik (in connection specific format). Response is returned via <paramref name="oneResponseCallback"/> callback when it is read from mikrotik (for given <paramref name="tag"/>).<br>
         /// REMARKS: <paramref name="oneResponseCallback"/> is called from another NON-GUI thread. If you want to show response in UI, 
         /// you should use some kind of synchronization like BeginInvoke in WinForms. You can not touch UI controls directly without it.
         /// </summary>
