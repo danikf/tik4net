@@ -33,5 +33,44 @@ namespace tik4net.tests
             var result = Connection.LoadList<FirewallConnection>(
                 Connection.CreateParameter("src-address", "192.168.3.103"));
         }
+
+        [TestMethod]
+        public void FirewalTcpFilter_Issue51_WillNotFail()
+        {
+            var firewallItem = new FirewallFilter()
+            {
+                Action = FirewallFilter.ActionType.Drop,
+                Chain = "forward",
+                Comment = "test-tcp",
+                DstAddress = "8.8.8.8",
+                DstPort = "53",
+                Protocol = "tcp",
+                SrcAddress = "1.1.1.1",
+                SrcPort = "22",
+            };
+            Connection.Save(firewallItem);
+
+            Connection.Delete(firewallItem);
+        }
+
+        [TestMethod]
+        public void FirewalTcpFilterAccept_Issue51_WillNotFail()
+        {
+            var firewallItem = new FirewallFilter()
+            {
+                Action = FirewallFilter.ActionType.Accept, //default value
+                Chain = "forward",
+                Comment = "test-tcp",
+                DstAddress = "8.8.8.8",
+                DstPort = "53",
+                Protocol = "tcp",
+                SrcAddress = "1.1.1.1",
+                SrcPort = "22",
+            };
+            Connection.Save(firewallItem);
+
+            Connection.Delete(firewallItem);
+        }
+
     }
 }

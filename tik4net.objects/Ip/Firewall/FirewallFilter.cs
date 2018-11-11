@@ -414,7 +414,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// protocol: Matches particular IP protocol specified by protocol name or number
         /// </summary>
-        [TikProperty("protocol", DefaultValue = "tcp", UnsetOnDefault = true)]
+        [TikProperty("protocol", UnsetOnDefault = true)]
         public string Protocol { get; set; }
 
         /// <summary>
