@@ -196,6 +196,36 @@ namespace tik4net.tests
 
             Assert.IsTrue(onDoneCallbackCalled);
         }
+
+        [TestMethod]
+        public void RunScript_Issue53_WillNotFail()
+        {
+            const string name = "TEST_NAME_ISSUE53";
+            const string scriptLines = ":log info (\"start\") \r\n/ system identity print \r\n/ system identity print\r\n:log info (\"end\") ";
+            const int commandRowsCnt = 2; // 2x call of / system identity print
+            ITikCommand scriptCreateCmd = Connection.CreateCommandAndParameters("/system/script/add",
+                "name", name,
+                "source", scriptLines);
+            var id = scriptCreateCmd.ExecuteScalar();
+            try
+            {
+                //run via ID
+                ITikCommand scriptRunCmd = Connection.CreateCommand("/system/script/run",
+                    Connection.CreateParameter(TikSpecialProperties.Id, id, TikCommandParameterFormat.NameValue));
+                var responseRows = scriptRunCmd.ExecuteList();
+                Assert.IsTrue(responseRows.Count() == commandRowsCnt); //one empty !re row per script line command
+
+                ////run via number
+                //ITikCommand scriptRunCmd1 = Connection.CreateCommand("/system/script/run",
+                //    Connection.CreateParameter("number", "0", TikCommandParameterFormat.NameValue));
+                //var responseRows1 = scriptRunCmd1.ExecuteList();
+                //Assert.IsTrue(responseRows1.Count() == commandRowsCnt); //one empty !re row per script line command
+            }
+            finally
+            {
+                Connection.CreateCommandAndParameters("/system/script/remove", TikSpecialProperties.Id, id).ExecuteNonQuery();
+            }
+        }
     }
 }
 
