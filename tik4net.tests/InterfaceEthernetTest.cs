@@ -5,11 +5,12 @@ using System.Linq;
 using System.Text;
 using tik4net.Objects;
 using tik4net.Objects.Interface;
+using tik4net.Objects.Interface.Ethernet;
 
 namespace tik4net.tests
 {
     [TestClass]
-    public class InterfaceEthernetTest: TestBase
+    public class InterfaceEthernetTest : TestBase
     {
         [TestMethod]
         public void ListAllInterfaceEthernetWillNotFail()
@@ -39,5 +40,15 @@ namespace tik4net.tests
             Connection.Save(eth);
         }
 
+
+        [TestMethod]
+        public void EthernetMonitorForEth1WillNotFail()
+        {
+            const string INTERFACE_NAME = "ether1";
+            var result = EthernetMonitor.GetSnapshot(Connection, INTERFACE_NAME);
+
+            Assert.IsNotNull(result);
+            Assert.AreEqual(result.Name, INTERFACE_NAME);
+        }
     }
 }
