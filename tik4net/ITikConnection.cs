@@ -190,6 +190,13 @@ namespace tik4net
         /// <seealso cref="ITikCommand.Parameters"/>
         ITikCommandParameter CreateParameter(string name, string value, TikCommandParameterFormat parameterFormat);
 
+        /// <summary>
+        /// Factory method - creates parameters instance specific for connection and command type. Shortcut for a .proplist parameter.
+        /// </summary>
+        /// <param name="proplist">Names of the wanted properties</param>
+        /// <returns>Created parameter with name .proplist and a comma separated property list as value.</returns>
+        /// <seealso cref="ITikCommand.Parameters"/>
+        ITikCommandParameter CreateProplistParameter(params string[] proplist);
 
 
         /// <summary>
