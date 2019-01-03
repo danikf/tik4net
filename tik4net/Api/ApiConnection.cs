@@ -608,5 +608,13 @@ namespace tik4net.Api
 
             return result;
         }
+        
+        public ITikCommandParameter CreateProplistParameter(params string[] proplist)
+        {
+            var result = CreateParameter(".proplist", string.Join(",", proplist));
+            result.ParameterFormat = TikCommandParameterFormat.NameValue;
+
+            return result;
+        }
     }
 }
