@@ -118,6 +118,13 @@ namespace tik4net
         ITikCommandParameter AddParameter(string name, string value, TikCommandParameterFormat parameterFormat);
 
         /// <summary>
+        /// Adds new instance of parameter with .proplist to <see cref="Parameters"/> list.
+        /// </summary>
+        /// <param name="proplist">Names of the wanted properties</param>
+        /// <returns>Instance of added parameter.</returns>
+        ITikCommandParameter AddProplistParameter(params string[] proplist);
+
+        /// <summary>
         /// Adds newly created instances of <see cref="ITikCommand.Parameters"/>.
         /// </summary>
         /// <param name="parameterNamesAndValues">Name and value of parameters for command. (name, value, name2, value2, ..., name9, value9, ...)</param>
