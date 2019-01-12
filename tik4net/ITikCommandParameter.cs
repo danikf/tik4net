@@ -11,7 +11,8 @@ namespace tik4net
     public interface ITikCommandParameter
     {
         /// <summary>
-        /// Parameter name
+        /// Parameter name. 
+        /// REMARKS: If starts with one of ?= character, than <see cref="ParameterFormat"/> is ignored.
         /// </summary>
         string Name { get; set; }
 
@@ -22,6 +23,7 @@ namespace tik4net
 
         /// <summary>
         /// Parameter specific format how will be parameter formated in mikrotik request.
+        /// REMARKS: This value is ignored if <see cref="Name"/> starts with one of ?= characters
         /// </summary>
         TikCommandParameterFormat ParameterFormat { get; set; }
     }

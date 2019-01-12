@@ -154,18 +154,25 @@ namespace tik4net.Api
             //parameters
             result.AddRange(_parameters.Select(p =>
             {
-                switch (ResolveParameterFormat(defaultParameterFormat, _defaultParameterFormat, p))
+                if (p.Name.StartsWith("=")) //NameValue format in parameter name
+                    return string.Format("{0}={1}", p.Name, p.Value);
+                else if (p.Name.StartsWith("?")) //Filter format in parameter name
+                    return string.Format("{0}={1}", p.Name, p.Value);
+                else
                 {
-                    case TikCommandParameterFormat.Filter:
-                        return string.Format("?{0}={1}", p.Name, p.Value);
-                    case TikCommandParameterFormat.NameValue:
-                        return string.Format("={0}={1}", p.Name, p.Value);
-                    case TikCommandParameterFormat.Tag:
-                        return string.Format("{0}={1}", p.Name, p.Value);
-                    //case TikCommandParameterFormat.NameOnly:
-                    //      return string.Format("={0}", p.Name);
-                    default:
-                        throw new NotImplementedException();
+                    switch (ResolveParameterFormat(defaultParameterFormat, _defaultParameterFormat, p))
+                    {
+                        case TikCommandParameterFormat.Filter:
+                            return string.Format("?{0}={1}", p.Name, p.Value);
+                        case TikCommandParameterFormat.NameValue:
+                            return string.Format("={0}={1}", p.Name, p.Value);
+                        case TikCommandParameterFormat.Tag:
+                            return string.Format("{0}={1}", p.Name, p.Value);
+                        //case TikCommandParameterFormat.NameOnly:
+                        //      return string.Format("={0}", p.Name);
+                        default:
+                            throw new NotImplementedException();
+                    }
                 }
             }));
             return result.ToArray();

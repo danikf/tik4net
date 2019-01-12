@@ -101,7 +101,7 @@ namespace tik4net
         void ExecuteAsync(Action<ITikReSentence> oneResponseCallback, Action<ITikTrapSentence> errorCallback=null, Action onDoneCallback = null);        
 
         /// <summary>
-        /// Adds new instance of parameter to <see cref="Parameters"/> list.
+        /// Adds new instance of parameter to <see cref="Parameters"/> list. Type of parameter is resolved from parameter name or from command type.
         /// </summary>
         /// <param name="name">Parameter name.</param>
         /// <param name="value">Parameter value</param>
@@ -109,7 +109,7 @@ namespace tik4net
         ITikCommandParameter AddParameter(string name, string value);
 
         /// <summary>
-        /// Adds new instance of parameter to <see cref="Parameters"/> list.
+        /// Adds new instance of parameter to <see cref="Parameters"/> list with specified <paramref name="parameterFormat"/>.
         /// </summary>
         /// <param name="name">Parameter name.</param>
         /// <param name="value">Parameter value</param>
@@ -120,7 +120,7 @@ namespace tik4net
         /// <summary>
         /// Adds newly created instances of <see cref="ITikCommand.Parameters"/>.
         /// </summary>
-        /// <param name="parameterNamesAndValues">Name and value of parameters for command. (name, value, name2, value2, ..., name9, value9, ...)</param>
+        /// <param name="parameterNamesAndValues">Name and value of parameters for command. (name, value, name2, value2, ..., name9, value9, ...). Type of parameter is resolved from parameter name or from command type.</param>
         /// <returns>List of created parameters.</returns>
         IEnumerable<ITikCommandParameter> AddParameterAndValues(params string[] parameterNamesAndValues);
 
