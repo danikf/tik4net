@@ -72,5 +72,29 @@ namespace tik4net.tests
             Connection.Delete(firewallItem);
         }
 
+        [TestMethod]
+        public void FirewalTcpFilterAccept_BytesAndPackets_NotZero()
+        {
+            var firewallItem = new FirewallFilter()
+            {
+                Action = FirewallFilter.ActionType.Accept, //default value
+                Chain = "input",
+                Comment = "test-tcp",
+            };
+            Connection.Save(firewallItem);
+            var tmp = Connection.LoadById<FirewallFilter>(firewallItem.Id); //generate traffic
+
+            try
+            {
+                tmp = Connection.LoadById<FirewallFilter>(firewallItem.Id);
+                Assert.AreNotEqual(tmp.Bytes, 0);
+                Assert.AreNotEqual(tmp.Packets, 0);
+            }
+            finally
+            {
+                Connection.Delete(firewallItem);
+            }
+        }
+
     }
 }

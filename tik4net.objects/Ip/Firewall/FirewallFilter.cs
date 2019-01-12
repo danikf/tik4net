@@ -522,12 +522,24 @@ namespace tik4net.Objects.Ip.Firewall
         /// Row dynamic property.
         /// </summary>
         [TikProperty("dynamic", IsReadOnly = true)]
-        public bool Dynamic { get; set; }
+        public bool Dynamic { get; private set; }
 
         /// <summary>
         /// Row invalid property.
         /// </summary>
         [TikProperty("invalid", IsReadOnly = true)]
-        public bool Invalid { get; set; }
+        public bool Invalid { get; private set; }
+
+        /// <summary>
+        /// Statistics - bytes
+        /// </summary>
+        [TikProperty("bytes", IsReadOnly = true)]
+        public long Bytes { get; private set; }
+
+        /// <summary>
+        /// Statistics - packets
+        /// </summary>
+        [TikProperty("packets", IsReadOnly = true)]
+        public long Packets { get; private set; }
     }
 }
