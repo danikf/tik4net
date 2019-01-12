@@ -118,6 +118,18 @@ namespace tik4net.Objects.Interface
         /// </summary>
         [TikProperty("comment")]
         public string Comment { get; set; }
+
+        /// <summary>
+        /// Link last down time. (since 6.43 version)
+        /// </summary>
+        [TikProperty("last-link-down-time")]
+        public string LastLinkDownTime { get; set; }
+
+        /// <summary>
+        /// Link last up time (since 6.43 version)
+        /// </summary>
+        [TikProperty("last-link-up-time")]
+        public string LastLinkUpTime { get; set; }
     }
 
 }

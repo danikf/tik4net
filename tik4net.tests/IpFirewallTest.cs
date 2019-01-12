@@ -83,6 +83,7 @@ namespace tik4net.tests
             };
             Connection.Save(firewallItem);
             var tmp = Connection.LoadById<FirewallFilter>(firewallItem.Id); //generate traffic
+            System.Threading.Thread.Sleep(1000);
 
             try
             {
