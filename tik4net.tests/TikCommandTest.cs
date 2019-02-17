@@ -226,6 +226,24 @@ namespace tik4net.tests
                 Connection.CreateCommandAndParameters("/system/script/remove", TikSpecialProperties.Id, id).ExecuteNonQuery();
             }
         }
+
+        [TestMethod]
+        public void ExecuteSingleRowOrDefault_ReturnsNull_IfEmptyResultset()
+        {
+            var testCommand = Connection.CreateCommandAndParameters("/interface/print", "name", "NOT_EXISTING_NAME");
+            var result = testCommand.ExecuteSingleRowOrDefault();
+
+            Assert.IsNull(result);
+        }
+
+        [TestMethod]
+        public void ExecuteSingleRowOrDefault_ReturnsSingleRow_IfExists()
+        {
+            var testCommand = Connection.CreateCommand("/system/identity/print");
+            var result = testCommand.ExecuteSingleRowOrDefault();
+
+            Assert.IsNotNull(result);
+        }
     }
 }
 

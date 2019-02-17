@@ -58,6 +58,13 @@ namespace tik4net
         ITikReSentence ExecuteSingleRow();
 
         /// <summary>
+        /// Executes given <see cref="CommandText"/> on router and ensures that operation returns exactly one row (1x !re and 1x !done) as result. If not, <c>null</c> is returned.
+        /// NOTE: !fail exceptions are handled as usual (throws error).
+        /// </summary>
+        /// <returns>Content of !re sentence or null.</returns>
+        ITikReSentence ExecuteSingleRowOrDefault();
+
+        /// <summary>
         /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) as result.
         /// </summary>
         /// <returns>List of !re sentences</returns>

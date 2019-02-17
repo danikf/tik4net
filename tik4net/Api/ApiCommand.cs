@@ -197,7 +197,10 @@ namespace tik4net.Api
         private void EnsureExactNumberOfResponses(IEnumerable<ApiSentence> response, int nrOfResponses)
         {
             if (response.Count() != nrOfResponses)
-                throw new TikConnectionException(string.Format("Command expected {0} sentences as response, but got {1} response sentences.", nrOfResponses, response.Count()), this, response.Cast<ITikSentence>());
+            {
+                var includesDoneSufix = response.Any(r => r is ITikDoneSentence) ? " (including !done sentence)" : "";
+                throw new TikConnectionException($"Command expected {nrOfResponses} sentences as response, but got {response.Count()} response sentences{includesDoneSufix}.", this, response.Cast<ITikSentence>());
+            }
         }
 
         private void ThrowPossibleResponseError(params ApiSentence[] responseSentences)
@@ -314,6 +317,12 @@ namespace tik4net.Api
             {
                 _isRuning = false;
             }
+        }
+
+        public ITikReSentence ExecuteSingleRowOrDefault()
+        {
+            var sentences = ExecuteList();
+            return sentences.SingleOrDefault();
         }
 
         public IEnumerable<ITikReSentence> ExecuteList()
