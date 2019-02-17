@@ -518,7 +518,7 @@ namespace tik4net.Api
         public ITikCommandParameter AddParameter(string name, string value, TikCommandParameterFormat parameterFormat)
         {
             ITikCommandParameter result = AddParameter(name, value);
-            result.ParameterFormat = parameterFormat;            
+            result.ParameterFormat = parameterFormat;
 
             return result;
         }

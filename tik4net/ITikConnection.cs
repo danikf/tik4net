@@ -190,8 +190,6 @@ namespace tik4net
         /// <seealso cref="ITikCommand.Parameters"/>
         ITikCommandParameter CreateParameter(string name, string value, TikCommandParameterFormat parameterFormat);
 
-
-
         /// <summary>
         /// Calls command to mikrotik (in connection specific format) and waits for response. Command is called without .tag. If you want to use it, just add it as usual parameter (.tag=1234) as last row.
         /// </summary>
