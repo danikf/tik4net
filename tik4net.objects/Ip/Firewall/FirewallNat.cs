@@ -105,7 +105,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// dst-port
         /// </summary>
         [TikProperty("dst-port")]
-        public long DstPort { get; set; }
+        public string DstPort { get; set; }
 
     }
 }
