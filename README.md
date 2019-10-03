@@ -14,7 +14,7 @@ It has 3 parts:
 * Low level access supported by [low level API](https://github.com/danikf/tik4net/wiki/Low-level-API) 
 * Stable interface and backward compatibility
 * Broad range of .NET runtimes supported (including .NET core 2 and Xamarin)
-* New mikrotik v.6.43 login process supported
+* New mikrotik [v.6.43 login process](https://github.com/danikf/tik4net/wiki/login-versions) supported
 * Easy to understand and well documented code
 
 # Binaries
