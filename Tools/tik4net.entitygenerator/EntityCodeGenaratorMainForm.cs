@@ -21,9 +21,13 @@ namespace tik4net.entitygenerator
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            cbTikApi.DataSource = Enum.GetValues(typeof(TikConnectionType));
+
             tbHost.Text = ConfigurationManager.AppSettings["host"];
             tbUser.Text = ConfigurationManager.AppSettings["user"];
             tbPass.Text = ConfigurationManager.AppSettings["pass"];
+
+            cbTikApi.Text = ConfigurationManager.AppSettings["connectionType"];
         }
 
         private void btnGenerate_Click(object sender, EventArgs e)
@@ -31,7 +35,7 @@ namespace tik4net.entitygenerator
             btnGenerate.Enabled = false;
             try
             {
-                using (ITikConnection connection = ConnectionFactory.CreateConnection(TikConnectionType.Api))
+                using (ITikConnection connection = ConnectionFactory.CreateConnection((TikConnectionType)Enum.Parse(typeof(TikConnectionType), cbTikApi.SelectedValue.ToString())))
                 {
                     connection.Open(tbHost.Text, tbUser.Text, tbPass.Text);
 

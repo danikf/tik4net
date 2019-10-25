@@ -39,6 +39,8 @@
             this.tbPass = new System.Windows.Forms.TextBox();
             this.cbExecuteAsync = new System.Windows.Forms.CheckBox();
             this.tbParameters = new System.Windows.Forms.TextBox();
+            this.cbTikApi = new System.Windows.Forms.ComboBox();
+            this.label3 = new System.Windows.Forms.Label();
             label1 = new System.Windows.Forms.Label();
             label2 = new System.Windows.Forms.Label();
             this.SuspendLayout();
@@ -144,11 +146,30 @@
             this.tbParameters.Size = new System.Drawing.Size(503, 20);
             this.tbParameters.TabIndex = 10;
             // 
-            // Form1
+            // comboBox1
+            // 
+            this.cbTikApi.FormattingEnabled = true;
+            this.cbTikApi.Location = new System.Drawing.Point(276, 63);
+            this.cbTikApi.Name = "comboBox1";
+            this.cbTikApi.Size = new System.Drawing.Size(121, 21);
+            this.cbTikApi.TabIndex = 11;
+            // 
+            // label3
+            // 
+            this.label3.AutoSize = true;
+            this.label3.Location = new System.Drawing.Point(243, 66);
+            this.label3.Name = "label3";
+            this.label3.Size = new System.Drawing.Size(27, 13);
+            this.label3.TabIndex = 12;
+            this.label3.Text = "API:";
+            // 
+            // EntityCodeGenaratorMainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(761, 440);
+            this.Controls.Add(this.label3);
+            this.Controls.Add(this.cbTikApi);
             this.Controls.Add(this.tbParameters);
             this.Controls.Add(this.cbExecuteAsync);
             this.Controls.Add(label2);
@@ -160,7 +181,7 @@
             this.Controls.Add(this.tbSourceCode);
             this.Controls.Add(this.tbPath);
             this.Controls.Add(this.btnGenerate);
-            this.Name = "Form1";
+            this.Name = "EntityCodeGenaratorMainForm";
             this.Text = "Entity source code generator";
             this.Load += new System.EventHandler(this.Form1_Load);
             this.ResumeLayout(false);
@@ -179,6 +200,8 @@
         private System.Windows.Forms.TextBox tbPass;
         private System.Windows.Forms.CheckBox cbExecuteAsync;
         private System.Windows.Forms.TextBox tbParameters;
+        private System.Windows.Forms.ComboBox cbTikApi;
+        private System.Windows.Forms.Label label3;
     }
 }
 
