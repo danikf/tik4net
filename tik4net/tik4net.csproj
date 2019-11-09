@@ -3,7 +3,7 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
    <PropertyGroup>
-     <TargetFrameworks>net462;net35;net40;net452;netcoreapp1.1;netcoreapp2.0;netstandard1.3;netstandard1.4;netstandard1.6</TargetFrameworks>
+     <TargetFrameworks>net462;net35;net40;net452;netcoreapp1.1;netcoreapp2.0;netcoreapp2.2;netstandard1.3;netstandard1.4;netstandard1.6</TargetFrameworks>
      <Description>Mikrotik API library</Description>
      <Authors>Daniel Frantik</Authors>
      <Copyright>Copyright (C) Daniel Frantik 2017</Copyright>
