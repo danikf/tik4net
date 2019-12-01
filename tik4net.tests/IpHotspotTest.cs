@@ -19,6 +19,16 @@ namespace tik4net.tests
         }
         #endregion
 
+        #region HotspotUserProfile
+        [TestMethod]
+        public void ListAllUserProfilesWillNotFail()
+        {
+            var list = Connection.LoadAll<HotspotUserProfile>().ToList();
+        }
+
+
+        #endregion
+
         #region HotspotUser
         [TestMethod]
         public void AddSingleUserWillNotFail()
@@ -34,15 +44,26 @@ namespace tik4net.tests
         }
 
         [TestMethod]
-        public void UpdateFirstUserWillNotFail()
+        public void UpdateUserWillNotFail()
         {
-            var user = Connection.LoadAll<HotspotUser>().FirstOrDefault();
-            Assert.IsNotNull(user);
+            //Create user
+            var user = new HotspotUser()
+            {
+                Name = "TEST " + DateTime.Now.ToString(),
+                LimitUptime = "1:00:00",
+                Password = "secretpass",
+            };
+            Connection.Save(user);
 
+            //Update
             user.Disabled = true;
             Connection.Save(user);
+
+            //Cleanup
+            Connection.Delete(user);
         }
 
+        [Ignore] //DAF: potentionaly harmfull test
         [TestMethod]
         public void DeleteAllUsersWillNotFail()
         {
@@ -66,8 +87,13 @@ namespace tik4net.tests
                 LimitUptime = "1:00:00",
             };
             Connection.Save(user);
+
+            //cleanup
+            Connection.Delete(user);
+            Connection.Delete(profile);
         }
 
+        [Ignore] //DAF: potentionaly harmfull test
         [TestMethod]
         public void DeleteAllUserProfilesWillNotFail()
         {

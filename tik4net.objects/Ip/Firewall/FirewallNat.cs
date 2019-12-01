@@ -102,10 +102,16 @@ namespace tik4net.Objects.Ip.Firewall
         public long ToPorts { get; set; }
 
         /// <summary>
-        /// dst-port
+        /// dst-port (integer [ -integer]: 0..65535; Default: ) | List of destination port numbers or port number ranges
         /// </summary>
         [TikProperty("dst-port")]
-        public string DstPort { get; set; }
+        public long DstPort { get; set; }
+
+        /// <summary>
+        /// src-port (integer [ -integer]: 0..65535; Default: ) | List of destination port numbers or port number ranges
+        /// </summary>
+        [TikProperty("src-port")]
+        public long SrcPort { get; set; }
 
     }
 }

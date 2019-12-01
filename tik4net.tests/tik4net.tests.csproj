@@ -62,7 +62,6 @@
     <Compile Include="InterfaceEthernetTest.cs" />
     <Compile Include="IpHotspotActiveTest.cs" />
     <Compile Include="IpHotspotTest.cs" />
-    <Compile Include="IpHotspotUserTest.cs" />
     <Compile Include="IpRouteTest.cs" />
     <Compile Include="PppTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

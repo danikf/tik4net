@@ -244,6 +244,49 @@ namespace tik4net.tests
 
             Assert.IsNotNull(result);
         }
+
+        [TestMethod]
+        public void ExecuteScalarWithTarget_WillNotFail()
+        {
+            var ipAdresses = Connection.LoadAll<IpAddress>();
+
+            var testCommand = Connection.CreateCommandAndParameters("/ip/address/print", TikCommandParameterFormat.Filter, TikSpecialProperties.Id, ipAdresses.First().Id);
+            var readId = testCommand.ExecuteScalar(TikSpecialProperties.Id);
+
+            Assert.IsTrue(!string.IsNullOrWhiteSpace(readId));
+        }
+
+        [TestMethod]
+        public void ExecuteListWithProplistFilter_WillNotFail()
+        {
+            var testCommand = Connection.CreateCommand("/ip/address/print");
+            var result = testCommand.ExecuteList(TikSpecialProperties.Id);
+
+            Assert.IsNotNull(result);
+            Assert.IsTrue(result.Count() > 0);
+        }
+
+        [TestMethod]
+        public void ExecuteScalarOrDefault_WillReturnDefault_WhenNotFound()
+        {
+            const string defaultValue = "def";
+
+            var testCommand = Connection.CreateCommandAndParameters("/ip/address/print", TikCommandParameterFormat.Filter, TikSpecialProperties.Id, "not-existing-id");
+            var result = testCommand.ExecuteScalarOrDefault(defaultValue, TikSpecialProperties.Id);
+
+            Assert.AreEqual(result, defaultValue);
+        }
+
+        [TestMethod]
+        public void ExecuteScalarOrDefaultWithTarget_WillNotFail()
+        {
+            var ipAdresses = Connection.LoadAll<IpAddress>();
+
+            var testCommand = Connection.CreateCommandAndParameters("/ip/address/print", TikCommandParameterFormat.Filter, TikSpecialProperties.Id, ipAdresses.First().Id);
+            var readId = testCommand.ExecuteScalarOrDefault("not used default", TikSpecialProperties.Id);
+
+            Assert.AreEqual(readId, ipAdresses.First().Id);
+        }
     }
 }
 

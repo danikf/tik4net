@@ -133,10 +133,15 @@ namespace tik4net.Api
                 return TikCommandParameterFormat.NameValue;
         }
 
-        private string[] ConstructCommandText(TikCommandParameterFormat defaultParameterFormat)
+        private string[] ConstructCommandText(TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] additionalParamemeters)
         {
             EnsureCommandTextSet();
-
+            foreach (var additionalParameter in additionalParamemeters)
+            {
+                if (_parameters.Any(p => p.Name == additionalParameter.Name))
+                    throw new ArgumentException($"Parameter {additionalParameter.Name} already defined (could not be additionalParameter / proplist / etc.).");
+            }
+        
             string commandText = CommandText;
             if (!StringHelper.IsNullOrWhiteSpace(commandText) && !commandText.Contains("\n") && !commandText.StartsWith("/"))
                 commandText = "/" + commandText;
@@ -152,7 +157,7 @@ namespace tik4net.Api
             }
 
             //parameters
-            result.AddRange(_parameters.Select(p =>
+            result.AddRange(_parameters.Concat(additionalParamemeters).Select(p =>
             {
                 if (p.Name.StartsWith("=")) //NameValue format in parameter name
                     return string.Format("{0}={1}", p.Name, p.Value);
@@ -258,8 +263,32 @@ namespace tik4net.Api
             }
         }
 
-
         public string ExecuteScalar()
+        {
+            return ExecuteScalarInternal(null, false);
+        }
+
+        public string ExecuteScalar(string target)
+        {
+            return ExecuteScalarInternal(target, false);
+        }
+
+        public string ExecuteScalarOrDefault()
+        {
+            return ExecuteScalarInternal(null, true, null);
+        }
+
+        public string ExecuteScalarOrDefault(string defaultValue)
+        {
+            return ExecuteScalarInternal(null, true, defaultValue);
+        }
+
+        public string ExecuteScalarOrDefault(string defaultValue, string target)
+        {
+            return ExecuteScalarInternal(target, true, defaultValue);
+        }
+
+        private string ExecuteScalarInternal(string target, bool allowReturnDefault, string defaultValue = null)
         {
             EnsureConnectionSet();
             EnsureNotRunning();
@@ -267,26 +296,29 @@ namespace tik4net.Api
             _isRuning = true;
             try
             {
-                string[] commandRows = ConstructCommandText(TikCommandParameterFormat.NameValue);
+                var targetParameterInArray = target != null ? new ITikCommandParameter[] { new ApiCommandParameter(TikSpecialProperties.Proplist, target, TikCommandParameterFormat.NameValue) } : new ITikCommandParameter[] { };
+                string[] commandRows = ConstructCommandText(TikCommandParameterFormat.NameValue, targetParameterInArray);
                 IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
                 ThrowPossibleResponseError(response.ToArray());
 
-                if (response.Count() ==1) //!done + =ret=result word
+                if (response.Count() == 1) //!done + =ret=result word
                 {
                     ApiDoneSentence doneSentence = EnsureDoneResponse(response.Single());
-                    return doneSentence.GetResponseWord();
+                    if (allowReturnDefault)
+                        return doneSentence.GetResponseWordOrDefault(defaultValue);
+                    else
+                        return doneSentence.GetResponseWord();
                 }
-                else if (response.Count() >= 2)
+                else if (response.Count() == 2) //!re + !done
                 {
                     EnsureReReponse(response.First());
                     ApiReSentence reResponse = (ApiReSentence)response.First();
                     EnsureDoneResponse(response.Last());
 
-                    return reResponse.Words.First().Value; //first word value from !re
+                    return reResponse.Words.Single(v => v.Key != TikSpecialProperties.Tag).Value; //single word value from !re  //NOTE - .tag could be added when Connection.SendTagWithSyncCommand=true
                 }
                 else
-                    throw new TikConnectionException("Single !done response or at least one !re sentences expected. (1x!done or Nx!re + 1x!done )", this, response.Cast<ITikSentence>());
-
+                    throw new TikConnectionException("Single !done response or exactly one !re sentences expected. (1x!done or 1x!re + 1x!done )", this, response.Cast<ITikSentence>());
             }
             finally
             {
@@ -327,17 +359,30 @@ namespace tik4net.Api
 
         public IEnumerable<ITikReSentence> ExecuteList()
         {
+            return ExecuteListInternal(null);
+        }
+
+        public IEnumerable<ITikReSentence> ExecuteList(params string[] proplist)
+        {
+            Guard.ArgumentNotNull(proplist, nameof(proplist));
+
+            return ExecuteListInternal(proplist);
+        }
+
+        private IEnumerable<ITikReSentence> ExecuteListInternal(params string[] proplist)
+        {
             EnsureConnectionSet();
             EnsureNotRunning();
 
             _isRuning = true;
             try
             {
-                string[] commandRows = ConstructCommandText(TikCommandParameterFormat.Filter);
+                var proplistParameters = proplist == null ? new ITikCommandParameter[] { } : proplist.Select(p => new ApiCommandParameter(TikSpecialProperties.Proplist, p, TikCommandParameterFormat.NameValue)).ToArray();
+                string[] commandRows = ConstructCommandText(TikCommandParameterFormat.Filter, proplistParameters);
                 IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
                 ThrowPossibleResponseError(response.ToArray());
 
-                EnsureReReponse(response.Take(response.Count() -1 ).ToArray());   //!re  - reapeating 
+                EnsureReReponse(response.Take(response.Count() - 1).ToArray());   //!re  - reapeating 
                 EnsureDoneResponse(response.Last()); //!done
 
                 return response.Take(response.Count() - 1).Cast<ITikReSentence>().ToList();

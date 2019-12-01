@@ -46,10 +46,38 @@ namespace tik4net
         void ExecuteNonQuery();
 
         /// <summary>
-        /// Executes given <see cref="CommandText"/> on router and ensures that operation returns one value (=ret parameter), which is returned as result.
+        /// Executes given <see cref="CommandText"/> on router and ensures that operation returns one value (=ret parameter) or single value in single !re row, which is returned as result.
         /// </summary>
         /// <returns>Value returned by router.</returns>
         string ExecuteScalar();
+
+        /// <summary>
+        /// Executes given <see cref="CommandText"/> on router and ensures that operation returns single value (<paramref name="target"/> field) in single !re row, which is returned as result.
+        /// Usefull to return one value from one selected row (for example .id of searched record).
+        /// </summary>
+        /// <param name="target">Name of returned field.</param>
+        /// <returns>Value returned by router.</returns>
+        string ExecuteScalar(string target);
+
+        /// <summary>
+        /// Executes given <see cref="CommandText"/> on router and returns one value (=ret parameter) or single value in single !re row, which is returned as result. If value is not found, than returns <c>null</c>.
+        /// </summary>
+        /// <returns>Value returned by router or <c>null</c>.</returns>
+        string ExecuteScalarOrDefault();
+
+        /// <summary>
+        /// Executes given <see cref="CommandText"/> on router and returns one value (=ret parameter) or single value in single !re row, which is returned as result. If value is not found, than returns <paramref name="defaultValue"/>.
+        /// </summary>
+        /// <returns>Value returned by router or <paramref name="defaultValue"/>.</returns>
+        string ExecuteScalarOrDefault(string defaultValue);
+
+        /// <summary>
+        /// Executes given <see cref="CommandText"/> on router and returns one value (=ret parameter) or single value in single !re row, which is returned as result. If value is not found, than returns <paramref name="defaultValue"/>.
+        /// Usefull to return one value from one selected row (for example .id of searched record).
+        /// </summary>
+        /// <param name="target">Name of returned field.</param>
+        /// <returns>Value returned by router or <paramref name="defaultValue"/>.</returns>
+        string ExecuteScalarOrDefault(string defaultValue, string target);
 
         /// <summary>
         /// Executes given <see cref="CommandText"/> on router and ensures that operation returns exactly one row (1x !re and 1x !done) as result.        
@@ -69,6 +97,13 @@ namespace tik4net
         /// </summary>
         /// <returns>List of !re sentences</returns>
         IEnumerable<ITikReSentence> ExecuteList();
+
+        /// <summary>
+        /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) as result.
+        /// </summary>
+        /// <param name="proplistFields">List of fields to be returned (only subset of fields will be returned).</param>
+        /// <returns>List of !re sentences</returns>
+        IEnumerable<ITikReSentence> ExecuteList(params string[] proplistFields);
 
         /// <summary>
         /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) which are returned during <paramref name="durationSec"/> wait.<br>

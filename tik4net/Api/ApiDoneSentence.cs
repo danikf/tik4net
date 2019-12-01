@@ -16,5 +16,10 @@ namespace tik4net.Api
         {
             return GetWordValue(TikSpecialProperties.Ret);
         }
+
+        public string GetResponseWordOrDefault(string defaultValue)
+        {
+            return GetWordValueOrDefault(TikSpecialProperties.Ret, defaultValue);
+        }
     }
 }

@@ -98,6 +98,7 @@ namespace tik4net.Api
         {
             _isSsl = isSsl;
             _loginProcessVersion = loginProcessVersion;
+            DebugEnabled = System.Diagnostics.Debugger.IsAttached;
         }
 
         private void EnsureOpened()

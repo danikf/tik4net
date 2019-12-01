@@ -20,12 +20,24 @@ namespace tik4net.tests
         public void Init()
         {
             RecreateConnection();
+            OnInitialize();
+        }
+
+        protected virtual void OnInitialize()
+        {
+            // dummy
         }
 
         [TestCleanup]
         public void Cleanup()
         {
+            OnCleanup();
             _connection.Dispose();
+        }
+
+        protected virtual void OnCleanup()
+        {
+            // dummy
         }
 
         protected void RecreateConnection()

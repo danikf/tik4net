@@ -11,10 +11,18 @@ namespace tik4net.tests
     [TestClass]
     public class ConnectionTest
     {
+        private static ITikConnection OpenConnection()
+        {
+            var result = ConnectionFactory.OpenConnection(TikConnectionType.ApiSsl, ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
+
+            return result;
+        }
+
+
         [TestMethod]
         public void OpenConnectionWillNotFail()
         {
-            using (var connection = ConnectionFactory.OpenConnection(TikConnectionType.ApiSsl, ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]))
+            using (var connection = OpenConnection())
             {
                 connection.Close();
             }
@@ -23,7 +31,7 @@ namespace tik4net.tests
         [TestMethod]
         public void ConnectionEncodingWorksCorrectly()
         {
-            using (var connection = ConnectionFactory.OpenConnection(TikConnectionType.ApiSsl, ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]))
+            using (var connection = OpenConnection())
             {
                 connection.Encoding = Encoding.GetEncoding("windows-1250");
                 ITikCommand readCmd = connection.CreateCommand("/system/identity/print");
@@ -47,9 +55,9 @@ namespace tik4net.tests
         }
 
         [TestMethod]
-        public void ConnectionSendTagWithSyncCommandEnabled_WorksCorrectly()
+        public void ConnectionSendTagWithSyncExecuteScalarCommandEnabled_WorksCorrectly()
         {
-            using (var connection = ConnectionFactory.OpenConnection(TikConnectionType.ApiSsl, ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]))
+            using (var connection = OpenConnection())
             {
                 connection.SendTagWithSyncCommand = true;
                 List<string> sentWords = new List<string>();
@@ -68,7 +76,7 @@ namespace tik4net.tests
         [TestMethod]
         public void ConnectionSendTagWithSyncCommandDisabled_WorksCorrectly()
         {
-            using (var connection = ConnectionFactory.OpenConnection(TikConnectionType.ApiSsl, ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]))
+            using (var connection = OpenConnection())
             {
                 connection.SendTagWithSyncCommand = false;
                 List<string> sentWords = new List<string>();
@@ -87,7 +95,7 @@ namespace tik4net.tests
         [TestMethod]
         public void OpenSslConnectionWillNotFail()
         {
-            using (var connection = ConnectionFactory.OpenConnection(TikConnectionType.ApiSsl, ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]))
+            using (var connection = OpenConnection())
             {
                 connection.Close();
             }
@@ -160,7 +168,7 @@ namespace tik4net.tests
         public void CallCommandSync_With_Inlined_Tag_Will_Not_HangUp_Or_Fail()
         {
             // read with tag formated directly in command
-            using (var connection = ConnectionFactory.OpenConnection(TikConnectionType.ApiSsl, ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]))
+            using (var connection = OpenConnection())
             {
                 string[] commandRows = new string[]
                 {
@@ -199,7 +207,7 @@ namespace tik4net.tests
         //public void CallCommandSync_Reboot_Will_Not_HangUp()
         //{
         //    // read with tag formated directly in command
-        //    using (var connection = ConnectionFactory.OpenConnection(TikConnectionType.ApiSsl, ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]))
+        //    using (var connection = OpenConnection())
         //    {
         //        //var result = connection.CallCommandSync("/system/reboot");                
         //        var command = connection.CreateCommand("/system/reboot");

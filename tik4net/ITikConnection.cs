@@ -24,7 +24,8 @@ namespace tik4net
     public interface ITikConnection: IDisposable
     {
         /// <summary>
-        /// If communication should be traced via <see cref="System.Diagnostics.Debug"/>. Default is false.
+        /// If communication should be traced via <see cref="System.Diagnostics.Debug"/>. Default is <c>true</c> when Debugger is attached and <c>false</c> if not.
+        /// You can read communication commands in output window (Debug-Windows-Output) when debugging.
         /// </summary>
         bool DebugEnabled { get; set; }
 
