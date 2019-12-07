@@ -10,7 +10,9 @@ namespace tik4net
     /// </summary>
     /// <seealso cref="ITikConnection"/>
     /// <seealso cref="ITikConnection.CreateCommand()"/>
-    /// <seealso cref="TikCommandException"/>
+    /// <seealso cref="TikCommandTrapException"/>
+    /// <seealso cref="TikCommandFatalException"/>
+    /// <seealso cref="TikCommandAbortException"/>
     public interface ITikCommand
     {
         /// <summary>
@@ -108,13 +110,13 @@ namespace tik4net
         /// <summary>
         /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) which are returned during <paramref name="durationSec"/> wait.<br>
         /// After this period, command is automatically stopped via <see cref="CancelAndJoin()"/>.<br>
-        /// Throws <see cref="TikCommandException"/> if command is aborted before <paramref name="durationSec"/>.<br>
+        /// Throws <see cref="TikCommandAbortException"/> if command is aborted before <paramref name="durationSec"/>.<br>
         /// Returns data if command ends before <paramref name="durationSec"/> (!done received).
         /// </summary>
         /// <param name="durationSec">How long will method wait for results.</param>
         /// <returns>List of !re sentences read.</returns>
         /// <remarks>If no error occurs, calling this method blocks calling thread for <paramref name="durationSec"/>.</remarks>
-        /// <exception cref="TikCommandException">If command was aborted before <paramref name="durationSec"/></exception>
+        /// <exception cref="TikCommandAbortException">If command was aborted before <paramref name="durationSec"/></exception>
         IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec);
 
         /// <summary>

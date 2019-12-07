@@ -94,7 +94,7 @@ namespace tik4net.tests
         }
 
         [TestMethod]
-        [ExpectedException(typeof(TikCommandException), "input does not match any value of interface")]
+        [ExpectedException(typeof(TikCommandTrapException), "input does not match any value of interface")]
         public void WolWithInvalidInterfaceWillFail()
         {
             const string OK_MAC = "FF:FF:FF:FF:FF:FF";

@@ -194,7 +194,7 @@ namespace tik4net.Api
         private ApiSentence EnsureSingleResponse(IEnumerable<ApiSentence> response)
         {
             if (response.Count() != 1)
-                throw new TikConnectionException("Single response sentence expected.", this, response.Cast<ITikSentence>());
+                throw new TikCommandUnexpectedResponseException("Single response sentence expected.", this, response.Cast<ITikSentence>());
 
             return response.Single();
         }
@@ -204,7 +204,7 @@ namespace tik4net.Api
             if (response.Count() != nrOfResponses)
             {
                 var includesDoneSufix = response.Any(r => r is ITikDoneSentence) ? " (including !done sentence)" : "";
-                throw new TikConnectionException($"Command expected {nrOfResponses} sentences as response, but got {response.Count()} response sentences{includesDoneSufix}.", this, response.Cast<ITikSentence>());
+                throw new TikCommandUnexpectedResponseException($"Command expected {nrOfResponses} sentences as response, but got {response.Count()} response sentences{includesDoneSufix}.", this, response.Cast<ITikSentence>());
             }
         }
 
@@ -214,10 +214,10 @@ namespace tik4net.Api
             {
                 ApiTrapSentence trapSentence = responseSentence as ApiTrapSentence;
                 if (trapSentence != null)
-                    throw new TikCommandException(this, trapSentence);
+                    throw new TikCommandTrapException(this, trapSentence);
                 ApiFatalSentence fatalSentence = responseSentence as ApiFatalSentence;
                 if (fatalSentence != null)
-                    throw new TikCommandException(this, fatalSentence.Message);
+                    throw new TikCommandFatalException(this, fatalSentence.Message);
             }
         }
 
@@ -225,7 +225,7 @@ namespace tik4net.Api
         {
             ApiDoneSentence doneSentence = responseSentence as ApiDoneSentence;
             if (doneSentence == null)
-                throw new TikConnectionException("!done sentence expected as result.", this, responseSentence);
+                throw new TikCommandUnexpectedResponseException("!done sentence expected as result.", this, responseSentence);
 
             return doneSentence;
         }
@@ -237,7 +237,7 @@ namespace tik4net.Api
             {
                 ApiReSentence reSentence = responseSentence as ApiReSentence;
                 if (reSentence == null)
-                    throw new TikConnectionException("!re sentence expected as result.", this, responseSentence);
+                    throw new TikCommandUnexpectedResponseException("!re sentence expected as result.", this, responseSentence);
             }
         }
 
@@ -318,7 +318,7 @@ namespace tik4net.Api
                     return reResponse.Words.Single(v => v.Key != TikSpecialProperties.Tag).Value; //single word value from !re  //NOTE - .tag could be added when Connection.SendTagWithSyncCommand=true
                 }
                 else
-                    throw new TikConnectionException("Single !done response or exactly one !re sentences expected. (1x!done or 1x!re + 1x!done )", this, response.Cast<ITikSentence>());
+                    throw new TikCommandUnexpectedResponseException("Single !done response or exactly one !re sentences expected. (1x!done or 1x!re + 1x!done )", this, response.Cast<ITikSentence>());
             }
             finally
             {
@@ -465,7 +465,7 @@ namespace tik4net.Api
             var result = ExecuteListWithDuration(durationSec, out wasAborted, out abortReason);
 
             if (wasAborted)
-                throw new TikCommandException(this, abortReason);
+                throw new TikCommandAbortException(this, abortReason);
             else
                 return result;
         }

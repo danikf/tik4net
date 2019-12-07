@@ -13,7 +13,7 @@ namespace tik4net
 #if NET20 || NET35 || NET40 || NET45 || NET451 || NET452 || NET46 || NET461 || NET462 || NET47 || NET471
     [Serializable]
 #endif
-    public class TikConnectionException : Exception
+    public abstract class TikConnectionException : Exception
     {
 #if NET20 || NET35 || NET40 || NET45 || NET451 || NET452 || NET46 || NET461 || NET462 || NET47 || NET471
         /// <summary>
@@ -30,7 +30,7 @@ namespace tik4net
         /// <summary>
         /// Initializes a new instance of the <see cref="TikConnectionException"/> class.
         /// </summary>
-        public TikConnectionException()
+        protected TikConnectionException()
             : base()
         {
         }
@@ -39,7 +39,7 @@ namespace tik4net
         /// Initializes a new instance of the <see cref="TikConnectionException"/> class.
         /// </summary>
         /// <param name="message">The message.</param>
-        public TikConnectionException(string message)
+        protected TikConnectionException(string message)
             : base(message)
         {
         }
@@ -49,69 +49,48 @@ namespace tik4net
         /// </summary>
         /// <param name="message">The message.</param>
         /// <param name="innerException">The inner exception.</param>
-        public TikConnectionException(string message, Exception innerException)
+        protected TikConnectionException(string message, Exception innerException)
             : base(message, innerException)
         {
         }
 
+        ///// <summary>
+        ///// Initializes a new instance of the <see cref="TikConnectionException"/> class.
+        ///// </summary>
+        ///// <param name="message">The exception message.</param>
+        ///// <param name="command">The command sent to target.</param>
+        //public TikConnectionException(string message, ITikCommand command)
+        //    : this(FormatMessage(message, command, null))
+        //{
+        //}
+    }
+
+    /// <summary>
+    /// Exception when command is performed via not opened <see cref="ITikConnection"/>.
+    /// </summary>
+    public class TikConnectionNotOpenException : TikConnectionException
+    {
         /// <summary>
-        /// Initializes a new instance of the <see cref="TikConnectionException"/> class.
+        /// .ctor
         /// </summary>
-        /// <param name="message">The exception message.</param>
-        /// <param name="command">The command sent to target.</param>
-        public TikConnectionException(string message, ITikCommand command)
-            : this(FormatMessage(message, command, null))
+        /// <param name="message"></param>
+        public TikConnectionNotOpenException(string message)
+            : base(message)
         {
         }
+    }
 
+    /// <summary>
+    /// Exception when login failed (invalid credentials)
+    /// </summary>
+    public class TikConnectionLoginException : TikConnectionException
+    {
         /// <summary>
-        /// Initializes a new instance of the <see cref="TikConnectionException"/> class.
+        /// .ctor
         /// </summary>
-        /// <param name="message">The exception message.</param>
-        /// <param name="command">The command sent to target.</param>
-        /// <param name="response">The response from target.</param>
-        public TikConnectionException(string message, ITikCommand command, ITikSentence response)
-            : this(FormatMessage(message, command, new ITikSentence[] { response }))
+        public TikConnectionLoginException()
+            : base("cannot log in")
         {
         }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="TikConnectionException"/> class.
-        /// </summary>
-        /// <param name="message">The exception message.</param>
-        /// <param name="command">The command sent to target.</param>
-        /// <param name="responseList">The response from target.</param>
-        public TikConnectionException(string message, ITikCommand command, IEnumerable<ITikSentence> responseList)
-            : this(FormatMessage(message, command, responseList))
-        {
-        }
-
-
-        private static string FormatMessage(string message, ITikCommand command, IEnumerable<ITikSentence> responseList)
-        {
-            Guard.ArgumentNotNull(message, "message");
-            StringBuilder result = new StringBuilder();
-            result.AppendLine(message);
-            if (command != null)
-            {
-                result.AppendLine("  COMMAND: " + command.CommandText);
-                foreach (ITikCommandParameter param in command.Parameters)
-                {
-                    result.AppendLine("    " + param.ToString() + "    Format: " + param.ParameterFormat);
-                }
-            }
-
-            if (responseList != null)
-            {
-                result.AppendLine("  RESPONSE:");
-                foreach (ITikSentence sentence in responseList)
-                {
-                    result.AppendLine("    " + sentence.ToString());
-                }
-            }
-
-            return result.ToString();
-        }
-
     }
 }

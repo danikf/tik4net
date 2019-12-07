@@ -11,18 +11,58 @@ namespace tik4net.tests
     [TestClass]
     public class ConnectionTest
     {
-        private static ITikConnection OpenConnection()
+        private const TikConnectionType DEFAULT_CONNECTION_TYPE = TikConnectionType.Api;
+
+        private static ITikConnection CreateOpenedConnection(TikConnectionType? connectionTypeOverride = null, string hostOverride = null, string userOverride = null, string passwordOverride = null)
         {
-            var result = ConnectionFactory.OpenConnection(TikConnectionType.ApiSsl, ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
+            var result = ConnectionFactory.OpenConnection(connectionTypeOverride ?? DEFAULT_CONNECTION_TYPE, hostOverride ?? ConfigurationManager.AppSettings["host"], userOverride ?? ConfigurationManager.AppSettings["user"], passwordOverride ?? ConfigurationManager.AppSettings["pass"]);
 
             return result;
+        }
+
+        [TestMethod]
+        public void AllConnectionModes_WilWorkTheSameWay()
+        {
+            var host = ConfigurationManager.AppSettings["host"];
+            var user = ConfigurationManager.AppSettings["user"];
+            var pass = ConfigurationManager.AppSettings["pass"];
+
+            OpenConnectionAndExecuteSimpleCommand(TikConnectionType.Api, host, user, pass);
+            OpenConnectionAndExecuteSimpleCommand(TikConnectionType.ApiSsl, host, user, pass);
+#pragma warning disable CS0618 // Type or member is obsolete
+            OpenConnectionAndExecuteSimpleCommand(TikConnectionType.Api_v2, host, user, pass);
+            OpenConnectionAndExecuteSimpleCommand(TikConnectionType.ApiSsl_v2, host, user, pass);
+#pragma warning restore CS0618 // Type or member is obsolete
+        }
+
+        private static void OpenConnectionAndExecuteSimpleCommand(TikConnectionType connectionType, string host, string user, string pass)
+        {
+            using(var connection = CreateOpenedConnection(connectionType, host, user, pass))
+            {
+                ITikCommand readCmd = connection.CreateCommand("/system/identity/print");
+                var originalIdentity = readCmd.ExecuteScalar();
+
+                Assert.IsNotNull(originalIdentity);
+
+                connection.Close();
+            }
         }
 
 
         [TestMethod]
         public void OpenConnectionWillNotFail()
         {
-            using (var connection = OpenConnection())
+            using (var connection = CreateOpenedConnection())
+            {
+                connection.Close();
+            }
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(TikConnectionLoginException))]
+        public void OpenConnectionWithInvalidCredential_WillFailWithProperException()
+        {
+            using (var connection = CreateOpenedConnection(passwordOverride:"--InvalidPassword--"))
             {
                 connection.Close();
             }
@@ -31,7 +71,7 @@ namespace tik4net.tests
         [TestMethod]
         public void ConnectionEncodingWorksCorrectly()
         {
-            using (var connection = OpenConnection())
+            using (var connection = CreateOpenedConnection())
             {
                 connection.Encoding = Encoding.GetEncoding("windows-1250");
                 ITikCommand readCmd = connection.CreateCommand("/system/identity/print");
@@ -57,7 +97,7 @@ namespace tik4net.tests
         [TestMethod]
         public void ConnectionSendTagWithSyncExecuteScalarCommandEnabled_WorksCorrectly()
         {
-            using (var connection = OpenConnection())
+            using (var connection = CreateOpenedConnection())
             {
                 connection.SendTagWithSyncCommand = true;
                 List<string> sentWords = new List<string>();
@@ -76,7 +116,7 @@ namespace tik4net.tests
         [TestMethod]
         public void ConnectionSendTagWithSyncCommandDisabled_WorksCorrectly()
         {
-            using (var connection = OpenConnection())
+            using (var connection = CreateOpenedConnection())
             {
                 connection.SendTagWithSyncCommand = false;
                 List<string> sentWords = new List<string>();
@@ -95,7 +135,7 @@ namespace tik4net.tests
         [TestMethod]
         public void OpenSslConnectionWillNotFail()
         {
-            using (var connection = OpenConnection())
+            using (var connection = CreateOpenedConnection())
             {
                 connection.Close();
             }
@@ -105,7 +145,7 @@ namespace tik4net.tests
         [ExpectedException(typeof(System.IO.IOException))]
         public void OpenConnectionReceiveTimeoutWillThrowExceptionWhenShortTimeout()
         {
-            using (var connection = ConnectionFactory.CreateConnection(TikConnectionType.ApiSsl))
+            using (var connection = ConnectionFactory.CreateConnection(DEFAULT_CONNECTION_TYPE))
             {
                 connection.ReceiveTimeout = 1; //very short timeout
                 connection.Open(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
@@ -117,9 +157,8 @@ namespace tik4net.tests
         [ExpectedException(typeof(System.Net.Sockets.SocketException))]
         public void OpenConnectionToInvalidAddressThrowsException()
         {
-            using (var connection = ConnectionFactory.CreateConnection(TikConnectionType.ApiSsl))
+            using (var connection = CreateOpenedConnection(hostOverride: "127.0.0.1") )
             {
-                connection.Open("127.0.0.1", ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
                 connection.Close();
             }
         }
@@ -128,7 +167,7 @@ namespace tik4net.tests
         [ExpectedException(typeof(System.Net.Sockets.SocketException))]
         public void OpenConnectionToUnaccessibleAddressThrowsExceptionAfterTimeout()
         {
-            using (var connection = ConnectionFactory.CreateConnection(TikConnectionType.ApiSsl))
+            using (var connection = ConnectionFactory.CreateConnection(DEFAULT_CONNECTION_TYPE))
             {
                 connection.ReceiveTimeout = 500; //wait for 2x 500ms
                 connection.Open("192.168.99.1" /*Not accessible IP*/, ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
@@ -141,7 +180,7 @@ namespace tik4net.tests
         {
             Task.Run(async () =>
                 {
-                    using (var connection = ConnectionFactory.CreateConnection(TikConnectionType.ApiSsl))
+                    using (var connection = ConnectionFactory.CreateConnection(DEFAULT_CONNECTION_TYPE))
                     {
                         connection.ReceiveTimeout = 500; //wait for 2x 500ms
                         await connection.OpenAsync(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
@@ -155,7 +194,7 @@ namespace tik4net.tests
         {
             Task.Run(async () =>
             {
-                using (var connection = ConnectionFactory.CreateConnection(TikConnectionType.ApiSsl))
+                using (var connection = ConnectionFactory.CreateConnection(DEFAULT_CONNECTION_TYPE))
                 {
                     connection.ReceiveTimeout = 1; //very short timeout + using async version 
                     connection.OpenAsync(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]).GetAwaiter().GetResult();
@@ -168,7 +207,7 @@ namespace tik4net.tests
         public void CallCommandSync_With_Inlined_Tag_Will_Not_HangUp_Or_Fail()
         {
             // read with tag formated directly in command
-            using (var connection = OpenConnection())
+            using (var connection = CreateOpenedConnection())
             {
                 string[] commandRows = new string[]
                 {

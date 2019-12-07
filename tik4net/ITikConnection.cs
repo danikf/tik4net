@@ -21,6 +21,7 @@ namespace tik4net
     /// </summary>
     /// <seealso cref="ITikCommand"/>
     /// <seealso cref="TikConnectionException"/>
+    /// <seealso cref="TikConnectionNotOpenException"/>
     public interface ITikConnection: IDisposable
     {
         /// <summary>
@@ -78,6 +79,9 @@ namespace tik4net
         /// <param name="user">The user.</param>
         /// <param name="password">The password.</param>
         /// <seealso cref="Close"/>
+        /// <exception cref="TikConnectionLoginException">Invalid credentials.</exception>
+        /// <exception cref="System.Net.Sockets.SocketException">Network connection failed.</exception>
+        /// <exception cref="TikCommandTrapException">Some other Tik4Net error.</exception>
         void Open(string host, string user, string password);
 
         /// <summary>
@@ -88,6 +92,9 @@ namespace tik4net
         /// <param name="user">The user.</param>
         /// <param name="password">The password.</param>
         /// <seealso cref="Close"/>
+        /// <exception cref="TikConnectionLoginException">Invalid credentials.</exception>
+        /// <exception cref="System.Net.Sockets.SocketException">Network connection failed.</exception>
+        /// <exception cref="TikCommandTrapException">Some other Tik4Net error.</exception>
         void Open(string host, int port, string user, string password);
 
 #if !(NET20 || NET35 || NET40)
@@ -100,6 +107,9 @@ namespace tik4net
         /// <param name="user">The user.</param>
         /// <param name="password">The password.</param>
         /// <seealso cref="Close"/>
+        /// <seealso cref="TikConnectionLoginException">Invalid credentials.</seealso>
+        /// <seealso cref="System.Net.Sockets.SocketException">Network connection failed.</seealso>
+        /// <seealso cref="TikCommandTrapException">Some other Tik4Net error.</seealso>
         System.Threading.Tasks.Task OpenAsync(string host, string user, string password);
 
         /// <summary>
@@ -111,6 +121,9 @@ namespace tik4net
         /// <param name="user">The user.</param>
         /// <param name="password">The password.</param>
         /// <seealso cref="Close"/>
+        /// <seealso cref="TikConnectionLoginException">Invalid credentials.</seealso>
+        /// <seealso cref="System.Net.Sockets.SocketException">Network connection failed.</seealso>
+        /// <seealso cref="TikCommandTrapException">Some other Tik4Net error.</seealso>
         System.Threading.Tasks.Task OpenAsync(string host, int port, string user, string password);
 #endif
 

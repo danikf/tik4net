@@ -22,13 +22,15 @@ namespace tik4net
             switch (connectionType)
             {
                 case TikConnectionType.Api:
-                    return new ApiConnection(false, ApiConnection.LoginProcessVersion.Version1);
+#pragma warning disable CS0618 // Type or member is obsolete
                 case TikConnectionType.Api_v2:
-                    return new ApiConnection(false, ApiConnection.LoginProcessVersion.Version2);
+#pragma warning restore CS0618 // Type or member is obsolete
+                    return new ApiConnection(false);
                 case TikConnectionType.ApiSsl:
-                    return new ApiConnection(true, ApiConnection.LoginProcessVersion.Version1);
+#pragma warning disable CS0618 // Type or member is obsolete
                 case TikConnectionType.ApiSsl_v2:
-                    return new ApiConnection(true, ApiConnection.LoginProcessVersion.Version2);
+#pragma warning restore CS0618 // Type or member is obsolete
+                    return new ApiConnection(true);
                 default:
                     throw new NotImplementedException(string.Format("Connection type '{0}' not supported.", connectionType));
             }
@@ -43,6 +45,9 @@ namespace tik4net
         /// <param name="password">The password.</param>
         /// <returns>Opened instance of mikrotik Connection.</returns>
         /// <seealso cref="ITikConnection.Close"/>
+        /// <exception cref="TikConnectionLoginException">Invalid credentials.</exception>
+        /// <exception cref="System.Net.Sockets.SocketException">Network connection failed.</exception>
+        /// <exception cref="TikCommandTrapException">Some other Tik4Net error.</exception>
         public static ITikConnection OpenConnection(TikConnectionType connectionType, string host, string user, string password)
         {
             ITikConnection result = CreateConnection(connectionType);
@@ -61,6 +66,9 @@ namespace tik4net
         /// <param name="password">The password.</param>
         /// <returns>Opened instance of mikrotik Connection.</returns>
         /// <seealso cref="ITikConnection.Close"/>
+        /// <exception cref="TikConnectionLoginException">Invalid credentials.</exception>
+        /// <exception cref="System.Net.Sockets.SocketException">Network connection failed.</exception>
+        /// <exception cref="TikCommandTrapException">Some other Tik4Net error.</exception>
         public static ITikConnection OpenConnection(TikConnectionType connectionType, string host, int port, string user, string password)
         {
             ITikConnection result = CreateConnection(connectionType);
@@ -80,6 +88,9 @@ namespace tik4net
         /// <param name="password">The password.</param>
         /// <returns>Opened instance of mikrotik Connection.</returns>
         /// <seealso cref="ITikConnection.Close"/>
+        /// <seealso cref="TikConnectionLoginException">Invalid credentials.</seealso>
+        /// <seealso cref="System.Net.Sockets.SocketException">Network connection failed.</seealso>
+        /// <seealso cref="TikCommandTrapException">Some other Tik4Net error.</seealso>
         public static async System.Threading.Tasks.Task<ITikConnection> OpenConnectionAsync(TikConnectionType connectionType, string host, string user, string password)
         {
             ITikConnection result = CreateConnection(connectionType);
@@ -99,6 +110,9 @@ namespace tik4net
         /// <param name="password">The password.</param>
         /// <returns>Opened instance of mikrotik Connection.</returns>
         /// <seealso cref="ITikConnection.Close"/>
+        /// <seealso cref="TikConnectionLoginException">Invalid credentials.</seealso>
+        /// <seealso cref="System.Net.Sockets.SocketException">Network connection failed.</seealso>
+        /// <seealso cref="TikCommandTrapException">Some other Tik4Net error.</seealso>
         public static async System.Threading.Tasks.Task<ITikConnection> OpenConnectionAsync(TikConnectionType connectionType, string host, int port, string user, string password)
         {
             ITikConnection result = CreateConnection(connectionType);

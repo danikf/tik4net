@@ -12,7 +12,7 @@ namespace tik4net
     /// <seealso cref="ITikSentence"/>
     /// <seealso cref="ITikReSentence"/>
     /// <seealso cref="ITikDoneSentence"/>
-    /// <seealso cref="TikCommandException"/>
+    /// <see cref="TikCommandTrapException"/>
     public interface ITikTrapSentence: ITikSentence
     {
         /// <summary>

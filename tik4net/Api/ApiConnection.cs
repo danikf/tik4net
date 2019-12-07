@@ -14,20 +14,20 @@ namespace tik4net.Api
 {  
     internal sealed class ApiConnection : ITikConnection
     {
-        /// <summary>
-        /// Version of the login process. See https://wiki.mikrotik.com/wiki/Manual:API#Initial_login
-        /// </summary>
-        internal enum LoginProcessVersion
-        {
-            /// <summary>
-            /// Prior RouterOS version 6.43
-            /// </summary>
-            Version1,
-            /// <summary>
-            /// RouterOS version 6.43 and newer
-            /// </summary>
-            Version2,
-        }
+        ///// <summary>
+        ///// Version of the login process. See https://wiki.mikrotik.com/wiki/Manual:API#Initial_login
+        ///// </summary>
+        //internal enum LoginProcessVersion
+        //{
+        //    /// <summary>
+        //    /// Prior RouterOS version 6.43
+        //    /// </summary>
+        //    Version1,
+        //    /// <summary>
+        //    /// RouterOS version 6.43 and newer
+        //    /// </summary>
+        //    Version2,
+        //}
 
 
         //Inspiration:
@@ -41,7 +41,6 @@ namespace tik4net.Api
         private readonly object _readLockObj = new object();
         private volatile bool _isOpened = false;
         private bool _isSsl = false;
-        private readonly LoginProcessVersion _loginProcessVersion;
         private Encoding _encoding = Encoding.ASCII;
         private bool _sendTagWithSyncCommand = false;
         private int _sendTimeout;
@@ -89,22 +88,21 @@ namespace tik4net.Api
             get { return _isSsl; }
         }
 
-        internal LoginProcessVersion UsedLoginProcessVersion
-        {
-            get { return _loginProcessVersion; }
-        }
+        //internal LoginProcessVersion UsedLoginProcessVersion
+        //{
+        //    get { return _loginProcessVersion; }
+        //}
 
-        public ApiConnection(bool isSsl, LoginProcessVersion loginProcessVersion)
+        public ApiConnection(bool isSsl)
         {
             _isSsl = isSsl;
-            _loginProcessVersion = loginProcessVersion;
             DebugEnabled = System.Diagnostics.Debugger.IsAttached;
         }
 
         private void EnsureOpened()
         {
             if (!_isOpened)
-                throw new TikConnectionException("Connection has not been opened.");
+                throw new TikConnectionNotOpenException("Connection has not been opened.");
         }
 
         public void Close()
@@ -186,7 +184,7 @@ namespace tik4net.Api
             }
 
             _isOpened = true;
-            LoginInternal(user, password);            
+            Login_v3(user, password);  //LoginInternal(user, password);            
         }
 
 #if !(NET20 || NET35 || NET40)
@@ -224,58 +222,86 @@ namespace tik4net.Api
             }
 
             _isOpened = true;
-            LoginInternal(user, password);           
+            Login_v3(user, password); // LoginInternal(user, password);           
         }
 #endif
 
-        private void LoginInternal(string user, string password)
-        {            
-            switch (_loginProcessVersion)
-            {
-                case LoginProcessVersion.Version1:
-                    Login_v1(user, password, true);
-                    break;
-                case LoginProcessVersion.Version2:
-                    Login_v2(user, password);
-                    break;
-                default:
-                    throw new NotImplementedException(string.Format("Unsuported login process version {0}", _loginProcessVersion));
-            }
-        }
+        //private void LoginInternal(string user, string password)
+        //{            
+        //    switch (_loginProcessVersion)
+        //    {
+        //        case LoginProcessVersion.Version1:
+        //            Login_v1(user, password, true);
+        //            break;
+        //        case LoginProcessVersion.Version2:
+        //            Login_v2(user, password);
+        //            break;
+        //        default:
+        //            throw new NotImplementedException(string.Format("Unsuported login process version {0}", _loginProcessVersion));
+        //    }
+        //}
 
-        private void Login_v1(string user, string password, bool allowLoginProcessVersion2Fallback)
+        //private void Login_v1(string user, string password, bool allowLoginProcessVersion2Fallback)
+        //{
+        //    //Get login hash
+        //    string responseHash;
+        //    try
+        //    {
+        //        ApiCommand readLoginHashCommand = new ApiCommand(this, "/login");
+        //        responseHash = readLoginHashCommand.ExecuteScalar();
+        //    }
+        //    catch(TikCommandException) //TODO catch specific exception / message
+        //    {
+        //        if (allowLoginProcessVersion2Fallback)
+        //        {
+        //            Login_v2(user, password); // try it via newer login process
+        //            return;
+        //        }
+        //        else
+        //            throw;
+        //    }
+
+        //    //login connection
+        //    string hashedPass = ApiConnectionHelper.EncodePassword(password, responseHash);
+        //    ApiCommand loginCommand = new ApiCommand(this, "/login", TikCommandParameterFormat.NameValue,
+        //        new ApiCommandParameter("name", user), new ApiCommandParameter("response", hashedPass));
+        //    loginCommand.ExecuteNonQuery();
+        //}
+
+        //private void Login_v2(string user, string password)
+        //{
+        //    //login connection
+        //    ApiCommand loginCommand = new ApiCommand(this, "/login", TikCommandParameterFormat.NameValue,
+        //        new ApiCommandParameter("name", user), new ApiCommandParameter("password", password));
+        //    loginCommand.ExecuteNonQuery();
+        //}
+
+        private void Login_v3(string user, string password)
         {
-            //Get login hash
-            string responseHash;
             try
             {
-                ApiCommand readLoginHashCommand = new ApiCommand(this, "/login");
-                responseHash = readLoginHashCommand.ExecuteScalar();
-            }
-            catch(TikCommandException) //TODO catch specific exception / message
-            {
-                if (allowLoginProcessVersion2Fallback)
+                ApiCommand loginCommand = new ApiCommand(this, "/login", TikCommandParameterFormat.NameValue,
+                    new ApiCommandParameter("name", user), new ApiCommandParameter("password", password)); //parameters will be ignored with old login protocol
+
+                var responseHashOrNull = loginCommand.ExecuteScalarOrDefault();
+
+                //old login protocol
+                if (!string.IsNullOrEmpty(responseHashOrNull))
                 {
-                    Login_v2(user, password); // try it via newer login process
-                    return;
+                    //login connection
+                    string hashedPass = ApiConnectionHelper.EncodePassword(password, responseHashOrNull);
+                    ApiCommand loginCommand2 = new ApiCommand(this, "/login", TikCommandParameterFormat.NameValue,
+                        new ApiCommandParameter("name", user), new ApiCommandParameter("response", hashedPass));
+                    loginCommand2.ExecuteNonQuery();
                 }
+            }
+            catch(TikCommandTrapException ex)
+            {
+                if (ex.Message == "cannot log in")
+                    throw new TikConnectionLoginException();
                 else
                     throw;
             }
-
-            //login connection
-            string hashedPass = ApiConnectionHelper.EncodePassword(password, responseHash);
-            ApiCommand loginCommand = new ApiCommand(this, "/login", TikCommandParameterFormat.NameValue,
-                new ApiCommandParameter("name", user), new ApiCommandParameter("response", hashedPass));
-            loginCommand.ExecuteNonQuery();
-        }
-
-        private void Login_v2(string user, string password)
-        {
-            //login connection
-            ApiCommand loginCommand = new ApiCommand(this, "/login", TikCommandParameterFormat.NameValue,
-                new ApiCommandParameter("name", user), new ApiCommandParameter("password", password));
-            loginCommand.ExecuteNonQuery();
         }
 
         private static bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
@@ -392,7 +418,7 @@ namespace tik4net.Api
                     case "!trap": return new ApiTrapSentence(sentenceWords);
                     case "!re": return new ApiReSentence(sentenceWords);
                     case "!fatal": return new ApiFatalSentence(sentenceWords);
-                    case "": throw new IOException("Can not read sentence from connection");
+                    case "": throw new IOException("Can not read sentence from connection"); // With SSL possibly not logged in  (SSL and new router with SSL_V2)
                     default: throw new NotImplementedException(string.Format("Response type '{0}' not supported", sentenceName));
                 }
             }

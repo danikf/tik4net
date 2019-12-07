@@ -98,7 +98,7 @@ namespace tik4net.Objects
                 trapSentence =>
                 {
                     if (onExceptionCallback != null)
-                        onExceptionCallback(new TikCommandException(command, trapSentence));
+                        onExceptionCallback(new TikCommandTrapException(command, trapSentence));
                 },
                 () =>
                 {
