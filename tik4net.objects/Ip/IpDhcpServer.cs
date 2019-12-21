@@ -21,53 +21,6 @@ namespace tik4net.Objects.Ip
     [TikEntity("ip/dhcp-server")]
     public class IpDhcpServer
     {
-        #region Submenu classes - OBSOLETE
-        /// <summary>
-        /// Obsolete: use DhcpServer.DhcpServerConfig class.
-        /// </summary>
-        [Obsolete("use DhcpServer.DhcpServerConfig class.", true)]
-        public abstract class DhcpServerConfig
-        {
-        }
-
-        /// <summary>
-        /// Obsolete: use DhcpServer.DhcpServerNetwork class.
-        /// </summary>
-        [Obsolete("use DhcpServer.DhcpServerNetwork class.", true)]
-        public abstract class DhcpServerNetwork
-        {
-
-        }
-
-        /// <summary>
-        /// Obsolete: use DhcpServer.DhcpServerLease class.
-        /// </summary>
-        [Obsolete("use DhcpServer.DhcpServerLease class.", true)]
-        public abstract class DhcpServerLease
-        {
-
-        }
-
-        /// <summary>
-        /// Obsolete: use DhcpServer.DhcpServerAlert class.
-        /// </summary>
-        [Obsolete("use DhcpServer.DhcpServerAlert class.", true)]
-        public abstract class DhcpServerAlert
-        {
-
-        }
-
-        /// <summary>
-        /// Obsolete: use DhcpServer.DhcpServerOption class.
-        /// </summary>
-        [Obsolete("use DhcpServer.DhcpServerOption class.", true)]
-        public abstract class DhcpServerOption
-        {
-
-        }
-
-        #endregion
-
         #region -- Enums --
         /// <summary>
         /// Type of <see cref="Authoritative"/>.

@@ -11,28 +11,6 @@ namespace tik4net.Objects.Ip
     [TikEntity("ip/dns", IsSingleton = true)]
     public class IpDns
     {
-        #region Submenu classes - Obsolete
-
-        /// <summary>
-        /// Obsolete: use Dns.DnsCache class.
-        /// </summary>
-        [Obsolete("use Dns.DnsCache class.", true)]
-        public abstract class DnsCache
-        {
-
-        }
-
-        /// <summary>
-        /// Obsolete: use Dns.DnsStatic class.
-        /// </summary>
-        [Obsolete("use Dns.DnsStatic class.", true)]
-        public abstract class DnsStatic
-        {
-
-        }
-
-        #endregion
-
         /// <summary>
         /// allow-remote-requests
         /// specifies whether to allow network requests

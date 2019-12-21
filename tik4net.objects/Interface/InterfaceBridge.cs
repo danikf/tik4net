@@ -13,48 +13,6 @@ namespace tik4net.Objects.Interface
     [TikEntity("interface/bridge")]
     public class InterfaceBridge
     {
-        #region Submenu classes - Obsolete
-
-        /// <summary>
-        /// Obsolete: use Bridge.BridgeSettings class.
-        /// </summary>
-        [Obsolete("use Bridge.BridgeSettings class.", true)]
-        public abstract class BridgeSettings
-        {
-
-        }
-
-        /// <summary>
-        /// Obsolete: use Bridge.BridgePort class.
-        /// </summary>
-        [Obsolete("use Bridge.BridgeSettings class.", true)]
-        public abstract class BridgePort
-        {
-
-        }
-
-
-        /// <summary>
-        /// Obsolete: use Bridge.BridgeFilter class.
-        /// </summary>
-        [Obsolete("use Bridge.BridgeFilter class.", true)]
-
-        public abstract class BridgeFilter
-        {
-
-        }
-
-        /// <summary>
-        /// Obsolete: use Bridge.BridgeNat class.
-        /// </summary>
-        [Obsolete("use Bridge.BridgeNat class.", true)]
-        public abstract class BridgeNat
-        {
-
-        }
-        #endregion
-
-
         /// <summary>
         /// .id: primary key of row
         /// </summary>

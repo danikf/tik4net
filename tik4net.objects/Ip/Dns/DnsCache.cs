@@ -11,17 +11,6 @@ namespace tik4net.Objects.Ip.Dns
     [TikEntity("ip/dns/cache", IsReadOnly = true)]
     public class DnsCache
     {
-        #region Submenu classes - Obsolete
-        /// <summary>
-        /// Obsolete: use Dns.DnsCacheAll class.
-        /// </summary>
-        [Obsolete("use Dns.DnsCacheAll class.", true)]
-        public abstract class CacheAll
-        {
-
-        }
-        #endregion
-
         /// <summary>
         /// .id: primary key of row
         /// </summary>

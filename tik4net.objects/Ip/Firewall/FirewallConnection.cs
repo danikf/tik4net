@@ -11,16 +11,6 @@ namespace tik4net.Objects.Ip.Firewall
     [TikEntity("ip/firewall/connection", IsReadOnly = true)]
     public class FirewallConnection
     {
-        # region Submenu classes
-        /// <summary>
-        /// Obsolete: use FirewallConnectionTracking class.
-        /// </summary>
-        [Obsolete("use FirewallConnectionTracking class.", true)]
-        public abstract class ConnectionTracking
-        {
-        }
-        #endregion
-
         /// <summary>
         /// .id: primary key of row
         /// </summary>

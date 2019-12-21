@@ -15,37 +15,6 @@ namespace tik4net.Objects.Interface
     [TikEntity("interface/wireless")]
     public class InterfaceWireless
     {
-        #region Submenu classes - Obsolete
-
-        /// <summary>
-        /// Obsolete: use Wireless.WirelessSecurityProfile class.
-        /// </summary>
-        [Obsolete("use Wireless.WirelessSecurityProfile class.", true)]
-        public abstract class WirelessSecurityProfile
-        {
-
-        }
-
-        /// <summary>
-        /// Obsolete: use Wireless.WirelessAccessList class.
-        /// </summary>
-        [Obsolete("use Wireless.WirelessAccessList class.", true)]
-        public abstract class WirelessAccessList
-        {
-
-        }
-
-        /// <summary>
-        /// Obsolete: use Wireless.WirelessRegistrationTable class.
-        /// </summary>
-        [Obsolete("use Wireless.WirelessRegistrationTable class.", true)]
-        public abstract class WirelessRegistrationTable
-        {
-
-        }
-
-        #endregion
-
         /// <summary>
         /// .id: primary key of row
         /// </summary>
