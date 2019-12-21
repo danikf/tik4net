@@ -36,7 +36,15 @@ namespace tik4net.Objects
         public static TEntity LoadSingle<TEntity>(this ITikCommand command)
             where TEntity : new()
         {
-            return LoadList<TEntity>(command).Single();
+            var candidates = LoadList<TEntity>(command);
+            
+            var cnt = candidates.Count();
+            if (cnt == 0)
+                throw new TikNoSuchItemException(command);
+            else if (cnt > 1)
+                throw new TikCommandAmbiguousResultException(command, cnt);
+            else
+                return candidates.Single();
         }
 
         /// <summary>
@@ -48,7 +56,15 @@ namespace tik4net.Objects
         public static TEntity LoadSingleOrDefault<TEntity>(this ITikCommand command)
             where TEntity : new()
         {
-            return LoadList<TEntity>(command).SingleOrDefault();
+            var candidates = LoadList<TEntity>(command);
+
+            var cnt = candidates.Count();
+            if (cnt == 0)
+                return default(TEntity);
+            else if (cnt > 1)
+                throw new TikCommandAmbiguousResultException(command, cnt);
+            else
+                return candidates.Single();
         }
 
         /// <summary>

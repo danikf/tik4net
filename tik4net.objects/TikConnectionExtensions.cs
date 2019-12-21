@@ -69,15 +69,7 @@ namespace tik4net.Objects
             where TEntity : new()
         {
             var command = CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
-            var candidates = command.LoadList<TEntity>();
-
-            var cnt = candidates.Count();
-            if (cnt == 0)
-                throw new TikNoSuchItemException(command);
-            else if (cnt > 1)
-                throw new TikCommandAmbiguousResultException(command, cnt);
-            else
-                return candidates.Single();
+            return command.LoadSingle<TEntity>();
         }
 
         /// <summary>
@@ -90,7 +82,8 @@ namespace tik4net.Objects
         public static TEntity LoadSingleOrDefault<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filterParameters)
             where TEntity : new()
         {
-            return LoadList<TEntity>(connection, filterParameters).SingleOrDefault();
+            var command = CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
+            return command.LoadSingleOrDefault<TEntity>();
         }
 
         /// <summary>

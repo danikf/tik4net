@@ -220,7 +220,7 @@ namespace tik4net.Api
             {
                 ApiTrapSentence trapSentence = responseSentence as ApiTrapSentence;
                 if (trapSentence != null)
-                {
+                { //detect well known error responses and convert them to special exceptions
                     if (trapSentence.Message.StartsWith("no such command"))
                         throw new TikNoSuchCommandException(this, trapSentence);
                     else if (trapSentence.Message.StartsWith("no such item"))
@@ -353,6 +353,8 @@ namespace tik4net.Api
                 IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
                 ThrowPossibleResponseError(response.ToArray());
 
+                if (response.OfType<ApiReSentence>().Count() > 1)
+                    throw new TikCommandAmbiguousResultException(this);
                 EnsureOneReAndDone(response);
                 ApiReSentence result = (ApiReSentence)response.First();
 
@@ -367,6 +369,9 @@ namespace tik4net.Api
         public ITikReSentence ExecuteSingleRowOrDefault()
         {
             var sentences = ExecuteList();
+            
+            if (sentences.Count() > 1)
+                throw new TikCommandAmbiguousResultException(this);
             return sentences.SingleOrDefault();
         }
 

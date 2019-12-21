@@ -254,6 +254,14 @@ namespace tik4net.tests
         }
 
         [TestMethod]
+        [ExpectedException(typeof(TikCommandAmbiguousResultException))]
+        public void ExecuteSingleRowOrDefault_WithMultipleResponses_WillThrowCorrectException()
+        {
+            var testCommand = Connection.CreateCommand("/ip/firewal/service-port/print");
+            testCommand.ExecuteSingleRowOrDefault();
+        }
+
+        [TestMethod]
         public void ExecuteScalarWithTarget_WillNotFail()
         {
             var ipAdresses = Connection.LoadAll<IpAddress>();
