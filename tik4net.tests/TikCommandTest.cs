@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using tik4net.Objects;
 using tik4net.Objects.Ip;
+using tik4net.Objects.Ip.Firewall;
 
 namespace tik4net.tests
 {
@@ -22,6 +23,13 @@ namespace tik4net.tests
             }
         }
 
+        [TestMethod]
+        [ExpectedException(typeof(TikNoSuchCommandException))]
+        public void InvalidSyntaxCommand_WillThrowCorrectException()
+        {
+            var cmd = Connection.CreateCommand("/blablabla/blabla");
+            cmd.ExecuteNonQuery();
+        }
 
         [TestMethod]
         public void ExecuteNonQuery_Create_New_PPP_Object_Will_Not_Fail()
@@ -286,6 +294,62 @@ namespace tik4net.tests
             var readId = testCommand.ExecuteScalarOrDefault("not used default", TikSpecialProperties.Id);
 
             Assert.AreEqual(readId, ipAdresses.First().Id);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(TikNoSuchItemException))]
+        public void ExecuteScalarWithUnexistentId_WillThrowCorrectException()
+        {
+            var testCommand = Connection.CreateCommandAndParameters("/ip/address/print", TikCommandParameterFormat.Filter, TikSpecialProperties.Id, "-NoID-");
+            var id = testCommand.ExecuteScalar(TikSpecialProperties.Id);            
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(TikNoSuchItemException))]
+        public void ExecuteSingleRowWithUnexistentId_WillThrowCorrectException()
+        {
+            var testCommand = Connection.CreateCommandAndParameters("/ip/address/print", TikCommandParameterFormat.Filter, TikSpecialProperties.Id, "-NoID-");
+            var row = testCommand.ExecuteSingleRow();
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(TikNoSuchItemException))]
+        public void LoadByIdWithUnexistentId_WillThrowCorrectException()
+        {
+            var result = Connection.LoadSingle<IpAddress>(Connection.CreateParameter(TikSpecialProperties.Id, "-NoID-"));
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(TikCommandAmbiguousResultException))]
+        public void LoadByIdWithoutFilter_WillThrowCorrectException()
+        {
+            Connection.LoadSingle<FirewalServicePort>();
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(TikNoSuchItemException))]
+        public void DeleteNonExistentEntity_WillThrowCorrectException()
+        {
+            var cmd = Connection.CreateCommandAndParameters("/ip/address/remove", TikCommandParameterFormat.NameValue, TikSpecialProperties.Id, "-NoID-");
+            cmd.ExecuteNonQuery();
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(TikNoSuchItemException))]
+        public void UpdateNonExistentEntity_WillThrowCorrectException()
+        {
+            var cmd = Connection.CreateCommandAndParameters("/ip/address/set", TikCommandParameterFormat.NameValue, TikSpecialProperties.Id, "-NoID-", "comment", "bla bla bla");
+            cmd.ExecuteNonQuery();
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(TikAlreadyHaveSuchItemException))]
+        public void CreateDuplicitEntity_WillThrowCorrectException()
+        {
+            var ipAddr = Connection.LoadAll<IpAddress>().First();
+
+            var newAddr = new IpAddress() { Address = ipAddr.Address, Netmask = ipAddr.Netmask, Network = ipAddr.Network, Interface = ipAddr.Interface };
+            Connection.Save(newAddr);
         }
     }
 }

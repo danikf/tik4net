@@ -8,7 +8,7 @@ namespace tik4net
     /// <summary>
     /// Exception thrown if any error is returned from mikrotik router call or if any command related error occurs.
     /// </summary>
-    public abstract class TikCommandException:TikConnectionException
+    public abstract class TikCommandException : TikConnectionException
     {
         /// <summary>
         /// Command which throws error.
@@ -34,9 +34,9 @@ namespace tik4net
         /// <returns>Exception description.</returns>
         public override string ToString()
         {
-            return 
+            return
                 Command.ToString()
-                + "\nMESSAGE: " + Message 
+                + "\nMESSAGE: " + Message
                 + "\n" + base.ToString();
         }
     }
@@ -70,7 +70,68 @@ namespace tik4net
             Code = trapSentence.CategoryCode;
             CodeDescription = trapSentence.CategoryDescription;
         }
+
+        protected TikCommandTrapException(ITikCommand command, string message)
+            : base(command, message)
+        {
+            Code = null;
+            CodeDescription = null;
+        }
     }
+
+    /// <summary>
+    /// Exception thrown when invalid command is performed (invalid syntax). ('no such command' message from API)
+    /// </summary>
+    public class TikNoSuchCommandException : TikCommandTrapException
+    {
+        /// <summary>
+        /// ctor.
+        /// </summary>
+        /// <param name="command">Commant that throws exception.</param>
+        /// <param name="trapSentence">Error=trap sentence returned from mikrotik router as response to <paramref name="command"/> call.</param>
+        public TikNoSuchCommandException(ITikCommand command, ITikTrapSentence trapSentence) : base(command, trapSentence)
+        {
+        }
+    }
+
+
+    /// <summary>
+    /// Exception thrown when item with identifier was not found. ('no such item' message from API)
+    /// </summary>
+    public class TikNoSuchItemException : TikCommandTrapException
+    {
+        /// <summary>
+        /// ctor.
+        /// </summary>
+        /// <param name="command">Commant that throws exception.</param>
+        /// <param name="trapSentence">Error=trap sentence returned from mikrotik router as response to <paramref name="command"/> call.</param>
+        public TikNoSuchItemException(ITikCommand command, ITikTrapSentence trapSentence) : base(command, trapSentence)
+        {
+        }
+
+        /// <summary>
+        /// .ctor
+        /// </summary>
+        public TikNoSuchItemException(ITikCommand command)
+            : base(command, "no such item")
+        {
+        }
+    }
+
+    /// <summary>
+    /// Exception thrown when item with identifier alraedy exists. (e.q. 'already have device with such name' or 'failure: already have such address' message from API)
+    /// </summary>
+    public class TikAlreadyHaveSuchItemException : TikCommandTrapException
+    {
+        /// <summary>
+        /// ctor.
+        /// </summary>
+        /// <param name="command">Commant that throws exception.</param>
+        /// <param name="trapSentence">Error=trap sentence returned from mikrotik router as response to <paramref name="command"/> call.</param>
+        public TikAlreadyHaveSuchItemException(ITikCommand command, ITikTrapSentence trapSentence) : base(command, trapSentence)
+        {
+        }
+    }   
 
     /// <summary>
     /// Exception thrown if fatal  error is returned from mikrotik router call.  (!FATAL)
@@ -104,7 +165,7 @@ namespace tik4net
         }
     }
 
-    public class TikCommandUnexpectedResponseException: TikCommandException
+    public class TikCommandUnexpectedResponseException : TikCommandException
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="TikConnectionException"/> class.
@@ -152,6 +213,28 @@ namespace tik4net
             }
 
             return result.ToString();
+        }
+    }
+
+    /// <summary>
+    /// Exception thrown when exactly one item is expected but more than one was returned.
+    /// </summary>
+    public class TikCommandAmbiguousResultException : TikCommandException
+    {
+        /// <summary>
+        /// .ctor
+        /// </summary>
+        public TikCommandAmbiguousResultException(ITikCommand command)
+            : base(command, "only one response item expected")
+        {
+        }
+
+        /// <summary>
+        /// .ctor
+        /// </summary>
+        public TikCommandAmbiguousResultException(ITikCommand command, int ambiguousItemsCnt)
+            : base(command, $"only one response item expected, returned {ambiguousItemsCnt} items")
+        {
         }
     }
 }

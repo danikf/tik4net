@@ -97,5 +97,10 @@ namespace tik4net.tests
             }
         }
 
+        [TestMethod]
+        public void FirewallServicePort_LoadAll_WillNotFail()
+        {
+            Connection.LoadList<FirewalServicePort>();
+        }
     }
 }

@@ -68,7 +68,16 @@ namespace tik4net.Objects
         public static TEntity LoadSingle<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filterParameters)
             where TEntity : new()
         {
-            return LoadList<TEntity>(connection, filterParameters).Single();
+            var command = CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
+            var candidates = command.LoadList<TEntity>();
+
+            var cnt = candidates.Count();
+            if (cnt == 0)
+                throw new TikNoSuchItemException(command);
+            else if (cnt > 1)
+                throw new TikCommandAmbiguousResultException(command, cnt);
+            else
+                return candidates.Single();
         }
 
         /// <summary>
@@ -94,7 +103,16 @@ namespace tik4net.Objects
         public static TEntity LoadById<TEntity>(this ITikConnection connection, string id)
             where TEntity : new()
         {
-            return LoadList<TEntity>(connection, connection.CreateParameter(TikSpecialProperties.Id, id)).SingleOrDefault();
+            var command = CreateLoadCommandWithFilter<TEntity>(connection, connection.CreateParameter(TikSpecialProperties.Id, id));
+            var candidates = command.LoadList<TEntity>();
+
+            var cnt = candidates.Count();
+            if (cnt == 0)
+                throw new TikNoSuchItemException(command);
+            else if (cnt > 1)
+                throw new TikCommandAmbiguousResultException(command, cnt);
+            else
+                return candidates.Single();
         }
 
         /// <summary>
@@ -107,7 +125,16 @@ namespace tik4net.Objects
         public static TEntity LoadByName<TEntity>(this ITikConnection connection, string name)
             where TEntity : new()
         {
-            return LoadList<TEntity>(connection, connection.CreateParameter("name", name)).SingleOrDefault();
+            var command = CreateLoadCommandWithFilter<TEntity>(connection, connection.CreateParameter("name", name));
+            var candidates = command.LoadList<TEntity>();
+
+            var cnt = candidates.Count();
+            if (cnt == 0)
+                throw new TikNoSuchItemException(command);
+            else if (cnt > 1)
+                throw new TikCommandAmbiguousResultException(command, cnt);
+            else
+                return candidates.Single();
         }
 
         /// <summary>
@@ -176,7 +203,7 @@ namespace tik4net.Objects
             return command;
         }
 
-        private static ITikCommand CreateLoadCommandWithFilter<TEntity> (ITikConnection connection, ITikCommandParameter[] parameters)
+        private static ITikCommand CreateLoadCommandWithFilter<TEntity> (ITikConnection connection, params ITikCommandParameter[] parameters)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
 

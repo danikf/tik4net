@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 
 namespace tik4net.Api
@@ -199,22 +200,36 @@ namespace tik4net.Api
             return response.Single();
         }
 
-        private void EnsureExactNumberOfResponses(IEnumerable<ApiSentence> response, int nrOfResponses)
+        private void EnsureOneReAndDone(IEnumerable<ApiSentence> response)
         {
-            if (response.Count() != nrOfResponses)
+            if (response.Count() != 2)
             {
-                var includesDoneSufix = response.Any(r => r is ITikDoneSentence) ? " (including !done sentence)" : "";
-                throw new TikCommandUnexpectedResponseException($"Command expected {nrOfResponses} sentences as response, but got {response.Count()} response sentences{includesDoneSufix}.", this, response.Cast<ITikSentence>());
+                if (response.Count() == 1 && response.Single() is ITikDoneSentence)
+                    throw new TikNoSuchItemException(this);
+                else
+                    throw new TikCommandUnexpectedResponseException($"Command expected 1x !re and 1x !done sentences as response, but got {response.Count()} response sentences.", this, response.Cast<ITikSentence>());
             }
+            EnsureReReponse(response.First());
+            EnsureDoneResponse(response.Last());
         }
 
+        private static Regex AlreadyWithSuchRegex = new Regex(@"^(failure:)?.*already have.+such");
         private void ThrowPossibleResponseError(params ApiSentence[] responseSentences)
         {
             foreach (ApiSentence responseSentence in responseSentences)
             {
                 ApiTrapSentence trapSentence = responseSentence as ApiTrapSentence;
                 if (trapSentence != null)
-                    throw new TikCommandTrapException(this, trapSentence);
+                {
+                    if (trapSentence.Message.StartsWith("no such command"))
+                        throw new TikNoSuchCommandException(this, trapSentence);
+                    else if (trapSentence.Message.StartsWith("no such item"))
+                        throw new TikNoSuchItemException(this, trapSentence);
+                    else if (AlreadyWithSuchRegex.IsMatch(trapSentence.Message))
+                        throw new TikAlreadyHaveSuchItemException(this, trapSentence);
+                    else
+                        throw new TikCommandTrapException(this, trapSentence);
+                }
                 ApiFatalSentence fatalSentence = responseSentence as ApiFatalSentence;
                 if (fatalSentence != null)
                     throw new TikCommandFatalException(this, fatalSentence.Message);
@@ -229,7 +244,6 @@ namespace tik4net.Api
 
             return doneSentence;
         }
-
 
         private void EnsureReReponse(params ApiSentence[] responseSentences)
         {
@@ -304,16 +318,17 @@ namespace tik4net.Api
                 if (response.Count() == 1) //!done + =ret=result word
                 {
                     ApiDoneSentence doneSentence = EnsureDoneResponse(response.Single());
-                    if (allowReturnDefault)
-                        return doneSentence.GetResponseWordOrDefault(defaultValue);
-                    else
+                    if (doneSentence.Words.ContainsKey(TikSpecialProperties.Ret))
                         return doneSentence.GetResponseWord();
+                    else if (allowReturnDefault)
+                        return defaultValue;
+                    else
+                        throw new TikNoSuchItemException(this);
                 }
                 else if (response.Count() == 2) //!re + !done
                 {
-                    EnsureReReponse(response.First());
+                    EnsureOneReAndDone(response);
                     ApiReSentence reResponse = (ApiReSentence)response.First();
-                    EnsureDoneResponse(response.Last());
 
                     return reResponse.Words.Single(v => v.Key != TikSpecialProperties.Tag).Value; //single word value from !re  //NOTE - .tag could be added when Connection.SendTagWithSyncCommand=true
                 }
@@ -338,10 +353,8 @@ namespace tik4net.Api
                 IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
                 ThrowPossibleResponseError(response.ToArray());
 
-                EnsureExactNumberOfResponses(response, 2);
-                EnsureReReponse(response.First());   //!re
+                EnsureOneReAndDone(response);
                 ApiReSentence result = (ApiReSentence)response.First();
-                EnsureDoneResponse(response.Last()); //!done
 
                 return result;
             }
