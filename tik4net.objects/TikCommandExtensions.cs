@@ -17,6 +17,11 @@ namespace tik4net.Objects
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
         /// <returns>List (or empty list) of loaded entities.</returns>
         /// <seealso cref="LoadSingle{TEntity}(ITikCommand)"/>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
+        /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
+        /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
+        /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
+        /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
         public static IEnumerable<TEntity> LoadList<TEntity>(this ITikCommand command)
             where TEntity : new()
         {
@@ -33,6 +38,13 @@ namespace tik4net.Objects
         /// <param name="command">Command</param>
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
         /// <returns>Loaded single entity.</returns>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
+        /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
+        /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
+        /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
+        /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
+        /// <exception cref="TikNoSuchItemException">Invalid item (bad id/name etc.). Mikrotik API message: 'no such item'.</exception>
+        /// <exception cref="TikCommandAmbiguousResultException">More than one row returned.</exception>
         public static TEntity LoadSingle<TEntity>(this ITikCommand command)
             where TEntity : new()
         {
@@ -53,6 +65,12 @@ namespace tik4net.Objects
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
         /// <param name="command">Command</param>
         /// <returns>Loaded single entity or null.</returns>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
+        /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
+        /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
+        /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
+        /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
+        /// <exception cref="TikCommandAmbiguousResultException">More than one row returned.</exception>
         public static TEntity LoadSingleOrDefault<TEntity>(this ITikCommand command)
             where TEntity : new()
         {
@@ -76,7 +94,12 @@ namespace tik4net.Objects
         /// <param name="command">Tik command executed to load.</param>
         /// <param name="durationSec">Loading period.</param>
         /// <returns>List (or empty list) of loaded entities.</returns>
-        /// <seealso cref="TikConnectionExtensions.LoadWithDuration{TEntity}(ITikConnection, int, ITikCommandParameter[])"/>
+        /// <seealso cref="ITikCommand.ExecuteListWithDuration(int)"/>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
+        /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
+        /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
+        /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
+        /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
         public static IEnumerable<TEntity> LoadWithDuration<TEntity>(this ITikCommand command, int durationSec)
                     where TEntity : new()
         {

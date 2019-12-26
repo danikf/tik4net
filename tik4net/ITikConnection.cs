@@ -79,9 +79,11 @@ namespace tik4net
         /// <param name="user">The user.</param>
         /// <param name="password">The password.</param>
         /// <seealso cref="Close"/>
-        /// <exception cref="TikConnectionLoginException">Invalid credentials.</exception>
         /// <exception cref="System.Net.Sockets.SocketException">Network connection failed.</exception>
+        /// <exception cref="TikConnectionLoginException">Invalid credentials.</exception>
         /// <exception cref="TikCommandTrapException">Some other Tik4Net error.</exception>
+        /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
+        /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
         void Open(string host, string user, string password);
 
         /// <summary>
@@ -92,9 +94,11 @@ namespace tik4net
         /// <param name="user">The user.</param>
         /// <param name="password">The password.</param>
         /// <seealso cref="Close"/>
-        /// <exception cref="TikConnectionLoginException">Invalid credentials.</exception>
         /// <exception cref="System.Net.Sockets.SocketException">Network connection failed.</exception>
+        /// <exception cref="TikConnectionLoginException">Invalid credentials.</exception>
         /// <exception cref="TikCommandTrapException">Some other Tik4Net error.</exception>
+        /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
+        /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
         void Open(string host, int port, string user, string password);
 
 #if !(NET20 || NET35 || NET40)
@@ -107,9 +111,11 @@ namespace tik4net
         /// <param name="user">The user.</param>
         /// <param name="password">The password.</param>
         /// <seealso cref="Close"/>
-        /// <seealso cref="TikConnectionLoginException">Invalid credentials.</seealso>
         /// <seealso cref="System.Net.Sockets.SocketException">Network connection failed.</seealso>
+        /// <seealso cref="TikConnectionLoginException">Invalid credentials.</seealso>
         /// <seealso cref="TikCommandTrapException">Some other Tik4Net error.</seealso>
+        /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
+        /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
         System.Threading.Tasks.Task OpenAsync(string host, string user, string password);
 
         /// <summary>
@@ -121,9 +127,11 @@ namespace tik4net
         /// <param name="user">The user.</param>
         /// <param name="password">The password.</param>
         /// <seealso cref="Close"/>
-        /// <seealso cref="TikConnectionLoginException">Invalid credentials.</seealso>
         /// <seealso cref="System.Net.Sockets.SocketException">Network connection failed.</seealso>
+        /// <seealso cref="TikConnectionLoginException">Invalid credentials.</seealso>
         /// <seealso cref="TikCommandTrapException">Some other Tik4Net error.</seealso>
+        /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
+        /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
         System.Threading.Tasks.Task OpenAsync(string host, int port, string user, string password);
 #endif
 
@@ -210,6 +218,7 @@ namespace tik4net
         /// <param name="commandRows">Rows of one command to be send to mikrotik router (in conection specific format).</param>
         /// <returns>List of returned sentences.</returns>
         /// <remarks>This is extremly low-level API and should be used only if there is no other way (for example <seealso cref="ITikCommand"/>).</remarks>
+        /// <exception cref="TikConnectionNotOpenException" />
         /// <seealso cref="ITikReSentence"/>
         /// <seealso cref="ITikDoneSentence"/>
         /// <seealso cref="ITikTrapSentence"/>
@@ -225,6 +234,7 @@ namespace tik4net
         /// <param name="commandRows">Rows of one command to be send to mikrotik router (in conection specific format).</param>
         /// <returns>List of returned sentences.</returns>
         /// <remarks>This is extremly low-level API and should be used only if there is no other way (for example <seealso cref="ITikCommand"/>).</remarks>
+        /// <exception cref="TikConnectionNotOpenException" />
         /// <seealso cref="ITikReSentence"/>
         /// <seealso cref="ITikDoneSentence"/>
         /// <seealso cref="ITikTrapSentence"/>
@@ -239,6 +249,7 @@ namespace tik4net
         /// REMARKS: <paramref name="oneResponseCallback"/> is called from another NON-GUI thread. If you want to show response in UI, 
         /// you should use some kind of synchronization like BeginInvoke in WinForms. You can not touch UI controls directly without it.
         /// </summary>
+        /// <exception cref="TikConnectionNotOpenException" />
         /// <param name="commandRows">Rows of one command to be send to mikrotik router (in conection specific format).</param>
         /// <param name="tag">Tag that allows to perform cancel operation. Should be unique!</param>
         /// <param name="oneResponseCallback">Callback called periodically when response sentence is read from mikrotik.</param>

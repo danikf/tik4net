@@ -595,6 +595,20 @@ namespace tik4net.Api
             return result;
         }
 
+        public ITikCommand WithParameter(string name, string value)
+        {
+            AddParameter(name, value);
+
+            return this;
+        }
+
+        public ITikCommand WithParameter(string name, string value, TikCommandParameterFormat parameterFormat)
+        {
+            AddParameter(name, value, parameterFormat);
+
+            return this;
+        }
+
         public override string ToString()
         {
             return string.Join("\n", new string[] { CommandText }
