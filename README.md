@@ -30,6 +30,7 @@ Project wiki:
 * [wiki root](https://github.com/danikf/tik4net/wiki) 
 * [CRUD examples for all APIs](https://github.com/danikf/tik4net/wiki/CRUD-examples-for-all-APIs)
 * [how to use](https://github.com/danikf/tik4net/wiki/How-to-use-tik4net-library)
+* [History](History)
 
 Examples:
 * [example project](https://github.com/danikf/tik4net/blob/master/tik4net.examples/ProgramExamples.cs)
