@@ -22,7 +22,7 @@ It has 3 parts:
 * [![NuGet](https://img.shields.io/nuget/v/tik4net.svg)](https://www.nuget.org/packages/tik4net)
 * [builded dlls download](http://forum.mikrotik.com/viewtopic.php?t=99954)
 
-***Alpha (v 3.5)***
+***In development (v 3.6)***
 * Download as sources.
 
 # Getting started and documentation
