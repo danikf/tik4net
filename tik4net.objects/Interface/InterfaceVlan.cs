@@ -30,6 +30,12 @@ namespace tik4net.Objects.Interface
         public string Mtu { get; set; }
 
         /// <summary>
+        /// l2mtu
+        /// </summary>
+        [TikProperty("l2mtu", IsReadOnly = true)]
+        public string L2Mtu { get; set; }
+
+        /// <summary>
         /// mac-address
         /// </summary>
         [TikProperty("mac-address")]
