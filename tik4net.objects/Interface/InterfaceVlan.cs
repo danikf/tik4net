@@ -129,7 +129,7 @@ namespace tik4net.Objects.Interface
         /// use-service-tag
         /// </summary>
         [TikProperty("use-service-tag")]
-        public bool UseServiceTag { get; private set; }
+        public bool UseServiceTag { get; set; }
 
         /// <summary>
         /// running
