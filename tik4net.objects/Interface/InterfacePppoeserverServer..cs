@@ -38,7 +38,7 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// max-mtu
         /// </summary>
-        [TikProperty("max-mtu")]
+        [TikProperty("max-mru")]
         public string MaxMru { get; set; }
 
         /// <summary>
