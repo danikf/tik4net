@@ -132,7 +132,7 @@ namespace tik4net.Objects.Interface
         /// interface
         /// </summary>
         [TikProperty("interface", IsMandatory = true)]
-        public string iFace { get; set; }
+        public string Interface { get; set; }
 
         /// <summary>
         /// use-service-tag
