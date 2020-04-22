@@ -83,10 +83,19 @@ namespace tik4net.Objects.Interface
         public string ArpTimeout { get; set; }
         public enum LoopProtectMode
         {
+            /// <summary>
+            /// Using Interface Default
+            /// </summary>
             [TikEnum("default")]
             Default,
+            /// <summary>
+            /// Turn Loop back Protection Off
+            /// </summary>
             [TikEnum("off")]
             Off,
+            /// <summary>
+            /// Turn Loop back Protection On
+            /// </summary>
             [TikEnum("on")]
             On,
         }
