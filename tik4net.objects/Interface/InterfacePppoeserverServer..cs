@@ -56,7 +56,7 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// keepalive-timeout
         /// </summary>
-        [TikProperty("keepalive-timeout",DefaultValue ="10")]
+        [TikProperty("keepalive-timeout", DefaultValue = "10")]
         public string KeepaliveTimeout { get; set; }
 
         /// <summary>
@@ -92,7 +92,7 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// disabled
         /// </summary>
-        [TikProperty("disabled")]
+        [TikProperty("disabled", DefaultValue = "False")]
         public bool Disabled { get; set; }
     }
 
