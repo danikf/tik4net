@@ -92,12 +92,12 @@ namespace tik4net.tests
         public void ExecuteNonQuery_Update_Interface_Via_Name_In_Id_Will_Not_Fail()
         {
             //const string IP = "192.168.1.1/24";
-            const string INTERFACE = "wlan1";
+            const string INTERFACE = "ether1";
 
             //update interface name
-            var updateCommand = Connection.CreateCommandAndParameters("/interface/wireless/set",
-                "ssid", "test_ssid",
-                ".id", INTERFACE);
+            var updateCommand = Connection.CreateCommandAndParameters("/interface/set",
+                "comment", "test comment",
+                ".id", INTERFACE); // could work by briefly documented magic: https://wiki.mikrotik.com/wiki/API_command_notes#Addressing_entries
             updateCommand.ExecuteNonQuery();
         }
 

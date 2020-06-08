@@ -113,7 +113,7 @@ namespace tik4net
         /// .ctor
         /// </summary>
         public TikNoSuchItemException(ITikCommand command)
-            : base(command, "no such item")
+            : base(command, $"no such item\n{command}")
         {
         }
     }
@@ -225,7 +225,7 @@ namespace tik4net
         /// .ctor
         /// </summary>
         public TikCommandAmbiguousResultException(ITikCommand command)
-            : base(command, "only one response item expected")
+            : base(command, $"only one response item expected\n{command}")
         {
         }
 
@@ -233,7 +233,7 @@ namespace tik4net
         /// .ctor
         /// </summary>
         public TikCommandAmbiguousResultException(ITikCommand command, int ambiguousItemsCnt)
-            : base(command, $"only one response item expected, returned {ambiguousItemsCnt} items")
+            : base(command, $"only one response item expected, returned {ambiguousItemsCnt} items\n{command}")
         {
         }
     }

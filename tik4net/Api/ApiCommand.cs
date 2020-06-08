@@ -611,8 +611,7 @@ namespace tik4net.Api
 
         public override string ToString()
         {
-            return string.Join("\n", new string[] { CommandText }
-                                                        .Concat(Parameters.Select(p => p.ToString())).ToArray());
+            return CommandText + " PARAMS: " + string.Join("; ", Parameters.Select(p => $"{p.Name}:{p.Value}").ToArray());
         }
 
         private IEnumerable<ITikCommandParameter> CreateParameters(string[] parameterNamesAndValues)
