@@ -26,6 +26,10 @@ It has 3 parts:
 * Download as sources.
 
 # Getting started and documentation
+Mikrotik API wiki:
+* [Mikrotik API wiki](https://wiki.mikrotik.com/wiki/Manual:API)
+* [Mikrotik API notes](https://wiki.mikrotik.com/wiki/API_command_notes)
+
 Project wiki:
 * [wiki root](https://github.com/danikf/tik4net/wiki) 
 * [CRUD examples for all APIs](https://github.com/danikf/tik4net/wiki/CRUD-examples-for-all-APIs)
