@@ -370,8 +370,6 @@ namespace tik4net.Api
         {
             var sentences = ExecuteList();
             
-            if (sentences.Count() > 1)
-                throw new TikCommandAmbiguousResultException(this);
             return sentences.SingleOrDefault();
         }
 
