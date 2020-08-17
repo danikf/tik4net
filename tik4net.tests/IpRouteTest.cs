@@ -5,7 +5,7 @@ using tik4net.Objects.Ip;
 namespace tik4net.tests
 {
     [TestClass]
-    public class IpDnsTest : TestBase
+    public class IpRouteTest : TestBase
     {
         [TestMethod]
         public void LoadIpRoutesWillNotFail()

@@ -35,9 +35,19 @@ namespace tik4net.Objects.Ip.Dns
         /// <summary>
         /// name
         /// DNS name to be resolved to a given IP address. May be a regular expression
+        /// REMARKS: either <see cref="Name"/> of <see cref="Regexp"/> must be filled.
         /// </summary>
-        [TikProperty("name", IsMandatory = true)]
+        [TikProperty("name", IsMandatory = false)]
         public string/*text*/ Name { get; set; }
+
+        /// <summary>
+        /// name
+        /// DNS name to be resolved to a given IP address. May be a regular expression
+        /// REMARKS: either <see cref="Name"/> of <see cref="Regexp"/> must be filled.
+        /// REMARKS: supported by 6.38 and higher. In Lower version true/false is used as value to determine <see cref="Name"/> format.
+        /// </summary>
+        [TikProperty("regexp", IsMandatory = false)]
+        public string Regexp { get; set; }
 
         /// <summary>
         /// ttl

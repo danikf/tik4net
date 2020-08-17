@@ -60,6 +60,7 @@
     <Compile Include="InterfaceWirelessTest.cs" />
     <Compile Include="ConnectionTest.cs" />
     <Compile Include="InterfaceEthernetTest.cs" />
+    <Compile Include="IpDnsTest.cs" />
     <Compile Include="IpHotspotActiveTest.cs" />
     <Compile Include="IpHotspotTest.cs" />
     <Compile Include="IpRouteTest.cs" />
