@@ -57,7 +57,7 @@ namespace tik4net.tests
         }
 
 
-        //[TestMethod]       
+        [TestMethod]       
         public void StaticDnsRecordWithRegexWillNotFail_Issue77()
         {
             //create item
@@ -76,7 +76,7 @@ namespace tik4net.tests
             var item = items.SingleOrDefault(i => i.Address == dnsItem.Address);
             Assert.IsNotNull(item);
             Assert.AreEqual(dnsItem.Regexp, item.Regexp);
-            Assert.IsNull(item.Name);
+            Assert.IsTrue(string.IsNullOrWhiteSpace(item.Name));
 
             //cleanup
             Connection.Delete(item);
