@@ -30,7 +30,4 @@
     <PackageReference Include="System.Threading.Thread" version="4.0.0.0" /> 
     <PackageReference Include="System.Net.Security" version="4.0.0.0" />       
   </ItemGroup>
-     
-   <ItemGroup>
-   </ItemGroup>
 </Project>
