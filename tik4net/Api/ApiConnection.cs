@@ -175,11 +175,18 @@ namespace tik4net.Api
                 var sslStream = new SslStream(tcpStream, false,
                     new RemoteCertificateValidationCallback(ValidateServerCertificate), null);
 
+                try
+                {
 #if (NETCOREAPP1_1 || NETSTANDARD1_3 || NETSTANDARD1_4 || NETSTANDARD1_6)
                 sslStream.AuthenticateAsClientAsync(host).GetAwaiter().GetResult();
 #else
-                sslStream.AuthenticateAsClient(host);
+                    sslStream.AuthenticateAsClient(host);
 #endif
+                }
+                catch(AuthenticationException ex)
+                {
+                    throw new TikConnectionSSLErrorException(ex);
+                }
                 _tcpConnectionStream = sslStream;
             }
 

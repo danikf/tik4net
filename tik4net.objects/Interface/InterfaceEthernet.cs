@@ -92,10 +92,11 @@ namespace tik4net.Objects.Interface
         [TikProperty("flow-control-rx")]
         public YesNoOptions/*yes | no | auto*/ FlowControlRx { get; set; }
 
-        /// <summary>
-        /// flow-control-auto
-        /// </summary>
-        [TikProperty("flow-control-auto")]
+        ///// <summary>
+        ///// flow-control-auto
+        ///// </summary>
+        //[TikProperty("flow-control-auto")]
+        [Obsolete("Removed from mikrotik", true)]
         public YesNoOptions/*yes | no | auto*/ FlowControlAuto { get; set; }
 
         /// <summary>

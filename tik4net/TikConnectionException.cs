@@ -93,4 +93,16 @@ namespace tik4net
         {
         }
     }
+
+    /// <summary>
+    /// Thrown when API-SSL is not properly implemented on mikrotik.
+    /// <see cref="https://github.com/danikf/tik4net/wiki/SSL-connection"/>
+    /// </summary>
+    public class TikConnectionSSLErrorException : TikConnectionException
+    {
+        public TikConnectionSSLErrorException(Exception innerException)
+            : base("API-SSL error (see https://github.com/danikf/tik4net/wiki/SSL-connection)." + innerException.Message, innerException)
+        {
+        }
+    }
 }

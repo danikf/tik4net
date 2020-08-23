@@ -28,7 +28,7 @@ namespace tik4net.tests
         [TestMethod]
         public void LoadStaticDnsWillNotFail()
         {
-            var dnsConfiguration = Connection.LoadSingle<DnsStatic>();
+            var dnsConfiguration = Connection.LoadAll<DnsStatic>();
             Assert.IsNotNull(dnsConfiguration);
         }
 

@@ -121,7 +121,7 @@ namespace tik4net.tests
             const string IP = "127.0.0.1";
 
             var result = ToolTraceroute.Execute(Connection, IP);
-            Assert.IsTrue(result.Count() == 2);
+            Assert.IsTrue(result.Count() > 0);
         }
 
         [TestMethod]
@@ -133,7 +133,7 @@ namespace tik4net.tests
                 "address", IP,
                 "count", "1");
             var result = cmd.ExecuteList();
-            Assert.IsTrue(result.Count() == 2);
+            Assert.IsTrue(result.Count() > 0);
         }
 
 

@@ -19,26 +19,26 @@ namespace tik4net.tests
             Assert.IsNotNull(list);
         }
 
-        [TestMethod]
-        public void EthernetFlowControlSetWillNotFail()
-        {
-            var list = Connection.LoadAll<InterfaceEthernet>();
-            Assert.IsNotNull(list);
-            Assert.IsTrue(list.Count() > 0);
+        //[TestMethod]
+        //public void EthernetFlowControlSetWillNotFail()
+        //{
+        //    var list = Connection.LoadAll<InterfaceEthernet>();
+        //    Assert.IsNotNull(list);
+        //    Assert.IsTrue(list.Count() > 0);
 
-            var eth = list.First();
+        //    var eth = list.First();
 
-            var originalFlowControlAuto = eth.FlowControlAuto;
+        //    var originalFlowControlAuto = eth.FlowControlAuto;
 
-            eth.FlowControlAuto = InterfaceEthernet.YesNoOptions.Yes;
-            Connection.Save(eth);
+        //    eth.FlowControlAuto = InterfaceEthernet.YesNoOptions.Yes;
+        //    Connection.Save(eth);
 
-            eth.FlowControlAuto = InterfaceEthernet.YesNoOptions.No;
-            Connection.Save(eth);
+        //    eth.FlowControlAuto = InterfaceEthernet.YesNoOptions.No;
+        //    Connection.Save(eth);
 
-            eth.FlowControlAuto = originalFlowControlAuto;
-            Connection.Save(eth);
-        }
+        //    eth.FlowControlAuto = originalFlowControlAuto;
+        //    Connection.Save(eth);
+        //}
 
 
         [TestMethod]

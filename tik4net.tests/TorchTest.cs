@@ -16,6 +16,8 @@ namespace tik4net.tests
         [TestMethod]
         public void TorchWillNotFail()
         {
+            //REMARKS: ether1 and wlan1 interface must be present on mikrotik
+
             bool isFailed = false;
             Connection.OnWriteRow += (sender, args) => { System.Diagnostics.Debug.WriteLine(args.Word); };
             Connection.OnReadRow += (sender, args) => { System.Diagnostics.Debug.WriteLine(args.Word); };
