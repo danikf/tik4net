@@ -15,6 +15,7 @@ It has 3 parts:
 * Stable interface and backward compatibility
 * Broad range of .NET runtimes supported (including .NET core 2 and Xamarin)
 * New mikrotik [v.6.43 login process](https://github.com/danikf/tik4net/wiki/login-versions) supported
+* Includes [MNDP](https://github.com/danikf/tik4net/wiki/MNDP) discovery helper 
 * Easy to understand and well documented code
 
 # Binaries
