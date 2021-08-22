@@ -127,6 +127,8 @@ namespace tik4net.Objects
                     return int.Parse(strValue);
                 else if (PropertyType == typeof(long))
                     return long.Parse(strValue);
+                else if (PropertyType == typeof(byte))
+                    return byte.Parse(strValue);
                 else if (PropertyType == typeof(bool))
                     return string.Equals(strValue, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(strValue, "yes", StringComparison.OrdinalIgnoreCase);
 #if NET20 || NET35 || NET40
