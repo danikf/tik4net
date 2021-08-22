@@ -25,10 +25,10 @@ namespace tik4net.Mndp
 
         private const int MNDP_UDP_PORT = 5678;
 
-        private class DiscoveryState
-        {
-            public volatile bool ShouldStop;
-        }
+        //private class DiscoveryState
+        //{
+        //    public volatile bool ShouldStop;
+        //}
 
         /// <summary>
         /// Discover with default timeout and encoding.
@@ -90,10 +90,17 @@ namespace tik4net.Mndp
         {
             var result = new UdpClient();
             result.Client.Bind(new IPEndPoint(IPAddress.Any, MNDP_UDP_PORT));
-            result.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            result.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.NoDelay, 1);
-            result.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, 1);
-            result.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontRoute, true);
+
+            //Not possible to use on android :-/
+            //result.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            //result.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.NoDelay, 1);
+            //result.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, 1);
+            //result.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontRoute, true);
+
+            result.Client.ExclusiveAddressUse = false;
+            result.Client.NoDelay = true;
+            result.Client.EnableBroadcast = true;
+            //DontRoute ??
 
             return result;
         }
