@@ -54,7 +54,7 @@ namespace tik4net.Objects
         /// <param name="mac">MAC address in format 00:00:00:00:00:00</param>
         public MacAddress(string mac)
         {
-            if (StringHelper.IsNullOrWhiteSpace(mac))
+            if (string.IsNullOrWhiteSpace(mac))
                 mac = DEFAULT_MAC;
 
             EnsureValidMac(mac);

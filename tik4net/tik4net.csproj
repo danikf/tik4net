@@ -1,9 +1,9 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
    <PropertyGroup>
-     <TargetFrameworks>net462;net35;net40;net452;netcoreapp1.1;netcoreapp2.0;netcoreapp2.2;netcoreapp3.1;netstandard1.3;netstandard1.4;netstandard1.6;netstandard2.0</TargetFrameworks>
+     <TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
      <Description>Mikrotik API library</Description>
      <Authors>Daniel Frantik</Authors>
      <Copyright>Copyright (C) Daniel Frantik 2017</Copyright>
@@ -14,20 +14,10 @@
      <VersionSuffix Condition=" '$(PREVIEW_NUMBER)' != '' ">pre-$(PREVIEW_NUMBER)</VersionSuffix>
      <AssemblyName>tik4net</AssemblyName>
      <RootNamespace>tik4net</RootNamespace>
+     <GenerateDocumentationFile>True</GenerateDocumentationFile>
    </PropertyGroup>
    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
      <DefineConstants>TRACE;DEBUG</DefineConstants>
      <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
    </PropertyGroup>
-   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net35|AnyCPU'">
-     <OutputPath>bin\Debug\</OutputPath>
-     <DocumentationFile></DocumentationFile>
-   </PropertyGroup>
-   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net35|AnyCPU'">
-     <DocumentationFile>bin\Release\net35\tik4net.xml</DocumentationFile>
-   </PropertyGroup>
-  <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard1.3' OR '$(TargetFramework)' == 'netstandard1.4' OR '$(TargetFramework)' == 'netstandard1.6' ">
-    <PackageReference Include="System.Threading.Thread" version="4.0.0.0" /> 
-    <PackageReference Include="System.Net.Security" version="4.0.0.0" />       
-  </ItemGroup>
 </Project>

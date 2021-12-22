@@ -14,7 +14,7 @@ namespace tik4net.tests
         [TestMethod]
         public void MNDP_WillWork()
         {
-            var items = MndpHelper.Discover();
+            var items = MndpHelper.Discover(true);
 
             Assert.IsTrue(items.Count() > 0);
         }

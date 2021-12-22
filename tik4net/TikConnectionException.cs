@@ -10,12 +10,10 @@ namespace tik4net
     /// <summary>
     /// Any exception from mikrotik session.
     /// </summary>
-#if NET20 || NET35 || NET40 || NET45 || NET451 || NET452 || NET46 || NET461 || NET462 || NET47 || NET471
+
     [Serializable]
-#endif
     public abstract class TikConnectionException : Exception
     {
-#if NET20 || NET35 || NET40 || NET45 || NET451 || NET452 || NET46 || NET461 || NET462 || NET47 || NET471
         /// <summary>
         /// Initializes a new instance of the <see cref="TikConnectionException"/> class.
         /// </summary>
@@ -25,7 +23,6 @@ namespace tik4net
             : base(info, context)
         {
         }
-#endif
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TikConnectionException"/> class.
@@ -88,20 +85,23 @@ namespace tik4net
         /// <summary>
         /// .ctor
         /// </summary>
-        public TikConnectionLoginException()
-            : base("cannot log in")
+        public TikConnectionLoginException(Exception innerException)
+            : base("Cannot log in. " + innerException.Message, innerException)
         {
         }
     }
 
     /// <summary>
     /// Thrown when API-SSL is not properly implemented on mikrotik.
-    /// <see cref="https://github.com/danikf/tik4net/wiki/SSL-connection"/>
+    /// See https://github.com/danikf/tik4net/wiki/SSL-connection for details.
     /// </summary>
     public class TikConnectionSSLErrorException : TikConnectionException
     {
+        /// <summary>
+        /// .ctor
+        /// </summary>
         public TikConnectionSSLErrorException(Exception innerException)
-            : base("API-SSL error (see https://github.com/danikf/tik4net/wiki/SSL-connection)." + innerException.Message, innerException)
+            : base("API-SSL error (see https://github.com/danikf/tik4net/wiki/SSL-connection). " + innerException.Message, innerException)
         {
         }
     }

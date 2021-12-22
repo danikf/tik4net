@@ -107,7 +107,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <seealso cref="DstPortStr"/>
         public long DstPort
         {
-            get { return StringHelper.IsNullOrWhiteSpace(DstPortStr) ? 0 : long.Parse(DstPortStr); }
+            get { return string.IsNullOrWhiteSpace(DstPortStr) ? 0 : long.Parse(DstPortStr); }
             set { DstPortStr = value.ToString(); }
         }
 
@@ -124,7 +124,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// <seealso cref="SrcPortStr"/>
         public long SrcPort
         {
-            get { return StringHelper.IsNullOrWhiteSpace(SrcPortStr) ? 0 : long.Parse(SrcPortStr); }
+            get { return string.IsNullOrWhiteSpace(SrcPortStr) ? 0 : long.Parse(SrcPortStr); }
             set { SrcPortStr = value.ToString(); }
         }
 

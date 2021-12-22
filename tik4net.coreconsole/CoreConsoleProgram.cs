@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.Extensions.Configuration;
 using System.IO;
+using Microsoft.Extensions.Configuration;
 
 namespace tik4net.coreconsole
 {
@@ -18,7 +18,7 @@ namespace tik4net.coreconsole
                 var builder = new ConfigurationBuilder()
                     .SetBasePath(Directory.GetCurrentDirectory())
                     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-                IConfiguration configuration = builder.Build();
+                var configuration = builder.Build();
 
                 connection.Open(configuration["host"], configuration["user"], configuration["pass"]);
 
@@ -43,7 +43,8 @@ namespace tik4net.coreconsole
                             }
                             var result = connection.CallCommandSync(rows.ToArray());
                             foreach (var resultItem in result)
-                                Console.WriteLine(resultItem.Words);
+                                foreach (var word in resultItem.Words)
+                                    Console.WriteLine($"{word.Key}={word.Value}");
 
                             commandRows.Clear();
                         }

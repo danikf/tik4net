@@ -7,6 +7,7 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace tik4net.Mndp
 {
@@ -20,105 +21,146 @@ namespace tik4net.Mndp
         //https://github.com/xmegz/MndpTray/blob/master/MndpTray/MndpTray.Protocol.Shared/MndpMessage.cs
         //https://hadler.me/cc/mikrotik-neighbor-discovery-mndp/
         //https://stackoverflow.com/questions/40616911/c-sharp-udp-broadcast-and-receive-example
-
-        //NOTE: supporting of netstandard 1.3 and other old frameworks made it harder to implement :-/
+        //https://forum.mikrotik.com/viewtopic.php?t=130551
 
         private const int MNDP_UDP_PORT = 5678;
 
-        //private class DiscoveryState
-        //{
-        //    public volatile bool ShouldStop;
-        //}
-
         /// <summary>
-        /// Discover with default timeout and encoding.
+        /// Discover with default 60s timeout and encoding.
         /// </summary>
-        public static IEnumerable<TikInstanceDescriptor> Discover()
+        public static IEnumerable<TikInstanceDescriptor> Discover(bool stopWhenFirstFound = false)
         {
             var encoding = Encoding.GetEncoding("iso-8859-1");
-            var timeout = new TimeSpan(0, 0, 2);
+            var timeout = new TimeSpan(0, 0, 60);
 
-            return Discover(timeout, encoding);
+            return Discover(timeout, encoding, stopWhenFirstFound);
         }
 
         /// <summary>
         /// Discover with specified timeout and encoding.
         /// </summary>
-        public static IEnumerable<TikInstanceDescriptor> Discover(TimeSpan timeout, Encoding encoding)
+        public static IEnumerable<TikInstanceDescriptor> Discover(TimeSpan timeout, Encoding encoding, bool stopWhenFirstFound = false)
         {
             var result = new List<TikInstanceDescriptor>();
+            var receiveEndpoint = new IPEndPoint(IPAddress.Any, MNDP_UDP_PORT);
 
-            using (var udpClient = CreateUdpClient())
+            using (var udpClient = new UdpClient() { EnableBroadcast = true, ExclusiveAddressUse = false, MulticastLoopback = true })            
             {
-                //Broadcast datagram (more than once) -> BroadCast:5678
-                SendMndpBroadcast(udpClient);
-
-                var shouldStop = false;
-                var receivingThread = new Thread(() =>
+                udpClient.Client.Bind(receiveEndpoint);
+                using (var cancelSource = new CancellationTokenSource())
                 {
-                    while (!shouldStop)
+                    //start async receive
+                    var receiveCancellToken = cancelSource.Token;
+                    var receivingTask = Task.Run(() =>
                     {
-#if NET20 || NET35 || NET40
-                        var from = new IPEndPoint(0, 0);
-                        var data = udpClient.Receive(ref from);
-#else
-                        var asyncUdp = udpClient.ReceiveAsync();
-                        byte[] data = null;
-                        if (asyncUdp.Wait((int)timeout.TotalMilliseconds))
+                        try
                         {
-                            data = asyncUdp.Result.Buffer;
+                            while (!receiveCancellToken.IsCancellationRequested)
+                            {
+                                var receiveBufferTask = udpClient.ReceiveAsync();
+                                receiveBufferTask.ConfigureAwait(false);
+                                receiveBufferTask.Wait(receiveCancellToken);
+                                if (!receiveBufferTask.IsCanceled)
+                                {
+                                    var data = receiveBufferTask.Result.Buffer;
+                                    if (TryParseResponsePacket(data, encoding, out var routerDescriptor))
+                                    {
+                                        if (!result.Any(r => r.IpDescription == routerDescriptor.IpDescription))
+                                            result.Add(routerDescriptor);
+                                    }
+                                }
+                            }
                         }
-#endif
-                        if (TryParseResponsePacket(data, encoding, out var routerDescriptor))
+                        catch (OperationCanceledException)
                         {
-                            if (!result.Any(r => r.IpDescription == routerDescriptor.IpDescription))
-                                result.Add(routerDescriptor);
                         }
+                    }, receiveCancellToken);
+
+                    //send broadcast
+                    const int BROADCAST_DELAY = 1000;
+                    for (int i = 0; i < timeout.TotalMilliseconds / BROADCAST_DELAY; i++)
+                    {
+                        SendMndpBroadcast();
+                        
+                        Thread.Sleep(BROADCAST_DELAY);
+                        if (stopWhenFirstFound && result.Count > 0)
+                            break;
                     }
-                });
-                receivingThread.IsBackground = true;
-                receivingThread.Start();
-                Thread.Sleep((int)timeout.TotalMilliseconds);
-                shouldStop = true;
-                receivingThread.Join((int)timeout.TotalMilliseconds);
-            }
+
+                    cancelSource.Cancel();
+                    receivingTask.Wait();
+                }
+            }            
 
             return result;
         }
 
-        private static UdpClient CreateUdpClient()
+        private static void SendMndpBroadcast()
         {
-            var result = new UdpClient();
-            result.Client.Bind(new IPEndPoint(IPAddress.Any, MNDP_UDP_PORT));
+            var dataToBroadcast = new byte[] { 0, 0, 0, 0 };
 
-            //Not possible to use on android :-/
-            //result.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            //result.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.NoDelay, 1);
-            //result.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, 1);
-            //result.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontRoute, true);
-
-            result.Client.ExclusiveAddressUse = false;
-            result.Client.NoDelay = true;
-            result.Client.EnableBroadcast = true;
-            //DontRoute ??
-
-            return result;
-        }
-
-        private static void SendMndpBroadcast(UdpClient udpClient)
-        {
-            for (int i = 0; i < 3; i++) //send a few packets
+            using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { EnableBroadcast = true, ExclusiveAddressUse = false })
             {
-                //inspiration: https://hadler.me/cc/mikrotik-neighbor-discovery-mndp/
-                var dataToBroadcast = new byte[] { 0, 0, 0, 0 };
+                socket.SendTo(dataToBroadcast, new IPEndPoint(IPAddress.Broadcast, MNDP_UDP_PORT));
+            }
 
-#if NET20 || NET35 || NET40
-                udpClient.Send(dataToBroadcast, dataToBroadcast.Length, new IPEndPoint(IPAddress.Broadcast, MNDP_UDP_PORT));
-#else
-                udpClient.SendAsync(dataToBroadcast, dataToBroadcast.Length, new IPEndPoint(IPAddress.Broadcast, MNDP_UDP_PORT));
-#endif
+            using (var socket = new Socket(AddressFamily.InterNetworkV6, SocketType.Dgram, ProtocolType.Udp) { EnableBroadcast = true, ExclusiveAddressUse = false })
+            {
+                socket.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.IPv6Only, true);
+                socket.SendTo(dataToBroadcast, new IPEndPoint(IPAddress.Parse("ff02::1")/*IPAddress.IPv6Any*/, MNDP_UDP_PORT));
             }
         }
+
+        //private static UdpClient CreateUdpClient()
+        //{
+        //    var result = new UdpClient();
+        //    result.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+        //    result.Client.ExclusiveAddressUse = false;
+        //    result.Client.Bind(new IPEndPoint(IPAddress.Any, MNDP_UDP_PORT));
+
+        //    //var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+        //    //socket.ExclusiveAddressUse = false;
+        //    ////socket.NoDelay = true;
+        //    //socket.EnableBroadcast = true;
+
+        //    //socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+        //    //socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.NoDelay, 1);
+        //    //socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, 1);
+        //    //socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontRoute, true);
+
+
+        //    //socket.Bind(new IPEndPoint(IPAddress.Any, MNDP_UDP_PORT));
+        //    //result.Client = socket;
+
+        //    //Not possible to use on android :-/
+        //    //result.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+        //    //result.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.NoDelay, 1);
+        //    //result.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, 1);
+        //    //result.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontRoute, true);
+
+        //    //result.Client.ExclusiveAddressUse = false;
+        //    //result.Client.NoDelay = true;
+        //    //result.Client.EnableBroadcast = true;
+        //    //DontRoute ??
+
+        //    return result;
+        //}
+
+        //private static void SendMndpBroadcasts(UdpClient udpClient)
+        //{
+        //    for (int i = 0; i < 3; i++) //send a few packets
+        //    {
+        //        //inspiration: https://hadler.me/cc/mikrotik-neighbor-discovery-mndp/
+        //        var dataToBroadcast = new byte[] { 0, 0, 0, 0 };
+
+        //        //using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { EnableBroadcast = true, ExclusiveAddressUse = false })
+        //        {
+
+        //            //socket.SendTo(dataToBroadcast, new IPEndPoint(IPAddress.Broadcast, MNDP_UDP_PORT));
+        //        }
+        //        //udpClient.SendAsync(dataToBroadcast, dataToBroadcast.Length, new IPEndPoint(IPAddress.Broadcast, MNDP_UDP_PORT));
+        //    }
+        //}
 
         private static bool TryParseResponsePacket(byte[] data, Encoding encoding, out TikInstanceDescriptor routerDescriptor)
         {

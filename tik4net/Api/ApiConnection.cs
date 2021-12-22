@@ -88,11 +88,6 @@ namespace tik4net.Api
             get { return _isSsl; }
         }
 
-        //internal LoginProcessVersion UsedLoginProcessVersion
-        //{
-        //    get { return _loginProcessVersion; }
-        //}
-
         public ApiConnection(bool isSsl)
         {
             _isSsl = isSsl;
@@ -129,16 +124,8 @@ namespace tik4net.Api
                 // catch exception if connection is closed
             }
 
-            //if (_tcpConnection.Connected)
-            //{
-#if NET20 || NET35 || NET40 || NET45 || NET451 || NET452
-                _tcpConnectionStream.Close();
-                _tcpConnection.Close();
-#else
-                _tcpConnectionStream.Dispose();
-                _tcpConnection.Dispose();
-#endif
-            //}
+            _tcpConnectionStream.Dispose();
+            _tcpConnection.Dispose();
             _isOpened = false;        
         }
 
@@ -155,11 +142,7 @@ namespace tik4net.Api
                 _tcpConnection.SendTimeout = _sendTimeout;
             if (_receiveTimeout > 0)
                 _tcpConnection.ReceiveTimeout = _receiveTimeout;
-#if (NETCOREAPP1_1 || NETSTANDARD1_3 || NETSTANDARD1_4 || NETSTANDARD1_6)
             _tcpConnection.ConnectAsync(host, port).GetAwaiter().GetResult();
-#else
-            _tcpConnection.Connect(host, port);
-#endif
 
             var tcpStream = _tcpConnection.GetStream();
             if (_receiveTimeout > 0)
@@ -177,11 +160,7 @@ namespace tik4net.Api
 
                 try
                 {
-#if (NETCOREAPP1_1 || NETSTANDARD1_3 || NETSTANDARD1_4 || NETSTANDARD1_6)
-                sslStream.AuthenticateAsClientAsync(host).GetAwaiter().GetResult();
-#else
-                    sslStream.AuthenticateAsClient(host);
-#endif
+                    sslStream.AuthenticateAsClientAsync(host, null, SslProtocols.Tls, false).GetAwaiter().GetResult();
                 }
                 catch(AuthenticationException ex)
                 {
@@ -194,7 +173,6 @@ namespace tik4net.Api
             Login_v3(user, password);  //LoginInternal(user, password);            
         }
 
-#if !(NET20 || NET35 || NET40)
         public async System.Threading.Tasks.Task OpenAsync(string host, string user, string password)
         {
             await OpenAsync(host, _isSsl ? APISSL_DEFAULT_PORT : API_DEFAULT_PORT, user, password);
@@ -231,57 +209,6 @@ namespace tik4net.Api
             _isOpened = true;
             Login_v3(user, password); // LoginInternal(user, password);           
         }
-#endif
-
-        //private void LoginInternal(string user, string password)
-        //{            
-        //    switch (_loginProcessVersion)
-        //    {
-        //        case LoginProcessVersion.Version1:
-        //            Login_v1(user, password, true);
-        //            break;
-        //        case LoginProcessVersion.Version2:
-        //            Login_v2(user, password);
-        //            break;
-        //        default:
-        //            throw new NotImplementedException(string.Format("Unsuported login process version {0}", _loginProcessVersion));
-        //    }
-        //}
-
-        //private void Login_v1(string user, string password, bool allowLoginProcessVersion2Fallback)
-        //{
-        //    //Get login hash
-        //    string responseHash;
-        //    try
-        //    {
-        //        ApiCommand readLoginHashCommand = new ApiCommand(this, "/login");
-        //        responseHash = readLoginHashCommand.ExecuteScalar();
-        //    }
-        //    catch(TikCommandException) //TODO catch specific exception / message
-        //    {
-        //        if (allowLoginProcessVersion2Fallback)
-        //        {
-        //            Login_v2(user, password); // try it via newer login process
-        //            return;
-        //        }
-        //        else
-        //            throw;
-        //    }
-
-        //    //login connection
-        //    string hashedPass = ApiConnectionHelper.EncodePassword(password, responseHash);
-        //    ApiCommand loginCommand = new ApiCommand(this, "/login", TikCommandParameterFormat.NameValue,
-        //        new ApiCommandParameter("name", user), new ApiCommandParameter("response", hashedPass));
-        //    loginCommand.ExecuteNonQuery();
-        //}
-
-        //private void Login_v2(string user, string password)
-        //{
-        //    //login connection
-        //    ApiCommand loginCommand = new ApiCommand(this, "/login", TikCommandParameterFormat.NameValue,
-        //        new ApiCommandParameter("name", user), new ApiCommandParameter("password", password));
-        //    loginCommand.ExecuteNonQuery();
-        //}
 
         private void Login_v3(string user, string password)
         {
@@ -305,7 +232,9 @@ namespace tik4net.Api
             catch(TikCommandTrapException ex)
             {
                 if (ex.Message == "cannot log in")
-                    throw new TikConnectionLoginException();
+                    throw new TikConnectionLoginException(ex);
+                else if (ex.Message.StartsWith("invalid user name or password"))
+                    throw new TikConnectionLoginException(ex);
                 else
                     throw;
             }
@@ -395,7 +324,7 @@ namespace tik4net.Api
 
                     result = resultBuilder.ToString();
                 }
-            } while (skipEmptyRow && StringHelper.IsNullOrWhiteSpace(result));            
+            } while (skipEmptyRow && string.IsNullOrWhiteSpace(result));            
 
             if (OnReadRow != null)
                 OnReadRow(this, new TikConnectionCommCallbackEventArgs(result));
@@ -415,9 +344,9 @@ namespace tik4net.Api
                 do
                 {
                     sentenceWord = ReadWord(false);
-                    if (!StringHelper.IsNullOrWhiteSpace(sentenceWord)) //read ending empty row, but skip it from result
+                    if (!string.IsNullOrWhiteSpace(sentenceWord)) //read ending empty row, but skip it from result
                         sentenceWords.Add(sentenceWord);
-                } while (!StringHelper.IsNullOrWhiteSpace(sentenceWord));
+                } while (!string.IsNullOrWhiteSpace(sentenceWord));
 
                 switch (sentenceName)
                 {

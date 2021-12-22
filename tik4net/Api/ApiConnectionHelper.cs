@@ -16,26 +16,17 @@ namespace tik4net.Api
             {
                 hash_byte[i / 2] = Byte.Parse(hash.Substring(i, 2), System.Globalization.NumberStyles.HexNumber, CultureInfo.InvariantCulture);
             }
-            byte[] heslo = new byte[1 + password.Length + hash_byte.Length];
-            heslo[0] = 0;
-            Encoding.ASCII.GetBytes(password.ToCharArray()).CopyTo(heslo, 1);
-            hash_byte.CopyTo(heslo, 1 + password.Length);
+            byte[] passwordArray = new byte[1 + password.Length + hash_byte.Length];
+            passwordArray[0] = 0;
+            Encoding.ASCII.GetBytes(password.ToCharArray()).CopyTo(passwordArray, 1);
+            hash_byte.CopyTo(passwordArray, 1 + password.Length);
 
-            Byte[] hotovo;
-            System.Security.Cryptography.MD5 md5;
-
-
-#if NET20 || NET35 || NET40
-            md5 = new System.Security.Cryptography.MD5CryptoServiceProvider();
-#else
-            md5 = System.Security.Cryptography.MD5.Create();
-#endif
-
-            hotovo = md5.ComputeHash(heslo);
+            var md5 = System.Security.Cryptography.MD5.Create();
+            var hashedPass = md5.ComputeHash(passwordArray);
 
             //Convert encoded bytes back to a 'readable' string
             string result = "";
-            foreach (byte h in hotovo)
+            foreach (byte h in hashedPass)
             {
                 result += h.ToString("x2", CultureInfo.InvariantCulture);
             }

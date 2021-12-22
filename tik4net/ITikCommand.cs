@@ -110,6 +110,7 @@ namespace tik4net
         /// Executes given <see cref="CommandText"/> on router and returns one value (=ret parameter) or single value in single !re row, which is returned as result. If value is not found, than returns <paramref name="defaultValue"/>.
         /// Usefull to return one value from one selected row (for example .id of searched record).
         /// </summary>
+        /// <param name="defaultValue">Value returned when matching record was not found.</param>
         /// <param name="target">Name of returned field.</param>
         /// <returns>Value returned by router or <paramref name="defaultValue"/>.</returns>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
@@ -170,9 +171,9 @@ namespace tik4net
         IEnumerable<ITikReSentence> ExecuteList(params string[] proplistFields);
 
         /// <summary>
-        /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) which are returned during <paramref name="durationSec"/> wait.<br>
-        /// After this period, command is automatically stopped via <see cref="CancelAndJoin()"/>.<br>
-        /// Throws <see cref="TikCommandAbortException"/> if command is aborted before <paramref name="durationSec"/>.<br>
+        /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) which are returned during <paramref name="durationSec"/> wait.
+        /// After this period, command is automatically stopped via <see cref="CancelAndJoin()"/>.
+        /// Throws <see cref="TikCommandAbortException"/> if command is aborted before <paramref name="durationSec"/>.
         /// Returns data if command ends before <paramref name="durationSec"/> (!done received).
         /// </summary>
         /// <param name="durationSec">How long will method wait for results.</param>
@@ -186,9 +187,9 @@ namespace tik4net
         IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec);
 
         /// <summary>
-        /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) which are returned during <paramref name="durationSec"/> wait.<br>
-        /// After this period, command is automatically stopped via <see cref="CancelAndJoin()"/>.<br>
-        /// Don't throw any exception if command is aborted before <paramref name="durationSec"/>. Returns <paramref name="wasAborted"/>=true instead (usefull if incomplete result is still expected).<br>
+        /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) which are returned during <paramref name="durationSec"/> wait.
+        /// After this period, command is automatically stopped via <see cref="CancelAndJoin()"/>.
+        /// Don't throw any exception if command is aborted before <paramref name="durationSec"/>. Returns <paramref name="wasAborted"/>=true instead (usefull if incomplete result is still expected).
         /// Returns data if command ends before <paramref name="durationSec"/> (!done received).
         /// </summary>
         /// <param name="durationSec">How long will method wait for results.</param>
@@ -199,7 +200,7 @@ namespace tik4net
         IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string abortReason);
 
         /// <summary>
-        /// Calls given <see cref="CommandText"/> to router. Response is returned via <paramref name="oneResponseCallback"/> callback when it is read from mikrotik (for tag, which has been dynamically assigned).<br>
+        /// Calls given <see cref="CommandText"/> to router. Response is returned via <paramref name="oneResponseCallback"/> callback when it is read from mikrotik (for tag, which has been dynamically assigned).
         /// REMARKS: <paramref name="oneResponseCallback"/> is called from another NON-GUI thread. If you want to show response in UI, 
         /// you should use some kind of synchronization like BeginInvoke in WinForms or SynchronizationContext. You can not touch UI controls directly without it.
         /// </summary>
@@ -258,14 +259,14 @@ namespace tik4net
         void Cancel();
 
         /// <summary>
-        /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteAsync"/> has been called).<br>
+        /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteAsync"/> has been called).
         /// Blocks the calling thread until a thread terminates or the specified time elapses, while continuing to perform standard COM and SendMessage pumping.
         /// </summary>
         /// <seealso cref="ExecuteAsync"/>
         void CancelAndJoin();
 
         /// <summary>
-        /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteAsync"/> has been called).<br>
+        /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteAsync"/> has been called).
         /// Blocks the calling thread until a thread terminates or the specified time elapses, while continuing to perform standard COM and SendMessage pumping.
         /// </summary>
         /// <param name="milisecondsTimeout">Wait timeout.</param>

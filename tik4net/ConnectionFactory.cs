@@ -22,14 +22,8 @@ namespace tik4net
             switch (connectionType)
             {
                 case TikConnectionType.Api:
-#pragma warning disable CS0618 // Type or member is obsolete
-                case TikConnectionType.Api_v2:
-#pragma warning restore CS0618 // Type or member is obsolete
                     return new ApiConnection(false);
                 case TikConnectionType.ApiSsl:
-#pragma warning disable CS0618 // Type or member is obsolete
-                case TikConnectionType.ApiSsl_v2:
-#pragma warning restore CS0618 // Type or member is obsolete
                     return new ApiConnection(true);
                 default:
                     throw new NotImplementedException(string.Format("Connection type '{0}' not supported.", connectionType));
@@ -77,7 +71,6 @@ namespace tik4net
             return result;
         }
 
-#if !(NET20 || NET35 || NET40)
         /// <summary>
         /// Creates and opens connection to the specified mikrotik host on default port and perform the logon operation.
         /// Async version.
@@ -120,6 +113,5 @@ namespace tik4net
 
             return result;
         }
-#endif
     }
 }

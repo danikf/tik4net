@@ -116,7 +116,7 @@ namespace tik4net.Api
 
         private void EnsureCommandTextSet()
        { 
-            if (StringHelper.IsNullOrWhiteSpace(_commandText))
+            if (string.IsNullOrWhiteSpace(_commandText))
                 throw new InvalidOperationException("CommandText is not set.");
         }
 
@@ -144,7 +144,7 @@ namespace tik4net.Api
             }
         
             string commandText = CommandText;
-            if (!StringHelper.IsNullOrWhiteSpace(commandText) && !commandText.Contains("\n") && !commandText.StartsWith("/"))
+            if (!string.IsNullOrWhiteSpace(commandText) && !commandText.Contains("\n") && !commandText.StartsWith("/"))
                 commandText = "/" + commandText;
 
             List<string> result;

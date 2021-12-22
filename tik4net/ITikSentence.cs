@@ -13,11 +13,7 @@ namespace tik4net
         /// <summary>
         /// All sentence words (properties). {fieldName, value}
         /// </summary>
-#if NET20 || NET35 || NET40
-        IDictionary<string, string> Words { get; }
-#else
         IReadOnlyDictionary<string, string> Words { get; }
-#endif
 
         /// <summary>
         /// Tag of sentence (see asynchronous commands for details).

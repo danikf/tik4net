@@ -29,10 +29,6 @@ namespace tik4net.tests
 
             OpenConnectionAndExecuteSimpleCommand(TikConnectionType.Api, host, user, pass);
             OpenConnectionAndExecuteSimpleCommand(TikConnectionType.ApiSsl, host, user, pass);
-#pragma warning disable CS0618 // Type or member is obsolete
-            OpenConnectionAndExecuteSimpleCommand(TikConnectionType.Api_v2, host, user, pass);
-            OpenConnectionAndExecuteSimpleCommand(TikConnectionType.ApiSsl_v2, host, user, pass);
-#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         private static void OpenConnectionAndExecuteSimpleCommand(TikConnectionType connectionType, string host, string user, string pass)
@@ -197,7 +193,7 @@ namespace tik4net.tests
                 using (var connection = ConnectionFactory.CreateConnection(DEFAULT_CONNECTION_TYPE))
                 {
                     connection.ReceiveTimeout = 1; //very short timeout + using async version 
-                    connection.OpenAsync(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]).GetAwaiter().GetResult();
+                    await connection.OpenAsync(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
                     connection.Close();
                 }
             }).GetAwaiter().GetResult();

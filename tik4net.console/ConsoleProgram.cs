@@ -37,9 +37,9 @@ namespace tik4net.console
                                 rows.AddRange(row.Split('|').Where(r => !string.IsNullOrEmpty(r)));
                             }
                             var result = connection.CallCommandSync(rows.ToArray());
-                            foreach (var resultItem in result)
-                                foreach(var word in resultItem.Words)
-                                    Console.WriteLine(word);
+                            //foreach (var resultItem in result)
+                            //    foreach(var word in resultItem.Words)
+                            //        Console.WriteLine($"{word.Key}={word.Value}");
 
                             commandRows.Clear();
                         }

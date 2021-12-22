@@ -82,22 +82,14 @@ namespace tik4net.Objects
                 throw new ArgumentException("Property must be decorated by TikPropertyAttribute.", "propertyInfo");
             FieldName = propertyAttribute.FieldName;
             _isReadOnly =
-#if NET20 || NET35 || NET40 
-                (propertyInfo.GetSetMethod() == null) 
-#else
                 (propertyInfo.SetMethod == null)
-#endif
                 || (!propertyInfo.CanWrite) || (propertyAttribute.IsReadOnly);
             IsMandatory = propertyAttribute.IsMandatory;
             if (propertyAttribute.DefaultValue != null)
                 DefaultValue = propertyAttribute.DefaultValue;
             else
             {
-#if NET20 || NET35 || NET40 
-                if (PropertyType.IsValueType)
-#else
                 if (PropertyType.GetTypeInfo().IsValueType)
-#endif
                     DefaultValue = ConvertToString(Activator.CreateInstance(PropertyType)); //default value of value type. for example: (default)int
                 else
                     DefaultValue = "";
@@ -131,15 +123,9 @@ namespace tik4net.Objects
                     return byte.Parse(strValue);
                 else if (PropertyType == typeof(bool))
                     return string.Equals(strValue, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(strValue, "yes", StringComparison.OrdinalIgnoreCase);
-#if NET20 || NET35 || NET40
-                else if (PropertyType.IsEnum)
-                    return Enum.GetNames(PropertyType)
-                        .Where(en => string.Equals(PropertyType.GetMember(en)[0].GetCustomAttribute<TikEnumAttribute>(false).Value, strValue, StringComparison.OrdinalIgnoreCase))
-#else
                 else if (PropertyType.GetTypeInfo().IsEnum)
                     return Enum.GetNames(PropertyType)
                         .Where(en => string.Equals(PropertyType.GetRuntimeField(en).GetCustomAttribute<TikEnumAttribute>(false).Value, strValue, StringComparison.OrdinalIgnoreCase))
-#endif
                         .Select(en => Enum.Parse(PropertyType, en, true))
                         .Single(); //TODO safer implementation
                                    //else if (PropertyType == typeof(Ipv4Address))
@@ -177,13 +163,8 @@ namespace tik4net.Objects
                 return ((long)propValue).ToString();
             else if (PropertyType == typeof(bool))
                 return ((bool)propValue) ? "yes" : "no"; //TODO add attribute definition for support true/false
-#if NET20 || NET35 || NET40 
-            else if (PropertyType.IsEnum)
-                return PropertyType.GetMember(propValue.ToString())[0].GetCustomAttribute<TikEnumAttribute>(false).Value; //TODO safer implementation
-#else
             else if (PropertyType.GetTypeInfo().IsEnum)
                 return PropertyType.GetRuntimeField(propValue.ToString()).GetCustomAttribute<TikEnumAttribute>(false).Value; //TODO safer implementation
-#endif
             //else if (PropertyType == typeof(Ipv4Address))
             //    return ((Ipv4Address)propValue).Address;
             //else if (PropertyType == typeof(Ipv4AddressWithSubnet))

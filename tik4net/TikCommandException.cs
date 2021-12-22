@@ -20,8 +20,6 @@ namespace tik4net
         /// </summary>
         /// <param name="command">Commant that throws exception.</param>
         /// <param name="message">Message exception.</param>
-        /// <param name="code">Code of the error.</param>
-        /// <param name="codeDescription">Code description of the error.</param>
         protected TikCommandException(ITikCommand command, string message)
             : base(message)
         {
@@ -60,9 +58,9 @@ namespace tik4net
         public string CodeDescription { get; private set; }
 
         /// <summary>
-        /// ctor.
+        /// .ctor <see cref="Code"/> and <see cref="CodeDescription"/> are set from <paramref name="trapSentence"/>.
         /// </summary>
-        /// <param name="command">Commant that throws exception.</param>
+        /// <param name="command">Command that throws exception.</param>
         /// <param name="trapSentence">Error=trap sentence returned from mikrotik router as response to <paramref name="command"/> call.</param>
         public TikCommandTrapException(ITikCommand command, ITikTrapSentence trapSentence)
             : base(command, trapSentence.Message)
@@ -71,6 +69,11 @@ namespace tik4net
             CodeDescription = trapSentence.CategoryDescription;
         }
 
+        /// <summary>
+        /// .ctor. <see cref="Code"/> and <see cref="CodeDescription"/> are null.
+        /// </summary>
+        /// <param name="command">Command that throws exception.</param>
+        /// <param name="message">Additional message</param>
         protected TikCommandTrapException(ITikCommand command, string message)
             : base(command, message)
         {
@@ -165,6 +168,9 @@ namespace tik4net
         }
     }
 
+    /// <summary>
+    /// Exception thrown if command returns unexpected error/fault.
+    /// </summary>
     public class TikCommandUnexpectedResponseException : TikCommandException
     {
         /// <summary>

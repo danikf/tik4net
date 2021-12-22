@@ -15,6 +15,7 @@ namespace tik4net.Api
         /// <summary>
         /// Factory method - creates parameters instance specific for connection and command type. Shortcut for a .proplist parameter.
         /// </summary>
+        /// <param name="connection">The mikrotik connection.</param>
         /// <param name="proplist">Names of the wanted properties</param>
         /// <returns>Created parameter with name .proplist and a comma separated property list as value.</returns>
         /// <seealso cref="ITikCommand.Parameters"/>
@@ -28,8 +29,9 @@ namespace tik4net.Api
 
         #region --- Command extensions --
         /// <summary>
-        /// Adds new instance of parameter with .proplist to <see cref="Parameters"/> list.
+        /// Adds new instance of parameter with .proplist to <see cref="ITikCommand.Parameters"/> list.
         /// </summary>
+        /// <param name="command">The mikrotik command.</param>
         /// <param name="proplist">Names of the wanted properties</param>
         /// <returns>Instance of added parameter.</returns>
         public static ITikCommandParameter AddProplistParameter(this ITikCommand command, params string[] proplist)

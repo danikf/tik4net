@@ -50,7 +50,7 @@ namespace tik4net
         {
             // DAF: code review: What about usage of Regex to parse this format? 
 
-            if (time.IsNullOrWhiteSpace() || string.Equals(time, "none", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(time) || string.Equals(time, "none", StringComparison.OrdinalIgnoreCase))
                 return 0;
 
             // Sanitise the input

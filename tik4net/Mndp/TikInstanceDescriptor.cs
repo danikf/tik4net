@@ -11,17 +11,28 @@ namespace tik4net.Mndp
     /// </summary>
     public struct TikInstanceDescriptor
     {
-        public string Identity;
-        public string Version;
+        /// <summary>Mikrotik identity</summary>
+        public string Identity { get; }
+        /// <summary>Mikrotik version (eq. 6.49.2 (stable))</summary>
+        public string Version { get; }
+        /// <summary>Mikrotik platform (eq. MikroTik)</summary>
         public string Platform;
-        public readonly TimeSpan Uptime;
-        public readonly string SoftwareId;
-        public readonly string BoardName;
-        public readonly string Unpack;
-        public readonly string Mac;
-        public readonly string IPV6;
-        public readonly string InterfaceName;
-        public readonly IPAddress IPV4;
+        /// <summary>Mikrotik uptime</summary>
+        public TimeSpan Uptime { get; }
+        /// <summary>Mikrotik software</summary>
+        public string SoftwareId { get; }
+        /// <summary>Mikrotik board (eq. RB800)</summary>
+        public string BoardName { get; }
+        /// <summary>no idea :-)</summary>
+        public string Unpack { get; }
+        /// <summary>Mikrotik interface MAC</summary>
+        public string Mac { get; }
+        /// <summary>Mikrotik interface IP</summary>
+        public IPAddress IPv4 { get; }
+        /// <summary>Mikrotik interface IPv6 (can be empty)</summary>
+        public string IPv6 { get; }
+        /// <summary>Mikrotik interface name</summary>
+        public string InterfaceName { get; }
 
         /// <summary>
         /// .ctor
@@ -37,9 +48,9 @@ namespace tik4net.Mndp
             BoardName = boardName;
             Unpack = unpack;
             Mac = mac;
-            IPV6 = ipv6;
+            IPv6 = ipv6;
             InterfaceName = interfaceName;
-            IPV4 = iPV4;
+            IPv4 = iPV4;
         }
 
         /// <summary>
@@ -49,10 +60,10 @@ namespace tik4net.Mndp
         {
             get
             {
-                if (IPV4 != IPAddress.Any)
-                    return IPV4.ToString();
-                else if (!StringHelper.IsNullOrWhiteSpace(IPV6))
-                    return IPV6.ToString();
+                if (IPv4 != IPAddress.Any)
+                    return IPv4.ToString();
+                else if (!string.IsNullOrWhiteSpace(IPv6))
+                    return IPv6.ToString();
                 else
                     return Mac;
             }
