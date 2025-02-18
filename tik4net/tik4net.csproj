@@ -20,4 +20,10 @@
      <DefineConstants>TRACE;DEBUG</DefineConstants>
      <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
    </PropertyGroup>
+	<PropertyGroup>
+		<PackageId>SinisterDev.Tik4Net</PackageId>
+		<Version>3.5.2-pre</Version>
+		<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+	</PropertyGroup>
+
 </Project>
