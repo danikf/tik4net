@@ -354,6 +354,7 @@ namespace tik4net.Api
                     case "!trap": return new ApiTrapSentence(sentenceWords);
                     case "!re": return new ApiReSentence(sentenceWords);
                     case "!fatal": return new ApiFatalSentence(sentenceWords);
+                    case "!empty": return new ApiEmptySentence();
                     case "": throw new IOException("Can not read sentence from connection"); // With SSL possibly not logged in  (SSL and new router with SSL_V2)
                     default: throw new NotImplementedException(string.Format("Response type '{0}' not supported", sentenceName));
                 }

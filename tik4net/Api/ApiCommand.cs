@@ -403,6 +403,8 @@ namespace tik4net.Api
                 EnsureReReponse(response.Take(response.Count() - 1).ToArray());   //!re  - reapeating 
                 EnsureDoneResponse(response.Last()); //!done
 
+                if (response.First() is ApiEmptySentence)
+                    return new List<ITikReSentence>();
                 return response.Take(response.Count() - 1).Cast<ITikReSentence>().ToList();
             }
             finally
