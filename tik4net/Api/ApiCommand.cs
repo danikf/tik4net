@@ -194,10 +194,10 @@ namespace tik4net.Api
 
         private ApiSentence EnsureSingleResponse(IEnumerable<ApiSentence> response)
         {
-            if (response.Count() != 1)
+            if (response.Count(x => !(x.Words.Count() == 1 && x.Words.ContainsKey(".section"))) != 1)
                 throw new TikCommandUnexpectedResponseException("Single response sentence expected.", this, response.Cast<ITikSentence>());
 
-            return response.Single();
+            return response.Last();
         }
 
         private void EnsureOneReAndDone(IEnumerable<ApiSentence> response)
