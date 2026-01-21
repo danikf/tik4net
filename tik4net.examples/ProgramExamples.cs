@@ -27,6 +27,8 @@ namespace tik4net.examples
                 //  LOW LEVEL API (hint: uncomment any example call and debug)
                 Identity(connection);
 
+                Location(connection);
+
                 Torch(connection);
 
                 Log(connection);
@@ -92,6 +94,16 @@ namespace tik4net.examples
             ITikCommand cmd = connection.CreateCommand("/system/identity/print");
             var identity = cmd.ExecuteScalar(); //cmd.ExecuteSIngleRow()
             Console.WriteLine("Identity: " + /*identity.GetResponseField("name")*/ identity);
+
+            Console.WriteLine("Press ENTER");
+            Console.ReadLine();
+        }
+
+        private static void Location(ITikConnection connection)
+        {
+            ITikCommand cmd = connection.CreateCommand("/snmp/print");
+            var identity = cmd.ExecuteScalar("location");
+            Console.WriteLine("Location: " + identity);
 
             Console.WriteLine("Press ENTER");
             Console.ReadLine();
