@@ -20,7 +20,7 @@ namespace tik4net.Api
             get { return GetWordValueOrDefault(TikSpecialProperties.Tag, ""); }
         }
 
-        private static readonly Regex keyValueRegex = new Regex("^=?(?<KEY>[^=]+)=(?<VALUE>.+)$", RegexOptions.Singleline | RegexOptions.Compiled);
+        private static readonly Regex keyValueRegex = new Regex("^=?(?<KEY>[^=]+)=(?<VALUE>.*)$", RegexOptions.Singleline | RegexOptions.Compiled);
 
         public ApiSentence(IEnumerable<string> words)
         {
