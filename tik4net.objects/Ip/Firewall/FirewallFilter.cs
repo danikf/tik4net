@@ -80,37 +80,27 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// Firewall filter connection state - <see cref="FirewallFilter.ConnectionState"/>
         /// </summary>
+        [Flags]
         public enum ConnectionStateType
         {
-            /// <summary>
-            /// Default when not filled
-            /// </summary>
+            /// <summary>No connection state filter (default/unset).</summary>
             [TikEnum("")]
-            Empty,
-
-            /// <summary>
-            /// established - a packet which belongs to an existing connection
-            /// </summary>
+            Empty       = 0,
+            /// <summary>A packet which belongs to an existing connection.</summary>
             [TikEnum("established")]
-            Established,
-
-            /// <summary>
-            /// invalid - a packet which could not be identified for some reason
-            /// </summary>
+            Established = 1,
+            /// <summary>A packet which could not be identified for some reason.</summary>
             [TikEnum("invalid")]
-            Invalid,
-
-            /// <summary>
-            /// new - the packet has started a new connection, or otherwise associated with a connection which has not seen packets in both directions.
-            /// </summary>
+            Invalid     = 2,
+            /// <summary>The packet has started a new connection, or is associated with a connection that has not seen packets in both directions.</summary>
             [TikEnum("new")]
-            New,
-
-            /// <summary>
-            /// related - a packet which is related to, but not part of an existing connection, such as ICMP errors or a packet which begins FTP data connection
-            /// </summary>
+            New         = 4,
+            /// <summary>A packet which is related to, but not part of an existing connection (e.g. ICMP errors, FTP data connection).</summary>
             [TikEnum("related")]
-            Related,              
+            Related     = 8,
+            /// <summary>Untracked connection (RouterOS 7+, CT notrack rule).</summary>
+            [TikEnum("untracked")]
+            Untracked   = 16,
         }
 
         /// <summary>

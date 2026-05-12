@@ -124,10 +124,31 @@ namespace tik4net.Objects
                 else if (PropertyType == typeof(bool))
                     return string.Equals(strValue, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(strValue, "yes", StringComparison.OrdinalIgnoreCase);
                 else if (PropertyType.GetTypeInfo().IsEnum)
-                    return Enum.GetNames(PropertyType)
-                        .Where(en => string.Equals(PropertyType.GetRuntimeField(en).GetCustomAttribute<TikEnumAttribute>(false).Value, strValue, StringComparison.OrdinalIgnoreCase))
-                        .Select(en => Enum.Parse(PropertyType, en, true))
-                        .Single(); //TODO safer implementation
+                {
+                    if (PropertyType.GetCustomAttribute<FlagsAttribute>() != null && strValue.Contains(','))
+                    {
+                        long result = 0;
+                        foreach (string part in strValue.Split(','))
+                        {
+                            string trimmed = part.Trim();
+                            string name = Enum.GetNames(PropertyType).FirstOrDefault(en =>
+                                string.Equals(PropertyType.GetRuntimeField(en).GetCustomAttribute<TikEnumAttribute>(false)?.Value,
+                                    trimmed, StringComparison.OrdinalIgnoreCase));
+                            if (name == null)
+                                throw new FormatException(string.Format("Unknown flags enum value '{0}' for type {1}.", trimmed, PropertyType.Name));
+                            result |= Convert.ToInt64(Enum.Parse(PropertyType, name, true));
+                        }
+                        return Enum.ToObject(PropertyType, result);
+                    }
+                    else
+                    {
+                        return Enum.GetNames(PropertyType)
+                            .Where(en => string.Equals(PropertyType.GetRuntimeField(en).GetCustomAttribute<TikEnumAttribute>(false)?.Value,
+                                strValue, StringComparison.OrdinalIgnoreCase))
+                            .Select(en => Enum.Parse(PropertyType, en, true))
+                            .Single();
+                    }
+                }
                                    //else if (PropertyType == typeof(Ipv4Address))
                                    //    return new Ipv4Address(strValue);
                                    //else if (PropertyType == typeof(Ipv4AddressWithSubnet))
@@ -164,7 +185,31 @@ namespace tik4net.Objects
             else if (PropertyType == typeof(bool))
                 return ((bool)propValue) ? "yes" : "no"; //TODO add attribute definition for support true/false
             else if (PropertyType.GetTypeInfo().IsEnum)
-                return PropertyType.GetRuntimeField(propValue.ToString()).GetCustomAttribute<TikEnumAttribute>(false).Value; //TODO safer implementation
+            {
+                if (PropertyType.GetCustomAttribute<FlagsAttribute>() != null)
+                {
+                    long intValue = Convert.ToInt64(propValue);
+                    if (intValue == 0)
+                    {
+                        string zeroName = Enum.GetNames(PropertyType)
+                            .FirstOrDefault(en => Convert.ToInt64(Enum.Parse(PropertyType, en)) == 0);
+                        return zeroName != null
+                            ? PropertyType.GetRuntimeField(zeroName).GetCustomAttribute<TikEnumAttribute>(false)?.Value ?? ""
+                            : "";
+                    }
+                    return string.Join(",", Enum.GetNames(PropertyType)
+                        .Where(en => {
+                            long v = Convert.ToInt64(Enum.Parse(PropertyType, en));
+                            return v != 0 && (intValue & v) == v;
+                        })
+                        .Select(en => PropertyType.GetRuntimeField(en).GetCustomAttribute<TikEnumAttribute>(false)?.Value)
+                        .Where(v => v != null));
+                }
+                else
+                {
+                    return PropertyType.GetRuntimeField(propValue.ToString()).GetCustomAttribute<TikEnumAttribute>(false).Value;
+                }
+            }
             //else if (PropertyType == typeof(Ipv4Address))
             //    return ((Ipv4Address)propValue).Address;
             //else if (PropertyType == typeof(Ipv4AddressWithSubnet))

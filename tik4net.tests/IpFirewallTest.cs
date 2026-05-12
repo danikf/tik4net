@@ -102,5 +102,55 @@ namespace tik4net.tests
         {
             Connection.LoadList<FirewalServicePort>();
         }
+
+        [TestMethod]
+        public void FirewallFilter_ConnectionState_FlagsRead_WillNotFail()
+        {
+            // Verifies that a comma-separated connection-state value (e.g. "established,related")
+            // is correctly parsed into a [Flags] enum (issue #94 / #79).
+            var filter = new FirewallFilter()
+            {
+                Action = FirewallFilter.ActionType.Accept,
+                Chain = "forward",
+                Comment = "test-flags-read",
+                ConnectionState = FirewallFilter.ConnectionStateType.Established | FirewallFilter.ConnectionStateType.Related,
+            };
+            Connection.Save(filter);
+            try
+            {
+                var loaded = Connection.LoadById<FirewallFilter>(filter.Id);
+                Assert.IsTrue(loaded.ConnectionState.HasFlag(FirewallFilter.ConnectionStateType.Established));
+                Assert.IsTrue(loaded.ConnectionState.HasFlag(FirewallFilter.ConnectionStateType.Related));
+                Assert.IsFalse(loaded.ConnectionState.HasFlag(FirewallFilter.ConnectionStateType.Invalid));
+            }
+            finally
+            {
+                Connection.Delete(filter);
+            }
+        }
+
+        [TestMethod]
+        public void FirewallFilter_ConnectionState_FlagsWrite_WillNotFail()
+        {
+            // Verifies that a [Flags] enum value is serialized back to comma-separated string (issue #94 / #79).
+            var filter = new FirewallFilter()
+            {
+                Action = FirewallFilter.ActionType.Drop,
+                Chain = "forward",
+                Comment = "test-flags-write",
+                ConnectionState = FirewallFilter.ConnectionStateType.New | FirewallFilter.ConnectionStateType.Invalid,
+            };
+            Connection.Save(filter);
+            try
+            {
+                var loaded = Connection.LoadById<FirewallFilter>(filter.Id);
+                Assert.IsTrue(loaded.ConnectionState.HasFlag(FirewallFilter.ConnectionStateType.New));
+                Assert.IsTrue(loaded.ConnectionState.HasFlag(FirewallFilter.ConnectionStateType.Invalid));
+            }
+            finally
+            {
+                Connection.Delete(filter);
+            }
+        }
     }
 }
