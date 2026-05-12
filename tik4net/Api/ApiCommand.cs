@@ -194,10 +194,12 @@ namespace tik4net.Api
 
         private ApiSentence EnsureSingleResponse(IEnumerable<ApiSentence> response)
         {
-            if (response.Count() != 1)
+            // Ignore progress sentences (e.g. .section=0, .section=1) sent by long-running commands
+            // like /system/script/run — they contain only a .section word and precede the real !done.
+            if (response.Count(x => !(x.Words.Count == 1 && x.Words.ContainsKey(".section"))) != 1)
                 throw new TikCommandUnexpectedResponseException("Single response sentence expected.", this, response.Cast<ITikSentence>());
 
-            return response.Single();
+            return response.Last();
         }
 
         private void EnsureOneReAndDone(IEnumerable<ApiSentence> response)
