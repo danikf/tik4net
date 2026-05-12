@@ -1,6 +1,7 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -108,9 +109,7 @@ namespace tik4net.tests
             command.ExecuteSingleRow();
         }
 
-        [Ignore]
         [TestMethod]
-        [ExpectedException(typeof(System.IO.IOException))]
         public void AsyncExecuteClosed_AfterReboot_AndNextCommandThrowsException()
         {
             var torchAsyncCmd = Connection.LoadAsync<Objects.Tool.ToolTorch>(t => {; },
@@ -118,12 +117,20 @@ namespace tik4net.tests
                 Connection.CreateParameter("interface", "ether1"));
 
             Thread.Sleep(3000);
-            Connection.ExecuteNonQuery("/system/reboot");
+            Connection.ExecuteNonQuery("/system/reboot"); // must not throw
             Thread.Sleep(3000);
 
-            Assert.IsFalse(torchAsyncCmd.IsRunning);
+            Assert.IsFalse(torchAsyncCmd.IsRunning); // async command must detect connection loss
 
-            Connection.ExecuteScalar("/system/identity/print"); // throws IO exception (rebooted router)
+            // After reboot the connection is dead — either a write IOException or a TikCommandFatalException
+            // (when write is buffered and the fatal comes back from GetAll's connection-closed detection).
+            try
+            {
+                Connection.ExecuteScalar("/system/identity/print");
+                Assert.Fail("Expected an exception after reboot, but none was thrown.");
+            }
+            catch (IOException) { /* expected: write to dead socket */ }
+            catch (TikCommandFatalException) { /* expected: read from dead socket → synthetic !fatal */ }
         }
 
         [Ignore]

@@ -268,9 +268,15 @@ namespace tik4net.Api
             {
                 string[] commandRows = ConstructCommandText(TikCommandParameterFormat.NameValue);
                 IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
-                ThrowPossibleResponseError(response.ToArray());
+                var responseArray = response.ToArray();
 
-                ApiSentence responseSentence = EnsureSingleResponse(response);
+                // !fatal means the router closed the connection after executing the command
+                // (e.g. /system/reboot, /system/shutdown, /system/poweroff). Treat as success.
+                if (responseArray.Any(s => s is ApiFatalSentence))
+                    return;
+
+                ThrowPossibleResponseError(responseArray);
+                ApiSentence responseSentence = EnsureSingleResponse(responseArray);
                 EnsureDoneResponse(responseSentence);
             }
             finally

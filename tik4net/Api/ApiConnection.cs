@@ -253,11 +253,18 @@ namespace tik4net.Api
                 Close();
         }
 
+        // Thrown only when ReadByte() returns -1 (peer closed the TCP connection).
+        // Distinct from general IOException (e.g. timeout) so GetAll() can treat it as !fatal.
+        private sealed class TikEofException : IOException
+        {
+            public TikEofException() : base("Connection closed by remote host.") { }
+        }
+
         private byte ReadByteChecked()
         {
             int b = _tcpConnectionStream.ReadByte();
             if (b < 0)
-                throw new IOException("Connection closed unexpectedly while reading.");
+                throw new TikEofException();
             return (byte)b;
         }
 
@@ -433,13 +440,31 @@ namespace tik4net.Api
         
         private IEnumerable<ITikSentence> GetAll(string tag)
         {
-            ITikSentence sentence;
+            // NOTE: !trap is always followed by !done (keep reading). !fatal closes the connection immediately — no !done follows.
+            // NOTE: yield return/break cannot be inside catch blocks in C# iterators — use a flag instead.
+            ITikSentence sentence = null;
             do
             {
-                sentence = GetOne(tag);
+                TikEofException eofException = null;
+                try
+                {
+                    sentence = GetOne(tag);
+                }
+                catch (TikEofException ex)
+                {
+                    eofException = ex;
+                }
+
+                if (eofException != null)
+                {
+                    // Remote peer closed the TCP connection (e.g. router rebooted/shutdown after accepting the command).
+                    // Yield a synthetic !fatal so callers handle this uniformly.
+                    yield return new ApiFatalSentence(Array.Empty<string>());
+                    yield break;
+                }
+
                 yield return sentence;
-            } while (!(sentence is ApiDoneSentence || sentence is ApiFatalSentence /*|| sentence is ApiTrapSentence */)); // read until !done or !fatal
-            // NOTE: !trap is always followed by !done (keep reading). !fatal closes the connection immediately — no !done follows.
+            } while (!(sentence is ApiDoneSentence || sentence is ApiFatalSentence));
         }
 
         private static readonly Regex tagRegex = new Regex($"^\\{TikSpecialProperties.Tag}=(?<TAG>.+)$"); // .tag=1234
@@ -510,8 +535,9 @@ namespace tik4net.Api
                 }
                 catch
                 {
-                    //catch all exceptions from GetOne -> thread should end via !done read sentence
-                    //TODO: implement "timeoutException" for GetOne and cancell gracefully thraed if this exception happens
+                    // Connection closed unexpectedly (e.g. router rebooted/shutdown).
+                    // Synthesize !fatal so the caller (ExecuteAsync) can clear its _isRuning state.
+                    try { oneResponseCallback(new ApiFatalSentence(Array.Empty<string>())); } catch { }
                 }
             });
             result.IsBackground = true;

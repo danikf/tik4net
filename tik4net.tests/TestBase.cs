@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace tik4net.tests
@@ -41,10 +42,31 @@ namespace tik4net.tests
             // dummy
         }
 
-        protected void RecreateConnection()
+        protected void RecreateConnection(int retryTimeoutSeconds = 20)
         {
-            _connection = ConnectionFactory.OpenConnection(TikConnectionType.Api, ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
-            _connection.DebugEnabled = true;
+            string host = ConfigurationManager.AppSettings["host"];
+            string user = ConfigurationManager.AppSettings["user"];
+            string pass = ConfigurationManager.AppSettings["pass"];
+
+            var deadline = DateTime.UtcNow.AddSeconds(retryTimeoutSeconds);
+            Exception lastException;
+            do
+            {
+                try
+                {
+                    _connection = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass);
+                    _connection.DebugEnabled = true;
+                    _routerOsVersion = null;
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    lastException = ex;
+                    Thread.Sleep(1000);
+                }
+            } while (DateTime.UtcNow < deadline);
+
+            throw new Exception($"Could not connect to router at {host} within {retryTimeoutSeconds}s.", lastException);
         }
 
         /// <summary>
