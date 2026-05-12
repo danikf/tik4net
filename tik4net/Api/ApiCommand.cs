@@ -541,14 +541,19 @@ namespace tik4net.Api
         {
             if (_isRuning && _asynchronouslyRunningTag >= 0)
             {
-                 ApiCommand cancellCommand = new ApiCommand(_connection, "/cancel", 
-                     new ApiCommandParameter("tag", _asynchronouslyRunningTag.ToString(), TikCommandParameterFormat.NameValue), // tag we are cancelling: REMARKS: =tag=1234 and not =.tag=1234 
-                     new ApiCommandParameter(TikSpecialProperties.Tag, "c_"+_asynchronouslyRunningTag.ToString(), TikCommandParameterFormat.Tag) //tag of cancell command itself
-                     );                
-                 cancellCommand.ExecuteNonQuery();
+                // Capture the thread reference BEFORE ExecuteNonQuery — the async thread may set
+                // _asyncLoadingThread to null when it processes its own !done, which can race with
+                // the /cancel response arriving and leaving _asyncLoadingThread null before we read it.
+                Thread loadingThread = _asyncLoadingThread;
+
+                ApiCommand cancellCommand = new ApiCommand(_connection, "/cancel",
+                    new ApiCommandParameter("tag", _asynchronouslyRunningTag.ToString(), TikCommandParameterFormat.NameValue), // tag we are cancelling: REMARKS: =tag=1234 and not =.tag=1234
+                    new ApiCommandParameter(TikSpecialProperties.Tag, "c_"+_asynchronouslyRunningTag.ToString(), TikCommandParameterFormat.Tag) //tag of cancell command itself
+                    );
+                cancellCommand.ExecuteNonQuery();
+
                 if (joinLoadingThread)
                 {
-                    Thread loadingThread = _asyncLoadingThread;
                     if (loadingThread != null)
                     {
                         if (milisecondsTimeout > 0)

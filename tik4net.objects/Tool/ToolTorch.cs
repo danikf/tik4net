@@ -65,6 +65,13 @@ namespace tik4net.Objects.Tool
         [TikProperty("rx-packets", IsReadOnly = true)]
         public long RxPackets { get; private set; }
 
+        /// <summary>
+        /// .section – time-slice index assigned by RouterOS torch (one section ≈ one second).
+        /// Present in every row including the aggregate total row (the one without src-address).
+        /// </summary>
+        [TikProperty(".section", IsReadOnly = true)]
+        public long SectionNr { get; private set; }
+
         private static string FormatAddress(string ip, string port)
         {
             return (ip + ":" + port).PadRight(21);

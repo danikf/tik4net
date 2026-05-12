@@ -1,13 +1,21 @@
 tik4net
 ====
 
-Unique complex mikrotik API communication solution.
+> ## 📢 A note from the maintainer
+>
+> **I sincerely apologize for the long period of inactivity.** Thanks to AI tooling, I finally have some bandwidth again. In the near future I intend to work through all open PRs and critical bugs and publish an updated NuGet package.
+>
+> To prevent this from happening again, **I am looking for collaborators**. If you are interested in helping maintain this project, please reach out — open an issue or contact me directly. Special thanks to Deantwo for helping others while I was away.
+>
+> **The next release will target `netstandard2.0` only.** This should be sufficient for all current use cases — it covers .NET Framework 4.6.1+, .NET Core 2.0+, .NET 5/6/7/8, Xamarin, and Unity.
+>
+> The upcoming release has been tested and debugged against **RouterOS 7.21.4** (latest stable).
 
-The tik4net project provides easy to use API to connect and manage mikrotik routers via mikrotik API protocol.
-It has 3 parts:
-* [Basic ADO.NET like API](https://github.com/danikf/tik4net/wiki/ADO.NET-like-API) - to perform R/W access to mikrotik in both sync and async code (tik4net.dll).
-* [O/R mapper like highlevel API](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper) with imported mikrotik strong-typed entities. (tik4net.objects.dll) 
-* [Tools](https://github.com/danikf/tik4net/wiki/High-level-API-tools) - semi-automatic generators of custom entity C# code (for usage with tik4net.objects.dll)
+tik4net is a .NET library for communicating with MikroTik routers via the MikroTik API protocol. It offers a clean, easy-to-use interface that scales from low-level raw API access all the way up to a fully typed O/R mapper, and ships as two NuGet packages:
+
+* **tik4net** — [Basic ADO.NET-like API](https://github.com/danikf/tik4net/wiki/ADO.NET-like-API): R/W access to MikroTik in both synchronous and asynchronous code.
+* **tik4net.objects** — [High-level O/R mapper API](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper): strongly typed MikroTik entities with full CRUD support.
+* [Tools](https://github.com/danikf/tik4net/wiki/High-level-API-tools) — semi-automatic C# code generators for custom entities (used with tik4net.objects).
 
 # Features
 * Easy to use with [O/R mapper like highlevel API](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper)
@@ -91,7 +99,7 @@ Examples:
 * create highlevel classes for all mikrotik entities (you can still generate your own classes)
 * create tiklink project - easy use-to wrapper over mikrotik router with fluent API 
 * convert examples to separate unittests (in progress)
-* create and contribute to tiktop (see linux iftop) project 
+* **tiktop** — a MikroTik traffic monitor inspired by Linux `iftop` (currently in alpha, publication coming soon)
 
 REMARKS: This project is rewritten version of deprecated tik4net at googlecode (last version was 0.9.7.)
 

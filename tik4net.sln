@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.26403.3
+# Visual Studio Version 18
+VisualStudioVersion = 18.5.11716.220 stable
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net", "tik4net\tik4net.csproj", "{15288F76-5A85-418E-87B2-B22265726601}"
 EndProject
@@ -23,6 +23,29 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.tests", "tik4net.tests\tik4net.tests.csproj", "{2FB8E75F-9F49-4A8A-BC57-7CD299807EEE}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.coreconsole", "tik4net.coreconsole\tik4net.coreconsole.csproj", "{98A3B7AB-1D5C-49B5-AD91-7BA87F876D98}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "wiki", "wiki", "{D21E10BA-87A5-4B65-90AD-CD855E4A51D6}"
+	ProjectSection(SolutionItems) = preProject
+		..\tik4net.wiki\ADO.NET-like-API.md = ..\tik4net.wiki\ADO.NET-like-API.md
+		..\tik4net.wiki\Communication-debugging-&-testing.md = ..\tik4net.wiki\Communication-debugging-&-testing.md
+		..\tik4net.wiki\CRUD-examples-for-all-APIs.md = ..\tik4net.wiki\CRUD-examples-for-all-APIs.md
+		..\tik4net.wiki\High-level-API-advanced.md = ..\tik4net.wiki\High-level-API-advanced.md
+		..\tik4net.wiki\High-level-API-CRUD.md = ..\tik4net.wiki\High-level-API-CRUD.md
+		..\tik4net.wiki\High-level-API-custom-entities.md = ..\tik4net.wiki\High-level-API-custom-entities.md
+		..\tik4net.wiki\High-level-API-entities.md = ..\tik4net.wiki\High-level-API-entities.md
+		..\tik4net.wiki\High-level-API-reading-data.md = ..\tik4net.wiki\High-level-API-reading-data.md
+		..\tik4net.wiki\High-level-API-tools.md = ..\tik4net.wiki\High-level-API-tools.md
+		..\tik4net.wiki\High-level-API-with-O-R-mapper.md = ..\tik4net.wiki\High-level-API-with-O-R-mapper.md
+		..\tik4net.wiki\History.md = ..\tik4net.wiki\History.md
+		..\tik4net.wiki\Home.md = ..\tik4net.wiki\Home.md
+		..\tik4net.wiki\How-to-use-tik4net-library.md = ..\tik4net.wiki\How-to-use-tik4net-library.md
+		..\tik4net.wiki\login-versions.md = ..\tik4net.wiki\login-versions.md
+		..\tik4net.wiki\Low-level-API.md = ..\tik4net.wiki\Low-level-API.md
+		..\tik4net.wiki\MNDP.md = ..\tik4net.wiki\MNDP.md
+		..\tik4net.wiki\SSL-connection.md = ..\tik4net.wiki\SSL-connection.md
+		..\tik4net.wiki\TikListMerge.md = ..\tik4net.wiki\TikListMerge.md
+		..\tik4net.wiki\VB-trivial-example.md = ..\tik4net.wiki\VB-trivial-example.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -98,5 +121,8 @@ Global
 		{AE25F73D-7CE5-4C14-8AAC-1A32ECC38DA5} = {0436FBF0-DA39-41EC-B052-255BCA0DC913}
 		{2FB8E75F-9F49-4A8A-BC57-7CD299807EEE} = {0436FBF0-DA39-41EC-B052-255BCA0DC913}
 		{98A3B7AB-1D5C-49B5-AD91-7BA87F876D98} = {0436FBF0-DA39-41EC-B052-255BCA0DC913}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {FCA54826-7E08-45E5-A21A-430B08E23655}
 	EndGlobalSection
 EndGlobal

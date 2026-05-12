@@ -160,7 +160,9 @@ namespace tik4net.Api
 
                 try
                 {
-                    sslStream.AuthenticateAsClientAsync(host, null, SslProtocols.Tls, false).GetAwaiter().GetResult();
+                    // SslProtocols.None lets the OS negotiate the best available version (TLS 1.2/1.3).
+                    // TLS 1.0 (the former explicit value) is disabled on modern systems and RouterOS 7+.
+                    sslStream.AuthenticateAsClientAsync(host, null, SslProtocols.None, false).GetAwaiter().GetResult();
                 }
                 catch(AuthenticationException ex)
                 {
@@ -251,50 +253,50 @@ namespace tik4net.Api
                 Close();
         }
 
+        private byte ReadByteChecked()
+        {
+            int b = _tcpConnectionStream.ReadByte();
+            if (b < 0)
+                throw new IOException("Connection closed unexpectedly while reading.");
+            return (byte)b;
+        }
+
         private long ReadWordLength()
         {
-            byte readByte = (byte)_tcpConnectionStream.ReadByte();
-            int length = 0;
+            byte readByte = ReadByteChecked();
+            int length;
 
-            // If the first bit is set then we need to remove the first four bits, shift left 8
-            // and then read another byte in.
-            // We repeat this for the second and third bits.
-            // If the fourth bit is set, we need to remove anything left in the first byte
-            // and then read in yet another byte.
-            if ((readByte & 0x80) != 0x00)
+            if ((readByte & 0x80) == 0x00)
             {
-                if ((readByte & 0xC0) == 0x80)
-                {
-                    length = ((readByte & 0x3F) << 8) + (byte)_tcpConnectionStream.ReadByte();
-                }
-                else
-                {
-                    if ((readByte & 0xE0) == 0xC0)
-                    {
-                        length = ((readByte & 0x1F) << 8) + (byte)_tcpConnectionStream.ReadByte();
-                        length = (length << 8) + (byte)_tcpConnectionStream.ReadByte();
-                    }
-                    else
-                    {
-                        if ((readByte & 0XF0) == 0XE0)
-                        {
-                            length = ((readByte & 0xF) << 8) + (byte)_tcpConnectionStream.ReadByte();
-                            length = (length << 8) + (byte)_tcpConnectionStream.ReadByte();
-                            length = (length << 8) + (byte)_tcpConnectionStream.ReadByte();
-                        }
-                        else
-                        {
-                            length = (byte)_tcpConnectionStream.ReadByte();
-                            length = (length << 8) + (byte)_tcpConnectionStream.ReadByte();
-                            length = (length << 8) + (byte)_tcpConnectionStream.ReadByte();
-                            length = (length << 8) + (byte)_tcpConnectionStream.ReadByte();
-                        }
-                    }
-                }
+                length = readByte;
+            }
+            else if ((readByte & 0xC0) == 0x80)
+            {
+                length = ((readByte & 0x3F) << 8) + ReadByteChecked();
+            }
+            else if ((readByte & 0xE0) == 0xC0)
+            {
+                length = ((readByte & 0x1F) << 8) + ReadByteChecked();
+                length = (length << 8) + ReadByteChecked();
+            }
+            else if ((readByte & 0xF0) == 0xE0)
+            {
+                length = ((readByte & 0x0F) << 8) + ReadByteChecked();
+                length = (length << 8) + ReadByteChecked();
+                length = (length << 8) + ReadByteChecked();
+            }
+            else if (readByte == 0xF0)
+            {
+                // 5-byte encoding: 0xF0 + four bytes (network order)
+                length =                  ReadByteChecked();
+                length = (length << 8) + ReadByteChecked();
+                length = (length << 8) + ReadByteChecked();
+                length = (length << 8) + ReadByteChecked();
             }
             else
             {
-                length = readByte;
+                // Control bytes 0xF1–0xFF are reserved by the protocol
+                throw new IOException($"Unexpected control byte 0x{readByte:X2} in word length.");
             }
 
             return length;
@@ -308,23 +310,24 @@ namespace tik4net.Api
             {
                 long wordLength = ReadWordLength();
 
-                if (wordLength < 0) //workaround (after !fatal response MinInt is returned) 
+                if (wordLength == 0)
                 {
                     result = "";
-                    break;
                 }
                 else
                 {
-                    StringBuilder resultBuilder = new StringBuilder((int)wordLength);
-                    for (int i = 0; i < wordLength; i++)
+                    byte[] buffer = new byte[(int)wordLength];
+                    int totalRead = 0;
+                    while (totalRead < (int)wordLength)
                     {
-                        byte readByte = (byte)_tcpConnectionStream.ReadByte();
-                        resultBuilder.Append(Encoding.GetChars(new byte[] { readByte }));
+                        int n = _tcpConnectionStream.Read(buffer, totalRead, (int)wordLength - totalRead);
+                        if (n == 0)
+                            throw new IOException("Connection closed while reading word body.");
+                        totalRead += n;
                     }
-
-                    result = resultBuilder.ToString();
+                    result = Encoding.GetString(buffer, 0, (int)wordLength);
                 }
-            } while (skipEmptyRow && string.IsNullOrWhiteSpace(result));            
+            } while (skipEmptyRow && string.IsNullOrWhiteSpace(result));
 
             if (OnReadRow != null)
                 OnReadRow(this, new TikConnectionCommCallbackEventArgs(result));
@@ -350,11 +353,12 @@ namespace tik4net.Api
 
                 switch (sentenceName)
                 {
-                    case "!done": return new ApiDoneSentence(sentenceWords);
-                    case "!trap": return new ApiTrapSentence(sentenceWords);
-                    case "!re": return new ApiReSentence(sentenceWords);
+                    case "!done":  return new ApiDoneSentence(sentenceWords);
+                    case "!trap":  return new ApiTrapSentence(sentenceWords);
+                    case "!re":    return new ApiReSentence(sentenceWords);
                     case "!fatal": return new ApiFatalSentence(sentenceWords);
-                    case "": throw new IOException("Can not read sentence from connection"); // With SSL possibly not logged in  (SSL and new router with SSL_V2)
+                    case "!empty": return ReadSentence(); // RouterOS 7.18+: data sentence meaning "no rows", always followed by !done — skip it and return the real final sentence
+                    case "": throw new IOException("Can not read sentence from connection"); // With SSL possibly not logged in
                     default: throw new NotImplementedException(string.Format("Response type '{0}' not supported", sentenceName));
                 }
             }
@@ -383,7 +387,8 @@ namespace tik4net.Api
                         System.Diagnostics.Debug.WriteLine("> " + row);
                 }
 
-                _tcpConnectionStream.WriteByte(0); //final zero byte
+                _tcpConnectionStream.WriteByte(0); //final zero byte (sentence terminator)
+                _tcpConnectionStream.Flush();
             }
             catch(IOException)
             {
@@ -433,8 +438,8 @@ namespace tik4net.Api
             {
                 sentence = GetOne(tag);
                 yield return sentence;
-            } while (!(sentence is ApiDoneSentence || sentence is ApiFatalSentence /*|| sentence is ApiTrapSentence */)); // read sentences via TryGetOne(wait) for TAG until !done or !fatal is returned
-            //NOTE both !trap and !fatal are followed with !done
+            } while (!(sentence is ApiDoneSentence || sentence is ApiFatalSentence /*|| sentence is ApiTrapSentence */)); // read until !done or !fatal
+            // NOTE: !trap is always followed by !done (keep reading). !fatal closes the connection immediately — no !done follows.
         }
 
         private static readonly Regex tagRegex = new Regex($"^\\{TikSpecialProperties.Tag}=(?<TAG>.+)$"); // .tag=1234

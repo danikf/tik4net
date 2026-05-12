@@ -1,10 +1,13 @@
+using System;
+
 namespace tik4net.Objects.Routing.Bgp
 {
     /// <summary>
-    /// Access to the data provided by
-    /// /routing/bgp/network
+    /// BGP network announcement as provided by /routing/bgp/network (RouterOS 6).
+    /// This menu was removed in RouterOS 7; network announcements are handled via routing filters.
     /// </summary>
     [TikEntity("/routing/bgp/network")]
+    [Obsolete("RouterOS 7 removed /routing/bgp/network. Network announcements are handled via routing filters in RouterOS 7+.")]
     public class BgpNetwork
     {
         /// <summary>

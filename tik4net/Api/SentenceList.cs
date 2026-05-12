@@ -9,7 +9,7 @@ namespace tik4net.Api
     {
         private const string EMPTY_TAG_KEY = "-empty-";
         private readonly object _lockObj = new object();
-        private readonly Dictionary<string, List<ITikSentence>> _sentencesForTags = new Dictionary<string, List<ITikSentence>>();
+        private readonly Dictionary<string, Queue<ITikSentence>> _sentencesForTags = new Dictionary<string, Queue<ITikSentence>>();
 
         internal bool TryDequeue(string tag, out ITikSentence sentence)
         {
@@ -17,32 +17,16 @@ namespace tik4net.Api
                 tag = EMPTY_TAG_KEY;
             lock(_lockObj)
             {
-                List<ITikSentence> list;
-                if (_sentencesForTags.TryGetValue(tag, out list))
+                Queue<ITikSentence> queue;
+                if (_sentencesForTags.TryGetValue(tag, out queue) && queue.Count > 0)
                 {
-                    if (list.Count > 0)
-                    {
-                        sentence = list[0];
-                        list.RemoveAt(0);
-
-                        if (list.Count <= 0)
-                            _sentencesForTags.Remove(tag); //free memory
-
-                        return true;
-                    }
-                    else
-                    {
-                        //empty list - should not happen
-                        sentence = null;
-                        return false;
-                    }
-
+                    sentence = queue.Dequeue();
+                    if (queue.Count == 0)
+                        _sentencesForTags.Remove(tag);
+                    return true;
                 }
-                else
-                {
-                    sentence = null;
-                    return false;
-                }
+                sentence = null;
+                return false;
             }
         }
 
@@ -50,15 +34,14 @@ namespace tik4net.Api
         {
             lock(_lockObj)
             {
-                List<ITikSentence> list;
+                Queue<ITikSentence> queue;
                 string sentenceTag = string.IsNullOrWhiteSpace(sentence.Tag) ? EMPTY_TAG_KEY : sentence.Tag;
-                if (!_sentencesForTags.TryGetValue(sentenceTag, out list))
+                if (!_sentencesForTags.TryGetValue(sentenceTag, out queue))
                 {
-                    list = new List<ITikSentence>();
-                    _sentencesForTags.Add(sentenceTag, list);
+                    queue = new Queue<ITikSentence>();
+                    _sentencesForTags.Add(sentenceTag, queue);
                 }
-
-                list.Add(sentence);
+                queue.Enqueue(sentence);
             }
         }
     }

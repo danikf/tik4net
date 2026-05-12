@@ -22,6 +22,7 @@ namespace tik4net.tests
         [TestMethod]
         public void ListAllWirelessInterfaceWillNotFail()
         {
+            EnsureCommandAvailable("/interface/wireless");
             var list = Connection.LoadAll<InterfaceWireless>();
             Assert.IsNotNull(list);
         }
@@ -29,6 +30,7 @@ namespace tik4net.tests
         [TestMethod]
         public void ListAllWirelessRegistrationsWillNotFail()
         {
+            EnsureCommandAvailable("/interface/wireless");
             var list = Connection.LoadAll<WirelessRegistrationTable>();
             Assert.IsNotNull(list);
         }
@@ -123,7 +125,10 @@ namespace tik4net.tests
         [TestMethod]
         public void WirelessInterfaceResaveWillNotFail()
         {
-            var iface = Connection.LoadAll<InterfaceWireless>().First(wlan => wlan.Name == "wlan1");
+            EnsureCommandAvailable("/interface/wireless");
+            var iface = Connection.LoadAll<InterfaceWireless>().FirstOrDefault(wlan => wlan.Name == "wlan1");
+            if (iface == null)
+                Assert.Inconclusive("Interface wlan1 not found on this router.");
             iface.Comment = "test";
             Connection.Save(iface);
         }

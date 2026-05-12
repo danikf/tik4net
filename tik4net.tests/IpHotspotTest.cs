@@ -35,12 +35,15 @@ namespace tik4net.tests
         {
             var user = new HotspotUser()
             {
-                Name = "TEST " + DateTime.Now.ToString(),
+                Name = "TEST_" + Guid.NewGuid().ToString("N").Substring(0, 8),
                 LimitUptime = "1:00:00",
                 Password = "secretpass",
             };
 
             Connection.Save(user);
+
+            //Cleanup
+            Connection.Delete(user);
         }
 
         [TestMethod]
@@ -49,7 +52,7 @@ namespace tik4net.tests
             //Create user
             var user = new HotspotUser()
             {
-                Name = "TEST " + DateTime.Now.ToString(),
+                Name = "TEST_" + Guid.NewGuid().ToString("N").Substring(0, 8),
                 LimitUptime = "1:00:00",
                 Password = "secretpass",
             };

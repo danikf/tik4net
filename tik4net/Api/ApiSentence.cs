@@ -20,9 +20,10 @@ namespace tik4net.Api
             get { return GetWordValueOrDefault(TikSpecialProperties.Tag, ""); }
         }
 
+        private static readonly Regex keyValueRegex = new Regex("^=?(?<KEY>[^=]+)=(?<VALUE>.+)$", RegexOptions.Singleline | RegexOptions.Compiled);
+
         public ApiSentence(IEnumerable<string> words)
         {
-            Regex keyValueRegex = new Regex("^=?(?<KEY>[^=]+)=(?<VALUE>.+)$", RegexOptions.Singleline);
             foreach(string word in words)
             {
                 Match match = keyValueRegex.Match(word);

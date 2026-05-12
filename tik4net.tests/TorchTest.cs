@@ -16,19 +16,17 @@ namespace tik4net.tests
         [TestMethod]
         public void TorchWillNotFail()
         {
-            //REMARKS: ether1 and wlan1 interface must be present on mikrotik
-
             bool isFailed = false;
             Connection.OnWriteRow += (sender, args) => { System.Diagnostics.Debug.WriteLine(args.Word); };
             Connection.OnReadRow += (sender, args) => { System.Diagnostics.Debug.WriteLine(args.Word); };
 
-            var cmd1 = Connection.LoadAsync<ToolTorch>(t => { System.Diagnostics.Debug.WriteLine("ether1: " + t); }, 
-                ex => { System.Diagnostics.Debug.WriteLine("ERROR: " + ex.Message);  isFailed = true; }, 
-                Connection.CreateParameter("interface", "ether1"));
-            var cmd2 = Connection.LoadAsync<ToolTorch>(t => { System.Diagnostics.Debug.WriteLine("wlan1: " + t); },
+            var cmd1 = Connection.LoadAsync<ToolTorch>(t => { System.Diagnostics.Debug.WriteLine("ether1a: " + t); },
                 ex => { System.Diagnostics.Debug.WriteLine("ERROR: " + ex.Message); isFailed = true; },
-                Connection.CreateParameter("interface", "wlan1"));
-            Thread.Sleep(5* 1000);
+                Connection.CreateParameter("interface", "ether1"));
+            var cmd2 = Connection.LoadAsync<ToolTorch>(t => { System.Diagnostics.Debug.WriteLine("ether1b: " + t); },
+                ex => { System.Diagnostics.Debug.WriteLine("ERROR: " + ex.Message); isFailed = true; },
+                Connection.CreateParameter("interface", "ether1"));
+            Thread.Sleep(5 * 1000);
             cmd2.CancelAndJoin();
             Thread.Sleep(5 * 1000);
             cmd1.CancelAndJoin();
