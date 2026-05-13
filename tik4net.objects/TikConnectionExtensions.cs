@@ -17,6 +17,7 @@ namespace tik4net.Objects
     /// <item><see cref="LoadList{TEntity}(ITikConnection, ITikCommandParameter[])"/></item>
     /// <item><see cref="LoadWithDuration"/></item>
     /// <item><see cref="LoadAsync"/></item>
+    /// <item><see cref="LoadListen"/></item>
     /// </list>
     /// </para>
     /// 
@@ -236,6 +237,51 @@ namespace tik4net.Objects
             var command = CreateLoadCommandWithFilter<TEntity>(connection, parameters);
 
             command.LoadAsync<TEntity>(onLoadItemCallback, onExceptionCallback);
+            return command;
+        }
+
+        /// <summary>
+        /// Starts asynchronous listening for real-time changes in the entity list.
+        /// Builds a <c>/listen</c> command from the entity's API path and starts it via
+        /// <see cref="TikCommandExtensions.LoadListen{TEntity}(ITikCommand, Action{TEntity}, Action{string}, Action{Exception})"/>.
+        /// The command streams <c>!re</c> sentences whenever an item is added, changed, or removed.
+        /// It never sends <c>!done</c> — stop listening by calling <see cref="ITikCommand.Cancel"/> or <see cref="ITikCommand.CancelAndJoin()"/>
+        /// on the returned command.
+        /// </summary>
+        /// <typeparam name="TEntity">Entity type to listen to (must have a <c>[TikEntity]</c> attribute).</typeparam>
+        /// <param name="connection">Active connection.</param>
+        /// <param name="onChangeCallback">Called for each changed or added item.</param>
+        /// <param name="onDeletedCallback">Called with the <c>.id</c> of a deleted item. Can be <c>null</c>.</param>
+        /// <param name="onExceptionCallback">Called when a <c>!trap</c> is received.</param>
+        /// <param name="parameters">Optional query filters applied to the listen command.</param>
+        /// <returns>The running <see cref="ITikCommand"/>. Cancel it to stop listening.</returns>
+        /// <seealso cref="TikCommandExtensions.LoadListen{TEntity}(ITikCommand, Action{TEntity}, Action{string}, Action{Exception})"/>
+        public static ITikCommand LoadListen<TEntity>(this ITikConnection connection,
+            Action<TEntity> onChangeCallback,
+            Action<string> onDeletedCallback = null,
+            Action<Exception> onExceptionCallback = null,
+            params ITikCommandParameter[] parameters)
+            where TEntity : new()
+        {
+            Guard.ArgumentNotNull(connection, "connection");
+            Guard.ArgumentNotNull(onChangeCallback, "onChangeCallback");
+
+            var command = CreateListenCommandWithFilter<TEntity>(connection, parameters);
+            command.LoadListen<TEntity>(onChangeCallback, onDeletedCallback, onExceptionCallback);
+            return command;
+        }
+
+        private static ITikCommand CreateListenCommandWithFilter<TEntity>(ITikConnection connection, params ITikCommandParameter[] parameters)
+        {
+            var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
+            ITikCommand command = connection.CreateCommand(metadata.EntityPath + "/listen", metadata.LoadDefaultParameneterFormat);
+
+            if (parameters != null)
+            {
+                foreach (ITikCommandParameter param in parameters)
+                    command.Parameters.Add(param);
+            }
+
             return command;
         }
 

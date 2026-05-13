@@ -146,6 +146,50 @@ namespace tik4net.Objects
                 });
         }
 
+        /// <summary>
+        /// Starts asynchronous listening for changes in the entity list via the RouterOS <c>/listen</c> command.
+        /// Unlike <see cref="LoadAsync{TEntity}(ITikCommand, Action{TEntity}, Action{Exception}, Action)"/> which uses <c>/print</c>,
+        /// this method sends <c>!re</c> sentences only when the list changes — it never sends <c>!done</c>.
+        /// Stop by calling <see cref="ITikCommand.Cancel"/> or <see cref="ITikCommand.CancelAndJoin()"/>.
+        /// When an item is deleted the router sends <c>=.dead=yes</c>; the optional <paramref name="onDeletedCallback"/>
+        /// receives the <c>.id</c> of the deleted item instead of a deserialized entity.
+        /// </summary>
+        /// <typeparam name="TEntity">Entity type whose path was used to build the <c>/listen</c> command.</typeparam>
+        /// <param name="command">Command with path ending in <c>/listen</c>.</param>
+        /// <param name="onChangeCallback">Called for each changed item.</param>
+        /// <param name="onDeletedCallback">Called with the deleted item's <c>.id</c> when <c>=.dead=yes</c> is received. Can be <c>null</c>.</param>
+        /// <param name="onExceptionCallback">Called when a <c>!trap</c> is received.</param>
+        public static void LoadListen<TEntity>(this ITikCommand command,
+            Action<TEntity> onChangeCallback,
+            Action<string> onDeletedCallback = null,
+            Action<Exception> onExceptionCallback = null)
+            where TEntity : new()
+        {
+            Guard.ArgumentNotNull(command, "command");
+            Guard.ArgumentNotNull(onChangeCallback, "onChangeCallback");
+
+            command.ExecuteAsync(
+                reSentence =>
+                {
+                    // RouterOS documents =.dead=yes but sends =.dead=true in practice — accept both
+                    var deadValue = reSentence.GetResponseFieldOrDefault(".dead", null);
+                    if (deadValue == "yes" || deadValue == "true")
+                    {
+                        if (onDeletedCallback != null)
+                            onDeletedCallback(reSentence.GetResponseFieldOrDefault(TikSpecialProperties.Id, null));
+                    }
+                    else
+                    {
+                        onChangeCallback(CreateObject<TEntity>(reSentence));
+                    }
+                },
+                trapSentence =>
+                {
+                    if (onExceptionCallback != null)
+                        onExceptionCallback(new TikCommandTrapException(command, trapSentence));
+                });
+        }
+
         private static TEntity CreateObject<TEntity>(ITikReSentence sentence)
             where TEntity : new()
         {
