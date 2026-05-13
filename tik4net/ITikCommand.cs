@@ -200,6 +200,22 @@ namespace tik4net
         IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string abortReason);
 
         /// <summary>
+        /// Executes given <see cref="CommandText"/> on router and returns all result sentences collected until the router sends <c>!done</c>.
+        /// Unlike <see cref="ExecuteListWithDuration(int)"/>, this method does NOT send <c>/cancel</c> — it is intended for commands that terminate themselves
+        /// (e.g. <c>/tool/traceroute count=N</c>, <c>/tool/ping count=N</c>).
+        /// </summary>
+        /// <param name="timeoutSec">
+        /// Optional safety timeout in seconds. If the router does not send <c>!done</c> within this period the command is cancelled
+        /// and <see cref="TikCommandAbortException"/> is thrown. Pass <c>null</c> to wait indefinitely.
+        /// </param>
+        /// <returns>List of all <c>!re</c> sentences received before <c>!done</c>.</returns>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running.</exception>
+        /// <exception cref="TikCommandTrapException"><c>!trap</c> returned from API call.</exception>
+        /// <exception cref="TikCommandAbortException">Command did not finish within <paramref name="timeoutSec"/>.</exception>
+        /// <exception cref="System.IO.IOException">Connection was closed before <c>!done</c> was received.</exception>
+        IEnumerable<ITikReSentence> ExecuteListUntilDone(int? timeoutSec = null);
+
+        /// <summary>
         /// Calls given <see cref="CommandText"/> to router. Response is returned via <paramref name="oneResponseCallback"/> callback when it is read from mikrotik (for tag, which has been dynamically assigned).
         /// REMARKS: <paramref name="oneResponseCallback"/> is called from another NON-GUI thread. If you want to show response in UI, 
         /// you should use some kind of synchronization like BeginInvoke in WinForms or SynchronizationContext. You can not touch UI controls directly without it.

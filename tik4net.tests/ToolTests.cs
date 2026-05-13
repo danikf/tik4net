@@ -113,6 +113,83 @@ namespace tik4net.tests
 
         #endregion
 
+        #region ExecuteListUntilDone
+
+        [TestMethod]
+        public void ExecuteListUntilDone_Traceroute_ReturnsResults()
+        {
+            const string IP = "127.0.0.1";
+
+            var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
+                "address", IP,
+                "count", "1");
+            var result = cmd.ExecuteListUntilDone();
+
+            Assert.IsTrue(result.Any());
+        }
+
+        [TestMethod]
+        public void ExecuteListUntilDone_Traceroute_WithTimeout_ReturnsResults()
+        {
+            const string IP = "127.0.0.1";
+
+            var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
+                "address", IP,
+                "count", "1");
+            var result = cmd.ExecuteListUntilDone(timeoutSec: 30);
+
+            Assert.IsTrue(result.Any());
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(TikCommandAbortException))]
+        public void ExecuteListUntilDone_NeverEndingCommand_ThrowsAbortException()
+        {
+            // /tool/torch never sends !done on its own — timeout must kick in
+            var cmd = Connection.CreateCommandAndParameters("/tool/torch", TikCommandParameterFormat.NameValue,
+                "interface", "ether1");
+            cmd.ExecuteListUntilDone(timeoutSec: 2);
+        }
+
+        #endregion
+
+        #region ExecuteListWithDuration — early !done
+
+        [TestMethod]
+        public void ExecuteListWithDuration_EarlyDone_DoesNotSetWasAborted()
+        {
+            // Before the fix this set wasAborted=true when !done arrived before the duration elapsed.
+            const string IP = "127.0.0.1";
+
+            var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
+                "address", IP,
+                "count", "1");
+
+            bool wasAborted;
+            string abortReason;
+            var result = cmd.ExecuteListWithDuration(30, out wasAborted, out abortReason);
+
+            Assert.IsFalse(wasAborted, "wasAborted must be false when command finishes naturally via !done");
+            Assert.IsNull(abortReason);
+            Assert.IsTrue(result.Any());
+        }
+
+        [TestMethod]
+        public void ExecuteListWithDuration_EarlyDone_DoesNotThrow()
+        {
+            // Before the fix this threw TikCommandAbortException when !done arrived before the duration elapsed.
+            const string IP = "127.0.0.1";
+
+            var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
+                "address", IP,
+                "count", "1");
+            var result = cmd.ExecuteListWithDuration(30);
+
+            Assert.IsTrue(result.Any());
+        }
+
+        #endregion
+
         #region /tool/traceroute
 
         [TestMethod]

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -499,6 +500,7 @@ namespace tik4net.Api
         public IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string abortReason)
         {
             string asyncExceptionMessage = null;
+            bool doneReceived = false;
             List<ITikReSentence> result = new List<ITikReSentence>();
             wasAborted = false;
             abortReason = null;
@@ -513,6 +515,10 @@ namespace tik4net.Api
                 error =>
                 {
                     asyncExceptionMessage = error.Message;
+                },
+                onDoneCallback: () =>
+                {
+                    doneReceived = true;
                 });
 
             //wait for results (in calling =UI? thread)
@@ -520,29 +526,65 @@ namespace tik4net.Api
             {
                 Thread.Sleep(100);
                 if (asyncExceptionMessage != null) //ended with exception
-                {                    
+                {
                     _isRuning = false;
                     wasAborted = true;
                     abortReason = asyncExceptionMessage;
                 }
-                if (!_connection.IsOpened) 
+                if (!_connection.IsOpened)
                 {
                     _isRuning = false;
                     wasAborted = true;
                     abortReason = "Connection has been closed";
                     return result;
                 }
-                if (!_isRuning) //already ended (cancelled froum outside?)
-                {                    
-                    wasAborted = true;
-                    abortReason = "Cancelled";
+                if (!_isRuning) //already ended
+                {
+                    if (!doneReceived)
+                    {
+                        wasAborted = true;
+                        abortReason = "Cancelled";
+                    }
                     return result;
                 }
-
             }
             CancelInternal(true, -1); //Join loading thread
 
             return result;
+        }
+
+        public IEnumerable<ITikReSentence> ExecuteListUntilDone(int? timeoutSec = null)
+        {
+            ITikTrapSentence asyncTrap = null;
+            List<ITikReSentence> result = new List<ITikReSentence>();
+
+            ExecuteAsync(
+                reSentence =>
+                {
+                    if (_isRuning)
+                        result.Add(reSentence);
+                },
+                error =>
+                {
+                    asyncTrap = error;
+                },
+                onDoneCallback: null);
+
+            int steps = timeoutSec.HasValue ? timeoutSec.Value * 10 : int.MaxValue;
+            for (int i = 0; i < steps; i++) //step per 100ms
+            {
+                Thread.Sleep(100);
+                if (asyncTrap != null)
+                    throw new TikCommandTrapException(this, asyncTrap);
+                if (!_connection.IsOpened)
+                    throw new IOException("Connection has been closed.");
+                if (!_isRuning) //!done received
+                    return result;
+            }
+
+            // timeout elapsed — cancel and report
+            CancelInternal(true, -1);
+            throw new TikCommandAbortException(this, string.Format("Command did not finish within {0} second(s).", timeoutSec));
         }
 
         private bool CancelInternal(bool joinLoadingThread, int milisecondsTimeout)
