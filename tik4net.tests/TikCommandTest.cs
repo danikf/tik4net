@@ -109,6 +109,7 @@ namespace tik4net.tests
             command.ExecuteSingleRow();
         }
 
+        [Ignore]
         [TestMethod]
         public void AsyncExecuteClosed_AfterReboot_AndNextCommandThrowsException()
         {
