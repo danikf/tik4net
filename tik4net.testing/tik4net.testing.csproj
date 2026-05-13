@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>tik4net.testing</AssemblyName>
+    <RootNamespace>tik4net.Testing</RootNamespace>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>Mikrotik API library - testing/mocking support (TikFakeConnection)</Description>
+    <Authors>Daniel Frantik</Authors>
+    <Copyright>Copyright (C) Daniel Frantik 2017</Copyright>
+    <PackageTags>Mikrotik</PackageTags>
+    <PackageOutputPath>../Build</PackageOutputPath>
+    <VersionPrefix>3.0.0</VersionPrefix>
+    <VersionSuffix Condition=" '$(BUILD_BUILDNUMBER)' != '' ">CI-$(BUILD_BUILDNUMBER)</VersionSuffix>
+    <VersionSuffix Condition=" '$(PREVIEW_NUMBER)' != '' ">pre-$(PREVIEW_NUMBER)</VersionSuffix>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\tik4net\tik4net.csproj" />
+    <ProjectReference Include="..\tik4net.objects\tik4net.objects.csproj" />
+  </ItemGroup>
+</Project>
