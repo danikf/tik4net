@@ -133,10 +133,10 @@ namespace tik4net.tests
             Connection.Save(iface);
         }
 
-        #region LoadListen
+        #region LoadListenAsync
 
         [TestMethod]
-        public void LoadListen_DetectsInterfaceChange()
+        public void LoadListenAsync_DetectsInterfaceChange()
         {
             const string IFACE = "ether1";
             const string TEST_COMMENT = "tik4net-listen-test";
@@ -144,7 +144,7 @@ namespace tik4net.tests
             List<Interface> changes = new List<Interface>();
             Exception listenException = null;
 
-            var listenCmd = Connection.LoadListen<Interface>(
+            var listenCmd = Connection.LoadListenAsync<Interface>(
                 iface => { lock (changes) changes.Add(iface); },
                 onDeletedCallback: null,
                 onExceptionCallback: ex => { listenException = ex; });
@@ -178,7 +178,7 @@ namespace tik4net.tests
         }
 
         [TestMethod]
-        public void LoadListen_DetectsDeletedItem()
+        public void LoadListenAsync_DetectsDeletedItem()
         {
             const string TEST_IP = "192.0.2.1/32"; // TEST-NET, safe dummy address
             const string TEST_IFACE = "ether1";
@@ -193,7 +193,7 @@ namespace tik4net.tests
             List<string> deletedIds = new List<string>();
             Exception listenException = null;
 
-            var listenCmd = Connection.LoadListen<Objects.Ip.IpAddress>(
+            var listenCmd = Connection.LoadListenAsync<Objects.Ip.IpAddress>(
                 _ => { },
                 onDeletedCallback: id => { lock (deletedIds) deletedIds.Add(id); },
                 onExceptionCallback: ex => { listenException = ex; });

@@ -159,7 +159,7 @@ namespace tik4net.Objects
         /// <param name="onChangeCallback">Called for each changed item.</param>
         /// <param name="onDeletedCallback">Called with the deleted item's <c>.id</c> when <c>=.dead=yes</c> is received. Can be <c>null</c>.</param>
         /// <param name="onExceptionCallback">Called when a <c>!trap</c> is received.</param>
-        public static void LoadListen<TEntity>(this ITikCommand command,
+        public static void LoadListenAsync<TEntity>(this ITikCommand command,
             Action<TEntity> onChangeCallback,
             Action<string> onDeletedCallback = null,
             Action<Exception> onExceptionCallback = null)
