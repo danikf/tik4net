@@ -3,20 +3,36 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <AssemblyName>tik4net.objects</AssemblyName>
     <RootNamespace>tik4net.Objects</RootNamespace>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <Description>Mikrotik API library - O/R mapper API</Description>
-    <Authors>Daniel Frantik</Authors>
-    <Copyright>Copyright (C) Daniel Frantik 2017</Copyright>
-    <PackageTags>Mikrotik</PackageTags>
-    <PackageOutputPath>../Build</PackageOutputPath>
-    <VersionPrefix>3.0.0</VersionPrefix>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <PackageId>tik4net.objects</PackageId>
+    <VersionPrefix>3.5.0</VersionPrefix>
+    <AssemblyVersion>$(VersionPrefix).0</AssemblyVersion>
+    <FileVersion>$(VersionPrefix).0</FileVersion>
     <VersionSuffix Condition=" '$(BUILD_BUILDNUMBER)' != '' ">CI-$(BUILD_BUILDNUMBER)</VersionSuffix>
     <VersionSuffix Condition=" '$(PREVIEW_NUMBER)' != '' ">pre-$(PREVIEW_NUMBER)</VersionSuffix>
+    <Authors>Daniel Frantik</Authors>
+    <Copyright>Copyright (C) Daniel Frantik 2024</Copyright>
+    <Description>O/R mapper high-level API for MikroTik routers built on top of tik4net. Provides entity classes, CRUD operations and attribute-driven serialization.</Description>
+    <PackageTags>Mikrotik Library API CSharp .NET Manage ORM</PackageTags>
+    <PackageProjectUrl>https://github.com/danikf/tik4net</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/danikf/tik4net</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageOutputPath>../Build</PackageOutputPath>
   </PropertyGroup>
+
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DefineConstants>TRACE;DEBUG</DefineConstants>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../LICENSE" Pack="true" PackagePath="\" />
+    <None Include="../README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\tik4net\tik4net.csproj" />
   </ItemGroup>

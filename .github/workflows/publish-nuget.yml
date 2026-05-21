@@ -1,0 +1,142 @@
+name: Publish NuGet packages
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version (e.g. 3.6.0)'
+        required: true
+      dry_run:
+        description: 'Dry run — build but do not push to NuGet.org'
+        type: boolean
+        default: false
+
+jobs:
+  publish:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Resolve version
+        id: ver
+        shell: pwsh
+        run: |
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $v = '${{ inputs.version }}'
+          } else {
+            $v = '${{ github.ref_name }}' -replace '^v', ''
+          }
+          Write-Output "VERSION=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Publishing version: $v"
+
+      - name: Restore SDK projects
+        run: dotnet restore tik4net/tik4net.csproj tik4net.objects/tik4net.objects.csproj tik4net.testing/tik4net.testing.csproj
+
+      - name: Pack tik4net
+        run: >
+          dotnet pack tik4net/tik4net.csproj
+          -c Release
+          -o Build
+          /p:Version=${{ steps.ver.outputs.VERSION }}
+          /p:AssemblyVersion=${{ steps.ver.outputs.VERSION }}.0
+          /p:FileVersion=${{ steps.ver.outputs.VERSION }}.0
+          --no-restore
+
+      - name: Pack tik4net.objects
+        run: >
+          dotnet pack tik4net.objects/tik4net.objects.csproj
+          -c Release
+          -o Build
+          /p:Version=${{ steps.ver.outputs.VERSION }}
+          /p:AssemblyVersion=${{ steps.ver.outputs.VERSION }}.0
+          /p:FileVersion=${{ steps.ver.outputs.VERSION }}.0
+          --no-restore
+
+      - name: Pack tik4net.testing
+        run: >
+          dotnet pack tik4net.testing/tik4net.testing.csproj
+          -c Release
+          -o Build
+          /p:Version=${{ steps.ver.outputs.VERSION }}
+          /p:AssemblyVersion=${{ steps.ver.outputs.VERSION }}.0
+          /p:FileVersion=${{ steps.ver.outputs.VERSION }}.0
+          --no-restore
+
+      - name: Restore Tools (NuGet packages for old-style projects)
+        run: nuget restore Tools\tik4net.entityWikiImporter\tik4net.entityWikiImporter.csproj
+
+      - name: Build tik4net.entitygenerator
+        run: >
+          msbuild Tools\tik4net.entitygenerator\tik4net.entitygenerator.csproj
+          /p:Configuration=Release
+          /t:Rebuild
+          /verbosity:minimal
+
+      - name: Build tik4net.entityWikiImporter
+        run: >
+          msbuild Tools\tik4net.entityWikiImporter\tik4net.entityWikiImporter.csproj
+          /p:Configuration=Release
+          /t:Rebuild
+          /verbosity:minimal
+
+      - name: Assemble Tools zip
+        id: tools_zip
+        shell: pwsh
+        run: |
+          $version = '${{ steps.ver.outputs.VERSION }}'
+          $zipName = "tik4net-tools-$version.zip"
+          $tmp = "tools-staging"
+          New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+
+          $gen = "Tools\tik4net.entitygenerator\bin\Release"
+          Copy-Item "$gen\tik4net.entitygenerator.exe"        $tmp
+          Copy-Item "$gen\tik4net.entitygenerator.exe.config" $tmp
+          Copy-Item "$gen\tik4net.dll"                        $tmp
+          Copy-Item "$gen\tik4net.objects.dll"                $tmp -ErrorAction SilentlyContinue
+          Copy-Item "Tools\tik4net.entitygenerator\Info.txt"  "$tmp\entitygenerator.Info.txt"
+
+          $wiki = "Tools\tik4net.entityWikiImporter\bin\Release"
+          Copy-Item "$wiki\tik4net.entityWikiImporter.exe"        $tmp
+          Copy-Item "$wiki\tik4net.entityWikiImporter.exe.config" $tmp
+          Copy-Item "$wiki\HtmlAgilityPack.dll"                   $tmp -ErrorAction SilentlyContinue
+          Copy-Item "Tools\tik4net.entityWikiImporter\Info.txt"   "$tmp\entityWikiImporter.Info.txt"
+
+          Compress-Archive -Path "$tmp\*" -DestinationPath $zipName
+          Write-Output "ZIP_NAME=$zipName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: List build artifacts
+        shell: pwsh
+        run: Get-ChildItem Build\*.nupkg | Select-Object Name, Length
+
+      - name: Push to NuGet.org
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: >
+          dotnet nuget push "Build\*.nupkg"
+          --api-key $env:NUGET_API_KEY
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
+
+      - name: Create GitHub Release
+        if: ${{ github.event_name == 'push' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ steps.ver.outputs.VERSION }}
+          generate_release_notes: true
+          files: |
+            Build/*.nupkg
+            ${{ steps.tools_zip.outputs.ZIP_NAME }}

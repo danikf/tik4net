@@ -3,19 +3,23 @@ tik4net
 
 > ## 📢 A note from the maintainer
 >
-> **I sincerely apologize for the long period of inactivity.** Thanks to AI tooling, I finally have some bandwidth again. In the near future I intend to work through all open PRs and critical bugs and publish an updated NuGet package.
+> **Version 3.6.0 is out!** Thanks to AI tooling I finally had the bandwidth to work through all open PRs and critical bugs. Special thanks to Deantwo and all contributors who helped others while I was away.
 >
-> To prevent this from happening again, **I am looking for collaborators**. If you are interested in helping maintain this project, please reach out — open an issue or contact me directly. Special thanks to Deantwo for helping others while I was away.
+> **I am looking for collaborators.** If you are interested in helping maintain this project, please reach out — open an issue or contact me directly.
 >
-> **The next release will target `netstandard2.0` only.** This should be sufficient for all current use cases — it covers .NET Framework 4.6.1+, .NET Core 2.0+, .NET 5/6/7/8, Xamarin, and Unity.
+> **Current release targets `netstandard2.0` only.** This covers .NET Framework 4.6.1+, .NET Core 2.0+, .NET 5/6/7/8/9, Xamarin, and Unity.
 >
-> The upcoming release has been tested and debugged against **RouterOS 7.21.4** (latest stable).
+> Tested and debugged against **RouterOS 7.21.4** (latest stable).
 
-tik4net is a .NET library for communicating with MikroTik routers via the MikroTik API protocol. It offers a clean, easy-to-use interface that scales from low-level raw API access all the way up to a fully typed O/R mapper, and ships as two NuGet packages:
+tik4net is a .NET library for communicating with MikroTik routers via the MikroTik API protocol. It offers a clean, easy-to-use interface that scales from low-level raw API access all the way up to a fully typed O/R mapper.
 
-* **tik4net** — [Basic ADO.NET-like API](https://github.com/danikf/tik4net/wiki/ADO.NET-like-API): R/W access to MikroTik in both synchronous and asynchronous code.
-* **tik4net.objects** — [High-level O/R mapper API](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper): strongly typed MikroTik entities with full CRUD support.
-* [Tools](https://github.com/danikf/tik4net/wiki/High-level-API-tools) — semi-automatic C# code generators for custom entities (used with tik4net.objects).
+| Package | NuGet | Description |
+|---|---|---|
+| **tik4net** | [![NuGet](https://img.shields.io/nuget/v/tik4net.svg)](https://www.nuget.org/packages/tik4net) | [Low-level ADO.NET-like API](https://github.com/danikf/tik4net/wiki/ADO.NET-like-API) — synchronous and async R/W access |
+| **tik4net.objects** | [![NuGet](https://img.shields.io/nuget/v/tik4net.objects.svg)](https://www.nuget.org/packages/tik4net.objects) | [High-level O/R mapper](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper) — strongly typed entities, full CRUD. Pulls in `tik4net` automatically. |
+| **tik4net.testing** | [![NuGet](https://img.shields.io/nuget/v/tik4net.testing.svg)](https://www.nuget.org/packages/tik4net.testing) | Unit-testing support — `TikFakeConnection` lets you write tests without a live router |
+
+[Tools](https://github.com/danikf/tik4net/wiki/High-level-API-tools) — semi-automatic C# code generators for custom entities (used with tik4net.objects).
 
 # Features
 * Easy to use with [O/R mapper like highlevel API](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper)
@@ -27,12 +31,16 @@ tik4net is a .NET library for communicating with MikroTik routers via the MikroT
 * Easy to understand and well documented code
 
 # Binaries
-***Stable***
-* [![NuGet](https://img.shields.io/nuget/v/tik4net.svg)](https://www.nuget.org/packages/tik4net)
-* [builded dlls download](http://forum.mikrotik.com/viewtopic.php?t=99954)
 
-***In development (v 3.6)***
-* Download as sources.
+Install via NuGet — see the package table above, or:
+
+```
+dotnet add package tik4net.objects   # high-level API (pulls in tik4net)
+dotnet add package tik4net           # low-level API only
+dotnet add package tik4net.testing   # unit-testing support
+```
+
+See [release notes / version history](https://github.com/danikf/tik4net/wiki/History) for what's new.
 
 # Getting started and documentation
 Mikrotik API wiki:
