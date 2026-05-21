@@ -5,7 +5,7 @@
     <RootNamespace>tik4net.Objects</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
 
-    <PackageId>tik4net.objects</PackageId>
+    <PackageId>tik4net.entities</PackageId>
     <VersionPrefix>3.6.0</VersionPrefix>
     <AssemblyVersion>$(VersionPrefix).0</AssemblyVersion>
     <FileVersion>$(VersionPrefix).0</FileVersion>
@@ -13,8 +13,8 @@
     <VersionSuffix Condition=" '$(PREVIEW_NUMBER)' != '' ">pre-$(PREVIEW_NUMBER)</VersionSuffix>
     <Authors>Daniel Frantik</Authors>
     <Copyright>Copyright (C) Daniel Frantik 2024</Copyright>
-    <Description>O/R mapper high-level API for MikroTik routers built on top of tik4net. Provides entity classes, CRUD operations and attribute-driven serialization.</Description>
-    <PackageTags>Mikrotik Library API CSharp .NET Manage ORM</PackageTags>
+    <Description>O/R mapper high-level API for MikroTik routers built on top of tik4net. Provides entity classes, CRUD operations and attribute-driven serialization. Previously distributed as tik4net.objects.</Description>
+    <PackageTags>Mikrotik Library API CSharp .NET Manage ORM Entities</PackageTags>
     <PackageProjectUrl>https://github.com/danikf/tik4net</PackageProjectUrl>
     <RepositoryUrl>https://github.com/danikf/tik4net</RepositoryUrl>
     <RepositoryType>git</RepositoryType>

@@ -16,10 +16,10 @@ tik4net is a .NET library for communicating with MikroTik routers via the MikroT
 | Package | NuGet | Description |
 |---|---|---|
 | **tik4net** | [![NuGet](https://img.shields.io/nuget/v/tik4net.svg)](https://www.nuget.org/packages/tik4net) | [Low-level ADO.NET-like API](https://github.com/danikf/tik4net/wiki/ADO.NET-like-API) — synchronous and async R/W access |
-| **tik4net.objects** | [![NuGet](https://img.shields.io/nuget/v/tik4net.objects.svg)](https://www.nuget.org/packages/tik4net.objects) | [High-level O/R mapper](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper) — strongly typed entities, full CRUD. Pulls in `tik4net` automatically. |
+| **tik4net.entities** | [![NuGet](https://img.shields.io/nuget/v/tik4net.entities.svg)](https://www.nuget.org/packages/tik4net.entities) | [High-level O/R mapper](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper) — strongly typed entities, full CRUD. Pulls in `tik4net` automatically. |
 | **tik4net.testing** | [![NuGet](https://img.shields.io/nuget/v/tik4net.testing.svg)](https://www.nuget.org/packages/tik4net.testing) | Unit-testing support — `TikFakeConnection` lets you write tests without a live router |
 
-[Tools](https://github.com/danikf/tik4net/wiki/High-level-API-tools) — semi-automatic C# code generators for custom entities (used with tik4net.objects).
+[Tools](https://github.com/danikf/tik4net/wiki/High-level-API-tools) — semi-automatic C# code generators for custom entities (used with tik4net.entities).
 
 # Features
 * Easy to use with [O/R mapper like highlevel API](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper)
@@ -35,7 +35,7 @@ tik4net is a .NET library for communicating with MikroTik routers via the MikroT
 Install via NuGet — see the package table above, or:
 
 ```
-dotnet add package tik4net.objects   # high-level API (pulls in tik4net)
+dotnet add package tik4net.entities  # high-level API (pulls in tik4net)
 dotnet add package tik4net           # low-level API only
 dotnet add package tik4net.testing   # unit-testing support
 ```
