@@ -131,6 +131,23 @@ jobs:
         with:
           name: v${{ steps.ver.outputs.VERSION }}
           generate_release_notes: true
+          body: |
+            ## tik4net ${{ steps.ver.outputs.VERSION }}
+
+            Full release notes and version history: **[Wiki → History](https://github.com/danikf/tik4net/wiki/History)**
+
+            ### NuGet packages
+            | Package | Install |
+            |---|---|
+            | `tik4net` | `dotnet add package tik4net --version ${{ steps.ver.outputs.VERSION }}` |
+            | `tik4net.entities` | `dotnet add package tik4net.entities --version ${{ steps.ver.outputs.VERSION }}` |
+            | `tik4net.testing` | `dotnet add package tik4net.testing --version ${{ steps.ver.outputs.VERSION }}` |
+
+            ### Tools (in zip asset)
+            - `tik4net.entitygenerator.exe` — generate entity code from a live router
+            - `tik4net.entityWikiImporter.exe` — generate entity code from MikroTik wiki
+
+            ---
           files: |
             Build/*.nupkg
             ${{ steps.tools_zip.outputs.ZIP_NAME }}
