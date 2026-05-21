@@ -42,9 +42,6 @@ jobs:
           Write-Output "VERSION=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           Write-Host "Publishing version: $v"
 
-      - name: Restore SDK projects
-        run: dotnet restore tik4net/tik4net.csproj tik4net.objects/tik4net.objects.csproj tik4net.testing/tik4net.testing.csproj
-
       - name: Pack tik4net
         run: >
           dotnet pack tik4net/tik4net.csproj
@@ -53,7 +50,6 @@ jobs:
           /p:Version=${{ steps.ver.outputs.VERSION }}
           /p:AssemblyVersion=${{ steps.ver.outputs.VERSION }}.0
           /p:FileVersion=${{ steps.ver.outputs.VERSION }}.0
-          --no-restore
 
       - name: Pack tik4net.objects
         run: >
@@ -63,7 +59,6 @@ jobs:
           /p:Version=${{ steps.ver.outputs.VERSION }}
           /p:AssemblyVersion=${{ steps.ver.outputs.VERSION }}.0
           /p:FileVersion=${{ steps.ver.outputs.VERSION }}.0
-          --no-restore
 
       - name: Pack tik4net.testing
         run: >
@@ -73,7 +68,6 @@ jobs:
           /p:Version=${{ steps.ver.outputs.VERSION }}
           /p:AssemblyVersion=${{ steps.ver.outputs.VERSION }}.0
           /p:FileVersion=${{ steps.ver.outputs.VERSION }}.0
-          --no-restore
 
       - name: Restore Tools (NuGet packages for old-style projects)
         run: nuget restore Tools\tik4net.entityWikiImporter\tik4net.entityWikiImporter.csproj
