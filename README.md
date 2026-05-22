@@ -107,7 +107,7 @@ Examples:
 * create highlevel classes for all mikrotik entities (you can still generate your own classes)
 * create tiklink project - easy use-to wrapper over mikrotik router with fluent API 
 * convert examples to separate unittests (in progress)
-* **tiktop** — a MikroTik traffic monitor inspired by Linux `iftop` (currently in alpha, publication coming soon)
+* **[tiktop](https://github.com/danikf/tiktop)** — a MikroTik traffic monitor inspired by Linux `iftop` (currently in alpha, available on NuGet/GitHub)
 
 REMARKS: This project is rewritten version of deprecated tik4net at googlecode (last version was 0.9.7.)
 
