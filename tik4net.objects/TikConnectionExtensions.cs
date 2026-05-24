@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using tik4net.Objects.Tracking;
 
 namespace tik4net.Objects
 {
@@ -81,8 +82,19 @@ namespace tik4net.Objects
         public static TEntity LoadSingle<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filterParameters)
             where TEntity : new()
         {
+            var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
-            return command.LoadSingle<TEntity>();
+            var entities = command.LoadList<TEntity>().ToList();
+
+            var cnt = entities.Count;
+            if (cnt == 0)
+                throw new TikNoSuchItemException(command);
+            if (cnt > 1)
+                throw new TikCommandAmbiguousResultException(command, cnt);
+
+            var entity = entities[0];
+            TikChangeTracker.For(connection).TakeSnapshot(entity, metadata, GetProplistFields(command, metadata));
+            return entity;
         }
 
         /// <summary>
@@ -101,8 +113,19 @@ namespace tik4net.Objects
         public static TEntity LoadSingleOrDefault<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filterParameters)
             where TEntity : new()
         {
+            var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
-            return command.LoadSingleOrDefault<TEntity>();
+            var entities = command.LoadList<TEntity>().ToList();
+
+            var cnt = entities.Count;
+            if (cnt == 0)
+                return default(TEntity);
+            if (cnt > 1)
+                throw new TikCommandAmbiguousResultException(command, cnt);
+
+            var entity = entities[0];
+            TikChangeTracker.For(connection).TakeSnapshot(entity, metadata, GetProplistFields(command, metadata));
+            return entity;
         }
 
         /// <summary>
@@ -122,16 +145,19 @@ namespace tik4net.Objects
         public static TEntity LoadById<TEntity>(this ITikConnection connection, string id)
             where TEntity : new()
         {
+            var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, connection.CreateParameter(TikSpecialProperties.Id, id));
-            var candidates = command.LoadList<TEntity>();
+            var candidates = command.LoadList<TEntity>().ToList();
 
-            var cnt = candidates.Count();
+            var cnt = candidates.Count;
             if (cnt == 0)
                 throw new TikNoSuchItemException(command);
             else if (cnt > 1)
                 throw new TikCommandAmbiguousResultException(command, cnt);
-            else
-                return candidates.Single();
+
+            var entity = candidates[0];
+            TikChangeTracker.For(connection).TakeSnapshot(entity, metadata, GetProplistFields(command, metadata));
+            return entity;
         }
 
         /// <summary>
@@ -151,16 +177,19 @@ namespace tik4net.Objects
         public static TEntity LoadByName<TEntity>(this ITikConnection connection, string name)
             where TEntity : new()
         {
+            var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, connection.CreateParameter("name", name));
-            var candidates = command.LoadList<TEntity>();
+            var candidates = command.LoadList<TEntity>().ToList();
 
-            var cnt = candidates.Count();
+            var cnt = candidates.Count;
             if (cnt == 0)
                 throw new TikNoSuchItemException(command);
             else if (cnt > 1)
                 throw new TikCommandAmbiguousResultException(command, cnt);
-            else
-                return candidates.Single();
+
+            var entity = candidates[0];
+            TikChangeTracker.For(connection).TakeSnapshot(entity, metadata, GetProplistFields(command, metadata));
+            return entity;
         }
 
         /// <summary>
@@ -180,8 +209,11 @@ namespace tik4net.Objects
         public static IEnumerable<TEntity> LoadList<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filterParameters)
             where TEntity : new()
         {
+            var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
-            return command.LoadList<TEntity>();
+            var entities = command.LoadList<TEntity>().ToList();
+            RegisterSnapshots(connection, entities, metadata, command);
+            return entities;
         }
 
         /// <summary>
@@ -234,9 +266,17 @@ namespace tik4net.Objects
             Guard.ArgumentNotNull(connection, "connection");
             Guard.ArgumentNotNull(onLoadItemCallback, "onLoadItemCallback");
 
+            var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             var command = CreateLoadCommandWithFilter<TEntity>(connection, parameters);
+            var tracker = TikChangeTracker.For(connection);
+            var trackedFields = GetProplistFields(command, metadata);
 
-            command.LoadAsync<TEntity>(onLoadItemCallback, onExceptionCallback);
+            command.LoadAsync<TEntity>(
+                entity => {
+                    tracker.TakeSnapshot(entity, metadata, trackedFields);
+                    onLoadItemCallback(entity);
+                },
+                onExceptionCallback);
             return command;
         }
 
@@ -285,6 +325,38 @@ namespace tik4net.Objects
             return command;
         }
 
+        /// <summary>
+        /// Registers snapshots for a batch of freshly loaded entities.
+        /// </summary>
+        private static void RegisterSnapshots<TEntity>(ITikConnection connection, IList<TEntity> entities,
+            TikEntityMetadata metadata, ITikCommand command)
+        {
+            var tracker = TikChangeTracker.For(connection);
+            var trackedFields = GetProplistFields(command, metadata);
+            foreach (var entity in entities)
+                tracker.TakeSnapshot(entity, metadata, trackedFields);
+        }
+
+        /// <summary>
+        /// Returns the set of field names that were sent as <c>.proplist</c> in the command,
+        /// or <c>null</c> when the load was a full load (no proplist, or proplist covers all fields).
+        /// </summary>
+        private static IEnumerable<string> GetProplistFields(ITikCommand command, TikEntityMetadata metadata)
+        {
+            var proplistParam = command.Parameters
+                .FirstOrDefault(p => p.Name == TikSpecialProperties.Proplist);
+            if (proplistParam == null)
+                return null;
+
+            var fields = new HashSet<string>(
+                proplistParam.Value.Split(','),
+                StringComparer.OrdinalIgnoreCase);
+
+            // IncludeProplist=true sends all entity fields — treat as full load
+            bool isFullLoad = metadata.Properties.All(p => fields.Contains(p.FieldName));
+            return isFullLoad ? null : (IEnumerable<string>)fields;
+        }
+
         private static ITikCommand CreateLoadCommandWithFilter<TEntity> (ITikConnection connection, params ITikCommandParameter[] parameters)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
@@ -310,6 +382,16 @@ namespace tik4net.Objects
             return command;
         }
 
+        #endregion
+
+        #region -- CHANGE TRACKER --
+        /// <summary>
+        /// Returns the <see cref="TikChangeTracker"/> bound to this connection.
+        /// The tracker is created on first access and released when the connection is GC'd.
+        /// Use it for advanced diff inspection or to opt entities in/out of tracking.
+        /// </summary>
+        public static TikChangeTracker ChangeTracker(this ITikConnection connection)
+            => TikChangeTracker.For(connection);
         #endregion
 
         #region -- SAVE --
@@ -346,7 +428,9 @@ namespace tik4net.Objects
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
         /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
         /// <exception cref="TikNoSuchItemException">Invalid item (bad id/name etc.). Mikrotik API message: 'no such item'.</exception>
-        public static void Save<TEntity>(this ITikConnection connection, TEntity entity, IEnumerable<string> usedFieldsFilter = null)
+        public static void Save<TEntity>(this ITikConnection connection, TEntity entity,
+            IEnumerable<string> usedFieldsFilter = null,
+            TikSaveMode saveMode = TikSaveMode.Default)
             where TEntity:new()
         {            
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
@@ -379,6 +463,7 @@ namespace tik4net.Objects
                 id = createCmd.ExecuteScalar();
                 if (metadata.HasIdProperty)
                     metadata.IdProperty.SetEntityValue(entity, id); // update saved id into entity
+                TikChangeTracker.For(connection).TakeSnapshot(entity, metadata);
             }
             else
             {
@@ -387,9 +472,27 @@ namespace tik4net.Objects
 
                 if (!metadata.IsSingleton && usedFieldsFilter == null)
                 {
-                    //compare state on mikrotik and update different fields only
-                    var unmodifiedEntity =  connection.LoadById<TEntity>(id); //TODO some kind of "loaded entities" session cache could be used to avoid another load before save.
-                    usedFieldsFilter = entity.GetDifferentFields(unmodifiedEntity);
+                    var effectiveSaveMode = saveMode == TikSaveMode.Default ? TikDefaults.SaveMode : saveMode;
+                    if (effectiveSaveMode == TikSaveMode.OnlyChanges)
+                    {
+                        var tracker = TikChangeTracker.For(connection);
+                        var snapshot = tracker.GetSnapshot(entity);
+                        if (snapshot != null)
+                        {
+                            var changes = tracker.GetChanges(entity, metadata);
+                            if (changes.Count == 0)
+                                return; // nothing changed — skip the API call
+                            usedFieldsFilter = changes.Keys;
+                        }
+                        // no snapshot → entity was not loaded via Load* → fall through with
+                        // usedFieldsFilter = null, which sends all writable fields (FullUpdate)
+                    }
+                    else
+                    {
+                        // FullUpdate: round-trip load to compute diff (3.x behavior)
+                        var unmodifiedEntity = connection.LoadById<TEntity>(id);
+                        usedFieldsFilter = entity.GetDifferentFields(unmodifiedEntity);
+                    }
                 }
 
                 List<string> fieldsToUnset = new List<string>();
@@ -426,6 +529,7 @@ namespace tik4net.Objects
                         setCmd.AddParameter(TikSpecialProperties.Id, id, TikCommandParameterFormat.NameValue);
                     setCmd.ExecuteNonQuery();
                 }
+                TikChangeTracker.For(connection).ResetSnapshot(entity, metadata);
             }
         }
 

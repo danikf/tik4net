@@ -27,6 +27,9 @@ bld/
 
 # MSTest test Results
 [Tt]est[Rr]esult*/
+
+# Local dev notes (not for commit)
+_notes/
 [Bb]uild[Ll]og.*
 
 # NUNIT
