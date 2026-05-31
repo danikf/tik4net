@@ -77,6 +77,7 @@ namespace tik4net.tests
         [TestMethod]
         public void FilteredTypedAsyncListOfInterfacesWillNotFail()
         {
+            EnsureCapability(TikConnectionCapability.Listen, "async interface list");
             var cmd = Connection.CreateCommandAndParameters(@"/interface/print
                             ?type=ether
                             ?type=wlan
@@ -113,6 +114,7 @@ namespace tik4net.tests
         [TestMethod]
         public void InterfaceTraficAsync_WillNotFail()
         {
+            EnsureCapability(TikConnectionCapability.Listen, "async monitor-traffic");
             var cmd = Connection.CreateCommandAndParameters("/interface/monitor-traffic", "interface", "ether1");
             List<ITikReSentence> responses = new List<ITikReSentence>();
             cmd.ExecuteAsync(re => responses.Add(re));
@@ -138,6 +140,7 @@ namespace tik4net.tests
         [TestMethod]
         public void LoadListenAsync_DetectsInterfaceChange()
         {
+            EnsureCapability(TikConnectionCapability.Listen, "LoadListenAsync");
             const string IFACE = "ether1";
             const string TEST_COMMENT = "tik4net-listen-test";
 
@@ -180,6 +183,7 @@ namespace tik4net.tests
         [TestMethod]
         public void LoadListenAsync_DetectsDeletedItem()
         {
+            EnsureCapability(TikConnectionCapability.Listen, "LoadListenAsync");
             const string TEST_IP = "192.0.2.1/32"; // TEST-NET, safe dummy address
             const string TEST_IFACE = "ether1";
 
@@ -234,6 +238,7 @@ namespace tik4net.tests
         [TestMethod]
         public void ParallelSniffCommandsAreCorrectlyCancelled()
         {
+            EnsureCapability(TikConnectionCapability.Listen, "parallel async commands");
             Connection.DebugEnabled = true;
 
             var cmdWlan = Connection.CreateCommandAndParameters("/interface/monitor-traffic", "interface", "wlan1");

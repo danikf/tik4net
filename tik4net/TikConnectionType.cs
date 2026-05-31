@@ -19,6 +19,14 @@ namespace tik4net
         /// </summary>
         ApiSsl,
         /// <summary>
+        /// MikroTik REST API over HTTP (port 80). Requires RouterOS 7.1+. No Listen/Streaming support.
+        /// </summary>
+        Rest,
+        /// <summary>
+        /// MikroTik REST API over HTTPS (port 443). Requires RouterOS 7.1+ with www-ssl service and a certificate.
+        /// </summary>
+        RestSsl,
+        /// <summary>
         /// Mikrotik API connection for then RouterOS version 6.43 and newer.
         /// </summary>
         [Obsolete("Use 'Api' version - works for both old and new version of the login", true)]

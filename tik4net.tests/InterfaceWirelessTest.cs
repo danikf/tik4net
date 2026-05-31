@@ -17,6 +17,7 @@ namespace tik4net.tests
         [TestMethod]
         public void AsyncLoad_WirelessAccessList_WillNotFail()
         {
+            EnsureCapability(TikConnectionCapability.Listen, "async LoadAsync");
             EnsureCommandAvailable("/interface/wireless");
             var tmpAccessList = new WirelessAccessList()
             {

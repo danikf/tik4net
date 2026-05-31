@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using tik4net.Api;
+using tik4net.Rest;
 
 namespace tik4net
 {
     /// <summary>
     /// Factory to create and open mikrotik connection of given type.
     /// </summary>
+    /// <remarks>Consider using <see cref="TikConnectionSetup"/> for new code.</remarks>
     public static class ConnectionFactory
     {
         /// <summary>
@@ -25,6 +27,10 @@ namespace tik4net
                     return new ApiConnection(false);
                 case TikConnectionType.ApiSsl:
                     return new ApiConnection(true);
+                case TikConnectionType.Rest:
+                    return new RestConnection(useSsl: false);
+                case TikConnectionType.RestSsl:
+                    return new RestConnection(useSsl: true);
                 default:
                     throw new NotImplementedException(string.Format("Connection type '{0}' not supported.", connectionType));
             }

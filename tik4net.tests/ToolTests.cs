@@ -17,6 +17,7 @@ namespace tik4net.tests
         [TestMethod]
         public void PingLocalhostWillNotFail()
         {
+            EnsureCapability(TikConnectionCapability.Streaming, "sync ping");
             const string HOST = "127.0.0.1";
             var result = ToolPing.Execute(Connection, HOST, 4);
             Assert.IsTrue(result.Count() == 4);
@@ -25,6 +26,7 @@ namespace tik4net.tests
         [TestMethod]
         public void PingLocalhostAsyncWillNotFail()
         {
+            EnsureCapability(TikConnectionCapability.Listen, "async ping");
             const string HOST = "127.0.0.1";
 
             List<ToolPing> responseList = new List<ToolPing>();
@@ -47,6 +49,7 @@ namespace tik4net.tests
         [TestMethod]
         public void PingLocalhostAsyncWithCloseWillNotFail()
         {
+            EnsureCapability(TikConnectionCapability.Listen, "async ping");
             const string HOST = "127.0.0.1";
             const int MAX_CNT = 100;
 
@@ -78,6 +81,7 @@ namespace tik4net.tests
         [TestMethod]
         public void WolWillNotFail()
         {
+            EnsureCapability(TikConnectionCapability.Streaming, "WoL command");
             //const string OK_MAC = "FF:FF:FF:FF:FF:FF"; //
             const string OK_MAC = "00:11:32:71:AD:AD";
 
@@ -87,7 +91,8 @@ namespace tik4net.tests
         [TestMethod]
         public void WolWithOkIfaceWillNotFail()
         {
-            const string OK_MAC = "FF:FF:FF:FF:FF:FF"; 
+            EnsureCapability(TikConnectionCapability.Streaming, "WoL command");
+            const string OK_MAC = "FF:FF:FF:FF:FF:FF";
             const string OK_IFACE = "ether1";
 
             ToolWol.ExecuteWol(Connection, new MacAddress(OK_MAC), OK_IFACE);
@@ -97,6 +102,7 @@ namespace tik4net.tests
         [ExpectedException(typeof(TikCommandTrapException), "input does not match any value of interface")]
         public void WolWithInvalidInterfaceWillFail()
         {
+            EnsureCapability(TikConnectionCapability.Streaming, "WoL command");
             const string OK_MAC = "FF:FF:FF:FF:FF:FF";
             const string BAD_IFACE = "kjdshfkjdhfkjdaskjfhs";
 
@@ -118,6 +124,7 @@ namespace tik4net.tests
         [TestMethod]
         public void ExecuteListUntilDone_Traceroute_ReturnsResults()
         {
+            EnsureCapability(TikConnectionCapability.Streaming, "traceroute");
             const string IP = "127.0.0.1";
 
             var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
@@ -131,6 +138,7 @@ namespace tik4net.tests
         [TestMethod]
         public void ExecuteListUntilDone_Traceroute_WithTimeout_ReturnsResults()
         {
+            EnsureCapability(TikConnectionCapability.Streaming, "traceroute");
             const string IP = "127.0.0.1";
 
             var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
@@ -145,6 +153,7 @@ namespace tik4net.tests
         [ExpectedException(typeof(TikCommandAbortException))]
         public void ExecuteListUntilDone_NeverEndingCommand_ThrowsAbortException()
         {
+            EnsureCapability(TikConnectionCapability.Streaming, "torch streaming");
             // /tool/torch never sends !done on its own — timeout must kick in
             var cmd = Connection.CreateCommandAndParameters("/tool/torch", TikCommandParameterFormat.NameValue,
                 "interface", "ether1");
@@ -158,6 +167,7 @@ namespace tik4net.tests
         [TestMethod]
         public void ExecuteListWithDuration_EarlyDone_DoesNotSetWasAborted()
         {
+            EnsureCapability(TikConnectionCapability.Streaming, "ExecuteListWithDuration");
             // Before the fix this set wasAborted=true when !done arrived before the duration elapsed.
             const string IP = "127.0.0.1";
 
@@ -177,6 +187,7 @@ namespace tik4net.tests
         [TestMethod]
         public void ExecuteListWithDuration_EarlyDone_DoesNotThrow()
         {
+            EnsureCapability(TikConnectionCapability.Streaming, "ExecuteListWithDuration");
             // Before the fix this threw TikCommandAbortException when !done arrived before the duration elapsed.
             const string IP = "127.0.0.1";
 
@@ -195,6 +206,7 @@ namespace tik4net.tests
         [TestMethod]
         public void TracerouteToLocalhostWillNotFail()
         {
+            EnsureCapability(TikConnectionCapability.Streaming, "traceroute");
             const string IP = "127.0.0.1";
 
             var result = ToolTraceroute.Execute(Connection, IP);
@@ -203,8 +215,9 @@ namespace tik4net.tests
 
         [TestMethod]
         public void TracerouteToLocalhostWillNotFail_2()
-        {            
-            const string IP = "127.0.0.1";            
+        {
+            EnsureCapability(TikConnectionCapability.Streaming, "traceroute");
+            const string IP = "127.0.0.1";
 
             var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
                 "address", IP,
@@ -217,6 +230,7 @@ namespace tik4net.tests
         [TestMethod]
         public void TracerouteToGoogleDnsWillNotFail()
         {
+            EnsureCapability(TikConnectionCapability.Streaming, "traceroute");
             const string IP = "8.8.8.8";
 
             var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
@@ -229,6 +243,7 @@ namespace tik4net.tests
         [TestMethod]
         public void TracerouteUnreachableAddressWillNotFail()
         {
+            EnsureCapability(TikConnectionCapability.Streaming, "traceroute");
             const string IP = "192.168.4.255";
 
             var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,

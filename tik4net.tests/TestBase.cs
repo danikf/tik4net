@@ -13,6 +13,9 @@ namespace tik4net.tests
         private ITikConnection _connection;
         private Version _routerOsVersion;
 
+        /// <summary>MSTest injects this for access to runsettings parameters.</summary>
+        public TestContext TestContext { get; set; }
+
         protected ITikConnection Connection
         {
             get { return _connection; }
@@ -42,11 +45,38 @@ namespace tik4net.tests
             // dummy
         }
 
+        /// <summary>
+        /// Resolves the transport type to use. Priority:
+        /// 1. runsettings parameter  tik.connectionType
+        /// 2. App.config key         connectionType
+        /// 3. Default                Api
+        /// </summary>
+        protected TikConnectionType ResolveConnectionType()
+        {
+            string raw = null;
+
+            // 1. runsettings / TestContext
+            if (TestContext?.Properties != null && TestContext.Properties.Contains("tik.connectionType"))
+                raw = TestContext.Properties["tik.connectionType"] as string;
+
+            // 2. App.config
+            if (string.IsNullOrEmpty(raw))
+                raw = ConfigurationManager.AppSettings["connectionType"];
+
+            // 3. Default
+            if (string.IsNullOrEmpty(raw))
+                raw = "Api";
+
+            return (TikConnectionType)Enum.Parse(typeof(TikConnectionType), raw, ignoreCase: true);
+        }
+
         protected void RecreateConnection(int retryTimeoutSeconds = 20)
         {
             string host = ConfigurationManager.AppSettings["host"];
             string user = ConfigurationManager.AppSettings["user"];
-            string pass = ConfigurationManager.AppSettings["pass"];
+            string pass = ConfigurationManager.AppSettings["pass"] ?? "";
+
+            TikConnectionType connType = ResolveConnectionType();
 
             var deadline = DateTime.UtcNow.AddSeconds(retryTimeoutSeconds);
             Exception lastException;
@@ -54,7 +84,7 @@ namespace tik4net.tests
             {
                 try
                 {
-                    _connection = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass);
+                    _connection = ConnectionFactory.OpenConnection(connType, host, user, pass);
                     _connection.DebugEnabled = true;
                     _routerOsVersion = null;
                     return;
@@ -66,7 +96,22 @@ namespace tik4net.tests
                 }
             } while (DateTime.UtcNow < deadline);
 
-            throw new Exception($"Could not connect to router at {host} within {retryTimeoutSeconds}s.", lastException);
+            throw new Exception($"Could not connect to router at {host} via {connType} within {retryTimeoutSeconds}s.", lastException);
+        }
+
+        /// <summary>
+        /// Marks the test as Inconclusive when the active transport does not support the given capability.
+        /// </summary>
+        protected void EnsureCapability(TikConnectionCapability cap, string feature = null)
+        {
+            if (!_connection.Supports(cap))
+            {
+                string transportName = ResolveConnectionType().ToString();
+                string msg = $"Transport '{transportName}' does not support {cap}"
+                             + (feature != null ? $" ({feature})" : "")
+                             + " — test skipped.";
+                Assert.Inconclusive(msg);
+            }
         }
 
         /// <summary>

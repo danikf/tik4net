@@ -203,6 +203,7 @@ namespace tik4net.tests
         [TestMethod]
         public void ExecuteAsync_OnDoneCallback_Called()
         {
+            EnsureCapability(TikConnectionCapability.Listen, "ExecuteAsync");
             bool onDoneCallbackCalled = false;
 
             var torchCommand = Connection.CreateCommandAndParameters("/tool/torch", "interface", "ether1");
