@@ -116,16 +116,26 @@ namespace tik4net.tests
         public void CreateAndRemoveHotspotIpBindingsWillNotFail()
         {
             const string ADDRESS = "192.168.168.1";
+
+            // pre-cleanup: remove leftovers from previous failed runs
+            foreach (var leftover in Connection.LoadAll<HotspotIpBinding>()
+                .Where(b => b.Address == ADDRESS))
+                Connection.Delete(leftover);
+
             var binding = new HotspotIpBinding()
             {
                 Address = ADDRESS,
             };
-            
             Connection.Save(binding);
-            var loadedBinding = Connection.LoadAll<HotspotIpBinding>().SingleOrDefault(ib => ib.Address == ADDRESS);
-            Assert.IsNotNull(loadedBinding);
-
-            Connection.Delete(binding);
+            try
+            {
+                var loadedBinding = Connection.LoadAll<HotspotIpBinding>().SingleOrDefault(ib => ib.Address == ADDRESS);
+                Assert.IsNotNull(loadedBinding);
+            }
+            finally
+            {
+                Connection.Delete(binding);
+            }
         }
 
         #endregion

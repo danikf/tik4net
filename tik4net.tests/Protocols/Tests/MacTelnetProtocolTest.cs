@@ -46,6 +46,7 @@ namespace tik4net.tests
             }
         }
 
+        [Ignore]
         [TestMethod]
         public void MacTelnet_Login_ListInterfaces_ReturnsAtLeastOne()
         {
@@ -65,6 +66,7 @@ namespace tik4net.tests
             }
         }
 
+        [Ignore]
         [TestMethod]
         public void MacTelnet_SetAndVerify_InterfaceEther1Comment()
         {

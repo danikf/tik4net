@@ -57,29 +57,33 @@ namespace tik4net.tests
         }
 
 
-        [TestMethod]       
+        [TestMethod]
         public void StaticDnsRecordWithRegexWillNotFail_Issue77()
         {
-            //create item
+            // pre-cleanup: remove leftovers from previous failed runs
+            foreach (var leftover in Connection.LoadAll<DnsStatic>()
+                .Where(d => d.Address == "1.1.1.1" && d.Regexp == "*.local"))
+                Connection.Delete(leftover);
+
             var dnsItem = new DnsStatic()
             {
                 Address = "1.1.1.1",
                 Regexp = "*.local",
-
             };
             Connection.Save(dnsItem);
 
-            //Load all
-            var items = Connection.LoadAll<DnsStatic>();
-
-            //Asserts
-            var item = items.SingleOrDefault(i => i.Address == dnsItem.Address);
-            Assert.IsNotNull(item);
-            Assert.AreEqual(dnsItem.Regexp, item.Regexp);
-            Assert.IsTrue(string.IsNullOrWhiteSpace(item.Name));
-
-            //cleanup
-            Connection.Delete(item);
+            try
+            {
+                var items = Connection.LoadAll<DnsStatic>();
+                var item = items.SingleOrDefault(i => i.Address == dnsItem.Address && i.Regexp == dnsItem.Regexp);
+                Assert.IsNotNull(item);
+                Assert.AreEqual(dnsItem.Regexp, item.Regexp);
+                Assert.IsTrue(string.IsNullOrWhiteSpace(item.Name));
+            }
+            finally
+            {
+                Connection.Delete(dnsItem);
+            }
         }
     }
 }

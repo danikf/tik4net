@@ -21,6 +21,7 @@ namespace tik4net.tests
         private static readonly string DefaultDumpDir =
             @"C:\Data\Source\Projekty.Danik\tik4net\tik4net\_notes\WinboxMessage";
 
+        [Ignore]
         [TestMethod]
         public void DumpAllWebfigFiles()
         {

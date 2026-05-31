@@ -46,13 +46,22 @@ namespace tik4net.tests
         [TestMethod]
         public void CreateAndDeletePppProfileWilNotFail()
         {
+            // pre-cleanup: remove leftovers with the same name that would cause Save to fail
+            foreach (var leftover in Connection.LoadAll<PppProfile>().Where(p => p.Name == "Test"))
+                Connection.Delete(leftover);
+
             var before = Connection.LoadAll<PppProfile>();
-            var newProfile = new PppProfile()
-            {
-                Name = "Test",
-            };
+            var newProfile = new PppProfile() { Name = "Test" };
             Connection.Save(newProfile);
-            Connection.Delete(newProfile);
+            try
+            {
+                Connection.Delete(newProfile);
+            }
+            catch
+            {
+                try { Connection.Delete(newProfile); } catch { }
+                throw;
+            }
             var after = Connection.LoadAll<PppProfile>();
             Assert.AreEqual(before.Count(), after.Count());
         }

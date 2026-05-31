@@ -187,6 +187,21 @@ namespace tik4net.tests
             const string TEST_IP = "192.0.2.1/32"; // TEST-NET, safe dummy address
             const string TEST_IFACE = "ether1";
 
+            // Pre-cleanup: remove any leftover address from a previous crashed run
+            try
+            {
+                var printCmd = Connection.CreateCommand("/ip/address/print");
+                printCmd.AddParameter("address", TEST_IP, TikCommandParameterFormat.Filter);
+                foreach (var row in printCmd.ExecuteList())
+                {
+                    var id = row.GetResponseField(TikSpecialProperties.Id);
+                    Connection.CreateCommandAndParameters("/ip/address/remove",
+                        TikCommandParameterFormat.NameValue,
+                        TikSpecialProperties.Id, id).ExecuteNonQuery();
+                }
+            }
+            catch { /* leftover cleanup is best-effort */ }
+
             // create a dummy IP address to delete during the test
             var addCmd = Connection.CreateCommandAndParameters("/ip/address/add",
                 TikCommandParameterFormat.NameValue,

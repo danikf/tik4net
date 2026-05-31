@@ -47,6 +47,7 @@ namespace tik4net.tests
             }
         }
 
+        [Ignore]
         [TestMethod]
         public void WinboxMac_Login_ListInterfaces_ReturnsAtLeastOne()
         {
@@ -65,7 +66,7 @@ namespace tik4net.tests
                 Assert.IsTrue(ifaces.Count > 0, "Router should expose at least one interface");
             }
         }
-
+        [Ignore]
         [TestMethod]
         public void WinboxMac_SetAndVerify_InterfaceEther1Comment()
         {

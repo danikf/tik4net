@@ -27,9 +27,9 @@ namespace tik4net.tests
             var cmd2 = Connection.LoadAsync<ToolTorch>(t => { System.Diagnostics.Debug.WriteLine("ether1b: " + t); },
                 ex => { System.Diagnostics.Debug.WriteLine("ERROR: " + ex.Message); isFailed = true; },
                 Connection.CreateParameter("interface", "ether1"));
-            Thread.Sleep(5 * 1000);
+            Thread.Sleep(3 * 1000);
             cmd2.CancelAndJoin();
-            Thread.Sleep(5 * 1000);
+            Thread.Sleep(3 * 1000);
             cmd1.CancelAndJoin();
 
             Assert.IsFalse(isFailed);

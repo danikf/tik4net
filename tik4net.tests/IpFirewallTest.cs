@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Ip.Firewall;
@@ -75,6 +76,11 @@ namespace tik4net.tests
         [TestMethod]
         public void FirewalTcpFilterAccept_BytesAndPackets_NotZero()
         {
+            // pre-cleanup: remove leftovers that would absorb traffic before the test rule
+            foreach (var leftover in Connection.LoadAll<FirewallFilter>()
+                .Where(f => f.Comment == "test-tcp" && f.Chain == "input"))
+                Connection.Delete(leftover);
+
             var firewallItem = new FirewallFilter()
             {
                 Action = FirewallFilter.ActionType.Accept, //default value

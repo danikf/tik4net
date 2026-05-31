@@ -220,6 +220,13 @@ namespace tik4net.tests
             const string name = "TEST_NAME_ISSUE53";
             const string scriptLines = ":log info (\"start\") \r\n/ system identity print \r\n/ system identity print\r\n:log info (\"end\") ";
             const int commandRowsCnt = 2; // 2x call of / system identity print
+
+            // pre-cleanup: remove any leftover script with this name that would cause add to fail
+            foreach (var leftover in Connection.CreateCommand("/system/script/print").ExecuteList()
+                .Where(s => s.GetResponseField("name") == name))
+                Connection.CreateCommandAndParameters("/system/script/remove",
+                    TikSpecialProperties.Id, leftover.GetId()).ExecuteNonQuery();
+
             ITikCommand scriptCreateCmd = Connection.CreateCommandAndParameters("/system/script/add",
                 "name", name,
                 "source", scriptLines);
