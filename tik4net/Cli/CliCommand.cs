@@ -165,26 +165,27 @@ namespace tik4net.Cli
                     return newId;
                 }
 
-                // For reads: resolve Default params to Filter, then read list
+                // For reads: resolve Default params to Filter, then read via print and pick the target
+                // field from the row. We deliberately do NOT use 'get value-name=…' here: RouterOS
+                // rejects 'get .id=*N' ("syntax error") and 'value-name=.id' ("input does not match any
+                // value of value-name"). The print path (':put [/path print as-value where .id=*N]')
+                // works for all fields including '.id'.
                 var paramsForRead = ResolveParamsForRead(normalParams);
                 var cmd = BuildCommand(normalCmd, paramsForRead);
 
-                // If a specific target field is requested and the entity has an .id, use get
-                string idValue = FindIdParam(paramsForRead);
-                if (!string.IsNullOrEmpty(target) && !string.IsNullOrEmpty(idValue))
+                IList<CliReSentence> rows;
+                try
                 {
-                    string getCmd = CliCommandBuilder.BuildGetScalar(normalCmd, idValue, target);
-                    string rawVal = _connection.RunScalarGet(getCmd);
-                    if (rawVal == null)
-                    {
-                        if (throwIfMissing)
-                            throw new TikNoSuchItemException(this);
-                        return defaultValue;
-                    }
-                    return rawVal;
+                    rows = _connection.RunPrint(cmd);
                 }
-
-                var rows = _connection.RunPrint(cmd);
+                catch (TikNoSuchItemException)
+                {
+                    // Filtering by a non-matching/invalid .id yields "expected item id" on RouterOS.
+                    // For the *OrDefault variants this means "not found" → return the default.
+                    if (throwIfMissing)
+                        throw;
+                    return defaultValue;
+                }
                 if (rows.Count == 0)
                 {
                     if (throwIfMissing)

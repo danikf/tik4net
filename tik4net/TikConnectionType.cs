@@ -42,9 +42,11 @@ namespace tik4net
         [Obsolete("For future use.", true)]        
         Ssh,
         /// <summary>
-        /// Telnet connection - NOT IMPLEMENTED YET.
+        /// MikroTik RouterOS Telnet connection (plain-text TCP port 23).
+        /// Provides full CRUD support via the RouterOS CLI (<c>print as-value</c>).
+        /// Listen/Streaming operations are not supported.
+        /// Requires the <c>telnet</c> service to be enabled on the router (<c>/ip/service set telnet disabled=no</c>).
         /// </summary>
-        [Obsolete("For future use.", true)]
         Telnet
     }
 }

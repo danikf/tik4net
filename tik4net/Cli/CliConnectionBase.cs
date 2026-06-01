@@ -187,6 +187,9 @@ namespace tik4net.Cli
         {
             EnsureOpened();
             string output = ExecuteCliCommand(cliText);
+            // Error-check so RouterOS error text (e.g. "input does not match any value of value-name",
+            // "syntax error …") is surfaced as the correct exception instead of leaking as a value.
+            CliErrorParser.ThrowIfError(output, new CliCommand(this, cliText));
             if (string.IsNullOrWhiteSpace(output))
                 return null;
             return output.Trim();

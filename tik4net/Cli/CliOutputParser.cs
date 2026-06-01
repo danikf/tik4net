@@ -1,23 +1,30 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 
 namespace tik4net.Cli
 {
     /// <summary>
-    /// Parses RouterOS <c>print as-value</c> output (one record per line, fields separated by <c>;</c>)
-    /// into a list of <see cref="CliReSentence"/> objects.
+    /// Parses RouterOS as-value output (produced via <c>:put [/path print as-value …]</c>) into a
+    /// list of <see cref="CliReSentence"/> objects.
     ///
-    /// Limitations (v0.2):
-    ///   - Quote-aware parsing: values enclosed in "…" may contain embedded ';' without issue.
-    ///   - Embedded ';' in unquoted list-type fields (e.g. route-count, wireless ranges, BGP stats)
-    ///     will still cause incorrect splits. Use the :serialize delimiter="#" workaround for those
-    ///     entities (TODO for a future version).
+    /// <para>Format: <c>:put</c> emits ALL records on a single logical line, fields separated by
+    /// <c>;</c>, with each record starting at <c>.id=</c>. Example:
+    /// <code>.id=*2;name=ether1;type=ether;.id=*1;name=lo;type=loopback</code>
+    /// Singleton entities (e.g. /system/resource) have no <c>.id</c> and form a single record.
+    /// Newline-separated input (one record per line, as other transports may produce) is also
+    /// accepted — newlines are treated as field separators and records are still split at <c>.id</c>.</para>
+    ///
+    /// <para>Limitations (v0.2):
+    ///   - Quote-aware: values enclosed in "…" may contain embedded ';' without issue.
+    ///   - Embedded ';' in unquoted list-type fields (route-count, wireless ranges, BGP stats) can
+    ///     still cause incorrect splits — use :serialize delimiter="#" for those (TODO).
+    ///   - A list entity that has no <c>.id</c> at all collapses into one record.</para>
     /// </summary>
     internal static class CliOutputParser
     {
         /// <summary>
-        /// Parses <paramref name="output"/> (output of <c>/path print as-value</c>) into a list of
-        /// re-sentences. Empty output returns an empty list.
+        /// Parses <paramref name="output"/> into a list of re-sentences. Empty output → empty list.
         /// </summary>
         internal static IList<CliReSentence> ParseAsValue(string output)
         {
@@ -25,39 +32,68 @@ namespace tik4net.Cli
             if (string.IsNullOrWhiteSpace(output))
                 return result;
 
-            // Split on newlines — each non-empty line is one record
-            var lines = output.Split('\n');
-            foreach (var rawLine in lines)
-            {
-                string line = rawLine.Trim();
-                // Skip blank lines and lines that look like RouterOS prompts or echoes
-                if (string.IsNullOrEmpty(line))
-                    continue;
-                // Skip lines that don't contain '=' (headers, blank separator lines, etc.)
-                if (line.IndexOf('=') < 0)
-                    continue;
+            // Normalise line breaks into field separators (':put' output is one line, but be defensive).
+            var flat = new StringBuilder(output.Length);
+            foreach (char c in output)
+                flat.Append(c == '\r' || c == '\n' ? ';' : c);
 
-                var fields = ParseFields(line);
-                if (fields.Count > 0)
-                    result.Add(new CliReSentence(fields));
+            // Parse the ordered key=value sequence, then group into records at '.id' boundaries.
+            var pairs = ParseOrderedFields(flat.ToString());
+
+            var records = new List<Dictionary<string, string>>();
+            Dictionary<string, string> current = null;
+            foreach (var kv in pairs)
+            {
+                bool isId = string.Equals(kv.Key, TikSpecialProperties.Id, StringComparison.OrdinalIgnoreCase);
+                if (current == null || (isId && current.Count > 0))
+                {
+                    current = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    records.Add(current);
+                }
+                current[kv.Key] = kv.Value;
             }
+
+            foreach (var rec in records)
+                if (rec.Count > 0)
+                    result.Add(new CliReSentence(rec));
 
             return result;
         }
 
         /// <summary>
-        /// Parses a single <c>key=value;key2=value2;…</c> line into a dictionary.
-        /// Handles values enclosed in double-quotes (which may contain embedded ';').
+        /// Parses a single <c>key=value;key2=value2;…</c> line into a dictionary (last value wins).
+        /// Retained for callers/tests that expect a flat dictionary.
         /// </summary>
         internal static Dictionary<string, string> ParseFields(string line)
         {
             var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in ParseOrderedFields(line))
+                fields[kv.Key] = kv.Value;
+            return fields;
+        }
+
+        /// <summary>
+        /// Parses a <c>key=value;…</c> string into an ordered list of pairs (preserving record order
+        /// and duplicate <c>.id</c> keys so callers can split into records). Quote-aware: values in
+        /// double-quotes may contain embedded ';'.
+        /// </summary>
+        internal static List<KeyValuePair<string, string>> ParseOrderedFields(string line)
+        {
+            var pairs = new List<KeyValuePair<string, string>>();
+            if (string.IsNullOrEmpty(line))
+                return pairs;
+
             int len = line.Length;
             int pos = 0;
 
             while (pos < len)
             {
-                // Find '=' for this field
+                // Skip leading separators/whitespace between fields.
+                while (pos < len && (line[pos] == ';' || line[pos] == ' ' || line[pos] == '\t'))
+                    pos++;
+                if (pos >= len)
+                    break;
+
                 int eq = line.IndexOf('=', pos);
                 if (eq < 0)
                     break;
@@ -65,30 +101,32 @@ namespace tik4net.Cli
                 string key = line.Substring(pos, eq - pos).Trim();
                 pos = eq + 1;
 
-                // Parse value — may be quoted
                 string value;
                 if (pos < len && line[pos] == '"')
                 {
-                    // Quoted value: scan for closing '"' (no escape handling — RouterOS doesn't use \")
-                    int closeQuote = line.IndexOf('"', pos + 1);
-                    if (closeQuote < 0)
+                    // Quoted value: scan for closing '"' (RouterOS escapes embedded quotes with backslash).
+                    int closeQuote = pos + 1;
+                    while (closeQuote < len)
                     {
-                        // Unterminated quote — take rest of line
+                        if (line[closeQuote] == '"' && line[closeQuote - 1] != '\\')
+                            break;
+                        closeQuote++;
+                    }
+                    if (closeQuote >= len)
+                    {
                         value = line.Substring(pos + 1);
                         pos = len;
                     }
                     else
                     {
-                        value = line.Substring(pos + 1, closeQuote - pos - 1);
+                        value = line.Substring(pos + 1, closeQuote - pos - 1).Replace("\\\"", "\"");
                         pos = closeQuote + 1;
-                        // Consume trailing ';' if present
                         if (pos < len && line[pos] == ';')
                             pos++;
                     }
                 }
                 else
                 {
-                    // Unquoted: scan to next ';'
                     int semi = line.IndexOf(';', pos);
                     if (semi < 0)
                     {
@@ -103,10 +141,10 @@ namespace tik4net.Cli
                 }
 
                 if (!string.IsNullOrEmpty(key))
-                    fields[key] = value;
+                    pairs.Add(new KeyValuePair<string, string>(key, value));
             }
 
-            return fields;
+            return pairs;
         }
     }
 }

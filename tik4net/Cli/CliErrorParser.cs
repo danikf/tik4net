@@ -29,12 +29,15 @@ namespace tik4net.Cli
             // Check is case-insensitive.
             string lower = output.ToLowerInvariant();
 
-            // "no such item" — record not found
-            if (lower.Contains("no such item"))
+            // "no such item" / "expected item id" — record not found (e.g. remove/set with an id
+            // that does not resolve: '[find .id=…]' yields nothing → 'expected item id (line 1 col N)').
+            if (lower.Contains("no such item") || lower.Contains("expected item id"))
                 throw new TikNoSuchItemException(cmd, new CliTrapSentence(ExtractErrorLine(output)));
 
-            // "no such command" / "expected end of command" — bad path/verb
-            if (lower.Contains("no such command") || lower.Contains("expected end of command") || lower.Contains("no such directory"))
+            // "no such command" / "bad command name" / "expected end of command" / "syntax error" — bad path/verb/syntax
+            if (lower.Contains("no such command") || lower.Contains("bad command name")
+                || lower.Contains("expected end of command") || lower.Contains("no such directory")
+                || lower.Contains("syntax error"))
                 throw new TikNoSuchCommandException(cmd, new CliTrapSentence(ExtractErrorLine(output)));
 
             // "already have such item" / "item with such name already exists"

@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using tik4net.Api;
 using tik4net.Rest;
+using tik4net.Telnet;
 
 namespace tik4net
 {
@@ -89,6 +90,20 @@ namespace tik4net
         /// <summary>Async version of <see cref="CreateRestSslConnection"/>.</summary>
         public Task<ITikConnection> CreateRestSslConnectionAsync(CancellationToken ct = default)
             => OpenAsync(new RestConnection(useSsl: true, allowInvalidCert: AllowInvalidCertificate), ct);
+
+        // ── Telnet ────────────────────────────────────────────────────────────
+
+        /// <summary>Creates and opens a Telnet CLI connection (plain-text TCP port 23). Requires RouterOS telnet service enabled.</summary>
+        public ITikConnection CreateTelnetConnection()
+        {
+            var conn = new TelnetConnection();
+            OpenSync(conn);
+            return conn;
+        }
+
+        /// <summary>Async version of <see cref="CreateTelnetConnection"/>.</summary>
+        public Task<ITikConnection> CreateTelnetConnectionAsync(CancellationToken ct = default)
+            => OpenAsync(new TelnetConnection(), ct);
 
         // ── Internals ─────────────────────────────────────────────────────────
 

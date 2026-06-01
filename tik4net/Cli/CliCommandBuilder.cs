@@ -29,12 +29,27 @@ namespace tik4net.Cli
         // ── Print ──────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Builds a <c>/path print as-value [where …]</c> command.
+        /// Builds a <c>:put [/path print as-value [where …]]</c> command.
+        /// <para>
+        /// IMPORTANT: bare <c>print as-value</c> emits NOTHING to an interactive terminal — the
+        /// as-value format is only materialised in script context. Wrapping it in <c>:put [ … ]</c>
+        /// forces RouterOS to print the value. The result is a single line where records are
+        /// concatenated with <c>;</c> and each record starts at <c>.id=</c> (see <see cref="CliOutputParser"/>).
+        /// No <c>without-paging</c> is needed inside <c>:put</c> (script context does not page).
+        /// </para>
         /// </summary>
         internal static string BuildPrint(string apiPath, IList<ITikCommandParameter> parameters)
         {
             string cliBase = ApiPathToCli(apiPath);
-            var sb = new StringBuilder(cliBase);
+            var sb = new StringBuilder(":put [");
+            sb.Append(cliBase);
+
+            // The O/R mapper requests the full field set via a 'detail' NameValue parameter
+            // (metadata.IncludeDetails). Bare 'print as-value' returns only the summary columns
+            // (e.g. /interface omits default-name, mtu, rx-byte…); 'print detail as-value' returns all.
+            if (HasNameValueFlag(parameters, "detail"))
+                sb.Append(" detail");
+
             sb.Append(" as-value");
 
             string whereClause = BuildWhereClause(parameters);
@@ -44,6 +59,7 @@ namespace tik4net.Cli
                 sb.Append(whereClause);
             }
 
+            sb.Append(']');
             return sb.ToString();
         }
 
@@ -189,22 +205,48 @@ namespace tik4net.Cli
 
             // Negation: ?name=!value → name!=value
             if (val.StartsWith("!"))
-                return name + "!=" + QuoteIfNeeded(val.Substring(1));
+                return name + "!=" + QuoteForWhere(val.Substring(1));
 
             // Greater-than: ?>count=5 encoded as value starting with ">"
             if (val.StartsWith(">"))
-                return name + ">" + QuoteIfNeeded(val.Substring(1));
+                return name + ">" + QuoteForWhere(val.Substring(1));
 
             // Less-than: ?<count=5 encoded as value starting with "<"
             if (val.StartsWith("<"))
-                return name + "<" + QuoteIfNeeded(val.Substring(1));
+                return name + "<" + QuoteForWhere(val.Substring(1));
 
             // Regex: ?~comment=eth encoded as value starting with "~"
             if (val.StartsWith("~"))
-                return name + "~" + QuoteIfNeeded(val.Substring(1));
+                return name + "~" + QuoteForWhere(val.Substring(1));
 
             // Plain equality
-            return name + "=" + QuoteIfNeeded(val);
+            return name + "=" + QuoteForWhere(val);
+        }
+
+        /// <summary>
+        /// Quotes a value used on the right side of a <c>where</c> condition. The where-clause is an
+        /// expression context where characters like <c>/</c> (e.g. in <c>192.168.1.1/24</c>) and
+        /// <c>:</c> (e.g. MAC/IPv6) are interpreted as operators, so <c>where address=192.168.1.1/24</c>
+        /// matches NOTHING. Anything outside a conservative safe set is wrapped in double-quotes.
+        /// (Name=value parameters for add/set do NOT need this — they are not expression context.)
+        /// </summary>
+        internal static string QuoteForWhere(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return value;
+
+            bool safe = true;
+            foreach (char c in value)
+            {
+                bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+                          || (c >= '0' && c <= '9') || c == '.' || c == '_' || c == '-';
+                if (!ok) { safe = false; break; }
+            }
+
+            if (safe)
+                return value;
+
+            return "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
         }
 
         private static string BuildFindVerb(string apiPath, IList<ITikCommandParameter> parameters)
@@ -223,6 +265,21 @@ namespace tik4net.Cli
             // Append any remaining NameValue params (e.g. destination for move)
             AppendNameValueParams(sb, parameters, skipId: true);
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Returns true when a non-Filter parameter with the given name is present (e.g. the mapper's
+        /// empty-valued <c>detail</c> flag). Used to translate flag parameters into print modifiers.
+        /// </summary>
+        private static bool HasNameValueFlag(IList<ITikCommandParameter> parameters, string name)
+        {
+            foreach (var p in parameters)
+            {
+                if (p.ParameterFormat != TikCommandParameterFormat.Filter
+                    && string.Equals(p.Name, name, System.StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
         }
 
         private static string FindIdParam(IList<ITikCommandParameter> parameters)
