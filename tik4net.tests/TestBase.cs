@@ -157,6 +157,22 @@ namespace tik4net.tests
         }
 
         /// <summary>
+        /// Marks the test as inconclusive (skipped) when running over a CLI-based transport
+        /// (Telnet, and any future CLI transport such as SSH or MACTelnet) because the feature
+        /// under test is not supported over an interactive terminal session.
+        /// </summary>
+        /// <param name="feature">Short description of the unsupported feature shown in the skip message.</param>
+        protected void SkipOnCli(string feature)
+        {
+            var ct = ResolveConnectionType();
+            if (ct == TikConnectionType.Telnet)
+            {
+                string msg = $"Transport '{ct}' (CLI-based) does not support '{feature}' — known CLI limitation, test skipped.";
+                Assert.Inconclusive(msg);
+            }
+        }
+
+        /// <summary>
         /// Ensures the given API command path exists on the router.
         /// If not, marks the test as inconclusive with a message suggesting the required package may not be installed.
         /// </summary>

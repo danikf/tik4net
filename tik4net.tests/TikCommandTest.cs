@@ -217,6 +217,10 @@ namespace tik4net.tests
         [TestMethod]
         public void RunScript_Issue53_WillNotFail()
         {
+            // CLI transports (Telnet/SSH) run scripts as a fire-and-forget terminal command and produce
+            // no per-line !re sentences — the binary API response semantics are not reproducible over CLI.
+            SkipOnCli("script run per-line !re response");
+
             const string name = "TEST_NAME_ISSUE53";
             const string scriptLines = ":log info (\"start\") \r\n/ system identity print \r\n/ system identity print\r\n:log info (\"end\") ";
             const int commandRowsCnt = 2; // 2x call of / system identity print

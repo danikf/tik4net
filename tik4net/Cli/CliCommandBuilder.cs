@@ -50,6 +50,18 @@ namespace tik4net.Cli
             if (HasNameValueFlag(parameters, "detail"))
                 sb.Append(" detail");
 
+            // Some commands (e.g. /interface/ethernet/monitor) require a 'numbers=<name>' NameValue
+            // parameter to identify the target interface, and a flag-style 'once' parameter to take a
+            // single snapshot instead of running continuously.  These must be passed before 'as-value'.
+            string numbersValue = FindNameValueParam(parameters, "numbers");
+            if (numbersValue != null)
+            {
+                sb.Append(" numbers=");
+                sb.Append(QuoteIfNeeded(numbersValue));
+            }
+            if (HasNameValueFlag(parameters, "once"))
+                sb.Append(" once");
+
             sb.Append(" as-value");
 
             string whereClause = BuildWhereClause(parameters);
@@ -280,6 +292,21 @@ namespace tik4net.Cli
                     return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Returns the value of a non-Filter (NameValue) parameter with the given name, or <c>null</c>
+        /// if no such parameter exists.
+        /// </summary>
+        private static string FindNameValueParam(IList<ITikCommandParameter> parameters, string name)
+        {
+            foreach (var p in parameters)
+            {
+                if (p.ParameterFormat != TikCommandParameterFormat.Filter
+                    && string.Equals(p.Name, name, System.StringComparison.OrdinalIgnoreCase))
+                    return p.Value;
+            }
+            return null;
         }
 
         private static string FindIdParam(IList<ITikCommandParameter> parameters)
