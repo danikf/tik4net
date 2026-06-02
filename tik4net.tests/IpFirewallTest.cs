@@ -76,10 +76,8 @@ namespace tik4net.tests
         [TestMethod]
         public void FirewalTcpFilterAccept_BytesAndPackets_NotZero()
         {
-            // CLI transports return 'print detail as-value' which omits runtime stats counters
-            // (bytes/packets). Those counters are only emitted by 'print stats', which is a separate
-            // CLI mode not exposed through the standard LoadById<T> path.
-            SkipOnCli("firewall filter stats counters (bytes/packets) via print detail as-value");
+            // Previously gated on CLI: CLI now uses two-query (detail + stats) merge, so counters
+            // (bytes/packets) are available on all transports including Telnet.
 
             // pre-cleanup: remove leftovers that would absorb traffic before the test rule
             foreach (var leftover in Connection.LoadAll<FirewallFilter>()

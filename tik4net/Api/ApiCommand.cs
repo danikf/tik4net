@@ -135,6 +135,16 @@ namespace tik4net.Api
                 return TikCommandParameterFormat.NameValue;
         }
 
+        /// <summary>
+        /// Client-side marker parameters that must NEVER be written to the binary API wire.
+        /// (Mirror of <see cref="tik4net.Rest.RestRequestBuilder"/>.IsSpecialParam / CliCommandBuilder.IsSpecialParam;
+        /// the membership differs per transport on purpose.) Unlike REST/CLI, the binary API understands
+        /// <c>.proplist</c> and <c>.tag</c> natively (they ARE valid wire words), so the only thing stripped
+        /// here is the CLI-only <c>.cli-stats</c> stats marker.
+        /// </summary>
+        private static bool IsSpecialParam(string name)
+            => name == TikSpecialProperties.CliStats;
+
         private string[] ConstructCommandText(TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] additionalParamemeters)
         {
             EnsureCommandTextSet();
@@ -159,7 +169,9 @@ namespace tik4net.Api
             }
 
             //parameters
-            result.AddRange(_parameters.Concat(additionalParamemeters).Select(p =>
+            result.AddRange(_parameters.Concat(additionalParamemeters)
+                .Where(p => !IsSpecialParam(p.Name))
+                .Select(p =>
             {
                 if (p.Name.StartsWith("=")) //NameValue format in parameter name
                     return string.Format("{0}={1}", p.Name, p.Value);

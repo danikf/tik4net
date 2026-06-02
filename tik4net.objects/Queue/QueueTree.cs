@@ -8,7 +8,7 @@ namespace tik4net.Objects.Queue
     /// <summary>
     /// /queue/tree
     /// </summary>
-    [TikEntity("/queue/tree", IncludeDetails = true)]
+    [TikEntity("/queue/tree", IncludeDetails = true, IncludeCliStats = true)]
     public class QueueTree
     {
         /// <summary>

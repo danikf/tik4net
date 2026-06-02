@@ -366,6 +366,10 @@ namespace tik4net.Objects
             // =detail=
             if (metadata.IncludeDetails)
                 command.AddParameter("detail", "", TikCommandParameterFormat.NameValue);
+            // CLI-only marker: two-query (detail + stats) merge for entities with live counters.
+            // API/REST transports must silently ignore this parameter (never send it on the wire).
+            if (metadata.IncludeCliStats)
+                command.AddParameter(TikSpecialProperties.CliStats, "", TikCommandParameterFormat.NameValue);
             //.proplist
             if (metadata.IncludeProplist)
                 command.AddParameter(TikSpecialProperties.Proplist, string.Join(",", metadata.Properties.Select(prop => prop.FieldName).ToArray()), TikCommandParameterFormat.NameValue);

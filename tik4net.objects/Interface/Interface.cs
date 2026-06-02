@@ -8,7 +8,7 @@ namespace tik4net.Objects.Interface
     /// <summary>
     /// /interface
     /// </summary>
-    [TikEntity("/interface", IncludeDetails = true)]
+    [TikEntity("/interface", IncludeDetails = true, IncludeCliStats = true)]
     public class Interface
     {
         /// <summary>

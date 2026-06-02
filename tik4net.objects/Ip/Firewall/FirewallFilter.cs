@@ -8,7 +8,7 @@ namespace tik4net.Objects.Ip.Firewall
     /// <summary>
     /// /ip/firewall/filter
     /// </summary>
-    [TikEntity("/ip/firewall/filter", IncludeDetails = true, IsOrdered = true)]
+    [TikEntity("/ip/firewall/filter", IncludeDetails = true, IsOrdered = true, IncludeCliStats = true)]
     public class FirewallFilter
     {
         /// <summary>

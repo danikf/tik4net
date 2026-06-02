@@ -49,6 +49,8 @@ namespace tik4net.Cli
             // (e.g. /interface omits default-name, mtu, rx-byte…); 'print detail as-value' returns all.
             if (HasNameValueFlag(parameters, "detail"))
                 sb.Append(" detail");
+            // NOTE: '.cli-stats' is a CLI-layer signal — it is not a print modifier and must be
+            // ignored here (it never becomes a CLI word or a where-clause predicate).
 
             // Some commands (e.g. /interface/ethernet/monitor) require a 'numbers=<name>' NameValue
             // parameter to identify the target interface, and a flag-style 'once' parameter to take a
@@ -63,6 +65,30 @@ namespace tik4net.Cli
                 sb.Append(" once");
 
             sb.Append(" as-value");
+
+            string whereClause = BuildWhereClause(parameters);
+            if (!string.IsNullOrEmpty(whereClause))
+            {
+                sb.Append(" where ");
+                sb.Append(whereClause);
+            }
+
+            sb.Append(']');
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Builds a <c>:put [/path print stats as-value [where …]]</c> command.
+        /// Used as the second query in the two-query path for entities with <c>IncludeCliStats</c>.
+        /// Does NOT include <c>detail</c> — <c>stats</c> and <c>detail</c> are mutually exclusive
+        /// in RouterOS CLI (adding both yields only the stats columns).
+        /// </summary>
+        internal static string BuildPrintStats(string apiPath, IList<ITikCommandParameter> parameters)
+        {
+            string cliBase = ApiPathToCli(apiPath);
+            var sb = new StringBuilder(":put [");
+            sb.Append(cliBase);
+            sb.Append(" stats as-value");
 
             string whereClause = BuildWhereClause(parameters);
             if (!string.IsNullOrEmpty(whereClause))
@@ -196,8 +222,7 @@ namespace tik4net.Cli
                 string name = p.Name;
                 string val = p.Value ?? string.Empty;
 
-                // Skip special properties
-                if (name == TikSpecialProperties.Proplist || name == TikSpecialProperties.Tag)
+                if (IsSpecialParam(name))
                     continue;
 
                 string condition = BuildCondition(name, val);
@@ -280,8 +305,25 @@ namespace tik4net.Cli
         }
 
         /// <summary>
-        /// Returns true when a non-Filter parameter with the given name is present (e.g. the mapper's
-        /// empty-valued <c>detail</c> flag). Used to translate flag parameters into print modifiers.
+        /// Client-side marker parameters that must NEVER be emitted as a CLI word — they are stripped
+        /// from where-clauses and from name=value lists. (Mirror of <c>RestRequestBuilder.IsSpecialParam</c>
+        /// / <c>ApiCommand.IsSpecialParam</c>; the membership differs per transport on purpose.)
+        ///   <c>.proplist</c> — as-value always returns every field; proplist trimming is not expressible in CLI.
+        ///   <c>.tag</c>      — no tag protocol over a terminal.
+        ///   <c>.cli-stats</c> — CLI-layer signal that triggers the two-query stats merge (<see cref="CliConnectionBase"/>).
+        /// NOTE: this is the "dropped" set. <c>detail</c> / <c>once</c> / <c>numbers</c> are a DIFFERENT
+        /// category — "consumed flags" that <see cref="BuildPrint"/> translates into print modifiers
+        /// (via <see cref="HasNameValueFlag"/> / <see cref="FindNameValueParam"/>), not dropped.
+        /// </summary>
+        private static bool IsSpecialParam(string name)
+            => name == TikSpecialProperties.Proplist
+            || name == TikSpecialProperties.Tag
+            || name == TikSpecialProperties.CliStats;
+
+        /// <summary>
+        /// Returns true when a non-Filter "consumed flag" parameter with the given name is present
+        /// (e.g. the mapper's empty-valued <c>detail</c> flag). Used to translate flag parameters into
+        /// print modifiers (see <see cref="BuildPrint"/>).
         /// </summary>
         private static bool HasNameValueFlag(IList<ITikCommandParameter> parameters, string name)
         {
@@ -327,7 +369,7 @@ namespace tik4net.Cli
                     continue;
                 if (skipId && p.Name == TikSpecialProperties.Id)
                     continue;
-                if (p.Name == TikSpecialProperties.Proplist || p.Name == TikSpecialProperties.Tag)
+                if (IsSpecialParam(p.Name))
                     continue;
 
                 sb.Append(' ');

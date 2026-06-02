@@ -34,5 +34,12 @@ namespace tik4net
         /// Return value from =done sentence. See <see cref="ITikDoneSentence"/>
         /// </summary>
         public const string Ret = "ret";
+
+        /// <summary>
+        /// CLI-only marker — when present on a command, the CLI layer performs two
+        /// print queries (detail + stats) and merges the results by .id.
+        /// API and REST transports silently ignore this parameter.
+        /// </summary>
+        public const string CliStats = ".cli-stats";
     }
 }

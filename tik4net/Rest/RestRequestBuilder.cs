@@ -228,12 +228,20 @@ namespace tik4net.Rest
             return p.ParameterFormat == TikCommandParameterFormat.Filter;
         }
 
+        /// <summary>
+        /// Client-side / specially-handled parameters that are NOT emitted as plain data words.
+        /// (Mirror of <c>ApiCommand.IsSpecialParam</c> / <c>CliCommandBuilder.IsSpecialParam</c>;
+        /// the membership differs per transport on purpose.)
+        ///   <c>.proplist</c> — picked up separately and turned into the <c>?.proplist=</c> URL query.
+        ///   <c>.tag</c>      — no tag protocol over REST.
+        ///   <c>.cli-stats</c> — CLI-only stats marker; never sent on the wire for REST.
+        ///   <c>detail</c>    — no-op in REST (full details are returned by default).
+        /// </summary>
         private static bool IsSpecialParam(string name)
         {
-            // .tag, .proplist are handled separately
-            // "detail" is a no-op in REST (full details are returned by default)
             return name == TikSpecialProperties.Tag
                 || name == TikSpecialProperties.Proplist
+                || name == TikSpecialProperties.CliStats
                 || string.Equals(name, "detail", StringComparison.OrdinalIgnoreCase);
         }
 

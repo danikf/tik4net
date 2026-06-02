@@ -126,14 +126,79 @@ namespace tik4net.Cli
 
         /// <summary>
         /// Executes a <c>print as-value</c> command and returns parsed sentences.
+        /// When the <c>.cli-stats</c> marker is present in the descriptor's parameters,
+        /// performs two queries (detail + stats) and merges the results by <c>.id</c>
+        /// so that config fields and live counter fields are combined in each record.
         /// </summary>
         internal IList<CliReSentence> RunPrint(CliCommandDescriptor descriptor)
         {
             EnsureOpened();
-            string cliText = CliCommandBuilder.BuildPrint(descriptor.CommandText, descriptor.Parameters);
-            string output = ExecuteCliCommand(cliText);
-            CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
-            return CliOutputParser.ParseAsValue(output);
+
+            bool needStats = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliStats);
+
+            if (!needStats)
+            {
+                // Normal single-query path.
+                string cliText = CliCommandBuilder.BuildPrint(descriptor.CommandText, descriptor.Parameters);
+                string output = ExecuteCliCommand(cliText);
+                CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+                return CliOutputParser.ParseAsValue(output);
+            }
+
+            // Two-query path: detail (config) + stats (counters), merged by .id.
+            string detailText = CliCommandBuilder.BuildPrint(descriptor.CommandText, descriptor.Parameters);
+            string detailOutput = ExecuteCliCommand(detailText);
+            CliErrorParser.ThrowIfError(detailOutput, CreateDummyCommand(descriptor));
+            IList<CliReSentence> configRecords = CliOutputParser.ParseAsValue(detailOutput);
+
+            string statsText = CliCommandBuilder.BuildPrintStats(descriptor.CommandText, descriptor.Parameters);
+            string statsOutput = ExecuteCliCommand(statsText);
+            CliErrorParser.ThrowIfError(statsOutput, CreateDummyCommand(descriptor));
+            IList<CliReSentence> statsRecords = CliOutputParser.ParseAsValue(statsOutput);
+
+            // Build index of stats records by .id for O(1) lookup.
+            var statsById = new Dictionary<string, CliReSentence>(StringComparer.OrdinalIgnoreCase);
+            foreach (var sr in statsRecords)
+            {
+                string id = sr.GetResponseFieldOrDefault(TikSpecialProperties.Id, null);
+                if (id != null)
+                    statsById[id] = sr;
+            }
+
+            if (statsById.Count == 0)
+            {
+                // Stats returned nothing or no .id — fall back gracefully to config-only.
+                return configRecords;
+            }
+
+            // Merge: overlay stats fields onto each config record.
+            var merged = new List<CliReSentence>(configRecords.Count);
+            foreach (var cfg in configRecords)
+            {
+                string id = cfg.GetResponseFieldOrDefault(TikSpecialProperties.Id, null);
+                if (id == null || !statsById.TryGetValue(id, out CliReSentence sr))
+                {
+                    // No matching stats record — keep config as-is.
+                    merged.Add(cfg);
+                    continue;
+                }
+
+                // Clone config fields and add missing stats fields.
+                var mergedFields = new Dictionary<string, string>(
+                    StringComparer.OrdinalIgnoreCase);
+                // Start with config (includes all config fields + .id).
+                foreach (var kv in cfg.Words)
+                    mergedFields[kv.Key] = kv.Value;
+                // Overlay stats: add fields not already present in config.
+                foreach (var kv in sr.Words)
+                {
+                    if (!mergedFields.ContainsKey(kv.Key))
+                        mergedFields[kv.Key] = kv.Value;
+                }
+                merged.Add(new CliReSentence(mergedFields));
+            }
+
+            return merged;
         }
 
         /// <summary>

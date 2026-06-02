@@ -48,6 +48,15 @@ namespace tik4net.Objects
         public bool IncludeDetails { get; set; }
 
         /// <summary>
+        /// If the entity has live counter fields (bytes/packets/rx-byte/tx-byte…) that are only
+        /// returned by CLI's <c>print stats as-value</c> mode.  When true, CLI transports perform
+        /// two print queries (detail + stats) and merge the results by <c>.id</c>.
+        /// API and REST transports already receive counters via <c>detail</c> — they ignore this flag.
+        /// Default: false.
+        /// </summary>
+        public bool IncludeCliStats { get; set; }
+
+        /// <summary>
         /// If entity fields should be listed explicitly via .proplist option.
         /// </summary>
         public bool IncludeProplist { get; set; }

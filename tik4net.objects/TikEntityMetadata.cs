@@ -62,6 +62,13 @@ namespace tik4net.Objects
         public bool IncludeDetails { get; private set; }
 
         /// <summary>
+        /// If the entity has live counter fields that require a separate <c>print stats</c> query
+        /// on CLI transports.  API/REST already get counters via <c>detail</c>.
+        /// </summary>
+        /// <seealso cref="TikEntityAttribute.IncludeCliStats"/>
+        public bool IncludeCliStats { get; private set; }
+
+        /// <summary>
         /// If all <see cref="Properties"/> should be explicitly listed via .proplist option.
         /// </summary>
         /// <seealso cref="TikEntityAttribute.IncludeProplist"/>
@@ -113,6 +120,7 @@ namespace tik4net.Objects
             IsReadOnly = entityAttribute.IsReadOnly;
             IsOrdered = entityAttribute.IsOrdered;
             IncludeDetails = entityAttribute.IncludeDetails;
+            IncludeCliStats = entityAttribute.IncludeCliStats;
             IncludeProplist = entityAttribute.IncludeProplist;
             IsSingleton = entityAttribute.IsSingleton;
 
