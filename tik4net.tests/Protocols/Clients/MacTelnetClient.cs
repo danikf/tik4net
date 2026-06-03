@@ -116,7 +116,9 @@ namespace tik4net.tests
 
                     sb.Append(Encoding.UTF8.GetString(payload));
                     string stripped = CliParsing.StripAnsi(sb.ToString());
-                    if (stripped.Contains("] >") && stripped.Length >= minLen) break;
+                    // Use EndsWith, not Contains: the command echo starts with "[admin@...] > "
+                    // which would falsely trigger Contains before the actual output arrives.
+                    if (stripped.TrimEnd().EndsWith("] >") && stripped.Length >= minLen) break;
                 }
                 catch (SocketException) { /* poll timeout */ }
             }
@@ -130,16 +132,21 @@ namespace tik4net.tests
         public string GetInterfaceComment(string ifName)
         {
             string output = ExecuteCommand($"/interface print detail where name={ifName}");
-            var m = Regex.Match(output, @"comment=""([^""]*)""");
-            if (m.Success) return m.Groups[1].Value;
-            m = Regex.Match(output, @"\bcomment=(\S+)");
-            return m.Success ? m.Groups[1].Value : "";
+            // RouterOS terminal shows comments as ";;; text"
+            var m = Regex.Match(output, @";;;\s+(.+?)(?:\r|\n|$)", RegexOptions.Multiline);
+            if (m.Success) return m.Groups[1].Value.Trim();
+            return "";
         }
 
         public void SetInterfaceComment(string ifName, string comment)
         {
-            string safe = (comment ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"");
-            ExecuteCommand($"/interface set {ifName} comment=\"{safe}\"");
+            string safe = comment ?? "";
+            string valueExpr = (safe.Length == 0)
+                ? "\"\""
+                : (safe.IndexOfAny(new[] { ' ', '"', '\\' }) >= 0)
+                    ? "\"" + safe.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\""
+                    : safe;
+            ExecuteCommand($"/interface set {ifName} comment={valueExpr}");
         }
     }
 }

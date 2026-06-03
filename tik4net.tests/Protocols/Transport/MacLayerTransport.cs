@@ -54,7 +54,9 @@ namespace tik4net.tests
 
         // ── Transport state ──────────────────────────────────────────────────────
         protected UdpClient  _udp;
-        protected IPEndPoint _routerEp;    // unicast/broadcast to router
+        protected IPEndPoint _routerEp;        // starts as subnet broadcast; DATA/ACK use _routerUnicastEp
+        protected IPEndPoint _routerUnicastEp; // known unicast IP:20561 from host param
+        private   IPAddress  _broadcastAddr;   // subnet broadcast, used for latch detection
         protected byte[]     _localMac;
         protected byte[]     _routerMac;
         protected ushort     _sessionKey;
@@ -68,20 +70,28 @@ namespace tik4net.tests
         protected void BaseConnect(string host, ushort clientType)
         {
             _clientType = clientType;
-            _localMac   = GetLocalMac();
+            _localMac   = GetLocalMac(host);
             _routerMac  = GetRouterMac(host);
 
             byte[] kb = new byte[2];
             using (var rng = RandomNumberGenerator.Create()) rng.GetBytes(kb);
             _sessionKey = BitConverter.ToUInt16(kb, 0);
 
-            int srcPort = 50000 + new Random().Next(1000, 5000);
-            _udp = new UdpClient(srcPort) { EnableBroadcast = true };
+            // Bind to OS-assigned port (port 0). The router responds to our source port,
+            // so any port works as long as we're listening on it. SO_REUSEADDR for safety.
+            _udp = new UdpClient(0) { EnableBroadcast = true };
+            _udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
             _udp.Client.ReceiveTimeout = 5000;
+            int srcPort = ((IPEndPoint)_udp.Client.LocalEndPoint).Port;
             Console.WriteLine($"[connect] Bound to srcPort {srcPort}");
 
-            _routerEp   = new IPEndPoint(GetBroadcastAddress(host), 20561);
-            Console.WriteLine($"[connect] Sending to broadcast {_routerEp}, " +
+            // SESSIONSTART goes to subnet broadcast (required for router to respond).
+            // DATA and ACK go to known unicast IP — avoids latch-to-0.0.0.0 issue when
+            // the router broadcasts its ACK/PASSSALT responses.
+            _broadcastAddr    = GetBroadcastAddress(host);
+            _routerEp         = new IPEndPoint(_broadcastAddr, 20561);
+            _routerUnicastEp  = new IPEndPoint(IPAddress.Parse(host), 20561);
+            Console.WriteLine($"[connect] Broadcast dst {_routerEp}, unicast dst {_routerUnicastEp}, " +
                 $"srcMac={string.Join(":", _localMac.Select(b => b.ToString("X2")))}, " +
                 $"dstMac={string.Join(":", _routerMac.Select(b => b.ToString("X2")))}");
             _outCounter = 0;
@@ -208,14 +218,16 @@ namespace tik4net.tests
             pkt[0] = 1; pkt[1] = type;
             Buffer.BlockCopy(_localMac,  0, pkt, 2, 6);
             Buffer.BlockCopy(_routerMac, 0, pkt, 8, 6);
-            pkt[14] = (byte)(_sessionKey & 0xFF); pkt[15] = (byte)(_sessionKey >> 8);
-            pkt[16] = (byte)(_clientType & 0xFF); pkt[17] = (byte)(_clientType >> 8);
+            pkt[14] = (byte)(_sessionKey >> 8);   pkt[15] = (byte)(_sessionKey & 0xFF);
+            pkt[16] = (byte)(_clientType >> 8);   pkt[17] = (byte)(_clientType & 0xFF);
             pkt[18] = (byte)(counter >> 24); pkt[19] = (byte)(counter >> 16);
             pkt[20] = (byte)(counter >> 8);  pkt[21] = (byte)(counter & 0xFF);
             if (payload != null && payload.Length > 0)
                 Buffer.BlockCopy(payload, 0, pkt, 22, payload.Length);
-            Console.WriteLine($"[send] type={type} sk=0x{_sessionKey:X4} ct=0x{_clientType:X4} ctr={counter} paylen={payload?.Length ?? 0} to {_routerEp}");
-            _udp.Send(pkt, pkt.Length, _routerEp);
+            // SESSIONSTART uses broadcast so the router sees it; everything else uses unicast.
+            var dst = (type == PKT_SESSIONSTART) ? _routerEp : _routerUnicastEp;
+            Console.WriteLine($"[send] type={type} sk=0x{_sessionKey:X4} ct=0x{_clientType:X4} ctr={counter} paylen={payload?.Length ?? 0} to {dst}");
+            _udp.Send(pkt, pkt.Length, dst);
             if (type == PKT_DATA && payload != null) _outCounter += (uint)payload.Length;
         }
 
@@ -225,11 +237,11 @@ namespace tik4net.tests
             pkt[0] = 1; pkt[1] = PKT_ACK;
             Buffer.BlockCopy(_localMac,  0, pkt, 2, 6);
             Buffer.BlockCopy(_routerMac, 0, pkt, 8, 6);
-            pkt[14] = (byte)(_sessionKey & 0xFF); pkt[15] = (byte)(_sessionKey >> 8);
-            pkt[16] = (byte)(_clientType & 0xFF); pkt[17] = (byte)(_clientType >> 8);
+            pkt[14] = (byte)(_sessionKey >> 8);   pkt[15] = (byte)(_sessionKey & 0xFF);
+            pkt[16] = (byte)(_clientType >> 8);   pkt[17] = (byte)(_clientType & 0xFF);
             pkt[18] = (byte)(ackCounter >> 24); pkt[19] = (byte)(ackCounter >> 16);
             pkt[20] = (byte)(ackCounter >> 8);  pkt[21] = (byte)(ackCounter & 0xFF);
-            _udp.Send(pkt, pkt.Length, _routerEp);
+            _udp.Send(pkt, pkt.Length, _routerUnicastEp);
         }
 
         protected void SendPong(uint counter)
@@ -238,11 +250,11 @@ namespace tik4net.tests
             pkt[0] = 1; pkt[1] = PKT_PONG;
             Buffer.BlockCopy(_localMac,  0, pkt, 2, 6);
             Buffer.BlockCopy(_routerMac, 0, pkt, 8, 6);
-            pkt[14] = (byte)(_sessionKey & 0xFF); pkt[15] = (byte)(_sessionKey >> 8);
-            pkt[16] = (byte)(_clientType & 0xFF); pkt[17] = (byte)(_clientType >> 8);
+            pkt[14] = (byte)(_sessionKey >> 8);   pkt[15] = (byte)(_sessionKey & 0xFF);
+            pkt[16] = (byte)(_clientType >> 8);   pkt[17] = (byte)(_clientType & 0xFF);
             pkt[18] = (byte)(counter >> 24); pkt[19] = (byte)(counter >> 16);
             pkt[20] = (byte)(counter >> 8);  pkt[21] = (byte)(counter & 0xFF);
-            _udp.Send(pkt, pkt.Length, _routerEp);
+            _udp.Send(pkt, pkt.Length, _routerUnicastEp);
         }
 
         // Receives packets, calling handler until it returns true (= done). Throws on timeout.
@@ -264,14 +276,18 @@ namespace tik4net.tests
                         continue;
                     }
                     byte   type    = pkt[1];
-                    ushort sk14    = (ushort)(pkt[14] | (pkt[15] << 8));
-                    ushort ct16    = (ushort)(pkt[16] | (pkt[17] << 8));
+                    ushort sk14    = (ushort)((pkt[14] << 8) | pkt[15]);
+                    ushort ct16    = (ushort)((pkt[16] << 8) | pkt[17]);
                     uint   counter = ((uint)pkt[18] << 24) | ((uint)pkt[19] << 16) |
                                      ((uint)pkt[20] <<  8) |  pkt[21];
-                    byte[] payload = pkt.Length > 22 ? pkt.Skip(22).ToArray() : new byte[0];
-                    string srcMac  = string.Join(":", pkt.Skip(2).Take(6).Select(b => b.ToString("X2")));
-                    string dstMac  = string.Join(":", pkt.Skip(8).Take(6).Select(b => b.ToString("X2")));
+                    byte[] payload    = pkt.Length > 22 ? pkt.Skip(22).ToArray() : new byte[0];
+                    byte[] pktSrcMac  = pkt.Skip(2).Take(6).ToArray();
+                    string srcMac     = string.Join(":", pktSrcMac.Select(b => b.ToString("X2")));
+                    string dstMac     = string.Join(":", pkt.Skip(8).Take(6).Select(b => b.ToString("X2")));
                     Console.WriteLine($"[recv] from {ep} type={type} sk=0x{sk14:X4} ct=0x{ct16:X4} ctr={counter} paylen={payload.Length} srcMac={srcMac} dstMac={dstMac}");
+                    // Skip our own broadcast-echoed packets (srcMac == localMac).
+                    if (pktSrcMac.SequenceEqual(_localMac)) { Console.WriteLine("  [skip] own echo"); continue; }
+                    // No unicast latch needed — _routerUnicastEp is set from host param in BaseConnect.
                     if (payload.Length > 0 && IsControlPacket(payload))
                     {
                         foreach (var (ct, cd) in ParseCtrl(payload))
@@ -326,13 +342,46 @@ namespace tik4net.tests
             && payload[2] == 0x12 && payload[3] == 0xFF;
 
         // ── Network helpers ──────────────────────────────────────────────────────
-        private static byte[] GetLocalMac()
+        private static byte[] GetLocalMac(string host = null)
         {
+            IPAddress target = null;
+            if (host != null) try { target = IPAddress.Parse(host); } catch { }
+
+            // First pass: prefer the NIC whose subnet contains the router IP.
+            // On a PC with Hyper-V / VPN / VirtualBox adapters this avoids picking a virtual NIC.
+            if (target != null)
+            {
+                foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (ni.OperationalStatus != OperationalStatus.Up)            continue;
+                    if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
+                    if (ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel)   continue;
+                    var mac = ni.GetPhysicalAddress().GetAddressBytes();
+                    if (mac.Length != 6 || !mac.Any(b => b != 0)) continue;
+                    foreach (var ua in ni.GetIPProperties().UnicastAddresses)
+                    {
+                        if (ua.Address.AddressFamily != AddressFamily.InterNetwork) continue;
+                        byte[] lb = ua.Address.GetAddressBytes();
+                        byte[] mb = ua.IPv4Mask.GetAddressBytes();
+                        byte[] tb = target.GetAddressBytes();
+                        bool same = true;
+                        for (int i = 0; i < 4; i++)
+                            if ((lb[i] & mb[i]) != (tb[i] & mb[i])) { same = false; break; }
+                        if (same)
+                        {
+                            Console.WriteLine($"[connect] Local MAC from NIC '{ni.Name}': {string.Join(":", mac.Select(b => b.ToString("X2")))}");
+                            return mac;
+                        }
+                    }
+                }
+            }
+
+            // Fallback: first active non-loopback non-tunnel NIC.
             foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
             {
-                if (ni.OperationalStatus != OperationalStatus.Up)             continue;
-                if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback)  continue;
-                if (ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel)    continue;
+                if (ni.OperationalStatus != OperationalStatus.Up)            continue;
+                if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
+                if (ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel)   continue;
                 var mac = ni.GetPhysicalAddress().GetAddressBytes();
                 if (mac.Length == 6 && mac.Any(b => b != 0)) return mac;
             }

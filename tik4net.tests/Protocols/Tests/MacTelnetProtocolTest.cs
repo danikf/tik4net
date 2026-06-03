@@ -2,10 +2,8 @@
 // Scenario: login + list interfaces + set/restore comment on ether1.
 // Uses UDP 20561 with client_type=0x0015.
 //
-// NOTE: These tests currently fail due to a client-side network issue
-// (Windows Firewall likely blocks inbound UDP unicast responses from the router).
-// The protocol implementation is correct; the issue is in the test environment.
-// See _notes/poc-consolidation-and-native-m2-plan.md §5 (Faze E) for diagnosis steps.
+// Fix applied (Chapter D): router responds to client port 20561, not to ephemeral port.
+// MacLayerTransport.BaseConnect now binds to 0.0.0.0:20561 with SO_REUSEADDR.
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
@@ -46,7 +44,6 @@ namespace tik4net.tests
             }
         }
 
-        [Ignore]
         [TestMethod]
         public void MacTelnet_Login_ListInterfaces_ReturnsAtLeastOne()
         {
@@ -66,7 +63,6 @@ namespace tik4net.tests
             }
         }
 
-        [Ignore]
         [TestMethod]
         public void MacTelnet_SetAndVerify_InterfaceEther1Comment()
         {
