@@ -217,10 +217,6 @@ namespace tik4net.tests
         [TestMethod]
         public void RunScript_Issue53_WillNotFail()
         {
-            // CLI transports (Telnet/SSH) run scripts as a fire-and-forget terminal command and produce
-            // no per-line !re sentences — the binary API response semantics are not reproducible over CLI.
-            SkipOnCli("script run per-line !re response");
-
             const string name = "TEST_NAME_ISSUE53";
             const string scriptLines = ":log info (\"start\") \r\n/ system identity print \r\n/ system identity print\r\n:log info (\"end\") ";
             const int commandRowsCnt = 2; // 2x call of / system identity print
@@ -241,7 +237,12 @@ namespace tik4net.tests
                 ITikCommand scriptRunCmd = Connection.CreateCommand("/system/script/run",
                     Connection.CreateParameter(TikSpecialProperties.Id, id, TikCommandParameterFormat.NameValue));
                 var responseRows = scriptRunCmd.ExecuteList();
-                Assert.IsTrue(responseRows.Count() == commandRowsCnt); //one empty !re row per script line command
+                if (IsCliTransport())
+                    // Over a terminal the script runs fire-and-forget — no per-line !re rows are produced
+                    // (unlike the binary API). We only assert the run did not fault.
+                    Assert.IsNotNull(responseRows);
+                else
+                    Assert.IsTrue(responseRows.Count() == commandRowsCnt); //one empty !re row per script line command
 
                 ////run via number
                 //ITikCommand scriptRunCmd1 = Connection.CreateCommand("/system/script/run",

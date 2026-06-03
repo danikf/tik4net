@@ -164,12 +164,21 @@ namespace tik4net.tests
         /// <param name="feature">Short description of the unsupported feature shown in the skip message.</param>
         protected void SkipOnCli(string feature)
         {
-            var ct = ResolveConnectionType();
-            if (ct == TikConnectionType.Telnet)
+            if (IsCliTransport())
             {
-                string msg = $"Transport '{ct}' (CLI-based) does not support '{feature}' — known CLI limitation, test skipped.";
+                string msg = $"Transport '{ResolveConnectionType()}' (CLI-based) does not support '{feature}' — known CLI limitation, test skipped.";
                 Assert.Inconclusive(msg);
             }
+        }
+
+        /// <summary>
+        /// True when the active transport is CLI/terminal-based (currently Telnet; extend for SSH-PTY /
+        /// MAC-Telnet). Use to branch assertions that depend on binary-API response semantics the
+        /// terminal cannot reproduce (e.g. per-line !re rows from <c>/system/script/run</c>).
+        /// </summary>
+        protected bool IsCliTransport()
+        {
+            return ResolveConnectionType() == TikConnectionType.Telnet;
         }
 
         /// <summary>

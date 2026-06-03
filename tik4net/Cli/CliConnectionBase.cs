@@ -134,6 +134,17 @@ namespace tik4net.Cli
         {
             EnsureOpened();
 
+            // Action verbs invoked via ExecuteList (e.g. /system/script/run) are not reads — over a
+            // terminal they execute fire-and-forget and yield no per-record !re output (unlike the
+            // binary API). Run as an action and return an empty result set.
+            if (GetVerb(descriptor.CommandText) == "run")
+            {
+                string runCli = CliCommandBuilder.BuildSimpleVerb(descriptor.CommandText, "run", descriptor.Parameters);
+                string runOut = ExecuteCliCommand(runCli);
+                CliErrorParser.ThrowIfError(runOut, CreateDummyCommand(descriptor));
+                return new List<CliReSentence>();
+            }
+
             bool needStats = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliStats);
 
             if (!needStats)
