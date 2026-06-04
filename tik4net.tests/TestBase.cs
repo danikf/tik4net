@@ -178,7 +178,8 @@ namespace tik4net.tests
         /// </summary>
         protected bool IsCliTransport()
         {
-            return ResolveConnectionType() == TikConnectionType.Telnet;
+            var t = ResolveConnectionType();
+            return t == TikConnectionType.Telnet || t == TikConnectionType.MacTelnet;
         }
 
         /// <summary>

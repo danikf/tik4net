@@ -92,13 +92,13 @@ namespace tik4net.Telnet
         /// </summary>
         internal async Task<string> SendCommandAndReadAsync(string command, CancellationToken ct)
         {
-            string cmd = InjectWithoutPaging(command);
+            string cmd = CliOutputHelper.InjectWithoutPaging(command);
 
             await SendLineAsync(cmd, ct).ConfigureAwait(false);
 
             string raw = await ReadCommandResponseAsync(ct).ConfigureAwait(false);
 
-            return CleanOutput(raw, cmd);
+            return CliOutputHelper.CleanOutput(raw, cmd);
         }
 
         // ── Close / Dispose ───────────────────────────────────────────────────
@@ -274,105 +274,5 @@ namespace tik4net.Telnet
         private Task SendBytesAsync(byte[] bytes, CancellationToken ct)
             => _stream.WriteAsync(bytes, 0, bytes.Length, ct);
 
-        /// <summary>
-        /// Injects <c>without-paging</c> immediately after the <c>print</c> token when
-        /// the command contains <c>print</c> but does not already contain <c>without-paging</c>.
-        /// </summary>
-        private static string InjectWithoutPaging(string command)
-        {
-            const string printToken = "print";
-            const string withoutPaging = "without-paging";
-
-            if (command == null) return command;
-            if (command.IndexOf(withoutPaging, StringComparison.OrdinalIgnoreCase) >= 0)
-                return command; // already present
-
-            // Case-insensitive search for " print" or "print " or standalone "print"
-            int idx = IndexOfToken(command, printToken);
-            if (idx < 0)
-                return command;
-
-            int insertAt = idx + printToken.Length;
-            return command.Substring(0, insertAt) + " " + withoutPaging + command.Substring(insertAt);
-        }
-
-        /// <summary>
-        /// Finds the start of the token <paramref name="token"/> in <paramref name="source"/>
-        /// as a whole word (surrounded by non-alpha characters or at string bounds).
-        /// Case-insensitive.
-        /// </summary>
-        private static int IndexOfToken(string source, string token)
-        {
-            int start = 0;
-            while (start <= source.Length - token.Length)
-            {
-                int idx = source.IndexOf(token, start, StringComparison.OrdinalIgnoreCase);
-                if (idx < 0) return -1;
-
-                bool leftOk  = idx == 0 || !char.IsLetterOrDigit(source[idx - 1]);
-                bool rightOk = idx + token.Length >= source.Length || !char.IsLetterOrDigit(source[idx + token.Length]);
-
-                if (leftOk && rightOk)
-                    return idx;
-
-                start = idx + 1;
-            }
-            return -1;
-        }
-
-        /// <summary>
-        /// Removes the command echo (first line) and the trailing shell prompt (last non-empty line)
-        /// from the ANSI-stripped router response.
-        /// Returns the data lines joined with '\n'.
-        /// </summary>
-        private static string CleanOutput(string stripped, string sentCommand)
-        {
-            // Split on \r\n or \n
-            string[] lines = stripped.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
-
-            int start = 0;
-            int end   = lines.Length - 1;
-
-            // Remove leading empty lines
-            while (start <= end && string.IsNullOrWhiteSpace(lines[start]))
-                start++;
-
-            // First non-empty line is the echo of the sent command — skip it
-            if (start <= end)
-            {
-                string echoLine = lines[start].Trim();
-                // Accept the line as echo even if it's only a prefix of the sent command
-                // (terminal may wrap it), or the full command possibly with prompt prefix.
-                if (echoLine.IndexOf(sentCommand.TrimStart('/'), StringComparison.OrdinalIgnoreCase) >= 0
-                    || sentCommand.TrimStart('/').StartsWith(echoLine, StringComparison.OrdinalIgnoreCase))
-                {
-                    start++;
-                }
-            }
-
-            // Remove trailing empty lines
-            while (end >= start && string.IsNullOrWhiteSpace(lines[end]))
-                end--;
-
-            // Last non-empty line is the shell prompt — remove it
-            if (end >= start)
-            {
-                string lastLine = lines[end].TrimEnd('\r', '\n', ' ');
-                if (lastLine.EndsWith(RouterOsCliLogin.PromptSuffix, StringComparison.Ordinal))
-                    end--;
-            }
-
-            if (start > end)
-                return string.Empty;
-
-            // Join remaining lines
-            var sb = new StringBuilder();
-            for (int i = start; i <= end; i++)
-            {
-                if (sb.Length > 0) sb.Append('\n');
-                sb.Append(lines[i]);
-            }
-            return sb.ToString();
-        }
     }
 }

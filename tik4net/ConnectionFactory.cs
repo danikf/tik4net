@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using tik4net.Api;
+using tik4net.MacTelnet;
 using tik4net.Rest;
 using tik4net.Telnet;
 
@@ -34,6 +35,8 @@ namespace tik4net
                     return new RestConnection(useSsl: true);
                 case TikConnectionType.Telnet:
                     return new TelnetConnection();
+                case TikConnectionType.MacTelnet:
+                    return new MacTelnetConnection();
                 default:
                     throw new NotImplementedException(string.Format("Connection type '{0}' not supported.", connectionType));
             }

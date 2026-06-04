@@ -47,6 +47,15 @@ namespace tik4net
         /// Listen/Streaming operations are not supported.
         /// Requires the <c>telnet</c> service to be enabled on the router (<c>/ip/service set telnet disabled=no</c>).
         /// </summary>
-        Telnet
+        Telnet,
+        /// <summary>
+        /// MikroTik RouterOS MAC-Telnet connection (UDP port 20561).
+        /// Provides full CRUD support via the RouterOS CLI over the MAC layer (EC-SRP5 auth).
+        /// Listen/Streaming operations are not supported.
+        /// Requires <c>/tool/mac-server set allowed-interface-list=all</c> on the router.
+        /// The router's MAC address is discovered via MNDP (up to 5 s) unless
+        /// <see cref="MacTelnet.MacTelnetConnection.RouterMac"/> is set before opening.
+        /// </summary>
+        MacTelnet
     }
 }

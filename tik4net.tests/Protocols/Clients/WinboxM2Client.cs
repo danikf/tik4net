@@ -12,6 +12,8 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using tik4net.Crypto;
+using ECPoint = tik4net.Crypto.ECPoint;
 
 namespace tik4net.tests
 {

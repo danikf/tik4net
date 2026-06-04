@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using tik4net.Api;
+using tik4net.MacTelnet;
 using tik4net.Rest;
 using tik4net.Telnet;
 
@@ -104,6 +105,28 @@ namespace tik4net
         /// <summary>Async version of <see cref="CreateTelnetConnection"/>.</summary>
         public Task<ITikConnection> CreateTelnetConnectionAsync(CancellationToken ct = default)
             => OpenAsync(new TelnetConnection(), ct);
+
+        // ── MAC-Telnet ────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Creates and opens a MAC-Telnet CLI connection (UDP port 20561).
+        /// Requires <c>/tool/mac-server set allowed-interface-list=all</c> on the router.
+        /// The router MAC address is discovered via MNDP (up to 5 s) when <paramref name="routerMac"/>
+        /// is not provided.
+        /// </summary>
+        /// <param name="routerMac">
+        /// Optional router MAC address as <c>"AA:BB:CC:DD:EE:FF"</c> to bypass MNDP discovery.
+        /// </param>
+        public ITikConnection CreateMacTelnetConnection(string routerMac = null)
+        {
+            var conn = new MacTelnetConnection { RouterMac = routerMac };
+            OpenSync(conn);
+            return conn;
+        }
+
+        /// <summary>Async version of <see cref="CreateMacTelnetConnection"/>.</summary>
+        public Task<ITikConnection> CreateMacTelnetConnectionAsync(string routerMac = null, CancellationToken ct = default)
+            => OpenAsync(new MacTelnetConnection { RouterMac = routerMac }, ct);
 
         // ── Internals ─────────────────────────────────────────────────────────
 

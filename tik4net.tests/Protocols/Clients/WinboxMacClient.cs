@@ -13,6 +13,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
+using tik4net.Crypto;
+using tik4net.MacTelnet;
 
 namespace tik4net.tests
 {
@@ -20,7 +22,7 @@ namespace tik4net.tests
     /// Winbox M2 client over MAC transport (UDP 20561, client_type=0x0f90).
     /// EXPERIMENTAL: M2 framing inside DATA packets is unverified against Wireshark capture.
     /// </summary>
-    internal sealed class WinboxMacClient : MacLayerTransport
+    internal sealed class WinboxMacClient : tik4net.MacTelnet.MacLayerTransport
     {
         private const ushort CLIENT_TYPE = 0x0f90;
         private const int    SRC_ID      = 8;

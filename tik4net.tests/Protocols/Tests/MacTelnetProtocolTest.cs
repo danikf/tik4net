@@ -1,13 +1,11 @@
-// MacTelnetProtocolTest.cs — MAC-Telnet protocol tests
-// Scenario: login + list interfaces + set/restore comment on ether1.
-// Uses UDP 20561 with client_type=0x0015.
-//
-// Fix applied (Chapter D): router responds to client port 20561, not to ephemeral port.
-// MacLayerTransport.BaseConnect now binds to 0.0.0.0:20561 with SO_REUSEADDR.
+// MacTelnetProtocolTest.cs — MAC-Telnet smoke tests via ITikConnection
+// Verifies login + CRUD via ConnectionFactory.OpenConnection(TikConnectionType.MacTelnet, ...)
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Configuration;
+using System.Linq;
+using tik4net.MacTelnet;
 
 namespace tik4net.tests
 {
@@ -26,40 +24,40 @@ namespace tik4net.tests
             {
                 try
                 {
-                    var print1 = conn.CreateCommand("/tool/mac-server/print");
-                    foreach (var row in print1.ExecuteList())
-                        Console.WriteLine("[init] MAC Telnet: allowed-interface-list=" +
-                            row.GetResponseFieldOrDefault("allowed-interface-list", "?"));
-                }
-                catch (Exception ex) { Console.WriteLine("[init] Cannot read mac-server: " + ex.Message); }
-
-                try
-                {
                     var cmd = conn.CreateCommand("/tool/mac-server/set");
                     cmd.AddParameterAndValues("allowed-interface-list", "all");
                     cmd.ExecuteNonQuery();
-                    Console.WriteLine("[init] MAC Telnet: set allowed-interface-list=all");
+                    Console.WriteLine("[init] MAC server: set allowed-interface-list=all");
                 }
-                catch (Exception ex) { Console.WriteLine("[init] MAC Telnet set failed: " + ex.Message); }
+                catch (Exception ex) { Console.WriteLine("[init] MAC server set failed: " + ex.Message); }
             }
+        }
+
+        private static MacTelnetConnection OpenMacTelnetConnection()
+        {
+            var host    = ConfigurationManager.AppSettings["host"];
+            var user    = ConfigurationManager.AppSettings["user"];
+            var pass    = ConfigurationManager.AppSettings["pass"] ?? "";
+            var macAddr = ConfigurationManager.AppSettings["routerMac"]; // optional MNDP bypass
+
+            var conn = new MacTelnetConnection { RouterMac = macAddr };
+            conn.Open(host, user, pass);
+            return conn;
         }
 
         [TestMethod]
         public void MacTelnet_Login_ListInterfaces_ReturnsAtLeastOne()
         {
-            var host = ConfigurationManager.AppSettings["host"];
-            var user = ConfigurationManager.AppSettings["user"];
-            var pass = ConfigurationManager.AppSettings["pass"] ?? "";
-
-            using (var client = new MacTelnetClient())
+            using (var conn = OpenMacTelnetConnection())
             {
-                client.Connect(host, user, pass);
-                var ifaces = client.ListInterfaces();
+                var ifaces = conn.CreateCommand("/interface/print").ExecuteList();
 
-                Console.WriteLine($"=== MACTELNET INTERFACES ({ifaces.Count} found) ===");
-                foreach (var i in ifaces) Console.WriteLine("  " + i);
+                var ifaceList = ifaces.ToList();
+                Console.WriteLine($"=== MACTELNET INTERFACES ({ifaceList.Count} found) ===");
+                foreach (var i in ifaceList)
+                    Console.WriteLine("  name=" + i.GetResponseFieldOrDefault("name", "?"));
 
-                Assert.IsTrue(ifaces.Count > 0, "Router should expose at least one interface");
+                Assert.IsTrue(ifaceList.Count > 0, "Router should expose at least one interface");
             }
         }
 
@@ -70,27 +68,44 @@ namespace tik4net.tests
             var user = ConfigurationManager.AppSettings["user"];
             var pass = ConfigurationManager.AppSettings["pass"] ?? "";
 
-            using (var client = new MacTelnetClient())
+            // Read original comment via API (reliable baseline)
+            string original;
+            using (var api = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
             {
-                client.Connect(host, user, pass);
+                var row = api.CreateCommand("/interface/print", api.CreateParameter("?name", "ether1", TikCommandParameterFormat.Filter))
+                    .ExecuteList().FirstOrDefault();
+                original = row?.GetResponseFieldOrDefault("comment", "") ?? "";
+            }
+            Console.WriteLine($"Original comment: '{original}'");
 
-                string original = client.GetInterfaceComment("ether1");
-                Console.WriteLine($"Original: '{original}'");
+            const string testComment = "tik4net-mactelnet-test";
 
-                const string testComment = "tik4net-mactelnet-test";
-                client.SetInterfaceComment("ether1", testComment);
+            using (var conn = OpenMacTelnetConnection())
+            {
+                // Set via MAC-Telnet
+                var setCmd = conn.CreateCommand("/interface/set");
+                setCmd.AddParameterAndValues(".id", "ether1", "comment", testComment);
+                setCmd.ExecuteNonQuery();
                 Console.WriteLine($"Set: '{testComment}'");
 
-                string verified = client.GetInterfaceComment("ether1");
+                // Verify via MAC-Telnet
+                var row = conn.CreateCommand("/interface/print",
+                    conn.CreateParameter("?name", "ether1", TikCommandParameterFormat.Filter))
+                    .ExecuteList().FirstOrDefault();
+                string verified = row?.GetResponseFieldOrDefault("comment", "") ?? "";
                 Console.WriteLine($"Verified: '{verified}'");
 
-                client.SetInterfaceComment("ether1", original);
-                string restored = client.GetInterfaceComment("ether1");
-                Console.WriteLine($"Restored: '{restored}'");
-
-                Assert.AreEqual(testComment, verified, "Comment should be updated via MACTelnet");
-                Assert.AreEqual(original,    restored, "Original comment should be restored");
+                Assert.AreEqual(testComment, verified, "Comment should be updated via MAC-Telnet");
             }
+
+            // Restore via API
+            using (var api = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
+            {
+                var restore = api.CreateCommand("/interface/set");
+                restore.AddParameterAndValues(".id", "ether1", "comment", original);
+                restore.ExecuteNonQuery();
+            }
+            Console.WriteLine($"Restored: '{original}'");
         }
     }
 }
