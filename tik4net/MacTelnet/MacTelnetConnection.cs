@@ -43,7 +43,7 @@ namespace tik4net.MacTelnet
         public override void Open(string host, int port, string user, string password)
         {
             // port parameter kept for interface compatibility; MAC-Telnet always uses UDP 20561
-            var client = new MacTelnetUdpClient(Encoding, ReceiveTimeout, RouterMac, TransportDiagnostic);
+            var client = new MacTelnetUdpClient(Encoding, ReceiveTimeout, RouterMac);
             try
             {
                 client.LoginAsync(host, user, password, CancellationToken.None).GetAwaiter().GetResult();
@@ -69,7 +69,7 @@ namespace tik4net.MacTelnet
         /// <inheritdoc/>
         public override async Task OpenAsync(string host, int port, string user, string password)
         {
-            var client = new MacTelnetUdpClient(Encoding, ReceiveTimeout, RouterMac, TransportDiagnostic);
+            var client = new MacTelnetUdpClient(Encoding, ReceiveTimeout, RouterMac);
             try
             {
                 await client.LoginAsync(host, user, password, CancellationToken.None).ConfigureAwait(false);

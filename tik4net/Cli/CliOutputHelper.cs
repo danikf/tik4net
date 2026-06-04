@@ -41,19 +41,28 @@ namespace tik4net.Cli
             int start = 0;
             int end   = lines.Length - 1;
 
-            // Remove leading empty lines
-            while (start <= end && string.IsNullOrWhiteSpace(lines[start]))
-                start++;
-
-            // First non-empty line is the echo of the sent command — skip it
-            if (start <= end)
+            // Skip ALL leading empty lines and command-echo lines. A PTY transport may echo the
+            // command more than once: RouterOS first character-echoes the typed command on its own
+            // line and then repaints the line-editor as "<prompt> <command>" (prompt-prefixed echo).
+            // Telnet (CR-LF line ending) typically produces a single echo; MAC-Telnet (raw VT100, CR
+            // only) produces both. Removing only the first echo leaves the prompt-prefixed echo line,
+            // which then merges into the first as-value record and corrupts it (record without .id).
+            // A data line never contains the sent command, so this loop is safe across transports.
+            string cmdCore = sentCommand.TrimStart('/');
+            while (start <= end)
             {
-                string echoLine = lines[start].Trim();
-                if (echoLine.IndexOf(sentCommand.TrimStart('/'), StringComparison.OrdinalIgnoreCase) >= 0
-                    || sentCommand.TrimStart('/').StartsWith(echoLine, StringComparison.OrdinalIgnoreCase))
+                string line = lines[start].Trim();
+                if (string.IsNullOrWhiteSpace(line))
                 {
                     start++;
+                    continue;
                 }
+                bool isEcho = !string.IsNullOrEmpty(cmdCore)
+                              && (line.IndexOf(cmdCore, StringComparison.OrdinalIgnoreCase) >= 0
+                                  || cmdCore.StartsWith(line, StringComparison.OrdinalIgnoreCase));
+                if (!isEcho)
+                    break;
+                start++;
             }
 
             // Remove trailing empty lines

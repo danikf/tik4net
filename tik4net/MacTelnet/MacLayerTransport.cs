@@ -65,6 +65,7 @@ namespace tik4net.MacTelnet
         protected ushort     _sessionKey;
         protected ushort     _clientType;
         protected uint       _outCounter;         // cumulative DATA payload bytes sent
+        protected uint       _inCounter;          // cumulative DATA payload bytes received (for ACK + dedup)
 
         // ── AES / HMAC stream keys (derived after EC-SRP5, used by WinBox MAC) ──
         protected byte[] _sendAesKey, _receiveAesKey, _sendHmacKey, _receiveHmacKey;
@@ -102,6 +103,27 @@ namespace tik4net.MacTelnet
             _routerEp        = new IPEndPoint(broadcastAddr, 20561);
             _routerUnicastEp = new IPEndPoint(IPAddress.Parse(host), 20561);
             _outCounter = 0;
+            _inCounter  = 0;
+        }
+
+        /// <summary>
+        /// Acknowledges a received DATA packet and reports whether it carries new data.
+        /// <para>
+        /// The MAC-layer counter is the cumulative byte offset of the stream, so the ACK must
+        /// reference the offset <em>past</em> this packet (<c>counter + payloadLen</c>) — ACKing the
+        /// packet's own start offset makes RouterOS believe the packet was lost and retransmit it
+        /// indefinitely, which derails the cursor-probe terminal negotiation. Retransmissions
+        /// (<c>counter &lt; _inCounter</c>) are still ACKed but must not be reprocessed (doing so would
+        /// corrupt the VT100 cursor state and the accumulated output buffer).
+        /// </para>
+        /// </summary>
+        /// <returns><c>true</c> if the packet is new and should be processed; <c>false</c> for a duplicate.</returns>
+        protected bool AckData(uint counter, int payloadLen)
+        {
+            SendAck(counter + (uint)payloadLen);
+            if (counter < _inCounter) return false;   // retransmission — already processed
+            _inCounter = counter + (uint)payloadLen;
+            return true;
         }
 
         // Derives subnet broadcast for the subnet containing host.
@@ -161,7 +183,7 @@ namespace tik4net.MacTelnet
                 if (type == PKT_ACK) return false;
                 if (type == PKT_PING) { SendPong(counter); return false; }
                 if (type != PKT_DATA) return false;
-                SendAck(counter);
+                if (!AckData(counter, payload.Length)) return false;   // duplicate — ignore
                 foreach (var (ct, cd) in ParseCtrl(payload))
                 {
                     if (ct == CTRL_PASSSALT && cd.Length == 49)
@@ -176,53 +198,6 @@ namespace tik4net.MacTelnet
                 }
                 return false;
             });
-            if (xWB == null) throw new InvalidOperationException("No server PASSSALT received (auth failed)");
-
-            FinishAuth(user, pass, privA, xWA, xWB, parityB, salt);
-        }
-
-        /// <summary>
-        /// Performs EC-SRP5 authentication over the MAC layer.
-        /// Async version (used by MacTelnetUdpClient).
-        /// </summary>
-        protected async Task AuthenticateAsync(string user, string pass, CancellationToken ct)
-        {
-            byte[] privA = new byte[32];
-            using (var rng = RandomNumberGenerator.Create()) rng.GetBytes(privA);
-            var (xWA, parityA) = EcSrp5.GenPublicKey(privA);
-
-            Send(PKT_SESSIONSTART, null);
-            await Task.Delay(80, ct).ConfigureAwait(false);
-
-            byte[] psd = Encoding.UTF8.GetBytes(user)
-                .Concat(new byte[] { 0 }).Concat(xWA).Concat(new byte[] { (byte)parityA })
-                .ToArray();
-            Send(PKT_DATA,
-                BuildCtrl(CTRL_BEGINAUTH, new byte[0])
-                .Concat(BuildCtrl(CTRL_PASSSALT, psd)).ToArray());
-
-            byte[] xWB = null; int parityB = 0; byte[] salt = null;
-            await RecvUntilAsync(10000, (type, payload, counter) =>
-            {
-                if (type == PKT_ACK) return false;
-                if (type == PKT_PING) { SendPong(counter); return false; }
-                if (type != PKT_DATA) return false;
-                SendAck(counter);
-                foreach (var (ctype, cd) in ParseCtrl(payload))
-                {
-                    if (ctype == CTRL_PASSSALT && cd.Length == 49)
-                    {
-                        xWB     = cd.Take(32).ToArray();
-                        parityB = cd[32];
-                        salt    = cd.Skip(33).Take(16).ToArray();
-                        return true;
-                    }
-                    if (ctype == CTRL_PASSSALT && cd.Length == 16)
-                        throw new NotSupportedException("Legacy MD5 auth not supported for MAC layer");
-                }
-                return false;
-            }, ct).ConfigureAwait(false);
-
             if (xWB == null) throw new InvalidOperationException("No server PASSSALT received (auth failed)");
 
             FinishAuth(user, pass, privA, xWA, xWB, parityB, salt);
@@ -261,7 +236,7 @@ namespace tik4net.MacTelnet
                 if (type == PKT_ACK) return false;
                 if (type == PKT_PING) { SendPong(counter); return false; }
                 if (type != PKT_DATA) return false;
-                SendAck(counter);
+                if (!AckData(counter, payload.Length)) return false;   // duplicate — ignore
                 foreach (var (ctype, _) in ParseCtrl(payload))
                     if (ctype == CTRL_END_AUTH) return true;
                 return false;
@@ -340,64 +315,6 @@ namespace tik4net.MacTelnet
                 }
             }
             throw new TimeoutException("Timed out waiting for expected MAC-layer packet");
-        }
-
-        /// <summary>
-        /// Receives packets in a polling loop (async), calling <paramref name="handler"/>
-        /// until it returns <c>true</c>. Throws <see cref="TimeoutException"/> if not satisfied
-        /// within <paramref name="timeoutMs"/> milliseconds.
-        /// </summary>
-        protected async Task RecvUntilAsync(int timeoutMs, Func<byte, byte[], uint, bool> handler,
-            CancellationToken ct)
-        {
-            var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
-            while (DateTime.UtcNow < deadline && !ct.IsCancellationRequested)
-            {
-                if (_udp.Available > 0)
-                {
-                    var result = await _udp.ReceiveAsync().ConfigureAwait(false);
-                    var parsed = ParsePacket(result.Buffer);
-                    if (parsed == null) continue;
-                    var (type, counter, payload, srcMac) = parsed.Value;
-                    if (srcMac.SequenceEqual(_localMac)) continue;  // skip own echo
-                    if (handler(type, payload, counter)) return;
-                }
-                else
-                {
-                    await Task.Delay(20, ct).ConfigureAwait(false);
-                }
-            }
-            ct.ThrowIfCancellationRequested();
-            throw new TimeoutException("Timed out waiting for expected MAC-layer packet");
-        }
-
-        /// <summary>
-        /// Tries to receive one packet within <paramref name="pollMs"/> milliseconds.
-        /// Returns null if nothing arrives in that window.
-        /// Skips own-echo packets automatically.
-        /// Runs on a thread pool thread via Task.Run so the call site stays async;
-        /// uses a blocking UdpClient.Receive with ReceiveTimeout (same as the verified PoC).
-        /// </summary>
-        protected Task<(byte type, uint counter, byte[] payload)?> TryReceivePacketAsync(
-            int pollMs, CancellationToken ct)
-        {
-            // Use Task.Run to keep the call site async. Inside, Socket.Poll() provides a reliable
-            // timeout via select() — this works correctly even when the socket was previously used
-            // with ReceiveAsync (mixing sync/async on .NET Framework can break SO_RCVTIMEO).
-            return Task.Run<(byte type, uint counter, byte[] payload)?>(() =>
-            {
-                // Poll arguments: microseconds. pollMs * 1000 = microseconds.
-                bool dataAvailable = _udp.Client.Poll(pollMs * 1000, SelectMode.SelectRead);
-                if (!dataAvailable) return null;
-
-                IPEndPoint ep = new IPEndPoint(IPAddress.Any, 0);
-                byte[] raw = _udp.Receive(ref ep);
-                var parsed = ParsePacket(raw);
-                if (parsed == null) return null;
-                var (type, counter, payload, srcMac) = parsed.Value;
-                if (srcMac.SequenceEqual(_localMac)) return null;  // skip own echo
-                return (type, counter, payload);
-            }, ct);
         }
 
         // Parses a raw UDP datagram. Returns null if too short.
