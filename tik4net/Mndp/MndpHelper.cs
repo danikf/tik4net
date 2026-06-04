@@ -26,6 +26,29 @@ namespace tik4net.Mndp
         private const int MNDP_UDP_PORT = 5678;
 
         /// <summary>
+        /// Discovers the MAC address of the router at <paramref name="host"/> (IPv4 string) via MNDP.
+        /// Returns the MAC as a 6-byte array, or <c>null</c> if not found within <paramref name="timeout"/>
+        /// (default 5 s).
+        /// </summary>
+        public static byte[] FindMacByHost(string host, TimeSpan? timeout = null)
+        {
+            var effectiveTimeout = timeout ?? TimeSpan.FromSeconds(5);
+            var encoding = Encoding.GetEncoding("iso-8859-1");
+            var found = Discover(effectiveTimeout, encoding, stopWhenFirstFound: false)
+                .FirstOrDefault(r => r.IPv4?.ToString() == host);
+            if (string.IsNullOrEmpty(found.Mac))
+                return null;
+            try
+            {
+                return found.Mac.Split(':').Select(s => Convert.ToByte(s, 16)).ToArray();
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Discover with default 60s timeout and encoding.
         /// </summary>
         public static IEnumerable<TikInstanceDescriptor> Discover(bool stopWhenFirstFound = false)

@@ -499,27 +499,16 @@ namespace tik4net.MacTelnet
 
         private byte[] GetRouterMacAddress(string host)
         {
-            // Optional override (set RouterMacOverride before BaseConnect to bypass MNDP).
+            // RouterMacOverride is a MAC string "AA:BB:CC:DD:EE:FF" — parse directly (no MNDP).
             if (!string.IsNullOrEmpty(RouterMacOverride))
             {
-                try
-                {
-                    return RouterMacOverride.Split(':').Select(s => Convert.ToByte(s, 16)).ToArray();
-                }
-                catch
-                {
-                    // malformed — fall through to MNDP
-                }
+                try { return RouterMacOverride.Split(':').Select(s => Convert.ToByte(s, 16)).ToArray(); }
+                catch { /* malformed — fall through to MNDP */ }
             }
 
-            // MNDP discovery (waits up to 5 s, filters by IP).
-            var routers = MndpHelper.Discover(TimeSpan.FromSeconds(5),
-                              Encoding.GetEncoding("iso-8859-1"), stopWhenFirstFound: false);
-            TikInstanceDescriptor? found = routers
-                .Cast<TikInstanceDescriptor?>()
-                .FirstOrDefault(r => r.Value.IPv4?.ToString() == host);
-            if (found.HasValue && !string.IsNullOrEmpty(found.Value.Mac))
-                return found.Value.Mac.Split(':').Select(s => Convert.ToByte(s, 16)).ToArray();
+            // MNDP discovery via the public core helper (waits up to 5 s).
+            byte[] found = MndpHelper.FindMacByHost(host);
+            if (found != null) return found;
 
             throw new InvalidOperationException(
                 $"Cannot determine MAC address for router {host}. " +

@@ -56,6 +56,8 @@ namespace tik4net.tests
         [DataRow(TikConnectionType.ApiSsl)]
         [DataRow(TikConnectionType.Rest)]
         [DataRow(TikConnectionType.RestSsl)]
+        [DataRow(TikConnectionType.Telnet)]
+        [DataRow(TikConnectionType.MacTelnet)]
         public void AllTransports_Login_ListInterfaces_SetComment(TikConnectionType type)
         {
             var host = ConfigurationManager.AppSettings["host"];
