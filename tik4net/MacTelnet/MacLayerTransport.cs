@@ -375,25 +375,29 @@ namespace tik4net.MacTelnet
         /// Tries to receive one packet within <paramref name="pollMs"/> milliseconds.
         /// Returns null if nothing arrives in that window.
         /// Skips own-echo packets automatically.
+        /// Runs on a thread pool thread via Task.Run so the call site stays async;
+        /// uses a blocking UdpClient.Receive with ReceiveTimeout (same as the verified PoC).
         /// </summary>
-        protected async Task<(byte type, uint counter, byte[] payload)?> TryReceivePacketAsync(
+        protected Task<(byte type, uint counter, byte[] payload)?> TryReceivePacketAsync(
             int pollMs, CancellationToken ct)
         {
-            var deadline = DateTime.UtcNow.AddMilliseconds(pollMs);
-            while (DateTime.UtcNow < deadline && !ct.IsCancellationRequested)
+            // Use Task.Run to keep the call site async. Inside, Socket.Poll() provides a reliable
+            // timeout via select() — this works correctly even when the socket was previously used
+            // with ReceiveAsync (mixing sync/async on .NET Framework can break SO_RCVTIMEO).
+            return Task.Run<(byte type, uint counter, byte[] payload)?>(() =>
             {
-                if (_udp.Available > 0)
-                {
-                    var result = await _udp.ReceiveAsync().ConfigureAwait(false);
-                    var parsed = ParsePacket(result.Buffer);
-                    if (parsed == null) continue;
-                    var (type, counter, payload, srcMac) = parsed.Value;
-                    if (srcMac.SequenceEqual(_localMac)) continue;  // skip own echo
-                    return (type, counter, payload);
-                }
-                await Task.Delay(20, ct).ConfigureAwait(false);
-            }
-            return null;
+                // Poll arguments: microseconds. pollMs * 1000 = microseconds.
+                bool dataAvailable = _udp.Client.Poll(pollMs * 1000, SelectMode.SelectRead);
+                if (!dataAvailable) return null;
+
+                IPEndPoint ep = new IPEndPoint(IPAddress.Any, 0);
+                byte[] raw = _udp.Receive(ref ep);
+                var parsed = ParsePacket(raw);
+                if (parsed == null) return null;
+                var (type, counter, payload, srcMac) = parsed.Value;
+                if (srcMac.SequenceEqual(_localMac)) return null;  // skip own echo
+                return (type, counter, payload);
+            }, ct);
         }
 
         // Parses a raw UDP datagram. Returns null if too short.

@@ -16,15 +16,18 @@ namespace tik4net.MacTelnet
         private const int    SettleMs    = 120;
 
         // Wide terminal — prevents line-wrapping of long ':put … as-value' records.
-        private readonly Vt100State _vt100 = new Vt100State(4096, 25);
-        private readonly Encoding   _encoding;
-        private readonly int        _receiveTimeoutMs;
+        private readonly Vt100State    _vt100 = new Vt100State(4096, 25);
+        private readonly Encoding      _encoding;
+        private readonly int           _receiveTimeoutMs;
+        private readonly Action<string> _diagnostic;
 
-        internal MacTelnetUdpClient(Encoding encoding, int receiveTimeoutMs, string routerMac)
+        internal MacTelnetUdpClient(Encoding encoding, int receiveTimeoutMs, string routerMac,
+            Action<string> diagnostic = null)
         {
             _encoding         = encoding ?? Encoding.UTF8;
             _receiveTimeoutMs = receiveTimeoutMs;
             RouterMacOverride = routerMac;
+            _diagnostic       = diagnostic;
         }
 
         // ── Login ─────────────────────────────────────────────────────────────
@@ -49,6 +52,18 @@ namespace tik4net.MacTelnet
 
         // ── Private terminal I/O ──────────────────────────────────────────────
 
+        // ── Close ─────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Sends a graceful session-end sequence: first asks RouterOS to exit the console
+        /// (<c>/quit</c>), then sends the MAC-layer <c>PKT_END</c>. Errors are ignored.
+        /// </summary>
+        internal void TryCloseSession()
+        {
+            try { Send(PKT_DATA, _encoding.GetBytes("/quit\r")); } catch { /* ignore */ }
+            try { Send(PKT_END, null); } catch { /* ignore */ }
+        }
+
         private void SendTerminalBytes(byte[] data) => Send(PKT_DATA, data);
 
         /// <summary>
@@ -60,13 +75,15 @@ namespace tik4net.MacTelnet
             var sb = new StringBuilder();
             bool nagSent = false;
             var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+            _diagnostic?.Invoke("[MacTelnet] WaitForPromptAsync start");
 
             while (DateTime.UtcNow < deadline && !ct.IsCancellationRequested)
             {
                 var pkt = await TryReceivePacketAsync(500, ct).ConfigureAwait(false);
-                if (pkt == null) continue;
+                if (pkt == null) { _diagnostic?.Invoke("."); continue; }
 
                 var (type, counter, payload) = pkt.Value;
+                _diagnostic?.Invoke($"[MacTelnet] pkt type={type} ctr={counter} paylen={payload.Length}");
 
                 if (type == PKT_ACK) continue;
                 if (type == PKT_PING) { SendPong(counter); continue; }

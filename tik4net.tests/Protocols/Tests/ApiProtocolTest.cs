@@ -51,13 +51,14 @@ namespace tik4net.tests
 
         // ── Parity test: same CRUD body over all 4 transports ────────────────
 
+        // CLI transports (Telnet, MacTelnet, SSH) are tested via their own runsettings
+        // (telnet.runsettings, mactelnet.runsettings) — they require special router setup
+        // and have different capability/behaviour from the binary protocols below.
         [DataTestMethod]
         [DataRow(TikConnectionType.Api)]
         [DataRow(TikConnectionType.ApiSsl)]
         [DataRow(TikConnectionType.Rest)]
         [DataRow(TikConnectionType.RestSsl)]
-        [DataRow(TikConnectionType.Telnet)]
-        [DataRow(TikConnectionType.MacTelnet)]
         public void AllTransports_Login_ListInterfaces_SetComment(TikConnectionType type)
         {
             var host = ConfigurationManager.AppSettings["host"];

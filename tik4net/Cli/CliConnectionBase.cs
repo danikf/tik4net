@@ -55,6 +55,14 @@ namespace tik4net.Cli
         /// <inheritdoc/>
         public event EventHandler<TikConnectionCommCallbackEventArgs> OnWriteRow;
 
+        /// <summary>
+        /// Optional callback for low-level transport diagnostics (raw packets, protocol events).
+        /// Intended for test instrumentation and debugging — not for production use.
+        /// The string format is transport-specific (e.g. "[pkt] type=1 paylen=42").
+        /// Set to <c>null</c> (default) to disable.
+        /// </summary>
+        public Action<string> TransportDiagnostic { get; set; }
+
         // ── Capabilities ──────────────────────────────────────────────────────
 
         /// <inheritdoc/>

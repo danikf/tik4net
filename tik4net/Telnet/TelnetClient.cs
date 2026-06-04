@@ -105,6 +105,10 @@ namespace tik4net.Telnet
 
         internal void Close()
         {
+            // Ask RouterOS to exit cleanly before closing the socket. This releases the
+            // interactive session on the router side immediately rather than waiting for
+            // the TCP timeout to expire. Errors are silently ignored (e.g. already closed).
+            try { _stream?.Write(_encoding.GetBytes("/quit\r\n"), 0, _encoding.GetByteCount("/quit\r\n")); } catch { /* ignore */ }
             try { _stream?.Close(); } catch { /* ignore */ }
             try { _tcpClient?.Close(); } catch { /* ignore */ }
         }
