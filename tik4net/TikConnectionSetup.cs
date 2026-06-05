@@ -5,6 +5,7 @@ using tik4net.Api;
 using tik4net.MacTelnet;
 using tik4net.Rest;
 using tik4net.Telnet;
+using tik4net.WinboxCli;
 
 namespace tik4net
 {
@@ -134,6 +135,32 @@ namespace tik4net
                 new MacTelnetConnection
                 {
                     RouterMac = routerMac,
+                    ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
+                },
+                ct);
+
+        // ── WinBox CLI ────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Creates and opens a WinBox CLI connection (encrypted TCP port 8291). Drives the RouterOS CLI
+        /// over the WinBox <c>mepty</c> terminal handler (EC-SRP5 auth, AES-128-CBC). Requires the
+        /// <c>winbox</c> service to be enabled on the router (enabled by default).
+        /// </summary>
+        public ITikConnection CreateWinboxCliConnection()
+        {
+            var conn = new WinboxCliConnection
+            {
+                ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
+            };
+            OpenSync(conn);
+            return conn;
+        }
+
+        /// <summary>Async version of <see cref="CreateWinboxCliConnection"/>.</summary>
+        public Task<ITikConnection> CreateWinboxCliConnectionAsync(CancellationToken ct = default)
+            => OpenAsync(
+                new WinboxCliConnection
+                {
                     ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
                 },
                 ct);

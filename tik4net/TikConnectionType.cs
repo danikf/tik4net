@@ -56,6 +56,16 @@ namespace tik4net
         /// The router's MAC address is discovered via MNDP (up to 5 s) unless
         /// <see cref="MacTelnet.MacTelnetConnection.RouterMac"/> is set before opening.
         /// </summary>
-        MacTelnet
+        MacTelnet,
+        /// <summary>
+        /// MikroTik RouterOS WinBox CLI connection (TCP port 8291).
+        /// Provides full CRUD support by driving the RouterOS CLI over the encrypted WinBox channel
+        /// (EC-SRP5 auth, AES-128-CBC) via the <c>mepty</c> terminal handler.
+        /// Listen/Streaming operations are not supported.
+        /// Requires the <c>winbox</c> service to be enabled on the router (default).
+        /// This is the terminal-driven WinBox mode; native-M2 and MAC-layer WinBox modes are planned
+        /// separately.
+        /// </summary>
+        WinboxCli
     }
 }
