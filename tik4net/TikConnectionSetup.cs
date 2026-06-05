@@ -119,14 +119,24 @@ namespace tik4net
         /// </param>
         public ITikConnection CreateMacTelnetConnection(string routerMac = null)
         {
-            var conn = new MacTelnetConnection { RouterMac = routerMac };
+            var conn = new MacTelnetConnection
+            {
+                RouterMac = routerMac,
+                ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
+            };
             OpenSync(conn);
             return conn;
         }
 
         /// <summary>Async version of <see cref="CreateMacTelnetConnection"/>.</summary>
         public Task<ITikConnection> CreateMacTelnetConnectionAsync(string routerMac = null, CancellationToken ct = default)
-            => OpenAsync(new MacTelnetConnection { RouterMac = routerMac }, ct);
+            => OpenAsync(
+                new MacTelnetConnection
+                {
+                    RouterMac = routerMac,
+                    ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
+                },
+                ct);
 
         // ── Internals ─────────────────────────────────────────────────────────
 

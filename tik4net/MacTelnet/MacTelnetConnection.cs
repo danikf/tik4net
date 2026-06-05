@@ -31,6 +31,15 @@ namespace tik4net.MacTelnet
         /// </summary>
         public string RouterMac { get; set; }
 
+        /// <summary>
+        /// Login timeout in milliseconds — the maximum time to wait for the RouterOS shell prompt
+        /// after authentication (default 15 000 ms). This is intentionally separate from
+        /// <see cref="CliConnectionBase.ReceiveTimeout"/> (which bounds per-command reads): a stuck
+        /// login should fail fast enough that a caller's connect-retry loop can make a second attempt.
+        /// Set before calling <see cref="Open(string, string, string)"/>.
+        /// </summary>
+        public int ConnectTimeout { get; set; } = 15000;
+
         private MacTelnetUdpClient _client;
 
         // ── Open ──────────────────────────────────────────────────────────────
@@ -43,7 +52,7 @@ namespace tik4net.MacTelnet
         public override void Open(string host, int port, string user, string password)
         {
             // port parameter kept for interface compatibility; MAC-Telnet always uses UDP 20561
-            var client = new MacTelnetUdpClient(Encoding, ReceiveTimeout, RouterMac);
+            var client = new MacTelnetUdpClient(Encoding, ReceiveTimeout, ConnectTimeout, RouterMac);
             try
             {
                 client.LoginAsync(host, user, password, CancellationToken.None).GetAwaiter().GetResult();
@@ -69,7 +78,7 @@ namespace tik4net.MacTelnet
         /// <inheritdoc/>
         public override async Task OpenAsync(string host, int port, string user, string password)
         {
-            var client = new MacTelnetUdpClient(Encoding, ReceiveTimeout, RouterMac);
+            var client = new MacTelnetUdpClient(Encoding, ReceiveTimeout, ConnectTimeout, RouterMac);
             try
             {
                 await client.LoginAsync(host, user, password, CancellationToken.None).ConfigureAwait(false);

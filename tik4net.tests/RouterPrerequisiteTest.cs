@@ -18,20 +18,103 @@ namespace tik4net.tests
         private static string User => ConfigurationManager.AppSettings["user"];
         private static string Pass => ConfigurationManager.AppSettings["pass"] ?? "";
 
-        // ── Service checks ─────────────────────────────────────────────────────
+        // ── Helpers ────────────────────────────────────────────────────────────
+
+        private static ITikReSentence FindService(ITikConnection conn, string name)
+            => conn.CreateCommand("/ip/service/print").ExecuteList()
+                   .FirstOrDefault(s => string.Equals(
+                       s.GetResponseFieldOrDefault("name", ""), name,
+                       StringComparison.OrdinalIgnoreCase));
+
+        private static void AssertServiceEnabled(ITikReSentence svc, string name)
+        {
+            bool disabled = string.Equals(
+                svc.GetResponseFieldOrDefault("disabled", "false"), "true",
+                StringComparison.OrdinalIgnoreCase);
+
+            Console.WriteLine($"{name}: disabled={disabled}, port={svc.GetResponseFieldOrDefault("port", "?")}");
+
+            if (disabled)
+                Assert.Fail($"Service '{name}' is DISABLED. " +
+                            $"Enable with: /ip/service set {name} disabled=no");
+        }
+
+        private static void AssertServiceHasCertificate(ITikReSentence svc, string name)
+        {
+            string cert = svc.GetResponseFieldOrDefault("certificate", "");
+            Console.WriteLine($"{name} certificate: '{cert}'");
+
+            if (string.IsNullOrEmpty(cert) || string.Equals(cert, "none", StringComparison.OrdinalIgnoreCase))
+                Assert.Fail(
+                    $"Service '{name}' has no certificate. " +
+                    $"Create one: /certificate add name={name}-cert common-name={name}; " +
+                    $"/certificate sign {name}-cert; /ip/service set {name} certificate={name}-cert");
+        }
+
+        // ── API ────────────────────────────────────────────────────────────────
 
         [TestMethod]
         [TestCategory("Prerequisites")]
         public void Router_ApiService_IsEnabled()
         {
-            // If this test passes, the API connection works. Baseline.
             using (var conn = ConnectionFactory.OpenConnection(TikConnectionType.Api, Host, User, Pass))
             {
-                Assert.IsTrue(conn.IsOpened, "API connection should be open");
-                var ver = conn.CreateCommand("/system/resource/print").ExecuteScalar();
-                Console.WriteLine("Router version: " + ver);
+                var version = conn.CreateCommand("/system/resource/print")
+                                  .ExecuteSingleRow().GetResponseField("version");
+                Console.WriteLine("Router version: " + version);
+
+                var svc = FindService(conn, "api");
+                if (svc == null) { Assert.Inconclusive("Service 'api' not found in /ip/service."); return; }
+                AssertServiceEnabled(svc, "api");
             }
         }
+
+        // ── API-SSL ────────────────────────────────────────────────────────────
+
+        [TestMethod]
+        [TestCategory("Prerequisites")]
+        public void Router_ApiSslService_IsEnabled()
+        {
+            using (var conn = ConnectionFactory.OpenConnection(TikConnectionType.Api, Host, User, Pass))
+            {
+                var svc = FindService(conn, "api-ssl");
+                if (svc == null) { Assert.Inconclusive("Service 'api-ssl' not found in /ip/service."); return; }
+                AssertServiceEnabled(svc, "api-ssl");
+            }
+        }
+
+        [TestMethod]
+        [TestCategory("Prerequisites")]
+        public void Router_ApiSslCertificate_IsConfigured()
+        {
+            using (var conn = ConnectionFactory.OpenConnection(TikConnectionType.Api, Host, User, Pass))
+            {
+                var svc = FindService(conn, "api-ssl");
+                if (svc == null) { Assert.Inconclusive("Service 'api-ssl' not found in /ip/service."); return; }
+                AssertServiceHasCertificate(svc, "api-ssl");
+            }
+        }
+
+        [TestMethod]
+        [TestCategory("Prerequisites")]
+        public void Router_ApiSslConnection_CanOpen()
+        {
+            try
+            {
+                using (var conn = ConnectionFactory.OpenConnection(TikConnectionType.ApiSsl, Host, User, Pass))
+                {
+                    var version = conn.CreateCommand("/system/resource/print")
+                                      .ExecuteSingleRow().GetResponseField("version");
+                    Console.WriteLine("API-SSL connected. Version: " + version);
+                }
+            }
+            catch (Exception ex)
+            {
+                Assert.Fail("API-SSL connection failed: " + ex.Message);
+            }
+        }
+
+        // ── Telnet ─────────────────────────────────────────────────────────────
 
         [TestMethod]
         [TestCategory("Prerequisites")]
@@ -39,29 +122,65 @@ namespace tik4net.tests
         {
             using (var conn = ConnectionFactory.OpenConnection(TikConnectionType.Api, Host, User, Pass))
             {
-                var services = conn.CreateCommand("/ip/service/print").ExecuteList();
-                var telnet = services.FirstOrDefault(s =>
-                    string.Equals(s.GetResponseFieldOrDefault("name", ""), "telnet",
-                        StringComparison.OrdinalIgnoreCase));
-
-                if (telnet == null)
-                {
-                    Assert.Inconclusive("Telnet service entry not found in /ip/service — cannot verify.");
-                    return;
-                }
-
-                bool disabled = string.Equals(
-                    telnet.GetResponseFieldOrDefault("disabled", "false"), "true",
-                    StringComparison.OrdinalIgnoreCase);
-
-                Console.WriteLine($"Telnet service: disabled={disabled}");
-
-                if (disabled)
-                    Assert.Fail(
-                        "Telnet service is DISABLED on the router. " +
-                        "Enable it with: /ip/service set telnet disabled=no");
+                var svc = FindService(conn, "telnet");
+                if (svc == null) { Assert.Inconclusive("Service 'telnet' not found in /ip/service."); return; }
+                AssertServiceEnabled(svc, "telnet");
             }
         }
+
+        // ── Winbox ─────────────────────────────────────────────────────────────
+
+        [TestMethod]
+        [TestCategory("Prerequisites")]
+        public void Router_WinboxService_IsEnabled()
+        {
+            using (var conn = ConnectionFactory.OpenConnection(TikConnectionType.Api, Host, User, Pass))
+            {
+                var svc = FindService(conn, "winbox");
+                if (svc == null) { Assert.Inconclusive("Service 'winbox' not found in /ip/service."); return; }
+                AssertServiceEnabled(svc, "winbox");
+            }
+        }
+
+        // ── REST ───────────────────────────────────────────────────────────────
+
+        [TestMethod]
+        [TestCategory("Prerequisites")]
+        public void Router_RestService_IsEnabled()
+        {
+            using (var conn = ConnectionFactory.OpenConnection(TikConnectionType.Api, Host, User, Pass))
+            {
+                var svc = FindService(conn, "www");
+                if (svc == null) { Assert.Inconclusive("Service 'www' not found in /ip/service."); return; }
+                AssertServiceEnabled(svc, "www");
+            }
+        }
+
+        [TestMethod]
+        [TestCategory("Prerequisites")]
+        public void Router_RestSslService_IsEnabled()
+        {
+            using (var conn = ConnectionFactory.OpenConnection(TikConnectionType.Api, Host, User, Pass))
+            {
+                var svc = FindService(conn, "www-ssl");
+                if (svc == null) { Assert.Inconclusive("Service 'www-ssl' not found in /ip/service."); return; }
+                AssertServiceEnabled(svc, "www-ssl");
+            }
+        }
+
+        [TestMethod]
+        [TestCategory("Prerequisites")]
+        public void Router_RestSslCertificate_IsConfigured()
+        {
+            using (var conn = ConnectionFactory.OpenConnection(TikConnectionType.Api, Host, User, Pass))
+            {
+                var svc = FindService(conn, "www-ssl");
+                if (svc == null) { Assert.Inconclusive("Service 'www-ssl' not found in /ip/service."); return; }
+                AssertServiceHasCertificate(svc, "www-ssl");
+            }
+        }
+
+        // ── MAC-Telnet ─────────────────────────────────────────────────────────
 
         [TestMethod]
         [TestCategory("Prerequisites")]
@@ -107,7 +226,6 @@ namespace tik4net.tests
                 return;
             }
 
-            // Try MNDP discovery to verify the router is discoverable
             Console.WriteLine("No routerMac in App.config — testing MNDP discovery (5 s)...");
             var found = tik4net.Mndp.MndpHelper.FindMacByHost(Host);
             Console.WriteLine(found != null

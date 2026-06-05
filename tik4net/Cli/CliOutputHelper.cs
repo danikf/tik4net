@@ -42,24 +42,32 @@ namespace tik4net.Cli
             int end   = lines.Length - 1;
 
             // Skip ALL leading empty lines and command-echo lines. A PTY transport may echo the
-            // command more than once: RouterOS first character-echoes the typed command on its own
-            // line and then repaints the line-editor as "<prompt> <command>" (prompt-prefixed echo).
-            // Telnet (CR-LF line ending) typically produces a single echo; MAC-Telnet (raw VT100, CR
-            // only) produces both. Removing only the first echo leaves the prompt-prefixed echo line,
-            // which then merges into the first as-value record and corrupts it (record without .id).
-            // A data line never contains the sent command, so this loop is safe across transports.
-            string cmdCore = sentCommand.TrimStart('/');
+            // command more than once: RouterOS character-echoes the typed command and then repaints
+            // the line-editor as "<prompt> <command>" (prompt-prefixed echo). For a command whose text
+            // contains newlines (e.g. /system/script/add with a multi-line source), the echo is split
+            // across several output lines. Telnet (CR-LF) typically produces a single echo; MAC-Telnet
+            // (raw VT100, CR only) produces both forms. Removing only the first echo line leaves the
+            // residual prompt-prefixed echo, which then merges into the first as-value record and
+            // corrupts it (record without .id) or is mistaken for an add's returned id.
+            //
+            // A leading line is treated as noise when it is blank, shows the shell prompt
+            // ("<prompt> …", contains "] >"), or is a fragment of the sent command. A real data line
+            // (as-value record starting with ".id=", a bare ".id" value, an error line) matches none
+            // of these, so the loop stops at the first genuine output line — safe across transports.
+            string cmdCore = (sentCommand ?? string.Empty).TrimStart('/');
             while (start <= end)
             {
                 string line = lines[start].Trim();
-                if (string.IsNullOrWhiteSpace(line))
+                if (line.Length == 0)
                 {
                     start++;
                     continue;
                 }
-                bool isEcho = !string.IsNullOrEmpty(cmdCore)
-                              && (line.IndexOf(cmdCore, StringComparison.OrdinalIgnoreCase) >= 0
-                                  || cmdCore.StartsWith(line, StringComparison.OrdinalIgnoreCase));
+                bool isEcho =
+                    line.IndexOf(RouterOsCliLogin.PromptSuffix, StringComparison.Ordinal) >= 0
+                    || (cmdCore.Length > 0
+                        && (cmdCore.IndexOf(line, StringComparison.OrdinalIgnoreCase) >= 0
+                            || cmdCore.StartsWith(line, StringComparison.OrdinalIgnoreCase)));
                 if (!isEcho)
                     break;
                 start++;

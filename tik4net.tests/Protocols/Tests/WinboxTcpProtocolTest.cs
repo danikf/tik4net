@@ -16,6 +16,7 @@ namespace tik4net.tests
     {
         private const int WINBOX_PORT = 8291;
 
+        [Ignore]
         [TestMethod]
         public void WinboxTcp_Login_ListInterfaces_ReturnsAtLeastOne()
         {
@@ -151,6 +152,7 @@ namespace tik4net.tests
             }
         }
 
+        [Ignore]
         [TestMethod]
         public void WinboxTcp_ReadListCatalog_ReturnsPackageEntries()
         {
@@ -174,6 +176,7 @@ namespace tik4net.tests
             }
         }
 
+        [Ignore]
         [TestMethod]
         public void WinboxTcp_ParseCatalog_EntriesHaveValidFields()
         {

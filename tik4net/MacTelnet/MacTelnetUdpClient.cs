@@ -29,11 +29,13 @@ namespace tik4net.MacTelnet
         private readonly Vt100State     _vt100 = new Vt100State(65535, 25);
         private readonly Encoding       _encoding;
         private readonly int            _receiveTimeoutMs;
+        private readonly int            _loginTimeoutMs;
 
-        internal MacTelnetUdpClient(Encoding encoding, int receiveTimeoutMs, string routerMac)
+        internal MacTelnetUdpClient(Encoding encoding, int receiveTimeoutMs, int loginTimeoutMs, string routerMac)
         {
             _encoding         = encoding ?? Encoding.UTF8;
             _receiveTimeoutMs = receiveTimeoutMs;
+            _loginTimeoutMs   = loginTimeoutMs > 0 ? loginTimeoutMs : receiveTimeoutMs;
             RouterMacOverride = routerMac;
         }
 
@@ -93,7 +95,7 @@ namespace tik4net.MacTelnet
             bool nagSent = false;
             var sw = System.Diagnostics.Stopwatch.StartNew();
 
-            while (sw.ElapsedMilliseconds < _receiveTimeoutMs)
+            while (sw.ElapsedMilliseconds < _loginTimeoutMs)
             {
                 _udp.Client.ReceiveTimeout = PollMs;
                 try
