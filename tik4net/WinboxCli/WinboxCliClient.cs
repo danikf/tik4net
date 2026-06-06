@@ -10,11 +10,15 @@ using tik4net.Winbox;
 namespace tik4net.WinboxCli
 {
     /// <summary>
-    /// WinBox CLI terminal client (TCP 8291). On top of the shared <see cref="WinboxM2Session"/> it
-    /// opens the mepty (terminal PTY) handler and drives a persistent RouterOS CLI session — the
-    /// encrypted-transport equivalent of <c>MacTelnetUdpClient</c>. All terminal I/O is synchronous,
-    /// wrapped in <see cref="Task.Run(Action)"/> so callers stay async.
+    /// WinBox CLI terminal client. On top of any <see cref="IWinboxM2Channel"/> (TCP 8291 or MAC-layer
+    /// UDP 20561) it opens the mepty (terminal PTY) handler and drives a persistent RouterOS CLI
+    /// session — the encrypted-transport equivalent of <c>MacTelnetUdpClient</c>. All terminal I/O is
+    /// synchronous, wrapped in <see cref="Task.Run(Action)"/> so callers stay async.
     /// </summary>
+    /// <remarks>
+    /// Transport-agnostic: the injected channel decides whether M2 messages travel over TCP or the MAC
+    /// layer, so this same engine backs both <c>WinboxCliConnection</c> and <c>WinboxCliMacConnection</c>.
+    /// </remarks>
     internal sealed class WinboxCliClient : IDisposable
     {
         // mepty (terminal PTY) handler [76] and its commands.
@@ -33,7 +37,7 @@ namespace tik4net.WinboxCli
         // width with 'ESC[9999C ESC[6n', so the cursor reply caps near 10000 columns; the width here must
         // exceed that so the full width is advertised (see findings-mactelnet.md / chapter E).
         private readonly Vt100State _vt100 = new Vt100State(65535, 25);
-        private readonly WinboxM2Session _session = new WinboxM2Session();
+        private readonly IWinboxM2Channel _session;
         private readonly Encoding _encoding;
         private readonly int _receiveTimeoutMs;
         private readonly int _loginTimeoutMs;
@@ -41,8 +45,9 @@ namespace tik4net.WinboxCli
         private int _sessionId = -1;
         private int _counter = 1;
 
-        internal WinboxCliClient(Encoding encoding, int receiveTimeoutMs, int loginTimeoutMs)
+        internal WinboxCliClient(IWinboxM2Channel channel, Encoding encoding, int receiveTimeoutMs, int loginTimeoutMs)
         {
+            _session          = channel ?? throw new ArgumentNullException(nameof(channel));
             _encoding         = encoding ?? Encoding.UTF8;
             _receiveTimeoutMs = receiveTimeoutMs;
             _loginTimeoutMs   = loginTimeoutMs > 0 ? loginTimeoutMs : receiveTimeoutMs;
@@ -55,8 +60,7 @@ namespace tik4net.WinboxCli
             return Task.Run(() =>
             {
                 int connectTimeout = Math.Max(_receiveTimeoutMs, _loginTimeoutMs);
-                _session.Connect(host, port, connectTimeout);
-                _session.Authenticate(host, port, connectTimeout, user, pass);
+                _session.Open(host, port, user, pass, connectTimeout);
 
                 // Open one mepty terminal and keep it for the whole connection. The password is supplied
                 // here (not via a Login:/Password: prompt) — auth already happened at the M2 layer, so the

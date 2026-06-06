@@ -66,6 +66,16 @@ namespace tik4net
         /// This is the terminal-driven WinBox mode; native-M2 and MAC-layer WinBox modes are planned
         /// separately.
         /// </summary>
-        WinboxCli
+        WinboxCli,
+        /// <summary>
+        /// MikroTik RouterOS WinBox CLI connection over the MAC layer (UDP port 20561,
+        /// <c>client_type=0x0f90</c>). Same encrypted WinBox terminal CLI as <see cref="WinboxCli"/>,
+        /// but M2 messages travel over the MAC layer — so it works without an IP route to the router.
+        /// Listen/Streaming operations are not supported.
+        /// Requires <c>/tool/mac-server/mac-winbox set allowed-interface-list=all</c> on the router.
+        /// The router's MAC address is discovered via MNDP (up to 5 s) unless
+        /// <see cref="WinboxCliMac.WinboxCliMacConnection.RouterMac"/> is set before opening.
+        /// </summary>
+        WinboxCliMac
     }
 }

@@ -6,6 +6,7 @@ using tik4net.MacTelnet;
 using tik4net.Rest;
 using tik4net.Telnet;
 using tik4net.WinboxCli;
+using tik4net.WinboxCliMac;
 
 namespace tik4net
 {
@@ -161,6 +162,39 @@ namespace tik4net
             => OpenAsync(
                 new WinboxCliConnection
                 {
+                    ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
+                },
+                ct);
+
+        // ── WinBox CLI over MAC ─────────────────────────────────────────────────
+
+        /// <summary>
+        /// Creates and opens a WinBox CLI connection over the MAC layer (UDP port 20561). Same encrypted
+        /// WinBox terminal CLI as <see cref="CreateWinboxCliConnection"/>, but works without an IP route
+        /// to the router. Requires <c>/tool/mac-server/mac-winbox set allowed-interface-list=all</c>.
+        /// The router MAC address is discovered via MNDP (up to 5 s) when <paramref name="routerMac"/>
+        /// is not provided.
+        /// </summary>
+        /// <param name="routerMac">
+        /// Optional router MAC address as <c>"AA:BB:CC:DD:EE:FF"</c> to bypass MNDP discovery.
+        /// </param>
+        public ITikConnection CreateWinboxCliMacConnection(string routerMac = null)
+        {
+            var conn = new WinboxCliMacConnection
+            {
+                RouterMac = routerMac,
+                ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
+            };
+            OpenSync(conn);
+            return conn;
+        }
+
+        /// <summary>Async version of <see cref="CreateWinboxCliMacConnection"/>.</summary>
+        public Task<ITikConnection> CreateWinboxCliMacConnectionAsync(string routerMac = null, CancellationToken ct = default)
+            => OpenAsync(
+                new WinboxCliMacConnection
+                {
+                    RouterMac = routerMac,
                     ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
                 },
                 ct);

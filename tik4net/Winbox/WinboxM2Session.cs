@@ -19,7 +19,7 @@ namespace tik4net.Winbox
     /// builds mepty messages on top of <see cref="Send"/>/<see cref="Receive"/>) and the future native
     /// M2 mode. Keep it free of mode-specific message building so both can reuse it.
     /// </remarks>
-    internal sealed class WinboxM2Session : IDisposable
+    internal sealed class WinboxM2Session : IWinboxM2Channel
     {
         private const byte EncryptedTag = 0x06;
         private const byte RawTag        = 0x01;
@@ -30,16 +30,23 @@ namespace tik4net.Winbox
         private int _reqId;
 
         /// <summary>True once an encrypted (EC-SRP5) channel is established. False for legacy MD5 auth.</summary>
-        internal bool IsEncrypted => _encrypted;
+        public bool IsEncrypted => _encrypted;
 
-        internal bool DataAvailable => _transport.DataAvailable;
+        public bool DataAvailable => _transport.DataAvailable;
 
         // ── Connect + authenticate ────────────────────────────────────────────
 
-        internal void Connect(string host, int port, int timeoutMs)
+        /// <summary>Connects to the router (TCP 8291) and authenticates (EC-SRP5, legacy MD5 fallback).</summary>
+        public void Open(string host, int port, string user, string password, int timeoutMs)
+        {
+            Connect(host, port, timeoutMs);
+            Authenticate(host, port, timeoutMs, user, password);
+        }
+
+        private void Connect(string host, int port, int timeoutMs)
             => _transport.Connect(host, port, timeoutMs);
 
-        internal void Authenticate(string host, int port, int timeoutMs, string user, string pass)
+        private void Authenticate(string host, int port, int timeoutMs, string user, string pass)
         {
             try
             {
@@ -60,21 +67,21 @@ namespace tik4net.Winbox
         // ── Generic M2 message I/O (mode-agnostic) ────────────────────────────
 
         /// <summary>Sends one M2 message and reads one response, honouring the channel mode.</summary>
-        internal byte[] SendReceive(byte[] m2, int timeoutMs)
+        public byte[] SendReceive(byte[] m2, int timeoutMs)
         {
             if (_encrypted) { EncryptAndSend(m2); return RecvAndDecrypt(timeoutMs); }
             return SendRecvRaw(m2, timeoutMs);
         }
 
         /// <summary>Sends one M2 message without waiting for a response (fire-and-forget).</summary>
-        internal void Send(byte[] m2)
+        public void Send(byte[] m2)
         {
             if (_encrypted) EncryptAndSend(m2);
             else _transport.SendRaw(m2);
         }
 
         /// <summary>Receives and decodes one M2 frame already arriving on the wire.</summary>
-        internal byte[] Receive(int timeoutMs)
+        public byte[] Receive(int timeoutMs)
         {
             if (_encrypted) return RecvAndDecrypt(timeoutMs);
 
@@ -89,7 +96,7 @@ namespace tik4net.Winbox
         }
 
         /// <summary>Builds the next request-id system field (key 0xFF0006), incrementing the counter.</summary>
-        internal byte[] NextReqIdField() => M2Message.U8Sys(0xFF0006, (byte)(++_reqId));
+        public byte[] NextReqIdField() => M2Message.U8Sys(0xFF0006, (byte)(++_reqId));
 
         // ── Encrypted / raw frame primitives ──────────────────────────────────
 

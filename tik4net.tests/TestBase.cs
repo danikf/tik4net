@@ -180,7 +180,7 @@ namespace tik4net.tests
         {
             var t = ResolveConnectionType();
             return t == TikConnectionType.Telnet || t == TikConnectionType.MacTelnet
-                || t == TikConnectionType.WinboxCli;
+                || t == TikConnectionType.WinboxCli || t == TikConnectionType.WinboxCliMac;
         }
 
         /// <summary>
