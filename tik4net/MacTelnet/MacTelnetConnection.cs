@@ -34,7 +34,7 @@ namespace tik4net.MacTelnet
         /// <summary>
         /// Login timeout in milliseconds — the maximum time to wait for the RouterOS shell prompt
         /// after authentication (default 15 000 ms). This is intentionally separate from
-        /// <see cref="CliConnectionBase.ReceiveTimeout"/> (which bounds per-command reads): a stuck
+        /// <see cref="tik4net.Connection.TikCommandConnectionBase.ReceiveTimeout"/> (which bounds per-command reads): a stuck
         /// login should fail fast enough that a caller's connect-retry loop can make a second attempt.
         /// Set before calling <see cref="Open(string, string, string)"/>.
         /// </summary>

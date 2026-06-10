@@ -157,30 +157,35 @@ namespace tik4net.tests
         }
 
         /// <summary>
-        /// Marks the test as inconclusive (skipped) when running over a CLI-based transport
-        /// (Telnet, and any future CLI transport such as SSH or MACTelnet) because the feature
-        /// under test is not supported over an interactive terminal session.
+        /// Marks the test as inconclusive (skipped) when running over a non-binary-API transport
+        /// (the CLI family — Telnet/SSH/MACTelnet/WinBox-CLI — and native WinBox M2) because the
+        /// feature under test relies on binary-API response semantics those transports do not reproduce.
+        /// Currently unused — kept as the counterpart to <see cref="IsNonApiTransport"/>.
         /// </summary>
         /// <param name="feature">Short description of the unsupported feature shown in the skip message.</param>
-        protected void SkipOnCli(string feature)
+        protected void SkipOnNonApi(string feature)
         {
-            if (IsCliTransport())
+            if (IsNonApiTransport())
             {
-                string msg = $"Transport '{ResolveConnectionType()}' (CLI-based) does not support '{feature}' — known CLI limitation, test skipped.";
+                string msg = $"Transport '{ResolveConnectionType()}' (non-binary-API) does not support '{feature}' — test skipped.";
                 Assert.Inconclusive(msg);
             }
         }
 
         /// <summary>
-        /// True when the active transport is CLI/terminal-based (currently Telnet; extend for SSH-PTY /
-        /// MAC-Telnet). Use to branch assertions that depend on binary-API response semantics the
-        /// terminal cannot reproduce (e.g. per-line !re rows from <c>/system/script/run</c>).
+        /// True when the active transport is NOT the binary API — i.e. a CLI-family transport
+        /// (Telnet/MACTelnet/WinBox-CLI/WinBox-CLI-MAC) or native WinBox M2. These transports go
+        /// through the structured-command model rather than the binary-API sentence protocol, so they
+        /// do not reproduce some binary-API response semantics (e.g. per-line !re rows from
+        /// <c>/system/script/run</c>). Use to branch assertions on that difference — it is NOT a
+        /// CLI/terminal property (native WinBox M2 is not a terminal), it is "not the binary API".
         /// </summary>
-        protected bool IsCliTransport()
+        protected bool IsNonApiTransport()
         {
             var t = ResolveConnectionType();
             return t == TikConnectionType.Telnet || t == TikConnectionType.MacTelnet
-                || t == TikConnectionType.WinboxCli || t == TikConnectionType.WinboxCliMac;
+                || t == TikConnectionType.WinboxCli || t == TikConnectionType.WinboxCliMac
+                || t == TikConnectionType.WinboxNative;
         }
 
         /// <summary>

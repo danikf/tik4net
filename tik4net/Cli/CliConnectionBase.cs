@@ -1,22 +1,24 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using tik4net.Connection;
 
 namespace tik4net.Cli
 {
     /// <summary>
-    /// Transport-agnostic base class for RouterOS CLI-based connections (Telnet, SSH, MACTelnet).
-    /// Implements the full <see cref="ITikConnection"/> surface and serialises commands through
-    /// a <see cref="SemaphoreSlim"/> (terminal is inherently sequential).
+    /// Transport-agnostic base class for RouterOS CLI-based connections (Telnet, SSH, MACTelnet, WinBox CLI).
+    /// Builds the CLI command text, sends it through the transport, and parses the textual response back
+    /// into the shared command/sentence model. All the transport-neutral plumbing
+    /// (<see cref="ITikConnection"/> surface, command factory, low-level dispatch, diagnostics) lives in
+    /// <see cref="TikCommandConnectionBase"/>.
     ///
     /// Concrete transport subclasses must implement:
     /// <list type="bullet">
-    ///   <item><see cref="Open(string, string, string)"/> / <see cref="Open(string, int, string, string)"/></item>
-    ///   <item><see cref="OpenAsync(string, string, string)"/> / <see cref="OpenAsync(string, int, string, string)"/></item>
-    ///   <item><see cref="Close"/></item>
+    ///   <item><see cref="TikCommandConnectionBase.Open(string, string, string)"/> / <see cref="TikCommandConnectionBase.Open(string, int, string, string)"/></item>
+    ///   <item><see cref="TikCommandConnectionBase.OpenAsync(string, string, string)"/> / <see cref="TikCommandConnectionBase.OpenAsync(string, int, string, string)"/></item>
+    ///   <item><see cref="TikCommandConnectionBase.Close"/></item>
     ///   <item><see cref="ExecuteCliCommandCoreAsync"/> — send one CLI string, return the response text.</item>
     /// </list>
     ///
@@ -24,50 +26,8 @@ namespace tik4net.Cli
     /// escape sequences stripped (<see cref="VtStripper.StripAnsi"/>) and any terminal echo /
     /// prompt trimmed by the transport before being returned — the core layer only sees data lines.
     /// </summary>
-    public abstract class CliConnectionBase : ITikConnection, ITikConnectionCapabilities
+    public abstract class CliConnectionBase : TikCommandConnectionBase
     {
-        private readonly SemaphoreSlim _cmdLock = new SemaphoreSlim(1, 1);
-        private bool _isOpened;
-
-        // ── ITikConnection properties ─────────────────────────────────────────
-
-        /// <inheritdoc/>
-        public bool DebugEnabled { get; set; }
-
-        /// <inheritdoc/>
-        public bool IsOpened => _isOpened;
-
-        /// <inheritdoc/>
-        public Encoding Encoding { get; set; } = Encoding.UTF8;
-
-        /// <summary>No-op for CLI transports (no tag protocol).</summary>
-        public bool SendTagWithSyncCommand { get; set; }
-
-        /// <inheritdoc/>
-        public int SendTimeout { get; set; } = 30000;
-
-        /// <inheritdoc/>
-        public int ReceiveTimeout { get; set; } = 30000;
-
-        /// <inheritdoc/>
-        public event EventHandler<TikConnectionCommCallbackEventArgs> OnReadRow;
-
-        /// <inheritdoc/>
-        public event EventHandler<TikConnectionCommCallbackEventArgs> OnWriteRow;
-
-        /// <summary>
-        /// Optional callback for low-level transport diagnostics (raw packets, protocol events).
-        /// Intended for test instrumentation and debugging — not for production use.
-        /// The string format is transport-specific (e.g. "[pkt] type=1 paylen=42").
-        /// Set to <c>null</c> (default) to disable.
-        /// </summary>
-        public Action<string> TransportDiagnostic { get; set; }
-
-        // ── Capabilities ──────────────────────────────────────────────────────
-
-        /// <inheritdoc/>
-        public virtual TikConnectionCapability Capabilities => TikConnectionCapability.Crud;
-
         // ── Transport — subclass contract ─────────────────────────────────────
 
         /// <summary>
@@ -76,33 +36,6 @@ namespace tik4net.Cli
         /// transport-specific concerns: framing, echo removal, paging (without-paging or equivalent).
         /// </summary>
         protected abstract Task<string> ExecuteCliCommandCoreAsync(string cliText, CancellationToken ct);
-
-        /// <inheritdoc/>
-        public abstract void Open(string host, string user, string password);
-
-        /// <inheritdoc/>
-        public abstract void Open(string host, int port, string user, string password);
-
-        /// <inheritdoc/>
-        public abstract Task OpenAsync(string host, string user, string password);
-
-        /// <inheritdoc/>
-        public abstract Task OpenAsync(string host, int port, string user, string password);
-
-        /// <inheritdoc/>
-        public abstract void Close();
-
-        // ── Open/Close helpers for subclasses ─────────────────────────────────
-
-        /// <summary>
-        /// Subclasses must call this after a successful login to mark the connection as open.
-        /// </summary>
-        protected void SetOpened() => _isOpened = true;
-
-        /// <summary>
-        /// Subclasses must call this when closing or on a fatal error to mark the connection as closed.
-        /// </summary>
-        protected void SetClosed() => _isOpened = false;
 
         // ── Semaphore-serialised execution ────────────────────────────────────
 
@@ -130,7 +63,7 @@ namespace tik4net.Cli
         protected string ExecuteCliCommand(string cliText)
             => ExecuteCliCommandAsync(cliText, CancellationToken.None).GetAwaiter().GetResult();
 
-        // ── Internal hooks used by CliCommand ──────────────────────────────────
+        // ── CRUD hooks — CLI text build + parse ────────────────────────────────
 
         /// <summary>
         /// Executes a <c>print as-value</c> command and returns parsed sentences.
@@ -138,7 +71,7 @@ namespace tik4net.Cli
         /// performs two queries (detail + stats) and merges the results by <c>.id</c>
         /// so that config fields and live counter fields are combined in each record.
         /// </summary>
-        internal IList<CliReSentence> RunPrint(CliCommandDescriptor descriptor)
+        internal override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)
         {
             EnsureOpened();
 
@@ -150,7 +83,7 @@ namespace tik4net.Cli
                 string runCli = CliCommandBuilder.BuildSimpleVerb(descriptor.CommandText, "run", descriptor.Parameters);
                 string runOut = ExecuteCliCommand(runCli);
                 CliErrorParser.ThrowIfError(runOut, CreateDummyCommand(descriptor));
-                return new List<CliReSentence>();
+                return new List<TikRecordSentence>();
             }
 
             bool needStats = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliStats);
@@ -168,15 +101,15 @@ namespace tik4net.Cli
             string detailText = CliCommandBuilder.BuildPrint(descriptor.CommandText, descriptor.Parameters);
             string detailOutput = ExecuteCliCommand(detailText);
             CliErrorParser.ThrowIfError(detailOutput, CreateDummyCommand(descriptor));
-            IList<CliReSentence> configRecords = CliOutputParser.ParseAsValue(detailOutput);
+            IList<TikRecordSentence> configRecords = CliOutputParser.ParseAsValue(detailOutput);
 
             string statsText = CliCommandBuilder.BuildPrintStats(descriptor.CommandText, descriptor.Parameters);
             string statsOutput = ExecuteCliCommand(statsText);
             CliErrorParser.ThrowIfError(statsOutput, CreateDummyCommand(descriptor));
-            IList<CliReSentence> statsRecords = CliOutputParser.ParseAsValue(statsOutput);
+            IList<TikRecordSentence> statsRecords = CliOutputParser.ParseAsValue(statsOutput);
 
             // Build index of stats records by .id for O(1) lookup.
-            var statsById = new Dictionary<string, CliReSentence>(StringComparer.OrdinalIgnoreCase);
+            var statsById = new Dictionary<string, TikRecordSentence>(StringComparer.OrdinalIgnoreCase);
             foreach (var sr in statsRecords)
             {
                 string id = sr.GetResponseFieldOrDefault(TikSpecialProperties.Id, null);
@@ -191,11 +124,11 @@ namespace tik4net.Cli
             }
 
             // Merge: overlay stats fields onto each config record.
-            var merged = new List<CliReSentence>(configRecords.Count);
+            var merged = new List<TikRecordSentence>(configRecords.Count);
             foreach (var cfg in configRecords)
             {
                 string id = cfg.GetResponseFieldOrDefault(TikSpecialProperties.Id, null);
-                if (id == null || !statsById.TryGetValue(id, out CliReSentence sr))
+                if (id == null || !statsById.TryGetValue(id, out TikRecordSentence sr))
                 {
                     // No matching stats record — keep config as-is.
                     merged.Add(cfg);
@@ -214,7 +147,7 @@ namespace tik4net.Cli
                     if (!mergedFields.ContainsKey(kv.Key))
                         mergedFields[kv.Key] = kv.Value;
                 }
-                merged.Add(new CliReSentence(mergedFields));
+                merged.Add(new TikRecordSentence(mergedFields));
             }
 
             return merged;
@@ -223,7 +156,7 @@ namespace tik4net.Cli
         /// <summary>
         /// Executes an <c>add</c> command and returns the new record's .id.
         /// </summary>
-        internal string RunAdd(CliCommandDescriptor descriptor)
+        internal override string RunAdd(TikCommandDescriptor descriptor)
         {
             EnsureOpened();
             string cliText = CliCommandBuilder.BuildAdd(descriptor.CommandText, descriptor.Parameters);
@@ -235,7 +168,7 @@ namespace tik4net.Cli
         /// <summary>
         /// Executes a non-query command (set, remove, enable, disable, move, reboot, …).
         /// </summary>
-        internal void RunNonQuery(CliCommandDescriptor descriptor)
+        internal override void RunNonQuery(TikCommandDescriptor descriptor)
         {
             EnsureOpened();
             string verb = GetVerb(descriptor.CommandText);
@@ -265,182 +198,18 @@ namespace tik4net.Cli
         }
 
         /// <summary>
-        /// Executes a scalar <c>get</c> command (already fully built by CliCommand) and returns the raw value.
+        /// Executes a scalar <c>get</c> command (already fully built by the command) and returns the raw value.
         /// </summary>
-        internal string RunScalarGet(string cliText)
+        internal override string RunScalarGet(string cliText)
         {
             EnsureOpened();
             string output = ExecuteCliCommand(cliText);
             // Error-check so RouterOS error text (e.g. "input does not match any value of value-name",
             // "syntax error …") is surfaced as the correct exception instead of leaking as a value.
-            CliErrorParser.ThrowIfError(output, new CliCommand(this, cliText));
+            CliErrorParser.ThrowIfError(output, new TikGenericCommand(this, cliText));
             if (string.IsNullOrWhiteSpace(output))
                 return null;
             return output.Trim();
-        }
-
-        // ── ITikConnection — Command factory ──────────────────────────────────
-
-        /// <inheritdoc/>
-        public ITikCommand CreateCommand()
-            => new CliCommand(this);
-
-        /// <inheritdoc/>
-        public ITikCommand CreateCommand(TikCommandParameterFormat defaultParameterFormat)
-            => new CliCommand(this, defaultParameterFormat);
-
-        /// <inheritdoc/>
-        public ITikCommand CreateCommand(string commandText, params ITikCommandParameter[] parameters)
-            => new CliCommand(this, commandText, parameters);
-
-        /// <inheritdoc/>
-        public ITikCommand CreateCommand(string commandText, TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] parameters)
-            => new CliCommand(this, commandText, defaultParameterFormat, parameters);
-
-        /// <inheritdoc/>
-        public ITikCommand CreateCommandAndParameters(string commandText, params string[] parameterNamesAndValues)
-        {
-            var cmd = new CliCommand(this, commandText);
-            cmd.AddParameterAndValues(parameterNamesAndValues);
-            return cmd;
-        }
-
-        /// <inheritdoc/>
-        public ITikCommand CreateCommandAndParameters(string commandText, TikCommandParameterFormat defaultParameterFormat, params string[] parameterNamesAndValues)
-        {
-            var cmd = new CliCommand(this, commandText, defaultParameterFormat);
-            cmd.AddParameterAndValues(parameterNamesAndValues);
-            return cmd;
-        }
-
-        /// <inheritdoc/>
-        public ITikCommandParameter CreateParameter(string name, string value)
-            => new CliCommandParameter(name, value);
-
-        /// <inheritdoc/>
-        public ITikCommandParameter CreateParameter(string name, string value, TikCommandParameterFormat parameterFormat)
-            => new CliCommandParameter(name, value, parameterFormat);
-
-        // ── CallCommandSync (low-level) ────────────────────────────────────────
-
-        /// <inheritdoc/>
-        public IEnumerable<ITikSentence> CallCommandSync(params string[] commandRows)
-            => CallCommandSync((IEnumerable<string>)commandRows);
-
-        /// <inheritdoc/>
-        public IEnumerable<ITikSentence> CallCommandSync(IEnumerable<string> commandRows)
-        {
-            var rows = new List<string>(commandRows);
-            if (rows.Count == 0)
-                throw new ArgumentException("commandRows must not be empty.");
-
-            string commandText = rows[0];
-
-            // Parse remaining rows as parameters
-            var parameters = new List<ITikCommandParameter>();
-            for (int i = 1; i < rows.Count; i++)
-            {
-                string row = rows[i];
-                if (row.StartsWith(".tag=") || row.StartsWith(".tag ="))
-                    continue;  // tags are no-op for CLI
-
-                if (row.StartsWith("?"))
-                {
-                    string kv = row.TrimStart('?');
-                    if (kv.StartsWith("="))
-                        kv = kv.Substring(1);
-                    int eq = kv.IndexOf('=');
-                    if (eq >= 0)
-                        parameters.Add(new CliCommandParameter(kv.Substring(0, eq), kv.Substring(eq + 1), TikCommandParameterFormat.Filter));
-                }
-                else if (row.StartsWith("="))
-                {
-                    string kv = row.Substring(1);
-                    int eq = kv.IndexOf('=');
-                    if (eq >= 0)
-                        parameters.Add(new CliCommandParameter(kv.Substring(0, eq), kv.Substring(eq + 1), TikCommandParameterFormat.NameValue));
-                }
-            }
-
-            string verb = GetVerb(commandText);
-            var descriptor = new CliCommandDescriptor(commandText, parameters);
-
-            if (verb == "add")
-            {
-                string id = RunAdd(descriptor);
-                return new List<ITikSentence> { new CliDoneSentence(id) };
-            }
-
-            if (verb == "remove" || verb == "set" || verb == "unset" || verb == "move"
-                || verb == "enable" || verb == "disable")
-            {
-                RunNonQuery(descriptor);
-                return new List<ITikSentence> { new CliDoneSentence() };
-            }
-
-            // Read
-            var result = new List<ITikSentence>();
-            result.AddRange(RunPrint(descriptor));
-            result.Add(new CliDoneSentence());
-            return result;
-        }
-
-        // ── CallCommandAsync (not supported) ──────────────────────────────────
-
-        /// <inheritdoc/>
-        public Thread CallCommandAsync(IEnumerable<string> commandRows, string tag, Action<ITikSentence> oneResponseCallback)
-        {
-            throw new NotSupportedException("CLI transport does not support asynchronous commands. Use a transport that reports Listen capability.");
-        }
-
-        // ── IDisposable ────────────────────────────────────────────────────────
-
-        /// <inheritdoc/>
-        public void Dispose() => Close();
-
-        // ── Diagnostics ────────────────────────────────────────────────────────
-
-        private void FireWriteRow(string word)
-        {
-            OnWriteRow?.Invoke(this, new TikConnectionCommCallbackEventArgs(word));
-            if (DebugEnabled)
-                System.Diagnostics.Debug.WriteLine("CLI>> " + word);
-        }
-
-        private void FireReadRow(string word)
-        {
-            OnReadRow?.Invoke(this, new TikConnectionCommCallbackEventArgs(word));
-            if (DebugEnabled)
-                System.Diagnostics.Debug.WriteLine("CLI<< " + (word != null && word.Length > 200 ? word.Substring(0, 200) + "..." : word));
-        }
-
-        // ── Private helpers ────────────────────────────────────────────────────
-
-        private void EnsureOpened()
-        {
-            if (!_isOpened)
-                throw new TikConnectionNotOpenException("CLI connection is not open.");
-        }
-
-        private static string GetVerb(string commandText)
-        {
-            if (string.IsNullOrWhiteSpace(commandText))
-                return "print";
-            string trimmed = commandText.TrimStart('/');
-            var segments = trimmed.Split('/');
-            return segments[segments.Length - 1].ToLowerInvariant();
-        }
-
-        /// <summary>
-        /// Creates a minimal command object for use in exception constructors when the original
-        /// CliCommand is not available (e.g. in CallCommandSync / RunNonQuery paths).
-        /// </summary>
-        private ITikCommand CreateDummyCommand(CliCommandDescriptor descriptor)
-        {
-            var cmd = new CliCommand(this, descriptor.CommandText);
-            foreach (var p in descriptor.Parameters)
-                cmd.AddParameter(p.Name, p.Value, p.ParameterFormat);
-            return cmd;
         }
     }
 }

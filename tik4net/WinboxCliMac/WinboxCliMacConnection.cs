@@ -33,7 +33,7 @@ namespace tik4net.WinboxCliMac
 
         /// <summary>
         /// Login timeout in milliseconds — the maximum time to wait for the RouterOS shell prompt after
-        /// authentication (default 15 000 ms). Separate from <see cref="CliConnectionBase.ReceiveTimeout"/>.
+        /// authentication (default 15 000 ms). Separate from <see cref="tik4net.Connection.TikCommandConnectionBase.ReceiveTimeout"/>.
         /// </summary>
         public int ConnectTimeout { get; set; } = 15000;
 

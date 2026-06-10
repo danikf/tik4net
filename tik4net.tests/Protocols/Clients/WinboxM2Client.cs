@@ -101,6 +101,320 @@ namespace tik4net.tests
             return ReadFileBytes(openName);
         }
 
+        // ── Native M2 probe (Phase 3) ─────────────────────────────────────────
+        // Send a bare command to a handler and collect ALL reply frames (a list
+        // handler streams one M2 message per record + a terminating frame).
+        // Returns each frame's parsed fields. extraFields lets the caller append
+        // user fields (e.g. a record id / value) to the request.
+        public List<Dictionary<int, Tuple<string, object>>> ProbeCommand(
+            int[] handler, int cmd, int maxMs = 3000, params byte[][] extraFields)
+        {
+            var head = new List<byte[]>
+            {
+                M2Message.SysToArr(handler), M2Message.SysFrom(),
+                M2Message.BoolSys(0xFF0005, true),  // reply expected
+                ReqId(),
+                cmd <= 0xFF ? M2Message.U8Sys(0xFF0007, (byte)cmd)
+                            : M2Message.U32Sys(0xFF0007, cmd),
+            };
+            head.AddRange(extraFields);
+            byte[] msg = M2Message.BuildM2(head.ToArray());
+            EncryptAndSend(msg);
+
+            var frames = new List<Dictionary<int, Tuple<string, object>>>();
+            var sw = Stopwatch.StartNew();
+            while (sw.ElapsedMilliseconds < maxMs)
+            {
+                if (!_transport.DataAvailable) { System.Threading.Thread.Sleep(20); continue; }
+                byte[] resp;
+                try { resp = RecvAndDecrypt(2000); }
+                catch (IOException) { break; }
+                if (resp == null) continue;
+                frames.Add(M2Message.ParseAllFields(resp));
+                // a frame carrying SYS reply-type "last" (0xFF0002 with bit) ends the stream;
+                // we don't know the exact marker yet, so just keep reading until timeout/idle.
+            }
+            return frames;
+        }
+
+        // Raw variant: return the undecoded M2 bytes of every reply frame (for hex dump).
+        public List<byte[]> ProbeCommandRaw(
+            int[] handler, int cmd, int maxMs = 3000, params byte[][] extraFields)
+        {
+            var head = new List<byte[]>
+            {
+                M2Message.SysToArr(handler), M2Message.SysFrom(),
+                M2Message.BoolSys(0xFF0005, true),
+                ReqId(),
+                cmd <= 0xFF ? M2Message.U8Sys(0xFF0007, (byte)cmd)
+                            : M2Message.U32Sys(0xFF0007, cmd),
+            };
+            head.AddRange(extraFields);
+            EncryptAndSend(M2Message.BuildM2(head.ToArray()));
+            var frames = new List<byte[]>();
+            var sw = Stopwatch.StartNew();
+            while (sw.ElapsedMilliseconds < maxMs)
+            {
+                if (!_transport.DataAvailable) { System.Threading.Thread.Sleep(20); continue; }
+                byte[] resp;
+                try { resp = RecvAndDecrypt(2000); }
+                catch (IOException) { break; }
+                if (resp != null) frames.Add(resp);
+            }
+            return frames;
+        }
+
+        // Streaming variant: send WITHOUT reply_expected (omit 0xFF0005 entirely).
+        // If the router uses a subscribe/push model, omitting reply_expected causes it
+        // to stream all records as separate frames. maxMs window to collect all frames.
+        public List<byte[]> ProbeCommandStream(
+            int[] handler, int cmd, int maxMs = 5000, params byte[][] extraFields)
+        {
+            var head = new List<byte[]>
+            {
+                M2Message.SysToArr(handler), M2Message.SysFrom(),
+                // NO reply_expected field
+                ReqId(),
+                cmd <= 0xFF ? M2Message.U8Sys(0xFF0007, (byte)cmd)
+                            : M2Message.U32Sys(0xFF0007, cmd),
+            };
+            head.AddRange(extraFields);
+            EncryptAndSend(M2Message.BuildM2(head.ToArray()));
+            var frames = new List<byte[]>();
+            var sw = Stopwatch.StartNew();
+            while (sw.ElapsedMilliseconds < maxMs)
+            {
+                if (!_transport.DataAvailable) { System.Threading.Thread.Sleep(20); continue; }
+                byte[] resp;
+                try { resp = RecvAndDecrypt(500); }
+                catch (IOException) { break; }
+                if (resp != null) frames.Add(resp);
+            }
+            return frames;
+        }
+
+        // Build a u32 array field for a system key (namespace 0xFF or 0xFE).
+        // Used to pass field-key subscriptions in getall requests.
+        public static byte[] U32ArraySys(int fullKey, params int[] values)
+        {
+            var b = new List<byte>
+            {
+                (byte)(fullKey & 0xFF), (byte)((fullKey >> 8) & 0xFF),
+                (byte)((fullKey >> 16) & 0xFF), 0x88
+            };
+            b.AddRange(BitConverter.GetBytes((ushort)values.Length));
+            foreach (int v in values) b.AddRange(BitConverter.GetBytes((uint)v));
+            return b.ToArray();
+        }
+
+        // Build a u32 array field for a user key (namespace 0x00).
+        public static byte[] U32ArrayUser(int keyId, params int[] values)
+        {
+            byte kl = (byte)(keyId & 0xFF), kh = (byte)((keyId >> 8) & 0xFF);
+            var b = new List<byte> { kl, kh, 0x00, 0x88 };
+            b.AddRange(BitConverter.GetBytes((ushort)values.Length));
+            foreach (int v in values) b.AddRange(BitConverter.GetBytes((uint)v));
+            return b.ToArray();
+        }
+
+        // Send a "set" (cmd=2) request to handler with .id + field key/value pairs.
+        // Returns the response frame bytes.
+        public byte[] NativeSet(int[] handler, int recordId, params byte[][] fields)
+        {
+            var head = new List<byte[]>
+            {
+                M2Message.SysToArr(handler), M2Message.SysFrom(),
+                M2Message.BoolSys(0xFF0005, true),
+                ReqId(),
+                M2Message.U8Sys(0xFF0007, 2),  // cmd=2 = set
+                M2Message.SessionIdField(recordId),
+            };
+            head.AddRange(fields);
+            EncryptAndSend(M2Message.BuildM2(head.ToArray()));
+            return RecvAndDecrypt(5000);
+        }
+
+        // ── Native M2 CRUD (webfig protocol, master.js) ──────────────────────
+        // Command catalog reverse-engineered from webfig /jsproxy client:
+        //   getall = 0xfe0004 (default getallcmd), get-one = 0xfe0002, set = 0xfe0003,
+        //   add = 0xfe0005, remove = 0xfe0006, move = 0xfe0007, subscribe = 0xfe0012.
+        // Records are returned as a MESSAGE-ARRAY under key 0xFE0002 (webfig 'Mfe0002').
+        // The getall request carries flag field 0xFE000C (webfig 'ufe000c') = 0x10000005
+        // | refetchonopen | refreshfilter; pagination continues while reply has 0xFE0003.
+        public const int CMD_GETALL = 0xFE0004;
+        public const int CMD_GETONE = 0xFE0002;
+        public const int CMD_SET    = 0xFE0003;
+        public const int CMD_ADD    = 0xFE0005;
+        public const int CMD_REMOVE = 0xFE0006;
+        public const int KEY_RECORDS  = 0xFE0002;  // Mfe0002 — record message-array
+        public const int KEY_ID       = 0xFE0001;  // ufe0001 — record .id
+        public const int KEY_FLAGS    = 0xFE000C;  // ufe000c — getall/get flags
+        public const int KEY_COUNT    = 0xFE0019;  // ufe0019 — object count
+        public const int KEY_CONT     = 0xFE0003;  // ufe0003 — getall continuation token
+
+        // getall on a handler. Returns every record's parsed field-dict (follows
+        // 0xFE0003 pagination). flags default 0x10000005 (webfig base getall flags).
+        public List<Dictionary<int, Tuple<string, object>>> NativeGetAll(
+            int[] handler, int flags = 0x10000005, int maxObjs = 0, int maxMs = 6000)
+        {
+            var records = new List<Dictionary<int, Tuple<string, object>>>();
+            object contToken = null; // 0xFE0003 value carried back on the next request
+            var sw = Stopwatch.StartNew();
+            for (int round = 0; round < 64 && sw.ElapsedMilliseconds < maxMs; round++)
+            {
+                var head = new List<byte[]>
+                {
+                    M2Message.SysToArr(handler), M2Message.SysFrom(),
+                    M2Message.BoolSys(0xFF0005, true),    // reply expected
+                    ReqId(),
+                    M2Message.U32Sys(0xFF0007, CMD_GETALL),
+                    M2Message.U32Sys(KEY_FLAGS, flags),
+                };
+                if (maxObjs > 0) head.Add(M2Message.U32Sys(0xFE0018, maxObjs));
+                if (contToken != null) head.Add(M2Message.U32Sys(KEY_CONT, Convert.ToInt32(contToken)));
+                byte[] resp = SendRecvEncrypted(M2Message.BuildM2(head.ToArray()), 5000);
+
+                int status = M2Message.ParseSysStatus(resp);
+                if (status != 0 && status != 0xFE0004) // 0xFE0004 here = "object doesn't exist" terminator
+                    throw new InvalidOperationException($"getall error 0x{status:X} on [{string.Join(",", handler)}]");
+
+                records.AddRange(M2Message.ParseRecords(resp, KEY_RECORDS));
+
+                var fields = M2Message.ParseAllFields(resp);
+                if (status == 0xFE0004) break;                 // explicit terminator
+                if (!fields.TryGetValue(KEY_CONT, out var ct)) break; // no continuation → done
+                contToken = ct.Item2;
+            }
+            return records;
+        }
+
+        // get one full record by id (cmd=0xfe0002 + ufe0001). Returns its field-dict
+        // (records arrive under 0xFE0002 message-array; falls back to top-level fields).
+        public Dictionary<int, Tuple<string, object>> NativeGetOne(int[] handler, int id)
+        {
+            byte[] msg = M2Message.BuildM2(
+                M2Message.SysToArr(handler), M2Message.SysFrom(),
+                M2Message.BoolSys(0xFF0005, true), ReqId(),
+                M2Message.U32Sys(0xFF0007, CMD_GETONE),
+                M2Message.SessionIdField(id));
+            byte[] resp = SendRecvEncrypted(msg, 5000);
+            var recs = M2Message.ParseRecords(resp, KEY_RECORDS);
+            return recs.Count > 0 ? recs[0] : M2Message.ParseAllFields(resp);
+        }
+
+        // set fields on an existing record (cmd=0xfe0003 + ufe0001 + field values).
+        // Returns the reply's SYS status (0 = ok). Mirrors webfig ObjectMap.setObject.
+        public int NativeSetRecord(int[] handler, int id, params byte[][] fields)
+        {
+            var head = new List<byte[]>
+            {
+                M2Message.SysToArr(handler), M2Message.SysFrom(),
+                M2Message.BoolSys(0xFF0005, true), ReqId(),
+                M2Message.U32Sys(0xFF0007, CMD_SET),
+                M2Message.SessionIdField(id),
+            };
+            head.AddRange(fields);
+            byte[] resp = SendRecvEncrypted(M2Message.BuildM2(head.ToArray()), 5000);
+            return M2Message.ParseSysStatus(resp);
+        }
+
+        // Public wrappers for EncryptAndSend/RecvAndDecrypt (for tests needing custom frames)
+        public void EncryptAndSendPublic(byte[] msg) => EncryptAndSend(msg);
+        public byte[] RecvAndDecryptPublic(int timeoutMs) => RecvAndDecrypt(timeoutMs);
+
+        // Perform the secondary data-layer auth (login cmd=1 on [13,4])
+        // after EC-SRP5 transport auth. Returns the data session id (-1 if failed).
+        // This mirrors the legacy auth flow: mproxy [2,2] cmd=7 gives session token,
+        // [13,4] cmd=4 gives salt (both need session_id), [13,4] cmd=1 does login.
+        public int DataLayerLogin(string user, string pass)
+        {
+            // Step 1: open mproxy session [2,2] cmd=7 'list' → get session token
+            byte[] listMsg = M2Message.BuildM2(
+                M2Message.SysToArr(2, 2), M2Message.SysFrom(),
+                M2Message.U32Sys(0xFF0007, 7),
+                M2Message.BoolSys(0xFF0005, true), ReqId(),
+                M2Message.StringUser(1, "list"));
+            byte[] listResp = SendRecvEncrypted(listMsg, 5000);
+            int sessionId = -1;
+            try { sessionId = M2Message.ParseSessionId(listResp); }
+            catch { }
+            Console.WriteLine($"[DataLayerLogin] mproxy session id: {sessionId}");
+            foreach (var kv in M2Message.ParseAllFields(listResp))
+                Console.WriteLine($"  key=0x{kv.Key:X6} {kv.Value.Item1} = {kv.Value.Item2}");
+
+            if (sessionId < 0)
+            {
+                Console.WriteLine("[DataLayerLogin] No session_id from mproxy — cannot continue");
+                return -1;
+            }
+
+            // Use u32 encoding for session_id (mproxy returns values > 255)
+            byte[] sidField = sessionId > 255
+                ? M2Message.SessionIdFieldU32(sessionId)
+                : M2Message.SessionIdField(sessionId);
+
+            // Step 2: mproxy setup [2,2] cmd=5 + session_id
+            byte[] setupMsg = M2Message.BuildM2(
+                M2Message.SysToArr(2, 2), M2Message.SysFrom(),
+                M2Message.U32Sys(0xFF0007, 5),
+                M2Message.BoolSys(0xFF0005, true), ReqId(),
+                sidField);
+            EncryptAndSend(setupMsg);
+            System.Threading.Thread.Sleep(100);
+            DrainSocket(500);
+
+            // Step 3: get salt from [13,4] cmd=4 WITH session_id
+            byte[] saltMsg = M2Message.BuildM2(
+                M2Message.SysToArr(13, 4), M2Message.SysFrom(),
+                M2Message.U32Sys(0xFF0007, 4),
+                M2Message.BoolSys(0xFF0005, true), ReqId(),
+                sidField);
+            byte[] saltResp = SendRecvEncrypted(saltMsg, 5000);
+            Console.WriteLine($"[DataLayerLogin] Salt response ({saltResp.Length}B):");
+            foreach (var kv in M2Message.ParseAllFields(saltResp))
+                Console.WriteLine($"  key=0x{kv.Key:X6} {kv.Value.Item1} = {kv.Value.Item2}");
+
+            byte[] salt = M2Message.ParseRawUser(saltResp, 9);
+            if (salt == null)
+            {
+                Console.WriteLine("[DataLayerLogin] No salt in [13,4] cmd=4 response");
+                return -1;
+            }
+            Console.WriteLine($"[DataLayerLogin] Got salt: {BitConverter.ToString(salt)}");
+
+            // Step 4: compute MD5 hash: MD5(0x00 || pass || salt)
+            byte[] hashInput = new byte[] { 0 }
+                .Concat(Encoding.UTF8.GetBytes(pass)).Concat(salt).ToArray();
+            byte[] hash = new byte[] { 0 }
+                .Concat(MD5.Create().ComputeHash(hashInput)).ToArray();
+
+            // Step 5: login with cmd=1 WITH session_id
+            byte[] loginMsg = M2Message.BuildM2(
+                M2Message.SysToArr(13, 4), M2Message.SysFrom(),
+                M2Message.U32Sys(0xFF0007, 1),
+                M2Message.BoolSys(0xFF0005, true), ReqId(),
+                sidField,
+                M2Message.StringUser(1, user),
+                M2Message.RawUser(9, salt),
+                M2Message.RawUser(10, hash));
+            byte[] loginResp = SendRecvEncrypted(loginMsg, 5000);
+
+            Console.WriteLine($"[DataLayerLogin] Login response ({loginResp.Length}B):");
+            foreach (var kv in M2Message.ParseAllFields(loginResp))
+                Console.WriteLine($"  key=0x{kv.Key:X6} {kv.Value.Item1} = {kv.Value.Item2}");
+
+            int status = M2Message.ParseSysStatus(loginResp);
+            Console.WriteLine($"[DataLayerLogin] status=0x{status:X}");
+            if (status != 0)
+            {
+                Console.WriteLine("[DataLayerLogin] Login failed (wrong creds or wrong protocol)");
+                return -1;
+            }
+
+            Console.WriteLine($"[DataLayerLogin] SUCCESS session_id={sessionId}");
+            return sessionId;
+        }
+
         public void Dispose() => _transport.Dispose();
 
         // ── Structured catalog parsing ────────────────────────────────────────

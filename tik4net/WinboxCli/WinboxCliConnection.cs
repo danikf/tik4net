@@ -33,7 +33,7 @@ namespace tik4net.WinboxCli
         /// <summary>
         /// Login timeout in milliseconds — the maximum time to wait for the RouterOS shell prompt
         /// after authentication (default 15 000 ms). Kept separate from
-        /// <see cref="CliConnectionBase.ReceiveTimeout"/> (which bounds per-command reads) so a stuck
+        /// <see cref="tik4net.Connection.TikCommandConnectionBase.ReceiveTimeout"/> (which bounds per-command reads) so a stuck
         /// login fails fast enough for a caller's connect-retry loop to try again.
         /// Set before calling <see cref="Open(string, string, string)"/>.
         /// </summary>

@@ -1,0 +1,289 @@
+using System;
+using System.Collections.Generic;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace tik4net.Connection
+{
+    /// <summary>
+    /// Transport-neutral base class for RouterOS command-style connections that expose CRUD through
+    /// the four <c>Run*</c> hooks (instead of the binary API sentence protocol). It implements the full
+    /// <see cref="ITikConnection"/> surface — command factory, low-level <see cref="CallCommandSync(string[])"/>
+    /// dispatch, diagnostics and lifecycle — and serialises commands through a <see cref="SemaphoreSlim"/>.
+    ///
+    /// Concrete subclasses provide the transport (CLI terminal, native WinBox M2, …) by implementing:
+    /// <list type="bullet">
+    ///   <item><see cref="Open(string, string, string)"/> / <see cref="Open(string, int, string, string)"/></item>
+    ///   <item><see cref="OpenAsync(string, string, string)"/> / <see cref="OpenAsync(string, int, string, string)"/></item>
+    ///   <item><see cref="Close"/></item>
+    ///   <item>the four CRUD hooks <see cref="RunPrint"/>, <see cref="RunAdd"/>, <see cref="RunNonQuery"/>, <see cref="RunScalarGet"/>.</item>
+    /// </list>
+    /// </summary>
+    public abstract class TikCommandConnectionBase : ITikConnection, ITikConnectionCapabilities
+    {
+        /// <summary>Serialises command execution — the underlying transports are inherently sequential.</summary>
+        protected readonly SemaphoreSlim _cmdLock = new SemaphoreSlim(1, 1);
+        private bool _isOpened;
+
+        // ── ITikConnection properties ─────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public bool DebugEnabled { get; set; }
+
+        /// <inheritdoc/>
+        public bool IsOpened => _isOpened;
+
+        /// <inheritdoc/>
+        public Encoding Encoding { get; set; } = Encoding.UTF8;
+
+        /// <summary>No-op for command transports (no tag protocol).</summary>
+        public bool SendTagWithSyncCommand { get; set; }
+
+        /// <inheritdoc/>
+        public int SendTimeout { get; set; } = 30000;
+
+        /// <inheritdoc/>
+        public int ReceiveTimeout { get; set; } = 30000;
+
+        /// <inheritdoc/>
+        public event EventHandler<TikConnectionCommCallbackEventArgs> OnReadRow;
+
+        /// <inheritdoc/>
+        public event EventHandler<TikConnectionCommCallbackEventArgs> OnWriteRow;
+
+        /// <summary>
+        /// Optional callback for low-level transport diagnostics (raw packets, protocol events).
+        /// Intended for test instrumentation and debugging — not for production use.
+        /// The string format is transport-specific (e.g. "[pkt] type=1 paylen=42").
+        /// Set to <c>null</c> (default) to disable.
+        /// </summary>
+        public Action<string> TransportDiagnostic { get; set; }
+
+        // ── Capabilities ──────────────────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public virtual TikConnectionCapability Capabilities => TikConnectionCapability.Crud;
+
+        // ── Transport — subclass contract ─────────────────────────────────────
+
+        /// <inheritdoc/>
+        public abstract void Open(string host, string user, string password);
+
+        /// <inheritdoc/>
+        public abstract void Open(string host, int port, string user, string password);
+
+        /// <inheritdoc/>
+        public abstract Task OpenAsync(string host, string user, string password);
+
+        /// <inheritdoc/>
+        public abstract Task OpenAsync(string host, int port, string user, string password);
+
+        /// <inheritdoc/>
+        public abstract void Close();
+
+        // ── Open/Close helpers for subclasses ─────────────────────────────────
+
+        /// <summary>
+        /// Subclasses must call this after a successful login to mark the connection as open.
+        /// </summary>
+        protected void SetOpened() => _isOpened = true;
+
+        /// <summary>
+        /// Subclasses must call this when closing or on a fatal error to mark the connection as closed.
+        /// </summary>
+        protected void SetClosed() => _isOpened = false;
+
+        // ── CRUD hooks — subclass contract ────────────────────────────────────
+
+        /// <summary>
+        /// Executes a read (<c>print</c>) command and returns the matching records.
+        /// </summary>
+        internal abstract IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor);
+
+        /// <summary>
+        /// Executes an <c>add</c> command and returns the new record's <c>.id</c>.
+        /// </summary>
+        internal abstract string RunAdd(TikCommandDescriptor descriptor);
+
+        /// <summary>
+        /// Executes a non-query command (set, remove, enable, disable, move, unset, reboot, …).
+        /// </summary>
+        internal abstract void RunNonQuery(TikCommandDescriptor descriptor);
+
+        /// <summary>
+        /// Executes a scalar <c>get</c> command and returns the raw value.
+        /// </summary>
+        internal abstract string RunScalarGet(string cliText);
+
+        // ── ITikConnection — Command factory ──────────────────────────────────
+
+        /// <inheritdoc/>
+        public ITikCommand CreateCommand()
+            => new TikGenericCommand(this);
+
+        /// <inheritdoc/>
+        public ITikCommand CreateCommand(TikCommandParameterFormat defaultParameterFormat)
+            => new TikGenericCommand(this, defaultParameterFormat);
+
+        /// <inheritdoc/>
+        public ITikCommand CreateCommand(string commandText, params ITikCommandParameter[] parameters)
+            => new TikGenericCommand(this, commandText, parameters);
+
+        /// <inheritdoc/>
+        public ITikCommand CreateCommand(string commandText, TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] parameters)
+            => new TikGenericCommand(this, commandText, defaultParameterFormat, parameters);
+
+        /// <inheritdoc/>
+        public ITikCommand CreateCommandAndParameters(string commandText, params string[] parameterNamesAndValues)
+        {
+            var cmd = new TikGenericCommand(this, commandText);
+            cmd.AddParameterAndValues(parameterNamesAndValues);
+            return cmd;
+        }
+
+        /// <inheritdoc/>
+        public ITikCommand CreateCommandAndParameters(string commandText, TikCommandParameterFormat defaultParameterFormat, params string[] parameterNamesAndValues)
+        {
+            var cmd = new TikGenericCommand(this, commandText, defaultParameterFormat);
+            cmd.AddParameterAndValues(parameterNamesAndValues);
+            return cmd;
+        }
+
+        /// <inheritdoc/>
+        public ITikCommandParameter CreateParameter(string name, string value)
+            => new TikCommandParameter(name, value);
+
+        /// <inheritdoc/>
+        public ITikCommandParameter CreateParameter(string name, string value, TikCommandParameterFormat parameterFormat)
+            => new TikCommandParameter(name, value, parameterFormat);
+
+        // ── CallCommandSync (low-level) ────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public IEnumerable<ITikSentence> CallCommandSync(params string[] commandRows)
+            => CallCommandSync((IEnumerable<string>)commandRows);
+
+        /// <inheritdoc/>
+        public IEnumerable<ITikSentence> CallCommandSync(IEnumerable<string> commandRows)
+        {
+            var rows = new List<string>(commandRows);
+            if (rows.Count == 0)
+                throw new ArgumentException("commandRows must not be empty.");
+
+            string commandText = rows[0];
+
+            // Parse remaining rows as parameters
+            var parameters = new List<ITikCommandParameter>();
+            for (int i = 1; i < rows.Count; i++)
+            {
+                string row = rows[i];
+                if (row.StartsWith(".tag=") || row.StartsWith(".tag ="))
+                    continue;  // tags are no-op for command transports
+
+                if (row.StartsWith("?"))
+                {
+                    string kv = row.TrimStart('?');
+                    if (kv.StartsWith("="))
+                        kv = kv.Substring(1);
+                    int eq = kv.IndexOf('=');
+                    if (eq >= 0)
+                        parameters.Add(new TikCommandParameter(kv.Substring(0, eq), kv.Substring(eq + 1), TikCommandParameterFormat.Filter));
+                }
+                else if (row.StartsWith("="))
+                {
+                    string kv = row.Substring(1);
+                    int eq = kv.IndexOf('=');
+                    if (eq >= 0)
+                        parameters.Add(new TikCommandParameter(kv.Substring(0, eq), kv.Substring(eq + 1), TikCommandParameterFormat.NameValue));
+                }
+            }
+
+            string verb = GetVerb(commandText);
+            var descriptor = new TikCommandDescriptor(commandText, parameters);
+
+            if (verb == "add")
+            {
+                string id = RunAdd(descriptor);
+                return new List<ITikSentence> { new TikDoneSentenceResult(id) };
+            }
+
+            if (verb == "remove" || verb == "set" || verb == "unset" || verb == "move"
+                || verb == "enable" || verb == "disable")
+            {
+                RunNonQuery(descriptor);
+                return new List<ITikSentence> { new TikDoneSentenceResult() };
+            }
+
+            // Read
+            var result = new List<ITikSentence>();
+            result.AddRange(RunPrint(descriptor));
+            result.Add(new TikDoneSentenceResult());
+            return result;
+        }
+
+        // ── CallCommandAsync (not supported) ──────────────────────────────────
+
+        /// <inheritdoc/>
+        public Thread CallCommandAsync(IEnumerable<string> commandRows, string tag, Action<ITikSentence> oneResponseCallback)
+        {
+            throw new NotSupportedException("This transport does not support asynchronous commands. Use a transport that reports Listen capability.");
+        }
+
+        // ── IDisposable ────────────────────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public void Dispose() => Close();
+
+        // ── Diagnostics ────────────────────────────────────────────────────────
+
+        /// <summary>Fires <see cref="OnWriteRow"/> and writes a debug line when <see cref="DebugEnabled"/>.</summary>
+        protected void FireWriteRow(string word)
+        {
+            OnWriteRow?.Invoke(this, new TikConnectionCommCallbackEventArgs(word));
+            if (DebugEnabled)
+                System.Diagnostics.Debug.WriteLine("CLI>> " + word);
+        }
+
+        /// <summary>Fires <see cref="OnReadRow"/> and writes a (truncated) debug line when <see cref="DebugEnabled"/>.</summary>
+        protected void FireReadRow(string word)
+        {
+            OnReadRow?.Invoke(this, new TikConnectionCommCallbackEventArgs(word));
+            if (DebugEnabled)
+                System.Diagnostics.Debug.WriteLine("CLI<< " + (word != null && word.Length > 200 ? word.Substring(0, 200) + "..." : word));
+        }
+
+        // ── Private helpers ────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Throws <see cref="TikConnectionNotOpenException"/> when the connection has not been opened.
+        /// </summary>
+        protected void EnsureOpened()
+        {
+            if (!_isOpened)
+                throw new TikConnectionNotOpenException("Connection is not open.");
+        }
+
+        /// <summary>Returns the last (verb) segment of a command path, lower-cased.</summary>
+        protected static string GetVerb(string commandText)
+        {
+            if (string.IsNullOrWhiteSpace(commandText))
+                return "print";
+            string trimmed = commandText.TrimStart('/');
+            var segments = trimmed.Split('/');
+            return segments[segments.Length - 1].ToLowerInvariant();
+        }
+
+        /// <summary>
+        /// Creates a minimal command object for use in exception constructors when the original
+        /// command is not available (e.g. in CallCommandSync / RunNonQuery paths).
+        /// </summary>
+        internal ITikCommand CreateDummyCommand(TikCommandDescriptor descriptor)
+        {
+            var cmd = new TikGenericCommand(this, descriptor.CommandText);
+            foreach (var p in descriptor.Parameters)
+                cmd.AddParameter(p.Name, p.Value, p.ParameterFormat);
+            return cmd;
+        }
+    }
+}

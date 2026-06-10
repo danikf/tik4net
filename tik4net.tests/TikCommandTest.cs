@@ -237,9 +237,10 @@ namespace tik4net.tests
                 ITikCommand scriptRunCmd = Connection.CreateCommand("/system/script/run",
                     Connection.CreateParameter(TikSpecialProperties.Id, id, TikCommandParameterFormat.NameValue));
                 var responseRows = scriptRunCmd.ExecuteList();
-                if (IsCliTransport())
-                    // Over a terminal the script runs fire-and-forget — no per-line !re rows are produced
-                    // (unlike the binary API). We only assert the run did not fault.
+                if (IsNonApiTransport())
+                    // Non-binary-API transports (CLI terminals and native WinBox M2) run the script
+                    // fire-and-forget — no per-line !re rows are produced (unlike the binary API).
+                    // We only assert the run did not fault.
                     Assert.IsNotNull(responseRows);
                 else
                     Assert.IsTrue(responseRows.Count() == commandRowsCnt); //one empty !re row per script line command

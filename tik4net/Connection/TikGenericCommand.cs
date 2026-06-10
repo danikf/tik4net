@@ -2,16 +2,17 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace tik4net.Cli
+namespace tik4net.Connection
 {
     /// <summary>
-    /// RouterOS CLI transport command. Mirrors <c>RestCommand</c> in structure;
-    /// delegates execution to <see cref="CliConnectionBase"/>.
+    /// Transport-neutral RouterOS command. Holds path + parameters and delegates execution to the
+    /// owning <see cref="TikCommandConnectionBase"/> CRUD hooks (RunPrint/RunAdd/RunNonQuery/RunScalarGet);
+    /// it does not itself build any transport-specific (CLI text / native M2) payload.
     /// </summary>
-    internal class CliCommand : ITikCommand
+    internal class TikGenericCommand : ITikCommand
     {
         private readonly List<ITikCommandParameter> _parameters = new List<ITikCommandParameter>();
-        private CliConnectionBase _connection;
+        private TikCommandConnectionBase _connection;
         private string _commandText;
         private TikCommandParameterFormat _defaultParameterFormat;
         private volatile bool _isRunning;
@@ -21,8 +22,8 @@ namespace tik4net.Cli
             get { return _connection; }
             set
             {
-                Guard.ArgumentOfType<CliConnectionBase>(value, "connection");
-                _connection = (CliConnectionBase)value;
+                Guard.ArgumentOfType<TikCommandConnectionBase>(value, "connection");
+                _connection = (TikCommandConnectionBase)value;
             }
         }
 
@@ -42,46 +43,46 @@ namespace tik4net.Cli
             set { _defaultParameterFormat = value; }
         }
 
-        public CliCommand()
+        public TikGenericCommand()
         {
             _defaultParameterFormat = TikCommandParameterFormat.Default;
         }
 
-        public CliCommand(TikCommandParameterFormat defaultParameterFormat)
+        public TikGenericCommand(TikCommandParameterFormat defaultParameterFormat)
         {
             _defaultParameterFormat = defaultParameterFormat;
         }
 
-        public CliCommand(CliConnectionBase connection) : this()
+        public TikGenericCommand(TikCommandConnectionBase connection) : this()
         {
             Connection = connection;
         }
 
-        public CliCommand(CliConnectionBase connection, TikCommandParameterFormat defaultParameterFormat)
+        public TikGenericCommand(TikCommandConnectionBase connection, TikCommandParameterFormat defaultParameterFormat)
             : this(defaultParameterFormat)
         {
             Connection = connection;
         }
 
-        public CliCommand(CliConnectionBase connection, string commandText)
+        public TikGenericCommand(TikCommandConnectionBase connection, string commandText)
             : this(connection)
         {
             CommandText = commandText;
         }
 
-        public CliCommand(CliConnectionBase connection, string commandText, TikCommandParameterFormat defaultParameterFormat)
+        public TikGenericCommand(TikCommandConnectionBase connection, string commandText, TikCommandParameterFormat defaultParameterFormat)
             : this(connection, defaultParameterFormat)
         {
             CommandText = commandText;
         }
 
-        public CliCommand(CliConnectionBase connection, string commandText, params ITikCommandParameter[] parameters)
+        public TikGenericCommand(TikCommandConnectionBase connection, string commandText, params ITikCommandParameter[] parameters)
             : this(connection, commandText)
         {
             _parameters.AddRange(parameters);
         }
 
-        public CliCommand(CliConnectionBase connection, string commandText, TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] parameters)
+        public TikGenericCommand(TikCommandConnectionBase connection, string commandText, TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] parameters)
             : this(connection, commandText, defaultParameterFormat)
         {
             _parameters.AddRange(parameters);
@@ -173,7 +174,7 @@ namespace tik4net.Cli
                 var paramsForRead = ResolveParamsForRead(normalParams);
                 var cmd = BuildCommand(normalCmd, paramsForRead);
 
-                IList<CliReSentence> rows;
+                IList<TikRecordSentence> rows;
                 try
                 {
                     rows = _connection.RunPrint(cmd);
@@ -352,17 +353,17 @@ namespace tik4net.Cli
 
         private static ITikCommandParameter CreateParameter(string name, string value, TikCommandParameterFormat fmt = TikCommandParameterFormat.Default)
         {
-            return new CliCommandParameter(name, value, fmt);
+            return new TikCommandParameter(name, value, fmt);
         }
 
         // ── Internal builder helpers ──────────────────────────────────────────
 
         /// <summary>
-        /// Converts a normalized (command, params) pair into a CliCommandDescriptor used by RunPrint/RunNonQuery etc.
+        /// Converts a normalized (command, params) pair into a <see cref="TikCommandDescriptor"/> used by RunPrint/RunNonQuery etc.
         /// </summary>
-        private static CliCommandDescriptor BuildCommand(string commandText, IList<ITikCommandParameter> parameters)
+        private static TikCommandDescriptor BuildCommand(string commandText, IList<ITikCommandParameter> parameters)
         {
-            return new CliCommandDescriptor(commandText, parameters);
+            return new TikCommandDescriptor(commandText, parameters);
         }
 
         private static string FindIdParam(IList<ITikCommandParameter> parameters)
@@ -403,16 +404,16 @@ namespace tik4net.Cli
                     string raw = line.Substring(1);
                     int eq = raw.IndexOf('=');
                     if (eq >= 0)
-                        allParams.Add(new CliCommandParameter(raw.Substring(0, eq), raw.Substring(eq + 1), TikCommandParameterFormat.Filter));
+                        allParams.Add(new TikCommandParameter(raw.Substring(0, eq), raw.Substring(eq + 1), TikCommandParameterFormat.Filter));
                     else
-                        allParams.Add(new CliCommandParameter(raw, "", TikCommandParameterFormat.Filter));
+                        allParams.Add(new TikCommandParameter(raw, "", TikCommandParameterFormat.Filter));
                 }
                 else if (line.StartsWith("="))
                 {
                     string raw = line.Substring(1);
                     int eq = raw.IndexOf('=');
                     if (eq >= 0)
-                        allParams.Add(new CliCommandParameter(raw.Substring(0, eq), raw.Substring(eq + 1), TikCommandParameterFormat.NameValue));
+                        allParams.Add(new TikCommandParameter(raw.Substring(0, eq), raw.Substring(eq + 1), TikCommandParameterFormat.NameValue));
                 }
             }
 
@@ -430,7 +431,7 @@ namespace tik4net.Cli
                     && !p.Name.StartsWith("=")
                     && !p.Name.StartsWith("?"))
                 {
-                    result.Add(new CliCommandParameter(p.Name, p.Value, TikCommandParameterFormat.Filter));
+                    result.Add(new TikCommandParameter(p.Name, p.Value, TikCommandParameterFormat.Filter));
                 }
                 else
                 {
@@ -450,21 +451,5 @@ namespace tik4net.Cli
 
         public override string ToString()
             => CommandText + " PARAMS: " + string.Join("; ", _parameters.Select(p => $"{p.Name}:{p.Value}"));
-    }
-
-    /// <summary>
-    /// Lightweight descriptor passed from <see cref="CliCommand"/> to <see cref="CliConnectionBase"/>.
-    /// Avoids exposing the full CliCommand internals to the connection.
-    /// </summary>
-    internal sealed class CliCommandDescriptor
-    {
-        internal string CommandText { get; }
-        internal IList<ITikCommandParameter> Parameters { get; }
-
-        internal CliCommandDescriptor(string commandText, IList<ITikCommandParameter> parameters)
-        {
-            CommandText = commandText;
-            Parameters = parameters;
-        }
     }
 }

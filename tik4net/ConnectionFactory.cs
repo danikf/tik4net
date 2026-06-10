@@ -8,6 +8,7 @@ using tik4net.Rest;
 using tik4net.Telnet;
 using tik4net.WinboxCli;
 using tik4net.WinboxCliMac;
+using tik4net.WinboxNative;
 
 namespace tik4net
 {
@@ -43,6 +44,8 @@ namespace tik4net
                     return new WinboxCliConnection();
                 case TikConnectionType.WinboxCliMac:
                     return new WinboxCliMacConnection();
+                case TikConnectionType.WinboxNative:
+                    return new WinboxNativeConnection();
                 default:
                     throw new NotImplementedException(string.Format("Connection type '{0}' not supported.", connectionType));
             }

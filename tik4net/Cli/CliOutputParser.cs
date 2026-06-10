@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using tik4net.Connection;
 
 namespace tik4net.Cli
 {
     /// <summary>
     /// Parses RouterOS as-value output (produced via <c>:put [/path print as-value …]</c>) into a
-    /// list of <see cref="CliReSentence"/> objects.
+    /// list of <see cref="TikRecordSentence"/> objects.
     ///
     /// <para>Format: <c>:put</c> emits ALL records on a single logical line, fields separated by
     /// <c>;</c>, with each record starting at <c>.id=</c>. Example:
@@ -26,9 +27,9 @@ namespace tik4net.Cli
         /// <summary>
         /// Parses <paramref name="output"/> into a list of re-sentences. Empty output → empty list.
         /// </summary>
-        internal static IList<CliReSentence> ParseAsValue(string output)
+        internal static IList<TikRecordSentence> ParseAsValue(string output)
         {
-            var result = new List<CliReSentence>();
+            var result = new List<TikRecordSentence>();
             if (string.IsNullOrWhiteSpace(output))
                 return result;
 
@@ -55,7 +56,7 @@ namespace tik4net.Cli
 
             foreach (var rec in records)
                 if (rec.Count > 0)
-                    result.Add(new CliReSentence(rec));
+                    result.Add(new TikRecordSentence(rec));
 
             return result;
         }
