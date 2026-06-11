@@ -38,9 +38,9 @@ namespace tik4net.Winbox
         // Well-known system keys shared by all config tables. apiName → key.
         private static readonly Dictionary<string, int> SeedByName = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
         {
-            [".id"]     = WinboxNativeM2Operations.KEY_ID,      // 0xFE0001
-            ["comment"] = WinboxNativeM2Operations.KEY_COMMENT, // 0xFE0009
-            ["name"]    = WinboxNativeM2Operations.KEY_NAME,    // 0x10006
+            [".id"]     = WinboxM2Protocol.RecordKey.Id,      // 0xFE0001
+            ["comment"] = WinboxM2Protocol.RecordKey.Comment, // 0xFE0009
+            ["name"]    = WinboxM2Protocol.RecordKey.Name,    // 0x10006
         };
 
         // ── key → apiName (decode records) ─────────────────────────────────────

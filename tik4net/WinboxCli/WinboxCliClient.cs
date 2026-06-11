@@ -21,11 +21,7 @@ namespace tik4net.WinboxCli
     /// </remarks>
     internal sealed class WinboxCliClient : IDisposable
     {
-        // mepty (terminal PTY) handler [76] and its commands.
-        private const int MeptyHandler  = 76;
-        private const int CmdMeptyLogin = 0x0A0065;
-        private const int CmdMeptyData  = 0x0A0067;
-
+        // mepty (terminal PTY) handler + commands — see WinboxM2Protocol.Mepty.
         private const int SettleMs       = 150;
         // Receive timeout for one encrypted frame. Must be generous: a timeout that fires mid-frame
         // leaves the TCP stream misaligned and every subsequent read fails (see winbox findings §2).
@@ -109,14 +105,14 @@ namespace tik4net.WinboxCli
                     "(RouterOS 6.43+). The legacy MD5 path does not carry an encrypted terminal session.");
 
             byte[] msg = M2Message.BuildM2(
-                M2Message.SysToArr(MeptyHandler), M2Message.SysFrom(),
-                M2Message.BoolSys(0xFF0005, true),
+                M2Message.SysToArr(WinboxM2Protocol.Mepty.Handler), M2Message.SysFrom(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true),
                 _session.NextReqIdField(),
-                M2Message.U32Sys(0xFF0007, CmdMeptyLogin),
-                M2Message.StringUser(1, password),
-                M2Message.StringUser(2, terminalType),
-                M2Message.U32User(3, cols),
-                M2Message.U32User(4, rows));
+                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Mepty.Login),
+                M2Message.StringUser(WinboxM2Protocol.Mepty.Key.Password, password),
+                M2Message.StringUser(WinboxM2Protocol.Mepty.Key.Input, terminalType),
+                M2Message.U32User(WinboxM2Protocol.Mepty.Key.Cols, cols),
+                M2Message.U32User(WinboxM2Protocol.Mepty.Key.Rows, rows));
             byte[] resp = _session.SendReceive(msg, FrameTimeoutMs);
             return M2Message.ParseSessionId(resp);
         }
@@ -124,21 +120,21 @@ namespace tik4net.WinboxCli
         private void SendTerminalReady(int sessionId)
         {
             byte[] msg = M2Message.BuildM2(
-                M2Message.SysToArr(MeptyHandler), M2Message.SysFrom(),
+                M2Message.SysToArr(WinboxM2Protocol.Mepty.Handler), M2Message.SysFrom(),
                 M2Message.SessionIdField(sessionId),
-                M2Message.U32Sys(0xFF0007, CmdMeptyData),
-                M2Message.U32User(3, 0));
+                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Mepty.Data),
+                M2Message.U32User(WinboxM2Protocol.Mepty.Key.Counter, 0));
             _session.Send(msg);
         }
 
         private void SendInput(byte[] keystrokes)
         {
             byte[] msg = M2Message.BuildM2(
-                M2Message.SysToArr(MeptyHandler), M2Message.SysFrom(),
+                M2Message.SysToArr(WinboxM2Protocol.Mepty.Handler), M2Message.SysFrom(),
                 M2Message.SessionIdField(_sessionId),
-                M2Message.U32Sys(0xFF0007, CmdMeptyData),
-                M2Message.RawUser(2, keystrokes),
-                M2Message.U32User(3, _counter++));
+                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Mepty.Data),
+                M2Message.RawUser(WinboxM2Protocol.Mepty.Key.Input, keystrokes),
+                M2Message.U32User(WinboxM2Protocol.Mepty.Key.Counter, _counter++));
             _session.Send(msg);
         }
 
@@ -147,7 +143,7 @@ namespace tik4net.WinboxCli
         {
             byte[] resp = _session.Receive(timeoutMs);
             if (resp == null) return null;
-            return M2Message.ParseUserBytes(resp, 2);
+            return M2Message.ParseUserBytes(resp, WinboxM2Protocol.Mepty.Key.Input);
         }
 
         // ── Synchronous terminal loops ────────────────────────────────────────

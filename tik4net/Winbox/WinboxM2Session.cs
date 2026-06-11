@@ -96,7 +96,7 @@ namespace tik4net.Winbox
         }
 
         /// <summary>Builds the next request-id system field (key 0xFF0006), incrementing the counter.</summary>
-        public byte[] NextReqIdField() => M2Message.U8Sys(0xFF0006, (byte)(++_reqId));
+        public byte[] NextReqIdField() => M2Message.U8Sys(WinboxM2Protocol.SysKey.RequestId, (byte)(++_reqId));
 
         // ── Encrypted / raw frame primitives ──────────────────────────────────
 
@@ -211,23 +211,27 @@ namespace tik4net.Winbox
         private void LegacyMd5Auth(string user, string pass)
         {
             byte[] listMsg = M2Message.BuildM2(
-                M2Message.SysToArr(2, 2), M2Message.SysFrom(), M2Message.U32Sys(0xFF0007, 7),
-                M2Message.BoolSys(0xFF0005, true), NextReqIdField(), M2Message.StringUser(1, "list"));
+                M2Message.SysToArr(WinboxM2Protocol.Mproxy.Handler), M2Message.SysFrom(),
+                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Mproxy.OpenStatic),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
+                M2Message.StringUser(WinboxM2Protocol.Mproxy.Key.FileName, "list"));
             byte[] listResp = SendRecvRaw(listMsg, 5000);
             int sessionId = M2Message.ParseSessionId(listResp);
 
             byte[] challengeSetup = M2Message.BuildM2(
-                M2Message.SysToArr(2, 2), M2Message.SysFrom(), M2Message.U32Sys(0xFF0007, 5),
-                M2Message.BoolSys(0xFF0005, true), NextReqIdField(), M2Message.SessionIdField(sessionId));
+                M2Message.SysToArr(WinboxM2Protocol.Mproxy.Handler), M2Message.SysFrom(),
+                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Mproxy.Setup),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(), M2Message.SessionIdField(sessionId));
             _transport.SendRaw(challengeSetup);
             Thread.Sleep(200);
             DrainSocket(500);
 
             byte[] saltMsg = M2Message.BuildM2(
-                M2Message.SysToArr(13, 4), M2Message.SysFrom(), M2Message.U32Sys(0xFF0007, 4),
-                M2Message.BoolSys(0xFF0005, true), NextReqIdField(), M2Message.SessionIdField(sessionId));
+                M2Message.SysToArr(WinboxM2Protocol.SysInfo.Handler), M2Message.SysFrom(),
+                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.LegacyAuth.GetSalt),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(), M2Message.SessionIdField(sessionId));
             byte[] saltResp = SendRecvRaw(saltMsg, 5000);
-            byte[] salt = M2Message.ParseRawUser(saltResp, 9);
+            byte[] salt = M2Message.ParseRawUser(saltResp, WinboxM2Protocol.LegacyAuth.Key.Salt);
             if (salt == null)
                 throw new InvalidOperationException("No salt in challenge response");
 
@@ -237,13 +241,16 @@ namespace tik4net.Winbox
                 .Concat(MD5.Create().ComputeHash(hashInput)).ToArray();
 
             byte[] loginMsg = M2Message.BuildM2(
-                M2Message.SysToArr(13, 4), M2Message.SysFrom(), M2Message.U32Sys(0xFF0007, 1),
-                M2Message.BoolSys(0xFF0005, true), NextReqIdField(), M2Message.SessionIdField(sessionId),
-                M2Message.StringUser(1, user), M2Message.RawUser(9, salt), M2Message.RawUser(10, hash));
+                M2Message.SysToArr(WinboxM2Protocol.SysInfo.Handler), M2Message.SysFrom(),
+                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.LegacyAuth.Login),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(), M2Message.SessionIdField(sessionId),
+                M2Message.StringUser(WinboxM2Protocol.LegacyAuth.Key.User, user),
+                M2Message.RawUser(WinboxM2Protocol.LegacyAuth.Key.Salt, salt),
+                M2Message.RawUser(WinboxM2Protocol.LegacyAuth.Key.Hash, hash));
             byte[] loginResp = SendRecvRaw(loginMsg, 5000);
 
             int status = M2Message.ParseSysStatus(loginResp);
-            if (status != 0)
+            if (status != WinboxM2Protocol.Error.None)
                 throw new UnauthorizedAccessException("Wrong username or password (legacy auth)");
         }
 

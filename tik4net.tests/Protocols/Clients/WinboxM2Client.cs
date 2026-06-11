@@ -69,9 +69,9 @@ namespace tik4net.tests
         {
             byte[] msg = M2Message.BuildM2(
                 M2Message.SysToArr(handlerPath), M2Message.SysFrom(),
-                M2Message.BoolSys(0xFF0005, true),
+                M2Message.BoolSys(tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected, true),
                 ReqId(),
-                M2Message.U8Sys(0xFF0007, (byte)cmd));
+                M2Message.U8Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, (byte)cmd));
             byte[] resp = _encrypted ? SendRecvEncrypted(msg) : SendRecvRaw(msg);
             return M2Message.ParseAllFields(resp);
         }
@@ -112,10 +112,10 @@ namespace tik4net.tests
             var head = new List<byte[]>
             {
                 M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(0xFF0005, true),  // reply expected
+                M2Message.BoolSys(tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected, true),  // reply expected
                 ReqId(),
-                cmd <= 0xFF ? M2Message.U8Sys(0xFF0007, (byte)cmd)
-                            : M2Message.U32Sys(0xFF0007, cmd),
+                cmd <= 0xFF ? M2Message.U8Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, (byte)cmd)
+                            : M2Message.U32Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, cmd),
             };
             head.AddRange(extraFields);
             byte[] msg = M2Message.BuildM2(head.ToArray());
@@ -144,10 +144,10 @@ namespace tik4net.tests
             var head = new List<byte[]>
             {
                 M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(0xFF0005, true),
+                M2Message.BoolSys(tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected, true),
                 ReqId(),
-                cmd <= 0xFF ? M2Message.U8Sys(0xFF0007, (byte)cmd)
-                            : M2Message.U32Sys(0xFF0007, cmd),
+                cmd <= 0xFF ? M2Message.U8Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, (byte)cmd)
+                            : M2Message.U32Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, cmd),
             };
             head.AddRange(extraFields);
             EncryptAndSend(M2Message.BuildM2(head.ToArray()));
@@ -164,7 +164,7 @@ namespace tik4net.tests
             return frames;
         }
 
-        // Streaming variant: send WITHOUT reply_expected (omit 0xFF0005 entirely).
+        // Streaming variant: send WITHOUT reply_expected (omit tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected entirely).
         // If the router uses a subscribe/push model, omitting reply_expected causes it
         // to stream all records as separate frames. maxMs window to collect all frames.
         public List<byte[]> ProbeCommandStream(
@@ -175,8 +175,8 @@ namespace tik4net.tests
                 M2Message.SysToArr(handler), M2Message.SysFrom(),
                 // NO reply_expected field
                 ReqId(),
-                cmd <= 0xFF ? M2Message.U8Sys(0xFF0007, (byte)cmd)
-                            : M2Message.U32Sys(0xFF0007, cmd),
+                cmd <= 0xFF ? M2Message.U8Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, (byte)cmd)
+                            : M2Message.U32Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, cmd),
             };
             head.AddRange(extraFields);
             EncryptAndSend(M2Message.BuildM2(head.ToArray()));
@@ -224,9 +224,9 @@ namespace tik4net.tests
             var head = new List<byte[]>
             {
                 M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(0xFF0005, true),
+                M2Message.BoolSys(tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected, true),
                 ReqId(),
-                M2Message.U8Sys(0xFF0007, 2),  // cmd=2 = set
+                M2Message.U8Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, 2),  // cmd=2 = set
                 M2Message.SessionIdField(recordId),
             };
             head.AddRange(fields);
@@ -241,16 +241,18 @@ namespace tik4net.tests
         // Records are returned as a MESSAGE-ARRAY under key 0xFE0002 (webfig 'Mfe0002').
         // The getall request carries flag field 0xFE000C (webfig 'ufe000c') = 0x10000005
         // | refetchonopen | refreshfilter; pagination continues while reply has 0xFE0003.
-        public const int CMD_GETALL = 0xFE0004;
-        public const int CMD_GETONE = 0xFE0002;
-        public const int CMD_SET    = 0xFE0003;
-        public const int CMD_ADD    = 0xFE0005;
-        public const int CMD_REMOVE = 0xFE0006;
-        public const int KEY_RECORDS  = 0xFE0002;  // Mfe0002 — record message-array
-        public const int KEY_ID       = 0xFE0001;  // ufe0001 — record .id
-        public const int KEY_FLAGS    = 0xFE000C;  // ufe000c — getall/get flags
-        public const int KEY_COUNT    = 0xFE0019;  // ufe0019 — object count
-        public const int KEY_CONT     = 0xFE0003;  // ufe0003 — getall continuation token
+        // Single source of truth = tik4net.Winbox.WinboxM2Protocol (visible via InternalsVisibleTo).
+        // Kept as local aliases so this PoC client's method bodies read unchanged.
+        public const int CMD_GETALL = tik4net.Winbox.WinboxM2Protocol.Command.GetAll;
+        public const int CMD_GETONE = tik4net.Winbox.WinboxM2Protocol.Command.GetOne;
+        public const int CMD_SET    = tik4net.Winbox.WinboxM2Protocol.Command.Set;
+        public const int CMD_ADD    = tik4net.Winbox.WinboxM2Protocol.Command.Add;
+        public const int CMD_REMOVE = tik4net.Winbox.WinboxM2Protocol.Command.Remove;
+        public const int KEY_RECORDS  = tik4net.Winbox.WinboxM2Protocol.RecordKey.Records;
+        public const int KEY_ID       = tik4net.Winbox.WinboxM2Protocol.RecordKey.Id;
+        public const int KEY_FLAGS    = tik4net.Winbox.WinboxM2Protocol.RecordKey.Flags;
+        public const int KEY_COUNT    = tik4net.Winbox.WinboxM2Protocol.RecordKey.Count;
+        public const int KEY_CONT     = tik4net.Winbox.WinboxM2Protocol.RecordKey.Continuation;
 
         // getall on a handler. Returns every record's parsed field-dict (follows
         // 0xFE0003 pagination). flags default 0x10000005 (webfig base getall flags).
@@ -265,9 +267,9 @@ namespace tik4net.tests
                 var head = new List<byte[]>
                 {
                     M2Message.SysToArr(handler), M2Message.SysFrom(),
-                    M2Message.BoolSys(0xFF0005, true),    // reply expected
+                    M2Message.BoolSys(tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected, true),    // reply expected
                     ReqId(),
-                    M2Message.U32Sys(0xFF0007, CMD_GETALL),
+                    M2Message.U32Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, CMD_GETALL),
                     M2Message.U32Sys(KEY_FLAGS, flags),
                 };
                 if (maxObjs > 0) head.Add(M2Message.U32Sys(0xFE0018, maxObjs));
@@ -294,8 +296,8 @@ namespace tik4net.tests
         {
             byte[] msg = M2Message.BuildM2(
                 M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(0xFF0005, true), ReqId(),
-                M2Message.U32Sys(0xFF0007, CMD_GETONE),
+                M2Message.BoolSys(tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected, true), ReqId(),
+                M2Message.U32Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, CMD_GETONE),
                 M2Message.SessionIdField(id));
             byte[] resp = SendRecvEncrypted(msg, 5000);
             var recs = M2Message.ParseRecords(resp, KEY_RECORDS);
@@ -309,8 +311,8 @@ namespace tik4net.tests
             var head = new List<byte[]>
             {
                 M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(0xFF0005, true), ReqId(),
-                M2Message.U32Sys(0xFF0007, CMD_SET),
+                M2Message.BoolSys(tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected, true), ReqId(),
+                M2Message.U32Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, CMD_SET),
                 M2Message.SessionIdField(id),
             };
             head.AddRange(fields);
@@ -331,8 +333,8 @@ namespace tik4net.tests
             // Step 1: open mproxy session [2,2] cmd=7 'list' → get session token
             byte[] listMsg = M2Message.BuildM2(
                 M2Message.SysToArr(2, 2), M2Message.SysFrom(),
-                M2Message.U32Sys(0xFF0007, 7),
-                M2Message.BoolSys(0xFF0005, true), ReqId(),
+                M2Message.U32Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, 7),
+                M2Message.BoolSys(tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected, true), ReqId(),
                 M2Message.StringUser(1, "list"));
             byte[] listResp = SendRecvEncrypted(listMsg, 5000);
             int sessionId = -1;
@@ -356,8 +358,8 @@ namespace tik4net.tests
             // Step 2: mproxy setup [2,2] cmd=5 + session_id
             byte[] setupMsg = M2Message.BuildM2(
                 M2Message.SysToArr(2, 2), M2Message.SysFrom(),
-                M2Message.U32Sys(0xFF0007, 5),
-                M2Message.BoolSys(0xFF0005, true), ReqId(),
+                M2Message.U32Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, 5),
+                M2Message.BoolSys(tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected, true), ReqId(),
                 sidField);
             EncryptAndSend(setupMsg);
             System.Threading.Thread.Sleep(100);
@@ -366,8 +368,8 @@ namespace tik4net.tests
             // Step 3: get salt from [13,4] cmd=4 WITH session_id
             byte[] saltMsg = M2Message.BuildM2(
                 M2Message.SysToArr(13, 4), M2Message.SysFrom(),
-                M2Message.U32Sys(0xFF0007, 4),
-                M2Message.BoolSys(0xFF0005, true), ReqId(),
+                M2Message.U32Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, 4),
+                M2Message.BoolSys(tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected, true), ReqId(),
                 sidField);
             byte[] saltResp = SendRecvEncrypted(saltMsg, 5000);
             Console.WriteLine($"[DataLayerLogin] Salt response ({saltResp.Length}B):");
@@ -391,8 +393,8 @@ namespace tik4net.tests
             // Step 5: login with cmd=1 WITH session_id
             byte[] loginMsg = M2Message.BuildM2(
                 M2Message.SysToArr(13, 4), M2Message.SysFrom(),
-                M2Message.U32Sys(0xFF0007, 1),
-                M2Message.BoolSys(0xFF0005, true), ReqId(),
+                M2Message.U32Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, 1),
+                M2Message.BoolSys(tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected, true), ReqId(),
                 sidField,
                 M2Message.StringUser(1, user),
                 M2Message.RawUser(9, salt),
@@ -560,22 +562,22 @@ namespace tik4net.tests
         private void LegacyMd5Auth(string user, string pass)
         {
             byte[] listMsg = M2Message.BuildM2(
-                M2Message.SysToArr(2, 2), M2Message.SysFrom(), M2Message.U32Sys(0xFF0007, 7),
-                M2Message.BoolSys(0xFF0005, true), ReqId(), M2Message.StringUser(1, "list"));
+                M2Message.SysToArr(2, 2), M2Message.SysFrom(), M2Message.U32Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, 7),
+                M2Message.BoolSys(tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected, true), ReqId(), M2Message.StringUser(1, "list"));
             byte[] listResp = SendRecvRaw(listMsg);
             int sessionId = M2Message.ParseSessionId(listResp);
             _authSessionId = sessionId;
 
             byte[] challengeSetup = M2Message.BuildM2(
-                M2Message.SysToArr(2, 2), M2Message.SysFrom(), M2Message.U32Sys(0xFF0007, 5),
-                M2Message.BoolSys(0xFF0005, true), ReqId(), M2Message.SessionIdField(sessionId));
+                M2Message.SysToArr(2, 2), M2Message.SysFrom(), M2Message.U32Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, 5),
+                M2Message.BoolSys(tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected, true), ReqId(), M2Message.SessionIdField(sessionId));
             SendRaw(challengeSetup);
             System.Threading.Thread.Sleep(200);
             DrainSocket(500);
 
             byte[] saltMsg = M2Message.BuildM2(
-                M2Message.SysToArr(13, 4), M2Message.SysFrom(), M2Message.U32Sys(0xFF0007, 4),
-                M2Message.BoolSys(0xFF0005, true), ReqId(), M2Message.SessionIdField(sessionId));
+                M2Message.SysToArr(13, 4), M2Message.SysFrom(), M2Message.U32Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, 4),
+                M2Message.BoolSys(tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected, true), ReqId(), M2Message.SessionIdField(sessionId));
             byte[] saltResp = SendRecvRaw(saltMsg);
             byte[] salt = M2Message.ParseRawUser(saltResp, 9);
             if (salt == null)
@@ -587,8 +589,8 @@ namespace tik4net.tests
                 .Concat(MD5.Create().ComputeHash(hashInput)).ToArray();
 
             byte[] loginMsg = M2Message.BuildM2(
-                M2Message.SysToArr(13, 4), M2Message.SysFrom(), M2Message.U32Sys(0xFF0007, 1),
-                M2Message.BoolSys(0xFF0005, true), ReqId(), M2Message.SessionIdField(sessionId),
+                M2Message.SysToArr(13, 4), M2Message.SysFrom(), M2Message.U32Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, 1),
+                M2Message.BoolSys(tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected, true), ReqId(), M2Message.SessionIdField(sessionId),
                 M2Message.StringUser(1, user), M2Message.RawUser(9, salt), M2Message.RawUser(10, hash));
             byte[] loginResp = SendRecvRaw(loginMsg);
 
@@ -603,9 +605,9 @@ namespace tik4net.tests
         {
             byte[] msg = M2Message.BuildM2(
                 M2Message.SysToArr(2, 2), M2Message.SysFrom(),
-                M2Message.BoolSys(0xFF0005, true),
+                M2Message.BoolSys(tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected, true),
                 ReqId(),
-                M2Message.U8Sys(0xFF0007, 7),
+                M2Message.U8Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, 7),
                 M2Message.StringUser(1, filename));
             byte[] resp = SendRecvEncrypted(msg);
             return M2Message.ParseSessionId(resp);
@@ -618,9 +620,9 @@ namespace tik4net.tests
         {
             byte[] msg = M2Message.BuildM2(
                 M2Message.SysToArr(2, 2), M2Message.SysFrom(),
-                M2Message.BoolSys(0xFF0005, true),
+                M2Message.BoolSys(tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected, true),
                 ReqId(),
-                M2Message.U8Sys(0xFF0007, 3),
+                M2Message.U8Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, 3),
                 M2Message.StringUser(1, filename));
             byte[] resp = SendRecvEncrypted(msg);
             return M2Message.ParseSessionId(resp);
@@ -656,11 +658,11 @@ namespace tik4net.tests
             {
                 byte[] msg = M2Message.BuildM2(
                     M2Message.SysToArr(2, 2), M2Message.SysFrom(),
-                    M2Message.BoolSys(0xFF0005, true),
-                    M2Message.U8Sys(0xFF0006, (byte)NextReqId()),
+                    M2Message.BoolSys(tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected, true),
+                    M2Message.U8Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.RequestId, (byte)NextReqId()),
                     M2Message.SessionIdField(handle),
                     M2Message.U32User(2, MPROXY_CHUNK),
-                    M2Message.U8Sys(0xFF0007, 4));
+                    M2Message.U8Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, 4));
                 byte[] resp = _encrypted ? SendRecvEncrypted(msg) : SendRecvRaw(msg);
                 byte[] chunk = ExtractMproxyChunk(resp);
                 if (chunk == null || chunk.Length == 0) break;
@@ -698,9 +700,9 @@ namespace tik4net.tests
         {
             byte[] msg = M2Message.BuildM2(
                 M2Message.SysToArr(76), M2Message.SysFrom(),
-                M2Message.BoolSys(0xFF0005, true),
+                M2Message.BoolSys(tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected, true),
                 ReqId(),
-                M2Message.U32Sys(0xFF0007, 0x0A0065),
+                M2Message.U32Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, 0x0A0065),
                 M2Message.StringUser(1, password),
                 M2Message.StringUser(2, "vt102"),
                 M2Message.U32User(3, 80),
@@ -714,7 +716,7 @@ namespace tik4net.tests
             byte[] msg = M2Message.BuildM2(
                 M2Message.SysToArr(76), M2Message.SysFrom(),
                 M2Message.SessionIdField(sessionId),
-                M2Message.U32Sys(0xFF0007, 0x0A0067),
+                M2Message.U32Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, 0x0A0067),
                 M2Message.U32User(3, 0));
             EncryptAndSend(msg);
         }
@@ -724,7 +726,7 @@ namespace tik4net.tests
             byte[] msg = M2Message.BuildM2(
                 M2Message.SysToArr(76), M2Message.SysFrom(),
                 M2Message.SessionIdField(sessionId),
-                M2Message.U32Sys(0xFF0007, 0x0A0067),
+                M2Message.U32Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, 0x0A0067),
                 M2Message.RawUser(2, keystrokes),
                 M2Message.U32User(3, counter++));
             EncryptAndSend(msg);
@@ -862,7 +864,7 @@ namespace tik4net.tests
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
-        private byte[] ReqId() => M2Message.U8Sys(0xFF0006, (byte)NextReqId());
+        private byte[] ReqId() => M2Message.U8Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.RequestId, (byte)NextReqId());
         private int NextReqId() => ++_reqId;
 
         private static string GetStringField(

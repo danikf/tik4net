@@ -129,7 +129,7 @@ namespace tik4net.Winbox
             return result;
         }
 
-        public byte[] NextReqIdField() => M2Message.U8Sys(0xFF0006, (byte)(++_reqId));
+        public byte[] NextReqIdField() => M2Message.U8Sys(WinboxM2Protocol.SysKey.RequestId, (byte)(++_reqId));
 
         // WinBox over MAC uses the SAME chunked framing as TCP ([chunkLen][tag][data]…), carried inside
         // MAC DATA packets — NOT a bare encrypted blob. The encrypted frame is chunk-wrapped on send and

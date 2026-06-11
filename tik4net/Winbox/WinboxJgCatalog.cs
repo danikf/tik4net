@@ -133,10 +133,10 @@ namespace tik4net.Winbox
             // The on-disk file in /home/web/webfig/ is "<name>.jg.gz" (gzip), served by the
             // mproxy static handler via cmd=7 (NOT cmd=3 = /var/pckg, which CHR denies).
             // Try cmd=7 on the .gz name first (proven path), then fall back to cmd=3 / plain.
-            int handle = MproxyOpen(channel, name + ".gz", 7, timeoutMs);
-            if (handle < 0) handle = MproxyOpen(channel, name, 7, timeoutMs);
-            if (handle < 0) handle = MproxyOpen(channel, name + ".gz", 3, timeoutMs);
-            if (handle < 0) handle = MproxyOpen(channel, name, 3, timeoutMs);
+            int handle = MproxyOpen(channel, name + ".gz", WinboxM2Protocol.Mproxy.OpenStatic, timeoutMs);
+            if (handle < 0) handle = MproxyOpen(channel, name, WinboxM2Protocol.Mproxy.OpenStatic, timeoutMs);
+            if (handle < 0) handle = MproxyOpen(channel, name + ".gz", WinboxM2Protocol.Mproxy.OpenVarPkg, timeoutMs);
+            if (handle < 0) handle = MproxyOpen(channel, name, WinboxM2Protocol.Mproxy.OpenVarPkg, timeoutMs);
             if (handle < 0) return null;
 
             byte[] raw = MproxyRead(channel, handle, timeoutMs);
@@ -151,16 +151,16 @@ namespace tik4net.Winbox
         private static int MproxyOpen(IWinboxM2Channel channel, string filename, int openCmd, int timeoutMs)
         {
             byte[] msg = M2Message.BuildM2(
-                M2Message.SysToArr(2, 2), M2Message.SysFrom(),
-                M2Message.BoolSys(0xFF0005, true), channel.NextReqIdField(),
-                M2Message.U8Sys(0xFF0007, (byte)openCmd),  // 7 = /home/web/webfig static, 3 = /var/pckg
-                M2Message.StringUser(1, filename));
+                M2Message.SysToArr(WinboxM2Protocol.Mproxy.Handler), M2Message.SysFrom(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), channel.NextReqIdField(),
+                M2Message.U8Sys(WinboxM2Protocol.SysKey.Command, (byte)openCmd),  // OpenStatic(7) / OpenVarPkg(3)
+                M2Message.StringUser(WinboxM2Protocol.Mproxy.Key.FileName, filename));
             byte[] resp = channel.SendReceive(msg, timeoutMs);
             try { return M2Message.ParseSessionId(resp); }
             catch { return -1; }
         }
 
-        private const int MproxyChunk = 32768;
+        private const int MproxyChunk = WinboxM2Protocol.Mproxy.ChunkSize;
 
         private static byte[] MproxyRead(IWinboxM2Channel channel, int handle, int timeoutMs)
         {
@@ -168,11 +168,11 @@ namespace tik4net.Winbox
             for (int guard = 0; guard < 256; guard++)
             {
                 byte[] msg = M2Message.BuildM2(
-                    M2Message.SysToArr(2, 2), M2Message.SysFrom(),
-                    M2Message.BoolSys(0xFF0005, true), channel.NextReqIdField(),
+                    M2Message.SysToArr(WinboxM2Protocol.Mproxy.Handler), M2Message.SysFrom(),
+                    M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), channel.NextReqIdField(),
                     M2Message.SessionIdField(handle),
-                    M2Message.U32User(2, MproxyChunk),
-                    M2Message.U8Sys(0xFF0007, 4));      // cmd=4 = read chunk
+                    M2Message.U32User(WinboxM2Protocol.Mproxy.Key.MaxChunk, MproxyChunk),
+                    M2Message.U8Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Mproxy.Read));  // read chunk
                 byte[] resp = channel.SendReceive(msg, timeoutMs);
                 byte[] chunk = ExtractMproxyChunk(resp);
                 if (chunk == null || chunk.Length == 0) break;
