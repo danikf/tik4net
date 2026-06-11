@@ -79,11 +79,10 @@ namespace tik4net
         WinboxCliMac,
         /// <summary>
         /// MikroTik RouterOS WinBox <b>native-M2</b> connection (TCP port 8291).
-        /// Performs reads as structured M2 <c>getall</c>/<c>get-one</c> calls (no terminal), translating
-        /// numeric WinBox field keys back to RouterOS API field names via a version-matched <c>.jg</c>
-        /// catalog, so the O/R mapper works unchanged.
-        /// Writes (Save/Add/Delete/Move) are not implemented yet (Phase F2) and throw
-        /// <see cref="NotSupportedException"/>. Listen/Streaming are not supported.
+        /// Performs full CRUD as structured M2 <c>getall</c>/<c>get-one</c>/<c>set</c>/<c>add</c>/<c>remove</c>/<c>move</c>
+        /// calls (no terminal), translating numeric WinBox field keys to/from RouterOS API field names via a
+        /// version-matched <c>.jg</c> catalog, so the O/R mapper works unchanged.
+        /// Listen/Streaming are not supported.
         /// Requires the <c>winbox</c> service to be enabled on the router (default).
         /// </summary>
         WinboxNative

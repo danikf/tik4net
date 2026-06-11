@@ -16,9 +16,9 @@ namespace tik4net.WinboxNative
     /// unchanged.
     /// </summary>
     /// <remarks>
-    /// <para>This is the read milestone (F1): <see cref="ITikConnection.CreateCommand()"/> +
-    /// <c>ExecuteList</c>/<c>LoadAll</c> are routed through native M2. Writes (set/add/remove/move) are
-    /// Phase F2 and currently throw <see cref="NotSupportedException"/>.</para>
+    /// <para>Full CRUD: <see cref="ITikConnection.CreateCommand()"/> + <c>ExecuteList</c>/<c>LoadAll</c>
+    /// route reads through native M2 <c>getall</c>/<c>get-one</c>; <c>Save</c>/<c>Add</c>/<c>Delete</c>/<c>Move</c>
+    /// route writes through native <c>set</c>/<c>add</c>/<c>remove</c>/<c>move</c>.</para>
     /// <para>Authentication and the encrypted channel are reused from the shared
     /// <see cref="WinboxM2Session"/> (EC-SRP5 / legacy-MD5, AES-128-CBC). Field keys/types are loaded at
     /// connect time from the version-matched <c>.jg</c> catalog (cached under
@@ -169,7 +169,20 @@ namespace tik4net.WinboxNative
             var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath));
             var keyToName = resolver.BuildKeyToApiName();
 
-            var records = _ops.GetAll(handler);
+            // Singleton tables (type:'item' window, e.g. /system/resource, /ip/dns) expose a single record
+            // read via get-singleton; everything else lists via getall.
+            List<Dictionary<int, Tuple<string, object>>> records;
+            if (_catalog.IsSingletonHandler(handler))
+            {
+                var one = _ops.GetSingleton(handler);
+                records = (one != null && one.Count > 0)
+                    ? new List<Dictionary<int, Tuple<string, object>>> { one }
+                    : new List<Dictionary<int, Tuple<string, object>>>();
+            }
+            else
+            {
+                records = _ops.GetAll(handler);
+            }
 
             var rows = new List<TikRecordSentence>(records.Count);
             foreach (var rec in records)

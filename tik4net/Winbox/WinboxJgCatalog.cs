@@ -28,11 +28,17 @@ namespace tik4net.Winbox
         private readonly Dictionary<string, Dictionary<string, WinboxJgField>> _byHandler =
             new Dictionary<string, Dictionary<string, WinboxJgField>>(StringComparer.Ordinal);
 
-        // derived API path (e.g. "/ip/address") → handler array, harvested from the menu tree:
-        // every type:'map'/'query' WINDOW node contributes its path:[…] handler, keyed by the
-        // normalized (enclosing group + node name). First window wins for a given derived path.
+        // derived menu-label path (e.g. "/ip/firewall/connection", "/ip/dns/dns-static-entry") → handler
+        // array, harvested from the menu tree: every WINDOW node (type map/query/item/doit/action with a
+        // path:[…]) contributes its handler, keyed by the normalized full breadcrumb (enclosing menu
+        // group+name chain + node name). First window wins for a given derived path. These keys reflect the
+        // WinBox *menu labels*, which often differ from the RouterOS API leaf — WinboxHandlerMap bridges
+        // apiPath → menu-label path via a curated alias tail for the irregular cases.
         private readonly Dictionary<string, int[]> _derivedPaths =
             new Dictionary<string, int[]>(StringComparer.OrdinalIgnoreCase);
+
+        // Handlers backed by a singleton window (type:'item') — read via get-singleton, not getall.
+        private readonly HashSet<string> _singletonHandlers = new HashSet<string>(StringComparer.Ordinal);
 
         // id-prefix letter → wire-type name (lower=scalar, upper=array). Mirrors jg_analyze.py PREFIX.
         private static readonly Dictionary<char, string> Prefix = new Dictionary<char, string>
@@ -67,6 +73,11 @@ namespace tik4net.Winbox
         /// </summary>
         internal IReadOnlyDictionary<string, int[]> GetDerivedPaths() => _derivedPaths;
 
+        /// <summary>True when <paramref name="handler"/> is backed by a singleton (<c>type:'item'</c>)
+        /// window — its sole record is read via get-singleton rather than getall.</summary>
+        internal bool IsSingletonHandler(int[] handler) =>
+            handler != null && _singletonHandlers.Contains(HandlerKey(handler));
+
         // ── Loading ────────────────────────────────────────────────────────────
 
         /// <summary>
@@ -74,6 +85,15 @@ namespace tik4net.Winbox
         /// <paramref name="cacheDir"/> if present, otherwise fetches via mproxy and caches. Failures are
         /// tolerated — the resolver falls back to its seed table and the normalizer.
         /// </summary>
+        // The .jg plugin set served by WinBox. roteros.jg holds the core config windows (interface, ip,
+        // routing, system); the rest add their feature menus (ppp, hotspot, dhcp/ipv6, secure, tools, wifi).
+        // All are best-effort: a router without a package simply won't serve that plugin.
+        private static readonly string[] PluginNames =
+        {
+            "roteros.jg", "dhcp.jg", "ppp.jg", "hotspot.jg", "ipv6.jg",
+            "secure.jg", "advtool.jg", "mpls.jg", "roting4.jg", "wave2.jg", "wlan6.jg",
+        };
+
         internal void EnsureLoaded(IWinboxM2Channel channel, string routerVersion, string cacheDir, int timeoutMs)
         {
             if (HasData) return;
@@ -86,16 +106,21 @@ namespace tik4net.Winbox
                     versionDir = Path.Combine(cacheDir, SanitizeVersion(routerVersion));
                     if (Directory.Exists(versionDir))
                     {
-                        foreach (var fp in Directory.GetFiles(versionDir, "*.jg"))
-                            TryParseInto(File.ReadAllText(fp, Encoding.UTF8));
-                        if (HasData) return;
+                        var cached = Directory.GetFiles(versionDir, "*.jg");
+                        // Only trust the cache when the core plugin is present; otherwise re-fetch the set.
+                        if (cached.Any(f => string.Equals(Path.GetFileName(f), "roteros.jg", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            foreach (var fp in cached)
+                                TryParseInto(File.ReadAllText(fp, Encoding.UTF8));
+                            if (HasData) return;
+                        }
                     }
                 }
                 catch { /* cache read is best-effort */ }
             }
 
-            // Live fetch: roteros.jg holds the core config windows (interface, ip, …).
-            foreach (var name in new[] { "roteros.jg" })
+            // Live fetch the whole plugin set; each is independent so one missing plugin never blocks reads.
+            foreach (var name in PluginNames)
             {
                 try
                 {
@@ -121,10 +146,14 @@ namespace tik4net.Winbox
             try
             {
                 object tree = new JgParser(text).Parse();
-                Walk(tree, null, null);
+                Walk(tree, null, new List<string>());
             }
             catch { /* tolerant: skip unparsable plugin */ }
         }
+
+        // Window node types whose path:[…] is a real handler target (vs dropdown references type:'enm').
+        private static readonly HashSet<string> WindowTypes =
+            new HashSet<string>(StringComparer.Ordinal) { "map", "query", "item", "doit", "action" };
 
         // ── mproxy .jg fetch (gzip <name>.jg.gz over [2,2] cmd=3) ──────────────
 
@@ -217,7 +246,7 @@ namespace tik4net.Winbox
 
         // ── Tree walk + field extraction (port of jg_analyze.py walk) ──────────
 
-        private void Walk(object node, string handlerKey, string group)
+        private void Walk(object node, string handlerKey, List<string> crumb)
         {
             if (node is Dictionary<string, object> dict)
             {
@@ -235,24 +264,23 @@ namespace tik4net.Winbox
                     if (ok) { handlerInts = ints.ToArray(); owner = HandlerKey(handlerInts); }
                 }
 
-                // A menu may carry a 'group' (e.g. group:'IP'); it scopes its descendant windows.
-                string childGroup = group;
-                if (dict.TryGetValue("group", out var gv) && gv is string gs && gs.Length > 0)
-                    childGroup = gs;
+                string nodeName = (dict.TryGetValue("name", out var nnv) && nnv is string nns && nns.Length > 0)
+                    ? nns
+                    : (dict.TryGetValue("title", out var ntv) && ntv is string nts ? nts : "");
+                string groupSeg = (dict.TryGetValue("group", out var gv) && gv is string gs && gs.Length > 0)
+                    ? WinboxFieldResolver.NormalizeLabel(gs) : null;
+                string ty = dict.TryGetValue("type", out var tyv) && tyv is string tys ? tys : null;
 
-                // Harvest derived API path → handler for WINDOW nodes only (type:'map'/'query' with a
-                // handler path). Dropdown references (type:'enm',values:{type:'dynamic',path:…}) reuse the
-                // same handler but are NOT windows — skip them.
-                if (handlerInts != null
-                    && dict.TryGetValue("type", out var tyv) && tyv is string ty
-                    && (ty == "map" || ty == "query"))
+                // Harvest derived menu-label path → handler for WINDOW nodes (map/query/item/doit/action
+                // with a handler path). Dropdown references (type:'enm',values:{type:'dynamic',path:…}) reuse
+                // the same handler but are NOT windows — skip them. The key is the full breadcrumb
+                // (ancestor menu chain + this node's group + name).
+                if (handlerInts != null && ty != null && WindowTypes.Contains(ty))
                 {
-                    string nodeName = (dict.TryGetValue("name", out var nnv) && nnv is string nns && nns.Length > 0)
-                        ? nns
-                        : (dict.TryGetValue("title", out var ntv) && ntv is string nts ? nts : "");
-                    string apiPath = DeriveApiPath(group, nodeName);
+                    string apiPath = BuildPath(crumb, groupSeg, nodeName);
                     if (apiPath != null && !_derivedPaths.ContainsKey(apiPath))
                         _derivedPaths[apiPath] = handlerInts;
+                    if (ty == "item") _singletonHandlers.Add(HandlerKey(handlerInts));
                 }
 
                 if (owner != null && dict.TryGetValue("id", out var idv) && idv is string idStr)
@@ -260,35 +288,45 @@ namespace tik4net.Winbox
                     var dec = DecodeId(idStr);
                     if (dec != null)
                     {
-                        string label = (dict.TryGetValue("name", out var nv) && nv is string ns && ns.Length > 0)
-                            ? ns
-                            : (dict.TryGetValue("title", out var tv) && tv is string ts ? ts : "");
                         bool ro = dict.TryGetValue("ro", out var rov) && rov is int rin && rin != 0;
-                        AddField(owner, label, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(dict));
+                        AddField(owner, nodeName, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(dict));
                     }
+                }
+
+                // Descend. A structural menu node (has children, no field id, has a name) extends the
+                // breadcrumb so its descendant windows derive a nested path.
+                List<string> childCrumb = crumb;
+                if (dict.ContainsKey("c") && !dict.ContainsKey("id") && !string.IsNullOrEmpty(nodeName))
+                {
+                    childCrumb = new List<string>(crumb);
+                    if (groupSeg != null) childCrumb.Add(groupSeg);
+                    string leaf = WinboxFieldResolver.NormalizeLabel(nodeName);
+                    if (leaf.Length > 0) childCrumb.Add(leaf);
                 }
 
                 foreach (var kv in dict)
                 {
                     if (kv.Key == "id") continue;
-                    Walk(kv.Value, owner, childGroup);
+                    Walk(kv.Value, owner, childCrumb);
                 }
             }
             else if (node is List<object> list)
             {
                 foreach (var it in list)
-                    Walk(it, handlerKey, group);
+                    Walk(it, handlerKey, crumb);
             }
         }
 
-        // Build "/ip/address" from group='IP' + nodeName='Address', or "/interface" from a bare
-        // nodeName='Interface'. Segments are lower-cased with spaces→'-'. Returns null for empty names.
-        private static string DeriveApiPath(string group, string nodeName)
+        // Build a derived menu-label path "/ip/firewall/connection" from the breadcrumb + this window's
+        // group segment + node name, each normalized (lower, spaces→'-'). Returns null for an empty leaf.
+        private static string BuildPath(List<string> crumb, string groupSeg, string nodeName)
         {
             string leaf = WinboxFieldResolver.NormalizeLabel(nodeName);
             if (string.IsNullOrEmpty(leaf)) return null;
-            string prefix = WinboxFieldResolver.NormalizeLabel(group);
-            return string.IsNullOrEmpty(prefix) ? "/" + leaf : "/" + prefix + "/" + leaf;
+            var parts = new List<string>(crumb);
+            if (groupSeg != null) parts.Add(groupSeg);
+            parts.Add(leaf);
+            return "/" + string.Join("/", parts);
         }
 
         private void AddField(string handlerKey, string label, int key, string wireType, bool ro,

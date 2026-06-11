@@ -110,6 +110,29 @@ namespace tik4net.Winbox
             return recs.Count > 0 ? recs[0] : M2Message.ParseAllFields(resp);
         }
 
+        /// <summary>
+        /// Sends <c>get-singleton</c> (<see cref="WinboxM2Protocol.Command.GetSingleton"/> +
+        /// <see cref="WinboxM2Protocol.RecordKey.Flags"/>) to a singleton (<c>type:'item'</c>) handler such
+        /// as <c>/system/resource</c> or <c>/ip/dns</c>, and returns its single decoded record. Records may
+        /// arrive under <see cref="WinboxM2Protocol.RecordKey.Records"/> or inline at the top level.
+        /// </summary>
+        internal Dictionary<int, Tuple<string, object>> GetSingleton(
+            int[] handler, int flags = WinboxM2Protocol.GetAllFlags)
+        {
+            byte[] msg = M2Message.BuildM2(
+                M2Message.SysToArr(handler), M2Message.SysFrom(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
+                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.GetSingleton),
+                M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, flags));
+            byte[] resp = _channel.SendReceive(msg, _timeoutMs);
+            int status = M2Message.ParseSysStatus(resp);
+            if (status != WinboxM2Protocol.Error.None && status != WinboxM2Protocol.Error.ObjectNonexistent)
+                throw new InvalidOperationException(
+                    $"WinBox native get-singleton returned error 0x{status:X} on handler [{string.Join(",", handler)}].");
+            var recs = M2Message.ParseRecords(resp, WinboxM2Protocol.RecordKey.Records);
+            return recs.Count > 0 ? recs[0] : M2Message.ParseAllFields(resp);
+        }
+
         // ── Writes ───────────────────────────────────────────────────────────────
 
         /// <summary>
