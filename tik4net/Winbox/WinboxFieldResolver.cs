@@ -34,14 +34,27 @@ namespace tik4net.Winbox
             _overrides = overrides ?? new Dictionary<string, int>();
         }
 
-        // ── Protocol-constant seed (stable, hardcoded) ─────────────────────────
-        // Well-known system keys shared by all config tables. apiName → key.
-        private static readonly Dictionary<string, int> SeedByName = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        // ── Protocol-constant seeds (stable, hardcoded) ────────────────────────
+        // Universal system record keys — authoritative for every table (the .jg never lists them as
+        // fields). These win over the catalog.
+        private static readonly Dictionary<string, int> SystemSeed = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
         {
             [".id"]     = WinboxM2Protocol.RecordKey.Id,      // 0xFE0001
             ["comment"] = WinboxM2Protocol.RecordKey.Comment, // 0xFE0009
-            ["name"]    = WinboxM2Protocol.RecordKey.Name,    // 0x10006
         };
+
+        // Common-but-not-universal fallback: most config tables key 'name' at 0x10006, but some (e.g.
+        // /ip/hotspot/user) use a different key. The .jg is authoritative, so this only fills in when the
+        // catalog has no 'name' field for the handler.
+        private static readonly Dictionary<string, int> FallbackSeed = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["name"]     = WinboxM2Protocol.RecordKey.Name,     // 0x10006
+            ["disabled"] = WinboxM2Protocol.RecordKey.Disabled, // 0xFE000A (bool, 1=disabled)
+        };
+
+        // Wire type for seed fields without a .jg entry (so EncodeField types them correctly).
+        private static string SeedWireType(string apiName)
+            => string.Equals(apiName, "disabled", StringComparison.OrdinalIgnoreCase) ? "bool" : "string";
 
         // ── key → apiName (decode records) ─────────────────────────────────────
 
@@ -51,22 +64,33 @@ namespace tik4net.Winbox
         /// </summary>
         internal IReadOnlyDictionary<int, string> BuildKeyToApiName()
         {
+            // First-wins in descending priority: session overrides → universal system keys (.id/comment) →
+            // catalog (.jg) → name/disabled fallback. First-wins also resolves the .jg's own duplicate-key
+            // fields (e.g. /system/resource has both 'freq' and 'CPU Frequency' at u5) deterministically.
             var map = new Dictionary<int, string>();
+            void Put(int key, string apiName) { if (!map.ContainsKey(key)) map[key] = apiName; }
 
-            // 1. catalog fields (lowest priority)
+            foreach (var kv in _overrides) Put(kv.Value, kv.Key);
+            foreach (var kv in SystemSeed) Put(kv.Value, kv.Key);
+            var jg = _catalog?.GetHandlerFields(_handler);
+            if (jg != null)
+                foreach (var f in jg.Values) Put(f.Key, f.ApiName);
+            foreach (var kv in FallbackSeed) Put(kv.Value, kv.Key);
+
+            return map;
+        }
+
+        /// <summary>
+        /// Returns the catalog's <c>key → field</c> map for this handler (typed metadata for decode-side
+        /// value formatting: IP/MAC/enum). Empty when the handler has no <c>.jg</c> entry.
+        /// </summary>
+        internal IReadOnlyDictionary<int, WinboxJgField> BuildKeyToField()
+        {
+            var map = new Dictionary<int, WinboxJgField>();
             var jg = _catalog?.GetHandlerFields(_handler);
             if (jg != null)
                 foreach (var f in jg.Values)
-                    if (!map.ContainsKey(f.Key)) map[f.Key] = f.ApiName;
-
-            // 2. protocol-constant seeds (override catalog — these are authoritative)
-            foreach (var kv in SeedByName)
-                map[kv.Value] = kv.Key;
-
-            // 3. session overrides (highest priority)
-            foreach (var kv in _overrides)
-                map[kv.Value] = kv.Key;
-
+                    if (!map.ContainsKey(f.Key)) map[f.Key] = f;
             return map;
         }
 
@@ -79,10 +103,14 @@ namespace tik4net.Winbox
         internal int ResolveKey(string apiName)
         {
             if (_overrides.TryGetValue(apiName, out int ov)) return ov;
-            if (SeedByName.TryGetValue(apiName, out int seed)) return seed;
+            // universal system keys (.id/comment) are authoritative; name and other fields come from the .jg.
+            if (SystemSeed.TryGetValue(apiName, out int sys)) return sys;
 
             var jg = _catalog?.GetHandlerFields(_handler);
             if (jg != null && jg.TryGetValue(apiName, out var f)) return f.Key;
+
+            // fallback only when the catalog has no such field (e.g. name → 0x10006 on tables w/o a .jg name).
+            if (FallbackSeed.TryGetValue(apiName, out int fb)) return fb;
 
             throw new WinboxFieldResolutionException(
                 $"WinBox native: cannot resolve API field '{apiName}' on '{_apiPath}' to an M2 key. " +
@@ -94,58 +122,178 @@ namespace tik4net.Winbox
 
         /// <summary>
         /// Encodes an API field write (<paramref name="apiName"/> = <paramref name="value"/>) into its M2
-        /// wire field bytes, using the resolved key and the <c>.jg</c> wire type (string/u32/bool/raw/addr,
-        /// with enum string→numeric when the field carries a static value map). Returns <c>null</c> when the
-        /// field is read-only in the catalog (read-only fields are not sent). Throws
+        /// wire field bytes, driven by the <c>.jg</c> UI-semantic type: IP addresses pack to u32
+        /// (<c>ipaddr</c>) or address+netmask u32 pair (<c>network</c>), MACs to 6 raw bytes, enum strings to
+        /// their numeric value (static map) or referenced-object <c>.id</c> (dynamic dropdown), bool/u32/
+        /// string as their wire type. Returns an empty list when the field is read-only or has no sendable
+        /// value; a <c>network</c> field yields two entries (address + mask). <paramref name="resolveRef"/>
+        /// resolves a dynamic enum reference (handler, name) → numeric id. Throws
         /// <see cref="WinboxFieldResolutionException"/> when the name cannot be resolved.
         /// </summary>
-        internal byte[] EncodeField(string apiName, string value)
+        internal List<byte[]> EncodeField(string apiName, string value, Func<int[], string, int?> resolveRef = null)
         {
             int key = ResolveKey(apiName);
+            var result = new List<byte[]>();
 
-            // Look up the .jg field (wire type, ro, enum map). Seeds (.id/comment/name) have none — they
-            // default to string, which is correct for comment/name.
+            // Look up the .jg field (wire type, ro, enum map, UI type). Seeds (.id/comment/name) have none —
+            // they default to string, which is correct for comment/name.
             WinboxJgField jg = null;
             _catalog?.GetHandlerFields(_handler)?.TryGetValue(apiName, out jg);
 
-            if (jg != null && jg.ReadOnly) return null;
-
-            string wireType = jg?.WireType ?? "string";
+            if (jg != null && jg.ReadOnly) return result;
             value = value ?? "";
 
-            // enum: encode the API string to its numeric index (falls through to the type encoder if the
-            // value is already numeric or no map matches).
+            string uiType = jg?.UiType;
+
+            // ── typed UI encodings (more specific than the wire type) ──
+            switch (uiType)
+            {
+                case "network":
+                {
+                    // "addr/mask" → address u32 (key) + netmask u32 (maskid). Empty → unset (send nothing).
+                    if (value.Length == 0) return result;
+                    var parts = value.Split('/');
+                    uint? addr = PackIpV4(parts[0]);
+                    if (addr == null) break; // not v4 — fall through to generic encoders
+                    result.Add(EncodeU32(key, addr.Value));
+                    if (jg.MaskKey != 0)
+                    {
+                        uint mask = parts.Length > 1 ? MaskFrom(parts[1]) : 0xFFFFFFFFu;
+                        result.Add(EncodeU32(jg.MaskKey, mask));
+                    }
+                    return result;
+                }
+                case "ipaddr":
+                {
+                    if (value.Length == 0) return result;
+                    uint? ip = PackIpV4(value.Split('/')[0]);
+                    if (ip == null) break;
+                    result.Add(EncodeU32(key, ip.Value));
+                    return result;
+                }
+                case "macaddr":
+                {
+                    if (value.Length == 0) return result;
+                    result.Add(M2Message.RawSys(key, ParseRaw(value)));
+                    return result;
+                }
+                case "enm":
+                {
+                    // dynamic dropdown → referenced object's .id; resolve the name against that table.
+                    if (jg.RefHandler != null && resolveRef != null && value.Length > 0
+                        && !long.TryParse(value, out _))
+                    {
+                        int? id = resolveRef(jg.RefHandler, value);
+                        if (id.HasValue) { result.Add(EncodeU32(key, (uint)id.Value)); return result; }
+                    }
+                    break; // fall through to static-map / numeric handling below
+                }
+            }
+
+            // enum static map: encode the API string to its numeric index.
             if (jg?.EnumMap != null)
             {
                 foreach (var kv in jg.EnumMap)
                     if (string.Equals(kv.Value, value, StringComparison.OrdinalIgnoreCase))
-                        return EncodeU32(key, kv.Key);
+                    {
+                        result.Add(EncodeU32(key, (uint)kv.Key));
+                        return result;
+                    }
             }
 
+            string wireType = jg?.WireType ?? SeedWireType(apiName);
             switch (wireType)
             {
                 case "bool":
-                    return M2Message.BoolSys(key, ParseBool(value));
+                    result.Add(M2Message.BoolSys(key, ParseBool(value)));
+                    break;
                 case "u32":
                 case "u64":
                 case "i32":
                 case "dur":
                 case "time":
-                    if (long.TryParse(value, out long n))
-                        return EncodeU32(key, n);
-                    return M2Message.StringSys(key, value); // non-numeric (e.g. "auto") — send as string
+                    if (long.TryParse(value, out long n)) result.Add(EncodeU32(key, (uint)n));
+                    else result.Add(M2Message.StringSys(key, value)); // non-numeric (e.g. "auto")
+                    break;
                 case "raw":
-                    return M2Message.RawSys(key, ParseRaw(value));
-                case "addr":
-                case "ip6":
-                    return M2Message.StringSys(key, value); // ip/ip6 round-trip as string text
-                default: // "string" and unknowns
-                    return M2Message.StringSys(key, value);
+                    result.Add(M2Message.RawSys(key, ParseRaw(value)));
+                    break;
+                default: // "string", "addr", "ip6" and unknowns round-trip as string text
+                    result.Add(M2Message.StringSys(key, value));
+                    break;
             }
+            return result;
         }
 
-        private static byte[] EncodeU32(int key, long n)
-            => (n >= 0 && n <= 255) ? M2Message.U8Sys(key, (byte)n) : M2Message.U32Sys(key, (int)n);
+        private static byte[] EncodeU32(int key, uint n)
+            => (n <= 255) ? M2Message.U8Sys(key, (byte)n) : M2Message.U32Sys(key, unchecked((int)n));
+
+        // "a.b.c.d" → u32 packed octet-LSB (a | b<<8 | c<<16 | d<<24), matching webfig string2ipaddr.
+        // Returns null when the text is not a dotted IPv4 quad.
+        internal static uint? PackIpV4(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return null;
+            var o = s.Split('.');
+            if (o.Length != 4) return null;
+            uint v = 0;
+            for (int i = 0; i < 4; i++)
+            {
+                if (!byte.TryParse(o[i], out byte b)) return null;
+                v |= (uint)b << (8 * i);
+            }
+            return v;
+        }
+
+        // ── decode-side formatting (u32/bytes → text) ──────────────────────────
+
+        /// <summary>u32 packed octet-LSB → "a.b.c.d" (inverse of <see cref="PackIpV4"/>).</summary>
+        internal static string IpFromU32(object value)
+        {
+            uint v = ToU32(value);
+            return $"{v & 0xff}.{(v >> 8) & 0xff}.{(v >> 16) & 0xff}.{(v >> 24) & 0xff}";
+        }
+
+        /// <summary>Netmask u32 (octet-LSB) → prefix length (count of set bits).</summary>
+        internal static int MaskToPrefix(object value)
+        {
+            uint v = ToU32(value);
+            int n = 0;
+            while (v != 0) { n += (int)(v & 1); v >>= 1; }
+            return n;
+        }
+
+        /// <summary>Raw 6-byte MAC → "AA:BB:CC:DD:EE:FF".</summary>
+        internal static string MacFromBytes(object value)
+        {
+            if (value is byte[] b && b.Length > 0)
+                return string.Join(":", b.Select(x => x.ToString("X2")));
+            return value?.ToString() ?? "";
+        }
+
+        private static uint ToU32(object value)
+        {
+            try { return unchecked((uint)Convert.ToInt64(value)); }
+            catch { return 0; }
+        }
+
+        // Netmask as octet-LSB u32: dotted "255.255.255.0" → packed, or prefix length "24" → len2netmask.
+        private static uint MaskFrom(string s)
+        {
+            uint? dotted = PackIpV4(s);
+            if (dotted != null) return dotted.Value;
+            if (int.TryParse(s, out int len) && len >= 0 && len <= 32)
+            {
+                uint v = 0;
+                for (int i = 0; i < len; i++)            // set the top `len` bits in big-endian order,
+                {                                         // then place each byte at its octet-LSB position
+                    int bit = 7 - (i % 8);
+                    int octet = i / 8;
+                    v |= (uint)(1 << bit) << (8 * octet);
+                }
+                return v;
+            }
+            return 0xFFFFFFFFu;
+        }
 
         private static bool ParseBool(string v)
             => v == "true" || v == "yes" || v == "1" ||

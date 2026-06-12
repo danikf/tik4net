@@ -289,7 +289,11 @@ namespace tik4net.Winbox
                     if (dec != null)
                     {
                         bool ro = dict.TryGetValue("ro", out var rov) && rov is int rin && rin != 0;
-                        AddField(owner, nodeName, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(dict));
+                        int maskKey = (dict.TryGetValue("maskid", out var mkv) && mkv is string mks
+                            && DecodeId(mks) is var md && md != null) ? md.Value.key : 0;
+                        int[] refHandler = ExtractRefHandler(dict);
+                        AddField(owner, nodeName, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(dict),
+                            ty, maskKey, refHandler);
                     }
                 }
 
@@ -330,7 +334,7 @@ namespace tik4net.Winbox
         }
 
         private void AddField(string handlerKey, string label, int key, string wireType, bool ro,
-            IReadOnlyDictionary<int, string> enumMap)
+            IReadOnlyDictionary<int, string> enumMap, string uiType, int maskKey, int[] refHandler)
         {
             string apiName = WinboxFieldResolver.NormalizeLabel(label);
             if (string.IsNullOrEmpty(apiName)) return;
@@ -341,7 +345,45 @@ namespace tik4net.Winbox
             }
             // first label wins for a given apiName; do not let later, less-specific windows clobber it.
             if (!map.ContainsKey(apiName))
-                map[apiName] = new WinboxJgField(apiName, key, wireType, ro, enumMap);
+                map[apiName] = new WinboxJgField(apiName, key, wireType, ro, enumMap, uiType, maskKey, refHandler);
+        }
+
+        // Pulls the referenced table handler from an enm dropdown (values:{type:'dynamic',path:[…]}),
+        // searching one level of nesting (defenum/pair wrappers carry the dynamic node inside their own
+        // values/c). Returns the first dynamic path found, or null for a static/non-reference enum.
+        private static int[] ExtractRefHandler(Dictionary<string, object> node)
+        {
+            if (!node.TryGetValue("values", out var vv)) return null;
+            return FindDynamicPath(vv, 0);
+        }
+
+        private static int[] FindDynamicPath(object node, int depth)
+        {
+            if (depth > 4) return null;
+            if (node is Dictionary<string, object> d)
+            {
+                if (d.TryGetValue("type", out var t) && t is string ts && ts == "dynamic"
+                    && d.TryGetValue("path", out var pv) && pv is List<object> pl)
+                {
+                    var ints = new List<int>();
+                    foreach (var p in pl) { if (p is int pi) ints.Add(pi); else return null; }
+                    if (ints.Count > 0) return ints.ToArray();
+                }
+                foreach (var kv in d)
+                {
+                    var r = FindDynamicPath(kv.Value, depth + 1);
+                    if (r != null) return r;
+                }
+            }
+            else if (node is List<object> list)
+            {
+                foreach (var it in list)
+                {
+                    var r = FindDynamicPath(it, depth + 1);
+                    if (r != null) return r;
+                }
+            }
+            return null;
         }
 
         // Pulls a static enum value list (values:{type:'static',map:['off','on',…]}) → {0:'off',1:'on',…}.

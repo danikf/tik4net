@@ -62,8 +62,11 @@ namespace tik4net.Winbox
 
                 int status = M2Message.ParseSysStatus(resp);
                 if (status != WinboxM2Protocol.Error.None && status != WinboxM2Protocol.Error.ObjectNonexistent)
-                    throw new InvalidOperationException(
-                        $"WinBox native getall returned error 0x{status:X} on handler [{string.Join(",", handler)}].");
+                {
+                    var ef = M2Message.ParseAllFields(resp);
+                    string errStr = ef.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es) ? es.Item2?.ToString() : null;
+                    throw new WinboxM2OperationException(status, errStr, "getall", handler);
+                }
 
                 records.AddRange(M2Message.ParseRecords(resp, WinboxM2Protocol.RecordKey.Records));
 
@@ -127,8 +130,11 @@ namespace tik4net.Winbox
             byte[] resp = _channel.SendReceive(msg, _timeoutMs);
             int status = M2Message.ParseSysStatus(resp);
             if (status != WinboxM2Protocol.Error.None && status != WinboxM2Protocol.Error.ObjectNonexistent)
-                throw new InvalidOperationException(
-                    $"WinBox native get-singleton returned error 0x{status:X} on handler [{string.Join(",", handler)}].");
+            {
+                var ef = M2Message.ParseAllFields(resp);
+                string errStr = ef.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es) ? es.Item2?.ToString() : null;
+                throw new WinboxM2OperationException(status, errStr, "get-singleton", handler);
+            }
             var recs = M2Message.ParseRecords(resp, WinboxM2Protocol.RecordKey.Records);
             return recs.Count > 0 ? recs[0] : M2Message.ParseAllFields(resp);
         }
@@ -213,9 +219,11 @@ namespace tik4net.Winbox
         private static void ThrowOnStatus(byte[] resp, string op, int[] handler)
         {
             int status = M2Message.ParseSysStatus(resp);
-            if (status != WinboxM2Protocol.Error.None)
-                throw new InvalidOperationException(
-                    $"WinBox native {op} returned error 0x{status:X} on handler [{string.Join(",", handler)}].");
+            if (status == WinboxM2Protocol.Error.None) return;
+            var fields = M2Message.ParseAllFields(resp);
+            string errStr = fields.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es)
+                ? es.Item2?.ToString() : null;
+            throw new WinboxM2OperationException(status, errStr, op, handler);
         }
     }
 }

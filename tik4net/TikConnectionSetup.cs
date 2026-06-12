@@ -7,6 +7,7 @@ using tik4net.Rest;
 using tik4net.Telnet;
 using tik4net.WinboxCli;
 using tik4net.WinboxCliMac;
+using tik4net.WinboxNative;
 
 namespace tik4net
 {
@@ -198,6 +199,51 @@ namespace tik4net
                     ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
                 },
                 ct);
+
+        // ── WinBox Native (M2) ──────────────────────────────────────────────────
+
+        /// <summary>
+        /// Creates and opens a WinBox <b>native-M2</b> connection (encrypted TCP port 8291). Issues
+        /// structured M2 CRUD calls (no terminal), translating API paths/field names to/from WinBox handler
+        /// and field keys via the router's version-matched <c>.jg</c> catalog. Requires the <c>winbox</c>
+        /// service to be enabled (default).
+        /// </summary>
+        /// <param name="configure">
+        /// Optional hook to configure the connection <b>before it opens</b> — the place to register
+        /// <see cref="WinboxNativeConnection.PathOverride"/> / <see cref="WinboxNativeConnection.FieldOverride"/>
+        /// mappings or set <see cref="WinboxNativeConnection.CatalogCachePath"/>. These must be set before
+        /// <c>Open</c>, which is why this factory exposes a callback rather than only returning the connection.
+        /// </param>
+        /// <example>
+        /// <code>
+        /// using var conn = setup.CreateWinboxNativeConnection(c =>
+        /// {
+        ///     c.PathOverride("/ppp/secret", new[] { 27, 101 });
+        ///     c.FieldOverride("/ip/hotspot/user", "mac-address", 0x1);
+        /// });
+        /// </code>
+        /// </example>
+        public ITikConnection CreateWinboxNativeConnection(Action<WinboxNativeConnection> configure = null)
+        {
+            var conn = NewWinboxNative(configure);
+            OpenSync(conn);
+            return conn;
+        }
+
+        /// <summary>Async version of <see cref="CreateWinboxNativeConnection"/>.</summary>
+        public Task<ITikConnection> CreateWinboxNativeConnectionAsync(
+            Action<WinboxNativeConnection> configure = null, CancellationToken ct = default)
+            => OpenAsync(NewWinboxNative(configure), ct);
+
+        private WinboxNativeConnection NewWinboxNative(Action<WinboxNativeConnection> configure)
+        {
+            var conn = new WinboxNativeConnection
+            {
+                ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
+            };
+            configure?.Invoke(conn);
+            return conn;
+        }
 
         // ── Internals ─────────────────────────────────────────────────────────
 

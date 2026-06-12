@@ -3,9 +3,9 @@ using System.Collections.Generic;
 namespace tik4net.Winbox
 {
     /// <summary>
-    /// One field of a WinBox <c>.jg</c> catalog window: the numeric M2 key, its wire type, and
-    /// read-only flag. Produced by <see cref="WinboxJgCatalog"/> and consumed by the field resolver
-    /// to translate between API field names and M2 keys.
+    /// One field of a WinBox <c>.jg</c> catalog window: the numeric M2 key, its wire type, read-only flag,
+    /// and the UI-semantic type that drives typed value encoding. Produced by <see cref="WinboxJgCatalog"/>
+    /// and consumed by the field resolver to translate between API field names and M2 keys/values.
     /// </summary>
     internal sealed class WinboxJgField
     {
@@ -27,14 +27,38 @@ namespace tik4net.Winbox
         /// </summary>
         internal IReadOnlyDictionary<int, string> EnumMap { get; }
 
+        /// <summary>
+        /// The <c>.jg</c> UI-semantic type (<c>type:</c>): e.g. <c>ipaddr</c>, <c>network</c>, <c>macaddr</c>,
+        /// <c>addr</c>, <c>enm</c>, <c>number</c>, <c>bool</c>. Drives typed wire encoding/decoding — it is
+        /// more specific than <see cref="WireType"/> (an <c>ipaddr</c> rides as a u32 but must pack the IP).
+        /// </summary>
+        internal string UiType { get; }
+
+        /// <summary>
+        /// For <c>type:'network'</c> fields, the separate M2 key (<c>maskid</c>) that carries the netmask
+        /// u32 alongside the address u32 in <see cref="Key"/>. <c>0</c> when not a network field.
+        /// </summary>
+        internal int MaskKey { get; }
+
+        /// <summary>
+        /// For <c>type:'enm'</c> reference fields (<c>values:{type:'dynamic',path:[…]}</c>), the handler of
+        /// the referenced table — the value is resolved by matching a name against that table's records and
+        /// sending the referenced object's <c>.id</c>. <c>null</c> for non-reference fields.
+        /// </summary>
+        internal int[] RefHandler { get; }
+
         internal WinboxJgField(string apiName, int key, string wireType, bool readOnly,
-            IReadOnlyDictionary<int, string> enumMap = null)
+            IReadOnlyDictionary<int, string> enumMap = null, string uiType = null, int maskKey = 0,
+            int[] refHandler = null)
         {
             ApiName = apiName;
             Key = key;
             WireType = wireType;
             ReadOnly = readOnly;
             EnumMap = enumMap;
+            UiType = uiType;
+            MaskKey = maskKey;
+            RefHandler = refHandler;
         }
     }
 }

@@ -81,6 +81,9 @@ namespace tik4net.Winbox
             internal const int NextId = 0xFE0005;
             /// <summary>Comment — well-known string field (<c>types.comment</c>). webfig <c>sfe0009</c>; verified live.</summary>
             internal const int Comment = 0xFE0009;
+            /// <summary>Disabled — well-known bool flag (<c>1</c>=disabled) for the default enable/disable
+            /// toggle. webfig <c>types.enable</c> with no explicit id writes <c>obj.bfe000a</c>.</summary>
+            internal const int Disabled = 0xFE000A;
             /// <summary>Flags — getall/get flag word (see <see cref="GetAllFlags"/>). webfig <c>ufe000c</c>.</summary>
             internal const int Flags = 0xFE000C;
             /// <summary>Removed flag — set on a record that has been deleted (push model). webfig <c>ufe0013</c>.</summary>

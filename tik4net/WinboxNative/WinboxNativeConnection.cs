@@ -168,30 +168,37 @@ namespace tik4net.WinboxNative
             }
             var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath));
             var keyToName = resolver.BuildKeyToApiName();
+            var keyToField = resolver.BuildKeyToField();
 
             // Singleton tables (type:'item' window, e.g. /system/resource, /ip/dns) expose a single record
             // read via get-singleton; everything else lists via getall.
             List<Dictionary<int, Tuple<string, object>>> records;
-            if (_catalog.IsSingletonHandler(handler))
+            try
             {
-                var one = _ops.GetSingleton(handler);
-                records = (one != null && one.Count > 0)
-                    ? new List<Dictionary<int, Tuple<string, object>>> { one }
-                    : new List<Dictionary<int, Tuple<string, object>>>();
+                if (_catalog.IsSingletonHandler(handler))
+                {
+                    var one = _ops.GetSingleton(handler);
+                    records = (one != null && one.Count > 0)
+                        ? new List<Dictionary<int, Tuple<string, object>>> { one }
+                        : new List<Dictionary<int, Tuple<string, object>>>();
+                }
+                else
+                {
+                    records = _ops.GetAll(handler);
+                }
             }
-            else
-            {
-                records = _ops.GetAll(handler);
-            }
+            catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
 
             var rows = new List<TikRecordSentence>(records.Count);
             foreach (var rec in records)
-                rows.Add(new TikRecordSentence(DecodeRecord(rec, keyToName)));
+                rows.Add(new TikRecordSentence(DecodeRecord(rec, keyToName, keyToField)));
 
             // Apply Filter parameters (?name=value) in-memory — RouterOS-side filtering is not used here.
+            // .id is kept (LoadById issues ?.id=*HEX); other "." / "#" control words are dropped.
             var filters = descriptor.Parameters
                 .Where(p => p.ParameterFormat == TikCommandParameterFormat.Filter
-                            && !p.Name.StartsWith("#") && !p.Name.StartsWith("."))
+                            && (p.Name == TikSpecialProperties.Id
+                                || (!p.Name.StartsWith("#") && !p.Name.StartsWith("."))))
                 .ToList();
             if (filters.Count > 0)
                 rows = rows.Where(r => filters.All(f =>
@@ -206,21 +213,113 @@ namespace tik4net.WinboxNative
         /// dictionary (<c>apiName → stringValue</c>). Unknown keys are dropped; <c>.id</c> is emitted as
         /// the RouterOS <c>*HEX</c> handle form so it round-trips through the O/R mapper.
         /// </summary>
-        private static Dictionary<string, string> DecodeRecord(
-            Dictionary<int, Tuple<string, object>> rec, IReadOnlyDictionary<int, string> keyToName)
+        private Dictionary<string, string> DecodeRecord(
+            Dictionary<int, Tuple<string, object>> rec, IReadOnlyDictionary<int, string> keyToName,
+            IReadOnlyDictionary<int, WinboxJgField> keyToField)
         {
+            // Netmask keys are consumed by their owning network field (rendered as "addr/len"), not emitted.
+            var maskKeys = new HashSet<int>();
+            if (keyToField != null)
+                foreach (var f in keyToField.Values)
+                    if (f.UiType == "network" && f.MaskKey != 0) maskKeys.Add(f.MaskKey);
+
             var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var kv in rec)
             {
+                if (maskKeys.Contains(kv.Key)) continue;
                 if (!keyToName.TryGetValue(kv.Key, out var apiName)) continue;
                 if (fields.ContainsKey(apiName)) continue;
 
                 if (apiName == TikSpecialProperties.Id)
+                {
                     fields[apiName] = FormatId(kv.Value.Item2);
-                else
-                    fields[apiName] = FormatValue(kv.Value.Item1, kv.Value.Item2);
+                    continue;
+                }
+
+                WinboxJgField jf = null;
+                keyToField?.TryGetValue(kv.Key, out jf);
+                fields[apiName] = FormatTyped(jf, kv.Value.Item1, kv.Value.Item2, rec);
             }
             return fields;
+        }
+
+        // Format an M2 value to its RouterOS API text using the .jg UI-semantic type: IPs unpack from u32,
+        // a network field renders "addr/prefixlen" (pulling the netmask from its maskid sibling key), MACs
+        // from raw bytes, static enums back to their string label, dynamic enum references back to the
+        // referenced record's name. Falls back to the wire-type formatter.
+        private string FormatTyped(WinboxJgField jf, string wireType, object value,
+            Dictionary<int, Tuple<string, object>> rec)
+        {
+            if (jf != null && value != null)
+            {
+                switch (jf.UiType)
+                {
+                    case "ipaddr":
+                        return WinboxFieldResolver.IpFromU32(value);
+                    case "network":
+                    {
+                        string addr = WinboxFieldResolver.IpFromU32(value);
+                        if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var mt) && mt.Item2 != null)
+                            return addr + "/" + WinboxFieldResolver.MaskToPrefix(mt.Item2);
+                        return addr;
+                    }
+                    case "macaddr":
+                        return WinboxFieldResolver.MacFromBytes(value);
+                }
+                // dynamic enum reference: render the referenced object's name (e.g. interface id → "ether1").
+                if (jf.RefHandler != null)
+                {
+                    string name = ResolveRefName(jf.RefHandler, value);
+                    if (name != null) return name;
+                }
+                // static enum: map the numeric value back to its API string label.
+                if (jf.EnumMap != null)
+                {
+                    try
+                    {
+                        int iv = unchecked((int)Convert.ToInt64(value));
+                        if (jf.EnumMap.TryGetValue(iv, out var label)) return label;
+                    }
+                    catch { /* not numeric — fall through */ }
+                }
+            }
+            return FormatValue(wireType, value);
+        }
+
+        // id → name cache per referenced table, built lazily from one getall. Names are stable enough within
+        // a session; this avoids a getall per referenced field per row.
+        private readonly Dictionary<string, Dictionary<int, string>> _refNameCache =
+            new Dictionary<string, Dictionary<int, string>>(StringComparer.Ordinal);
+
+        // Resolve a dynamic-enum reference value (the referenced record's numeric id) back to its name.
+        private string ResolveRefName(int[] refHandler, object idValue)
+        {
+            int id;
+            try { id = unchecked((int)Convert.ToInt64(idValue)); }
+            catch { return null; }
+
+            string key = string.Join(",", refHandler);
+            if (!_refNameCache.TryGetValue(key, out var map))
+            {
+                map = new Dictionary<int, string>();
+                var refResolver = new WinboxFieldResolver(null, refHandler, _catalog, EmptyOverrides);
+                var k2n = refResolver.BuildKeyToApiName();
+                int nameKey = -1, idKey = WinboxM2Protocol.RecordKey.Id;
+                foreach (var kv in k2n) if (kv.Value == "name") { nameKey = kv.Key; break; }
+                try
+                {
+                    foreach (var r in _ops.GetAll(refHandler))
+                        if (r.TryGetValue(idKey, out var idt) && idt.Item2 != null
+                            && nameKey >= 0 && r.TryGetValue(nameKey, out var nt) && nt.Item2 != null)
+                        {
+                            try { map[unchecked((int)Convert.ToInt64(idt.Item2))] = nt.Item2.ToString(); }
+                            catch { /* skip */ }
+                        }
+                }
+                catch { /* reference table unreadable — leave numeric */ }
+                _refNameCache[key] = map;
+            }
+            return map.TryGetValue(id, out var n) ? n : null;
         }
 
         // RouterOS .id is the "*HEX" handle form. The M2 record id is a numeric u8/u32.
@@ -248,9 +347,13 @@ namespace tik4net.WinboxNative
             string apiPath = StripVerb(descriptor.CommandText);
             var (handler, resolver) = ResolveHandlerAndFields(apiPath);
 
-            var fields = EncodeNameValueFields(descriptor, resolver, skipId: true);
-            int newId = _ops.Add(handler, fields);
-            return newId >= 0 ? "*" + ((uint)newId).ToString("X") : null;
+            var fields = EncodeNameValueFields(handler, descriptor, resolver, skipId: true);
+            try
+            {
+                int newId = _ops.Add(handler, fields);
+                return newId >= 0 ? "*" + ((uint)newId).ToString("X") : null;
+            }
+            catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
         }
 
         /// <inheritdoc/>
@@ -261,12 +364,26 @@ namespace tik4net.WinboxNative
             string apiPath = StripVerb(descriptor.CommandText);
             var (handler, resolver) = ResolveHandlerAndFields(apiPath);
 
+            try { RunVerb(verb, apiPath, handler, resolver, descriptor); }
+            catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
+        }
+
+        private void RunVerb(string verb, string apiPath, int[] handler, WinboxFieldResolver resolver,
+            TikCommandDescriptor descriptor)
+        {
             switch (verb)
             {
+                case "add":
+                {
+                    // /path/add invoked via ExecuteNonQuery (the new id, if any, is discarded here).
+                    var fields = EncodeNameValueFields(handler, descriptor, resolver, skipId: true);
+                    _ops.Add(handler, fields);
+                    break;
+                }
                 case "set":
                 {
                     int id = ResolveRecordId(handler, resolver, descriptor, required: true);
-                    var fields = EncodeNameValueFields(descriptor, resolver, skipId: true);
+                    var fields = EncodeNameValueFields(handler, descriptor, resolver, skipId: true);
                     _ops.Set(handler, id, fields);
                     break;
                 }
@@ -275,14 +392,14 @@ namespace tik4net.WinboxNative
                 {
                     int id = ResolveRecordId(handler, resolver, descriptor, required: true);
                     var f = resolver.EncodeField("disabled", verb == "disable" ? "true" : "false");
-                    _ops.Set(handler, id, f != null ? new List<byte[]> { f } : new List<byte[]>());
+                    _ops.Set(handler, id, f);
                     break;
                 }
                 case "unset":
                 {
                     int id = ResolveRecordId(handler, resolver, descriptor, required: true);
                     // unset = set the named field(s) back to empty/default.
-                    var fields = EncodeNameValueFields(descriptor, resolver, skipId: true);
+                    var fields = EncodeNameValueFields(handler, descriptor, resolver, skipId: true);
                     _ops.Set(handler, id, fields);
                     break;
                 }
@@ -315,19 +432,50 @@ namespace tik4net.WinboxNative
 
         private (int[] handler, WinboxFieldResolver resolver) ResolveHandlerAndFields(string apiPath)
         {
-            int[] handler = _handlerMap.Resolve(apiPath)
-                ?? throw new NotSupportedException(
+            int[] handler = _handlerMap.Resolve(apiPath);
+            if (handler == null)
+            {
+                // Surface an unmapped write path the same way reads do — as "no such command" — so callers
+                // get a consistent exception type across read and write (e.g. invalid path, or a path under a
+                // package the router lacks).
+                var c = new TikGenericCommand(this, apiPath);
+                throw new TikNoSuchCommandException(c, new TikTrapSentenceResult(
                     $"WinBox native: no M2 handler mapping for path '{apiPath}'. " +
                     $"Add one via connection.PathOverride(\"{apiPath}\", new[]{{maj,min}}) " +
-                    $"or use a WinboxCli connection.");
+                    $"or use a WinboxCli connection."));
+            }
             var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath));
             return (handler, resolver);
         }
 
+        // Translate a native M2 operation error into the matching public tik4net exception, so WinboxNative
+        // callers see the same exception types as the API/CLI transports. The router's error string (e.g.
+        // "already have such address") is preserved in the message. The numeric M2 code is not a reliable
+        // discriminator on its own (RouterOS returns 0xFE0006 'action failed' for "already have such
+        // address"), so the error text is matched alongside the well-known codes.
+        private TikCommandException TranslateM2Error(WinboxM2OperationException ex, string commandText)
+        {
+            var cmd = new TikGenericCommand(this, commandText);
+            var trap = new TikTrapSentenceResult(ex.Message, $"0x{ex.Code:X}", ex.ErrorText);
+            string t = (ex.ErrorText ?? string.Empty).ToLowerInvariant();
+
+            if (ex.Code == WinboxM2Protocol.Error.AlreadyExists
+                || t.Contains("already have") || t.Contains("already exists"))
+                return new TikAlreadyHaveSuchItemException(cmd, trap);
+
+            if (ex.Code == WinboxM2Protocol.Error.ObjectNonexistent || ex.Code == 0xFE0011
+                || t.Contains("no such") || t.Contains("not found")
+                || t.Contains("does not exist") || t.Contains("doesn't exist"))
+                return new TikNoSuchItemException(cmd, trap);
+
+            return new TikCommandUnexpectedResponseException(ex.Message, cmd, trap);
+        }
+
         // Encode every NameValue parameter (except client-side markers and, optionally, .id) into M2 fields.
-        // Read-only fields (per .jg) are skipped by the encoder (returns null).
-        private static List<byte[]> EncodeNameValueFields(
-            TikCommandDescriptor descriptor, WinboxFieldResolver resolver, bool skipId)
+        // Read-only fields (per .jg) are skipped by the encoder (returns no bytes). A network field expands
+        // to two entries (address + mask); a dynamic enum reference is resolved name→id via getall.
+        private List<byte[]> EncodeNameValueFields(
+            int[] handler, TikCommandDescriptor descriptor, WinboxFieldResolver resolver, bool skipId)
         {
             var fields = new List<byte[]>();
             foreach (var p in descriptor.Parameters)
@@ -336,11 +484,21 @@ namespace tik4net.WinboxNative
                 if (p.Name.StartsWith(".") && p.Name != TikSpecialProperties.Id) continue; // .proplist/.tag/…
                 if (p.Name == TikSpecialProperties.Id) { if (skipId) continue; }
                 if (p.Name == "move-before" || p.Name == "destination") continue; // handled by move dest
-                byte[] enc = resolver.EncodeField(p.Name, p.Value);
-                if (enc != null) fields.Add(enc);
+                fields.AddRange(resolver.EncodeField(p.Name, p.Value, ResolveReference));
             }
             return fields;
         }
+
+        // Resolves a dynamic enum reference (the referenced table handler + a friendly name) to that
+        // record's numeric M2 id, by listing the referenced table and matching its 'name' field.
+        private int? ResolveReference(int[] refHandler, string name)
+        {
+            var refResolver = new WinboxFieldResolver(null, refHandler, _catalog, EmptyOverrides);
+            int id = FindIdByName(refHandler, refResolver, name);
+            return id >= 0 ? (int?)id : null;
+        }
+
+        private static readonly Dictionary<string, int> EmptyOverrides = new Dictionary<string, int>();
 
         // Resolve the M2 numeric record id from the command's .id parameter. The .id may be the RouterOS
         // "*HEX" handle form, or a friendly name (e.g. "ether1") — names are resolved via getall.
@@ -361,9 +519,13 @@ namespace tik4net.WinboxNative
             }
 
             if (required)
-                throw new NotSupportedException(
-                    $"WinBox native: could not resolve record .id '{idParam}' on handler " +
-                    $"[{string.Join(",", handler)}]. Provide the *HEX .id or a matching name.");
+            {
+                // The set/remove/move target does not exist (unresolvable .id) — same outcome as the API/CLI
+                // transports' "no such item".
+                var cmd = new TikGenericCommand(this, descriptor.CommandText);
+                throw new TikNoSuchItemException(cmd, new TikTrapSentenceResult(
+                    $"no such item: could not resolve record .id '{idParam}' on '{descriptor.CommandText}'."));
+            }
             return -1;
         }
 
@@ -384,9 +546,10 @@ namespace tik4net.WinboxNative
         private int FindIdByName(int[] handler, WinboxFieldResolver resolver, string name)
         {
             var keyToName = resolver.BuildKeyToApiName();
+            var keyToField = resolver.BuildKeyToField();
             foreach (var rec in _ops.GetAll(handler))
             {
-                var decoded = DecodeRecord(rec, keyToName);
+                var decoded = DecodeRecord(rec, keyToName, keyToField);
                 if (decoded.TryGetValue("name", out var nm) && string.Equals(nm, name, StringComparison.Ordinal)
                     && decoded.TryGetValue(TikSpecialProperties.Id, out var idStr)
                     && idStr.StartsWith("*") &&
