@@ -177,6 +177,29 @@ namespace tik4net.Winbox
                     result.Add(M2Message.RawSys(key, ParseRaw(value)));
                     return result;
                 }
+                case "set":
+                {
+                    // Bitmask flag set (e.g. connection-state "established,related"). Empty → unset (send nothing).
+                    // A leading '!' negates (API "!established") → set the not-flag. The opt-flag marks the option
+                    // present; the value rides as a u32 of OR'd (1<<bitIndex) per the .jg bit map.
+                    if (value.Length == 0) return result;
+                    bool negate = value.StartsWith("!");
+                    string body = negate ? value.Substring(1) : value;
+                    long bits = 0;
+                    if (jg.EnumMap != null)
+                        foreach (var tok in body.Split(','))
+                        {
+                            string t = tok.Trim();
+                            if (t.Length == 0) continue;
+                            foreach (var kv in jg.EnumMap)
+                                if (string.Equals(kv.Value, t, StringComparison.OrdinalIgnoreCase))
+                                { bits |= 1L << kv.Key; break; }
+                        }
+                    if (jg.OptKey != 0) result.Add(M2Message.BoolSys(jg.OptKey, true));
+                    if (jg.NotKey != 0 && negate) result.Add(M2Message.BoolSys(jg.NotKey, true));
+                    result.Add(EncodeU32(key, unchecked((uint)bits)));
+                    return result;
+                }
                 case "enm":
                 {
                     // dynamic dropdown → referenced object's .id; resolve the name against that table.
@@ -341,6 +364,11 @@ namespace tik4net.Winbox
             bool lastDash = false;
             foreach (char c in trimmed)
             {
+                if (c == '.')
+                {
+                    // Abbreviation dot in a UI label ("Dst. Address" → "dst-address"); API names carry no dots.
+                    continue;
+                }
                 if (char.IsWhiteSpace(c) || c == '_')
                 {
                     if (!lastDash && sb.Length > 0) { sb.Append('-'); lastDash = true; }

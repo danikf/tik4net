@@ -40,6 +40,11 @@ namespace tik4net.Winbox
         // Handlers backed by a singleton window (type:'item') — read via get-singleton, not getall.
         private readonly HashSet<string> _singletonHandlers = new HashSet<string>(StringComparer.Ordinal);
 
+        // Handlers whose window carries live/dynamic data (the .jg marks it with `autorefresh:<ms>`), e.g. the
+        // firewall rule list with its bytes/packets counters. getall on these must OR the stats flag bit so the
+        // router includes the runtime counter fields (matching what RouterOS `print` returns).
+        private readonly HashSet<string> _dynamicHandlers = new HashSet<string>(StringComparer.Ordinal);
+
         // id-prefix letter → wire-type name (lower=scalar, upper=array). Mirrors jg_analyze.py PREFIX.
         private static readonly Dictionary<char, string> Prefix = new Dictionary<char, string>
         {
@@ -77,6 +82,12 @@ namespace tik4net.Winbox
         /// window — its sole record is read via get-singleton rather than getall.</summary>
         internal bool IsSingletonHandler(int[] handler) =>
             handler != null && _singletonHandlers.Contains(HandlerKey(handler));
+
+        /// <summary>True when <paramref name="handler"/>'s window is marked <c>autorefresh</c> in the
+        /// <c>.jg</c> — it carries runtime/dynamic fields (e.g. firewall counters) that getall only returns
+        /// when the stats flag bit is set.</summary>
+        internal bool HasDynamicFields(int[] handler) =>
+            handler != null && _dynamicHandlers.Contains(HandlerKey(handler));
 
         // ── Loading ────────────────────────────────────────────────────────────
 
@@ -281,9 +292,19 @@ namespace tik4net.Winbox
                     if (apiPath != null && !_derivedPaths.ContainsKey(apiPath))
                         _derivedPaths[apiPath] = handlerInts;
                     if (ty == "item") _singletonHandlers.Add(HandlerKey(handlerInts));
+                    if (dict.ContainsKey("autorefresh")) _dynamicHandlers.Add(HandlerKey(handlerInts));
                 }
 
-                if (owner != null && dict.TryGetValue("id", out var idv) && idv is string idStr)
+                // A named opt/not wrapper (type:'opt'/'not' with children) holds its real value in an inner leaf;
+                // the wrapper's own id is just a flag bool (opt=present, not=negated). Map the API name to the
+                // inner value leaf, carrying the flag keys — e.g. firewall 'Connection State' (opt→not→set) maps
+                // to the inner bitmask, not the outer bool. (A childless opt is a plain bool — handled below.)
+                if (owner != null && (ty == "opt" || ty == "not")
+                    && dict.ContainsKey("c") && !string.IsNullOrEmpty(nodeName))
+                {
+                    AddOptionField(owner, nodeName, dict);
+                }
+                else if (owner != null && dict.TryGetValue("id", out var idv) && idv is string idStr)
                 {
                     var dec = DecodeId(idStr);
                     if (dec != null)
@@ -334,7 +355,8 @@ namespace tik4net.Winbox
         }
 
         private void AddField(string handlerKey, string label, int key, string wireType, bool ro,
-            IReadOnlyDictionary<int, string> enumMap, string uiType, int maskKey, int[] refHandler)
+            IReadOnlyDictionary<int, string> enumMap, string uiType, int maskKey, int[] refHandler,
+            int optKey = 0, int notKey = 0)
         {
             string apiName = WinboxFieldResolver.NormalizeLabel(label);
             if (string.IsNullOrEmpty(apiName)) return;
@@ -345,7 +367,60 @@ namespace tik4net.Winbox
             }
             // first label wins for a given apiName; do not let later, less-specific windows clobber it.
             if (!map.ContainsKey(apiName))
-                map[apiName] = new WinboxJgField(apiName, key, wireType, ro, enumMap, uiType, maskKey, refHandler);
+                map[apiName] = new WinboxJgField(apiName, key, wireType, ro, enumMap, uiType, maskKey,
+                    refHandler, optKey, notKey);
+        }
+
+        // Resolves a named opt/not wrapper (e.g. firewall 'Connection State': opt→not→set) to its inner value
+        // leaf and registers the API name against that leaf, carrying the opt/not flag-bool keys. Drills first
+        // dict child through nested opt/not layers; the first non-wrapper node is the value leaf (its own id is
+        // the value key, uiType the control type — 'set' for a bitmask). If no inner leaf is found, the wrapper
+        // itself is the value (a bare bool option) — register its own key as a bool.
+        private void AddOptionField(string handlerKey, string label, Dictionary<string, object> wrapper)
+        {
+            int optKey = 0, notKey = 0;
+            var cur = wrapper;
+            for (int guard = 0; guard < 8 && cur != null; guard++)
+            {
+                string ty = cur.TryGetValue("type", out var tv) && tv is string ts ? ts : null;
+                var dec = (cur.TryGetValue("id", out var iv) && iv is string ids) ? DecodeId(ids) : null;
+
+                if (ty == "opt" || ty == "not")
+                {
+                    if (dec != null) { if (ty == "opt") optKey = dec.Value.key; else notKey = dec.Value.key; }
+                    var child = FirstChildDict(cur);
+                    if (child == null)
+                    {
+                        // wrapper with no inner control: it is a plain bool option (e.g. opt around a checkbox).
+                        if (dec != null)
+                            AddField(handlerKey, label, dec.Value.key, "bool", false, null, "bool", 0, null);
+                        return;
+                    }
+                    cur = child;
+                    continue;
+                }
+
+                // value leaf
+                if (dec != null)
+                {
+                    bool ro = cur.TryGetValue("ro", out var rov) && rov is int rin && rin != 0;
+                    int maskKey = (cur.TryGetValue("maskid", out var mkv) && mkv is string mks
+                        && DecodeId(mks) is var md && md != null) ? md.Value.key : 0;
+                    int[] refHandler = ExtractRefHandler(cur);
+                    AddField(handlerKey, label, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(cur),
+                        ty, maskKey, refHandler, optKey, notKey);
+                }
+                return;
+            }
+        }
+
+        // First child dict inside a node's 'c' list (skips non-dict entries), or null.
+        private static Dictionary<string, object> FirstChildDict(Dictionary<string, object> node)
+        {
+            if (node.TryGetValue("c", out var cv) && cv is List<object> list)
+                foreach (var it in list)
+                    if (it is Dictionary<string, object> d) return d;
+            return null;
         }
 
         // Pulls the referenced table handler from an enm dropdown (values:{type:'dynamic',path:[…]}),
@@ -386,15 +461,26 @@ namespace tik4net.Winbox
             return null;
         }
 
-        // Pulls a static enum value list (values:{type:'static',map:['off','on',…]}) → {0:'off',1:'on',…}.
-        // Only the array form is captured (index = numeric value); object-form maps are skipped.
+        // Pulls a static enum value list into {numeric → label}. Two .jg forms:
+        //  • array  (values:{map:['off','on',…]})            → index = the numeric value (plain enum)
+        //  • object (values:{map:{0:'invalid',1:'established'}}) → the explicit key; for type:'set' this key is
+        //    the BIT INDEX of a bitmask (webfig types.set.tostr: `if(val&(1<<i))`), for a sparse enum it is the value.
         private static IReadOnlyDictionary<int, string> ExtractEnumMap(Dictionary<string, object> node)
         {
             if (!node.TryGetValue("values", out var vv) || !(vv is Dictionary<string, object> vals)) return null;
-            if (!vals.TryGetValue("map", out var mv) || !(mv is List<object> arr)) return null;
+            if (!vals.TryGetValue("map", out var mv)) return null;
             var map = new Dictionary<int, string>();
-            for (int i = 0; i < arr.Count; i++)
-                if (arr[i] is string s) map[i] = WinboxFieldResolver.NormalizeLabel(s);
+            if (mv is List<object> arr)
+            {
+                for (int i = 0; i < arr.Count; i++)
+                    if (arr[i] is string s) map[i] = WinboxFieldResolver.NormalizeLabel(s);
+            }
+            else if (mv is Dictionary<string, object> obj)
+            {
+                foreach (var kv in obj)
+                    if (kv.Value is string s && int.TryParse(kv.Key, out int k))
+                        map[k] = WinboxFieldResolver.NormalizeLabel(s);
+            }
             return map.Count > 0 ? map : null;
         }
 

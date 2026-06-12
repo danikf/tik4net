@@ -61,6 +61,7 @@ namespace tik4net.Winbox
             ["/ip/firewall/mangle"]          = "/ip/firewall/mangle-rule",
             ["/ip/firewall/raw"]             = "/ip/firewall/raw-rule",
             ["/ip/firewall/address-list"]    = "/ip/firewall/firewall-address-list",
+            ["/ip/firewall/service-port"]    = "/ip/firewall/firewalling-service",
 
             // ── IP DHCP ──
             ["/ip/dhcp-server"]              = "/ip/dhcp-server/dhcp-server",

@@ -47,9 +47,22 @@ namespace tik4net.Winbox
         /// </summary>
         internal int[] RefHandler { get; }
 
+        /// <summary>
+        /// For fields wrapped in a WinBox <c>type:'opt'</c> container (an optional/toggleable field such as a
+        /// firewall <c>connection-state</c> flag set), the <c>opt</c> bool key that must be set to 1 on the wire
+        /// to mark the option present. <c>0</c> when the field is not opt-wrapped.
+        /// </summary>
+        internal int OptKey { get; }
+
+        /// <summary>
+        /// For fields wrapped in a WinBox <c>type:'not'</c> container (an invertible field), the <c>not</c> bool
+        /// key carrying the negation flag (1 = negated, e.g. API <c>!established</c>). <c>0</c> when not invertible.
+        /// </summary>
+        internal int NotKey { get; }
+
         internal WinboxJgField(string apiName, int key, string wireType, bool readOnly,
             IReadOnlyDictionary<int, string> enumMap = null, string uiType = null, int maskKey = 0,
-            int[] refHandler = null)
+            int[] refHandler = null, int optKey = 0, int notKey = 0)
         {
             ApiName = apiName;
             Key = key;
@@ -59,6 +72,8 @@ namespace tik4net.Winbox
             UiType = uiType;
             MaskKey = maskKey;
             RefHandler = refHandler;
+            OptKey = optKey;
+            NotKey = notKey;
         }
     }
 }

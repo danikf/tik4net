@@ -111,6 +111,13 @@ namespace tik4net.Winbox
         /// </summary>
         internal const int GetAllFlags = 0x10000005;
 
+        /// <summary>
+        /// Stats bit OR'd into <see cref="GetAllFlags"/> for handlers whose <c>.jg</c> window is
+        /// <c>autorefresh</c> (live/dynamic data): it makes getall include runtime counter fields such as
+        /// the firewall rule <c>bytes</c>/<c>packets</c> (keys 0x2711/0x2710), which the base flag omits.
+        /// </summary>
+        internal const int GetAllStatsFlag = 0x2;
+
         // ──────────────────────────────────────────────────────────────────────
         // Command — command numbers carried in SysKey.Command (uff0007). From webfig master.js.
         // Grouped by role. NOTE: several of these numbers collide with Error codes — see each remark

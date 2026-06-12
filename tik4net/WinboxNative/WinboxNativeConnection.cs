@@ -184,7 +184,11 @@ namespace tik4net.WinboxNative
                 }
                 else
                 {
-                    records = _ops.GetAll(handler);
+                    // autorefresh windows (e.g. firewall rules) carry runtime counters the base flag omits;
+                    // OR the stats bit so getall returns bytes/packets, matching RouterOS `print`.
+                    int flags = WinboxM2Protocol.GetAllFlags
+                        | (_catalog.HasDynamicFields(handler) ? WinboxM2Protocol.GetAllStatsFlag : 0);
+                    records = _ops.GetAll(handler, flags);
                 }
             }
             catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
@@ -217,16 +221,21 @@ namespace tik4net.WinboxNative
             Dictionary<int, Tuple<string, object>> rec, IReadOnlyDictionary<int, string> keyToName,
             IReadOnlyDictionary<int, WinboxJgField> keyToField)
         {
-            // Netmask keys are consumed by their owning network field (rendered as "addr/len"), not emitted.
-            var maskKeys = new HashSet<int>();
+            // Keys consumed by an owning field, not emitted on their own: a network field's netmask sibling,
+            // and the opt/not flag bools of an optional/invertible field (its value rides on the leaf key).
+            var consumedKeys = new HashSet<int>();
             if (keyToField != null)
                 foreach (var f in keyToField.Values)
-                    if (f.UiType == "network" && f.MaskKey != 0) maskKeys.Add(f.MaskKey);
+                {
+                    if (f.UiType == "network" && f.MaskKey != 0) consumedKeys.Add(f.MaskKey);
+                    if (f.OptKey != 0) consumedKeys.Add(f.OptKey);
+                    if (f.NotKey != 0) consumedKeys.Add(f.NotKey);
+                }
 
             var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var kv in rec)
             {
-                if (maskKeys.Contains(kv.Key)) continue;
+                if (consumedKeys.Contains(kv.Key)) continue;
                 if (!keyToName.TryGetValue(kv.Key, out var apiName)) continue;
                 if (fields.ContainsKey(apiName)) continue;
 
@@ -265,6 +274,17 @@ namespace tik4net.WinboxNative
                     }
                     case "macaddr":
                         return WinboxFieldResolver.MacFromBytes(value);
+                    case "set":
+                    {
+                        // Bitmask flag set → comma-joined labels (.jg map key = bit index). The opt/not flag
+                        // keys are consumed separately in DecodeRecord, so only the value rides here.
+                        if (jf.EnumMap == null) break;
+                        long bits;
+                        try { bits = Convert.ToInt64(value); } catch { break; }
+                        var labels = jf.EnumMap.Where(kv => (bits & (1L << kv.Key)) != 0)
+                            .OrderBy(kv => kv.Key).Select(kv => kv.Value);
+                        return string.Join(",", labels);
+                    }
                 }
                 // dynamic enum reference: render the referenced object's name (e.g. interface id → "ether1").
                 if (jf.RefHandler != null)
