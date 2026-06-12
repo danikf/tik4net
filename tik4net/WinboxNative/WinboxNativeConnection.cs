@@ -277,13 +277,18 @@ namespace tik4net.WinboxNative
                     case "set":
                     {
                         // Bitmask flag set → comma-joined labels (.jg map key = bit index). The opt/not flag
-                        // keys are consumed separately in DecodeRecord, so only the value rides here.
+                        // keys are consumed separately in DecodeRecord, so only the value rides here. A set
+                        // 'not' flag (key NotKey) renders as the RouterOS '!' negation prefix on the whole
+                        // value (CLI/API form, e.g. "!established,related").
                         if (jf.EnumMap == null) break;
                         long bits;
                         try { bits = Convert.ToInt64(value); } catch { break; }
                         var labels = jf.EnumMap.Where(kv => (bits & (1L << kv.Key)) != 0)
                             .OrderBy(kv => kv.Key).Select(kv => kv.Value);
-                        return string.Join(",", labels);
+                        string joined = string.Join(",", labels);
+                        bool negated = jf.NotKey != 0 && rec.TryGetValue(jf.NotKey, out var nt)
+                            && nt.Item2 is bool nb && nb;
+                        return negated ? "!" + joined : joined;
                     }
                 }
                 // dynamic enum reference: render the referenced object's name (e.g. interface id → "ether1").

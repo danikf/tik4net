@@ -161,5 +161,48 @@ namespace tik4net.tests
                 Connection.Delete(filter);
             }
         }
+
+        [TestMethod]
+        public void FirewallFilter_ConnectionState_NotNegation_RoundTrips()
+        {
+            // RouterOS represents a negated connection-state match as a single '!' on the whole value
+            // ("!established,related"). WinBox native carries the negation as a separate 'not' flag key, the
+            // CLI/API as the literal '!' string — every transport must surface the same '!'-prefixed value.
+            // Driven at the raw-command level because '!established' is not a [Flags] enum value (so the
+            // FirewallFilter entity / LoadAll cannot be used here).
+            const string comment = "test-cs-not";
+            RemoveFirewallFilterByComment(comment);
+
+            string id = Connection.CreateCommandAndParameters("/ip/firewall/filter/add",
+                "chain", "forward", "action", "accept",
+                "connection-state", "!established,related", "comment", comment).ExecuteScalar();
+            Assert.IsFalse(string.IsNullOrWhiteSpace(id), "add did not return an id");
+            try
+            {
+                var row = Connection.CreateCommandAndParameters("/ip/firewall/filter/print",
+                    TikCommandParameterFormat.Filter, "comment", comment).ExecuteSingleRow();
+                string cs = row.GetResponseField("connection-state");
+
+                StringAssert.StartsWith(cs, "!",
+                    $"negation '!' prefix lost on transport '{ResolveConnectionType()}' (got '{cs}')");
+                StringAssert.Contains(cs, "established");
+                StringAssert.Contains(cs, "related");
+            }
+            finally
+            {
+                RemoveFirewallFilterByComment(comment);
+            }
+        }
+
+        // Removes every /ip/firewall/filter rule carrying the given comment via raw commands (no entity
+        // mapping — a '!'-negated connection-state cannot be parsed into the FirewallFilter [Flags] enum).
+        private void RemoveFirewallFilterByComment(string comment)
+        {
+            var rows = Connection.CreateCommandAndParameters("/ip/firewall/filter/print",
+                TikCommandParameterFormat.Filter, "comment", comment).ExecuteList();
+            foreach (var r in rows)
+                Connection.CreateCommandAndParameters("/ip/firewall/filter/remove",
+                    ".id", r.GetResponseField(".id")).ExecuteNonQuery();
+        }
     }
 }
