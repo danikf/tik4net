@@ -41,6 +41,13 @@ namespace tik4net.Winbox
         internal int MaskKey { get; }
 
         /// <summary>
+        /// For <c>type:'network'</c> fields marked <c>range:1</c> in the <c>.jg</c> (e.g. a hotspot
+        /// IP-binding address), the <see cref="MaskKey"/> sibling is NOT a netmask but the range-END address:
+        /// a single host has start==end (rendered as the bare address), a span renders as <c>start-end</c>.
+        /// </summary>
+        internal bool IsRange { get; }
+
+        /// <summary>
         /// For <c>type:'enm'</c> reference fields (<c>values:{type:'dynamic',path:[…]}</c>), the handler of
         /// the referenced table — the value is resolved by matching a name against that table's records and
         /// sending the referenced object's <c>.id</c>. <c>null</c> for non-reference fields.
@@ -62,7 +69,7 @@ namespace tik4net.Winbox
 
         internal WinboxJgField(string apiName, int key, string wireType, bool readOnly,
             IReadOnlyDictionary<int, string> enumMap = null, string uiType = null, int maskKey = 0,
-            int[] refHandler = null, int optKey = 0, int notKey = 0)
+            int[] refHandler = null, int optKey = 0, int notKey = 0, bool isRange = false)
         {
             ApiName = apiName;
             Key = key;
@@ -74,6 +81,7 @@ namespace tik4net.Winbox
             RefHandler = refHandler;
             OptKey = optKey;
             NotKey = notKey;
+            IsRange = isRange;
         }
     }
 }

@@ -279,7 +279,16 @@ namespace tik4net.WinboxNative
                     {
                         string addr = WinboxFieldResolver.IpFromU32(value);
                         if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var mt) && mt.Item2 != null)
+                        {
+                            if (jf.IsRange)
+                            {
+                                // range:1 → the maskid sibling is the range-END address, not a netmask. A single
+                                // host (start==end) renders as the bare address; a span as "start-end" (API form).
+                                string end = WinboxFieldResolver.IpFromU32(mt.Item2);
+                                return addr == end ? addr : addr + "-" + end;
+                            }
                             return addr + "/" + WinboxFieldResolver.MaskToPrefix(mt.Item2);
+                        }
                         return addr;
                     }
                     case "macaddr":

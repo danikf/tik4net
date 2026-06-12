@@ -150,8 +150,22 @@ namespace tik4net.Winbox
             {
                 case "network":
                 {
-                    // "addr/mask" → address u32 (key) + netmask u32 (maskid). Empty → unset (send nothing).
+                    // Empty → unset (send nothing).
                     if (value.Length == 0) return result;
+                    if (jg.IsRange)
+                    {
+                        // range:1 → the maskid sibling is the range-END address, not a netmask. "a" (host) →
+                        // start=end=a; "a-b" → start=a,end=b. Sending end=start for a host avoids the router
+                        // storing an open-ended range (the bug when a /32 netmask was sent as the "end").
+                        var rp = value.Split('-');
+                        uint? start = PackIpV4(rp[0].Trim());
+                        if (start == null) break; // not v4 — fall through to generic encoders
+                        uint end = (rp.Length > 1 ? PackIpV4(rp[1].Trim()) : start) ?? start.Value;
+                        result.Add(EncodeU32(key, start.Value));
+                        if (jg.MaskKey != 0) result.Add(EncodeU32(jg.MaskKey, end));
+                        return result;
+                    }
+                    // "addr/mask" → address u32 (key) + netmask u32 (maskid).
                     var parts = value.Split('/');
                     uint? addr = PackIpV4(parts[0]);
                     if (addr == null) break; // not v4 — fall through to generic encoders

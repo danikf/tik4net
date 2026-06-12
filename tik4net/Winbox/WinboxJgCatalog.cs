@@ -360,8 +360,9 @@ namespace tik4net.Winbox
                         int maskKey = (dict.TryGetValue("maskid", out var mkv) && mkv is string mks
                             && DecodeId(mks) is var md && md != null) ? md.Value.key : 0;
                         int[] refHandler = ExtractRefHandler(dict);
+                        bool isRange = dict.TryGetValue("range", out var rgv) && rgv is int rgi && rgi != 0;
                         AddField(owner, nodeName, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(dict),
-                            ty, maskKey, refHandler);
+                            ty, maskKey, refHandler, isRange: isRange);
                     }
                 }
 
@@ -403,7 +404,7 @@ namespace tik4net.Winbox
 
         private void AddField(string handlerKey, string label, int key, string wireType, bool ro,
             IReadOnlyDictionary<int, string> enumMap, string uiType, int maskKey, int[] refHandler,
-            int optKey = 0, int notKey = 0)
+            int optKey = 0, int notKey = 0, bool isRange = false)
         {
             string apiName = WinboxFieldResolver.NormalizeLabel(label);
             if (string.IsNullOrEmpty(apiName)) return;
@@ -415,7 +416,7 @@ namespace tik4net.Winbox
             // first label wins for a given apiName; do not let later, less-specific windows clobber it.
             if (!map.ContainsKey(apiName))
                 map[apiName] = new WinboxJgField(apiName, key, wireType, ro, enumMap, uiType, maskKey,
-                    refHandler, optKey, notKey);
+                    refHandler, optKey, notKey, isRange);
         }
 
         // Resolves a named opt/not wrapper (e.g. firewall 'Connection State': opt→not→set) to its inner value
