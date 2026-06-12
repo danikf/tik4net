@@ -45,6 +45,17 @@ namespace tik4net.Winbox
         // router includes the runtime counter fields (matching what RouterOS `print` returns).
         private readonly HashSet<string> _dynamicHandlers = new HashSet<string>(StringComparer.Ordinal);
 
+        // Interface subtype filters. RouterOS interface subtypes (bridge, vlan, eoip, …) are NOT separate M2
+        // handlers — they all live in the generic interface table (the `generic:'iface'` window, [20,0]) and are
+        // distinguished by a numeric `type` field. The .jg declares each subtype window with `inherit:'iface'`
+        // (reuse the generic handler) + `typevalue:N` (the discriminator value). A getall on the shared handler
+        // returns every interface; the subtype list keeps only rows whose type field == N. Keyed by derived
+        // menu-label path → (typeKey, typeValue); _genericIfaceHandler/_ifaceTypeKey capture the base window.
+        private readonly Dictionary<string, Tuple<int, int>> _subtypeFilters =
+            new Dictionary<string, Tuple<int, int>>(StringComparer.OrdinalIgnoreCase);
+        private int[] _genericIfaceHandler;
+        private int _ifaceTypeKey;
+
         // id-prefix letter → wire-type name (lower=scalar, upper=array). Mirrors jg_analyze.py PREFIX.
         private static readonly Dictionary<char, string> Prefix = new Dictionary<char, string>
         {
@@ -77,6 +88,14 @@ namespace tik4net.Winbox
         /// (<c>type:'enm'</c>) that reuse a handler are not included.
         /// </summary>
         internal IReadOnlyDictionary<string, int[]> GetDerivedPaths() => _derivedPaths;
+
+        /// <summary>
+        /// Interface subtype filters: <c>derivedApiPath → (typeKey, typeValue)</c>. For a subtype path
+        /// (e.g. <c>/bridge/bridge</c>) a getall runs on the shared generic interface handler and the result
+        /// is filtered to rows whose <c>typeKey</c> field equals <c>typeValue</c>. Empty when the catalog has
+        /// no <c>inherit:'iface'</c>/<c>typevalue</c> windows.
+        /// </summary>
+        internal IReadOnlyDictionary<string, Tuple<int, int>> GetSubtypeFilters() => _subtypeFilters;
 
         /// <summary>True when <paramref name="handler"/> is backed by a singleton (<c>type:'item'</c>)
         /// window — its sole record is read via get-singleton rather than getall.</summary>
@@ -293,6 +312,34 @@ namespace tik4net.Winbox
                         _derivedPaths[apiPath] = handlerInts;
                     if (ty == "item") _singletonHandlers.Add(HandlerKey(handlerInts));
                     if (dict.ContainsKey("autorefresh")) _dynamicHandlers.Add(HandlerKey(handlerInts));
+
+                    // The base interface window (generic:'iface') anchors the subtype filtering: remember its
+                    // handler and the key of the `type` discriminator field (named by `typeon`, default 'type').
+                    if (dict.TryGetValue("generic", out var genv) && genv is string gen && gen == "iface")
+                    {
+                        _genericIfaceHandler = handlerInts;
+                        string typeon = dict.TryGetValue("typeon", out var tov) && tov is string tos ? tos : "type";
+                        int tk = FindChildFieldKey(dict, typeon);
+                        if (tk != 0) _ifaceTypeKey = tk;
+                    }
+                }
+
+                // Interface subtype window: inherit:'iface' (reuse the generic handler, has no own path:) +
+                // typevalue:N (the discriminator). Register a derived path → the generic handler, plus a subtype
+                // filter (typeKey, N). The leaf is the window TITLE — `name` is the generic 'Interface' shared by
+                // every subtype, so it cannot discriminate; the title carries the subtype ('Bridge','VLAN',…).
+                if (handlerInts == null && _genericIfaceHandler != null && _ifaceTypeKey != 0
+                    && dict.TryGetValue("inherit", out var inhv) && inhv is string inh && inh == "iface"
+                    && dict.TryGetValue("typevalue", out var tvv) && tvv is int tval)
+                {
+                    string title = dict.TryGetValue("title", out var ttv) && ttv is string tts && tts.Length > 0
+                        ? tts : nodeName;
+                    string apiPath = BuildPath(crumb, groupSeg, title);
+                    if (apiPath != null && !_derivedPaths.ContainsKey(apiPath))
+                    {
+                        _derivedPaths[apiPath] = _genericIfaceHandler;
+                        _subtypeFilters[apiPath] = Tuple.Create(_ifaceTypeKey, tval);
+                    }
                 }
 
                 // A named opt/not wrapper (type:'opt'/'not' with children) holds its real value in an inner leaf;
@@ -412,6 +459,20 @@ namespace tik4net.Winbox
                 }
                 return;
             }
+        }
+
+        // Key of the direct child field named <paramref name="childName"/> (e.g. the 'type' discriminator the
+        // generic interface window references via typeon), or 0 when absent/undecodable.
+        private static int FindChildFieldKey(Dictionary<string, object> window, string childName)
+        {
+            if (window.TryGetValue("c", out var cv) && cv is List<object> list)
+                foreach (var it in list)
+                    if (it is Dictionary<string, object> d
+                        && d.TryGetValue("name", out var nm) && nm is string ns && ns == childName
+                        && d.TryGetValue("id", out var idv) && idv is string ids
+                        && DecodeId(ids) is var dec && dec != null)
+                        return dec.Value.key;
+            return 0;
         }
 
         // First child dict inside a node's 'c' list (skips non-dict entries), or null.

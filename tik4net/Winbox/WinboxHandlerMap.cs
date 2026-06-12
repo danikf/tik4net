@@ -40,6 +40,10 @@ namespace tik4net.Winbox
             ["/interface/list/member"]       = "/interfaces/interface-list-member",
 
             // ── Interface bridge (bridge.jg-style menu rooted at top-level "Bridge", not "Interface") ──
+            // The bridge LIST is an interface subtype: the "Bridge" menu's window inherits the generic
+            // interface handler ([20,0]) and filters to type==12 (derived from the .jg, see WinboxJgCatalog
+            // subtype filters). Its derived menu-label path is /bridge/bridge (menu 'Bridge' + window title 'Bridge').
+            ["/interface/bridge"]            = "/bridge/bridge",
             ["/interface/bridge/port"]       = "/bridge/bridge-port",
             ["/interface/bridge/vlan"]       = "/bridge/bridge-vlan",
             ["/interface/bridge/host"]       = "/bridge/host",
@@ -95,6 +99,7 @@ namespace tik4net.Winbox
         };
 
         private IReadOnlyDictionary<string, int[]> _derivedPaths;
+        private IReadOnlyDictionary<string, Tuple<int, int>> _subtypeFilters;
         private readonly Dictionary<string, int[]> _overrides = new Dictionary<string, int[]>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
@@ -104,6 +109,38 @@ namespace tik4net.Winbox
         internal void SetDerivedPaths(IReadOnlyDictionary<string, int[]> derived)
         {
             _derivedPaths = derived;
+        }
+
+        /// <summary>
+        /// Supplies the <c>.jg</c>-derived interface subtype filters (<c>derived menu-label path →
+        /// (typeKey, typeValue)</c>, from <see cref="WinboxJgCatalog.GetSubtypeFilters"/>). Resolved against the
+        /// same apiPath→derived-key bridge as the handler.
+        /// </summary>
+        internal void SetSubtypeFilters(IReadOnlyDictionary<string, Tuple<int, int>> filters)
+        {
+            _subtypeFilters = filters;
+        }
+
+        /// <summary>
+        /// Resolves the interface subtype filter for <paramref name="apiPath"/>, when the path maps (directly or
+        /// via the shipped alias) to a subtype window. Returns <c>true</c> and the <c>typeKey</c>/<c>typeValue</c>
+        /// the caller must match against each getall row; <c>false</c> for plain (non-subtype) paths. Session
+        /// overrides bypass subtype filtering (an explicit handler is taken at face value).
+        /// </summary>
+        internal bool TryResolveSubtypeFilter(string apiPath, out int typeKey, out int typeValue)
+        {
+            typeKey = 0; typeValue = 0;
+            if (_subtypeFilters == null || _subtypeFilters.Count == 0) return false;
+            string key = Normalize(apiPath);
+            if (_overrides.ContainsKey(key)) return false;
+
+            string derivedKey = (_derivedPaths != null && _derivedPaths.ContainsKey(key)) ? key
+                : (ShippedAlias.TryGetValue(key, out var menuPath) ? menuPath : null);
+            if (derivedKey != null && _subtypeFilters.TryGetValue(derivedKey, out var f))
+            {
+                typeKey = f.Item1; typeValue = f.Item2; return true;
+            }
+            return false;
         }
 
         /// <summary>Registers a session override <c>apiPath → handler</c> (highest priority).</summary>

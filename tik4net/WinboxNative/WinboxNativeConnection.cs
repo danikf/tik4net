@@ -134,6 +134,7 @@ namespace tik4net.WinboxNative
             // Feed the .jg-derived apiPath→handler map into the handler resolver (after session overrides,
             // before the shipped override tail).
             _handlerMap.SetDerivedPaths(_catalog.GetDerivedPaths());
+            _handlerMap.SetSubtypeFilters(_catalog.GetSubtypeFilters());
             SetOpened();
         }
 
@@ -192,6 +193,15 @@ namespace tik4net.WinboxNative
                 }
             }
             catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
+
+            // Interface subtype paths (e.g. /interface/bridge) share the generic interface handler; keep only the
+            // rows whose numeric type field matches the subtype's discriminator (derived from the .jg typevalue).
+            if (_handlerMap.TryResolveSubtypeFilter(apiPath, out int typeKey, out int typeValue))
+                records = records.Where(r =>
+                {
+                    if (!r.TryGetValue(typeKey, out var t) || t.Item2 == null) return false;
+                    try { return Convert.ToInt64(t.Item2) == typeValue; } catch { return false; }
+                }).ToList();
 
             var rows = new List<TikRecordSentence>(records.Count);
             foreach (var rec in records)
