@@ -2520,5 +2520,81 @@ namespace tik4net.tests
                 }
             }
         }
+
+        // ── Streaming monitor PoC (2026-06-13) ─────────────────────────────────
+        // Validates the start → poll → cancel cycle reverse-engineered from webfig master.js
+        // (ObjectQuery): a monitor is NOT a server push — the client re-polls on a timer over the
+        // normal request/reply channel. Target = Profile window [49] (CPU profiler): a query window
+        // that needs no live traffic and is present on every router.
+        //   start  = SYS_CMD 0xFE000F (system monitor-start) + request u1=0xFFFFFFFD ("total")
+        //            → reply carries the monitor id in .id (0xFE0001).
+        //   poll   = SYS_CMD 0xFE0004 (default getall) + .id + flags 0x10000005
+        //            → rows under Mfe0002 (per-process CPU usage); re-issued every autorefresh ms.
+        //   cancel = SYS_CMD 0xFE0011 (system monitor-cancel) + .id.
+        [TestMethod]
+        public void Native_MonitorCycle_Profile()
+        {
+            const int START  = unchecked((int)0xFE000F);
+            const int POLL   = unchecked((int)0xFE0004);
+            const int CANCEL = unchecked((int)0xFE0011);
+            const int FLAGS  = 0x10000005;
+            const int K_ID   = 0xFE0001;   // .id / monitor session handle
+            const int K_RECS = 0xFE0002;   // Mfe0002 records message-array
+            int[] PROFILE = { 49 };
+            int cpuTotal = unchecked((int)0xFFFFFFFD);
+
+            var (host, user, pass) = Cfg();
+            using (var client = new WinboxM2Client())
+            {
+                client.Connect(host, WINBOX_PORT);
+                client.Authenticate(host, WINBOX_PORT, user, pass);
+
+                // ── start ──
+                // The monitor id (.id, 0xFE0001) is a u32 that can exceed int.MaxValue (Profile echoes
+                // the CPU selector 0xFFFFFFFD), so carry it as uint and re-encode via SessionIdFieldU32.
+                bool hasId = false;
+                uint monitorId = 0;
+                foreach (var raw in client.ProbeCommandRaw(PROFILE, START, 1500, M2Message.U32User(1, cpuTotal)))
+                {
+                    var f = M2Message.ParseAllFields(raw);
+                    Console.WriteLine($"start reply: {raw.Length}B, status=0x{(f.TryGetValue(0xFF0008, out var st) ? Convert.ToUInt32(st.Item2) : 0):X}, {f.Count} fields:");
+                    foreach (var kv in f) Console.WriteLine($"    key=0x{kv.Key:X6} {kv.Value.Item1,-8} = {kv.Value.Item2}");
+                    if (f.TryGetValue(K_ID, out var idv) && idv.Item2 != null)
+                    {
+                        monitorId = Convert.ToUInt32(idv.Item2);
+                        hasId = true;
+                    }
+                }
+                Console.WriteLine($"monitor id = {(hasId ? "0x" + monitorId.ToString("X") : "(none — poll without id)")}");
+
+                // ── poll a few passes (webfig re-issues getall every autorefresh=1000 ms) ──
+                int totalRows = 0;
+                for (int passIdx = 0; passIdx < 3; passIdx++)
+                {
+                    System.Threading.Thread.Sleep(1000);
+                    var pollFields = new List<byte[]> { M2Message.U32Sys(0xFE000C, FLAGS) };
+                    if (hasId) pollFields.Insert(0, M2Message.SessionIdFieldU32(unchecked((int)monitorId)));
+                    int passRows = 0;
+                    foreach (var raw in client.ProbeCommandRaw(PROFILE, POLL, 1500, pollFields.ToArray()))
+                    {
+                        passRows += M2Message.ParseRecords(raw, K_RECS).Count;
+                    }
+                    Console.WriteLine($"poll pass {passIdx}: {passRows} record(s)");
+                    totalRows += passRows;
+                }
+                Assert.IsTrue(totalRows > 0, "poll (0xFE0004 + id) must stream CPU-profile rows under Mfe0002");
+
+                // ── cancel ──
+                var cancelFields = hasId
+                    ? new[] { M2Message.SessionIdFieldU32(unchecked((int)monitorId)) }
+                    : new byte[0][];
+                foreach (var raw in client.ProbeCommandRaw(PROFILE, CANCEL, 800, cancelFields))
+                {
+                    var f = M2Message.ParseAllFields(raw);
+                    Console.WriteLine($"cancel reply: status=0x{(f.TryGetValue(0xFF0008, out var st) ? Convert.ToUInt32(st.Item2) : 0):X}");
+                }
+                Console.WriteLine($"=== monitor cycle OK: {totalRows} total rows across 3 passes ===");
+            }
+        }
     }
 }
