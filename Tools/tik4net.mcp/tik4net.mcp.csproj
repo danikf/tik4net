@@ -6,7 +6,30 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>tik4net.mcp</AssemblyName>
     <RootNamespace>tik4net.mcp</RootNamespace>
+
+    <!-- Pack as a .NET global/local tool: `dotnet tool install -g tik4net.mcp` → `tik4net-mcp` on PATH. -->
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>tik4net-mcp</ToolCommandName>
+    <PackageId>tik4net.mcp</PackageId>
+    <VersionPrefix>4.0.0</VersionPrefix>
+    <AssemblyVersion>$(VersionPrefix).0</AssemblyVersion>
+    <FileVersion>$(VersionPrefix).0</FileVersion>
+    <Authors>Daniel Frantik</Authors>
+    <Copyright>Copyright (C) Daniel Frantik 2024</Copyright>
+    <Description>MCP (Model Context Protocol) server exposing MikroTik routers via tik4net. The single mikrotik_call tool runs any RouterOS command over every tik4net transport (API/REST/Telnet/MAC-Telnet/WinBox CLI/WinBox native), with an optional per-transport raw protocol trace for debugging.</Description>
+    <PackageTags>Mikrotik MCP ModelContextProtocol AI Claude RouterOS API CLI WinBox</PackageTags>
+    <PackageProjectUrl>https://github.com/danikf/tik4net/wiki/MCP-server</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/danikf/tik4net</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageOutputPath>../../Build</PackageOutputPath>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../LICENSE" Pack="true" PackagePath="\" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="ModelContextProtocol" Version="0.3.*" />

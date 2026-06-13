@@ -69,6 +69,15 @@ jobs:
           /p:AssemblyVersion=${{ steps.ver.outputs.VERSION }}.0
           /p:FileVersion=${{ steps.ver.outputs.VERSION }}.0
 
+      - name: Pack tik4net.mcp (.NET tool)
+        run: >
+          dotnet pack Tools/tik4net.mcp/tik4net.mcp.csproj
+          -c Release
+          -o Build
+          /p:Version=${{ steps.ver.outputs.VERSION }}
+          /p:AssemblyVersion=${{ steps.ver.outputs.VERSION }}.0
+          /p:FileVersion=${{ steps.ver.outputs.VERSION }}.0
+
       - name: Restore Tools (NuGet packages for old-style projects)
         run: nuget restore Tools\tik4net.entityWikiImporter\tik4net.entityWikiImporter.csproj
 
@@ -142,6 +151,7 @@ jobs:
             | `tik4net` | `dotnet add package tik4net --version ${{ steps.ver.outputs.VERSION }}` |
             | `tik4net.entities` | `dotnet add package tik4net.entities --version ${{ steps.ver.outputs.VERSION }}` |
             | `tik4net.testing` | `dotnet add package tik4net.testing --version ${{ steps.ver.outputs.VERSION }}` |
+            | `tik4net.mcp` (MCP server, .NET tool) | `dotnet tool install -g tik4net.mcp --version ${{ steps.ver.outputs.VERSION }}` |
 
             ### Tools (in zip asset)
             - `tik4net.entitygenerator.exe` — generate entity code from a live router

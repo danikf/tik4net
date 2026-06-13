@@ -6,7 +6,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
 
     <PackageId>tik4net.testing</PackageId>
-    <VersionPrefix>3.6.0</VersionPrefix>
+    <VersionPrefix>4.0.0</VersionPrefix>
     <AssemblyVersion>$(VersionPrefix).0</AssemblyVersion>
     <FileVersion>$(VersionPrefix).0</FileVersion>
     <VersionSuffix Condition=" '$(BUILD_BUILDNUMBER)' != '' ">CI-$(BUILD_BUILDNUMBER)</VersionSuffix>
