@@ -35,6 +35,28 @@ namespace tik4net.Winbox
         }
 
         /// <summary>
+        /// Optional row-level trace hooks, invoked with the raw M2 bytes of each request
+        /// (<see cref="OnRequest"/>) and reply (<see cref="OnResponse"/>) around every
+        /// <see cref="IWinboxM2Channel.SendReceive"/>. The owning connection wires these to its
+        /// <c>OnWriteRow</c>/<c>OnReadRow</c> events so the native transport participates in the same
+        /// diagnostics as the API/CLI transports.
+        /// </summary>
+        internal Action<byte[]> OnRequest { get; set; }
+
+        /// <inheritdoc cref="OnRequest"/>
+        internal Action<byte[]> OnResponse { get; set; }
+
+        // Single send/receive seam — fires the trace hooks around the channel round-trip so every M2
+        // operation (read and write) is observable without duplicating the hook at each call site.
+        private byte[] SendReceive(byte[] request)
+        {
+            OnRequest?.Invoke(request);
+            byte[] response = _channel.SendReceive(request, _timeoutMs);
+            OnResponse?.Invoke(response);
+            return response;
+        }
+
+        /// <summary>
         /// Sends <c>getall</c> to <paramref name="handler"/> and returns every record's decoded
         /// field dictionary, following <see cref="WinboxM2Protocol.RecordKey.Continuation"/> pagination
         /// until the handler signals "no more".
@@ -58,7 +80,7 @@ namespace tik4net.Winbox
                 if (maxObjs > 0) head.Add(M2Message.U32Sys(WinboxM2Protocol.RecordKey.MaxObjs, maxObjs));
                 if (contToken != null) head.Add(M2Message.U32Sys(WinboxM2Protocol.RecordKey.Continuation, Convert.ToInt32(contToken)));
 
-                byte[] resp = _channel.SendReceive(M2Message.BuildM2(head.ToArray()), _timeoutMs);
+                byte[] resp = SendReceive(M2Message.BuildM2(head.ToArray()));
 
                 int status = M2Message.ParseSysStatus(resp);
                 if (status != WinboxM2Protocol.Error.None && status != WinboxM2Protocol.Error.ObjectNonexistent)
@@ -90,7 +112,7 @@ namespace tik4net.Winbox
                 M2Message.SysToArr(WinboxM2Protocol.SysInfo.Handler), M2Message.SysFrom(),
                 M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.SysInfo.Command));
-            byte[] resp = _channel.SendReceive(msg, _timeoutMs);
+            byte[] resp = SendReceive(msg);
             var fields = M2Message.ParseAllFields(resp);
             return fields.TryGetValue(WinboxM2Protocol.RecordKey.SysInfoVersion, out var t) ? t.Item2?.ToString() : null;
         }
@@ -108,7 +130,7 @@ namespace tik4net.Winbox
                 M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.GetOne),
                 M2Message.SessionIdField(id));
-            byte[] resp = _channel.SendReceive(msg, _timeoutMs);
+            byte[] resp = SendReceive(msg);
             var recs = M2Message.ParseRecords(resp, WinboxM2Protocol.RecordKey.Records);
             return recs.Count > 0 ? recs[0] : M2Message.ParseAllFields(resp);
         }
@@ -127,7 +149,7 @@ namespace tik4net.Winbox
                 M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.GetSingleton),
                 M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, flags));
-            byte[] resp = _channel.SendReceive(msg, _timeoutMs);
+            byte[] resp = SendReceive(msg);
             int status = M2Message.ParseSysStatus(resp);
             if (status != WinboxM2Protocol.Error.None && status != WinboxM2Protocol.Error.ObjectNonexistent)
             {
@@ -157,7 +179,7 @@ namespace tik4net.Winbox
                 M2Message.SessionIdField(id),
             };
             if (fields != null) head.AddRange(fields);
-            byte[] resp = _channel.SendReceive(M2Message.BuildM2(head.ToArray()), _timeoutMs);
+            byte[] resp = SendReceive(M2Message.BuildM2(head.ToArray()));
             ThrowOnStatus(resp, "set", handler);
         }
 
@@ -175,7 +197,7 @@ namespace tik4net.Winbox
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.Add),
             };
             if (fields != null) head.AddRange(fields);
-            byte[] resp = _channel.SendReceive(M2Message.BuildM2(head.ToArray()), _timeoutMs);
+            byte[] resp = SendReceive(M2Message.BuildM2(head.ToArray()));
             ThrowOnStatus(resp, "add", handler);
             var f = M2Message.ParseAllFields(resp);
             return f.TryGetValue(WinboxM2Protocol.RecordKey.Id, out var t) && t.Item2 != null ? Convert.ToInt32(t.Item2) : -1;
@@ -192,7 +214,7 @@ namespace tik4net.Winbox
                 M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.Remove),
                 M2Message.SessionIdField(id));
-            byte[] resp = _channel.SendReceive(msg, _timeoutMs);
+            byte[] resp = SendReceive(msg);
             ThrowOnStatus(resp, "remove", handler);
         }
 
@@ -212,7 +234,7 @@ namespace tik4net.Winbox
                 M2Message.SessionIdField(id),
             };
             if (destNextId >= 0) head.Add(M2Message.U32Sys(WinboxM2Protocol.RecordKey.NextId, destNextId));
-            byte[] resp = _channel.SendReceive(M2Message.BuildM2(head.ToArray()), _timeoutMs);
+            byte[] resp = SendReceive(M2Message.BuildM2(head.ToArray()));
             ThrowOnStatus(resp, "move", handler);
         }
 
@@ -231,7 +253,7 @@ namespace tik4net.Winbox
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, cmd),
             };
             if (id >= 0) head.Add(M2Message.SessionIdField(id));
-            byte[] resp = _channel.SendReceive(M2Message.BuildM2(head.ToArray()), _timeoutMs);
+            byte[] resp = SendReceive(M2Message.BuildM2(head.ToArray()));
             ThrowOnStatus(resp, "action", handler);
             return M2Message.ParseAllFields(resp);
         }

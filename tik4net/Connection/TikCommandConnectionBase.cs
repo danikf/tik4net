@@ -237,6 +237,14 @@ namespace tik4net.Connection
 
         // ── Diagnostics ────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// True when row-level tracing would be observed by someone — either <see cref="DebugEnabled"/>
+        /// is set, or a <see cref="OnReadRow"/>/<see cref="OnWriteRow"/> handler is attached. Subclasses
+        /// can gate the (potentially costly) rendering of a trace word behind this so it is only built
+        /// when something is actually listening.
+        /// </summary>
+        protected bool RowTracingEnabled => DebugEnabled || OnReadRow != null || OnWriteRow != null;
+
         /// <summary>Fires <see cref="OnWriteRow"/> and writes a debug line when <see cref="DebugEnabled"/>.</summary>
         protected void FireWriteRow(string word)
         {

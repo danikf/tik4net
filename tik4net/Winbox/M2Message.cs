@@ -153,6 +153,72 @@ namespace tik4net.Winbox
             return b.ToArray();
         }
 
+        // ── Diagnostics ───────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Renders an M2 message (request or reply) as a single compact, human-readable line for
+        /// row-level tracing (<c>OnReadRow</c>/<c>OnWriteRow</c>). Shows the message length and every
+        /// top-level field as <c>0x&lt;fullKey&gt;=&lt;type&gt;:&lt;value&gt;</c>; nested submessages and
+        /// record arrays are expanded so the raw M2 field keys of each record are visible — which is the
+        /// information needed to debug the native field mapping. Non-M2 / empty buffers are reported as
+        /// a short hex preview.
+        /// </summary>
+        internal static string Describe(byte[] m2)
+        {
+            if (m2 == null) return "(null)";
+            if (m2.Length < 2 || m2[0] != 'M' || m2[1] != '2')
+            {
+                int n = Math.Min(m2.Length, 16);
+                string hex = n > 0 ? BitConverter.ToString(m2, 0, n).Replace("-", "") : "";
+                return $"({m2.Length}B non-M2{(n < m2.Length ? "…" : "")}: {hex})";
+            }
+
+            var sb = new StringBuilder();
+            sb.Append("M2[").Append(m2.Length).Append("B]");
+            foreach (var kv in ParseAllFields(m2))
+                sb.Append(' ').Append("0x").Append(kv.Key.ToString("X")).Append('=')
+                  .Append(kv.Value.Item1).Append(':').Append(RenderTraceValue(kv.Value.Item2));
+            return sb.ToString();
+        }
+
+        // Compact renderer for a decoded M2 value: nested record dicts → {0xKEY=…,…}, record arrays →
+        // [{…},{…}], scalars → ToString(). Depth-capped to keep trace lines bounded.
+        private static string RenderTraceValue(object value, int depth = 0)
+        {
+            switch (value)
+            {
+                case null:
+                    return "";
+                case Dictionary<int, Tuple<string, object>> rec:
+                {
+                    if (depth >= 3) return "{…}";
+                    var sb = new StringBuilder("{");
+                    bool first = true;
+                    foreach (var kv in rec)
+                    {
+                        if (!first) sb.Append(',');
+                        first = false;
+                        sb.Append("0x").Append(kv.Key.ToString("X")).Append('=')
+                          .Append(RenderTraceValue(kv.Value.Item2, depth + 1));
+                    }
+                    return sb.Append('}').ToString();
+                }
+                case List<Dictionary<int, Tuple<string, object>>> list:
+                {
+                    if (depth >= 3) return $"[{list.Count} rec]";
+                    var sb = new StringBuilder("[");
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        if (i > 0) sb.Append(',');
+                        sb.Append(RenderTraceValue(list[i], depth + 1));
+                    }
+                    return sb.Append(']').ToString();
+                }
+                default:
+                    return value.ToString();
+            }
+        }
+
         // ── TLV parsing ───────────────────────────────────────────────────────
 
         // ── M2 type-byte decomposition (matches webfig master.js) ─────────────

@@ -127,6 +127,10 @@ namespace tik4net.WinboxNative
         {
             _session = session;
             _ops = new WinboxNativeM2Operations(session, ConnectTimeout);
+            // Participate in the shared row-level diagnostics: render each raw M2 request/reply to the
+            // OnWriteRow/OnReadRow events (gated so the describe is only built when something listens).
+            _ops.OnRequest = msg => { if (RowTracingEnabled) FireWriteRow(M2Message.Describe(msg)); };
+            _ops.OnResponse = msg => { if (RowTracingEnabled) FireReadRow(M2Message.Describe(msg)); };
             try { _routerVersion = _ops.GetRouterVersion(); }
             catch { _routerVersion = null; }
             try { _catalog.EnsureLoaded(session, _routerVersion, CatalogCachePath, ConnectTimeout); }
