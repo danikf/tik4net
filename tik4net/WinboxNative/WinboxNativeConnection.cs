@@ -158,6 +158,11 @@ namespace tik4net.WinboxNative
             int[] handler = _handlerMap.Resolve(apiPath);
             if (handler == null)
             {
+                // A "monitor once" snapshot (e.g. /interface/ethernet/monitor numbers=ether1): the live
+                // values are read-only fields on the parent interface record, so a getall + name filter gives
+                // the snapshot. Tried before the action-verb path (monitor is not a doit/action cmd).
+                if (TryRunMonitor(descriptor, out var monitorRows)) return monitorRows;
+
                 // The path may be an action verb (e.g. /system/script/run) rather than a table — a .jg
                 // doit/action SYS_CMD on the parent handler. Dispatch it before reporting "no such command".
                 if (TryRunActionVerb(descriptor, out var actionRows)) return actionRows;
@@ -224,6 +229,51 @@ namespace tik4net.WinboxNative
                     string.Equals(v, f.Value, StringComparison.Ordinal))).ToList();
 
             return rows;
+        }
+
+        // Attempts a "monitor [once]" snapshot (e.g. /interface/ethernet/monitor numbers=ether1). The monitored
+        // values (rate, link status, auto-negotiation, full-duplex) are read-only fields on the parent
+        // interface record — webfig surfaces them as a Status tab of the [20,0] window, not a separate handler.
+        // A getall on the parent handler filtered to the named interface yields the same single snapshot the
+        // RouterOS "monitor once" returns. Returns false (fall through) when this is not a monitor path.
+        private bool TryRunMonitor(TikCommandDescriptor descriptor, out IList<TikRecordSentence> rows)
+        {
+            rows = null;
+            if (!string.Equals(VerbOf(descriptor.CommandText), "monitor", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            string parentPath = StripVerb(descriptor.CommandText);
+            int[] handler = _handlerMap.Resolve(parentPath);
+            if (handler == null) return false;
+
+            // The interface is named via 'numbers' (RouterOS monitor convention), or 'interface'/'.id'.
+            string target = FindParam(descriptor, "numbers")
+                ?? FindParam(descriptor, "interface")
+                ?? FindParam(descriptor, TikSpecialProperties.Id);
+            if (string.IsNullOrEmpty(target)) return false;
+
+            var resolver = new WinboxFieldResolver(parentPath, handler, _catalog, OverridesFor(parentPath));
+            var keyToName = resolver.BuildKeyToApiName();
+            var keyToField = resolver.BuildKeyToField();
+            int flags = WinboxM2Protocol.GetAllFlags
+                | (_catalog.HasDynamicFields(handler) ? WinboxM2Protocol.GetAllStatsFlag : 0);
+
+            List<Dictionary<int, Tuple<string, object>>> records;
+            try { records = _ops.GetAll(handler, flags); }
+            catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
+
+            var result = new List<TikRecordSentence>();
+            foreach (var rec in records)
+            {
+                var decoded = DecodeRecord(rec, keyToName, keyToField);
+                if (decoded.TryGetValue("name", out var nm) && string.Equals(nm, target, StringComparison.Ordinal))
+                {
+                    result.Add(new TikRecordSentence(decoded));
+                    break;
+                }
+            }
+            rows = result;
+            return true;
         }
 
         // Attempts to dispatch an action verb (e.g. /system/script/run) whose last path segment matches a
