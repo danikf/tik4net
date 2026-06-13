@@ -138,6 +138,38 @@ namespace tik4net.tests
             }
         }
 
+        [TestMethod]
+        public void CreateAndRemoveHotspotIpBindingRangeWillNotFail()
+        {
+            // The ip-binding 'address' is a range field: RouterOS represents a span as "start-end" in the API
+            // syntax (a single host is the bare address, covered by the test above). This asserts a real range
+            // round-trips verbatim on every transport — notably WinBox native, where the value is carried as a
+            // start-address + end-address key pair (not addr/netmask) and must re-render the "start-end" form.
+            const string ADDRESS = "192.168.168.1-192.168.168.10";
+
+            // pre-cleanup: remove leftovers from previous failed runs
+            foreach (var leftover in Connection.LoadAll<HotspotIpBinding>()
+                .Where(b => b.Address == ADDRESS))
+                Connection.Delete(leftover);
+
+            var binding = new HotspotIpBinding()
+            {
+                Address = ADDRESS,
+            };
+            Connection.Save(binding);
+            try
+            {
+                var loadedBinding = Connection.LoadAll<HotspotIpBinding>().SingleOrDefault(ib => ib.Address == ADDRESS);
+                Assert.IsNotNull(loadedBinding,
+                    $"range address did not round-trip on transport '{ResolveConnectionType()}'");
+                Assert.AreEqual(ADDRESS, loadedBinding.Address);
+            }
+            finally
+            {
+                Connection.Delete(binding);
+            }
+        }
+
         #endregion
     }
 }
