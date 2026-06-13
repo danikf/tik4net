@@ -216,6 +216,26 @@ namespace tik4net.Winbox
             ThrowOnStatus(resp, "move", handler);
         }
 
+        /// <summary>
+        /// Invokes a per-record action verb (<paramref name="cmd"/>, a <c>.jg</c> doit/action SYS_CMD such as
+        /// the scripts window's "Run Script" cmd:1) on <paramref name="handler"/>, optionally targeting record
+        /// <paramref name="id"/> (omitted when negative). Returns the reply's top-level fields. Throws on a
+        /// non-zero router status.
+        /// </summary>
+        internal Dictionary<int, Tuple<string, object>> InvokeAction(int[] handler, int cmd, int id)
+        {
+            var head = new List<byte[]>
+            {
+                M2Message.SysToArr(handler), M2Message.SysFrom(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
+                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, cmd),
+            };
+            if (id >= 0) head.Add(M2Message.SessionIdField(id));
+            byte[] resp = _channel.SendReceive(M2Message.BuildM2(head.ToArray()), _timeoutMs);
+            ThrowOnStatus(resp, "action", handler);
+            return M2Message.ParseAllFields(resp);
+        }
+
         private static void ThrowOnStatus(byte[] resp, string op, int[] handler)
         {
             int status = M2Message.ParseSysStatus(resp);

@@ -158,6 +158,10 @@ namespace tik4net.WinboxNative
             int[] handler = _handlerMap.Resolve(apiPath);
             if (handler == null)
             {
+                // The path may be an action verb (e.g. /system/script/run) rather than a table — a .jg
+                // doit/action SYS_CMD on the parent handler. Dispatch it before reporting "no such command".
+                if (TryRunActionVerb(descriptor, out var actionRows)) return actionRows;
+
                 // No native handler mapping for this read path. Surface it like other transports surface a
                 // missing command, so EnsureCommandAvailable / TikNoSuchCommandException handling kicks in
                 // (e.g. /interface/wireless on a router without the wireless package).
@@ -220,6 +224,45 @@ namespace tik4net.WinboxNative
                     string.Equals(v, f.Value, StringComparison.Ordinal))).ToList();
 
             return rows;
+        }
+
+        // Attempts to dispatch an action verb (e.g. /system/script/run) whose last path segment matches a
+        // .jg doit/action on the parent handler. On a match: resolves the optional target .id, invokes the
+        // SYS_CMD, and returns an empty row set (the action produces no record rows over native M2, mirroring
+        // how the CLI terminals run fire-and-forget). Returns false when the path is not such an action.
+        private bool TryRunActionVerb(TikCommandDescriptor descriptor, out IList<TikRecordSentence> rows)
+        {
+            rows = null;
+            string verb = VerbOf(descriptor.CommandText);
+            string parentPath = StripVerb(descriptor.CommandText);
+            int[] handler = _handlerMap.Resolve(parentPath);
+            if (handler == null) return false;
+
+            var actions = _catalog.GetHandlerActions(handler);
+            if (actions == null) return false;
+
+            int cmd = -1;
+            foreach (var kv in actions)
+                if (ActionMatchesVerb(kv.Key, verb)) { cmd = kv.Value; break; }
+            if (cmd < 0) return false;
+
+            var resolver = new WinboxFieldResolver(parentPath, handler, _catalog, OverridesFor(parentPath));
+            int id = ResolveRecordId(handler, resolver, descriptor, required: false);
+            try { _ops.InvokeAction(handler, cmd, id); }
+            catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
+
+            rows = new List<TikRecordSentence>();
+            return true;
+        }
+
+        // True when a .jg action label maps to the RouterOS API verb: exact match, or the label's first
+        // hyphen-token equals the verb ("run" ↔ "run-script").
+        private static bool ActionMatchesVerb(string normalizedLabel, string verb)
+        {
+            if (string.Equals(normalizedLabel, verb, StringComparison.OrdinalIgnoreCase)) return true;
+            int dash = normalizedLabel.IndexOf('-');
+            string first = dash > 0 ? normalizedLabel.Substring(0, dash) : normalizedLabel;
+            return string.Equals(first, verb, StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>

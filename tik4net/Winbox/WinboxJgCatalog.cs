@@ -56,6 +56,13 @@ namespace tik4net.Winbox
         private int[] _genericIfaceHandler;
         private int _ifaceTypeKey;
 
+        // Per-record action verbs (.jg type:'doit'/'action' with a cmd, e.g. the scripts window's
+        // "Run Script" doit cmd:1). These are NOT CRUD — they invoke a command on the owning handler targeting
+        // a record .id. Keyed handler-path → (normalized action label → SYS_CMD). The RouterOS API verb
+        // (/system/script/run) is matched to the label by its first token ("run" ↔ "run-script").
+        private readonly Dictionary<string, Dictionary<string, int>> _actionsByHandler =
+            new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
+
         // id-prefix letter → wire-type name (lower=scalar, upper=array). Mirrors jg_analyze.py PREFIX.
         private static readonly Dictionary<char, string> Prefix = new Dictionary<char, string>
         {
@@ -96,6 +103,14 @@ namespace tik4net.Winbox
         /// no <c>inherit:'iface'</c>/<c>typevalue</c> windows.
         /// </summary>
         internal IReadOnlyDictionary<string, Tuple<int, int>> GetSubtypeFilters() => _subtypeFilters;
+
+        /// <summary>
+        /// Per-record action verbs for <paramref name="handler"/> as <c>normalized action label → SYS_CMD</c>
+        /// (from <c>type:'doit'/'action'</c> nodes with a <c>cmd</c>), or <c>null</c> when the handler exposes
+        /// no actions. Used to dispatch non-CRUD verbs such as <c>/system/script/run</c>.
+        /// </summary>
+        internal IReadOnlyDictionary<string, int> GetHandlerActions(int[] handler)
+            => handler != null && _actionsByHandler.TryGetValue(HandlerKey(handler), out var m) ? m : null;
 
         /// <summary>True when <paramref name="handler"/> is backed by a singleton (<c>type:'item'</c>)
         /// window — its sole record is read via get-singleton rather than getall.</summary>
@@ -366,6 +381,15 @@ namespace tik4net.Winbox
                     }
                 }
 
+                // Per-record action verb: a named doit/action carrying a cmd (no own field id) invokes that
+                // SYS_CMD on the owning handler against a record .id — e.g. the scripts window's
+                // {name:'Run Script',type:'doit',cmd:1} on [48,101]. Register it for /system/script/run dispatch.
+                if (owner != null && (ty == "doit" || ty == "action") && !dict.ContainsKey("id")
+                    && dict.TryGetValue("cmd", out var cmdv) && cmdv is int cmdN && !string.IsNullOrEmpty(nodeName))
+                {
+                    AddAction(owner, nodeName, cmdN);
+                }
+
                 // Descend. A structural menu node (has children, no field id, has a name) extends the
                 // breadcrumb so its descendant windows derive a nested path.
                 List<string> childCrumb = crumb;
@@ -460,6 +484,19 @@ namespace tik4net.Winbox
                 }
                 return;
             }
+        }
+
+        // Registers a per-record action verb (doit/action label → SYS_CMD) under its owning handler.
+        private void AddAction(string handlerKey, string label, int cmd)
+        {
+            string norm = WinboxFieldResolver.NormalizeLabel(label);
+            if (string.IsNullOrEmpty(norm)) return;
+            if (!_actionsByHandler.TryGetValue(handlerKey, out var m))
+            {
+                m = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                _actionsByHandler[handlerKey] = m;
+            }
+            if (!m.ContainsKey(norm)) m[norm] = cmd;
         }
 
         // Key of the direct child field named <paramref name="childName"/> (e.g. the 'type' discriminator the
