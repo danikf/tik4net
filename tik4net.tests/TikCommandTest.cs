@@ -105,7 +105,12 @@ namespace tik4net.tests
         [TestMethod]
         public void ExecuteSingleRow_With_Tag_Parameter_Will_Not_HangUp_Or_Fail()
         {
-            var command = Connection.CreateCommandAndParameters("/system/health/print", TikSpecialProperties.Tag, "1234");
+            // This is a regression test for tag handling (a tag must not deadlock the reader or fault the
+            // command), not for any particular path. It needs a command that returns exactly one row on
+            // every transport, so we use the /system/resource singleton — unlike /system/health, whose API
+            // "print" exposes a config row while WinBox models it as a per-sensor table that has no getall on
+            // sensorless hardware (a CHR), which is transport-divergent and unsuitable for a tag regression.
+            var command = Connection.CreateCommandAndParameters("/system/resource/print", TikSpecialProperties.Tag, "1234");
             command.ExecuteSingleRow();
         }
 
