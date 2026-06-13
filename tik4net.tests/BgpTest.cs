@@ -11,6 +11,12 @@ namespace tik4net.tests
         [TestMethod]
         public void ListAllBgpAdvertisementsWillNotFail()
         {
+            // /routing/bgp/advertisements is a read-only, per-peer dynamic query (RouterOS computes it
+            // on print). WinBox does not expose it as a window/handler — an exhaustive sweep of the 7.21.4
+            // .jg catalog finds BGP Connection/Session/Template/VPN/Instance but no Advertisements node —
+            // so the native M2 transport has no handler to derive. It works fine over API and CLI transports.
+            SkipOnWinboxNativeUnmappedPath("/routing/bgp/advertisements");
+
             var list = Connection.LoadAll<BgpAdvertisements>();
             Assert.IsNotNull(list);
         }

@@ -173,6 +173,23 @@ namespace tik4net.tests
         }
 
         /// <summary>
+        /// Marks the test as inconclusive (skipped) only on the native WinBox M2 transport, for an
+        /// API path that WinBox itself does not expose as a structured handler. Native CRUD is driven
+        /// by the version-matched WinBox <c>.jg</c> catalog (path → handler array); a path absent from
+        /// every WinBox window cannot be derived and has no numeric handler to call. This is distinct
+        /// from <see cref="SkipOnNonApi"/>: the CLI family (Telnet/SSH/WinBox-CLI) runs the textual
+        /// command and is unaffected — only native M2 needs the handler mapping.
+        /// </summary>
+        /// <param name="feature">API path / feature shown in the skip message.</param>
+        protected void SkipOnWinboxNativeUnmappedPath(string feature)
+        {
+            if (ResolveConnectionType() == TikConnectionType.WinboxNative)
+                Assert.Inconclusive(
+                    $"'{feature}' is not exposed by WinBox as an M2 handler (absent from the .jg catalog), " +
+                    "so the native WinBox transport cannot reach it — use the API or a CLI transport. Test skipped.");
+        }
+
+        /// <summary>
         /// True when the active transport is NOT the binary API — i.e. a CLI-family transport
         /// (Telnet/MACTelnet/WinBox-CLI/WinBox-CLI-MAC) or native WinBox M2. These transports go
         /// through the structured-command model rather than the binary-API sentence protocol, so they
