@@ -284,7 +284,11 @@ namespace tik4net.tests
         [ExpectedException(typeof(TikCommandAmbiguousResultException))]
         public void ExecuteSingleRowOrDefault_WithMultipleResponses_WillThrowCorrectException()
         {
-            var testCommand = Connection.CreateCommand("/ip/firewal/service-port/print");
+            // The point is that ExecuteSingleRowOrDefault on a path returning more than one row must throw
+            // the ambiguous-result exception. /ip/firewall/service-port always has many rows (ftp, sip, …).
+            // (The path was previously misspelled "firewal"; the binary API still resolved it via command
+            // abbreviation, but non-API transports cannot, so they faulted with TikNoSuchCommandException.)
+            var testCommand = Connection.CreateCommand("/ip/firewall/service-port/print");
             testCommand.ExecuteSingleRowOrDefault();
         }
 
