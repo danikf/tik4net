@@ -84,6 +84,10 @@ namespace tik4net.Winbox
             /// <summary>Disabled — well-known bool flag (<c>1</c>=disabled) for the default enable/disable
             /// toggle. webfig <c>types.enable</c> with no explicit id writes <c>obj.bfe000a</c>.</summary>
             internal const int Disabled = 0xFE000A;
+            /// <summary>Finished — monitor "done" flag: a streaming-monitor poll reply sets <c>bfe000b</c>
+            /// when the operation has completed (e.g. a traceroute reached its target), telling the client to
+            /// stop polling. webfig <c>ObjectQuery</c>/<c>ObjectAction</c>: <c>if(rep.bfe000b) this.stop()</c>.</summary>
+            internal const int Finished = 0xFE000B;
             /// <summary>Flags — getall/get flag word (see <see cref="GetAllFlags"/>). webfig <c>ufe000c</c>.</summary>
             internal const int Flags = 0xFE000C;
             /// <summary>Removed flag — set on a record that has been deleted (push model). webfig <c>ufe0013</c>.</summary>

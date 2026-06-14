@@ -16,6 +16,7 @@ namespace tik4net.Connection
         private string _commandText;
         private TikCommandParameterFormat _defaultParameterFormat;
         private volatile bool _isRunning;
+        private TikMonitorHandle _monitorHandle;
 
         public ITikConnection Connection
         {
@@ -304,12 +305,35 @@ namespace tik4net.Connection
             Action<ITikTrapSentence> errorCallback = null,
             Action onDoneCallback = null)
         {
-            throw new NotSupportedException("CLI transport does not support asynchronous/listen commands. Use a transport that reports Listen capability.");
+            // Streaming monitors are an opt-in transport capability (ITikMonitorTransport): native WinBox M2
+            // implements it, the CLI transports do not. Only those that cannot do it throw NotSupported.
+            if (!(_connection is ITikMonitorTransport monitorTransport))
+                throw new NotSupportedException(
+                    "This transport does not support asynchronous/listen commands. Use a transport that reports Listen capability.");
+
+            // Normalize a multi-line command (e.g. "/interface/print\n?type=ether\n?#|") into a clean command
+            // path plus parsed Filter parameters, exactly like the synchronous read paths do.
+            var (cmdText, allParams) = NormalizeMultilineCommand(_commandText, _parameters);
+            var descriptor = new TikCommandDescriptor(cmdText, allParams);
+            _isRunning = true;
+            try
+            {
+                _monitorHandle = monitorTransport.RunMonitorAsync(descriptor,
+                    row => oneResponseCallback?.Invoke(row),
+                    trap => errorCallback?.Invoke(trap),
+                    () => { _isRunning = false; onDoneCallback?.Invoke(); });
+            }
+            catch
+            {
+                _isRunning = false;
+                throw;
+            }
         }
 
-        public void Cancel() { /* no-op for CLI */ }
-        public void CancelAndJoin() { /* no-op for CLI */ }
-        public bool CancelAndJoin(int milisecondsTimeout) { return true; }
+        public void Cancel() { _monitorHandle?.Cancel(); }
+        public void CancelAndJoin() { _monitorHandle?.Join(-1); }
+        public bool CancelAndJoin(int milisecondsTimeout)
+            => _monitorHandle == null || _monitorHandle.Join(milisecondsTimeout);
 
         // ── Parameter helpers ─────────────────────────────────────────────────
 

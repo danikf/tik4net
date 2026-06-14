@@ -96,6 +96,18 @@ namespace tik4net.Winbox
             // ── Routing ──
             ["/routing/bgp/connection"]      = "/routing/bgp/bgp-connection",
             ["/routing/bgp/template"]        = "/routing/bgp/bgp-template",
+
+            // ── Tools (streaming monitors: type:'query' windows under the WinBox "Tools" menu, whose
+            //    derived menu-label path doubles the leaf, e.g. menu 'Torch' + window title 'Torch') ──
+            ["/tool/torch"]                  = "/tools/torch/torch",
+            ["/tool/profile"]                = "/tools/profile/profile",
+            // ToolPing's entity path is the top-level /ping (not /tool/ping); alias both forms.
+            ["/ping"]                        = "/tools/ping/ping",
+            ["/tool/ping"]                   = "/tools/ping/ping",
+            ["/tool/traceroute"]             = "/tools/traceroute/traceroute",
+            ["/tool/bandwidth-test"]         = "/tools/bandwidth-test/bandwidth-test",
+            ["/tool/ip-scan"]                = "/tools/ip-scan/ip-scan",
+            ["/tool/flood-ping"]             = "/tools/flood-ping/flood-ping",
         };
 
         private IReadOnlyDictionary<string, int[]> _derivedPaths;

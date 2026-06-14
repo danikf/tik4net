@@ -56,6 +56,75 @@ namespace tik4net.Winbox
         private static string SeedWireType(string apiName)
             => string.Equals(apiName, "disabled", StringComparison.OrdinalIgnoreCase) ? "bool" : "string";
 
+        // ── Shipped field aliases (stable API-name ↔ .jg-label text) ───────────
+        // Some WinBox windows label fields differently from the RouterOS API (e.g. the Ping window's API
+        // 'address' is WinBox 'ping-to'). Only the stable name↔label text is shipped here — the label↔key
+        // mapping still comes live from the .jg — exactly the stability split the class doc describes, and the
+        // field-level analogue of WinboxHandlerMap.ShippedAlias for paths.
+        private sealed class FieldAliasSet
+        {
+            public readonly IReadOnlyDictionary<string, string> ApiToJg; // API field name → .jg label (encode/resolve)
+            public readonly IReadOnlyDictionary<string, string> JgToApi; // .jg label → API field name (decode)
+            public readonly IReadOnlyDictionary<int, string> KeyToApi;   // M2 key → API name, for .jg-unnamed fields
+            public readonly IReadOnlyDictionary<int, string> KeyUiType;  // M2 key → UI type (e.g. ipaddr), for decode formatting
+            public FieldAliasSet(IReadOnlyDictionary<string, string> apiToJg, IReadOnlyDictionary<string, string> jgToApi,
+                IReadOnlyDictionary<int, string> keyToApi = null, IReadOnlyDictionary<int, string> keyUiType = null)
+            {
+                ApiToJg = apiToJg; JgToApi = jgToApi;
+                KeyToApi = keyToApi ?? new Dictionary<int, string>();
+                KeyUiType = keyUiType ?? new Dictionary<int, string>();
+            }
+        }
+
+        private static Dictionary<string, string> Ci(params (string, string)[] pairs)
+        {
+            var d = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (k, v) in pairs) d[k] = v;
+            return d;
+        }
+
+        private static readonly Dictionary<string, FieldAliasSet> ShippedFieldAliases =
+            new Dictionary<string, FieldAliasSet>(StringComparer.OrdinalIgnoreCase)
+            {
+                // /ping (ToolPing, top-level /ping). 'address'/'host' both ride the WinBox 'ping-to' field; the
+                // result row decodes it to the API 'host'. count/size/seq/min/avg/max are likewise relabelled.
+                ["/ping"] = new FieldAliasSet(
+                    apiToJg: Ci(("address", "ping-to"), ("count", "packet-count"),
+                               ("size", "packet-size"), ("seq", "seq-#"),
+                               ("min-rtt", "min"), ("avg-rtt", "avg"), ("max-rtt", "max")),
+                    jgToApi: Ci(("packet-count", "count"), ("packet-size", "size"),
+                               ("seq-#", "seq"), ("min", "min-rtt"), ("avg", "avg-rtt"), ("max", "max-rtt")),
+                    // The reply's responder address rides at key 0x1 (u32 ipaddr), which the .jg leaves unnamed —
+                    // so its name and ipaddr formatting are supplied here (the value is a packed-u32 IPv4).
+                    keyToApi: new Dictionary<int, string> { [0x1] = "host" },
+                    keyUiType: new Dictionary<int, string> { [0x1] = "ipaddr" }),
+
+                // /interface: the .jg 'type' field is the numeric type id (key 0x10001), but RouterOS API exposes
+                // 'type' as the type *name* string — which the record also carries at key 0x1001E (e.g. "ether",
+                // "loopback"). Map the string key to 'type' and rename the numeric one so they don't collide.
+                ["/interface"] = new FieldAliasSet(
+                    apiToJg: Ci(),
+                    jgToApi: Ci(),
+                    keyToApi: new Dictionary<int, string> { [0x1001E] = "type", [0x10001] = "type-id" }),
+            };
+
+        private FieldAliasSet Aliases =>
+            ShippedFieldAliases.TryGetValue(WinboxHandlerMap.Normalize(_apiPath ?? ""), out var s) ? s : null;
+
+        // Rewrite an API field name to its .jg label (encode/resolve direction); identity when no alias.
+        private string AliasToJg(string apiName)
+        {
+            var a = Aliases;
+            return (a != null && a.ApiToJg.TryGetValue(apiName, out var jg)) ? jg : apiName;
+        }
+
+        // Rewrite a .jg label to its API field name (decode direction); identity when no alias.
+        private string AliasToApi(string jgLabel)
+        {
+            var a = Aliases;
+            return (a != null && a.JgToApi.TryGetValue(jgLabel, out var api)) ? api : jgLabel;
+        }
+
         // ── key → apiName (decode records) ─────────────────────────────────────
 
         /// <summary>
@@ -71,10 +140,14 @@ namespace tik4net.Winbox
             void Put(int key, string apiName) { if (!map.ContainsKey(key)) map[key] = apiName; }
 
             foreach (var kv in _overrides) Put(kv.Value, kv.Key);
+            // Shipped numeric key→apiName aliases for fields the .jg leaves unnamed (e.g. ping reply 'host' @0x1).
+            var aliasSet = Aliases;
+            if (aliasSet != null)
+                foreach (var kv in aliasSet.KeyToApi) Put(kv.Key, kv.Value);
             foreach (var kv in SystemSeed) Put(kv.Value, kv.Key);
             var jg = _catalog?.GetHandlerFields(_handler);
             if (jg != null)
-                foreach (var f in jg.Values) Put(f.Key, f.ApiName);
+                foreach (var f in jg.Values) Put(f.Key, AliasToApi(f.ApiName));
             foreach (var kv in FallbackSeed) Put(kv.Value, kv.Key);
 
             return map;
@@ -91,6 +164,16 @@ namespace tik4net.Winbox
             if (jg != null)
                 foreach (var f in jg.Values)
                     if (!map.ContainsKey(f.Key)) map[f.Key] = f;
+            // Synthesize typed fields for shipped key aliases the .jg leaves unnamed (collide on empty apiName),
+            // so decode formats them correctly (e.g. ping reply 'host' @0x1 as an ipaddr u32).
+            var aliasSet = Aliases;
+            if (aliasSet != null)
+                foreach (var kv in aliasSet.KeyUiType)
+                    if (!map.ContainsKey(kv.Key))
+                    {
+                        aliasSet.KeyToApi.TryGetValue(kv.Key, out var nm);
+                        map[kv.Key] = new WinboxJgField(nm ?? "", kv.Key, "u32", true, null, kv.Value);
+                    }
             return map;
         }
 
@@ -103,6 +186,8 @@ namespace tik4net.Winbox
         internal int ResolveKey(string apiName)
         {
             if (_overrides.TryGetValue(apiName, out int ov)) return ov;
+            // Rewrite a shipped API alias to its .jg label (e.g. ping 'address' → 'ping-to') before catalog lookup.
+            apiName = AliasToJg(apiName);
             // universal system keys (.id/comment) are authoritative; name and other fields come from the .jg.
             if (SystemSeed.TryGetValue(apiName, out int sys)) return sys;
 
@@ -130,17 +215,21 @@ namespace tik4net.Winbox
         /// resolves a dynamic enum reference (handler, name) → numeric id. Throws
         /// <see cref="WinboxFieldResolutionException"/> when the name cannot be resolved.
         /// </summary>
-        internal List<byte[]> EncodeField(string apiName, string value, Func<int[], string, int?> resolveRef = null)
+        internal List<byte[]> EncodeField(string apiName, string value, Func<int[], string, int?> resolveRef = null,
+            bool allowReadOnly = false)
         {
             int key = ResolveKey(apiName);
             var result = new List<byte[]>();
 
             // Look up the .jg field (wire type, ro, enum map, UI type). Seeds (.id/comment/name) have none —
-            // they default to string, which is correct for comment/name.
+            // they default to string, which is correct for comment/name. Use the aliased .jg label so a shipped
+            // API alias (e.g. ping 'address' → 'ping-to') resolves to its typed field.
             WinboxJgField jg = null;
-            _catalog?.GetHandlerFields(_handler)?.TryGetValue(apiName, out jg);
+            _catalog?.GetHandlerFields(_handler)?.TryGetValue(AliasToJg(apiName), out jg);
 
-            if (jg != null && jg.ReadOnly) return result;
+            // Read-only fields are unsendable for CRUD writes, but a monitor's request inputs (e.g. ping
+            // 'address') are .jg-marked ro as display fields yet must still be sent — allowReadOnly keeps them.
+            if (jg != null && jg.ReadOnly && !allowReadOnly) return result;
             value = value ?? "";
 
             string uiType = jg?.UiType;
@@ -239,6 +328,20 @@ namespace tik4net.Winbox
             }
 
             string wireType = jg?.WireType ?? SeedWireType(apiName);
+
+            // 'addr' (webfig types.addr) is a compound: the field value is a nested object, IPv4 riding as a u32
+            // at sub-key 0xFEFF20 (master.js: val.ufeff20=string2ipaddr(str)). Send it as a nested message field.
+            if (wireType == "addr" && value.Length > 0)
+            {
+                uint? v4 = PackIpV4(value.Split('/', '%')[0]);
+                if (v4 != null)
+                {
+                    result.Add(M2Message.MessageSys(key, M2Message.U32Sys(AddrV4SubKey, unchecked((int)v4.Value))));
+                    return result;
+                }
+                // non-IPv4 (hostname / IPv6) → fall through to plain string at the field key.
+            }
+
             switch (wireType)
             {
                 case "bool":
@@ -261,6 +364,9 @@ namespace tik4net.Winbox
             }
             return result;
         }
+
+        // The IPv4 sub-key inside a webfig 'addr' compound object (master.js property 'ufeff20' = u32@0xFEFF20).
+        private const int AddrV4SubKey = 0xFEFF20;
 
         private static byte[] EncodeU32(int key, uint n)
             => (n <= 255) ? M2Message.U8Sys(key, (byte)n) : M2Message.U32Sys(key, unchecked((int)n));

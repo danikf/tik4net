@@ -63,6 +63,12 @@ namespace tik4net.Winbox
         private readonly Dictionary<string, Dictionary<string, int>> _actionsByHandler =
             new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
 
+        // Streaming-monitor windows (.jg type:'query', or type:'action' with a pollcmd): start → poll → cancel
+        // over the normal request/reply channel (NOT a server push — the client re-polls every autorefresh ms;
+        // see _notes/winbox-native-m2-plan.md §20). Keyed handler-path → spec (start/poll/cancel cmd + interval).
+        private readonly Dictionary<string, WinboxMonitorSpec> _monitorsByHandler =
+            new Dictionary<string, WinboxMonitorSpec>(StringComparer.Ordinal);
+
         // id-prefix letter → wire-type name (lower=scalar, upper=array). Mirrors jg_analyze.py PREFIX.
         private static readonly Dictionary<char, string> Prefix = new Dictionary<char, string>
         {
@@ -116,6 +122,11 @@ namespace tik4net.Winbox
         /// window — its sole record is read via get-singleton rather than getall.</summary>
         internal bool IsSingletonHandler(int[] handler) =>
             handler != null && _singletonHandlers.Contains(HandlerKey(handler));
+
+        /// <summary>Returns the streaming-monitor spec for <paramref name="handler"/> (a <c>type:'query'</c>
+        /// or poll-action window), or <c>null</c> when the handler is not a monitor window.</summary>
+        internal WinboxMonitorSpec GetMonitorByHandler(int[] handler) =>
+            handler != null && _monitorsByHandler.TryGetValue(HandlerKey(handler), out var spec) ? spec : null;
 
         /// <summary>True when <paramref name="handler"/>'s window is marked <c>autorefresh</c> in the
         /// <c>.jg</c> — it carries runtime/dynamic fields (e.g. firewall counters) that getall only returns
@@ -327,6 +338,7 @@ namespace tik4net.Winbox
                         _derivedPaths[apiPath] = handlerInts;
                     if (ty == "item") _singletonHandlers.Add(HandlerKey(handlerInts));
                     if (dict.ContainsKey("autorefresh")) _dynamicHandlers.Add(HandlerKey(handlerInts));
+                    HarvestMonitor(handlerInts, ty, dict);
 
                     // The base interface window (generic:'iface') anchors the subtype filtering: remember its
                     // handler and the key of the `type` discriminator field (named by `typeon`, default 'type').
@@ -497,6 +509,29 @@ namespace tik4net.Winbox
                 _actionsByHandler[handlerKey] = m;
             }
             if (!m.ContainsKey(norm)) m[norm] = cmd;
+        }
+
+        // Harvest a streaming-monitor window. A monitor is a type:'query' window, or a type:'action' window
+        // carrying a pollcmd; both run start → poll → cancel (webfig ObjectQuery/ObjectAction). The cmd trio
+        // comes straight from the .jg: startcmd, cancelcmd, and the poll command — getallcmd||0xFE0004 for a
+        // query (rows under Mfe0002), or pollcmd for an action (a single status record per poll). Windows that
+        // lack a startcmd (e.g. a plain doit action verb) are not monitors and are skipped.
+        private void HarvestMonitor(int[] handlerInts, string ty, Dictionary<string, object> dict)
+        {
+            bool isQuery = ty == "query";
+            bool isPollAction = ty == "action" && dict.ContainsKey("pollcmd");
+            if (!isQuery && !isPollAction) return;
+            if (!dict.TryGetValue("startcmd", out var scv) || !(scv is int startCmd)) return;
+            if (!dict.TryGetValue("cancelcmd", out var ccv) || !(ccv is int cancelCmd)) return;
+
+            int pollCmd = isQuery
+                ? (dict.TryGetValue("getallcmd", out var gav) && gav is int ga ? ga : WinboxM2Protocol.Command.GetAll)
+                : (dict.TryGetValue("pollcmd", out var pcv) && pcv is int pc ? pc : WinboxM2Protocol.Command.GetAll);
+            int autorefresh = dict.TryGetValue("autorefresh", out var arv) && arv is int ar ? ar : 1000;
+
+            string key = HandlerKey(handlerInts);
+            if (!_monitorsByHandler.ContainsKey(key))
+                _monitorsByHandler[key] = new WinboxMonitorSpec(handlerInts, startCmd, pollCmd, cancelCmd, autorefresh, isQuery);
         }
 
         // Key of the direct child field named <paramref name="childName"/> (e.g. the 'type' discriminator the

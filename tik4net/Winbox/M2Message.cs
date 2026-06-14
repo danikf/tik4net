@@ -59,16 +59,38 @@ namespace tik4net.Winbox
             return b.ToArray();
         }
 
+        // Nested message field (ftype 5): key + size-flagged type (0x29 1-byte len / 0x28 2-byte / 0x2A 4-byte)
+        // + body. The body is a full submessage ('M2' + concatenated sub-field TLVs), parsed by ParseAllFields.
+        // Used by compound webfig types such as 'addr' (IPv4 rides as u32 at 0xFEFF20 inside the field's object).
+        internal static byte[] MessageSys(int fullKey, params byte[][] subFields)
+        {
+            var body = new List<byte> { (byte)'M', (byte)'2' };
+            foreach (var f in subFields) if (f != null) body.AddRange(f);
+
+            var b = new List<byte> { (byte)(fullKey & 0xFF), (byte)((fullKey >> 8) & 0xFF), (byte)((fullKey >> 16) & 0xFF) };
+            if (body.Count <= 0xFF) { b.Add(0x29); b.Add((byte)body.Count); }
+            else if (body.Count <= 0xFFFF) { b.Add(0x28); b.Add((byte)(body.Count & 0xFF)); b.Add((byte)((body.Count >> 8) & 0xFF)); }
+            else { b.Add(0x2A); b.AddRange(BitConverter.GetBytes((uint)body.Count)); }
+            b.AddRange(body);
+            return b.ToArray();
+        }
+
         // SESSION_ID: key=(0x01,0x00,0xFE). RouterOS returns the mepty session id as a u32 when it
         // exceeds 255 (e.g. 265), so encode the same way: u8 (0x09) for small ids, u32 (0x08) otherwise.
         // Sending it back truncated to a single byte addresses the wrong session ("No SESSION_ID" /
         // dead terminal).
-        internal static byte[] SessionIdField(int id)
+        internal static byte[] SessionIdField(int id) => SessionIdField(unchecked((uint)id));
+
+        /// <summary>SESSION_ID/.id encoder taking the handle as a <see cref="uint"/> — the on-wire type. The
+        /// id is genuinely a u32 (a streaming-monitor handle can exceed <see cref="int.MaxValue"/>, e.g. the
+        /// Profile monitor's 0xFFFFFFFD), so callers that hold a u32 id should use this overload directly rather
+        /// than round-tripping through a signed cast.</summary>
+        internal static byte[] SessionIdField(uint id)
         {
-            if (id >= 0 && id <= 255)
+            if (id <= 255)
                 return new byte[] { 0x01, 0x00, 0xFE, 0x09, (byte)id };
             var b = new List<byte> { 0x01, 0x00, 0xFE, 0x08 };
-            b.AddRange(BitConverter.GetBytes((uint)id));
+            b.AddRange(BitConverter.GetBytes(id));
             return b.ToArray();
         }
 

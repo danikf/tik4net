@@ -220,6 +220,32 @@ namespace tik4net.tests
         }
 
         [TestMethod]
+        public void ExecuteAsync_StreamsMonitorRows()
+        {
+            // Verifies a streaming monitor actually delivers decoded rows (not just that onDone fires).
+            // /tool/profile (the CPU profiler) reliably streams per-process rows on any router with no traffic
+            // dependency. On WinBox native this exercises the full start→poll→cancel cycle and field decode;
+            // on the binary API it is the regular async/listen path. CLI transports lack Listen and skip.
+            EnsureCapability(TikConnectionCapability.Listen, "ExecuteAsync streaming");
+
+            int rowCount = 0;
+            bool doneCalled = false;
+            ITikTrapSentence error = null;
+
+            var profile = Connection.CreateCommand("/tool/profile");
+            profile.ExecuteAsync(
+                row => Interlocked.Increment(ref rowCount),
+                trap => error = trap,
+                () => doneCalled = true);
+            Thread.Sleep(3000);
+            profile.CancelAndJoin();
+
+            Assert.IsNull(error, $"monitor reported an error: {error?.Message}");
+            Assert.IsTrue(doneCalled, "onDone callback was not invoked after cancel");
+            Assert.IsTrue(rowCount > 0, "expected at least one streamed CPU-profile row");
+        }
+
+        [TestMethod]
         public void RunScript_Issue53_WillNotFail()
         {
             const string name = "TEST_NAME_ISSUE53";

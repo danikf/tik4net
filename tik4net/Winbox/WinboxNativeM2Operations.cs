@@ -258,6 +258,101 @@ namespace tik4net.Winbox
             return M2Message.ParseAllFields(resp);
         }
 
+        // ── Streaming monitor (start → poll → cancel) ────────────────────────────
+        // A monitor is client-driven polling over this same request/reply channel (webfig
+        // ObjectQuery/ObjectAction — NOT a server push). See _notes/winbox-native-m2-plan.md §20.
+
+        /// <summary>
+        /// Starts a monitor: SYS_CMD <paramref name="startCmd"/> (+ optional <paramref name="requestFields"/>).
+        /// Returns the monitor's <c>.id</c> handle (<see cref="WinboxM2Protocol.RecordKey.Id"/>) as a <c>uint</c>
+        /// — it is a true u32 and can exceed <see cref="int.MaxValue"/> (the Profile monitor echoes 0xFFFFFFFD) —
+        /// or <c>null</c> when the reply carries no id (a path-scoped monitor polled without an id).
+        /// </summary>
+        internal uint? StartMonitor(int[] handler, int startCmd, IList<byte[]> requestFields)
+        {
+            var head = new List<byte[]>
+            {
+                M2Message.SysToArr(handler), M2Message.SysFrom(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
+                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, startCmd),
+            };
+            if (requestFields != null) head.AddRange(requestFields);
+            byte[] resp = SendReceive(M2Message.BuildM2(head.ToArray()));
+            ThrowOnStatus(resp, "monitor-start", handler);
+            var f = M2Message.ParseAllFields(resp);
+            return f.TryGetValue(WinboxM2Protocol.RecordKey.Id, out var t) && t.Item2 != null
+                ? (uint?)Convert.ToUInt32(t.Item2) : null;
+        }
+
+        /// <summary>
+        /// Polls a monitor once: SYS_CMD <paramref name="pollCmd"/> (+ the <paramref name="id"/> when ≥ 0),
+        /// following getall continuation pagination within the pass. A query window
+        /// (<paramref name="isQuery"/>) returns its rows from <see cref="WinboxM2Protocol.RecordKey.Records"/>
+        /// and includes the flag field; a poll-action returns a single status record (the reply's top-level
+        /// fields). The <c>done</c> result reflects the router's <see cref="WinboxM2Protocol.RecordKey.Finished"/>
+        /// flag (stop polling when set).
+        /// </summary>
+        internal (List<Dictionary<int, Tuple<string, object>>> records, bool done) PollMonitor(
+            int[] handler, int pollCmd, uint? id, bool isQuery,
+            int flags = WinboxM2Protocol.GetAllFlags, int maxMs = 4000)
+        {
+            var records = new List<Dictionary<int, Tuple<string, object>>>();
+            bool done = false;
+            object contToken = null;
+            var sw = Stopwatch.StartNew();
+            for (int round = 0; round < 256 && sw.ElapsedMilliseconds < maxMs; round++)
+            {
+                var head = new List<byte[]>
+                {
+                    M2Message.SysToArr(handler), M2Message.SysFrom(),
+                    M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
+                    M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, pollCmd),
+                };
+                if (id.HasValue) head.Add(M2Message.SessionIdField(id.Value));
+                if (isQuery) head.Add(M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, flags));
+                if (contToken != null) head.Add(M2Message.U32Sys(WinboxM2Protocol.RecordKey.Continuation, Convert.ToInt32(contToken)));
+
+                byte[] resp = SendReceive(M2Message.BuildM2(head.ToArray()));
+                int status = M2Message.ParseSysStatus(resp);
+                if (status != WinboxM2Protocol.Error.None && status != WinboxM2Protocol.Error.ObjectNonexistent)
+                {
+                    var ef = M2Message.ParseAllFields(resp);
+                    string errStr = ef.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es) ? es.Item2?.ToString() : null;
+                    throw new WinboxM2OperationException(status, errStr, "monitor-poll", handler);
+                }
+
+                var fields = M2Message.ParseAllFields(resp);
+                if (isQuery)
+                    records.AddRange(M2Message.ParseRecords(resp, WinboxM2Protocol.RecordKey.Records));
+                else
+                    records.Add(fields); // poll-action: the status record is the reply's top-level fields
+
+                if (fields.TryGetValue(WinboxM2Protocol.RecordKey.Finished, out var dt) && dt.Item2 is bool db && db)
+                    done = true;
+                if (status == WinboxM2Protocol.Error.ObjectNonexistent) break; // end of this getall pass
+                if (!fields.TryGetValue(WinboxM2Protocol.RecordKey.Continuation, out var ct)) break;
+                contToken = ct.Item2;
+            }
+            return (records, done);
+        }
+
+        /// <summary>
+        /// Cancels a monitor: SYS_CMD <paramref name="cancelCmd"/> (+ the <paramref name="id"/> when ≥ 0).
+        /// Best-effort — a failed cancel (the monitor already ended) is swallowed.
+        /// </summary>
+        internal void CancelMonitor(int[] handler, int cancelCmd, uint? id)
+        {
+            var head = new List<byte[]>
+            {
+                M2Message.SysToArr(handler), M2Message.SysFrom(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
+                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, cancelCmd),
+            };
+            if (id.HasValue) head.Add(M2Message.SessionIdField(id.Value));
+            try { SendReceive(M2Message.BuildM2(head.ToArray())); }
+            catch { /* cancel is best-effort */ }
+        }
+
         private static void ThrowOnStatus(byte[] resp, string op, int[] handler)
         {
             int status = M2Message.ParseSysStatus(resp);
