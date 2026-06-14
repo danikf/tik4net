@@ -101,6 +101,55 @@ namespace tik4net.Cli
             return sb.ToString();
         }
 
+        // ── Monitor snapshot ───────────────────────────────────────────────────
+
+        /// <summary>
+        /// Builds a pollable monitor snapshot: <c>:put [/path &lt;inputs&gt; &lt;modifier&gt; as-value]</c>.
+        /// The command's NameValue parameters are emitted as the monitor's inputs (e.g.
+        /// <c>interface=ether1</c>, <c>address=8.8.8.8</c>); an empty-valued parameter is emitted as a bare
+        /// flag. <paramref name="snapshotModifier"/> (e.g. <c>once</c>, <c>count=1</c>, <c>duration=1</c> —
+        /// see <see cref="CliMonitorVerbs"/>) is appended unless the caller already supplied that token.
+        /// Wrapping in <c>:put [ … ]</c> forces RouterOS to materialise the as-value line (bare
+        /// <c>as-value</c> prints nothing to a terminal — see <see cref="BuildPrint"/>).
+        /// </summary>
+        internal static string BuildMonitorSnapshot(string apiPath, IList<ITikCommandParameter> parameters, string snapshotModifier)
+        {
+            string cliBase = ApiPathToCli(apiPath);
+            var sb = new StringBuilder(":put [");
+            sb.Append(cliBase);
+
+            string modName = string.IsNullOrEmpty(snapshotModifier) ? null : snapshotModifier.Split('=')[0];
+            bool modifierAlreadyPresent = false;
+
+            foreach (var p in parameters)
+            {
+                if (p.ParameterFormat == TikCommandParameterFormat.Filter)
+                    continue;
+                if (p.Name == TikSpecialProperties.Id || IsSpecialParam(p.Name))
+                    continue;
+
+                if (modName != null && string.Equals(p.Name, modName, System.StringComparison.OrdinalIgnoreCase))
+                    modifierAlreadyPresent = true;
+
+                sb.Append(' ');
+                sb.Append(p.Name);
+                if (!string.IsNullOrEmpty(p.Value))
+                {
+                    sb.Append('=');
+                    sb.Append(QuoteIfNeeded(p.Value));
+                }
+            }
+
+            if (!string.IsNullOrEmpty(snapshotModifier) && !modifierAlreadyPresent)
+            {
+                sb.Append(' ');
+                sb.Append(snapshotModifier);
+            }
+
+            sb.Append(" as-value]");
+            return sb.ToString();
+        }
+
         // ── Add ────────────────────────────────────────────────────────────────
 
         /// <summary>
@@ -128,12 +177,7 @@ namespace tik4net.Cli
             var sb = new StringBuilder(cliBase);
 
             string idValue = FindIdParam(parameters);
-            if (idValue != null)
-            {
-                sb.Append(" [find .id=");
-                sb.Append(idValue);
-                sb.Append(']');
-            }
+            AppendFindIdentifier(sb, idValue);
 
             AppendNameValueParams(sb, parameters, skipId: true);
             return sb.ToString();
@@ -292,12 +336,7 @@ namespace tik4net.Cli
             var sb = new StringBuilder(cliBase);
 
             string idValue = FindIdParam(parameters);
-            if (idValue != null)
-            {
-                sb.Append(" [find .id=");
-                sb.Append(idValue);
-                sb.Append(']');
-            }
+            AppendFindIdentifier(sb, idValue);
 
             // Append any remaining NameValue params (e.g. destination for move)
             AppendNameValueParams(sb, parameters, skipId: true);
@@ -349,6 +388,37 @@ namespace tik4net.Cli
                     return p.Value;
             }
             return null;
+        }
+
+        /// <summary>
+        /// Appends the record identifier for set/remove/enable/disable/move. A real <c>.id</c> (<c>*N</c>) uses
+        /// <c>[find .id=*N]</c>. Any other value uses <c>[find .id=X or name=X]</c> so a NAME works too
+        /// (<c>.id=ether1</c> alone matches nothing — the literal <c>.id</c> is <c>*N</c> — but
+        /// <c>name=ether1</c> resolves it). Names-as-id are accepted directly by the binary API/native
+        /// transports; this bridges the CLI gap. The <c>or name=…</c> clause is harmless on tables without a
+        /// <c>name</c> field (it simply never matches), and a bogus id (e.g. <c>-NoID-</c>) still yields
+        /// "expected item id" → <see cref="TikNoSuchItemException"/>, preserving error fidelity. (Confirmed
+        /// live against RouterOS 7.21.4.)
+        /// </summary>
+        private static void AppendFindIdentifier(StringBuilder sb, string idValue)
+        {
+            if (string.IsNullOrEmpty(idValue))
+                return;
+            if (idValue.StartsWith("*"))
+            {
+                sb.Append(" [find .id=");
+                sb.Append(idValue);
+                sb.Append(']');
+            }
+            else
+            {
+                string q = QuoteIfNeeded(idValue);
+                sb.Append(" [find .id=");
+                sb.Append(q);
+                sb.Append(" or name=");
+                sb.Append(q);
+                sb.Append(']');
+            }
         }
 
         private static string FindIdParam(IList<ITikCommandParameter> parameters)

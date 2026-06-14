@@ -43,6 +43,8 @@ namespace tik4net.WinboxNative
         /// Directory under which version-matched <c>.jg</c> catalogs are cached
         /// (<c>&lt;CatalogCachePath&gt;/&lt;routerVersion&gt;/*.jg</c>).
         /// Defaults to <c>%TEMP%/tik4net/</c>. Set before opening to change.
+        /// Supports environment variables (<c>%APPDATA%</c>, <c>$HOME</c>, …) and relative paths
+        /// (resolved against <see cref="Environment.CurrentDirectory"/> at open time).
         /// </summary>
         public string CatalogCachePath { get; set; } =
             Path.Combine(Path.GetTempPath(), "tik4net");
@@ -135,7 +137,7 @@ namespace tik4net.WinboxNative
             _ops.OnResponse = msg => { if (RowTracingEnabled) FireReadRow(M2Message.Describe(msg)); };
             try { _routerVersion = _ops.GetRouterVersion(); }
             catch { _routerVersion = null; }
-            try { _catalog.EnsureLoaded(session, _routerVersion, CatalogCachePath, ConnectTimeout); }
+            try { _catalog.EnsureLoaded(session, _routerVersion, ResolvePath(CatalogCachePath), ConnectTimeout); }
             catch { /* catalog is best-effort; seeds + normalizer still work */ }
             // Feed the .jg-derived apiPathâ†’handler map into the handler resolver (after session overrides,
             // before the shipped override tail).
@@ -229,7 +231,7 @@ namespace tik4net.WinboxNative
                 .Where(p => p.ParameterFormat == TikCommandParameterFormat.Filter)
                 .ToList();
             if (filters.Count > 0)
-                rows = rows.Where(r => MatchesQueryStack(r, filters)).ToList();
+                rows = rows.Where(r => TikQueryStack.Matches(r, filters)).ToList();
 
             return rows;
         }
@@ -834,46 +836,8 @@ namespace tik4net.WinboxNative
             return set;
         }
 
-        // Evaluate RouterOS query filters as a postfix stack: each ?name=value pushes (field == value), ?name
-        // pushes (field present), ?<name=v / ?>name=v push a comparison; ?#| / ?#& pop two and push OR/AND,
-        // ?#! pops one and negates. Whatever predicates remain on the stack at the end are implicitly ANDed
-        // (an empty stack — no filters — matches everything). Mirrors RouterOS-side query evaluation.
-        private static bool MatchesQueryStack(TikRecordSentence row, IReadOnlyList<ITikCommandParameter> filters)
-        {
-            var stack = new Stack<bool>();
-            foreach (var f in filters)
-            {
-                string name = f.Name;
-                if (name == "#|") { bool a = Pop(stack), b = Pop(stack); stack.Push(a || b); }
-                else if (name == "#&") { bool a = Pop(stack), b = Pop(stack); stack.Push(a && b); }
-                else if (name == "#!") { stack.Push(!Pop(stack)); }
-                else if (name.StartsWith("#")) { /* unsupported stack op — leave stack unchanged */ }
-                else if (name.StartsWith(".") && name != TikSpecialProperties.Id) { stack.Push(true); }
-                else stack.Push(EvalPredicate(row, name, f.Value));
-            }
-            return stack.All(b => b);
-        }
-
-        private static bool Pop(Stack<bool> s) => s.Count > 0 && s.Pop();
-
-        private static bool EvalPredicate(TikRecordSentence row, string name, string value)
-        {
-            char op = name.Length > 0 ? name[0] : '=';
-            string field = (op == '<' || op == '>') ? name.Substring(1) : name;
-            bool has = row.TryGetResponseField(field, out var v);
-            if (op == '<' || op == '>')
-            {
-                if (!has) return false;
-                if (double.TryParse(v, out var dv) && double.TryParse(value, out var dq))
-                    return op == '<' ? dv < dq : dv > dq;
-                int cmp = string.CompareOrdinal(v, value);
-                return op == '<' ? cmp < 0 : cmp > 0;
-            }
-            // existence (?name) vs equality (?name=value)
-            if (string.IsNullOrEmpty(value))
-                return has && !string.IsNullOrEmpty(v);
-            return has && string.Equals(v, value, StringComparison.Ordinal);
-        }
+        // Query-filter evaluation (postfix stack) is shared with the CLI async-list path — see
+        // tik4net.Connection.TikQueryStack.
 
         // â”€â”€ Write helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -1016,6 +980,14 @@ namespace tik4net.WinboxNative
         }
 
         // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+        // Expand environment variables and resolve relative paths against the current directory.
+        // Called at open time so %VAR% and paths like ".\.tik4net" or "../cache" work transparently.
+        private static string ResolvePath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return path;
+            return Path.GetFullPath(Environment.ExpandEnvironmentVariables(path));
+        }
 
         private void EnsureNativeOpen()
         {

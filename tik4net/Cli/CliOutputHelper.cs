@@ -15,10 +15,19 @@ namespace tik4net.Cli
         /// <summary>
         /// Injects <c>without-paging</c> immediately after the <c>print</c> token when
         /// the command contains <c>print</c> but does not already contain <c>without-paging</c>.
+        /// <para>
+        /// Commands wrapped in <c>:put [ … ]</c> are left untouched: script context does not page (so the
+        /// modifier is unnecessary), and the <c>print</c> token they match is often INSIDE a quoted value
+        /// (e.g. a <c>/system/script/add source="… /system identity print …"</c>), where injecting
+        /// <c>without-paging</c> would corrupt the stored value. Print modifiers for <c>:put</c> reads are
+        /// already added by <see cref="CliCommandBuilder.BuildPrint"/>.
+        /// </para>
         /// </summary>
         internal static string InjectWithoutPaging(string command)
         {
             if (command == null) return command;
+            if (command.TrimStart().StartsWith(":put", StringComparison.OrdinalIgnoreCase))
+                return command;
             if (command.IndexOf(WithoutPaging, StringComparison.OrdinalIgnoreCase) >= 0)
                 return command;
 

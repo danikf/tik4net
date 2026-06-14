@@ -59,8 +59,8 @@ namespace tik4net.tests
 
                     if (name == "roteros.jg.gz")
                     {
-                        string dir = ConfigurationManager.AppSettings["catalogDumpDir"]
-                            ?? @"C:\Data\Source\Projekty.Danik\tik4net\tik4net\_notes\WinboxMessage";
+                        string dir = Path.GetFullPath(Environment.ExpandEnvironmentVariables(
+                            ConfigurationManager.AppSettings["catalogDumpDir"] ?? @".\.tik4net"));
                         Directory.CreateDirectory(Path.Combine(dir, "via-mproxy"));
                         File.WriteAllBytes(Path.Combine(dir, "via-mproxy", "roteros.jg"), plain);
                         Console.WriteLine($"saved gunzipped roteros.jg ({plain.Length}B) to {dir}\\via-mproxy");

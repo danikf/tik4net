@@ -18,8 +18,10 @@ namespace tik4net.tests
     {
         private const int WINBOX_PORT = 8291;
 
-        private static readonly string DefaultDumpDir =
-            @"C:\Data\Source\Projekty.Danik\tik4net\tik4net\_notes\WinboxMessage";
+        private static readonly string DefaultDumpDir = @".\.tik4net";
+
+        private static string ResolvePath(string path) =>
+            Path.GetFullPath(Environment.ExpandEnvironmentVariables(path));
 
         [Ignore]
         [TestMethod]
@@ -29,7 +31,7 @@ namespace tik4net.tests
             string host  = ConfigurationManager.AppSettings["host"]           ?? "192.168.4.236";
             string user  = ConfigurationManager.AppSettings["user"]           ?? "admin";
             string pass  = ConfigurationManager.AppSettings["pass"]           ?? "";
-            string dumpDir = ConfigurationManager.AppSettings["catalogDumpDir"] ?? DefaultDumpDir;
+            string dumpDir = ResolvePath(ConfigurationManager.AppSettings["catalogDumpDir"] ?? DefaultDumpDir);
 
             Directory.CreateDirectory(dumpDir);
             Console.WriteLine($"=== WINBOX CATALOG DUMP ===");
