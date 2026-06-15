@@ -28,7 +28,7 @@ namespace tik4net.WinboxNative
     /// <see cref="TikConnectionCapability.Listen"/>): <c>.jg</c> <c>type:'query'</c> windows such as
     /// <c>/tool/torch</c>/<c>/tool/profile</c> are polled startâ†’pollâ†’cancel on a background worker.</para>
     /// </remarks>
-    public sealed class WinboxNativeConnection : TikCommandConnectionBase, ITikMonitorTransport
+    public class WinboxNativeConnection : TikCommandConnectionBase, ITikMonitorTransport
     {
         /// <summary>Default WinBox TCP port.</summary>
         public const int DefaultPort = 8291;
@@ -54,7 +54,7 @@ namespace tik4net.WinboxNative
         private readonly Dictionary<string, Dictionary<string, int>> _fieldOverrides =
             new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
 
-        private WinboxM2Session _session;
+        private IWinboxM2Channel _session;
         private WinboxNativeM2Operations _ops;
         private readonly WinboxJgCatalog _catalog = new WinboxJgCatalog();
         private string _routerVersion;
@@ -90,6 +90,13 @@ namespace tik4net.WinboxNative
 
         // â”€â”€ Open / Close â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+        /// <summary>
+        /// Creates the (not-yet-opened) M2 channel this connection rides on. The base uses the TCP
+        /// WinBox session (port 8291); <see cref="WinboxNativeMac.WinboxNativeMacConnection"/> overrides it
+        /// to ride the MAC-layer channel (UDP 20561).
+        /// </summary>
+        private protected virtual IWinboxM2Channel CreateChannel() => new WinboxM2Session();
+
         /// <inheritdoc/>
         public override void Open(string host, string user, string password)
             => Open(host, DefaultPort, user, password);
@@ -97,7 +104,7 @@ namespace tik4net.WinboxNative
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
         {
-            var session = new WinboxM2Session();
+            var session = CreateChannel();
             try
             {
                 session.Open(host, port, user, password, ConnectTimeout);
@@ -127,7 +134,7 @@ namespace tik4net.WinboxNative
             return Task.Run(() => Open(host, port, user, password));
         }
 
-        private void InitAfterAuth(WinboxM2Session session)
+        private void InitAfterAuth(IWinboxM2Channel session)
         {
             _session = session;
             _ops = new WinboxNativeM2Operations(session, ConnectTimeout);
@@ -577,7 +584,40 @@ namespace tik4net.WinboxNative
         /// so it reports <see cref="TikConnectionCapability.Listen"/> on top of <see cref="TikConnectionCapability.Crud"/>.
         /// </summary>
         public override TikConnectionCapability Capabilities =>
-            TikConnectionCapability.Crud | TikConnectionCapability.Listen;
+            TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode;
+
+        // ── Safe Mode (system handler [17]) ──────────────────────────────────────
+        // Take/release map to the webfig toggleSafeMode() M2 commands. WebFig exposes no in-place
+        // unroll/get, so SafeModeUnroll throws (drop the connection to roll back) and SafeModeGet
+        // reports the client-side held flag.
+
+        private uint _safeModeId;
+
+        /// <inheritdoc/>
+        public override void SafeModeTake()
+        {
+            EnsureOpened();
+            if (SafeModeHeld) return;
+            _safeModeId = _ops.SafeModeTake();
+            SafeModeHeld = true;
+        }
+
+        /// <inheritdoc/>
+        public override void SafeModeRelease()
+        {
+            EnsureOpened();
+            if (!SafeModeHeld) return;
+            _ops.SafeModeRelease(_safeModeId);
+            SafeModeHeld = false;
+            _safeModeId = 0;
+        }
+
+        /// <inheritdoc/>
+        public override void SafeModeUnroll()
+            => throw new NotSupportedException(
+                "Native WinBox exposes only take/release for Safe Mode (no in-place unroll). " +
+                "To roll back, close the connection without calling SafeModeRelease — RouterOS reverts " +
+                "the changes automatically. For an explicit unroll use the binary API or a CLI transport.");
 
         /// <summary>
         /// Runs a streaming-monitor command (e.g. <c>/tool/torch</c>, <c>/tool/profile</c>) on a background

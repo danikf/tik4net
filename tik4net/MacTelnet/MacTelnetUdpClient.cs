@@ -68,6 +68,19 @@ namespace tik4net.MacTelnet
             }, ct);
         }
 
+        /// <summary>
+        /// Sends raw bytes (a control key such as Ctrl+X — no carriage return, no paging injection) and
+        /// returns the ANSI-stripped response read up to the next stable shell prompt. Used for Safe Mode.
+        /// </summary>
+        internal Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
+        {
+            return Task.Run(() =>
+            {
+                SendTerminalBytes(raw);
+                return VtStripper.StripAnsi(ReadCommandResponseSync());
+            }, ct);
+        }
+
         // ── Close ─────────────────────────────────────────────────────────────
 
         /// <summary>

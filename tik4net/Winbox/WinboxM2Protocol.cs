@@ -179,6 +179,23 @@ namespace tik4net.Winbox
         }
 
         // ──────────────────────────────────────────────────────────────────────
+        // SafeMode — the system safe-mode handler ([17]). Take/release are exposed by WebFig's
+        // toggleSafeMode(): take = SYS_CMD 0x80003 (reply carries the safe-mode id in RecordKey.Id,
+        // 0xFE0001), release/commit = SYS_CMD 0x80005 with that id sent back. Source: webfig
+        // master-d53cd8ec58cb.js toggleSafeMode(). WebFig has no unroll/get command (it remembers the id
+        // locally), so the native transport supports take/release only.
+        // ──────────────────────────────────────────────────────────────────────
+        internal static class SafeMode
+        {
+            /// <summary>Safe-mode system handler path: <c>[17]</c> (webfig <c>Uff0001:[17]</c>).</summary>
+            internal static readonly int[] Handler = { 17 };
+            /// <summary>take/enable safe mode. webfig <c>uff0007:0x80003</c>; reply returns the id in <see cref="RecordKey.Id"/>.</summary>
+            internal const int Take = 0x80003;
+            /// <summary>release/commit safe mode. webfig <c>uff0007:0x80005</c> + the held id in <see cref="RecordKey.Id"/>.</summary>
+            internal const int Release = 0x80005;
+        }
+
+        // ──────────────────────────────────────────────────────────────────────
         // Mproxy — the file-proxy handler ([2,2]) and the system-info handler ([13,4]).
         // These use small per-handler command numbers (NOT the 0xFE00xx generic CRUD set).
         // ──────────────────────────────────────────────────────────────────────

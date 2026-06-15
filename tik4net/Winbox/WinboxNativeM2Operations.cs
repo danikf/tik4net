@@ -258,6 +258,43 @@ namespace tik4net.Winbox
             return M2Message.ParseAllFields(resp);
         }
 
+        // ── Safe Mode (system handler [17]) ──────────────────────────────────────
+
+        /// <summary>
+        /// Takes Safe Mode (webfig <c>toggleSafeMode</c> enable branch: handler <see cref="WinboxM2Protocol.SafeMode.Handler"/>,
+        /// SYS_CMD <see cref="WinboxM2Protocol.SafeMode.Take"/>). Returns the safe-mode id the router assigns
+        /// (reply <see cref="WinboxM2Protocol.RecordKey.Id"/>), which must be sent back on
+        /// <see cref="SafeModeRelease"/>. While held, dropping the M2 channel reverts the changes.
+        /// </summary>
+        internal uint SafeModeTake()
+        {
+            byte[] msg = M2Message.BuildM2(
+                M2Message.SysToArr(WinboxM2Protocol.SafeMode.Handler), M2Message.SysFrom(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
+                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.SafeMode.Take));
+            byte[] resp = SendReceive(msg);
+            ThrowOnStatus(resp, "safe-mode-take", WinboxM2Protocol.SafeMode.Handler);
+            var f = M2Message.ParseAllFields(resp);
+            return f.TryGetValue(WinboxM2Protocol.RecordKey.Id, out var t) && t.Item2 != null
+                ? Convert.ToUInt32(t.Item2) : 0u;
+        }
+
+        /// <summary>
+        /// Releases/commits Safe Mode (webfig <c>toggleSafeMode</c> disable branch: SYS_CMD
+        /// <see cref="WinboxM2Protocol.SafeMode.Release"/> + the held <paramref name="safeModeId"/> in
+        /// <see cref="WinboxM2Protocol.RecordKey.Id"/>). The changes become permanent.
+        /// </summary>
+        internal void SafeModeRelease(uint safeModeId)
+        {
+            byte[] msg = M2Message.BuildM2(
+                M2Message.SysToArr(WinboxM2Protocol.SafeMode.Handler), M2Message.SysFrom(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
+                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.SafeMode.Release),
+                M2Message.SessionIdField(safeModeId));
+            byte[] resp = SendReceive(msg);
+            ThrowOnStatus(resp, "safe-mode-release", WinboxM2Protocol.SafeMode.Handler);
+        }
+
         // ── Streaming monitor (start → poll → cancel) ────────────────────────────
         // A monitor is client-driven polling over this same request/reply channel (webfig
         // ObjectQuery/ObjectAction — NOT a server push). See _notes/winbox-native-m2-plan.md §20.

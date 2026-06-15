@@ -117,5 +117,13 @@ namespace tik4net.MacTelnet
                 throw new TikConnectionNotOpenException("MAC-Telnet connection is not open.");
             return _client.SendCommandAndReadAsync(cliText, ct);
         }
+
+        /// <inheritdoc/>
+        protected override Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
+        {
+            if (_client == null)
+                throw new TikConnectionNotOpenException("MAC-Telnet connection is not open.");
+            return _client.SendRawAndReadAsync(raw, ct);
+        }
     }
 }

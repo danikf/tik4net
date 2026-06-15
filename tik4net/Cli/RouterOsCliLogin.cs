@@ -29,6 +29,14 @@ namespace tik4net.Cli
         public const string PromptSuffix = "] >";
 
         /// <summary>
+        /// Shell prompt suffix while RouterOS Safe Mode is active. The prompt gains a <c>&lt;SAFE&gt;</c>
+        /// token between the <c>]</c> and the <c>&gt;</c>, e.g. <c>[admin@MikroTik] &lt;SAFE&gt; &gt;</c>.
+        /// Recognising it keeps every command's read-until-prompt working once
+        /// <see cref="ITikConnection.SafeModeTake"/> has been called.
+        /// </summary>
+        public const string SafePromptSuffix = "] <SAFE> >";
+
+        /// <summary>
         /// Login name suffix appended to the user name on PTY transports. <c>+c</c> disables ANSI
         /// colour, which drastically reduces escape sequences in the output. We deliberately do NOT
         /// pin a fixed terminal width here — the transport answers RouterOS's cursor-probe negotiation
@@ -44,12 +52,15 @@ namespace tik4net.Cli
 
         // ── Prompt / state detection (pure, unit-testable) ─────────────────────
 
-        /// <summary>True when the ANSI-stripped text ends with the RouterOS shell prompt.</summary>
+        /// <summary>True when the ANSI-stripped text ends with the RouterOS shell prompt, including the
+        /// <c>&lt;SAFE&gt;</c> variant shown while Safe Mode is active.</summary>
         public static bool IsShellPrompt(string strippedText)
         {
             if (string.IsNullOrEmpty(strippedText))
                 return false;
-            return strippedText.TrimEnd('\r', '\n', ' ').EndsWith(PromptSuffix, StringComparison.Ordinal);
+            string t = strippedText.TrimEnd('\r', '\n', ' ');
+            return t.EndsWith(PromptSuffix, StringComparison.Ordinal)
+                || t.EndsWith(SafePromptSuffix, StringComparison.Ordinal);
         }
 
         public static bool IsLoginPrompt(string s)

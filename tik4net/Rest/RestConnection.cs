@@ -115,6 +115,28 @@ namespace tik4net.Rest
 
         public void Dispose() => Close();
 
+        // ── Safe Mode ─────────────────────────────────────────────────────────
+        // REST is stateless (each call is an independent HTTP request), so RouterOS cannot keep safe mode
+        // bound to "the connection" and the automatic rollback-on-disconnect it depends on does not work.
+        // The /safe-mode/* commands execute, but provide no protection — so they are refused here and the
+        // SafeMode capability is not reported. Use the binary API or a CLI transport for real safe mode.
+
+        private const string RestSafeModeUnsupported =
+            "REST is stateless and cannot bind RouterOS Safe Mode to a connection (no rollback-on-disconnect). " +
+            "Use the binary API or a CLI transport (Telnet / MAC-Telnet / WinBox CLI).";
+
+        /// <inheritdoc/>
+        public void SafeModeTake() => throw new NotSupportedException(RestSafeModeUnsupported);
+
+        /// <inheritdoc/>
+        public void SafeModeRelease() => throw new NotSupportedException(RestSafeModeUnsupported);
+
+        /// <inheritdoc/>
+        public void SafeModeUnroll() => throw new NotSupportedException(RestSafeModeUnsupported);
+
+        /// <inheritdoc/>
+        public bool SafeModeGet() => false;
+
         // ── Command factory ───────────────────────────────────────────────────
 
         public ITikCommand CreateCommand()

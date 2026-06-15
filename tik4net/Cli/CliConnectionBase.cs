@@ -43,7 +43,7 @@ namespace tik4net.Cli
         /// reported — use the binary API for that.
         /// </summary>
         public override TikConnectionCapability Capabilities
-            => TikConnectionCapability.Crud | TikConnectionCapability.Listen;
+            => TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode;
 
         // ── Transport — subclass contract ─────────────────────────────────────
 
@@ -79,6 +79,74 @@ namespace tik4net.Cli
         /// <summary>Synchronous wrapper around <see cref="ExecuteCliCommandAsync"/>.</summary>
         protected string ExecuteCliCommand(string cliText)
             => ExecuteCliCommandAsync(cliText, CancellationToken.None).GetAwaiter().GetResult();
+
+        // ── Safe Mode (Ctrl+X / Ctrl+D control keys) ───────────────────────────
+
+        /// <summary>Ctrl+X — toggles Safe Mode in the RouterOS terminal (take, then commit). Byte 0x18.</summary>
+        private const byte CtrlX = 0x18;
+        /// <summary>Ctrl+D — quits Safe Mode discarding the changes (rollback now). Byte 0x04.</summary>
+        private const byte CtrlD = 0x04;
+
+        /// <summary>
+        /// Sends raw bytes (a control key such as Ctrl+X, with no line terminator) to the terminal and returns
+        /// the ANSI-stripped response read up to the next stable shell prompt. Unlike
+        /// <see cref="ExecuteCliCommandCoreAsync"/> the bytes are sent verbatim and the output is not
+        /// echo/prompt-stripped — the caller inspects the raw terminal reaction (e.g. <c>[Safe Mode taken]</c>).
+        /// </summary>
+        protected abstract Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct);
+
+        private string SendControlKey(byte key)
+        {
+            _cmdLock.Wait();
+            try
+            {
+                FireWriteRow($"<ctrl-0x{key:X2}>");
+                string result = SendRawAndReadAsync(new[] { key }, CancellationToken.None).GetAwaiter().GetResult();
+                FireReadRow(result);
+                return result;
+            }
+            finally { _cmdLock.Release(); }
+        }
+
+        /// <summary>
+        /// Enters Safe Mode by sending <c>Ctrl+X</c> in the live terminal. RouterOS prints
+        /// <c>[Safe Mode taken]</c> and shows the <c>&lt;SAFE&gt;</c> token in the prompt (handled transparently
+        /// by <see cref="RouterOsCliLogin.IsShellPrompt"/>); the rollback is tied to THIS terminal session, so
+        /// dropping the connection without a <see cref="SafeModeRelease"/> reverts every change made since. Works
+        /// on any RouterOS version (no scriptable <c>/safe-mode</c> needed). No-op when already held.
+        /// </summary>
+        public override void SafeModeTake()
+        {
+            EnsureOpened();
+            if (SafeModeHeld) return;
+            string output = SendControlKey(CtrlX);
+            CliSafeModeParser.ThrowIfTakeFailed(output, new TikGenericCommand(this, "/safe-mode/take"));
+            SafeModeHeld = true;
+        }
+
+        /// <summary>
+        /// Commits the safe-mode changes and leaves Safe Mode by sending a second <c>Ctrl+X</c>; the prompt
+        /// reverts to its normal form afterwards. No-op when safe mode is not held.
+        /// </summary>
+        public override void SafeModeRelease()
+        {
+            EnsureOpened();
+            if (!SafeModeHeld) return;
+            SendControlKey(CtrlX);
+            SafeModeHeld = false;
+        }
+
+        /// <summary>
+        /// Discards the safe-mode changes immediately and leaves Safe Mode by sending <c>Ctrl+D</c>, without
+        /// dropping the connection. No-op when safe mode is not held.
+        /// </summary>
+        public override void SafeModeUnroll()
+        {
+            EnsureOpened();
+            if (!SafeModeHeld) return;
+            SendControlKey(CtrlD);
+            SafeModeHeld = false;
+        }
 
         // ── CRUD hooks — CLI text build + parse ────────────────────────────────
 

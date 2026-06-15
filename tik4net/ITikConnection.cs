@@ -140,6 +140,70 @@ namespace tik4net
         void Close();
 
         /// <summary>
+        /// Enters RouterOS <b>Safe Mode</b> on this connection (mirrors <c>/safe-mode/take</c>, the WebFig
+        /// "Safe Mode" button, or the terminal <c>Ctrl+X</c>). While safe mode is held, every configuration
+        /// change is recorded; if the owning connection drops (network failure, process crash, <see cref="Close"/>
+        /// without a preceding <see cref="SafeModeRelease"/>) RouterOS automatically <b>rolls back</b> all those
+        /// changes. Call <see cref="SafeModeRelease"/> to keep the changes, or <see cref="SafeModeUnroll"/> to
+        /// discard them immediately while staying connected.
+        /// <para>
+        /// Safe mode is bound to the underlying session, so it is only meaningful on a persistent,
+        /// session-oriented transport: binary API / API-SSL, any CLI terminal (Telnet, MAC-Telnet, WinBox CLI)
+        /// and native WinBox M2. Stateless REST throws <see cref="NotSupportedException"/>. Check
+        /// <see cref="TikConnectionCapability.SafeMode"/> via <c>connection.Supports(...)</c> if unsure.
+        /// </para>
+        /// <para>The binary-API / native-WinBox / REST paths use the scriptable <c>/safe-mode</c> mechanism
+        /// (RouterOS 7.18+); the CLI terminals use the <c>Ctrl+X</c>/<c>Ctrl+D</c> control keys, which also work
+        /// on older RouterOS.</para>
+        /// </summary>
+        /// <exception cref="NotSupportedException">The transport cannot bind safe mode to the connection.</exception>
+        /// <exception cref="TikConnectionNotOpenException">Connection is not open.</exception>
+        /// <exception cref="TikCommandException">RouterOS refused to take safe mode (e.g. already held by another session).</exception>
+        /// <seealso cref="SafeModeRelease"/>
+        /// <seealso cref="SafeModeUnroll"/>
+        /// <seealso cref="SafeModeGet"/>
+        void SafeModeTake();
+
+        /// <summary>
+        /// Commits the changes made since <see cref="SafeModeTake"/> and leaves Safe Mode (mirrors
+        /// <c>/safe-mode/release</c> or a second terminal <c>Ctrl+X</c>). After this call the changes are
+        /// permanent and a later disconnect no longer rolls them back. Closing the connection (or losing it)
+        /// <b>before</b> calling this method discards every change made since <see cref="SafeModeTake"/> — that
+        /// is the automatic rollback safe mode exists for. No-op when safe mode is not currently held.
+        /// </summary>
+        /// <exception cref="NotSupportedException">The transport cannot bind safe mode to the connection.</exception>
+        /// <exception cref="TikConnectionNotOpenException">Connection is not open.</exception>
+        /// <exception cref="TikCommandException">RouterOS reported an error releasing safe mode.</exception>
+        /// <seealso cref="SafeModeTake"/>
+        void SafeModeRelease();
+
+        /// <summary>
+        /// Discards every change made since <see cref="SafeModeTake"/> <b>now</b>, without disconnecting, and
+        /// leaves Safe Mode (mirrors <c>/safe-mode/unroll</c> or the terminal <c>Ctrl+D</c>). This is the explicit
+        /// rollback — the same revert RouterOS performs automatically on an uncommitted disconnect, but on demand
+        /// while the connection stays open and usable. No-op when safe mode is not currently held.
+        /// <para>Not available on the native WinBox transport (WebFig exposes only take/release); there, drop the
+        /// connection without releasing to roll back.</para>
+        /// </summary>
+        /// <exception cref="NotSupportedException">The transport cannot roll back safe mode in place.</exception>
+        /// <exception cref="TikConnectionNotOpenException">Connection is not open.</exception>
+        /// <exception cref="TikCommandException">RouterOS reported an error rolling back safe mode.</exception>
+        /// <seealso cref="SafeModeTake"/>
+        /// <seealso cref="SafeModeRelease"/>
+        void SafeModeUnroll();
+
+        /// <summary>
+        /// Returns whether this connection currently holds Safe Mode (mirrors the intent of
+        /// <c>/safe-mode/get</c>). The state is tracked client-side per connection: it becomes <c>true</c> after
+        /// <see cref="SafeModeTake"/> and <c>false</c> after <see cref="SafeModeRelease"/> /
+        /// <see cref="SafeModeUnroll"/>. Useful in a <c>finally</c> block to decide whether to commit or let the
+        /// disconnect roll back.
+        /// </summary>
+        /// <returns><c>true</c> when safe mode is held by this connection; otherwise <c>false</c>.</returns>
+        /// <seealso cref="SafeModeTake"/>
+        bool SafeModeGet();
+
+        /// <summary>
         /// Factory method - creates empty command specific for connection type with assiged <see cref="ITikCommand.Connection"/>.
         /// </summary>
         /// <returns>Commend with assiged <see cref="ITikCommand.Connection"/>.</returns>

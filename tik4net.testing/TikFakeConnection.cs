@@ -255,6 +255,30 @@ namespace tik4net.Testing
         /// <summary>No-op.</summary>
         public void Close() { }
 
+        /// <summary>Number of times <see cref="SafeModeTake"/> was called (for test assertions).</summary>
+        public int SafeModeTakeCount { get; private set; }
+
+        /// <summary>Number of times <see cref="SafeModeRelease"/> was called (for test assertions).</summary>
+        public int SafeModeReleaseCount { get; private set; }
+
+        /// <summary>Number of times <see cref="SafeModeUnroll"/> was called (for test assertions).</summary>
+        public int SafeModeUnrollCount { get; private set; }
+
+        /// <summary>True between a <see cref="SafeModeTake"/> and its matching release/unroll.</summary>
+        public bool SafeModeActive { get; private set; }
+
+        /// <summary>Records a safe-mode take. No router involved — just bookkeeping for tests.</summary>
+        public void SafeModeTake() { SafeModeTakeCount++; SafeModeActive = true; }
+
+        /// <summary>Records a safe-mode release (commit).</summary>
+        public void SafeModeRelease() { SafeModeReleaseCount++; SafeModeActive = false; }
+
+        /// <summary>Records a safe-mode unroll (rollback).</summary>
+        public void SafeModeUnroll() { SafeModeUnrollCount++; SafeModeActive = false; }
+
+        /// <summary>Returns whether safe mode is currently held (client-side bookkeeping).</summary>
+        public bool SafeModeGet() => SafeModeActive;
+
         /// <summary>No-op.</summary>
         public void Dispose() { }
 

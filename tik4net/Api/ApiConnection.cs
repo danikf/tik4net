@@ -40,6 +40,7 @@ namespace tik4net.Api
         private readonly object _writeLockObj = new object();
         private readonly object _readLockObj = new object();
         private volatile bool _isOpened = false;
+        private bool _safeModeHeld = false;
         private bool _isSsl = false;
         private Encoding _encoding = Encoding.ASCII;
         private bool _sendTagWithSyncCommand = false;
@@ -126,8 +127,37 @@ namespace tik4net.Api
 
             _tcpConnectionStream.Dispose();
             _tcpConnection.Dispose();
-            _isOpened = false;        
+            _isOpened = false;
         }
+
+        /// <inheritdoc/>
+        public void SafeModeTake()
+        {
+            EnsureOpened();
+            // RouterOS 7.18+ scriptable safe-mode. Bound to this API session: an unexpected
+            // disconnect (without a SafeModeRelease) rolls back everything changed since.
+            CreateCommand("/safe-mode/take").ExecuteNonQuery();
+            _safeModeHeld = true;
+        }
+
+        /// <inheritdoc/>
+        public void SafeModeRelease()
+        {
+            EnsureOpened();
+            CreateCommand("/safe-mode/release").ExecuteNonQuery();
+            _safeModeHeld = false;
+        }
+
+        /// <inheritdoc/>
+        public void SafeModeUnroll()
+        {
+            EnsureOpened();
+            CreateCommand("/safe-mode/unroll").ExecuteNonQuery();
+            _safeModeHeld = false;
+        }
+
+        /// <inheritdoc/>
+        public bool SafeModeGet() => _safeModeHeld;
 
         public void Open(string host, string user, string password)
         {

@@ -15,6 +15,14 @@ namespace tik4net
         Streaming    = 4,
         RawSentences = 8,
         Tagging      = 16,
+        /// <summary>
+        /// Transport can enter/commit/roll back RouterOS Safe Mode bound to this connection
+        /// (<see cref="ITikConnection.SafeModeTake"/> / <see cref="ITikConnection.SafeModeRelease"/> /
+        /// <see cref="ITikConnection.SafeModeUnroll"/> / <see cref="ITikConnection.SafeModeGet"/>).
+        /// Requires a persistent, session-bound channel: binary API, a CLI terminal (via <c>Ctrl+X</c>, works on
+        /// any RouterOS) or native WinBox M2 (RouterOS 7.18+). Stateless REST does not report it.
+        /// </summary>
+        SafeMode     = 32,
     }
 
     /// <summary>

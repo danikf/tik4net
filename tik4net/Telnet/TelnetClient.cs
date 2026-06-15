@@ -101,6 +101,17 @@ namespace tik4net.Telnet
             return CliOutputHelper.CleanOutput(raw, cmd);
         }
 
+        /// <summary>
+        /// Sends raw bytes (a control key such as Ctrl+X — no line terminator, no paging injection) and
+        /// returns the ANSI-stripped response read up to the next stable shell prompt. Used for Safe Mode
+        /// toggling, where RouterOS reacts to the control key rather than a typed command.
+        /// </summary>
+        internal async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
+        {
+            await SendBytesAsync(raw, ct).ConfigureAwait(false);
+            return await ReadCommandResponseAsync(ct).ConfigureAwait(false);
+        }
+
         // ── Close / Dispose ───────────────────────────────────────────────────
 
         internal void Close()

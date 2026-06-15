@@ -74,6 +74,7 @@ namespace tik4net.Cli
                 }
                 bool isEcho =
                     line.IndexOf(RouterOsCliLogin.PromptSuffix, StringComparison.Ordinal) >= 0
+                    || line.IndexOf(RouterOsCliLogin.SafePromptSuffix, StringComparison.Ordinal) >= 0
                     || (cmdCore.Length > 0
                         && (cmdCore.IndexOf(line, StringComparison.OrdinalIgnoreCase) >= 0
                             || cmdCore.StartsWith(line, StringComparison.OrdinalIgnoreCase)));
@@ -90,7 +91,8 @@ namespace tik4net.Cli
             if (end >= start)
             {
                 string lastLine = lines[end].TrimEnd('\r', '\n', ' ');
-                if (lastLine.EndsWith(RouterOsCliLogin.PromptSuffix, StringComparison.Ordinal))
+                if (lastLine.EndsWith(RouterOsCliLogin.PromptSuffix, StringComparison.Ordinal)
+                    || lastLine.EndsWith(RouterOsCliLogin.SafePromptSuffix, StringComparison.Ordinal))
                     end--;
             }
 

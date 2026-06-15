@@ -85,6 +85,17 @@ namespace tik4net
         /// Listen/Streaming are not supported.
         /// Requires the <c>winbox</c> service to be enabled on the router (default).
         /// </summary>
-        WinboxNative
+        WinboxNative,
+        /// <summary>
+        /// MikroTik RouterOS WinBox <b>native-M2</b> connection over the MAC layer (UDP port 20561,
+        /// <c>client_type=0x0f90</c>). Same structured M2 <c>getall</c>/<c>get-one</c>/<c>set</c>/<c>add</c>/<c>remove</c>/<c>move</c>
+        /// CRUD as <see cref="WinboxNative"/>, but M2 messages travel over the MAC layer — so it works
+        /// without an IP route to the router.
+        /// Listen/Streaming are not supported.
+        /// Requires <c>/tool/mac-server/mac-winbox set allowed-interface-list=all</c> on the router.
+        /// The router's MAC address is discovered via MNDP (up to 5 s) unless
+        /// <see cref="WinboxNativeMac.WinboxNativeMacConnection.RouterMac"/> is set before opening.
+        /// </summary>
+        WinboxNativeMac
     }
 }

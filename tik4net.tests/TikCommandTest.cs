@@ -249,8 +249,16 @@ namespace tik4net.tests
         public void RunScript_Issue53_WillNotFail()
         {
             const string name = "TEST_NAME_ISSUE53";
-            const string scriptLines = ":log info (\"start\") \r\n/ system identity print \r\n/ system identity print\r\n:log info (\"end\") ";
             const int commandRowsCnt = 2; // 2x call of / system identity print
+
+            string runId = Guid.NewGuid().ToString("N");
+            string logMarker = "RUN53_" + runId;
+            string scriptLines =
+                ":log info (\"start\") \r\n" +
+                "/ system identity print \r\n" +
+                "/ system identity print\r\n" +
+                ":log info (\"end\") \r\n" +
+                ":log error (\"" + logMarker + "\")";
 
             // pre-cleanup: remove any leftover script with this name that would cause add to fail
             foreach (var leftover in Connection.CreateCommand("/system/script/print").ExecuteList().Where(s => s.GetResponseField("name") == name))
@@ -276,11 +284,16 @@ namespace tik4net.tests
                 else
                     Assert.IsTrue(responseRows.Count() == commandRowsCnt); //one empty !re row per script line command
 
-                ////run via number
-                //ITikCommand scriptRunCmd1 = Connection.CreateCommand("/system/script/run",
-                //    Connection.CreateParameter("number", "0", TikCommandParameterFormat.NameValue));
-                //var responseRows1 = scriptRunCmd1.ExecuteList();
-                //Assert.IsTrue(responseRows1.Count() == commandRowsCnt); //one empty !re row per script line command
+                // Verify the script actually executed: the unique error-severity log entry must appear
+                // in the router log. A 500 ms grace period covers any log-flush lag on CLI transports.
+                Thread.Sleep(500);
+                var logEntries = Connection.CreateCommand("/log/print").ExecuteList();
+                bool found = logEntries.Any(e =>
+                {
+                    try { return (e.GetResponseField("message") ?? "").Contains(logMarker); }
+                    catch { return false; }
+                });
+                Assert.IsTrue(found, $"Expected log entry '{logMarker}' not found in router log — script may not have run.");
             }
             finally
             {

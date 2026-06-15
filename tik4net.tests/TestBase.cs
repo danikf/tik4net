@@ -84,7 +84,10 @@ namespace tik4net.tests
             {
                 try
                 {
-                    _connection = ConnectionFactory.OpenConnection(connType, host, user, pass);
+                    var conn = ConnectionFactory.CreateConnection(connType);
+                    ApplyRouterMac(conn);   // MAC-layer transports: bypass MNDP using App.config routerMac
+                    conn.Open(host, user, pass);
+                    _connection = conn;
                     _connection.DebugEnabled = true;
                     _routerOsVersion = null;
                     return;
@@ -97,6 +100,25 @@ namespace tik4net.tests
             } while (DateTime.UtcNow < deadline);
 
             throw new Exception($"Could not connect to router at {host} via {connType} within {retryTimeoutSeconds}s.", lastException);
+        }
+
+        /// <summary>
+        /// For the MAC-layer transports (MacTelnet / WinboxCliMac / WinboxNativeMac), sets the
+        /// <c>RouterMac</c> from the App.config <c>routerMac</c> key so the generic suite can connect
+        /// without MNDP discovery (which is environment-sensitive). No-op for IP transports.
+        /// </summary>
+        private static void ApplyRouterMac(ITikConnection conn)
+        {
+            string mac = ConfigurationManager.AppSettings["routerMac"];
+            if (string.IsNullOrEmpty(mac))
+                return;
+
+            switch (conn)
+            {
+                case tik4net.MacTelnet.MacTelnetConnection mt: mt.RouterMac = mac; break;
+                case tik4net.WinboxCliMac.WinboxCliMacConnection wm: wm.RouterMac = mac; break;
+                case tik4net.WinboxNativeMac.WinboxNativeMacConnection nm: nm.RouterMac = mac; break;
+            }
         }
 
         /// <summary>
@@ -183,7 +205,8 @@ namespace tik4net.tests
         /// <param name="feature">API path / feature shown in the skip message.</param>
         protected void SkipOnWinboxNativeUnmappedPath(string feature)
         {
-            if (ResolveConnectionType() == TikConnectionType.WinboxNative)
+            var t = ResolveConnectionType();
+            if (t == TikConnectionType.WinboxNative || t == TikConnectionType.WinboxNativeMac)
                 Assert.Inconclusive(
                     $"'{feature}' is not exposed by WinBox as an M2 handler (absent from the .jg catalog), " +
                     "so the native WinBox transport cannot reach it — use the API or a CLI transport. Test skipped.");
@@ -202,7 +225,7 @@ namespace tik4net.tests
             var t = ResolveConnectionType();
             return t == TikConnectionType.Telnet || t == TikConnectionType.MacTelnet
                 || t == TikConnectionType.WinboxCli || t == TikConnectionType.WinboxCliMac
-                || t == TikConnectionType.WinboxNative;
+                || t == TikConnectionType.WinboxNative || t == TikConnectionType.WinboxNativeMac;
         }
 
         /// <summary>

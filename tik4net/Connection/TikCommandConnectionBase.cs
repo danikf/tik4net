@@ -82,6 +82,33 @@ namespace tik4net.Connection
         /// <inheritdoc/>
         public abstract void Close();
 
+        /// <summary>
+        /// Tracks whether this connection currently holds Safe Mode. Maintained by the transport-specific
+        /// <see cref="SafeModeTake"/>/<see cref="SafeModeRelease"/>/<see cref="SafeModeUnroll"/> overrides and
+        /// reported by <see cref="SafeModeGet"/>.
+        /// </summary>
+        protected bool SafeModeHeld { get; set; }
+
+        private const string SafeModeUnsupported =
+            "This transport does not support Safe Mode. Use the binary API, a CLI transport " +
+            "(Telnet / MAC-Telnet / WinBox CLI) or native WinBox, which can bind safe mode to a session.";
+
+        /// <summary>
+        /// Default: safe mode is not supported. Transports that bind safe mode to a persistent session
+        /// (CLI terminals, native WinBox M2) override these.
+        /// </summary>
+        /// <inheritdoc/>
+        public virtual void SafeModeTake() => throw new NotSupportedException(SafeModeUnsupported);
+
+        /// <inheritdoc/>
+        public virtual void SafeModeRelease() => throw new NotSupportedException(SafeModeUnsupported);
+
+        /// <inheritdoc/>
+        public virtual void SafeModeUnroll() => throw new NotSupportedException(SafeModeUnsupported);
+
+        /// <inheritdoc/>
+        public virtual bool SafeModeGet() => SafeModeHeld;
+
         // ── Open/Close helpers for subclasses ─────────────────────────────────
 
         /// <summary>

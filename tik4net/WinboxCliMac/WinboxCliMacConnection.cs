@@ -113,5 +113,13 @@ namespace tik4net.WinboxCliMac
                 throw new TikConnectionNotOpenException("WinBox CLI MAC connection is not open.");
             return _client.SendCommandAndReadAsync(cliText, ct);
         }
+
+        /// <inheritdoc/>
+        protected override Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
+        {
+            if (_client == null)
+                throw new TikConnectionNotOpenException("WinBox CLI MAC connection is not open.");
+            return _client.SendRawAndReadAsync(raw, ct);
+        }
     }
 }

@@ -22,6 +22,7 @@ namespace tik4net.Rest
             "flush", "reset", "reset-counters",
             "export", "reload", "run", "check", "test",
             "monitor", "start", "stop", "install", "upgrade",
+            "take", "release", "unroll",   // /safe-mode/* actions
         };
 
         private static readonly HashSet<string> _readVerbs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
