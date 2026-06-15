@@ -160,16 +160,12 @@ namespace tik4net.Cli
         {
             EnsureOpened();
 
-            // Action verbs invoked via ExecuteList (e.g. /system/script/run) are not reads — over a
-            // terminal they execute fire-and-forget and yield no per-record !re output (unlike the
-            // binary API). Run as an action and return an empty result set.
-            if (GetVerb(descriptor.CommandText) == "run")
-            {
-                string runCli = CliCommandBuilder.BuildSimpleVerb(descriptor.CommandText, "run", descriptor.Parameters);
-                string runOut = ExecuteCliCommand(runCli);
-                CliErrorParser.ThrowIfError(runOut, CreateDummyCommand(descriptor));
-                return new List<TikRecordSentence>();
-            }
+            // Action verbs (e.g. /system/script/run) perform an action and produce no result set over a
+            // terminal (no per-record !re output, unlike the binary API) — they belong on the non-query
+            // path. Reject them on the read path so the misuse is explicit instead of silently returning an
+            // empty list (R7); invoke them via ExecuteNonQuery (RunNonQuery handles the 'run' verb).
+            if (IsActionVerb(GetVerb(descriptor.CommandText)))
+                throw ActionVerbOnReadPath(descriptor.CommandText);
 
             bool needStats = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliStats);
 
@@ -312,6 +308,9 @@ namespace tik4net.Cli
                 case "disable":
                 case "move":
                 case "unset":
+                case "run":
+                    // 'run' (e.g. /system/script/run) is an action verb: fire-and-forget over the terminal,
+                    // no result set. ExecuteNonQuery is the supported entry point (ExecuteList throws).
                     cliText = CliCommandBuilder.BuildSimpleVerb(descriptor.CommandText, verb, descriptor.Parameters);
                     break;
                 default:
@@ -322,6 +321,15 @@ namespace tik4net.Cli
             string output = ExecuteCliCommand(cliText);
             CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
         }
+
+        // True for verbs that perform an action rather than read records (no result set over a terminal).
+        private static bool IsActionVerb(string verb) => verb == "run";
+
+        // Misuse of a read method (ExecuteList/ExecuteScalar/…) on an action command — guide to ExecuteNonQuery.
+        private NotSupportedException ActionVerbOnReadPath(string commandText)
+            => new NotSupportedException(
+                $"'{commandText}' is an action command and returns no result set over the {DiagnosticPrefix} " +
+                "transport. Invoke it with ExecuteNonQuery() instead of ExecuteList()/ExecuteScalar().");
 
         // ── Streaming monitor / async / listen (ITikMonitorTransport) ──────────
 

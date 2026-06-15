@@ -195,8 +195,11 @@ namespace tik4net.WinboxNative
                 if (TryRunMonitor(descriptor, out var monitorRows)) return monitorRows;
 
                 // The path may be an action verb (e.g. /system/script/run) rather than a table — a .jg
-                // doit/action SYS_CMD on the parent handler. Dispatch it before reporting "no such command".
-                if (TryRunActionVerb(descriptor, out var actionRows)) return actionRows;
+                // doit/action SYS_CMD on the parent handler. Actions perform work and yield no rows, so they
+                // belong on the non-query path: reject the read misuse explicitly (R7) and guide to
+                // ExecuteNonQuery (RunVerb dispatches the SYS_CMD) before reporting "no such command".
+                if (IsActionVerbPath(descriptor))
+                    throw ActionVerbOnReadPath(descriptor.CommandText);
 
                 // No native handler mapping for this read path. Surface it like other transports surface a
                 // missing command, so EnsureCommandAvailable / TikNoSuchCommandException handling kicks in
@@ -304,34 +307,47 @@ namespace tik4net.WinboxNative
             return true;
         }
 
-        // Attempts to dispatch an action verb (e.g. /system/script/run) whose last path segment matches a
-        // .jg doit/action on the parent handler. On a match: resolves the optional target .id, invokes the
-        // SYS_CMD, and returns an empty row set (the action produces no record rows over native M2, mirroring
-        // how the CLI terminals run fire-and-forget). Returns false when the path is not such an action.
-        private bool TryRunActionVerb(TikCommandDescriptor descriptor, out IList<TikRecordSentence> rows)
+        // True when the command's last path segment matches a .jg doit/action on the parent handler
+        // (e.g. /system/script/run). Detection only — does NOT invoke. Used by the read path to reject the
+        // misuse; the non-query path dispatches the SYS_CMD via DispatchActionVerb.
+        private bool IsActionVerbPath(TikCommandDescriptor descriptor)
         {
-            rows = null;
-            string verb = VerbOf(descriptor.CommandText);
-            string parentPath = StripVerb(descriptor.CommandText);
-            int[] handler = _handlerMap.Resolve(parentPath);
+            int[] handler = _handlerMap.Resolve(StripVerb(descriptor.CommandText));
             if (handler == null) return false;
-
             var actions = _catalog.GetHandlerActions(handler);
             if (actions == null) return false;
-
-            int cmd = -1;
+            string verb = VerbOf(descriptor.CommandText);
             foreach (var kv in actions)
-                if (ActionMatchesVerb(kv.Key, verb)) { cmd = kv.Value; break; }
-            if (cmd < 0) return false;
+                if (ActionMatchesVerb(kv.Key, verb)) return true;
+            return false;
+        }
 
-            var resolver = new WinboxFieldResolver(parentPath, handler, _catalog, OverridesFor(parentPath));
+        // Invokes the action verb's .jg doit/SYS_CMD on its (already-resolved) parent handler with the
+        // optional target .id, mirroring how CLI terminals run actions fire-and-forget (no rows). Throws
+        // NotSupported when the verb is not a known action on the handler.
+        private void DispatchActionVerb(string verb, string apiPath, int[] handler,
+            WinboxFieldResolver resolver, TikCommandDescriptor descriptor)
+        {
+            int cmd = -1;
+            var actions = _catalog.GetHandlerActions(handler);
+            if (actions != null)
+                foreach (var kv in actions)
+                    if (ActionMatchesVerb(kv.Key, verb)) { cmd = kv.Value; break; }
+            if (cmd < 0)
+                throw new NotSupportedException(
+                    $"WinBox native: command verb '{verb}' on '{apiPath}' is not supported. " +
+                    "Use a WinboxCli or Api connection.");
+
             int id = ResolveRecordId(handler, resolver, descriptor, required: false);
             try { _ops.InvokeAction(handler, cmd, id); }
             catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
-
-            rows = new List<TikRecordSentence>();
-            return true;
         }
+
+        // Misuse of a read method (ExecuteList/ExecuteScalar/…) on an action command — guide to ExecuteNonQuery.
+        private static NotSupportedException ActionVerbOnReadPath(string commandText)
+            => new NotSupportedException(
+                $"'{commandText}' is an action command and returns no result set over the WinBox native " +
+                "transport. Invoke it with ExecuteNonQuery() instead of ExecuteList()/ExecuteScalar().");
 
         // True when a .jg action label maps to the RouterOS API verb: exact match, or the label's first
         // hyphen-token equals the verb ("run" ↔ "run-script").
@@ -432,9 +448,10 @@ namespace tik4net.WinboxNative
                     break;
                 }
                 default:
-                    throw new NotSupportedException(
-                        $"WinBox native: command verb '{verb}' on '{apiPath}' is not supported. " +
-                        $"Use a WinboxCli or Api connection.");
+                    // Action verb (e.g. /system/script/run → a .jg doit/SYS_CMD on this handler), invoked via
+                    // ExecuteNonQuery. Dispatch it fire-and-forget; throws NotSupported if it is not an action.
+                    DispatchActionVerb(verb, apiPath, handler, resolver, descriptor);
+                    break;
             }
         }
 

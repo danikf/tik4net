@@ -275,14 +275,21 @@ namespace tik4net.tests
                 //run via ID
                 ITikCommand scriptRunCmd = Connection.CreateCommand("/system/script/run",
                     Connection.CreateParameter(TikSpecialProperties.Id, id, TikCommandParameterFormat.NameValue));
-                var responseRows = scriptRunCmd.ExecuteList();
                 if (IsNonApiTransport())
+                {
                     // Non-binary-API transports (CLI terminals and native WinBox M2) run the script
-                    // fire-and-forget — no per-line !re rows are produced (unlike the binary API).
-                    // We only assert the run did not fault.
-                    Assert.IsNotNull(responseRows);
+                    // fire-and-forget — no per-line !re rows are produced (unlike the binary API). An action
+                    // command has no result set on these transports, so reading it (ExecuteList) now throws;
+                    // the supported entry point is ExecuteNonQuery (R7).
+                    Assert.ThrowsException<NotSupportedException>(() => scriptRunCmd.ExecuteList(),
+                        "ExecuteList on an action command must throw on non-API transports.");
+                    scriptRunCmd.ExecuteNonQuery();
+                }
                 else
+                {
+                    var responseRows = scriptRunCmd.ExecuteList();
                     Assert.IsTrue(responseRows.Count() == commandRowsCnt); //one empty !re row per script line command
+                }
 
                 // Verify the script actually executed: the unique error-severity log entry must appear
                 // in the router log. A 500 ms grace period covers any log-flush lag on CLI transports.
