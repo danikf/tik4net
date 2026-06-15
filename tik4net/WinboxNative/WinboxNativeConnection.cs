@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -22,11 +22,11 @@ namespace tik4net.WinboxNative
     /// <para>Authentication and the encrypted channel are reused from the shared
     /// <see cref="WinboxM2Session"/> (EC-SRP5 / legacy-MD5, AES-128-CBC). Field keys/types are loaded at
     /// connect time from the version-matched <c>.jg</c> catalog (cached under
-    /// <see cref="CatalogCachePath"/>); the apiNameâ†”label mapping is a stable normalizer plus
+    /// <see cref="CatalogCachePath"/>); the apiName↔label mapping is a stable normalizer plus
     /// session overrides.</para>
     /// <para>Streaming monitors are supported via <c>ExecuteAsync</c>/<c>LoadAsync</c> (capability
     /// <see cref="TikConnectionCapability.Listen"/>): <c>.jg</c> <c>type:'query'</c> windows such as
-    /// <c>/tool/torch</c>/<c>/tool/profile</c> are polled startâ†’pollâ†’cancel on a background worker.</para>
+    /// <c>/tool/torch</c>/<c>/tool/profile</c> are polled start→poll→cancel on a background worker.</para>
     /// </remarks>
     public class WinboxNativeConnection : TikCommandConnectionBase, ITikMonitorTransport, IPollingMonitorHost
     {
@@ -34,7 +34,7 @@ namespace tik4net.WinboxNative
         public const int DefaultPort = 8291;
 
         /// <summary>
-        /// Login timeout in milliseconds â€” the maximum time to wait for authentication / first M2 reply.
+        /// Login timeout in milliseconds — the maximum time to wait for authentication / first M2 reply.
         /// Set before calling <see cref="Open(string, string, string)"/>.
         /// </summary>
         public int ConnectTimeout { get; set; } = 15000;
@@ -50,7 +50,7 @@ namespace tik4net.WinboxNative
             Path.Combine(Path.GetTempPath(), "tik4net");
 
         private readonly WinboxHandlerMap _handlerMap = new WinboxHandlerMap();
-        // apiPath â†’ (apiName â†’ key) session field overrides
+        // apiPath → (apiName → key) session field overrides
         private readonly Dictionary<string, Dictionary<string, int>> _fieldOverrides =
             new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
 
@@ -61,10 +61,10 @@ namespace tik4net.WinboxNative
         private readonly WinboxJgCatalog _catalog = new WinboxJgCatalog();
         private string _routerVersion;
 
-        // â”€â”€ Session configuration (set before/after open) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Session configuration (set before/after open) ──────────────────────
 
         /// <summary>
-        /// Adds a session field override <c>apiName â†’ key</c> for the given API path. Takes priority over
+        /// Adds a session field override <c>apiName → key</c> for the given API path. Takes priority over
         /// the <c>.jg</c> catalog and the normalizer when resolving fields on that path.
         /// </summary>
         /// <param name="apiPath">API path, e.g. <c>/interface</c>.</param>
@@ -83,14 +83,14 @@ namespace tik4net.WinboxNative
 
         /// <summary>
         /// Adds a session override mapping an API path to a WinBox M2 handler array
-        /// (e.g. <c>/ppp/secret</c> â†’ <c>[20, 12]</c>). Takes priority over the seed table.
+        /// (e.g. <c>/ppp/secret</c> → <c>[20, 12]</c>). Takes priority over the seed table.
         /// </summary>
         public void PathOverride(string apiPath, int[] handler)
         {
             _handlerMap.AddOverride(apiPath, handler);
         }
 
-        // â”€â”€ Open / Close â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Open / Close ───────────────────────────────────────────────────────
 
         /// <summary>
         /// Creates the (not-yet-opened) M2 channel this connection rides on. The base uses the TCP
@@ -148,7 +148,7 @@ namespace tik4net.WinboxNative
             catch { _routerVersion = null; }
             try { _catalog.EnsureLoaded(session, _routerVersion, ResolvePath(CatalogCachePath), ConnectTimeout); }
             catch { /* catalog is best-effort; seeds + normalizer still work */ }
-            // Feed the .jg-derived apiPathâ†’handler map into the handler resolver (after session overrides,
+            // Feed the .jg-derived apiPath→handler map into the handler resolver (after session overrides,
             // before the shipped override tail).
             _handlerMap.SetDerivedPaths(_catalog.GetDerivedPaths());
             _handlerMap.SetSubtypeFilters(_catalog.GetSubtypeFilters());
@@ -168,7 +168,7 @@ namespace tik4net.WinboxNative
             SetClosed();
         }
 
-        // â”€â”€ Native read overrides â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Native read overrides ───────────────────────────────────────────────
 
         /// <inheritdoc/>
         internal override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)
@@ -194,7 +194,7 @@ namespace tik4net.WinboxNative
                 // the snapshot. Tried before the action-verb path (monitor is not a doit/action cmd).
                 if (TryRunMonitor(descriptor, out var monitorRows)) return monitorRows;
 
-                // The path may be an action verb (e.g. /system/script/run) rather than a table â€” a .jg
+                // The path may be an action verb (e.g. /system/script/run) rather than a table — a .jg
                 // doit/action SYS_CMD on the parent handler. Dispatch it before reporting "no such command".
                 if (TryRunActionVerb(descriptor, out var actionRows)) return actionRows;
 
@@ -261,7 +261,7 @@ namespace tik4net.WinboxNative
 
         // Attempts a "monitor [once]" snapshot (e.g. /interface/ethernet/monitor numbers=ether1). The monitored
         // values (rate, link status, auto-negotiation, full-duplex) are read-only fields on the parent
-        // interface record â€” webfig surfaces them as a Status tab of the [20,0] window, not a separate handler.
+        // interface record — webfig surfaces them as a Status tab of the [20,0] window, not a separate handler.
         // A getall on the parent handler filtered to the named interface yields the same single snapshot the
         // RouterOS "monitor once" returns. Returns false (fall through) when this is not a monitor path.
         private bool TryRunMonitor(TikCommandDescriptor descriptor, out IList<TikRecordSentence> rows)
@@ -334,7 +334,7 @@ namespace tik4net.WinboxNative
         }
 
         // True when a .jg action label maps to the RouterOS API verb: exact match, or the label's first
-        // hyphen-token equals the verb ("run" â†” "run-script").
+        // hyphen-token equals the verb ("run" ↔ "run-script").
         private static bool ActionMatchesVerb(string normalizedLabel, string verb)
         {
             if (string.Equals(normalizedLabel, verb, StringComparison.OrdinalIgnoreCase)) return true;
@@ -343,7 +343,7 @@ namespace tik4net.WinboxNative
             return string.Equals(first, verb, StringComparison.OrdinalIgnoreCase);
         }
 
-        // â”€â”€ Writes â€” Phase F2 (set / add / remove / move) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Writes — Phase F2 (set / add / remove / move) ──────────────────────
 
         /// <inheritdoc/>
         internal override string RunAdd(TikCommandDescriptor descriptor)
@@ -439,7 +439,7 @@ namespace tik4net.WinboxNative
         }
 
 
-        // â”€â”€ Streaming monitor (ExecuteAsync / LoadAsync) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Streaming monitor (ExecuteAsync / LoadAsync) ─────────────────────────
 
         /// <summary>
         /// Native WinBox M2 supports streaming monitors (<c>.jg</c> <c>type:'query'</c> / poll-action windows),
@@ -483,10 +483,10 @@ namespace tik4net.WinboxNative
 
         /// <summary>
         /// Runs a streaming-monitor command (e.g. <c>/tool/torch</c>, <c>/tool/profile</c>) on a background
-        /// worker that polls the router every <c>autorefresh</c> ms over the normal M2 channel â€” start â†’ poll â†’
-        /// cancel (webfig <c>ObjectQuery</c>; see <c>_notes/winbox-native-m2-plan.md</c> Â§20). Each polled record
+        /// worker that polls the router every <c>autorefresh</c> ms over the normal M2 channel — start → poll →
+        /// cancel (webfig <c>ObjectQuery</c>; see <c>_notes/winbox-native-m2-plan.md</c> §20). Each polled record
         /// is decoded to API field names and pushed to <paramref name="onRow"/>; <paramref name="onDone"/> fires
-        /// when the worker stops (cancelled, the router's "finished" flag, or an error â€” reported via
+        /// when the worker stops (cancelled, the router's "finished" flag, or an error — reported via
         /// <paramref name="onError"/>). Request parameters (NameValue) are encoded as the monitor's request fields.
         /// </summary>
         /// <remarks>The worker owns the M2 channel while polling; issuing concurrent CRUD on the same connection
@@ -497,9 +497,9 @@ namespace tik4net.WinboxNative
             EnsureNativeOpen();
             string verb = VerbOf(descriptor.CommandText);
 
-            // /path/listen â€” RouterOS pushes add/change/delete deltas over the API. WinBox M2 has no server
+            // /path/listen — RouterOS pushes add/change/delete deltas over the API. WinBox M2 has no server
             // push, so webfig (and we) emulate it the way it polls live config tables: getall on a timer and
-            // diff snapshots by .id (see _notes/winbox-native-m2-plan.md Â§20). Deleted rows are surfaced as a
+            // diff snapshots by .id (see _notes/winbox-native-m2-plan.md §20). Deleted rows are surfaced as a
             // synthetic ".dead=true" record so the O/R LoadListenAsync handler routes them to onDeleted.
             if (verb == "listen")
             {
@@ -512,7 +512,7 @@ namespace tik4net.WinboxNative
                     handle => PollingMonitorEngine.ListenLoop(this, printDescriptor, volatileFields, 1000, handle, onRow, onError, onDone));
             }
 
-            // /path/print (LoadAsync) â€” a one-shot async list, not a streaming window: run the print off the
+            // /path/print (LoadAsync) — a one-shot async list, not a streaming window: run the print off the
             // calling thread, emit each row, then complete. No monitor cycle is involved.
             if (verb == "print" || verb == "getall")
             {
@@ -520,7 +520,7 @@ namespace tik4net.WinboxNative
                     handle => PollingMonitorEngine.AsyncListOnce(this, descriptor, handle, onRow, onError, onDone));
             }
 
-            // Otherwise a streaming-monitor window (/tool/torch, /tool/profile, /interface/monitor-traffic, â€¦).
+            // Otherwise a streaming-monitor window (/tool/torch, /tool/profile, /interface/monitor-traffic, …).
             // The monitor path is the command path itself or carries a trailing verb; try the plain path first,
             // then the verb-stripped parent.
             string apiPath = ApiPathOf(descriptor.CommandText);
@@ -569,8 +569,8 @@ namespace tik4net.WinboxNative
                 ? new TikTrapSentenceResult(m.Message, $"0x{m.Code:X}", m.ErrorText)
                 : new TikTrapSentenceResult(ex.Message);
 
-        // The monitor worker: encode request fields â†’ start â†’ poll loop (emit decoded rows, sleep autorefresh,
-        // honour cancel/finished) â†’ cancel. Request-field encoding runs here (not on the caller) so a runtime
+        // The monitor worker: encode request fields → start → poll loop (emit decoded rows, sleep autorefresh,
+        // honour cancel/finished) → cancel. Request-field encoding runs here (not on the caller) so a runtime
         // resolution failure (e.g. interface not found) surfaces async via onError, matching the API transport,
         // instead of throwing synchronously out of ExecuteAsync. onDone always fires exactly once.
         private void MonitorLoop(WinboxMonitorSpec spec, TikCommandDescriptor descriptor, WinboxFieldResolver resolver,
@@ -584,7 +584,7 @@ namespace tik4net.WinboxNative
                 _cmdLock.Wait();
                 try
                 {
-                    // Encode the caller's NameValue parameters as the monitor's request fields (interface, cpu, â€¦).
+                    // Encode the caller's NameValue parameters as the monitor's request fields (interface, cpu, …).
                     // allowReadOnly: a window's input fields are often .jg-marked ro (display) yet are the
                     // monitor's legitimate request inputs and must be sent (e.g. ping 'address').
                     var requestFields = EncodeNameValueFields(
@@ -651,14 +651,14 @@ namespace tik4net.WinboxNative
         // Query-filter evaluation (postfix stack) is shared with the CLI async-list path — see
         // tik4net.Connection.TikQueryStack.
 
-        // â”€â”€ Write helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Write helpers ──────────────────────────────────────────────────────
 
         private (int[] handler, WinboxFieldResolver resolver) ResolveHandlerAndFields(string apiPath)
         {
             int[] handler = _handlerMap.Resolve(apiPath);
             if (handler == null)
             {
-                // Surface an unmapped write path the same way reads do â€” as "no such command" â€” so callers
+                // Surface an unmapped write path the same way reads do — as "no such command" — so callers
                 // get a consistent exception type across read and write (e.g. invalid path, or a path under a
                 // package the router lacks).
                 var c = new TikGenericCommand(this, apiPath);
@@ -696,7 +696,7 @@ namespace tik4net.WinboxNative
 
         // Encode every NameValue parameter (except client-side markers and, optionally, .id) into M2 fields.
         // Read-only fields (per .jg) are skipped by the encoder (returns no bytes). A network field expands
-        // to two entries (address + mask); a dynamic enum reference is resolved nameâ†’id via getall.
+        // to two entries (address + mask); a dynamic enum reference is resolved name→id via getall.
         private List<byte[]> EncodeNameValueFields(
             int[] handler, TikCommandDescriptor descriptor, WinboxFieldResolver resolver, bool skipId,
             bool allowReadOnly = false)
@@ -705,7 +705,7 @@ namespace tik4net.WinboxNative
             foreach (var p in descriptor.Parameters)
             {
                 if (p.ParameterFormat == TikCommandParameterFormat.Filter) continue;
-                if (p.Name.StartsWith(".") && p.Name != TikSpecialProperties.Id) continue; // .proplist/.tag/â€¦
+                if (p.Name.StartsWith(".") && p.Name != TikSpecialProperties.Id) continue; // .proplist/.tag/…
                 if (p.Name == TikSpecialProperties.Id) { if (skipId) continue; }
                 if (p.Name == "move-before" || p.Name == "destination") continue; // handled by move dest
                 fields.AddRange(resolver.EncodeField(p.Name, p.Value, _idResolver.ResolveReference, allowReadOnly));
@@ -714,7 +714,7 @@ namespace tik4net.WinboxNative
         }
 
         // Resolve the M2 numeric record id from the command's .id parameter. The .id may be the RouterOS
-        // "*HEX" handle form, or a friendly name (e.g. "ether1") â€” names are resolved via getall.
+        // "*HEX" handle form, or a friendly name (e.g. "ether1") — names are resolved via getall.
         private int ResolveRecordId(int[] handler, WinboxFieldResolver resolver,
             TikCommandDescriptor descriptor, bool required)
         {
@@ -733,7 +733,7 @@ namespace tik4net.WinboxNative
 
             if (required)
             {
-                // The set/remove/move target does not exist (unresolvable .id) â€” same outcome as the API/CLI
+                // The set/remove/move target does not exist (unresolvable .id) — same outcome as the API/CLI
                 // transports' "no such item".
                 var cmd = new TikGenericCommand(this, descriptor.CommandText);
                 throw new TikNoSuchItemException(cmd, new TikTrapSentenceResult(
@@ -752,7 +752,7 @@ namespace tik4net.WinboxNative
                     System.Globalization.CultureInfo.InvariantCulture, out int hexId))
                 return hexId;
             int byName = _idResolver.FindIdByName(handler, resolver, dest);
-            return byName; // -1 if not found â†’ move to end
+            return byName; // -1 if not found → move to end
         }
 
         private static string FindParam(TikCommandDescriptor descriptor, string name)
@@ -762,7 +762,7 @@ namespace tik4net.WinboxNative
             return null;
         }
 
-        // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Helpers ─────────────────────────────────────────────────────────────
 
         // Expand environment variables and resolve relative paths against the current directory.
         // Called at open time so %VAR% and paths like ".\.tik4net" or "../cache" work transparently.
@@ -785,7 +785,7 @@ namespace tik4net.WinboxNative
                 : new Dictionary<string, int>();
         }
 
-        // "/interface/print" â†’ "/interface"; strips the trailing read verb segment.
+        // "/interface/print" → "/interface"; strips the trailing read verb segment.
         private static string ApiPathOf(string commandText)
         {
             if (string.IsNullOrWhiteSpace(commandText)) return "";
@@ -802,7 +802,7 @@ namespace tik4net.WinboxNative
             return p.TrimEnd('/');
         }
 
-        // Last path segment, lower-cased: "/interface/set" â†’ "set".
+        // Last path segment, lower-cased: "/interface/set" → "set".
         private static string VerbOf(string commandText)
         {
             if (string.IsNullOrWhiteSpace(commandText)) return "print";
@@ -810,7 +810,7 @@ namespace tik4net.WinboxNative
             return segs[segs.Length - 1].ToLowerInvariant();
         }
 
-        // Strip the trailing write-verb segment: "/interface/set" â†’ "/interface".
+        // Strip the trailing write-verb segment: "/interface/set" → "/interface".
         private static string StripVerb(string commandText)
         {
             if (string.IsNullOrWhiteSpace(commandText)) return "";
