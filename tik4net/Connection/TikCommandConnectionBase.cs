@@ -17,7 +17,7 @@ namespace tik4net.Connection
     ///   <item><see cref="Open(string, string, string)"/> / <see cref="Open(string, int, string, string)"/></item>
     ///   <item><see cref="OpenAsync(string, string, string)"/> / <see cref="OpenAsync(string, int, string, string)"/></item>
     ///   <item><see cref="Close"/></item>
-    ///   <item>the four CRUD hooks <see cref="RunPrint"/>, <see cref="RunAdd"/>, <see cref="RunNonQuery"/>, <see cref="RunScalarGet"/>.</item>
+    ///   <item>the three CRUD hooks <see cref="RunPrint"/>, <see cref="RunAdd"/>, <see cref="RunNonQuery"/>.</item>
     /// </list>
     /// </summary>
     public abstract class TikCommandConnectionBase : ITikConnection, ITikConnectionCapabilities
@@ -137,11 +137,6 @@ namespace tik4net.Connection
         /// Executes a non-query command (set, remove, enable, disable, move, unset, reboot, …).
         /// </summary>
         internal abstract void RunNonQuery(TikCommandDescriptor descriptor);
-
-        /// <summary>
-        /// Executes a scalar <c>get</c> command and returns the raw value.
-        /// </summary>
-        internal abstract string RunScalarGet(string cliText);
 
         // ── ITikConnection — Command factory ──────────────────────────────────
 
@@ -272,12 +267,16 @@ namespace tik4net.Connection
         /// </summary>
         protected bool RowTracingEnabled => DebugEnabled || OnReadRow != null || OnWriteRow != null;
 
+        /// <summary>Short tag prefixing <see cref="DebugEnabled"/> trace lines (e.g. <c>CLI&gt;&gt;</c>).
+        /// Transports override it so the debug output names the right channel (CLI / REST / …).</summary>
+        protected virtual string DiagnosticPrefix => "CLI";
+
         /// <summary>Fires <see cref="OnWriteRow"/> and writes a debug line when <see cref="DebugEnabled"/>.</summary>
         protected void FireWriteRow(string word)
         {
             OnWriteRow?.Invoke(this, new TikConnectionCommCallbackEventArgs(word));
             if (DebugEnabled)
-                System.Diagnostics.Debug.WriteLine("CLI>> " + word);
+                System.Diagnostics.Debug.WriteLine(DiagnosticPrefix + ">> " + word);
         }
 
         /// <summary>Fires <see cref="OnReadRow"/> and writes a (truncated) debug line when <see cref="DebugEnabled"/>.</summary>
@@ -285,7 +284,7 @@ namespace tik4net.Connection
         {
             OnReadRow?.Invoke(this, new TikConnectionCommCallbackEventArgs(word));
             if (DebugEnabled)
-                System.Diagnostics.Debug.WriteLine("CLI<< " + (word != null && word.Length > 200 ? word.Substring(0, 200) + "..." : word));
+                System.Diagnostics.Debug.WriteLine(DiagnosticPrefix + "<< " + (word != null && word.Length > 200 ? word.Substring(0, 200) + "..." : word));
         }
 
         // ── Private helpers ────────────────────────────────────────────────────

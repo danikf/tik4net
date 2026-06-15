@@ -8,8 +8,8 @@ namespace tik4net.Connection
     /// (<c>ExecuteAsync</c>/<c>LoadAsync</c>). Kept off the neutral <see cref="TikCommandConnectionBase"/> so the
     /// base stays CRUD-only — mirrors how <c>ITikConnectionCapabilities</c> is an opt-in interface rather than a
     /// throwing base member. <see cref="TikGenericCommand.ExecuteAsync"/> checks for this interface and throws
-    /// <see cref="NotSupportedException"/> only when the active transport does not implement it. Currently
-    /// implemented by the native WinBox M2 connection.
+    /// <see cref="NotSupportedException"/> only when the active transport does not implement it. Implemented by
+    /// the CLI transports (<c>CliConnectionBase</c>, via polling) and the native WinBox M2 connection.
     /// </summary>
     internal interface ITikMonitorTransport
     {

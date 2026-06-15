@@ -6,7 +6,7 @@ namespace tik4net.Connection
 {
     /// <summary>
     /// Transport-neutral RouterOS command. Holds path + parameters and delegates execution to the
-    /// owning <see cref="TikCommandConnectionBase"/> CRUD hooks (RunPrint/RunAdd/RunNonQuery/RunScalarGet);
+    /// owning <see cref="TikCommandConnectionBase"/> CRUD hooks (RunPrint/RunAdd/RunNonQuery);
     /// it does not itself build any transport-specific (CLI text / native M2) payload.
     /// </summary>
     internal class TikGenericCommand : ITikCommand

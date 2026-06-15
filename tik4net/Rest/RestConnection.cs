@@ -5,8 +5,8 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
+using tik4net.Connection;
 
 namespace tik4net.Rest
 {
@@ -14,28 +14,33 @@ namespace tik4net.Rest
     /// MikroTik RouterOS REST API connection (HTTP/HTTPS).
     /// Requires RouterOS 7.1+ with www or www-ssl service enabled.
     /// </summary>
-    public class RestConnection : ITikConnection, ITikConnectionCapabilities
+    /// <remarks>
+    /// Rides the shared <see cref="TikCommandConnectionBase"/>: the command factory, low-level
+    /// <see cref="TikCommandConnectionBase.CallCommandSync(string[])"/> dispatch, diagnostics and the generic
+    /// <see cref="ITikCommand"/> (<see cref="TikGenericCommand"/>) are inherited. REST only supplies the three
+    /// CRUD hooks (<see cref="RunPrint"/>/<see cref="RunAdd"/>/<see cref="RunNonQuery"/>) implemented over HTTP
+    /// plus the request build (<see cref="RestRequestBuilder"/>), JSON parsing and HTTP-status→exception mapping.
+    /// <para>Capability is <see cref="TikConnectionCapability.Crud"/> only — REST is stateless, so there is no
+    /// Listen/Streaming and no Safe Mode (each call is an independent HTTP request, so RouterOS cannot bind
+    /// safe mode's rollback-on-disconnect to "the connection"; the inherited <c>SafeMode*</c> methods throw).</para>
+    /// </remarks>
+    public class RestConnection : TikCommandConnectionBase
     {
         private readonly bool _useSsl;
         private readonly bool _allowInvalidCert;
         private HttpClient _httpClient;
         private string _baseUrl;
         private string _authHeader;
-        private bool _isOpened;
 
-        public bool DebugEnabled { get; set; }
-        public bool IsOpened => _isOpened;
-        public Encoding Encoding { get; set; } = Encoding.UTF8;
-        public bool SendTagWithSyncCommand { get; set; }  // no-op for REST
-        public int SendTimeout { get; set; } = 30000;
-        public int ReceiveTimeout { get; set; } = 30000;
+        /// <inheritdoc/>
+        protected override string DiagnosticPrefix => "REST";
 
-        public event EventHandler<TikConnectionCommCallbackEventArgs> OnReadRow;
-        public event EventHandler<TikConnectionCommCallbackEventArgs> OnWriteRow;
+        /// <summary>REST supports only CRUD (no Listen/Streaming/SafeMode).</summary>
+        public override TikConnectionCapability Capabilities => TikConnectionCapability.Crud;
 
-        public TikConnectionCapability Capabilities
-            => TikConnectionCapability.Crud;
-
+        /// <summary>Creates a REST connection.</summary>
+        /// <param name="useSsl">Use HTTPS (port 443) instead of HTTP (port 80).</param>
+        /// <param name="allowInvalidCert">When <paramref name="useSsl"/>, accept self-signed/invalid certificates.</param>
         public RestConnection(bool useSsl = false, bool allowInvalidCert = true)
         {
             _useSsl = useSsl;
@@ -43,28 +48,23 @@ namespace tik4net.Rest
             DebugEnabled = System.Diagnostics.Debugger.IsAttached;
         }
 
-        // ── Open ──────────────────────────────────────────────────────────────
+        // ── Open / Close ──────────────────────────────────────────────────────
 
-        public void Open(string host, string user, string password)
-        {
-            int port = _useSsl ? 443 : 80;
-            OpenInternal(host, port, user, password);
-        }
+        /// <inheritdoc/>
+        public override void Open(string host, string user, string password)
+            => OpenInternal(host, _useSsl ? 443 : 80, user, password);
 
-        public void Open(string host, int port, string user, string password)
-        {
-            OpenInternal(host, port, user, password);
-        }
+        /// <inheritdoc/>
+        public override void Open(string host, int port, string user, string password)
+            => OpenInternal(host, port, user, password);
 
-        public Task OpenAsync(string host, string user, string password)
-        {
-            return Task.Run(() => Open(host, user, password));
-        }
+        /// <inheritdoc/>
+        public override Task OpenAsync(string host, string user, string password)
+            => Task.Run(() => Open(host, user, password));
 
-        public Task OpenAsync(string host, int port, string user, string password)
-        {
-            return Task.Run(() => Open(host, port, user, password));
-        }
+        /// <inheritdoc/>
+        public override Task OpenAsync(string host, int port, string user, string password)
+            => Task.Run(() => Open(host, port, user, password));
 
         private void OpenInternal(string host, int port, string user, string password)
         {
@@ -83,12 +83,12 @@ namespace tik4net.Rest
             _httpClient.DefaultRequestHeaders.Authorization =
                 AuthenticationHeaderValue.Parse(_authHeader);
 
-            // Probe: verify connectivity and credentials
+            // Probe: verify connectivity and credentials.
             try
             {
-                var probe = SendHttpSync(new HttpRequestMessage(HttpMethod.Get, _baseUrl + "/system/resource"));
+                SendHttpSync(new HttpRequestMessage(HttpMethod.Get, _baseUrl + "/system/resource"));
                 // 401 = wrong credentials, already handled by SendHttpSync → TikConnectionLoginException
-                _isOpened = true;
+                SetOpened();
             }
             catch (TikConnectionLoginException)
             {
@@ -104,178 +104,60 @@ namespace tik4net.Rest
             }
         }
 
-        // ── Close ─────────────────────────────────────────────────────────────
-
-        public void Close()
+        /// <inheritdoc/>
+        public override void Close()
         {
-            _isOpened = false;
+            SetClosed();
             _httpClient?.Dispose();
             _httpClient = null;
         }
 
-        public void Dispose() => Close();
-
-        // ── Safe Mode ─────────────────────────────────────────────────────────
-        // REST is stateless (each call is an independent HTTP request), so RouterOS cannot keep safe mode
-        // bound to "the connection" and the automatic rollback-on-disconnect it depends on does not work.
-        // The /safe-mode/* commands execute, but provide no protection — so they are refused here and the
-        // SafeMode capability is not reported. Use the binary API or a CLI transport for real safe mode.
-
-        private const string RestSafeModeUnsupported =
-            "REST is stateless and cannot bind RouterOS Safe Mode to a connection (no rollback-on-disconnect). " +
-            "Use the binary API or a CLI transport (Telnet / MAC-Telnet / WinBox CLI).";
+        // ── CRUD hooks (over HTTP) ─────────────────────────────────────────────
 
         /// <inheritdoc/>
-        public void SafeModeTake() => throw new NotSupportedException(RestSafeModeUnsupported);
+        internal override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)
+            => ExecuteRequestList(descriptor.CommandText, descriptor.Parameters);
 
         /// <inheritdoc/>
-        public void SafeModeRelease() => throw new NotSupportedException(RestSafeModeUnsupported);
+        internal override string RunAdd(TikCommandDescriptor descriptor)
+        {
+            var single = ExecuteRequestSingle(descriptor.CommandText, descriptor.Parameters);
+            string id = null;
+            single?.TryGetResponseField(TikSpecialProperties.Id, out id);
+            return id;
+        }
 
         /// <inheritdoc/>
-        public void SafeModeUnroll() => throw new NotSupportedException(RestSafeModeUnsupported);
+        internal override void RunNonQuery(TikCommandDescriptor descriptor)
+            => ExecuteRequest(descriptor.CommandText, descriptor.Parameters);
 
-        /// <inheritdoc/>
-        public bool SafeModeGet() => false;
+        // ── HTTP execution ─────────────────────────────────────────────────────
 
-        // ── Command factory ───────────────────────────────────────────────────
-
-        public ITikCommand CreateCommand()
-            => new RestCommand(this);
-
-        public ITikCommand CreateCommand(TikCommandParameterFormat defaultParameterFormat)
-            => new RestCommand(this, defaultParameterFormat);
-
-        public ITikCommand CreateCommand(string commandText, params ITikCommandParameter[] parameters)
-            => new RestCommand(this, commandText, parameters);
-
-        public ITikCommand CreateCommand(string commandText, TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] parameters)
-            => new RestCommand(this, commandText, defaultParameterFormat, parameters);
-
-        public ITikCommand CreateCommandAndParameters(string commandText, params string[] parameterNamesAndValues)
-        {
-            var cmd = new RestCommand(this, commandText);
-            cmd.AddParameterAndValues(parameterNamesAndValues);
-            return cmd;
-        }
-
-        public ITikCommand CreateCommandAndParameters(string commandText, TikCommandParameterFormat defaultParameterFormat, params string[] parameterNamesAndValues)
-        {
-            var cmd = new RestCommand(this, commandText, defaultParameterFormat);
-            cmd.AddParameterAndValues(parameterNamesAndValues);
-            return cmd;
-        }
-
-        public ITikCommandParameter CreateParameter(string name, string value)
-            => new RestCommandParameter(name, value);
-
-        public ITikCommandParameter CreateParameter(string name, string value, TikCommandParameterFormat parameterFormat)
-            => new RestCommandParameter(name, value, parameterFormat);
-
-        // ── CallCommandSync (low-level) ────────────────────────────────────────
-
-        public IEnumerable<ITikSentence> CallCommandSync(params string[] commandRows)
-            => CallCommandSync((IEnumerable<string>)commandRows);
-
-        public IEnumerable<ITikSentence> CallCommandSync(IEnumerable<string> commandRows)
-        {
-            var rows = commandRows.ToArray();
-            if (rows.Length == 0)
-                throw new ArgumentException("commandRows must not be empty.");
-
-            string commandText = rows[0];
-
-            // Parse remaining rows as parameters
-            var parameters = new List<ITikCommandParameter>();
-            for (int i = 1; i < rows.Length; i++)
-            {
-                string row = rows[i];
-                if (row.StartsWith(".tag=") || row.StartsWith(".tag ="))
-                    continue;  // tags are ignored in REST
-
-                if (row.StartsWith("?"))
-                {
-                    // Filter param: ?name=value or ?=name=value
-                    string kv = row.TrimStart('?');
-                    if (kv.StartsWith("="))
-                        kv = kv.Substring(1);
-                    int eq = kv.IndexOf('=');
-                    if (eq >= 0)
-                        parameters.Add(new RestCommandParameter(kv.Substring(0, eq), kv.Substring(eq + 1), TikCommandParameterFormat.Filter));
-                }
-                else if (row.StartsWith("="))
-                {
-                    // NameValue param: =name=value
-                    string kv = row.Substring(1);
-                    int eq = kv.IndexOf('=');
-                    if (eq >= 0)
-                        parameters.Add(new RestCommandParameter(kv.Substring(0, eq), kv.Substring(eq + 1), TikCommandParameterFormat.NameValue));
-                }
-            }
-
-            string verb = commandText.TrimStart('/').Split('/').Last().ToLowerInvariant();
-
-            // For add (PUT), return just a single ITikDoneSentence with ret=".id"
-            // (matching the binary API's !done =ret=*X response format)
-            if (verb == "add")
-            {
-                var single = ExecuteRequestSingle(commandText, parameters);
-                string id = null;
-                if (single != null)
-                    single.TryGetResponseField(TikSpecialProperties.Id, out id);
-                return new List<ITikSentence> { new RestDoneSentence(id) };
-            }
-
-            // For remove / non-query verbs, return just !done
-            if (verb == "remove" || verb == "set" || verb == "unset" || verb == "move"
-                || verb == "enable" || verb == "disable")
-            {
-                ExecuteRequest(commandText, parameters);
-                return new List<ITikSentence> { new RestDoneSentence() };
-            }
-
-            // For reads, return list of !re rows + final !done
-            var result = new List<ITikSentence>();
-            result.AddRange(ExecuteRequestList(commandText, parameters));
-            result.Add(new RestDoneSentence());
-            return result;
-        }
-
-        // ── CallCommandAsync (not supported) ───────────────────────────────────
-
-        public Thread CallCommandAsync(IEnumerable<string> commandRows, string tag, Action<ITikSentence> oneResponseCallback)
-        {
-            throw new NotSupportedException("REST transport does not support asynchronous commands. Use a transport that reports Listen capability.");
-        }
-
-        // ── Internal HTTP execution used by RestCommand ────────────────────────
-
-        internal void ExecuteRequest(string commandText, IList<ITikCommandParameter> parameters)
+        private void ExecuteRequest(string commandText, IList<ITikCommandParameter> parameters)
         {
             EnsureOpened();
             var req = RestRequestBuilder.Build(commandText, parameters);
             FireWriteRow(req.Method.Method + " " + req.RelativePath);
 
-            var httpReq = BuildHttpRequest(req);
-            var httpResp = SendHttpSync(httpReq);
+            var httpResp = SendHttpSync(BuildHttpRequest(req));
             var body = httpResp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
             FireReadRow(body);
             // parse errors only; we don't return anything
             ParseErrorOrIgnore(commandText, body, (int)httpResp.StatusCode, parameters);
         }
 
-        internal IList<RestReSentence> ExecuteRequestList(string commandText, IList<ITikCommandParameter> parameters)
+        private IList<TikRecordSentence> ExecuteRequestList(string commandText, IList<ITikCommandParameter> parameters)
         {
             EnsureOpened();
             var req = RestRequestBuilder.Build(commandText, parameters);
             FireWriteRow(req.Method.Method + " " + req.RelativePath);
 
-            var httpReq = BuildHttpRequest(req);
-            var httpResp = SendHttpSync(httpReq);
+            var httpResp = SendHttpSync(BuildHttpRequest(req));
             var body = httpResp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
             FireReadRow(body);
 
             if (string.IsNullOrWhiteSpace(body) || body == "null" || body == "[]" || body == "{}")
-                return new List<RestReSentence>();
+                return new List<TikRecordSentence>();
 
             // Try to detect error first
             ParseErrorOrIgnore(commandText, body, (int)httpResp.StatusCode, parameters);
@@ -283,14 +165,13 @@ namespace tik4net.Rest
             return ParseResponseList(body);
         }
 
-        internal RestReSentence ExecuteRequestSingle(string commandText, IList<ITikCommandParameter> parameters)
+        private TikRecordSentence ExecuteRequestSingle(string commandText, IList<ITikCommandParameter> parameters)
         {
             EnsureOpened();
             var req = RestRequestBuilder.Build(commandText, parameters);
             FireWriteRow(req.Method.Method + " " + req.RelativePath);
 
-            var httpReq = BuildHttpRequest(req);
-            var httpResp = SendHttpSync(httpReq);
+            var httpResp = SendHttpSync(BuildHttpRequest(req));
             var body = httpResp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
             FireReadRow(body);
 
@@ -299,7 +180,6 @@ namespace tik4net.Rest
 
             ParseErrorOrIgnore(commandText, body, (int)httpResp.StatusCode, parameters);
 
-            // Single object response
             return ParseSingleObject(body);
         }
 
@@ -311,9 +191,7 @@ namespace tik4net.Rest
             httpReq.Headers.Authorization = AuthenticationHeaderValue.Parse(_authHeader);
 
             if (req.JsonBody != null)
-            {
                 httpReq.Content = new StringContent(req.JsonBody, Encoding.UTF8, "application/json");
-            }
             return httpReq;
         }
 
@@ -325,12 +203,6 @@ namespace tik4net.Rest
                 throw new TikConnectionLoginException(new Exception("HTTP 401 Unauthorized — check credentials."));
 
             return response;
-        }
-
-        private void EnsureOpened()
-        {
-            if (!_isOpened || _httpClient == null)
-                throw new TikConnectionNotOpenException("REST connection is not open.");
         }
 
         // ── Response parsing ───────────────────────────────────────────────────
@@ -362,9 +234,8 @@ namespace tik4net.Rest
             // Check both the combined message and the detail field independently for known patterns
             string checkText = ((detail ?? "") + " " + (message ?? "") + " " + fullMessage).ToLowerInvariant();
 
-            // Create a synthetic RestCommand to pass to exceptions
-            var fakeCmd = new RestCommand(this, commandText, parameters.ToArray());
-            var trapSentence = new RestTrapSentence(fullMessage);
+            var fakeCmd = new TikGenericCommand(this, commandText, parameters.ToArray());
+            var trapSentence = new TikTrapSentenceResult(fullMessage);
 
             if (checkText.Contains("no such command") || checkText.Contains("no such directory"))
                 throw new TikNoSuchCommandException(fakeCmd, trapSentence);
@@ -376,34 +247,32 @@ namespace tik4net.Rest
             throw new TikCommandTrapException(fakeCmd, trapSentence);
         }
 
-        private static IList<RestReSentence> ParseResponseList(string body)
+        private static IList<TikRecordSentence> ParseResponseList(string body)
         {
             body = body.Trim();
 
             if (body.StartsWith("["))
             {
                 // JSON array
-                var result = new List<RestReSentence>();
+                var result = new List<TikRecordSentence>();
                 using (var doc = JsonDocument.Parse(body))
                 {
                     foreach (var el in doc.RootElement.EnumerateArray())
-                    {
                         result.Add(ParseJsonObject(el));
-                    }
                 }
                 return result;
             }
-            else if (body.StartsWith("{"))
+            if (body.StartsWith("{"))
             {
                 // Single object returned as list
                 var single = ParseSingleObject(body);
-                return single != null ? new List<RestReSentence> { single } : new List<RestReSentence>();
+                return single != null ? new List<TikRecordSentence> { single } : new List<TikRecordSentence>();
             }
 
-            return new List<RestReSentence>();
+            return new List<TikRecordSentence>();
         }
 
-        private static RestReSentence ParseSingleObject(string body)
+        private static TikRecordSentence ParseSingleObject(string body)
         {
             using (var doc = JsonDocument.Parse(body))
             {
@@ -418,7 +287,7 @@ namespace tik4net.Rest
             return null;
         }
 
-        private static RestReSentence ParseJsonObject(JsonElement el)
+        private static TikRecordSentence ParseJsonObject(JsonElement el)
         {
             var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var prop in el.EnumerateObject())
@@ -428,23 +297,7 @@ namespace tik4net.Rest
                     : prop.Value.ToString();
                 fields[prop.Name] = val;
             }
-            return new RestReSentence(fields);
-        }
-
-        // ── Diagnostics ────────────────────────────────────────────────────────
-
-        private void FireWriteRow(string word)
-        {
-            OnWriteRow?.Invoke(this, new TikConnectionCommCallbackEventArgs(word));
-            if (DebugEnabled)
-                System.Diagnostics.Debug.WriteLine("REST>> " + word);
-        }
-
-        private void FireReadRow(string word)
-        {
-            OnReadRow?.Invoke(this, new TikConnectionCommCallbackEventArgs(word));
-            if (DebugEnabled)
-                System.Diagnostics.Debug.WriteLine("REST<< " + (word?.Length > 200 ? word.Substring(0, 200) + "..." : word));
+            return new TikRecordSentence(fields);
         }
     }
 }

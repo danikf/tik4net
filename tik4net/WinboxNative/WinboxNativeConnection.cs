@@ -28,7 +28,7 @@ namespace tik4net.WinboxNative
     /// <see cref="TikConnectionCapability.Listen"/>): <c>.jg</c> <c>type:'query'</c> windows such as
     /// <c>/tool/torch</c>/<c>/tool/profile</c> are polled startâ†’pollâ†’cancel on a background worker.</para>
     /// </remarks>
-    public class WinboxNativeConnection : TikCommandConnectionBase, ITikMonitorTransport
+    public class WinboxNativeConnection : TikCommandConnectionBase, ITikMonitorTransport, IPollingMonitorHost
     {
         /// <summary>Default WinBox TCP port.</summary>
         public const int DefaultPort = 8291;
@@ -166,6 +166,16 @@ namespace tik4net.WinboxNative
 
         /// <inheritdoc/>
         internal override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)
+        {
+            // Serialise the M2 channel: the transport is request/reply, so a concurrent CRUD call or
+            // monitor poll on another thread must not interleave its request with ours. Background workers
+            // already hold _cmdLock and call RunPrintCore directly (the semaphore is not reentrant).
+            _cmdLock.Wait();
+            try { return RunPrintCore(descriptor); }
+            finally { _cmdLock.Release(); }
+        }
+
+        private IList<TikRecordSentence> RunPrintCore(TikCommandDescriptor descriptor)
         {
             EnsureNativeOpen();
 
@@ -494,15 +504,18 @@ namespace tik4net.WinboxNative
             EnsureNativeOpen();
             // descriptor.CommandText is "/path/add"; the resolution path is the parent.
             string apiPath = StripVerb(descriptor.CommandText);
-            var (handler, resolver) = ResolveHandlerAndFields(apiPath);
 
-            var fields = EncodeNameValueFields(handler, descriptor, resolver, skipId: true);
+            // Serialise the request/reply channel against concurrent CRUD / monitor polls (see RunPrint).
+            _cmdLock.Wait();
             try
             {
+                var (handler, resolver) = ResolveHandlerAndFields(apiPath);
+                var fields = EncodeNameValueFields(handler, descriptor, resolver, skipId: true);
                 int newId = _ops.Add(handler, fields);
                 return newId >= 0 ? "*" + ((uint)newId).ToString("X") : null;
             }
             catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
+            finally { _cmdLock.Release(); }
         }
 
         /// <inheritdoc/>
@@ -511,10 +524,16 @@ namespace tik4net.WinboxNative
             EnsureNativeOpen();
             string verb = VerbOf(descriptor.CommandText);
             string apiPath = StripVerb(descriptor.CommandText);
-            var (handler, resolver) = ResolveHandlerAndFields(apiPath);
 
-            try { RunVerb(verb, apiPath, handler, resolver, descriptor); }
+            // Serialise the request/reply channel against concurrent CRUD / monitor polls (see RunPrint).
+            _cmdLock.Wait();
+            try
+            {
+                var (handler, resolver) = ResolveHandlerAndFields(apiPath);
+                RunVerb(verb, apiPath, handler, resolver, descriptor);
+            }
             catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
+            finally { _cmdLock.Release(); }
         }
 
         private void RunVerb(string verb, string apiPath, int[] handler, WinboxFieldResolver resolver,
@@ -572,10 +591,6 @@ namespace tik4net.WinboxNative
             }
         }
 
-        /// <inheritdoc/>
-        internal override string RunScalarGet(string cliText)
-            => throw new NotSupportedException(
-                "WinBox native scalar get is not implemented yet. Use ExecuteList/LoadAll, or a WinboxCli/Api connection.");
 
         // â”€â”€ Streaming monitor (ExecuteAsync / LoadAsync) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -646,16 +661,16 @@ namespace tik4net.WinboxNative
                 // Diff config fields only — runtime counters (ro:1: rx-byte, link-downs, …) tick every poll and
                 // would otherwise make every row look "changed", whereas RouterOS listen emits on real changes.
                 var volatileFields = ReadOnlyFieldNames(listPath);
-                return StartWorker("winbox-native-listen",
-                    handle => ListenLoop(printDescriptor, volatileFields, handle, onRow, onError, onDone));
+                return PollingMonitorEngine.StartWorker("winbox-native-listen",
+                    handle => PollingMonitorEngine.ListenLoop(this, printDescriptor, volatileFields, 1000, handle, onRow, onError, onDone));
             }
 
             // /path/print (LoadAsync) â€” a one-shot async list, not a streaming window: run the print off the
             // calling thread, emit each row, then complete. No monitor cycle is involved.
             if (verb == "print" || verb == "getall")
             {
-                return StartWorker("winbox-native-asynclist",
-                    handle => AsyncListOnce(descriptor, handle, onRow, onError, onDone));
+                return PollingMonitorEngine.StartWorker("winbox-native-asynclist",
+                    handle => PollingMonitorEngine.AsyncListOnce(this, descriptor, handle, onRow, onError, onDone));
             }
 
             // Otherwise a streaming-monitor window (/tool/torch, /tool/profile, /interface/monitor-traffic, â€¦).
@@ -682,19 +697,30 @@ namespace tik4net.WinboxNative
             var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath));
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
-            return StartWorker("winbox-native-monitor",
+            return PollingMonitorEngine.StartWorker("winbox-native-monitor",
                 handle => MonitorLoop(spec, descriptor, resolver, keyToName, keyToField, handle, onRow, onError, onDone));
         }
 
-        // Spins up a background worker bound to a fresh TikMonitorHandle and returns the handle.
-        private TikMonitorHandle StartWorker(string name, Action<TikMonitorHandle> body)
+        // ── IPollingMonitorHost (shared listen/async-list scaffolding lives in PollingMonitorEngine) ──
+
+        /// <inheritdoc/>
+        bool IPollingMonitorHost.IsOpen => IsOpened;
+
+        /// <inheritdoc/>
+        IList<TikRecordSentence> IPollingMonitorHost.PollSnapshot(TikCommandDescriptor printDescriptor)
         {
-            var handle = new TikMonitorHandle();
-            var worker = new Thread(() => body(handle)) { IsBackground = true, Name = name };
-            handle.AttachThread(worker);
-            worker.Start();
-            return handle;
+            // Serialise the M2 channel against concurrent CRUD / monitor polls (see RunPrint). The engine
+            // owns no lock, so the snapshot acquires it here and calls the unlocked core.
+            _cmdLock.Wait();
+            try { return RunPrintCore(printDescriptor); }
+            finally { _cmdLock.Release(); }
         }
+
+        /// <inheritdoc/>
+        TikTrapSentenceResult IPollingMonitorHost.ToTrap(Exception ex)
+            => ex is WinboxM2OperationException m
+                ? new TikTrapSentenceResult(m.Message, $"0x{m.Code:X}", m.ErrorText)
+                : new TikTrapSentenceResult(ex.Message);
 
         // The monitor worker: encode request fields â†’ start â†’ poll loop (emit decoded rows, sleep autorefresh,
         // honour cancel/finished) â†’ cancel. Request-field encoding runs here (not on the caller) so a runtime
@@ -741,11 +767,11 @@ namespace tik4net.WinboxNative
             }
             catch (WinboxM2OperationException ex)
             {
-                if (!MonitorStopping(handle)) onError?.Invoke(new TikTrapSentenceResult(ex.Message, $"0x{ex.Code:X}", ex.ErrorText));
+                if (!PollingMonitorEngine.Stopping(this, handle)) onError?.Invoke(new TikTrapSentenceResult(ex.Message, $"0x{ex.Code:X}", ex.ErrorText));
             }
             catch (Exception ex)
             {
-                if (!MonitorStopping(handle)) onError?.Invoke(new TikTrapSentenceResult(ex.Message));
+                if (!PollingMonitorEngine.Stopping(this, handle)) onError?.Invoke(new TikTrapSentenceResult(ex.Message));
             }
             finally
             {
@@ -757,107 +783,6 @@ namespace tik4net.WinboxNative
                 }
                 onDone?.Invoke();
             }
-        }
-
-        // A monitor worker is "stopping" (so a transport error is expected, not reported) when the caller
-        // cancelled or the connection was closed out from under the poll — both are graceful, not failures.
-        private bool MonitorStopping(TikMonitorHandle handle) => handle.CancelRequested || !IsOpened;
-
-        // Async one-shot list (LoadAsync on a /print path): one getall off-thread, emit rows, complete.
-        private void AsyncListOnce(TikCommandDescriptor descriptor, TikMonitorHandle handle,
-            Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
-        {
-            try
-            {
-                IList<TikRecordSentence> rows;
-                _cmdLock.Wait();
-                try { rows = RunPrint(descriptor); }
-                finally { _cmdLock.Release(); }
-
-                foreach (var row in rows)
-                {
-                    if (handle.CancelRequested) break;
-                    onRow?.Invoke(row);
-                }
-            }
-            catch (WinboxM2OperationException ex)
-            {
-                if (!MonitorStopping(handle)) onError?.Invoke(new TikTrapSentenceResult(ex.Message, $"0x{ex.Code:X}", ex.ErrorText));
-            }
-            catch (Exception ex)
-            {
-                if (!MonitorStopping(handle)) onError?.Invoke(new TikTrapSentenceResult(ex.Message));
-            }
-            finally { onDone?.Invoke(); }
-        }
-
-        // /listen emulation: poll the table and diff snapshots by .id. The first pass seeds silently (RouterOS
-        // listen only pushes future deltas, never replays the table); afterwards an added/changed row is emitted
-        // as itself, and a vanished .id as a synthetic ".dead=true" record. onDone fires once when cancelled.
-        private void ListenLoop(TikCommandDescriptor printDescriptor, ICollection<string> volatileFields,
-            TikMonitorHandle handle,
-            Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
-        {
-            try
-            {
-                var lastSig = new Dictionary<string, string>(StringComparer.Ordinal); // .id â†’ row signature
-                bool seeded = false;
-                while (!handle.CancelRequested)
-                {
-                    IList<TikRecordSentence> rows;
-                    _cmdLock.Wait();
-                    try { rows = RunPrint(printDescriptor); }
-                    finally { _cmdLock.Release(); }
-
-                    var seen = new HashSet<string>(StringComparer.Ordinal);
-                    foreach (var row in rows)
-                    {
-                        string rid = row.GetResponseFieldOrDefault(TikSpecialProperties.Id, null);
-                        if (rid == null) continue;
-                        seen.Add(rid);
-                        string sig = RowSignature(row, volatileFields);
-                        bool isNewOrChanged = !lastSig.TryGetValue(rid, out var prev) || prev != sig;
-                        lastSig[rid] = sig;
-                        if (seeded && isNewOrChanged)
-                            onRow?.Invoke(row);
-                    }
-
-                    if (seeded)
-                        foreach (var goneId in lastSig.Keys.Where(k => !seen.Contains(k)).ToList())
-                        {
-                            lastSig.Remove(goneId);
-                            onRow?.Invoke(new TikRecordSentence(new Dictionary<string, string>
-                            {
-                                { TikSpecialProperties.Id, goneId },
-                                { ".dead", "true" },
-                            }));
-                        }
-                    seeded = true;
-
-                    int slept = 0;
-                    while (slept < 1000 && !handle.CancelRequested) { Thread.Sleep(50); slept += 50; }
-                }
-            }
-            catch (WinboxM2OperationException ex)
-            {
-                if (!MonitorStopping(handle)) onError?.Invoke(new TikTrapSentenceResult(ex.Message, $"0x{ex.Code:X}", ex.ErrorText));
-            }
-            catch (Exception ex)
-            {
-                if (!MonitorStopping(handle)) onError?.Invoke(new TikTrapSentenceResult(ex.Message));
-            }
-            finally { onDone?.Invoke(); }
-        }
-
-        // Canonical signature of a record's config fields (sorted key=value), used to detect changes between
-        // listen polls. Volatile runtime fields (ro:1 counters/status) are excluded so the diff reflects real
-        // config/identity changes, not every counter tick.
-        private static string RowSignature(TikRecordSentence row, ICollection<string> volatileFields)
-        {
-            return string.Join("|", row.Words
-                .Where(kv => volatileFields == null || !volatileFields.Contains(kv.Key))
-                .OrderBy(k => k.Key, StringComparer.Ordinal)
-                .Select(kv => kv.Key + "=" + kv.Value));
         }
 
         // The set of read-only (ro:1) field names for a table's handler — the volatile runtime fields a listen

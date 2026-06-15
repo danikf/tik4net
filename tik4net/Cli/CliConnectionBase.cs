@@ -26,7 +26,7 @@ namespace tik4net.Cli
     /// escape sequences stripped (<see cref="VtStripper.StripAnsi"/>) and any terminal echo /
     /// prompt trimmed by the transport before being returned — the core layer only sees data lines.
     /// </summary>
-    public abstract class CliConnectionBase : TikCommandConnectionBase, ITikMonitorTransport
+    public abstract class CliConnectionBase : TikCommandConnectionBase, ITikMonitorTransport, IPollingMonitorHost
     {
         /// <summary>Interval between monitor-snapshot polls (ms). Sub-second so callers see a fresh reading
         /// promptly; RouterOS GUI/webfig refresh ~1 s but a terminal snapshot is cheap.</summary>
@@ -323,21 +323,6 @@ namespace tik4net.Cli
             CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
         }
 
-        /// <summary>
-        /// Executes a scalar <c>get</c> command (already fully built by the command) and returns the raw value.
-        /// </summary>
-        internal override string RunScalarGet(string cliText)
-        {
-            EnsureOpened();
-            string output = ExecuteCliCommand(cliText);
-            // Error-check so RouterOS error text (e.g. "input does not match any value of value-name",
-            // "syntax error …") is surfaced as the correct exception instead of leaking as a value.
-            CliErrorParser.ThrowIfError(output, new TikGenericCommand(this, cliText));
-            if (string.IsNullOrWhiteSpace(output))
-                return null;
-            return output.Trim();
-        }
-
         // ── Streaming monitor / async / listen (ITikMonitorTransport) ──────────
 
         /// <summary>
@@ -365,48 +350,46 @@ namespace tik4net.Cli
             {
                 string listPath = StripLastSegment(descriptor.CommandText);
                 var printDescriptor = new TikCommandDescriptor(listPath + "/print", descriptor.Parameters);
-                return StartWorker("cli-listen", h => ListenLoop(printDescriptor, h, onRow, onError, onDone));
+                return PollingMonitorEngine.StartWorker("cli-listen",
+                    h => PollingMonitorEngine.ListenLoop(this, printDescriptor, null, ListenPollIntervalMs, h, onRow, onError, onDone));
             }
 
             if (verb == "print" || verb == "getall")
-                return StartWorker("cli-asynclist", h => AsyncListOnce(descriptor, h, onRow, onError, onDone));
+                return PollingMonitorEngine.StartWorker("cli-asynclist",
+                    h => PollingMonitorEngine.AsyncListOnce(this, descriptor, h, onRow, onError, onDone));
 
             string modifier = CliMonitorVerbs.SnapshotModifier(verb);
             switch (CliMonitorVerbs.Classify(verb))
             {
                 case CliMonitorVerbs.Kind.Once:
                     // Self-terminating (ping/traceroute): run the snapshot once, emit rows, complete.
-                    return StartWorker("cli-monitor-once",
+                    return PollingMonitorEngine.StartWorker("cli-monitor-once",
                         h => SnapshotOnce(descriptor, modifier, h, onRow, onError, onDone));
 
                 case CliMonitorVerbs.Kind.InteractiveOnly:
                     // Cannot be polled over a terminal — report a guiding error (not a throw, so onDone still
                     // fires and the async contract is honoured) and finish.
-                    return StartWorker("cli-monitor-interactive",
+                    return PollingMonitorEngine.StartWorker("cli-monitor-interactive",
                         h => InteractiveOnlyEnd(descriptor, onError, onDone));
 
                 default:
                     // Continuous monitor: re-issue the snapshot on a timer until cancelled.
-                    return StartWorker("cli-monitor",
+                    return PollingMonitorEngine.StartWorker("cli-monitor",
                         h => MonitorPollLoop(descriptor, modifier, h, onRow, onError, onDone));
             }
         }
 
-        // Spins up a background worker bound to a fresh TikMonitorHandle and returns the handle.
-        private TikMonitorHandle StartWorker(string name, Action<TikMonitorHandle> body)
-        {
-            var handle = new TikMonitorHandle();
-            var worker = new Thread(() => body(handle)) { IsBackground = true, Name = name };
-            handle.AttachThread(worker);
-            worker.Start();
-            return handle;
-        }
+        // ── IPollingMonitorHost (shared listen/async-list scaffolding lives in PollingMonitorEngine) ──
 
-        // A worker is "stopping" (so a transport error is expected, not reported) when the caller cancelled or
-        // the connection was closed out from under the poll — both are graceful, not failures.
-        private bool MonitorStopping(TikMonitorHandle handle) => handle.CancelRequested || !IsOpened;
+        /// <inheritdoc/>
+        bool IPollingMonitorHost.IsOpen => IsOpened;
 
-        private static TikTrapSentenceResult ToTrap(Exception ex) => new TikTrapSentenceResult(ex.Message);
+        /// <inheritdoc/>
+        IList<TikRecordSentence> IPollingMonitorHost.PollSnapshot(TikCommandDescriptor printDescriptor)
+            => RunPrint(printDescriptor);   // RunPrint serialises via ExecuteCliCommand's _cmdLock
+
+        /// <inheritdoc/>
+        TikTrapSentenceResult IPollingMonitorHost.ToTrap(Exception ex) => new TikTrapSentenceResult(ex.Message);
 
         // Monitor poll loop: re-issue the one-shot snapshot, emit each record, sleep, honour cancel.
         private void MonitorPollLoop(TikCommandDescriptor descriptor, string snapshotModifier, TikMonitorHandle handle,
@@ -426,12 +409,12 @@ namespace tik4net.Cli
                         if (handle.CancelRequested) break;
                         onRow?.Invoke(row);
                     }
-                    SleepInterruptible(MonitorPollIntervalMs, handle);
+                    PollingMonitorEngine.SleepInterruptible(MonitorPollIntervalMs, handle);
                 }
             }
             catch (Exception ex)
             {
-                if (!MonitorStopping(handle)) onError?.Invoke(ToTrap(ex));
+                if (!PollingMonitorEngine.Stopping(this, handle)) onError?.Invoke(new TikTrapSentenceResult(ex.Message));
             }
             finally { onDone?.Invoke(); }
         }
@@ -456,7 +439,7 @@ namespace tik4net.Cli
             }
             catch (Exception ex)
             {
-                if (!MonitorStopping(handle)) onError?.Invoke(ToTrap(ex));
+                if (!PollingMonitorEngine.Stopping(this, handle)) onError?.Invoke(new TikTrapSentenceResult(ex.Message));
             }
             finally { onDone?.Invoke(); }
         }
@@ -473,99 +456,6 @@ namespace tik4net.Cli
                     "transport (Streaming capability) for this command."));
             }
             finally { onDone?.Invoke(); }
-        }
-
-        // Async one-shot list (LoadAsync on a /print path): one read off-thread, emit rows, complete.
-        // Filter (?...) words are stripped from the printed command and evaluated CLIENT-SIDE via the shared
-        // query-stack — the CLI 'where' builder cannot express the RouterOS postfix stack (?#| / ?#& / ?#!),
-        // so OR/AND/NOT queries would otherwise return nothing. Mirrors the WinBox native getall path.
-        private void AsyncListOnce(TikCommandDescriptor descriptor, TikMonitorHandle handle,
-            Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
-        {
-            try
-            {
-                var filters = descriptor.Parameters
-                    .Where(p => p.ParameterFormat == TikCommandParameterFormat.Filter).ToList();
-                var nonFilter = descriptor.Parameters
-                    .Where(p => p.ParameterFormat != TikCommandParameterFormat.Filter).ToList();
-                var printDescriptor = new TikCommandDescriptor(descriptor.CommandText, nonFilter);
-
-                foreach (var row in RunPrint(printDescriptor))
-                {
-                    if (handle.CancelRequested) break;
-                    if (filters.Count == 0 || TikQueryStack.Matches(row, filters))
-                        onRow?.Invoke(row);
-                }
-            }
-            catch (Exception ex)
-            {
-                if (!MonitorStopping(handle)) onError?.Invoke(ToTrap(ex));
-            }
-            finally { onDone?.Invoke(); }
-        }
-
-        // /listen emulation: poll the table and diff snapshots by .id. The first pass seeds silently (RouterOS
-        // listen only pushes future deltas, never replays the table); afterwards an added/changed row is emitted
-        // as itself, and a vanished .id as a synthetic ".dead=true" record. onDone fires once when cancelled.
-        private void ListenLoop(TikCommandDescriptor printDescriptor, TikMonitorHandle handle,
-            Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
-        {
-            try
-            {
-                var lastSig = new Dictionary<string, string>(StringComparer.Ordinal); // .id → row signature
-                bool seeded = false;
-                while (!handle.CancelRequested)
-                {
-                    IList<TikRecordSentence> rows = RunPrint(printDescriptor);
-                    var seen = new HashSet<string>(StringComparer.Ordinal);
-                    foreach (var row in rows)
-                    {
-                        string rid = row.GetResponseFieldOrDefault(TikSpecialProperties.Id, null);
-                        if (rid == null) continue;
-                        seen.Add(rid);
-                        string sig = RowSignature(row);
-                        bool changed = !lastSig.TryGetValue(rid, out var prev) || prev != sig;
-                        lastSig[rid] = sig;
-                        if (seeded && changed) onRow?.Invoke(row);
-                    }
-
-                    if (seeded)
-                        foreach (var goneId in lastSig.Keys.Where(k => !seen.Contains(k)).ToList())
-                        {
-                            lastSig.Remove(goneId);
-                            onRow?.Invoke(new TikRecordSentence(new Dictionary<string, string>
-                            {
-                                { TikSpecialProperties.Id, goneId },
-                                { ".dead", "true" },
-                            }));
-                        }
-                    seeded = true;
-
-                    SleepInterruptible(ListenPollIntervalMs, handle);
-                }
-            }
-            catch (Exception ex)
-            {
-                if (!MonitorStopping(handle)) onError?.Invoke(ToTrap(ex));
-            }
-            finally { onDone?.Invoke(); }
-        }
-
-        // Canonical signature of a record (sorted key=value), used to detect changes between listen polls.
-        // Unlike the native transport, CLI has no per-field read-only metadata, so all fields are compared;
-        // listen is intended for config tables, where runtime counters are not present in 'print detail'.
-        private static string RowSignature(TikRecordSentence row)
-        {
-            return string.Join("|", row.Words
-                .OrderBy(k => k.Key, StringComparer.Ordinal)
-                .Select(kv => kv.Key + "=" + kv.Value));
-        }
-
-        // Sleep in short slices so Cancel/close is responsive.
-        private static void SleepInterruptible(int totalMs, TikMonitorHandle handle)
-        {
-            int slept = 0;
-            while (slept < totalMs && !handle.CancelRequested) { Thread.Sleep(50); slept += 50; }
         }
 
         // Returns the command path with its last (verb) segment removed (e.g. "/interface/listen" → "/interface").
