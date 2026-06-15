@@ -18,9 +18,10 @@ namespace tik4net.Telnet
         /// <summary>Default Telnet port.</summary>
         public const int DefaultPort = 23;
 
-        private TelnetClient _client;
+        /// <inheritdoc/>
+        protected override string TransportName => "Telnet";
 
-        // ── Open ──────────────────────────────────────────────────────────────
+        // ── Open (Close + driver plumbing live in CliConnectionBase) ───────────
 
         /// <inheritdoc/>
         public override void Open(string host, string user, string password)
@@ -29,24 +30,8 @@ namespace tik4net.Telnet
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
         {
-            var client = new TelnetClient(Encoding, ReceiveTimeout);
-            client.Connect(host, port, SendTimeout);
-            try
-            {
-                client.LoginAsync(user, password, CancellationToken.None).GetAwaiter().GetResult();
-            }
-            catch (TikConnectionLoginException)
-            {
-                client.Close();
-                throw;
-            }
-            catch (Exception ex)
-            {
-                client.Close();
-                throw new TikConnectionLoginException(ex);
-            }
-            _client = client;
-            SetOpened();
+            var (login, send, sendRaw, close) = BuildTransport(host, port, user, password);
+            OpenWith(login, send, sendRaw, close);
         }
 
         /// <inheritdoc/>
@@ -54,54 +39,24 @@ namespace tik4net.Telnet
             => OpenAsync(host, DefaultPort, user, password);
 
         /// <inheritdoc/>
-        public override async Task OpenAsync(string host, int port, string user, string password)
+        public override Task OpenAsync(string host, int port, string user, string password)
+        {
+            var (login, send, sendRaw, close) = BuildTransport(host, port, user, password);
+            return OpenWithAsync(login, send, sendRaw, close);
+        }
+
+        // Build the Telnet client and the delegates that drive it (connect+login, send, send-raw, close).
+        private (Func<CancellationToken, Task>, Func<string, CancellationToken, Task<string>>,
+            Func<byte[], CancellationToken, Task<string>>, Action)
+            BuildTransport(string host, int port, string user, string password)
         {
             var client = new TelnetClient(Encoding, ReceiveTimeout);
-            client.Connect(host, port, SendTimeout);
-            try
+            Func<CancellationToken, Task> login = async ct =>
             {
-                await client.LoginAsync(user, password, CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (TikConnectionLoginException)
-            {
-                client.Close();
-                throw;
-            }
-            catch (Exception ex)
-            {
-                client.Close();
-                throw new TikConnectionLoginException(ex);
-            }
-            _client = client;
-            SetOpened();
-        }
-
-        // ── Close ─────────────────────────────────────────────────────────────
-
-        /// <inheritdoc/>
-        public override void Close()
-        {
-            _client?.Close();
-            _client = null;
-            SetClosed();
-        }
-
-        // ── Core execution ────────────────────────────────────────────────────
-
-        /// <inheritdoc/>
-        protected override Task<string> ExecuteCliCommandCoreAsync(string cliText, CancellationToken ct)
-        {
-            if (_client == null)
-                throw new TikConnectionNotOpenException("Telnet connection is not open.");
-            return _client.SendCommandAndReadAsync(cliText, ct);
-        }
-
-        /// <inheritdoc/>
-        protected override Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
-        {
-            if (_client == null)
-                throw new TikConnectionNotOpenException("Telnet connection is not open.");
-            return _client.SendRawAndReadAsync(raw, ct);
+                client.Connect(host, port, SendTimeout);
+                await client.LoginAsync(user, password, ct).ConfigureAwait(false);
+            };
+            return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync, client.Close);
         }
     }
 }

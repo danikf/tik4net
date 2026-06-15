@@ -39,9 +39,10 @@ namespace tik4net.WinboxCli
         /// </summary>
         public int ConnectTimeout { get; set; } = 15000;
 
-        private WinboxCliClient _client;
+        /// <inheritdoc/>
+        protected override string TransportName => "WinBox CLI";
 
-        // ── Open ──────────────────────────────────────────────────────────────
+        // ── Open (Close + driver plumbing live in CliConnectionBase) ───────────
 
         /// <inheritdoc/>
         public override void Open(string host, string user, string password)
@@ -50,23 +51,8 @@ namespace tik4net.WinboxCli
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
         {
-            var client = new WinboxCliClient(new tik4net.Winbox.WinboxM2Session(), Encoding, ReceiveTimeout, ConnectTimeout);
-            try
-            {
-                client.LoginAsync(host, port, user, password, CancellationToken.None).GetAwaiter().GetResult();
-            }
-            catch (TikConnectionLoginException)
-            {
-                client.Dispose();
-                throw;
-            }
-            catch (Exception ex)
-            {
-                client.Dispose();
-                throw new TikConnectionLoginException(ex);
-            }
-            _client = client;
-            SetOpened();
+            var (login, send, sendRaw, close) = BuildTransport(host, port, user, password);
+            OpenWith(login, send, sendRaw, close);
         }
 
         /// <inheritdoc/>
@@ -74,54 +60,21 @@ namespace tik4net.WinboxCli
             => OpenAsync(host, DefaultPort, user, password);
 
         /// <inheritdoc/>
-        public override async Task OpenAsync(string host, int port, string user, string password)
+        public override Task OpenAsync(string host, int port, string user, string password)
+        {
+            var (login, send, sendRaw, close) = BuildTransport(host, port, user, password);
+            return OpenWithAsync(login, send, sendRaw, close);
+        }
+
+        // Build the WinBox-CLI client (mepty terminal over the TCP M2 channel) and the delegates that drive it.
+        private (Func<CancellationToken, Task>, Func<string, CancellationToken, Task<string>>,
+            Func<byte[], CancellationToken, Task<string>>, Action)
+            BuildTransport(string host, int port, string user, string password)
         {
             var client = new WinboxCliClient(new tik4net.Winbox.WinboxM2Session(), Encoding, ReceiveTimeout, ConnectTimeout);
-            try
-            {
-                await client.LoginAsync(host, port, user, password, CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (TikConnectionLoginException)
-            {
-                client.Dispose();
-                throw;
-            }
-            catch (Exception ex)
-            {
-                client.Dispose();
-                throw new TikConnectionLoginException(ex);
-            }
-            _client = client;
-            SetOpened();
-        }
-
-        // ── Close ─────────────────────────────────────────────────────────────
-
-        /// <inheritdoc/>
-        public override void Close()
-        {
-            _client?.TryCloseSession();
-            _client?.Dispose();
-            _client = null;
-            SetClosed();
-        }
-
-        // ── Core execution ────────────────────────────────────────────────────
-
-        /// <inheritdoc/>
-        protected override Task<string> ExecuteCliCommandCoreAsync(string cliText, CancellationToken ct)
-        {
-            if (_client == null)
-                throw new TikConnectionNotOpenException("WinBox CLI connection is not open.");
-            return _client.SendCommandAndReadAsync(cliText, ct);
-        }
-
-        /// <inheritdoc/>
-        protected override Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
-        {
-            if (_client == null)
-                throw new TikConnectionNotOpenException("WinBox CLI connection is not open.");
-            return _client.SendRawAndReadAsync(raw, ct);
+            Func<CancellationToken, Task> login = ct => client.LoginAsync(host, port, user, password, ct);
+            Action close = () => { client.TryCloseSession(); client.Dispose(); };
+            return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync, close);
         }
     }
 }

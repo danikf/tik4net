@@ -14,17 +14,19 @@ namespace tik4net.Cli
     /// (<see cref="ITikConnection"/> surface, command factory, low-level dispatch, diagnostics) lives in
     /// <see cref="TikCommandConnectionBase"/>.
     ///
-    /// Concrete transport subclasses must implement:
+    /// Concrete transport subclasses must:
     /// <list type="bullet">
-    ///   <item><see cref="TikCommandConnectionBase.Open(string, string, string)"/> / <see cref="TikCommandConnectionBase.Open(string, int, string, string)"/></item>
-    ///   <item><see cref="TikCommandConnectionBase.OpenAsync(string, string, string)"/> / <see cref="TikCommandConnectionBase.OpenAsync(string, int, string, string)"/></item>
-    ///   <item><see cref="TikCommandConnectionBase.Close"/></item>
-    ///   <item><see cref="ExecuteCliCommandCoreAsync"/> — send one CLI string, return the response text.</item>
+    ///   <item>implement <see cref="TikCommandConnectionBase.Open(string, string, string)"/> /
+    ///     <see cref="TikCommandConnectionBase.Open(string, int, string, string)"/> and their async
+    ///     counterparts by building the concrete transport client and calling <see cref="OpenWith"/> /
+    ///     <see cref="OpenWithAsync"/> with delegates bound to it;</item>
+    ///   <item>implement <see cref="TransportName"/> (shown in the "not open" diagnostic).</item>
     /// </list>
+    /// <see cref="Close"/> and the not-open guards are provided by this base (R6).
     ///
-    /// The response text passed to <see cref="ExecuteCliCommandCoreAsync"/> must already have ANSI
-    /// escape sequences stripped (<see cref="VtStripper.StripAnsi"/>) and any terminal echo /
-    /// prompt trimmed by the transport before being returned — the core layer only sees data lines.
+    /// The text returned by the send delegate must already have ANSI escape sequences stripped
+    /// (<see cref="VtStripper.StripAnsi"/>) and any terminal echo / prompt trimmed by the transport — the
+    /// core layer only sees data lines.
     /// </summary>
     public abstract class CliConnectionBase : TikCommandConnectionBase, ITikMonitorTransport, IPollingMonitorHost
     {
@@ -45,28 +47,82 @@ namespace tik4net.Cli
         public override TikConnectionCapability Capabilities
             => TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode;
 
-        // ── Transport — subclass contract ─────────────────────────────────────
+        // ── Transport driver — subclass contract ──────────────────────────────
+
+        // The active transport client is held as three delegates wired up by the leaf transport in its Open
+        // (R6): send a CLI command, send raw bytes, and close. Holding delegates rather than a typed client
+        // keeps the leaf's concrete client type (and any internal transport interface) out of this public
+        // base's signatures — no public-API leak (a protected member cannot expose an internal type, CS0057)
+        // — while still centralising the open/close/guard boilerplate the five CLI transports used to repeat.
+        private Func<string, CancellationToken, Task<string>> _send;
+        private Func<byte[], CancellationToken, Task<string>> _sendRaw;
+        private Action _close;
+
+        /// <summary>Short transport name shown in the "connection is not open" diagnostic (e.g. "Telnet").</summary>
+        protected abstract string TransportName { get; }
 
         /// <summary>
-        /// Sends <paramref name="cliText"/> to the router and returns the cleaned response text
-        /// (ANSI stripped, echo and prompt removed). The implementation is responsible for all
-        /// transport-specific concerns: framing, echo removal, paging (without-paging or equivalent).
+        /// Shared open: runs <paramref name="login"/> under the standard guard (a
+        /// <see cref="TikConnectionLoginException"/> is rethrown as-is; any other exception is wrapped in one
+        /// and the half-open client closed), then registers the driver delegates and marks the connection
+        /// opened. Leaf transports build their concrete client and call this with delegates bound to it.
         /// </summary>
-        protected abstract Task<string> ExecuteCliCommandCoreAsync(string cliText, CancellationToken ct);
+        protected void OpenWith(Func<CancellationToken, Task> login,
+            Func<string, CancellationToken, Task<string>> send,
+            Func<byte[], CancellationToken, Task<string>> sendRaw, Action close)
+            => OpenWithAsync(login, send, sendRaw, close).GetAwaiter().GetResult();
+
+        /// <summary>Async counterpart of <see cref="OpenWith"/>.</summary>
+        protected async Task OpenWithAsync(Func<CancellationToken, Task> login,
+            Func<string, CancellationToken, Task<string>> send,
+            Func<byte[], CancellationToken, Task<string>> sendRaw, Action close)
+        {
+            try
+            {
+                await login(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (TikConnectionLoginException)
+            {
+                close();
+                throw;
+            }
+            catch (Exception ex)
+            {
+                close();
+                throw new TikConnectionLoginException(ex);
+            }
+            _send = send;
+            _sendRaw = sendRaw;
+            _close = close;
+            SetOpened();
+        }
+
+        /// <inheritdoc/>
+        public override void Close()
+        {
+            _close?.Invoke();
+            _send = null;
+            _sendRaw = null;
+            _close = null;
+            SetClosed();
+        }
+
+        private TikConnectionNotOpenException NotOpen()
+            => new TikConnectionNotOpenException($"{TransportName} connection is not open.");
 
         // ── Semaphore-serialised execution ────────────────────────────────────
 
         /// <summary>
-        /// Serialises access, fires diagnostics events, then delegates to
-        /// <see cref="ExecuteCliCommandCoreAsync"/>.
+        /// Serialises access, fires diagnostics events, then sends the command through the transport.
         /// </summary>
         protected async Task<string> ExecuteCliCommandAsync(string cliText, CancellationToken ct)
         {
+            var send = _send ?? throw NotOpen();
             await _cmdLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
                 FireWriteRow(cliText);
-                string result = await ExecuteCliCommandCoreAsync(cliText, ct).ConfigureAwait(false);
+                string result = await send(cliText, ct).ConfigureAwait(false);
                 FireReadRow(result);
                 return result;
             }
@@ -89,11 +145,12 @@ namespace tik4net.Cli
 
         /// <summary>
         /// Sends raw bytes (a control key such as Ctrl+X, with no line terminator) to the terminal and returns
-        /// the ANSI-stripped response read up to the next stable shell prompt. Unlike
-        /// <see cref="ExecuteCliCommandCoreAsync"/> the bytes are sent verbatim and the output is not
-        /// echo/prompt-stripped — the caller inspects the raw terminal reaction (e.g. <c>[Safe Mode taken]</c>).
+        /// the ANSI-stripped response read up to the next stable shell prompt. The bytes are sent verbatim and
+        /// the output is not echo/prompt-stripped — the caller inspects the raw terminal reaction
+        /// (e.g. <c>[Safe Mode taken]</c>). Drives the leaf transport's send-raw delegate registered in Open.
         /// </summary>
-        protected abstract Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct);
+        protected Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
+            => (_sendRaw ?? throw NotOpen())(raw, ct);
 
         private string SendControlKey(byte key)
         {

@@ -40,9 +40,10 @@ namespace tik4net.MacTelnet
         /// </summary>
         public int ConnectTimeout { get; set; } = 15000;
 
-        private MacTelnetUdpClient _client;
+        /// <inheritdoc/>
+        protected override string TransportName => "MAC-Telnet";
 
-        // ── Open ──────────────────────────────────────────────────────────────
+        // ── Open (Close + driver plumbing live in CliConnectionBase) ───────────
 
         /// <inheritdoc/>
         public override void Open(string host, string user, string password)
@@ -51,24 +52,8 @@ namespace tik4net.MacTelnet
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
         {
-            // port parameter kept for interface compatibility; MAC-Telnet always uses UDP 20561
-            var client = new MacTelnetUdpClient(Encoding, ReceiveTimeout, ConnectTimeout, RouterMac);
-            try
-            {
-                client.LoginAsync(host, user, password, CancellationToken.None).GetAwaiter().GetResult();
-            }
-            catch (TikConnectionLoginException)
-            {
-                client.Dispose();
-                throw;
-            }
-            catch (Exception ex)
-            {
-                client.Dispose();
-                throw new TikConnectionLoginException(ex);
-            }
-            _client = client;
-            SetOpened();
+            var (login, send, sendRaw, close) = BuildTransport(host, port, user, password);
+            OpenWith(login, send, sendRaw, close);
         }
 
         /// <inheritdoc/>
@@ -76,54 +61,22 @@ namespace tik4net.MacTelnet
             => OpenAsync(host, DefaultPort, user, password);
 
         /// <inheritdoc/>
-        public override async Task OpenAsync(string host, int port, string user, string password)
+        public override Task OpenAsync(string host, int port, string user, string password)
+        {
+            var (login, send, sendRaw, close) = BuildTransport(host, port, user, password);
+            return OpenWithAsync(login, send, sendRaw, close);
+        }
+
+        // Build the MAC-Telnet client and the delegates that drive it. The port parameter is ignored —
+        // MAC-Telnet always uses UDP 20561; login is by router MAC, discovered via MNDP or RouterMac.
+        private (Func<CancellationToken, Task>, Func<string, CancellationToken, Task<string>>,
+            Func<byte[], CancellationToken, Task<string>>, Action)
+            BuildTransport(string host, int port, string user, string password)
         {
             var client = new MacTelnetUdpClient(Encoding, ReceiveTimeout, ConnectTimeout, RouterMac);
-            try
-            {
-                await client.LoginAsync(host, user, password, CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (TikConnectionLoginException)
-            {
-                client.Dispose();
-                throw;
-            }
-            catch (Exception ex)
-            {
-                client.Dispose();
-                throw new TikConnectionLoginException(ex);
-            }
-            _client = client;
-            SetOpened();
-        }
-
-        // ── Close ─────────────────────────────────────────────────────────────
-
-        /// <inheritdoc/>
-        public override void Close()
-        {
-            _client?.TryCloseSession();
-            _client?.Dispose();
-            _client = null;
-            SetClosed();
-        }
-
-        // ── Core execution ────────────────────────────────────────────────────
-
-        /// <inheritdoc/>
-        protected override Task<string> ExecuteCliCommandCoreAsync(string cliText, CancellationToken ct)
-        {
-            if (_client == null)
-                throw new TikConnectionNotOpenException("MAC-Telnet connection is not open.");
-            return _client.SendCommandAndReadAsync(cliText, ct);
-        }
-
-        /// <inheritdoc/>
-        protected override Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
-        {
-            if (_client == null)
-                throw new TikConnectionNotOpenException("MAC-Telnet connection is not open.");
-            return _client.SendRawAndReadAsync(raw, ct);
+            Func<CancellationToken, Task> login = ct => client.LoginAsync(host, user, password, ct);
+            Action close = () => { client.TryCloseSession(); client.Dispose(); };
+            return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync, close);
         }
     }
 }
