@@ -17,5 +17,6 @@
     <ProjectReference Include="..\tik4net.objects\tik4net.objects.csproj" />
     <ProjectReference Include="..\tik4net\tik4net.csproj" />
     <ProjectReference Include="..\tik4net.testing\tik4net.testing.csproj" />
+    <ProjectReference Include="..\tik4net.ssh\tik4net.ssh.csproj" />
   </ItemGroup>
 </Project>

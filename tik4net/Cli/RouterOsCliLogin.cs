@@ -130,6 +130,25 @@ namespace tik4net.Cli
             }
 
             // 3. Resolve to the shell prompt, dismissing the change-password nag with Ctrl-C.
+            await ResolveToPromptAsync(readUntil, sendBytes, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Reads until the RouterOS shell prompt appears, dismissing the "change your password" nag with
+        /// Ctrl-C (up to <see cref="MaxNagRounds"/> times). Shared by transports that authenticate
+        /// <b>before</b> the shell starts (e.g. SSH, where the transport layer does the login) and so skip
+        /// the <c>Login:</c>/<c>Password:</c> exchange but still must settle the terminal to a usable prompt.
+        /// Telnet/MAC-Telnet reach this as the final step of <see cref="LoginAsync"/>.
+        /// </summary>
+        /// <param name="readUntil">Reads (ANSI-stripped) until the predicate holds or the receive deadline expires.</param>
+        /// <param name="sendBytes">Sends raw bytes (used for Ctrl-C).</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="TikConnectionLoginException">The shell prompt was never reached.</exception>
+        public static async Task ResolveToPromptAsync(
+            Func<Func<string, bool>, CancellationToken, Task<string>> readUntil,
+            Func<byte[], CancellationToken, Task> sendBytes,
+            CancellationToken ct)
+        {
             string result = await readUntil(
                 s => IsShellPrompt(s) || IsChangePasswordNag(s) || IsLoginFailure(s), ct).ConfigureAwait(false);
 

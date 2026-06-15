@@ -8,3 +8,8 @@ using System.Runtime.InteropServices;
 // Allow tik4net.tests to access internal types (EcSrp5, ECPoint, WinboxStreamCrypto, etc.)
 // needed by WinBox protocol PoC clients (chapters G/H) that live in the test project.
 [assembly: InternalsVisibleTo("tik4net.tests")]
+
+// Allow the satellite SSH package (separate NuGet because of its Renci.SshNet dependency)
+// to reuse the shared CLI/PTY helpers (RouterOsCliLogin, Vt100State, CliOutputHelper) without
+// making them public or duplicating them.
+[assembly: InternalsVisibleTo("tik4net.ssh")]

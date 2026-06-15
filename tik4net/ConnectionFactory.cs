@@ -19,6 +19,28 @@ namespace tik4net
     /// <remarks>Consider using <see cref="TikConnectionSetup"/> for new code.</remarks>
     public static class ConnectionFactory
     {
+        // Factories for connection types implemented in satellite packages (e.g. tik4net.ssh), which
+        // core cannot reference directly. Registered at startup via RegisterConnectionFactory and
+        // consulted by CreateConnection before it gives up. ConcurrentDictionary keeps registration
+        // thread-safe without locking the hot path.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<TikConnectionType, Func<ITikConnection>> _externalFactories
+            = new System.Collections.Concurrent.ConcurrentDictionary<TikConnectionType, Func<ITikConnection>>();
+
+        /// <summary>
+        /// Registers a factory for a connection type whose implementation lives in a satellite package
+        /// (one core cannot reference, e.g. <c>tik4net.ssh</c> with its <c>Renci.SshNet</c> dependency).
+        /// Call once at startup before opening that connection type; thereafter
+        /// <see cref="CreateConnection"/> / <see cref="OpenConnection(TikConnectionType, string, string, string)"/>
+        /// can create it like any built-in type. Re-registering the same type replaces the previous factory.
+        /// </summary>
+        /// <param name="connectionType">The connection type the satellite package implements.</param>
+        /// <param name="factory">Creates a fresh, unopened connection instance.</param>
+        public static void RegisterConnectionFactory(TikConnectionType connectionType, Func<ITikConnection> factory)
+        {
+            if (factory == null) throw new ArgumentNullException(nameof(factory));
+            _externalFactories[connectionType] = factory;
+        }
+
         /// <summary>
         /// Creates mikrotik Connection of given type.
         /// </summary>
@@ -50,7 +72,12 @@ namespace tik4net
                 case TikConnectionType.WinboxNativeMac:
                     return new WinboxNativeMacConnection();
                 default:
-                    throw new NotImplementedException(string.Format("Connection type '{0}' not supported.", connectionType));
+                    if (_externalFactories.TryGetValue(connectionType, out var external))
+                        return external();
+                    throw new NotImplementedException(string.Format(
+                        "Connection type '{0}' not supported. If it is implemented in a satellite package "
+                        + "(e.g. tik4net.ssh), call ConnectionFactory.RegisterConnectionFactory(...) first.",
+                        connectionType));
             }
         }
 

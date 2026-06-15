@@ -81,6 +81,11 @@ namespace tik4net.tests
             var transport = ResolveConnectionType();
             if (transport == TikConnectionType.WinboxNative || transport == TikConnectionType.WinboxNativeMac)
                 Assert.Inconclusive("Native WinBox does not support in-place SafeModeUnroll (rollback is disconnect-only).");
+            // SSH cannot use the Ctrl+D discard key (the SSH EOF convention closes the channel); it unrolls
+            // in place via the scriptable /safe-mode/unroll command, available on RouterOS 7.18+. On older
+            // RouterOS SSH degrades to a disconnect-rollback, so the in-place assertion below does not apply.
+            if (transport == TikConnectionType.Ssh && GetMikrotikVersion() < new Version(7, 18))
+                Assert.Inconclusive("SSH in-place SafeModeUnroll requires the scriptable /safe-mode/unroll command (RouterOS 7.18+).");
 
             string name = "safemode-unroll-" + Guid.NewGuid().ToString("N").Substring(0, 8);
             try

@@ -37,9 +37,15 @@ namespace tik4net
         [Obsolete("Use 'Api' version - works for both old and new version of the login", true)]
         ApiSsl_v2,
         /// <summary>
-        /// SSH connection - NOT IMPLEMENTED YET.
+        /// MikroTik RouterOS SSH connection (TCP port 22).
+        /// Provides full CRUD support via the RouterOS CLI over an SSH PTY shell
+        /// (<c>print as-value</c>); Listen and Safe Mode are supported (polling), Streaming is not.
+        /// The implementation lives in the satellite NuGet package <c>tik4net.ssh</c> (separate because
+        /// of its <c>Renci.SshNet</c> dependency). Create it via <c>setup.CreateSshConnection()</c> or
+        /// <c>new tik4net.Ssh.SshConnection()</c>; to use it through <see cref="ConnectionFactory"/> call
+        /// <c>tik4net.Ssh.Tik4NetSsh.Register()</c> once at startup.
+        /// Requires the <c>ssh</c> service to be enabled on the router (<c>/ip/service set ssh disabled=no</c>).
         /// </summary>
-        [Obsolete("For future use.", true)]        
         Ssh,
         /// <summary>
         /// MikroTik RouterOS Telnet connection (plain-text TCP port 23).
