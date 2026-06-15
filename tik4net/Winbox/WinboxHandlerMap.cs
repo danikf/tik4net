@@ -93,6 +93,9 @@ namespace tik4net.Winbox
             ["/system/script"]               = "/system/scripts/script",
             ["/system/scheduler"]            = "/system/scheduler/schedule",
 
+            // ── Log (the live System Log viewer: top-level "Log" menu → "Log Entry" window, handler [3,4]) ──
+            ["/log"]                         = "/log/log-entry",
+
             // ── Routing ──
             ["/routing/bgp/connection"]      = "/routing/bgp/bgp-connection",
             ["/routing/bgp/template"]        = "/routing/bgp/bgp-template",
