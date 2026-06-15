@@ -17,8 +17,11 @@ namespace tik4net
     /// </summary>
     public sealed class TikConnectionSetup
     {
+        /// <summary>Router host name or IP address.</summary>
         public string Host { get; }
+        /// <summary>RouterOS user name used for authentication.</summary>
         public string User { get; }
+        /// <summary>Password for <see cref="User"/> (may be empty).</summary>
         public string Password { get; }
 
         /// <summary>Optional port override. When null the transport default is used (API=8728/8729, REST=80/443).</summary>
@@ -33,6 +36,10 @@ namespace tik4net
         /// </summary>
         public bool AllowInvalidCertificate { get; set; } = true;
 
+        /// <summary>Creates a connection setup for the given router host and credentials.</summary>
+        /// <param name="host">Router host name or IP address.</param>
+        /// <param name="user">RouterOS user name.</param>
+        /// <param name="password">Password for <paramref name="user"/> (may be empty).</param>
         public TikConnectionSetup(string host, string user, string password)
         {
             Guard.ArgumentNotNullOrEmptyString(host, nameof(host));

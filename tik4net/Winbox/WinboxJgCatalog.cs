@@ -136,11 +136,6 @@ namespace tik4net.Winbox
 
         // ── Loading ────────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Ensures the catalog is populated: loads cached <c>.jg</c> for <paramref name="routerVersion"/> from
-        /// <paramref name="cacheDir"/> if present, otherwise fetches via mproxy and caches. Failures are
-        /// tolerated — the resolver falls back to its seed table and the normalizer.
-        /// </summary>
         // The .jg plugin set served by WinBox. roteros.jg holds the core config windows (interface, ip,
         // routing, system); the rest add their feature menus (ppp, hotspot, dhcp/ipv6, secure, tools, wifi).
         // All are best-effort: a router without a package simply won't serve that plugin.
@@ -150,6 +145,11 @@ namespace tik4net.Winbox
             "secure.jg", "advtool.jg", "mpls.jg", "roting4.jg", "wave2.jg", "wlan6.jg",
         };
 
+        /// <summary>
+        /// Ensures the catalog is populated: loads cached <c>.jg</c> for <paramref name="routerVersion"/> from
+        /// <paramref name="cacheDir"/> if present, otherwise fetches via mproxy and caches. Failures are
+        /// tolerated — the resolver falls back to its seed table and the normalizer.
+        /// </summary>
         internal void EnsureLoaded(IWinboxM2Channel channel, string routerVersion, string cacheDir, int timeoutMs)
         {
             if (HasData) return;

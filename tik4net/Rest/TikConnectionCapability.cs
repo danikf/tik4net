@@ -9,11 +9,17 @@ namespace tik4net
     [Flags]
     public enum TikConnectionCapability
     {
+        /// <summary>No capabilities (placeholder / cleared flags).</summary>
         None         = 0,
+        /// <summary>Create/read/update/delete of RouterOS records (load, save, delete). Supported by every transport.</summary>
         Crud         = 1,
+        /// <summary>Live <c>/path/listen</c> change notifications (native on the API; emulated by poll+diff on CLI / WinBox M2).</summary>
         Listen       = 2,
+        /// <summary>Streaming monitor windows (e.g. <c>/interface/monitor-traffic</c>, <c>/tool/torch</c>) that push successive snapshots.</summary>
         Streaming    = 4,
+        /// <summary>Raw sentence access below the O/R mapper (direct <c>!re</c>/<c>!done</c>/<c>!trap</c> words).</summary>
         RawSentences = 8,
+        /// <summary>Per-command tagging for multiplexed concurrent commands on a single channel (binary API <c>.tag</c>).</summary>
         Tagging      = 16,
         /// <summary>
         /// Transport can enter/commit/roll back RouterOS Safe Mode bound to this connection
@@ -31,6 +37,7 @@ namespace tik4net
     /// </summary>
     public interface ITikConnectionCapabilities
     {
+        /// <summary>The set of capabilities this transport supports.</summary>
         TikConnectionCapability Capabilities { get; }
     }
 

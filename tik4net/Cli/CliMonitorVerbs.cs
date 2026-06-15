@@ -23,7 +23,7 @@ namespace tik4net.Cli
     ///
     /// <para>Some monitors are genuinely interactive-only and emit NOTHING in script/as-value context
     /// regardless of modifier — <c>/tool torch</c> was confirmed empty with both <c>once</c> and
-    /// <c>duration</c>. These cannot be polled over a terminal; <see cref="IsInteractiveOnly"/> flags them
+    /// <c>duration</c>. These cannot be polled over a terminal; <see cref="Kind.InteractiveOnly"/> flags them
     /// so the transport fails with guidance (use the binary API transport's Streaming capability instead).</para>
     /// </summary>
     internal static class CliMonitorVerbs

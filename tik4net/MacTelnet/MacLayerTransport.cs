@@ -38,6 +38,9 @@ namespace tik4net.MacTelnet
     /// </summary>
     public abstract class MacLayerTransport : IDisposable
     {
+        // Low-level wire-protocol plumbing (packet/control constants, transport state, framing helpers) is
+        // documented inline rather than with per-member XML docs — suppress the missing-doc warning for them.
+#pragma warning disable CS1591
         // ── Packet type constants ────────────────────────────────────────────────
         protected const byte PKT_SESSIONSTART = 0;
         protected const byte PKT_DATA         = 1;
@@ -440,5 +443,6 @@ namespace tik4net.MacTelnet
         // ── IDisposable ──────────────────────────────────────────────────────────
 
         public void Dispose() => _udp?.Dispose();
+#pragma warning restore CS1591
     }
 }

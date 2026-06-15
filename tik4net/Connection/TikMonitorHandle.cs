@@ -24,7 +24,7 @@ namespace tik4net.Connection
 
     /// <summary>
     /// Cancellation handle for a streaming-monitor command running on a background worker thread
-    /// (see <see cref="TikCommandConnectionBase.RunMonitorAsync"/>). The worker polls the router on a
+    /// (see <see cref="ITikMonitorTransport.RunMonitorAsync"/>). The worker polls the router on a
     /// timer and invokes the row callback; <see cref="Cancel"/> asks it to stop after the current poll,
     /// and <see cref="Join"/> waits for it to finish. Created by the transport, surfaced to callers
     /// indirectly via <see cref="ITikCommand.Cancel"/>/<see cref="ITikCommand.CancelAndJoin()"/>.
