@@ -454,7 +454,15 @@ namespace tik4net.tests
                 return; // expected
             }
 
-            Connection.Delete(newAddr);
+            // Save unexpectedly succeeded (e.g. a transport that did not enforce the duplicate — and may have
+            // stored a mangled interface, so newAddr.Id alone is not reliable). Remove every extra row with
+            // this address except the original (matched by id, which resolves even with a sentinel interface)
+            // so no orphan is left behind, then fail the test.
+            foreach (var extra in Connection.LoadList<IpAddress>(Connection.CreateParameter("address", ipAddr.Address))
+                                            .Where(a => a.Id != ipAddr.Id))
+            {
+                try { Connection.Delete(extra); } catch { /* best-effort orphan cleanup */ }
+            }
             Assert.Fail("Expected TikAlreadyHaveSuchItemException, but Save succeeded and created a duplicate.");
         }
     }

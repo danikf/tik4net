@@ -14,8 +14,11 @@ namespace tik4net.tests
         #region Helper methods
         private void Cleanup_DeteleAddressByIp(string ip)
         {
-            var ipAddress = Connection.LoadSingleOrDefault<Objects.Ip.IpAddress>(Connection.CreateParameter("address", ip));
-            if (ipAddress != null)
+            // Delete ALL rows matching the address — not LoadSingleOrDefault. A stray duplicate (e.g. an
+            // orphan an unstable transport left behind when it failed to resolve the interface and stored a
+            // sentinel handle) would otherwise make LoadSingleOrDefault throw TikCommandAmbiguousResultException
+            // and permanently wedge every CRUD test until the router is cleaned by hand.
+            foreach (var ipAddress in Connection.LoadList<Objects.Ip.IpAddress>(Connection.CreateParameter("address", ip)))
                 Connection.Delete(ipAddress);
         }
 
