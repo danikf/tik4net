@@ -97,6 +97,22 @@ namespace tik4net.WinboxNative
             _handlerMap.AddOverride(apiPath, handler);
         }
 
+        private bool _useGuiNames;
+
+        /// <summary>
+        /// When <c>true</c>, paths and field names may be addressed by the label seen in the <b>WinBox GUI</b>
+        /// (spaces or underscores, any case, abbreviation dots) in addition to the exact RouterOS API name —
+        /// e.g. <c>"MAC_Address"</c> or <c>"MAC Address"</c> resolve to <c>"mac-address"</c>. A name that resolves
+        /// verbatim is never re-normalized, and <see cref="FieldOverride"/>/<see cref="PathOverride"/> still win,
+        /// so this is a best-effort convenience layered under strict API-name resolution. Default <c>false</c>
+        /// (strict, predictable). Decoded output always uses canonical API names regardless of this flag.
+        /// </summary>
+        public bool UseGuiNames
+        {
+            get => _useGuiNames;
+            set { _useGuiNames = value; _handlerMap.UseGuiNames = value; }
+        }
+
         // ── Open / Close ───────────────────────────────────────────────────────
 
         /// <summary>
@@ -217,7 +233,7 @@ namespace tik4net.WinboxNative
                     $"Add one via connection.PathOverride(\"{apiPath}\", new[]{{maj,min}}) " +
                     $"or use a WinboxCli connection."));
             }
-            var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath));
+            var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames);
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
 
@@ -290,7 +306,7 @@ namespace tik4net.WinboxNative
                 ?? FindParam(descriptor, TikSpecialProperties.Id);
             if (string.IsNullOrEmpty(target)) return false;
 
-            var resolver = new WinboxFieldResolver(parentPath, handler, _catalog, OverridesFor(parentPath));
+            var resolver = new WinboxFieldResolver(parentPath, handler, _catalog, OverridesFor(parentPath), _useGuiNames);
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
             int flags = WinboxM2Protocol.GetAllFlags
@@ -565,7 +581,7 @@ namespace tik4net.WinboxNative
                     $"Add a PathOverride(\"{apiPath}\", new[]{{maj,min}}) to a monitor handler, or use a CLI transport."));
             }
 
-            var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath));
+            var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames);
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
             return PollingMonitorEngine.StartWorker("winbox-native-monitor",
@@ -663,7 +679,7 @@ namespace tik4net.WinboxNative
             var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             int[] handler = _handlerMap.Resolve(apiPath);
             if (handler == null) return set;
-            var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath));
+            var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames);
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
             foreach (var kv in keyToField)
@@ -691,7 +707,7 @@ namespace tik4net.WinboxNative
                     $"Add one via connection.PathOverride(\"{apiPath}\", new[]{{maj,min}}) " +
                     $"or use a WinboxCli connection."));
             }
-            var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath));
+            var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames);
             return (handler, resolver);
         }
 

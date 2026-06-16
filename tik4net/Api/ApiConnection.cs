@@ -65,7 +65,8 @@ namespace tik4net.Api
         public TikConnectionCapability Capabilities =>
             TikConnectionCapability.Crud | TikConnectionCapability.Listen
             | TikConnectionCapability.Streaming | TikConnectionCapability.RawSentences
-            | TikConnectionCapability.Tagging | TikConnectionCapability.SafeMode;
+            | TikConnectionCapability.Tagging | TikConnectionCapability.SafeMode
+            | TikConnectionCapability.RawCommand;
 
         public bool IsOpened
         {

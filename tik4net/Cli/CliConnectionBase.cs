@@ -45,7 +45,8 @@ namespace tik4net.Cli
         /// reported — use the binary API for that.
         /// </summary>
         public override TikConnectionCapability Capabilities
-            => TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode;
+            => TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode
+             | TikConnectionCapability.RawCommand;
 
         // ── Transport driver — subclass contract ──────────────────────────────
 
@@ -217,6 +218,18 @@ namespace tik4net.Cli
         {
             EnsureOpened();
 
+            // Raw pass-through (CreateRawCommand): send the command line verbatim — no CliCommandBuilder,
+            // no path→CLI rewrite, no where-clause. The caller is responsible for as-value materialisation;
+            // wrapAsValue:true wraps it in ':put [ … as-value]' as a convenience so the output parses.
+            if (descriptor.IsRaw)
+            {
+                string rawCli = descriptor.WrapAsValue
+                    ? WrapRawAsValue(descriptor.CommandText)
+                    : descriptor.CommandText;
+                string rawOutput = ExecuteCliCommand(rawCli);
+                return CliOutputParser.ParseAsValue(rawOutput);
+            }
+
             // Action verbs (e.g. /system/script/run) perform an action and produce no result set over a
             // terminal (no per-record !re output, unlike the binary API) — they belong on the non-query
             // path. Reject them on the read path so the misuse is explicit instead of silently returning an
@@ -378,6 +391,26 @@ namespace tik4net.Cli
             string output = ExecuteCliCommand(cliText);
             CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
         }
+
+        /// <summary>
+        /// Raw pass-through scalar/non-query (CreateRawCommand): sends the command line verbatim and returns the
+        /// cleaned terminal output text (ANSI-stripped, echo/prompt-trimmed by the transport). No error parsing
+        /// by output text — raw mode cannot know what counts as an error for an arbitrary command, so the text is
+        /// returned as-is. Used by <c>ExecuteScalar</c> (e.g. <c>/export</c>) and <c>ExecuteNonQuery</c>.
+        /// </summary>
+        internal override string RunRawText(TikCommandDescriptor descriptor)
+        {
+            EnsureOpened();
+            string rawCli = descriptor.WrapAsValue
+                ? WrapRawAsValue(descriptor.CommandText)
+                : descriptor.CommandText;
+            return (ExecuteCliCommand(rawCli) ?? string.Empty).Trim();
+        }
+
+        // Wraps a verbatim CLI line so RouterOS materialises its as-value output (bare 'print as-value' prints
+        // nothing to a terminal — only script context, i.e. inside ':put [ … ]', emits the as-value line).
+        private static string WrapRawAsValue(string rawCli)
+            => ":put [" + (rawCli ?? string.Empty).Trim() + " as-value]";
 
         // True for verbs that perform an action rather than read records (no result set over a terminal).
         private static bool IsActionVerb(string verb) => verb == "run";

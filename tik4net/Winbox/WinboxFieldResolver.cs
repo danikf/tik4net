@@ -24,14 +24,18 @@ namespace tik4net.Winbox
         private readonly WinboxJgCatalog _catalog;
         // session overrides apiName → key (highest priority)
         private readonly IReadOnlyDictionary<string, int> _overrides;
+        // when true, a field name that does not resolve verbatim is retried through NormalizeLabel
+        // (GUI-name addressing: "MAC Address"/"MAC_Address" → "mac-address"). Opt-in per connection.
+        private readonly bool _useGuiNames;
 
         internal WinboxFieldResolver(string apiPath, int[] handler, WinboxJgCatalog catalog,
-            IReadOnlyDictionary<string, int> overrides)
+            IReadOnlyDictionary<string, int> overrides, bool useGuiNames = false)
         {
             _apiPath = apiPath;
             _handler = handler;
             _catalog = catalog;
             _overrides = overrides ?? new Dictionary<string, int>();
+            _useGuiNames = useGuiNames;
         }
 
         // ── Protocol-constant seeds (stable, hardcoded) ────────────────────────
@@ -185,22 +189,61 @@ namespace tik4net.Winbox
         /// </summary>
         internal int ResolveKey(string apiName)
         {
-            if (_overrides.TryGetValue(apiName, out int ov)) return ov;
-            // Rewrite a shipped API alias to its .jg label (e.g. ping 'address' → 'ping-to') before catalog lookup.
-            apiName = AliasToJg(apiName);
-            // universal system keys (.id/comment) are authoritative; name and other fields come from the .jg.
-            if (SystemSeed.TryGetValue(apiName, out int sys)) return sys;
+            if (TryResolveKey(apiName, out int key)) return key;
 
-            var jg = _catalog?.GetHandlerFields(_handler);
-            if (jg != null && jg.TryGetValue(apiName, out var f)) return f.Key;
-
-            // fallback only when the catalog has no such field (e.g. name → 0x10006 on tables w/o a .jg name).
-            if (FallbackSeed.TryGetValue(apiName, out int fb)) return fb;
+            // GUI-name addressing (opt-in): retry with the label normalizer so a name copied straight from the
+            // WinBox GUI ("MAC Address" / "MAC_Address" / "Dst. Address", any case) resolves to its API field.
+            if (_useGuiNames)
+            {
+                string norm = NormalizeLabel(apiName);
+                if (!string.Equals(norm, apiName, StringComparison.OrdinalIgnoreCase)
+                    && TryResolveKey(norm, out int guiKey))
+                    return guiKey;
+            }
 
             throw new WinboxFieldResolutionException(
                 $"WinBox native: cannot resolve API field '{apiName}' on '{_apiPath}' to an M2 key. " +
                 $"Add a session field override (connection.FieldOverride(\"{_apiPath}\", \"{apiName}\", key)) " +
                 $"or use a WinboxCli connection instead.");
+        }
+
+        /// <summary>
+        /// Single resolution attempt for a field name, in priority order: session override → shipped API alias
+        /// (e.g. ping 'address' → 'ping-to') → universal system keys (.id/comment) → live .jg catalog →
+        /// name/disabled fallback. Returns <c>false</c> (rather than throwing) when none match, so the public
+        /// <see cref="ResolveKey"/> can retry with the GUI-name normalizer.
+        /// </summary>
+        private bool TryResolveKey(string apiName, out int key)
+        {
+            if (_overrides.TryGetValue(apiName, out key)) return true;
+            // Rewrite a shipped API alias to its .jg label (e.g. ping 'address' → 'ping-to') before catalog lookup.
+            string jgName = AliasToJg(apiName);
+            // universal system keys (.id/comment) are authoritative; name and other fields come from the .jg.
+            if (SystemSeed.TryGetValue(jgName, out key)) return true;
+
+            var jg = _catalog?.GetHandlerFields(_handler);
+            if (jg != null && jg.TryGetValue(jgName, out var f)) { key = f.Key; return true; }
+
+            // fallback only when the catalog has no such field (e.g. name → 0x10006 on tables w/o a .jg name).
+            if (FallbackSeed.TryGetValue(jgName, out key)) return true;
+
+            key = 0;
+            return false;
+        }
+
+        /// <summary>
+        /// Maps a possibly GUI-styled field name to the canonical name the catalog/seeds actually know — identity
+        /// when GUI-names is off or the input already resolves, otherwise the label-normalized form when THAT
+        /// resolves. Lets <see cref="EncodeField"/>'s typed <c>.jg</c> lookup and <see cref="ResolveKey"/> agree on
+        /// one name so typed encodings (IP/MAC/enum) still apply for a GUI-named field.
+        /// </summary>
+        private string CanonicalInputName(string apiName)
+        {
+            if (!_useGuiNames || TryResolveKey(apiName, out _)) return apiName;
+            string norm = NormalizeLabel(apiName);
+            if (!string.Equals(norm, apiName, StringComparison.OrdinalIgnoreCase) && TryResolveKey(norm, out _))
+                return norm;
+            return apiName;
         }
 
         // ── Field encode (writes) ──────────────────────────────────────────────
@@ -218,6 +261,9 @@ namespace tik4net.Winbox
         internal List<byte[]> EncodeField(string apiName, string value, Func<int[], string, int?> resolveRef = null,
             bool allowReadOnly = false)
         {
+            // Normalize a GUI-styled name to its canonical API name up front so both ResolveKey and the typed
+            // .jg lookup below agree on it (otherwise a GUI label would resolve a key but miss its typed field).
+            apiName = CanonicalInputName(apiName);
             int key = ResolveKey(apiName);
             var result = new List<byte[]>();
 

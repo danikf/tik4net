@@ -9,7 +9,7 @@ namespace tik4net.Connection
     /// owning <see cref="TikCommandConnectionBase"/> CRUD hooks (RunPrint/RunAdd/RunNonQuery);
     /// it does not itself build any transport-specific (CLI text / native M2) payload.
     /// </summary>
-    internal class TikGenericCommand : ITikCommand
+    internal class TikGenericCommand : ITikCommand, ITikRawCommand
     {
         private readonly List<ITikCommandParameter> _parameters = new List<ITikCommandParameter>();
         private TikCommandConnectionBase _connection;
@@ -17,6 +17,17 @@ namespace tik4net.Connection
         private TikCommandParameterFormat _defaultParameterFormat;
         private volatile bool _isRunning;
         private TikMonitorHandle _monitorHandle;
+
+        // ── Raw pass-through (ITikRawCommand) ──────────────────────────────────
+        // Set by the CreateRawCommand factory. When IsRaw, CommandText is sent verbatim through the
+        // transport (no CliCommandBuilder, no multiline/param normalization); see the raw branches below.
+        bool ITikRawCommand.IsRaw { get => _isRaw; set => _isRaw = value; }
+        bool ITikRawCommand.WrapAsValue { get => _wrapAsValue; set => _wrapAsValue = value; }
+        private bool _isRaw;
+        private bool _wrapAsValue;
+
+        private TikCommandDescriptor BuildRawDescriptor()
+            => new TikCommandDescriptor(_commandText, new List<ITikCommandParameter>(), isRaw: true, wrapAsValue: _wrapAsValue);
 
         public ITikConnection Connection
         {
@@ -110,6 +121,12 @@ namespace tik4net.Connection
             _isRunning = true;
             try
             {
+                if (_isRaw)
+                {
+                    // Fire-and-forget raw send; response discarded.
+                    _connection.RunRawText(BuildRawDescriptor());
+                    return;
+                }
                 var (cmd, p) = NormalizeMultilineCommand(_commandText, _parameters);
                 _connection.RunNonQuery(BuildCommand(cmd, p));
             }
@@ -151,6 +168,20 @@ namespace tik4net.Connection
             _isRunning = true;
             try
             {
+                if (_isRaw)
+                {
+                    // Raw scalar: return the cleaned response text as-is (e.g. /export, /system routerboard print).
+                    // No verb detection / row extraction — raw has no record model.
+                    string rawText = _connection.RunRawText(BuildRawDescriptor());
+                    if (string.IsNullOrEmpty(rawText))
+                    {
+                        if (throwIfMissing)
+                            throw new TikNoSuchItemException(this);
+                        return defaultValue;
+                    }
+                    return rawText;
+                }
+
                 var (normalCmd, normalParams) = NormalizeMultilineCommand(_commandText, _parameters);
                 string verb = TikPath.Verb(normalCmd);
 
@@ -220,8 +251,9 @@ namespace tik4net.Connection
             _isRunning = true;
             try
             {
-                var (cmd, p) = NormalizeMultilineCommand(_commandText, _parameters);
-                var rows = _connection.RunPrint(BuildCommand(cmd, ResolveParamsForRead(p)));
+                var rows = _isRaw
+                    ? _connection.RunPrint(BuildRawDescriptor())
+                    : RunPrintNormalized();
                 if (rows.Count == 0)
                     throw new TikNoSuchItemException(this);
                 if (rows.Count > 1)
@@ -241,8 +273,9 @@ namespace tik4net.Connection
             _isRunning = true;
             try
             {
-                var (cmd, p) = NormalizeMultilineCommand(_commandText, _parameters);
-                var rows = _connection.RunPrint(BuildCommand(cmd, ResolveParamsForRead(p)));
+                var rows = _isRaw
+                    ? _connection.RunPrint(BuildRawDescriptor())
+                    : RunPrintNormalized();
                 if (rows.Count == 0)
                     return null;
                 if (rows.Count > 1)
@@ -272,15 +305,25 @@ namespace tik4net.Connection
             _isRunning = true;
             try
             {
-                var (cmd, baseParams) = NormalizeMultilineCommand(_commandText, _parameters);
-                var paramsForRead = ResolveParamsForRead(baseParams);
                 // proplist is ignored for CLI (as-value always returns all fields)
-                return _connection.RunPrint(BuildCommand(cmd, paramsForRead));
+                return _isRaw
+                    ? _connection.RunPrint(BuildRawDescriptor())
+                    : RunPrintNormalized();
             }
             finally
             {
                 _isRunning = false;
             }
+        }
+
+        /// <summary>
+        /// Normalizes a multiline command + params into a read descriptor and runs the print hook
+        /// (the shared non-raw read path for ExecuteList/ExecuteSingleRow).
+        /// </summary>
+        private IList<TikRecordSentence> RunPrintNormalized()
+        {
+            var (cmd, baseParams) = NormalizeMultilineCommand(_commandText, _parameters);
+            return _connection.RunPrint(BuildCommand(cmd, ResolveParamsForRead(baseParams)));
         }
 
         // ── Unsupported: streaming / async ────────────────────────────────────

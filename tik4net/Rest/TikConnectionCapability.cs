@@ -29,6 +29,15 @@ namespace tik4net
         /// any RouterOS) or native WinBox M2 (RouterOS 7.18+). Stateless REST does not report it.
         /// </summary>
         SafeMode     = 32,
+        /// <summary>
+        /// Transport can run a <b>raw command pass-through</b> (<see cref="ITikConnection"/>.<c>CreateRawCommand</c>):
+        /// a payload in the transport's own dialect sent verbatim, bypassing the structured command builder/mapper.
+        /// The dialect is transport-specific — an API sentence (<c>\n</c>-separated words, lossless <c>!re</c> rows)
+        /// on the binary API, a verbatim CLI line on the CLI transports. WinBox native does NOT report it (its raw
+        /// form would be a numeric M2 message, not a string; use a CLI transport for raw over that channel).
+        /// Distinct from <see cref="RawSentences"/> (read access to raw response sentences below the O/R mapper).
+        /// </summary>
+        RawCommand   = 64,
     }
 
     /// <summary>

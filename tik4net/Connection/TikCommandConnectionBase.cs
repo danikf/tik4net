@@ -138,6 +138,17 @@ namespace tik4net.Connection
         /// </summary>
         internal abstract void RunNonQuery(TikCommandDescriptor descriptor);
 
+        /// <summary>
+        /// Sends a <b>raw</b> pass-through payload (<see cref="TikCommandDescriptor.CommandText"/>) verbatim in the
+        /// transport's dialect and returns the cleaned response text — used by <c>ExecuteScalar</c>/
+        /// <c>ExecuteNonQuery</c> on a raw command (see <c>CreateRawCommand</c>). The default throws; transports
+        /// that declare <see cref="TikConnectionCapability.RawCommand"/> override it. (For raw <c>ExecuteList</c>,
+        /// <see cref="RunPrint"/> handles the <see cref="TikCommandDescriptor.IsRaw"/> descriptor itself.)
+        /// </summary>
+        internal virtual string RunRawText(TikCommandDescriptor descriptor)
+            => throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.RawCommand,
+                "This transport does not support raw command pass-through (CreateRawCommand).");
+
         // ── ITikConnection — Command factory ──────────────────────────────────
 
         /// <inheritdoc/>

@@ -118,6 +118,13 @@ namespace tik4net.Winbox
         private readonly Dictionary<string, int[]> _overrides = new Dictionary<string, int[]>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
+        /// When <c>true</c>, a path that does not resolve verbatim is retried with each segment passed through the
+        /// WinBox label normalizer (GUI-name addressing: <c>/IP/Firewall/Filter</c> or <c>/ip/firewall_filter</c>
+        /// segments → <c>/ip/firewall/filter</c>). Opt-in; mirrors the field resolver's GUI-name retry.
+        /// </summary>
+        internal bool UseGuiNames { get; set; }
+
+        /// <summary>
         /// Supplies the <c>.jg</c>-derived <c>menu-label path → handler</c> map (from
         /// <see cref="WinboxJgCatalog.GetDerivedPaths"/>). Consulted after session overrides.
         /// </summary>
@@ -171,16 +178,47 @@ namespace tik4net.Winbox
         internal int[] Resolve(string apiPath)
         {
             string key = Normalize(apiPath);
-            if (_overrides.TryGetValue(key, out var ov)) return ov;
+            if (TryResolve(key, out var handler)) return handler;
+
+            // GUI-name addressing (opt-in): retry with each segment label-normalized so a path copied from the
+            // WinBox menu tree ("/IP/Firewall/Filter", underscores, mixed case) resolves to its API path.
+            if (UseGuiNames)
+            {
+                string guiKey = NormalizeGui(apiPath);
+                if (!string.Equals(guiKey, key, StringComparison.OrdinalIgnoreCase)
+                    && TryResolve(guiKey, out var guiHandler))
+                    return guiHandler;
+            }
+            return null;
+        }
+
+        // Single resolution attempt for an already-normalized path key: session override → direct .jg-derived
+        // entry → shipped apiPath→menu-label alias against the same derived map. False when none match.
+        private bool TryResolve(string key, out int[] handler)
+        {
+            if (_overrides.TryGetValue(key, out handler)) return true;
             if (_derivedPaths != null)
             {
                 // clean case: the menu label equals the API leaf (e.g. /ip/firewall/connection).
-                if (_derivedPaths.TryGetValue(key, out var direct)) return direct;
+                if (_derivedPaths.TryGetValue(key, out handler)) return true;
                 // irregular case: bridge apiPath → menu-label path, handler still live from the .jg.
                 if (ShippedAlias.TryGetValue(key, out var menuPath)
-                    && _derivedPaths.TryGetValue(menuPath, out var aliased)) return aliased;
+                    && _derivedPaths.TryGetValue(menuPath, out handler)) return true;
             }
-            return null;
+            handler = null;
+            return false;
+        }
+
+        // GUI-name path normalizer: lower-case + slash-trim (Normalize) plus per-segment label normalization
+        // (underscores/spaces/dots → API form), so "/IP/Firewall_Filter" → "/ip/firewall-filter".
+        private static string NormalizeGui(string apiPath)
+        {
+            string p = Normalize(apiPath);
+            var segs = p.Split('/');
+            for (int i = 0; i < segs.Length; i++)
+                if (segs[i].Length > 0)
+                    segs[i] = WinboxFieldResolver.NormalizeLabel(segs[i]);
+            return string.Join("/", segs);
         }
 
         // Strip a trailing verb segment (/interface/print → /interface) and the leading/trailing slash noise.

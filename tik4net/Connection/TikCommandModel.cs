@@ -140,10 +140,42 @@ namespace tik4net.Connection
         internal string CommandText { get; }
         internal IList<ITikCommandParameter> Parameters { get; }
 
-        internal TikCommandDescriptor(string commandText, IList<ITikCommandParameter> parameters)
+        /// <summary>
+        /// When <c>true</c>, <see cref="CommandText"/> is a <b>raw</b> transport-dialect payload that must be sent
+        /// verbatim, bypassing the structured CLI builder/mapper (see <c>CreateRawCommand</c> and the
+        /// <see cref="TikConnectionCapability.RawCommand"/> capability). <see cref="Parameters"/> is ignored.
+        /// </summary>
+        internal bool IsRaw { get; }
+
+        /// <summary>
+        /// Raw-mode convenience: when <c>true</c>, the transport wraps the raw payload so it materialises a
+        /// machine-readable <c>as-value</c> line (CLI: <c>:put [ … as-value]</c>) before parsing. No effect when
+        /// <see cref="IsRaw"/> is <c>false</c>.
+        /// </summary>
+        internal bool WrapAsValue { get; }
+
+        internal TikCommandDescriptor(string commandText, IList<ITikCommandParameter> parameters,
+            bool isRaw = false, bool wrapAsValue = false)
         {
             CommandText = commandText;
             Parameters = parameters;
+            IsRaw = isRaw;
+            WrapAsValue = wrapAsValue;
         }
+    }
+
+    /// <summary>
+    /// Implemented by command objects that can carry a <b>raw</b> pass-through flag (see
+    /// <c>CreateRawCommand</c>). Lets the (assembly-internal) factory mark a command raw without widening the
+    /// public <see cref="ITikCommand"/> surface. Transports that cannot send a string-raw payload simply do
+    /// not declare <see cref="TikConnectionCapability.RawCommand"/>, so the factory fails closed before a raw
+    /// command is ever built for them.
+    /// </summary>
+    internal interface ITikRawCommand
+    {
+        /// <summary>Send <see cref="ITikCommand.CommandText"/> verbatim in the transport dialect, no builder.</summary>
+        bool IsRaw { get; set; }
+        /// <summary>Wrap the raw payload so it yields an <c>as-value</c> line before parsing (CLI convenience).</summary>
+        bool WrapAsValue { get; set; }
     }
 }
