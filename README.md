@@ -1,26 +1,18 @@
 tik4net
 ====
 
-> ## 📢 A note from the maintainer
->
-> **Version 3.6.0 is out!** Thanks to AI tooling I finally had the bandwidth to work through all open PRs and critical bugs. Special thanks to Deantwo and all contributors who helped others while I was away.
->
-> **I am looking for collaborators.** If you are interested in helping maintain this project, please reach out — open an issue or contact me directly.
->
-> **Current release targets `netstandard2.0` only.** This covers .NET Framework 4.6.1+, .NET Core 2.0+, .NET 5/6/7/8/9, Xamarin, and Unity.
->
-> Tested and debugged against **RouterOS 7.21.4** (latest stable).
+tik4net is a .NET `netstandard2.0` library for communicating with MikroTik routers — enabling use in .NET Framework 4.6.1+, .NET Core 2.0+, .NET 5/6/7/8/9, Xamarin, and Unity. It offers a clean, easy-to-use interface that scales from low-level raw API access all the way up to a fully typed O/R mapper. Tested and debugged against **RouterOS 7.21.4** (latest stable).
 
-tik4net is a .NET library for communicating with MikroTik routers via the MikroTik API protocol. It offers a clean, easy-to-use interface that scales from low-level raw API access all the way up to a fully typed O/R mapper.
+> **🆕 Many new connection types!** Beyond the classic API, tik4net now drives the router over REST, Telnet, SSH, MAC-Telnet, and WinBox (terminal + native-M2, over IP or MAC layer). See [Connection types and capabilities](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities). tik4net is the **only .NET library** that speaks **MAC-Telnet** and the **WinBox** protocols.
 
 | Package | NuGet | Description |
 |---|---|---|
 | **tik4net** | [![NuGet](https://img.shields.io/nuget/v/tik4net.svg)](https://www.nuget.org/packages/tik4net) | [Low-level ADO.NET-like API](https://github.com/danikf/tik4net/wiki/ADO.NET-like-API) — synchronous and async R/W access |
 | **tik4net.entities** | [![NuGet](https://img.shields.io/nuget/v/tik4net.entities.svg)](https://www.nuget.org/packages/tik4net.entities) | [High-level O/R mapper](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper) — strongly typed entities, full CRUD. Pulls in `tik4net` automatically. |
 | **tik4net.testing** | [![NuGet](https://img.shields.io/nuget/v/tik4net.testing.svg)](https://www.nuget.org/packages/tik4net.testing) | Unit-testing support — `TikFakeConnection` lets you write tests without a live router |
-| **tik4net.ssh** | [![NuGet](https://img.shields.io/nuget/v/tik4net.ssh.svg)](https://www.nuget.org/packages/tik4net.ssh) | SSH (TCP 22) transport — drives the RouterOS CLI over an SSH shell (full CRUD, Listen, Safe Mode). Separate package because of its `Renci.SshNet` dependency. |
+| **tik4net.ssh** | _will be published in the 4.x release_ | SSH (TCP 22) transport — drives the RouterOS CLI over an SSH shell (full CRUD, Listen, Safe Mode). A separate package because of its `Renci.SshNet` dependency. |
 
-[Tools](https://github.com/danikf/tik4net/wiki/High-level-API-tools) — semi-automatic C# code generators for custom entities (used with tik4net.entities).
+[Tools](https://github.com/danikf/tik4net/wiki/High-level-API-tools) — semi-automatic C# code generators for custom entities (used with tik4net.entities). The repo also ships an [MCP server](https://github.com/danikf/tik4net/wiki/MCP-server) exposing a `mikrotik_call` tool that lets an AI assistant run a command against a live router over any tik4net transport.
 
 # Features
 * Easy to use with [O/R mapper like highlevel API](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper)
@@ -31,6 +23,19 @@ tik4net is a .NET library for communicating with MikroTik routers via the MikroT
 * Includes [MNDP](https://github.com/danikf/tik4net/wiki/MNDP) discovery helper 
 * Easy to understand and well documented code
 
+## Connection types
+
+All transports share the same `ITikConnection` API and O/R mapper — pick one via `TikConnectionType`. See [Connection types and capabilities](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities).
+
+* **Api** — native MikroTik API protocol (TCP 8728); the default, fastest transport with full Listen/Streaming support.
+* **ApiSsl** — the API protocol over TLS (TCP 8729), using a certificate on the router.
+* **Rest** / **RestSsl** — REST API over HTTP (80) / HTTPS (443); requires RouterOS 7.1+.
+* **Ssh** — drives the RouterOS CLI over an SSH shell (TCP 22); full CRUD plus Listen and Safe Mode.
+* **Telnet** — drives the RouterOS CLI over plain-text Telnet (TCP 23); full CRUD.
+* **MacTelnet** — drives the CLI over MAC-Telnet (UDP 20561), reaching the router with no IP route.
+* **WinboxCli** / **WinboxCliMac** — drives the CLI over the encrypted WinBox channel (TCP 8291 / MAC layer).
+* **WinboxNative** / **WinboxNativeMac** — structured WinBox M2 CRUD with no terminal (TCP 8291 / MAC layer).
+
 # Binaries
 
 Install via NuGet — see the package table above, or:
@@ -39,7 +44,7 @@ Install via NuGet — see the package table above, or:
 dotnet add package tik4net.entities  # high-level API (pulls in tik4net)
 dotnet add package tik4net           # low-level API only
 dotnet add package tik4net.testing   # unit-testing support
-dotnet add package tik4net.ssh       # SSH (TCP 22) transport
+# dotnet add package tik4net.ssh     # SSH (TCP 22) transport — will be published in the 4.x release
 ```
 
 See [release notes / version history](https://github.com/danikf/tik4net/wiki/History) for what's new.
@@ -102,7 +107,7 @@ Examples:
 ```
   
 # Looking for help
-* Importing other classes
+* **I am looking for collaborators.** If you are interested in helping maintain this project, please reach out — open an issue or contact me directly.
 * Looking for betatesters
 
 # Roadmap & future
