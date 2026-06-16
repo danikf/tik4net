@@ -40,8 +40,10 @@ jobs:
           } else {
             $v = '${{ github.ref_name }}' -replace '^v', ''
           }
+          $av = ($v -split '-')[0]
           Write-Output "VERSION=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          Write-Host "Publishing version: $v"
+          Write-Output "ASM_VERSION=$av" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Publishing version: $v (assembly: $av)"
 
       - name: Pack tik4net
         run: >
@@ -49,8 +51,8 @@ jobs:
           -c Release
           -o Build
           /p:Version=${{ steps.ver.outputs.VERSION }}
-          /p:AssemblyVersion=${{ steps.ver.outputs.VERSION }}.0
-          /p:FileVersion=${{ steps.ver.outputs.VERSION }}.0
+          /p:AssemblyVersion=${{ steps.ver.outputs.ASM_VERSION }}.0
+          /p:FileVersion=${{ steps.ver.outputs.ASM_VERSION }}.0
 
       - name: Pack tik4net.objects
         run: >
@@ -58,8 +60,8 @@ jobs:
           -c Release
           -o Build
           /p:Version=${{ steps.ver.outputs.VERSION }}
-          /p:AssemblyVersion=${{ steps.ver.outputs.VERSION }}.0
-          /p:FileVersion=${{ steps.ver.outputs.VERSION }}.0
+          /p:AssemblyVersion=${{ steps.ver.outputs.ASM_VERSION }}.0
+          /p:FileVersion=${{ steps.ver.outputs.ASM_VERSION }}.0
 
       - name: Pack tik4net.testing
         run: >
@@ -67,8 +69,8 @@ jobs:
           -c Release
           -o Build
           /p:Version=${{ steps.ver.outputs.VERSION }}
-          /p:AssemblyVersion=${{ steps.ver.outputs.VERSION }}.0
-          /p:FileVersion=${{ steps.ver.outputs.VERSION }}.0
+          /p:AssemblyVersion=${{ steps.ver.outputs.ASM_VERSION }}.0
+          /p:FileVersion=${{ steps.ver.outputs.ASM_VERSION }}.0
 
       - name: Pack tik4net.ssh
         run: >
@@ -76,8 +78,8 @@ jobs:
           -c Release
           -o Build
           /p:Version=${{ steps.ver.outputs.VERSION }}
-          /p:AssemblyVersion=${{ steps.ver.outputs.VERSION }}.0
-          /p:FileVersion=${{ steps.ver.outputs.VERSION }}.0
+          /p:AssemblyVersion=${{ steps.ver.outputs.ASM_VERSION }}.0
+          /p:FileVersion=${{ steps.ver.outputs.ASM_VERSION }}.0
 
       - name: Pack tik4net.mcp (.NET tool)
         run: >
@@ -85,8 +87,8 @@ jobs:
           -c Release
           -o Build
           /p:Version=${{ steps.ver.outputs.VERSION }}
-          /p:AssemblyVersion=${{ steps.ver.outputs.VERSION }}.0
-          /p:FileVersion=${{ steps.ver.outputs.VERSION }}.0
+          /p:AssemblyVersion=${{ steps.ver.outputs.ASM_VERSION }}.0
+          /p:FileVersion=${{ steps.ver.outputs.ASM_VERSION }}.0
 
       - name: Restore Tools (NuGet packages for old-style projects)
         run: nuget restore Tools\tik4net.entityWikiImporter\tik4net.entityWikiImporter.csproj
