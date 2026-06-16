@@ -10,7 +10,7 @@ tik4net is a .NET `netstandard2.0` library for communicating with MikroTik route
 | **tik4net** | [![NuGet](https://img.shields.io/nuget/v/tik4net.svg)](https://www.nuget.org/packages/tik4net) | [Low-level ADO.NET-like API](https://github.com/danikf/tik4net/wiki/ADO.NET-like-API) — synchronous and async R/W access |
 | **tik4net.entities** | [![NuGet](https://img.shields.io/nuget/v/tik4net.entities.svg)](https://www.nuget.org/packages/tik4net.entities) | [High-level O/R mapper](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper) — strongly typed entities, full CRUD. Pulls in `tik4net` automatically. |
 | **tik4net.testing** | [![NuGet](https://img.shields.io/nuget/v/tik4net.testing.svg)](https://www.nuget.org/packages/tik4net.testing) | Unit-testing support — `TikFakeConnection` lets you write tests without a live router |
-| **tik4net.ssh** | _will be published in the 4.x release_ | SSH (TCP 22) transport — drives the RouterOS CLI over an SSH shell (full CRUD, Listen, Safe Mode). A separate package because of its `Renci.SshNet` dependency. |
+| **tik4net.ssh** | [![NuGet](https://img.shields.io/nuget/v/tik4net.ssh.svg)](https://www.nuget.org/packages/tik4net.ssh) | SSH (TCP 22) transport — drives the RouterOS CLI over an SSH shell (full CRUD, Listen, Safe Mode). A separate package because of its `Renci.SshNet` dependency. |
 
 [Tools](https://github.com/danikf/tik4net/wiki/High-level-API-tools) — semi-automatic C# code generators for custom entities (used with tik4net.entities). The repo also ships an [MCP server](https://github.com/danikf/tik4net/wiki/MCP-server) exposing a `mikrotik_call` tool that lets an AI assistant run a command against a live router over any tik4net transport.
 
@@ -44,7 +44,7 @@ Install via NuGet — see the package table above, or:
 dotnet add package tik4net.entities  # high-level API (pulls in tik4net)
 dotnet add package tik4net           # low-level API only
 dotnet add package tik4net.testing   # unit-testing support
-# dotnet add package tik4net.ssh     # SSH (TCP 22) transport — will be published in the 4.x release
+dotnet add package tik4net.ssh       # SSH (TCP 22) transport
 ```
 
 See [release notes / version history](https://github.com/danikf/tik4net/wiki/History) for what's new.

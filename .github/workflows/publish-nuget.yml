@@ -146,6 +146,14 @@ jobs:
           --source https://api.nuget.org/v3/index.json
           --skip-duplicate
 
+      - name: Push to GitHub Packages
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
+        run: >
+          dotnet nuget push "Build\*.nupkg"
+          --api-key ${{ secrets.GITHUB_TOKEN }}
+          --source https://nuget.pkg.github.com/danikf/index.json
+          --skip-duplicate
+
       - name: Create GitHub Release
         if: ${{ github.event_name == 'push' }}
         uses: softprops/action-gh-release@v2
