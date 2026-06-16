@@ -17,6 +17,10 @@ namespace tik4net.tests
     {
         private const string PATH = "/ppp/secret";
 
+        // Safe-mode take/release/unroll and mid-test reconnects make this class connection-lifecycle
+        // sensitive; force a fresh, isolated connection per test rather than sharing one.
+        protected override bool ReuseConnectionAcrossTests => false;
+
         /// <summary>
         /// A safe-mode session left uncommitted by a previous test's disconnect keeps RouterOS reporting
         /// safe mode as held (owner survives until the connection-tracking timeout), which would block the

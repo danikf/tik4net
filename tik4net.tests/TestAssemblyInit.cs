@@ -16,5 +16,12 @@ namespace tik4net.tests
         {
             tik4net.Ssh.Tik4NetSsh.Register();
         }
+
+        [AssemblyCleanup]
+        public static void Cleanup()
+        {
+            // Tear down the connection shared across the TestBase suite (see TestBase.ReuseConnectionAcrossTests).
+            TestBase.DisposeSharedConnection();
+        }
     }
 }

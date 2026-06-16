@@ -13,6 +13,13 @@ namespace tik4net.tests
         private ITikConnection _connection;
         private Version _routerOsVersion;
 
+        // Process-wide connection shared across all tests that opt into reuse (see ReuseConnectionAcrossTests).
+        // The suite runs single-threaded (no [Parallelize]), so one cached connection is safe. Disposed at
+        // assembly cleanup (TestAssemblyInit), or dropped/re-opened when a test fails or closes it.
+        private static ITikConnection _sharedConnection;
+        private static TikConnectionType _sharedConnectionType;
+        private static readonly object _sharedConnectionLock = new object();
+
         /// <summary>MSTest injects this for access to runsettings parameters.</summary>
         public TestContext TestContext { get; set; }
 
@@ -21,10 +28,25 @@ namespace tik4net.tests
             get { return _connection; }
         }
 
+        /// <summary>
+        /// When true (the default), every test in the class reuses one router connection — created lazily
+        /// and cached for the whole run — instead of opening and logging in a fresh one per test. This is a
+        /// large speed win on transports with expensive setup (SSL handshake, MAC-layer MNDP discovery,
+        /// WinBox-native catalog fetch). The shared connection self-heals: it is re-opened on the next test
+        /// if a test closes it, calls <see cref="RecreateConnection"/>, or fails (a failed test may have left
+        /// an async/listen command running, so its connection is discarded rather than reused).
+        /// Connection-lifecycle-sensitive classes (e.g. <c>SafeModeTest</c>) override this to false to get a
+        /// guaranteed-isolated connection per test.
+        /// </summary>
+        protected virtual bool ReuseConnectionAcrossTests => true;
+
         [TestInitialize]
         public void Init()
         {
-            RecreateConnection();
+            if (ReuseConnectionAcrossTests)
+                AcquireSharedConnection();
+            else
+                RecreateConnection();
             OnInitialize();
         }
 
@@ -36,13 +58,63 @@ namespace tik4net.tests
         [TestCleanup]
         public void Cleanup()
         {
-            OnCleanup();
-            _connection.Dispose();
+            try
+            {
+                OnCleanup();
+            }
+            finally
+            {
+                if (ReuseConnectionAcrossTests)
+                {
+                    // A failed test may have left a live async/listen command (assert-before-CancelAndJoin)
+                    // or otherwise corrupted the session — discard the shared connection so the next test
+                    // starts clean. A passed test keeps the connection cached for reuse.
+                    bool passed = TestContext == null || TestContext.CurrentTestOutcome == UnitTestOutcome.Passed;
+                    if (!passed)
+                        DisposeSharedConnection();
+                }
+                else
+                {
+                    _connection?.Dispose();
+                }
+                _connection = null;
+            }
         }
 
         protected virtual void OnCleanup()
         {
             // dummy
+        }
+
+        /// <summary>
+        /// Returns the cached shared connection (opening it on first use, or re-opening it if a previous
+        /// test closed it or the transport changed) and points <see cref="Connection"/> at it.
+        /// </summary>
+        private void AcquireSharedConnection()
+        {
+            TikConnectionType connType = ResolveConnectionType();
+            lock (_sharedConnectionLock)
+            {
+                if (_sharedConnection == null || _sharedConnectionType != connType || !_sharedConnection.IsOpened)
+                {
+                    _sharedConnection?.Dispose();
+                    _sharedConnection = OpenNewConnection();
+                    _sharedConnectionType = connType;
+                }
+                _connection = _sharedConnection;
+            }
+            _connection.DebugEnabled = true;
+            _routerOsVersion = null;
+        }
+
+        /// <summary>Disposes the process-wide shared connection. Called from the assembly cleanup hook.</summary>
+        internal static void DisposeSharedConnection()
+        {
+            lock (_sharedConnectionLock)
+            {
+                _sharedConnection?.Dispose();
+                _sharedConnection = null;
+            }
         }
 
         /// <summary>
@@ -72,6 +144,28 @@ namespace tik4net.tests
 
         protected void RecreateConnection(int retryTimeoutSeconds = 20)
         {
+            var conn = OpenNewConnection(retryTimeoutSeconds);
+            _connection = conn;
+
+            // In reuse mode a test that asks for a fresh connection (after Close/reboot) makes that fresh
+            // connection the new shared one, so subsequent tests inherit a healthy session.
+            if (ReuseConnectionAcrossTests)
+            {
+                lock (_sharedConnectionLock)
+                {
+                    if (!ReferenceEquals(_sharedConnection, conn))
+                        _sharedConnection?.Dispose();
+                    _sharedConnection = conn;
+                    _sharedConnectionType = ResolveConnectionType();
+                }
+            }
+
+            _routerOsVersion = null;
+        }
+
+        /// <summary>Opens a brand-new connection to the router for the resolved transport, with retry.</summary>
+        private ITikConnection OpenNewConnection(int retryTimeoutSeconds = 20)
+        {
             string host = ConfigurationManager.AppSettings["host"];
             string user = ConfigurationManager.AppSettings["user"];
             string pass = ConfigurationManager.AppSettings["pass"] ?? "";
@@ -87,10 +181,8 @@ namespace tik4net.tests
                     var conn = ConnectionFactory.CreateConnection(connType);
                     ApplyRouterMac(conn);   // MAC-layer transports: bypass MNDP using App.config routerMac
                     conn.Open(host, user, pass);
-                    _connection = conn;
-                    _connection.DebugEnabled = true;
-                    _routerOsVersion = null;
-                    return;
+                    conn.DebugEnabled = true;
+                    return conn;
                 }
                 catch (Exception ex)
                 {
