@@ -34,6 +34,9 @@ namespace tik4net.Winbox
 
         public bool DataAvailable => _transport.DataAvailable;
 
+        // TCP: a waiting byte is a real buffered M2 frame, so the stale-frame drain is safe and effective.
+        public bool SupportsStaleDrain => true;
+
         // ── Connect + authenticate ────────────────────────────────────────────
 
         /// <summary>Connects to the router (TCP 8291) and authenticates (EC-SRP5, legacy MD5 fallback).</summary>

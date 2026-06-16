@@ -22,6 +22,14 @@ namespace tik4net.Winbox
         bool DataAvailable { get; }
 
         /// <summary>
+        /// True when <see cref="DataAvailable"/> + <see cref="Receive"/> can be used to cheaply drain stale
+        /// buffered frames before a synchronous request (TCP: a waiting byte means a real buffered M2 frame).
+        /// False for the MAC transport, where <c>_udp.Available</c> also reflects ACK/PING/retransmit control
+        /// traffic, so a drain loop would thrash on noise rather than discard a single leftover frame.
+        /// </summary>
+        bool SupportsStaleDrain { get; }
+
+        /// <summary>
         /// Connects to the router and authenticates. <paramref name="port"/> is honoured by TCP
         /// transports and ignored by the MAC transport (which always uses UDP 20561).
         /// </summary>

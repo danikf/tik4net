@@ -50,10 +50,63 @@ namespace tik4net.Winbox
         // operation (read and write) is observable without duplicating the hook at each call site.
         private byte[] SendReceive(byte[] request)
         {
+            // Discard any frame already buffered on the shared channel before issuing a synchronous
+            // request. The native M2 protocol is poll-based (no unsolicited server push), so anything
+            // waiting here is a leftover — typically a delayed monitor/async reply from an earlier exchange
+            // (observed: a tiny frame from a foreign handler with no echoed request-id). Reading it as THIS
+            // request's reply would desync getall (no records → name resolution fails → "no such item", or
+            // an add stores the unbound sentinel interface handle *FFFFFFFF). The channel is shared by every
+            // operation — and, with connection reuse, across tests — so this can leak far from its origin.
+            DrainStaleFrames();
+
             OnRequest?.Invoke(request);
             byte[] response = _channel.SendReceive(request, _timeoutMs);
+
+            // Secondary guard: if a stale frame still slips in (raced in after the drain, or on a transport
+            // where draining is disabled), skip it by the echoed request-id (sys key 0xFF0006). Synchronous
+            // replies echo it; stray async frames do not. Use the short drain timeout for the re-read so a
+            // transport that can desync without a recoverable next frame cannot stall for the full command
+            // timeout on every operation.
+            int expected = RequestIdOf(request);
+            for (int skip = 0; expected >= 0 && skip < 16 && RequestIdOf(response) != expected; skip++)
+            {
+                try { response = _channel.Receive(DrainTimeoutMs); }
+                catch { break; } // no further frame available — surface what we have
+            }
+
             OnResponse?.Invoke(response);
             return response;
+        }
+
+        // Drains frames already waiting on the channel (best-effort), used to clear leaked async/monitor
+        // replies before a synchronous request so they cannot be mistaken for its reply.
+        private void DrainStaleFrames()
+        {
+            if (!_channel.SupportsStaleDrain) return;
+            try
+            {
+                // A leftover frame is already buffered, so it reads back immediately — use a short timeout so
+                // a spurious DataAvailable (e.g. a partial chunk on the wire) cannot stall each operation for
+                // the full command timeout.
+                for (int i = 0; i < 64 && _channel.DataAvailable; i++)
+                {
+                    byte[] stale = _channel.Receive(DrainTimeoutMs);
+                    OnResponse?.Invoke(stale); // keep the diagnostics trace honest about discarded frames
+                    if (stale == null) break;
+                }
+            }
+            catch { /* best-effort drain */ }
+        }
+
+        private const int DrainTimeoutMs = 250;
+
+        // Extracts the M2 request-id (sys key 0xFF0006) echoed in a built request or a reply, or -1 when absent.
+        private static int RequestIdOf(byte[] m2)
+        {
+            if (m2 == null) return -1;
+            var fields = M2Message.ParseAllFields(m2);
+            return fields.TryGetValue(WinboxM2Protocol.SysKey.RequestId, out var t) && t.Item2 != null
+                ? Convert.ToInt32(t.Item2) : -1;
         }
 
         /// <summary>

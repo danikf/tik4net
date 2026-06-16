@@ -40,6 +40,11 @@ namespace tik4net.Winbox
 
         public bool DataAvailable => _udp != null && _udp.Available > 0;
 
+        // MAC/UDP: _udp.Available also counts ACK/PING/retransmit control packets, so a DataAvailable-driven
+        // drain loop would thrash on control noise instead of discarding one stale DATA frame. Disable it
+        // here — the request-id correlation guard in WinboxNativeM2Operations still covers stray frames.
+        public bool SupportsStaleDrain => false;
+
         /// <summary>
         /// Connects over the MAC layer and authenticates (EC-SRP5). <paramref name="port"/> and
         /// <paramref name="timeoutMs"/> are ignored — MAC always uses UDP 20561 and the base auth
