@@ -61,7 +61,7 @@ Examples:
 * For VisualBasic trivial example see [VB example](https://github.com/danikf/tik4net/wiki/VB-trivial-example)
 
 ```cs
-   using (ITikConnection connection = ConnectionFactory.CreateConnection(TikConnectionType.Api_v2)) // Use TikConnectionType.Api for mikrotikversion prior v6.45
+   using (ITikConnection connection = ConnectionFactory.CreateConnection(TikConnectionType.Api)) // TikConnectionType.Api works for both old and new (v6.43+) login
    {
       connection.Open(HOST, USER, PASS);
 ```
