@@ -32,8 +32,10 @@ namespace tik4net
     }
 
     /// <summary>
-    /// Optional interface implemented by connections that do not support all capabilities.
-    /// Connections that do not implement this interface are assumed to support everything (backwards-compatible for ApiConnection).
+    /// Interface declaring which capabilities a transport supports. Every in-tree connection implements it
+    /// with a positive declaration — including <see cref="tik4net.Api.ApiConnection"/>, which declares the
+    /// full flag set. A connection that does <i>not</i> implement this interface is treated as supporting
+    /// <b>nothing</b> (fail-closed): a transport must declare a capability to be allowed to use it.
     /// </summary>
     public interface ITikConnectionCapabilities
     {
@@ -47,13 +49,29 @@ namespace tik4net
     public static class TikConnectionCapabilityExtensions
     {
         /// <summary>
-        /// Returns true if the connection supports the given capability.
-        /// Connections that do not implement <see cref="ITikConnectionCapabilities"/> are assumed to support everything.
+        /// Returns true if the connection supports the given capability. Fail-closed: a connection that does
+        /// not implement <see cref="ITikConnectionCapabilities"/> is treated as supporting nothing.
         /// </summary>
         public static bool Supports(this ITikConnection connection, TikConnectionCapability cap)
         {
             var caps = connection as ITikConnectionCapabilities;
-            return caps == null || caps.Capabilities.HasFlag(cap);
+            return caps != null && caps.Capabilities.HasFlag(cap);
+        }
+
+        /// <summary>
+        /// Throws <see cref="TikConnectionCapabilityNotSupportedException"/> when the connection does not
+        /// support <paramref name="cap"/>. Use to guard a feature entry point before attempting it.
+        /// </summary>
+        /// <param name="connection">The connection to check.</param>
+        /// <param name="cap">The required capability.</param>
+        /// <param name="feature">Optional short feature name shown in the exception message.</param>
+        public static void Require(this ITikConnection connection, TikConnectionCapability cap, string feature = null)
+        {
+            if (!connection.Supports(cap))
+                throw new TikConnectionCapabilityNotSupportedException(cap,
+                    $"This transport does not support the '{cap}' capability"
+                    + (feature != null ? $" ({feature})" : "") + ". "
+                    + $"Use a transport that reports '{cap}' — see the capability matrix in the wiki.");
         }
     }
 }

@@ -12,7 +12,7 @@ using System.Threading;
 
 namespace tik4net.Api
 {  
-    internal sealed class ApiConnection : ITikConnection
+    internal sealed class ApiConnection : ITikConnection, ITikConnectionCapabilities
     {
         ///// <summary>
         ///// Version of the login process. See https://wiki.mikrotik.com/wiki/Manual:API#Initial_login
@@ -54,6 +54,18 @@ namespace tik4net.Api
         public event EventHandler<TikConnectionCommCallbackEventArgs> OnWriteRow;
 
         public bool DebugEnabled { get; set; }
+
+        /// <summary>
+        /// The binary API is the reference transport and natively supports every capability:
+        /// CRUD, native <c>/listen</c>, streaming monitor windows (<c>.tag</c> + duration),
+        /// raw <c>!re</c>/<c>!done</c>/<c>!trap</c> sentence access, per-command <c>.tag</c> multiplexing
+        /// and connection-bound Safe Mode. It declares the full set explicitly (a positive declaration)
+        /// rather than relying on the "no interface = supports everything" fallback.
+        /// </summary>
+        public TikConnectionCapability Capabilities =>
+            TikConnectionCapability.Crud | TikConnectionCapability.Listen
+            | TikConnectionCapability.Streaming | TikConnectionCapability.RawSentences
+            | TikConnectionCapability.Tagging | TikConnectionCapability.SafeMode;
 
         public bool IsOpened
         {

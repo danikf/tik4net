@@ -98,13 +98,13 @@ namespace tik4net.Connection
         /// (CLI terminals, native WinBox M2) override these.
         /// </summary>
         /// <inheritdoc/>
-        public virtual void SafeModeTake() => throw new NotSupportedException(SafeModeUnsupported);
+        public virtual void SafeModeTake() => throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.SafeMode, SafeModeUnsupported);
 
         /// <inheritdoc/>
-        public virtual void SafeModeRelease() => throw new NotSupportedException(SafeModeUnsupported);
+        public virtual void SafeModeRelease() => throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.SafeMode, SafeModeUnsupported);
 
         /// <inheritdoc/>
-        public virtual void SafeModeUnroll() => throw new NotSupportedException(SafeModeUnsupported);
+        public virtual void SafeModeUnroll() => throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.SafeMode, SafeModeUnsupported);
 
         /// <inheritdoc/>
         public virtual bool SafeModeGet() => SafeModeHeld;
@@ -249,7 +249,10 @@ namespace tik4net.Connection
         /// <inheritdoc/>
         public Thread CallCommandAsync(IEnumerable<string> commandRows, string tag, Action<ITikSentence> oneResponseCallback)
         {
-            throw new NotSupportedException("This transport does not support asynchronous commands. Use a transport that reports Listen capability.");
+            // Raw tagged/multiplexed async is a binary-API feature (Tagging). CLI/native do report Listen, but
+            // they emulate it via polling (ITikMonitorTransport / ExecuteAsync), not this low-level entry point.
+            throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.Tagging,
+                "This transport does not support tagged asynchronous commands (CallCommandAsync). Use the binary API.");
         }
 
         // ── IDisposable ────────────────────────────────────────────────────────

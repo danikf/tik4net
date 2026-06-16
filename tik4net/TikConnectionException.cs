@@ -105,4 +105,47 @@ namespace tik4net
         {
         }
     }
+
+    /// <summary>
+    /// Thrown when a feature is invoked on a transport that does not report the required
+    /// <see cref="TikConnectionCapability"/>. Check <see cref="ITikConnection"/> support up front with
+    /// <see cref="TikConnectionCapabilityExtensions.Supports"/> to avoid it. See the
+    /// <see href="https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities">capability matrix</see>
+    /// for which transport supports what.
+    /// </summary>
+    [Serializable]
+    public class TikConnectionCapabilityNotSupportedException : TikConnectionException
+    {
+        /// <summary>The capability the active transport does not support.</summary>
+        public TikConnectionCapability Capability { get; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TikConnectionCapabilityNotSupportedException"/> class.
+        /// </summary>
+        /// <param name="capability">The capability the transport does not support.</param>
+        /// <param name="message">The message.</param>
+        public TikConnectionCapabilityNotSupportedException(TikConnectionCapability capability, string message)
+            : base(message)
+        {
+            Capability = capability;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TikConnectionCapabilityNotSupportedException"/> class.
+        /// </summary>
+        /// <param name="info">The object that holds the serialized object data.</param>
+        /// <param name="context">The contextual information about the source or destination.</param>
+        protected TikConnectionCapabilityNotSupportedException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
+            : base(info, context)
+        {
+            Capability = (TikConnectionCapability)info.GetInt32(nameof(Capability));
+        }
+
+        /// <inheritdoc/>
+        public override void GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
+        {
+            base.GetObjectData(info, context);
+            info.AddValue(nameof(Capability), (int)Capability);
+        }
+    }
 }

@@ -287,12 +287,14 @@ namespace tik4net.Connection
 
         public IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec)
         {
-            throw new NotSupportedException("CLI transport does not support streaming commands. Use a transport that reports Streaming capability.");
+            throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.Streaming,
+                "This transport does not support streaming commands (ExecuteListWithDuration). Use a transport that reports the Streaming capability (binary API).");
         }
 
         public IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string abortReason)
         {
-            throw new NotSupportedException("CLI transport does not support streaming commands.");
+            throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.Streaming,
+                "This transport does not support streaming commands (ExecuteListWithDuration). Use a transport that reports the Streaming capability (binary API).");
         }
 
         public IEnumerable<ITikReSentence> ExecuteListUntilDone(int? timeoutSec = null)
@@ -308,8 +310,8 @@ namespace tik4net.Connection
             // Streaming monitors are an opt-in transport capability (ITikMonitorTransport): native WinBox M2
             // implements it, the CLI transports do not. Only those that cannot do it throw NotSupported.
             if (!(_connection is ITikMonitorTransport monitorTransport))
-                throw new NotSupportedException(
-                    "This transport does not support asynchronous/listen commands. Use a transport that reports Listen capability.");
+                throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.Listen,
+                    "This transport does not support asynchronous/listen commands. Use a transport that reports the Listen capability.");
 
             // Normalize a multi-line command (e.g. "/interface/print\n?type=ether\n?#|") into a clean command
             // path plus parsed Filter parameters, exactly like the synchronous read paths do.
