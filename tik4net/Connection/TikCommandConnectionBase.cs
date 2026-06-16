@@ -221,7 +221,7 @@ namespace tik4net.Connection
                 }
             }
 
-            string verb = GetVerb(commandText);
+            string verb = TikPath.Verb(commandText);
             var descriptor = new TikCommandDescriptor(commandText, parameters);
 
             if (verb == "add")
@@ -298,15 +298,6 @@ namespace tik4net.Connection
                 throw new TikConnectionNotOpenException("Connection is not open.");
         }
 
-        /// <summary>Returns the last (verb) segment of a command path, lower-cased.</summary>
-        protected static string GetVerb(string commandText)
-        {
-            if (string.IsNullOrWhiteSpace(commandText))
-                return "print";
-            string trimmed = commandText.TrimStart('/');
-            var segments = trimmed.Split('/');
-            return segments[segments.Length - 1].ToLowerInvariant();
-        }
 
         /// <summary>
         /// Creates a minimal command object for use in exception constructors when the original

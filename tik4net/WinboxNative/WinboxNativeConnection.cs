@@ -34,6 +34,13 @@ namespace tik4net.WinboxNative
         public const int DefaultPort = 8291;
 
         /// <summary>
+        /// The port the parameterless-port <see cref="Open(string,string,string)"/> overloads forward to the
+        /// channel. Defaults to <see cref="DefaultPort"/> (8291); the MAC-layer subclass overrides this instead
+        /// of <c>new</c>-shadowing the const (which would resolve on the static reference type — see F12/R11).
+        /// </summary>
+        private protected virtual int DefaultPortValue => DefaultPort;
+
+        /// <summary>
         /// Login timeout in milliseconds — the maximum time to wait for authentication / first M2 reply.
         /// Set before calling <see cref="Open(string, string, string)"/>.
         /// </summary>
@@ -101,7 +108,7 @@ namespace tik4net.WinboxNative
 
         /// <inheritdoc/>
         public override void Open(string host, string user, string password)
-            => Open(host, DefaultPort, user, password);
+            => Open(host, DefaultPortValue, user, password);
 
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
@@ -126,7 +133,7 @@ namespace tik4net.WinboxNative
 
         /// <inheritdoc/>
         public override Task OpenAsync(string host, string user, string password)
-            => OpenAsync(host, DefaultPort, user, password);
+            => OpenAsync(host, DefaultPortValue, user, password);
 
         /// <inheritdoc/>
         public override Task OpenAsync(string host, int port, string user, string password)
@@ -270,10 +277,10 @@ namespace tik4net.WinboxNative
         private bool TryRunMonitor(TikCommandDescriptor descriptor, out IList<TikRecordSentence> rows)
         {
             rows = null;
-            if (!string.Equals(VerbOf(descriptor.CommandText), "monitor", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(TikPath.Verb(descriptor.CommandText), "monitor", StringComparison.OrdinalIgnoreCase))
                 return false;
 
-            string parentPath = StripVerb(descriptor.CommandText);
+            string parentPath = TikPath.Parent(descriptor.CommandText);
             int[] handler = _handlerMap.Resolve(parentPath);
             if (handler == null) return false;
 
@@ -312,11 +319,11 @@ namespace tik4net.WinboxNative
         // misuse; the non-query path dispatches the SYS_CMD via DispatchActionVerb.
         private bool IsActionVerbPath(TikCommandDescriptor descriptor)
         {
-            int[] handler = _handlerMap.Resolve(StripVerb(descriptor.CommandText));
+            int[] handler = _handlerMap.Resolve(TikPath.Parent(descriptor.CommandText));
             if (handler == null) return false;
             var actions = _catalog.GetHandlerActions(handler);
             if (actions == null) return false;
-            string verb = VerbOf(descriptor.CommandText);
+            string verb = TikPath.Verb(descriptor.CommandText);
             foreach (var kv in actions)
                 if (ActionMatchesVerb(kv.Key, verb)) return true;
             return false;
@@ -366,7 +373,7 @@ namespace tik4net.WinboxNative
         {
             EnsureNativeOpen();
             // descriptor.CommandText is "/path/add"; the resolution path is the parent.
-            string apiPath = StripVerb(descriptor.CommandText);
+            string apiPath = TikPath.Parent(descriptor.CommandText);
 
             // Serialise the request/reply channel against concurrent CRUD / monitor polls (see RunPrint).
             _cmdLock.Wait();
@@ -385,8 +392,8 @@ namespace tik4net.WinboxNative
         internal override void RunNonQuery(TikCommandDescriptor descriptor)
         {
             EnsureNativeOpen();
-            string verb = VerbOf(descriptor.CommandText);
-            string apiPath = StripVerb(descriptor.CommandText);
+            string verb = TikPath.Verb(descriptor.CommandText);
+            string apiPath = TikPath.Parent(descriptor.CommandText);
 
             // Serialise the request/reply channel against concurrent CRUD / monitor polls (see RunPrint).
             _cmdLock.Wait();
@@ -512,7 +519,7 @@ namespace tik4net.WinboxNative
             Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
         {
             EnsureNativeOpen();
-            string verb = VerbOf(descriptor.CommandText);
+            string verb = TikPath.Verb(descriptor.CommandText);
 
             // /path/listen — RouterOS pushes add/change/delete deltas over the API. WinBox M2 has no server
             // push, so webfig (and we) emulate it the way it polls live config tables: getall on a timer and
@@ -520,7 +527,7 @@ namespace tik4net.WinboxNative
             // synthetic ".dead=true" record so the O/R LoadListenAsync handler routes them to onDeleted.
             if (verb == "listen")
             {
-                string listPath = StripVerb(descriptor.CommandText);
+                string listPath = TikPath.Parent(descriptor.CommandText);
                 var printDescriptor = new TikCommandDescriptor(listPath + "/print", descriptor.Parameters);
                 // Diff config fields only — runtime counters (ro:1: rx-byte, link-downs, …) tick every poll and
                 // would otherwise make every row look "changed", whereas RouterOS listen emits on real changes.
@@ -545,7 +552,7 @@ namespace tik4net.WinboxNative
             WinboxMonitorSpec spec = _catalog.GetMonitorByHandler(handler);
             if (spec == null)
             {
-                string parent = StripVerb(descriptor.CommandText);
+                string parent = TikPath.Parent(descriptor.CommandText);
                 int[] ph = _handlerMap.Resolve(parent);
                 var pspec = _catalog.GetMonitorByHandler(ph);
                 if (pspec != null) { apiPath = parent; handler = ph; spec = pspec; }
@@ -802,40 +809,14 @@ namespace tik4net.WinboxNative
                 : new Dictionary<string, int>();
         }
 
-        // "/interface/print" → "/interface"; strips the trailing read verb segment.
+        // "/interface/print" → "/interface": strips ONLY a trailing read verb segment (print/getall/get),
+        // keeping action/deeper paths intact (e.g. "/system/script/run" stays as-is). Distinct from the
+        // blind TikPath.Parent, hence its own wrapper.
         private static string ApiPathOf(string commandText)
         {
-            if (string.IsNullOrWhiteSpace(commandText)) return "";
-            string p = commandText.Trim();
-            if (!p.StartsWith("/")) p = "/" + p;
-            int lastSlash = p.LastIndexOf('/');
-            if (lastSlash > 0)
-            {
-                string verb = p.Substring(lastSlash + 1).ToLowerInvariant();
-                // strip only known read-ish verb segments; keep deeper paths intact otherwise
-                if (verb == "print" || verb == "getall" || verb == "get")
-                    p = p.Substring(0, lastSlash);
-            }
-            return p.TrimEnd('/');
-        }
-
-        // Last path segment, lower-cased: "/interface/set" → "set".
-        private static string VerbOf(string commandText)
-        {
-            if (string.IsNullOrWhiteSpace(commandText)) return "print";
-            var segs = commandText.Trim().TrimStart('/').Split('/');
-            return segs[segs.Length - 1].ToLowerInvariant();
-        }
-
-        // Strip the trailing write-verb segment: "/interface/set" → "/interface".
-        private static string StripVerb(string commandText)
-        {
-            if (string.IsNullOrWhiteSpace(commandText)) return "";
-            string p = commandText.Trim();
-            if (!p.StartsWith("/")) p = "/" + p;
-            int lastSlash = p.LastIndexOf('/');
-            if (lastSlash > 0) p = p.Substring(0, lastSlash);
-            return p.TrimEnd('/');
+            string p = TikPath.Normalize(commandText);
+            string verb = TikPath.Verb(p);
+            return (verb == "print" || verb == "getall" || verb == "get") ? TikPath.Parent(p) : p;
         }
     }
 }

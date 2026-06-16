@@ -221,7 +221,7 @@ namespace tik4net.Cli
             // terminal (no per-record !re output, unlike the binary API) — they belong on the non-query
             // path. Reject them on the read path so the misuse is explicit instead of silently returning an
             // empty list (R7); invoke them via ExecuteNonQuery (RunNonQuery handles the 'run' verb).
-            if (IsActionVerb(GetVerb(descriptor.CommandText)))
+            if (IsActionVerb(TikPath.Verb(descriptor.CommandText)))
                 throw ActionVerbOnReadPath(descriptor.CommandText);
 
             bool needStats = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliStats);
@@ -350,7 +350,7 @@ namespace tik4net.Cli
         internal override void RunNonQuery(TikCommandDescriptor descriptor)
         {
             EnsureOpened();
-            string verb = GetVerb(descriptor.CommandText);
+            string verb = TikPath.Verb(descriptor.CommandText);
 
             string cliText;
             switch (verb)
@@ -409,11 +409,11 @@ namespace tik4net.Cli
             Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
         {
             EnsureOpened();
-            string verb = GetVerb(descriptor.CommandText);
+            string verb = TikPath.Verb(descriptor.CommandText);
 
             if (verb == "listen")
             {
-                string listPath = StripLastSegment(descriptor.CommandText);
+                string listPath = TikPath.Parent(descriptor.CommandText);
                 var printDescriptor = new TikCommandDescriptor(listPath + "/print", descriptor.Parameters);
                 return PollingMonitorEngine.StartWorker("cli-listen",
                     h => PollingMonitorEngine.ListenLoop(this, printDescriptor, null, ListenPollIntervalMs, h, onRow, onError, onDone));
@@ -521,14 +521,6 @@ namespace tik4net.Cli
                     "transport (Streaming capability) for this command."));
             }
             finally { onDone?.Invoke(); }
-        }
-
-        // Returns the command path with its last (verb) segment removed (e.g. "/interface/listen" → "/interface").
-        private static string StripLastSegment(string commandText)
-        {
-            string t = (commandText ?? string.Empty).TrimEnd('/');
-            int idx = t.LastIndexOf('/');
-            return idx > 0 ? t.Substring(0, idx) : t;
         }
     }
 }

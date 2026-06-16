@@ -152,7 +152,7 @@ namespace tik4net.Connection
             try
             {
                 var (normalCmd, normalParams) = NormalizeMultilineCommand(_commandText, _parameters);
-                string verb = GetVerb(normalCmd);
+                string verb = TikPath.Verb(normalCmd);
 
                 if (verb == "add")
                 {
@@ -463,14 +463,6 @@ namespace tik4net.Connection
                 }
             }
             return result;
-        }
-
-        private static string GetVerb(string commandText)
-        {
-            if (string.IsNullOrWhiteSpace(commandText))
-                return "print";
-            var segments = commandText.TrimStart('/').Split('/');
-            return segments[segments.Length - 1].ToLowerInvariant();
         }
 
         public override string ToString()
