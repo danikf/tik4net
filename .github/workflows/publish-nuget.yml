@@ -4,10 +4,11 @@ on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Package version (e.g. 3.6.0)'
+        description: 'Package version (e.g. 4.0.0-alpha)'
         required: true
       dry_run:
         description: 'Dry run — build but do not push to NuGet.org'
@@ -63,6 +64,15 @@ jobs:
       - name: Pack tik4net.testing
         run: >
           dotnet pack tik4net.testing/tik4net.testing.csproj
+          -c Release
+          -o Build
+          /p:Version=${{ steps.ver.outputs.VERSION }}
+          /p:AssemblyVersion=${{ steps.ver.outputs.VERSION }}.0
+          /p:FileVersion=${{ steps.ver.outputs.VERSION }}.0
+
+      - name: Pack tik4net.ssh
+        run: >
+          dotnet pack tik4net.ssh/tik4net.ssh.csproj
           -c Release
           -o Build
           /p:Version=${{ steps.ver.outputs.VERSION }}
@@ -139,19 +149,50 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: v${{ steps.ver.outputs.VERSION }}
+          prerelease: ${{ contains(steps.ver.outputs.VERSION, '-') }}
           generate_release_notes: true
           body: |
             ## tik4net ${{ steps.ver.outputs.VERSION }}
 
             Full release notes and version history: **[Wiki → History](https://github.com/danikf/tik4net/wiki/History)**
 
+            ### What's new in 4.0
+
+            **9 new connection types** — all implement the same `ITikConnection` / `LoadAll<T>()` / `Save<T>()` interface:
+            | Type | Transport | Port | Notes |
+            |---|---|---|---|
+            | `Rest` / `RestSsl` | HTTP/HTTPS | 80/443 | RouterOS 7.1+, CRUD only |
+            | `Telnet` | TCP | 23 | plain-text terminal |
+            | `MacTelnet` | UDP broadcast | 20561 | Layer-2, no IP needed |
+            | `WinboxCli` | TCP | 8291 | WinBox terminal over TCP |
+            | `WinboxCliMac` | UDP | 20561 | WinBox terminal over MAC |
+            | `WinboxNative` | TCP | 8291 | native M2 binary protocol, full CRUD + streaming |
+            | `WinboxNativeMac` | UDP | 20561 | native M2 over MAC |
+            | `Ssh` *(satellite)* | TCP | 22 | requires `tik4net.ssh` NuGet |
+
+            **Other additions:**
+            - **Change tracking** — `tik4net.entities` tracks which properties changed; `Save<T>()` sends only the diff
+            - **Safe Mode** — `TakeSafeMode()` / `ReleaseSafeMode()` across all transports; auto-rollback on disconnect
+            - **Streaming monitors** — `ExecuteAsync` / `LoadListenAsync` for live data (WinBox Native; `listen` poll+diff on other transports)
+            - **`TikConnectionSetup`** — unified connection builder with all transport-specific options
+            - **Connection capability model** — `connection.Supports(TikConnectionCapability.Listen)` etc.
+            - **Raw command pass-through** — `ExecuteRaw` for commands not covered by the O/R mapper
+            - **WinBox GUI-name addressing** — address entities by their WinBox display name on `WinboxNative`
+
+            ### Breaking changes (from 3.6)
+
+            - **Exception hierarchy unified** — `TikCommandException` subtypes restructured; review `catch` blocks that catch specific exception types
+            - **SSH is now a satellite package** — add `tik4net.ssh` and call `Tik4NetSsh.Register()` at startup (the old `TikConnectionType.Ssh` stub is still in the enum but now routes to the satellite)
+            - **`TikConnectionType.Api_v2` / `ApiSsl_v2`** — already `[Obsolete(error)]` in 3.6, unchanged in 4.0; remove any remaining usages
+
             ### NuGet packages
             | Package | Install |
             |---|---|
             | `tik4net` | `dotnet add package tik4net --version ${{ steps.ver.outputs.VERSION }}` |
             | `tik4net.entities` | `dotnet add package tik4net.entities --version ${{ steps.ver.outputs.VERSION }}` |
+            | `tik4net.ssh` *(satellite, opt-in)* | `dotnet add package tik4net.ssh --version ${{ steps.ver.outputs.VERSION }}` |
             | `tik4net.testing` | `dotnet add package tik4net.testing --version ${{ steps.ver.outputs.VERSION }}` |
-            | `tik4net.mcp` (MCP server, .NET tool) | `dotnet tool install -g tik4net.mcp --version ${{ steps.ver.outputs.VERSION }}` |
+            | `tik4net.mcp` *(dev/debug helper tool)* | `dotnet tool install -g tik4net.mcp --version ${{ steps.ver.outputs.VERSION }}` |
 
             ### Tools (in zip asset)
             - `tik4net.entitygenerator.exe` — generate entity code from a live router

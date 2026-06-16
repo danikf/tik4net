@@ -4,9 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-tik4net is a .NET library for communicating with MikroTik routers via the MikroTik API protocol. It consists of two NuGet packages:
+tik4net is a .NET library for communicating with MikroTik routers via the MikroTik API protocol. It consists of these NuGet packages:
 - **tik4net** — low-level ADO.NET-style API (targets `netstandard2.0`, `netstandard2.1`)
-- **tik4net.objects** — high-level O/R mapper over tik4net (same targets)
+- **tik4net.entities** (project: `tik4net.objects/`) — high-level O/R mapper over tik4net (same targets)
+- **tik4net.ssh** — SSH transport satellite (opt-in; depends on `Renci.SshNet`)
+- **tik4net.testing** — test helpers for router integration tests
+- **tik4net.mcp** — dev/debug MCP helper tool (not a user-facing release package)
 
 ## Build Commands
 
@@ -22,6 +25,7 @@ Pack NuGet packages (output goes to `./Build/`):
 ```
 dotnet pack tik4net/tik4net.csproj
 dotnet pack tik4net.objects/tik4net.objects.csproj
+dotnet pack tik4net.ssh/tik4net.ssh.csproj
 ```
 
 ## Tests
