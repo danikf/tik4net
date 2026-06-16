@@ -10,20 +10,8 @@ namespace tik4net
     /// <summary>
     /// Any exception from mikrotik session.
     /// </summary>
-
-    [Serializable]
     public abstract class TikConnectionException : Exception
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="TikConnectionException"/> class.
-        /// </summary>
-        /// <param name="info">The object that holds the serialized object data.</param>
-        /// <param name="context">The contextual information about the source or destination.</param>
-        protected TikConnectionException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
-            : base(info, context)
-        {
-        }
-
         /// <summary>
         /// Initializes a new instance of the <see cref="TikConnectionException"/> class.
         /// </summary>
@@ -113,7 +101,6 @@ namespace tik4net
     /// <see href="https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities">capability matrix</see>
     /// for which transport supports what.
     /// </summary>
-    [Serializable]
     public class TikConnectionCapabilityNotSupportedException : TikConnectionException
     {
         /// <summary>The capability the active transport does not support.</summary>
@@ -128,24 +115,6 @@ namespace tik4net
             : base(message)
         {
             Capability = capability;
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="TikConnectionCapabilityNotSupportedException"/> class.
-        /// </summary>
-        /// <param name="info">The object that holds the serialized object data.</param>
-        /// <param name="context">The contextual information about the source or destination.</param>
-        protected TikConnectionCapabilityNotSupportedException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
-            : base(info, context)
-        {
-            Capability = (TikConnectionCapability)info.GetInt32(nameof(Capability));
-        }
-
-        /// <inheritdoc/>
-        public override void GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
-        {
-            base.GetObjectData(info, context);
-            info.AddValue(nameof(Capability), (int)Capability);
         }
     }
 }

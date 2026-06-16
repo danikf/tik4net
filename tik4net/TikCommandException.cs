@@ -33,7 +33,7 @@ namespace tik4net
         public override string ToString()
         {
             return
-                Command.ToString()
+                (Command?.ToString() ?? "<no command>")
                 + "\nMESSAGE: " + Message
                 + "\n" + base.ToString();
         }
@@ -174,7 +174,7 @@ namespace tik4net
     public class TikCommandUnexpectedResponseException : TikCommandException
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="TikConnectionException"/> class.
+        /// Initializes a new instance of the <see cref="TikCommandUnexpectedResponseException"/> class.
         /// </summary>
         /// <param name="message">The exception message.</param>
         /// <param name="command">The command sent to target.</param>
@@ -185,7 +185,7 @@ namespace tik4net
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="TikConnectionException"/> class.
+        /// Initializes a new instance of the <see cref="TikCommandUnexpectedResponseException"/> class.
         /// </summary>
         /// <param name="message">The exception message.</param>
         /// <param name="command">The command sent to target.</param>

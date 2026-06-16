@@ -731,7 +731,10 @@ namespace tik4net.WinboxNative
                 || t.Contains("does not exist") || t.Contains("doesn't exist"))
                 return new TikNoSuchItemException(cmd, trap);
 
-            return new TikCommandUnexpectedResponseException(ex.Message, cmd, trap);
+            // A non-zero M2 status with code + error text is a genuine router-reported error (a trap),
+            // not a protocol-shape violation. Surface it as TikCommandTrapException to match the
+            // generic-error fallback of the API/CLI/REST transports.
+            return new TikCommandTrapException(cmd, trap);
         }
 
         // Encode every NameValue parameter (except client-side markers and, optionally, .id) into M2 fields.

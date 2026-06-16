@@ -9,7 +9,7 @@ namespace tik4net
     /// <summary>
     /// Exception called when response sentence from mikrotik router is not in proper format.
     /// </summary>
-    public class TikSentenceException : Exception
+    public class TikSentenceException : TikConnectionException
     {
         private ITikSentence _sentence;
 
@@ -25,11 +25,11 @@ namespace tik4net
         /// ctor.
         /// </summary>
         /// <param name="message">Exception message.</param>
-        /// <param name="sentecne">Sentence with error - not proper format.</param>
-        public TikSentenceException(string message, ITikSentence sentecne) 
+        /// <param name="sentence">Sentence with error - not proper format.</param>
+        public TikSentenceException(string message, ITikSentence sentence)
             : base(message)
         {
-            _sentence = sentecne;
+            _sentence = sentence;
         }
     }
 }
