@@ -71,8 +71,8 @@ namespace tik4net.tests
         [TestMethod]
         public void ExecuteNonQuery_Add_And_Remove_IPAddress_Will_Not_Fail()
         {
-            const string IP = "192.168.1.1/24";
-            const string INTERFACE = "ether1";
+            string IP = TestConstants.Address;
+            string INTERFACE = TestConstants.Interface;
 
             //create IP
             var createCommand = Connection.CreateCommandAndParameters("/ip/address/add",
@@ -92,8 +92,7 @@ namespace tik4net.tests
         [TestMethod]
         public void ExecuteNonQuery_Update_Interface_Via_Name_In_Id_Will_Not_Fail()
         {
-            //const string IP = "192.168.1.1/24";
-            const string INTERFACE = "ether1";
+            string INTERFACE = TestConstants.Interface;
 
             var originalComment = Connection.LoadByName<Objects.Interface.Interface>(INTERFACE).Comment ?? "";
             try
@@ -131,7 +130,7 @@ namespace tik4net.tests
         {
             var torchAsyncCmd = Connection.LoadAsync<Objects.Tool.ToolTorch>(t => {; },
                 null,
-                Connection.CreateParameter("interface", "ether1"));
+                Connection.CreateParameter("interface", TestConstants.Interface));
 
             Thread.Sleep(3000);
             Connection.ExecuteNonQuery("/system/reboot"); // must not throw
@@ -155,7 +154,7 @@ namespace tik4net.tests
         [ExpectedException(typeof(TikCommandException))]
         public void AsyncExecuteWithDurationExecuteThrowsException_AfterReboot()
         {
-            var torchCommand = Connection.CreateCommandAndParameters("/tool/torch", "interface", "ether1");
+            var torchCommand = Connection.CreateCommandAndParameters("/tool/torch", "interface", TestConstants.Interface);
 
             new Thread(() =>
             {
@@ -179,7 +178,7 @@ namespace tik4net.tests
         [TestMethod]
         public void AsyncExecuteWithDurationExecuteReturnsCorrectReason_AfterReboot()
         {
-            var torchCommand = Connection.CreateCommandAndParameters("/tool/torch", "interface", "ether1");
+            var torchCommand = Connection.CreateCommandAndParameters("/tool/torch", "interface", TestConstants.Interface);
 
             new Thread(() =>
             {
@@ -222,7 +221,7 @@ namespace tik4net.tests
             EnsureCapability(TikConnectionCapability.Listen, "ExecuteAsync");
             bool onDoneCallbackCalled = false;
 
-            var torchCommand = Connection.CreateCommandAndParameters("/tool/torch", "interface", "ether1");
+            var torchCommand = Connection.CreateCommandAndParameters("/tool/torch", "interface", TestConstants.Interface);
             torchCommand.ExecuteAsync(response => { }, error => { }, () => { onDoneCallbackCalled = true; });
             Thread.Sleep(3000);
             torchCommand.CancelAndJoin();

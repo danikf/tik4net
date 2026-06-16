@@ -35,12 +35,7 @@ namespace tik4net.tests
             Assert.IsNotNull(list);
         }
 
-        [TestMethod]
-        public void ListAllEthernetWillNotFail()
-        {
-            var list = Connection.LoadAll<InterfaceEthernet>();
-            Assert.IsNotNull(list);
-        }
+        // ListAllEthernet coverage lives in InterfaceEthernetTest.ListAllInterfaceEthernetWillNotFail.
 
         [TestMethod]
         public void FilteredUntypedListOfInterfacesWillNotFail()
@@ -69,7 +64,7 @@ namespace tik4net.tests
         [TestMethod]
         public void ReadEthernetInterfaceRXWillNotFail()
         {
-            var ethIface = Connection.LoadByName<Interface>( "ether1");
+            var ethIface = Connection.LoadByName<Interface>(TestConstants.Interface);
             var rx = ethIface.RxByte;
         }
 
@@ -97,7 +92,7 @@ namespace tik4net.tests
             var list = Connection.LoadAll<Interface>();
             Assert.IsNotNull(list);
 
-            var eth = list.Where(iface => iface.DefaultName == "ether1").Single();
+            var eth = list.Where(iface => iface.DefaultName == TestConstants.Interface).Single();
             var originalComment = eth.Comment;
             try
             {
@@ -115,11 +110,11 @@ namespace tik4net.tests
         [TestMethod]
         public void UpdateCommentOnEth1_2_WillNotFail()
         {
-            var originalComment = Connection.LoadByName<Interface>("ether1").Comment ?? "";
+            var originalComment = Connection.LoadByName<Interface>(TestConstants.Interface).Comment ?? "";
             try
             {
                 var cmd = Connection.CreateCommand("/interface/set");
-                cmd.AddParameter(TikSpecialProperties.Id, "ether1");
+                cmd.AddParameter(TikSpecialProperties.Id, TestConstants.Interface);
                 cmd.AddParameter("comment", "My next comment");
                 cmd.ExecuteNonQuery();
             }
@@ -127,7 +122,7 @@ namespace tik4net.tests
             {
                 //restore original comment so the test leaves no garbage on the router
                 var restoreCmd = Connection.CreateCommand("/interface/set");
-                restoreCmd.AddParameter(TikSpecialProperties.Id, "ether1");
+                restoreCmd.AddParameter(TikSpecialProperties.Id, TestConstants.Interface);
                 restoreCmd.AddParameter("comment", originalComment);
                 restoreCmd.ExecuteNonQuery();
             }
@@ -137,10 +132,10 @@ namespace tik4net.tests
         public void InterfaceTraficAsync_WillNotFail()
         {
             EnsureCapability(TikConnectionCapability.Listen, "async monitor-traffic");
-            var cmd = Connection.CreateCommandAndParameters("/interface/monitor-traffic", "interface", "ether1");
+            var cmd = Connection.CreateCommandAndParameters("/interface/monitor-traffic", "interface", TestConstants.Interface);
             List<ITikReSentence> responses = new List<ITikReSentence>();
             cmd.ExecuteAsync(re => responses.Add(re));
-            Thread.Sleep(5 * 1000);
+            Thread.Sleep(2 * 1000);
 
             Assert.IsTrue(responses.Count > 0);
             cmd.CancelAndJoin(2 * 1000);
@@ -150,9 +145,9 @@ namespace tik4net.tests
         public void WirelessInterfaceResaveWillNotFail()
         {
             EnsureCommandAvailable("/interface/wireless");
-            var iface = Connection.LoadAll<InterfaceWireless>().FirstOrDefault(wlan => wlan.Name == "wlan1");
+            var iface = Connection.LoadAll<InterfaceWireless>().FirstOrDefault(wlan => wlan.Name == TestConstants.WirelessInterface);
             if (iface == null)
-                Assert.Inconclusive("Interface wlan1 not found on this router.");
+                Assert.Inconclusive($"Interface {TestConstants.WirelessInterface} not found on this router.");
             iface.Comment = "test";
             Connection.Save(iface);
         }
@@ -163,7 +158,7 @@ namespace tik4net.tests
         public void LoadListenAsync_DetectsInterfaceChange()
         {
             EnsureCapability(TikConnectionCapability.Listen, "LoadListenAsync");
-            const string IFACE = "ether1";
+            string IFACE = TestConstants.Interface;
             const string TEST_COMMENT = "tik4net-listen-test";
 
             List<Interface> changes = new List<Interface>();
@@ -207,7 +202,7 @@ namespace tik4net.tests
         {
             EnsureCapability(TikConnectionCapability.Listen, "LoadListenAsync");
             const string TEST_IP = "192.0.2.1/32"; // TEST-NET, safe dummy address
-            const string TEST_IFACE = "ether1";
+            string TEST_IFACE = TestConstants.Interface;
 
             // Pre-cleanup: remove any leftover address from a previous crashed run
             try
@@ -278,11 +273,11 @@ namespace tik4net.tests
             EnsureCapability(TikConnectionCapability.Listen, "parallel async commands");
             Connection.DebugEnabled = true;
 
-            var cmdWlan = Connection.CreateCommandAndParameters("/interface/monitor-traffic", "interface", "wlan1");
+            var cmdWlan = Connection.CreateCommandAndParameters("/interface/monitor-traffic", "interface", TestConstants.WirelessInterface);
             List<ITikReSentence> responsesWlan = new List<ITikReSentence>();
             cmdWlan.ExecuteAsync(re => responsesWlan.Add(re));
 
-            var cmdEth = Connection.CreateCommandAndParameters("/interface/monitor-traffic", "interface", "ether1");
+            var cmdEth = Connection.CreateCommandAndParameters("/interface/monitor-traffic", "interface", TestConstants.Interface);
             List<ITikReSentence> responsesEth = new List<ITikReSentence>();
             cmdEth.ExecuteAsync(re => responsesEth.Add(re));
 

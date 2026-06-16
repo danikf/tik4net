@@ -63,9 +63,9 @@ namespace tik4net.tests
                 Connection.CreateParameter("count", MAX_CNT.ToString()),
                 Connection.CreateParameter("size", "64"));
 
-            Thread.Sleep(3 * 1000);
-            Connection.Close();
             Thread.Sleep(2 * 1000);
+            Connection.Close();
+            Thread.Sleep(1500);
 
             Assert.IsTrue(!Connection.IsOpened);
             Assert.IsNull(responseException);
@@ -93,7 +93,7 @@ namespace tik4net.tests
         {
             EnsureCapability(TikConnectionCapability.Streaming, "WoL command");
             const string OK_MAC = "FF:FF:FF:FF:FF:FF";
-            const string OK_IFACE = "ether1";
+            string OK_IFACE = TestConstants.Interface;
 
             ToolWol.ExecuteWol(Connection, new MacAddress(OK_MAC), OK_IFACE);
         }
@@ -156,7 +156,7 @@ namespace tik4net.tests
             EnsureCapability(TikConnectionCapability.Streaming, "torch streaming");
             // /tool/torch never sends !done on its own — timeout must kick in
             var cmd = Connection.CreateCommandAndParameters("/tool/torch", TikCommandParameterFormat.NameValue,
-                "interface", "ether1");
+                "interface", TestConstants.Interface);
             cmd.ExecuteListUntilDone(timeoutSec: 2);
         }
 

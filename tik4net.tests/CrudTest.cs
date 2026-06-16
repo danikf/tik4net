@@ -36,8 +36,8 @@ namespace tik4net.tests
         [TestMethod]
         public void Create_IpAddress_With_LowLevel_API()
         {
-            const string IP = "192.168.1.1/24";
-            const string INTERFACE = "ether1";
+            string IP = TestConstants.Address;
+            string INTERFACE = TestConstants.Interface;
             Cleanup_DeteleAddressByIp(IP);
 
             try
@@ -61,8 +61,8 @@ namespace tik4net.tests
         [TestMethod]
         public void Create_IpAddress_With_ADO_API()
         {
-            const string IP = "192.168.1.1/24";
-            const string INTERFACE = "ether1";
+            string IP = TestConstants.Address;
+            string INTERFACE = TestConstants.Interface;
             Cleanup_DeteleAddressByIp(IP);
 
             try
@@ -86,8 +86,8 @@ namespace tik4net.tests
         [TestMethod]
         public void Create_IpAddress_With_Highlevel_API()
         {
-            const string IP = "192.168.1.1/24";
-            const string INTERFACE = "ether1";
+            string IP = TestConstants.Address;
+            string INTERFACE = TestConstants.Interface;
             Cleanup_DeteleAddressByIp(IP);
 
             try
@@ -117,8 +117,8 @@ namespace tik4net.tests
         [TestMethod]
         public void Load_IpAddress_With_LowLevel_API()
         {
-            const string IP = "192.168.1.1/24";
-            const string INTERFACE = "ether1";
+            string IP = TestConstants.Address;
+            string INTERFACE = TestConstants.Interface;
             Cleanup_DeteleAddressByIp(IP);
             Init_CreateAddress(IP, INTERFACE);
 
@@ -152,8 +152,8 @@ namespace tik4net.tests
         [TestMethod]
         public void Load_IpAddress_With_ADO_API()
         {
-            const string IP = "192.168.1.1/24";
-            const string INTERFACE = "ether1";
+            string IP = TestConstants.Address;
+            string INTERFACE = TestConstants.Interface;
             Cleanup_DeteleAddressByIp(IP);
             var id = Init_CreateAddress(IP, INTERFACE);
 
@@ -178,8 +178,8 @@ namespace tik4net.tests
         [TestMethod]
         public void Load_IpAddress_With_Highlevel_API()
         {
-            const string IP = "192.168.1.1/24";
-            const string INTERFACE = "ether1";
+            string IP = TestConstants.Address;
+            string INTERFACE = TestConstants.Interface;
             Cleanup_DeteleAddressByIp(IP);
             Init_CreateAddress(IP, INTERFACE);
 
@@ -205,8 +205,8 @@ namespace tik4net.tests
         [TestMethod]
         public void Update_IpAddress_With_LowLevel_API()
         {
-            const string IP = "192.168.1.1/24";
-            const string INTERFACE = "ether1";
+            string IP = TestConstants.Address;
+            string INTERFACE = TestConstants.Interface;
             Cleanup_DeteleAddressByIp(IP);
             var id = Init_CreateAddress(IP, INTERFACE);
 
@@ -228,8 +228,8 @@ namespace tik4net.tests
         [TestMethod]
         public void Update_IpAddress_With_ADO_API()
         {
-            const string IP = "192.168.1.1/24";
-            const string INTERFACE = "ether1";
+            string IP = TestConstants.Address;
+            string INTERFACE = TestConstants.Interface;
             Cleanup_DeteleAddressByIp(IP);
             var id = Init_CreateAddress(IP, INTERFACE);
 
@@ -250,8 +250,8 @@ namespace tik4net.tests
         [TestMethod]
         public void Update_IpAddress_With_Highlevel_API()
         {
-            const string IP = "192.168.1.1/24";
-            const string INTERFACE = "ether1";
+            string IP = TestConstants.Address;
+            string INTERFACE = TestConstants.Interface;
             Cleanup_DeteleAddressByIp(IP);
             var id = Init_CreateAddress(IP, INTERFACE);
 
@@ -274,8 +274,8 @@ namespace tik4net.tests
         [TestMethod]
         public void Delete_IpAddress_With_LowLevel_API()
         {
-            const string IP = "192.168.1.1/24";
-            const string INTERFACE = "ether1";
+            string IP = TestConstants.Address;
+            string INTERFACE = TestConstants.Interface;
             Cleanup_DeteleAddressByIp(IP);
             var id = Init_CreateAddress(IP, INTERFACE);
 
@@ -289,8 +289,8 @@ namespace tik4net.tests
         [TestMethod]
         public void Delete_IpAddress_With_ADO_API()
         {
-            const string IP = "192.168.1.1/24";
-            const string INTERFACE = "ether1";
+            string IP = TestConstants.Address;
+            string INTERFACE = TestConstants.Interface;
             Cleanup_DeteleAddressByIp(IP);
             var id = Init_CreateAddress(IP, INTERFACE);
 
@@ -302,8 +302,8 @@ namespace tik4net.tests
         [TestMethod]
         public void Delete_IpAddress_With_Highlevel_API()
         {
-            const string IP = "192.168.1.1/24";
-            const string INTERFACE = "ether1";
+            string IP = TestConstants.Address;
+            string INTERFACE = TestConstants.Interface;
             Cleanup_DeteleAddressByIp(IP);
             var id = Init_CreateAddress(IP, INTERFACE);
 

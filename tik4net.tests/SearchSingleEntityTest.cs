@@ -15,7 +15,7 @@ namespace tik4net.tests
         [TestMethod]
         public void SearchByName_Interface_WillWork()
         {
-            var eth = Connection.LoadByName<Objects.Interface.Interface>("ether1");
+            var eth = Connection.LoadByName<Objects.Interface.Interface>(TestConstants.Interface);
 
             Assert.IsNotNull(eth);
 
@@ -35,7 +35,7 @@ namespace tik4net.tests
         [TestMethod]
         public void SearchByDefaultNameParameter_Interface_WillWork()
         {
-            var eth = Connection.LoadSingle<Interface>(Connection.CreateParameter("default-name", "ether1"));
+            var eth = Connection.LoadSingle<Interface>(Connection.CreateParameter("default-name", TestConstants.Interface));
             Assert.IsNotNull(eth);
 
             /*
@@ -55,7 +55,7 @@ namespace tik4net.tests
         [ExpectedException(typeof(TikNoSuchItemException))]
         public void SearchById_InPlaceOfName_Interface_WillThrow_NoSOuchIttemException()
         {
-            var eth = Connection.LoadById<Objects.Interface.Interface>("ether1");
+            var eth = Connection.LoadById<Objects.Interface.Interface>(TestConstants.Interface);
 
             Assert.IsNotNull(eth);
 

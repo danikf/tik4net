@@ -29,11 +29,8 @@ namespace tik4net.tests
             _connection.Dispose();
         }
 
-        [TestMethod]
-        public void OpenSslConnectionWillNotFail()
-        {
-            //dummy - just must not fail
-        }
+        // (SSL open is already proven by Init() and by ConnectionTest.OpenSslConnectionWillNotFail;
+        //  this class keeps a real SSL workload below.)
 
         [TestMethod]
         public void ListAllInterfaceWillNotFail()

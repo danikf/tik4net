@@ -16,7 +16,7 @@ namespace tik4net.tests
         public void GetTrafficSnapshotForEther1WillNotFail()
         {
             EnsureCapability(TikConnectionCapability.Streaming, "monitor-traffic snapshot");
-            var tmp = Connection.GetInterfaceMonitorTrafficSnapshot("ether1");
+            var tmp = Connection.GetInterfaceMonitorTrafficSnapshot(TestConstants.Interface);
         }
 
         [TestMethod]
@@ -24,7 +24,7 @@ namespace tik4net.tests
         {
             EnsureCapability(TikConnectionCapability.Streaming, "monitor-traffic once");
             var tmp = Connection.LoadSingle<InterfaceMonitorTraffic>(
-                Connection.CreateParameter("interface", "ether1"),
+                Connection.CreateParameter("interface", TestConstants.Interface),
                 Connection.CreateParameter("once", ""));
         }
 
@@ -32,8 +32,8 @@ namespace tik4net.tests
         public void LoadTrafficWithDurationNotFail()
         {
             EnsureCapability(TikConnectionCapability.Streaming, "monitor-traffic streaming");
-            var tmp = Connection.LoadWithDuration<InterfaceMonitorTraffic>(5,
-                Connection.CreateParameter("interface", "ether1"));
+            var tmp = Connection.LoadWithDuration<InterfaceMonitorTraffic>(3,
+                Connection.CreateParameter("interface", TestConstants.Interface));
 
             Assert.IsNotNull(tmp);
             Assert.IsTrue(tmp.Count() > 0);

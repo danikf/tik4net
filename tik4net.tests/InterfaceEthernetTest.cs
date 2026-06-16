@@ -44,7 +44,7 @@ namespace tik4net.tests
         [TestMethod]
         public void EthernetMonitorForEth1WillNotFail()
         {
-            const string INTERFACE_NAME = "ether1";
+            string INTERFACE_NAME = TestConstants.Interface;
             var result = EthernetMonitor.GetSnapshot(Connection, INTERFACE_NAME);
 
             Assert.IsNotNull(result);

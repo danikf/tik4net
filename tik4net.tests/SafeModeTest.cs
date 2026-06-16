@@ -107,6 +107,7 @@ namespace tik4net.tests
         }
 
         [TestMethod]
+        [Timeout(90000)] // 30s rollback poll + reconnect retries — guard against a wedged router hanging the run
         public void SafeMode_DisconnectWithoutRelease_RollsBack()
         {
             EnsureCapability(TikConnectionCapability.SafeMode, "SafeModeTake");

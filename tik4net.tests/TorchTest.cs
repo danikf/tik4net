@@ -23,13 +23,13 @@ namespace tik4net.tests
 
             var cmd1 = Connection.LoadAsync<ToolTorch>(t => { System.Diagnostics.Debug.WriteLine("ether1a: " + t); },
                 ex => { System.Diagnostics.Debug.WriteLine("ERROR: " + ex.Message); isFailed = true; },
-                Connection.CreateParameter("interface", "ether1"));
+                Connection.CreateParameter("interface", TestConstants.Interface));
             var cmd2 = Connection.LoadAsync<ToolTorch>(t => { System.Diagnostics.Debug.WriteLine("ether1b: " + t); },
                 ex => { System.Diagnostics.Debug.WriteLine("ERROR: " + ex.Message); isFailed = true; },
-                Connection.CreateParameter("interface", "ether1"));
-            Thread.Sleep(3 * 1000);
+                Connection.CreateParameter("interface", TestConstants.Interface));
+            Thread.Sleep(1500);
             cmd2.CancelAndJoin();
-            Thread.Sleep(3 * 1000);
+            Thread.Sleep(1500);
             cmd1.CancelAndJoin();
 
             Assert.IsFalse(isFailed);
