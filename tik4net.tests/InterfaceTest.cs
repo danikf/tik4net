@@ -98,17 +98,39 @@ namespace tik4net.tests
             Assert.IsNotNull(list);
 
             var eth = list.Where(iface => iface.DefaultName == "ether1").Single();
-            eth.Comment = "My comment";
-            Connection.Save(eth);
+            var originalComment = eth.Comment;
+            try
+            {
+                eth.Comment = "My comment";
+                Connection.Save(eth);
+            }
+            finally
+            {
+                //restore original comment so the test leaves no garbage on the router
+                eth.Comment = originalComment;
+                Connection.Save(eth);
+            }
         }
 
         [TestMethod]
         public void UpdateCommentOnEth1_2_WillNotFail()
         {
-            var cmd = Connection.CreateCommand("/interface/set");
-            cmd.AddParameter(TikSpecialProperties.Id, "ether1");
-            cmd.AddParameter("comment", "My next comment");
-            cmd.ExecuteNonQuery();
+            var originalComment = Connection.LoadByName<Interface>("ether1").Comment ?? "";
+            try
+            {
+                var cmd = Connection.CreateCommand("/interface/set");
+                cmd.AddParameter(TikSpecialProperties.Id, "ether1");
+                cmd.AddParameter("comment", "My next comment");
+                cmd.ExecuteNonQuery();
+            }
+            finally
+            {
+                //restore original comment so the test leaves no garbage on the router
+                var restoreCmd = Connection.CreateCommand("/interface/set");
+                restoreCmd.AddParameter(TikSpecialProperties.Id, "ether1");
+                restoreCmd.AddParameter("comment", originalComment);
+                restoreCmd.ExecuteNonQuery();
+            }
         }
 
         [TestMethod]

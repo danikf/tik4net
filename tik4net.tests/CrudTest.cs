@@ -40,17 +40,22 @@ namespace tik4net.tests
             const string INTERFACE = "ether1";
             Cleanup_DeteleAddressByIp(IP);
 
-            var response = Connection.CallCommandSync("/ip/address/add", $"=address={IP}", $"=interface={INTERFACE}");
+            try
+            {
+                var response = Connection.CallCommandSync("/ip/address/add", $"=address={IP}", $"=interface={INTERFACE}");
 
-            Assert.AreEqual(1, response.Count());
-            Assert.IsInstanceOfType(response.Single(), typeof(ITikDoneSentence));
-            string id = ((ITikDoneSentence)response.Single()).GetResponseWord();
+                Assert.AreEqual(1, response.Count());
+                Assert.IsInstanceOfType(response.Single(), typeof(ITikDoneSentence));
+                string id = ((ITikDoneSentence)response.Single()).GetResponseWord();
 
-            Assert.IsNotNull(id);
-            Assert.AreNotEqual(string.Empty, id);
-
-            //cleanup
-            Cleanup_DeteleAddressByIp(IP);
+                Assert.IsNotNull(id);
+                Assert.AreNotEqual(string.Empty, id);
+            }
+            finally
+            {
+                //cleanup
+                Cleanup_DeteleAddressByIp(IP);
+            }
         }
 
         [TestMethod]
@@ -60,16 +65,21 @@ namespace tik4net.tests
             const string INTERFACE = "ether1";
             Cleanup_DeteleAddressByIp(IP);
 
-            var createCommand = Connection.CreateCommandAndParameters("/ip/address/add", 
-                "address", IP,
-                "interface", INTERFACE);
-            var id = createCommand.ExecuteScalar();
+            try
+            {
+                var createCommand = Connection.CreateCommandAndParameters("/ip/address/add",
+                    "address", IP,
+                    "interface", INTERFACE);
+                var id = createCommand.ExecuteScalar();
 
-            Assert.IsNotNull(id);
-            Assert.AreNotEqual(string.Empty, id);
-
-            //cleanup
-            Cleanup_DeteleAddressByIp(IP);
+                Assert.IsNotNull(id);
+                Assert.AreNotEqual(string.Empty, id);
+            }
+            finally
+            {
+                //cleanup
+                Cleanup_DeteleAddressByIp(IP);
+            }
         }
 
 
@@ -80,19 +90,24 @@ namespace tik4net.tests
             const string INTERFACE = "ether1";
             Cleanup_DeteleAddressByIp(IP);
 
-            var address = new Objects.Ip.IpAddress()
+            try
             {
-                Address = IP,
-                Interface = INTERFACE
-            };
+                var address = new Objects.Ip.IpAddress()
+                {
+                    Address = IP,
+                    Interface = INTERFACE
+                };
 
-            Connection.Save(address);
+                Connection.Save(address);
 
-            Assert.IsNotNull(address.Id);
-            Assert.AreNotEqual(string.Empty, address.Id);
-
-            //cleanup
-            Cleanup_DeteleAddressByIp(IP);
+                Assert.IsNotNull(address.Id);
+                Assert.AreNotEqual(string.Empty, address.Id);
+            }
+            finally
+            {
+                //cleanup
+                Cleanup_DeteleAddressByIp(IP);
+            }
         }
 
         #endregion
@@ -107,26 +122,31 @@ namespace tik4net.tests
             Cleanup_DeteleAddressByIp(IP);
             Init_CreateAddress(IP, INTERFACE);
 
-            var response = Connection.CallCommandSync("/ip/address/print", $"?=address={IP}");
+            try
+            {
+                var response = Connection.CallCommandSync("/ip/address/print", $"?=address={IP}");
 
-            /* EXAMPLE:
-            //find by IP address -> we need ID of item
-            var itemId  = Connection.CallCommandSync("/ip/address/print", $"?=address={IP}")
-                .OfType<ITikReSentence>()
-                .Single()
-                .GetId();
-                
-            */            
+                /* EXAMPLE:
+                //find by IP address -> we need ID of item
+                var itemId  = Connection.CallCommandSync("/ip/address/print", $"?=address={IP}")
+                    .OfType<ITikReSentence>()
+                    .Single()
+                    .GetId();
 
-            Assert.IsNotNull(response);
-            Assert.AreEqual(2, response.Count());
-            Assert.IsInstanceOfType(response.ToArray()[0], typeof(ITikReSentence));
-            Assert.IsInstanceOfType(response.ToArray()[1], typeof(ITikDoneSentence));
-            Assert.AreEqual(IP, ((ITikReSentence)response.ToArray()[0]).GetResponseField("address"));
-            Assert.AreEqual(INTERFACE, ((ITikReSentence)response.ToArray()[0]).GetResponseField("interface"));
+                */
 
-            //cleanup
-            Cleanup_DeteleAddressByIp(IP);
+                Assert.IsNotNull(response);
+                Assert.AreEqual(2, response.Count());
+                Assert.IsInstanceOfType(response.ToArray()[0], typeof(ITikReSentence));
+                Assert.IsInstanceOfType(response.ToArray()[1], typeof(ITikDoneSentence));
+                Assert.AreEqual(IP, ((ITikReSentence)response.ToArray()[0]).GetResponseField("address"));
+                Assert.AreEqual(INTERFACE, ((ITikReSentence)response.ToArray()[0]).GetResponseField("interface"));
+            }
+            finally
+            {
+                //cleanup
+                Cleanup_DeteleAddressByIp(IP);
+            }
         }
 
         [TestMethod]
@@ -137,17 +157,22 @@ namespace tik4net.tests
             Cleanup_DeteleAddressByIp(IP);
             var id = Init_CreateAddress(IP, INTERFACE);
 
-            var loadCmd = Connection.CreateCommandAndParameters("/ip/address/print", "address", IP);
-            var response = loadCmd.ExecuteList();
+            try
+            {
+                var loadCmd = Connection.CreateCommandAndParameters("/ip/address/print", "address", IP);
+                var response = loadCmd.ExecuteList();
 
-            Assert.IsNotNull(response);
-            Assert.AreEqual(1, response.Count());
-            Assert.AreEqual(id, response.Single().GetId());
-            Assert.AreEqual(IP, response.Single().GetResponseField("address"));
-            Assert.AreEqual(INTERFACE, response.Single().GetResponseField("interface"));
-
-            //cleanup
-            Cleanup_DeteleAddressByIp(IP);
+                Assert.IsNotNull(response);
+                Assert.AreEqual(1, response.Count());
+                Assert.AreEqual(id, response.Single().GetId());
+                Assert.AreEqual(IP, response.Single().GetResponseField("address"));
+                Assert.AreEqual(INTERFACE, response.Single().GetResponseField("interface"));
+            }
+            finally
+            {
+                //cleanup
+                Cleanup_DeteleAddressByIp(IP);
+            }
         }
 
         [TestMethod]
@@ -158,15 +183,20 @@ namespace tik4net.tests
             Cleanup_DeteleAddressByIp(IP);
             Init_CreateAddress(IP, INTERFACE);
 
-            var ipAddress = Connection.LoadSingle<Objects.Ip.IpAddress>(
-                Connection.CreateParameter("address", IP));
+            try
+            {
+                var ipAddress = Connection.LoadSingle<Objects.Ip.IpAddress>(
+                    Connection.CreateParameter("address", IP));
 
-            Assert.IsNotNull(ipAddress);
-            Assert.AreEqual(IP, ipAddress.Address);
-            Assert.AreEqual(INTERFACE, ipAddress.Interface);
-
-            //cleanup
-            Cleanup_DeteleAddressByIp(IP);
+                Assert.IsNotNull(ipAddress);
+                Assert.AreEqual(IP, ipAddress.Address);
+                Assert.AreEqual(INTERFACE, ipAddress.Interface);
+            }
+            finally
+            {
+                //cleanup
+                Cleanup_DeteleAddressByIp(IP);
+            }
         }
         #endregion
 
@@ -180,14 +210,19 @@ namespace tik4net.tests
             Cleanup_DeteleAddressByIp(IP);
             var id = Init_CreateAddress(IP, INTERFACE);
 
-            var response = Connection.CallCommandSync("/ip/address/set", "=comment=test comment", $"=.id={id}");
+            try
+            {
+                var response = Connection.CallCommandSync("/ip/address/set", "=comment=test comment", $"=.id={id}");
 
-            Assert.IsNotNull(response);
-            Assert.AreEqual(1, response.Count());
-            Assert.IsInstanceOfType(response.Single(), typeof(ITikDoneSentence));
-
-            //cleanup
-            Cleanup_DeteleAddressByIp(IP);
+                Assert.IsNotNull(response);
+                Assert.AreEqual(1, response.Count());
+                Assert.IsInstanceOfType(response.Single(), typeof(ITikDoneSentence));
+            }
+            finally
+            {
+                //cleanup
+                Cleanup_DeteleAddressByIp(IP);
+            }
         }
 
         [TestMethod]
@@ -198,13 +233,18 @@ namespace tik4net.tests
             Cleanup_DeteleAddressByIp(IP);
             var id = Init_CreateAddress(IP, INTERFACE);
 
-            var updateCmd = Connection.CreateCommandAndParameters("/ip/address/set", 
-                "comment", "test comment", 
-                TikSpecialProperties.Id, id);
-            updateCmd.ExecuteNonQuery();
-
-            //cleanup
-            Cleanup_DeteleAddressByIp(IP);
+            try
+            {
+                var updateCmd = Connection.CreateCommandAndParameters("/ip/address/set",
+                    "comment", "test comment",
+                    TikSpecialProperties.Id, id);
+                updateCmd.ExecuteNonQuery();
+            }
+            finally
+            {
+                //cleanup
+                Cleanup_DeteleAddressByIp(IP);
+            }
         }
 
         [TestMethod]
@@ -215,12 +255,17 @@ namespace tik4net.tests
             Cleanup_DeteleAddressByIp(IP);
             var id = Init_CreateAddress(IP, INTERFACE);
 
-            var address = Connection.LoadById<Objects.Ip.IpAddress>(id);
-            address.Comment = "test comment";
-            Connection.Save(address);
-
-            //cleanup
-            Cleanup_DeteleAddressByIp(IP);
+            try
+            {
+                var address = Connection.LoadById<Objects.Ip.IpAddress>(id);
+                address.Comment = "test comment";
+                Connection.Save(address);
+            }
+            finally
+            {
+                //cleanup
+                Cleanup_DeteleAddressByIp(IP);
+            }
         }
         #endregion
 

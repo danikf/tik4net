@@ -95,11 +95,22 @@ namespace tik4net.tests
             //const string IP = "192.168.1.1/24";
             const string INTERFACE = "ether1";
 
-            //update interface name
-            var updateCommand = Connection.CreateCommandAndParameters("/interface/set",
-                "comment", "test comment",
-                ".id", INTERFACE); // could work by briefly documented magic: https://wiki.mikrotik.com/wiki/API_command_notes#Addressing_entries
-            updateCommand.ExecuteNonQuery();
+            var originalComment = Connection.LoadByName<Objects.Interface.Interface>(INTERFACE).Comment ?? "";
+            try
+            {
+                //update interface name
+                var updateCommand = Connection.CreateCommandAndParameters("/interface/set",
+                    "comment", "test comment",
+                    ".id", INTERFACE); // could work by briefly documented magic: https://wiki.mikrotik.com/wiki/API_command_notes#Addressing_entries
+                updateCommand.ExecuteNonQuery();
+            }
+            finally
+            {
+                //restore original comment so the test leaves no garbage on the router
+                Connection.CreateCommandAndParameters("/interface/set",
+                    "comment", originalComment,
+                    ".id", INTERFACE).ExecuteNonQuery();
+            }
         }
 
         [TestMethod]
@@ -428,13 +439,24 @@ namespace tik4net.tests
         }
 
         [TestMethod]
-        [ExpectedException(typeof(TikAlreadyHaveSuchItemException))]
         public void CreateDuplicitEntity_WillThrowCorrectException()
         {
             var ipAddr = Connection.LoadAll<IpAddress>().First();
 
             var newAddr = new IpAddress() { Address = ipAddr.Address, Netmask = ipAddr.Netmask, Network = ipAddr.Network, Interface = ipAddr.Interface };
-            Connection.Save(newAddr);
+            // Not [ExpectedException]: if Save unexpectedly succeeds it creates a duplicate address that
+            // would be left behind (and could disrupt networking) — delete it before failing the test.
+            try
+            {
+                Connection.Save(newAddr);
+            }
+            catch (TikAlreadyHaveSuchItemException)
+            {
+                return; // expected
+            }
+
+            Connection.Delete(newAddr);
+            Assert.Fail("Expected TikAlreadyHaveSuchItemException, but Save succeeded and created a duplicate.");
         }
     }
 }

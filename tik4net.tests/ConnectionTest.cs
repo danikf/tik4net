@@ -73,20 +73,25 @@ namespace tik4net.tests
                 ITikCommand readCmd = connection.CreateCommand("/system/identity/print");
                 var originalIdentity = readCmd.ExecuteScalar();
 
-                //modify
-                const string testStringWithExoticCharacters = "Příliš žluťoučký kůň úpěl ďábelské ódy.";
-                ITikCommand setCmd = connection.CreateCommand("/system/identity/set");
-                setCmd.AddParameterAndValues("name", testStringWithExoticCharacters);
-                setCmd.ExecuteNonQuery();
+                try
+                {
+                    //modify
+                    const string testStringWithExoticCharacters = "Příliš žluťoučký kůň úpěl ďábelské ódy.";
+                    ITikCommand setCmd = connection.CreateCommand("/system/identity/set");
+                    setCmd.AddParameterAndValues("name", testStringWithExoticCharacters);
+                    setCmd.ExecuteNonQuery();
 
-                //read modified
-                var newIdentity = readCmd.ExecuteScalar();
-                Assert.AreEqual(testStringWithExoticCharacters, newIdentity);
-
-                //cleanup
-                setCmd.Parameters.Clear();
-                setCmd.AddParameterAndValues("name", originalIdentity);
-                setCmd.ExecuteNonQuery();
+                    //read modified
+                    var newIdentity = readCmd.ExecuteScalar();
+                    Assert.AreEqual(testStringWithExoticCharacters, newIdentity);
+                }
+                finally
+                {
+                    //cleanup - restore original identity even if the assert above failed
+                    ITikCommand restoreCmd = connection.CreateCommand("/system/identity/set");
+                    restoreCmd.AddParameterAndValues("name", originalIdentity);
+                    restoreCmd.ExecuteNonQuery();
+                }
             }
         }
 
@@ -131,7 +136,7 @@ namespace tik4net.tests
         [TestMethod]
         public void OpenSslConnectionWillNotFail()
         {
-            using (var connection = CreateOpenedConnection())
+            using (var connection = CreateOpenedConnection(TikConnectionType.ApiSsl))
             {
                 connection.Close();
             }
