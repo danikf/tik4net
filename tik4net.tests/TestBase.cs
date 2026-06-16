@@ -37,8 +37,17 @@ namespace tik4net.tests
         /// an async/listen command running, so its connection is discarded rather than reused).
         /// Connection-lifecycle-sensitive classes (e.g. <c>SafeModeTest</c>) override this to false to get a
         /// guaranteed-isolated connection per test.
+        /// <para>
+        /// The native WinBox-over-MAC transport (<see cref="TikConnectionType.WinboxNativeMac"/>) is excluded
+        /// from reuse: it rides the lossy UDP MAC layer whose cumulative-byte ACK/retransmit state does not
+        /// survive an arbitrary sequence of unrelated exchanges on one channel (a prior multi-frame test can
+        /// leave the next test's first <c>getall</c> unanswered — the test passes in isolation but not mid-run).
+        /// A fresh channel per test sidesteps that; the TCP native transport (<c>WinboxNative</c>) is unaffected
+        /// and keeps reuse.
+        /// </para>
         /// </summary>
-        protected virtual bool ReuseConnectionAcrossTests => true;
+        protected virtual bool ReuseConnectionAcrossTests
+            => ResolveConnectionType() != TikConnectionType.WinboxNativeMac;
 
         [TestInitialize]
         public void Init()
