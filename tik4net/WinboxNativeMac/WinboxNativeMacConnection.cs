@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using tik4net.Winbox;
 using tik4net.WinboxNative;
 
@@ -19,24 +18,19 @@ namespace tik4net.WinboxNativeMac
     /// </remarks>
     public sealed class WinboxNativeMacConnection : WinboxNativeConnection
     {
-        /// <summary>MAC-layer WinBox UDP port (informational — the transport is fixed to UDP 20561).</summary>
-        public new const int DefaultPort = 20561;
-
         /// <summary>
         /// Optional: router MAC as "AA:BB:CC:DD:EE:FF" to bypass MNDP discovery (which can take up to 5 s).
         /// Set before calling Open.
         /// </summary>
         public string RouterMac { get; set; }
 
+        /// <summary>
+        /// MAC-layer WinBox UDP port (informational — <see cref="WinboxMacM2Session"/> ignores the forwarded
+        /// port and always uses UDP 20561). Overrides the base seam instead of <c>new</c>-shadowing the const.
+        /// </summary>
+        private protected override int DefaultPortValue => 20561;
+
         /// <inheritdoc/>
         private protected override IWinboxM2Channel CreateChannel() => new WinboxMacM2Session(RouterMac);
-
-        /// <inheritdoc/>
-        public override void Open(string host, string user, string password)
-            => Open(host, DefaultPort, user, password);
-
-        /// <inheritdoc/>
-        public override Task OpenAsync(string host, string user, string password)
-            => OpenAsync(host, DefaultPort, user, password);
     }
 }
