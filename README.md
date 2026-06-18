@@ -55,6 +55,7 @@ Mikrotik API wiki:
 * [Mikrotik API notes](https://wiki.mikrotik.com/wiki/API_command_notes)
 
 Project wiki:
+* [**Getting started**](https://github.com/danikf/tik4net/wiki/Getting-started) — step-by-step first project (NuGet → connect → CRUD)
 * [wiki root](https://github.com/danikf/tik4net/wiki) 
 * [CRUD examples for all APIs](https://github.com/danikf/tik4net/wiki/CRUD-examples-for-all-APIs)
 * [how to use](https://github.com/danikf/tik4net/wiki/How-to-use-tik4net-library)
