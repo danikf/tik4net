@@ -98,6 +98,21 @@ namespace tik4net.WinboxCli
             }, ct);
         }
 
+        /// <summary>
+        /// Sends raw bytes (e.g. <c>&lt;stem&gt;&lt;Tab&gt;</c> for Tab-completion) and reads the reaction until
+        /// the terminal goes quiet for <paramref name="quietMs"/> — the completion listing does not end in a
+        /// shell prompt (RouterOS redraws the prompt with the echoed stem), so it must be read on a settle
+        /// window rather than a prompt match. ANSI-stripped.
+        /// </summary>
+        internal Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
+        {
+            return Task.Run(() =>
+            {
+                SendInput(raw);
+                return ReadUntilQuietSync(quietMs);
+            }, ct);
+        }
+
         // ── Close ─────────────────────────────────────────────────────────────
 
         /// <summary>Asks RouterOS to leave the console (<c>/quit</c>); errors are ignored.</summary>
@@ -247,6 +262,50 @@ namespace tik4net.WinboxCli
                     else if (DateTime.UtcNow >= settleUntil.Value)
                         return stripped;
                 }
+            }
+
+            return VtStripper.StripAnsi(sb.ToString());
+        }
+
+        /// <summary>
+        /// Accumulates the terminal reaction until the channel stays quiet for <paramref name="quietMs"/>
+        /// after at least some data (or the receive deadline expires), answering VT100 probes. Returns the
+        /// ANSI-stripped text. Used for Tab-completion (see <see cref="SendRawAndReadUntilQuietAsync"/>).
+        /// </summary>
+        private string ReadUntilQuietSync(int quietMs)
+        {
+            var sb = new StringBuilder();
+            var sw = Stopwatch.StartNew();
+            DateTime lastData = DateTime.UtcNow;
+            bool any = false;
+
+            while (sw.ElapsedMilliseconds < _receiveTimeoutMs)
+            {
+                bool gotData = false;
+                if (_session.DataAvailable)
+                {
+                    byte[] chunk;
+                    try { chunk = ReceiveTerminalChunk(FrameTimeoutMs); }
+                    catch (IOException) { break; }
+                    if (chunk != null)
+                    {
+                        string text = _encoding.GetString(chunk);
+                        sb.Append(text);
+                        foreach (string reply in _vt100.Process(text))
+                            SendInput(_encoding.GetBytes(reply));
+                        gotData = true;
+                        any = true;
+                    }
+                }
+                else
+                {
+                    Thread.Sleep(PollSleepMs);
+                }
+
+                if (gotData)
+                    lastData = DateTime.UtcNow;
+                else if (any && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs)
+                    break;
             }
 
             return VtStripper.StripAnsi(sb.ToString());

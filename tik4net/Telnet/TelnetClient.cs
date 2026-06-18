@@ -112,6 +112,62 @@ namespace tik4net.Telnet
             return await ReadCommandResponseAsync(ct).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Sends raw bytes (e.g. <c>&lt;stem&gt;&lt;Tab&gt;</c> for completion) and reads the reaction until the
+        /// stream goes <b>quiet</b> for <paramref name="quietMs"/> — used for Tab-completion, whose listing
+        /// does not end in a shell prompt (RouterOS redraws the prompt with the echoed stem), so a
+        /// prompt-terminated read would block until the receive deadline. ANSI-stripped; not echo/prompt
+        /// trimmed (the completion parser removes those). Bounded by the receive deadline.
+        /// </summary>
+        internal async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
+        {
+            await SendBytesAsync(raw, ct).ConfigureAwait(false);
+            return await ReadUntilQuietAsync(quietMs, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Reads/answers (IAC + VT100 probes) until no new bytes arrive for <paramref name="quietMs"/> after
+        /// at least some data, the connection closes, or the receive deadline expires. Returns the
+        /// ANSI-stripped accumulated text.
+        /// </summary>
+        private async Task<string> ReadUntilQuietAsync(int quietMs, CancellationToken ct)
+        {
+            var buffer = new byte[4096];
+            var accumulated = new StringBuilder();
+            var deadline = DateTime.UtcNow.AddMilliseconds(_receiveTimeoutMs);
+            DateTime lastData = DateTime.UtcNow;
+
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                bool gotData = false;
+                bool closed = false;
+                while (_stream.DataAvailable)
+                {
+                    int n = await _stream.ReadAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false);
+                    if (n <= 0) { closed = true; break; }
+                    accumulated.Append(await ProcessChunkAsync(buffer, n, ct).ConfigureAwait(false));
+                    gotData = true;
+                }
+
+                if (gotData)
+                    lastData = DateTime.UtcNow;
+
+                string stripped = VtStripper.StripAnsi(accumulated.ToString());
+
+                // Settled: some data arrived and the stream has been silent for the quiet window.
+                if (!gotData && accumulated.Length > 0
+                    && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs)
+                    return stripped;
+
+                if (closed || DateTime.UtcNow >= deadline)
+                    return stripped;
+
+                await Task.Delay(15, ct).ConfigureAwait(false);
+            }
+        }
+
         // ── Close / Dispose ───────────────────────────────────────────────────
 
         internal void Close()

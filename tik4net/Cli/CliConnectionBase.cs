@@ -28,7 +28,7 @@ namespace tik4net.Cli
     /// (<see cref="VtStripper.StripAnsi"/>) and any terminal echo / prompt trimmed by the transport — the
     /// core layer only sees data lines.
     /// </summary>
-    public abstract class CliConnectionBase : TikCommandConnectionBase, ITikMonitorTransport, IPollingMonitorHost
+    public abstract class CliConnectionBase : TikCommandConnectionBase, ITikMonitorTransport, IPollingMonitorHost, ITikCliCompletion
     {
         /// <summary>Interval between monitor-snapshot polls (ms). Sub-second so callers see a fresh reading
         /// promptly; RouterOS GUI/webfig refresh ~1 s but a terminal snapshot is cheap.</summary>
@@ -204,6 +204,78 @@ namespace tik4net.Cli
             if (!SafeModeHeld) return;
             SendControlKey(CtrlD);
             SafeModeHeld = false;
+        }
+
+        // ── Tab-completion probe (ITikCliCompletion) ───────────────────────────
+
+        /// <summary>Tab — triggers the RouterOS terminal completion listing. Byte 0x09.</summary>
+        private const byte Tab = 0x09;
+        /// <summary>Ctrl-C — aborts the current input line (leaving a fresh prompt). Byte 0x03.</summary>
+        private const byte CtrlC = 0x03;
+        /// <summary>Silence (no new bytes) that marks the completion listing as fully arrived (ms).</summary>
+        private const int CompletionSettleQuietMs = 300;
+
+        // Optional driver for the completion probe: "send raw bytes, then read until the output goes quiet
+        // for N ms" (settle), returning the ANSI-stripped reaction. Unlike the command/control-key drivers
+        // (which read up to the next shell prompt), the Tab listing does NOT end in a bare prompt — RouterOS
+        // redraws the prompt with the echoed stem — so it must be read on a settle window, not a prompt match.
+        // A leaf transport registers this in Open only if it supports completion (currently Telnet); when it
+        // is null, CompleteCli reports the transport does not support completion (fail-closed).
+        private Func<byte[], int, CancellationToken, Task<string>> _sendRawSettle;
+
+        /// <summary>
+        /// Registers the settle-read driver that enables <see cref="ITikCliCompletion"/> on this transport.
+        /// Leaf transports that can drive interactive Tab-completion call this from their Open after
+        /// <see cref="OpenWith"/>; transports that don't leave it unregistered (completion then throws).
+        /// </summary>
+        protected void RegisterCompletionDriver(Func<byte[], int, CancellationToken, Task<string>> sendRawSettle)
+            => _sendRawSettle = sendRawSettle;
+
+        /// <inheritdoc/>
+        public IReadOnlyList<string> CompleteCli(string partialInput)
+            => CliCompletionParser.Tokens(CompleteCliReaction(partialInput), partialInput);
+
+        /// <inheritdoc/>
+        public string CompleteCliRaw(string partialInput)
+            => CliCompletionParser.Clean(CompleteCliReaction(partialInput), partialInput);
+
+        /// <summary>
+        /// Drives one Tab-completion probe and returns the ANSI-stripped terminal reaction.
+        /// Sequence (verified live): send <c>&lt;partialInput&gt;&lt;Tab&gt;</c> and read until the listing
+        /// settles (RouterOS prints the completions then redraws <c>] &gt; &lt;stem&gt;</c> — never a bare
+        /// prompt, so a prompt-based read would hang); then send <c>Ctrl-C</c> to abort the half-typed line
+        /// so the session is left at a clean prompt for the next call. <c>?</c> is deliberately not used — it
+        /// emits no listing over a RouterOS PTY.
+        /// </summary>
+        private string CompleteCliReaction(string partialInput)
+        {
+            EnsureOpened();
+            if (partialInput == null)
+                throw new ArgumentNullException(nameof(partialInput));
+            var settle = _sendRawSettle
+                ?? throw new NotSupportedException(
+                    $"The {TransportName} transport does not support interactive Tab-completion. "
+                    + "Use the Telnet transport for CompleteCli / the mikrotik_cli_complete MCP tool.");
+
+            byte[] stem = Encoding.GetBytes(partialInput);
+            byte[] tab = new byte[stem.Length + 1];
+            Array.Copy(stem, tab, stem.Length);
+            tab[stem.Length] = Tab;
+
+            _cmdLock.Wait();
+            try
+            {
+                FireWriteRow("<tab-complete> " + partialInput);
+                string reaction = settle(tab, CompletionSettleQuietMs, CancellationToken.None).GetAwaiter().GetResult();
+                FireReadRow(reaction);
+
+                // Abort the half-typed line (Ctrl-C → fresh prompt). Prompt-based read returns promptly here.
+                try { SendRawAndReadAsync(new[] { CtrlC }, CancellationToken.None).GetAwaiter().GetResult(); }
+                catch { /* best-effort cleanup — the listing is already captured */ }
+
+                return reaction;
+            }
+            finally { _cmdLock.Release(); }
         }
 
         // ── CRUD hooks — CLI text build + parse ────────────────────────────────

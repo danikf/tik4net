@@ -38,7 +38,7 @@ Tests are in `tik4net.tests/` using **MSTest** targeting .NET 4.8. They require 
 <add key="pass" value=""/>
 ```
 
-Run tests via Visual Studio Test Explorer (MSTest project format, not SDK-style). There is no mock-based test suite — all tests hit a real router.
+Run tests via Visual Studio Test Explorer or `dotnet test`. The test project is SDK-style (`Microsoft.NET.Sdk`, targets `net48`), so new `.cs` files are auto-included — no `.csproj` edit needed. Most tests hit a real router; a few are pure-logic units (e.g. parser/resolver) that run without one.
 
 ## Architecture
 

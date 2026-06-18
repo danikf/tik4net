@@ -49,8 +49,9 @@ namespace tik4net.WinboxCliMac
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
         {
-            var (login, send, sendRaw, close) = BuildTransport(host, port, user, password);
+            var (login, send, sendRaw, sendRawSettle, close) = BuildTransport(host, port, user, password);
             OpenWith(login, send, sendRaw, close);
+            RegisterCompletionDriver(sendRawSettle);
         }
 
         /// <inheritdoc/>
@@ -58,21 +59,23 @@ namespace tik4net.WinboxCliMac
             => OpenAsync(host, DefaultPort, user, password);
 
         /// <inheritdoc/>
-        public override Task OpenAsync(string host, int port, string user, string password)
+        public override async Task OpenAsync(string host, int port, string user, string password)
         {
-            var (login, send, sendRaw, close) = BuildTransport(host, port, user, password);
-            return OpenWithAsync(login, send, sendRaw, close);
+            var (login, send, sendRaw, sendRawSettle, close) = BuildTransport(host, port, user, password);
+            await OpenWithAsync(login, send, sendRaw, close).ConfigureAwait(false);
+            RegisterCompletionDriver(sendRawSettle);
         }
 
         // Build the WinBox-CLI client over the MAC-layer M2 channel and the delegates that drive it.
         private (Func<CancellationToken, Task>, Func<string, CancellationToken, Task<string>>,
-            Func<byte[], CancellationToken, Task<string>>, Action)
+            Func<byte[], CancellationToken, Task<string>>, Func<byte[], int, CancellationToken, Task<string>>, Action)
             BuildTransport(string host, int port, string user, string password)
         {
             var client = new WinboxCliClient(new WinboxMacM2Session(RouterMac), Encoding, ReceiveTimeout, ConnectTimeout);
             Func<CancellationToken, Task> login = ct => client.LoginAsync(host, port, user, password, ct);
             Action close = () => { client.TryCloseSession(); client.Dispose(); };
-            return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync, close);
+            return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,
+                client.SendRawAndReadUntilQuietAsync, close);
         }
     }
 }

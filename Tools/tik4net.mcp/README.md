@@ -1,10 +1,13 @@
 # tik4net.mcp
 
 An [MCP](https://modelcontextprotocol.io) server that exposes MikroTik routers to an MCP client
-(Claude Code, Claude Desktop, …) through [tik4net](https://github.com/danikf/tik4net). It provides a
-single tool, **`mikrotik_call`**, that runs any RouterOS command over **every** tik4net transport — so
-you can inspect and modify a router, or debug/compare the wire protocol across transports, from an AI
-assistant.
+(Claude Code, Claude Desktop, …) through [tik4net](https://github.com/danikf/tik4net). It provides two
+tools:
+- **`mikrotik_call`** — runs any RouterOS command over **every** tik4net transport, so you can inspect and
+  modify a router, or debug/compare the wire protocol across transports, from an AI assistant.
+- **`mikrotik_cli_complete`** — drives RouterOS terminal **Tab-completion** to enumerate the menu tree and
+  an object's settable parameters (the scriptable way to "map" a router / resolve an entity's writable
+  fields). CLI terminal transports only.
 
 ## Install
 
@@ -60,6 +63,36 @@ Listen/Streaming.
 // compare a transport against the API baseline, with raw trace
 { "host": "192.168.88.1", "username": "admin", "password": "",
   "command": "/ip/address/print", "transport": "WinboxNative", "includeRawTrace": true }
+```
+
+## The `mikrotik_cli_complete` tool
+
+Enumerates what RouterOS would **Tab-complete** for a partial CLI command — the scriptable way to walk the
+menu tree or resolve an object's writable fields from a live router.
+
+| Parameter   | Type   | Description |
+|-------------|--------|-------------|
+| `host`      | string | Router IP or hostname |
+| `username`  | string | Login user |
+| `password`  | string | Login password (may be empty) |
+| `input`     | string | Partial CLI line, **exactly as typed before Tab** — include the trailing space to list the next word |
+| `transport` | string | CLI terminal transport (default `Telnet`): `Telnet`, `WinboxCli`, `MacTelnet`, `WinboxCliMac`. `Api`/`Rest`/`WinboxNative` are rejected |
+| `port`      | int    | TCP/UDP port; `0` = transport default |
+| `routerMac` | string | Router MAC — only `MacTelnet` / `WinboxCliMac` |
+
+Returns `{ input, transport, tokens[], raw }`. After a **menu path** (`/interface `) `tokens` are child
+menus + verbs; after **`add `/`set `** (`/interface/vlan add `) they are the **settable parameter names** —
+the writable field set for that object. `tokens` is empty when the input completes to a single unique token.
+Long names may be column-truncated by RouterOS — use `mikrotik_call` `… /print` with `=detail=` for full
+names. Supported on all CLI terminal transports (Telnet, WinboxCli, MacTelnet, WinboxCliMac).
+
+```jsonc
+// settable parameters of /interface/vlan (the entity's writable fields)
+{ "host": "192.168.88.1", "username": "admin", "password": "",
+  "input": "/interface/vlan add " }
+
+// child menus + verbs under /ip
+{ "host": "192.168.88.1", "username": "admin", "password": "", "input": "/ip " }
 ```
 
 ## Documentation

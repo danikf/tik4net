@@ -81,6 +81,21 @@ namespace tik4net.MacTelnet
             }, ct);
         }
 
+        /// <summary>
+        /// Sends raw bytes (e.g. <c>&lt;stem&gt;&lt;Tab&gt;</c> for Tab-completion) and reads the reaction until
+        /// the socket goes quiet for <paramref name="quietMs"/> — the completion listing does not end in a
+        /// shell prompt (RouterOS redraws the prompt with the echoed stem), so it must be read on a settle
+        /// window rather than a prompt match. ANSI-stripped.
+        /// </summary>
+        internal Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
+        {
+            return Task.Run(() =>
+            {
+                SendTerminalBytes(raw);
+                return ReadUntilQuietSync(quietMs);
+            }, ct);
+        }
+
         // ── Close ─────────────────────────────────────────────────────────────
 
         /// <summary>
@@ -203,6 +218,55 @@ namespace tik4net.MacTelnet
                     else if (DateTime.UtcNow >= settleUntil.Value)
                         return stripped;
                 }
+            }
+
+            return VtStripper.StripAnsi(sb.ToString());
+        }
+
+        /// <summary>
+        /// Accumulates the terminal reaction until the socket stays quiet for <paramref name="quietMs"/>
+        /// after at least some data (or the receive deadline expires), answering VT100 probes. Returns the
+        /// ANSI-stripped text. Used for Tab-completion (see <see cref="SendRawAndReadUntilQuietAsync"/>).
+        /// </summary>
+        private string ReadUntilQuietSync(int quietMs)
+        {
+            var sb = new StringBuilder();
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            DateTime lastData = DateTime.UtcNow;
+            bool any = false;
+
+            while (sw.ElapsedMilliseconds < _receiveTimeoutMs)
+            {
+                _udp.Client.ReceiveTimeout = PollMs;
+                bool gotData = false;
+                try
+                {
+                    IPEndPoint ep = new IPEndPoint(IPAddress.Any, 0);
+                    byte[] pkt = _udp.Receive(ref ep);
+                    if (!TryParsePacket(pkt, out byte type, out uint counter, out byte[] payload))
+                        continue;
+
+                    if (type == PKT_ACK) continue;
+                    if (type == PKT_PING) { SendPong(counter); continue; }
+                    if (type != PKT_DATA) continue;
+
+                    if (!AckData(counter, payload.Length)) continue;   // duplicate retransmit
+                    if (!IsControlPacket(payload))
+                    {
+                        string text = _encoding.GetString(payload);
+                        sb.Append(text);
+                        foreach (string reply in _vt100.Process(text))
+                            SendTerminalBytes(_encoding.GetBytes(reply));
+                        gotData = true;
+                        any = true;
+                    }
+                }
+                catch (SocketException) { /* poll timeout */ }
+
+                if (gotData)
+                    lastData = DateTime.UtcNow;
+                else if (any && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs)
+                    break;
             }
 
             return VtStripper.StripAnsi(sb.ToString());

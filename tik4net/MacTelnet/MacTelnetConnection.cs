@@ -52,8 +52,9 @@ namespace tik4net.MacTelnet
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
         {
-            var (login, send, sendRaw, close) = BuildTransport(host, port, user, password);
+            var (login, send, sendRaw, sendRawSettle, close) = BuildTransport(host, port, user, password);
             OpenWith(login, send, sendRaw, close);
+            RegisterCompletionDriver(sendRawSettle);
         }
 
         /// <inheritdoc/>
@@ -61,22 +62,24 @@ namespace tik4net.MacTelnet
             => OpenAsync(host, DefaultPort, user, password);
 
         /// <inheritdoc/>
-        public override Task OpenAsync(string host, int port, string user, string password)
+        public override async Task OpenAsync(string host, int port, string user, string password)
         {
-            var (login, send, sendRaw, close) = BuildTransport(host, port, user, password);
-            return OpenWithAsync(login, send, sendRaw, close);
+            var (login, send, sendRaw, sendRawSettle, close) = BuildTransport(host, port, user, password);
+            await OpenWithAsync(login, send, sendRaw, close).ConfigureAwait(false);
+            RegisterCompletionDriver(sendRawSettle);
         }
 
         // Build the MAC-Telnet client and the delegates that drive it. The port parameter is ignored —
         // MAC-Telnet always uses UDP 20561; login is by router MAC, discovered via MNDP or RouterMac.
         private (Func<CancellationToken, Task>, Func<string, CancellationToken, Task<string>>,
-            Func<byte[], CancellationToken, Task<string>>, Action)
+            Func<byte[], CancellationToken, Task<string>>, Func<byte[], int, CancellationToken, Task<string>>, Action)
             BuildTransport(string host, int port, string user, string password)
         {
             var client = new MacTelnetUdpClient(Encoding, ReceiveTimeout, ConnectTimeout, RouterMac);
             Func<CancellationToken, Task> login = ct => client.LoginAsync(host, user, password, ct);
             Action close = () => { client.TryCloseSession(); client.Dispose(); };
-            return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync, close);
+            return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,
+                client.SendRawAndReadUntilQuietAsync, close);
         }
     }
 }

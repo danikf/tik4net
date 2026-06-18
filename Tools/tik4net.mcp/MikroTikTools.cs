@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text;
 using System.Text.Json;
 using ModelContextProtocol.Server;
+using tik4net.Cli;
 
 namespace tik4net.mcp;
 
@@ -117,6 +118,84 @@ public sealed class MikroTikTools
         catch (Exception ex)
         {
             return WithTrace($"ERROR ({ex.GetType().Name}): {ex.Message}");
+        }
+    }
+
+    private static readonly TikConnectionType[] CompletionTransports =
+    {
+        TikConnectionType.Telnet,
+        TikConnectionType.WinboxCli,
+        TikConnectionType.MacTelnet,
+        TikConnectionType.WinboxCliMac,
+    };
+
+    [McpServerTool]
+    [Description(
+        "Enumerate what RouterOS would Tab-complete for a partial CLI command — the scriptable way to walk " +
+        "the whole router menu tree and resolve an object's writable fields from a live router. " +
+        "Drives terminal completion over a CLI transport (Telnet by default): sends the partial line + Tab, " +
+        "captures the listing, then aborts the line so the session stays clean. " +
+        "After a MENU PATH (e.g. '/interface ') it returns the child menus + command verbs; " +
+        "after 'add ' or 'set ' in a menu (e.g. '/interface/vlan add ') it returns the SETTABLE PARAMETER NAMES " +
+        "— i.e. the writable field set for that object, which is exactly what you need to generate a tik4net entity " +
+        "(print only shows fields that have a value on some current row; completion shows them all). " +
+        "Returns a JSON object { input, transport, tokens[], raw }. tokens is empty when the input completes to a " +
+        "single unique token (RouterOS completes it inline). Only CLI terminal transports support this " +
+        "(Telnet, WinboxCli, MacTelnet, WinboxCliMac) — not Api/Rest/WinboxNative.")]
+    public string MikrotikCliComplete(
+        [Description("IP address or hostname of the MikroTik router")] string host,
+        [Description("Username for authentication")] string username,
+        [Description("Password for authentication")] string password,
+        [Description("Partial CLI command line to complete, EXACTLY as you would type before pressing Tab — " +
+                     "include the trailing space to list the next word. " +
+                     "Examples: '/interface ' (child menus+verbs), '/ip/firewall/filter add ' (settable params), " +
+                     "'/system/resource ' (the singleton's verbs/fields).")]
+        string input,
+        [Description("CLI transport to use (default Telnet): Telnet (TCP 23), WinboxCli (TCP 8291), " +
+                     "MacTelnet (UDP 20561), WinboxCliMac (UDP 20561). Api/Rest/WinboxNative are rejected — " +
+                     "they have no terminal to complete on.")]
+        string transport = "Telnet",
+        [Description("TCP/UDP port. 0 = use the transport default")] int port = 0,
+        [Description("Router MAC 'AA:BB:CC:DD:EE:FF' — only for MacTelnet / WinboxCliMac (else MNDP discovery).")]
+        string? routerMac = null)
+    {
+        if (!Enum.TryParse<TikConnectionType>(transport, ignoreCase: true, out var transportType)
+            || Array.IndexOf(CompletionTransports, transportType) < 0)
+        {
+            return $"ERROR (argument): '{transport}' does not support Tab-completion. Use a CLI terminal "
+                 + "transport: " + string.Join(", ", CompletionTransports);
+        }
+
+        try
+        {
+            var setup = new TikConnectionSetup(host, username, password);
+            if (port > 0)
+                setup.Port = port;
+
+            using var connection = OpenConnection(setup, transportType, routerMac);
+            connection.DebugEnabled = false;
+
+            if (connection is not ITikCliCompletion completion)
+                return $"ERROR (internal): {transportType} connection does not implement ITikCliCompletion.";
+
+            string raw = completion.CompleteCliRaw(input);
+            var tokens = completion.CompleteCli(input);
+
+            return JsonSerializer.Serialize(
+                new { input, transport = transportType.ToString(), tokens, raw },
+                new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch (TikConnectionLoginException ex)
+        {
+            return $"ERROR (auth): {ex.Message}";
+        }
+        catch (System.Net.Sockets.SocketException ex)
+        {
+            return $"ERROR (network): {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            return $"ERROR ({ex.GetType().Name}): {ex.Message}";
         }
     }
 
