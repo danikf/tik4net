@@ -458,7 +458,10 @@ namespace tik4net.Objects
                     .Where(pm => !pm.IsReadOnly)
                     .Where(pm => usedFieldsFilter == null || usedFieldsFilter.Contains(pm.FieldName, StringComparer.OrdinalIgnoreCase)))
                 {
-                    if (!property.HasDefaultValue(entity))
+                    // Send non-default values; always send mandatory fields, since the router
+                    // requires them on /add even when their value happens to equal the default
+                    // (e.g. an enum whose mandatory selection is also its zero/default member).
+                    if (!property.HasDefaultValue(entity) || property.IsMandatory)
                     {
                         createCmd.AddParameter(property.FieldName, property.GetEntityValue(entity));
                     }
