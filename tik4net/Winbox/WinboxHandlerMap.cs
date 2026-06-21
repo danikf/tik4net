@@ -111,6 +111,9 @@ namespace tik4net.Winbox
             ["/tool/bandwidth-test"]         = "/tools/bandwidth-test/bandwidth-test",
             ["/tool/ip-scan"]                = "/tools/ip-scan/ip-scan",
             ["/tool/flood-ping"]             = "/tools/flood-ping/flood-ping",
+
+            // ── Netwatch (advtool.jg, menu 'Tools/Netwatch' → window 'Netwatch Host', handler [51,1]) ──
+            ["/tool/netwatch"]               = "/tools/netwatch/netwatch-host",
         };
 
         private IReadOnlyDictionary<string, int[]> _derivedPaths;

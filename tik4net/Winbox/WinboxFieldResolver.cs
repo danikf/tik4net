@@ -360,7 +360,37 @@ namespace tik4net.Winbox
                     }
                     break; // fall through to static-map / numeric handling below
                 }
+                case "multinumberrange":
+                case "numberrangelist":
+                {
+                    // A list of number ranges: bridge-vlan 'vlan-ids', firewall 'dst-port'/'dscp'/'pcp', … .
+                    // webfig types.multinumberrange.put (no id2) and types.numberrangelist (inherits def) both
+                    // store a flat u32[] of [lo0,hi0,lo1,hi1,…]; a bare "10" is the range [10,10]. An invertible
+                    // (not-wrapped) field negates via its not-flag bool (RouterOS "!80"). Empty → unset.
+                    bool negate = value.StartsWith("!");
+                    string body = negate ? value.Substring(1) : value;
+                    if (body.Length == 0) return result;
+                    var nums = ParseNumberRangeList(body, apiName);
+                    if (nums.Count == 0) return result;
+                    if (jg.OptKey != 0) result.Add(M2Message.BoolSys(jg.OptKey, true));
+                    if (jg.NotKey != 0 && negate) result.Add(M2Message.BoolSys(jg.NotKey, true));
+                    result.Add(M2Message.U32ArraySys(key, nums.ToArray()));
+                    return result;
+                }
             }
+
+            // opt/not-wrapped scalar (e.g. firewall 'protocol' = opt→not→number, with a static proto-name map):
+            // mark the option present via its opt-flag bool and a leading '!' via its not-flag bool — otherwise
+            // the router IGNORES the value (e.g. "ports can be specified if proto is tcp,…" when protocol's opt
+            // flag is missing). Shared by the enum-static-map and generic scalar encoders below. The 'set' and
+            // multinumberrange/numberrangelist UI types emit their own opt/not flags and return before this.
+            if (jg != null && jg.NotKey != 0 && value.StartsWith("!"))
+            {
+                value = value.Substring(1);
+                result.Add(M2Message.BoolSys(jg.NotKey, true));
+            }
+            if (jg != null && jg.OptKey != 0 && value.Length > 0)
+                result.Add(M2Message.BoolSys(jg.OptKey, true));
 
             // enum static map: encode the API string to its numeric index.
             if (jg?.EnumMap != null)
@@ -374,6 +404,17 @@ namespace tik4net.Winbox
             }
 
             string wireType = jg?.WireType ?? SeedWireType(apiName);
+
+            // Loud failure for list/array fields we do NOT yet encode, rather than silently sending a
+            // wrong-typed scalar the router quietly drops (silent data loss is worse than an error). The
+            // handled list type (multinumberrange) already returned above; anything else with an array wire
+            // type ("u32[]"/"string[]"/…) or a 'multi…' UI type (e.g. bridge-vlan 'tagged'/'untagged'
+            // interface lists) is not yet supported over native M2 writes.
+            if (value.Length > 0 && IsUnsupportedListType(wireType, uiType))
+                throw new WinboxFieldResolutionException(
+                    $"WinBox native: field '{apiName}' on '{_apiPath}' is a list/array type " +
+                    $"('{uiType ?? wireType}') that is not yet encodable over native WinBox M2 writes. " +
+                    "Use an Api/REST/CLI connection for this field (or a FieldOverride to a scalar key).");
 
             // 'addr' (webfig types.addr) is a compound: the field value is a nested object, IPv4 riding as a u32
             // at sub-key 0xFEFF20 (master.js: val.ufeff20=string2ipaddr(str)). Send it as a nested message field.
@@ -410,6 +451,36 @@ namespace tik4net.Winbox
             }
             return result;
         }
+
+        // Parse a RouterOS number-range list ("10,20-30,4000") into the flat [lo,hi,lo,hi,…] u32 array webfig
+        // sends for a multinumberrange field. A bare "n" is the range [n,n]. Throws (loud) on a non-numeric
+        // token rather than dropping it — a malformed vlan-id list should fail, not silently truncate.
+        private List<int> ParseNumberRangeList(string value, string apiName)
+        {
+            var nums = new List<int>();
+            foreach (var part in value.Split(','))
+            {
+                string p = part.Trim();
+                if (p.Length == 0) continue;
+                int dash = p.IndexOf('-', 1); // skip a leading '-' so a negative low bound is not mis-split
+                string loS = dash > 0 ? p.Substring(0, dash) : p;
+                string hiS = dash > 0 ? p.Substring(dash + 1) : p;
+                if (!int.TryParse(loS.Trim(), out int lo) || !int.TryParse(hiS.Trim(), out int hi))
+                    throw new WinboxFieldResolutionException(
+                        $"WinBox native: cannot parse number-range token '{p}' for field '{apiName}' on " +
+                        $"'{_apiPath}'. Expected a number or a 'low-high' range (e.g. \"10,20-30\").");
+                nums.Add(lo); nums.Add(hi);
+            }
+            return nums;
+        }
+
+        // True for a list/array field that EncodeField has no specific encoder for (so it would otherwise be
+        // silently mis-sent as a scalar string). Array wire types end in "[]"; 'multi…' UI types are the
+        // WinBox multi-value controls (multinumber interface lists, etc.). multinumberrange is handled before
+        // this check, so it never reaches here.
+        private static bool IsUnsupportedListType(string wireType, string uiType)
+            => (wireType != null && wireType.EndsWith("[]", StringComparison.Ordinal))
+               || (uiType != null && uiType.StartsWith("multi", StringComparison.OrdinalIgnoreCase));
 
         // The IPv4 sub-key inside a webfig 'addr' compound object (master.js property 'ufeff20' = u32@0xFEFF20).
         private const int AddrV4SubKey = 0xFEFF20;

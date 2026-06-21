@@ -233,6 +233,7 @@ namespace tik4net.WinboxNative
                     $"Add one via connection.PathOverride(\"{apiPath}\", new[]{{maj,min}}) " +
                     $"or use a WinboxCli connection."));
             }
+            handler = PreferSingletonHealthHandler(apiPath, handler);
             var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames);
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
@@ -826,6 +827,21 @@ namespace tik4net.WinboxNative
             return _fieldOverrides.TryGetValue(WinboxHandlerMap.Normalize(apiPath), out var map)
                 ? map
                 : new Dictionary<string, int>();
+        }
+
+        // Board-gated singleton recovery for /system/health. The WinBox menu has a name/value 'map' window
+        // (RouterBOARD, [24,29]) and a hardware-sensor 'item' singleton window (x86, [24,14]) under the same
+        // "Health" label; the shipped path alias resolves to the map handler, which answers getall with
+        // NotImplemented on x86/CHR (verified live). When the resolved handler is NOT a singleton, prefer the
+        // catalog's singleton health window (read via get-singleton) — the one webfig opens on x86. The handler
+        // number is read live from the .jg, so this stays version-portable. Returns the original handler
+        // unchanged for every other path (and when no singleton health window exists in the catalog).
+        private int[] PreferSingletonHealthHandler(string apiPath, int[] handler)
+        {
+            if (handler == null || _catalog.IsSingletonHandler(handler)) return handler;
+            if (!string.Equals(WinboxHandlerMap.Normalize(apiPath), "/system/health", StringComparison.OrdinalIgnoreCase))
+                return handler;
+            return _catalog.FindSingletonHandlerByLeaf("health") ?? handler;
         }
 
         // "/interface/print" → "/interface": strips ONLY a trailing read verb segment (print/getall/get),

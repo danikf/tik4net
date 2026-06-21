@@ -123,6 +123,31 @@ namespace tik4net.Winbox
         internal bool IsSingletonHandler(int[] handler) =>
             handler != null && _singletonHandlers.Contains(HandlerKey(handler));
 
+        /// <summary>
+        /// Finds a SINGLETON (<c>type:'item'</c>) window whose derived menu-label leaf contains
+        /// <paramref name="leaf"/> (case-insensitive), returning its handler — or <c>null</c> when none match.
+        /// </summary>
+        /// <remarks>
+        /// Used to recover the board-gated singleton variant of a menu that ALSO exposes a non-singleton
+        /// <c>type:'map'</c> window under the same label. <c>/system/health</c> is the live example: an x86
+        /// hardware-sensor <c>item</c> window (<c>[24,14]</c>, read via get-singleton) sits alongside the
+        /// RouterBOARD name/value <c>map</c> window (<c>[24,29]</c>), and the shipped path alias resolves to
+        /// the map handler — which answers getall with <c>NotImplemented</c> on x86/CHR (verified live). The
+        /// handler number is taken live from the <c>.jg</c>, so this stays version-portable (no hardcoded path).
+        /// </remarks>
+        internal int[] FindSingletonHandlerByLeaf(string leaf)
+        {
+            if (string.IsNullOrEmpty(leaf)) return null;
+            foreach (var kv in _derivedPaths)
+            {
+                if (!_singletonHandlers.Contains(HandlerKey(kv.Value))) continue;
+                int slash = kv.Key.LastIndexOf('/');
+                string l = slash >= 0 ? kv.Key.Substring(slash + 1) : kv.Key;
+                if (l.IndexOf(leaf, StringComparison.OrdinalIgnoreCase) >= 0) return kv.Value;
+            }
+            return null;
+        }
+
         /// <summary>Returns the streaming-monitor spec for <paramref name="handler"/> (a <c>type:'query'</c>
         /// or poll-action window), or <c>null</c> when the handler is not a monitor window.</summary>
         internal WinboxMonitorSpec GetMonitorByHandler(int[] handler) =>

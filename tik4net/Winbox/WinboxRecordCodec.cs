@@ -100,6 +100,17 @@ namespace tik4net.Winbox
                     }
                     case "macaddr":
                         return WinboxFieldResolver.MacFromBytes(value);
+                    case "multinumberrange":
+                    case "numberrangelist":
+                    {
+                        // u32[] of flat [lo0,hi0,lo1,hi1,…] (webfig multinumberrange / numberrangelist) → "lo"
+                        // when lo==hi, else "lo-hi", comma-joined — the RouterOS API form (e.g. "10,20-30").
+                        // A not-wrapped field renders the RouterOS '!' negation prefix (e.g. firewall "!80").
+                        string list = FormatNumberRangeList(value);
+                        bool negated = jf.NotKey != 0 && rec.TryGetValue(jf.NotKey, out var nt)
+                            && nt.Item2 is bool nb && nb;
+                        return negated ? "!" + list : list;
+                    }
                     case "set":
                     {
                         // Bitmask flag set → comma-joined labels (.jg map key = bit index). The opt/not flag
@@ -181,6 +192,24 @@ namespace tik4net.Winbox
             if (value == null) return "";
             if (wireType == "bool") return (value is bool b && b) ? "true" : "false";
             return value.ToString();
+        }
+
+        // Render a webfig multinumberrange value (a u32[] parsed by M2Message to the text "[lo0,hi0,lo1,hi1,…]")
+        // back to the RouterOS API form: each [lo,hi] pair becomes "lo" (when lo==hi) or "lo-hi", comma-joined.
+        private static string FormatNumberRangeList(object value)
+        {
+            var nums = new List<int>();
+            foreach (System.Text.RegularExpressions.Match m in
+                     System.Text.RegularExpressions.Regex.Matches(value?.ToString() ?? "", @"-?\d+"))
+                if (int.TryParse(m.Value, out int n)) nums.Add(n);
+            if (nums.Count == 0) return "";
+
+            var parts = new List<string>();
+            int i = 0;
+            for (; i + 1 < nums.Count; i += 2)
+                parts.Add(nums[i] == nums[i + 1] ? nums[i].ToString() : nums[i] + "-" + nums[i + 1]);
+            if (i < nums.Count) parts.Add(nums[i].ToString()); // odd trailing value (defensive)
+            return string.Join(",", parts);
         }
     }
 }

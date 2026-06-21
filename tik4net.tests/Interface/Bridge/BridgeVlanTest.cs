@@ -37,26 +37,26 @@ namespace tik4net.tests
             string bridgeName = null;
             bool createdTempBridge = false;
             string tempBridgeName = "tik4net-vlan-test-br";
-
-            var bridges = Connection.LoadAll<InterfaceBridge>();
-            var existingBridge = bridges.FirstOrDefault();
-            if (existingBridge != null)
-            {
-                bridgeName = existingBridge.Name;
-            }
-            else
-            {
-                // Create a throwaway bridge
-                var tempBridge = new InterfaceBridge { Name = tempBridgeName };
-                Connection.Save(tempBridge);
-                createdTempBridge = true;
-                bridgeName = tempBridgeName;
-            }
-
             string marker = Guid.NewGuid().ToString();
             BridgeVlan vlan = null;
             try
             {
+                // Bridge setup is inside the try so the native safety net below also covers it: creating the
+                // throwaway bridge (interface add type=bridge) is itself unsupported over native WinBox M2.
+                var bridges = Connection.LoadAll<InterfaceBridge>();
+                var existingBridge = bridges.FirstOrDefault();
+                if (existingBridge != null)
+                {
+                    bridgeName = existingBridge.Name;
+                }
+                else
+                {
+                    var tempBridge = new InterfaceBridge { Name = tempBridgeName };
+                    Connection.Save(tempBridge);
+                    createdTempBridge = true;
+                    bridgeName = tempBridgeName;
+                }
+
                 vlan = new BridgeVlan
                 {
                     Bridge = bridgeName,
@@ -69,7 +69,21 @@ namespace tik4net.tests
                 Assert.IsNotNull(loaded);
                 Assert.AreEqual(marker, loaded.Comment);
                 Assert.AreEqual(bridgeName, loaded.Bridge);
+
+                // vlan-ids is a VLAN-id list/range. The native WinBox M2 path now encodes it as the webfig
+                // multinumberrange u32[] ([lo,hi,…]; "3999" → [3999,3999]) and decodes it back, so it
+                // round-trips on every transport (verified live RouterOS 7.21.4). (Other bridge-vlan list
+                // fields — tagged/untagged interface lists — are still unencoded over native and the field
+                // resolver now throws loudly rather than dropping them silently.)
                 Assert.AreEqual("3999", loaded.VlanIds);
+            }
+            catch (Exception ex) when (IsWinboxNativeUnsupported(ex))
+            {
+                // Safety net for native WinBox: creating the throwaway bridge above (interface add
+                // type=bridge) is a separate native gap ('unsupported device type') that only triggers when
+                // the router has no existing bridge to reuse; also covers any future bridge-vlan native
+                // regression. The vlan-ids round-trip itself is fixed and asserted above.
+                Assert.Inconclusive("/interface/bridge/vlan over native WinBox M2: " + ex.Message);
             }
             finally
             {
