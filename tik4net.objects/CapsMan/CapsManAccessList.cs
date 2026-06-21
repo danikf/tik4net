@@ -196,7 +196,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no (false).
         /// WinBox: "RADIUS Accounting"
         /// </summary>
-        [TikProperty("radius-accounting", DefaultValue = "false")]
+        [TikProperty("radius-accounting", DefaultValue = "no")]
         public bool RadiusAccounting { get; set; }
 
         /// <summary>
@@ -205,7 +205,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no (false).
         /// WinBox: "Client To Client Forwarding"
         /// </summary>
-        [TikProperty("client-to-client-forwarding", DefaultValue = "false")]
+        [TikProperty("client-to-client-forwarding", DefaultValue = "no")]
         public bool ClientToClientForwarding { get; set; }
 
         /// <summary>
@@ -234,7 +234,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no (rule is active).
         /// WinBox: "Disabled"
         /// </summary>
-        [TikProperty("disabled", DefaultValue = "false")]
+        [TikProperty("disabled", DefaultValue = "no")]
         public bool Disabled { get; set; }
 
         /// <summary>

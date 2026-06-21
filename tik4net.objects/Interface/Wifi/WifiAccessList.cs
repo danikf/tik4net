@@ -176,7 +176,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Default: no (false).
         /// WinBox: "RADIUS Accounting"
         /// </summary>
-        [TikProperty("radius-accounting", DefaultValue = "false")]
+        [TikProperty("radius-accounting", DefaultValue = "no")]
         public bool RadiusAccounting { get; set; }
 
         /// <summary>
@@ -185,7 +185,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Default: no (false).
         /// WinBox: "Client Isolation"
         /// </summary>
-        [TikProperty("client-isolation", DefaultValue = "false")]
+        [TikProperty("client-isolation", DefaultValue = "no")]
         public bool ClientIsolation { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
@@ -195,7 +195,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Default: no (rule is active).
         /// WinBox: "Disabled"
         /// </summary>
-        [TikProperty("disabled", DefaultValue = "false")]
+        [TikProperty("disabled", DefaultValue = "no")]
         public bool Disabled { get; set; }
 
         /// <summary>

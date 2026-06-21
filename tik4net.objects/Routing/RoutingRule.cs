@@ -86,7 +86,7 @@ namespace tik4net.Objects.Routing
         /// disabled — when true the rule is administratively disabled and skipped during evaluation.
         /// Default: false
         /// </summary>
-        [TikProperty("disabled", DefaultValue = "false")]
+        [TikProperty("disabled", DefaultValue = "no")]
         public bool Disabled { get; set; }
 
         /// <summary>comment — optional free-text annotation.</summary>

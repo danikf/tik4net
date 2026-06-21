@@ -84,7 +84,7 @@ namespace tik4net.Objects.Snmp
         /// Default: yes (true).
         /// WinBox: "Read Access"
         /// </summary>
-        [TikProperty("read-access", DefaultValue = "true")]
+        [TikProperty("read-access", DefaultValue = "yes")]
         public bool ReadAccess { get; set; }
 
         /// <summary>
@@ -92,7 +92,7 @@ namespace tik4net.Objects.Snmp
         /// Default: no (false). Enable only when required — write access is a security risk.
         /// WinBox: "Write Access"
         /// </summary>
-        [TikProperty("write-access", DefaultValue = "false")]
+        [TikProperty("write-access", DefaultValue = "no")]
         public bool WriteAccess { get; set; }
 
         /// <summary>
@@ -139,7 +139,7 @@ namespace tik4net.Objects.Snmp
         /// disabled — when true the community is inactive and will not be matched
         /// against incoming SNMP requests.
         /// </summary>
-        [TikProperty("disabled", DefaultValue = "false")]
+        [TikProperty("disabled", DefaultValue = "no")]
         public bool Disabled { get; set; }
 
         /// <summary>comment — free-text annotation</summary>

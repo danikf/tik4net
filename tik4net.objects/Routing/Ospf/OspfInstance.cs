@@ -148,7 +148,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// disabled — when true the OSPF instance is administratively disabled.
         /// Default: false
         /// </summary>
-        [TikProperty("disabled", DefaultValue = "false")]
+        [TikProperty("disabled", DefaultValue = "no")]
         public bool Disabled { get; set; }
 
         /// <summary>comment — optional free-text annotation.</summary>

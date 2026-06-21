@@ -54,7 +54,7 @@ namespace tik4net.Objects.System
         /// <summary>
         /// disabled — when true the rule is inactive and no messages are forwarded.
         /// </summary>
-        [TikProperty("disabled", DefaultValue = "false")]
+        [TikProperty("disabled", DefaultValue = "no")]
         public bool Disabled { get; set; }
 
         /// <summary>

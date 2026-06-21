@@ -14,7 +14,7 @@ namespace tik4net.Objects.Snmp
     public class Snmp
     {
         /// <summary>enabled — whether the SNMP service is active.</summary>
-        [TikProperty("enabled", DefaultValue = "false")]
+        [TikProperty("enabled", DefaultValue = "no")]
         public bool Enabled { get; set; }
 
         /// <summary>contact — administrative contact information (free-form string).</summary>

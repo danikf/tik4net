@@ -99,7 +99,7 @@ namespace tik4net.Objects.Tool
         public string/*IP*/ SrcAddress { get; set; }
 
         /// <summary>disabled — when true the entry is disabled and probes are not sent.</summary>
-        [TikProperty("disabled", DefaultValue = "false")]
+        [TikProperty("disabled", DefaultValue = "no")]
         public bool Disabled { get; set; }
 
         /// <summary>comment — free-form comment.</summary>

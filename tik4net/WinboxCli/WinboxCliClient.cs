@@ -78,6 +78,15 @@ namespace tik4net.WinboxCli
         {
             return Task.Run(() =>
             {
+                // Discard any residual frames still buffered from the PREVIOUS command before issuing
+                // this one. A late prompt-repaint or VT100 probe-answer that arrives after the prior
+                // read returned would otherwise be consumed first here and either mistaken for this
+                // command's completion (an early, empty result) or desync a frame boundary (a full
+                // receive-timeout hang). Gated on DataAvailable so the normal, clean path pays nothing;
+                // the login drains for the same reason after the initial prompt.
+                if (_session.DataAvailable)
+                    DrainSync(SettleMs);
+
                 string cmd = CliOutputHelper.InjectWithoutPaging(command);
                 SendInput(_encoding.GetBytes(cmd + "\r"));
                 string raw = ReadCommandResponseSync();

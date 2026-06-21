@@ -280,28 +280,34 @@ namespace tik4net.tests
         }
 
         /// <summary>
-        /// Marks the test as inconclusive (skipped) when running over a non-binary-API transport
-        /// (the CLI family — Telnet/SSH/MACTelnet/WinBox-CLI — and native WinBox M2) because the
-        /// feature under test relies on binary-API response semantics those transports do not reproduce.
-        /// Currently unused — kept as the counterpart to <see cref="IsNonApiTransport"/>.
+        /// True when <paramref name="ex"/> is the native WinBox M2 layer reporting that it cannot carry an
+        /// operation: a handler that answers <c>getall</c>/<c>add</c> with an error status (e.g.
+        /// <c>/system/health</c>, bridge-vlan <c>add</c>), or a field with no derivable M2 key. Use in a
+        /// <c>catch (Exception ex) when (IsWinboxNativeUnsupported(ex))</c> to mark the test inconclusive.
+        /// <para>
+        /// This is deliberately bound to the ACTUAL failure (the operation is attempted and only the
+        /// specific native-M2 error is tolerated) rather than a blanket transport-name skip: it only
+        /// triggers on the native transport (those messages are produced nowhere else), it does NOT mask a
+        /// genuine bug on that transport, and the test starts passing automatically if a future
+        /// RouterOS/WinBox build adds support — no test edit needed.
+        /// </para>
         /// </summary>
-        /// <param name="feature">Short description of the unsupported feature shown in the skip message.</param>
-        protected void SkipOnNonApi(string feature)
+        protected static bool IsWinboxNativeUnsupported(Exception ex)
         {
-            if (IsNonApiTransport())
-            {
-                string msg = $"Transport '{ResolveConnectionType()}' (non-binary-API) does not support '{feature}' — test skipped.";
-                Assert.Inconclusive(msg);
-            }
+            if (ex is tik4net.Winbox.WinboxFieldResolutionException)
+                return true;
+            return ex is TikCommandTrapException
+                && ex.Message.IndexOf("WinBox native", StringComparison.OrdinalIgnoreCase) >= 0
+                && ex.Message.IndexOf("returned error", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         /// <summary>
         /// Marks the test as inconclusive (skipped) only on the native WinBox M2 transport, for an
         /// API path that WinBox itself does not expose as a structured handler. Native CRUD is driven
         /// by the version-matched WinBox <c>.jg</c> catalog (path → handler array); a path absent from
-        /// every WinBox window cannot be derived and has no numeric handler to call. This is distinct
-        /// from <see cref="SkipOnNonApi"/>: the CLI family (Telnet/SSH/WinBox-CLI) runs the textual
-        /// command and is unaffected — only native M2 needs the handler mapping.
+        /// every WinBox window cannot be derived and has no numeric handler to call. Unlike the CLI
+        /// family (Telnet/SSH/WinBox-CLI), which runs the textual command and is unaffected, only the
+        /// native M2 transport needs the handler mapping.
         /// </summary>
         /// <param name="feature">API path / feature shown in the skip message.</param>
         protected void SkipOnWinboxNativeUnmappedPath(string feature)

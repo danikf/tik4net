@@ -45,7 +45,10 @@ namespace tik4net.Objects.System
         /// useful for services with limited permissions such as Netwatch. Default: no.
         /// WinBox: "Don't Require Permissions".
         /// </summary>
-        [TikProperty("dont-require-permissions", DefaultValue = "false")]
+        // DefaultValue is the WIRE form ("no"/"yes"), not the C# literal — a bool serialises to "no"/"yes",
+        // so DefaultValue="false" would never match and the field would be force-sent on every add/set
+        // (which also makes the native WinBox M2 transport fail: it cannot resolve this field to an M2 key).
+        [TikProperty("dont-require-permissions", DefaultValue = "no")]
         public bool DontRequirePermissions { get; set; }
 
         /// <summary>

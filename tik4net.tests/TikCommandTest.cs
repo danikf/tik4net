@@ -302,14 +302,19 @@ namespace tik4net.tests
                 }
 
                 // Verify the script actually executed: the unique error-severity log entry must appear
-                // in the router log. A 500 ms grace period covers any log-flush lag on CLI transports.
-                Thread.Sleep(500);
-                var logEntries = Connection.CreateCommand("/log/print").ExecuteList();
-                bool found = logEntries.Any(e =>
+                // in the router log. The log write lags the run completion on the slower CLI transports
+                // (MAC-Telnet / WinBox terminal), so poll for a few seconds rather than checking once.
+                bool found = false;
+                for (int attempt = 0; attempt < 10 && !found; attempt++)
                 {
-                    try { return (e.GetResponseField("message") ?? "").Contains(logMarker); }
-                    catch { return false; }
-                });
+                    Thread.Sleep(500);
+                    var logEntries = Connection.CreateCommand("/log/print").ExecuteList();
+                    found = logEntries.Any(e =>
+                    {
+                        try { return (e.GetResponseField("message") ?? "").Contains(logMarker); }
+                        catch { return false; }
+                    });
+                }
                 Assert.IsTrue(found, $"Expected log entry '{logMarker}' not found in router log — script may not have run.");
             }
             finally

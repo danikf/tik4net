@@ -97,9 +97,32 @@ namespace tik4net.Cli
 
                 int eq = line.IndexOf('=', pos);
                 if (eq < 0)
+                {
+                    // No more 'key=' tokens. Any remaining ';'-separated tokens carry no '=' and are
+                    // therefore multi-value continuations of the last field (see the keyRaw handling
+                    // below) — append them so a trailing list field is not lost.
+                    AppendContinuations(pairs, line.Substring(pos));
                     break;
+                }
 
-                string key = line.Substring(pos, eq - pos).Trim();
+                // The substring up to the '=' is normally just the field name. But RouterOS renders a
+                // multi-value (list) field in as-value output with ';' BETWEEN elements — the same
+                // character it uses between fields — e.g. 'key-usage=key-cert-sign;crl-sign;name=…'.
+                // The element 'crl-sign' has no '=', so it lands inside this substring as
+                // 'crl-sign;name'. Split on the LAST ';': everything before it is list-element
+                // continuation of the PREVIOUS field's value; the part after it is the real key.
+                string keyRaw = line.Substring(pos, eq - pos);
+                int lastSemi = keyRaw.LastIndexOf(';');
+                string key;
+                if (lastSemi >= 0)
+                {
+                    AppendContinuations(pairs, keyRaw.Substring(0, lastSemi));
+                    key = keyRaw.Substring(lastSemi + 1).Trim();
+                }
+                else
+                {
+                    key = keyRaw.Trim();
+                }
                 pos = eq + 1;
 
                 string value;
@@ -146,6 +169,33 @@ namespace tik4net.Cli
             }
 
             return pairs;
+        }
+
+        /// <summary>
+        /// Appends the ';'-separated tokens in <paramref name="continuations"/> to the value of the last
+        /// parsed pair, joined with ',' (the API multi-value separator). Used to reassemble a list field
+        /// whose elements RouterOS separated with ';' in as-value output. No-op when there is no previous
+        /// field or nothing to append.
+        /// </summary>
+        private static void AppendContinuations(List<KeyValuePair<string, string>> pairs, string continuations)
+        {
+            if (pairs.Count == 0 || string.IsNullOrEmpty(continuations))
+                return;
+
+            var prev = pairs[pairs.Count - 1];
+            var sb = new StringBuilder(prev.Value);
+            foreach (var part in continuations.Split(';'))
+            {
+                string element = part.Trim();
+                if (element.Length == 0)
+                    continue;
+                if (sb.Length > 0)
+                    sb.Append(',');
+                sb.Append(element);
+            }
+
+            if (sb.Length != prev.Value.Length)
+                pairs[pairs.Count - 1] = new KeyValuePair<string, string>(prev.Key, sb.ToString());
         }
     }
 }

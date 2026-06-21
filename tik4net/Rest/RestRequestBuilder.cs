@@ -23,6 +23,7 @@ namespace tik4net.Rest
             "export", "reload", "run", "check", "test",
             "monitor", "start", "stop", "install", "upgrade",
             "take", "release", "unroll",   // /safe-mode/* actions
+            "generate-key", "export-pub-key", "import",   // /ip/ipsec/key/rsa/* actions
         };
 
         private static readonly HashSet<string> _readVerbs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)

@@ -63,7 +63,7 @@ namespace tik4net.Objects.Interface.Bridge
         /// disabled: Whether this VLAN entry is disabled.
         /// WinBox: "Disabled"
         /// </summary>
-        [TikProperty("disabled", DefaultValue = "false")]
+        [TikProperty("disabled", DefaultValue = "no")]
         public bool Disabled { get; set; }
 
         /// <summary>

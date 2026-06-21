@@ -32,14 +32,14 @@ namespace tik4net.Objects.Routing
         /// <c>=fib=yes</c> which the router accepts correctly — the write path works, the
         /// read-back does not reflect the true state via this property.
         /// </summary>
-        [TikProperty("fib", DefaultValue = "false")]
+        [TikProperty("fib", DefaultValue = "no")]
         public bool Fib { get; set; }
 
         /// <summary>
         /// disabled — when true the routing table is administratively disabled.
         /// Default: false
         /// </summary>
-        [TikProperty("disabled", DefaultValue = "false")]
+        [TikProperty("disabled", DefaultValue = "no")]
         public bool Disabled { get; set; }
 
         /// <summary>comment — optional free-text annotation.</summary>

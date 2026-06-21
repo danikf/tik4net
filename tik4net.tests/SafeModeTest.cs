@@ -115,6 +115,13 @@ namespace tik4net.tests
         public void SafeMode_DisconnectWithoutRelease_RollsBack()
         {
             EnsureCapability(TikConnectionCapability.SafeMode, "SafeModeTake");
+            // We do NOT assume which transports roll back on a graceful disconnect: rather than a blanket
+            // non-API skip, the test observes the actual behaviour. After dropping the owning session it
+            // polls for up to 30s; if the change is rolled back the test passes (on ANY transport that
+            // supports it), and if it is still present after 30s the test self-reports Inconclusive (see
+            // the `remaining > 0` branch below) instead of failing. This keeps coverage on transports that
+            // do roll back and avoids a false assumption about those that may not. (RouterOS may defer the
+            // rollback of a graceful close to the connection-tracking timeout on some transports.)
 
             string name = "safemode-rollback-" + Guid.NewGuid().ToString("N").Substring(0, 8);
             bool committed = false;

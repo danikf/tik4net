@@ -80,7 +80,7 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// disabled — whether this export target is administratively disabled.
         /// Default: false
         /// </summary>
-        [TikProperty("disabled", DefaultValue = "false")]
+        [TikProperty("disabled", DefaultValue = "no")]
         public bool Disabled { get; set; }
 
         /// <summary>Returns a human-readable description of this export target.</summary>

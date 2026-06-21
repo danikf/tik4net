@@ -35,7 +35,7 @@ namespace tik4net.Objects.CapsMan
         /// enabled — enables or disables the CAPsMAN controller on this router.
         /// Default: no.
         /// </summary>
-        [TikProperty("enabled", DefaultValue = "false")]
+        [TikProperty("enabled", DefaultValue = "no")]
         public bool Enabled { get; set; }
 
         /// <summary>
@@ -59,7 +59,7 @@ namespace tik4net.Objects.CapsMan
         /// certificate signed by the configured CA; unauthenticated CAPs are rejected.
         /// Default: no.
         /// </summary>
-        [TikProperty("require-peer-certificate", DefaultValue = "false")]
+        [TikProperty("require-peer-certificate", DefaultValue = "no")]
         public bool RequirePeerCertificate { get; set; }
 
         /// <summary>

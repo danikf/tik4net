@@ -17,7 +17,7 @@ namespace tik4net.Objects.System
         /// <summary>
         /// enabled — enable or disable NTP client time synchronization.
         /// </summary>
-        [TikProperty("enabled", DefaultValue = "false")]
+        [TikProperty("enabled", DefaultValue = "no")]
         public bool Enabled { get; set; }
 
         /// <summary>

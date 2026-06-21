@@ -193,7 +193,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no (rule is active).
         /// WinBox: "Disabled"
         /// </summary>
-        [TikProperty("disabled", DefaultValue = "false")]
+        [TikProperty("disabled", DefaultValue = "no")]
         public bool Disabled { get; set; }
 
         /// <summary>

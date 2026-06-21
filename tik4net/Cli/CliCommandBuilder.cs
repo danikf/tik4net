@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -442,12 +443,39 @@ namespace tik4net.Cli
                 if (IsSpecialParam(p.Name))
                     continue;
 
+                // RouterOS CLI presence-flags (e.g. '/routing table … fib') are set by the bare field
+                // NAME and REJECT a '=value' form ("expected end of command"). This is a CLI-only wire
+                // quirk — the binary API/REST accept the usual 'fib=yes' — so it is handled here: a
+                // truthy value emits the bare name, a falsy value is omitted (absence = false).
+                if (IsCliPresenceFlag(p.Name))
+                {
+                    if (IsTruthy(p.Value))
+                    {
+                        sb.Append(' ');
+                        sb.Append(p.Name);
+                    }
+                    continue;
+                }
+
                 sb.Append(' ');
                 sb.Append(p.Name);
                 sb.Append('=');
                 sb.Append(QuoteIfNeeded(p.Value ?? string.Empty));
             }
         }
+
+        /// <summary>
+        /// RouterOS CLI fields that are set by the bare presence of the field name and reject a
+        /// <c>=value</c> form. Kept minimal and explicit; extend as further presence-flags surface.
+        /// </summary>
+        private static readonly HashSet<string> CliPresenceFlagFields =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "fib" };
+
+        private static bool IsCliPresenceFlag(string name) => CliPresenceFlagFields.Contains(name);
+
+        private static bool IsTruthy(string value)
+            => string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
         /// Wraps a value in double-quotes if it contains whitespace, semicolons, or hash characters

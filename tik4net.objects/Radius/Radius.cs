@@ -115,7 +115,7 @@ namespace tik4net.Objects.Radius
         /// The backup server is used only when the primary server is not available.
         /// Default: false.
         /// </summary>
-        [TikProperty("accounting-backup", DefaultValue = "false")]
+        [TikProperty("accounting-backup", DefaultValue = "no")]
         public bool AccountingBackup { get; set; }
 
         /// <summary>
@@ -160,7 +160,7 @@ namespace tik4net.Objects.Radius
         /// disabled — whether this RADIUS server entry is disabled.
         /// Default: false.
         /// </summary>
-        [TikProperty("disabled", DefaultValue = "false")]
+        [TikProperty("disabled", DefaultValue = "no")]
         public bool Disabled { get; set; }
 
         /// <summary>

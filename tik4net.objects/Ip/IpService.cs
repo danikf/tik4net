@@ -67,7 +67,7 @@ namespace tik4net.Objects.Ip
         /// <summary>
         /// disabled — whether the service is disabled.
         /// </summary>
-        [TikProperty("disabled", DefaultValue = "false")]
+        [TikProperty("disabled", DefaultValue = "no")]
         public bool Disabled { get; set; }
 
         /// <summary>
