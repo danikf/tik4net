@@ -21,6 +21,11 @@ tik4net is a .NET `netstandard2.0` library for communicating with MikroTik route
 * Broad range of .NET runtimes supported (including .NET core 2 and Xamarin)
 * New mikrotik [v.6.43 login process](https://github.com/danikf/tik4net/wiki/login-versions) supported
 * Includes [MNDP](https://github.com/danikf/tik4net/wiki/MNDP) discovery helper 
+* 🆕 4.0 [Safe Mode](https://github.com/danikf/tik4net/wiki/Safe-Mode) — `SafeModeTake()` / `SafeModeRelease()` / `SafeModeUnroll()` with automatic rollback-on-disconnect (lockout protection)
+* 🆕 4.0 [Change tracking](https://github.com/danikf/tik4net/wiki/Change-tracking) — `Save` sends only the fields you changed; no-op saves skip the API call
+* 🆕 4.0 [Connection capability model](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities) — `connection.Supports(TikConnectionCapability.Listen)`; unsupported features fail closed
+* [Unit testing without a router](https://github.com/danikf/tik4net/wiki/Communication-debugging-&-testing) via `tik4net.testing` (`TikFakeConnection`)
+* Uniform [exception tree](https://github.com/danikf/tik4net/wiki/Exception-handling) across all transports
 * Easy to understand and well documented code
 
 ## Connection types
@@ -59,6 +64,10 @@ Project wiki:
 * [wiki root](https://github.com/danikf/tik4net/wiki) 
 * [CRUD examples for all APIs](https://github.com/danikf/tik4net/wiki/CRUD-examples-for-all-APIs)
 * [how to use](https://github.com/danikf/tik4net/wiki/How-to-use-tik4net-library)
+* [Connection types and capabilities](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities) — pick a transport and see what it supports
+* [Exception handling](https://github.com/danikf/tik4net/wiki/Exception-handling) — the full exception tree
+* [Safe Mode](https://github.com/danikf/tik4net/wiki/Safe-Mode) · [Change tracking](https://github.com/danikf/tik4net/wiki/Change-tracking) — the flagship 4.0 features
+* [Communication debugging & testing](https://github.com/danikf/tik4net/wiki/Communication-debugging-&-testing) — protocol tracing and unit tests without a router
 * [History](https://github.com/danikf/tik4net/wiki/History)
 
 Examples:
@@ -112,6 +121,7 @@ Examples:
 * Looking for betatesters
 
 # Roadmap & future
+See the [4.x roadmap](https://github.com/danikf/tik4net/wiki/Roadmap-4x) wiki page for details. Highlights:
 * create highlevel classes for all mikrotik entities (you can still generate your own classes)
 * create tiklink project - easy use-to wrapper over mikrotik router with fluent API 
 * convert examples to separate unittests (in progress)
