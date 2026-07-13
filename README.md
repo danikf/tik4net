@@ -127,7 +127,5 @@ See the [4.x roadmap](https://github.com/danikf/tik4net/wiki/Roadmap-4x) wiki pa
 * convert examples to separate unittests (in progress)
 * **[tiktop](https://github.com/danikf/tiktop)** — a MikroTik traffic monitor inspired by Linux `iftop` (currently in alpha, available on NuGet/GitHub)
 
-REMARKS: This project is rewritten version of deprecated tik4net at googlecode (last version was 0.9.7.)
-
 # Licenses
 * Apache 2.0.
