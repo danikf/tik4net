@@ -1,0 +1,287 @@
+From 5466d7fbe94024adb7e2ea0131b6800c0bccef7d Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 13 Jul 2026 14:28:14 +0000
+Subject: [PATCH] Restore History 4.0.0 section; move version references out of
+ other pages
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+History is the page that tracks versions — restore the '4.0.0 (in
+development)' section removed in the previous cleanup.
+
+Elsewhere, drop 'since tik4net X' / 'new in 4.0' style sentences and
+defer to History instead:
+- transport pages: 'New in tik4net 4.0 — first released as…' banners
+  reduced to a status-only alpha note
+- WinBox Native pages: merged the resulting duplicate alpha banners,
+  removed the version tag from the page titles
+- Connection types: same banner rewording
+- Change-tracking: dropped the '4.x feature' banner and the 3.x
+  round-trip comparison in the intro (the migration section stays —
+  it is actionable upgrade guidance, not just history)
+- Getting-started / Testing-high-level / Home: removed inline '4.0' /
+  '4.x' version tags
+- login-versions: 'unified in tik4net 3.5.0' now defers to History
+
+RouterOS version requirements (6.43+, 7.1+, 7.18+) are functional
+prerequisites and are kept everywhere.
+
+Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01JS3W4HV6uDZiSDtZ4Tajkv
+---
+ Change-tracking.md                   |  4 +---
+ Connection-types-and-capabilities.md |  2 +-
+ Getting-started.md                   |  4 ++--
+ History.md                           | 25 +++++++++++++++++++++++++
+ Home.md                              |  6 +++---
+ MAC-Telnet-connection.md             |  2 +-
+ REST-connection.md                   |  2 +-
+ SSH-connection.md                    |  2 +-
+ Telnet-connection.md                 |  2 +-
+ Testing-high-level-API.md            |  2 +-
+ WinBox-CLI-MAC-connection.md         |  2 +-
+ WinBox-CLI-connection.md             |  2 +-
+ WinBox-Native-MAC-connection.md      |  6 ++----
+ WinBox-Native-connection.md          |  6 ++----
+ login-versions.md                    |  6 +++---
+ 15 files changed, 46 insertions(+), 27 deletions(-)
+
+diff --git a/Change-tracking.md b/Change-tracking.md
+index 7d7af54..2ee2177 100644
+--- a/Change-tracking.md
++++ b/Change-tracking.md
+@@ -1,10 +1,8 @@
+ # Change tracking
+ 
+-> **4.x feature.** Change tracking is available from tik4net.entities 4.0.
+-
+ When you load an entity with any `Load*` method, tik4net takes an automatic **snapshot** of the entity's field values. When you subsequently call `Save`, the snapshot is diffed against the current state of the object and only the changed fields are sent to the router as a `/set` command. If nothing changed, the API call is skipped entirely.
+ 
+-This eliminates the extra `LoadById` round-trip that 3.x performed before every update and reduces traffic on heavily modified rule lists.
++This eliminates an extra `LoadById` round-trip before every update and reduces traffic on heavily modified rule lists.
+ 
+ ---
+ 
+diff --git a/Connection-types-and-capabilities.md b/Connection-types-and-capabilities.md
+index b27d175..80d48ff 100644
+--- a/Connection-types-and-capabilities.md
++++ b/Connection-types-and-capabilities.md
+@@ -17,7 +17,7 @@ that the active transport does not declare throws
+ [`TikConnectionCapabilityNotSupportedException`](#checking-capabilities-at-runtime) instead of silently
+ misbehaving.
+ 
+-> 🆕 **4.0.0-alpha released.** `Api` / `ApiSsl` are fully stable. Every other transport below is **new in 4.0, released as [`v4.0.0-alpha`](https://github.com/danikf/tik4net/releases/tag/v4.0.0-alpha)** — tested and functional, but the API may still change before the final 4.0 release.
++> `Api` / `ApiSsl` are fully stable. Every other transport below ships in [`v4.0.0-alpha`](https://github.com/danikf/tik4net/releases/tag/v4.0.0-alpha) — tested and functional, but the API may still change before the final 4.0 release.
+ 
+ ## Connection types
+ 
+diff --git a/Getting-started.md b/Getting-started.md
+index b8675af..8455f43 100644
+--- a/Getting-started.md
++++ b/Getting-started.md
+@@ -112,14 +112,14 @@ using (ITikConnection connection = ConnectionFactory.OpenConnection(TikConnectio
+ 
+     // UPDATE — Save() on an entity that already has an Id performs an update
+     entry.Comment = "updated by tik4net";
+-    connection.Save(entry);                        // sends only changed fields (change tracking, 4.0)
++    connection.Save(entry);                        // sends only changed fields (change tracking)
+ 
+     // DELETE
+     connection.Delete(entry);
+ }
+ ```
+ 
+-`Save<T>()` decides insert vs. update from whether the entity has an `Id`. In 4.0, an update sends
++`Save<T>()` decides insert vs. update from whether the entity has an `Id`. An update sends
+ **only the fields that changed** since load, and a no-op `Save` skips the API call entirely
+ (see [Change tracking](Change-tracking)).
+ 
+diff --git a/History.md b/History.md
+index de09187..c77f98c 100644
+--- a/History.md
++++ b/History.md
+@@ -32,6 +32,31 @@ All new transports implement the same `ITikConnection` / `LoadAll<T>()` / `Save<
+ 
+ ---
+ 
++## 4.0.0 (in development)
++
++### ⚠️ Breaking changes
++* **`Save` default mode changed to `OnlyChanges`** — `Save` now diffs against a local snapshot instead of performing a `LoadById` round-trip. Entities not loaded via `Load*` are sent in full. To restore 3.x behavior globally: `TikDefaults.SaveMode = TikSaveMode.FullUpdate;` See [Change tracking](Change-tracking).
++
++### New features
++* **[Change tracking](Change-tracking)** — automatic snapshot on all `Load*` calls; `Save` sends only changed fields; no-op saves skip the API call. New types: `TikChangeTracker`, `TikSnapshot`, `TikDefaults`, `TikSaveMode`. New extension: `connection.ChangeTracker()`.
++* **New transports behind the same `ITikConnection`** (all _alpha preview_ — see [Connection types & capabilities](Connection-types-and-capabilities)):
++  * [REST](REST-connection) (`Rest` / `RestSsl`, RouterOS 7.1+)
++  * [Telnet](Telnet-connection) (`Telnet`, TCP 23)
++  * [SSH](SSH-connection) (`Ssh`, TCP 22 — satellite package `tik4net.ssh`)
++  * [MAC-Telnet](MAC-Telnet-connection) (`MacTelnet`, Layer-2 UDP 20561)
++  * [WinBox CLI](WinBox-CLI-connection) (`WinboxCli`) and [over MAC](WinBox-CLI-MAC-connection) (`WinboxCliMac`)
++  * [WinBox Native M2](WinBox-Native-connection) (`WinboxNative`) and [over MAC](WinBox-Native-MAC-connection) (`WinboxNativeMac`)
++* **[Safe Mode](Safe-Mode)** — `SafeModeTake()` / `SafeModeRelease()` / `SafeModeUnroll()` with automatic rollback-on-disconnect, across API / CLI / WinBox transports.
++* **Capability model** — `TikConnectionCapability` flags + `Supports` / `Require`; unsupported features fail closed with `TikConnectionCapabilityNotSupportedException`.
++* **Raw command pass-through** — `connection.CreateRawCommand(raw)` sends a payload in the transport's own dialect. See [Command translation](Command-translation-on-non-API-transports#raw-command-pass-through-createrawcommand).
++* **WinBox Native addressing by GUI names** — opt-in `connection.UseGuiNames = true`.
++* **[MCP server](MCP-server)** — drive any command over any transport from an AI assistant.
++
++> ⚠️ The non-API transports are **alpha previews** and the whole 4.0.0 line is still in development —
++> behaviour and API may change before release.
++
++---
++
+ ## 3.6.0 (2026)
+ 
+ ### ⚠️ Breaking changes
+diff --git a/Home.md b/Home.md
+index e51971f..a32d0d3 100644
+--- a/Home.md
++++ b/Home.md
+@@ -121,9 +121,9 @@ using (ITikConnection connection = ConnectionFactory.CreateConnection(TikConnect
+   2. Support for [ordering lists](High-level-API-CRUD#move) of entities on the router
+   3. Support for [merging collections](TikListMerge) with the state on the router (prepare the expected state, only the necessary operations are performed)
+ * [Unit-testing support](Communication-debugging-&-testing) via `tik4net.testing` — `TikFakeConnection` tests all API levels without a live router
+-* 🆕 **4.0** [Change tracking](Change-tracking) — `Save` diffs against the load-time snapshot and sends only changed fields; no-op saves skip the API call entirely
+-* 🆕 **4.0** [Safe Mode](Safe-Mode) — `SafeModeTake()` / `SafeModeRelease()` / `SafeModeUnroll()` with automatic rollback-on-disconnect (lockout protection)
+-* 🆕 **4.0** [MCP server](MCP-server) — run any command over any transport from an AI assistant (Claude Code/Desktop), with per-transport RAW protocol trace
++* 🆕 [Change tracking](Change-tracking) — `Save` diffs against the load-time snapshot and sends only changed fields; no-op saves skip the API call entirely
++* 🆕 [Safe Mode](Safe-Mode) — `SafeModeTake()` / `SafeModeRelease()` / `SafeModeUnroll()` with automatic rollback-on-disconnect (lockout protection)
++* 🆕 [MCP server](MCP-server) — run any command over any transport from an AI assistant (Claude Code/Desktop), with per-transport RAW protocol trace
+ * **[tik4mcp](https://github.com/danikf/tik4mcp)** — standalone admin-grade MikroTik MCP server built on tik4net; multi-router inventory, RBAC, guardrails, and a production-oriented toolset for AI-assisted network management
+ * Clean design, clear, well-documented code
+ 
+diff --git a/MAC-Telnet-connection.md b/MAC-Telnet-connection.md
+index 18cc01f..4418b14 100644
+--- a/MAC-Telnet-connection.md
++++ b/MAC-Telnet-connection.md
+@@ -1,6 +1,6 @@
+ # MAC-Telnet Connection
+ 
+-> 🆕 **New in tik4net 4.0** — first released as [`v4.0.0-alpha`](https://github.com/danikf/tik4net/releases/tag/v4.0.0-alpha). Alpha: API and behaviour are stable for testing but may still change before the final 4.0 release. See [Connection types & capabilities](Connection-types-and-capabilities).
++> ⚠️ **Alpha** — ships in [`v4.0.0-alpha`](https://github.com/danikf/tik4net/releases/tag/v4.0.0-alpha): tested and functional, but the API may still change before the final 4.0 release. See [Connection types & capabilities](Connection-types-and-capabilities).
+ 
+ MAC-Telnet (`TikConnectionType.MacTelnet`) connects to a MikroTik router over **UDP port 20561** using
+ the MikroTik MAC-layer protocol — without requiring an IP route to the router. This is useful for:
+diff --git a/REST-connection.md b/REST-connection.md
+index c5c62ed..81d489e 100644
+--- a/REST-connection.md
++++ b/REST-connection.md
+@@ -1,6 +1,6 @@
+ # REST Connection
+ 
+-> 🆕 **New in tik4net 4.0** — first released as [`v4.0.0-alpha`](https://github.com/danikf/tik4net/releases/tag/v4.0.0-alpha). Alpha: API and behaviour are stable for testing but may still change before the final 4.0 release. See [Connection types & capabilities](Connection-types-and-capabilities).
++> ⚠️ **Alpha** — ships in [`v4.0.0-alpha`](https://github.com/danikf/tik4net/releases/tag/v4.0.0-alpha): tested and functional, but the API may still change before the final 4.0 release. See [Connection types & capabilities](Connection-types-and-capabilities).
+ 
+ REST (`TikConnectionType.Rest` / `TikConnectionType.RestSsl`) talks to the RouterOS **HTTP REST API**
+ (`http://<host>/rest` on port 80, or `https://<host>/rest` on port 443). It is handy when only the web
+diff --git a/SSH-connection.md b/SSH-connection.md
+index 003e5c8..61cdcc9 100644
+--- a/SSH-connection.md
++++ b/SSH-connection.md
+@@ -1,6 +1,6 @@
+ # SSH Connection
+ 
+-> 🆕 **New in tik4net 4.0** — first released as [`v4.0.0-alpha`](https://github.com/danikf/tik4net/releases/tag/v4.0.0-alpha). Alpha: API and behaviour are stable for testing but may still change before the final 4.0 release. See [Connection types & capabilities](Connection-types-and-capabilities).
++> ⚠️ **Alpha** — ships in [`v4.0.0-alpha`](https://github.com/danikf/tik4net/releases/tag/v4.0.0-alpha): tested and functional, but the API may still change before the final 4.0 release. See [Connection types & capabilities](Connection-types-and-capabilities).
+ 
+ SSH (`TikConnectionType.Ssh`) connects to a MikroTik router over **TCP port 22** and drives the RouterOS
+ CLI through an interactive **SSH PTY shell**. It gives you full CRUD over an encrypted, standards-based
+diff --git a/Telnet-connection.md b/Telnet-connection.md
+index 79b9f5d..352350d 100644
+--- a/Telnet-connection.md
++++ b/Telnet-connection.md
+@@ -1,6 +1,6 @@
+ # Telnet Connection
+ 
+-> 🆕 **New in tik4net 4.0** — first released as [`v4.0.0-alpha`](https://github.com/danikf/tik4net/releases/tag/v4.0.0-alpha). Alpha: API and behaviour are stable for testing but may still change before the final 4.0 release. See [Connection types & capabilities](Connection-types-and-capabilities).
++> ⚠️ **Alpha** — ships in [`v4.0.0-alpha`](https://github.com/danikf/tik4net/releases/tag/v4.0.0-alpha): tested and functional, but the API may still change before the final 4.0 release. See [Connection types & capabilities](Connection-types-and-capabilities).
+ 
+ Telnet (`TikConnectionType.Telnet`) connects to a MikroTik router over **plain-text TCP port 23** and drives
+ the RouterOS CLI through an interactive terminal session. It gives you full CRUD when the binary API and SSH
+diff --git a/Testing-high-level-API.md b/Testing-high-level-API.md
+index 8659c8c..e802213 100644
+--- a/Testing-high-level-API.md
++++ b/Testing-high-level-API.md
+@@ -118,7 +118,7 @@ conn.AssertWasSent("/ip/address/add");
+ 
+ ## Save — update (existing entity)
+ 
+-`Save` on an entity with an id calls `/set`. In 4.x, an entity that was **loaded** via any `Load*`
++`Save` on an entity with an id calls `/set`. An entity that was **loaded** via any `Load*`
+ method carries a [change-tracking](Change-tracking) snapshot, so only changed fields are sent — no
+ `/print` round-trip. An entity you constructed yourself (no snapshot) sends all writable fields.
+ Register the entities for the load plus a `/set` handler:
+diff --git a/WinBox-CLI-MAC-connection.md b/WinBox-CLI-MAC-connection.md
+index 37e1da5..c9561c9 100644
+--- a/WinBox-CLI-MAC-connection.md
++++ b/WinBox-CLI-MAC-connection.md
+@@ -1,6 +1,6 @@
+ # WinBox CLI over MAC Connection
+ 
+-> 🆕 **New in tik4net 4.0** — first released as [`v4.0.0-alpha`](https://github.com/danikf/tik4net/releases/tag/v4.0.0-alpha). Alpha: API and behaviour are stable for testing but may still change before the final 4.0 release. See [Connection types & capabilities](Connection-types-and-capabilities).
++> ⚠️ **Alpha** — ships in [`v4.0.0-alpha`](https://github.com/danikf/tik4net/releases/tag/v4.0.0-alpha): tested and functional, but the API may still change before the final 4.0 release. See [Connection types & capabilities](Connection-types-and-capabilities).
+ 
+ WinBox CLI over MAC (`TikConnectionType.WinboxCliMac`) is the same encrypted WinBox terminal CLI as
+ [WinBox CLI](WinBox-CLI-connection), but the WinBox M2 protocol travels over the **MAC layer
+diff --git a/WinBox-CLI-connection.md b/WinBox-CLI-connection.md
+index e72a04d..8c0ee44 100644
+--- a/WinBox-CLI-connection.md
++++ b/WinBox-CLI-connection.md
+@@ -1,6 +1,6 @@
+ # WinBox CLI Connection
+ 
+-> 🆕 **New in tik4net 4.0** — first released as [`v4.0.0-alpha`](https://github.com/danikf/tik4net/releases/tag/v4.0.0-alpha). Alpha: API and behaviour are stable for testing but may still change before the final 4.0 release. See [Connection types & capabilities](Connection-types-and-capabilities).
++> ⚠️ **Alpha** — ships in [`v4.0.0-alpha`](https://github.com/danikf/tik4net/releases/tag/v4.0.0-alpha): tested and functional, but the API may still change before the final 4.0 release. See [Connection types & capabilities](Connection-types-and-capabilities).
+ 
+ WinBox CLI (`TikConnectionType.WinboxCli`) connects to a MikroTik router over the **encrypted WinBox
+ channel on TCP port 8291** — the same port and protocol the WinBox application uses — and drives the
+diff --git a/WinBox-Native-MAC-connection.md b/WinBox-Native-MAC-connection.md
+index 54e5cc9..f1462f5 100644
+--- a/WinBox-Native-MAC-connection.md
++++ b/WinBox-Native-MAC-connection.md
+@@ -1,8 +1,6 @@
+-# WinBox Native (M2) over MAC Connection 🆕 `4.x` ⚠️ Alpha-preview
++# WinBox Native (M2) over MAC Connection ⚠️ Alpha-preview
+ 
+-> 🆕 **New in tik4net 4.0** — first released as [`v4.0.0-alpha`](https://github.com/danikf/tik4net/releases/tag/v4.0.0-alpha). Alpha: API and behaviour are stable for testing but may still change before the final 4.0 release. See [Connection types & capabilities](Connection-types-and-capabilities).
+-
+-> **Alpha-preview.** Same maturity caveat as [WinBox Native](WinBox-Native-connection): the API ↔ M2
++> ⚠️ **Alpha-preview** — ships in [`v4.0.0-alpha`](https://github.com/danikf/tik4net/releases/tag/v4.0.0-alpha). Same maturity caveat as [WinBox Native](WinBox-Native-connection): the API ↔ M2
+ > mapping is reconstructed from the WinBox `.jg` catalog and covers common tables, but exotic tables/verbs
+ > may need a `PathOverride`/`FieldOverride`. On top of that this transport rides the **MAC layer**, which is
+ > slower and lossier than TCP (UDP with per-packet ACKs). For production prefer the
+diff --git a/WinBox-Native-connection.md b/WinBox-Native-connection.md
+index d84909f..b8433e1 100644
+--- a/WinBox-Native-connection.md
++++ b/WinBox-Native-connection.md
+@@ -1,8 +1,6 @@
+-# WinBox Native (M2) Connection 🆕 `4.x` ⚠️ Alpha-preview
++# WinBox Native (M2) Connection ⚠️ Alpha-preview
+ 
+-> 🆕 **New in tik4net 4.0** — first released as [`v4.0.0-alpha`](https://github.com/danikf/tik4net/releases/tag/v4.0.0-alpha). Alpha: API and behaviour are stable for testing but may still change before the final 4.0 release. See [Connection types & capabilities](Connection-types-and-capabilities).
+-
+-> **Alpha-preview.** This transport is the newest and least battle-tested in tik4net. The API/field
++> ⚠️ **Alpha-preview** — ships in [`v4.0.0-alpha`](https://github.com/danikf/tik4net/releases/tag/v4.0.0-alpha). This transport is the newest and least battle-tested in tik4net. The API/field
+ > mapping is reconstructed from the WinBox `.jg` catalog and covers common tables, but exotic
+ > tables/verbs may need a `PathOverride`/`FieldOverride`, and details may still change. For production
+ > use prefer the [API](SSL-connection) or, on the WinBox channel, the
+diff --git a/login-versions.md b/login-versions.md
+index dad9041..d21b39e 100644
+--- a/login-versions.md
++++ b/login-versions.md
+@@ -30,9 +30,9 @@ using (var connection = ConnectionFactory.CreateConnection(TikConnectionType.Api
+ 
+ ## Why `Api_v2` / `ApiSsl_v2` are obsolete
+ 
+-Earlier tik4net versions exposed separate `Api_v2` / `ApiSsl_v2` constants for the 6.43+ login. Since the
+-login process was unified in **tik4net 3.5.0** (see [History](History)), those constants are **obsolete and
+-removed from use** — `Api` / `ApiSsl` handle both. Replace any `Api_v2` / `ApiSsl_v2` in old code with
++Earlier tik4net versions exposed separate `Api_v2` / `ApiSsl_v2` constants for the 6.43+ login. The login
++process has been unified (see [History](History) for when), so those constants are **obsolete and removed
++from use** — `Api` / `ApiSsl` handle both. Replace any `Api_v2` / `ApiSsl_v2` in old code with
+ `Api` / `ApiSsl`.
+ 
+ ## See also
+-- 
+2.43.0
+
