@@ -8,7 +8,7 @@ namespace tik4net.Objects.System
     /// <summary>
     /// /system/clock — system date, time and timezone configuration.
     /// Allows reading and setting the current time, date and timezone.
-    /// This is a singleton entity (no .id); use <see cref="tik4net.TikConnectionExtensions.LoadSingle{T}"/> to load it.
+    /// This is a singleton entity (no .id); use <see cref="TikConnectionExtensions.LoadSingle{T}"/> to load it.
     /// </summary>
     [TikEntity("/system/clock", IsSingleton = true)]
     public class SystemClock

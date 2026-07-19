@@ -37,14 +37,27 @@ dotnet pack tik4net.objects/tik4net.objects.csproj
 dotnet pack tik4net.ssh/tik4net.ssh.csproj
 ```
 
-There is currently **no build/test CI** — the only workflow (`publish-nuget.yml`) is
-tag-triggered. Build locally before claiming a change compiles.
+CI runs on push to `master` and on every PR (`.github/workflows/build.yml`): Windows builds the
+whole solution, Linux builds the cross-platform projects, both run the unit tests, and a third job
+validates `dotnet pack`. **Warnings are errors in CI**, with no exclusions — the whole solution is
+warning-clean today and must stay that way. `publish-nuget.yml` remains tag-triggered for releases.
 
 ## Tests
 
-`tik4net.tests/` — MSTest, `net48`, 413 methods, **almost all require a live router**.
+Two test projects, split by whether they need hardware:
 
-- Router coordinates live in `tik4net.tests/App.config` (`host`, `user`, `pass`, `routerMac`,
+**`tik4net.unittests/`** — MSTest, `net8.0`, router-free, runs everywhere including CI.
+This is where pure-logic tests belong: codecs, parsers, the O/R mapper's conversion and
+change-tracking rules, `TikFakeConnection`-based consumer scenarios.
+
+```
+dotnet test tik4net.unittests/tik4net.unittests.csproj
+```
+
+**`tik4net.integrationtests/`** — MSTest, `net48`, ~410 methods, **almost all require a live
+router**. Never runs in CI.
+
+- Router coordinates live in `tik4net.integrationtests/App.config` (`host`, `user`, `pass`, `routerMac`,
   plus topology assumptions consumed by `TestConstants.cs`).
 - The transport under test comes from the `tik.connectionType` run parameter — one
   `*.runsettings` file per transport (`api`, `apissl`, `rest`, `restssl`, `telnet`, `ssh`,
@@ -52,9 +65,10 @@ tag-triggered. Build locally before claiming a change compiles.
   means running the suite 11 times.
 - A test that hits a capability its transport lacks reports **Inconclusive**, not a failure. When
   a test is skipped, check the capability flags before "fixing" it.
-- Router-free today: `CliCompletionParserTest`, `TikTimeHelperTests`, `FakeConnectionSampleTest`.
 
-The project is SDK-style, so new `.cs` files are picked up automatically — no `.csproj` edit.
+Both projects are SDK-style, so new `.cs` files are picked up automatically — no `.csproj` edit.
+When adding a test, ask first whether it actually needs a router; if it doesn't, it belongs in
+`tik4net.unittests` where CI will run it on every PR.
 
 Use the **`mikrotik-tests` skill** for running the suite, interpreting skips, and cleaning up
 orphaned router state.

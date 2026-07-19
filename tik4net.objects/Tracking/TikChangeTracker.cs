@@ -8,7 +8,7 @@ namespace tik4net.Objects.Tracking
     /// Connection-scoped store of entity snapshots enabling diff-based saves.
     /// Instances are created and retrieved via <see cref="For"/>.
     /// Snapshots are taken automatically by <c>Load*</c> extension methods and consumed by
-    /// <see cref="TikConnectionExtensions.Save{TEntity}(ITikConnection, TEntity, System.Collections.Generic.IEnumerable{string}, TikSaveMode)"/>.
+    /// <see cref="TikConnectionExtensions.Save{TEntity}(ITikConnection, TEntity, IEnumerable{string}, TikSaveMode)"/>.
     /// </summary>
     /// <remarks>
     /// Lifetime follows the <see cref="ITikConnection"/> instance — the tracker is released when
@@ -38,6 +38,9 @@ namespace tik4net.Objects.Tracking
         /// Records the current serialized field values of <paramref name="entity"/> as a snapshot.
         /// Called automatically by <c>Load*</c> methods; can also be called manually.
         /// </summary>
+        /// <typeparam name="TEntity">Tracked entity type.</typeparam>
+        /// <param name="entity">Entity whose current field values are snapshotted.</param>
+        /// <param name="metadata">Entity metadata describing the fields to serialize.</param>
         /// <param name="trackedFields">
         /// When <c>null</c> all entity fields are tracked (full load).
         /// Pass a set of field names when loading with a partial <c>.proplist</c>.

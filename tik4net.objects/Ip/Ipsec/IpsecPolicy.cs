@@ -5,7 +5,7 @@ namespace tik4net.Objects.Ip.Ipsec
     ///
     /// IPsec policy entry. Policies define how IP traffic is matched and what IPsec action
     /// (encrypt, discard, or bypass) is applied to matched packets. Policies are evaluated
-    /// in order — use <see cref="IsOrdered"/> move semantics to control priority.
+    /// in order — use <see cref="TikEntityAttribute.IsOrdered"/> move semantics to control priority.
     ///
     /// A policy marked as a template (<see cref="Template"/>) is assigned to a policy group
     /// (<see cref="Group"/>) and instantiated dynamically by IKE when a peer negotiates SAs;

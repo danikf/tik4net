@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>tik4net.unittests</AssemblyName>
+    <RootNamespace>tik4net.unittests</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="MSTest.TestAdapter" Version="3.7.3" />
+    <PackageReference Include="MSTest.TestFramework" Version="3.7.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\tik4net\tik4net.csproj" />
+    <ProjectReference Include="..\tik4net.objects\tik4net.objects.csproj" />
+    <ProjectReference Include="..\tik4net.testing\tik4net.testing.csproj" />
+  </ItemGroup>
+</Project>

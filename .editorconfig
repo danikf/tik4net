@@ -1,0 +1,112 @@
+# EditorConfig for tik4net — see ARCHITECTURE.md for the codebase map.
+#
+# Deliberately omitted:
+#   * end_of_line — .gitattributes already owns line endings (`* text=auto`,
+#     normalized to LF in the repo, CRLF in a Windows working tree). Declaring it
+#     here too would just give the two tools a chance to disagree.
+#   * charset — the tree is a mix of BOM/no-BOM UTF-8 (~117/169 files). Forcing
+#     either one would rewrite half the repo on the next save for no benefit.
+#
+# Style rules below are set to `suggestion` on purpose: they guide new code
+# without turning the existing ~18k LOC into a wall of warnings. Only the rules
+# that catch real defects are raised to `warning` (and promoted to errors in CI
+# — see .github/workflows/build.yml).
+
+root = true
+
+[*]
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.{csproj,props,targets,config,runsettings,nuspec,xml}]
+indent_size = 2
+
+[*.{yml,yaml}]
+indent_size = 2
+
+[*.md]
+# Two trailing spaces are a hard line break in Markdown.
+trim_trailing_whitespace = false
+
+[*.cs]
+# --- Namespaces / usings -----------------------------------------------------
+# The codebase uses block-scoped namespaces throughout; file-scoped would be a
+# netstandard2.0-compatible but repo-wide reformat, so keep the existing shape.
+csharp_style_namespace_declarations = block_scoped:suggestion
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+
+# --- var ---------------------------------------------------------------------
+# `var` is used heavily (~560 sites) where the type is apparent.
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_for_built_in_types = false:suggestion
+csharp_style_var_elsewhere = false:suggestion
+
+# --- Braces / formatting -----------------------------------------------------
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_prefer_braces = true:suggestion
+csharp_indent_case_contents = true
+csharp_indent_switch_labels = true
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+csharp_space_between_method_call_parameter_list_parentheses = false
+
+# --- Naming ------------------------------------------------------------------
+dotnet_naming_rule.private_fields_underscore.severity = suggestion
+dotnet_naming_rule.private_fields_underscore.symbols = private_fields
+dotnet_naming_rule.private_fields_underscore.style = underscore_camel_case
+
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+
+dotnet_naming_style.underscore_camel_case.capitalization = camel_case
+dotnet_naming_style.underscore_camel_case.required_prefix = _
+
+dotnet_naming_rule.public_members_pascal_case.severity = suggestion
+dotnet_naming_rule.public_members_pascal_case.symbols = public_members
+dotnet_naming_rule.public_members_pascal_case.style = pascal_case
+
+dotnet_naming_symbols.public_members.applicable_kinds = property,method,event,field
+dotnet_naming_symbols.public_members.applicable_accessibilities = public,protected
+
+dotnet_naming_style.pascal_case.capitalization = pascal_case
+
+# --- Language preferences ----------------------------------------------------
+dotnet_style_object_initializer = true:suggestion
+dotnet_style_collection_initializer = true:suggestion
+dotnet_style_null_propagation = true:suggestion
+dotnet_style_coalesce_expression = true:suggestion
+dotnet_style_prefer_is_null_check_over_reference_equality_method = true:suggestion
+dotnet_style_readonly_field = true:suggestion
+csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
+csharp_style_pattern_matching_over_as_with_null_check = true:suggestion
+csharp_style_throw_expression = true:suggestion
+csharp_style_conditional_delegate_call = true:suggestion
+
+# --- Defect-catching rules (promoted to errors in CI) ------------------------
+# Unused private member / unused local — usually a leftover or a real mistake.
+dotnet_diagnostic.IDE0051.severity = warning
+dotnet_diagnostic.IDE0052.severity = warning
+
+# XML doc warnings: the public API is documented extensively and the docs are a
+# selling point, but ~122 members are still undocumented (CS1591). Keep the
+# malformed-doc warnings visible and leave the missing-doc backlog silent until
+# it is actually worked through.
+dotnet_diagnostic.CS1591.severity = none
+dotnet_diagnostic.CS1573.severity = warning
+dotnet_diagnostic.CS1574.severity = warning
+dotnet_diagnostic.CS1580.severity = warning
+dotnet_diagnostic.CS1584.severity = warning
+dotnet_diagnostic.CS1658.severity = warning
+dotnet_diagnostic.CS1734.severity = warning
+
+# --- Generated / vendored ----------------------------------------------------
+[tik4net.integrationtests/Protocols/**.cs]
+# Reverse-engineered protocol PoC clients — held to the same bar as the rest,
+# but style nits here are noise; see CLAUDE.md "high-risk areas".
+dotnet_diagnostic.IDE0051.severity = suggestion

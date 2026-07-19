@@ -1,0 +1,17 @@
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using tik4net.Objects;
+using tik4net.Objects.Ip;
+
+namespace tik4net.integrationtests
+{
+    [TestClass]
+    public class IpRouteTest : TestBase
+    {
+        [TestMethod]
+        public void LoadIpRoutesWillNotFail()
+        {
+            var list = Connection.LoadAll<IpRoute>();
+            Assert.IsNotNull(list);
+        }
+    }
+}

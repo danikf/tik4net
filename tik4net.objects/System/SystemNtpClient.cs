@@ -51,7 +51,6 @@ namespace tik4net.Objects.System
         /// <summary>
         /// status — current NTP client synchronization state, read-only.
         /// </summary>
-        /// <seealso cref="NtpClientStatus"/>
         [TikProperty("status", IsReadOnly = true)]
         public string Status { get; private set; }
 

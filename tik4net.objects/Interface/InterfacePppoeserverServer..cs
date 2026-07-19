@@ -8,9 +8,9 @@ namespace tik4net.Objects.Interface
     /// <summary>
     /// There are two types of interface (tunnel) items in PPPoE server configuration - static users and dynamic connections. An interface is created for each tunnel established to the given server. Static interfaces are added administratively if there is a need to reference the particular interface name (in firewall rules or elsewhere) created for the particular user. Dynamic interfaces are added to this list automatically whenever a user is connected and its username does not match any existing static entry (or in case the entry is active already, as there can not be two separate tunnel interfaces referenced by the same name - set one-session-per-host value if this is a problem). Dynamic interfaces appear when a user connects and disappear once the user disconnects, so it is impossible to reference the tunnel created for that use in router configuration (for example, in firewall), so if you need a persistent rules for that user, create a static entry for him/her. Otherwise it is safe to use dynamic configuration. Note that in both cases PPP users must be configured properly - static entries do not replace PPP configuration. 
     /// </summary>
-    /// <seealso cref="https://wiki.mikrotik.com/wiki/Manual:Interface/PPPoE#PPPoE_Server"/>
-    /// <seealso cref="https://wiki.mikrotik.com/wiki/Pppoe_server_with_profiles"/>
-    /// <seealso cref="https://wiki.mikrotik.com/wiki/PPPOE_Server"/>
+    /// <seealso href="https://wiki.mikrotik.com/wiki/Manual:Interface/PPPoE#PPPoE_Server"/>
+    /// <seealso href="https://wiki.mikrotik.com/wiki/Pppoe_server_with_profiles"/>
+    /// <seealso href="https://wiki.mikrotik.com/wiki/PPPOE_Server"/>
     [TikEntity("interface/pppoe-server/server", IncludeDetails = true)]
     public class InterfacePppoeserverServer
     {

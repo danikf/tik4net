@@ -156,7 +156,21 @@ live router.
 
 ## Tests
 
-`tik4net.tests/` — MSTest, **net48 only**, 413 test methods, nearly all requiring a live router.
+Tests are split by whether they need hardware.
+
+### `tik4net.unittests/` — router-free
+
+MSTest, **net8.0**, runs on Linux and Windows, gated by CI on every push and PR. Everything that
+can be tested without a router belongs here: the sentence/word codecs, `CliOutputParser`,
+`VtStripper`/`Vt100State`, `TikTimeHelper`, `EcSrp5`, `M2Message`, property/enum conversion,
+change-tracker diffing, and `TikFakeConnection`-based consumer scenarios.
+
+Internals of `tik4net` are visible to it (`InternalsVisibleTo`, see `tik4net/Properties/AssemblyInfo.cs`),
+so codec-level types can be tested directly without widening the public API.
+
+### `tik4net.integrationtests/` — live router required
+
+MSTest, **net48 only**, ~410 test methods, nearly all requiring a live router. Not run by CI.
 
 - Router coordinates and topology assumptions: `App.config` (`host`, `user`, `pass`, `routerMac`,
   `testInterface`, …) and `TestConstants.cs`.
@@ -166,11 +180,12 @@ live router.
   failure; `WinboxNativeMac` opts out because of its lossy-UDP ACK state.
 - Capability-gated tests call `EnsureCapability` and report **Inconclusive** rather than failing on
   transports that can't do the thing.
-- A handful are pure logic and need no router: `CliCompletionParserTest`, `TikTimeHelperTests`,
-  `FakeConnectionSampleTest`.
+### CI
 
-There is currently **no router-free unit-test project and no build/test CI** — both are the first
-items in the improvement plan (P0.1/P0.2).
+`.github/workflows/build.yml` — Windows builds the full solution (including the net48 projects),
+Linux builds the cross-platform ones, both run `tik4net.unittests`, and a pack job validates the
+NuGet outputs. Warnings are errors in CI only; `.editorconfig` keeps the missing-XML-doc backlog
+(CS1591) silent while treating malformed docs as real warnings.
 
 ## Where the risk is
 

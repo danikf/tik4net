@@ -18,7 +18,7 @@ namespace tik4net.Objects
     /// <item><see cref="LoadList{TEntity}(ITikConnection, ITikCommandParameter[])"/></item>
     /// <item><see cref="LoadWithDuration"/></item>
     /// <item><see cref="LoadAsync"/></item>
-    /// <item><see cref="LoadListenAsyncAsync"/></item>
+    /// <item><see cref="LoadListenAsync"/></item>
     /// </list>
     /// </para>
     /// 
@@ -426,6 +426,7 @@ namespace tik4net.Objects
         /// <param name="connection">Tik connection used to save.</param>
         /// <param name="entity">Saved entity.</param>
         /// <param name="usedFieldsFilter">List of field names (on mikrotik) which should be modified. If is not null, only listed fields will be modified.</param>
+        /// <param name="saveMode">Controls which fields are sent — see <see cref="TikSaveMode"/>.</param>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
