@@ -37,23 +37,26 @@
         public string RemoteAddress { get; private set; }
         
         /// <summary>
-        /// Gets snapshot of actual values for given <paramref name="numbers"/> (interface name).
+        /// Gets snapshot of actual values for given <paramref name="interfaceName"/>.
         /// </summary>
-        public static InterfacePppoeClientMonitor GetSnapshot(ITikConnection connection, string numbers)
+        public static InterfacePppoeClientMonitor GetSnapshot(ITikConnection connection, string interfaceName)
         {
-            return connection.GetInterfacePppoeClientMonitorSnapshot(numbers);
+            return connection.GetInterfacePppoeClientMonitorSnapshot(interfaceName);
         }
     }
 
     /// <summary>
-    /// Connection extension class for <see cref="InterfaceMonitorTraffic"/>
+    /// Connection extension class for <see cref="InterfacePppoeClientMonitor"/>
     /// </summary>
     public static class InterfacePppoeClientMonitorConnectionExtensions
     {
-        public static InterfacePppoeClientMonitor GetInterfacePppoeClientMonitorSnapshot(this ITikConnection connection, string numbers)
+        /// <summary>
+        /// Gets snapshot of actual values for given <paramref name="interfaceName"/>.
+        /// </summary>
+        public static InterfacePppoeClientMonitor GetInterfacePppoeClientMonitorSnapshot(this ITikConnection connection, string interfaceName)
         {
             var result = connection.LoadSingle<InterfacePppoeClientMonitor>(
-                connection.CreateParameter("numbers", numbers, TikCommandParameterFormat.NameValue),
+                connection.CreateParameter("numbers", interfaceName, TikCommandParameterFormat.NameValue),
                 connection.CreateParameter("once", "", TikCommandParameterFormat.NameValue));
 
             return result;
