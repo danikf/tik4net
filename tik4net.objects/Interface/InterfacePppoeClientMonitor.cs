@@ -37,7 +37,7 @@
         public string RemoteAddress { get; private set; }
         
         /// <summary>
-        /// Gets snapshot of actual values for given <paramref name="interfaceName"/>.
+        /// Gets snapshot of actual values for given <paramref name="numbers"/> (interface name).
         /// </summary>
         public static InterfacePppoeClientMonitor GetSnapshot(ITikConnection connection, string numbers)
         {

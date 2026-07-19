@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>tik4net.integrationtests</AssemblyName>
+    <RootNamespace>tik4net.integrationtests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="MSTest.TestAdapter" Version="3.7.3" />
+    <PackageReference Include="MSTest.TestFramework" Version="3.7.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\tik4net.objects\tik4net.objects.csproj" />
+    <ProjectReference Include="..\tik4net\tik4net.csproj" />
+    <ProjectReference Include="..\tik4net.testing\tik4net.testing.csproj" />
+    <ProjectReference Include="..\tik4net.ssh\tik4net.ssh.csproj" />
+  </ItemGroup>
+</Project>

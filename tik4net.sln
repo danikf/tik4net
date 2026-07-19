@@ -21,7 +21,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		README.md = README.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.tests", "tik4net.tests\tik4net.tests.csproj", "{2FB8E75F-9F49-4A8A-BC57-7CD299807EEE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.integrationtests", "tik4net.integrationtests\tik4net.integrationtests.csproj", "{2FB8E75F-9F49-4A8A-BC57-7CD299807EEE}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.testing", "tik4net.testing\tik4net.testing.csproj", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
 EndProject
@@ -58,6 +58,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.mcp", "Tools\tik4net.mcp\tik4net.mcp.csproj", "{0965A086-09CF-8D0E-BFEB-F965EAC7DAE5}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.ssh", "tik4net.ssh\tik4net.ssh.csproj", "{9B34E88B-1199-4EB9-8328-DCFFBFCE6B44}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.unittests", "tik4net.unittests\tik4net.unittests.csproj", "{5D0F56B3-F60B-4124-B310-86F94249D8E0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -189,6 +191,18 @@ Global
 		{9B34E88B-1199-4EB9-8328-DCFFBFCE6B44}.Release|x86.Build.0 = Release|Any CPU
 		{9B34E88B-1199-4EB9-8328-DCFFBFCE6B44}.Release|x64.ActiveCfg = Release|Any CPU
 		{9B34E88B-1199-4EB9-8328-DCFFBFCE6B44}.Release|x64.Build.0 = Release|Any CPU
+		{5D0F56B3-F60B-4124-B310-86F94249D8E0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5D0F56B3-F60B-4124-B310-86F94249D8E0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5D0F56B3-F60B-4124-B310-86F94249D8E0}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5D0F56B3-F60B-4124-B310-86F94249D8E0}.Debug|x86.Build.0 = Debug|Any CPU
+		{5D0F56B3-F60B-4124-B310-86F94249D8E0}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5D0F56B3-F60B-4124-B310-86F94249D8E0}.Debug|x64.Build.0 = Debug|Any CPU
+		{5D0F56B3-F60B-4124-B310-86F94249D8E0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5D0F56B3-F60B-4124-B310-86F94249D8E0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5D0F56B3-F60B-4124-B310-86F94249D8E0}.Release|x86.ActiveCfg = Release|Any CPU
+		{5D0F56B3-F60B-4124-B310-86F94249D8E0}.Release|x86.Build.0 = Release|Any CPU
+		{5D0F56B3-F60B-4124-B310-86F94249D8E0}.Release|x64.ActiveCfg = Release|Any CPU
+		{5D0F56B3-F60B-4124-B310-86F94249D8E0}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -200,6 +214,7 @@ Global
 		{2FB8E75F-9F49-4A8A-BC57-7CD299807EEE} = {0436FBF0-DA39-41EC-B052-255BCA0DC913}
 		{98A3B7AB-1D5C-49B5-AD91-7BA87F876D98} = {0436FBF0-DA39-41EC-B052-255BCA0DC913}
 		{0965A086-09CF-8D0E-BFEB-F965EAC7DAE5} = {59AD46AB-0B64-4C18-A048-F7180CA5A573}
+		{5D0F56B3-F60B-4124-B310-86F94249D8E0} = {0436FBF0-DA39-41EC-B052-255BCA0DC913}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {FCA54826-7E08-45E5-A21A-430B08E23655}

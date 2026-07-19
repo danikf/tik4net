@@ -1,0 +1,100 @@
+name: Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+  workflow_dispatch:
+
+# A new push to the same branch supersedes the previous run.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Windows builds the whole solution, including the net48 projects
+  # (tik4net.console/.examples/.torch and the router-bound integration tests).
+  windows:
+    name: Build (windows, full solution)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      - name: Restore
+        run: dotnet restore tik4net.sln
+
+      # Warnings are errors in CI only — locally a warning should not block a build.
+      # The whole solution is warning-clean, so there are no exclusions here.
+      - name: Build
+        run: dotnet build tik4net.sln --configuration Release --no-restore -warnaserror
+
+      - name: Unit tests
+        run: dotnet test tik4net.unittests/tik4net.unittests.csproj --configuration Release --no-build --logger "trx;LogFileName=unittests.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unittest-results-windows
+          path: '**/TestResults/*.trx'
+          if-no-files-found: ignore
+
+  # Linux builds only the cross-platform projects. The net48 targets cannot build
+  # here, and tik4net.integrationtests needs a live router anyway (see CLAUDE.md).
+  linux:
+    name: Build (ubuntu, cross-platform projects)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      # These five are warning-clean and must stay that way — no exclusions here.
+      - name: Build shipping packages
+        run: |
+          dotnet build tik4net/tik4net.csproj --configuration Release -warnaserror
+          dotnet build tik4net.objects/tik4net.objects.csproj --configuration Release -warnaserror
+          dotnet build tik4net.ssh/tik4net.ssh.csproj --configuration Release -warnaserror
+          dotnet build tik4net.testing/tik4net.testing.csproj --configuration Release -warnaserror
+          dotnet build Tools/tik4net.mcp/tik4net.mcp.csproj --configuration Release -warnaserror
+
+      - name: Unit tests
+        run: dotnet test tik4net.unittests/tik4net.unittests.csproj --configuration Release --logger "trx;LogFileName=unittests.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unittest-results-linux
+          path: '**/TestResults/*.trx'
+          if-no-files-found: ignore
+
+  # The packable projects must stay netstandard2.0-clean and produce valid packages.
+  pack:
+    name: Pack (validation only)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      - name: Pack
+        run: |
+          dotnet pack tik4net/tik4net.csproj --configuration Release --output ./Build
+          dotnet pack tik4net.objects/tik4net.objects.csproj --configuration Release --output ./Build
+          dotnet pack tik4net.ssh/tik4net.ssh.csproj --configuration Release --output ./Build
+          dotnet pack tik4net.testing/tik4net.testing.csproj --configuration Release --output ./Build

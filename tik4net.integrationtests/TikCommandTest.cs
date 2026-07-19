@@ -1,0 +1,477 @@
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using tik4net.Objects;
+using tik4net.Objects.Ip;
+using tik4net.Objects.Ip.Firewall;
+
+namespace tik4net.integrationtests
+{
+    [TestClass]
+    public class TikCommandTest : TestBase
+    {
+        private void DeleteAllItems(string itemsPath)
+        {
+            foreach (var id in Connection.CallCommandSync($"{itemsPath}/print").OfType<ITikReSentence>().Select(sentence => sentence.GetId()))
+            {
+                var deleteCommand = Connection.CreateCommandAndParameters($"{itemsPath}/remove", TikSpecialProperties.Id, id);
+                deleteCommand.ExecuteNonQuery();
+            }
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(TikNoSuchCommandException))]
+        public void InvalidSyntaxCommand_WillThrowCorrectException()
+        {
+            var cmd = Connection.CreateCommand("/blablabla/blabla");
+            cmd.ExecuteNonQuery();
+        }
+
+        [TestMethod]
+        public void ExecuteNonQuery_Create_New_PPP_Object_Will_Not_Fail()
+        {
+            const string TEST_NAME = "test-name";
+            const string PATH = "/ppp/secret";
+
+            DeleteAllItems(PATH);
+            var createCommand = Connection.CreateCommandAndParameters("/ppp/secret/add",
+                "name", TEST_NAME);
+
+            createCommand.ExecuteNonQuery();
+
+            //cleanup
+            DeleteAllItems("/ppp/secret");
+        }
+
+        [TestMethod]
+        public void ExecuteNonQuery_Disable_PPP_Object_Will_Not_Fail()
+        {
+            const string TEST_NAME = "test-name";
+            const string PATH = "/ppp/secret";
+
+            DeleteAllItems(PATH);
+            var createCommand = Connection.CreateCommandAndParameters("/ppp/secret/add",
+                "name", TEST_NAME);
+            createCommand.ExecuteNonQuery();
+
+            var updateCommand = Connection.CreateCommandAndParameters("/ppp/secret/set",
+                "disabled", "yes",
+                TikSpecialProperties.Id, TEST_NAME);
+            updateCommand.ExecuteNonQuery();
+
+            //cleanup
+            DeleteAllItems("/ppp/secret");
+        }
+
+        [TestMethod]
+        public void ExecuteNonQuery_Add_And_Remove_IPAddress_Will_Not_Fail()
+        {
+            string IP = TestConstants.Address;
+            string INTERFACE = TestConstants.Interface;
+
+            //create IP
+            var createCommand = Connection.CreateCommandAndParameters("/ip/address/add",
+                "interface", INTERFACE,
+                "address", IP);
+            createCommand.ExecuteNonQuery();
+
+            //find our IP
+            var id = Connection.CallCommandSync("/ip/address/print", $"?=address={IP}").OfType<ITikReSentence>().Single().GetResponseField(TikSpecialProperties.Id);
+
+            //delete by ID
+            var deleteCommand = Connection.CreateCommandAndParameters("/ip/address/remove",
+                TikSpecialProperties.Id, id);
+            deleteCommand.ExecuteNonQuery();
+        }
+
+        [TestMethod]
+        public void ExecuteNonQuery_Update_Interface_Via_Name_In_Id_Will_Not_Fail()
+        {
+            string INTERFACE = TestConstants.Interface;
+
+            var originalComment = Connection.LoadByName<Objects.Interface.Interface>(INTERFACE).Comment ?? "";
+            try
+            {
+                //update interface name
+                var updateCommand = Connection.CreateCommandAndParameters("/interface/set",
+                    "comment", "test comment",
+                    ".id", INTERFACE); // could work by briefly documented magic: https://wiki.mikrotik.com/wiki/API_command_notes#Addressing_entries
+                updateCommand.ExecuteNonQuery();
+            }
+            finally
+            {
+                //restore original comment so the test leaves no garbage on the router
+                Connection.CreateCommandAndParameters("/interface/set",
+                    "comment", originalComment,
+                    ".id", INTERFACE).ExecuteNonQuery();
+            }
+        }
+
+        [TestMethod]
+        public void ExecuteSingleRow_With_Tag_Parameter_Will_Not_HangUp_Or_Fail()
+        {
+            // This is a regression test for tag handling (a tag must not deadlock the reader or fault the
+            // command), not for any particular path. It needs a command that returns exactly one row on
+            // every transport, so we use the /system/resource singleton — unlike /system/health, whose API
+            // "print" exposes a config row while WinBox models it as a per-sensor table that has no getall on
+            // sensorless hardware (a CHR), which is transport-divergent and unsuitable for a tag regression.
+            var command = Connection.CreateCommandAndParameters("/system/resource/print", TikSpecialProperties.Tag, "1234");
+            command.ExecuteSingleRow();
+        }
+
+        [Ignore]
+        [TestMethod]
+        public void AsyncExecuteClosed_AfterReboot_AndNextCommandThrowsException()
+        {
+            var torchAsyncCmd = Connection.LoadAsync<Objects.Tool.ToolTorch>(t => {; },
+                null,
+                Connection.CreateParameter("interface", TestConstants.Interface));
+
+            Thread.Sleep(3000);
+            Connection.ExecuteNonQuery("/system/reboot"); // must not throw
+            Thread.Sleep(3000);
+
+            Assert.IsFalse(torchAsyncCmd.IsRunning); // async command must detect connection loss
+
+            // After reboot the connection is dead — either a write IOException or a TikCommandFatalException
+            // (when write is buffered and the fatal comes back from GetAll's connection-closed detection).
+            try
+            {
+                Connection.ExecuteScalar("/system/identity/print");
+                Assert.Fail("Expected an exception after reboot, but none was thrown.");
+            }
+            catch (IOException) { /* expected: write to dead socket */ }
+            catch (TikCommandFatalException) { /* expected: read from dead socket → synthetic !fatal */ }
+        }
+
+        [Ignore]
+        [TestMethod]
+        [ExpectedException(typeof(TikCommandException))]
+        public void AsyncExecuteWithDurationExecuteThrowsException_AfterReboot()
+        {
+            var torchCommand = Connection.CreateCommandAndParameters("/tool/torch", "interface", TestConstants.Interface);
+
+            new Thread(() =>
+            {
+                Thread.Sleep(1000);
+                Connection.ExecuteNonQuery("/system/reboot");
+            }).Start();
+
+            try
+            {
+                var result = torchCommand.ExecuteListWithDuration(20);
+                Thread.Sleep(3000);
+            }
+            catch
+            {
+                Assert.IsFalse(torchCommand.IsRunning);
+                throw;
+            }
+        }
+
+        [Ignore]
+        [TestMethod]
+        public void AsyncExecuteWithDurationExecuteReturnsCorrectReason_AfterReboot()
+        {
+            var torchCommand = Connection.CreateCommandAndParameters("/tool/torch", "interface", TestConstants.Interface);
+
+            new Thread(() =>
+            {
+                Thread.Sleep(1000);
+                Connection.ExecuteNonQuery("/system/reboot");
+            }).Start();
+
+            bool wasAborted;
+            string abortReason;
+            var result = torchCommand.ExecuteListWithDuration(20, out wasAborted, out abortReason);
+            Thread.Sleep(3000);
+
+            Assert.IsFalse(torchCommand.IsRunning);
+            Assert.IsTrue(wasAborted);
+            Assert.AreEqual(abortReason, "Cancelled"); //TODO - Cancelled is returned because !done sentence is retrieved before connection is closed!
+        }
+
+        [TestMethod]
+        public void InvalidCommandThrowsExceptionButConnectionRemainsOpened()
+        {
+            Exception thrownException = null;
+            try
+            {
+                Connection.ExecuteNonQuery("blah blah");
+            }
+            catch (Exception ex)
+            {
+                thrownException = ex;
+            }
+
+            Assert.IsNotNull(thrownException);
+            Assert.IsTrue(Connection.IsOpened);
+            var result = Connection.ExecuteScalar("/system/identity/print");
+            Assert.IsNotNull(result);
+        }
+
+        [TestMethod]
+        public void ExecuteAsync_OnDoneCallback_Called()
+        {
+            EnsureCapability(TikConnectionCapability.Listen, "ExecuteAsync");
+            bool onDoneCallbackCalled = false;
+
+            var torchCommand = Connection.CreateCommandAndParameters("/tool/torch", "interface", TestConstants.Interface);
+            torchCommand.ExecuteAsync(response => { }, error => { }, () => { onDoneCallbackCalled = true; });
+            Thread.Sleep(3000);
+            torchCommand.CancelAndJoin();
+
+            Assert.IsTrue(onDoneCallbackCalled);
+        }
+
+        [TestMethod]
+        public void ExecuteAsync_StreamsMonitorRows()
+        {
+            // Verifies a streaming monitor actually delivers decoded rows (not just that onDone fires).
+            // /tool/profile (the CPU profiler) reliably streams per-process rows on any router with no traffic
+            // dependency. On WinBox native this exercises the full start→poll→cancel cycle and field decode;
+            // on the binary API it is the regular async/listen path. CLI transports lack Listen and skip.
+            EnsureCapability(TikConnectionCapability.Listen, "ExecuteAsync streaming");
+
+            int rowCount = 0;
+            bool doneCalled = false;
+            ITikTrapSentence error = null;
+
+            var profile = Connection.CreateCommand("/tool/profile");
+            profile.ExecuteAsync(
+                row => Interlocked.Increment(ref rowCount),
+                trap => error = trap,
+                () => doneCalled = true);
+            Thread.Sleep(3000);
+            profile.CancelAndJoin();
+
+            Assert.IsNull(error, $"monitor reported an error: {error?.Message}");
+            Assert.IsTrue(doneCalled, "onDone callback was not invoked after cancel");
+            Assert.IsTrue(rowCount > 0, "expected at least one streamed CPU-profile row");
+        }
+
+        [TestMethod]
+        public void RunScript_Issue53_WillNotFail()
+        {
+            const string name = "TEST_NAME_ISSUE53";
+            const int commandRowsCnt = 2; // 2x call of / system identity print
+
+            string runId = Guid.NewGuid().ToString("N");
+            string logMarker = "RUN53_" + runId;
+            string scriptLines =
+                ":log info (\"start\") \r\n" +
+                "/ system identity print \r\n" +
+                "/ system identity print\r\n" +
+                ":log info (\"end\") \r\n" +
+                ":log error (\"" + logMarker + "\")";
+
+            // pre-cleanup: remove any leftover script with this name that would cause add to fail
+            foreach (var leftover in Connection.CreateCommand("/system/script/print").ExecuteList().Where(s => s.GetResponseField("name") == name))
+            {
+                Connection.CreateCommandAndParameters("/system/script/remove", TikSpecialProperties.Id, leftover.GetId()).ExecuteNonQuery();
+            }
+
+            ITikCommand scriptCreateCmd = Connection.CreateCommandAndParameters("/system/script/add",
+                "name", name,
+                "source", scriptLines);
+            var id = scriptCreateCmd.ExecuteScalar();
+            try
+            {
+                //run via ID
+                ITikCommand scriptRunCmd = Connection.CreateCommand("/system/script/run",
+                    Connection.CreateParameter(TikSpecialProperties.Id, id, TikCommandParameterFormat.NameValue));
+                if (IsNonApiTransport())
+                {
+                    // Non-binary-API transports (CLI terminals and native WinBox M2) run the script
+                    // fire-and-forget — no per-line !re rows are produced (unlike the binary API). An action
+                    // command has no result set on these transports, so reading it (ExecuteList) now throws;
+                    // the supported entry point is ExecuteNonQuery (R7).
+                    Assert.ThrowsException<NotSupportedException>(() => scriptRunCmd.ExecuteList(),
+                        "ExecuteList on an action command must throw on non-API transports.");
+                    scriptRunCmd.ExecuteNonQuery();
+                }
+                else
+                {
+                    var responseRows = scriptRunCmd.ExecuteList();
+                    Assert.IsTrue(responseRows.Count() == commandRowsCnt); //one empty !re row per script line command
+                }
+
+                // Verify the script actually executed: the unique error-severity log entry must appear
+                // in the router log. The log write lags the run completion on the slower CLI transports
+                // (MAC-Telnet / WinBox terminal), so poll for a few seconds rather than checking once.
+                bool found = false;
+                for (int attempt = 0; attempt < 10 && !found; attempt++)
+                {
+                    Thread.Sleep(500);
+                    var logEntries = Connection.CreateCommand("/log/print").ExecuteList();
+                    found = logEntries.Any(e =>
+                    {
+                        try { return (e.GetResponseField("message") ?? "").Contains(logMarker); }
+                        catch { return false; }
+                    });
+                }
+                Assert.IsTrue(found, $"Expected log entry '{logMarker}' not found in router log — script may not have run.");
+            }
+            finally
+            {
+                Connection.CreateCommandAndParameters("/system/script/remove", TikSpecialProperties.Id, id).ExecuteNonQuery();
+            }
+        }
+
+        [TestMethod]
+        public void ExecuteSingleRowOrDefault_ReturnsNull_IfEmptyResultset()
+        {
+            var testCommand = Connection.CreateCommandAndParameters("/interface/print", "name", "NOT_EXISTING_NAME");
+            var result = testCommand.ExecuteSingleRowOrDefault();
+
+            Assert.IsNull(result);
+        }
+
+        [TestMethod]
+        public void ExecuteSingleRowOrDefault_ReturnsSingleRow_IfExists()
+        {
+            var testCommand = Connection.CreateCommand("/system/identity/print");
+            var result = testCommand.ExecuteSingleRowOrDefault();
+
+            Assert.IsNotNull(result);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(TikCommandAmbiguousResultException))]
+        public void ExecuteSingleRowOrDefault_WithMultipleResponses_WillThrowCorrectException()
+        {
+            // The point is that ExecuteSingleRowOrDefault on a path returning more than one row must throw
+            // the ambiguous-result exception. /ip/firewall/service-port always has many rows (ftp, sip, …).
+            // (The path was previously misspelled "firewal"; the binary API still resolved it via command
+            // abbreviation, but non-API transports cannot, so they faulted with TikNoSuchCommandException.)
+            var testCommand = Connection.CreateCommand("/ip/firewall/service-port/print");
+            testCommand.ExecuteSingleRowOrDefault();
+        }
+
+        [TestMethod]
+        public void ExecuteScalarWithTarget_WillNotFail()
+        {
+            var ipAdresses = Connection.LoadAll<IpAddress>();
+
+            var testCommand = Connection.CreateCommandAndParameters("/ip/address/print", TikCommandParameterFormat.Filter, TikSpecialProperties.Id, ipAdresses.First().Id);
+            var readId = testCommand.ExecuteScalar(TikSpecialProperties.Id);
+
+            Assert.IsTrue(!string.IsNullOrWhiteSpace(readId));
+        }
+
+        [TestMethod]
+        public void ExecuteListWithProplistFilter_WillNotFail()
+        {
+            var testCommand = Connection.CreateCommand("/ip/address/print");
+            var result = testCommand.ExecuteList(TikSpecialProperties.Id);
+
+            Assert.IsNotNull(result);
+            Assert.IsTrue(result.Count() > 0);
+        }
+
+        [TestMethod]
+        public void ExecuteScalarOrDefault_WillReturnDefault_WhenNotFound()
+        {
+            const string defaultValue = "def";
+
+            var testCommand = Connection.CreateCommandAndParameters("/ip/address/print", TikCommandParameterFormat.Filter, TikSpecialProperties.Id, "not-existing-id");
+            var result = testCommand.ExecuteScalarOrDefault(defaultValue, TikSpecialProperties.Id);
+
+            Assert.AreEqual(result, defaultValue);
+        }
+
+        [TestMethod]
+        public void ExecuteScalarOrDefaultWithTarget_WillNotFail()
+        {
+            var ipAdresses = Connection.LoadAll<IpAddress>();
+
+            var testCommand = Connection.CreateCommandAndParameters("/ip/address/print", TikCommandParameterFormat.Filter, TikSpecialProperties.Id, ipAdresses.First().Id);
+            var readId = testCommand.ExecuteScalarOrDefault("not used default", TikSpecialProperties.Id);
+
+            Assert.AreEqual(readId, ipAdresses.First().Id);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(TikNoSuchItemException))]
+        public void ExecuteScalarWithUnexistentId_WillThrowCorrectException()
+        {
+            var testCommand = Connection.CreateCommandAndParameters("/ip/address/print", TikCommandParameterFormat.Filter, TikSpecialProperties.Id, "-NoID-");
+            var id = testCommand.ExecuteScalar(TikSpecialProperties.Id);            
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(TikNoSuchItemException))]
+        public void ExecuteSingleRowWithUnexistentId_WillThrowCorrectException()
+        {
+            var testCommand = Connection.CreateCommandAndParameters("/ip/address/print", TikCommandParameterFormat.Filter, TikSpecialProperties.Id, "-NoID-");
+            var row = testCommand.ExecuteSingleRow();
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(TikNoSuchItemException))]
+        public void LoadByIdWithUnexistentId_WillThrowCorrectException()
+        {
+            var result = Connection.LoadSingle<IpAddress>(Connection.CreateParameter(TikSpecialProperties.Id, "-NoID-"));
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(TikCommandAmbiguousResultException))]
+        public void LoadByIdWithoutFilter_WillThrowCorrectException()
+        {
+            Connection.LoadSingle<FirewalServicePort>();
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(TikNoSuchItemException))]
+        public void DeleteNonExistentEntity_WillThrowCorrectException()
+        {
+            var cmd = Connection.CreateCommandAndParameters("/ip/address/remove", TikCommandParameterFormat.NameValue, TikSpecialProperties.Id, "-NoID-");
+            cmd.ExecuteNonQuery();
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(TikNoSuchItemException))]
+        public void UpdateNonExistentEntity_WillThrowCorrectException()
+        {
+            var cmd = Connection.CreateCommandAndParameters("/ip/address/set", TikCommandParameterFormat.NameValue, TikSpecialProperties.Id, "-NoID-", "comment", "bla bla bla");
+            cmd.ExecuteNonQuery();
+        }
+
+        [TestMethod]
+        public void CreateDuplicitEntity_WillThrowCorrectException()
+        {
+            var ipAddr = Connection.LoadAll<IpAddress>().First();
+
+            var newAddr = new IpAddress() { Address = ipAddr.Address, Netmask = ipAddr.Netmask, Network = ipAddr.Network, Interface = ipAddr.Interface };
+            // Not [ExpectedException]: if Save unexpectedly succeeds it creates a duplicate address that
+            // would be left behind (and could disrupt networking) — delete it before failing the test.
+            try
+            {
+                Connection.Save(newAddr);
+            }
+            catch (TikAlreadyHaveSuchItemException)
+            {
+                return; // expected
+            }
+
+            // Save unexpectedly succeeded (e.g. a transport that did not enforce the duplicate — and may have
+            // stored a mangled interface, so newAddr.Id alone is not reliable). Remove every extra row with
+            // this address except the original (matched by id, which resolves even with a sentinel interface)
+            // so no orphan is left behind, then fail the test.
+            foreach (var extra in Connection.LoadList<IpAddress>(Connection.CreateParameter("address", ipAddr.Address))
+                                            .Where(a => a.Id != ipAddr.Id))
+            {
+                try { Connection.Delete(extra); } catch { /* best-effort orphan cleanup */ }
+            }
+            Assert.Fail("Expected TikAlreadyHaveSuchItemException, but Save succeeded and created a duplicate.");
+        }
+    }
+}
+
+//http://forum.mikrotik.com/viewtopic.php?t=88694
+//http://wiki.microtik.com/viewtopic.php?f=9&p=576978

@@ -8,7 +8,7 @@ namespace tik4net.Objects.Snmp
     /// <summary>
     /// /snmp — Simple Network Management Protocol (SNMP) global configuration.
     /// SNMP is an Internet-standard protocol for managing devices on IP networks.
-    /// This is a singleton settings entity; use <see cref="TikConnectionObjectExtensions.LoadSingle{T}"/> to load it.
+    /// This is a singleton settings entity; use <see cref="TikConnectionExtensions.LoadSingle{T}"/> to load it.
     /// </summary>
     [TikEntity("/snmp", IsSingleton = true)]
     public class Snmp
