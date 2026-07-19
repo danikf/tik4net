@@ -1,83 +1,112 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code (claude.ai/code) when working in this repository.
 
 ## Overview
 
-tik4net is a .NET library for communicating with MikroTik routers via the MikroTik API protocol. It consists of these NuGet packages:
-- **tik4net** — low-level ADO.NET-style API (targets `netstandard2.0`)
-- **tik4net.entities** (project: `tik4net.objects/`) — high-level O/R mapper over tik4net (same targets)
-- **tik4net.ssh** — SSH transport satellite (opt-in; depends on `Renci.SshNet`)
-- **tik4net.testing** — test helpers for router integration tests
-- **tik4net.mcp** — dev/debug MCP helper tool (not a user-facing release package)
+tik4net is a .NET library for talking to MikroTik RouterOS devices. It is **not** an API-only
+library any more — as of 4.0 it ships 12 transports (binary API, REST, and a family of
+CLI/WinBox/MAC-layer channels) behind one connection contract, plus an O/R mapper on top.
 
-## Build Commands
+Shipping packages:
 
-Build the solution in Visual Studio 2022 or via CLI:
+- **tik4net** (`tik4net/`) — core: connection contract, all in-tree transports, capability model
+- **tik4net.entities** (`tik4net.objects/`) — attribute-driven O/R mapper, 169 entities
+- **tik4net.ssh** — SSH transport satellite (isolates the `Renci.SshNet` dependency)
+- **tik4net.testing** — `TikFakeConnection` for router-free consumer tests
+- **tik4net.mcp** (`Tools/tik4net.mcp/`) — dev/debug MCP helper published as a .NET tool, not a
+  user-facing library
+
+Everything targets `netstandard2.0` except the tests (`net48`) and the tool projects.
+
+**Read [ARCHITECTURE.md](ARCHITECTURE.md) before non-trivial work** — it maps the transport
+family, the capability model, the O/R mapper internals, and where the risky code lives.
+
+## Build
 
 ```
 dotnet build tik4net.sln
 dotnet build tik4net/tik4net.csproj
-dotnet build tik4net.objects/tik4net.objects.csproj
 ```
 
-Pack NuGet packages (output goes to `./Build/`):
+Pack (output to `./Build/`):
+
 ```
 dotnet pack tik4net/tik4net.csproj
 dotnet pack tik4net.objects/tik4net.objects.csproj
 dotnet pack tik4net.ssh/tik4net.ssh.csproj
 ```
 
+There is currently **no build/test CI** — the only workflow (`publish-nuget.yml`) is
+tag-triggered. Build locally before claiming a change compiles.
+
 ## Tests
 
-Tests are in `tik4net.tests/` using **MSTest** targeting .NET 4.8. They require a live MikroTik router — connection settings are in `tik4net.tests/App.config`:
+`tik4net.tests/` — MSTest, `net48`, 413 methods, **almost all require a live router**.
 
-```xml
-<add key="host" value="192.168.4.236"/>
-<add key="user" value="admin"/>
-<add key="pass" value=""/>
-```
+- Router coordinates live in `tik4net.tests/App.config` (`host`, `user`, `pass`, `routerMac`,
+  plus topology assumptions consumed by `TestConstants.cs`).
+- The transport under test comes from the `tik.connectionType` run parameter — one
+  `*.runsettings` file per transport (`api`, `apissl`, `rest`, `restssl`, `telnet`, `ssh`,
+  `mactelnet`, `winboxcli`, `winboxclimac`, `winboxnative`, `winboxnativemac`). The full matrix
+  means running the suite 11 times.
+- A test that hits a capability its transport lacks reports **Inconclusive**, not a failure. When
+  a test is skipped, check the capability flags before "fixing" it.
+- Router-free today: `CliCompletionParserTest`, `TikTimeHelperTests`, `FakeConnectionSampleTest`.
 
-Run tests via Visual Studio Test Explorer or `dotnet test`. The test project is SDK-style (`Microsoft.NET.Sdk`, targets `net48`), so new `.cs` files are auto-included — no `.csproj` edit needed. Most tests hit a real router; a few are pure-logic units (e.g. parser/resolver) that run without one.
+The project is SDK-style, so new `.cs` files are picked up automatically — no `.csproj` edit.
 
-## Architecture
+Use the **`mikrotik-tests` skill** for running the suite, interpreting skips, and cleaning up
+orphaned router state.
 
-### Two-layer design
+## Working rules
 
-**Layer 1 — `tik4net` (low-level)**
+### Capabilities are fail-closed
 
-- `ITikConnection` / `ApiConnection` — TCP socket connection to the router. Supports plain API (port 8728) and SSL (port 8729). Manages the MikroTik sentence protocol (length-prefixed words), login (both legacy and v6.43+ challenge-response), and thread-safe read/write with locks.
-- `ITikCommand` — ADO.NET-style command. Execute methods: `ExecuteNonQuery`, `ExecuteScalar`, `ExecuteSingleRow`, `ExecuteList`, `ExecuteAsync` (callback-based). Parameters use `ITikCommandParameter` with `Filter` (?name=value) or `NameValue` (=name=value) format.
-- `ConnectionFactory` — entry point. Use `ConnectionFactory.OpenConnection(TikConnectionType, host, user, pass)`.
-- Response sentences: `ITikReSentence` (!re), `ITikDoneSentence` (!done), `ITikTrapSentence` (!trap), `ITikFatalSentence` (!fatal).
+Transports differ in what they can do. Never assume a feature works everywhere: guard entry
+points with `connection.Require(TikConnectionCapability.X, "feature")` and check with
+`connection.Supports(...)`. A connection not implementing `ITikConnectionCapabilities` supports
+nothing. When adding a transport, declare its flags explicitly.
 
-**Layer 2 — `tik4net.objects` (high-level O/R mapper)**
+### Two entry points, not yet unified
 
-Entity classes are decorated with attributes that drive all serialization:
-- `[TikEntity("/ip/firewall/filter")]` — declares the API path, load command, and entity behaviour flags (`IsSingleton`, `IsOrdered`, `IsReadOnly`, etc.).
-- `[TikProperty("src-address")]` — maps a C# property to a MikroTik field name.
+`ConnectionFactory` (classic) and `TikConnectionSetup` (preferred) coexist, and
+`TikConnectionSetup`'s options are **not** honored by every transport — e.g.
+`AllowInvalidCertificate` is wired to REST but not API-SSL, and `ConnectTimeout` is honored by
+the MAC/WinBox transports but not API/REST/Telnet. Verify per transport rather than trusting the
+property name. (Tracked as F1/F2/F18 in the improvement plan.)
 
-CRUD via extension methods on `ITikConnection` (in `TikConnectionExtensions`):
-- Load: `LoadAll<T>()`, `LoadList<T>()`, `LoadById<T>()`, `LoadSingle<T>()`
-- Save (insert or update): `Save<T>()`
-- Delete: `Delete<T>()`
-- Bulk sync: `SaveListDifferences<T>()` — diffs two lists and applies minimal changes
-- Ordered list: `Move<T>()`, `MoveToEnd<T>()`
+### High-risk areas
 
-Metadata is cached at first use in `TikEntityMetadataCache`.
+`Crypto/` (EC-SRP5, WinBox stream cipher), `WinboxNative*/`, `MacTelnet/`, and `ApiConnection`'s
+reader/tag multiplexing are reverse-engineered or subtle, and have no deterministic test
+coverage. Change them only with live-router verification, and don't refactor them opportunistically.
 
-### Adding a new entity
+`TikChangeTracker` and the `Save` default-vs-unset rules encode deliberate, non-obvious semantics
+— a tidy-up there changes observable behaviour.
 
-1. Create a class in `tik4net.objects/` under the relevant domain folder (e.g., `Ip/`, `Interface/`).
-2. Decorate with `[TikEntity("/<api/path>")]`.
-3. Add properties decorated with `[TikProperty("<field-name>")]`.
-4. The entity is immediately usable with `LoadAll<T>()`, `Save<T>()`, etc.
+### Adding an entity
 
-Use the `tik4net.entitygenerator` tool (`Tools/tik4net.entitygenerator/`) to auto-generate entity code from a live router's metadata.
+1. Class in `tik4net.objects/<Domain>/` (`Ip/`, `Interface/`, `System/`, `Tool/`, …).
+2. `[TikEntity("/<api/path>")]` + `[TikProperty("<field-name>")]` per property.
+3. `Id` is always `[TikProperty(".id", IsReadOnly = true, IsMandatory = true)]`.
+4. Bool ("yes"/"false") converts automatically; enum members carry `[TikEnum("wire-value")]` when
+   the wire value isn't the lowercased member name.
+5. Read-only counters must be marked `IsReadOnly`.
 
-### Key conventions
+Prefer the **`entity-generator` skill** over hand-writing — it scaffolds from a live router and
+applies the documented conventions.
 
-- `Id` property (mapped to `.id`) is always `[TikProperty(".id", IsReadOnly = true, IsMandatory = true)]`.
-- Enum-typed properties should match MikroTik string values via `[TikProperty(...)]` with the enum member name lowercased matching the wire value.
-- Boolean MikroTik fields ("yes"/"false") are automatically converted.
-- `TikEntityObjectsExtensions` provides `Clone<T>()`, `EntityDescription()`, and `EntityDifference()` helpers.
+## Skills
+
+- `mikrotik` — query/modify a router over any transport (via the tik4net MCP server)
+- `mikrotik-tests` — run and debug the integration suite
+- `mikrotik-cli-probe` — ground truth for what the router actually emits over the CLI/PTY layer
+- `winbox-native-dev` — structured-M2 transport work (`.jg` catalog, wire encodings)
+- `entity-generator` — scaffold O/R mapper entities
+
+## Current improvement plan
+
+`_notes/Reviews/ARCHITECTUREIMPROVEMENTPLAN.md` (local-only) holds the phased source/architecture
+review and plan. Consult it before starting structural work so changes land in the intended phase,
+and tick items off there as they're completed.
