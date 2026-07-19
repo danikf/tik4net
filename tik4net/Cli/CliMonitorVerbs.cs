@@ -21,17 +21,27 @@ namespace tik4net.Cli
     /// </list>
     /// </para>
     ///
-    /// <para>Some monitors are genuinely interactive-only from a client's point of view. <c>/tool torch</c>
-    /// is the confirmed example: its <c>as-value</c> form (with either <c>once</c> or <c>duration</c>)
-    /// prints NOTHING — but the PLAIN interactive form (no <c>as-value</c>) does redraw real rows to the
-    /// terminal (confirmed live, ROS 7.21.4, at both an 80-column and a 9000-column advertised width — the
-    /// wrapping is RouterOS's own fixed layout, not a terminal-width truncation artifact). It is still not
-    /// usable here because the row format is not reliably machine-parseable: the <c>Columns:</c> declaration
-    /// omits fields the API exposes (no <c>tx-packets</c>/<c>rx-packets</c>), a resolved <c>DST-PORT</c> value
-    /// embeds a space (<c>"23 (telnet)"</c>, breaking whitespace-tokenised splitting), and column widths
-    /// self-adjust per redraw frame (breaking fixed-width slicing). <see cref="Kind.InteractiveOnly"/> flags
-    /// it so the transport fails with guidance (use the binary API transport's Streaming capability instead)
-    /// rather than shipping a parser that would silently misparse on those edge cases.</para>
+    /// <para><c>/tool torch</c> needs a different treatment entirely: its <c>as-value</c> form (with either
+    /// <c>once</c> or <c>duration</c>) prints NOTHING — confirmed live. Its plain (non-<c>as-value</c>) form
+    /// does redraw real rows to the terminal, but not in a way the <c>once</c>/<c>as-value</c> machinery can
+    /// use — UNLESS two further torch-specific parameters are added:
+    /// <list type="bullet">
+    ///   <item><c>proplist=…</c> fixes the field set — the default columns omit <c>tx-packets</c>/
+    ///         <c>rx-packets</c> — see <see cref="CliCommandBuilder.TorchFields"/>. RouterOS still reorders the
+    ///         response to its own canonical order regardless of the requested order, so
+    ///         <see cref="CliOutputParser.ParseTorchFrame"/> reads the actual order back from each frame's own
+    ///         <c>Columns:</c> declaration.</item>
+    ///   <item><c>freeze-frame-interval=N</c> makes torch APPEND a new, terminated <c>Columns:</c>/data block
+    ///         every N seconds instead of redrawing the previous one in place over VT100 — turning the output
+    ///         into the same kind of discrete, parseable snapshot the other monitors produce. Confirmed live:
+    ///         <c>duration</c> must be at least <c>2×freeze-frame-interval</c>, or zero frames are flushed
+    ///         before the command self-terminates (a single interval is not enough).</item>
+    /// </list>
+    /// The one remaining wrinkle — a resolved <c>DST-PORT</c>/<c>SRC-PORT</c> value can embed a space
+    /// (<c>"23 (telnet)"</c>) — is handled by <see cref="CliOutputParser.ParseTorchFrame"/> consuming the
+    /// parenthesised annotation as an extra (discarded) token rather than by whitespace-splitting alone.
+    /// <see cref="Kind.FreezeFrame"/> flags <c>torch</c> for this dedicated builder/parser pair (see
+    /// <see cref="CliConnectionBase"/>'s <c>TorchFreezeFrameLoop</c>).</para>
     /// </summary>
     internal static class CliMonitorVerbs
     {
@@ -52,8 +62,8 @@ namespace tik4net.Cli
         private static readonly HashSet<string> Finite =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ping", "traceroute" };
 
-        // Monitors that produce no as-value output even with a snapshot modifier (interactive-only).
-        private static readonly HashSet<string> InteractiveOnly =
+        // Monitors driven by the dedicated freeze-frame builder/parser pair instead of once/as-value.
+        private static readonly HashSet<string> FreezeFrame =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "torch" };
 
         /// <summary>How a monitor verb is driven over a polling terminal transport.</summary>
@@ -64,14 +74,15 @@ namespace tik4net.Cli
             Poll,
             /// <summary>Self-terminating command — run once, emit rows, complete (<c>ping</c>, <c>traceroute</c>).</summary>
             Once,
-            /// <summary>Cannot be polled over a terminal (no as-value snapshot form) — e.g. <c>torch</c>.</summary>
-            InteractiveOnly,
+            /// <summary>Driven by the torch-specific <c>freeze-frame-interval</c>+<c>proplist</c> builder/parser
+            /// pair instead of <c>once</c>/<c>as-value</c> — currently just <c>torch</c>.</summary>
+            FreezeFrame,
         }
 
         /// <summary>Classifies how <paramref name="verb"/> must be driven (see <see cref="Kind"/>).</summary>
         public static Kind Classify(string verb)
         {
-            if (verb != null && InteractiveOnly.Contains(verb)) return Kind.InteractiveOnly;
+            if (verb != null && FreezeFrame.Contains(verb)) return Kind.FreezeFrame;
             if (verb != null && Finite.Contains(verb)) return Kind.Once;
             return Kind.Poll;
         }

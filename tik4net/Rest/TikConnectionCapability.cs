@@ -16,11 +16,13 @@ namespace tik4net
         /// <summary>
         /// Live <c>/path/listen</c> change notifications (native on the API; emulated by poll+diff on CLI / WinBox M2).
         /// Also covers the async monitor pattern (<c>LoadAsync</c>/<c>ExecuteAsync</c>) for streaming-monitor commands
-        /// (e.g. <c>/tool/torch</c>): native on the API, emulated by re-polling a one-shot snapshot on CLI (except
-        /// <c>/tool/torch</c> itself — its plain terminal output is not reliably machine-parseable, see
-        /// <see cref="tik4net.Cli.CliMonitorVerbs"/>), and genuinely supported on WinBox native (WinboxNative/
-        /// WinboxNativeMac) via the <c>.jg</c> <c>type:'query'</c> monitor window, which returns typed M2 fields
-        /// rather than text — confirmed working for <c>/tool/torch</c> live.
+        /// (e.g. <c>/tool/torch</c>): native on the API; on CLI transports (Telnet/SSH/MACTelnet/WinBox CLI) most
+        /// monitors are emulated by re-polling a one-shot <c>once</c>/<c>as-value</c> snapshot, but <c>/tool/torch</c>
+        /// specifically needs a dedicated <c>freeze-frame-interval</c> + <c>proplist</c> builder instead — its
+        /// <c>as-value</c> form prints nothing (see <see cref="tik4net.Cli.CliMonitorVerbs"/>); and on WinBox native
+        /// (WinboxNative/WinboxNativeMac) via the <c>.jg</c> <c>type:'query'</c> monitor window, which returns typed
+        /// M2 fields rather than text. <c>/tool/torch</c> is confirmed working live on every transport that reports
+        /// this capability — API, all four CLI transports, and both WinBox native transports.
         /// </summary>
         Listen       = 2,
         /// <summary>Blocking, synchronous streaming reads on a single command execution (<c>ExecuteList*</c> /

@@ -35,6 +35,10 @@ namespace tik4net.Cli
         private const int MonitorPollIntervalMs = 500;
         /// <summary>Interval between /listen config-table polls (ms).</summary>
         private const int ListenPollIntervalMs = 1000;
+        /// <summary>torch's <c>freeze-frame-interval</c> (seconds). Each poll blocks for
+        /// <c>2×</c> this (see <see cref="CliCommandBuilder.BuildTorchSnapshot"/>) — confirmed live as the
+        /// minimum that reliably flushes one frame — so no separate inter-poll sleep is needed.</summary>
+        private const int TorchFreezeFrameSeconds = 2;
 
         // ── Capabilities ──────────────────────────────────────────────────────
 
@@ -505,7 +509,7 @@ namespace tik4net.Cli
         ///         record (routed to <c>onDeleted</c> by the O/R layer).</item>
         ///   <item>a monitor verb (<c>monitor-traffic</c>, <c>profile</c>, <c>ping</c>, …) — re-issue a one-shot
         ///         <c>:put [… &lt;snapshot-modifier&gt; as-value]</c> every <see cref="MonitorPollIntervalMs"/> ms and
-        ///         emit each polled record. Interactive-only verbs (<c>torch</c>) are rejected with guidance.</item>
+        ///         emit each polled record. <c>torch</c> is driven differently — see <c>TorchFreezeFrameLoop</c>.</item>
         /// </list>
         /// The worker owns the (single request/reply) channel while polling; issuing concurrent CRUD on the
         /// same connection from another thread while a monitor is active is not supported.
@@ -536,11 +540,11 @@ namespace tik4net.Cli
                     return PollingMonitorEngine.StartWorker("cli-monitor-once",
                         h => SnapshotOnce(descriptor, modifier, h, onRow, onError, onDone));
 
-                case CliMonitorVerbs.Kind.InteractiveOnly:
-                    // Cannot be polled over a terminal — report a guiding error (not a throw, so onDone still
-                    // fires and the async contract is honoured) and finish.
-                    return PollingMonitorEngine.StartWorker("cli-monitor-interactive",
-                        h => InteractiveOnlyEnd(descriptor, onError, onDone));
+                case CliMonitorVerbs.Kind.FreezeFrame:
+                    // torch: driven by the dedicated freeze-frame-interval + proplist builder/parser pair
+                    // (see CliMonitorVerbs), not the once/as-value machinery the other monitors use.
+                    return PollingMonitorEngine.StartWorker("cli-monitor-torch",
+                        h => TorchFreezeFrameLoop(descriptor, h, onRow, onError, onDone));
 
                 default:
                     // Continuous monitor: re-issue the snapshot on a timer until cancelled.
@@ -614,20 +618,32 @@ namespace tik4net.Cli
             finally { onDone?.Invoke(); }
         }
 
-        // Interactive-only verb (torch): surface a guiding error through the async error callback, then end.
-        private void InteractiveOnlyEnd(TikCommandDescriptor descriptor,
-            Action<TikTrapSentenceResult> onError, Action onDone)
+        // torch: driven by freeze-frame-interval + an explicit proplist (see CliMonitorVerbs/
+        // CliCommandBuilder.BuildTorchSnapshot) instead of once/as-value. Each execution blocks for
+        // ~2×TorchFreezeFrameSeconds and flushes one complete frame, which IS the poll interval — no
+        // separate SleepInterruptible is needed between iterations.
+        private void TorchFreezeFrameLoop(TikCommandDescriptor descriptor, TikMonitorHandle handle,
+            Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
         {
             try
             {
-                onError?.Invoke(new TikTrapSentenceResult(
-                    $"CLI transport: '{descriptor.CommandText}' repaints a VT100 screen with no as-value " +
-                    "snapshot form. Its plain (non-as-value) output does contain real rows, but they are not " +
-                    "reliably machine-parseable over a text terminal (columns missing vs. the API, embedded " +
-                    "spaces in values, self-adjusting column widths), so this transport does not attempt it. " +
-                    "Use the binary API transport (Streaming capability) or a WinBox native transport " +
-                    "(WinboxNative/WinboxNativeMac, Listen capability — confirmed working: the .jg monitor " +
-                    "window returns typed fields over M2, not text) for this command."));
+                string cliText = CliCommandBuilder.BuildTorchSnapshot(
+                    descriptor.CommandText, descriptor.Parameters, TorchFreezeFrameSeconds);
+
+                while (!handle.CancelRequested)
+                {
+                    string output = ExecuteCliCommand(cliText);
+                    CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+                    foreach (var row in CliOutputParser.ParseTorchFrame(output))
+                    {
+                        if (handle.CancelRequested) break;
+                        onRow?.Invoke(row);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                if (!PollingMonitorEngine.Stopping(this, handle)) onError?.Invoke(new TikTrapSentenceResult(ex.Message));
             }
             finally { onDone?.Invoke(); }
         }

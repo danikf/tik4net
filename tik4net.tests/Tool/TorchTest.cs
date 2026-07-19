@@ -28,9 +28,14 @@ namespace tik4net.tests
             var cmd2 = Connection.LoadAsync<ToolTorch>(t => { rowCount++; System.Diagnostics.Debug.WriteLine("ether1b: " + t); },
                 ex => { System.Diagnostics.Debug.WriteLine("ERROR: " + ex.Message); isFailed = true; },
                 Connection.CreateParameter("interface", TestConstants.Interface));
-            Thread.Sleep(1500);
+            // CLI transports drive torch via freeze-frame-interval, where each poll blocks for several real
+            // seconds (see CliConnectionBase.TorchFreezeFrameSeconds) — much slower than the binary API's
+            // near-instant streaming poll, and the two concurrent commands may serialize on one channel.
+            // Give both time to complete at least one full cycle before cancelling either.
+            int settleMs = Connection.Supports(TikConnectionCapability.Streaming) ? 1500 : 9000;
+            Thread.Sleep(settleMs);
             cmd2.CancelAndJoin();
-            Thread.Sleep(1500);
+            Thread.Sleep(settleMs);
             cmd1.CancelAndJoin();
 
             Assert.IsFalse(isFailed);

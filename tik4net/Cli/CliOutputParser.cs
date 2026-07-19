@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using tik4net.Connection;
 
 namespace tik4net.Cli
@@ -169,6 +171,155 @@ namespace tik4net.Cli
             }
 
             return pairs;
+        }
+
+        /// <summary>The footer RouterOS prints before/after every torch frame (not a data row).</summary>
+        private const string TorchFooter = "-- [Q quit|D dump|C-z pause]";
+
+        /// <summary>
+        /// Parses the output of a <see cref="CliCommandBuilder.BuildTorchSnapshot"/> command (torch driven
+        /// with <c>freeze-frame-interval</c> + an explicit <c>proplist</c>) into a list of re-sentences.
+        /// The field ORDER is read from each frame's own <c>Columns:</c> declaration rather than assumed to
+        /// match the requested <c>proplist</c> order — confirmed live that RouterOS reorders the columns to
+        /// its own canonical order (<c>ip-protocol</c> first) regardless of the order requested. Because of
+        /// that reordering, a data row can no longer be recognised by "starts with an address" (an earlier
+        /// version of this parser did — it silently produced zero rows whenever a non-address field, e.g.
+        /// <c>ip-protocol</c>, sorted first). Instead: RouterOS always declares exactly as many <c>Columns:</c>
+        /// fields as requested (see <see cref="CliCommandBuilder.TorchFields"/>'s length), and repeats that
+        /// same field list, unabbreviated, as a plain space-separated header row before the data — so the
+        /// header/data boundary is found by locating that repeat, not by guessing at row content.
+        /// <para>
+        /// A run may flush zero, one or several frames (each terminated by <see cref="TorchFooter"/>) before
+        /// the command self-terminates at <c>duration</c>; only the LAST complete frame — the freshest reading
+        /// — is parsed. A resolved port value can embed a space (<c>"23 (telnet)"</c>) — the extra
+        /// parenthesised token is consumed and discarded so it does not shift the remaining fields out of
+        /// alignment.
+        /// </para>
+        /// </summary>
+        internal static IList<TikRecordSentence> ParseTorchFrame(string output)
+        {
+            var result = new List<TikRecordSentence>();
+            if (string.IsNullOrWhiteSpace(output))
+                return result;
+
+            string normalized = output.Replace("\r", "");
+            var segments = normalized.Split(new[] { TorchFooter }, StringSplitOptions.None);
+
+            string frameSegment = null;
+            for (int i = segments.Length - 1; i >= 0; i--)
+            {
+                if (segments[i].IndexOf("Columns:", StringComparison.Ordinal) >= 0)
+                {
+                    frameSegment = segments[i];
+                    break;
+                }
+            }
+            if (frameSegment == null)
+                return result; // no frame flushed within the command's duration
+
+            int columnsIdx = frameSegment.IndexOf("Columns:", StringComparison.Ordinal);
+            string afterColumns = frameSegment.Substring(columnsIdx + "Columns:".Length);
+            var lines = afterColumns.Split('\n');
+
+            // The Columns: declaration always names exactly this many fields (RouterOS returns the same set
+            // we requested, just reordered) — read that many comma-separated tokens regardless of how many
+            // physical lines they wrap across. The LAST token's comma-split chunk also swallows the plain
+            // header row and all data that follows it (torch's plain-text values never contain a comma), so
+            // only its first whitespace token — the real field name — is kept.
+            int expectedFieldCount = CliCommandBuilder.TorchFields.Length;
+            var fieldOrder = new List<string>();
+            foreach (var rawPart in afterColumns.Split(','))
+            {
+                if (fieldOrder.Count >= expectedFieldCount)
+                    break;
+                string collapsed = Regex.Replace(rawPart, @"\s+", " ").Trim();
+                if (collapsed.Length == 0)
+                    continue;
+                string name = collapsed.Split(' ')[0].ToLowerInvariant();
+                if (name.Length > 0)
+                    fieldOrder.Add(name);
+            }
+            if (fieldOrder.Count == 0)
+                return result;
+
+            // Locate the plain header row: the first line whose own first whitespace-token equals
+            // fieldOrder[0] WITHOUT a trailing comma (which rules out matching the wrapped Columns:
+            // declaration line itself, since there the same token is followed by ',').
+            int dataStart = -1;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string trimmed = lines[i].Trim();
+                if (trimmed.Length == 0)
+                    continue;
+                string firstToken = trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries)[0];
+                if (string.Equals(firstToken, fieldOrder[0], StringComparison.OrdinalIgnoreCase))
+                {
+                    dataStart = i + 1;
+                    break;
+                }
+            }
+            if (dataStart < 0)
+                return result; // header row not found — nothing reliable to parse
+
+            for (int i = dataStart; i < lines.Length; i++)
+            {
+                string line = lines[i].Trim();
+                if (line.Length == 0)
+                    continue;
+
+                var tokens = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                int idx = 0;
+                bool complete = true;
+                foreach (var fieldName in fieldOrder)
+                {
+                    if (idx >= tokens.Length) { complete = false; break; }
+                    string value = tokens[idx];
+                    if (string.Equals(fieldName, "tx", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(fieldName, "rx", StringComparison.OrdinalIgnoreCase))
+                        value = ParseBitrate(value);
+                    fields[fieldName] = value;
+                    idx++;
+                    bool isPortField = string.Equals(fieldName, "src-port", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(fieldName, "dst-port", StringComparison.OrdinalIgnoreCase);
+                    if (isPortField && idx < tokens.Length && tokens[idx].StartsWith("(", StringComparison.Ordinal))
+                        idx++; // discard the "(service-name)" annotation token
+                }
+                if (complete)
+                    result.Add(new TikRecordSentence(fields));
+            }
+
+            return result;
+        }
+
+        private static readonly Regex BitrateToken = new Regex(
+            @"^(?<num>\d+(\.\d+)?)(?<unit>bps|kbps|Mbps|Gbps)$", RegexOptions.Compiled);
+
+        /// <summary>
+        /// Converts a torch <c>tx</c>/<c>rx</c> display value (e.g. <c>"599.9Mbps"</c>, <c>"3.7kbps"</c>,
+        /// <c>"0bps"</c>) into a plain integer bits-per-second string, matching the raw numeric form the
+        /// binary API returns for the same field (<c>ToolTorch.Tx</c>/<c>Rx</c> are typed <c>long</c>).
+        /// RouterOS's display value is itself already rounded to one decimal place, so the round-trip through
+        /// this conversion is an approximation of the true counter — there is no lossless alternative available
+        /// from the plain-text torch display. Returns the input unchanged if it doesn't match the expected
+        /// <c>&lt;number&gt;&lt;unit&gt;</c> shape (letting the O/R mapper's own error surface any real mismatch).
+        /// </summary>
+        internal static string ParseBitrate(string token)
+        {
+            var m = BitrateToken.Match(token);
+            if (!m.Success)
+                return token;
+
+            double num = double.Parse(m.Groups["num"].Value, CultureInfo.InvariantCulture);
+            double multiplier;
+            switch (m.Groups["unit"].Value)
+            {
+                case "kbps": multiplier = 1_000d; break;
+                case "Mbps": multiplier = 1_000_000d; break;
+                case "Gbps": multiplier = 1_000_000_000d; break;
+                default: multiplier = 1d; break; // bps
+            }
+            return ((long)Math.Round(num * multiplier)).ToString(CultureInfo.InvariantCulture);
         }
 
         /// <summary>

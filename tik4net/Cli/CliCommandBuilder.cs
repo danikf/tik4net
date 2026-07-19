@@ -151,6 +151,64 @@ namespace tik4net.Cli
             return sb.ToString();
         }
 
+        // ── Torch (freeze-frame) ──────────────────────────────────────────────
+
+        /// <summary>
+        /// The torch fields tik4net requests via <c>proplist</c>. Matches every property on
+        /// <c>tik4net.Objects.Tool.ToolTorch</c> except <c>.section</c> (a CLI-only limitation — RouterOS's
+        /// per-row section/time-slice index is not exposed as a torch proplist field). The order listed here
+        /// is NOT preserved in the response — confirmed live that RouterOS reorders columns to its own
+        /// canonical order (<c>ip-protocol</c> first) regardless of the requested <c>proplist</c> order, so
+        /// <see cref="CliOutputParser.ParseTorchFrame"/> reads the actual order back from each frame's own
+        /// <c>Columns:</c> declaration rather than assuming it matches this list.
+        /// </summary>
+        internal static readonly string[] TorchFields =
+            { "src-address", "src-port", "dst-address", "dst-port", "ip-protocol", "tx", "rx", "tx-packets", "rx-packets" };
+
+        /// <summary>
+        /// Builds a torch snapshot: <c>:put [/tool torch &lt;inputs&gt; duration=D freeze-frame-interval=F
+        /// proplist=…]</c>. Unlike other monitors, torch's <c>as-value</c> form emits nothing, and its default
+        /// plain-text columns omit <c>tx-packets</c>/<c>rx-packets</c> and self-adjust width per VT100 redraw.
+        /// <c>freeze-frame-interval</c> makes it append a discrete, terminated frame instead of redrawing in
+        /// place; an explicit <c>proplist</c> (see <see cref="TorchFields"/>) fixes the field set (its order in
+        /// the response is decided by RouterOS, not by the order requested here — see <see cref="TorchFields"/>).
+        /// <paramref name="freezeFrameSeconds"/> is duplicated into <c>duration</c> as <c>2×</c> itself —
+        /// confirmed live (ROS 7.21.4) as the minimum that reliably flushes one complete frame; a
+        /// <c>duration</c> equal to a single interval can complete with zero frames flushed.
+        /// </summary>
+        internal static string BuildTorchSnapshot(string apiPath, IList<ITikCommandParameter> parameters, int freezeFrameSeconds)
+        {
+            string cliBase = ApiPathToCli(apiPath);
+            var sb = new StringBuilder(":put [");
+            sb.Append(cliBase);
+
+            foreach (var p in parameters)
+            {
+                if (p.ParameterFormat == TikCommandParameterFormat.Filter)
+                    continue;
+                if (p.Name == TikSpecialProperties.Id || IsSpecialParam(p.Name))
+                    continue;
+                if (string.Equals(p.Name, "duration", System.StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(p.Name, "freeze-frame-interval", System.StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(p.Name, "proplist", System.StringComparison.OrdinalIgnoreCase))
+                    continue; // these are owned by this builder, not the caller
+
+                sb.Append(' ');
+                sb.Append(p.Name);
+                if (!string.IsNullOrEmpty(p.Value))
+                {
+                    sb.Append('=');
+                    sb.Append(QuoteIfNeeded(p.Value));
+                }
+            }
+
+            sb.Append(" duration=").Append(freezeFrameSeconds * 2);
+            sb.Append(" freeze-frame-interval=").Append(freezeFrameSeconds);
+            sb.Append(" proplist=").Append(string.Join(",", TorchFields));
+            sb.Append(']');
+            return sb.ToString();
+        }
+
         // ── Add ────────────────────────────────────────────────────────────────
 
         /// <summary>
