@@ -16,15 +16,16 @@ namespace tik4net.tests
         [TestMethod]
         public void TorchWillNotFail()
         {
-            EnsureCapability(TikConnectionCapability.Streaming, "Torch");
+            EnsureCapability(TikConnectionCapability.Listen, "Torch");
             bool isFailed = false;
+            int rowCount = 0;
             Connection.OnWriteRow += (sender, args) => { System.Diagnostics.Debug.WriteLine(args.Word); };
             Connection.OnReadRow += (sender, args) => { System.Diagnostics.Debug.WriteLine(args.Word); };
 
-            var cmd1 = Connection.LoadAsync<ToolTorch>(t => { System.Diagnostics.Debug.WriteLine("ether1a: " + t); },
+            var cmd1 = Connection.LoadAsync<ToolTorch>(t => { rowCount++; System.Diagnostics.Debug.WriteLine("ether1a: " + t); },
                 ex => { System.Diagnostics.Debug.WriteLine("ERROR: " + ex.Message); isFailed = true; },
                 Connection.CreateParameter("interface", TestConstants.Interface));
-            var cmd2 = Connection.LoadAsync<ToolTorch>(t => { System.Diagnostics.Debug.WriteLine("ether1b: " + t); },
+            var cmd2 = Connection.LoadAsync<ToolTorch>(t => { rowCount++; System.Diagnostics.Debug.WriteLine("ether1b: " + t); },
                 ex => { System.Diagnostics.Debug.WriteLine("ERROR: " + ex.Message); isFailed = true; },
                 Connection.CreateParameter("interface", TestConstants.Interface));
             Thread.Sleep(1500);
@@ -33,6 +34,7 @@ namespace tik4net.tests
             cmd1.CancelAndJoin();
 
             Assert.IsFalse(isFailed);
+            Assert.IsTrue(rowCount > 0, "Expected at least one torch row, got " + rowCount);
         }
     }
 }

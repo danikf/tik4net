@@ -13,9 +13,20 @@ namespace tik4net
         None         = 0,
         /// <summary>Create/read/update/delete of RouterOS records (load, save, delete). Supported by every transport.</summary>
         Crud         = 1,
-        /// <summary>Live <c>/path/listen</c> change notifications (native on the API; emulated by poll+diff on CLI / WinBox M2).</summary>
+        /// <summary>
+        /// Live <c>/path/listen</c> change notifications (native on the API; emulated by poll+diff on CLI / WinBox M2).
+        /// Also covers the async monitor pattern (<c>LoadAsync</c>/<c>ExecuteAsync</c>) for streaming-monitor commands
+        /// (e.g. <c>/tool/torch</c>): native on the API, emulated by re-polling a one-shot snapshot on CLI (except
+        /// <c>/tool/torch</c> itself — its plain terminal output is not reliably machine-parseable, see
+        /// <see cref="tik4net.Cli.CliMonitorVerbs"/>), and genuinely supported on WinBox native (WinboxNative/
+        /// WinboxNativeMac) via the <c>.jg</c> <c>type:'query'</c> monitor window, which returns typed M2 fields
+        /// rather than text — confirmed working for <c>/tool/torch</c> live.
+        /// </summary>
         Listen       = 2,
-        /// <summary>Streaming monitor windows (e.g. <c>/interface/monitor-traffic</c>, <c>/tool/torch</c>) that push successive snapshots.</summary>
+        /// <summary>Blocking, synchronous streaming reads on a single command execution (<c>ExecuteList*</c> /
+        /// <c>ExecuteListWithDuration</c>) that push successive snapshots (e.g. <c>/interface/monitor-traffic</c>,
+        /// <c>/tool/torch</c>). Binary API only — CLI/WinBox transports have no persistent multi-row read within
+        /// one command exchange; use the async monitor pattern (<see cref="Listen"/>) there instead.</summary>
         Streaming    = 4,
         /// <summary>Raw sentence access below the O/R mapper (direct <c>!re</c>/<c>!done</c>/<c>!trap</c> words).</summary>
         RawSentences = 8,

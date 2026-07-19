@@ -621,9 +621,13 @@ namespace tik4net.Cli
             try
             {
                 onError?.Invoke(new TikTrapSentenceResult(
-                    $"CLI transport: '{descriptor.CommandText}' is interactive-only — it repaints a VT100 screen " +
-                    "and produces no as-value snapshot, so it cannot be polled over a terminal. Use the binary API " +
-                    "transport (Streaming capability) for this command."));
+                    $"CLI transport: '{descriptor.CommandText}' repaints a VT100 screen with no as-value " +
+                    "snapshot form. Its plain (non-as-value) output does contain real rows, but they are not " +
+                    "reliably machine-parseable over a text terminal (columns missing vs. the API, embedded " +
+                    "spaces in values, self-adjusting column widths), so this transport does not attempt it. " +
+                    "Use the binary API transport (Streaming capability) or a WinBox native transport " +
+                    "(WinboxNative/WinboxNativeMac, Listen capability — confirmed working: the .jg monitor " +
+                    "window returns typed fields over M2, not text) for this command."));
             }
             finally { onDone?.Invoke(); }
         }

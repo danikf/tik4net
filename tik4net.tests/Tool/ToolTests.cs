@@ -81,7 +81,8 @@ namespace tik4net.tests
         [TestMethod]
         public void WolWillNotFail()
         {
-            EnsureCapability(TikConnectionCapability.Streaming, "WoL command");
+            // ToolWol.ExecuteWol issues a plain ExecuteSingleRow() — no streaming involved — so it
+            // works on every transport (Crud is the baseline capability); no EnsureCapability gate needed.
             //const string OK_MAC = "FF:FF:FF:FF:FF:FF"; //
             const string OK_MAC = "00:11:32:71:AD:AD";
 
@@ -91,7 +92,6 @@ namespace tik4net.tests
         [TestMethod]
         public void WolWithOkIfaceWillNotFail()
         {
-            EnsureCapability(TikConnectionCapability.Streaming, "WoL command");
             const string OK_MAC = "FF:FF:FF:FF:FF:FF";
             string OK_IFACE = TestConstants.Interface;
 
@@ -102,7 +102,6 @@ namespace tik4net.tests
         [ExpectedException(typeof(TikCommandTrapException), "input does not match any value of interface")]
         public void WolWithInvalidInterfaceWillFail()
         {
-            EnsureCapability(TikConnectionCapability.Streaming, "WoL command");
             const string OK_MAC = "FF:FF:FF:FF:FF:FF";
             const string BAD_IFACE = "kjdshfkjdhfkjdaskjfhs";
 

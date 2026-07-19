@@ -21,10 +21,17 @@ namespace tik4net.Cli
     /// </list>
     /// </para>
     ///
-    /// <para>Some monitors are genuinely interactive-only and emit NOTHING in script/as-value context
-    /// regardless of modifier — <c>/tool torch</c> was confirmed empty with both <c>once</c> and
-    /// <c>duration</c>. These cannot be polled over a terminal; <see cref="Kind.InteractiveOnly"/> flags them
-    /// so the transport fails with guidance (use the binary API transport's Streaming capability instead).</para>
+    /// <para>Some monitors are genuinely interactive-only from a client's point of view. <c>/tool torch</c>
+    /// is the confirmed example: its <c>as-value</c> form (with either <c>once</c> or <c>duration</c>)
+    /// prints NOTHING — but the PLAIN interactive form (no <c>as-value</c>) does redraw real rows to the
+    /// terminal (confirmed live, ROS 7.21.4, at both an 80-column and a 9000-column advertised width — the
+    /// wrapping is RouterOS's own fixed layout, not a terminal-width truncation artifact). It is still not
+    /// usable here because the row format is not reliably machine-parseable: the <c>Columns:</c> declaration
+    /// omits fields the API exposes (no <c>tx-packets</c>/<c>rx-packets</c>), a resolved <c>DST-PORT</c> value
+    /// embeds a space (<c>"23 (telnet)"</c>, breaking whitespace-tokenised splitting), and column widths
+    /// self-adjust per redraw frame (breaking fixed-width slicing). <see cref="Kind.InteractiveOnly"/> flags
+    /// it so the transport fails with guidance (use the binary API transport's Streaming capability instead)
+    /// rather than shipping a parser that would silently misparse on those edge cases.</para>
     /// </summary>
     internal static class CliMonitorVerbs
     {
