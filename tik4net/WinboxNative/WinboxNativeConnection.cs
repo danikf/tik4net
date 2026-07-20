@@ -124,6 +124,20 @@ namespace tik4net.WinboxNative
         /// verbatim is never re-normalized, and <see cref="FieldOverride"/>/<see cref="PathOverride"/> still win,
         /// so this is a best-effort convenience layered under strict API-name resolution. Default <c>false</c>
         /// (strict, predictable). Decoded output always uses canonical API names regardless of this flag.
+        /// <para>
+        /// <b>Switchable at any time</b>, including after <c>Open</c> and between commands — the path/field
+        /// resolvers are built per operation and read this flag then, so it can be scoped to a single call
+        /// rather than the whole session:
+        /// <code>
+        /// conn.UseGuiNames = true;
+        /// conn.CreateCommandAndParameters("/IP/Firewall/Filter/set", ".id", id, "Src. Address", "10.0.0.0/24")
+        ///     .ExecuteNonQuery();
+        /// conn.UseGuiNames = false;   // back to strict API-name resolution
+        /// </code>
+        /// What counts is the value at <b>execute</b> time, not when the command was created. Because this is
+        /// mutable connection state, toggling it is not safe while the same connection is used from another
+        /// thread — there, set it once before first use.
+        /// </para>
         /// </summary>
         public bool UseGuiNames
         {
