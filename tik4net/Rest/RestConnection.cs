@@ -49,7 +49,8 @@ namespace tik4net.Rest
         /// <see cref="tik4net.Api.ApiConnection"/>'s API-SSL validation, so the same callback can drive both
         /// transports via <see cref="TikConnectionSetup.CertificateValidationCallback"/>.
         /// </param>
-        public RestConnection(bool useSsl = false, bool allowInvalidCert = true,
+        // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
+        internal RestConnection(bool useSsl = false, bool allowInvalidCert = true,
             RemoteCertificateValidationCallback certificateValidationCallback = null)
         {
             _useSsl = useSsl;

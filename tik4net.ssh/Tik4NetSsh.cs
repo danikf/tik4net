@@ -4,11 +4,11 @@ using System.Threading.Tasks;
 namespace tik4net.Ssh
 {
     /// <summary>
-    /// Entry points for the SSH transport. Because the SSH implementation lives in a satellite package
-    /// (core cannot reference its <c>Renci.SshNet</c> dependency), an SSH connection is created either
-    /// directly (<c>new SshConnection()</c>), via the <see cref="TikConnectionSetup"/> extension methods
-    /// (<see cref="Tik4NetSshExtensions.CreateSshConnection"/>), or — after calling <see cref="Register"/>
-    /// once — through the standard <see cref="ConnectionFactory"/> using <see cref="TikConnectionType.Ssh"/>.
+    /// Entry points for the SSH transport. <see cref="SshConnection"/>'s constructor is internal — like
+    /// every other tik4net connection type, it is created only via the <see cref="TikConnectionSetup"/>
+    /// extension methods (<see cref="Tik4NetSshExtensions.CreateSshConnection"/>) or — after calling
+    /// <see cref="Register"/> once — through the standard <see cref="ConnectionFactory"/> using
+    /// <see cref="TikConnectionType.Ssh"/>.
     /// </summary>
     public static class Tik4NetSsh
     {

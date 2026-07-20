@@ -21,6 +21,9 @@ namespace tik4net.MacTelnet
     /// </remarks>
     public sealed class MacTelnetConnection : CliConnectionBase
     {
+        // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
+        internal MacTelnetConnection() { }
+
         /// <summary>Default MAC-Telnet UDP port.</summary>
         public const int DefaultPort = 20561;
 

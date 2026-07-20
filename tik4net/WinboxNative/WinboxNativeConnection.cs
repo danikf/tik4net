@@ -30,6 +30,10 @@ namespace tik4net.WinboxNative
     /// </remarks>
     public class WinboxNativeConnection : TikCommandConnectionBase, ITikMonitorTransport, IPollingMonitorHost
     {
+        // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly); the MAC-layer
+        // subclass constructor is internal too and calls this one.
+        internal WinboxNativeConnection() { }
+
         /// <summary>Default WinBox TCP port.</summary>
         public const int DefaultPort = 8291;
 

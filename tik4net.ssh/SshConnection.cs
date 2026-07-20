@@ -20,6 +20,9 @@ namespace tik4net.Ssh
     /// </remarks>
     public sealed class SshConnection : CliConnectionBase
     {
+        // Only constructible via TikConnectionSetup (Tik4NetSshExtensions)/ConnectionFactory (same assembly).
+        internal SshConnection() { }
+
         /// <summary>Default SSH port.</summary>
         public const int DefaultPort = 22;
 

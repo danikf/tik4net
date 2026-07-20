@@ -22,6 +22,9 @@ namespace tik4net.WinboxCliMac
     /// </remarks>
     public sealed class WinboxCliMacConnection : CliConnectionBase
     {
+        // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
+        internal WinboxCliMacConnection() { }
+
         /// <summary>MAC-layer WinBox UDP port (informational — the transport is fixed to UDP 20561).</summary>
         public const int DefaultPort = 20561;
 

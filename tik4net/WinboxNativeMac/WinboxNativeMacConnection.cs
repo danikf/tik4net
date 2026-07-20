@@ -18,6 +18,9 @@ namespace tik4net.WinboxNativeMac
     /// </remarks>
     public sealed class WinboxNativeMacConnection : WinboxNativeConnection
     {
+        // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
+        internal WinboxNativeMacConnection() { }
+
         /// <summary>
         /// Optional: router MAC as "AA:BB:CC:DD:EE:FF" to bypass MNDP discovery (which can take up to 5 s).
         /// Set before calling Open.

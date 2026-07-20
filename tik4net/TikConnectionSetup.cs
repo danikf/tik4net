@@ -9,6 +9,7 @@ using tik4net.Telnet;
 using tik4net.WinboxCli;
 using tik4net.WinboxCliMac;
 using tik4net.WinboxNative;
+using tik4net.WinboxNativeMac;
 
 namespace tik4net
 {
@@ -282,6 +283,40 @@ namespace tik4net
         private WinboxNativeConnection NewWinboxNative(Action<WinboxNativeConnection> configure)
         {
             var conn = new WinboxNativeConnection
+            {
+                ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
+            };
+            configure?.Invoke(conn);
+            return conn;
+        }
+
+        // ── WinBox Native (M2) over MAC ──────────────────────────────────────────
+
+        /// <summary>
+        /// Creates and opens a WinBox native-M2 connection over the MAC layer (UDP port 20561). Same
+        /// structured M2 CRUD as <see cref="CreateWinboxNativeConnection"/>, but works without an IP route
+        /// to the router. Requires <c>/tool/mac-server/mac-winbox set allowed-interface-list=all</c>.
+        /// </summary>
+        /// <param name="configure">
+        /// Optional hook to configure the connection before it opens — set
+        /// <see cref="WinboxNativeMacConnection.RouterMac"/> to bypass MNDP discovery (up to 5 s), or any
+        /// of the mappings documented on <see cref="CreateWinboxNativeConnection"/>.
+        /// </param>
+        public ITikConnection CreateWinboxNativeMacConnection(Action<WinboxNativeMacConnection> configure = null)
+        {
+            var conn = NewWinboxNativeMac(configure);
+            OpenSync(conn);
+            return conn;
+        }
+
+        /// <summary>Async version of <see cref="CreateWinboxNativeMacConnection"/>.</summary>
+        public Task<ITikConnection> CreateWinboxNativeMacConnectionAsync(
+            Action<WinboxNativeMacConnection> configure = null, CancellationToken ct = default)
+            => OpenAsync(NewWinboxNativeMac(configure), ct);
+
+        private WinboxNativeMacConnection NewWinboxNativeMac(Action<WinboxNativeMacConnection> configure)
+        {
+            var conn = new WinboxNativeMacConnection
             {
                 ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
             };

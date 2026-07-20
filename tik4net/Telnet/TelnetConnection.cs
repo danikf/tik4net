@@ -15,6 +15,9 @@ namespace tik4net.Telnet
     /// </remarks>
     public sealed class TelnetConnection : CliConnectionBase
     {
+        // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
+        internal TelnetConnection() { }
+
         /// <summary>Default Telnet port.</summary>
         public const int DefaultPort = 23;
 

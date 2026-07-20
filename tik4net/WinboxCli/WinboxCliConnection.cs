@@ -27,6 +27,9 @@ namespace tik4net.WinboxCli
     /// </remarks>
     public sealed class WinboxCliConnection : CliConnectionBase
     {
+        // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
+        internal WinboxCliConnection() { }
+
         /// <summary>Default WinBox TCP port.</summary>
         public const int DefaultPort = 8291;
 
