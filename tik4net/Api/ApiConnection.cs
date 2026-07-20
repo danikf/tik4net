@@ -114,6 +114,20 @@ namespace tik4net.Api
             get { return _isSsl; }
         }
 
+        /// <summary>
+        /// When true (default, back-compat), self-signed/invalid SSL certificates on the router are
+        /// accepted without validation for API-SSL. Set to false to perform standard chain/hostname
+        /// validation against the OS trust store. Ignored when <see cref="CertificateValidationCallback"/>
+        /// is set.
+        /// </summary>
+        public bool AllowInvalidCertificate { get; set; } = true;
+
+        /// <summary>
+        /// Optional custom certificate validation for API-SSL. When set, it takes full control and
+        /// <see cref="AllowInvalidCertificate"/> is ignored.
+        /// </summary>
+        public RemoteCertificateValidationCallback CertificateValidationCallback { get; set; }
+
         public ApiConnection(bool isSsl)
         {
             _isSsl = isSsl;
@@ -343,9 +357,13 @@ namespace tik4net.Api
             }
         }
 
-        private static bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
-        {            
-            return true; // Accept all certificates
+        internal bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
+        {
+            if (CertificateValidationCallback != null)
+                return CertificateValidationCallback(sender, certificate, chain, sslPolicyErrors);
+            if (AllowInvalidCertificate)
+                return true;
+            return sslPolicyErrors == SslPolicyErrors.None;
         }
 
         public void Dispose()

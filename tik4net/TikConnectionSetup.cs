@@ -1,4 +1,5 @@
 using System;
+using System.Net.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using tik4net.Api;
@@ -32,9 +33,17 @@ namespace tik4net
 
         /// <summary>
         /// When true, self-signed / invalid SSL certificates on the router are accepted.
-        /// Default is true (matching ApiConnection API-SSL behaviour).
+        /// Default is true (matching prior behaviour). Applies to both API-SSL and REST-SSL.
+        /// Ignored when <see cref="CertificateValidationCallback"/> is set.
         /// </summary>
         public bool AllowInvalidCertificate { get; set; } = true;
+
+        /// <summary>
+        /// Optional custom certificate validation, applied to both API-SSL and REST-SSL. When set, it
+        /// takes full control over accept/reject and <see cref="AllowInvalidCertificate"/> is ignored.
+        /// Useful for certificate pinning or trusting a private CA.
+        /// </summary>
+        public RemoteCertificateValidationCallback CertificateValidationCallback { get; set; }
 
         /// <summary>Creates a connection setup for the given router host and credentials.</summary>
         /// <param name="host">Router host name or IP address.</param>
@@ -77,14 +86,19 @@ namespace tik4net
             => OpenAsync(NewApiConnection(true), ct);
 
         private ApiConnection NewApiConnection(bool isSsl)
-            => new ApiConnection(isSsl) { ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds };
+            => new ApiConnection(isSsl)
+            {
+                ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
+                AllowInvalidCertificate = AllowInvalidCertificate,
+                CertificateValidationCallback = CertificateValidationCallback,
+            };
 
         // ── REST ──────────────────────────────────────────────────────────────
 
         /// <summary>Creates and opens a REST API connection (HTTP, default port 80). Requires RouterOS 7.1+.</summary>
         public ITikConnection CreateRestConnection()
         {
-            var conn = new RestConnection(useSsl: false, allowInvalidCert: AllowInvalidCertificate);
+            var conn = NewRestConnection(useSsl: false);
             OpenSync(conn);
             return conn;
         }
@@ -92,18 +106,22 @@ namespace tik4net
         /// <summary>Creates and opens a REST API SSL connection (HTTPS, default port 443). Requires RouterOS 7.1+ with www-ssl enabled.</summary>
         public ITikConnection CreateRestSslConnection()
         {
-            var conn = new RestConnection(useSsl: true, allowInvalidCert: AllowInvalidCertificate);
+            var conn = NewRestConnection(useSsl: true);
             OpenSync(conn);
             return conn;
         }
 
         /// <summary>Async version of <see cref="CreateRestConnection"/>.</summary>
         public Task<ITikConnection> CreateRestConnectionAsync(CancellationToken ct = default)
-            => OpenAsync(new RestConnection(useSsl: false, allowInvalidCert: AllowInvalidCertificate), ct);
+            => OpenAsync(NewRestConnection(useSsl: false), ct);
 
         /// <summary>Async version of <see cref="CreateRestSslConnection"/>.</summary>
         public Task<ITikConnection> CreateRestSslConnectionAsync(CancellationToken ct = default)
-            => OpenAsync(new RestConnection(useSsl: true, allowInvalidCert: AllowInvalidCertificate), ct);
+            => OpenAsync(NewRestConnection(useSsl: true), ct);
+
+        private RestConnection NewRestConnection(bool useSsl)
+            => new RestConnection(useSsl, allowInvalidCert: AllowInvalidCertificate,
+                certificateValidationCallback: CertificateValidationCallback);
 
         // ── Telnet ────────────────────────────────────────────────────────────
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Security;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -28,6 +29,7 @@ namespace tik4net.Rest
     {
         private readonly bool _useSsl;
         private readonly bool _allowInvalidCert;
+        private readonly RemoteCertificateValidationCallback _certificateValidationCallback;
         private HttpClient _httpClient;
         private string _baseUrl;
         private string _authHeader;
@@ -40,11 +42,19 @@ namespace tik4net.Rest
 
         /// <summary>Creates a REST connection.</summary>
         /// <param name="useSsl">Use HTTPS (port 443) instead of HTTP (port 80).</param>
-        /// <param name="allowInvalidCert">When <paramref name="useSsl"/>, accept self-signed/invalid certificates.</param>
-        public RestConnection(bool useSsl = false, bool allowInvalidCert = true)
+        /// <param name="allowInvalidCert">When <paramref name="useSsl"/>, accept self-signed/invalid certificates. Ignored when <paramref name="certificateValidationCallback"/> is set.</param>
+        /// <param name="certificateValidationCallback">
+        /// Optional custom certificate validation for HTTPS. When set, it takes full control and
+        /// <paramref name="allowInvalidCert"/> is ignored. Shares its delegate shape with
+        /// <see cref="tik4net.Api.ApiConnection"/>'s API-SSL validation, so the same callback can drive both
+        /// transports via <see cref="TikConnectionSetup.CertificateValidationCallback"/>.
+        /// </param>
+        public RestConnection(bool useSsl = false, bool allowInvalidCert = true,
+            RemoteCertificateValidationCallback certificateValidationCallback = null)
         {
             _useSsl = useSsl;
             _allowInvalidCert = allowInvalidCert;
+            _certificateValidationCallback = certificateValidationCallback;
             DebugEnabled = System.Diagnostics.Debugger.IsAttached;
         }
 
@@ -73,8 +83,15 @@ namespace tik4net.Rest
             _authHeader = "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes($"{user}:{password}"));
 
             var handler = new HttpClientHandler();
-            if (_useSsl && _allowInvalidCert)
-                handler.ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true;
+            if (_useSsl)
+            {
+                if (_certificateValidationCallback != null)
+                    handler.ServerCertificateCustomValidationCallback =
+                        (request, cert, chain, errors) => _certificateValidationCallback(request, cert, chain, errors);
+                else if (_allowInvalidCert)
+                    handler.ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true;
+                // else: leave unset — HttpClientHandler performs standard OS chain/hostname validation
+            }
 
             _httpClient = new HttpClient(handler)
             {
