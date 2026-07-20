@@ -25,11 +25,20 @@ ITikConnection / ITikCommand  — transport-neutral contract + capability model
 
 | Package | Project | TFM | Notes |
 |---|---|---|---|
-| `tik4net` | `tik4net/` | `netstandard2.0` | Core. Only runtime dep: `System.Text.Json` |
-| `tik4net.entities` | `tik4net.objects/` | `netstandard2.0` | O/R mapper, 169 entities |
+| `tik4net` | `tik4net/` + `tik4net.objects/`, packed by `tik4net.package/` | `netstandard2.0` | Core **and** O/R mapper — two assemblies, one package. Only runtime dep: `System.Text.Json` |
 | `tik4net.ssh` | `tik4net.ssh/` | `netstandard2.0` | Satellite — isolates the `Renci.SshNet` dependency |
 | `tik4net.testing` | `tik4net.testing/` | `netstandard2.0` | `TikFakeConnection` for router-free consumer tests |
 | `tik4net.mcp` | `Tools/tik4net.mcp/` | .NET tool | Dev/debug MCP helper, not a user-facing library |
+
+`tik4net/` and `tik4net.objects/` are both `IsPackable=false` — they build assemblies, but the
+`tik4net` package itself is produced by `tik4net.package/`, a project that compiles nothing and
+only collects the two DLLs (plus their XML docs) into `lib/netstandard2.0/`. It exists because
+`tik4net.objects` references `tik4net`, so `tik4net` cannot reference it back to pack it.
+
+Consequently `tik4net.ssh` and `tik4net.testing` reference their compile-time projects with
+`PrivateAssets="all"` and additionally reference `tik4net.package`, which is what puts the real
+`tik4net` dependency into their `.nuspec`. Without that split they would declare a dependency on
+a package ID that does not exist on nuget.org.
 
 Non-shipping: `tik4net.console`, `tik4net.coreconsole`, `tik4net.examples`, `tik4net.torch`,
 `Tools/tik4net.entitygenerator`, `Tools/tik4net.entityWikiImporter` (several are still legacy

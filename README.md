@@ -7,12 +7,16 @@ tik4net is a .NET `netstandard2.0` library for communicating with MikroTik route
 
 | Package | NuGet | Description |
 |---|---|---|
-| **tik4net** | [![NuGet](https://img.shields.io/nuget/v/tik4net.svg)](https://www.nuget.org/packages/tik4net) | [Low-level ADO.NET-like API](https://github.com/danikf/tik4net/wiki/ADO.NET-like-API) — synchronous and async R/W access |
-| **tik4net.entities** | [![NuGet](https://img.shields.io/nuget/v/tik4net.entities.svg)](https://www.nuget.org/packages/tik4net.entities) | [High-level O/R mapper](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper) — strongly typed entities, full CRUD. Pulls in `tik4net` automatically. |
+| **tik4net** | [![NuGet](https://img.shields.io/nuget/v/tik4net.svg)](https://www.nuget.org/packages/tik4net) | Everything you normally need: the [low-level ADO.NET-like API](https://github.com/danikf/tik4net/wiki/ADO.NET-like-API) (sync and async R/W access) **and** the [high-level O/R mapper](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper) (strongly typed entities, full CRUD) |
 | **tik4net.testing** | [![NuGet](https://img.shields.io/nuget/v/tik4net.testing.svg)](https://www.nuget.org/packages/tik4net.testing) | Unit-testing support — `TikFakeConnection` lets you write tests without a live router |
 | **tik4net.ssh** | [![NuGet](https://img.shields.io/nuget/v/tik4net.ssh.svg)](https://www.nuget.org/packages/tik4net.ssh) | SSH (TCP 22) transport — drives the RouterOS CLI over an SSH shell (full CRUD, Listen, Safe Mode). A separate package because of its `Renci.SshNet` dependency. |
 
-[Tools](https://github.com/danikf/tik4net/wiki/High-level-API-tools) — semi-automatic C# code generators for custom entities (used with tik4net.entities). The repo also ships an [MCP server](https://github.com/danikf/tik4net/wiki/MCP-server) exposing a `mikrotik_call` tool that lets an AI assistant run a command against a live router over any tik4net transport.
+> **⚠️ Upgrading from 3.x?** The O/R mapper used to be a separate `tik4net.objects` package.
+> Since 4.0 it is part of `tik4net` itself — **remove any `PackageReference` to `tik4net.objects`**
+> or you will get an assembly conflict. Your source code does not change.
+> See [Upgrading from 3.x to 4.0](https://github.com/danikf/tik4net/wiki/Upgrading-from-3.x-to-4.0).
+
+[Tools](https://github.com/danikf/tik4net/wiki/High-level-API-tools) — semi-automatic C# code generators for custom entities. The repo also ships an [MCP server](https://github.com/danikf/tik4net/wiki/MCP-server) exposing a `mikrotik_call` tool that lets an AI assistant run a command against a live router over any tik4net transport.
 
 # Features
 * Easy to use with [O/R mapper like highlevel API](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper)
@@ -46,8 +50,7 @@ All transports share the same `ITikConnection` API and O/R mapper — pick one v
 Install via NuGet — see the package table above, or:
 
 ```
-dotnet add package tik4net.entities  # high-level API (pulls in tik4net)
-dotnet add package tik4net           # low-level API only
+dotnet add package tik4net           # low-level API + O/R mapper — start here
 dotnet add package tik4net.testing   # unit-testing support
 dotnet add package tik4net.ssh       # SSH (TCP 22) transport
 ```

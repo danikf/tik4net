@@ -10,8 +10,10 @@ CLI/WinBox/MAC-layer channels) behind one connection contract, plus an O/R mappe
 
 Shipping packages:
 
-- **tik4net** (`tik4net/`) — core: connection contract, all in-tree transports, capability model
-- **tik4net.entities** (`tik4net.objects/`) — attribute-driven O/R mapper, 169 entities
+- **tik4net** — one package, two assemblies: `tik4net/` (core: connection contract, all in-tree
+  transports, capability model) and `tik4net.objects/` (attribute-driven O/R mapper, 169
+  entities). Packed by `tik4net.package/`; both source projects are `IsPackable=false`.
+  Until 4.0 the mapper shipped separately as `tik4net.objects`, then `tik4net.entities`.
 - **tik4net.ssh** — SSH transport satellite (isolates the `Renci.SshNet` dependency)
 - **tik4net.testing** — `TikFakeConnection` for router-free consumer tests
 - **tik4net.mcp** (`Tools/tik4net.mcp/`) — dev/debug MCP helper published as a .NET tool, not a
@@ -32,10 +34,15 @@ dotnet build tik4net/tik4net.csproj
 Pack (output to `./Build/`):
 
 ```
-dotnet pack tik4net/tik4net.csproj
-dotnet pack tik4net.objects/tik4net.objects.csproj
+dotnet pack tik4net.package/tik4net.package.csproj   # -> tik4net (core + O/R mapper)
+dotnet pack tik4net.testing/tik4net.testing.csproj
 dotnet pack tik4net.ssh/tik4net.ssh.csproj
 ```
+
+`tik4net/` and `tik4net.objects/` are not packable on their own — `tik4net.package/` collects
+both assemblies into the single `tik4net` package. If you touch any of the packaging projects,
+verify the result by unzipping the `.nupkg` and checking `lib/` and the `.nuspec` dependencies;
+a wrong `ProjectReference` silently produces a package that depends on a nonexistent ID.
 
 CI runs on push to `master` and on every PR (`.github/workflows/build.yml`): Windows builds the
 whole solution, Linux builds the cross-platform projects, both run the unit tests, and a third job

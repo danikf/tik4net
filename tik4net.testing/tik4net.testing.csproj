@@ -28,8 +28,19 @@
     <None Include="../README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
+  <!--
+    Split reference, on purpose:
+      * tik4net / tik4net.objects — compile assets only. PrivateAssets="all" keeps their
+        internal PackageIds out of this package's dependencies (they are not published
+        separately since 4.0).
+      * tik4net.package — no compile assets, but contributes the real `tik4net`
+        dependency to the generated .nuspec.
+    Referencing only the first two would emit dependencies on packages that do not exist
+    on nuget.org (and `tik4net.objects` on nuget.org is a third-party fork).
+  -->
   <ItemGroup>
-    <ProjectReference Include="..\tik4net\tik4net.csproj" />
-    <ProjectReference Include="..\tik4net.objects\tik4net.objects.csproj" />
+    <ProjectReference Include="..\tik4net\tik4net.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\tik4net.objects\tik4net.objects.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\tik4net.package\tik4net.package.csproj" />
   </ItemGroup>
 </Project>

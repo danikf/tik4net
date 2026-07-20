@@ -37,7 +37,17 @@
     <PackageReference Include="SSH.NET" Version="2024.2.0" />
   </ItemGroup>
 
+  <!--
+    Split reference, on purpose:
+      * tik4net.csproj  — compile assets only. PrivateAssets="all" keeps its internal
+        PackageId (tik4net.core.internal) out of this package's dependencies.
+      * tik4net.package — no compile assets, but contributes the real `tik4net`
+        dependency to the generated .nuspec.
+    Referencing only the first one would emit a dependency on a package that does not
+    exist on nuget.org.
+  -->
   <ItemGroup>
-    <ProjectReference Include="..\tik4net\tik4net.csproj" />
+    <ProjectReference Include="..\tik4net\tik4net.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\tik4net.package\tik4net.package.csproj" />
   </ItemGroup>
 </Project>

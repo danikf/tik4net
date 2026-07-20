@@ -45,18 +45,12 @@ jobs:
           Write-Output "ASM_VERSION=$av" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           Write-Host "Publishing version: $v (assembly: $av)"
 
-      - name: Pack tik4net
+      # Produces the `tik4net` package containing BOTH tik4net.dll and tik4net.objects.dll.
+      # Since 4.0 the O/R mapper is no longer published separately (was tik4net.objects,
+      # then tik4net.entities) — see _notes/nuget-package-consolidation-plan.md.
+      - name: Pack tik4net (core + O/R mapper)
         run: >
-          dotnet pack tik4net/tik4net.csproj
-          -c Release
-          -o Build
-          /p:Version=${{ steps.ver.outputs.VERSION }}
-          /p:AssemblyVersion=${{ steps.ver.outputs.ASM_VERSION }}.0
-          /p:FileVersion=${{ steps.ver.outputs.ASM_VERSION }}.0
-
-      - name: Pack tik4net.objects
-        run: >
-          dotnet pack tik4net.objects/tik4net.objects.csproj
+          dotnet pack tik4net.package/tik4net.package.csproj
           -c Release
           -o Build
           /p:Version=${{ steps.ver.outputs.VERSION }}
@@ -181,7 +175,7 @@ jobs:
             | `Ssh` *(satellite)* | TCP | 22 | requires `tik4net.ssh` NuGet |
 
             **Other additions:**
-            - **Change tracking** — `tik4net.entities` tracks which properties changed; `Save<T>()` sends only the diff
+            - **Change tracking** — the O/R mapper tracks which properties changed; `Save<T>()` sends only the diff
             - **Safe Mode** — `TakeSafeMode()` / `ReleaseSafeMode()` across all transports; auto-rollback on disconnect
             - **Streaming monitors** — `ExecuteAsync` / `LoadListenAsync` for live data (WinBox Native; `listen` poll+diff on other transports)
             - **`TikConnectionSetup`** — unified connection builder with all transport-specific options
@@ -191,6 +185,7 @@ jobs:
 
             ### Breaking changes (from 3.6)
 
+            - **The O/R mapper is now inside the `tik4net` package** — it used to ship as `tik4net.objects` (3.x), then `tik4net.entities` (4.0 alphas). **Remove any `PackageReference` to those** or you get an assembly conflict. No source changes: namespaces and assembly names are unchanged. See [Upgrading from 3.x to 4.0](https://github.com/danikf/tik4net/wiki/Upgrading-from-3.x-to-4.0)
             - **Exception hierarchy unified** — `TikCommandException` subtypes restructured; review `catch` blocks that catch specific exception types
             - **SSH is now a satellite package** — add `tik4net.ssh` and call `Tik4NetSsh.Register()` at startup (the old `TikConnectionType.Ssh` stub is still in the enum but now routes to the satellite)
             - **`TikConnectionType.Api_v2` / `ApiSsl_v2`** — already `[Obsolete(error)]` in 3.6, unchanged in 4.0; remove any remaining usages
@@ -198,8 +193,7 @@ jobs:
             ### NuGet packages
             | Package | Install |
             |---|---|
-            | `tik4net` | `dotnet add package tik4net --version ${{ steps.ver.outputs.VERSION }}` |
-            | `tik4net.entities` | `dotnet add package tik4net.entities --version ${{ steps.ver.outputs.VERSION }}` |
+            | `tik4net` *(core + O/R mapper)* | `dotnet add package tik4net --version ${{ steps.ver.outputs.VERSION }}` |
             | `tik4net.ssh` *(satellite, opt-in)* | `dotnet add package tik4net.ssh --version ${{ steps.ver.outputs.VERSION }}` |
             | `tik4net.testing` | `dotnet add package tik4net.testing --version ${{ steps.ver.outputs.VERSION }}` |
             | `tik4net.mcp` *(dev/debug helper tool)* | `dotnet tool install -g tik4net.mcp --version ${{ steps.ver.outputs.VERSION }}` |

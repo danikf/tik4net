@@ -1,0 +1,74 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Packaging-only project. Produces the `tik4net` NuGet package containing BOTH
+    tik4net.dll (core) and tik4net.objects.dll (O/R mapper).
+
+    It compiles nothing of its own — IncludeBuildOutput=false drops its own (empty)
+    assembly, and the AddReferencedAssembliesToPackage target below copies the two
+    referenced assemblies + their XML docs into lib/<tfm>/.
+
+    See _notes/nuget-package-consolidation-plan.md for the rationale.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+
+    <PackageId>tik4net</PackageId>
+    <VersionPrefix>4.0.0</VersionPrefix>
+    <AssemblyVersion>$(VersionPrefix).0</AssemblyVersion>
+    <FileVersion>$(VersionPrefix).0</FileVersion>
+    <VersionSuffix Condition=" '$(BUILD_BUILDNUMBER)' != '' ">CI-$(BUILD_BUILDNUMBER)</VersionSuffix>
+    <VersionSuffix Condition=" '$(PREVIEW_NUMBER)' != '' ">pre-$(PREVIEW_NUMBER)</VersionSuffix>
+    <Authors>Daniel Frantik</Authors>
+    <Copyright>Copyright (C) Daniel Frantik 2024</Copyright>
+    <Description>Manage MikroTik RouterOS devices from .NET. Includes both the low-level ADO.NET-like API and the high-level O/R mapper with 169 ready-made entities, over 12 transports: binary API, API-SSL, REST, Telnet, SSH, MAC-Telnet and WinBox (CLI and native-M2, over IP or MAC layer). The O/R mapper was previously distributed separately as tik4net.objects / tik4net.entities; since 4.0 it is part of this package.</Description>
+    <PackageTags>Mikrotik RouterOS Library API CSharp .NET Manage ORM Entities WinBox MacTelnet</PackageTags>
+    <PackageProjectUrl>https://github.com/danikf/tik4net</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/danikf/tik4net</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageOutputPath>../Build</PackageOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../LICENSE" Pack="true" PackagePath="\" />
+    <None Include="../README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <!--
+    PrivateAssets="all" stops NuGet from emitting these as package *dependencies*
+    (they are not published separately any more). The consequence is that their own
+    PackageReferences do not flow either, so real dependencies must be repeated below.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\tik4net\tik4net.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\tik4net.objects\tik4net.objects.csproj" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Must mirror the PackageReferences of the projects packed above. -->
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+
+  <Target Name="AddReferencedAssembliesToPackage" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <_PackedAssembly Include="@(ReferencePath)"
+                       Condition="'%(ReferencePath.ReferenceSourceTarget)' == 'ProjectReference'" />
+      <TfmSpecificPackageFile Include="@(_PackedAssembly)"
+                              PackagePath="lib/$(TargetFramework)/" />
+      <TfmSpecificPackageFile Include="@(_PackedAssembly->'%(RootDir)%(Directory)%(Filename).xml')"
+                              PackagePath="lib/$(TargetFramework)/"
+                              Condition="Exists('%(RootDir)%(Directory)%(Filename).xml')" />
+    </ItemGroup>
+  </Target>
+
+  <PropertyGroup>
+    <TargetsForTfmSpecificContentInPackage>
+      $(TargetsForTfmSpecificContentInPackage);AddReferencedAssembliesToPackage
+    </TargetsForTfmSpecificContentInPackage>
+  </PropertyGroup>
+
+</Project>

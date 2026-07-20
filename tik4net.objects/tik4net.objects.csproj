@@ -5,7 +5,12 @@
     <RootNamespace>tik4net.Objects</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
 
-    <PackageId>tik4net.entities</PackageId>
+    <!--
+      Packed as part of the `tik4net` NuGet package produced by tik4net.package.
+      Until 4.0 this shipped separately as tik4net.objects, then tik4net.entities.
+      Package metadata lives in tik4net.package now.
+    -->
+    <IsPackable>false</IsPackable>
     <VersionPrefix>4.0.0</VersionPrefix>
     <AssemblyVersion>$(VersionPrefix).0</AssemblyVersion>
     <FileVersion>$(VersionPrefix).0</FileVersion>
@@ -13,25 +18,12 @@
     <VersionSuffix Condition=" '$(PREVIEW_NUMBER)' != '' ">pre-$(PREVIEW_NUMBER)</VersionSuffix>
     <Authors>Daniel Frantik</Authors>
     <Copyright>Copyright (C) Daniel Frantik 2024</Copyright>
-    <Description>O/R mapper high-level API for MikroTik routers built on top of tik4net. Provides entity classes, CRUD operations and attribute-driven serialization. Previously distributed as tik4net.objects.</Description>
-    <PackageTags>Mikrotik Library API CSharp .NET Manage ORM Entities</PackageTags>
-    <PackageProjectUrl>https://github.com/danikf/tik4net</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/danikf/tik4net</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageOutputPath>../Build</PackageOutputPath>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DefineConstants>TRACE;DEBUG</DefineConstants>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-
-  <ItemGroup>
-    <None Include="../LICENSE" Pack="true" PackagePath="\" />
-    <None Include="../README.md" Pack="true" PackagePath="\" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\tik4net\tik4net.csproj" />
