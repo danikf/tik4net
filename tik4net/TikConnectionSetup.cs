@@ -217,18 +217,31 @@ namespace tik4net
         /// </summary>
         /// <param name="configure">
         /// Optional hook to configure the connection <b>before it opens</b> — the place to register
-        /// <see cref="WinboxNativeConnection.PathOverride"/> / <see cref="WinboxNativeConnection.FieldOverride"/>
+        /// <see cref="WinboxNativeConnection.PathAlias"/> / <see cref="WinboxNativeConnection.FieldOverride"/>
         /// mappings or set <see cref="WinboxNativeConnection.CatalogCachePath"/>. These must be set before
         /// <c>Open</c>, which is why this factory exposes a callback rather than only returning the connection.
         /// </param>
         /// <example>
+        /// <para>The mappings are written in the <b>labels WinBox shows you</b>, not in raw handler numbers.
+        /// Open the window in WinBox, read its menu breadcrumb and field captions, and lower-case them with
+        /// spaces as dashes:</para>
         /// <code>
         /// using var conn = setup.CreateWinboxNativeConnection(c =>
         /// {
-        ///     c.PathOverride("/ppp/secret", new[] { 27, 101 });
-        ///     c.FieldOverride("/ip/hotspot/user", "mac-address", 0x1);
+        ///     // WinBox menu:  PPP ▸ Secrets ▸ (window) PPP Secret     API path: /ppp/secret
+        ///     c.PathAlias("/ppp/secret", "/ppp/secrets/ppp-secret");
+        ///
+        ///     // Accept field captions as typed in the GUI ("MAC Address" → mac-address, "Dst. Address" → dst-address).
+        ///     c.UseGuiNames = true;
+        ///
+        ///     // Escape hatches, only when the label route fails:
+        ///     c.FieldOverride("/ip/hotspot/user", "mac-address", 0x1);   // pin one field to its M2 key
+        ///     c.PathOverride("/tool/sniffer", new[] { 27, 101 });        // pin a whole path to its handler
         /// });
         /// </code>
+        /// <para><see cref="WinboxNativeConnection.PathAlias"/> keeps working after a RouterOS upgrade (only the
+        /// text is pinned; the handler number is read live from the router's <c>.jg</c> catalog), whereas the
+        /// numeric <c>*Override</c> forms pin values that can move between versions.</para>
         /// </example>
         public ITikConnection CreateWinboxNativeConnection(Action<WinboxNativeConnection> configure = null)
         {

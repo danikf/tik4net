@@ -89,8 +89,26 @@ namespace tik4net.WinboxNative
         }
 
         /// <summary>
-        /// Adds a session override mapping an API path to a WinBox M2 handler array
-        /// (e.g. <c>/ppp/secret</c> → <c>[20, 12]</c>). Takes priority over the seed table.
+        /// Maps an API path to the path of <b>labels shown in the WinBox GUI menu tree</b> — the window's
+        /// breadcrumb plus its record label, lower-cased with spaces as dashes (e.g. <c>/ppp/secret</c> →
+        /// <c>PPP ▸ Secrets ▸ PPP Secret</c> = <c>/ppp/secrets/ppp-secret</c>). The numeric handler behind that
+        /// window is still read live from the router's version-matched <c>.jg</c> catalog, so this mapping keeps
+        /// working across RouterOS upgrades. <b>Prefer this over <see cref="PathOverride"/></b>, which pins a
+        /// handler number that may move.
+        /// </summary>
+        /// <param name="apiPath">RouterOS API path, e.g. <c>/ppp/secret</c>.</param>
+        /// <param name="winboxMenuPath">WinBox menu-label path, e.g. <c>/ppp/secrets/ppp-secret</c>.</param>
+        public void PathAlias(string apiPath, string winboxMenuPath)
+        {
+            _handlerMap.AddAlias(apiPath, winboxMenuPath);
+        }
+
+        /// <summary>
+        /// Adds a session override mapping an API path directly to a WinBox M2 handler array
+        /// (e.g. <c>/ppp/secret</c> → <c>[20, 12]</c>). Highest priority — it wins over the catalog, over
+        /// <see cref="PathAlias"/> and over subtype filtering, and is taken at face value. Use it only when the
+        /// GUI label is not usable (no window in the menu tree, or a wrong/ambiguous label); the numbers are
+        /// version-specific, so re-verify them after a RouterOS upgrade.
         /// </summary>
         public void PathOverride(string apiPath, int[] handler)
         {
@@ -230,8 +248,9 @@ namespace tik4net.WinboxNative
                 var cmd = new TikGenericCommand(this, descriptor.CommandText);
                 throw new TikNoSuchCommandException(cmd, new TikTrapSentenceResult(
                     $"WinBox native: no M2 handler mapping for path '{apiPath}'. " +
-                    $"Add one via connection.PathOverride(\"{apiPath}\", new[]{{maj,min}}) " +
-                    $"or use a WinboxCli connection."));
+                    $"Add one via connection.PathAlias(\"{apiPath}\", \"/winbox/menu/label-path\") " +
+                    $"(the labels WinBox shows for that window), or connection.PathOverride(\"{apiPath}\", " +
+                    $"new[]{{maj,min}}) for a raw handler, or use a WinboxCli connection."));
             }
             handler = PreferSingletonHealthHandler(apiPath, handler);
             var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames);
@@ -705,8 +724,9 @@ namespace tik4net.WinboxNative
                 var c = new TikGenericCommand(this, apiPath);
                 throw new TikNoSuchCommandException(c, new TikTrapSentenceResult(
                     $"WinBox native: no M2 handler mapping for path '{apiPath}'. " +
-                    $"Add one via connection.PathOverride(\"{apiPath}\", new[]{{maj,min}}) " +
-                    $"or use a WinboxCli connection."));
+                    $"Add one via connection.PathAlias(\"{apiPath}\", \"/winbox/menu/label-path\") " +
+                    $"(the labels WinBox shows for that window), or connection.PathOverride(\"{apiPath}\", " +
+                    $"new[]{{maj,min}}) for a raw handler, or use a WinboxCli connection."));
             }
             var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames);
             return (handler, resolver);

@@ -10,6 +10,9 @@ namespace tik4net.Winbox
     ///   <item>session overrides (<c>WinboxNativeConnection.PathOverride</c>) — direct apiPath→handler;</item>
     ///   <item>the live <c>.jg</c>-derived menu map (<see cref="SetDerivedPaths"/>) under the exact apiPath
     ///         (the clean cases whose menu label equals the API leaf, e.g. <c>/ip/firewall/connection</c>);</item>
+    ///   <item>a session <b>text alias</b> (<c>WinboxNativeConnection.PathAlias</c>) <c>apiPath → menu-label
+    ///         path</c>, resolved against the same live derived map — the preferred, version-portable way to
+    ///         teach the mapper a path, since it is written in the labels the WinBox GUI shows;</item>
     ///   <item>a shipped <b>text alias</b> <c>apiPath → menu-label path</c>, resolved against the same live
     ///         derived map — for the irregular cases where the WinBox menu label differs from the API leaf
     ///         (<c>/ip/dns/static</c> → menu <c>/ip/dns/dns-static-entry</c>, <c>/system/resource</c> → menu
@@ -119,6 +122,8 @@ namespace tik4net.Winbox
         private IReadOnlyDictionary<string, int[]> _derivedPaths;
         private IReadOnlyDictionary<string, Tuple<int, int>> _subtypeFilters;
         private readonly Dictionary<string, int[]> _overrides = new Dictionary<string, int[]>(StringComparer.OrdinalIgnoreCase);
+        // Session text alias apiPath → menu-label path; same role as ShippedAlias, resolved just before it.
+        private readonly Dictionary<string, string> _aliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// When <c>true</c>, a path that does not resolve verbatim is retried with each segment passed through the
@@ -160,6 +165,7 @@ namespace tik4net.Winbox
             if (_overrides.ContainsKey(key)) return false;
 
             string derivedKey = (_derivedPaths != null && _derivedPaths.ContainsKey(key)) ? key
+                : _aliases.TryGetValue(key, out var sessionMenuPath) ? sessionMenuPath
                 : (ShippedAlias.TryGetValue(key, out var menuPath) ? menuPath : null);
             if (derivedKey != null && _subtypeFilters.TryGetValue(derivedKey, out var f))
             {
@@ -172,6 +178,17 @@ namespace tik4net.Winbox
         internal void AddOverride(string apiPath, int[] handler)
         {
             _overrides[Normalize(apiPath)] = handler;
+        }
+
+        /// <summary>
+        /// Registers a session <b>text</b> alias <c>apiPath → WinBox menu-label path</c> (e.g.
+        /// <c>/ppp/secret → /ppp/secrets/ppp-secret</c>). The handler number is still read live from the
+        /// version-matched <c>.jg</c>, so unlike <see cref="AddOverride"/> the mapping survives a RouterOS upgrade.
+        /// Resolved after session handler overrides and the direct derived map, before the shipped alias tail.
+        /// </summary>
+        internal void AddAlias(string apiPath, string winboxMenuPath)
+        {
+            _aliases[Normalize(apiPath)] = Normalize(winboxMenuPath);
         }
 
         /// <summary>
@@ -204,6 +221,9 @@ namespace tik4net.Winbox
             {
                 // clean case: the menu label equals the API leaf (e.g. /ip/firewall/connection).
                 if (_derivedPaths.TryGetValue(key, out handler)) return true;
+                // session text alias (PathAlias): apiPath → menu-label path, handler still live from the .jg.
+                if (_aliases.TryGetValue(key, out var sessionMenuPath)
+                    && _derivedPaths.TryGetValue(sessionMenuPath, out handler)) return true;
                 // irregular case: bridge apiPath → menu-label path, handler still live from the .jg.
                 if (ShippedAlias.TryGetValue(key, out var menuPath)
                     && _derivedPaths.TryGetValue(menuPath, out handler)) return true;

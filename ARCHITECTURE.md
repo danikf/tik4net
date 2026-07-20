@@ -89,6 +89,48 @@ throws `TikConnectionCapabilityNotSupportedException`.
 | `WinboxCli` / `WinboxCliMac` | TCP 8291 / UDP 20561 | `WinboxCli/`, `WinboxCliMac/` | Encrypted WinBox channel driving the `mepty` terminal |
 | `WinboxNative` / `WinboxNativeMac` | TCP 8291 / UDP 20561 | `WinboxNative/`, `WinboxNativeMac/` | Structured M2 `getall`/`get-one`/`set`/`add`/`remove`/`move`; numeric field keys mapped to API names via a version-matched `.jg` catalog |
 
+### WinBox native — how a name becomes a number
+
+The M2 protocol addresses everything numerically: a window is a handler pair like `[20,0]`, a field
+is a key like `0xFF0001`. Those numbers are **version-specific** and appear nowhere in the RouterOS
+API or in the GUI. What a user *can* see is text — the WinBox menu breadcrumb and the field captions
+in the window — so the mapper's whole job is to bridge stable text to volatile numbers, and every
+extension point it offers is written in that text.
+
+```mermaid
+flowchart TB
+    subgraph what["What you can see"]
+        gui["<b>WinBox GUI</b><br/>menu: PPP ▸ Secrets<br/>window: PPP Secret<br/>caption: MAC Address"]
+        api["<b>RouterOS API / CLI</b><br/>path: /ppp/secret<br/>field: mac-address"]
+    end
+    subgraph wire["What the wire needs"]
+        m2["<b>WinBox M2</b><br/>handler: [20,12]<br/>key: 0xFF0001"]
+    end
+
+    api -->|"label normalizer<br/>lower-case, spaces→'-', drop '.'"| gui
+    gui -->|"router's version-matched .jg catalog<br/>(menu tree → handler/key)"| m2
+
+    api -.->|"PathAlias / UseGuiNames<br/>(text, survives upgrades)"| gui
+    api -.->|"PathOverride / FieldOverride<br/>(numbers, re-verify per version)"| m2
+```
+
+Resolution order, highest first (`WinboxHandlerMap` for paths, `WinboxFieldResolver` for fields):
+
+1. **session numeric override** — `PathOverride` / `FieldOverride`; taken at face value, bypasses
+   subtype filtering;
+2. **direct `.jg` hit** — the menu label already equals the API leaf (`/ip/firewall/connection`);
+3. **session text alias** — `PathAlias("/ppp/secret", "/ppp/secrets/ppp-secret")`, resolved against
+   the live `.jg` map;
+4. **shipped text alias** — the irregular leaves the library knows about (`/ip/dns/static` →
+   `/ip/dns/dns-static-entry`, the whole bridge family, …);
+5. **GUI-name retry** — only when `UseGuiNames = true`: the name is pushed through the label
+   normalizer and steps 1–4 are retried, so `"MAC Address"`, `"Dst. Address"` and `/IP/Firewall_Filter`
+   resolve. Off by default; a name that resolves verbatim is never re-normalized.
+
+The split is deliberate: **only text is ever shipped or pinned by the user; every number is read live
+from the router.** Prefer `PathAlias` over `PathOverride` for that reason. Decoded output always comes
+back in canonical API names regardless of how the request was addressed.
+
 ### `TikCommandConnectionBase`
 
 Every non-API transport derives from it (`tik4net/Connection/`). It implements the whole

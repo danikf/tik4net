@@ -14,7 +14,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Testing;
 using tik4net.Winbox;
 
-namespace tik4net.integrationtests
+namespace tik4net.unittests
 {
     [TestClass]
     public class RawCommandAndGuiNameTest
