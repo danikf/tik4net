@@ -80,7 +80,21 @@ When adding a test, ask first whether it actually needs a router; if it doesn't,
 Use the **`mikrotik-tests` skill** for running the suite, interpreting skips, and cleaning up
 orphaned router state.
 
+For any non-trivial change, run the unit tests plus a reasonable integration check before calling
+it done: a full pass via `api.runsettings`, and a fast smoke subset (`ConnectionTest`,
+`SystemClockTest`, `InterfaceListTest`, `IpRouteTest`) via the other transport runsettings files.
+Reserve the full 11-transport matrix for transport-specific changes or release prep. See the
+"Smoke subset" section of the `mikrotik-tests` skill for the exact `--filter` command.
+
 ## Working rules
+
+### Public API changes require wiki + XML-doc updates
+
+If a change touches public API surface (new/renamed/removed public types, members, or behavior),
+update both the XML doc comments in the source and the corresponding page(s) in
+[tik4net.wiki](https://github.com/tik4net/tik4net/wiki) (cloned locally at
+`../tik4net.wiki`, see the "tik4net wiki location" note) in the same change — don't leave docs
+to a follow-up.
 
 ### Capabilities are fail-closed
 
