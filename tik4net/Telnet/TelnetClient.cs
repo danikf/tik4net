@@ -42,16 +42,24 @@ namespace tik4net.Telnet
             _tcpClient = new TcpClient();
             _tcpClient.NoDelay = true;
 
-            // ConnectAsync with manual timeout so we work on netstandard2.0
+            // ConnectAsync with manual timeout so we work on netstandard2.0.
+            // NOTE: Task.Wait(timeout) throws AggregateException (not the original exception) when the task
+            // completes faulted within the timeout window (e.g. an immediate "connection refused") — unwrap
+            // it so callers see the same SocketException they would from a direct ConnectAsync await.
             var connectTask = _tcpClient.ConnectAsync(host, port);
-            if (!connectTask.Wait(connectTimeoutMs))
+            try
+            {
+                if (!connectTask.Wait(connectTimeoutMs))
+                {
+                    _tcpClient.Close();
+                    throw new SocketException((int)SocketError.TimedOut);
+                }
+            }
+            catch (AggregateException aex)
             {
                 _tcpClient.Close();
-                throw new SocketException((int)SocketError.TimedOut);
+                throw aex.InnerException ?? aex;
             }
-            // Rethrow any connect exception
-            if (connectTask.IsFaulted && connectTask.Exception != null)
-                throw connectTask.Exception.InnerException ?? connectTask.Exception;
 
             _stream = _tcpClient.GetStream();
             _stream.ReadTimeout = _receiveTimeoutMs;

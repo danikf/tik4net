@@ -27,23 +27,19 @@ namespace tik4net.Cli
             }
 
             // RouterOS error lines typically start with a known prefix or contain known substrings.
-            // Check is case-insensitive.
+            // Check is case-insensitive. The specific-kind classification (no such item/command/already have)
+            // is shared with the API and REST transports via TikTrapClassifier.
             string lower = output.ToLowerInvariant();
 
-            // "no such item" / "expected item id" — record not found (e.g. remove/set with an id
-            // that does not resolve: '[find .id=…]' yields nothing → 'expected item id (line 1 col N)').
-            if (lower.Contains("no such item") || lower.Contains("expected item id"))
-                throw new TikNoSuchItemException(cmd, new TikTrapSentenceResult(ExtractErrorLine(output)));
-
-            // "no such command" / "bad command name" / "expected end of command" / "syntax error" — bad path/verb/syntax
-            if (lower.Contains("no such command") || lower.Contains("bad command name")
-                || lower.Contains("expected end of command") || lower.Contains("no such directory")
-                || lower.Contains("syntax error"))
-                throw new TikNoSuchCommandException(cmd, new TikTrapSentenceResult(ExtractErrorLine(output)));
-
-            // "already have such item" / "item with such name already exists"
-            if (lower.Contains("already have such") || lower.Contains("item with such name already"))
-                throw new TikAlreadyHaveSuchItemException(cmd, new TikTrapSentenceResult(ExtractErrorLine(output)));
+            switch (TikTrapClassifier.Classify(output))
+            {
+                case TikTrapKind.NoSuchItem:
+                    throw new TikNoSuchItemException(cmd, new TikTrapSentenceResult(ExtractErrorLine(output)));
+                case TikTrapKind.NoSuchCommand:
+                    throw new TikNoSuchCommandException(cmd, new TikTrapSentenceResult(ExtractErrorLine(output)));
+                case TikTrapKind.AlreadyHaveSuchItem:
+                    throw new TikAlreadyHaveSuchItemException(cmd, new TikTrapSentenceResult(ExtractErrorLine(output)));
+            }
 
             // Generic "failure:" or "error:" prefix
             if (lower.Contains("failure:") || lower.Contains("error:"))

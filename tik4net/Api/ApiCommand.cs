@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 
 namespace tik4net.Api
@@ -228,7 +227,6 @@ namespace tik4net.Api
             EnsureDoneResponse(response.Last());
         }
 
-        private static Regex AlreadyWithSuchRegex = new Regex(@"^(failure:)?.*already have.+such");
         private void ThrowPossibleResponseError(params ApiSentence[] responseSentences)
         {
             foreach (ApiSentence responseSentence in responseSentences)
@@ -236,14 +234,17 @@ namespace tik4net.Api
                 ApiTrapSentence trapSentence = responseSentence as ApiTrapSentence;
                 if (trapSentence != null)
                 { //detect well known error responses and convert them to special exceptions
-                    if (trapSentence.Message.StartsWith("no such command"))
-                        throw new TikNoSuchCommandException(this, trapSentence);
-                    else if (trapSentence.Message.StartsWith("no such item"))
-                        throw new TikNoSuchItemException(this, trapSentence);
-                    else if (AlreadyWithSuchRegex.IsMatch(trapSentence.Message))
-                        throw new TikAlreadyHaveSuchItemException(this, trapSentence);
-                    else
-                        throw new TikCommandTrapException(this, trapSentence);
+                    switch (TikTrapClassifier.Classify(trapSentence.Message))
+                    {
+                        case TikTrapKind.NoSuchCommand:
+                            throw new TikNoSuchCommandException(this, trapSentence);
+                        case TikTrapKind.NoSuchItem:
+                            throw new TikNoSuchItemException(this, trapSentence);
+                        case TikTrapKind.AlreadyHaveSuchItem:
+                            throw new TikAlreadyHaveSuchItemException(this, trapSentence);
+                        default:
+                            throw new TikCommandTrapException(this, trapSentence);
+                    }
                 }
                 ApiFatalSentence fatalSentence = responseSentence as ApiFatalSentence;
                 if (fatalSentence != null)

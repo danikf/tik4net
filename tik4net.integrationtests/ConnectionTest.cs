@@ -143,7 +143,7 @@ namespace tik4net.integrationtests
         }
 
         [TestMethod]
-        [ExpectedException(typeof(System.IO.IOException))]
+        [ExpectedException(typeof(TikConnectionReceiveTimeoutException))]
         public void OpenConnectionReceiveTimeoutWillThrowExceptionWhenShortTimeout()
         {
             using (var connection = ConnectionFactory.CreateConnection(DEFAULT_CONNECTION_TYPE))
@@ -190,7 +190,7 @@ namespace tik4net.integrationtests
         }
 
         [TestMethod]
-        [ExpectedException(typeof(System.IO.IOException))]
+        [ExpectedException(typeof(TikConnectionReceiveTimeoutException))]
         public void OpenConnectionAsyncReceiveTimeoutWillThrowExceptionWhenShortTimeout()
         {
             Task.Run(async () =>

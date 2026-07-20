@@ -42,10 +42,10 @@ namespace tik4net.Api
         private volatile bool _isOpened = false;
         private bool _safeModeHeld = false;
         private bool _isSsl = false;
-        private Encoding _encoding = Encoding.ASCII;
+        private Encoding _encoding = Encoding.UTF8;
         private bool _sendTagWithSyncCommand = false;
         private int _sendTimeout;
-        private int _receiveTimeout;
+        private int _receiveTimeout = 30000;
         private TcpClient _tcpConnection;
         private /*NetworkStream*/System.IO.Stream _tcpConnectionStream;
         private SentenceList _readSentences = new SentenceList();
@@ -73,6 +73,11 @@ namespace tik4net.Api
             get { return _isOpened; }
         }
 
+        /// <summary>
+        /// Wire text encoding for words. Defaults to UTF-8, matching RouterOS 7's own encoding
+        /// (and the CLI-family transports). Set to <see cref="Encoding.ASCII"/> for legacy RouterOS 6.x
+        /// routers if non-ASCII names/comments come back mangled.
+        /// </summary>
         public Encoding Encoding
         {
             get { return _encoding; }
@@ -96,6 +101,13 @@ namespace tik4net.Api
             get { return _receiveTimeout; }
             set { _receiveTimeout = value; }
         }
+
+        /// <summary>
+        /// Connect timeout in milliseconds — bounds the initial TCP handshake in <see cref="Open(string, int, string, string)"/>
+        /// / <see cref="OpenAsync(string, int, string, string)"/> (default 15 000 ms). Distinct from
+        /// <see cref="ReceiveTimeout"/>, which only bounds reads after the connection is up.
+        /// </summary>
+        public int ConnectTimeout { get; set; } = 15000;
 
         public bool IsSsl
         {
@@ -138,8 +150,15 @@ namespace tik4net.Api
                 // catch exception if connection is closed
             }
 
-            _tcpConnectionStream.Dispose();
-            _tcpConnection.Dispose();
+            DisposeConnectionResources();
+        }
+
+        // Disposes the TCP/SSL resources without throwing — safe to call from Close(), Dispose(),
+        // and from a failed Open()/OpenAsync() to avoid leaking a half-opened socket.
+        private void DisposeConnectionResources()
+        {
+            try { _tcpConnectionStream?.Dispose(); } catch { /* Close/Dispose must not throw */ }
+            try { _tcpConnection?.Dispose(); } catch { /* Close/Dispose must not throw */ }
             _isOpened = false;
         }
 
@@ -179,43 +198,67 @@ namespace tik4net.Api
 
         public void Open(string host, int port, string user, string password)
         {
-            //open connection
-            _tcpConnection = new TcpClient();
-            if (_sendTimeout > 0)
-                _tcpConnection.SendTimeout = _sendTimeout;
-            if (_receiveTimeout > 0)
-                _tcpConnection.ReceiveTimeout = _receiveTimeout;
-            _tcpConnection.ConnectAsync(host, port).GetAwaiter().GetResult();
-
-            var tcpStream = _tcpConnection.GetStream();
-            if (_receiveTimeout > 0)
-                tcpStream.ReadTimeout = _receiveTimeout;
-            if (_sendTimeout > 0)
-                tcpStream.WriteTimeout = _sendTimeout;
-            if (!_isSsl)
+            try
             {
-                _tcpConnectionStream = tcpStream;
-            }
-            else
-            {
-                var sslStream = new SslStream(tcpStream, false,
-                    new RemoteCertificateValidationCallback(ValidateServerCertificate), null);
+                //open connection
+                _tcpConnection = new TcpClient();
+                if (_sendTimeout > 0)
+                    _tcpConnection.SendTimeout = _sendTimeout;
+                if (_receiveTimeout > 0)
+                    _tcpConnection.ReceiveTimeout = _receiveTimeout;
 
+                // ConnectAsync with manual timeout so we work on netstandard2.0 (no CancellationToken overload there).
+                // NOTE: Task.Wait(timeout) throws AggregateException (not the original exception) when the
+                // task completes faulted within the timeout window (e.g. an immediate "connection refused") —
+                // unwrap it so callers see the same SocketException they would from a direct ConnectAsync await.
+                var connectTask = _tcpConnection.ConnectAsync(host, port);
                 try
                 {
-                    // SslProtocols.None lets the OS negotiate the best available version (TLS 1.2/1.3).
-                    // TLS 1.0 (the former explicit value) is disabled on modern systems and RouterOS 7+.
-                    sslStream.AuthenticateAsClientAsync(host, null, SslProtocols.None, false).GetAwaiter().GetResult();
+                    if (!connectTask.Wait(ConnectTimeout))
+                        throw new SocketException((int)SocketError.TimedOut);
                 }
-                catch(AuthenticationException ex)
+                catch (AggregateException aex)
                 {
-                    throw new TikConnectionSSLErrorException(ex);
+                    throw aex.InnerException ?? aex;
                 }
-                _tcpConnectionStream = sslStream;
-            }
 
-            _isOpened = true;
-            Login_v3(user, password);  //LoginInternal(user, password);            
+                var tcpStream = _tcpConnection.GetStream();
+                if (_receiveTimeout > 0)
+                    tcpStream.ReadTimeout = _receiveTimeout;
+                if (_sendTimeout > 0)
+                    tcpStream.WriteTimeout = _sendTimeout;
+                if (!_isSsl)
+                {
+                    _tcpConnectionStream = tcpStream;
+                }
+                else
+                {
+                    var sslStream = new SslStream(tcpStream, false,
+                        new RemoteCertificateValidationCallback(ValidateServerCertificate), null);
+
+                    try
+                    {
+                        // SslProtocols.None lets the OS negotiate the best available version (TLS 1.2/1.3).
+                        // TLS 1.0 (the former explicit value) is disabled on modern systems and RouterOS 7+.
+                        sslStream.AuthenticateAsClientAsync(host, null, SslProtocols.None, false).GetAwaiter().GetResult();
+                    }
+                    catch(AuthenticationException ex)
+                    {
+                        throw new TikConnectionSSLErrorException(ex);
+                    }
+                    _tcpConnectionStream = sslStream;
+                }
+
+                _isOpened = true;
+                Login_v3(user, password);  //LoginInternal(user, password);
+            }
+            catch
+            {
+                // Do not leak a half-opened socket when Open fails at any stage (connect, SSL auth, login) —
+                // the caller never gets a connection object back to Dispose.
+                DisposeConnectionResources();
+                throw;
+            }
         }
 
         public async System.Threading.Tasks.Task OpenAsync(string host, string user, string password)
@@ -225,34 +268,49 @@ namespace tik4net.Api
 
         public async System.Threading.Tasks.Task OpenAsync(string host, int port, string user, string password)
         {
-            //open connection
-            _tcpConnection = new TcpClient();
-            if (_sendTimeout > 0)
-                _tcpConnection.SendTimeout = _sendTimeout;
-            if (_receiveTimeout > 0)
-                _tcpConnection.ReceiveTimeout = _receiveTimeout;
-
-            await _tcpConnection.ConnectAsync(host, port);
-
-            var tcpStream = _tcpConnection.GetStream();
-            if (_receiveTimeout > 0)
-                tcpStream.ReadTimeout = _receiveTimeout;
-            if (_sendTimeout > 0)
-                tcpStream.WriteTimeout = _sendTimeout;
-            if (!_isSsl)
+            try
             {
-                _tcpConnectionStream = tcpStream;
-            }
-            else
-            {
-                var sslStream = new SslStream(tcpStream, false,
-                    new RemoteCertificateValidationCallback(ValidateServerCertificate), null);
-                await sslStream.AuthenticateAsClientAsync(host);
-                _tcpConnectionStream = sslStream;
-            }
+                //open connection
+                _tcpConnection = new TcpClient();
+                if (_sendTimeout > 0)
+                    _tcpConnection.SendTimeout = _sendTimeout;
+                if (_receiveTimeout > 0)
+                    _tcpConnection.ReceiveTimeout = _receiveTimeout;
 
-            _isOpened = true;
-            Login_v3(user, password); // LoginInternal(user, password);           
+                // Task.WhenAny + Task.Delay so we work on netstandard2.0 (no ConnectAsync(CancellationToken) overload there).
+                var connectTask = _tcpConnection.ConnectAsync(host, port);
+                var timeoutTask = System.Threading.Tasks.Task.Delay(ConnectTimeout);
+                if (await System.Threading.Tasks.Task.WhenAny(connectTask, timeoutTask).ConfigureAwait(false) == timeoutTask)
+                    throw new SocketException((int)SocketError.TimedOut);
+                await connectTask.ConfigureAwait(false); // observe/rethrow any connect exception
+
+                var tcpStream = _tcpConnection.GetStream();
+                if (_receiveTimeout > 0)
+                    tcpStream.ReadTimeout = _receiveTimeout;
+                if (_sendTimeout > 0)
+                    tcpStream.WriteTimeout = _sendTimeout;
+                if (!_isSsl)
+                {
+                    _tcpConnectionStream = tcpStream;
+                }
+                else
+                {
+                    var sslStream = new SslStream(tcpStream, false,
+                        new RemoteCertificateValidationCallback(ValidateServerCertificate), null);
+                    await sslStream.AuthenticateAsClientAsync(host);
+                    _tcpConnectionStream = sslStream;
+                }
+
+                _isOpened = true;
+                Login_v3(user, password); // LoginInternal(user, password);
+            }
+            catch
+            {
+                // Do not leak a half-opened socket when Open fails at any stage (connect, SSL auth, login) —
+                // the caller never gets a connection object back to Dispose.
+                DisposeConnectionResources();
+                throw;
+            }
         }
 
         private void Login_v3(string user, string password)
@@ -293,7 +351,9 @@ namespace tik4net.Api
         public void Dispose()
         {
             if (_isOpened)
-                Close();
+            {
+                try { Close(); } catch { /* Dispose must not throw */ }
+            }
         }
 
         // Thrown only when ReadByte() returns -1 (peer closed the TCP connection).
@@ -412,12 +472,19 @@ namespace tik4net.Api
                     default: throw new NotImplementedException(string.Format("Response type '{0}' not supported", sentenceName));
                 }
             }
-            catch(IOException)
+            catch(IOException ex)
             {
                 _isOpened = _tcpConnection.Connected;
+                if (IsTimeout(ex))
+                    throw new TikConnectionReceiveTimeoutException(_receiveTimeout, ex);
                 throw;
             }
         }
+
+        // True when the IOException wraps a socket read/write timeout (NetworkStream.ReadTimeout/WriteTimeout
+        // elapsed), as opposed to e.g. the peer resetting the connection.
+        private static bool IsTimeout(IOException ex)
+            => ex.InnerException is SocketException se && se.SocketErrorCode == SocketError.TimedOut;
 
         private void WriteCommand(IEnumerable<string> commandRows)
         {
@@ -478,7 +545,10 @@ namespace tik4net.Api
                         _readSentences.Enqueue(sentenceFromTcp);
                     }
                 }
-            } while (true); //TODO max attempts???  //repeat until get any response for specific tag
+                // repeat until we get a response for this tag; a stuck peer is bounded by ReceiveTimeout —
+                // ReadSentence() (via ReadByteChecked) throws TikConnectionReceiveTimeoutException instead
+                // of blocking forever once the underlying socket read times out.
+            } while (true);
         }
         
         private IEnumerable<ITikSentence> GetAll(string tag)

@@ -55,7 +55,7 @@ namespace tik4net
         /// <summary>Creates and opens a plain MikroTik API connection (TCP 8728).</summary>
         public ITikConnection CreateApiConnection()
         {
-            var conn = new ApiConnection(false);
+            var conn = NewApiConnection(false);
             OpenSync(conn);
             return conn;
         }
@@ -63,18 +63,21 @@ namespace tik4net
         /// <summary>Creates and opens a MikroTik API-SSL connection (TLS TCP 8729).</summary>
         public ITikConnection CreateApiSslConnection()
         {
-            var conn = new ApiConnection(true);
+            var conn = NewApiConnection(true);
             OpenSync(conn);
             return conn;
         }
 
         /// <summary>Async version of <see cref="CreateApiConnection"/>.</summary>
         public Task<ITikConnection> CreateApiConnectionAsync(CancellationToken ct = default)
-            => OpenAsync(new ApiConnection(false), ct);
+            => OpenAsync(NewApiConnection(false), ct);
 
         /// <summary>Async version of <see cref="CreateApiSslConnection"/>.</summary>
         public Task<ITikConnection> CreateApiSslConnectionAsync(CancellationToken ct = default)
-            => OpenAsync(new ApiConnection(true), ct);
+            => OpenAsync(NewApiConnection(true), ct);
+
+        private ApiConnection NewApiConnection(bool isSsl)
+            => new ApiConnection(isSsl) { ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds };
 
         // ── REST ──────────────────────────────────────────────────────────────
 
@@ -107,14 +110,17 @@ namespace tik4net
         /// <summary>Creates and opens a Telnet CLI connection (plain-text TCP port 23). Requires RouterOS telnet service enabled.</summary>
         public ITikConnection CreateTelnetConnection()
         {
-            var conn = new TelnetConnection();
+            var conn = NewTelnetConnection();
             OpenSync(conn);
             return conn;
         }
 
         /// <summary>Async version of <see cref="CreateTelnetConnection"/>.</summary>
         public Task<ITikConnection> CreateTelnetConnectionAsync(CancellationToken ct = default)
-            => OpenAsync(new TelnetConnection(), ct);
+            => OpenAsync(NewTelnetConnection(), ct);
+
+        private TelnetConnection NewTelnetConnection()
+            => new TelnetConnection { ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds };
 
         // ── MAC-Telnet ────────────────────────────────────────────────────────
 

@@ -95,6 +95,28 @@ namespace tik4net
     }
 
     /// <summary>
+    /// Thrown when no response is received from the router within the configured
+    /// <see cref="ITikConnection.ReceiveTimeout"/>. Distinct from a bare socket <see cref="System.IO.IOException"/>
+    /// so callers can tell a stuck/unreachable peer apart from other I/O failures (e.g. connection reset).
+    /// </summary>
+    public class TikConnectionReceiveTimeoutException : TikConnectionException
+    {
+        /// <summary>The configured receive timeout (milliseconds) that elapsed.</summary>
+        public int TimeoutMilliseconds { get; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TikConnectionReceiveTimeoutException"/> class.
+        /// </summary>
+        /// <param name="timeoutMilliseconds">The configured receive timeout (milliseconds) that elapsed.</param>
+        /// <param name="innerException">The underlying socket timeout exception.</param>
+        public TikConnectionReceiveTimeoutException(int timeoutMilliseconds, Exception innerException)
+            : base($"No response received from the router within {timeoutMilliseconds} ms.", innerException)
+        {
+            TimeoutMilliseconds = timeoutMilliseconds;
+        }
+    }
+
+    /// <summary>
     /// Thrown when a feature is invoked on a transport that does not report the required
     /// <see cref="TikConnectionCapability"/>. Check <see cref="ITikConnection"/> support up front with
     /// <see cref="TikConnectionCapabilityExtensions.Supports"/> to avoid it. See the

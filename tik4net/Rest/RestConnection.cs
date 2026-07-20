@@ -231,20 +231,29 @@ namespace tik4net.Rest
             if (!string.IsNullOrEmpty(detail) && detail != message)
                 fullMessage += ": " + detail;
 
-            // Check both the combined message and the detail field independently for known patterns
-            string checkText = ((detail ?? "") + " " + (message ?? "") + " " + fullMessage).ToLowerInvariant();
+            // Check both the combined message and the detail field independently for known patterns.
+            // The specific-kind classification is shared with the API and CLI transports via TikTrapClassifier;
+            // only REST's own signal (a bare 404 with no matching message text) is handled here.
+            string checkText = (detail ?? "") + " " + (message ?? "") + " " + fullMessage;
 
             var fakeCmd = new TikGenericCommand(this, commandText, parameters.ToArray());
             var trapSentence = new TikTrapSentenceResult(fullMessage);
 
-            if (checkText.Contains("no such command") || checkText.Contains("no such directory"))
-                throw new TikNoSuchCommandException(fakeCmd, trapSentence);
-            if (checkText.Contains("no such item") || checkText.Contains("missing or invalid resource identifier") || statusCode == 404)
-                throw new TikNoSuchItemException(fakeCmd, trapSentence);
-            if (checkText.Contains("already have") || checkText.Contains("item with such name already"))
-                throw new TikAlreadyHaveSuchItemException(fakeCmd, trapSentence);
+            var kind = TikTrapClassifier.Classify(checkText);
+            if (kind == TikTrapKind.Generic && statusCode == 404)
+                kind = TikTrapKind.NoSuchItem;
 
-            throw new TikCommandTrapException(fakeCmd, trapSentence);
+            switch (kind)
+            {
+                case TikTrapKind.NoSuchCommand:
+                    throw new TikNoSuchCommandException(fakeCmd, trapSentence);
+                case TikTrapKind.NoSuchItem:
+                    throw new TikNoSuchItemException(fakeCmd, trapSentence);
+                case TikTrapKind.AlreadyHaveSuchItem:
+                    throw new TikAlreadyHaveSuchItemException(fakeCmd, trapSentence);
+                default:
+                    throw new TikCommandTrapException(fakeCmd, trapSentence);
+            }
         }
 
         private static IList<TikRecordSentence> ParseResponseList(string body)
