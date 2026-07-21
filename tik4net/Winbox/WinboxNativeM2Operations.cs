@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
@@ -27,12 +27,35 @@ namespace tik4net.Winbox
     {
         private readonly IWinboxM2Channel _channel;
         private readonly int _timeoutMs;
+        private WinboxM2Multiplexer _mux;
 
         internal WinboxNativeM2Operations(IWinboxM2Channel channel, int timeoutMs = 5000)
         {
             _channel = channel ?? throw new ArgumentNullException(nameof(channel));
             _timeoutMs = timeoutMs;
         }
+
+        /// <summary>
+        /// Switches this instance from the lockstep channel path to id-multiplexed dispatch. Called once by
+        /// the owning connection <b>after</b> authentication and one-time init have finished on the lockstep
+        /// path, since the multiplexer's reader loop takes exclusive ownership of the channel's read side.
+        /// </summary>
+        /// <remarks>
+        /// This also retires <see cref="DrainStaleFrames"/> and the request-id skip loop for multiplexed
+        /// connections: both exist only because a lockstep reader takes "the next frame" rather than "its
+        /// own frame", and a stray frame therefore shifts every subsequent reply by one. With id dispatch a
+        /// stray frame is identified and dropped by the reader loop instead.
+        /// </remarks>
+        internal void UseMultiplexer(WinboxM2Multiplexer mux)
+        {
+            _mux = mux ?? throw new ArgumentNullException(nameof(mux));
+            _mux.OnUnmatchedFrame = frame => OnResponse?.Invoke(frame);
+        }
+
+        // Request ids come from the multiplexer once it owns dispatch — it is the only component that can
+        // refuse an id which is still awaiting a reply.
+        private byte[] NextReqIdField()
+            => _mux != null ? _mux.NextReqIdField() : _channel.NextReqIdField();
 
         /// <summary>
         /// Optional row-level trace hooks, invoked with the raw M2 bytes of each request
@@ -49,6 +72,21 @@ namespace tik4net.Winbox
         // Single send/receive seam — fires the trace hooks around the channel round-trip so every M2
         // operation (read and write) is observable without duplicating the hook at each call site.
         private byte[] SendReceive(byte[] request)
+        {
+            if (_mux != null)
+            {
+                OnRequest?.Invoke(request);
+                byte[] multiplexed = _mux.SendReceive(request, _timeoutMs);
+                OnResponse?.Invoke(multiplexed);
+                return multiplexed;
+            }
+
+            return LockstepSendReceive(request);
+        }
+
+        // Pre-multiplexing path: still used during connect/auth/init, and for the whole lifetime of the MAC
+        // transports, which cannot run a reader loop (IWinboxM2Channel.SupportsReaderLoop).
+        private byte[] LockstepSendReceive(byte[] request)
         {
             // Discard any frame already buffered on the shared channel before issuing a synchronous
             // request. The native M2 protocol is poll-based (no unsolicited server push), so anything
@@ -77,6 +115,14 @@ namespace tik4net.Winbox
             OnResponse?.Invoke(response);
             return response;
         }
+
+        /// <summary>
+        /// Drains whatever is already buffered on the channel. Called once by the owning connection just
+        /// before it hands the read side to a <see cref="WinboxM2Multiplexer"/>, so no frame from the
+        /// lockstep init phase can survive into id-dispatched territory and be matched to an unrelated
+        /// request that later reuses its id.
+        /// </summary>
+        internal void DrainBufferedFrames() => DrainStaleFrames();
 
         // Drains frames already waiting on the channel (best-effort), used to clear leaked async/monitor
         // replies before a synchronous request so they cannot be mistaken for its reply.
@@ -126,7 +172,7 @@ namespace tik4net.Winbox
                 {
                     M2Message.SysToArr(handler), M2Message.SysFrom(),
                     M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true),
-                    _channel.NextReqIdField(),
+                    NextReqIdField(),
                     M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.GetAll),
                     M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, flags),
                 };
@@ -163,7 +209,7 @@ namespace tik4net.Winbox
         {
             byte[] msg = M2Message.BuildM2(
                 M2Message.SysToArr(WinboxM2Protocol.SysInfo.Handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.SysInfo.Command));
             byte[] resp = SendReceive(msg);
             var fields = M2Message.ParseAllFields(resp);
@@ -180,7 +226,7 @@ namespace tik4net.Winbox
         {
             byte[] msg = M2Message.BuildM2(
                 M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.GetOne),
                 M2Message.SessionIdField(id));
             byte[] resp = SendReceive(msg);
@@ -199,7 +245,7 @@ namespace tik4net.Winbox
         {
             byte[] msg = M2Message.BuildM2(
                 M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.GetSingleton),
                 M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, flags));
             byte[] resp = SendReceive(msg);
@@ -227,7 +273,7 @@ namespace tik4net.Winbox
             var head = new List<byte[]>
             {
                 M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.Set),
                 M2Message.SessionIdField(id),
             };
@@ -246,7 +292,7 @@ namespace tik4net.Winbox
             var head = new List<byte[]>
             {
                 M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.Add),
             };
             if (fields != null) head.AddRange(fields);
@@ -264,7 +310,7 @@ namespace tik4net.Winbox
         {
             byte[] msg = M2Message.BuildM2(
                 M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.Remove),
                 M2Message.SessionIdField(id));
             byte[] resp = SendReceive(msg);
@@ -282,7 +328,7 @@ namespace tik4net.Winbox
             var head = new List<byte[]>
             {
                 M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.Move),
                 M2Message.SessionIdField(id),
             };
@@ -302,7 +348,7 @@ namespace tik4net.Winbox
             var head = new List<byte[]>
             {
                 M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, cmd),
             };
             if (id >= 0) head.Add(M2Message.SessionIdField(id));
@@ -323,7 +369,7 @@ namespace tik4net.Winbox
         {
             byte[] msg = M2Message.BuildM2(
                 M2Message.SysToArr(WinboxM2Protocol.SafeMode.Handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.SafeMode.Take));
             byte[] resp = SendReceive(msg);
             ThrowOnStatus(resp, "safe-mode-take", WinboxM2Protocol.SafeMode.Handler);
@@ -341,7 +387,7 @@ namespace tik4net.Winbox
         {
             byte[] msg = M2Message.BuildM2(
                 M2Message.SysToArr(WinboxM2Protocol.SafeMode.Handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.SafeMode.Release),
                 M2Message.SessionIdField(safeModeId));
             byte[] resp = SendReceive(msg);
@@ -363,7 +409,7 @@ namespace tik4net.Winbox
             var head = new List<byte[]>
             {
                 M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, startCmd),
             };
             if (requestFields != null) head.AddRange(requestFields);
@@ -395,7 +441,7 @@ namespace tik4net.Winbox
                 var head = new List<byte[]>
                 {
                     M2Message.SysToArr(handler), M2Message.SysFrom(),
-                    M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
+                    M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
                     M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, pollCmd),
                 };
                 if (id.HasValue) head.Add(M2Message.SessionIdField(id.Value));
@@ -435,7 +481,7 @@ namespace tik4net.Winbox
             var head = new List<byte[]>
             {
                 M2Message.SysToArr(handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), _channel.NextReqIdField(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, cancelCmd),
             };
             if (id.HasValue) head.Add(M2Message.SessionIdField(id.Value));

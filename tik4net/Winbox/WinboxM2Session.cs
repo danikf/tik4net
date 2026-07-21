@@ -28,6 +28,7 @@ namespace tik4net.Winbox
         private byte[] _sendAesKey, _sendHmacKey, _receiveAesKey, _receiveHmacKey;
         private bool _encrypted;
         private int _reqId;
+        private bool _readerLoopTimeoutSet;
 
         /// <summary>True once an encrypted (EC-SRP5) channel is established. False for legacy MD5 auth.</summary>
         public bool IsEncrypted => _encrypted;
@@ -96,7 +97,41 @@ namespace tik4net.Winbox
         }
 
         /// <summary>Builds the next request-id system field (key 0xFF0006), incrementing the counter.</summary>
-        public byte[] NextReqIdField() => M2Message.U8Sys(WinboxM2Protocol.SysKey.RequestId, (byte)(++_reqId));
+        /// <remarks>
+        /// <see cref="Interlocked"/> because a multiplexed connection has concurrent senders
+        /// (design §4.1). The 8-bit truncation is the wire format, not a choice — id allocation that has to
+        /// avoid colliding with a still-pending id lives in <see cref="WinboxM2Multiplexer"/>, which is why
+        /// the native path uses <see cref="WinboxM2Multiplexer.NextReqId"/> rather than this method.
+        /// </remarks>
+        public byte[] NextReqIdField()
+            => M2Message.U8Sys(WinboxM2Protocol.SysKey.RequestId, (byte)Interlocked.Increment(ref _reqId));
+
+        /// <inheritdoc/>
+        public bool SupportsReaderLoop => true;
+
+        /// <inheritdoc/>
+        public byte[] ReceiveNextFrame()
+        {
+            // The reader loop owns the socket, so the receive timeout goes to infinite once and stays there:
+            // a socket-level deadline can fire between two chunks of one frame and leave the stream
+            // unrecoverably desynchronized. Per-request deadlines live in the multiplexer's registrations.
+            if (!_readerLoopTimeoutSet)
+            {
+                _transport.SetReceiveTimeout(0);   // Socket: 0 == infinite
+                _readerLoopTimeoutSet = true;
+            }
+
+            try
+            {
+                if (_encrypted)
+                    return WinboxStreamCrypto.Decrypt(_transport.RecvChunked(EncryptedTag), _receiveAesKey);
+
+                byte[] assembled = _transport.RecvChunked(RawTag);
+                return assembled.Length >= 2 ? assembled.Skip(2).ToArray() : assembled;
+            }
+            catch (IOException)          { return null; }   // socket closed under us — normal shutdown
+            catch (ObjectDisposedException) { return null; }
+        }
 
         // ── Encrypted / raw frame primitives ──────────────────────────────────
 

@@ -135,7 +135,22 @@ namespace tik4net.Winbox
             return result;
         }
 
-        public byte[] NextReqIdField() => M2Message.U8Sys(WinboxM2Protocol.SysKey.RequestId, (byte)(++_reqId));
+        public byte[] NextReqIdField()
+            => M2Message.U8Sys(WinboxM2Protocol.SysKey.RequestId, (byte)Interlocked.Increment(ref _reqId));
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Deliberately <c>false</c>. <see cref="MacLayerTransport"/> sends ACK/PONG from inside its receive
+        /// path (<c>RecvDataPayload</c>), so handing reads to a background loop would make the transport
+        /// write from two threads with no write-side lock. Multiplexing the MAC transports is a separate
+        /// change — design §4.5.
+        /// </remarks>
+        public bool SupportsReaderLoop => false;
+
+        /// <inheritdoc/>
+        public byte[] ReceiveNextFrame()
+            => throw new NotSupportedException(
+                "The MAC-layer WinBox channel does not support a reader loop; see SupportsReaderLoop.");
 
         // WinBox over MAC uses the SAME chunked framing as TCP ([chunkLen][tag][data]…), carried inside
         // MAC DATA packets — NOT a bare encrypted blob. The encrypted frame is chunk-wrapped on send and

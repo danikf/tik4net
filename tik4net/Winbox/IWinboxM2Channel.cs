@@ -55,5 +55,25 @@ namespace tik4net.Winbox
 
         /// <summary>Sends one M2 message and reads one response.</summary>
         byte[] SendReceive(byte[] m2, int timeoutMs);
+
+        /// <summary>
+        /// True when the channel can hand its read side to a <see cref="WinboxM2Multiplexer"/> reader loop
+        /// (i.e. <see cref="ReceiveNextFrame"/> is implemented). TCP: yes. MAC: no — see
+        /// <c>_notes/async/P2-winbox-multiplexing-design.md</c> §4.5, the MAC layer interleaves ACK/PING
+        /// sends with reads inside <c>MacLayerTransport</c>, so a reader loop needs a write-side lock down
+        /// there before it is safe.
+        /// </summary>
+        bool SupportsReaderLoop { get; }
+
+        /// <summary>
+        /// Blocks until the next inbound M2 message is decoded, for exclusive use by a reader loop that
+        /// owns the read side of the channel. Unlike <see cref="Receive"/> this carries <b>no timeout</b>:
+        /// a per-read deadline can fire mid-frame and desynchronize the stream, so deadlines belong to the
+        /// per-request registrations instead (design §4.2a). Returns <c>null</c> when the channel is closed.
+        /// </summary>
+        /// <exception cref="NotSupportedException">
+        /// <see cref="SupportsReaderLoop"/> is <c>false</c>.
+        /// </exception>
+        byte[] ReceiveNextFrame();
     }
 }

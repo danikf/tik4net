@@ -69,6 +69,7 @@ namespace tik4net.WinboxNative
             new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
 
         private IWinboxM2Channel _session;
+        private WinboxM2Multiplexer _mux;   // null on transports that cannot run a reader loop (MAC)
         private WinboxNativeM2Operations _ops;
         private WinboxRecordCodec _codec;   // M2 record → API field decoder (see WinboxRecordCodec)
         private WinboxIdResolver _idResolver;   // friendly-name → M2 id lookup (see WinboxIdResolver)
@@ -201,7 +202,10 @@ namespace tik4net.WinboxNative
         private void InitAfterAuth(IWinboxM2Channel session)
         {
             _session = session;
-            _ops = new WinboxNativeM2Operations(session, ConnectTimeout);
+            // ReceiveTimeout, not ConnectTimeout: this bounds each M2 operation, not the connect phase.
+            // (P1.8 left this as ConnectTimeout because per-read socket deadlines made the distinction
+            // moot; with per-request deadlines in the multiplexer it is now the value that actually fires.)
+            _ops = new WinboxNativeM2Operations(session, ReceiveTimeout);
             // Participate in the shared row-level diagnostics: render each raw M2 request/reply to the
             // OnWriteRow/OnReadRow events (gated so the describe is only built when something listens).
             _ops.OnRequest = msg => { if (RowTracingEnabled) FireWriteRow(M2Message.Describe(msg)); };
@@ -216,12 +220,68 @@ namespace tik4net.WinboxNative
             _handlerMap.SetSubtypeFilters(_catalog.GetSubtypeFilters());
             _codec = new WinboxRecordCodec(_ops, _catalog);
             _idResolver = new WinboxIdResolver(_ops, _codec, _catalog);
+            StartMultiplexer(session);
             SetOpened();
+        }
+
+        /// <summary>
+        /// Hands the channel's read side to a <see cref="WinboxM2Multiplexer"/> so M2 operations dispatch by
+        /// request id instead of serializing on <c>_cmdLock</c>.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately the <b>last</b> step of <see cref="InitAfterAuth"/>: authentication, the router
+        /// version probe and the <c>.jg</c> catalog fetch all read the channel directly and would race the
+        /// reader loop. Those run once, so leaving them lockstep costs nothing (design §4.2).
+        /// <para>Transports whose channel cannot yield its read side — the MAC family, see
+        /// <see cref="IWinboxM2Channel.SupportsReaderLoop"/> — keep the lockstep path and its stale-frame
+        /// drain. No behaviour change there.</para>
+        /// </remarks>
+        private void StartMultiplexer(IWinboxM2Channel session)
+        {
+            if (!session.SupportsReaderLoop) return;
+
+            // Discard anything the lockstep init phase left buffered BEFORE the reader loop starts.
+            // A leftover frame is not merely noise here: the multiplexer restarts request ids from 1, so a
+            // stale frame carrying, say, id 3 could be delivered to a *new* request that later gets id 3 —
+            // turning the old "reply shifted by one" desync into a silent wrong-reply. Draining is safe at
+            // this exact point because every init exchange has already completed.
+            _ops.DrainBufferedFrames();
+
+            _mux = new WinboxM2Multiplexer(session);
+            _ops.UseMultiplexer(_mux);
+        }
+
+        /// <summary>
+        /// Acquires the command gate for one M2 operation. On a multiplexed connection this is a no-op:
+        /// the reader loop correlates replies by request id, so concurrent operations are safe and
+        /// serializing them would give back exactly the throughput multiplexing was added to gain. On the
+        /// MAC transports — which keep the lockstep channel path — it is still the real semaphore, because
+        /// there a reader that takes "the next frame" would otherwise pick up someone else's reply.
+        /// </summary>
+        private CommandGate EnterCommand() => new CommandGate(_mux == null ? _cmdLock : null);
+
+        /// <summary>Scope object for <see cref="EnterCommand"/>; releases the semaphore if one was taken.</summary>
+        private readonly struct CommandGate : IDisposable
+        {
+            private readonly SemaphoreSlim _held;
+
+            internal CommandGate(SemaphoreSlim toAcquire)
+            {
+                _held = toAcquire;
+                _held?.Wait();
+            }
+
+            public void Dispose() => _held?.Release();
         }
 
         /// <inheritdoc/>
         public override void Close()
         {
+            // Multiplexer first: it fails every outstanding request with a clear reason instead of letting
+            // callers block until their deadline on a socket that is about to vanish. Disposing the channel
+            // is then what unblocks the reader thread out of its indefinite read.
+            _mux?.Dispose();
+            _mux = null;
             _session?.Dispose();
             _session = null;
             _ops = null;
@@ -235,12 +295,11 @@ namespace tik4net.WinboxNative
         /// <inheritdoc/>
         internal override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)
         {
-            // Serialise the M2 channel: the transport is request/reply, so a concurrent CRUD call or
-            // monitor poll on another thread must not interleave its request with ours. Background workers
-            // already hold _cmdLock and call RunPrintCore directly (the semaphore is not reentrant).
-            _cmdLock.Wait();
-            try { return RunPrintCore(descriptor); }
-            finally { _cmdLock.Release(); }
+            // Gate the M2 channel (see EnterCommand): a no-op when multiplexed, a real lock on the lockstep
+            // MAC path, where a concurrent CRUD call or monitor poll would otherwise interleave with ours.
+            // Background workers enter the gate themselves and call RunPrintCore directly (not reentrant).
+            using (EnterCommand())
+                return RunPrintCore(descriptor);
         }
 
         private IList<TikRecordSentence> RunPrintCore(TikCommandDescriptor descriptor)
@@ -432,17 +491,17 @@ namespace tik4net.WinboxNative
             // descriptor.CommandText is "/path/add"; the resolution path is the parent.
             string apiPath = TikPath.Parent(descriptor.CommandText);
 
-            // Serialise the request/reply channel against concurrent CRUD / monitor polls (see RunPrint).
-            _cmdLock.Wait();
             try
             {
-                var (handler, resolver) = ResolveHandlerAndFields(apiPath);
-                var fields = EncodeNameValueFields(handler, descriptor, resolver, skipId: true);
-                int newId = _ops.Add(handler, fields);
-                return newId >= 0 ? "*" + ((uint)newId).ToString("X") : null;
+                using (EnterCommand())   // see RunPrint
+                {
+                    var (handler, resolver) = ResolveHandlerAndFields(apiPath);
+                    var fields = EncodeNameValueFields(handler, descriptor, resolver, skipId: true);
+                    int newId = _ops.Add(handler, fields);
+                    return newId >= 0 ? "*" + ((uint)newId).ToString("X") : null;
+                }
             }
             catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
-            finally { _cmdLock.Release(); }
         }
 
         /// <inheritdoc/>
@@ -452,15 +511,15 @@ namespace tik4net.WinboxNative
             string verb = TikPath.Verb(descriptor.CommandText);
             string apiPath = TikPath.Parent(descriptor.CommandText);
 
-            // Serialise the request/reply channel against concurrent CRUD / monitor polls (see RunPrint).
-            _cmdLock.Wait();
             try
             {
-                var (handler, resolver) = ResolveHandlerAndFields(apiPath);
-                RunVerb(verb, apiPath, handler, resolver, descriptor);
+                using (EnterCommand())   // see RunPrint
+                {
+                    var (handler, resolver) = ResolveHandlerAndFields(apiPath);
+                    RunVerb(verb, apiPath, handler, resolver, descriptor);
+                }
             }
             catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
-            finally { _cmdLock.Release(); }
         }
 
         private void RunVerb(string verb, string apiPath, int[] handler, WinboxFieldResolver resolver,
@@ -637,11 +696,9 @@ namespace tik4net.WinboxNative
         /// <inheritdoc/>
         IList<TikRecordSentence> IPollingMonitorHost.PollSnapshot(TikCommandDescriptor printDescriptor)
         {
-            // Serialise the M2 channel against concurrent CRUD / monitor polls (see RunPrint). The engine
-            // owns no lock, so the snapshot acquires it here and calls the unlocked core.
-            _cmdLock.Wait();
-            try { return RunPrintCore(printDescriptor); }
-            finally { _cmdLock.Release(); }
+            // The engine owns no gate, so the snapshot enters it here and calls the ungated core (see RunPrint).
+            using (EnterCommand())
+                return RunPrintCore(printDescriptor);
         }
 
         /// <inheritdoc/>
@@ -662,8 +719,7 @@ namespace tik4net.WinboxNative
             bool started = false;
             try
             {
-                _cmdLock.Wait();
-                try
+                using (EnterCommand())
                 {
                     // Encode the caller's NameValue parameters as the monitor's request fields (interface, cpu, …).
                     // allowReadOnly: a window's input fields are often .jg-marked ro (display) yet are the
@@ -673,15 +729,15 @@ namespace tik4net.WinboxNative
                     id = _ops.StartMonitor(spec.Handler, spec.StartCmd, requestFields);
                     started = true;
                 }
-                finally { _cmdLock.Release(); }
 
                 while (!handle.CancelRequested)
                 {
                     bool done;
                     List<Dictionary<int, Tuple<string, object>>> records;
-                    _cmdLock.Wait();
-                    try { (records, done) = _ops.PollMonitor(spec.Handler, spec.PollCmd, id, spec.IsQuery); }
-                    finally { _cmdLock.Release(); }
+                    // On a multiplexed connection this poll no longer blocks CRUD calls on other threads —
+                    // the headline benefit of the change (design §2).
+                    using (EnterCommand())
+                        (records, done) = _ops.PollMonitor(spec.Handler, spec.PollCmd, id, spec.IsQuery);
 
                     foreach (var rec in records)
                         onRow?.Invoke(new TikRecordSentence(_codec.DecodeRecord(rec, keyToName, keyToField)));
@@ -705,9 +761,14 @@ namespace tik4net.WinboxNative
             {
                 if (started && IsOpened)
                 {
-                    try { _cmdLock.Wait(); _ops.CancelMonitor(spec.Handler, spec.CancelCmd, id); }
+                    // (The gate is entered inside the try: the previous shape released a semaphore it had
+                    // not necessarily acquired when the Wait itself threw during teardown.)
+                    try
+                    {
+                        using (EnterCommand())
+                            _ops.CancelMonitor(spec.Handler, spec.CancelCmd, id);
+                    }
                     catch { /* best-effort */ }
-                    finally { _cmdLock.Release(); }
                 }
                 onDone?.Invoke();
             }
