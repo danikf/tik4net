@@ -45,8 +45,11 @@ namespace tik4net.WinboxNative
         private protected virtual int DefaultPortValue => DefaultPort;
 
         /// <summary>
-        /// Login timeout in milliseconds — the maximum time to wait for authentication / first M2 reply.
-        /// Set before calling <see cref="Open(string, string, string)"/>.
+        /// Connect/login timeout in milliseconds — bounds the TCP connect handshake and then the
+        /// authentication exchange (default 15 000 ms). Kept separate from
+        /// <see cref="tik4net.Connection.TikCommandConnectionBase.ReceiveTimeout"/>, which is what the
+        /// established session uses for its reads, so an unreachable host fails fast without shortening
+        /// per-command reads. Set before calling <see cref="Open(string, string, string)"/>.
         /// </summary>
         public int ConnectTimeout { get; set; } = 15000;
 
@@ -168,7 +171,7 @@ namespace tik4net.WinboxNative
             var session = CreateChannel();
             try
             {
-                session.Open(host, port, user, password, ConnectTimeout);
+                session.Open(host, port, user, password, ConnectTimeout, ReceiveTimeout);
             }
             catch (TikConnectionLoginException)
             {

@@ -55,8 +55,7 @@ namespace tik4net.WinboxCli
         {
             return Task.Run(() =>
             {
-                int connectTimeout = Math.Max(_receiveTimeoutMs, _loginTimeoutMs);
-                _session.Open(host, port, user, pass, connectTimeout);
+                _session.Open(host, port, user, pass, _loginTimeoutMs, _receiveTimeoutMs);
 
                 // Open one mepty terminal and keep it for the whole connection. The password is supplied
                 // here (not via a Login:/Password: prompt) — auth already happened at the M2 layer, so the

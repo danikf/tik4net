@@ -33,7 +33,16 @@ namespace tik4net.Winbox
         /// Connects to the router and authenticates. <paramref name="port"/> is honoured by TCP
         /// transports and ignored by the MAC transport (which always uses UDP 20561).
         /// </summary>
-        void Open(string host, int port, string user, string password, int timeoutMs);
+        /// <param name="host">Router host (IP address).</param>
+        /// <param name="port">TCP port; ignored by the MAC transport.</param>
+        /// <param name="user">User name.</param>
+        /// <param name="password">Password.</param>
+        /// <param name="connectTimeoutMs">
+        /// Bounds connect + authentication only. Kept separate from <paramref name="ioTimeoutMs"/> so a
+        /// black-holed host fails fast without also shortening per-command reads.
+        /// </param>
+        /// <param name="ioTimeoutMs">Default socket receive/send timeout for the established session.</param>
+        void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs);
 
         /// <summary>Builds the next request-id system field (key 0xFF0006), advancing the counter.</summary>
         byte[] NextReqIdField();

@@ -19,12 +19,32 @@ namespace tik4net.Winbox
         public NetworkStream Stream => _ns;
         public TcpClient     Client  => _tcp;
 
-        public void Connect(string host, int port, int timeoutMs = 10000)
+        /// <summary>
+        /// Opens the TCP socket. <paramref name="connectTimeoutMs"/> bounds only the connect handshake;
+        /// <paramref name="ioTimeoutMs"/> becomes the socket's receive/send timeout (individual reads
+        /// override it temporarily via <see cref="SetReceiveTimeout"/>).
+        /// </summary>
+        public void Connect(string host, int port, int connectTimeoutMs = 10000, int ioTimeoutMs = 30000)
         {
             _tcp = new TcpClient();
-            _tcp.Connect(host, port);
-            _tcp.ReceiveTimeout = timeoutMs;
-            _tcp.SendTimeout    = timeoutMs;
+
+            // ConnectAsync with manual timeout so we work on netstandard2.0 (no CancellationToken overload there).
+            // NOTE: Task.Wait(timeout) throws AggregateException (not the original exception) when the
+            // task completes faulted within the timeout window (e.g. an immediate "connection refused") —
+            // unwrap it so callers see the same SocketException they would from a direct ConnectAsync await.
+            var connectTask = _tcp.ConnectAsync(host, port);
+            try
+            {
+                if (!connectTask.Wait(connectTimeoutMs))
+                    throw new SocketException((int)SocketError.TimedOut);
+            }
+            catch (AggregateException aex)
+            {
+                throw aex.InnerException ?? aex;
+            }
+
+            _tcp.ReceiveTimeout = ioTimeoutMs;
+            _tcp.SendTimeout    = ioTimeoutMs;
             _ns = _tcp.GetStream();
         }
 

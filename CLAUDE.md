@@ -106,10 +106,13 @@ nothing. When adding a transport, declare its flags explicitly.
 ### Two entry points, not yet unified
 
 `ConnectionFactory` (classic) and `TikConnectionSetup` (preferred) coexist, and
-`TikConnectionSetup`'s options are **not** honored by every transport — e.g.
-`AllowInvalidCertificate` is wired to REST but not API-SSL, and `ConnectTimeout` is honored by
-the MAC/WinBox transports but not API/REST/Telnet. Verify per transport rather than trusting the
-property name. (Tracked as F1/F2/F18 in the improvement plan.)
+`TikConnectionSetup`'s options are **not** honored by every transport — e.g. `ConnectTimeout` is
+honored by API, Telnet, MAC-Telnet and the WinBox transports, but **not** by REST (no clean way to
+bound just the connect phase on `netstandard2.0`'s `HttpClient` — see the P1.2 REST note in the
+improvement plan). Verify per transport rather than trusting the property name, and check *what*
+the value is applied to, not just that it is read: the WinBox TCP transports took it as far as the
+socket but spent it on `ReceiveTimeout`/`SendTimeout` while leaving the connect itself unbounded
+(fixed in P1.8). (Tracked as F2/F18 in the improvement plan.)
 
 ### High-risk areas
 

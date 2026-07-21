@@ -39,17 +39,14 @@ namespace tik4net.Winbox
 
         // ── Connect + authenticate ────────────────────────────────────────────
 
-        /// <summary>Connects to the router (TCP 8291) and authenticates (EC-SRP5, legacy MD5 fallback).</summary>
-        public void Open(string host, int port, string user, string password, int timeoutMs)
+        /// <inheritdoc/>
+        public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs)
         {
-            Connect(host, port, timeoutMs);
-            Authenticate(host, port, timeoutMs, user, password);
+            _transport.Connect(host, port, connectTimeoutMs, ioTimeoutMs);
+            Authenticate(host, port, connectTimeoutMs, ioTimeoutMs, user, pass: password);
         }
 
-        private void Connect(string host, int port, int timeoutMs)
-            => _transport.Connect(host, port, timeoutMs);
-
-        private void Authenticate(string host, int port, int timeoutMs, string user, string pass)
+        private void Authenticate(string host, int port, int connectTimeoutMs, int ioTimeoutMs, string user, string pass)
         {
             try
             {
@@ -61,7 +58,7 @@ namespace tik4net.Winbox
                 // Old RouterOS — reconnect and try legacy MD5 auth.
                 _transport.Dispose();
                 _reqId = 0;
-                _transport.Connect(host, port, timeoutMs);
+                _transport.Connect(host, port, connectTimeoutMs, ioTimeoutMs);
                 LegacyMd5Auth(user, pass);
                 _encrypted = false;
             }
@@ -147,6 +144,8 @@ namespace tik4net.Winbox
                 .Concat(new byte[] { (byte)parityA }).ToArray();
             SendHandshake(payload);
 
+            // Short probe window: a server without EC-SRP5 support simply stays silent here.
+            int ioTimeout = _transport.GetReceiveTimeout();
             _transport.SetReceiveTimeout(3000);
             byte respLen, respTag;
             try
@@ -159,7 +158,7 @@ namespace tik4net.Winbox
             {
                 throw new InvalidOperationException("EC-SRP5 not supported by server");
             }
-            _transport.SetReceiveTimeout(10000);
+            finally { _transport.SetReceiveTimeout(ioTimeout); }
 
             if (respTag != 0x06)
                 throw new InvalidOperationException(

@@ -46,21 +46,22 @@ namespace tik4net.Winbox
         public bool SupportsStaleDrain => false;
 
         /// <summary>
-        /// Connects over the MAC layer and authenticates (EC-SRP5). <paramref name="port"/> and
-        /// <paramref name="timeoutMs"/> are ignored — MAC always uses UDP 20561 and the base auth
-        /// uses its own receive deadlines.
+        /// Connects over the MAC layer and authenticates (EC-SRP5). <paramref name="port"/> is ignored
+        /// (MAC always uses UDP 20561), as is <paramref name="ioTimeoutMs"/> — UDP has no socket-level
+        /// receive timeout here, every read carries its own explicit deadline.
+        /// <paramref name="connectTimeoutMs"/> bounds each wait for a handshake frame.
         /// </summary>
-        public void Open(string host, int port, string user, string password, int timeoutMs)
+        public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs)
         {
             BaseConnect(host, ClientType);
             // MAC-WinBox carries the SAME WinBox EC-SRP5 handshake as TCP (length-prefixed [len][0x06]
             // frames), tunnelled inside MAC-layer DATA packets — NOT the MAC-Telnet control-packet auth.
-            MacAuthEcSrp5(user, password);
+            MacAuthEcSrp5(user, password, connectTimeoutMs);
         }
 
         // ── WinBox EC-SRP5 handshake over the MAC layer ───────────────────────
 
-        private void MacAuthEcSrp5(string user, string pass)
+        private void MacAuthEcSrp5(string user, string pass, int timeoutMs)
         {
             Send(PKT_SESSIONSTART, null);
             Thread.Sleep(80);
@@ -74,7 +75,7 @@ namespace tik4net.Winbox
             SendHandshakeFrame(payload);
 
             // Challenge frame: [len=49][0x06][32B xWB][1B parityB][16B salt] — same as WinBox TCP.
-            byte[] challenge = RecvHandshakeFrame(10000);
+            byte[] challenge = RecvHandshakeFrame(timeoutMs);
             if (challenge == null || challenge.Length != 49)
                 throw new InvalidOperationException(
                     $"MAC-WinBox: bad challenge ({(challenge == null ? "none" : challenge.Length + "B")})");
@@ -98,7 +99,7 @@ namespace tik4net.Winbox
             byte[] clientCc = EcSrp5.Sha256(j.Concat(zMont).ToArray());
             SendHandshakeFrame(clientCc);
 
-            byte[] serverCc = RecvHandshakeFrame(10000);
+            byte[] serverCc = RecvHandshakeFrame(timeoutMs);
             byte[] expectedCc = EcSrp5.Sha256(j.Concat(clientCc).Concat(zMont).ToArray());
             if (serverCc == null || !serverCc.SequenceEqual(expectedCc))
                 throw new UnauthorizedAccessException("Wrong username or password");
