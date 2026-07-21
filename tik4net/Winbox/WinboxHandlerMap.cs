@@ -117,6 +117,11 @@ namespace tik4net.Winbox
 
             // ── Netwatch (advtool.jg, menu 'Tools/Netwatch' → window 'Netwatch Host', handler [51,1]) ──
             ["/tool/netwatch"]               = "/tools/netwatch/netwatch-host",
+
+            // ── Wake on LAN (advtool.jg, menu 'Tools/WOL' → window 'Wake on LAN', handler [82]) ──
+            //    A standalone type:'doit' window: no records, one action (cmd 1) taking the MAC address and
+            //    an optional interface as fields. Invoked via ExecuteNonQuery, see RunActionWindow.
+            ["/tool/wol"]                    = "/tools/wol/wake-on-lan",
         };
 
         private IReadOnlyDictionary<string, int[]> _derivedPaths;

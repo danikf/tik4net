@@ -343,7 +343,8 @@ namespace tik4net.Winbox
         /// <paramref name="id"/> (omitted when negative). Returns the reply's top-level fields. Throws on a
         /// non-zero router status.
         /// </summary>
-        internal Dictionary<int, Tuple<string, object>> InvokeAction(int[] handler, int cmd, int id)
+        internal Dictionary<int, Tuple<string, object>> InvokeAction(int[] handler, int cmd, int id,
+            IList<byte[]> fields = null)
         {
             var head = new List<byte[]>
             {
@@ -352,6 +353,9 @@ namespace tik4net.Winbox
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, cmd),
             };
             if (id >= 0) head.Add(M2Message.SessionIdField(id));
+            // A standalone action window (e.g. Wake on LAN) carries its inputs as ordinary record fields on
+            // the action message itself — there is no record to attach them to.
+            if (fields != null) head.AddRange(fields);
             byte[] resp = SendReceive(M2Message.BuildM2(head.ToArray()));
             ThrowOnStatus(resp, "action", handler);
             return M2Message.ParseAllFields(resp);

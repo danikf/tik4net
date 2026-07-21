@@ -277,9 +277,16 @@ namespace tik4net.WinboxNative
         /// <inheritdoc/>
         public override void Close()
         {
-            // Multiplexer first: it fails every outstanding request with a clear reason instead of letting
+            // Mark closed BEFORE tearing anything down. A running monitor decides whether an exception is a
+            // real error or a clean shutdown by asking PollingMonitorEngine.Stopping → !IsOpen, and the
+            // multiplexer fails pending requests the instant it is disposed. Faulting first left a window
+            // where the monitor thread saw the failure while the connection still looked open and reported it
+            // as an error (intermittent PingLocalhostAsyncWithCloseWillNotFail).
+            SetClosed();
+
+            // Then the multiplexer: it fails every outstanding request with a clear reason instead of letting
             // callers block until their deadline on a socket that is about to vanish. Disposing the channel
-            // is then what unblocks the reader thread out of its indefinite read.
+            // is what unblocks the reader thread out of its indefinite read.
             _mux?.Dispose();
             _mux = null;
             _session?.Dispose();
@@ -287,7 +294,6 @@ namespace tik4net.WinboxNative
             _ops = null;
             _codec = null;
             _idResolver = null;
-            SetClosed();
         }
 
         // ── Native read overrides ───────────────────────────────────────────────
@@ -333,6 +339,15 @@ namespace tik4net.WinboxNative
                     $"new[]{{maj,min}}) for a raw handler, or use a WinboxCli connection."));
             }
             handler = PreferSingletonHealthHandler(apiPath, handler);
+
+            // A standalone action window (.jg doit/action with no record window behind the same handler,
+            // e.g. /tool/wol) is an operation, not a table — a getall on it is meaningless. Invoke it and
+            // return what the binary API returns for the same command: exactly one empty row. Verified live
+            // on RouterOS 7.21.4 — "/tool/wol =mac=…" answers "!re" (no words) then "!done", which is why the
+            // shipped ToolWol entity reads it with ExecuteSingleRow rather than ExecuteNonQuery.
+            if (_catalog.IsActionOnlyHandler(handler))
+                return RunActionWindow(apiPath, handler, descriptor);
+
             var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames);
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
@@ -466,6 +481,36 @@ namespace tik4net.WinboxNative
             catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
         }
 
+        /// <summary>
+        /// Invokes a standalone action window (<c>.jg</c> <c>doit</c>/<c>action</c> whose handler backs no
+        /// record window) with the caller's parameters as its input fields, and returns no rows — matching
+        /// what the API transport returns for the same command.
+        /// </summary>
+        /// <remarks>
+        /// <c>allowReadOnly</c> mirrors the monitor path: an action window's inputs are often <c>.jg</c>-marked
+        /// read-only (they are display widgets in the GUI) yet are exactly the values that must be sent —
+        /// Wake on LAN's MAC address is one.
+        /// </remarks>
+        private IList<TikRecordSentence> RunActionWindow(
+            string apiPath, int[] handler, TikCommandDescriptor descriptor)
+        {
+            int cmd = _catalog.GetSoleActionCmd(handler);
+            if (cmd < 0)
+                throw new NotSupportedException(
+                    $"WinBox native: '{apiPath}' maps to an action window with no single action to invoke. " +
+                    "Use a WinboxCli or Api connection.");
+
+            var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames);
+            var fields = EncodeNameValueFields(handler, descriptor, resolver,
+                skipId: true, allowReadOnly: true, includeFilters: true);
+
+            try { _ops.InvokeAction(handler, cmd, id: -1, fields: fields); }
+            catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
+
+            // One empty row — the API's answer shape for these commands (see the call site).
+            return new List<TikRecordSentence> { new TikRecordSentence(new Dictionary<string, string>()) };
+        }
+
         // Misuse of a read method (ExecuteList/ExecuteScalar/…) on an action command — guide to ExecuteNonQuery.
         private static NotSupportedException ActionVerbOnReadPath(string commandText)
             => new NotSupportedException(
@@ -508,6 +553,19 @@ namespace tik4net.WinboxNative
         internal override void RunNonQuery(TikCommandDescriptor descriptor)
         {
             EnsureNativeOpen();
+            // Try the whole command text as a standalone action window first (e.g. /tool/wol). Splitting it
+            // into parent+verb would resolve '/tool' and look for a 'wol' action there, which is not how
+            // these windows are addressed — the path IS the operation.
+            // (ExecuteNonQuery on such a path is legitimate too — the caller simply discards the row the read
+            // path would have produced.)
+            int[] actionHandler = _handlerMap.Resolve(ApiPathOf(descriptor.CommandText));
+            if (_catalog.IsActionOnlyHandler(actionHandler))
+            {
+                using (EnterCommand())
+                    RunActionWindow(ApiPathOf(descriptor.CommandText), actionHandler, descriptor);
+                return;
+            }
+
             string verb = TikPath.Verb(descriptor.CommandText);
             string apiPath = TikPath.Parent(descriptor.CommandText);
 
@@ -845,16 +903,34 @@ namespace tik4net.WinboxNative
         // to two entries (address + mask); a dynamic enum reference is resolved name→id via getall.
         private List<byte[]> EncodeNameValueFields(
             int[] handler, TikCommandDescriptor descriptor, WinboxFieldResolver resolver, bool skipId,
-            bool allowReadOnly = false)
+            bool allowReadOnly = false, bool includeFilters = false)
         {
             var fields = new List<byte[]>();
             foreach (var p in descriptor.Parameters)
             {
-                if (p.ParameterFormat == TikCommandParameterFormat.Filter) continue;
+                // Filters are query predicates and never inputs — except on an action window, where there is
+                // nothing to filter and every parameter is an argument. This matters because the read path
+                // rewrites Default-format parameters to Filter (TikGenericCommand.ResolveParamsForRead), so
+                // an action reached through ExecuteSingleRow would otherwise silently lose its arguments and
+                // the router would answer "required parameter … missing".
+                if (!includeFilters && p.ParameterFormat == TikCommandParameterFormat.Filter) continue;
                 if (p.Name.StartsWith(".") && p.Name != TikSpecialProperties.Id) continue; // .proplist/.tag/…
                 if (p.Name == TikSpecialProperties.Id) { if (skipId) continue; }
                 if (p.Name == "move-before" || p.Name == "destination") continue; // handled by move dest
-                fields.AddRange(resolver.EncodeField(p.Name, p.Value, _idResolver.ResolveReference, allowReadOnly));
+
+                // A bad field VALUE is what the router itself would trap on over the API, so surface it as a
+                // trap here too — the native transport catches it client-side only because it has to resolve
+                // references before sending. Consumers then handle one exception type across all transports.
+                try
+                {
+                    fields.AddRange(resolver.EncodeField(p.Name, p.Value, _idResolver.ResolveReference, allowReadOnly));
+                }
+                catch (WinboxFieldValueException ex)
+                {
+                    throw new TikCommandTrapException(
+                        new TikGenericCommand(this, descriptor.CommandText),
+                        new TikTrapSentenceResult(ex.Message));
+                }
             }
             return fields;
         }

@@ -40,6 +40,12 @@ namespace tik4net.Winbox
         // Handlers backed by a singleton window (type:'item') — read via get-singleton, not getall.
         private readonly HashSet<string> _singletonHandlers = new HashSet<string>(StringComparer.Ordinal);
 
+        // Handlers that appear behind an action window (type:'doit'/'action') and, separately, behind a
+        // record-listing window (map/query/item). A handler in the first set but NOT the second is a
+        // standalone action — invoking it is the only thing it can do, there are no records to read.
+        private readonly HashSet<string> _actionWindowHandlers = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> _recordWindowHandlers = new HashSet<string>(StringComparer.Ordinal);
+
         // Handlers whose window carries live/dynamic data (the .jg marks it with `autorefresh:<ms>`), e.g. the
         // firewall rule list with its bytes/packets counters. getall on these must OR the stats flag bit so the
         // router includes the runtime counter fields (matching what RouterOS `print` returns).
@@ -122,6 +128,36 @@ namespace tik4net.Winbox
         /// window — its sole record is read via get-singleton rather than getall.</summary>
         internal bool IsSingletonHandler(int[] handler) =>
             handler != null && _singletonHandlers.Contains(HandlerKey(handler));
+
+        /// <summary>
+        /// True when <paramref name="handler"/> is backed <b>only</b> by action windows
+        /// (<c>type:'doit'/'action'</c>) and by no record-listing window — e.g. Wake on LAN
+        /// (<c>advtool.jg</c>, handler <c>[82]</c>). Such a path is an operation to invoke, not a table to
+        /// read: a <c>getall</c> on it returns nothing useful.
+        /// </summary>
+        /// <remarks>
+        /// The exclusion matters. Handler <c>[20,125]</c> hosts both the 'SMS Message' <c>map</c> and the
+        /// 'Send SMS' <c>doit</c>; treating it as action-only would break reading SMS messages. So a handler
+        /// qualifies only when no record window anywhere in the catalog claims it.
+        /// </remarks>
+        internal bool IsActionOnlyHandler(int[] handler)
+        {
+            if (handler == null) return false;
+            string key = HandlerKey(handler);
+            return _actionWindowHandlers.Contains(key) && !_recordWindowHandlers.Contains(key);
+        }
+
+        /// <summary>
+        /// The single SYS_CMD for an <see cref="IsActionOnlyHandler"/> handler, or <c>-1</c> when the handler
+        /// exposes no action or more than one (ambiguous — the caller must name the verb instead).
+        /// </summary>
+        internal int GetSoleActionCmd(int[] handler)
+        {
+            var actions = GetHandlerActions(handler);
+            if (actions == null || actions.Count != 1) return -1;
+            foreach (var kv in actions) return kv.Value;
+            return -1;
+        }
 
         /// <summary>
         /// Finds a SINGLETON (<c>type:'item'</c>) window whose derived menu-label leaf contains
@@ -362,6 +398,10 @@ namespace tik4net.Winbox
                     if (apiPath != null && !_derivedPaths.ContainsKey(apiPath))
                         _derivedPaths[apiPath] = handlerInts;
                     if (ty == "item") _singletonHandlers.Add(HandlerKey(handlerInts));
+                    // Track record-listing vs action-only windows separately so a handler that has BOTH (e.g.
+                    // [20,125] = 'SMS Message' map + 'Send SMS' doit) is never mistaken for action-only.
+                    if (ty == "doit" || ty == "action") _actionWindowHandlers.Add(HandlerKey(handlerInts));
+                    else _recordWindowHandlers.Add(HandlerKey(handlerInts));
                     if (dict.ContainsKey("autorefresh")) _dynamicHandlers.Add(HandlerKey(handlerInts));
                     HarvestMonitor(handlerInts, ty, dict);
 

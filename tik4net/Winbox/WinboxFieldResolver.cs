@@ -103,6 +103,12 @@ namespace tik4net.Winbox
                     keyToApi: new Dictionary<int, string> { [0x1] = "host" },
                     keyUiType: new Dictionary<int, string> { [0x1] = "ipaddr" }),
 
+                // /tool/wol (ToolWol, standalone 'Wake on LAN' doit window): the API sends 'mac', WinBox labels
+                // the same field 'MAC Address'. 'interface' matches verbatim, so only the one alias is needed.
+                ["/tool/wol"] = new FieldAliasSet(
+                    apiToJg: Ci(("mac", "mac-address")),
+                    jgToApi: Ci(("mac-address", "mac"))),
+
                 // /interface: the .jg 'type' field is the numeric type id (key 0x10001), but RouterOS API exposes
                 // 'type' as the type *name* string — which the record also carries at key 0x1001E (e.g. "ether",
                 // "loopback"). Map the string key to 'type' and rename the numeric one so they don't collide.
@@ -266,6 +272,9 @@ namespace tik4net.Winbox
             apiName = CanonicalInputName(apiName);
             int key = ResolveKey(apiName);
             var result = new List<byte[]>();
+            // Set by the 'enm' case when a dropdown reference could not be resolved to a record; checked once
+            // the static enum map has also had its chance, just before the generic encoders.
+            bool unresolvedReference = false;
 
             // Look up the .jg field (wire type, ro, enum map, UI type). Seeds (.id/comment/name) have none —
             // they default to string, which is correct for comment/name. Use the aliased .jg label so a shipped
@@ -357,6 +366,13 @@ namespace tik4net.Winbox
                     {
                         int? id = resolveRef(jg.RefHandler, value);
                         if (id.HasValue) { result.Add(EncodeU32(key, (uint)id.Value)); return result; }
+
+                        // The name is not a record in the referenced table. It may still be a static enum
+                        // member ("none", "all", …), so try those below — but if nothing matches, the value
+                        // is simply wrong and must not be swallowed. Silently dropping it sends a request the
+                        // router happily accepts with the field missing, so a typo'd interface name looks
+                        // like success. Remember to fail at the end of this method instead.
+                        unresolvedReference = true;
                     }
                     break; // fall through to static-map / numeric handling below
                 }
@@ -402,6 +418,14 @@ namespace tik4net.Winbox
                         return result;
                     }
             }
+
+            // A dropdown reference (ftype 'enm' with a RefHandler) whose value named neither an existing
+            // record nor a static enum member. Every remaining encoder below would turn it into a plain
+            // string or a dropped field, and the router accepts such a request as if the field were simply
+            // not set — so a typo'd interface name would silently "succeed". Fail instead.
+            if (unresolvedReference)
+                throw new WinboxFieldValueException(
+                    $"input does not match any value of {apiName}");
 
             string wireType = jg?.WireType ?? SeedWireType(apiName);
 
@@ -628,5 +652,16 @@ namespace tik4net.Winbox
     {
         /// <summary>.ctor</summary>
         public WinboxFieldResolutionException(string message) : base(message) { }
+    }
+
+    /// <summary>
+    /// A field was mapped fine but the <b>value</b> is not valid for it — today: a dropdown reference naming
+    /// no existing record and no fixed enum member. Internal on purpose: the owning connection converts it
+    /// into a <c>TikCommandTrapException</c>, so consumers catch the same exception here as on the transports
+    /// where the router itself rejects the value. The message deliberately mirrors RouterOS's own wording.
+    /// </summary>
+    internal sealed class WinboxFieldValueException : Exception
+    {
+        internal WinboxFieldValueException(string message) : base(message) { }
     }
 }

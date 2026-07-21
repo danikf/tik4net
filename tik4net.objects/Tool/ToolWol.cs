@@ -25,7 +25,12 @@ namespace tik4net.Objects.Tool
             if (!string.IsNullOrEmpty(iface))
                 command.AddParameterAndValues("interface", iface);
 
-            var result = command.ExecuteSingleRow();
+            // "At most one row", because the transports genuinely disagree here (all verified live):
+            //   binary API  → "!re" with no words, then "!done"  ⇒ one empty row
+            //   CLI family  → the command prints nothing         ⇒ no rows
+            // ExecuteSingleRow() therefore fails on the CLI transports and ExecuteNonQuery() fails on the API
+            // ("Single response sentence expected" — it sees !re AND !done). OrDefault accepts both.
+            command.ExecuteSingleRowOrDefault();
         }
 
         /// <summary>
