@@ -94,7 +94,11 @@ namespace tik4net.Winbox
             internal const int Removed = 0xFE0013;
             /// <summary>MaxObjs — getall page-size hint. webfig <c>ufe0018</c>.</summary>
             internal const int MaxObjs = 0xFE0018;
-            /// <summary>Count — total object count reported alongside getall records. webfig <c>ufe0019</c>.</summary>
+            /// <summary>Count — total object count reported alongside getall records. webfig <c>ufe0019</c>:
+            /// both usages are <c>if(rep.ufe0019!=null)me.objCount=rep.ufe0019</c>, i.e. stored and never used
+            /// for flow control. Explicitly <b>not</b> a "more frames follow" marker — one request still maps
+            /// to exactly one reply frame, which is what makes id-based dispatch sound
+            /// (<c>_notes/connections/findings-winbox.md §12.7</c>).</summary>
             internal const int Count = 0xFE0019;
 
             /// <summary>
