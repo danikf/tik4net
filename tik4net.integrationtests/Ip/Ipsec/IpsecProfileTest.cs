@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Ip.Ipsec;
@@ -26,7 +26,7 @@ namespace tik4net.integrationtests
             {
                 Name = marker,
             };
-            Connection.Save(profile);
+            SaveTracked(profile);
 
             var loaded = Connection.LoadById<IpsecProfile>(profile.Id);
             Assert.IsNotNull(loaded);

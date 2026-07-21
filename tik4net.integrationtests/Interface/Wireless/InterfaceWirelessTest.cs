@@ -23,7 +23,7 @@ namespace tik4net.integrationtests
             {
                 Interface = "all",
             };
-            Connection.Save(tmpAccessList);
+            SaveTracked(tmpAccessList);
 
             try
             {

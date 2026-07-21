@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Interface.Tunnel;
@@ -28,7 +28,7 @@ namespace tik4net.integrationtests
                 TunnelId = 42,
                 Comment = marker,
             };
-            Connection.Save(eoip);
+            SaveTracked(eoip);
 
             var loaded = Connection.LoadById<InterfaceEoip>(eoip.Id);
             Assert.IsNotNull(loaded);

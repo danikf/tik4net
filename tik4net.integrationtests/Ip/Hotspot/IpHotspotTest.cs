@@ -40,7 +40,7 @@ namespace tik4net.integrationtests
                 Password = "secretpass",
             };
 
-            Connection.Save(user);
+            SaveTracked(user);
 
             //Cleanup
             Connection.Delete(user);
@@ -56,11 +56,11 @@ namespace tik4net.integrationtests
                 LimitUptime = "1:00:00",
                 Password = "secretpass",
             };
-            Connection.Save(user);
+            SaveTracked(user);
 
             //Update
             user.Disabled = true;
-            Connection.Save(user);
+            SaveTracked(user);
 
             //Cleanup
             Connection.Delete(user);
@@ -81,7 +81,7 @@ namespace tik4net.integrationtests
             {
                 Name = profileName,
             };
-            Connection.Save(profile);
+            SaveTracked(profile);
 
             var user = new HotspotUser()
             {
@@ -89,7 +89,7 @@ namespace tik4net.integrationtests
                 Profile = profileName,
                 LimitUptime = "1:00:00",
             };
-            Connection.Save(user);
+            SaveTracked(user);
 
             //cleanup
             Connection.Delete(user);
@@ -126,7 +126,7 @@ namespace tik4net.integrationtests
             {
                 Address = ADDRESS,
             };
-            Connection.Save(binding);
+            SaveTracked(binding);
             try
             {
                 var loadedBinding = Connection.LoadAll<HotspotIpBinding>().SingleOrDefault(ib => ib.Address == ADDRESS);
@@ -156,7 +156,7 @@ namespace tik4net.integrationtests
             {
                 Address = ADDRESS,
             };
-            Connection.Save(binding);
+            SaveTracked(binding);
             try
             {
                 var loadedBinding = Connection.LoadAll<HotspotIpBinding>().SingleOrDefault(ib => ib.Address == ADDRESS);

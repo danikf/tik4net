@@ -33,7 +33,7 @@ namespace tik4net.integrationtests
                 Comment = name,
                 Action = BridgeFilter.ActionType.Accept,
             };
-            Connection.Save(filter);
+            SaveTracked(filter);
 
             var loadedFilter = Connection.LoadById<BridgeFilter>(filter.Id);
 
@@ -55,7 +55,7 @@ namespace tik4net.integrationtests
                 Comment = name,
                 Action = BridgeNat.ActionType.Accept,
             };
-            Connection.Save(nat);
+            SaveTracked(nat);
 
             var loadedNat = Connection.LoadById<BridgeNat>(nat.Id);
 

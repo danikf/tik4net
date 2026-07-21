@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Queue;
@@ -29,7 +29,7 @@ namespace tik4net.integrationtests
                 Interface = "ether1",
                 AllowAddress = "192.0.2.0/24",
             };
-            Connection.Save(entry);
+            SaveTracked(entry);
 
             var loaded = Connection.LoadById<GraphingInterface>(entry.Id);
             Assert.IsNotNull(loaded);
@@ -57,7 +57,7 @@ namespace tik4net.integrationtests
             {
                 AllowAddress = "192.0.2.0/24",
             };
-            Connection.Save(entry);
+            SaveTracked(entry);
 
             var loaded = Connection.LoadById<GraphingResource>(entry.Id);
             Assert.IsNotNull(loaded);
@@ -83,7 +83,7 @@ namespace tik4net.integrationtests
             EnsureCommandAvailable("/queue/simple");
             // Router validates simple-queue existence → create a throwaway queue first.
             var sq = new QueueSimple { Name = "tik4net-gq-test", Target = "192.0.2.1/32" };
-            Connection.Save(sq);
+            SaveTracked(sq);
             try
             {
                 var entry = new GraphingQueue
@@ -91,7 +91,7 @@ namespace tik4net.integrationtests
                     SimpleQueue = sq.Name,
                     AllowAddress = "192.0.2.0/24",
                 };
-                Connection.Save(entry);
+                SaveTracked(entry);
 
                 var loaded = Connection.LoadById<GraphingQueue>(entry.Id);
                 Assert.IsNotNull(loaded);

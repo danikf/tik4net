@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Tool;
@@ -30,7 +30,7 @@ namespace tik4net.integrationtests
                 Host = "192.0.2.1",
                 Comment = marker,
             };
-            Connection.Save(entry);
+            SaveTracked(entry);
 
             var loaded = Connection.LoadById<ToolNetwatch>(entry.Id);
             Assert.IsNotNull(loaded);

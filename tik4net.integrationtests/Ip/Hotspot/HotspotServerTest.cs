@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Ip.Hotspot;
@@ -39,7 +39,7 @@ namespace tik4net.integrationtests
             {
                 Name = "TEST_" + marker,
             };
-            Connection.Save(profile);
+            SaveTracked(profile);
 
             var loaded = Connection.LoadById<HotspotServerProfile>(profile.Id);
             Assert.IsNotNull(loaded);
@@ -71,7 +71,7 @@ namespace tik4net.integrationtests
                 Action = WalledGardenAction.Allow,
                 Comment = marker,
             };
-            Connection.Save(rule);
+            SaveTracked(rule);
 
             var loaded = Connection.LoadById<HotspotWalledGarden>(rule.Id);
             Assert.IsNotNull(loaded);
@@ -105,7 +105,7 @@ namespace tik4net.integrationtests
                 Action = WalledGardenIpAction.Accept,
                 Comment = marker,
             };
-            Connection.Save(rule);
+            SaveTracked(rule);
 
             var loaded = Connection.LoadById<HotspotWalledGardenIp>(rule.Id);
             Assert.IsNotNull(loaded);

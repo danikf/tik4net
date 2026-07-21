@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.System;
@@ -30,7 +30,7 @@ namespace tik4net.integrationtests
                 Interval = "00:05:00",
                 Comment = marker,
             };
-            Connection.Save(entity);
+            SaveTracked(entity);
 
             var loaded = Connection.LoadById<SystemScheduler>(entity.Id);
             Assert.IsNotNull(loaded);

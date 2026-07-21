@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Routing.Ospf;
@@ -26,7 +26,7 @@ namespace tik4net.integrationtests
             {
                 Name = marker,
             };
-            Connection.Save(instance);
+            SaveTracked(instance);
 
             var loaded = Connection.LoadById<OspfInstance>(instance.Id);
             Assert.IsNotNull(loaded);

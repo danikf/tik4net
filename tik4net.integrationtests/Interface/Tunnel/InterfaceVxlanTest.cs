@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Interface.Tunnel;
@@ -27,7 +27,7 @@ namespace tik4net.integrationtests
                 Vni = 100,
                 Comment = marker,
             };
-            Connection.Save(vxlan);
+            SaveTracked(vxlan);
 
             var loaded = Connection.LoadById<InterfaceVxlan>(vxlan.Id);
             Assert.IsNotNull(loaded);

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Interface;
@@ -28,7 +28,7 @@ namespace tik4net.integrationtests
                 Vrid = 99,
                 Comment = marker,
             };
-            Connection.Save(vrrp);
+            SaveTracked(vrrp);
 
             var loaded = Connection.LoadById<InterfaceVrrp>(vrrp.Id);
             Assert.IsNotNull(loaded);

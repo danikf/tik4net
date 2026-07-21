@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using tik4net.Objects;   // Save/Delete O/R mapper extensions used by SaveTracked
 
 namespace tik4net.integrationtests
 {
@@ -64,11 +65,58 @@ namespace tik4net.integrationtests
             // dummy
         }
 
+        // Entities created by the running test, newest first. Drained in Cleanup so a failed assert cannot
+        // leave objects behind on the router.
+        private readonly Stack<Action> _createdEntities = new Stack<Action>();
+
+        /// <summary>
+        /// Saves <paramref name="entity"/> and registers it for guaranteed deletion when the test ends,
+        /// whether it passes, fails or throws.
+        /// </summary>
+        /// <remarks>
+        /// <para>Use this instead of a bare <c>Connection.Save(...)</c> for anything the test creates. The
+        /// natural shape — save, assert, delete — silently leaks on the <i>failure</i> path, which is exactly
+        /// when someone is looking at the router. Those leftovers are not just clutter: orphaned
+        /// <c>/interface/list/member</c> rows whose parent list had been deleted made later runs of
+        /// <c>AddInterfaceListMemberWillNotFail</c> fail against unrelated records, which reads as a
+        /// transport bug.</para>
+        /// <para>Deletion is last-in-first-out so children go before their parents (a member before its
+        /// list), and failures are swallowed — the test's own outcome must not be masked by teardown, and a
+        /// test that already deleted the entity itself is the normal case, not an error.</para>
+        /// </remarks>
+        protected T SaveTracked<T>(T entity) where T : new()
+        {
+            Connection.Save(entity);
+            _createdEntities.Push(() => Connection.Delete(entity));
+            return entity;
+        }
+
+        /// <summary>
+        /// Registers an already-created <paramref name="entity"/> for guaranteed deletion, for the cases
+        /// where the entity is not created through <see cref="SaveTracked{T}"/>.
+        /// </summary>
+        protected T TrackForCleanup<T>(T entity) where T : new()
+        {
+            _createdEntities.Push(() => Connection.Delete(entity));
+            return entity;
+        }
+
+        private void DeleteTrackedEntities()
+        {
+            while (_createdEntities.Count > 0)
+            {
+                var delete = _createdEntities.Pop();
+                try { delete(); }
+                catch { /* already deleted by the test, or the connection is gone — never mask the outcome */ }
+            }
+        }
+
         [TestCleanup]
         public void Cleanup()
         {
             try
             {
+                DeleteTrackedEntities();
                 OnCleanup();
             }
             finally

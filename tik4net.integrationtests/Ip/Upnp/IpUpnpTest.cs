@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Ip.Upnp;
@@ -39,7 +39,7 @@ namespace tik4net.integrationtests
                 Interface = "ether1",
                 Type = UpnpInterfaceType.External,
             };
-            Connection.Save(entry);
+            SaveTracked(entry);
 
             var loaded = Connection.LoadById<IpUpnpInterface>(entry.Id);
             Assert.IsNotNull(loaded);

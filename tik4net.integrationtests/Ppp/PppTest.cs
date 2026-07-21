@@ -31,7 +31,7 @@ namespace tik4net.integrationtests
             {
                 Name = "Test",
             };
-            Connection.Save(newSecret);
+            SaveTracked(newSecret);
             Connection.Delete(newSecret);
             var after = Connection.LoadAll<PppSecret>();
             Assert.AreEqual(before.Count(), after.Count());
@@ -52,7 +52,7 @@ namespace tik4net.integrationtests
 
             var before = Connection.LoadAll<PppProfile>();
             var newProfile = new PppProfile() { Name = "Test" };
-            Connection.Save(newProfile);
+            SaveTracked(newProfile);
             try
             {
                 Connection.Delete(newProfile);

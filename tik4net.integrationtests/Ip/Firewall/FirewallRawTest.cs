@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Ip.Firewall;
@@ -27,7 +27,7 @@ namespace tik4net.integrationtests
                 Action = FirewallRaw.ActionType.Accept,
                 Comment = marker,
             };
-            Connection.Save(entity);
+            SaveTracked(entity);
 
             var loaded = Connection.LoadById<FirewallRaw>(entity.Id);
             Assert.IsNotNull(loaded);

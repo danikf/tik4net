@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Routing.Ospf;
@@ -27,7 +27,7 @@ namespace tik4net.integrationtests
             {
                 Name = instName,
             };
-            Connection.Save(instance);
+            SaveTracked(instance);
 
             string areaName = "t4n" + Guid.NewGuid().ToString("N").Substring(0, 12);
             var area = new OspfArea
@@ -36,7 +36,7 @@ namespace tik4net.integrationtests
                 Instance = instName,
                 AreaId = "10.0.0.1",
             };
-            Connection.Save(area);
+            SaveTracked(area);
 
             var template = new OspfInterfaceTemplate
             {
@@ -46,7 +46,7 @@ namespace tik4net.integrationtests
 
             try
             {
-                Connection.Save(template);
+                SaveTracked(template);
 
                 var loaded = Connection.LoadById<OspfInterfaceTemplate>(template.Id);
                 Assert.IsNotNull(loaded);

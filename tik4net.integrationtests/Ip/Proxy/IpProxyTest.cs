@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Ip.Proxy;
@@ -41,7 +41,7 @@ namespace tik4net.integrationtests
                 DstHost = "blocked.example.com",
                 Comment = marker,
             };
-            Connection.Save(rule);
+            SaveTracked(rule);
 
             var loaded = Connection.LoadById<IpProxyAccess>(rule.Id);
             Assert.IsNotNull(loaded);

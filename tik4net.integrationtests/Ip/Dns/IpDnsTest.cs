@@ -42,7 +42,7 @@ namespace tik4net.integrationtests
                 Name = Guid.NewGuid().ToString(),
 
             };
-            Connection.Save(dnsItem);
+            SaveTracked(dnsItem);
 
             //Load all
             var items = Connection.LoadAll<DnsStatic>();
@@ -70,7 +70,7 @@ namespace tik4net.integrationtests
                 Address = "1.1.1.1",
                 Regexp = "*.local",
             };
-            Connection.Save(dnsItem);
+            SaveTracked(dnsItem);
 
             try
             {

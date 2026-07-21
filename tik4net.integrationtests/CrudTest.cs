@@ -29,7 +29,7 @@ namespace tik4net.integrationtests
                 Address = ip,
                 Interface = iface
             };
-            Connection.Save(address);
+            SaveTracked(address);
 
             return address.Id;
         }
@@ -101,7 +101,7 @@ namespace tik4net.integrationtests
                     Interface = INTERFACE
                 };
 
-                Connection.Save(address);
+                SaveTracked(address);
 
                 Assert.IsNotNull(address.Id);
                 Assert.AreNotEqual(string.Empty, address.Id);

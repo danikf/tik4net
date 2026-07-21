@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Certificate;
@@ -28,7 +28,7 @@ namespace tik4net.integrationtests
                 KeySize = Certificate.KeySizeType.Rsa2048,
                 DaysValid = 365,
             };
-            Connection.Save(cert);
+            SaveTracked(cert);
 
             var loaded = Connection.LoadById<Certificate>(cert.Id);
             Assert.IsNotNull(loaded);

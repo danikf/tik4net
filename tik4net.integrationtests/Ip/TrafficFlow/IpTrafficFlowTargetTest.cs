@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Ip.TrafficFlow;
@@ -26,7 +26,7 @@ namespace tik4net.integrationtests
                 Port = 2055,
                 Version = IpTrafficFlowTarget.NetFlowVersion.V5,
             };
-            Connection.Save(target);
+            SaveTracked(target);
 
             var loaded = Connection.LoadById<IpTrafficFlowTarget>(target.Id);
             Assert.IsNotNull(loaded);

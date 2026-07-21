@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Tool.Romon;
@@ -36,7 +36,7 @@ namespace tik4net.integrationtests
                 Forbid = false,
                 Comment = marker,
             };
-            Connection.Save(entry);
+            SaveTracked(entry);
 
             var loaded = Connection.LoadById<ToolRomonPort>(entry.Id);
             Assert.IsNotNull(loaded);

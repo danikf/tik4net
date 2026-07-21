@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Routing;
@@ -27,7 +27,7 @@ namespace tik4net.integrationtests
                 Name = marker,
                 Fib = true,
             };
-            Connection.Save(table);
+            SaveTracked(table);
 
             var loaded = Connection.LoadById<RoutingTable>(table.Id);
             Assert.IsNotNull(loaded);

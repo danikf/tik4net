@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Ip.Ipsec;
@@ -32,7 +32,7 @@ namespace tik4net.integrationtests
                 Address = "192.0.2.50",
                 Comment = peerName,
             };
-            Connection.Save(peer);
+            SaveTracked(peer);
 
             IpsecIdentity identity = null;
             try
@@ -44,7 +44,7 @@ namespace tik4net.integrationtests
                     Secret     = "test123",
                     Comment    = marker,
                 };
-                Connection.Save(identity);
+                SaveTracked(identity);
 
                 var loaded = Connection.LoadById<IpsecIdentity>(identity.Id);
                 Assert.IsNotNull(loaded);

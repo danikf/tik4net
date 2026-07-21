@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -52,7 +52,7 @@ namespace tik4net.integrationtests
                 else
                 {
                     var tempBridge = new InterfaceBridge { Name = tempBridgeName };
-                    Connection.Save(tempBridge);
+                    SaveTracked(tempBridge);
                     createdTempBridge = true;
                     bridgeName = tempBridgeName;
                 }
@@ -63,7 +63,7 @@ namespace tik4net.integrationtests
                     VlanIds = "3999",
                     Comment = marker,
                 };
-                Connection.Save(vlan);
+                SaveTracked(vlan);
 
                 var loaded = Connection.LoadById<BridgeVlan>(vlan.Id);
                 Assert.IsNotNull(loaded);

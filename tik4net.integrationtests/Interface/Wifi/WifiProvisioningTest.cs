@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Interface.Wifi;
@@ -27,7 +27,7 @@ namespace tik4net.integrationtests
                 Action = WifiProvisioning.WifiProvisioningAction.None,
                 Comment = marker,
             };
-            Connection.Save(rule);
+            SaveTracked(rule);
 
             try
             {

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Ip.Ipsec;
@@ -31,7 +31,7 @@ namespace tik4net.integrationtests
                 Name = peerName,
                 Address = "192.0.2.1",
             };
-            Connection.Save(peer);
+            SaveTracked(peer);
 
             // Use RFC 5737 documentation subnets — safe test addresses that will not
             // overlap with real traffic on the test router.
@@ -50,7 +50,7 @@ namespace tik4net.integrationtests
 
             try
             {
-                Connection.Save(policy);
+                SaveTracked(policy);
 
                 var loaded = Connection.LoadById<IpsecPolicy>(policy.Id);
                 Assert.IsNotNull(loaded);

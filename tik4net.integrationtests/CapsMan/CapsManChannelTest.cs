@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.CapsMan;
@@ -26,7 +26,7 @@ namespace tik4net.integrationtests
                 Name = "tik4net-test-" + marker.Substring(0, 8),
                 Comment = marker,
             };
-            Connection.Save(entity);
+            SaveTracked(entity);
 
             try
             {

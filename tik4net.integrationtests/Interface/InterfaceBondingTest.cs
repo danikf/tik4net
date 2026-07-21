@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Interface;
@@ -27,7 +27,7 @@ namespace tik4net.integrationtests
                 Slaves = "ether1",
                 Comment = marker,
             };
-            Connection.Save(bonding);
+            SaveTracked(bonding);
 
             var loaded = Connection.LoadById<InterfaceBonding>(bonding.Id);
             Assert.IsNotNull(loaded);

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.System;
@@ -28,7 +28,7 @@ namespace tik4net.integrationtests
                 Name = marker,
                 Source = ":log info test",
             };
-            Connection.Save(entity);
+            SaveTracked(entity);
 
             var loaded = Connection.LoadById<SystemScript>(entity.Id);
             Assert.IsNotNull(loaded);

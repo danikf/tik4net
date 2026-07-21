@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
@@ -29,7 +29,7 @@ namespace tik4net.integrationtests
                 Name = "t4n-test-" + Guid.NewGuid().ToString("N").Substring(0, 8),
                 Comment = marker,
             };
-            Connection.Save(entity);
+            SaveTracked(entity);
 
             var loaded = Connection.LoadById<InterfaceList>(entity.Id);
             Assert.IsNotNull(loaded);
@@ -60,7 +60,7 @@ namespace tik4net.integrationtests
                 Name = "t4n-test-" + Guid.NewGuid().ToString("N").Substring(0, 8),
                 Comment = "tik4net member test",
             };
-            Connection.Save(parentList);
+            SaveTracked(parentList);
             try
             {
                 string interfaceName = Connection.LoadAll<tik4net.Objects.Interface.Interface>().First().Name;
@@ -71,7 +71,7 @@ namespace tik4net.integrationtests
                     Interface = interfaceName,
                     Comment = marker,
                 };
-                Connection.Save(member);
+                SaveTracked(member);
 
                 var loaded = Connection.LoadById<InterfaceListMember>(member.Id);
                 Assert.IsNotNull(loaded);

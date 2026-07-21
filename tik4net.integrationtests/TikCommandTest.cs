@@ -452,7 +452,7 @@ namespace tik4net.integrationtests
             // would be left behind (and could disrupt networking) — delete it before failing the test.
             try
             {
-                Connection.Save(newAddr);
+                SaveTracked(newAddr);
             }
             catch (TikAlreadyHaveSuchItemException)
             {

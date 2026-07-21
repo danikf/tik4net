@@ -49,7 +49,7 @@ namespace tik4net.integrationtests
                 SrcAddress = "1.1.1.1",
                 SrcPort = "22",
             };
-            Connection.Save(firewallItem);
+            SaveTracked(firewallItem);
 
             Connection.Delete(firewallItem);
         }
@@ -68,7 +68,7 @@ namespace tik4net.integrationtests
                 SrcAddress = "1.1.1.1",
                 SrcPort = "22",
             };
-            Connection.Save(firewallItem);
+            SaveTracked(firewallItem);
 
             Connection.Delete(firewallItem);
         }
@@ -90,7 +90,7 @@ namespace tik4net.integrationtests
                 Chain = "input",
                 Comment = "test-tcp",
             };
-            Connection.Save(firewallItem);
+            SaveTracked(firewallItem);
             var tmp = Connection.LoadById<FirewallFilter>(firewallItem.Id); //generate traffic
             System.Threading.Thread.Sleep(1000);
 
@@ -124,7 +124,7 @@ namespace tik4net.integrationtests
                 Comment = "test-flags-read",
                 ConnectionState = FirewallFilter.ConnectionStateType.Established | FirewallFilter.ConnectionStateType.Related,
             };
-            Connection.Save(filter);
+            SaveTracked(filter);
             try
             {
                 var loaded = Connection.LoadById<FirewallFilter>(filter.Id);
@@ -149,7 +149,7 @@ namespace tik4net.integrationtests
                 Comment = "test-flags-write",
                 ConnectionState = FirewallFilter.ConnectionStateType.New | FirewallFilter.ConnectionStateType.Invalid,
             };
-            Connection.Save(filter);
+            SaveTracked(filter);
             try
             {
                 var loaded = Connection.LoadById<FirewallFilter>(filter.Id);

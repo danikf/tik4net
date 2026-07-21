@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Routing.Filter;
@@ -27,7 +27,7 @@ namespace tik4net.integrationtests
                 Rule = "if (dst == 10.0.0.0/8) { accept }",
                 Comment = marker,
             };
-            Connection.Save(rule);
+            SaveTracked(rule);
 
             var loaded = Connection.LoadById<RoutingFilterRule>(rule.Id);
             Assert.IsNotNull(loaded);

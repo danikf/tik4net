@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.CapsMan;
@@ -25,7 +25,7 @@ namespace tik4net.integrationtests
             {
                 Comment = marker,
             };
-            Connection.Save(entity);
+            SaveTracked(entity);
             try
             {
                 var loaded = Connection.LoadById<CapsManProvisioning>(entity.Id);

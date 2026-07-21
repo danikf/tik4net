@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Snmp;
@@ -26,7 +26,7 @@ namespace tik4net.integrationtests
             {
                 Name = marker,
             };
-            Connection.Save(community);
+            SaveTracked(community);
 
             var loaded = Connection.LoadById<SnmpCommunity>(community.Id);
             Assert.IsNotNull(loaded);

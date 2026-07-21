@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Interface.Vpn;
@@ -34,7 +34,7 @@ namespace tik4net.integrationtests
                 Comment = marker,
             };
 
-            Connection.Save(client);
+            SaveTracked(client);
             try
             {
                 var loaded = Connection.LoadById<PptpClient>(client.Id);
