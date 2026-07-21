@@ -495,6 +495,37 @@ namespace tik4net.Winbox
             return 0;
         }
 
+        /// <summary>
+        /// Reads the request id (<c>0xFF0006</c>) from an M2 message, or <c>null</c> when the field is absent.
+        /// </summary>
+        /// <remarks>
+        /// RouterOS echoes the request id back on the response, which makes it the correlation key for
+        /// dispatching replies to concurrent in-flight requests (verified live — see
+        /// <c>_notes/connections/findings-winbox.md §12.1</c>). Note that <c>0xFF0003</c> is <b>not</b> a
+        /// correlation field despite looking like one in a single-exchange trace: it stays constant for the
+        /// whole session while this value tracks the request (§12.2).
+        /// </remarks>
+        internal static int? ParseSysReqId(byte[] m2)
+        {
+            if (m2 == null || m2.Length < 2) return null;
+            int pos = 2;
+            while (pos + 4 <= m2.Length)
+            {
+                int kl = m2[pos], kh = m2[pos+1], ns = m2[pos+2], type = m2[pos+3];
+                int fullKey = (ns << 16) | (kh << 8) | kl;
+                pos += 4;
+                if (fullKey == WinboxM2Protocol.SysKey.RequestId)
+                {
+                    // u8 in practice (NextReqIdField emits U8Sys); u32 accepted for symmetry with SESSION_ID.
+                    if (type == 0x09 && pos < m2.Length) return m2[pos];
+                    if (type == 0x08 && pos + 4 <= m2.Length) return (int)BitConverter.ToUInt32(m2, pos);
+                    return null;
+                }
+                pos += SkipTypeBytes(type, m2, pos);
+            }
+            return null;
+        }
+
         // Returns number of bytes to skip for a given TLV type byte (not counting the type byte itself).
         // The 0xA0 str_array case MUST be kept — RouterOS 7.21.4 sends it in mepty responses
         // (e.g. "msg-proxy-7.21.4"); without it the parser walks into the payload and misaligns.
