@@ -298,12 +298,21 @@ namespace tik4net.Cli
         /// <summary>
         /// Builds a non-query command (system reboot, etc.).  No where-clause, no id find.
         /// Parameters are appended as name=value pairs.
+        /// <para>
+        /// <paramref name="includeFilters"/> also emits Filter-format parameters as name=value. Needed
+        /// when an ACTION is reached through a read method (<c>/tool/wol</c> via
+        /// <c>ExecuteSingleRowOrDefault</c>): <c>TikGenericCommand.ResolveParamsForRead</c> rewrites
+        /// Default-format parameters to Filter, so the action's own inputs arrive here as filters.
+        /// A where-clause is meaningless for an action, so there is nothing to confuse them with.
+        /// Without this the inputs are silently dropped and RouterOS PROMPTS for the missing value
+        /// (<c>mac: </c>) — over a terminal that is an interactive hang, not an error.
+        /// </para>
         /// </summary>
-        internal static string BuildNonQuery(string apiPath, IList<ITikCommandParameter> parameters)
+        internal static string BuildNonQuery(string apiPath, IList<ITikCommandParameter> parameters, bool includeFilters = false)
         {
             string cliBase = ApiPathToCli(apiPath);
             var sb = new StringBuilder(cliBase);
-            AppendNameValueParams(sb, parameters);
+            AppendNameValueParams(sb, parameters, includeFilters: includeFilters);
             return sb.ToString();
         }
 
@@ -490,11 +499,12 @@ namespace tik4net.Cli
             return null;
         }
 
-        private static void AppendNameValueParams(StringBuilder sb, IList<ITikCommandParameter> parameters, bool skipId = false)
+        private static void AppendNameValueParams(StringBuilder sb, IList<ITikCommandParameter> parameters,
+            bool skipId = false, bool includeFilters = false)
         {
             foreach (var p in parameters)
             {
-                if (p.ParameterFormat == TikCommandParameterFormat.Filter)
+                if (p.ParameterFormat == TikCommandParameterFormat.Filter && !includeFilters)
                     continue;
                 if (skipId && p.Name == TikSpecialProperties.Id)
                     continue;

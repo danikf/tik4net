@@ -310,8 +310,29 @@ namespace tik4net.Cli
             // terminal (no per-record !re output, unlike the binary API) — they belong on the non-query
             // path. Reject them on the read path so the misuse is explicit instead of silently returning an
             // empty list (R7); invoke them via ExecuteNonQuery (RunNonQuery handles the 'run' verb).
-            if (IsActionVerb(TikPath.Verb(descriptor.CommandText)))
+            string printVerb = TikPath.Verb(descriptor.CommandText);
+            if (IsActionVerb(printVerb))
                 throw ActionVerbOnReadPath(descriptor.CommandText);
+
+            // Actions that the binary API answers with an empty '!re' row (verified live for /tool/wol:
+            // "!re" with no words, then "!done"). Consumers therefore legitimately reach them through a
+            // read method — ToolWol.ExecuteWol uses ExecuteSingleRowOrDefault — so throwing here would
+            // punish correct code. Route them to the non-query builder instead and return no rows;
+            // 'at most one row' is what the callers are written against. This is the opposite treatment
+            // from IsActionVerb ('run'), where a read call really is consumer error.
+            // Without this, BuildPrint silently DROPS the name=value inputs (mac= is not a print
+            // modifier) and appends 'as-value', yielding ':put [/tool wol as-value]' — the router then
+            // rejects it for a missing mac.
+            if (IsEmptyRowAction(printVerb))
+            {
+                // includeFilters: the read path rewrote the action's own inputs (mac=, interface=) to
+                // Filter format — see CliCommandBuilder.BuildNonQuery.
+                string actionText = CliCommandBuilder.BuildNonQuery(
+                    descriptor.CommandText, descriptor.Parameters, includeFilters: true);
+                string actionOutput = ExecuteCliCommand(actionText);
+                CliErrorParser.ThrowIfError(actionOutput, CreateDummyCommand(descriptor));
+                return new List<TikRecordSentence>();
+            }
 
             bool needStats = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliStats);
 
@@ -490,6 +511,10 @@ namespace tik4net.Cli
 
         // True for verbs that perform an action rather than read records (no result set over a terminal).
         private static bool IsActionVerb(string verb) => verb == "run";
+
+        // Actions reached through a read method because the binary API returns an empty row for them.
+        // Kept minimal and explicit (like CliCommandBuilder.CliPresenceFlagFields); extend as more surface.
+        private static bool IsEmptyRowAction(string verb) => verb == "wol";
 
         // Misuse of a read method (ExecuteList/ExecuteScalar/…) on an action command — guide to ExecuteNonQuery.
         private NotSupportedException ActionVerbOnReadPath(string commandText)

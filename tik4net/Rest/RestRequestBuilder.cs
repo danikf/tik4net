@@ -24,6 +24,8 @@ namespace tik4net.Rest
             "monitor", "start", "stop", "install", "upgrade",
             "take", "release", "unroll",   // /safe-mode/* actions
             "generate-key", "export-pub-key", "import",   // /ip/ipsec/key/rsa/* actions
+            "wol",   // /tool/wol — an action, not a table; without this it falls through to implicit
+                     // 'print' and POSTs /tool/wol/print, which RouterOS rejects with "no such command"
         };
 
         private static readonly HashSet<string> _readVerbs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -214,9 +216,16 @@ namespace tik4net.Rest
             return new RestRequest(new HttpMethod("PATCH"), restBase + "/" + id, body);
         }
 
+        /// <remarks>
+        /// includeFilters: an action POST has no query semantics in REST, so a Filter-format parameter
+        /// here can only be a read-path artifact — <c>TikGenericCommand.ResolveParamsForRead</c> rewrites
+        /// Default-format parameters to Filter, and actions that return a row (<c>/tool/wol</c>) are
+        /// legitimately invoked through a read method. Dropping them made RouterOS answer
+        /// "missing =mac=" for a call that did supply the mac.
+        /// </remarks>
         private static RestRequest BuildGenericPost(string url, IList<ITikCommandParameter> parameters)
         {
-            var body = BuildNameValueBody(parameters, exclude: null);
+            var body = BuildNameValueBody(parameters, exclude: null, includeFilters: true);
             string json = body.Count > 0 ? SerialiseBody(body) : null;
             return new RestRequest(HttpMethod.Post, url, json);
         }
@@ -267,13 +276,14 @@ namespace tik4net.Rest
         /// <summary>
         /// Builds the JSON body dict from NameValue parameters, excluding special ones.
         /// </summary>
-        private static Dictionary<string, string> BuildNameValueBody(IList<ITikCommandParameter> parameters, string exclude)
+        private static Dictionary<string, string> BuildNameValueBody(IList<ITikCommandParameter> parameters,
+            string exclude, bool includeFilters = false)
         {
             var body = new Dictionary<string, string>();
             foreach (var p in parameters)
             {
-                if (IsFilterParam(p))
-                    continue;  // filter params don't go in body
+                if (IsFilterParam(p) && !includeFilters)
+                    continue;  // filter params don't go in body (except on action POSTs — see BuildGenericPost)
 
                 string name = NormaliseParamName(p.Name);
 
