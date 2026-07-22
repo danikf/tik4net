@@ -80,6 +80,18 @@ When adding a test, ask first whether it actually needs a router; if it doesn't,
 Use the **`mikrotik-tests` skill** for running the suite, interpreting skips, and cleaning up
 orphaned router state.
 
+### Never just report a pre-existing failure
+
+"That test was already red" is not an outcome. Either fix it in the current change, or add it to
+`_notes/Reviews/ARCHITECTUREIMPROVEMENTPLAN.md` as an item scheduled immediately after the work in
+flight — with the diagnosis, not just the symptom. Reporting it and moving on is not an option.
+
+**Always consider orphaned router state first.** A test that fails on an unexpected `.id`, a name
+collision, or a stale count is usually reacting to residue left by an earlier run, not to a code
+defect. When that turns out to be the cause, the fix belongs in **the test that leaves the residue**
+(register the entity with `TestBase.SaveTracked`/`TrackForCleanup` so teardown removes it) — deleting
+the orphans by hand just resets the clock until the next run.
+
 For any non-trivial change, run the unit tests plus a reasonable integration check before calling
 it done: a full pass via `api.runsettings`, and a fast smoke subset (`ConnectionTest`,
 `SystemClockTest`, `InterfaceListTest`, `IpRouteTest`) via the other transport runsettings files.
@@ -95,6 +107,24 @@ update both the XML doc comments in the source and the corresponding page(s) in
 [tik4net.wiki](https://github.com/tik4net/tik4net/wiki) (cloned locally at
 `../tik4net.wiki`, see the "tik4net wiki location" note) in the same change — don't leave docs
 to a follow-up.
+
+### Assume feature parity across transports until proven otherwise
+
+A gap in one transport is a **bug in our client until the router proves otherwise**, not an accepted
+limitation. Default assumption: every transport can do everything. CLI and WinBox are outright
+interchangeable in function (differing only in delivery style — streaming vs. pooled and the like),
+and REST is expected to match them.
+
+So when a path works on one transport and not another, do NOT write it off as "that transport
+doesn't expose it" — probe the router directly (curl for REST, the `mikrotik-cli-probe` skill for
+CLI/PTY) and confirm what it actually accepts. `/tool/wol` is the cautionary tale: it was recorded
+as a probable REST gap, when in fact our builder was posting `/tool/wol/print` and had never asked
+for `/tool/wol` at all. An Inconclusive skip is only legitimate once the router itself has refused
+the correctly-formed request.
+
+Note the asymmetry with the rule below: fail-closed capability *flags* are about what we promise
+callers at runtime; this rule is about what we assume while diagnosing. Never use a capability flag
+to paper over an unproven gap.
 
 ### Capabilities are fail-closed
 
