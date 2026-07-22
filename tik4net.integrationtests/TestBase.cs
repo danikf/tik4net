@@ -86,9 +86,62 @@ namespace tik4net.integrationtests
         /// </remarks>
         protected T SaveTracked<T>(T entity) where T : new()
         {
+            // Registered BEFORE the Save, deliberately. On the CLI transports 'add' can answer without the
+            // new .id (mikrotik-tests skill, gotcha A) — Save then THROWS even though the row was created on
+            // the router. Registering afterwards leaves exactly those rows behind, and they are the worst
+            // kind: the next transport's run fails with 'already have interface with name test-eoip' against
+            // a record it never created, which reads as a transport bug. Verified live — one orphaned
+            // test-eoip made AddEoipWillNotFail fail on the binary API, where nothing is broken at all.
+            _createdEntities.Push(() => DeleteCreated(entity));
             Connection.Save(entity);
-            _createdEntities.Push(() => Connection.Delete(entity));
             return entity;
+        }
+
+        /// <summary>
+        /// Deletes an entity registered by <see cref="SaveTracked{T}"/>. Falls back to an identity sweep when
+        /// the entity has no <c>.id</c> — see <see cref="SaveTracked{T}"/> for why that case is real.
+        /// </summary>
+        private void DeleteCreated<T>(T entity) where T : new()
+        {
+            var metadata = TikEntityMetadataCache.GetMetadata<T>();
+
+            if (metadata.HasIdProperty
+                && !string.IsNullOrEmpty(metadata.IdProperty.GetEntityValue(entity)))
+            {
+                Connection.Delete(entity);
+                return;
+            }
+
+            // No .id — the Save failed before it learned one. The row may still exist, so find it by the
+            // identifying fields this test set (name/comment; the tests stamp a GUID comment precisely so a
+            // leftover is attributable) and remove it. Matching only on non-empty values keeps this from
+            // touching anything the test did not create.
+            foreach (var candidate in FindByIdentity<T>(entity, metadata))
+            {
+                try { Connection.Delete(candidate); }
+                catch { /* best effort — see DeleteTrackedEntities */ }
+            }
+        }
+
+        private IEnumerable<T> FindByIdentity<T>(T entity, TikEntityMetadata metadata) where T : new()
+        {
+            var identityFields = metadata.Properties
+                .Where(p => p.FieldName == "name" || p.FieldName == "comment")
+                .Select(p => new { p.FieldName, Value = p.GetEntityValue(entity) })
+                .Where(f => !string.IsNullOrEmpty(f.Value))
+                .ToList();
+
+            // Nothing distinguishing to match on — better to leak than to delete by guesswork.
+            if (identityFields.Count == 0)
+                return Enumerable.Empty<T>();
+
+            return Connection.LoadAll<T>()
+                .Where(candidate => identityFields.All(f =>
+                    string.Equals(
+                        metadata.Properties.First(p => p.FieldName == f.FieldName).GetEntityValue(candidate),
+                        f.Value,
+                        StringComparison.Ordinal)))
+                .ToList();
         }
 
         /// <summary>
