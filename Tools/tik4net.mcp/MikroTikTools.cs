@@ -41,7 +41,9 @@ public sealed class MikroTikTools
         "for the command exchange, or traceLevel='bytes' to additionally capture a byte/frame-level wire trace " +
         "(pre-ANSI-strip terminal bytes, mepty pull/settle decisions, M2 frame chunking, socket reads/writes) — " +
         "the layer a terminal/transport desync actually lives in. Use traceChannels to filter the byte trace to " +
-        "specific emit sites (e.g. ['wbxcli.mepty']). (includeRawTrace=true is a back-compat alias for traceLevel='words'.)")]
+        "specific emit sites (e.g. ['wbxcli.mepty']). (includeRawTrace=true is a back-compat alias for traceLevel='words'.) " +
+        "Set includeRouterLog=true to also append the router's own /log lines emitted during the command (captured over " +
+        "a separate API connection), giving the device-side view next to the wire trace.")]
     public string MikrotikCall(
         [Description("IP address or hostname of the MikroTik router")] string host,
         [Description("Username for authentication")] string username,
@@ -71,6 +73,16 @@ public sealed class MikroTikTools
                      "id is in this list are kept. Channels: 'wbxcli.mepty', 'wbxtcp.frame', 'telnet.sock', " +
                      "'mactelnet.udp', 'api.word'. Omit to keep all channels.")]
         string[]? traceChannels = null,
+        [Description("When true, also append the router's own /log lines that appeared DURING the command, as a " +
+                     "'--- ROUTER LOG ---' section — the device-side story next to the wire trace. Captured over a " +
+                     "SEPARATE binary-API connection (TCP 8728, never the transport under test), so it does not " +
+                     "perturb a CLI/terminal session being debugged. Note: log resolution is coarse and many actions " +
+                     "log nothing by default (a successful /tool/wol is silent; a bad MAC or an ipsec error is logged). " +
+                     "If the side API cannot be opened it degrades to '(router log unavailable)'. Default: false.")]
+        bool includeRouterLog = false,
+        [Description("Max number of router-log lines to keep (includeRouterLog only), guarding against a chatty " +
+                     "router flooding the window. Default 200.")]
+        int routerLogTail = 200,
         [Description("Execution path (case-insensitive): 'auto' (default) runs the low-level CallCommandSync, " +
                      "which dispatches by verb and is right for print/get and CRUD (add/set/remove/enable/disable/move). " +
                      "'nonquery' forces ExecuteNonQuery() — required for ACTION verbs that yield no result set " +
@@ -113,24 +125,47 @@ public sealed class MikroTikTools
         var trace = wantWords ? new List<string>() : null;
         var wireCollector = wantBytes ? new WireTraceCollector(traceChannels) : null;
 
+        // Anchor the router-log window BEFORE the command runs (over a separate API connection so it never
+        // perturbs the transport under test). Remember the newest log .id; the window is everything after it.
+        string? logAnchorId = includeRouterLog ? TryReadLogAnchorId(host, username, password) : null;
+        string? routerLog = null;
+        bool routerLogCaptured = false;
+
         string WithTrace(string body)
         {
-            if (trace is not { Count: > 0 } && wireCollector is not { Count: > 0 })
+            // Capture the log window exactly once, at the first exit after the command was attempted, so
+            // success and error paths both see the device-side lines emitted during the call.
+            if (includeRouterLog && !routerLogCaptured)
+            {
+                routerLogCaptured = true;
+                routerLog = TryReadRouterLogWindow(host, username, password, logAnchorId, routerLogTail);
+            }
+
+            bool hasWords = trace is { Count: > 0 };
+            bool hasBytes = wireCollector is { Count: > 0 };
+            bool hasLog = !string.IsNullOrEmpty(routerLog);
+            if (!hasWords && !hasBytes && !hasLog)
                 return body;
 
             var sb = new StringBuilder(body);
-            if (trace is { Count: > 0 })
+            if (hasWords)
             {
                 sb.AppendLine().AppendLine();
-                sb.AppendLine($"--- RAW TRACE ({transportType}, {trace.Count} rows) ---");
+                sb.AppendLine($"--- RAW TRACE ({transportType}, {trace!.Count} rows) ---");
                 foreach (var row in trace)
                     sb.AppendLine(row);
             }
-            if (wireCollector is { Count: > 0 })
+            if (hasBytes)
             {
                 sb.AppendLine().AppendLine();
-                sb.AppendLine($"--- WIRE TRACE (bytes) ({transportType}, {wireCollector.Count} events) ---");
+                sb.AppendLine($"--- WIRE TRACE (bytes) ({transportType}, {wireCollector!.Count} events) ---");
                 wireCollector.AppendTo(sb);
+            }
+            if (hasLog)
+            {
+                sb.AppendLine().AppendLine();
+                sb.AppendLine("--- ROUTER LOG ---");
+                sb.Append(routerLog);
             }
             return sb.ToString();
         }
@@ -319,6 +354,93 @@ public sealed class MikroTikTools
             TikConnectionType.WinboxNative => setup.CreateWinboxNativeConnection(),
             _ => throw new ArgumentOutOfRangeException(nameof(transportType), transportType, "Unsupported transport."),
         };
+    }
+
+    // ── Router-log correlation (includeRouterLog) ────────────────────────────────
+    // The window is captured over a dedicated binary-API connection (TCP 8728), deliberately NOT the
+    // transport under test: reading /log over a wedged mepty session would just hang, and injecting print
+    // commands into the very stream being traced would corrupt it (the P2.13 contamination lesson). The
+    // window is an .id-diff — the newest log .id before the command, everything after it — which is exact
+    // and independent of the router's log time format (which varies with /system/logging settings).
+
+    private static ITikConnection? TryOpenSideApi(string host, string username, string password)
+    {
+        try
+        {
+            var setup = new TikConnectionSetup(host, username, password);   // API default port (8728)
+            return setup.CreateApiConnection();
+        }
+        catch
+        {
+            return null;   // side channel is best-effort; caller degrades to "(router log unavailable)".
+        }
+    }
+
+    // Newest log .id before the command (log prints oldest-first, newest last). .proplist=.id keeps the
+    // read thin. Null when the log is empty or the side channel cannot be opened.
+    private static string? TryReadLogAnchorId(string host, string username, string password)
+    {
+        try
+        {
+            using var conn = TryOpenSideApi(host, username, password);
+            if (conn == null)
+                return null;
+
+            string? last = null;
+            foreach (var s in conn.CallCommandSync(new[] { "/log/print", "=.proplist=.id" }))
+                if (s is ITikReSentence re)
+                    last = re.GetResponseFieldOrDefault(".id", last);
+            return last;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    // Reads /log after the command and returns the lines added since anchorId, oldest-first, capped at
+    // tail. Falls back to the last `tail` lines when the anchor is null or has aged out of the ring buffer.
+    private static string TryReadRouterLogWindow(string host, string username, string password, string? anchorId, int tail)
+    {
+        if (tail < 1) tail = 1;
+        try
+        {
+            using var conn = TryOpenSideApi(host, username, password);
+            if (conn == null)
+                return "(router log unavailable: could not open side API connection)";
+
+            var rows = conn.CallCommandSync(new[] { "/log/print", "=.proplist=.id,time,topics,message" })
+                           .OfType<ITikReSentence>()
+                           .ToList();
+
+            int start = 0;
+            if (anchorId != null)
+            {
+                int idx = rows.FindIndex(r => r.GetResponseFieldOrDefault(".id", "") == anchorId);
+                start = idx >= 0 ? idx + 1 : Math.Max(0, rows.Count - tail);
+            }
+
+            var window = rows.Skip(start).ToList();
+            if (window.Count > tail)
+                window = window.Skip(window.Count - tail).ToList();
+
+            if (window.Count == 0)
+                return "(no router-log lines during the command)";
+
+            var sb = new StringBuilder();
+            foreach (var r in window)
+            {
+                string time = r.GetResponseFieldOrDefault("time", "");
+                string topics = r.GetResponseFieldOrDefault("topics", "");
+                string message = r.GetResponseFieldOrDefault("message", "");
+                sb.Append(time).Append("  ").Append(topics).Append("  ").AppendLine(message);
+            }
+            return sb.ToString();
+        }
+        catch (Exception ex)
+        {
+            return $"(router log unavailable: {ex.Message})";
+        }
     }
 
     private string FormatResponse(List<ITikSentence> sentences)

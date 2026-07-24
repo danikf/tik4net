@@ -46,6 +46,8 @@ Point the client at the installed command over stdio. For example, an `.mcp.json
 | `traceLevel`      | string   | `off` (default), `words` (raw words/CLI lines), or `bytes` (words **plus** a byte/frame-level wire trace: pre-ANSI terminal bytes, mepty `PULL`/prompt/settle notes, M2 frame chunks, socket I/O) |
 | `traceChannels`   | string[] | `bytes` only: keep just these channels (`wbxcli.mepty`, `wbxtcp.frame`, `telnet.sock`, `mactelnet.udp`, `api.word`); omit = all |
 | `includeRawTrace` | bool     | Back-compat alias for `traceLevel='words'` |
+| `includeRouterLog`| bool     | Also append the router's own `/log` lines emitted **during** the command, as a `--- ROUTER LOG ---` section — captured over a **separate** API connection (TCP 8728) so it never perturbs the transport under test |
+| `routerLogTail`   | int      | Max router-log lines to keep (`includeRouterLog` only), default `200` |
 | `executeMode`     | string   | `auto` (default) or `nonquery` (force `ExecuteNonQuery()` for action verbs like `/system/script/run`) |
 | `parameters`      | string[] | Extra API words — filter `?name=value`, name-value `=name=value` |
 
@@ -71,6 +73,11 @@ Listen/Streaming.
 { "host": "192.168.88.1", "username": "admin", "password": "",
   "command": "/interface/print", "parameters": ["detail"], "transport": "WinboxCli",
   "traceLevel": "bytes", "traceChannels": ["wbxcli.mepty"] }
+
+// wire trace + the router's own log lines for the same command (device-side view alongside ours)
+{ "host": "192.168.88.1", "username": "admin", "password": "",
+  "command": "/tool/wol", "parameters": ["=mac=00:11:22:33:44:55", "=interface=badiface"],
+  "transport": "Telnet", "traceLevel": "bytes", "includeRouterLog": true }
 ```
 
 ## The `mikrotik_cli_complete` tool
