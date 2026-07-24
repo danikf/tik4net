@@ -332,6 +332,9 @@ namespace tik4net.Telnet
             byte[] chunk = new byte[count];
             Array.Copy(buffer, 0, chunk, 0, count);
 
+            if (Diagnostics.TikWireTrace.Enabled)
+                Diagnostics.TikWireTrace.Emit("telnet.sock", Diagnostics.TikWireDir.Recv, chunk, 0, count);
+
             byte[] cleanData = TelnetNegotiator.FilterAndRespond(chunk, out byte[] iacReply);
             if (iacReply.Length > 0)
                 await SendBytesAsync(iacReply, ct).ConfigureAwait(false);
@@ -351,7 +354,12 @@ namespace tik4net.Telnet
         }
 
         private Task SendBytesAsync(byte[] bytes, CancellationToken ct)
-            => _stream.WriteAsync(bytes, 0, bytes.Length, ct);
+        {
+            if (Diagnostics.TikWireTrace.Enabled)
+                Diagnostics.TikWireTrace.Emit("telnet.sock", Diagnostics.TikWireDir.Send, bytes, 0, bytes.Length);
+
+            return _stream.WriteAsync(bytes, 0, bytes.Length, ct);
+        }
 
     }
 }

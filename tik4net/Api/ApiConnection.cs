@@ -454,6 +454,10 @@ namespace tik4net.Api
                         totalRead += n;
                     }
                     result = Encoding.GetString(buffer, 0, (int)wordLength);
+
+                    if (Diagnostics.TikWireTrace.Enabled)
+                        Diagnostics.TikWireTrace.Emit("api.word", Diagnostics.TikWireDir.Recv,
+                            buffer, 0, buffer.Length, "len=" + wordLength);
                 }
             } while (skipEmptyRow && string.IsNullOrWhiteSpace(result));
 
@@ -515,6 +519,10 @@ namespace tik4net.Api
 
                     _tcpConnectionStream.Write(length, 0, length.Length); //write length of comming sentence
                     _tcpConnectionStream.Write(bytes, 0, bytes.Length);   //write sentence body
+
+                    if (Diagnostics.TikWireTrace.Enabled)
+                        Diagnostics.TikWireTrace.Emit("api.word", Diagnostics.TikWireDir.Send,
+                            bytes, 0, bytes.Length, "len=" + bytes.Length);
 
                     if (OnWriteRow != null)
                         OnWriteRow(this, new TikConnectionCommCallbackEventArgs(row));

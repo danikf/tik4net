@@ -1,8 +1,10 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using tik4net.Cli;
+using tik4net.Diagnostics;
 
 namespace tik4net.mcp;
 
@@ -35,8 +37,11 @@ public sealed class MikroTikTools
         "(e.g. /system/script/run, /system/reboot): over command transports (Telnet/MacTelnet/WinboxCli/WinboxNative) " +
         "the default 'auto' path routes such verbs to the read/print path and throws NotSupportedException, " +
         "whereas 'nonquery' invokes ExecuteNonQuery() (fire-and-forget, dispatches the action/SYS_CMD). " +
-        "Set includeRawTrace=true to also get the raw words exchanged with the router (per-transport wire/CLI form) " +
-        "for the command exchange.")]
+        "Set traceLevel='words' to also get the raw words exchanged with the router (per-transport wire/CLI form) " +
+        "for the command exchange, or traceLevel='bytes' to additionally capture a byte/frame-level wire trace " +
+        "(pre-ANSI-strip terminal bytes, mepty pull/settle decisions, M2 frame chunking, socket reads/writes) — " +
+        "the layer a terminal/transport desync actually lives in. Use traceChannels to filter the byte trace to " +
+        "specific emit sites (e.g. ['wbxcli.mepty']). (includeRawTrace=true is a back-compat alias for traceLevel='words'.)")]
     public string MikrotikCall(
         [Description("IP address or hostname of the MikroTik router")] string host,
         [Description("Username for authentication")] string username,
@@ -53,9 +58,19 @@ public sealed class MikroTikTools
         [Description("Router MAC address 'AA:BB:CC:DD:EE:FF' — only for MacTelnet / WinboxCliMac. " +
                      "When omitted the router MAC is discovered via MNDP (up to 5 s).")]
         string? routerMac = null,
-        [Description("When true, also return the raw words exchanged with the router for the command " +
-                     "(useful for debugging the per-transport protocol). Default: false.")]
+        [Description("Back-compat alias for traceLevel='words': when true, also return the raw words exchanged " +
+                     "with the router for the command. Default: false. Prefer traceLevel.")]
         bool includeRawTrace = false,
+        [Description("Wire-trace verbosity (case-insensitive): 'off' (default, no trace), " +
+                     "'words' (the raw words/CLI lines exchanged — same as includeRawTrace=true), or " +
+                     "'bytes' (words PLUS a byte/frame-level trace: pre-ANSI terminal bytes, mepty PULL/prompt/" +
+                     "settle/timeout decisions, WinBox M2 frame chunks, telnet/mactelnet socket I/O, API word bytes). " +
+                     "Use 'bytes' to diagnose a transport-level hang or desync.")]
+        string traceLevel = "off",
+        [Description("Optional filter for the byte trace (traceLevel='bytes' only): only emit sites whose channel " +
+                     "id is in this list are kept. Channels: 'wbxcli.mepty', 'wbxtcp.frame', 'telnet.sock', " +
+                     "'mactelnet.udp', 'api.word'. Omit to keep all channels.")]
+        string[]? traceChannels = null,
         [Description("Execution path (case-insensitive): 'auto' (default) runs the low-level CallCommandSync, " +
                      "which dispatches by verb and is right for print/get and CRUD (add/set/remove/enable/disable/move). " +
                      "'nonquery' forces ExecuteNonQuery() — required for ACTION verbs that yield no result set " +
@@ -85,23 +100,47 @@ public sealed class MikroTikTools
                 return $"ERROR (argument): unknown executeMode '{executeMode}'. Use 'auto' or 'nonquery'.";
         }
 
-        var trace = includeRawTrace ? new List<string>() : null;
+        bool wantWords, wantBytes;
+        switch ((traceLevel ?? "off").Trim().ToLowerInvariant())
+        {
+            case "off": case "": wantWords = includeRawTrace; wantBytes = false; break;
+            case "words": wantWords = true;  wantBytes = false; break;
+            case "bytes": wantWords = true;  wantBytes = true;  break;
+            default:
+                return $"ERROR (argument): unknown traceLevel '{traceLevel}'. Use 'off', 'words' or 'bytes'.";
+        }
+
+        var trace = wantWords ? new List<string>() : null;
+        var wireCollector = wantBytes ? new WireTraceCollector(traceChannels) : null;
 
         string WithTrace(string body)
         {
-            if (trace is not { Count: > 0 })
+            if (trace is not { Count: > 0 } && wireCollector is not { Count: > 0 })
                 return body;
 
             var sb = new StringBuilder(body);
-            sb.AppendLine().AppendLine();
-            sb.AppendLine($"--- RAW TRACE ({transportType}, {trace.Count} rows) ---");
-            foreach (var row in trace)
-                sb.AppendLine(row);
+            if (trace is { Count: > 0 })
+            {
+                sb.AppendLine().AppendLine();
+                sb.AppendLine($"--- RAW TRACE ({transportType}, {trace.Count} rows) ---");
+                foreach (var row in trace)
+                    sb.AppendLine(row);
+            }
+            if (wireCollector is { Count: > 0 })
+            {
+                sb.AppendLine().AppendLine();
+                sb.AppendLine($"--- WIRE TRACE (bytes) ({transportType}, {wireCollector.Count} events) ---");
+                wireCollector.AppendTo(sb);
+            }
             return sb.ToString();
         }
 
         try
         {
+            // Install the byte-level sink around the WHOLE call (login handshake included) so a hang during
+            // connect is visible too. No-op when wantBytes is false. Process-wide sink — trace one call at a time.
+            using var wireCapture = wantBytes ? TikWireTrace.Capture(wireCollector!) : null;
+
             var setup = new TikConnectionSetup(host, username, password);
             if (port > 0)
                 setup.Port = port;
@@ -302,5 +341,52 @@ public sealed class MikroTikTools
             return "OK (no data returned)";
 
         return JsonSerializer.Serialize(records, new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    // Collects byte/frame-level wire events (traceLevel='bytes') installed via TikWireTrace.Capture. The
+    // core calls Emit on whatever thread does the I/O (for WinBox-native that is the multiplexer reader
+    // thread), so appends are locked. Timestamps are relative to the first event so cause/effect ordering
+    // is readable. Rendered as: [+  12ms] channel >>/<</-- escaped-bytes  (note).
+    private sealed class WireTraceCollector : ITikWireTraceSink
+    {
+        private readonly HashSet<string>? _channels;
+        private readonly Stopwatch _sw = Stopwatch.StartNew();
+        private readonly List<string> _lines = new();
+        private readonly object _gate = new();
+
+        internal WireTraceCollector(string[]? channels)
+        {
+            if (channels is { Length: > 0 })
+                _channels = new HashSet<string>(channels, StringComparer.OrdinalIgnoreCase);
+        }
+
+        internal int Count { get { lock (_gate) return _lines.Count; } }
+
+        public void Emit(string channel, TikWireDir dir, byte[] data, int offset, int count, string note)
+        {
+            if (_channels != null && !_channels.Contains(channel))
+                return;
+
+            string arrow = dir switch { TikWireDir.Send => ">>", TikWireDir.Recv => "<<", _ => "--" };
+            string body = TikWireTrace.Escape(data, offset, count);
+            var sb = new StringBuilder();
+            sb.Append('[').Append('+').Append(_sw.ElapsedMilliseconds.ToString().PadLeft(6)).Append("ms] ");
+            sb.Append(channel).Append(' ').Append(arrow);
+            if (body.Length > 0)
+                sb.Append(' ').Append(body);
+            if (!string.IsNullOrEmpty(note))
+                sb.Append("  (").Append(note).Append(')');
+
+            string line = sb.ToString();
+            lock (_gate)
+                _lines.Add(line);
+        }
+
+        internal void AppendTo(StringBuilder sb)
+        {
+            lock (_gate)
+                foreach (var line in _lines)
+                    sb.AppendLine(line);
+        }
     }
 }

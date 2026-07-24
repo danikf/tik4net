@@ -43,7 +43,10 @@ Point the client at the installed command over stdio. For example, an `.mcp.json
 | `transport`       | string   | Transport (default `Api`): `Api`, `ApiSsl`, `Rest`, `RestSsl`, `Telnet`, `MacTelnet`, `WinboxCli`, `WinboxCliMac`, `WinboxNative` |
 | `port`            | int      | TCP/UDP port; `0` = transport default |
 | `routerMac`       | string   | Router MAC — only `MacTelnet` / `WinboxCliMac` (else MNDP discovery) |
-| `includeRawTrace` | bool     | Also return the raw words exchanged for the command (protocol debugging) |
+| `traceLevel`      | string   | `off` (default), `words` (raw words/CLI lines), or `bytes` (words **plus** a byte/frame-level wire trace: pre-ANSI terminal bytes, mepty `PULL`/prompt/settle notes, M2 frame chunks, socket I/O) |
+| `traceChannels`   | string[] | `bytes` only: keep just these channels (`wbxcli.mepty`, `wbxtcp.frame`, `telnet.sock`, `mactelnet.udp`, `api.word`); omit = all |
+| `includeRawTrace` | bool     | Back-compat alias for `traceLevel='words'` |
+| `executeMode`     | string   | `auto` (default) or `nonquery` (force `ExecuteNonQuery()` for action verbs like `/system/script/run`) |
 | `parameters`      | string[] | Extra API words — filter `?name=value`, name-value `=name=value` |
 
 All transports accept the same `command` / `parameters` format. Only `Api` / `ApiSsl` support
@@ -60,9 +63,14 @@ Listen/Streaming.
 { "host": "192.168.88.1", "username": "admin", "password": "",
   "command": "/ip/firewall/filter/print", "parameters": ["?action=drop"] }
 
-// compare a transport against the API baseline, with raw trace
+// compare a transport against the API baseline, with raw word trace
 { "host": "192.168.88.1", "username": "admin", "password": "",
-  "command": "/ip/address/print", "transport": "WinboxNative", "includeRawTrace": true }
+  "command": "/ip/address/print", "transport": "WinboxNative", "traceLevel": "words" }
+
+// byte/frame-level wire trace of a WinBox CLI command (diagnose a terminal hang/desync)
+{ "host": "192.168.88.1", "username": "admin", "password": "",
+  "command": "/interface/print", "parameters": ["detail"], "transport": "WinboxCli",
+  "traceLevel": "bytes", "traceChannels": ["wbxcli.mepty"] }
 ```
 
 ## The `mikrotik_cli_complete` tool

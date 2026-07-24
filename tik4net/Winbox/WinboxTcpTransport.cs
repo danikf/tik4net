@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
+using tik4net.Diagnostics;
 
 namespace tik4net.Winbox
 {
@@ -53,6 +54,10 @@ namespace tik4net.Winbox
         // Encrypted path (tag 0x06 first chunk, 0xFF continuation)
         public void SendChunked(byte[] data, byte firstTag)
         {
+            if (TikWireTrace.Enabled)
+                TikWireTrace.Emit("wbxtcp.frame", TikWireDir.Send, data, 0, data.Length,
+                    "tag=0x" + firstTag.ToString("x2"));
+
             byte tag = firstTag;
             int pos = 0;
             while (true)
@@ -98,12 +103,21 @@ namespace tik4net.Winbox
                 assembled.AddRange(ReadExact(payloadLen));
                 if (chunkLen < 0xFF) break;
             }
-            return assembled.ToArray();
+            byte[] result = assembled.ToArray();
+
+            if (TikWireTrace.Enabled)
+                TikWireTrace.Emit("wbxtcp.frame", TikWireDir.Recv, result, 0, result.Length,
+                    "tag=0x" + expectedFirstTag.ToString("x2"));
+
+            return result;
         }
 
         // Unencrypted raw send (tag 0x01)
         public void SendRaw(byte[] m2)
         {
+            if (TikWireTrace.Enabled)
+                TikWireTrace.Emit("wbxtcp.frame", TikWireDir.Send, m2, 0, m2.Length, "tag=0x01 raw");
+
             byte[] frameBytes = BuildRawFrame(m2);
             _ns.Write(frameBytes, 0, frameBytes.Length);
         }

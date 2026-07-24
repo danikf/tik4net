@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using tik4net.Cli;
+using tik4net.Diagnostics;
 using tik4net.Winbox;
 
 namespace tik4net.WinboxCli
@@ -182,6 +183,9 @@ namespace tik4net.WinboxCli
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Mepty.Data),
                 M2Message.U32User(WinboxM2Protocol.Mepty.Key.Counter, _counter++));
             _session.Send(msg);
+
+            if (TikWireTrace.Enabled)
+                TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Send, "PULL counter=" + (_counter - 1));
         }
 
         private void SendInput(byte[] keystrokes)
@@ -193,6 +197,10 @@ namespace tik4net.WinboxCli
                 M2Message.RawUser(WinboxM2Protocol.Mepty.Key.Input, keystrokes),
                 M2Message.U32User(WinboxM2Protocol.Mepty.Key.Counter, _counter++));
             _session.Send(msg);
+
+            if (TikWireTrace.Enabled)
+                TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Send, keystrokes, 0, keystrokes.Length,
+                    "counter=" + (_counter - 1));
         }
 
         /// <summary>Receives one frame and returns the terminal payload (user key 2), or null.</summary>
@@ -200,7 +208,12 @@ namespace tik4net.WinboxCli
         {
             byte[] resp = _session.Receive(timeoutMs);
             if (resp == null) return null;
-            return M2Message.ParseUserBytes(resp, WinboxM2Protocol.Mepty.Key.Input);
+            byte[] payload = M2Message.ParseUserBytes(resp, WinboxM2Protocol.Mepty.Key.Input);
+
+            if (payload != null && TikWireTrace.Enabled)
+                TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Recv, payload, 0, payload.Length);
+
+            return payload;
         }
 
         // ── Synchronous terminal loops ────────────────────────────────────────
@@ -295,14 +308,25 @@ namespace tik4net.WinboxCli
                 string stripped = VtStripper.StripAnsi(sb.ToString());
                 if (RouterOsCliLogin.IsShellPrompt(stripped))
                 {
+                    if (!prompted && TikWireTrace.Enabled)
+                        TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note,
+                            "prompt seen @" + sw.ElapsedMilliseconds + "ms (bytes=" + sb.Length + ")");
                     prompted = true;
                     if (settleUntil == null)
                         settleUntil = DateTime.UtcNow.AddMilliseconds(SettleMs);
                     else if (DateTime.UtcNow >= settleUntil.Value)
+                    {
+                        if (TikWireTrace.Enabled)
+                            TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note,
+                                "settled -> return @" + sw.ElapsedMilliseconds + "ms");
                         return stripped;
+                    }
                 }
             }
 
+            if (TikWireTrace.Enabled)
+                TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note,
+                    "TIMEOUT @" + sw.ElapsedMilliseconds + "ms (prompted=" + prompted + ", bytes=" + sb.Length + ")");
             return VtStripper.StripAnsi(sb.ToString());
         }
 

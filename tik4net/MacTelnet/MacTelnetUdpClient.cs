@@ -322,6 +322,11 @@ namespace tik4net.MacTelnet
                       ((uint)pkt[20] <<  8) |  pkt[21];
             payload = pkt.Length > 22 ? new byte[pkt.Length - 22] : new byte[0];
             if (payload.Length > 0) Buffer.BlockCopy(pkt, 22, payload, 0, payload.Length);
+
+            if (Diagnostics.TikWireTrace.Enabled)
+                Diagnostics.TikWireTrace.Emit("mactelnet.udp", Diagnostics.TikWireDir.Recv,
+                    payload, 0, payload.Length, "type=0x" + type.ToString("x2") + " counter=" + counter);
+
             return true;
         }
     }

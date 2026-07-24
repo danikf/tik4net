@@ -263,6 +263,11 @@ namespace tik4net.MacTelnet
                 Buffer.BlockCopy(payload, 0, pkt, 22, payload.Length);
             var dst = (type == PKT_SESSIONSTART) ? _routerEp : _routerUnicastEp;
             _udp.Send(pkt, pkt.Length, dst);
+
+            if (Diagnostics.TikWireTrace.Enabled)
+                Diagnostics.TikWireTrace.Emit("mactelnet.udp", Diagnostics.TikWireDir.Send,
+                    payload, 0, payload?.Length ?? 0, "type=0x" + type.ToString("x2"));
+
             if (type == PKT_DATA && payload != null) _outCounter += (uint)payload.Length;
         }
 
