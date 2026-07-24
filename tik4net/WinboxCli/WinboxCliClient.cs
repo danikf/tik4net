@@ -163,6 +163,27 @@ namespace tik4net.WinboxCli
             _session.Send(msg);
         }
 
+        /// <summary>
+        /// Sends an empty mepty <c>Data</c> frame — a request to flush more terminal output without any
+        /// keystrokes. The mepty <c>Data</c> command doubles as "send input" and "pull output"
+        /// (<see cref="WinboxM2Protocol.Mepty.Data"/>): RouterOS answers a single <c>Data</c> with one batch
+        /// of pending output, so a response larger than that batch is only delivered if the client keeps
+        /// pulling. Without this, any command whose output exceeds one batch (verified live at a few hundred
+        /// bytes — e.g. <c>print detail as-value</c> over several records) hangs: RouterOS waits for the next
+        /// pull, the client waits for push that never comes, and the terminal wedges for the rest of the
+        /// session (subsequent commands stop even echoing). Same shape as <see cref="SendTerminalReady"/>
+        /// (Data, no Input key) but with the monotonic counter so it stays a distinct frame.
+        /// </summary>
+        private void SendPull()
+        {
+            byte[] msg = M2Message.BuildM2(
+                M2Message.SysToArr(WinboxM2Protocol.Mepty.Handler), M2Message.SysFrom(),
+                M2Message.SessionIdField(_sessionId),
+                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Mepty.Data),
+                M2Message.U32User(WinboxM2Protocol.Mepty.Key.Counter, _counter++));
+            _session.Send(msg);
+        }
+
         private void SendInput(byte[] keystrokes)
         {
             byte[] msg = M2Message.BuildM2(
@@ -236,6 +257,7 @@ namespace tik4net.WinboxCli
             var sb = new StringBuilder();
             var sw = Stopwatch.StartNew();
             DateTime? settleUntil = null;
+            bool prompted = false;
 
             while (sw.ElapsedMilliseconds < _receiveTimeoutMs)
             {
@@ -256,6 +278,14 @@ namespace tik4net.WinboxCli
                 }
                 else
                 {
+                    // mepty delivers output one batch per Data frame and will not push the remainder of a
+                    // large response on its own — so, until the completion prompt has appeared, keep pulling
+                    // (empty Data) whenever nothing is buffered. RouterOS does NOT answer every pull (a pull
+                    // sent while nothing is pending simply yields no frame), so we cannot wait for a pull to
+                    // be acknowledged before sending the next — we must keep firing on idle. Once the prompt
+                    // is in hand the output is complete; pulling then would only add churn, so we just settle.
+                    if (!prompted)
+                        SendPull();
                     Thread.Sleep(PollSleepMs);
                 }
 
@@ -265,6 +295,7 @@ namespace tik4net.WinboxCli
                 string stripped = VtStripper.StripAnsi(sb.ToString());
                 if (RouterOsCliLogin.IsShellPrompt(stripped))
                 {
+                    prompted = true;
                     if (settleUntil == null)
                         settleUntil = DateTime.UtcNow.AddMilliseconds(SettleMs);
                     else if (DateTime.UtcNow >= settleUntil.Value)

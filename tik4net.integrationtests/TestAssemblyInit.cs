@@ -6,7 +6,8 @@ namespace tik4net.integrationtests
     /// Assembly-wide test setup. Registers satellite transports (SSH lives in tik4net.ssh, which core
     /// cannot reference) so the generic suite can reach them via
     /// <see cref="ConnectionFactory.CreateConnection"/> when <c>tik.connectionType=Ssh</c> is selected
-    /// through a runsettings file.
+    /// through a runsettings file, then sweeps any leftover test residue off the router so a prior run's
+    /// orphans cannot collide with this one (see <see cref="RouterOrphanCleaner"/>).
     /// </summary>
     [TestClass]
     public static class TestAssemblyInit
@@ -15,6 +16,10 @@ namespace tik4net.integrationtests
         public static void Init(TestContext context)
         {
             tik4net.Ssh.Tik4NetSsh.Register();
+
+            // Always over the API, once, before any test — clears conflicts left by a killed run or by a CLI
+            // add that created a row without yielding its .id (which per-test teardown then cannot delete).
+            RouterOrphanCleaner.PurgeTestResidue();
         }
 
         [AssemblyCleanup]
