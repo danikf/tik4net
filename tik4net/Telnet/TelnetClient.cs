@@ -104,7 +104,7 @@ namespace tik4net.Telnet
 
             await SendLineAsync(cmd, ct).ConfigureAwait(false);
 
-            string raw = await ReadCommandResponseAsync(ct).ConfigureAwait(false);
+            string raw = await ReadCommandResponseAsync(ct, cmd).ConfigureAwait(false);
 
             return CliOutputHelper.CleanOutput(raw, cmd);
         }
@@ -117,7 +117,10 @@ namespace tik4net.Telnet
         internal async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
         {
             await SendBytesAsync(raw, ct).ConfigureAwait(false);
-            return await ReadCommandResponseAsync(ct).ConfigureAwait(false);
+            // sentCommand: null → tolerant. A control key is not a command and RouterOS does not always
+            // answer one with a prompt (measured: Ctrl+D replies with a bare cursor save/restore and nothing
+            // else), so reaching the deadline here is normal rather than a truncated response.
+            return await ReadCommandResponseAsync(ct, null).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -247,7 +250,14 @@ namespace tik4net.Telnet
         /// silent for <see cref="SettleMs"/> afterwards — any output that follows a redraw prompt resets the
         /// settle window, so only the final, stable prompt terminates the read. Bounded by the receive deadline.
         /// </summary>
-        private async Task<string> ReadCommandResponseAsync(CancellationToken ct)
+        /// <param name="ct">Cancellation token.</param>
+        /// <param name="sentCommand">
+        /// The command being answered. When non-null, reaching the deadline without a prompt throws
+        /// <see cref="TikConnectionReceiveTimeoutException"/> instead of returning the partial text — see
+        /// <see cref="CliReadTimeout"/> for why returning it is worse than failing. Pass <c>null</c> for
+        /// reads that legitimately need not end at a prompt (control keys).
+        /// </param>
+        private async Task<string> ReadCommandResponseAsync(CancellationToken ct, string sentCommand)
         {
             var buffer = new byte[4096];
             var accumulated = new StringBuilder();
@@ -283,7 +293,11 @@ namespace tik4net.Telnet
                 }
 
                 if (closed || DateTime.UtcNow >= deadline)
+                {
+                    if (sentCommand != null)
+                        throw CliReadTimeout.Create("Telnet", _receiveTimeoutMs, sentCommand, stripped);
                     return stripped;
+                }
 
                 await Task.Delay(15, ct).ConfigureAwait(false);
             }

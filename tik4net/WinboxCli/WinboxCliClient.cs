@@ -110,7 +110,7 @@ namespace tik4net.WinboxCli
 
                 string cmd = CliOutputHelper.InjectWithoutPaging(command);
                 SendInput(_encoding.GetBytes(cmd + "\r"));
-                string raw = ReadCommandResponseSync();
+                string raw = ReadCommandResponseSync(cmd);
                 return CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), cmd);
             }, ct);
         }
@@ -124,7 +124,8 @@ namespace tik4net.WinboxCli
             return Task.Run(() =>
             {
                 SendInput(raw);
-                return VtStripper.StripAnsi(ReadCommandResponseSync());
+                // null → tolerant; a control key need not be answered with a prompt.
+                return VtStripper.StripAnsi(ReadCommandResponseSync(null));
             }, ct);
         }
 
@@ -318,7 +319,12 @@ namespace tik4net.WinboxCli
         /// before returning (the line-editor repaints the prompt, so a single prompt sighting is not
         /// proof the output is complete).
         /// </summary>
-        private string ReadCommandResponseSync()
+        /// <param name="sentCommand">
+        /// The command being answered. When non-null, reaching the deadline without a prompt throws
+        /// <see cref="TikConnectionReceiveTimeoutException"/> instead of returning the partial text — see
+        /// <see cref="Cli.CliReadTimeout"/>. <c>null</c> for control keys, which need not end at a prompt.
+        /// </param>
+        private string ReadCommandResponseSync(string sentCommand)
         {
             var sb = new StringBuilder();
             var sw = Stopwatch.StartNew();
@@ -402,7 +408,11 @@ namespace tik4net.WinboxCli
             if (TikWireTrace.Enabled)
                 TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note,
                     "TIMEOUT @" + sw.ElapsedMilliseconds + "ms (prompted=" + prompted + ", bytes=" + sb.Length + ")");
-            return VtStripper.StripAnsi(sb.ToString());
+
+            string strippedSoFar = VtStripper.StripAnsi(sb.ToString());
+            if (sentCommand != null)
+                throw Cli.CliReadTimeout.Create("WinBox CLI", _receiveTimeoutMs, sentCommand, strippedSoFar);
+            return strippedSoFar;
         }
 
         /// <summary>

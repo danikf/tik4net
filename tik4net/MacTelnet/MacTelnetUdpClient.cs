@@ -63,7 +63,7 @@ namespace tik4net.MacTelnet
             {
                 string cmd = CliOutputHelper.InjectWithoutPaging(command);
                 SendTerminalBytes(_encoding.GetBytes(cmd + "\r"));
-                string raw = ReadCommandResponseSync();
+                string raw = ReadCommandResponseSync(cmd);
                 return CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), cmd);
             }, ct);
         }
@@ -77,7 +77,8 @@ namespace tik4net.MacTelnet
             return Task.Run(() =>
             {
                 SendTerminalBytes(raw);
-                return VtStripper.StripAnsi(ReadCommandResponseSync());
+                // null -> tolerant; a control key need not be answered with a prompt.
+                return VtStripper.StripAnsi(ReadCommandResponseSync(null));
             }, ct);
         }
 
@@ -174,7 +175,12 @@ namespace tik4net.MacTelnet
         /// Reads a command response, requiring the prompt to be stable for
         /// <see cref="SettleMs"/> before returning.
         /// </summary>
-        private string ReadCommandResponseSync()
+        /// <param name="sentCommand">
+        /// The command being answered. When non-null, reaching the deadline without a prompt throws
+        /// <see cref="TikConnectionReceiveTimeoutException"/> instead of returning the partial text — see
+        /// <see cref="CliReadTimeout"/>. <c>null</c> for control keys, which need not end at a prompt.
+        /// </param>
+        private string ReadCommandResponseSync(string sentCommand)
         {
             var sb = new StringBuilder();
             var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -220,7 +226,10 @@ namespace tik4net.MacTelnet
                 }
             }
 
-            return VtStripper.StripAnsi(sb.ToString());
+            string strippedSoFar = VtStripper.StripAnsi(sb.ToString());
+            if (sentCommand != null)
+                throw CliReadTimeout.Create("MAC-Telnet", _receiveTimeoutMs, sentCommand, strippedSoFar);
+            return strippedSoFar;
         }
 
         /// <summary>

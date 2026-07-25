@@ -114,6 +114,33 @@ namespace tik4net
         {
             TimeoutMilliseconds = timeoutMilliseconds;
         }
+
+        /// <summary>
+        /// Initializes a new instance with an explicit <paramref name="message"/>, for the case where a
+        /// <b>partial</b> response arrived — the terminal transports can receive plenty of bytes and still
+        /// never reach the end of the answer, which the default "no response received" wording would
+        /// misdescribe. See <see cref="PartialResponse"/>.
+        /// </summary>
+        /// <param name="timeoutMilliseconds">The configured receive timeout (milliseconds) that elapsed.</param>
+        /// <param name="message">Diagnostic message describing what was and was not received.</param>
+        /// <param name="partialResponse">The incomplete text received before the timeout, if any.</param>
+        /// <param name="innerException">The underlying exception, if any.</param>
+        public TikConnectionReceiveTimeoutException(int timeoutMilliseconds, string message,
+                                                    string partialResponse = null, Exception innerException = null)
+            : base(message, innerException)
+        {
+            TimeoutMilliseconds = timeoutMilliseconds;
+            PartialResponse = partialResponse;
+        }
+
+        /// <summary>
+        /// The incomplete response received before the timeout, or <c>null</c> when nothing arrived (or the
+        /// transport does not capture it). Exposed because on the CLI transports this text used to be
+        /// <i>returned to the caller as a successful result</i>: a truncated read is indistinguishable from a
+        /// short one, so a half-read table silently became "the table". Kept on the exception so a caller
+        /// that wants the partial data can still reach it — deliberately, rather than by suppressing the error.
+        /// </summary>
+        public string PartialResponse { get; }
     }
 
     /// <summary>

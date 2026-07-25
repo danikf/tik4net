@@ -118,7 +118,7 @@ namespace tik4net.Ssh
         {
             string cmd = CliOutputHelper.InjectWithoutPaging(command);
             await SendLineAsync(cmd, ct).ConfigureAwait(false);
-            string raw = await ReadCommandResponseAsync(ct).ConfigureAwait(false);
+            string raw = await ReadCommandResponseAsync(ct, cmd).ConfigureAwait(false);
             return CliOutputHelper.CleanOutput(raw, cmd);
         }
 
@@ -129,7 +129,8 @@ namespace tik4net.Ssh
         internal async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
         {
             await SendBytesAsync(raw, ct).ConfigureAwait(false);
-            return await ReadCommandResponseAsync(ct).ConfigureAwait(false);
+            // sentCommand: null → tolerant; a control key need not be answered with a prompt.
+            return await ReadCommandResponseAsync(ct, null).ConfigureAwait(false);
         }
 
         // ── Close / Dispose ───────────────────────────────────────────────────
@@ -198,7 +199,13 @@ namespace tik4net.Ssh
         /// <see cref="SettleMs"/> afterwards — any output following a redraw prompt resets the settle
         /// window, so only the final, stable prompt terminates the read. Bounded by the receive deadline.
         /// </summary>
-        private async Task<string> ReadCommandResponseAsync(CancellationToken ct)
+        /// <param name="ct">Cancellation token.</param>
+        /// <param name="sentCommand">
+        /// The command being answered. When non-null, reaching the deadline without a prompt throws rather
+        /// than returning the partial text (see <see cref="CliReadTimeout"/>). <c>null</c> for control keys,
+        /// which RouterOS need not answer with a prompt.
+        /// </param>
+        private async Task<string> ReadCommandResponseAsync(CancellationToken ct, string sentCommand)
         {
             var buffer = new byte[4096];
             var accumulated = new StringBuilder();
@@ -243,6 +250,8 @@ namespace tik4net.Ssh
                     TraceNote(closed
                         ? "shell closed before the prompt settled — response is truncated"
                         : "receive deadline (" + _receiveTimeoutMs + " ms) hit before the prompt settled — response is truncated");
+                    if (sentCommand != null)
+                        throw CliReadTimeout.Create("SSH", _receiveTimeoutMs, sentCommand, stripped);
                     return stripped;
                 }
 
