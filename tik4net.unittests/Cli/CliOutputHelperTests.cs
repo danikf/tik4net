@@ -62,6 +62,36 @@ namespace tik4net.unittests.Cli
                 "otherwise P2.12's positional rule reports a successful write as failed");
         }
 
+        // P2.29. The exact bytes captured off the wire (channel ssh.pty) for the read-back that
+        // AddInterfaceListMemberWillNotFail failed on: RouterOS repaints the prompt line, so the response
+        // ends with the prompt TWICE, separated by bare CRs. Removing only the last one left the first
+        // inside the data, where CliOutputParser turned it into a multi-value continuation of the final
+        // field ("list=t4n-test-926b98b7,[admin@CHR] >").
+        [TestMethod]
+        public void CleanOutput_StripsARepaintedPromptEmittedTwice()
+        {
+            const string sent = ":put [/interface list member print detail as-value where .id=\"*2E\"]";
+            const string record = ".id=*2E;comment=df90f741;disabled=false;interface=ether1;list=t4n-test-926b98b7";
+            string raw = sent + "\r\n"
+                       + "\r" + record + "\r\n"
+                       + "\r\r\r[9999B[admin@CHR] > \r\n"
+                       + "\r\r\r\r[9999B[admin@CHR] > ";
+
+            Assert.AreEqual(record, CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), sent),
+                "every trailing prompt must go, not just the last one");
+        }
+
+        [TestMethod]
+        public void CleanOutput_KeepsADataLineThatMerelyEndsLikeAPrompt()
+        {
+            const string sent = ":put [/system/script print detail as-value]";
+            const string record = ".id=*1;source=:put [$x] >";
+            string raw = sent + "\r\n" + record + "\r\n" + Prompt;
+
+            Assert.AreEqual(record, CliOutputHelper.CleanOutput(raw, sent),
+                "the repeat must stop at the first line that is not a prompt repaint");
+        }
+
         [TestMethod]
         public void IsRouterLogLine_DoesNotSwallowRealOutput()
         {

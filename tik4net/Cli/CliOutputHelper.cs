@@ -39,8 +39,8 @@ namespace tik4net.Cli
         }
 
         /// <summary>
-        /// Removes the command echo (first line) and the trailing shell prompt (last non-empty line)
-        /// from the ANSI-stripped router response.
+        /// Removes the command echo (leading lines) and every trailing shell prompt from the ANSI-stripped
+        /// router response — the prompt can be repainted more than once, see below.
         /// Returns the data lines joined with '\n'.
         /// </summary>
         internal static string CleanOutput(string stripped, string sentCommand)
@@ -59,8 +59,8 @@ namespace tik4net.Cli
             // residual prompt-prefixed echo, which then merges into the first as-value record and
             // corrupts it (record without .id) or is mistaken for an add's returned id.
             //
-            // A leading line is treated as noise when it is blank, shows the shell prompt
-            // ("<prompt> …", contains "] >"), or is a fragment of the sent command. A real data line
+            // A leading line is treated as noise when it is blank, opens with the shell prompt
+            // ("[user@identity] > …"), or is a fragment of the sent command. A real data line
             // (as-value record starting with ".id=", a bare ".id" value, an error line) matches none
             // of these, so the loop stops at the first genuine output line — safe across transports.
             string cmdCore = (sentCommand ?? string.Empty).TrimStart('/');
@@ -80,8 +80,7 @@ namespace tik4net.Cli
                 // silent-on-success verb treats residue as a failure (P2.12).
                 string lineCore = line.TrimStart('/');
                 bool isEcho =
-                    line.IndexOf(RouterOsCliLogin.PromptSuffix, StringComparison.Ordinal) >= 0
-                    || line.IndexOf(RouterOsCliLogin.SafePromptSuffix, StringComparison.Ordinal) >= 0
+                    IsPromptPrefixed(line)
                     || (cmdCore.Length > 0
                         && (cmdCore.IndexOf(lineCore, StringComparison.OrdinalIgnoreCase) >= 0
                             || cmdCore.StartsWith(lineCore, StringComparison.OrdinalIgnoreCase)));
@@ -90,17 +89,27 @@ namespace tik4net.Cli
                 start++;
             }
 
-            // Remove trailing empty lines
-            while (end >= start && string.IsNullOrWhiteSpace(lines[end]))
-                end--;
-
-            // Last non-empty line is the shell prompt — remove it
-            if (end >= start)
+            // Strip the trailing shell prompt(s) — plural, deliberately. RouterOS repaints the prompt line
+            // after a command completes, so the tail can carry it MORE THAN ONCE with blank lines between:
+            // measured over SSH (channel ssh.pty), a single read returns
+            //   ".id=…;list=X<CR><LF><CR><CR><CR><ESC>[9999B[admin@CHR] > <CR><LF><CR><CR><CR><CR><ESC>[9999B[admin@CHR] > "
+            // Removing only the last one left the FIRST prompt inside the data: CliOutputParser turns
+            // newlines into ';' field separators, "[admin@CHR] >" carries no '=', and it was appended to the
+            // preceding field as a multi-value continuation — the read-back of an interface-list member came
+            // out as "t4n-test-926b98b7,[admin@CHR] >" (P2.29). Silent-on-success verbs were never affected,
+            // which is why this hid: with no data line the echo loop above (which treats any prompt-bearing
+            // line as noise) consumes the whole response, so the residue only survives when there IS output.
+            while (end >= start)
             {
-                string lastLine = lines[end].TrimEnd('\r', '\n', ' ');
-                if (lastLine.EndsWith(RouterOsCliLogin.PromptSuffix, StringComparison.Ordinal)
-                    || lastLine.EndsWith(RouterOsCliLogin.SafePromptSuffix, StringComparison.Ordinal))
+                while (end >= start && string.IsNullOrWhiteSpace(lines[end]))
                     end--;
+                if (end < start)
+                    break;
+
+                if (IsPromptLine(lines[end]))
+                    end--;
+                else
+                    break;
             }
 
             if (start > end)
@@ -121,6 +130,43 @@ namespace tik4net.Cli
                 sb.Append(lines[i]);
             }
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// True for a line that is nothing but a repainted shell prompt — <c>"[admin@CHR] &gt; "</c>, or the
+        /// <c>"[admin@CHR] &lt;SAFE&gt; &gt;"</c> form while Safe Mode is active.
+        /// </summary>
+        /// <remarks>
+        /// The leading <c>'['</c> is what makes this safe to apply repeatedly: a *data* line can also end in
+        /// <c>"] &gt;"</c> — a stored script source such as <c>source=:put [$x] &gt;</c> does — and an
+        /// EndsWith-only test would delete it as if it were the prompt, silently dropping a record. A prompt
+        /// line always starts with the <c>[user@identity]</c> bracket.
+        /// </remarks>
+        internal static bool IsPromptLine(string line)
+        {
+            string s = (line ?? string.Empty).Trim();
+            if (s.Length == 0 || s[0] != '[')
+                return false;
+            return s.EndsWith(RouterOsCliLogin.PromptSuffix, StringComparison.Ordinal)
+                || s.EndsWith(RouterOsCliLogin.SafePromptSuffix, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// True for a line that <i>opens</i> with the shell prompt: either the bare repainted prompt or the
+        /// prompt-prefixed echo RouterOS's line editor paints, <c>"[admin@CHR] &gt; :put […]"</c>.
+        /// </summary>
+        /// <remarks>
+        /// Anchored on the leading <c>'['</c> for the same reason as <see cref="IsPromptLine"/>: this used to
+        /// be a bare "contains <c>] &gt;</c>" test, which discarded any leading data line that happened to
+        /// contain the sequence — a stored script source, a comment — as if it were an echo.
+        /// </remarks>
+        internal static bool IsPromptPrefixed(string line)
+        {
+            string s = (line ?? string.Empty).TrimStart();
+            if (s.Length == 0 || s[0] != '[')
+                return false;
+            return s.IndexOf(RouterOsCliLogin.PromptSuffix, StringComparison.Ordinal) >= 0
+                || s.IndexOf(RouterOsCliLogin.SafePromptSuffix, StringComparison.Ordinal) >= 0;
         }
 
         /// <summary>

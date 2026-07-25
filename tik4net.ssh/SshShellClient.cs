@@ -229,11 +229,22 @@ namespace tik4net.Ssh
                     if (settleUntil == null)
                         settleUntil = DateTime.UtcNow.AddMilliseconds(SettleMs);
                     else if (DateTime.UtcNow >= settleUntil.Value)
+                    {
+                        TraceNote("prompt stable after " + SettleMs + " ms of silence → response complete");
                         return stripped; // prompt stable (no further output) → done
+                    }
                 }
 
                 if (closed || DateTime.UtcNow >= deadline)
+                {
+                    // Reached WITHOUT a stable prompt: the response is whatever arrived so far and may end
+                    // mid-record. Silent truncation here is how a partial read reaches the parser looking
+                    // like data (P2.25's failure class), so it is always traced.
+                    TraceNote(closed
+                        ? "shell closed before the prompt settled — response is truncated"
+                        : "receive deadline (" + _receiveTimeoutMs + " ms) hit before the prompt settled — response is truncated");
                     return stripped;
+                }
 
                 await Task.Delay(15, ct).ConfigureAwait(false);
             }
@@ -273,6 +284,9 @@ namespace tik4net.Ssh
         /// </summary>
         private async Task<string> ProcessChunkAsync(byte[] buffer, int count, CancellationToken ct)
         {
+            if (tik4net.Diagnostics.TikWireTrace.Enabled)
+                tik4net.Diagnostics.TikWireTrace.Emit("ssh.pty", tik4net.Diagnostics.TikWireDir.Recv, buffer, 0, count);
+
             string text = _encoding.GetString(buffer, 0, count);
 
             foreach (string vtReply in _vt100.Process(text))
@@ -281,11 +295,20 @@ namespace tik4net.Ssh
             return text;
         }
 
+        private static void TraceNote(string note)
+        {
+            if (tik4net.Diagnostics.TikWireTrace.Enabled)
+                tik4net.Diagnostics.TikWireTrace.Emit("ssh.pty", tik4net.Diagnostics.TikWireDir.Note, note);
+        }
+
         private Task SendLineAsync(string text, CancellationToken ct)
             => SendBytesAsync(_encoding.GetBytes(text + "\r\n"), ct);
 
         private Task SendBytesAsync(byte[] bytes, CancellationToken ct)
         {
+            if (tik4net.Diagnostics.TikWireTrace.Enabled)
+                tik4net.Diagnostics.TikWireTrace.Emit("ssh.pty", tik4net.Diagnostics.TikWireDir.Send, bytes, 0, bytes.Length);
+
             ct.ThrowIfCancellationRequested();
             _shell.Write(bytes, 0, bytes.Length);
             _shell.Flush();
