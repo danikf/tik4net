@@ -91,14 +91,38 @@ namespace tik4net.integrationtests
                 Comment = "test-tcp",
             };
             SaveTracked(firewallItem);
-            var tmp = Connection.LoadById<FirewallFilter>(firewallItem.Id); //generate traffic
-            System.Threading.Thread.Sleep(1000);
 
             try
             {
-                tmp = Connection.LoadById<FirewallFilter>(firewallItem.Id);
-                Assert.AreNotEqual(tmp.Bytes, 0);
-                Assert.AreNotEqual(tmp.Packets, 0);
+                // P2.21: this used to be "read once, sleep 1 s, read again and assert", and that is a race
+                // the test lost whenever it ran in the full suite. RouterOS does not start matching a rule
+                // against traffic the instant `add` returns (the record's ready flag flips a moment later),
+                // and the traffic in the window is only whatever this test itself sends. Standalone that is
+                // plenty — the connection is opened fresh, so a TCP handshake plus login crosses the input
+                // chain — but in the full suite the connection is already open and two small reads were all
+                // the rule ever saw, both of them before it went live. Measured on winboxnative: 0/0, 0/0,
+                // then 1 packet / 140 bytes.
+                //
+                // So drive it rather than sleep on it: each pass sends a read (that read *is* the traffic)
+                // and re-checks. Fast on a healthy router, and still a loud failure if the counters truly
+                // never move — which is the thing this test exists to catch.
+                FirewallFilter tmp;
+                DateTime deadline = DateTime.UtcNow.AddSeconds(15);
+                while (true)
+                {
+                    Connection.LoadAll<FirewallFilter>();   // traffic through the input chain
+                    tmp = Connection.LoadById<FirewallFilter>(firewallItem.Id);
+                    if (tmp.Bytes != 0 && tmp.Packets != 0) break;
+                    if (DateTime.UtcNow >= deadline)
+                    {
+                        DumpCounterDiagnostics(firewallItem.Id);
+                        break;
+                    }
+                    System.Threading.Thread.Sleep(250);
+                }
+
+                Assert.AreNotEqual(0, tmp.Bytes, "rule never counted any bytes");
+                Assert.AreNotEqual(0, tmp.Packets, "rule never counted any packets");
             }
             finally
             {
@@ -192,6 +216,25 @@ namespace tik4net.integrationtests
             {
                 RemoveFirewallFilterByComment(comment);
             }
+        }
+
+        // Prints the raw row behind the counters, plus (on WinBox native) how many handlers the .jg catalog
+        // supplied. A catalog that did not load leaves the connection on the seed table, where the getall
+        // stats bit is never set and the counter fields simply do not arrive — indistinguishable from zeros
+        // unless the raw row is inspected.
+        private void DumpCounterDiagnostics(string id)
+        {
+            var native = Connection as tik4net.WinboxNative.WinboxNativeConnection;
+            if (native != null)
+                Console.WriteLine($"  catalog handlers: {native.CatalogHandlerCount}");
+            try
+            {
+                var row = Connection.CreateCommandAndParameters("/ip/firewall/filter/print",
+                    TikCommandParameterFormat.Filter, ".id", id).ExecuteSingleRow();
+                Console.WriteLine("  raw row: " + string.Join(", ",
+                    row.Words.Select(w => w.Key + "=" + w.Value)));
+            }
+            catch (Exception ex) { Console.WriteLine("  raw row unavailable: " + ex.Message); }
         }
 
         // Removes every /ip/firewall/filter rule carrying the given comment via raw commands (no entity
