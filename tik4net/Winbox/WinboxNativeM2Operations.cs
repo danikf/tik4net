@@ -58,6 +58,26 @@ namespace tik4net.Winbox
             => _mux != null ? _mux.NextReqIdField() : _channel.NextReqIdField();
 
         /// <summary>
+        /// Request-id field for a caller that builds its own M2 message and sends it through
+        /// <see cref="SendReceiveCorrelated"/> — e.g. the <c>.jg</c> catalog's mproxy file transfer, which
+        /// speaks a different command set but shares this channel.
+        /// </summary>
+        internal byte[] NextCorrelatedReqIdField() => NextReqIdField();
+
+        /// <summary>
+        /// Sends a caller-built M2 message through the same correlated seam every other operation uses
+        /// (multiplexed dispatch, or the lockstep drain + request-id skip).
+        /// </summary>
+        /// <remarks>
+        /// Exists so nothing has to reach past this class to <see cref="IWinboxM2Channel.SendReceive"/>
+        /// directly. On the MAC transports that raw call is <c>Send(); Receive();</c> with no correlation at
+        /// all, and <see cref="IWinboxM2Channel.SupportsStaleDrain"/> is <c>false</c> there — so one lost or
+        /// late datagram leaves the channel a frame out of step and every later reply is read off by one,
+        /// which surfaces as unrelated operations failing at random later in the connection.
+        /// </remarks>
+        internal byte[] SendReceiveCorrelated(byte[] request) => SendReceive(request);
+
+        /// <summary>
         /// Optional row-level trace hooks, invoked with the raw M2 bytes of each request
         /// (<see cref="OnRequest"/>) and reply (<see cref="OnResponse"/>) around every
         /// <see cref="IWinboxM2Channel.SendReceive"/>. The owning connection wires these to its

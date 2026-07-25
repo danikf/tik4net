@@ -218,7 +218,10 @@ namespace tik4net.WinboxNative
             // OnWriteRow/OnReadRow events (gated so the describe is only built when something listens).
             _ops.OnRequest = msg => { if (RowTracingEnabled) FireWriteRow(M2Message.Describe(msg)); };
             _ops.OnResponse = msg => { if (RowTracingEnabled) FireReadRow(M2Message.Describe(msg)); };
-            try { _catalog = WinboxJgCatalog.Load(session, ResolvePath(CatalogCachePath), ConnectTimeout); }
+            // Through _ops, not the raw channel: the catalog's mproxy transfer must share the same
+            // request-id correlation as every other operation, or a stray frame during it desyncs the
+            // channel for the rest of the connection (worst on MAC, which has no stale drain).
+            try { _catalog = WinboxJgCatalog.Load(_ops, ResolvePath(CatalogCachePath)); }
             catch { /* catalog is best-effort; seeds + normalizer still work */ }
             // Feed the .jg-derived apiPath→handler map into the handler resolver (after session overrides,
             // before the shipped override tail).

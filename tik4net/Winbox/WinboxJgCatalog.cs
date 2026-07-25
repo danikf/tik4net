@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -228,13 +228,13 @@ namespace tik4net.Winbox
         // Asks the router which plugins it serves. The set is version- and package-dependent (7.23.2 CHR
         // serves 18 .jg files, including container/iot/userman5/dude that no fixed list would have named,
         // and none of the mpls/roting4 an older one did), so it must never be hardcoded.
-        private static List<PluginEntry> FetchPluginList(IWinboxM2Channel channel, int timeoutMs)
+        private static List<PluginEntry> FetchPluginList(WinboxNativeM2Operations ops)
         {
             var result = new List<PluginEntry>();
 
-            int handle = MproxyOpen(channel, "list", WinboxM2Protocol.Mproxy.OpenStatic, timeoutMs);
+            int handle = MproxyOpen(ops, "list", WinboxM2Protocol.Mproxy.OpenStatic);
             if (handle < 0) return result;
-            byte[] raw = MproxyRead(channel, handle, timeoutMs);
+            byte[] raw = MproxyRead(ops, handle);
             if (raw == null || raw.Length == 0) return result;
 
             return ParsePluginList(Encoding.UTF8.GetString(raw));
@@ -285,12 +285,12 @@ namespace tik4net.Winbox
         /// when it was downloaded before. Failures are tolerated — an empty catalog just leaves the resolver
         /// on its seed table and the normalizer.
         /// </summary>
-        internal static WinboxJgCatalog Load(IWinboxM2Channel channel, string cacheDir, int timeoutMs)
+        internal static WinboxJgCatalog Load(WinboxNativeM2Operations ops, string cacheDir)
         {
             // The list is ~2 KB and one round trip; it is the only authoritative statement of what this
             // particular router serves, so it is always fetched — it is the plugin *bodies* that are cached.
             List<PluginEntry> plugins;
-            try { plugins = FetchPluginList(channel, timeoutMs); }
+            try { plugins = FetchPluginList(ops); }
             catch (Exception ex) { TraceNote("list FAILED: " + ex.Message); return new WinboxJgCatalog(); }
             if (plugins.Count == 0) { TraceNote("list returned no plugins"); return new WinboxJgCatalog(); }
             TraceNote("list: " + plugins.Count + " plugins");
@@ -314,7 +314,7 @@ namespace tik4net.Winbox
                          string.Equals(p.Name, "roteros.jg", StringComparison.OrdinalIgnoreCase)).ToList())
             {
                 string text = null;
-                try { text = ReadCachedOrFetch(channel, plugin, cacheDir, timeoutMs); }
+                try { text = ReadCachedOrFetch(ops, plugin, cacheDir); }
                 catch (Exception ex) { TraceNote(plugin.Name + " FAILED: " + ex.Message); text = null; }
 
                 if (string.IsNullOrEmpty(text))
@@ -341,8 +341,8 @@ namespace tik4net.Winbox
         // carries a version+content stamp, which makes the cache correct across routers by construction:
         // any router advertising that name wants that exact file, an upgrade resolves a new name (so there
         // is nothing to invalidate), and routers sharing a plugin share one copy.
-        private static string ReadCachedOrFetch(IWinboxM2Channel channel, PluginEntry plugin,
-                                                string cacheDir, int timeoutMs)
+        private static string ReadCachedOrFetch(WinboxNativeM2Operations ops, PluginEntry plugin,
+                                                string cacheDir)
         {
             string path = null;
             if (!string.IsNullOrEmpty(cacheDir))
@@ -355,7 +355,7 @@ namespace tik4net.Winbox
                 catch { path = null; /* cache read is best-effort */ }
             }
 
-            string text = FetchJg(channel, plugin.Unique, timeoutMs);
+            string text = FetchJg(ops, plugin.Unique);
             if (string.IsNullOrEmpty(text)) return null;
 
             if (path != null)
@@ -390,16 +390,16 @@ namespace tik4net.Winbox
         // ("roteros-33a7039ff432.jg"), never the stable plugin name. The stable name is a trap: mproxy
         // *opens* "roteros.jg.gz" and even reports the right size, but the subsequent read never answers
         // and takes the whole M2 channel down with it, so every later plugin fails too (P2.18).
-        private static string FetchJg(IWinboxM2Channel channel, string uniqueName, int timeoutMs)
+        private static string FetchJg(WinboxNativeM2Operations ops, string uniqueName)
         {
             // The on-disk file in /home/web/webfig/ is "<unique>.gz" (gzip), served by the mproxy static
             // handler via cmd=7 (NOT cmd=3 = /var/pckg, which CHR denies). A refused open is harmless —
             // it is a clean error reply and the channel survives it.
-            int handle = MproxyOpen(channel, uniqueName + ".gz", WinboxM2Protocol.Mproxy.OpenStatic, timeoutMs);
-            if (handle < 0) handle = MproxyOpen(channel, uniqueName, WinboxM2Protocol.Mproxy.OpenStatic, timeoutMs);
+            int handle = MproxyOpen(ops, uniqueName + ".gz", WinboxM2Protocol.Mproxy.OpenStatic);
+            if (handle < 0) handle = MproxyOpen(ops, uniqueName, WinboxM2Protocol.Mproxy.OpenStatic);
             if (handle < 0) return null;
 
-            byte[] raw = MproxyRead(channel, handle, timeoutMs);
+            byte[] raw = MproxyRead(ops, handle);
             if (raw == null || raw.Length == 0) return null;
 
             // .jg.gz is gzip; a plain .jg is already text. Detect the gzip magic.
@@ -408,32 +408,32 @@ namespace tik4net.Winbox
             return Encoding.UTF8.GetString(raw);
         }
 
-        private static int MproxyOpen(IWinboxM2Channel channel, string filename, int openCmd, int timeoutMs)
+        private static int MproxyOpen(WinboxNativeM2Operations ops, string filename, int openCmd)
         {
             byte[] msg = M2Message.BuildM2(
                 M2Message.SysToArr(WinboxM2Protocol.Mproxy.Handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), channel.NextReqIdField(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), ops.NextCorrelatedReqIdField(),
                 M2Message.U8Sys(WinboxM2Protocol.SysKey.Command, (byte)openCmd),  // OpenStatic(7) / OpenVarPkg(3)
                 M2Message.StringUser(WinboxM2Protocol.Mproxy.Key.FileName, filename));
-            byte[] resp = channel.SendReceive(msg, timeoutMs);
+            byte[] resp = ops.SendReceiveCorrelated(msg);
             try { return M2Message.ParseSessionId(resp); }
             catch { return -1; }
         }
 
         private const int MproxyChunk = WinboxM2Protocol.Mproxy.ChunkSize;
 
-        private static byte[] MproxyRead(IWinboxM2Channel channel, int handle, int timeoutMs)
+        private static byte[] MproxyRead(WinboxNativeM2Operations ops, int handle)
         {
             var all = new List<byte>();
             for (int guard = 0; guard < 256; guard++)
             {
                 byte[] msg = M2Message.BuildM2(
                     M2Message.SysToArr(WinboxM2Protocol.Mproxy.Handler), M2Message.SysFrom(),
-                    M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), channel.NextReqIdField(),
+                    M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), ops.NextCorrelatedReqIdField(),
                     M2Message.SessionIdField(handle),
                     M2Message.U32User(WinboxM2Protocol.Mproxy.Key.MaxChunk, MproxyChunk),
                     M2Message.U8Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Mproxy.Read));  // read chunk
-                byte[] resp = channel.SendReceive(msg, timeoutMs);
+                byte[] resp = ops.SendReceiveCorrelated(msg);
                 byte[] chunk = ExtractMproxyChunk(resp);
                 if (chunk == null || chunk.Length == 0) break;
                 all.AddRange(chunk);
