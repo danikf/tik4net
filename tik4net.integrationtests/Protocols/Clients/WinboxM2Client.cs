@@ -600,6 +600,21 @@ namespace tik4net.integrationtests
         }
 
         // ── Mproxy file operations ────────────────────────────────────────────
+        // Diagnostic: issue an mproxy open for `filename` with an arbitrary command number and hand back
+        // every field of the reply, so a refusal can be read off the router's own error text instead of
+        // being inferred from a missing handle.
+        public Dictionary<int, Tuple<string, object>> MproxyOpenRaw(string filename, int cmd)
+        {
+            byte[] msg = M2Message.BuildM2(
+                M2Message.SysToArr(2, 2), M2Message.SysFrom(),
+                M2Message.BoolSys(tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected, true),
+                ReqId(),
+                M2Message.U8Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, (byte)cmd),
+                M2Message.StringUser(1, filename));
+            byte[] resp = _encrypted ? SendRecvEncrypted(msg) : SendRecvRaw(msg);
+            return M2Message.ParseAllFields(resp);
+        }
+
         // Open a file from /home/web/webfig/ (no-auth path, static assets only).
         private int MproxyOpenFile(string filename)
         {

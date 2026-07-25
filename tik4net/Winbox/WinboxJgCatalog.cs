@@ -6,6 +6,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using tik4net.Diagnostics;
 
 namespace tik4net.Winbox
 {
@@ -16,8 +17,11 @@ namespace tik4net.Winbox
     /// stable label↔apiName normalizer and overrides on top.
     /// </summary>
     /// <remarks>
-    /// <para>Source: live fetch over the WinBox mproxy file handler (<c>[2,2]</c> cmd=3, gzip-compressed
-    /// <c>&lt;name&gt;.jg.gz</c>), cached to <c>&lt;CatalogCachePath&gt;/&lt;routerVersion&gt;/&lt;name&gt;.jg</c>.</para>
+    /// <para>Source: live fetch over the WinBox mproxy file handler (<c>[2,2]</c> cmd=7). The plugin set is
+    /// resolved from the router's own <c>list</c> catalog — never hardcoded, since which plugins exist
+    /// depends on version and installed packages — and each is downloaded by its version-stamped
+    /// <c>unique</c> name (<c>&lt;unique&gt;.gz</c>, gzip), then cached to
+    /// <c>&lt;CatalogCachePath&gt;/&lt;routerVersion&gt;/&lt;name&gt;.jg</c>.</para>
     /// <para>The parser is a C# port of <c>_notes/WinboxMessage/jg_analyze.py</c> — it walks the object tree
     /// and, for every node carrying a <c>path:[…]</c>, attributes the enclosing field <c>id:'&lt;prefix&gt;&lt;hex&gt;'</c>
     /// entries to that handler. Multiple windows may target the same handler; their fields are merged.</para>
@@ -197,65 +201,173 @@ namespace tik4net.Winbox
 
         // ── Loading ────────────────────────────────────────────────────────────
 
-        // The .jg plugin set served by WinBox. roteros.jg holds the core config windows (interface, ip,
-        // routing, system); the rest add their feature menus (ppp, hotspot, dhcp/ipv6, secure, tools, wifi).
-        // All are best-effort: a router without a package simply won't serve that plugin.
-        private static readonly string[] PluginNames =
+        // One entry of the mproxy "list" catalog: the plugin's stable name and the version-stamped file
+        // that actually exists on disk.
+        internal struct PluginEntry
         {
-            "roteros.jg", "dhcp.jg", "ppp.jg", "hotspot.jg", "ipv6.jg",
-            "secure.jg", "advtool.jg", "mpls.jg", "roting4.jg", "wave2.jg", "wlan6.jg",
-        };
+            internal string Name;    // e.g. "roteros.jg" — stable, used for diagnostics
+            internal string Unique;  // e.g. "roteros-33a7039ff432.jg" — on-disk name; ".gz" appended to open
+        }
+
+        // The list catalog is a JS object literal, one { … } per served file. Only entries carrying a
+        // `unique` are fetchable plugins; the icon PNGs have none.
+        private static readonly Regex ListEntryRegex = new Regex(@"\{([^}]*)\}", RegexOptions.CultureInvariant);
+        private static readonly Regex ListNameRegex = new Regex(@"\bname\s*:\s*""([^""]*)""", RegexOptions.CultureInvariant);
+        private static readonly Regex ListUniqueRegex = new Regex(@"\bunique\s*:\s*""([^""]*)""", RegexOptions.CultureInvariant);
+
+        // The `unique` value is router-supplied and is used both as an mproxy filename and as a local cache
+        // filename, so it is constrained to a plain name here — no separators, no "..", nothing that could
+        // walk out of the cache directory.
+        private static readonly Regex SafePluginNameRegex =
+            new Regex(@"^[A-Za-z0-9][A-Za-z0-9._-]*\.jg$", RegexOptions.CultureInvariant);
+
+        private static bool IsSafePluginName(string name) =>
+            !string.IsNullOrEmpty(name) && name.Length <= 128 &&
+            !name.Contains("..") && SafePluginNameRegex.IsMatch(name);
+
+        // Asks the router which plugins it serves. The set is version- and package-dependent (7.23.2 CHR
+        // serves 18 .jg files, including container/iot/userman5/dude that no fixed list would have named,
+        // and none of the mpls/roting4 an older one did), so it must never be hardcoded.
+        private static List<PluginEntry> FetchPluginList(IWinboxM2Channel channel, int timeoutMs)
+        {
+            var result = new List<PluginEntry>();
+
+            int handle = MproxyOpen(channel, "list", WinboxM2Protocol.Mproxy.OpenStatic, timeoutMs);
+            if (handle < 0) return result;
+            byte[] raw = MproxyRead(channel, handle, timeoutMs);
+            if (raw == null || raw.Length == 0) return result;
+
+            return ParsePluginList(Encoding.UTF8.GetString(raw));
+        }
 
         /// <summary>
-        /// Ensures the catalog is populated: loads cached <c>.jg</c> for <paramref name="routerVersion"/> from
-        /// <paramref name="cacheDir"/> if present, otherwise fetches via mproxy and caches. Failures are
-        /// tolerated — the resolver falls back to its seed table and the normalizer.
+        /// Parses the mproxy <c>list</c> catalog into the fetchable <c>.jg</c> plugins. Entries without a
+        /// <c>unique</c> (the icon PNGs) and entries whose names are not plain filenames are skipped — the
+        /// names come from the router and are used as local cache filenames.
         /// </summary>
-        internal void EnsureLoaded(IWinboxM2Channel channel, string routerVersion, string cacheDir, int timeoutMs)
+        internal static List<PluginEntry> ParsePluginList(string text)
         {
-            if (HasData) return;
+            var result = new List<PluginEntry>();
+            foreach (Match m in ListEntryRegex.Matches(text ?? ""))
+            {
+                string body = m.Groups[1].Value;
+                Match name = ListNameRegex.Match(body), unique = ListUniqueRegex.Match(body);
+                if (!name.Success || !unique.Success) continue;
+                if (!IsSafePluginName(name.Groups[1].Value) || !IsSafePluginName(unique.Groups[1].Value)) continue;
+                result.Add(new PluginEntry { Name = name.Groups[1].Value, Unique = unique.Groups[1].Value });
+            }
+            return result;
+        }
 
-            string versionDir = null;
-            if (!string.IsNullOrEmpty(cacheDir) && !string.IsNullOrEmpty(routerVersion))
+        // Catalog loading is silent by design (every failure is tolerated), which is exactly how a broken
+        // live fetch stayed hidden behind a stale cache. Route the steps to the wire-trace channel so the
+        // load can be observed without changing its behaviour.
+        private const string TraceChannel = "wbx.catalog";
+
+        private static void TraceNote(string note)
+        {
+            if (TikWireTrace.Enabled)
+                TikWireTrace.Emit(TraceChannel, TikWireDir.Note, note);
+        }
+
+        // Parsed catalogs, shared process-wide and keyed by the exact set of plugin files a router
+        // advertises. The plugin set — not the RouterOS version — is a catalog's identity: two routers on
+        // the same version serve different plugins when their installed packages differ, while two routers
+        // that serve the same files have byte-identical catalogs whatever else differs about them. So a
+        // second connection to a like-configured router reuses the parse instead of redoing ~1 MB of it.
+        private static readonly Dictionary<string, WinboxJgCatalog> SharedCatalogs =
+            new Dictionary<string, WinboxJgCatalog>(StringComparer.Ordinal);
+        private static readonly object SharedCatalogsLock = new object();
+
+        /// <summary>
+        /// Returns the catalog for the plugin set this router advertises, reusing an already-parsed one when
+        /// another connection has seen the same set and reading each plugin from <paramref name="cacheDir"/>
+        /// when it was downloaded before. Failures are tolerated — an empty catalog just leaves the resolver
+        /// on its seed table and the normalizer.
+        /// </summary>
+        internal static WinboxJgCatalog Load(IWinboxM2Channel channel, string cacheDir, int timeoutMs)
+        {
+            // The list is ~2 KB and one round trip; it is the only authoritative statement of what this
+            // particular router serves, so it is always fetched — it is the plugin *bodies* that are cached.
+            List<PluginEntry> plugins;
+            try { plugins = FetchPluginList(channel, timeoutMs); }
+            catch (Exception ex) { TraceNote("list FAILED: " + ex.Message); return new WinboxJgCatalog(); }
+            if (plugins.Count == 0) { TraceNote("list returned no plugins"); return new WinboxJgCatalog(); }
+            TraceNote("list: " + plugins.Count + " plugins");
+
+            string key = string.Join("|", plugins.Select(p => p.Unique)
+                                                 .OrderBy(u => u, StringComparer.Ordinal).ToArray());
+            lock (SharedCatalogsLock)
+            {
+                WinboxJgCatalog cached;
+                if (SharedCatalogs.TryGetValue(key, out cached)) return cached;
+            }
+
+            var catalog = new WinboxJgCatalog();
+            bool complete = true;
+            // roteros.jg first: it is served by every router, holds the core windows (interface, ip,
+            // routing, system) that the resolver actually needs, and is by far the largest — so it is the
+            // one that must be fetched while the channel is freshest. mproxy does not survive an unbounded
+            // number of file reads on one channel — ~17 opens / 0.5 MB was enough to lose one — and a read
+            // that dies takes the channel with it (P2.20).
+            foreach (var plugin in plugins.OrderByDescending(p =>
+                         string.Equals(p.Name, "roteros.jg", StringComparison.OrdinalIgnoreCase)).ToList())
+            {
+                string text = null;
+                try { text = ReadCachedOrFetch(channel, plugin, cacheDir, timeoutMs); }
+                catch (Exception ex) { TraceNote(plugin.Name + " FAILED: " + ex.Message); text = null; }
+
+                if (string.IsNullOrEmpty(text))
+                {
+                    TraceNote("stopping at " + plugin.Name + " (no content)");
+                    // Stop at the first plugin we could not get rather than keep hammering a channel that
+                    // may already be gone — the connection itself still has to work over it. What has been
+                    // fetched is cached, so the next connection starts from disk and gets further; the
+                    // catalog fills in across connections instead of being lost.
+                    complete = false;
+                    break;
+                }
+                catalog.TryParseInto(text);
+                TraceNote(plugin.Name + ": " + text.Length + " chars, handlers now " + catalog._byHandler.Count);
+            }
+
+            // Only publish a complete catalog for reuse; a partial one must be retried next connection.
+            if (complete)
+                lock (SharedCatalogsLock) { SharedCatalogs[key] = catalog; }
+            return catalog;
+        }
+
+        // Plugin bodies are cached content-addressed, at <cacheDir>/plugins/<unique>. The `unique` name
+        // carries a version+content stamp, which makes the cache correct across routers by construction:
+        // any router advertising that name wants that exact file, an upgrade resolves a new name (so there
+        // is nothing to invalidate), and routers sharing a plugin share one copy.
+        private static string ReadCachedOrFetch(IWinboxM2Channel channel, PluginEntry plugin,
+                                                string cacheDir, int timeoutMs)
+        {
+            string path = null;
+            if (!string.IsNullOrEmpty(cacheDir))
             {
                 try
                 {
-                    versionDir = Path.Combine(cacheDir, SanitizeVersion(routerVersion));
-                    if (Directory.Exists(versionDir))
-                    {
-                        var cached = Directory.GetFiles(versionDir, "*.jg");
-                        // Only trust the cache when the core plugin is present; otherwise re-fetch the set.
-                        if (cached.Any(f => string.Equals(Path.GetFileName(f), "roteros.jg", StringComparison.OrdinalIgnoreCase)))
-                        {
-                            foreach (var fp in cached)
-                                TryParseInto(File.ReadAllText(fp, Encoding.UTF8));
-                            if (HasData) return;
-                        }
-                    }
+                    path = Path.Combine(Path.Combine(cacheDir, "plugins"), plugin.Unique);
+                    if (File.Exists(path)) return File.ReadAllText(path, Encoding.UTF8);
                 }
-                catch { /* cache read is best-effort */ }
+                catch { path = null; /* cache read is best-effort */ }
             }
 
-            // Live fetch the whole plugin set; each is independent so one missing plugin never blocks reads.
-            foreach (var name in PluginNames)
+            string text = FetchJg(channel, plugin.Unique, timeoutMs);
+            if (string.IsNullOrEmpty(text)) return null;
+
+            if (path != null)
             {
                 try
                 {
-                    string text = FetchJg(channel, name, timeoutMs);
-                    if (string.IsNullOrEmpty(text)) continue;
-                    TryParseInto(text);
-                    if (versionDir != null)
-                    {
-                        try
-                        {
-                            Directory.CreateDirectory(versionDir);
-                            File.WriteAllText(Path.Combine(versionDir, name), text, new UTF8Encoding(false));
-                        }
-                        catch { /* cache write is best-effort */ }
-                    }
+                    Directory.CreateDirectory(Path.GetDirectoryName(path));
+                    File.WriteAllText(path, text, new UTF8Encoding(false));
                 }
-                catch { /* one plugin failing must not break read */ }
+                catch { /* cache write is best-effort */ }
             }
+            return text;
         }
 
         private void TryParseInto(string text)
@@ -274,15 +386,17 @@ namespace tik4net.Winbox
 
         // ── mproxy .jg fetch (gzip <name>.jg.gz over [2,2] cmd=3) ──────────────
 
-        private static string FetchJg(IWinboxM2Channel channel, string name, int timeoutMs)
+        // `uniqueName` must be the version-stamped name from the mproxy "list" catalog
+        // ("roteros-33a7039ff432.jg"), never the stable plugin name. The stable name is a trap: mproxy
+        // *opens* "roteros.jg.gz" and even reports the right size, but the subsequent read never answers
+        // and takes the whole M2 channel down with it, so every later plugin fails too (P2.18).
+        private static string FetchJg(IWinboxM2Channel channel, string uniqueName, int timeoutMs)
         {
-            // The on-disk file in /home/web/webfig/ is "<name>.jg.gz" (gzip), served by the
-            // mproxy static handler via cmd=7 (NOT cmd=3 = /var/pckg, which CHR denies).
-            // Try cmd=7 on the .gz name first (proven path), then fall back to cmd=3 / plain.
-            int handle = MproxyOpen(channel, name + ".gz", WinboxM2Protocol.Mproxy.OpenStatic, timeoutMs);
-            if (handle < 0) handle = MproxyOpen(channel, name, WinboxM2Protocol.Mproxy.OpenStatic, timeoutMs);
-            if (handle < 0) handle = MproxyOpen(channel, name + ".gz", WinboxM2Protocol.Mproxy.OpenVarPkg, timeoutMs);
-            if (handle < 0) handle = MproxyOpen(channel, name, WinboxM2Protocol.Mproxy.OpenVarPkg, timeoutMs);
+            // The on-disk file in /home/web/webfig/ is "<unique>.gz" (gzip), served by the mproxy static
+            // handler via cmd=7 (NOT cmd=3 = /var/pckg, which CHR denies). A refused open is harmless —
+            // it is a clean error reply and the channel survives it.
+            int handle = MproxyOpen(channel, uniqueName + ".gz", WinboxM2Protocol.Mproxy.OpenStatic, timeoutMs);
+            if (handle < 0) handle = MproxyOpen(channel, uniqueName, WinboxM2Protocol.Mproxy.OpenStatic, timeoutMs);
             if (handle < 0) return null;
 
             byte[] raw = MproxyRead(channel, handle, timeoutMs);
@@ -697,13 +811,6 @@ namespace tik4net.Winbox
 
         internal static string HandlerKey(int[] handler) => string.Join(",", handler);
 
-        private static string SanitizeVersion(string v)
-        {
-            var sb = new StringBuilder(v.Length);
-            foreach (char c in v)
-                sb.Append(char.IsLetterOrDigit(c) || c == '.' || c == '-' ? c : '_');
-            return sb.ToString();
-        }
 
         // ── Tolerant JS-object-literal parser (port of jg_analyze.py JgParser) ─
         // Produces nested Dictionary&lt;string,object&gt; / List&lt;object&gt; / string / int.

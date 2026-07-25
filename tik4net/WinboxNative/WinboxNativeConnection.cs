@@ -21,7 +21,7 @@ namespace tik4net.WinboxNative
     /// route writes through native <c>set</c>/<c>add</c>/<c>remove</c>/<c>move</c>.</para>
     /// <para>Authentication and the encrypted channel are reused from the shared
     /// <see cref="WinboxM2Session"/> (EC-SRP5 / legacy-MD5, AES-128-CBC). Field keys/types are loaded at
-    /// connect time from the version-matched <c>.jg</c> catalog (cached under
+    /// connect time from the <c>.jg</c> catalog the router itself advertises (cached under
     /// <see cref="CatalogCachePath"/>); the apiName↔label mapping is a stable normalizer plus
     /// session overrides.</para>
     /// <para>Streaming monitors are supported via <c>ExecuteAsync</c>/<c>LoadAsync</c> (capability
@@ -54,12 +54,19 @@ namespace tik4net.WinboxNative
         public int ConnectTimeout { get; set; } = 15000;
 
         /// <summary>
-        /// Directory under which version-matched <c>.jg</c> catalogs are cached
-        /// (<c>&lt;CatalogCachePath&gt;/&lt;routerVersion&gt;/*.jg</c>).
+        /// Directory under which the router's <c>.jg</c> menu catalogs are cached, as
+        /// <c>&lt;CatalogCachePath&gt;/plugins/&lt;unique&gt;.jg</c>.
         /// Defaults to <c>%TEMP%/tik4net/</c>. Set before opening to change.
         /// Supports environment variables (<c>%APPDATA%</c>, <c>$HOME</c>, …) and relative paths
         /// (resolved against <see cref="Environment.CurrentDirectory"/> at open time).
         /// </summary>
+        /// <remarks>
+        /// Which plugins a router serves is resolved from the router itself on every open (a ~2 KB list), so
+        /// routers on the same RouterOS version but with different packages installed are handled correctly.
+        /// Only the plugin bodies are cached, under the version-stamped name the router reports for each —
+        /// so the cache is shared across routers that serve the same file, and a RouterOS upgrade simply
+        /// resolves new names rather than needing the cache invalidated. Deleting the directory is safe.
+        /// </remarks>
         public string CatalogCachePath { get; set; } =
             Path.Combine(Path.GetTempPath(), "tik4net");
 
@@ -73,8 +80,9 @@ namespace tik4net.WinboxNative
         private WinboxNativeM2Operations _ops;
         private WinboxRecordCodec _codec;   // M2 record → API field decoder (see WinboxRecordCodec)
         private WinboxIdResolver _idResolver;   // friendly-name → M2 id lookup (see WinboxIdResolver)
-        private readonly WinboxJgCatalog _catalog = new WinboxJgCatalog();
-        private string _routerVersion;
+        // Replaced at open time by the process-shared catalog for this router's plugin set
+        // (see WinboxJgCatalog.Load); the empty default keeps pre-open access harmless.
+        private WinboxJgCatalog _catalog = new WinboxJgCatalog();
 
         // ── Session configuration (set before/after open) ──────────────────────
 
@@ -210,9 +218,7 @@ namespace tik4net.WinboxNative
             // OnWriteRow/OnReadRow events (gated so the describe is only built when something listens).
             _ops.OnRequest = msg => { if (RowTracingEnabled) FireWriteRow(M2Message.Describe(msg)); };
             _ops.OnResponse = msg => { if (RowTracingEnabled) FireReadRow(M2Message.Describe(msg)); };
-            try { _routerVersion = _ops.GetRouterVersion(); }
-            catch { _routerVersion = null; }
-            try { _catalog.EnsureLoaded(session, _routerVersion, ResolvePath(CatalogCachePath), ConnectTimeout); }
+            try { _catalog = WinboxJgCatalog.Load(session, ResolvePath(CatalogCachePath), ConnectTimeout); }
             catch { /* catalog is best-effort; seeds + normalizer still work */ }
             // Feed the .jg-derived apiPath→handler map into the handler resolver (after session overrides,
             // before the shipped override tail).
