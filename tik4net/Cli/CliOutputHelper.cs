@@ -72,12 +72,19 @@ namespace tik4net.Cli
                     start++;
                     continue;
                 }
+                // Compare with the leading '/' trimmed on BOTH sides. cmdCore already had it removed, but
+                // the terminal echoes the command exactly as sent — "/interface set [find …]" — so for
+                // every command that starts with a slash (i.e. all of set/remove/enable/disable/move) the
+                // two never matched and the echo survived into the "output". That was invisible for as
+                // long as nothing read meaning into leftover text; it becomes a false error the moment a
+                // silent-on-success verb treats residue as a failure (P2.12).
+                string lineCore = line.TrimStart('/');
                 bool isEcho =
                     line.IndexOf(RouterOsCliLogin.PromptSuffix, StringComparison.Ordinal) >= 0
                     || line.IndexOf(RouterOsCliLogin.SafePromptSuffix, StringComparison.Ordinal) >= 0
                     || (cmdCore.Length > 0
-                        && (cmdCore.IndexOf(line, StringComparison.OrdinalIgnoreCase) >= 0
-                            || cmdCore.StartsWith(line, StringComparison.OrdinalIgnoreCase)));
+                        && (cmdCore.IndexOf(lineCore, StringComparison.OrdinalIgnoreCase) >= 0
+                            || cmdCore.StartsWith(lineCore, StringComparison.OrdinalIgnoreCase)));
                 if (!isEcho)
                     break;
                 start++;
@@ -102,10 +109,40 @@ namespace tik4net.Cli
             var sb = new StringBuilder();
             for (int i = start; i <= end; i++)
             {
+                // RouterOS writes log entries straight into the terminal — the shipped logging rules send
+                // `critical` topics to the console, so this happens on a stock router, not just a lab one.
+                // Such a line is unrelated to the command that happens to be running, and leaving it in
+                // corrupts whatever consumes the output: it shredded an as-value parse into
+                // "Missing field '.id'", and under P2.12 it would be read as the router rejecting a write.
+                // Recognised by the leading wall-clock stamp, which no as-value record and no RouterOS
+                // diagnostic ever starts with.
+                if (IsRouterLogLine(lines[i])) continue;
                 if (sb.Length > 0) sb.Append('\n');
                 sb.Append(lines[i]);
             }
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// True for an asynchronous router log line echoed into the terminal — <c>"19:54:32 system,error,critical
+        /// login failure …"</c>, or the <c>"jul/25 19:54:32 …"</c> form used once the entry is not from today.
+        /// </summary>
+        internal static bool IsRouterLogLine(string line)
+        {
+            string s = (line ?? string.Empty).TrimStart();
+
+            // Optional "mmm/dd " date prefix on entries that are not from today.
+            if (s.Length > 7 && s[3] == '/' && char.IsLetter(s[0]) && char.IsDigit(s[4]))
+            {
+                int sp = s.IndexOf(' ');
+                if (sp > 0) s = s.Substring(sp + 1);
+            }
+
+            // hh:mm:ss followed by a space — the console log stamp.
+            return s.Length > 9
+                && char.IsDigit(s[0]) && char.IsDigit(s[1]) && s[2] == ':'
+                && char.IsDigit(s[3]) && char.IsDigit(s[4]) && s[5] == ':'
+                && char.IsDigit(s[6]) && char.IsDigit(s[7]) && s[8] == ' ';
         }
 
         // Finds the start of token as a whole word (surrounded by non-alpha or at string bounds).

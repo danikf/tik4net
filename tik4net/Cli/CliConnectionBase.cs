@@ -330,7 +330,10 @@ namespace tik4net.Cli
                 string actionText = CliCommandBuilder.BuildNonQuery(
                     descriptor.CommandText, descriptor.Parameters, includeFilters: true);
                 string actionOutput = ExecuteCliCommand(actionText);
-                CliErrorParser.ThrowIfError(actionOutput, CreateDummyCommand(descriptor));
+                // An empty-row action (wol) is silent when it succeeds and prints its complaint when it does
+                // not — e.g. "input does not match any value of interface", which no phrase list caught, so
+                // WolWithInvalidInterfaceWillFail saw a failed send reported as success (P2.12).
+                CliErrorParser.ThrowIfError(actionOutput, CreateDummyCommand(descriptor), silentOnSuccess: true);
                 return new List<TikRecordSentence>();
             }
 
@@ -486,7 +489,11 @@ namespace tik4net.Cli
             }
 
             string output = ExecuteCliCommand(cliText);
-            CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+            // set/remove/enable/disable/move/unset print nothing when they succeed, so anything left after
+            // echo/prompt trimming is the router rejecting the command — catch it by position rather than
+            // by phrase, or it is reported to the caller as success (P2.12).
+            CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor),
+                silentOnSuccess: CliErrorParser.IsSilentOnSuccessVerb(verb));
         }
 
         /// <summary>
