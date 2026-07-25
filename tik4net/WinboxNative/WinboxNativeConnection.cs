@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using tik4net.Connection;
+using tik4net.Diagnostics;
 using tik4net.Winbox;
 
 namespace tik4net.WinboxNative
@@ -69,6 +70,20 @@ namespace tik4net.WinboxNative
         /// </remarks>
         public string CatalogCachePath { get; set; } =
             Path.Combine(Path.GetTempPath(), "tik4net");
+
+        /// <summary>
+        /// Number of M2 handlers the <c>.jg</c> catalog supplied for this connection; <c>0</c> until
+        /// <see cref="Open(string, string, string)"/> completes.
+        /// </summary>
+        /// <remarks>
+        /// A catalog load is best-effort, and a connection whose catalog did not load still opens and still
+        /// answers most commands — but it runs on the built-in seed table, where singleton windows, dynamic
+        /// (counter) fields and streaming monitors are all unknown. That returns <i>wrong values</i> rather
+        /// than errors: firewall <c>bytes</c>/<c>packets</c> come back as 0 because the getall stats bit was
+        /// never set. A healthy 7.23.2 CHR reports several hundred handlers, so treat <c>0</c> — or a count
+        /// far below a previous connection's — as a degraded connection worth reopening.
+        /// </remarks>
+        public int CatalogHandlerCount => _catalog.HandlerCount;
 
         private readonly WinboxHandlerMap _handlerMap = new WinboxHandlerMap();
         // apiPath → (apiName → key) session field overrides
@@ -192,7 +207,7 @@ namespace tik4net.WinboxNative
                 session.Dispose();
                 throw new TikConnectionLoginException(ex);
             }
-            InitAfterAuth(session);
+            InitAfterAuth(session, host);
         }
 
         /// <inheritdoc/>
@@ -207,7 +222,7 @@ namespace tik4net.WinboxNative
             return Task.Run(() => Open(host, port, user, password));
         }
 
-        private void InitAfterAuth(IWinboxM2Channel session)
+        private void InitAfterAuth(IWinboxM2Channel session, string routerKey)
         {
             _session = session;
             // ReceiveTimeout, not ConnectTimeout: this bounds each M2 operation, not the connect phase.
@@ -221,8 +236,14 @@ namespace tik4net.WinboxNative
             // Through _ops, not the raw channel: the catalog's mproxy transfer must share the same
             // request-id correlation as every other operation, or a stray frame during it desyncs the
             // channel for the rest of the connection (worst on MAC, which has no stale drain).
-            try { _catalog = WinboxJgCatalog.Load(_ops, ResolvePath(CatalogCachePath)); }
+            try { _catalog = WinboxJgCatalog.Load(_ops, ResolvePath(CatalogCachePath), routerKey); }
             catch { /* catalog is best-effort; seeds + normalizer still work */ }
+            // Never silently: a seeds-only catalog answers "no" to singleton/dynamic-field/monitor lookups,
+            // which returns wrong values rather than errors (P2.23). CatalogHandlerCount makes it visible.
+            if (_catalog.HandlerCount == 0)
+                TikWireTrace.Emit("wbx.catalog", TikWireDir.Note,
+                    "no .jg handlers loaded — running on seed table only, dynamic counters and singleton "
+                    + "reads will be wrong (see WinboxNativeConnection.CatalogHandlerCount)");
             // Feed the .jg-derived apiPath→handler map into the handler resolver (after session overrides,
             // before the shipped override tail).
             _handlerMap.SetDerivedPaths(_catalog.GetDerivedPaths());

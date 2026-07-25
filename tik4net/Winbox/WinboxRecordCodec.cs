@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using tik4net.Diagnostics;
 
 namespace tik4net.Winbox
 {
@@ -163,6 +164,7 @@ namespace tik4net.Winbox
                 var k2n = refResolver.BuildKeyToApiName();
                 int nameKey = -1, idKey = WinboxM2Protocol.RecordKey.Id;
                 foreach (var kv in k2n) if (kv.Value == "name") { nameKey = kv.Key; break; }
+                bool readable = true;
                 try
                 {
                     foreach (var r in _ops.GetAll(refHandler))
@@ -173,7 +175,18 @@ namespace tik4net.Winbox
                             catch { /* skip */ }
                         }
                 }
-                catch { /* reference table unreadable — leave numeric */ }
+                catch (Exception ex)
+                {
+                    // The lookup falls back to the numeric id, which reads as a plausible value rather than
+                    // as an error — so a single transient getall failure must not be memoized. Leaving the
+                    // empty map in the cache turned one hiccup into "every reference on this handler is
+                    // numeric for the rest of the connection"; retry on the next value instead.
+                    readable = false;
+                    if (TikWireTrace.Enabled)
+                        TikWireTrace.Emit("wbx.codec", TikWireDir.Note,
+                            "reference table [" + key + "] unreadable, values stay numeric: " + ex.Message);
+                }
+                if (!readable) return null;
                 _refNameCache[key] = map;
             }
             return map.TryGetValue(id, out var n) ? n : null;

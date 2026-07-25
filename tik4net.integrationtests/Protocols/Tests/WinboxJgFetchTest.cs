@@ -104,6 +104,7 @@ namespace tik4net.integrationtests
                 // will not serve a full ~1 MB plugin set again until it has been left alone briefly (P2.20),
                 // so without it this fails purely because of whatever ran before it.
                 var elapsed = new List<long>();
+                var handlerCounts = new List<int>();
                 long lastRead = -1;
                 for (int i = 0; i < 4; i++)
                 {
@@ -111,8 +112,10 @@ namespace tik4net.integrationtests
                     var sw = System.Diagnostics.Stopwatch.StartNew();
                     using (var conn = ConnectionFactory.CreateConnection(TikConnectionType.WinboxNative))
                     {
-                        ((tik4net.WinboxNative.WinboxNativeConnection)conn).CatalogCachePath = cacheDir;
+                        var native = (tik4net.WinboxNative.WinboxNativeConnection)conn;
+                        native.CatalogCachePath = cacheDir;
                         conn.Open(host, user, pass);
+                        handlerCounts.Add(native.CatalogHandlerCount);
                         // The catalog load must leave a working connection behind, not just a catalog.
                         try { lastRead = conn.CallCommandSync("/interface/print").Count(); }
                         catch (Exception ex) { lastRead = -1; Console.WriteLine("  read failed: " + ex.Message); }
@@ -121,7 +124,8 @@ namespace tik4net.integrationtests
                     elapsed.Add(sw.ElapsedMilliseconds);
 
                     string d = Path.Combine(cacheDir, "plugins");
-                    Console.WriteLine($"open #{i}: {sw.ElapsedMilliseconds} ms, rows={lastRead}, cached plugins=" +
+                    Console.WriteLine($"open #{i}: {sw.ElapsedMilliseconds} ms, rows={lastRead}, " +
+                        $"handlers={handlerCounts[i]}, cached plugins=" +
                         (Directory.Exists(d) ? Directory.GetFiles(d).Length : 0));
                 }
 
@@ -135,6 +139,20 @@ namespace tik4net.integrationtests
 
                 var files = Directory.GetFiles(Path.Combine(cacheDir, "plugins"));
                 Console.WriteLine("cache: " + string.Join(", ", files.Select(Path.GetFileName)));
+
+                // The point of P2.23: no connect may end up on the seed table. mproxy does refuse `list`
+                // from time to time (P2.20), and when it does, the remembered plugin set has to carry the
+                // load — otherwise the connection still opens and still answers, but every dynamic-field
+                // and singleton lookup silently says "no" and the caller gets zeros for live counters.
+                Assert.IsTrue(File.Exists(Path.Combine(Path.Combine(cacheDir, "lists"),
+                        host.Replace(':', '_') + ".list")),
+                    "the resolved plugin set must be remembered per router, so a refused 'list' can fall back to it");
+                Assert.IsTrue(handlerCounts.All(c => c > 0),
+                    $"every connect must produce a usable catalog, never seeds only (handlers: {string.Join("/", handlerCounts)})");
+                // Counts may *rise* across the cold opens — a partial fetch is deliberately retried and
+                // filled in on the next connection — but the last one must not have lost ground.
+                Assert.AreEqual(handlerCounts.Max(), handlerCounts.Last(),
+                    $"the warm connect must not resolve fewer handlers than an earlier one (handlers: {string.Join("/", handlerCounts)})");
                 Assert.IsTrue(files.Any(f => Path.GetFileName(f).StartsWith("roteros-")),
                     "roteros.jg is served by every router and is fetched first, so it must end up cached");
                 Assert.IsTrue(files.All(f => Path.GetFileName(f).Contains("-")),

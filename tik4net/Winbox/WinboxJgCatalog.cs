@@ -20,8 +20,10 @@ namespace tik4net.Winbox
     /// <para>Source: live fetch over the WinBox mproxy file handler (<c>[2,2]</c> cmd=7). The plugin set is
     /// resolved from the router's own <c>list</c> catalog — never hardcoded, since which plugins exist
     /// depends on version and installed packages — and each is downloaded by its version-stamped
-    /// <c>unique</c> name (<c>&lt;unique&gt;.gz</c>, gzip), then cached to
-    /// <c>&lt;CatalogCachePath&gt;/&lt;routerVersion&gt;/&lt;name&gt;.jg</c>.</para>
+    /// <c>unique</c> name (<c>&lt;unique&gt;.gz</c>, gzip), then cached content-addressed to
+    /// <c>&lt;CatalogCachePath&gt;/plugins/&lt;unique&gt;</c>. The resolved set itself is remembered per router
+    /// under <c>&lt;CatalogCachePath&gt;/lists/</c>, so a router that momentarily refuses <c>list</c> still
+    /// yields a full catalog instead of silently degrading the connection to seeds (P2.23).</para>
     /// <para>The parser is a C# port of <c>_notes/WinboxMessage/jg_analyze.py</c> — it walks the object tree
     /// and, for every node carrying a <c>path:[…]</c>, attributes the enclosing field <c>id:'&lt;prefix&gt;&lt;hex&gt;'</c>
     /// entries to that handler. Multiple windows may target the same handler; their fields are merged.</para>
@@ -199,6 +201,11 @@ namespace tik4net.Winbox
         internal bool HasDynamicFields(int[] handler) =>
             handler != null && _dynamicHandlers.Contains(HandlerKey(handler));
 
+        /// <summary>Number of M2 handlers this catalog knows fields for. <c>0</c> means the <c>.jg</c> load
+        /// produced nothing and every lookup will fall back to the seed table — see
+        /// <see cref="WinboxNative.WinboxNativeConnection.CatalogHandlerCount"/> for why that matters.</summary>
+        internal int HandlerCount => _byHandler.Count;
+
         // ── Loading ────────────────────────────────────────────────────────────
 
         // One entry of the mproxy "list" catalog: the plugin's stable name and the version-stamped file
@@ -259,6 +266,86 @@ namespace tik4net.Winbox
             return result;
         }
 
+        // ── Remembering the resolved plugin set (per router) ───────────────────
+
+        /// <summary>Serializes a resolved plugin set as <c>name TAB unique</c> lines.</summary>
+        internal static string FormatPluginList(IEnumerable<PluginEntry> plugins) =>
+            string.Join("\n", plugins.Select(p => p.Name + "\t" + p.Unique).ToArray());
+
+        /// <summary>
+        /// Reads back a set written by <see cref="FormatPluginList"/>. Names are re-validated on the way in:
+        /// the file survives between runs and its contents become mproxy filenames and cache filenames again,
+        /// so it is treated as untrusted exactly like the router's own <c>list</c>.
+        /// </summary>
+        internal static List<PluginEntry> ParseRememberedList(string text)
+        {
+            var result = new List<PluginEntry>();
+            foreach (string line in (text ?? "").Split('\n'))
+            {
+                string trimmed = line.Trim();
+                int tab = trimmed.IndexOf('\t');
+                if (tab <= 0) continue;
+                string name = trimmed.Substring(0, tab).Trim(), unique = trimmed.Substring(tab + 1).Trim();
+                if (!IsSafePluginName(name) || !IsSafePluginName(unique)) continue;
+                result.Add(new PluginEntry { Name = name, Unique = unique });
+            }
+            return result;
+        }
+
+        // <cacheDir>/lists/<router>.list — one file per router, since two routers on the same version may
+        // serve different plugin sets. The key is host or MAC, so it is reduced to filename-safe characters.
+        private static string ListCachePath(string cacheDir, string routerKey)
+        {
+            if (string.IsNullOrEmpty(cacheDir) || string.IsNullOrEmpty(routerKey)) return null;
+            var safe = new StringBuilder(routerKey.Length);
+            foreach (char c in routerKey)
+                safe.Append((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+                            || c == '.' || c == '-' ? c : '_');
+            return Path.Combine(Path.Combine(cacheDir, "lists"), safe.ToString() + ".list");
+        }
+
+        private static void RememberPluginList(string routerKey, string cacheDir, List<PluginEntry> plugins)
+        {
+            if (string.IsNullOrEmpty(routerKey)) return;
+            lock (LastGoodListsLock) { LastGoodLists[routerKey] = plugins; }
+
+            string path = ListCachePath(cacheDir, routerKey);
+            if (path == null) return;
+            try
+            {
+                string text = FormatPluginList(plugins);
+                // Rewrite only on change: this runs on every open, and an unchanged router should not
+                // produce a disk write per connection.
+                if (File.Exists(path) && string.Equals(File.ReadAllText(path, Encoding.UTF8), text, StringComparison.Ordinal))
+                    return;
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                File.WriteAllText(path, text, new UTF8Encoding(false));
+            }
+            catch { /* remembering is best-effort — never fail an open over it */ }
+        }
+
+        private static List<PluginEntry> RecallPluginList(string routerKey, string cacheDir)
+        {
+            if (string.IsNullOrEmpty(routerKey)) return null;
+            lock (LastGoodListsLock)
+            {
+                List<PluginEntry> inProcess;
+                if (LastGoodLists.TryGetValue(routerKey, out inProcess)) return inProcess;
+            }
+
+            string path = ListCachePath(cacheDir, routerKey);
+            if (path == null) return null;
+            try
+            {
+                if (!File.Exists(path)) return null;
+                var plugins = ParseRememberedList(File.ReadAllText(path, Encoding.UTF8));
+                if (plugins.Count == 0) return null;
+                lock (LastGoodListsLock) { LastGoodLists[routerKey] = plugins; }
+                return plugins;
+            }
+            catch { return null; }
+        }
+
         // Catalog loading is silent by design (every failure is tolerated), which is exactly how a broken
         // live fetch stayed hidden behind a stale cache. Route the steps to the wire-trace channel so the
         // load can be observed without changing its behaviour.
@@ -279,21 +366,52 @@ namespace tik4net.Winbox
             new Dictionary<string, WinboxJgCatalog>(StringComparer.Ordinal);
         private static readonly object SharedCatalogsLock = new object();
 
+        // The plugin set each router was last seen serving, remembered so that a *failed* `list` never
+        // downgrades a connection. Keyed by router (host or MAC), unlike SharedCatalogs which is keyed by
+        // the set itself — the whole point is to have an answer when the set could not be resolved.
+        private static readonly Dictionary<string, List<PluginEntry>> LastGoodLists =
+            new Dictionary<string, List<PluginEntry>>(StringComparer.OrdinalIgnoreCase);
+        private static readonly object LastGoodListsLock = new object();
+
         /// <summary>
         /// Returns the catalog for the plugin set this router advertises, reusing an already-parsed one when
         /// another connection has seen the same set and reading each plugin from <paramref name="cacheDir"/>
-        /// when it was downloaded before. Failures are tolerated — an empty catalog just leaves the resolver
+        /// when it was downloaded before. <paramref name="routerKey"/> (host or MAC) identifies the router
+        /// for the remembered plugin set. Failures are tolerated — an empty catalog just leaves the resolver
         /// on its seed table and the normalizer.
         /// </summary>
-        internal static WinboxJgCatalog Load(WinboxNativeM2Operations ops, string cacheDir)
+        internal static WinboxJgCatalog Load(WinboxNativeM2Operations ops, string cacheDir, string routerKey)
         {
             // The list is ~2 KB and one round trip; it is the only authoritative statement of what this
             // particular router serves, so it is always fetched — it is the plugin *bodies* that are cached.
-            List<PluginEntry> plugins;
+            List<PluginEntry> plugins = null;
             try { plugins = FetchPluginList(ops); }
-            catch (Exception ex) { TraceNote("list FAILED: " + ex.Message); return new WinboxJgCatalog(); }
-            if (plugins.Count == 0) { TraceNote("list returned no plugins"); return new WinboxJgCatalog(); }
-            TraceNote("list: " + plugins.Count + " plugins");
+            catch (Exception ex) { TraceNote("list FAILED: " + ex.Message); }
+
+            if (plugins == null || plugins.Count == 0)
+            {
+                // A failed list must NOT mean an empty catalog. On seeds alone the connection still opens
+                // and most paths still resolve, so nothing looks wrong — but IsSingletonHandler,
+                // HasDynamicFields (the getall stats bit behind firewall bytes/packets), monitor specs and
+                // reference resolution all quietly answer "no", and the caller gets plausible wrong data
+                // instead of an error (P2.23; this is what made P2.21 look like a timing problem).
+                // mproxy degrades under repeated `list` calls (P2.20), so this is not a rare path.
+                // The bodies are already cached content-addressed, so reusing the last known set costs no
+                // mproxy traffic at all — and cross-version safety is intact: `unique` names are
+                // version-stamped, so a real upgrade resolves a new set; only a *failed* list reuses this one.
+                plugins = RecallPluginList(routerKey, cacheDir);
+                if (plugins == null || plugins.Count == 0)
+                {
+                    TraceNote("list unavailable, nothing remembered for '" + routerKey + "' — SEEDS ONLY");
+                    return new WinboxJgCatalog();
+                }
+                TraceNote("list unavailable — reusing " + plugins.Count + " remembered plugins for '" + routerKey + "'");
+            }
+            else
+            {
+                TraceNote("list: " + plugins.Count + " plugins");
+                RememberPluginList(routerKey, cacheDir, plugins);
+            }
 
             string key = string.Join("|", plugins.Select(p => p.Unique)
                                                  .OrderBy(u => u, StringComparer.Ordinal).ToArray());
@@ -370,14 +488,23 @@ namespace tik4net.Winbox
             return text;
         }
 
-        private void TryParseInto(string text)
+        // Tolerant by design — one plugin we cannot parse must not cost the whole catalog. But a silently
+        // dropped plugin is a catalog that is quietly missing handlers, which surfaces later as wrong values
+        // rather than as an error, so the drop is always traced. Expect this to fire first on a RouterOS
+        // version whose .jg syntax has moved (P2.24).
+        private bool TryParseInto(string text)
         {
             try
             {
                 object tree = new JgParser(text).Parse();
                 Walk(tree, null, new List<string>());
+                return true;
             }
-            catch { /* tolerant: skip unparsable plugin */ }
+            catch (Exception ex)
+            {
+                TraceNote("PARSE FAILED (" + text.Length + " chars): " + ex.Message);
+                return false;
+            }
         }
 
         // Window node types whose path:[…] is a real handler target (vs dropdown references type:'enm').

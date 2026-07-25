@@ -65,5 +65,39 @@ namespace tik4net.unittests.Winbox
             Assert.AreEqual(0, WinboxJgCatalog.ParsePluginList("").Count);
             Assert.AreEqual(0, WinboxJgCatalog.ParsePluginList("not a catalog at all").Count);
         }
+
+        // A resolved set is remembered per router so that a momentarily unavailable `list` reuses it rather
+        // than leaving the connection on the seed table, where missing counters look like zeros (P2.23).
+        [TestMethod]
+        public void RememberedList_RoundTripsThePluginSet()
+        {
+            var original = WinboxJgCatalog.ParsePluginList(RealList);
+
+            var restored = WinboxJgCatalog.ParseRememberedList(WinboxJgCatalog.FormatPluginList(original));
+
+            CollectionAssert.AreEqual(original.Select(p => p.Name + "|" + p.Unique).ToArray(),
+                                      restored.Select(p => p.Name + "|" + p.Unique).ToArray());
+        }
+
+        // The remembered set lives on disk between runs, and its names go straight back out as mproxy
+        // filenames and cache filenames — so it is re-validated on read, not trusted because we wrote it.
+        [TestMethod]
+        public void RememberedList_RevalidatesNamesOnRead()
+        {
+            var restored = WinboxJgCatalog.ParseRememberedList(
+                "../../evil.jg\t../../evil.jg\n" +
+                "ok.jg\tsub/dir.jg\n" +
+                "good.jg\tgood-01ab.jg\n");
+
+            CollectionAssert.AreEqual(new[] { "good-01ab.jg" }, restored.Select(p => p.Unique).ToArray());
+        }
+
+        [TestMethod]
+        public void RememberedList_ToleratesGarbage()
+        {
+            Assert.AreEqual(0, WinboxJgCatalog.ParseRememberedList(null).Count);
+            Assert.AreEqual(0, WinboxJgCatalog.ParseRememberedList("").Count);
+            Assert.AreEqual(0, WinboxJgCatalog.ParseRememberedList("no tab here\n\n   \n").Count);
+        }
     }
 }

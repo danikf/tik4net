@@ -672,11 +672,22 @@ namespace tik4net.Api
                     } while (_isOpened && !(sentence is ApiDoneSentence /*|| sentence is ApiTrapSentence*/ || sentence is ApiFatalSentence)); // read sentences via TryGetOne(wait) for TAG until !done or !fatal is returned
                     //NOTE: Should be ended via !done or !trap+!done (called via Cancel() command for specific tag)
                 }
-                catch
+                catch (Exception ex)
                 {
                     // Connection closed unexpectedly (e.g. router rebooted/shutdown).
                     // Synthesize !fatal so the caller (ExecuteAsync) can clear its _isRuning state.
-                    try { oneResponseCallback(new ApiFatalSentence(Array.Empty<string>())); } catch { }
+                    // Carry the reason: an empty fatal makes a router reboot, a socket error and a bug in
+                    // our own reader indistinguishable to the caller, and this is the only place the
+                    // exception exists — swallowing it here is why an async/listen that dies leaves nothing
+                    // to diagnose (P2.14). Free text matches how RouterOS words a real !fatal, and the
+                    // sentence's word dictionary ignores anything that is not key=value.
+                    try
+                    {
+                        oneResponseCallback(new ApiFatalSentence(
+                            new[] { "connection lost while reading tag " + tag + ": "
+                                    + ex.GetType().Name + ": " + ex.Message }));
+                    }
+                    catch { /* callback is caller code — never let it mask the fatal */ }
                 }
             });
             result.IsBackground = true;
