@@ -273,6 +273,19 @@ namespace tik4net.integrationtests
             _routerOsVersion = null;
         }
 
+        /// <summary>
+        /// Opens an <b>additional</b> connection on the transport under test, for a test that must act on
+        /// the router while a monitor or listen owns <see cref="Connection"/>. Caller disposes.
+        /// </summary>
+        /// <remarks>
+        /// The CLI family emulates listen/monitor by polling a single request/reply terminal, and that
+        /// worker owns the channel for as long as it runs — issuing CRUD on the same connection meanwhile
+        /// is explicitly not supported (<c>CliConnectionBase.RunMonitorAsync</c>). The binary API
+        /// multiplexes by tag and tolerates it, which is exactly why a one-connection listen test passes
+        /// there and is a lottery over Telnet and WinBox CLI (P2.14).
+        /// </remarks>
+        protected ITikConnection OpenSecondaryConnection() => OpenNewConnection();
+
         /// <summary>Opens a brand-new connection to the router for the resolved transport, with retry.</summary>
         private ITikConnection OpenNewConnection(int retryTimeoutSeconds = 20)
         {
@@ -335,6 +348,28 @@ namespace tik4net.integrationtests
                              + (feature != null ? $" ({feature})" : "")
                              + " — test skipped.";
                 Assert.Inconclusive(msg);
+            }
+        }
+
+        /// <summary>
+        /// Blocks until <paramref name="condition"/> holds or the timeout elapses, and reports which.
+        /// </summary>
+        /// <remarks>
+        /// Prefer this over a fixed <see cref="Thread.Sleep(int)"/> whenever a test waits on the router.
+        /// A constant budget that is generous over the binary API is not generous over Telnet or a WinBox
+        /// terminal, nor over an API connection on a router that has already served a few hundred tests —
+        /// and that mismatch is what produces a test which passes alone and fails in the suite (P2.14,
+        /// P2.21). This only waits *longer*; the assertion after it is unchanged, so a router that never
+        /// satisfies the condition still fails the test.
+        /// </remarks>
+        protected static bool WaitUntil(Func<bool> condition, int timeoutSeconds = 20, int pollMs = 250)
+        {
+            DateTime deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds);
+            while (true)
+            {
+                if (condition()) return true;
+                if (DateTime.UtcNow >= deadline) return false;
+                Thread.Sleep(pollMs);
             }
         }
 

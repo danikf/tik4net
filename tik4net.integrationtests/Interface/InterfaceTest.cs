@@ -171,20 +171,37 @@ namespace tik4net.integrationtests
 
             try
             {
-                Thread.Sleep(500); // ensure listen is running
+                // The change MUST be made over a second connection (P2.14). The CLI family emulates listen
+                // by polling a single request/reply terminal, and that worker owns the channel while it
+                // runs — a `set` issued on the same connection contends with the poller, which is why this
+                // test was a lottery over Telnet/WinBox CLI while passing over the tag-multiplexed API.
+                // Driving the trigger harder on the shared connection makes it *worse*, not better:
+                // measured 3-of-4 failures with one trigger, 4-of-4 when retried every 500 ms.
+                //
+                // The retry itself is still needed, because the listen is not necessarily registered when
+                // LoadListenAsync returns and a change made before that is simply unobservable. Each round
+                // uses a *different* comment — RouterOS emits nothing for a `set` that changes nothing, so
+                // re-sending the same value would not give a second chance.
+                int round = 0;
+                bool detected;
+                using (var trigger = OpenSecondaryConnection())
+                {
+                    detected = WaitUntil(() =>
+                    {
+                        var setCmd = trigger.CreateCommand("/interface/set");
+                        setCmd.AddParameter(TikSpecialProperties.Id, IFACE);
+                        setCmd.AddParameter("comment", TEST_COMMENT + "-" + (++round));
+                        setCmd.ExecuteNonQuery();
 
-                // trigger a change — set comment on ether1
-                var setCmd = Connection.CreateCommand("/interface/set");
-                setCmd.AddParameter(TikSpecialProperties.Id, IFACE);
-                setCmd.AddParameter("comment", TEST_COMMENT);
-                setCmd.ExecuteNonQuery();
-
-                Thread.Sleep(1500); // wait for !re callback
+                        Thread.Sleep(1000);   // one CLI listen poll interval before re-triggering
+                        if (listenException != null) return true;   // stop early; asserted below
+                        lock (changes) return changes.Any(i => i.Name == IFACE);
+                    }, timeoutSeconds: 20, pollMs: 0);
+                }
 
                 Assert.IsNull(listenException, "Unexpected listen error: " + listenException?.Message);
-                lock (changes)
-                    Assert.IsTrue(changes.Any(i => i.Name == IFACE),
-                        "Expected at least one change notification for " + IFACE);
+                Assert.IsTrue(detected,
+                    $"Expected at least one change notification for {IFACE} after {round} triggers");
             }
             finally
             {
@@ -219,49 +236,80 @@ namespace tik4net.integrationtests
             }
             catch { /* leftover cleanup is best-effort */ }
 
-            // create a dummy IP address to delete during the test
-            var addCmd = Connection.CreateCommandAndParameters("/ip/address/add",
-                TikCommandParameterFormat.NameValue,
-                "address", TEST_IP,
-                "interface", TEST_IFACE);
-            string newId = addCmd.ExecuteScalar();
-
             List<string> deletedIds = new List<string>();
+            List<string> seenIds = new List<string>();
             Exception listenException = null;
+            string newId = null;
 
             var listenCmd = Connection.LoadListenAsync<Objects.Ip.IpAddress>(
-                _ => { },
+                addr => { lock (seenIds) seenIds.Add(addr.Id); },
                 onDeletedCallback: id => { lock (deletedIds) deletedIds.Add(id); },
                 onExceptionCallback: ex => { listenException = ex; });
 
             try
             {
-                Thread.Sleep(500);
+                // Driven over a second connection for the same reason as
+                // LoadListenAsync_DetectsInterfaceChange: on the CLI transports the listen poller owns the
+                // terminal, so CRUD on the shared connection contends with it (P2.14).
+                //
+                // The add/remove pair sits inside the retry because an id can only be deleted once, so each
+                // round needs a fresh address — but the two halves must NOT be back-to-back. The CLI listen
+                // diffs successive snapshots, so it can only report a deletion for a row it has already
+                // seen: an address created and removed inside one poll interval is invisible, and doing
+                // exactly that is how this test was made to fail 3-of-3 while its sibling was being fixed.
+                // So wait for the listen to actually observe the address (via the change callback) before
+                // removing it. That wait is best-effort, not asserted — if the id never shows up, the
+                // timeout still leaves several poll intervals, and the outer retry gets another attempt.
+                bool detected = false;
+                using (var trigger = OpenSecondaryConnection())
+                {
+                    DateTime deadline = DateTime.UtcNow.AddSeconds(45);
+                    while (!detected && listenException == null && DateTime.UtcNow < deadline)
+                    {
+                        newId = trigger.CreateCommandAndParameters("/ip/address/add",
+                            TikCommandParameterFormat.NameValue,
+                            "address", TEST_IP,
+                            "interface", TEST_IFACE).ExecuteScalar();
 
-                var removeCmd = Connection.CreateCommandAndParameters("/ip/address/remove",
-                    TikCommandParameterFormat.NameValue,
-                    TikSpecialProperties.Id, newId);
-                removeCmd.ExecuteNonQuery();
+                        WaitUntil(() =>
+                        {
+                            lock (seenIds)
+                                return seenIds.Any(s => string.Equals(s, newId, StringComparison.OrdinalIgnoreCase));
+                        }, timeoutSeconds: 6);
 
-                Thread.Sleep(1500);
+                        string removed = newId;
+                        trigger.CreateCommandAndParameters("/ip/address/remove",
+                            TikCommandParameterFormat.NameValue,
+                            TikSpecialProperties.Id, removed).ExecuteNonQuery();
+                        newId = null;   // gone from the router — nothing for the cleanup below to do
+
+                        detected = WaitUntil(() =>
+                        {
+                            if (listenException != null) return true;   // stop early; asserted below
+                            lock (deletedIds)
+                                return deletedIds.Any(d => string.Equals(d, removed, StringComparison.OrdinalIgnoreCase));
+                        }, timeoutSeconds: 6);
+                    }
+                }
 
                 Assert.IsNull(listenException, "Unexpected listen error: " + listenException?.Message);
-                lock (deletedIds)
-                    Assert.IsTrue(deletedIds.Contains(newId),
-                        "Expected deleted-item notification for id " + newId);
+                Assert.IsTrue(detected, "Expected a deleted-item notification for the removed address");
             }
             finally
             {
                 listenCmd.CancelAndJoin();
 
-                // cleanup in case remove failed
-                try
+                // cleanup in case a remove failed part-way through the retry
+                if (newId != null)
                 {
-                    Connection.CreateCommandAndParameters("/ip/address/remove",
-                        TikCommandParameterFormat.NameValue,
-                        TikSpecialProperties.Id, newId).ExecuteNonQuery();
+                    try
+                    {
+                        Connection.CreateCommandAndParameters("/ip/address/remove",
+                            TikCommandParameterFormat.NameValue,
+                            TikSpecialProperties.Id, newId).ExecuteNonQuery();
+                    }
+                    catch { }
                 }
-                catch { }
             }
         }
 
@@ -273,23 +321,33 @@ namespace tik4net.integrationtests
             EnsureCapability(TikConnectionCapability.Listen, "parallel async commands");
             Connection.DebugEnabled = true;
 
+            // Both lists are appended from the reader thread and read from this one. They used to be
+            // unsynchronized List<T> — a genuine data race, not just a timing one, and List<T> gives no
+            // guarantee at all when Add and Count overlap. Lock both sides.
             var cmdWlan = Connection.CreateCommandAndParameters("/interface/monitor-traffic", "interface", TestConstants.WirelessInterface);
             List<ITikReSentence> responsesWlan = new List<ITikReSentence>();
-            cmdWlan.ExecuteAsync(re => responsesWlan.Add(re));
+            cmdWlan.ExecuteAsync(re => { lock (responsesWlan) responsesWlan.Add(re); });
 
             var cmdEth = Connection.CreateCommandAndParameters("/interface/monitor-traffic", "interface", TestConstants.Interface);
             List<ITikReSentence> responsesEth = new List<ITikReSentence>();
-            cmdEth.ExecuteAsync(re => responsesEth.Add(re));
+            cmdEth.ExecuteAsync(re => { lock (responsesEth) responsesEth.Add(re); });
 
-            Thread.Sleep(1000);
+            int EthCount() { lock (responsesEth) return responsesEth.Count; }
+
+            // /interface/monitor-traffic emits about once a second, so the old fixed 1 s waits demanded a
+            // row inside exactly one emit interval — no margin on a transport that is slower than the API
+            // or a router that is busy (P2.14). Wait for the actual condition instead.
+            Assert.IsTrue(WaitUntil(() => EthCount() > 0),
+                "the eth monitor produced no rows at all — nothing to test cancellation against");
+
             cmdWlan.CancelAndJoin();
-            var cnt = responsesEth.Count;
+            int cnt = EthCount();
 
-            Thread.Sleep(1000);
-            Assert.IsTrue(cmdEth.IsRunning);
+            // The point of the test: cancelling one async command must not disturb the other.
+            Assert.IsTrue(WaitUntil(() => EthCount() > cnt),
+                "cancelling the wlan monitor also stopped the eth monitor");
+            Assert.IsTrue(cmdEth.IsRunning, "the eth monitor stopped running after the wlan monitor was cancelled");
             cmdEth.CancelAndJoin();
-
-            Assert.IsTrue(responsesEth.Count > cnt);
         }
     }
 }
