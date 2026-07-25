@@ -100,7 +100,19 @@ namespace tik4net.Telnet
         /// </summary>
         internal async Task<string> SendCommandAndReadAsync(string command, CancellationToken ct)
         {
+            // Discard anything still buffered from the PREVIOUS command before issuing this one.
+            // RouterOS's line editor repaints the echo as "<prompt> <command>", and the read that returns on
+            // the prompt inside that repaint leaves the echoed command text behind: the accumulated buffer
+            // ends at "…[admin@CHR] > ", the settle window expires, and the trailing ":put […]" arrives
+            // afterwards. The next command then reads that leftover as its own answer — and because the
+            // stale echo contains 'name=value' text it parses as a record with no '.id', which is how
+            // Create_IpAddress_With_LowLevel_API failed with "Missing field '.id'" in the full suite while
+            // passing standalone (P2.28). Gated on DataAvailable so the normal, clean path pays nothing.
+            // WinboxCliClient has done exactly this since P2.13c; Telnet never got the same guard.
             string cmd = CliOutputHelper.InjectWithoutPaging(command);
+
+            if (_stream.DataAvailable)
+                await DrainAsync(SettleMs, ct).ConfigureAwait(false);
 
             await SendLineAsync(cmd, ct).ConfigureAwait(false);
 

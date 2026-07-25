@@ -116,7 +116,14 @@ namespace tik4net.Ssh
         /// </summary>
         internal async Task<string> SendCommandAndReadAsync(string command, CancellationToken ct)
         {
+            // Discard anything still buffered from the PREVIOUS command — see the same guard in
+            // TelnetClient for the mechanism (a read returning on the prompt inside the line editor's echo
+            // repaint leaves the echoed command text behind, and the next command reads it as its answer).
             string cmd = CliOutputHelper.InjectWithoutPaging(command);
+
+            if (_shell.DataAvailable)
+                await DrainAsync(SettleMs, ct).ConfigureAwait(false);
+
             await SendLineAsync(cmd, ct).ConfigureAwait(false);
             string raw = await ReadCommandResponseAsync(ct, cmd).ConfigureAwait(false);
             return CliOutputHelper.CleanOutput(raw, cmd);
