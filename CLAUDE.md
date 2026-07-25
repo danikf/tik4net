@@ -169,6 +169,8 @@ applies the documented conventions.
 
 - `mikrotik` — query/modify a router over any transport (via the tik4net MCP server)
 - `mikrotik-tests` — run and debug the integration suite
+- `chr-test-router-init` — re-provision the CHR test router after a restore/reset (packages, NTP,
+  services, api-ssl certs, transport smoke) and reconcile the RouterOS version promised in README/wiki
 - `mikrotik-cli-probe` — ground truth for what the router actually emits over the CLI/PTY layer
 - `winbox-native-dev` — structured-M2 transport work (`.jg` catalog, wire encodings)
 - `entity-generator` — scaffold O/R mapper entities

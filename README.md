@@ -1,7 +1,7 @@
 tik4net
 ====
 
-tik4net is a .NET `netstandard2.0` library for communicating with MikroTik routers — enabling use in .NET Framework 4.6.1+, .NET Core 2.0+, .NET 5/6/7/8/9, Xamarin, and Unity. It offers a clean, easy-to-use interface that scales from low-level raw API access all the way up to a fully typed O/R mapper. Tested and debugged against **RouterOS 7.21.4** (latest stable).
+tik4net is a .NET `netstandard2.0` library for communicating with MikroTik routers — enabling use in .NET Framework 4.6.1+, .NET Core 2.0+, .NET 5/6/7/8/9, Xamarin, and Unity. It offers a clean, easy-to-use interface that scales from low-level raw API access all the way up to a fully typed O/R mapper. Tested and debugged against **RouterOS 7.23.2** (latest stable).
 
 > **🆕 Many new connection types!** Beyond the classic API, tik4net now drives the router over REST, Telnet, SSH, MAC-Telnet, and WinBox (terminal + native-M2, over IP or MAC layer). See [Connection types and capabilities](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities). tik4net is the **only .NET library** that speaks **MAC-Telnet** and the **WinBox** protocols.
 
