@@ -29,12 +29,60 @@ namespace tik4net.Cli
         public const string PromptSuffix = "] >";
 
         /// <summary>
-        /// Shell prompt suffix while RouterOS Safe Mode is active. The prompt gains a <c>&lt;SAFE&gt;</c>
-        /// token between the <c>]</c> and the <c>&gt;</c>, e.g. <c>[admin@MikroTik] &lt;SAFE&gt; &gt;</c>.
-        /// Recognising it keeps every command's read-until-prompt working once
-        /// <see cref="ITikConnection.SafeModeTake"/> has been called.
+        /// Shell prompt suffix while RouterOS Safe Mode is active: the <c>&gt;</c> is <b>replaced</b> by a
+        /// <c>&lt;SAFE&gt;</c> token, e.g. <c>[admin@MikroTik] &lt;SAFE&gt; </c>. Captured off the wire on
+        /// 7.23.2 — see <see cref="SafePromptSuffixWithArrow"/> for why both forms are matched.
         /// </summary>
-        public const string SafePromptSuffix = "] <SAFE> >";
+        public const string SafePromptSuffix = "] <SAFE>";
+
+        /// <summary>
+        /// The safe-mode prompt with the <c>&gt;</c> kept after the token
+        /// (<c>[admin@MikroTik] &lt;SAFE&gt; &gt;</c>).
+        /// </summary>
+        /// <remarks>
+        /// This was for a long time the <i>only</i> form we matched, and RouterOS 7.23.2 does not emit it:
+        /// the real prompt is <c>"[admin@CHR] &lt;SAFE&gt; "</c>. Nothing detected the mismatch because a
+        /// prompt that is never recognised does not fail — every command inside safe mode simply ran to the
+        /// full receive deadline and returned whatever had accumulated, so the tests passed while taking 30 s
+        /// per command. Both spellings are kept rather than swapped, because the evidence base for either is
+        /// one router on one version (P2.24) and matching a prompt shape we no longer see costs nothing.
+        /// </remarks>
+        public const string SafePromptSuffixWithArrow = "] <SAFE> >";
+
+        // Every accepted prompt ending, longest-lived first. Kept in one place so prompt detection cannot
+        // drift between the read loops (IsShellPrompt) and the output cleaner (CliOutputHelper).
+        private static readonly string[] PromptSuffixes =
+        {
+            PromptSuffix,
+            SafePromptSuffix,
+            SafePromptSuffixWithArrow,
+        };
+
+        /// <summary>
+        /// True when <paramref name="text"/>, once trailing CR/LF/spaces are trimmed, ends with any accepted
+        /// prompt suffix (normal or Safe Mode).
+        /// </summary>
+        internal static bool EndsWithPromptSuffix(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return false;
+            string t = text.TrimEnd('\r', '\n', ' ');
+            foreach (string suffix in PromptSuffixes)
+                if (t.EndsWith(suffix, StringComparison.Ordinal))
+                    return true;
+            return false;
+        }
+
+        /// <summary>True when <paramref name="text"/> contains any accepted prompt suffix anywhere.</summary>
+        internal static bool ContainsPromptSuffix(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return false;
+            foreach (string suffix in PromptSuffixes)
+                if (text.IndexOf(suffix, StringComparison.Ordinal) >= 0)
+                    return true;
+            return false;
+        }
 
         /// <summary>
         /// Login name suffix appended to the user name on PTY transports. <c>+c</c> disables ANSI
@@ -55,13 +103,7 @@ namespace tik4net.Cli
         /// <summary>True when the ANSI-stripped text ends with the RouterOS shell prompt, including the
         /// <c>&lt;SAFE&gt;</c> variant shown while Safe Mode is active.</summary>
         public static bool IsShellPrompt(string strippedText)
-        {
-            if (string.IsNullOrEmpty(strippedText))
-                return false;
-            string t = strippedText.TrimEnd('\r', '\n', ' ');
-            return t.EndsWith(PromptSuffix, StringComparison.Ordinal)
-                || t.EndsWith(SafePromptSuffix, StringComparison.Ordinal);
-        }
+            => EndsWithPromptSuffix(strippedText);
 
         public static bool IsLoginPrompt(string s)
             => !string.IsNullOrEmpty(s) && s.IndexOf("ogin:", StringComparison.OrdinalIgnoreCase) >= 0;

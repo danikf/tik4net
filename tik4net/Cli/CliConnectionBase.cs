@@ -199,13 +199,45 @@ namespace tik4net.Cli
         }
 
         /// <summary>
-        /// Discards the safe-mode changes immediately and leaves Safe Mode by sending <c>Ctrl+D</c>, without
-        /// dropping the connection. No-op when safe mode is not held.
+        /// Discards the safe-mode changes immediately and leaves Safe Mode without dropping the connection.
+        /// Uses the scriptable <c>/safe-mode/unroll</c> command (RouterOS 7.18+), falling back to the
+        /// terminal <c>Ctrl+D</c> on older versions. No-op when safe mode is not held.
         /// </summary>
+        /// <remarks>
+        /// The control key used to be the only path, and it is the slow one: measured on 7.23.2 over Telnet,
+        /// <c>Ctrl+D</c> is answered with nothing but a cursor save/restore (<c>&lt;CR&gt;&lt;ESC&gt;7&lt;ESC&gt;8</c>)
+        /// — no confirmation line and no repainted prompt — so the read has nothing to terminate on and runs
+        /// to the full receive deadline. The rollback itself does happen, which is why this cost 30 s per
+        /// call instead of failing. The scriptable command answers normally and ends on a prompt.
+        /// </remarks>
         public override void SafeModeUnroll()
         {
             EnsureOpened();
             if (!SafeModeHeld) return;
+
+            try
+            {
+                string output = ExecuteCliCommand("/safe-mode/unroll");
+                CliErrorParser.ThrowIfError(output, new TikGenericCommand(this, "/safe-mode/unroll"),
+                    silentOnSuccess: false); // prints "Unrolling Safe Mode... Success!"
+                SafeModeHeld = false;
+                return;
+            }
+            catch (TikNoSuchCommandException)
+            {
+                // RouterOS predates scriptable /safe-mode → fall back to the control key.
+            }
+
+            SafeModeUnrollByControlKey();
+        }
+
+        /// <summary>
+        /// Leaves Safe Mode with the terminal <c>Ctrl+D</c> key — the pre-7.18 path, and the only one on a
+        /// router without the scriptable <c>/safe-mode</c> menu. Overridden where the key has a second
+        /// meaning at the transport layer (on SSH it is VEOF and tears the channel down).
+        /// </summary>
+        protected virtual void SafeModeUnrollByControlKey()
+        {
             SendControlKey(CtrlD);
             SafeModeHeld = false;
         }

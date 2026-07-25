@@ -59,8 +59,9 @@ namespace tik4net.Cli
                 string line = rawLine.Trim();
                 if (line.Length == 0)
                     continue;
-                // Prompt / redraw line (e.g. "[admin@MikroTik] > /interface vlan add ").
-                if (line.Contains(RouterOsCliLogin.PromptSuffix))
+                // Prompt / redraw line (e.g. "[admin@MikroTik] > /interface vlan add "), including the
+                // Safe Mode form — completion works inside safe mode too.
+                if (RouterOsCliLogin.ContainsPromptSuffix(line))
                     continue;
                 // The bare echo of what we typed.
                 if (stem.Length > 0 && (line == stem || line.EndsWith(stem, StringComparison.Ordinal)))

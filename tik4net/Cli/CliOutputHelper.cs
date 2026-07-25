@@ -134,7 +134,7 @@ namespace tik4net.Cli
 
         /// <summary>
         /// True for a line that is nothing but a repainted shell prompt — <c>"[admin@CHR] &gt; "</c>, or the
-        /// <c>"[admin@CHR] &lt;SAFE&gt; &gt;"</c> form while Safe Mode is active.
+        /// <c>"[admin@CHR] &lt;SAFE&gt; "</c> form while Safe Mode is active.
         /// </summary>
         /// <remarks>
         /// The leading <c>'['</c> is what makes this safe to apply repeatedly: a *data* line can also end in
@@ -147,8 +147,7 @@ namespace tik4net.Cli
             string s = (line ?? string.Empty).Trim();
             if (s.Length == 0 || s[0] != '[')
                 return false;
-            return s.EndsWith(RouterOsCliLogin.PromptSuffix, StringComparison.Ordinal)
-                || s.EndsWith(RouterOsCliLogin.SafePromptSuffix, StringComparison.Ordinal);
+            return RouterOsCliLogin.EndsWithPromptSuffix(s);
         }
 
         /// <summary>
@@ -165,8 +164,7 @@ namespace tik4net.Cli
             string s = (line ?? string.Empty).TrimStart();
             if (s.Length == 0 || s[0] != '[')
                 return false;
-            return s.IndexOf(RouterOsCliLogin.PromptSuffix, StringComparison.Ordinal) >= 0
-                || s.IndexOf(RouterOsCliLogin.SafePromptSuffix, StringComparison.Ordinal) >= 0;
+            return RouterOsCliLogin.ContainsPromptSuffix(s);
         }
 
         /// <summary>
