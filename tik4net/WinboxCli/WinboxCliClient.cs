@@ -29,6 +29,11 @@ namespace tik4net.WinboxCli
         // We gate every read behind DataAvailable so this timeout only bounds a frame already arriving.
         private const int FrameTimeoutMs = 5000;
         private const int PollSleepMs    = 20;
+        // Minimum gap between two fire-on-idle pulls while waiting on a response that has not started
+        // arriving. Purely to avoid pointless frames: an empty pull sent while nothing is pending is never
+        // answered. A batch arrival resets the cadence to "fire immediately", so this throttles only a
+        // genuine stall, never multi-batch streaming.
+        private const int PullIntervalMs = 120;
 
         // Very wide terminal — prevents line-wrapping of long ':put … as-value' records. RouterOS probes
         // width with 'ESC[9999C ESC[6n', so the cursor reply caps near 10000 columns; the width here must
@@ -40,7 +45,23 @@ namespace tik4net.WinboxCli
         private readonly int _loginTimeoutMs;
 
         private int _sessionId = -1;
-        private int _counter = 1;
+
+        /// <summary>
+        /// Running total of terminal-output bytes received on this session — the value RouterOS expects in the
+        /// mepty <see cref="WinboxM2Protocol.Mepty.Key.Counter"/> field, which is a cumulative
+        /// <b>byte acknowledgement</b>, not a message counter (P2.13c). mepty will not let unacknowledged
+        /// output exceed a ~8 KB window: send a value that does not track the bytes actually consumed and the
+        /// terminal delivers roughly that much and then goes permanently silent, mid-command. That is the whole
+        /// of the "large output hangs" / "the session degrades after N commands" family of symptoms — the
+        /// apparent per-session command limit was just this window divided by the average command's output.
+        /// Deliberately <see cref="int"/>: the wire field is a u32 and <see cref="M2Message.U32User"/> casts,
+        /// so unchecked wraparound past <see cref="int.MaxValue"/> still encodes the correct modulo-2^32 value.
+        /// </summary>
+        private int _ackBytes;
+
+        // How many times we answer the change-password nag with Ctrl-C before giving up. Bounded so a
+        // terminal stuck on that prompt fails loudly instead of being fed input indefinitely.
+        private const int MaxNagRounds = 3;
 
         internal WinboxCliClient(IWinboxM2Channel channel, Encoding encoding, int receiveTimeoutMs, int loginTimeoutMs)
         {
@@ -173,7 +194,8 @@ namespace tik4net.WinboxCli
         /// bytes — e.g. <c>print detail as-value</c> over several records) hangs: RouterOS waits for the next
         /// pull, the client waits for push that never comes, and the terminal wedges for the rest of the
         /// session (subsequent commands stop even echoing). Same shape as <see cref="SendTerminalReady"/>
-        /// (Data, no Input key) but with the monotonic counter so it stays a distinct frame.
+        /// (Data, no Input key), and it carries <see cref="_ackBytes"/> — pulling is only half the contract,
+        /// the acknowledgement is what reopens RouterOS's send window.
         /// </summary>
         private void SendPull()
         {
@@ -181,11 +203,11 @@ namespace tik4net.WinboxCli
                 M2Message.SysToArr(WinboxM2Protocol.Mepty.Handler), M2Message.SysFrom(),
                 M2Message.SessionIdField(_sessionId),
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Mepty.Data),
-                M2Message.U32User(WinboxM2Protocol.Mepty.Key.Counter, _counter++));
+                M2Message.U32User(WinboxM2Protocol.Mepty.Key.Counter, _ackBytes));
             _session.Send(msg);
 
             if (TikWireTrace.Enabled)
-                TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Send, "PULL counter=" + (_counter - 1));
+                TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Send, "PULL ack=" + _ackBytes);
         }
 
         private void SendInput(byte[] keystrokes)
@@ -195,12 +217,12 @@ namespace tik4net.WinboxCli
                 M2Message.SessionIdField(_sessionId),
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Mepty.Data),
                 M2Message.RawUser(WinboxM2Protocol.Mepty.Key.Input, keystrokes),
-                M2Message.U32User(WinboxM2Protocol.Mepty.Key.Counter, _counter++));
+                M2Message.U32User(WinboxM2Protocol.Mepty.Key.Counter, _ackBytes));
             _session.Send(msg);
 
             if (TikWireTrace.Enabled)
                 TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Send, keystrokes, 0, keystrokes.Length,
-                    "counter=" + (_counter - 1));
+                    "ack=" + _ackBytes);
         }
 
         /// <summary>Receives one frame and returns the terminal payload (user key 2), or null.</summary>
@@ -208,7 +230,25 @@ namespace tik4net.WinboxCli
         {
             byte[] resp = _session.Receive(timeoutMs);
             if (resp == null) return null;
+
+            // Only accept output from the terminal we are actually driving. A frame from any other mepty
+            // session must not be folded into this read: its bytes would corrupt the response text, and —
+            // arriving after the completion prompt — would leave the buffer no longer ending at a prompt.
+            // It must also not be acknowledged below, since the ack is per-session. Only drop when the frame
+            // actually names a session: one without SESSION_ID cannot be attributed, so it is accepted.
+            if (M2Message.TryParseSessionId(resp, out int frameSession) && frameSession != _sessionId)
+            {
+                if (TikWireTrace.Enabled)
+                    TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note,
+                        "dropped frame from retired session " + frameSession + " (current " + _sessionId + ")");
+                return null;
+            }
+
             byte[] payload = M2Message.ParseUserBytes(resp, WinboxM2Protocol.Mepty.Key.Input);
+
+            // Acknowledge what we consumed — every subsequent Data frame reports this total and that is what
+            // lets RouterOS release the next window of output. See _ackBytes.
+            if (payload != null) _ackBytes += payload.Length;
 
             if (payload != null && TikWireTrace.Enabled)
                 TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Recv, payload, 0, payload.Length);
@@ -225,7 +265,7 @@ namespace tik4net.WinboxCli
         private void WaitForPromptSync()
         {
             var sb = new StringBuilder();
-            bool nagSent = false;
+            int nagRounds = 0;
             var sw = Stopwatch.StartNew();
 
             while (sw.ElapsedMilliseconds < _loginTimeoutMs)
@@ -239,16 +279,29 @@ namespace tik4net.WinboxCli
 
                 string text = _encoding.GetString(chunk);
                 sb.Append(text);
-
-                foreach (string reply in _vt100.Process(text))
-                    SendInput(_encoding.GetBytes(reply));
-
                 string stripped = VtStripper.StripAnsi(sb.ToString());
 
-                if (!nagSent && RouterOsCliLogin.IsChangePasswordNag(stripped))
+                // The cursor model is fed unconditionally (Process is eager; only sending the replies is
+                // I/O), but the replies are held back while the change-password prompt is on screen. A VT100
+                // probe answer is a keystroke like any other, and typed into 'new password>' /
+                // 'repeat new password>' it becomes password input — two matching entries (the same cursor
+                // report answered twice, say) would silently change the router's admin password. While that
+                // prompt is up the ONLY byte we ever send is the Ctrl-C that skips it. Self-clearing: the
+                // buffer is reset with the nag, so replies resume as soon as the prompt is gone.
+                bool atPasswordPrompt = RouterOsCliLogin.IsChangePasswordNag(stripped);
+                var replies = _vt100.Process(text);
+                if (!atPasswordPrompt)
                 {
-                    SendInput(new byte[] { 0x03 });  // Ctrl-C
-                    nagSent = true;
+                    foreach (string reply in replies)
+                        SendInput(_encoding.GetBytes(reply));
+                }
+                else
+                {
+                    if (nagRounds++ >= MaxNagRounds)
+                        throw new TimeoutException(
+                            "WinBox: RouterOS keeps prompting for a new password; refusing to send anything " +
+                            "further to the password prompt.");
+                    SendInput(new byte[] { 0x03 });  // Ctrl-C — skip the change
                     sb.Clear();
                     continue;
                 }
@@ -271,6 +324,7 @@ namespace tik4net.WinboxCli
             var sw = Stopwatch.StartNew();
             DateTime? settleUntil = null;
             bool prompted = false;
+            long lastPullMs = -1;   // -1 = a pull is due now (fire immediately)
 
             while (sw.ElapsedMilliseconds < _receiveTimeoutMs)
             {
@@ -294,24 +348,45 @@ namespace tik4net.WinboxCli
                     // mepty delivers output one batch per Data frame and will not push the remainder of a
                     // large response on its own — so, until the completion prompt has appeared, keep pulling
                     // (empty Data) whenever nothing is buffered. RouterOS does NOT answer every pull (a pull
-                    // sent while nothing is pending simply yields no frame), so we cannot wait for a pull to
-                    // be acknowledged before sending the next — we must keep firing on idle. Once the prompt
-                    // is in hand the output is complete; pulling then would only add churn, so we just settle.
-                    if (!prompted)
+                    // sent while nothing is pending simply yields no frame), so we cannot block waiting for a
+                    // pull to be acknowledged before sending the next — we must keep firing on idle. The pull
+                    // also carries the byte acknowledgement that reopens RouterOS's send window (see
+                    // _ackBytes), which is what makes arbitrarily large output flow rather than stopping dead
+                    // after ~8 KB. Receiving any batch clears lastPullMs so the next pull fires immediately —
+                    // multi-batch output streams at full speed (one pull per delivered batch) and only a true
+                    // stall is rate-limited, purely to avoid emitting frames nobody will answer.
+                    if (!prompted && (lastPullMs < 0 || sw.ElapsedMilliseconds - lastPullMs >= PullIntervalMs))
+                    {
                         SendPull();
+                        lastPullMs = sw.ElapsedMilliseconds;
+                    }
                     Thread.Sleep(PollSleepMs);
                 }
 
                 if (gotData)
+                {
                     settleUntil = null;
+                    lastPullMs  = -1;   // output is flowing — allow the next batch-pull immediately
+                }
 
                 string stripped = VtStripper.StripAnsi(sb.ToString());
-                if (RouterOsCliLogin.IsShellPrompt(stripped))
+                if (!prompted && RouterOsCliLogin.IsShellPrompt(stripped))
                 {
-                    if (!prompted && TikWireTrace.Enabled)
+                    if (TikWireTrace.Enabled)
                         TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note,
                             "prompt seen @" + sw.ElapsedMilliseconds + "ms (bytes=" + sb.Length + ")");
                     prompted = true;
+                }
+
+                // Once the completion prompt has been seen, the command is done and we return as soon as the
+                // terminal has been quiet for SettleMs (any arriving batch resets the window above). We
+                // deliberately do NOT re-require the buffer to still *end* at a prompt: RouterOS may append
+                // something afterwards — a repaint, or the asynchronous output of an action verb such as
+                // /system/script/run that surfaces after the command returned — and requiring the prompt to
+                // remain the last thing on screen turns any such trailer into a full receive-timeout hang
+                // (P2.13c).
+                if (prompted)
+                {
                     if (settleUntil == null)
                         settleUntil = DateTime.UtcNow.AddMilliseconds(SettleMs);
                     else if (DateTime.UtcNow >= settleUntil.Value)

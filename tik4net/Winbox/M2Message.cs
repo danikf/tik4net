@@ -410,6 +410,22 @@ namespace tik4net.Winbox
         {
             if (m2 == null || m2.Length < 4 || m2[0] != 'M' || m2[1] != '2')
                 throw new InvalidOperationException("Not a valid M2 response");
+            if (TryParseSessionId(m2, out int sessionId))
+                return sessionId;
+            throw new InvalidOperationException("No SESSION_ID in M2 response");
+        }
+
+        /// <summary>
+        /// Non-throwing <see cref="ParseSessionId"/>: <c>true</c> plus the id when the message carries a
+        /// SESSION_ID field, <c>false</c> when it does not (or is not a valid M2 message). Used to route an
+        /// unsolicited frame to the session it belongs to — a mepty terminal that has been replaced still
+        /// emits its trailing output, and attributing it to the current session desyncs the reader.
+        /// </summary>
+        internal static bool TryParseSessionId(byte[] m2, out int sessionId)
+        {
+            sessionId = -1;
+            if (m2 == null || m2.Length < 4 || m2[0] != 'M' || m2[1] != '2')
+                return false;
             int pos = 2;
             while (pos + 4 <= m2.Length)
             {
@@ -419,12 +435,12 @@ namespace tik4net.Winbox
                 if (fullKey == 0xFE0001)
                 {
                     // mepty returns the session id as u8 (0x09) for small ids and u32 (0x08) for ids > 255.
-                    if (type == 0x09 && pos < m2.Length) return m2[pos];
-                    if (type == 0x08 && pos + 4 <= m2.Length) return (int)BitConverter.ToUInt32(m2, pos);
+                    if (type == 0x09 && pos < m2.Length)         { sessionId = m2[pos]; return true; }
+                    if (type == 0x08 && pos + 4 <= m2.Length)    { sessionId = (int)BitConverter.ToUInt32(m2, pos); return true; }
                 }
                 pos += SkipTypeBytes(type, m2, pos);
             }
-            throw new InvalidOperationException("No SESSION_ID in M2 response");
+            return false;
         }
 
         // Parses the bytes of a user-namespace field; handles raw_s/raw_l and string_s/string_l.
