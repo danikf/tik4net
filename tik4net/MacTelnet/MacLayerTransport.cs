@@ -90,19 +90,35 @@ namespace tik4net.MacTelnet
         protected void BaseConnect(string host, ushort clientType)
         {
             _clientType = clientType;
-            _localMac   = GetLocalMac(host);
+
+            // Source MAC, local IPv4 and subnet broadcast must all come from the SAME NIC — see the
+            // bind below for why picking them independently is not enough.
+            var nic = SelectLocalNic(host);
+            _localMac   = nic.Mac ?? GetLocalMac(host);
             _routerMac  = GetRouterMacAddress(host);
 
             byte[] kb = new byte[2];
             using (var rng = RandomNumberGenerator.Create()) rng.GetBytes(kb);
             _sessionKey = BitConverter.ToUInt16(kb, 0);
 
-            // Bind to OS-assigned port (port 0). The router responds to our source port.
-            _udp = new UdpClient(0) { EnableBroadcast = true };
+            // Bind to the local address of the NIC whose MAC and broadcast address are in the packet,
+            // NOT to IPAddress.Any. An unbound socket lets the HOST's broadcast route decide which
+            // interface the datagram leaves by, and that route need not be the NIC we just described in
+            // the packet. Measured failure mode: a DISCONNECTED adapter holding a stale DHCP lease in the
+            // router's subnet keeps its '<subnet>.255/32' on-link route installed, and wins broadcast
+            // routing on interface metric — while its address is 'Deprecated' and so is correctly skipped
+            // for UNICAST source selection. Result: every IP transport works, MNDP still shows the router
+            // (the router broadcasts to us — our send path is not involved), and every SESSIONSTART leaves
+            // via the dead NIC and vanishes. Binding is exactly the A/B difference: same packet, same
+            // source MAC, bound = ACK, unbound = no reply.
+            // IPAddress.Any is kept as the fallback when no NIC sits in the router's subnet (a router
+            // reached through a gateway), so that case does not regress.
+            _udp = new UdpClient(AddressFamily.InterNetwork) { EnableBroadcast = true };
             _udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            _udp.Client.Bind(new IPEndPoint(nic.LocalIp ?? IPAddress.Any, 0));
 
             // SESSIONSTART goes to subnet broadcast; DATA and ACK go to known unicast IP.
-            IPAddress broadcastAddr = GetBroadcastAddress(host);
+            IPAddress broadcastAddr = nic.Broadcast ?? GetBroadcastAddress(host);
             _routerEp        = new IPEndPoint(broadcastAddr, 20561);
             _routerUnicastEp = new IPEndPoint(IPAddress.Parse(host), 20561);
             _outCounter = 0;
@@ -127,6 +143,63 @@ namespace tik4net.MacTelnet
             if (counter < _inCounter) return false;   // retransmission — already processed
             _inCounter = counter + (uint)payloadLen;
             return true;
+        }
+
+        /// <summary>
+        /// The one NIC used for the whole MAC-layer exchange: its MAC goes in the packet header, its
+        /// address is what the socket binds to, and its subnet broadcast is where SESSIONSTART is sent.
+        /// Resolving all three together is the point — see the bind in <see cref="BaseConnect"/>.
+        /// Every field is <c>null</c> when no live NIC sits in the router's subnet (router behind a
+        /// gateway), and the caller then falls back to the individual lookups plus an unbound socket.
+        /// </summary>
+        private struct LocalNic
+        {
+            public byte[] Mac;
+            public IPAddress LocalIp;
+            public IPAddress Broadcast;
+        }
+
+        private static LocalNic SelectLocalNic(string host)
+        {
+            var result = new LocalNic();
+
+            IPAddress target;
+            try { target = IPAddress.Parse(host); } catch { return result; }
+            byte[] tb = target.GetAddressBytes();
+
+            foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (ni.OperationalStatus != OperationalStatus.Up)             continue;
+                if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
+                if (ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel)   continue;
+
+                byte[] mac = ni.GetPhysicalAddress().GetAddressBytes();
+                if (mac.Length != 6 || !mac.Any(b => b != 0)) continue;
+
+                foreach (var ua in ni.GetIPProperties().UnicastAddresses)
+                {
+                    if (ua.Address.AddressFamily != AddressFamily.InterNetwork) continue;
+                    if (ua.IPv4Mask == null) continue;
+
+                    byte[] lb = ua.Address.GetAddressBytes();
+                    byte[] mb = ua.IPv4Mask.GetAddressBytes();
+
+                    bool same = true;
+                    for (int i = 0; i < 4; i++)
+                        if ((lb[i] & mb[i]) != (tb[i] & mb[i])) { same = false; break; }
+                    if (!same) continue;
+
+                    byte[] bcast = new byte[4];
+                    for (int i = 0; i < 4; i++) bcast[i] = (byte)(tb[i] | ~mb[i]);
+
+                    result.Mac       = mac;
+                    result.LocalIp   = ua.Address;
+                    result.Broadcast = new IPAddress(bcast);
+                    return result;
+                }
+            }
+
+            return result;
         }
 
         // Derives subnet broadcast for the subnet containing host.
