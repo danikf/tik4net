@@ -370,6 +370,10 @@ namespace tik4net.Objects
             // API/REST transports must silently ignore this parameter (never send it on the wire).
             if (metadata.IncludeCliStats)
                 command.AddParameter(TikSpecialProperties.CliStats, "", TikCommandParameterFormat.NameValue);
+            // CLI-only marker: read via ':serialize to=json' because at least one field holds free-form
+            // text, which the unescaped as-value format cannot represent unambiguously (P2.17).
+            if (metadata.HasFreeTextProperties)
+                command.AddParameter(TikSpecialProperties.CliJson, "", TikCommandParameterFormat.NameValue);
             //.proplist
             if (metadata.IncludeProplist)
                 command.AddParameter(TikSpecialProperties.Proplist, string.Join(",", metadata.Properties.Select(prop => prop.FieldName).ToArray()), TikCommandParameterFormat.NameValue);

@@ -75,6 +75,16 @@ namespace tik4net.Objects
         public bool IncludeProplist { get; private set; }
 
         /// <summary>
+        /// If any of <see cref="Properties"/> holds free-form text and the entity must therefore be read
+        /// as JSON on CLI transports, whose as-value format cannot escape it.
+        /// </summary>
+        /// <seealso cref="TikPropertyAttribute.IsFreeText"/>
+        public bool HasFreeTextProperties
+        {
+            get { return Properties.Any(p => p.IsFreeText); }
+        }
+
+        /// <summary>
         /// If entity exists in single instance.
         /// </summary>
         public bool IsSingleton { get; private set; }

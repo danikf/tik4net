@@ -45,8 +45,13 @@ namespace tik4net.Objects.System
 
         /// <summary>
         /// on-event — script source to run, or the name of a script from /system/script.
+        /// <para>
+        /// Marked <see cref="TikPropertyAttribute.IsFreeText"/> for the same reason as
+        /// <c>SystemScript.Source</c>: when it holds a script body rather than a script name, it carries
+        /// <c>;</c> and <c>=</c>, which the CLI's <c>as-value</c> output cannot escape.
+        /// </para>
         /// </summary>
-        [TikProperty("on-event")]
+        [TikProperty("on-event", IsFreeText = true)]
         public string OnEvent { get; set; }
 
         /// <summary>

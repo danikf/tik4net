@@ -39,10 +39,19 @@ namespace tik4net.Cli
         /// No <c>without-paging</c> is needed inside <c>:put</c> (script context does not page).
         /// </para>
         /// </summary>
-        internal static string BuildPrint(string apiPath, IList<ITikCommandParameter> parameters)
+        /// <param name="apiPath">API-style path of the printed menu.</param>
+        /// <param name="parameters">Command parameters (filters, flags, markers).</param>
+        /// <param name="asJson">
+        /// When set, the print is wrapped in <c>:serialize to=json [ … ]</c> so the result comes back as
+        /// escaped JSON instead of the separator-ambiguous <c>as-value</c> form — see
+        /// <see cref="CliJsonParser"/> for why that matters and <see cref="TikSpecialProperties.CliJson"/>
+        /// for how a command asks for it. Requires RouterOS 7.13+; <see cref="CliConnectionBase"/> owns
+        /// the fallback for older routers.
+        /// </param>
+        internal static string BuildPrint(string apiPath, IList<ITikCommandParameter> parameters, bool asJson = false)
         {
             string cliBase = ApiPathToCli(apiPath);
-            var sb = new StringBuilder(":put [");
+            var sb = new StringBuilder(asJson ? ":put [:serialize to=json [" : ":put [");
             sb.Append(cliBase);
 
             // The O/R mapper requests the full field set via a 'detail' NameValue parameter
@@ -74,7 +83,7 @@ namespace tik4net.Cli
                 sb.Append(whereClause);
             }
 
-            sb.Append(']');
+            sb.Append(asJson ? "]]" : "]");
             return sb.ToString();
         }
 
@@ -84,10 +93,16 @@ namespace tik4net.Cli
         /// Does NOT include <c>detail</c> — <c>stats</c> and <c>detail</c> are mutually exclusive
         /// in RouterOS CLI (adding both yields only the stats columns).
         /// </summary>
-        internal static string BuildPrintStats(string apiPath, IList<ITikCommandParameter> parameters)
+        /// <param name="apiPath">API-style path of the printed menu.</param>
+        /// <param name="parameters">Command parameters (filters, flags, markers).</param>
+        /// <param name="asJson">
+        /// Applies the same <c>:serialize to=json</c> wrapping as <see cref="BuildPrint"/>, so an entity
+        /// asking for both the stats merge and JSON gets JSON for both halves of it.
+        /// </param>
+        internal static string BuildPrintStats(string apiPath, IList<ITikCommandParameter> parameters, bool asJson = false)
         {
             string cliBase = ApiPathToCli(apiPath);
-            var sb = new StringBuilder(":put [");
+            var sb = new StringBuilder(asJson ? ":put [:serialize to=json [" : ":put [");
             sb.Append(cliBase);
             sb.Append(" stats as-value");
 
@@ -98,7 +113,7 @@ namespace tik4net.Cli
                 sb.Append(whereClause);
             }
 
-            sb.Append(']');
+            sb.Append(asJson ? "]]" : "]");
             return sb.ToString();
         }
 
@@ -418,6 +433,7 @@ namespace tik4net.Cli
         ///   <c>.proplist</c> — as-value always returns every field; proplist trimming is not expressible in CLI.
         ///   <c>.tag</c>      — no tag protocol over a terminal.
         ///   <c>.cli-stats</c> — CLI-layer signal that triggers the two-query stats merge (<see cref="CliConnectionBase"/>).
+        ///   <c>.cli-json</c>  — CLI-layer signal that switches the read to <c>:serialize to=json</c> (same class).
         /// NOTE: this is the "dropped" set. <c>detail</c> / <c>once</c> / <c>numbers</c> are a DIFFERENT
         /// category — "consumed flags" that <see cref="BuildPrint"/> translates into print modifiers
         /// (via <see cref="HasNameValueFlag"/> / <see cref="FindNameValueParam"/>), not dropped.
@@ -425,7 +441,8 @@ namespace tik4net.Cli
         private static bool IsSpecialParam(string name)
             => name == TikSpecialProperties.Proplist
             || name == TikSpecialProperties.Tag
-            || name == TikSpecialProperties.CliStats;
+            || name == TikSpecialProperties.CliStats
+            || name == TikSpecialProperties.CliJson;
 
         /// <summary>
         /// Returns true when a non-Filter "consumed flag" parameter with the given name is present

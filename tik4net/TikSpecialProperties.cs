@@ -41,5 +41,23 @@ namespace tik4net
         /// API and REST transports silently ignore this parameter.
         /// </summary>
         public const string CliStats = ".cli-stats";
+
+        /// <summary>
+        /// CLI-only marker — when present on a command, the CLI layer reads the result through
+        /// <c>:serialize to=json</c> instead of the default <c>as-value</c> form.
+        /// <para>
+        /// Needed by entities carrying free-form text (see <c>TikPropertyAttribute.IsFreeText</c>):
+        /// <c>as-value</c> has no escaping whatsoever, so a value containing the format's own
+        /// separators (<c>;</c>, <c>=</c>, newlines) — a file body, a script source — is
+        /// indistinguishable from further fields and records, and silently shreds the result.
+        /// JSON is escaped, so the same read is exact.
+        /// </para>
+        /// <para>
+        /// Requires RouterOS 7.13+ (where <c>:serialize</c> was introduced). Older routers reject the
+        /// command; the CLI transports detect that once per connection and fall back to <c>as-value</c>.
+        /// API, REST and WinBox-native transports silently ignore this parameter.
+        /// </para>
+        /// </summary>
+        public const string CliJson = ".cli-json";
     }
 }

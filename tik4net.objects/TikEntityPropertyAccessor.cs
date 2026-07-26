@@ -59,6 +59,13 @@ namespace tik4net.Objects
         /// <seealso cref="TikPropertyAttribute.UnsetOnDefault"/>
         public bool UnsetOnDefault { get; private set; }
 
+        /// <summary>
+        /// If the field holds free-form text that can contain the CLI as-value format's own separators,
+        /// and the entity must therefore be read as JSON on CLI transports.
+        /// </summary>
+        /// <seealso cref="TikPropertyAttribute.IsFreeText"/>
+        public bool IsFreeText { get; private set; }
+
         private PropertyInfo PropertyInfo { get; set; }
 
         /// <summary>
@@ -95,6 +102,7 @@ namespace tik4net.Objects
                     DefaultValue = "";
             }
             UnsetOnDefault = propertyAttribute.UnsetOnDefault;
+            IsFreeText = propertyAttribute.IsFreeText;
         }
 
         /// <summary>

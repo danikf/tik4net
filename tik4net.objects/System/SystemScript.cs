@@ -28,8 +28,16 @@ namespace tik4net.Objects.System
 
         /// <summary>
         /// source — script source code content.
+        /// <para>
+        /// Marked <see cref="TikPropertyAttribute.IsFreeText"/>: RouterOS script source is built out of
+        /// the very characters the CLI's unescaped <c>as-value</c> output uses as separators — <c>;</c>
+        /// ends nearly every statement, <c>=</c> appears in assignments and comparisons — so on CLI
+        /// transports the entity is read through <c>:serialize to=json</c> instead. Measured on 7.23.2, a
+        /// source of <c>:local a 1;\n:local b "x=y;z"\n:put ($a . $b)</c> came back over as-value truncated
+        /// at the first semicolon, with the remainder parsed as further fields.
+        /// </para>
         /// </summary>
-        [TikProperty("source")]
+        [TikProperty("source", IsFreeText = true)]
         public string Source { get; set; }
 
         /// <summary>

@@ -57,8 +57,15 @@ namespace tik4net.Objects.System
         /// <summary>
         /// contents — the full text content of the file. Writable for text files up to 60 KB;
         /// reading or writing larger files requires the API <c>read</c> command.
+        /// <para>
+        /// Marked <see cref="TikPropertyAttribute.IsFreeText"/>: a file body routinely contains <c>;</c>,
+        /// <c>=</c> and newlines — the very characters RouterOS's unescaped <c>as-value</c> output uses as
+        /// separators — so on CLI transports the whole entity is read through <c>:serialize to=json</c>
+        /// instead. Without it, one HTML or JS file silently swallowed the rest of the listing
+        /// (measured on 7.23.2: 27 rows over the API, 1 over every CLI transport).
+        /// </para>
         /// </summary>
-        [TikProperty("contents")]
+        [TikProperty("contents", IsFreeText = true)]
         public string Contents { get; set; }
 
         /// <summary>

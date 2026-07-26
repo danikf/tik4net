@@ -15,8 +15,15 @@ namespace tik4net.Objects.System
     [TikEntity("/system/note", IsSingleton = true)]
     public class SystemNote
     {
-        /// <summary>note — free-form text displayed as a login banner / MOTD. Can be multi-line.</summary>
-        [TikProperty("note", DefaultValue = "")]
+        /// <summary>
+        /// note — free-form text displayed as a login banner / MOTD. Can be multi-line.
+        /// <para>
+        /// Marked <see cref="TikPropertyAttribute.IsFreeText"/>: it is user-entered prose and explicitly
+        /// multi-line, so it can contain <c>;</c>, <c>=</c> and newlines — the separators of the CLI's
+        /// unescaped <c>as-value</c> output. Read through <c>:serialize to=json</c> on CLI transports.
+        /// </para>
+        /// </summary>
+        [TikProperty("note", DefaultValue = "", IsFreeText = true)]
         public string Note { get; set; }
 
         /// <summary>show-at-login — when yes, the note is shown to users who log in via WinBox or the API. Default: yes.</summary>

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using tik4net.Connection;
+using tik4net.Diagnostics;
 
 namespace tik4net.Cli
 {
@@ -370,26 +371,21 @@ namespace tik4net.Cli
             }
 
             bool needStats = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliStats);
+            bool wantJson = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliJson);
 
             if (!needStats)
             {
                 // Normal single-query path.
-                string cliText = CliCommandBuilder.BuildPrint(descriptor.CommandText, descriptor.Parameters);
-                string output = ExecuteCliCommand(cliText);
-                CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
-                return CliOutputParser.ParseAsValue(output);
+                return RunPrintQuery(descriptor, wantJson,
+                    json => CliCommandBuilder.BuildPrint(descriptor.CommandText, descriptor.Parameters, json));
             }
 
             // Two-query path: detail (config) + stats (counters), merged by .id.
-            string detailText = CliCommandBuilder.BuildPrint(descriptor.CommandText, descriptor.Parameters);
-            string detailOutput = ExecuteCliCommand(detailText);
-            CliErrorParser.ThrowIfError(detailOutput, CreateDummyCommand(descriptor));
-            IList<TikRecordSentence> configRecords = CliOutputParser.ParseAsValue(detailOutput);
+            IList<TikRecordSentence> configRecords = RunPrintQuery(descriptor, wantJson,
+                json => CliCommandBuilder.BuildPrint(descriptor.CommandText, descriptor.Parameters, json));
 
-            string statsText = CliCommandBuilder.BuildPrintStats(descriptor.CommandText, descriptor.Parameters);
-            string statsOutput = ExecuteCliCommand(statsText);
-            CliErrorParser.ThrowIfError(statsOutput, CreateDummyCommand(descriptor));
-            IList<TikRecordSentence> statsRecords = CliOutputParser.ParseAsValue(statsOutput);
+            IList<TikRecordSentence> statsRecords = RunPrintQuery(descriptor, wantJson,
+                json => CliCommandBuilder.BuildPrintStats(descriptor.CommandText, descriptor.Parameters, json));
 
             // Build index of stats records by .id for O(1) lookup.
             var statsById = new Dictionary<string, TikRecordSentence>(StringComparer.OrdinalIgnoreCase);
@@ -434,6 +430,67 @@ namespace tik4net.Cli
             }
 
             return merged;
+        }
+
+        /// <summary>
+        /// Tri-state record of whether this router understands <c>:serialize</c> (RouterOS 7.13+):
+        /// <c>null</c> = not established yet, <c>true</c> = a JSON read has succeeded, <c>false</c> = the
+        /// router refused one and the plain form worked. Detected from what the router actually answers
+        /// rather than from a parsed version string — a prompt/version assumption we cannot see failing is
+        /// exactly what cost 30 s a command in P2.31.
+        /// </summary>
+        private bool? _serializeSupported;
+
+        /// <summary>
+        /// Runs one print query, in JSON form when <paramref name="wantJson"/> is set and this router has
+        /// not already refused <c>:serialize</c>.
+        /// <para>
+        /// The fallback is deliberately driven by evidence rather than by phrase-matching the refusal (the
+        /// wording differs by RouterOS version, and guessing it is how P2.12 shipped): if the wrapped form
+        /// is rejected while support is still unknown, the plain form is run, and only its SUCCESS
+        /// downgrades this connection. When both fail, the plain form's error is what the caller sees —
+        /// i.e. exactly today's behaviour — and nothing is concluded about <c>:serialize</c>. Once support
+        /// is known either way, no retry happens again on this connection.
+        /// </para>
+        /// </summary>
+        private IList<TikRecordSentence> RunPrintQuery(
+            TikCommandDescriptor descriptor, bool wantJson, Func<bool, string> buildCommand)
+        {
+            if (wantJson && _serializeSupported != false)
+            {
+                try
+                {
+                    string jsonOutput = ExecuteCliCommand(buildCommand(true));
+                    CliErrorParser.ThrowIfError(jsonOutput, CreateDummyCommand(descriptor));
+                    IList<TikRecordSentence> records = CliJsonParser.ParseJson(jsonOutput);
+                    _serializeSupported = true;
+                    return records;
+                }
+                catch (TikCommandException ex) when (_serializeSupported == null)
+                {
+                    // Router refused the wrapped command and we do not yet know whether it can serialise at
+                    // all. Fall through to the plain form; if THAT works, the router is pre-7.13.
+                    TikWireTrace.Emit("cli.json", TikWireDir.Note,
+                        "':serialize to=json' refused (" + ex.GetType().Name
+                            + ") — retrying as-value to establish whether this router supports it");
+                }
+            }
+
+            string output = ExecuteCliCommand(buildCommand(false));
+            CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+
+            if (wantJson && _serializeSupported == null)
+            {
+                // The plain form worked where the wrapped one did not: RouterOS < 7.13. Say so — a
+                // connection reading free-text fields through as-value can silently shred them (P2.17),
+                // and a degradation nobody can observe is the P2.23/P2.25 failure mode.
+                _serializeSupported = false;
+                TikWireTrace.Emit("cli.json", TikWireDir.Note,
+                    "router does not support ':serialize' (pre-7.13) — falling back to as-value for the "
+                        + "rest of this connection; fields holding free-form text may parse incorrectly");
+            }
+
+            return CliOutputParser.ParseAsValue(output);
         }
 
         /// <summary>
