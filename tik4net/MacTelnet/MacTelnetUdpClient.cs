@@ -26,6 +26,9 @@ namespace tik4net.MacTelnet
         // capped at ~10000 columns; the width here must exceed that for the full width to be
         // advertised (a value <10000 would itself clamp the reply and re-introduce wrapping, which
         // corrupts as-value parsing — see findings-mactelnet.md).
+        /// <inheritdoc/>
+        protected override string WireTraceChannel => "mactelnet.udp";
+
         private readonly Vt100State     _vt100 = new Vt100State(65535, 25);
         private readonly Encoding       _encoding;
         private readonly int            _receiveTimeoutMs;
@@ -134,7 +137,7 @@ namespace tik4net.MacTelnet
                     if (!TryParsePacket(pkt, out byte type, out uint counter, out byte[] payload))
                         continue;
 
-                    if (type == PKT_ACK) continue;
+                    if (type == PKT_ACK) { NoteAck(counter); continue; }
                     if (type == PKT_PING) { SendPong(counter); continue; }
                     if (type != PKT_DATA) continue;
 
@@ -165,7 +168,7 @@ namespace tik4net.MacTelnet
                     if (RouterOsCliLogin.IsShellPrompt(stripped))
                         return;
                 }
-                catch (SocketException) { /* poll timeout — continue loop */ }
+                catch (SocketException) { RetransmitIfUnacked(); /* poll timeout — continue loop */ }
             }
 
             throw new TimeoutException("MAC-Telnet: timed out waiting for shell prompt.");
@@ -197,7 +200,7 @@ namespace tik4net.MacTelnet
                     if (!TryParsePacket(pkt, out byte type, out uint counter, out byte[] payload))
                         continue;
 
-                    if (type == PKT_ACK) continue;
+                    if (type == PKT_ACK) { NoteAck(counter); continue; }
                     if (type == PKT_PING) { SendPong(counter); continue; }
                     if (type != PKT_DATA) continue;
 
@@ -211,7 +214,13 @@ namespace tik4net.MacTelnet
                         gotData = true;
                     }
                 }
-                catch (SocketException) { /* poll timeout */ }
+                catch (SocketException)
+                {
+                    // Poll timeout: nothing arrived in PollMs. If the router has not acknowledged what
+                    // we sent, this silence is our own lost datagram - resend it rather than sit out the
+                    // full receive deadline waiting for an answer to a command that never landed (P2.19).
+                    RetransmitIfUnacked();
+                }
 
                 if (gotData)
                     settleUntil = null;
@@ -255,7 +264,7 @@ namespace tik4net.MacTelnet
                     if (!TryParsePacket(pkt, out byte type, out uint counter, out byte[] payload))
                         continue;
 
-                    if (type == PKT_ACK) continue;
+                    if (type == PKT_ACK) { NoteAck(counter); continue; }
                     if (type == PKT_PING) { SendPong(counter); continue; }
                     if (type != PKT_DATA) continue;
 
@@ -270,7 +279,7 @@ namespace tik4net.MacTelnet
                         any = true;
                     }
                 }
-                catch (SocketException) { /* poll timeout */ }
+                catch (SocketException) { RetransmitIfUnacked(); /* poll timeout */ }
 
                 if (gotData)
                     lastData = DateTime.UtcNow;
@@ -333,7 +342,7 @@ namespace tik4net.MacTelnet
             if (payload.Length > 0) Buffer.BlockCopy(pkt, 22, payload, 0, payload.Length);
 
             if (Diagnostics.TikWireTrace.Enabled)
-                Diagnostics.TikWireTrace.Emit("mactelnet.udp", Diagnostics.TikWireDir.Recv,
+                Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Recv,
                     payload, 0, payload.Length, "type=0x" + type.ToString("x2") + " counter=" + counter);
 
             return true;

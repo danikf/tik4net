@@ -25,6 +25,9 @@ namespace tik4net.Winbox
     {
         private const ushort ClientType = 0x0f90;  // WinBox-over-MAC
 
+        /// <inheritdoc/>
+        protected override string WireTraceChannel => "wbxmac.udp";
+
         private int _reqId;
         // Buffer of received DATA payload bytes not yet consumed into a complete chunked frame.
         private readonly List<byte> _rxBuf = new List<byte>();
@@ -122,7 +125,7 @@ namespace tik4net.Winbox
             {
                 RecvUntil(timeoutMs, (type, payload, counter) =>
                 {
-                    if (type == PKT_ACK) return false;
+                    if (type == PKT_ACK) { NoteAck(counter); return false; }
                     if (type == PKT_PING) { SendPong(counter); return false; }
                     if (type != PKT_DATA) return false;
                     if (!AckData(counter, payload.Length)) return false;  // duplicate retransmit

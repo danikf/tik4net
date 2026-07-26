@@ -53,6 +53,8 @@ namespace tik4net.integrationtests
         [TestInitialize]
         public void Init()
         {
+            if (WireTraceCapture.IsEnabled)
+                WireTraceCapture.MarkTest("TEST", TestContext?.TestName);
             if (ReuseConnectionAcrossTests)
                 AcquireSharedConnection();
             else
@@ -167,6 +169,8 @@ namespace tik4net.integrationtests
         [TestCleanup]
         public void Cleanup()
         {
+            if (WireTraceCapture.IsEnabled)
+                WireTraceCapture.MarkTest("END " + TestContext?.CurrentTestOutcome, TestContext?.TestName);
             try
             {
                 DeleteTrackedEntities();

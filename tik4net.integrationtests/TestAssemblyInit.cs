@@ -17,6 +17,10 @@ namespace tik4net.integrationtests
         {
             tik4net.Ssh.Tik4NetSsh.Register();
 
+            // Opt-in (TIK4NET_WIRETRACE), no-op otherwise. Some defects only surface in a full run over the
+            // long-lived shared connection, where the MCP tool's per-call trace cannot reach them.
+            WireTraceCapture.StartIfRequested();
+
             // Always over the API, once, before any test — clears conflicts left by a killed run or by a CLI
             // add that created a row without yielding its .id (which per-test teardown then cannot delete).
             RouterOrphanCleaner.PurgeTestResidue();
@@ -27,6 +31,7 @@ namespace tik4net.integrationtests
         {
             // Tear down the connection shared across the TestBase suite (see TestBase.ReuseConnectionAcrossTests).
             TestBase.DisposeSharedConnection();
+            WireTraceCapture.Stop();
         }
     }
 }

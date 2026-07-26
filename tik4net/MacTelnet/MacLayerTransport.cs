@@ -70,6 +70,26 @@ namespace tik4net.MacTelnet
         protected uint       _outCounter;         // cumulative DATA payload bytes sent
         protected uint       _inCounter;          // cumulative DATA payload bytes received (for ACK + dedup)
 
+        // Outbound reliability (P2.19). The MAC layer is UDP with no delivery guarantee, and RouterOS
+        // answers a DATA packet with an ACK whose counter is the offset PAST it (send 148+7 -> ack 155).
+        // We used to discard every ACK and never resend, so a lost outbound datagram was unrecoverable:
+        // the router waits for bytes that never arrive, we wait for a reply that cannot come.
+        //
+        // NOTE, so this is not mis-read as a cure: retransmission does NOT fix the P2.19 suite wedge.
+        // Measured - at the wedge the router re-ACKs the offset BEFORE our command and then ignores 8
+        // byte-identical resends, and the failure is deterministic across runs (same test, same point),
+        // which loss is not. Whatever stops the router consuming our stream there is still unidentified.
+        // This stays because the ACK is a real signal we were throwing away and a genuinely lost packet
+        // must be recoverable; it is not the answer to the wedge.
+        private byte[] _lastDataPacket;            // the exact datagram, so a resend is byte-identical
+        private uint   _lastDataEnd;               // offset past it - what the router's ACK must reach
+        private uint   _highestAck;                // highest ACK counter the router has returned
+        private bool   _haveAck;                   // distinguishes "no ACK yet" from a genuine ack of 0
+        private int      _retransmits;             // resends spent on _lastDataPacket
+        private DateTime _lastRetransmitUtc;       // rate limit, so a 20 ms poll loop cannot flood
+        private const int MaxRetransmits = 8;
+        private const int MinRetransmitIntervalMs = 400;   // 8 tries ~= 3.2 s, well inside a 30 s read
+
         // ── AES / HMAC stream keys (derived after EC-SRP5, used by WinBox MAC) ──
         protected byte[] _sendAesKey, _receiveAesKey, _sendHmacKey, _receiveHmacKey;
 
@@ -80,6 +100,14 @@ namespace tik4net.MacTelnet
         /// (MNDP takes up to 5 s). Set before calling <see cref="BaseConnect"/>.
         /// </summary>
         protected string RouterMacOverride { get; set; }
+
+        /// <summary>
+        /// Wire-trace channel id for this transport. MAC-Telnet and WinBox-MAC share this base and both
+        /// run on UDP 20561, but they are separate sessions with independent counter spaces — emitting
+        /// them under one channel id makes every per-session reading of a trace wrong (a stream offset
+        /// from one session read as a gap or an idle period in the other). They must stay distinguishable.
+        /// </summary>
+        protected virtual string WireTraceChannel => "macudp";
 
         // ── Initialise UDP socket and resolve router MAC address ─────────────────
 
@@ -139,9 +167,73 @@ namespace tik4net.MacTelnet
         /// <returns><c>true</c> if the packet is new and should be processed; <c>false</c> for a duplicate.</returns>
         protected bool AckData(uint counter, int payloadLen)
         {
-            SendAck(counter + (uint)payloadLen);
-            if (counter < _inCounter) return false;   // retransmission — already processed
+            // Deliver strictly in order. The counter is a stream offset, so a packet starting PAST
+            // _inCounter means the datagrams in between were lost. ACKing it (as this used to) tells the
+            // router those bytes arrived and it never resends them - silent data loss. Dropping it
+            // unacked leaves our ACK on the last contiguous byte, which is the signal that makes
+            // RouterOS retransmit the hole.
+            if (counter > _inCounter)
+            {
+                SendAck(_inCounter);
+                return false;
+            }
+
+            // A duplicate/retransmit: re-ACK the HIGH-WATER MARK, never the duplicate's own end offset.
+            // The latter regresses the ACK below what we already hold, and the router answers a
+            // regressed ACK by retransmitting - the 7-in-a-row burst the P2.19 trace caught sitting on
+            // top of one of the two wedges.
+            if (counter < _inCounter)
+            {
+                SendAck(_inCounter);
+                return false;
+            }
+
             _inCounter = counter + (uint)payloadLen;
+            SendAck(_inCounter);
+            return true;
+        }
+
+        /// <summary>
+        /// Records an ACK from the router. Its counter is the stream offset the router has consumed up
+        /// to, so it is what <see cref="RetransmitIfUnacked"/> compares the last sent packet against.
+        /// </summary>
+        protected void NoteAck(uint counter)
+        {
+            if (!_haveAck || counter > _highestAck)
+            {
+                _highestAck = counter;
+                _haveAck    = true;
+            }
+        }
+
+        /// <summary>
+        /// Resends the last DATA packet if the router has not acknowledged it. Called from the read loops
+        /// when nothing is arriving - that idle moment is precisely the "my command never landed" case.
+        /// The resend is byte-identical (same counter), so a packet that did arrive is simply seen as a
+        /// duplicate and re-ACKed.
+        /// <para>
+        /// Rate-limited internally rather than by the caller, because the read loops poll at very
+        /// different cadences (500 ms in the terminal loops, 20 ms in <see cref="RecvUntil"/>) and a
+        /// caller-paced resend would flood the router from the fast one.
+        /// </para>
+        /// </summary>
+        /// <returns><c>true</c> if a retransmission was sent.</returns>
+        protected bool RetransmitIfUnacked()
+        {
+            if (_lastDataPacket == null || !_haveAck || _highestAck >= _lastDataEnd)
+                return false;
+            if (_retransmits >= MaxRetransmits)
+                return false;
+            if ((DateTime.UtcNow - _lastRetransmitUtc).TotalMilliseconds < MinRetransmitIntervalMs)
+                return false;
+
+            _lastRetransmitUtc = DateTime.UtcNow;
+            _retransmits++;
+            _udp.Send(_lastDataPacket, _lastDataPacket.Length, _routerUnicastEp);
+
+            if (Diagnostics.TikWireTrace.Enabled)
+                Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note,
+                    "RETRANSMIT #" + _retransmits + " end=" + _lastDataEnd + " highestAck=" + _highestAck);
             return true;
         }
 
@@ -256,7 +348,7 @@ namespace tik4net.MacTelnet
             byte[] xWB = null; int parityB = 0; byte[] salt = null;
             RecvUntil(10000, (type, payload, counter) =>
             {
-                if (type == PKT_ACK) return false;
+                if (type == PKT_ACK) { NoteAck(counter); return false; }
                 if (type == PKT_PING) { SendPong(counter); return false; }
                 if (type != PKT_DATA) return false;
                 if (!AckData(counter, payload.Length)) return false;   // duplicate — ignore
@@ -309,7 +401,7 @@ namespace tik4net.MacTelnet
 
             RecvUntil(10000, (type, payload, counter) =>
             {
-                if (type == PKT_ACK) return false;
+                if (type == PKT_ACK) { NoteAck(counter); return false; }
                 if (type == PKT_PING) { SendPong(counter); return false; }
                 if (type != PKT_DATA) return false;
                 if (!AckData(counter, payload.Length)) return false;   // duplicate — ignore
@@ -337,11 +429,22 @@ namespace tik4net.MacTelnet
             var dst = (type == PKT_SESSIONSTART) ? _routerEp : _routerUnicastEp;
             _udp.Send(pkt, pkt.Length, dst);
 
+            // The counter belongs in the note: it is the stream offset this packet claims, and the
+            // router's ACK counter is what it must be compared against. Without it the trace cannot
+            // answer "did the router acknowledge everything we sent" (P2.19).
             if (Diagnostics.TikWireTrace.Enabled)
-                Diagnostics.TikWireTrace.Emit("mactelnet.udp", Diagnostics.TikWireDir.Send,
-                    payload, 0, payload?.Length ?? 0, "type=0x" + type.ToString("x2"));
+                Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Send,
+                    payload, 0, payload?.Length ?? 0,
+                    "type=0x" + type.ToString("x2") + " counter=" + counter);
 
-            if (type == PKT_DATA && payload != null) _outCounter += (uint)payload.Length;
+            if (type == PKT_DATA && payload != null && payload.Length > 0)
+            {
+                _outCounter += (uint)payload.Length;
+                // Hold it for retransmission until the router's ACK reaches past it (P2.19).
+                _lastDataPacket = pkt;
+                _lastDataEnd    = counter + (uint)payload.Length;
+                _retransmits    = 0;
+            }
         }
 
         protected void SendAck(uint ackCounter)
@@ -355,6 +458,13 @@ namespace tik4net.MacTelnet
             pkt[18] = (byte)(ackCounter >> 24); pkt[19] = (byte)(ackCounter >> 16);
             pkt[20] = (byte)(ackCounter >> 8);  pkt[21] = (byte)(ackCounter & 0xFF);
             _udp.Send(pkt, pkt.Length, _routerUnicastEp);
+
+            // Traced because a regressing ACK cannot be seen from the receive side alone - the router's
+            // reaction (a retransmit burst) reads as router misbehaviour until you can see what we told
+            // it (P2.19).
+            if (Diagnostics.TikWireTrace.Enabled)
+                Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Send,
+                    "type=0x02 ack=" + ackCounter);
         }
 
         protected void SendPong(uint counter)
@@ -392,6 +502,7 @@ namespace tik4net.MacTelnet
                 }
                 else
                 {
+                    RetransmitIfUnacked();   // self-rate-limited; safe at this 20 ms cadence
                     Thread.Sleep(20);
                 }
             }
