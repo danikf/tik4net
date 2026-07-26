@@ -19,15 +19,19 @@ This puts `tik4net-mcp` on your PATH (requires the .NET 8 runtime).
 
 ### Install from source
 
-Working in this repository, or want a build that is newer than the published package — pack it and
-install the resulting `.nupkg` as a global tool:
+Working in this repository, or want a build that is newer than the published package:
 
 ```
-dotnet pack Tools/tik4net.mcp/tik4net.mcp.csproj -c Release
-dotnet tool install -g --add-source ./Build tik4net.mcp
+powershell -NoProfile -ExecutionPolicy Bypass -File Tools/tik4net.mcp/install-tool.ps1
 ```
 
-Use `dotnet tool update -g --add-source ./Build tik4net.mcp` to refresh it after later changes.
+`install-tool.ps1` stops any running server (which would otherwise hold a lock on its own binary),
+packs Release, and reinstalls the global tool. Use it for every refresh, not just the first install
+— `dotnet tool update` is a no-op while the version is unchanged, so a rebuilt 4.0.0 would silently
+leave the old binary in place. Pass `-Force` to skip the confirmation prompt when running
+non-interactively.
+
+Restart your MCP client afterwards; it will not reconnect to the replaced server on its own.
 
 > **Do not point your MCP client at `dotnet run --project Tools/tik4net.mcp/…`.** The running server
 > holds a lock on its own `bin/` output, and `dotnet build tik4net.sln` — which includes this project

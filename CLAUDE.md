@@ -174,6 +174,7 @@ applies the documented conventions.
 - `mikrotik-cli-probe` — ground truth for what the router actually emits over the CLI/PTY layer
 - `winbox-native-dev` — structured-M2 transport work (`.jg` catalog, wire encodings)
 - `entity-generator` — scaffold O/R mapper entities
+- `tik4net-mcp-install` — (re)install the MCP server as a global tool after changing it
 
 ## Protocol documentation
 
