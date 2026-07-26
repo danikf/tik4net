@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "tik4net-mcp": {
+      "command": "tik4net-mcp",
+      "type": "stdio"
+    }
+  }
+}

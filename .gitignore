@@ -197,6 +197,7 @@ FakesAssemblies/
 
 # Visual Studio 6 workspace options file
 *.opt
+# Claude Code: shared project config (.mcp.json, .claude/skills/) is committed;
+# only per-developer state is ignored.
 /.claude/settings.local.json
-/.claude/skills/
-/.mcp.json
+/.claude/worktrees/
