@@ -167,13 +167,18 @@ unit testy) stačí:
 |-----------|------|
 | Api, ApiSsl | ~5 min |
 | Rest, RestSsl | ~3 min |
-| Telnet, Ssh | ~10–15 min |
-| MacTelnet | ~15–20 min |
+| Telnet, Ssh | ~7 min |
+| MacTelnet | ~13 min |
 | WinboxNative, WinboxNativeMac | ~5–8 min (hodně skipů) |
-| WinboxCli | **~52 min** |
-| WinboxCliMac | **~60 min** |
+| WinboxCli | ~7 min |
+| WinboxCliMac | **~1 h 20 min** |
 
-WinboxCli a WinboxCliMac jsou pomalé kvůli Winbox terminálu: každé CLI volání prochází šifrovaným kanálem (EC-SRP5 + AES) a má vyšší latenci než přímý Telnet/SSH. Timeouty testů (SafeMode: 1 min, traceroute: skip) se nezmenšují.
+Přeměřeno 2026-07-26 (plný běh na 7.23.2, 390 testů). **WinboxCli už NENÍ pomalý transport** — dřív tu
+stálo ~52 min, ale to byl důsledek mepty wedge, který opravila P2.13c (byte-ACK); dnes běží stejně
+rychle jako Telnet/SSH. Pomalý zůstává jen **WinboxCliMac**, a to kvůli MAC vrstvě, ne kvůli Winbox
+terminálu: MAC transporty platí ~5 s za příkaz proti ~200 ms přes TCP a navíc se v plném běhu zasekávají
+(P2.19) — každý wedge stojí 30 s receive-timeout. Timeouty testů (SafeMode: 1 min, traceroute: skip) se
+nezmenšují.
 
 ### Výsledky ze všech 11 transportů
 
