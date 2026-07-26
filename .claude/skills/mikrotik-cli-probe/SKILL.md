@@ -28,7 +28,7 @@ This is the layer tik4net's CLI-based transports (`tik4net/Cli/`, `tik4net/Telne
 
 ## The probe script
 
-`_notes/connections/telnet-cli-probe.ps1` is a minimal, self-contained Telnet client that reproduces
+`Tools/probes/telnet-cli-probe.ps1` is a minimal, self-contained Telnet client that reproduces
 exactly what a correct PTY transport must do — Telnet IAC negotiation, VT100 cursor-probe answers, and
 login with change-password-nag dismissal — then prints the RAW bytes the router returns (ESC shown as
 `\e`, CR/LF as `\r`/`\n`). It deliberately does NOT use the tik4net library, so it gives you ground
@@ -37,14 +37,14 @@ truth to compare the library against.
 Run it (Windows PowerShell 5.1):
 
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File _notes\connections\telnet-cli-probe.ps1 `
+powershell -NoProfile -ExecutionPolicy Bypass -File Tools\probes\telnet-cli-probe.ps1 `
   -RouterHost <host-from-App.config> -User <user-from-App.config> `
   -Command ':put [/interface print detail as-value]', ':put [/system resource print as-value]'
 ```
 
-Take the router coordinates from `tik4net.integrationtests/App.config` (`host`, `user`, `pass`) —
-the script's own built-in defaults may be stale. The script takes
-`-RouterHost`, `-User`, `-Pass`, and `-Command` (string array of CLI lines to send after login).
+Take the router coordinates from `tik4net.integrationtests/App.config` (`host`, `user`, `pass`).
+The script takes `-RouterHost` (mandatory), `-User` (default `admin`), `-Pass` (default empty), and
+`-Command` (string array of CLI lines to send after login).
 **Omit `-Pass` for an empty password** — passing `-Pass ''` through `powershell -File` is unreliable
 (it errors "Missing an argument for parameter 'Pass'"); the default is already empty.
 

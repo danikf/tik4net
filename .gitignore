@@ -201,3 +201,7 @@ FakesAssemblies/
 # only per-developer state is ignored.
 /.claude/settings.local.json
 /.claude/worktrees/
+
+# Python bytecode (probe scripts)
+__pycache__/
+*.pyc

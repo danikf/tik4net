@@ -24,7 +24,7 @@ namespace tik4net.Winbox
     /// <c>&lt;CatalogCachePath&gt;/plugins/&lt;unique&gt;</c>. The resolved set itself is remembered per router
     /// under <c>&lt;CatalogCachePath&gt;/lists/</c>, so a router that momentarily refuses <c>list</c> still
     /// yields a full catalog instead of silently degrading the connection to seeds (P2.23).</para>
-    /// <para>The parser is a C# port of <c>_notes/WinboxMessage/jg_analyze.py</c> — it walks the object tree
+    /// <para>The parser is a C# port of <c>Tools/probes/jg_analyze.py</c> — it walks the object tree
     /// and, for every node carrying a <c>path:[…]</c>, attributes the enclosing field <c>id:'&lt;prefix&gt;&lt;hex&gt;'</c>
     /// entries to that handler. Multiple windows may target the same handler; their fields are merged.</para>
     /// </remarks>

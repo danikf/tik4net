@@ -55,11 +55,11 @@ PY
 grep -oiE ".{0,40}'Dst\. Port'.{0,160}" "$JG/roteros.jg"
 grep -oiE "title:'[^']*VLAN[^']*',type:'map',path:\[[ 0-9,]+\]" "$JG/roteros.jg"
 # structured catalog (handler→ops→fields), human + JSON:
-python _notes/WinboxMessage/jg_analyze.py "$JG"                       # summary
-python _notes/WinboxMessage/jg_analyze.py detail "$JG" "20,3"         # one HANDLER's windows+fields ([20,3]=fw filter)
-python _notes/WinboxMessage/jg_analyze.py report "$JG" out.txt        # full window+field catalog → file
-python _notes/WinboxMessage/jg_analyze.py "$JG" --json catalog.json
-python _notes/WinboxMessage/jg_analyze.py diff <dirA> <dirB>          # cross-version drift
+python Tools/probes/jg_analyze.py "$JG"                       # summary
+python Tools/probes/jg_analyze.py detail "$JG" "20,3"         # one HANDLER's windows+fields ([20,3]=fw filter)
+python Tools/probes/jg_analyze.py report "$JG" out.txt        # full window+field catalog → file
+python Tools/probes/jg_analyze.py "$JG" --json catalog.json
+python Tools/probes/jg_analyze.py diff <dirA> <dirB>          # cross-version drift
 ```
 
 ### 2. webfig `master*.js` — the authoritative wire encoding for a UI type
