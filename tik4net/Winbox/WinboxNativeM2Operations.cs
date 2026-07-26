@@ -420,7 +420,7 @@ namespace tik4net.Winbox
 
         // ── Streaming monitor (start → poll → cancel) ────────────────────────────
         // A monitor is client-driven polling over this same request/reply channel (webfig
-        // ObjectQuery/ObjectAction — NOT a server push). See _notes/winbox-native-m2-plan.md §20.
+        // ObjectQuery/ObjectAction — NOT a server push). See Docs/winbox-native-m2-protocol.md §20.
 
         /// <summary>
         /// Starts a monitor: SYS_CMD <paramref name="startCmd"/> (+ optional <paramref name="requestFields"/>).

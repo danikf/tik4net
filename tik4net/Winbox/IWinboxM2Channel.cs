@@ -59,7 +59,7 @@ namespace tik4net.Winbox
         /// <summary>
         /// True when the channel can hand its read side to a <see cref="WinboxM2Multiplexer"/> reader loop
         /// (i.e. <see cref="ReceiveNextFrame"/> is implemented). TCP: yes. MAC: no — see
-        /// <c>_notes/async/P2-winbox-multiplexing-design.md</c> §4.5, the MAC layer interleaves ACK/PING
+        /// <c>Docs/winbox-m2-multiplexing-design.md</c> §4.5, the MAC layer interleaves ACK/PING
         /// sends with reads inside <c>MacLayerTransport</c>, so a reader loop needs a write-side lock down
         /// there before it is safe.
         /// </summary>

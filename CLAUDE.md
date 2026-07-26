@@ -82,9 +82,9 @@ orphaned router state.
 
 ### Never just report a pre-existing failure
 
-"That test was already red" is not an outcome. Either fix it in the current change, or add it to
-`_notes/Reviews/ARCHITECTUREIMPROVEMENTPLAN.md` as an item scheduled immediately after the work in
-flight — with the diagnosis, not just the symptom. Reporting it and moving on is not an option.
+"That test was already red" is not an outcome. Either fix it in the current change, or write up the
+**diagnosis** — not just the symptom — and hand it to the maintainer as work scheduled immediately
+after what's in flight. Reporting it and moving on is not an option.
 
 **Always consider orphaned router state first.** A test that fails on an unexpected `.id`, a name
 collision, or a stale count is usually reacting to residue left by an earlier run, not to a code
@@ -175,8 +175,12 @@ applies the documented conventions.
 - `winbox-native-dev` — structured-M2 transport work (`.jg` catalog, wire encodings)
 - `entity-generator` — scaffold O/R mapper entities
 
-## Current improvement plan
+## Protocol documentation
 
-`_notes/Reviews/ARCHITECTUREIMPROVEMENTPLAN.md` (local-only) holds the phased source/architecture
-review and plan. Consult it before starting structural work so changes land in the intended phase,
-and tick items off there as they're completed.
+`Docs/` holds the transport ground truth — what the router actually does on the wire, established by
+live probing and by reading MikroTik's own clients. Source XML docs cite these files by name. Read
+the relevant one before changing a transport, and update it when live behaviour contradicts it.
+`Docs/README.md` is the index. Standalone diagnostic scripts live in `Tools/probes/`.
+
+The phased architecture review and roadmap are the maintainer's local working notes, outside this
+repository — ask if a structural change needs to land in a particular phase.

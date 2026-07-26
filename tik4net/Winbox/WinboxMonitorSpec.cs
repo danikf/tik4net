@@ -4,7 +4,7 @@ namespace tik4net.Winbox
     /// Describes a streaming-monitor window harvested from the <c>.jg</c> catalog (a <c>type:'query'</c>
     /// window, or a <c>type:'action'</c> window with a <c>pollcmd</c>). A monitor is driven by re-polling the
     /// router over the normal request/reply channel — it is NOT a server push (see webfig
-    /// <c>ObjectQuery</c>/<c>ObjectAction</c> and <c>_notes/winbox-native-m2-plan.md</c> §20):
+    /// <c>ObjectQuery</c>/<c>ObjectAction</c> and <c>Docs/winbox-native-m2-protocol.md</c> §20):
     /// <list type="number">
     ///   <item><b>start</b> = SYS_CMD <see cref="StartCmd"/> (+ request fields) → reply carries the monitor
     ///         <c>.id</c> handle;</item>

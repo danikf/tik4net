@@ -11,7 +11,7 @@ namespace tik4net.unittests.Winbox
 {
     /// <summary>
     /// Loopback tests for <see cref="WinboxM2Multiplexer"/> — the reader-loop dispatch that replaces the
-    /// lockstep "read the next frame" model (<c>_notes/async/P2-winbox-multiplexing-design.md</c>).
+    /// lockstep "read the next frame" model (<c>Docs/winbox-m2-multiplexing-design.md</c>).
     /// <para>
     /// The lockstep tests in <see cref="WinboxM2SessionProtocolTests"/> pin the framing these build on;
     /// what is tested here is the property lockstep could not have: a reply is delivered to <b>its own</b>

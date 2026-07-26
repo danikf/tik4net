@@ -286,7 +286,7 @@ field, so nothing spurious is sent on add.** When in doubt, set `DefaultValue` t
   `///` so users who know the GUI can find the property. To discover the mapping:
   - Run the same print over the `WinboxNative` transport with `includeRawTrace: true` and compare the
     `.jg`-mapped names (see the `mikrotik` skill's "WinboxNative RAW TRACE" section), **or**
-  - Inspect the shipped catalogs under `_notes/WinboxMessage/<version>/*.jg` (the `.jg` field catalogs the
+  - Inspect the shipped catalogs under `../_notes/WinboxMessage/<version>/*.jg` (the `.jg` field catalogs the
     resolver uses — `tik4net/Winbox/WinboxJgCatalog.cs`).
   - Example doc line: `/// keepalive-timeout — WinBox: "Keepalive Timeout"`.
   GUI labels fold to API names by replacing space/underscore with `-` and dropping abbreviation dots
@@ -482,7 +482,7 @@ namespace tik4net.Objects.<Domain>
   extension + ToString), `Log.cs` (read-only singleton-ish).
 - MCP/router access: `mikrotik` skill (`mikrotik_call`) and `mikrotik_cli_complete` (Tab-completion /
   field+menu enumeration, backed by `tik4net/Cli/ITikCliCompletion.cs`); WinBox names: `mikrotik` skill
-  RAW-TRACE section + `_notes/WinboxMessage/*.jg`.
+  RAW-TRACE section + `../_notes/WinboxMessage/*.jg`.
 - Tests: `mikrotik-tests` skill; `tik4net.integrationtests/TestBase.cs` (guards), `tik4net.integrationtests/Interface/Bridge/InterfaceBridgeTest.cs` (List/Add shape).
 </content>
 </invoke>

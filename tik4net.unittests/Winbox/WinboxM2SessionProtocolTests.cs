@@ -11,7 +11,7 @@ namespace tik4net.unittests.Winbox
     /// Loopback protocol tests for <see cref="WinboxM2Session"/> against <see cref="FakeWinboxServer"/>.
     /// <para>
     /// These pin the <b>current lockstep behaviour</b> so the multiplexing rewrite
-    /// (<c>_notes/async/P2-winbox-multiplexing-design.md</c>) has a regression net — the same role
+    /// (<c>Docs/winbox-m2-multiplexing-design.md</c>) has a regression net — the same role
     /// <c>ApiConnectionProtocolTests</c> plays for the binary API's reader-loop rewrite (P1.7 → P2.3).
     /// They must keep passing afterwards.
     /// </para>

@@ -30,6 +30,7 @@ bld/
 
 # Local dev notes (not for commit)
 _notes/
+../_notes/
 [Bb]uild[Ll]og.*
 
 # NUNIT

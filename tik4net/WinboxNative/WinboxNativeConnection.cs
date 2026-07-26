@@ -726,7 +726,7 @@ namespace tik4net.WinboxNative
         /// <summary>
         /// Runs a streaming-monitor command (e.g. <c>/tool/torch</c>, <c>/tool/profile</c>) on a background
         /// worker that polls the router every <c>autorefresh</c> ms over the normal M2 channel — start → poll →
-        /// cancel (webfig <c>ObjectQuery</c>; see <c>_notes/winbox-native-m2-plan.md</c> §20). Each polled record
+        /// cancel (webfig <c>ObjectQuery</c>; see <c>Docs/winbox-native-m2-protocol.md</c> §20). Each polled record
         /// is decoded to API field names and pushed to <paramref name="onRow"/>; <paramref name="onDone"/> fires
         /// when the worker stops (cancelled, the router's "finished" flag, or an error — reported via
         /// <paramref name="onError"/>). Request parameters (NameValue) are encoded as the monitor's request fields.
@@ -741,7 +741,7 @@ namespace tik4net.WinboxNative
 
             // /path/listen — RouterOS pushes add/change/delete deltas over the API. WinBox M2 has no server
             // push, so webfig (and we) emulate it the way it polls live config tables: getall on a timer and
-            // diff snapshots by .id (see _notes/winbox-native-m2-plan.md §20). Deleted rows are surfaced as a
+            // diff snapshots by .id (see Docs/winbox-native-m2-protocol.md §20). Deleted rows are surfaced as a
             // synthetic ".dead=true" record so the O/R LoadListenAsync handler routes them to onDeleted.
             if (verb == "listen")
             {

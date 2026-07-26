@@ -77,7 +77,7 @@ namespace tik4net.Winbox
 
         // Streaming-monitor windows (.jg type:'query', or type:'action' with a pollcmd): start → poll → cancel
         // over the normal request/reply channel (NOT a server push — the client re-polls every autorefresh ms;
-        // see _notes/winbox-native-m2-plan.md §20). Keyed handler-path → spec (start/poll/cancel cmd + interval).
+        // see Docs/winbox-native-m2-protocol.md §20). Keyed handler-path → spec (start/poll/cancel cmd + interval).
         private readonly Dictionary<string, WinboxMonitorSpec> _monitorsByHandler =
             new Dictionary<string, WinboxMonitorSpec>(StringComparer.Ordinal);
 

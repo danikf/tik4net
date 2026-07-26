@@ -8,13 +8,13 @@ namespace tik4net.Winbox
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Sources of truth (all under <c>_notes/</c>):
+    /// Sources of truth (see <c>Docs/</c>):
     /// <list type="bullet">
     ///   <item>System field keys + error codes: tenable/routeros <c>common/winbox_message.cpp</c>,
-    ///         transcribed in <c>_notes/winbox-native-m2-plan.md</c> §6.</item>
+    ///         transcribed in <c>Docs/winbox-native-m2-protocol.md</c> §6.</item>
     ///   <item>Command catalog + error descriptions: webfig <c>master-d53cd8ec58cb.js</c>
     ///         (<c>ObjectMap.getall/fetch/setObject/...</c>, <c>getErrorDescription</c>), summarised in
-    ///         <c>_notes/winbox-native-m2-plan.md</c> §10.</item>
+    ///         <c>Docs/winbox-native-m2-protocol.md</c> §10.</item>
     /// </list>
     /// </para>
     /// <para>
@@ -98,7 +98,7 @@ namespace tik4net.Winbox
             /// both usages are <c>if(rep.ufe0019!=null)me.objCount=rep.ufe0019</c>, i.e. stored and never used
             /// for flow control. Explicitly <b>not</b> a "more frames follow" marker — one request still maps
             /// to exactly one reply frame, which is what makes id-based dispatch sound
-            /// (<c>_notes/connections/findings-winbox.md §12.7</c>).</summary>
+            /// (<c>Docs/findings-winbox.md §12.7</c>).</summary>
             internal const int Count = 0xFE0019;
 
             /// <summary>

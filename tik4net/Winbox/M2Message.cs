@@ -517,7 +517,7 @@ namespace tik4net.Winbox
         /// <remarks>
         /// RouterOS echoes the request id back on the response, which makes it the correlation key for
         /// dispatching replies to concurrent in-flight requests (verified live — see
-        /// <c>_notes/connections/findings-winbox.md §12.1</c>). Note that <c>0xFF0003</c> is <b>not</b> a
+        /// <c>Docs/findings-winbox.md §12.1</c>). Note that <c>0xFF0003</c> is <b>not</b> a
         /// correlation field despite looking like one in a single-exchange trace: it stays constant for the
         /// whole session while this value tracks the request (§12.2).
         /// </remarks>

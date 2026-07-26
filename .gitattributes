@@ -6,7 +6,7 @@
 ###############################################################################
 # Keep C# sources as UTF-8 in the working tree so box-drawing / arrow comment
 # glyphs do not get re-mangled into mojibake on checkout under a non-UTF-8
-# locale (see _notes review R10).
+# locale.
 ###############################################################################
 *.cs text working-tree-encoding=UTF-8
 

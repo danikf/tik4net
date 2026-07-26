@@ -47,7 +47,7 @@ jobs:
 
       # Produces the `tik4net` package containing BOTH tik4net.dll and tik4net.objects.dll.
       # Since 4.0 the O/R mapper is no longer published separately (was tik4net.objects,
-      # then tik4net.entities) — see _notes/nuget-package-consolidation-plan.md.
+      # then tik4net.entities) — see the comment in tik4net.package.csproj for the rationale.
       - name: Pack tik4net (core + O/R mapper)
         run: >
           dotnet pack tik4net.package/tik4net.package.csproj

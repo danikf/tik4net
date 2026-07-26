@@ -222,7 +222,7 @@ mikrotik_call /system/identity/print   username=test  password=test    ← must 
 ```
 
 > **Why this matters.** The P2.13c incident (see
-> [`_notes/connections/P2.13c-mepty-recycle-findings.md`](../../../_notes/connections/P2.13c-mepty-recycle-findings.md))
+> [`Docs/findings-mepty-byte-ack.md`](../../../Docs/findings-mepty-byte-ack.md))
 > wedged the lab router by feeding a desynced terminal into RouterOS's `new password>` nag, silently
 > changing the `admin` password. There was **no second account**, so recovery needed an out-of-band
 > config reset and the whole investigation stalled. `test`/`test` is that missing escape hatch.
@@ -280,7 +280,7 @@ Then:
 - Also check whether `/system/package/print`-adjacent wiki pages state a minimum version
   (`Connection-types-and-capabilities.md`, `REST-connection.md`, `Safe-Mode.md` carry `7.1+` / `7.18+`
   feature floors). Those are **feature minimums, not the tested version** — leave them alone.
-- **Do not bulk-update** the `7.x.y` mentions scattered through source XML docs and `_notes/`
+- **Do not bulk-update** the `7.x.y` mentions scattered through source XML docs and `Docs/`
   (`CliCommandBuilder.cs`, `M2Message.cs`, `BgpTest.cs`, …). Those are dated *"verified live against"*
   probe records — historical facts, still true of the version they name.
 - The wiki is a separate git clone (`../tik4net.wiki`, see the wiki-location memory) — its commit is
@@ -295,9 +295,10 @@ findings doc is in flight:
 
 - **`mikrotik-tests` baseline failure catalog** is pinned to a specific RouterOS version — expect
   baseline drift on the first full run; a newly red test may be a router behaviour change, not a
-  regression. (Per `CLAUDE.md`: never *just report* a pre-existing failure — fix it or schedule it in
-  `_notes/Reviews/ARCHITECTUREIMPROVEMENTPLAN.md`.)
-- **Offline `.jg` dumps** in `_notes/WinboxMessage/<ver>-http/` are version-matched copies. Re-dump
+  regression. (Per `CLAUDE.md`: never *just report* a pre-existing failure — fix it, or write up the
+  diagnosis and hand it to the maintainer as scheduled work.)
+- **Offline `.jg` dumps** in `../_notes/WinboxMessage/<ver>-http/` (maintainer-local, outside the
+  repo — may not exist in your checkout) are version-matched copies. Re-dump
   before trusting them for `winbox-native-dev` work.
 - **`user-manager` reinstalls the `um5files/*.html|css|js` tree**, which is what makes `/file/print`
   return `contents` full of `;` and `=` — the known CLI as-value shredding behind

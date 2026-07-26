@@ -12,7 +12,7 @@ namespace tik4net.Cli
     /// streaming transport can poll it on a timer (see <see cref="CliConnectionBase"/> <c>RunMonitorAsync</c>).
     ///
     /// <para>The modifiers below were confirmed live against RouterOS 7.21.4 (probe results in
-    /// <c>_notes/connections/findings-cli.md</c>), not guessed:
+    /// <c>Docs/findings-cli.md</c>), not guessed:
     /// <list type="bullet">
     ///   <item><c>once</c> — RouterOS's convention for most monitors (<c>monitor-traffic</c>,
     ///         <c>/system resource monitor</c>, <c>/interface ethernet monitor</c>, …); the default.</item>

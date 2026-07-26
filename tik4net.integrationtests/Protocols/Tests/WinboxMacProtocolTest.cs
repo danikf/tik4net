@@ -6,7 +6,8 @@
 // (Windows Firewall likely blocks inbound UDP unicast responses from the router).
 // Additionally, the M2 framing inside DATA packets is a hypothesis not verified
 // against a Wireshark capture.
-// See _notes/poc-consolidation-and-native-m2-plan.md §5 (Faze E) for diagnosis steps.
+// Start diagnosis at Docs/findings-mactelnet.md (session behaviour) and Docs/mactelnet-protocol.md
+// (framing + the counter/ACK rule) — a wrong ACK value is the usual cause of a silent MAC transport.
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;

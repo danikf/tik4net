@@ -8,7 +8,9 @@
     assembly, and the AddReferencedAssembliesToPackage target below copies the two
     referenced assemblies + their XML docs into lib/<tfm>/.
 
-    See _notes/nuget-package-consolidation-plan.md for the rationale.
+    Rationale: until 4.0 the O/R mapper shipped as its own package (tik4net.objects, then
+    tik4net.entities); consumers had to reference both and keep the versions in step. One
+    package with both assemblies removes that failure mode.
   -->
 
   <PropertyGroup>

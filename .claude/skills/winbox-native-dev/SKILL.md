@@ -23,7 +23,7 @@ from `master*.js` (`[[feedback_winbox_encoding_from_js]]`).
 
 ### 1. `.jg` catalog — handler paths, field keys, wire types, window kind
 A `.jg` is a tolerant JS object literal describing every WinBox window. It is the **version-volatile**
-source for handler numbers + field keys/types. Format reference: `_notes/WinboxMessage/README-jg-format.md`.
+source for handler numbers + field keys/types. Format reference: `Docs/jg-catalog-format.md`.
 
 - `path:[a,b]` → M2 handler (SYS_TO `0xFF0001`). `type:'map'` = list (getall), `'item'` = singleton
   (get-singleton), `'query'`/`'action'`+pollcmd = streaming monitor, `'doit'`/`'action'`+cmd = action verb.
@@ -40,12 +40,13 @@ source for handler numbers + field keys/types. Format reference: `_notes/WinboxM
 **Where the `.jg` lives**
 - Library runtime cache (what `WinboxNativeConnection` actually parses): `%TEMP%/tik4net/<jgVersion>/*.jg`
   (e.g. `3.42rc1`). Delete to force a re-fetch.
-- Version-matched testbed copies for grepping offline: `_notes/WinboxMessage/7.21.4-http/*.jg`,
-  `7.17rc3-…/`, `6.45…/`.
+- Version-matched testbed copies for grepping offline: `../_notes/WinboxMessage/7.21.4-http/*.jg`,
+  `7.17rc3-…/`, `6.45…/` — maintainer-local, outside the repo (MikroTik's files, not redistributed).
+  If absent, dump them from a router with `WinboxDumpCatalogTest` or fetch them from webfig.
 
 **Explore it**
 ```bash
-JG="$TEMP/tik4net/3.42rc1"          # or _notes/WinboxMessage/7.21.4-http
+JG="$TEMP/tik4net/3.42rc1"          # or ../_notes/WinboxMessage/7.21.4-http
 # find a window's handler + its fields:
 python - <<'PY'
 s=open(f"{__import__('os').environ['JG']}/roteros.jg",encoding='utf-8',errors='replace').read()
@@ -63,13 +64,13 @@ python Tools/probes/jg_analyze.py diff <dirA> <dirB>          # cross-version dr
 ```
 
 ### 2. webfig `master*.js` — the authoritative wire encoding for a UI type
-`_notes/WinboxMessage/webfig/master-d53cd8ec58cb.js` is the webfig client. Every `type:'<x>'` has a
+`../_notes/WinboxMessage/webfig/master-d53cd8ec58cb.js` is the webfig client. Every `type:'<x>'` has a
 `types.<x>.get/put/fromstr/tostr` that defines EXACTLY how the value rides on the wire. Read these
 before implementing any new field type.
 ```bash
-JS=_notes/WinboxMessage/webfig/master-d53cd8ec58cb.js
+JS=../_notes/WinboxMessage/webfig/master-d53cd8ec58cb.js
 python - <<'PY'
-s=open("_notes/WinboxMessage/webfig/master-d53cd8ec58cb.js",encoding='utf-8',errors='replace').read()
+s=open("../_notes/WinboxMessage/webfig/master-d53cd8ec58cb.js",encoding='utf-8',errors='replace').read()
 for name in ['types.multinumberrange.put','types.numberrange.fromstr','types.addr','types.set.tostr']:
     i=s.find(name+'=function');  print('###',name); print(s[i:i+300] if i>=0 else 'NOT FOUND'); print()
 PY
@@ -124,7 +125,7 @@ each M2 request via `M2Message.Describe` (top-level keys `0xKEY=type:value`).
 
 Design split (keep it): handler NUMBERS + field KEYS come **live from the `.jg`** (version-volatile);
 only the **stable text** (apiPath↔menu-label aliases, apiName↔label) is shipped in C#. See
-`[[project_winbox_native_resolver]]`, `[[ref_jg_catalog]]`, and `_notes/winbox-native-m2-plan.md`.
+`[[project_winbox_native_resolver]]`, `[[ref_jg_catalog]]`, and `Docs/winbox-native-m2-protocol.md`.
 
 ## Workflows
 
@@ -192,7 +193,6 @@ test classes when done.
 - Memory: `[[ref_winbox_health_and_lists]]` (health board-gating, list encoding, opt-flag gotcha),
   `[[ref_jg_catalog]]`, `[[project_winbox_native_resolver]]`, `[[feedback_winbox_encoding_from_js]]`,
   `[[project_mcp_multitransport_trace]]`.
-- Notes: `_notes/winbox-native-m2-plan.md`, `_notes/WinboxMessage/README-jg-format.md`,
-  `_notes/test-hardening-plan.md` (#2 = native gaps).
+- Notes: `Docs/winbox-native-m2-protocol.md`, `Docs/jg-catalog-format.md`, `Docs/README.md`.
 - Sibling skills: `mikrotik` (MCP queries), `mikrotik-cli-probe` (terminal layer), `mikrotik-tests`,
   `entity-generator` (scaffold the O/R entity once the native path works).

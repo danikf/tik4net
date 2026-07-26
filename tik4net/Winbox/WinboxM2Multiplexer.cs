@@ -14,7 +14,7 @@ namespace tik4net.Winbox
     /// </summary>
     /// <remarks>
     /// <para><b>Why this is sound.</b> Three protocol facts, verified live and written up in
-    /// <c>_notes/connections/findings-winbox.md §12</c>:</para>
+    /// <c>Docs/findings-winbox.md §12</c>:</para>
     /// <list type="number">
     ///   <item>The request id is echoed in the reply, so replies are attributable (§12.1). The
     ///     <c>0xFF0003</c> field is <i>not</i> a correlation key and must not be used (§12.2).</item>
