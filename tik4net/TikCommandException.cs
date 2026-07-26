@@ -223,6 +223,33 @@ namespace tik4net
     }
 
     /// <summary>
+    /// Exception thrown when a value was requested (<see cref="ITikCommand.ExecuteScalar()"/>) from a command
+    /// that the router accepted <b>without returning anything</b>. This is not an error reported by the router —
+    /// it means the command produced no output at all, which is exactly what a successful write
+    /// (<c>set</c>/<c>unset</c>/<c>remove</c>/<c>enable</c>/<c>comment</c>/…) does on every transport.
+    /// <para>
+    /// Use <see cref="ITikCommand.ExecuteNonQuery()"/> for commands that return nothing, or
+    /// <see cref="ITikCommand.ExecuteScalarOrDefault()"/> when a value is optional.
+    /// </para>
+    /// <para>
+    /// This case used to be reported as <see cref="TikNoSuchItemException"/> ("no such item"), which was a
+    /// fabricated router error: the item existed and the command had in fact succeeded.
+    /// </para>
+    /// </summary>
+    public class TikCommandEmptyResponseException : TikCommandException
+    {
+        /// <summary>
+        /// .ctor
+        /// </summary>
+        /// <param name="command">Command that throws exception.</param>
+        /// <param name="message">Description of what was expected and what the router returned instead.</param>
+        public TikCommandEmptyResponseException(ITikCommand command, string message)
+            : base(command, $"{message}\n{command}")
+        {
+        }
+    }
+
+    /// <summary>
     /// Exception thrown when exactly one item is expected but more than one was returned.
     /// </summary>
     public class TikCommandAmbiguousResultException : TikCommandException

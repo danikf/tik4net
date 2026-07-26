@@ -265,6 +265,68 @@ namespace tik4net.integrationtests
             Assert.IsNull(ReadByComment(comment), "remove reported success but the rule is still on the router");
         }
 
+        // ── asking a silent write for a value (P2.34) ─────────────────────────
+
+        /// <summary>
+        /// Every verb above answers with nothing when it succeeds. Asking such a command for a scalar used to
+        /// raise <see cref="TikNoSuchItemException"/> — "no such item" for a record that was right there, on a
+        /// command that had already applied. It sent this very investigation looking for a missing rule while
+        /// the router had faithfully executed each write. The error must name the real cause, and (the second
+        /// assert) the write must still have taken effect: an exception that reads as "nothing happened" over
+        /// a change that did happen is worse than no exception at all.
+        /// </summary>
+        [TestMethod]
+        public void Scalar_OnASilentWrite_ReportsAnEmptyResponseAndTheWriteStillApplied()
+        {
+            EnsureCapability(TikConnectionCapability.RawCommand, "raw command pass-through");
+
+            string comment = _stamp + "-silent";
+            string id = AddRule("192.0.2.80", comment);
+            string newComment = comment + "-applied";
+
+            var cmd = RawSilentSetComment(id, comment, newComment);
+
+            // TikCommandEmptyResponseException deliberately does NOT derive from TikNoSuchItemException — a
+            // 'catch (TikNoSuchItemException)' must no longer swallow this as "the record is missing". The
+            // compiler enforces that separation, so there is nothing to assert here at run time.
+            Assert.ThrowsException<TikCommandEmptyResponseException>(() => cmd.ExecuteScalar(),
+                "a write that succeeds silently must say so, not report a missing item");
+
+            Assert.AreEqual(newComment, ReadField(id, "comment"),
+                "the set threw but did apply — the exception must not be read as 'the command did nothing'");
+        }
+
+        /// <summary>The same call is not an error at all when the caller says the output is optional.</summary>
+        [TestMethod]
+        public void ScalarOrDefault_OnASilentWrite_ReturnsTheDefault()
+        {
+            EnsureCapability(TikConnectionCapability.RawCommand, "raw command pass-through");
+
+            string comment = _stamp + "-silent-default";
+            string id = AddRule("192.0.2.81", comment);
+
+            var cmd = RawSilentSetComment(id, comment, comment + "-ok");
+
+            Assert.AreEqual("<none>", cmd.ExecuteScalarOrDefault("<none>"));
+            Assert.AreEqual(comment + "-ok", ReadField(id, "comment"));
+        }
+
+        /// <summary>
+        /// A raw <c>set</c> that changes the rule's comment, in the transport's OWN raw dialect — that is the
+        /// whole point of raw pass-through, so there is no neutral spelling: the binary API takes a
+        /// <c>\n</c>-separated API sentence, the terminal transports take a CLI line.
+        /// </summary>
+        private ITikCommand RawSilentSetComment(string id, string currentComment, string newComment)
+        {
+            var t = ResolveConnectionType();
+            if (t == TikConnectionType.Api || t == TikConnectionType.ApiSsl)
+                return Connection.CreateRawCommand(
+                    Path + "/set\n=" + TikSpecialProperties.Id + "=" + id + "\n=comment=" + newComment);
+
+            return Connection.CreateRawCommand(
+                Path + " set [find comment=\"" + currentComment + "\"] comment=\"" + newComment + "\"");
+        }
+
         // ── helpers ───────────────────────────────────────────────────────────
 
         private string AddRule(string srcAddress, string comment, bool disabled = true)

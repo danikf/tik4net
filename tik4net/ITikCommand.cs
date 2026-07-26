@@ -65,6 +65,7 @@ namespace tik4net
         /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
         /// <exception cref="TikNoSuchItemException">Invalid item (bad id/name etc.). Mikrotik API message: 'no such item'.</exception>
         /// <exception cref="TikAlreadyHaveSuchItemException">Duplicit item (duplicit id/name etc.). Mikrotik API message: 'already have such item'.</exception>
+        /// <exception cref="TikCommandEmptyResponseException">Command succeeded but returned no value at all (bare !done without =ret=, or empty CLI output) - use <see cref="ExecuteNonQuery"/> for commands that print nothing.</exception>
         string ExecuteScalar();
 
         /// <summary>
@@ -80,6 +81,7 @@ namespace tik4net
         /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
         /// <exception cref="TikNoSuchItemException">Invalid item (bad id/name etc.). Mikrotik API message: 'no such item'.</exception>
         /// <exception cref="TikAlreadyHaveSuchItemException">Duplicit item (duplicit id/name etc.). Mikrotik API message: 'already have such item'.</exception>
+        /// <exception cref="TikCommandEmptyResponseException">Command succeeded but returned no value at all (bare !done without =ret=, or empty CLI output) - use <see cref="ExecuteNonQuery"/> for commands that print nothing.</exception>
         string ExecuteScalar(string target);
 
         /// <summary>

@@ -19,6 +19,12 @@ namespace tik4net
     /// (REST, WinBox native) throw <see cref="TikConnectionCapabilityNotSupportedException"/> — WinBox native's raw
     /// form would be a numeric M2 message, not a string, so use a CLI transport for raw over that channel.
     /// Parameters added to the returned command are ignored — the whole payload lives in the command text.
+    /// <para>
+    /// A raw <b>write</b> prints nothing when it succeeds, so run it with <see cref="ITikCommand.ExecuteNonQuery"/>;
+    /// <see cref="ITikCommand.ExecuteScalar()"/> has no value to return and throws
+    /// <see cref="TikCommandEmptyResponseException"/> (use <see cref="ITikCommand.ExecuteScalarOrDefault()"/> when
+    /// the output is optional).
+    /// </para>
     /// </remarks>
     public static class TikRawCommandExtensions
     {

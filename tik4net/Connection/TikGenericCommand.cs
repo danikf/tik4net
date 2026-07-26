@@ -175,8 +175,15 @@ namespace tik4net.Connection
                     string rawText = _connection.RunRawText(BuildRawDescriptor());
                     if (string.IsNullOrEmpty(rawText))
                     {
+                        // Empty output is NOT "no such item": a raw command has no record model, and the
+                        // silent answer is exactly what a successful write prints over the CLI
+                        // (set/unset/remove/enable/comment all echo nothing). Reporting that as
+                        // TikNoSuchItemException fabricated a router error for a command that had worked.
                         if (throwIfMissing)
-                            throw new TikNoSuchItemException(this);
+                            throw new TikCommandEmptyResponseException(this,
+                                "Raw command returned no output, so there is no scalar value to return. "
+                                + "Commands that print nothing (set/unset/remove/enable/comment/…) succeed silently — "
+                                + "run them with ExecuteNonQuery(), or use ExecuteScalarOrDefault() when the output is optional.");
                         return defaultValue;
                     }
                     return rawText;
@@ -191,8 +198,14 @@ namespace tik4net.Connection
                     string newId = _connection.RunAdd(BuildCommand(normalCmd, normalParams));
                     if (newId == null)
                     {
+                        // The add itself did not fail — a failing add raises a trap in RunAdd. Getting here
+                        // means the router accepted the row but answered without the new .id, so saying
+                        // "no such item" pointed the caller at a nonexistent record instead of at the
+                        // missing return value (and the row is on the router either way).
                         if (throwIfMissing)
-                            throw new TikNoSuchItemException(this);
+                            throw new TikCommandEmptyResponseException(this,
+                                "The router accepted the add but did not return the new .id. "
+                                + "The record was most probably created — re-read the table to obtain its id.");
                         return defaultValue;
                     }
                     return newId;
@@ -222,7 +235,15 @@ namespace tik4net.Connection
                 if (rows.Count == 0)
                 {
                     if (throwIfMissing)
-                        throw new TikNoSuchItemException(this);
+                        // A read that matched nothing really is 'no such item'; any other verb printing
+                        // nothing has simply succeeded without a return value (same rule as the binary API
+                        // applies to a bare !done — the two shapes are indistinguishable without the verb).
+                        throw IsReadVerb(verb)
+                            ? (TikCommandException)new TikNoSuchItemException(this)
+                            : new TikCommandEmptyResponseException(this,
+                                $"'{verb}' returned no output, so there is no scalar value to return. "
+                                + "Commands that print nothing (set/unset/remove/enable/comment/…) succeed silently — "
+                                + "run them with ExecuteNonQuery(), or use ExecuteScalarOrDefault() when the output is optional.");
                     return defaultValue;
                 }
                 if (rows.Count > 1)
@@ -313,6 +334,25 @@ namespace tik4net.Connection
             finally
             {
                 _isRunning = false;
+            }
+        }
+
+        /// <summary>
+        /// True for the read verbs, where an empty result set means "nothing matched". Every other verb
+        /// prints nothing on <b>success</b>, so there an empty result set means "this command has no return
+        /// value" (<see cref="TikCommandEmptyResponseException"/>). Kept in step with the binary API's
+        /// equivalent test in <c>ApiCommand.IsReadVerb</c>.
+        /// </summary>
+        private static bool IsReadVerb(string verb)
+        {
+            switch (verb)
+            {
+                case "print":
+                case "get":
+                case "getall":
+                    return true;
+                default:
+                    return false;
             }
         }
 
