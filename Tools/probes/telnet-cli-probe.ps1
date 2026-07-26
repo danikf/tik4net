@@ -87,7 +87,12 @@ function DrainQuiet([int]$quietMs) {
     if (Pump $sb) { $last = Get-Date } else { Start-Sleep -Milliseconds 20 }
   }
 }
-function Vis($t) { return ($t -replace "`r", '\r' -replace "`n", '\n' -replace "`e", '\e') }
+# POZOR: "`e" (ESC) je escape až od PowerShellu 6 — pod Windows PowerShellem 5.1, pro který je tenhle
+# skript psaný, se vyhodnotí jako holé písmeno "e". Dřív tu tedy stálo `-replace "e", '\e'`: každé "e"
+# ve výstupu routeru se přepsalo na "\e" ("file" → "fil\e") a skutečné ESC bajty naopak zmizely — přesně
+# naruby proti tomu, k čemu Vis je. ESC skládej explicitně.
+$Esc = [regex]::Escape([string][char]27)
+function Vis($t) { return ($t -replace "`r", '\r' -replace "`n", '\n' -replace $Esc, '\e') }
 function Send($t) { $b = $enc.GetBytes($t); $s.Write($b, 0, $b.Length); $s.Flush() }
 
 # --- Login (fixed-delay; proven reliable for this crude probe) ---
