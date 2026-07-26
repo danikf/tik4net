@@ -177,6 +177,36 @@ na drát) — viz `IsSpecialParam` v ApiCommand/RestRequestBuilder. Detaily: [`c
 uvozovek: `[A-Za-z0-9._-]`. Hodnoty `*N` (id) se NEuvozovkují (`where .id=*1` funguje). → `QuoteForWhere`.
 Pozn.: `name=value` pro `add`/`set` uvozovkování `/` NEpotřebuje (není to expression kontext).
 
+### 10.4b Uvnitř uvozovek jsou `$` a `\` speciální — zapsaná hodnota se tiše přepíše (P2.38)
+RouterOS console nemá jednoduché uvozovky vůbec (`:put 'a$b'` → `syntax error` na `'`), takže jediná
+forma je dvojitá — a v ní platí **substituce proměnných** a **escape sekvence**. Změřeno na 7.23.2
+(probe `Tools/probes/telnet-cli-probe.ps1`), zápis do `/system script`:
+
+| Odesláno | Router uloží | Pozn. |
+|---|---|---|
+| `source="x\$y z"` | `x$y z` | `\$` = literál `$` |
+| `source="x$y z"` | `x z` | **tichá substituce** — `$y` nedefinováno → prázdno |
+| `source="x\\y z"` | `x\y z` | `\\` = literál `\` |
+| `source="x\"b"` | `x"b` | |
+| `source="C:\temp\new w"` | `C:<TAB>emp<LF>ew w` | **tichá** — `\t`, `\n` jsou známé escapy |
+| `source="x\y z"` | `syntax error` | neznámý escape |
+| `source=x$y` | `syntax error` | `$` mimo uvozovky není nikdy legální |
+| `source=x\y` | `syntax error` | `\` mimo uvozovky taky ne |
+
+Plná sada escapů (MikroTik docs, ověřeno pro `\$ \\ \" \t \n \_ \41`): `\"` `\\` `\n` `\r` `\t` `\$`
+`\_` `\a` `\b` `\f` `\v` `\<hex>`.
+
+Důsledky pro `QuoteIfNeeded`: hodnota s `$` nebo `\` **musí** být uvozovkovaná (nekvotovaná = tvrdá
+chyba) a uvnitř uvozovek **musí** být obojí escapované (neescapované = tichá koruptce). Escapovat v
+pořadí `\` → `"` → `$`, jinak si backslash pass zdvojí to, co přidal dollar pass. Reálný newline se
+NEpřepisuje na `\n` (router bere zalomení uvnitř otevřených uvozovek; `\n` by navíc nešlo odlišit od
+hodnoty, která opravdu nese `\`+`n`) — CR/LF jsou v trigger setu jen proto, že nekvotované by ukončily
+příkazový řádek.
+
+Tohle je **write**-side zrcadlo P2.17: tam se hodnota rozbíjela při čtení, tady ji router přepíše
+dřív, než ji uloží — add projde, `.id` se vrátí, nic netrapne, a poškozená je routerova vlastní kopie,
+takže se na špatné hodnotě shodnou i všechny ostatní transporty.
+
 ### 10.5 VT100 cursor-probe negociace je POVINNÁ
 Bez odpovědí na RouterOS cursor-probe (`ESC[6n` → cursor report `ESC[row;colR`) považuje router
 terminál za 1×1 a **nevykreslí výstup příkazu** (typicky `…\r\n\r\r\r\r] > ` bez dat). Nutné sledovat

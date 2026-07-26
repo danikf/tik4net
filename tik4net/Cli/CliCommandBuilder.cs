@@ -393,6 +393,11 @@ namespace tik4net.Cli
         /// <c>:</c> (e.g. MAC/IPv6) are interpreted as operators, so <c>where address=192.168.1.1/24</c>
         /// matches NOTHING. Anything outside a conservative safe set is wrapped in double-quotes.
         /// (Name=value parameters for add/set do NOT need this — they are not expression context.)
+        /// <para>
+        /// The safe set excludes <c>$</c>, so a value containing one is always quoted — and inside
+        /// those quotes it would be substituted away, silently matching the wrong rows. Escaping is
+        /// therefore shared with <see cref="QuoteIfNeeded"/>.
+        /// </para>
         /// </summary>
         internal static string QuoteForWhere(string value)
         {
@@ -410,7 +415,7 @@ namespace tik4net.Cli
             if (safe)
                 return value;
 
-            return "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
+            return "\"" + EscapeInsideQuotes(value) + "\"";
         }
 
         private static string BuildFindVerb(string apiPath, IList<ITikCommandParameter> parameters)
@@ -563,8 +568,24 @@ namespace tik4net.Cli
             || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
-        /// Wraps a value in double-quotes if it contains whitespace, semicolons, or hash characters
-        /// that would be misinterpreted by the RouterOS CLI parser.
+        /// Wraps a value in double-quotes if it contains characters the RouterOS CLI parser would
+        /// otherwise misread, and escapes the characters that are special *inside* those quotes.
+        /// <para>
+        /// Measured on RouterOS 7.23.2 (see <c>Docs/findings-cli.md</c>): inside a double-quoted
+        /// value <c>$</c> starts variable substitution and <c>\</c> starts an escape sequence, so an
+        /// unescaped value is silently rewritten by the router before it is ever stored —
+        /// <c>source="x$y z"</c> lands as <c>x z</c>, <c>"C:\temp\new"</c> lands as
+        /// <c>C:&lt;TAB&gt;emp&lt;LF&gt;ew</c>. An escape the router does not know (<c>\y</c>) is a
+        /// syntax error instead. Outside quotes both characters are always a syntax error, so a value
+        /// carrying either MUST be quoted as well — hence they are in the trigger set below.
+        /// </para>
+        /// <para>Escapes, in this order (backslash first, or it would double the ones we add):
+        /// <c>\</c> → <c>\\</c>, <c>"</c> → <c>\"</c>, <c>$</c> → <c>\$</c>. A literal newline/tab is
+        /// left as a real character: RouterOS accepts a line break inside an open quoted value (that
+        /// is how a multi-line script source round-trips today), and rewriting it to <c>\n</c> would
+        /// be indistinguishable from a value that really carries a backslash and an <c>n</c>. CR/LF
+        /// are in the trigger set for the opposite reason — *unquoted* they would end the command
+        /// line and the tail would be executed as one.</para>
         /// </summary>
         internal static string QuoteIfNeeded(string value)
         {
@@ -574,7 +595,8 @@ namespace tik4net.Cli
             bool needsQuote = false;
             foreach (char c in value)
             {
-                if (c == ' ' || c == '\t' || c == ';' || c == '#' || c == '"')
+                if (c == ' ' || c == '\t' || c == '\r' || c == '\n'
+                    || c == ';' || c == '#' || c == '"' || c == '$' || c == '\\')
                 {
                     needsQuote = true;
                     break;
@@ -584,8 +606,20 @@ namespace tik4net.Cli
             if (!needsQuote)
                 return value;
 
-            // Escape any embedded double-quotes with backslash
-            return "\"" + value.Replace("\"", "\\\"") + "\"";
+            return "\"" + EscapeInsideQuotes(value) + "\"";
+        }
+
+        /// <summary>
+        /// Escapes the three characters that are special inside a RouterOS double-quoted string.
+        /// Shared by <see cref="QuoteIfNeeded"/> (name=value arguments) and
+        /// <see cref="QuoteForWhere"/> (where-clause operands) so the two cannot drift apart.
+        /// </summary>
+        private static string EscapeInsideQuotes(string value)
+        {
+            return value
+                .Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace("$", "\\$");
         }
     }
 }
