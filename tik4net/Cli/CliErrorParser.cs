@@ -95,6 +95,7 @@ namespace tik4net.Cli
                 case "disable":
                 case "move":
                 case "unset":
+                case "comment":
                     return true;
                 default:
                     return false;

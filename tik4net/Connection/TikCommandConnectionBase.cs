@@ -242,7 +242,7 @@ namespace tik4net.Connection
             }
 
             if (verb == "remove" || verb == "set" || verb == "unset" || verb == "move"
-                || verb == "enable" || verb == "disable")
+                || verb == "enable" || verb == "disable" || verb == "comment")
             {
                 RunNonQuery(descriptor);
                 return new List<ITikSentence> { new TikDoneSentenceResult() };

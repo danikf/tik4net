@@ -510,6 +510,12 @@ namespace tik4net.Cli
                 case "disable":
                 case "move":
                 case "unset":
+                case "comment":
+                    // 'comment' is a real RouterOS menu command (it appears in Tab-completion next to
+                    // set/remove/move), not a synonym for 'set comment='. It needs the same [find …]
+                    // record selector as the others: without this case it fell through to BuildNonQuery,
+                    // which emitted '/ip firewall filter comment .id=*104 comment=x' and the router
+                    // answered "syntax error (line 1 column 29)" — the column of the bare '.id'.
                 case "run":
                     // 'run' (e.g. /system/script/run) is an action verb: fire-and-forget over the terminal,
                     // no result set. ExecuteNonQuery is the supported entry point (ExecuteList throws).

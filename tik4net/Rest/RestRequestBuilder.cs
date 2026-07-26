@@ -210,10 +210,14 @@ namespace tik4net.Rest
             if (string.IsNullOrEmpty(fieldName))
                 throw new InvalidOperationException("REST unset requires value-name parameter.");
 
-            // PATCH /rest/path/{id} with {fieldName: null}
-            // System.Text.Json: we need to write null explicitly
-            var body = $"{{\"{fieldName}\":null}}";
-            return new RestRequest(new HttpMethod("PATCH"), restBase + "/" + id, body);
+            // POST /rest/path/unset with {".id": id, "value-name": field} — the router's own spelling,
+            // identical to the binary API's. This used to be PATCH /rest/path/{id} with {field: null},
+            // which only ever worked for free-text fields: RouterOS validates the null against the
+            // property's TYPE first, so unsetting a typed one answered 400 "value of range expects range
+            // of ip addresses" (measured on 7.23.2 for src-address). Verified live that the POST form
+            // clears the same field.
+            var body = $"{{\"{TikSpecialProperties.Id}\":\"{id}\",\"{TikSpecialProperties.UnsetValueName}\":\"{fieldName}\"}}";
+            return new RestRequest(HttpMethod.Post, restBase + "/unset", body);
         }
 
         /// <remarks>

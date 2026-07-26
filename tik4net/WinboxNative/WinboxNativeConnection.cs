@@ -640,7 +640,21 @@ namespace tik4net.WinboxNative
                 case "unset":
                 {
                     int id = ResolveRecordId(handler, resolver, descriptor, required: true);
-                    // unset = set the named field(s) back to empty/default.
+                    // unset names its target in a PSEUDO-parameter — '=value-name=<field>' — exactly as the
+                    // binary API spells it; the field itself carries no value. Encoding the parameter list
+                    // verbatim therefore asked the resolver for an M2 key for a field called 'value-name'
+                    // and threw WinboxFieldResolutionException. Translate instead: unset = set the named
+                    // field back to empty/default.
+                    var fields = EncodeUnsetFields(handler, descriptor, resolver);
+                    _ops.Set(handler, id, fields);
+                    break;
+                }
+                case "comment":
+                {
+                    // A real RouterOS menu command, and on the M2 layer simply a write of the comment
+                    // field — WinBox has no separate comment operation. Without this it reached
+                    // DispatchActionVerb and threw "not an action verb".
+                    int id = ResolveRecordId(handler, resolver, descriptor, required: true);
                     var fields = EncodeNameValueFields(handler, descriptor, resolver, skipId: true);
                     _ops.Set(handler, id, fields);
                     break;
@@ -962,6 +976,42 @@ namespace tik4net.WinboxNative
                         new TikTrapSentenceResult(ex.Message));
                 }
             }
+            return fields;
+        }
+
+        // Encode an 'unset' into M2 fields: every 'value-name=<field>' pseudo-parameter names a field to be
+        // written back as empty. The parameter's own name is NOT a router field, so it must never reach the
+        // resolver — its VALUE is the field name and the new value is the empty string.
+        private List<byte[]> EncodeUnsetFields(
+            int[] handler, TikCommandDescriptor descriptor, WinboxFieldResolver resolver)
+        {
+            var fields = new List<byte[]>();
+            foreach (var p in descriptor.Parameters)
+            {
+                if (!string.Equals(p.Name, TikSpecialProperties.UnsetValueName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (string.IsNullOrEmpty(p.Value))
+                    continue;
+
+                try
+                {
+                    fields.AddRange(resolver.EncodeField(p.Value, string.Empty, _idResolver.ResolveReference));
+                }
+                catch (WinboxFieldValueException ex)
+                {
+                    throw new TikCommandTrapException(
+                        new TikGenericCommand(this, descriptor.CommandText),
+                        new TikTrapSentenceResult(ex.Message));
+                }
+            }
+
+            if (fields.Count == 0)
+                throw new TikCommandTrapException(
+                    new TikGenericCommand(this, descriptor.CommandText),
+                    new TikTrapSentenceResult(
+                        "unset requires at least one '" + TikSpecialProperties.UnsetValueName
+                        + "=<field>' parameter naming the field to clear."));
+
             return fields;
         }
 
