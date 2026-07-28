@@ -57,6 +57,14 @@ Offset  Délka  Popis
 | 5 | `PONG` | Odpověď na ping |
 | 255 | `END` | Ukončení session |
 
+**`END` není zdvořilost, je to jediný způsob, jak session ukončit.** UDP nemá FIN — když klient jen
+zavře socket, router se to nedozví a **drží login dál**. Změřeno na 7.23.2 (P2.35, 2026-07-28): šest
+WinBox-native-over-MAC spojení otevřených a zavřených bez `END` nechalo šest řádků `winbox`
+v `/user/active`, které tam byly i po 15 s a zmizely až po zhruba minutě a půl; TCP sourozenec
+(`WinboxNative`) nenechal ani jeden, protože tam to routeru řekne FIN. Každý MAC-layer transport tedy
+musí `END` poslat při zavření — `MacTelnetUdpClient.TryCloseSession` i
+`WinboxMacM2Session.OnDisposing` to dělají (u terminálových režimů až po `/quit`).
+
 ---
 
 ## Control packets (uvnitř DATA paketů)

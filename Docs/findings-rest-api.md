@@ -104,6 +104,26 @@ přítomen filtr nebo proplist → `POST /rest/<path>/print` (zvládne obojí je
   akceptovat přes `ServerCertificateCustomValidationCallback`. Viz
   [A-rest-implementation-plan.md §0.1](A-rest-implementation-plan.md).
 
+### 5.1 Session accounting — router si REST session drží navždy (✅ 7.23.2, 2026-07-28)
+
+Každý REST login založí v `/user/active` **dva** řádky: jeden `via=rest-api` a jeden `via=api`, oba se
+stejným časem. Ten `api` řádek nedělá klient — je to interní www→api backend routeru.
+
+**Ty řádky přežijí zánik TCP spojení i zánik klientského procesu.** Ověřeno tak, že to nejde svést na
+tik4net: jedno jediné `curl -u admin: http://<host>/rest/system/identity` založilo pár `rest-api` + `api`,
+který tam byl i 90 s po skončení curlu; na hostu přitom `Get-NetTCPConnection` neukazoval **žádné**
+spojení na port 80/443.
+
+Kdy (a jestli) vyprší, **zjištěno nebylo** a nehádat to. Za 33 minut nepřetržitého sledování 12 řádků
+zmizel přesně jeden — `api` polovina curlího páru po ~10 minutách — zatímco její `rest-api` polovina tam
+byla i po 25 minutách a čtyři jiné `api` řádky ji přežily o víc než hodinu (stáří přes 78 minut).
+Poloviny páru tedy nesdílí ani stejné pravidlo. `/user/active/remove` je odmítne (`action failed (6)`),
+takže je nelze ani uklidit — spolehlivě je smaže až reboot.
+
+Praktický důsledek: **počet řádků v `/user/active` neměří nic o klientovi.** Naměřených 164 řádků
+(109 `api` + 55 `rest-api`) v P2.35 sedí přesně na tenhle poměr ~2:1 a je to účetnictví routeru, ne únik
+spojení v tik4net — close path je na všech transportech čistý (viz `UserActiveSessionProbeTest`).
+
 ---
 
 ## 6. Chyby

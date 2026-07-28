@@ -240,6 +240,25 @@ namespace tik4net.Winbox
             return outBuf.ToArray();
         }
 
-        // Dispose is inherited from MacLayerTransport (disposes the UDP socket).
+        /// <summary>
+        /// Tells the router the session is over before the socket goes away, by sending the MAC-layer
+        /// <c>PKT_END</c> — the same courtesy <c>MacTelnetUdpClient.TryCloseSession</c> pays.
+        /// </summary>
+        /// <remarks>
+        /// Closing a UDP socket signals nothing: there is no FIN, so a router that is not told keeps the
+        /// login open until its own timeout. Measured on 7.23.2 (P2.35): six WinBox-native-over-MAC
+        /// connections opened and disposed left six <c>winbox</c> rows in <c>/user/active</c> that were
+        /// still there 15 s later and only expired after roughly a minute and a half — while the TCP
+        /// sibling left none, because there the FIN does the telling. It matters because
+        /// <c>WinboxNativeMac</c> is excluded from test-connection reuse (one connection per test), so a
+        /// run holds a rolling ~90 s worth of dead sessions on the router for no reason.
+        /// <para>Best-effort by design: this runs on the disposal path, where a channel that never
+        /// finished connecting has no MACs or socket to send with, and a router that has already dropped
+        /// the session has nothing to hear it.</para>
+        /// </remarks>
+        protected override void OnDisposing()
+        {
+            try { Send(PKT_END, null); } catch { /* ignore — see remarks */ }
+        }
     }
 }
