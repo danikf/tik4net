@@ -615,6 +615,39 @@ namespace tik4net.integrationtests
             return M2Message.ParseAllFields(resp);
         }
 
+        /// <summary>
+        /// Diagnostic: open a file and hand back the mproxy handle (-1 when refused), so a probe can drive
+        /// the read chunk by chunk instead of only seeing "the whole file failed".
+        /// </summary>
+        public int MproxyOpenHandle(string filename, int cmd = 7)
+        {
+            byte[] msg = M2Message.BuildM2(
+                M2Message.SysToArr(2, 2), M2Message.SysFrom(),
+                M2Message.BoolSys(tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected, true),
+                ReqId(),
+                M2Message.U8Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, (byte)cmd),
+                M2Message.StringUser(1, filename));
+            byte[] resp = _encrypted ? SendRecvEncrypted(msg) : SendRecvRaw(msg);
+            try { return M2Message.ParseSessionId(resp); }
+            catch { return -1; }
+        }
+
+        /// <summary>
+        /// Diagnostic: a single mproxy read on an open handle. Returns the chunk, or an empty array at EOF.
+        /// </summary>
+        public byte[] MproxyReadChunk(int handle, int maxChunk = MPROXY_CHUNK)
+        {
+            byte[] msg = M2Message.BuildM2(
+                M2Message.SysToArr(2, 2), M2Message.SysFrom(),
+                M2Message.BoolSys(tik4net.Winbox.WinboxM2Protocol.SysKey.ReplyExpected, true),
+                ReqId(),
+                M2Message.SessionIdField(handle),
+                M2Message.U32User(2, maxChunk),
+                M2Message.U8Sys(tik4net.Winbox.WinboxM2Protocol.SysKey.Command, 4));
+            byte[] resp = _encrypted ? SendRecvEncrypted(msg) : SendRecvRaw(msg);
+            return ExtractMproxyChunk(resp) ?? Array.Empty<byte>();
+        }
+
         // Open a file from /home/web/webfig/ (no-auth path, static assets only).
         private int MproxyOpenFile(string filename)
         {
@@ -815,10 +848,83 @@ namespace tik4net.integrationtests
         }
 
         // ── Encrypted frame I/O ───────────────────────────────────────────────
-        private byte[] SendRecvEncrypted(byte[] m2, int timeoutMs = 5000)
+
+        /// <summary>Frames discarded because they were already buffered when a request went out.</summary>
+        public int StaleFramesDrained { get; private set; }
+
+        /// <summary>Replies discarded because they echoed somebody else's request-id.</summary>
+        public int StaleFramesSkipped { get; private set; }
+
+        /// <inheritdoc cref="WinboxTcpTransport.LastReadFailure"/>
+        public string LastReadFailure => _transport.LastReadFailure;
+
+        // Every request/reply exchange is CORRELATED: anything already buffered on the channel is drained
+        // before the request goes out, and a reply whose echoed request-id (sys 0xFF0006) is not ours is
+        // skipped instead of being returned as the answer.
+        //
+        // Without this the client takes "the next frame" rather than "its own frame", so one late or
+        // duplicated frame shifts every later reply by one and the channel never recovers — the exact
+        // defect P2.22 found and fixed in the production path (WinboxNativeM2Operations.LockstepSendReceive,
+        // mirrored here). This client is a diagnostic instrument: P2.20 concluded "mproxy degrades under
+        // back-to-back M2 sessions and stays degraded" from probes run through the UNCORRELATED version, so
+        // the correlation has to exist here before any statement about the router can be made from it.
+        /// <summary>
+        /// Deadline for one request/reply exchange when the caller does not name its own. The production
+        /// path (<c>WinboxNativeM2Operations</c>) runs on the connection's <c>ReceiveTimeout</c>, 30 s by
+        /// default — this client used to hard-code 5 s, which is short enough that a slow-but-healthy read
+        /// of the 933 KB <c>roteros.jg</c> is indistinguishable from mproxy having stopped answering.
+        /// Keep it aligned with production before drawing conclusions about the router (P2.20).
+        /// </summary>
+        public int OperationTimeoutMs { get; set; } = 30000;
+
+        private byte[] SendRecvEncrypted(byte[] m2, int timeoutMs = 0)
         {
+            if (timeoutMs <= 0) timeoutMs = OperationTimeoutMs;
+            DrainStaleFrames();
             EncryptAndSend(m2);
-            return RecvAndDecrypt(timeoutMs);
+            byte[] resp = RecvAndDecrypt(timeoutMs);
+
+            // Secondary guard for a frame that raced in after the drain. Re-read on the short drain
+            // timeout so a desync that has no recoverable next frame cannot cost the full timeout each
+            // time; `resp` keeps its last value if nothing more arrives, so we surface what we have.
+            int expected = RequestIdOf(m2);
+            for (int skip = 0; expected >= 0 && skip < 16 && RequestIdOf(resp) != expected; skip++)
+            {
+                StaleFramesSkipped++;
+                try { resp = RecvAndDecrypt(DrainTimeoutMs); }
+                catch { break; }
+            }
+            return resp;
+        }
+
+        private const int DrainTimeoutMs = 250;
+
+        private void DrainStaleFrames()
+        {
+            if (!_encrypted) return;
+            try
+            {
+                for (int i = 0; i < 64 && _transport.DataAvailable; i++)
+                {
+                    RecvAndDecrypt(DrainTimeoutMs);
+                    StaleFramesDrained++;
+                }
+            }
+            catch { /* best-effort drain */ }
+        }
+
+        // The M2 request-id (sys key 0xFF0006) carried by a built request or echoed in a reply, or -1
+        // when absent/unparsable — an unparsable frame is by definition not a correlated reply.
+        private static int RequestIdOf(byte[] m2)
+        {
+            if (m2 == null) return -1;
+            try
+            {
+                var fields = M2Message.ParseAllFields(m2);
+                return fields.TryGetValue(tik4net.Winbox.WinboxM2Protocol.SysKey.RequestId, out var t) && t.Item2 != null
+                    ? Convert.ToInt32(t.Item2) : -1;
+            }
+            catch { return -1; }
         }
 
         private void EncryptAndSend(byte[] msg)

@@ -8,9 +8,9 @@
 // with it (P2.18). Which plugins exist is version- and package-dependent, so no fixed list is right:
 // 7.23.2 CHR serves container/iot/userman5/dude and none of the mpls/roting4 an older list named.
 //
-// Note that mproxy does not survive unbounded file reads on one channel, and it stays degraded for a
-// while afterwards. These tests are therefore deliberately few and cheap; do not add byte-budget or
-// command-sweep probes here — run those ad hoc.
+// An mproxy read occasionally stops answering, and when it does that CHANNEL is finished for good — a new
+// connection to the same router works immediately (measured 2026-07-28; see WinboxMproxyBudgetProbeTest,
+// which is where byte-budget and command-sweep probes belong — not here).
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
@@ -100,9 +100,12 @@ namespace tik4net.integrationtests
                 // The contract is not "the first connect downloads everything" — mproxy can refuse partway,
                 // and the loader is built to keep what it got and continue on the next connect. So open
                 // repeatedly and assert the end state: the set completes, and once it has, opens are cheap.
-                // The pause before each attempt matters: mproxy degrades under back-to-back M2 sessions and
-                // will not serve a full ~1 MB plugin set again until it has been left alone briefly (P2.20),
-                // so without it this fails purely because of whatever ran before it.
+                // ⚠️ The pause was added on the belief that mproxy degrades under back-to-back M2 sessions
+                // and needs to be left alone before it will serve a full ~1 MB plugin set again. That is
+                // REFUTED (2026-07-28): eight full 18-plugin fetches back to back, no pauses, served `list`
+                // 8/8 and all 18 bodies in 7 of 8. The pause is kept only because P2.40 — this test failing
+                // inside a full run — has not been measured yet, and removing it would change two things at
+                // once. It is not protecting against what the comment used to claim.
                 var elapsed = new List<long>();
                 var handlerCounts = new List<int>();
                 long lastRead = -1;
@@ -129,29 +132,30 @@ namespace tik4net.integrationtests
                         (Directory.Exists(d) ? Directory.GetFiles(d).Length : 0));
                 }
 
-                // Nothing at all cached after four spaced attempts means mproxy would not serve the plugin
-                // list — the router refusing a correctly-formed request (P2.20), not the cache being wrong.
-                // Distinguish that from a broken cache rather than reporting a red that says nothing.
+                // Nothing at all cached after four attempts, each on its own fresh connection, is not
+                // something the measurements explain (P2.20: a lost channel is per-connection and the next
+                // connection is fine). Report it as unresolved rather than as a cache defect — this is the
+                // P2.40 signature and it needs a wire trace from a full run, not a re-run.
                 if (!Directory.Exists(Path.Combine(cacheDir, "plugins")))
                     Assert.Inconclusive(
-                        "mproxy served no plugin list in 4 attempts — router-side degradation (P2.20). " +
-                        "Re-run this test on a rested router; it passes standalone.");
+                        "mproxy served no plugin list on any of 4 fresh connections — unexplained (P2.40). " +
+                        "Capture a wbx.catalog trace from the full run; it passes standalone.");
 
                 var files = Directory.GetFiles(Path.Combine(cacheDir, "plugins"));
                 Console.WriteLine("cache: " + string.Join(", ", files.Select(Path.GetFileName)));
 
-                // The point of P2.23: no connect may end up on the seed table. mproxy does refuse `list`
-                // from time to time (P2.20), and when it does, the remembered plugin set has to carry the
-                // load — otherwise the connection still opens and still answers, but every dynamic-field
+                // The point of P2.23: no connect may end up on the seed table. A `list` does fail from time
+                // to time — its channel stopped answering (P2.20) — and when it does, the remembered set has
+                // to carry the load; otherwise the connection still opens and still answers, but every dynamic-field
                 // and singleton lookup silently says "no" and the caller gets zeros for live counters.
                 Assert.IsTrue(File.Exists(Path.Combine(Path.Combine(cacheDir, "lists"),
                         host.Replace(':', '_') + ".list")),
                     "the resolved plugin set must be remembered per router, so a refused 'list' can fall back to it");
                 // Deliberately asserted on the END state, not on every connect. This test runs against a
-                // throwaway cache directory, so it has no remembered plugin set to fall back on — and when
-                // mproxy refuses `list` on the first attempts (P2.20; observed here as 0/0/619/619) a
-                // seeds-only catalog is the designed outcome, not a defect. What must hold is that the
-                // catalog fills in across connections and never loses ground once it has.
+                // throwaway cache directory, so it has no remembered plugin set to fall back on, and a
+                // connect whose channel died mid-fetch legitimately ends on seeds only. What must hold is that the
+                // catalog fills in across connections and never loses ground once it has. (The 0/0/619/619
+                // shape once recorded here as normal is P2.40's open question, not a documented outcome.)
                 Assert.IsTrue(handlerCounts.Last() > 0,
                     $"the last connect must produce a usable catalog, not seeds only (handlers: {string.Join("/", handlerCounts)})");
                 Assert.AreEqual(handlerCounts.Max(), handlerCounts.Last(),

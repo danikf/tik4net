@@ -395,7 +395,8 @@ namespace tik4net.Winbox
                 // HasDynamicFields (the getall stats bit behind firewall bytes/packets), monitor specs and
                 // reference resolution all quietly answer "no", and the caller gets plausible wrong data
                 // instead of an error (P2.23; this is what made P2.21 look like a timing problem).
-                // mproxy degrades under repeated `list` calls (P2.20), so this is not a rare path.
+                // A `list` can fail because the channel it rode on has stopped answering (P2.20), which is
+                // rare per connection but certain to happen across a long run, so this path must work.
                 // The bodies are already cached content-addressed, so reusing the last known set costs no
                 // mproxy traffic at all — and cross-version safety is intact: `unique` names are
                 // version-stamped, so a real upgrade resolves a new set; only a *failed* list reuses this one.
@@ -425,9 +426,13 @@ namespace tik4net.Winbox
             bool complete = true;
             // roteros.jg first: it is served by every router, holds the core windows (interface, ip,
             // routing, system) that the resolver actually needs, and is by far the largest — so it is the
-            // one that must be fetched while the channel is freshest. mproxy does not survive an unbounded
-            // number of file reads on one channel — ~17 opens / 0.5 MB was enough to lose one — and a read
-            // that dies takes the channel with it (P2.20).
+            // one that must be fetched while the channel is freshest.
+            //
+            // "Freshest" is a hedge, not a budget: measured 2026-07-28 on 7.23.2, one channel took 74 opens
+            // / 6.8 MB with no trouble, and the failures that do occur land at no consistent offset (0 B,
+            // 0.5 MB, 1.5 MB, 2.7 MB). What a failure does mean is that THIS channel is finished — it never
+            // answers again, not even a 26-byte `list`, while a new connection to the same router works
+            // immediately. Hence the break below (P2.20).
             foreach (var plugin in plugins.OrderByDescending(p =>
                          string.Equals(p.Name, "roteros.jg", StringComparison.OrdinalIgnoreCase)).ToList())
             {

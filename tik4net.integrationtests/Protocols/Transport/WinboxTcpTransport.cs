@@ -112,14 +112,34 @@ namespace tik4net.integrationtests
             }
         }
 
+        /// <summary>
+        /// Bytes consumed by the read that most recently failed, and how many were expected. A receive
+        /// timeout that fires with 0 of N bytes in hand means the router sent nothing; one that fires
+        /// part-way through means WE have consumed half a chunk and the framing is now desynced, which
+        /// would make the channel unusable regardless of what the router does next. The two look identical
+        /// from the caller (an IOException), and telling them apart is what decides whether a dead channel
+        /// is the router's doing or ours (P2.20).
+        /// </summary>
+        public string LastReadFailure { get; private set; }
+
         public byte[] ReadExact(int count)
         {
             byte[] buf = new byte[count];
             int total = 0;
             while (total < count)
             {
-                int n = _ns.Read(buf, total, count - total);
-                if (n <= 0) throw new IOException("Connection closed unexpectedly");
+                int n;
+                try { n = _ns.Read(buf, total, count - total); }
+                catch (IOException)
+                {
+                    LastReadFailure = $"timeout with {total}/{count} B in hand";
+                    throw;
+                }
+                if (n <= 0)
+                {
+                    LastReadFailure = $"EOF with {total}/{count} B in hand";
+                    throw new IOException("Connection closed unexpectedly");
+                }
                 total += n;
             }
             return buf;
