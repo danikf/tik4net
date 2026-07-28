@@ -46,6 +46,15 @@ namespace tik4net.MacTelnet
         /// <inheritdoc/>
         protected override string TransportName => "MAC-Telnet";
 
+        /// <summary>
+        /// Whether a command may be re-issued on a fresh session after RouterOS logged the idle console
+        /// out. Safe Mode is the one case where it must not be: the whole point of Safe Mode is that
+        /// dropping the session rolls the changes back, so silently opening a new one would hide exactly
+        /// the event the caller asked to be protected by — and the new session would not hold Safe Mode
+        /// either. There the caller gets <see cref="TikConnectionSessionClosedException"/> instead.
+        /// </summary>
+        private bool ReconnectAllowed => !SafeModeHeld;
+
         // ── Open (Close + driver plumbing live in CliConnectionBase) ───────────
 
         /// <inheritdoc/>
@@ -78,11 +87,41 @@ namespace tik4net.MacTelnet
             Func<byte[], CancellationToken, Task<string>>, Func<byte[], int, CancellationToken, Task<string>>, Action)
             BuildTransport(string host, int port, string user, string password)
         {
+            // The client is held in a variable rather than captured once, because a session that RouterOS
+            // has logged out cannot be revived — reconnecting means a whole new client, socket and
+            // EC-SRP5 login, and every delegate below must then be talking to the new one.
             var client = new MacTelnetUdpClient(Encoding, ReceiveTimeout, ConnectTimeout, RouterMac);
+
             Func<CancellationToken, Task> login = ct => client.LoginAsync(host, user, password, ct);
             Action close = () => { client.TryCloseSession(); client.Dispose(); };
-            return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,
-                client.SendRawAndReadUntilQuietAsync, close);
+
+            Func<CancellationToken, Task> reopen = async ct =>
+            {
+                try { client.Dispose(); } catch { /* the old session is gone anyway */ }
+                client = new MacTelnetUdpClient(Encoding, ReceiveTimeout, ConnectTimeout, RouterMac);
+                await client.LoginAsync(host, user, password, ct).ConfigureAwait(false);
+            };
+
+            Func<string, CancellationToken, Task<string>> send = async (cmd, ct) =>
+            {
+                try
+                {
+                    return await client.SendCommandAndReadAsync(cmd, ct).ConfigureAwait(false);
+                }
+                catch (TikConnectionSessionClosedException) when (ReconnectAllowed)
+                {
+                    await reopen(ct).ConfigureAwait(false);
+                    return await client.SendCommandAndReadAsync(cmd, ct).ConfigureAwait(false);
+                }
+            };
+
+            // Raw sends are control keys (Safe Mode, Tab completion). They are not retried: a control key
+            // is a keystroke against a specific terminal state, and replaying it on a fresh session would
+            // be sending it to a console that never saw what came before.
+            return (login, send,
+                (raw, ct) => client.SendRawAndReadAsync(raw, ct),
+                (raw, quietMs, ct) => client.SendRawAndReadUntilQuietAsync(raw, quietMs, ct),
+                close);
         }
     }
 }

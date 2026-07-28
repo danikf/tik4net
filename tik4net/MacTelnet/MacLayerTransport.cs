@@ -90,6 +90,14 @@ namespace tik4net.MacTelnet
         private const int MaxRetransmits = 8;
         private const int MinRetransmitIntervalMs = 400;   // 8 tries ~= 3.2 s, well inside a 30 s read
 
+        /// <summary>
+        /// Serialises everything that writes to the socket and to the outbound stream state. MAC-Telnet
+        /// runs a background receive pump (see <c>MacTelnetUdpClient</c>) that ACKs router-initiated
+        /// output and answers VT100 probes, so sends genuinely come from two threads: the pump and the
+        /// caller issuing a command. Transports without a pump simply never contend on it.
+        /// </summary>
+        protected readonly object SendGate = new object();
+
         // ── AES / HMAC stream keys (derived after EC-SRP5, used by WinBox MAC) ──
         protected byte[] _sendAesKey, _receiveAesKey, _sendHmacKey, _receiveHmacKey;
 
@@ -220,21 +228,41 @@ namespace tik4net.MacTelnet
         /// <returns><c>true</c> if a retransmission was sent.</returns>
         protected bool RetransmitIfUnacked()
         {
-            if (_lastDataPacket == null || !_haveAck || _highestAck >= _lastDataEnd)
-                return false;
-            if (_retransmits >= MaxRetransmits)
-                return false;
-            if ((DateTime.UtcNow - _lastRetransmitUtc).TotalMilliseconds < MinRetransmitIntervalMs)
-                return false;
+            lock (SendGate)
+            {
+                if (_lastDataPacket == null || !_haveAck || _highestAck >= _lastDataEnd)
+                    return false;
+                if (_retransmits >= MaxRetransmits)
+                    return false;
+                if ((DateTime.UtcNow - _lastRetransmitUtc).TotalMilliseconds < MinRetransmitIntervalMs)
+                    return false;
 
-            _lastRetransmitUtc = DateTime.UtcNow;
-            _retransmits++;
-            _udp.Send(_lastDataPacket, _lastDataPacket.Length, _routerUnicastEp);
+                _lastRetransmitUtc = DateTime.UtcNow;
+                _retransmits++;
+                _udp.Send(_lastDataPacket, _lastDataPacket.Length, _routerUnicastEp);
+            }
 
             if (Diagnostics.TikWireTrace.Enabled)
                 Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note,
                     "RETRANSMIT #" + _retransmits + " end=" + _lastDataEnd + " highestAck=" + _highestAck);
             return true;
+        }
+
+        /// <summary>
+        /// <c>true</c> once the last DATA packet has been retransmitted to exhaustion without the router
+        /// ever acknowledging it. The MAC layer acknowledges the byte stream, so this is the one signal
+        /// that says the router did <em>not</em> take our bytes — as opposed to taking them and being slow
+        /// to answer. That distinction is what makes a retry safe: an unacknowledged command cannot have
+        /// reached the console, so it cannot have half-executed (P2.39).
+        /// </summary>
+        protected bool LastSendAbandoned
+        {
+            get
+            {
+                lock (SendGate)
+                    return _lastDataPacket != null && _haveAck
+                        && _highestAck < _lastDataEnd && _retransmits >= MaxRetransmits;
+            }
         }
 
         /// <summary>
@@ -415,6 +443,12 @@ namespace tik4net.MacTelnet
 
         protected void Send(byte type, byte[] payload)
         {
+            lock (SendGate)
+                SendCore(type, payload);
+        }
+
+        private void SendCore(byte type, byte[] payload)
+        {
             uint counter = (type == PKT_DATA) ? _outCounter : 0u;
             byte[] pkt = new byte[22 + (payload?.Length ?? 0)];
             pkt[0] = 1; pkt[1] = type;
@@ -449,6 +483,12 @@ namespace tik4net.MacTelnet
 
         protected void SendAck(uint ackCounter)
         {
+            lock (SendGate)
+                SendAckCore(ackCounter);
+        }
+
+        private void SendAckCore(uint ackCounter)
+        {
             byte[] pkt = new byte[22];
             pkt[0] = 1; pkt[1] = PKT_ACK;
             Buffer.BlockCopy(_localMac,  0, pkt, 2, 6);
@@ -468,6 +508,12 @@ namespace tik4net.MacTelnet
         }
 
         protected void SendPong(uint counter)
+        {
+            lock (SendGate)
+                SendPongCore(counter);
+        }
+
+        private void SendPongCore(uint counter)
         {
             byte[] pkt = new byte[22];
             pkt[0] = 1; pkt[1] = PKT_PONG;
@@ -631,7 +677,17 @@ namespace tik4net.MacTelnet
 
         // ── IDisposable ──────────────────────────────────────────────────────────
 
-        public void Dispose() => _udp?.Dispose();
+        public void Dispose()
+        {
+            OnDisposing();
+            _udp?.Dispose();
+        }
+
+        /// <summary>
+        /// Called before the socket is disposed. Subclasses that run a background thread over the socket
+        /// stop it here, so it cannot race a disposed <see cref="_udp"/>.
+        /// </summary>
+        protected virtual void OnDisposing() { }
 #pragma warning restore CS1591
     }
 }

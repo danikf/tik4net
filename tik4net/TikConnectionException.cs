@@ -144,6 +144,34 @@ namespace tik4net
     }
 
     /// <summary>
+    /// Thrown when the router closed the transport session while the connection object was still open,
+    /// so a command was never executed.
+    /// </summary>
+    /// <remarks>
+    /// <para>The case this exists for is the MAC-Telnet console: RouterOS logs an idle terminal session out
+    /// after roughly 30 seconds and says so in its own log (<c>user … logged out via mac-telnet</c>). It
+    /// does not close the UDP socket and it sends no error, so from the client side the session simply
+    /// stops answering — and before this type existed that surfaced as a full <see cref="ITikConnection.ReceiveTimeout"/>
+    /// worth of waiting followed by "nothing was received", which names the symptom and not the cause.</para>
+    /// <para>It is only thrown when the router <b>never acknowledged the command's bytes</b>, which is what
+    /// makes it safe to say the command did not run: MAC-Telnet acknowledges the terminal byte stream, so an
+    /// unacknowledged command cannot have reached the console. The transport re-opens the session and retries
+    /// once by itself; this exception means that retry also failed.</para>
+    /// </remarks>
+    public class TikConnectionSessionClosedException : TikConnectionException
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TikConnectionSessionClosedException"/> class.
+        /// </summary>
+        /// <param name="message">Diagnostic message naming the transport and what the router did.</param>
+        /// <param name="innerException">The underlying failure, if any.</param>
+        public TikConnectionSessionClosedException(string message, Exception innerException = null)
+            : base(message, innerException)
+        {
+        }
+    }
+
+    /// <summary>
     /// Thrown when a feature is invoked on a transport that does not report the required
     /// <see cref="TikConnectionCapability"/>. Check <see cref="ITikConnection"/> support up front with
     /// <see cref="TikConnectionCapabilityExtensions.Supports"/> to avoid it. See the
