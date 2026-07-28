@@ -106,6 +106,13 @@ namespace tik4net.integrationtests
                 // 8/8 and all 18 bodies in 7 of 8. The pause is kept only because P2.40 — this test failing
                 // inside a full run — has not been measured yet, and removing it would change two things at
                 // once. It is not protecting against what the comment used to claim.
+                // A throwaway cache directory is NOT enough to make the load cold. The parsed-catalog cache
+                // is process-wide and keyed by the plugin set, not by the cache dir, so inside a full run
+                // an earlier connection has already populated it and this one is served from memory — 619
+                // handlers, 309 ms, and nothing written to its own cache dir. That is what made this test
+                // pass standalone and go Inconclusive in the suite, misread as mproxy refusing `list`.
+                tik4net.Winbox.WinboxJgCatalog.ClearSharedCatalogs();
+
                 var elapsed = new List<long>();
                 var handlerCounts = new List<int>();
                 long lastRead = -1;
@@ -132,14 +139,22 @@ namespace tik4net.integrationtests
                         (Directory.Exists(d) ? Directory.GetFiles(d).Length : 0));
                 }
 
-                // Nothing at all cached after four attempts, each on its own fresh connection, is not
-                // something the measurements explain (P2.20: a lost channel is per-connection and the next
-                // connection is fine). Report it as unresolved rather than as a cache defect — this is the
-                // P2.40 signature and it needs a wire trace from a full run, not a re-run.
+                // Nothing cached. Say WHICH of the two very different reasons it is, instead of blaming the
+                // router for both — that conflation is the whole of P2.40. A full handler count with an
+                // empty cache dir means the load was served from a parsed catalog this process already
+                // held, so the cold path was never exercised (should be impossible now that the test
+                // clears it above, hence the assert rather than an Inconclusive).
                 if (!Directory.Exists(Path.Combine(cacheDir, "plugins")))
+                {
+                    Assert.IsTrue(handlerCounts.All(h => h == 0),
+                        "nothing was cached yet the catalog resolved (handlers: " + string.Join("/", handlerCounts) +
+                        ") — the load came from the process-wide parsed catalog, so this run did not test the " +
+                        "cold path at all. ClearSharedCatalogs() should have prevented that.");
                     Assert.Inconclusive(
-                        "mproxy served no plugin list on any of 4 fresh connections — unexplained (P2.40). " +
-                        "Capture a wbx.catalog trace from the full run; it passes standalone.");
+                        "mproxy served no plugin list on any of 4 fresh connections, and no catalog was " +
+                        "resolved either — the router genuinely served nothing (P2.20/P2.40). " +
+                        "Capture a wbx.catalog trace; it passes standalone.");
+                }
 
                 var files = Directory.GetFiles(Path.Combine(cacheDir, "plugins"));
                 Console.WriteLine("cache: " + string.Join(", ", files.Select(Path.GetFileName)));

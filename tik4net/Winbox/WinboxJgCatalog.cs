@@ -366,6 +366,22 @@ namespace tik4net.Winbox
             new Dictionary<string, WinboxJgCatalog>(StringComparer.Ordinal);
         private static readonly object SharedCatalogsLock = new object();
 
+        /// <summary>
+        /// Drops the process-wide parsed-catalog cache, so the next load genuinely re-fetches. Exists for
+        /// tests that mean to exercise the COLD path: pointing a connection at an empty
+        /// <c>CatalogCachePath</c> is not enough, because this cache is keyed by the plugin set rather than
+        /// by the cache directory, so inside a run where any earlier connection already loaded the catalog
+        /// the "cold" connection is served from memory and never writes a byte to its own cache dir. That
+        /// is what made <c>WinboxNative_CatalogCache_ColdThenWarm</c> pass standalone and go Inconclusive
+        /// inside a full suite — read as mproxy refusing to serve the plugin list (P2.23, P2.40), which it
+        /// was not.
+        /// </summary>
+        internal static void ClearSharedCatalogs()
+        {
+            lock (SharedCatalogsLock)
+                SharedCatalogs.Clear();
+        }
+
         // The plugin set each router was last seen serving, remembered so that a *failed* `list` never
         // downgrades a connection. Keyed by router (host or MAC), unlike SharedCatalogs which is keyed by
         // the set itself — the whole point is to have an answer when the set could not be resolved.
