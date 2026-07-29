@@ -24,6 +24,20 @@ namespace tik4net.Rest
     /// <para>Capability is <see cref="TikConnectionCapability.Crud"/> only — REST is stateless, so there is no
     /// Listen/Streaming and no Safe Mode (each call is an independent HTTP request, so RouterOS cannot bind
     /// safe mode's rollback-on-disconnect to "the connection"; the inherited <c>SafeMode*</c> methods throw).</para>
+    /// <para>
+    /// <b>Known RouterOS defect — REST logins are never released.</b> Using REST at all can leave rows in
+    /// the router's <c>/user/active</c> table that never go away. This is a RouterOS bug (reported for
+    /// 7.16 through 7.24rc1, several open MikroTik support tickets) and <b>no client can avoid or undo
+    /// it</b>: the session lives above TCP, so neither <see cref="Close"/>, nor disposing this object, nor
+    /// an HTTP <c>Connection: close</c> header, nor the client process exiting releases it, and RouterOS
+    /// applies no idle timeout — rows measured on 7.23.2 were still listed after ~24 hours with no socket
+    /// behind them. <c>/user/active/remove</c> refuses them (<c>action failed (6)</c>); only a reboot
+    /// clears them. RouterOS usually reuses one session per (user, source address) rather than creating
+    /// one per request, so rows accumulate slowly and irregularly rather than per call. To spot them
+    /// afterwards, compare login and logout events in the router's own log
+    /// (<c>/log print where message~"rest-api"</c>, topic <c>account</c>): a REST login is logged, its
+    /// logout never is. Details and measurements in <c>Docs/findings-rest-api.md</c> §5.1.
+    /// </para>
     /// </remarks>
     public class RestConnection : TikCommandConnectionBase
     {

@@ -104,25 +104,62 @@ přítomen filtr nebo proplist → `POST /rest/<path>/print` (zvládne obojí je
   akceptovat přes `ServerCertificateCustomValidationCallback`. Viz
   [A-rest-implementation-plan.md §0.1](A-rest-implementation-plan.md).
 
-### 5.1 Session accounting — router si REST session drží navždy (✅ 7.23.2, 2026-07-28)
+### 5.1 Session accounting — REST session žije nad TCP a nikdy se neodhlásí (✅ 7.23.2, 2026-07-28/29)
 
-Každý REST login založí v `/user/active` **dva** řádky: jeden `via=rest-api` a jeden `via=api`, oba se
-stejným časem. Ten `api` řádek nedělá klient — je to interní www→api backend routeru.
+**Je to potvrzený bug RouterOS, ne náš.** Hlášený na fóru pro 7.16 až 7.24rc1 (mj. 7.22, 7.22.1,
+7.23beta2, 7.23rc1, 7.23.1, **7.23.2** = náš router, 7.24rc1), čtyři support tickety
+(SUP-214490, SUP-218559, SUP-219610, SUP-219529), bez řešení a bez workaroundu; jednou byl označen za
+opravený v 7.16 a opravený není. Viz
+[forum thread](https://forum.mikrotik.com/t/users-logged-in-via-rest-api-shown-in-active-users-do-not-disappear/269432).
+Oficiální stránka [REST API](https://help.mikrotik.com/docs/spaces/ROS/pages/47579162/REST+API)
+o životním cyklu session **neříká vůbec nic** — jediný timeout, který zmiňuje, je 60 s na běh příkazu.
 
-**Ty řádky přežijí zánik TCP spojení i zánik klientského procesu.** Ověřeno tak, že to nejde svést na
-tik4net: jedno jediné `curl -u admin: http://<host>/rest/system/identity` založilo pár `rest-api` + `api`,
-který tam byl i 90 s po skončení curlu; na hostu přitom `Get-NetTCPConnection` neukazoval **žádné**
-spojení na port 80/443.
+**Model chování (naměřeno):** router si drží session pro dvojici (user, source-address) a další requesty
+ji **recyklují** — nový login se nezaloguje a nový řádek nevznikne. Za posledních ~50 requestů
+(sériově, paralelně, s `Connection: close` i bez) router nezalogoval **ani jeden** rest-api login.
+Občas ale novou session přesto založí, a ta stará zůstane viset navždy. Přesně to popisuje i fórum
+("it seems to reuse the session occasionally"). Proto řádky nepřibývají po requestech, ale po dnech.
 
-Kdy (a jestli) vyprší, **zjištěno nebylo** a nehádat to. Za 33 minut nepřetržitého sledování 12 řádků
-zmizel přesně jeden — `api` polovina curlího páru po ~10 minutách — zatímco její `rest-api` polovina tam
-byla i po 25 minutách a čtyři jiné `api` řádky ji přežily o víc než hodinu (stáří přes 78 minut).
-Poloviny páru tedy nesdílí ani stejné pravidlo. `/user/active/remove` je odmítne (`action failed (6)`),
-takže je nelze ani uklidit — spolehlivě je smaže až reboot.
+Každý takový login založí **dva** řádky: `via=rest-api` a `via=api` se stejným časem. Ten `api` řádek
+nedělá klient — je to interní www→api backend routeru (v logu se pozná tím, že nemá adresu:
+`user admin logged in via api` bez `from …`).
 
-Praktický důsledek: **počet řádků v `/user/active` neměří nic o klientovi.** Naměřených 164 řádků
-(109 `api` + 55 `rest-api`) v P2.35 sedí přesně na tenhle poměr ~2:1 a je to účetnictví routeru, ne únik
-spojení v tik4net — close path je na všech transportech čistý (viz `UserActiveSessionProbeTest`).
+#### Co session NEUKONČÍ (všechno ověřeno, všechno tři vyvrácené)
+
+| Údajný mechanismus | Výsledek |
+|---|---|
+| HTTP hlavička `Connection: close` | ❌ **Nic.** 20 requestů s `Connection: close` → 0 nových řádků a 0 nových loginů, tzn. jelo se po recyklované session; žádný řádek to taky neuvolnilo. |
+| Zavření socketu / zánik klienta (`Dispose`, konec procesu) | ❌ **Nic.** Pár po jednom `curl` byl v tabulce i 90 s po skončení curlu a `Get-NetTCPConnection` na hostu neukazoval **žádné** spojení na 80/443. Session žije nad TCP vrstvou. |
+| Inactivity timeout na routeru | ❌ **Neexistuje.** Nejstarší řádek žil **~24 hodin** a nezmizel. Za 33 min nepřetržitého sledování 12 řádků zmizel přesně jeden — `api` polovina páru po ~10 min — zatímco její `rest-api` polovina tam byla i po 25 min. Poloviny páru nesdílí ani stejné pravidlo; skutečné pravidlo **zjištěno nebylo** a nehádat ho. |
+
+`/user/active/remove` je odmítne (`action failed (6)` — fórum hlásí stejnou chybu). Spolehlivě je smaže
+až reboot.
+
+#### Ex-post identifikace — jde, ale ne přes ID
+
+Klient **žádné session ID nedostane**: odpověď nese jen `Cache-Control / Connection / Content-Length /
+Content-Type / Date / Expires / X-Frame-Options` — **žádnou cookie, žádnou session hlavičku** (ověřeno
+`curl -D -`). `/user/active` má jen `.id, when, name, address, via, group, radius`, takže jediný
+korelátor je IP klienta a čas — session lze přiřadit hostu, ne procesu ani spojení.
+
+Zato to prozradí **router sám ve svém logu**, topic `account` (na default konfiguraci ho chytá pravidlo
+`info`, takže se nemusí nic zapínat):
+
+```
+/log print where message~"rest-api"
+    user admin logged in from 192.168.4.31 via rest-api
+```
+
+Napočítáno na živém logu: **`rest-api`: 4× logged in, 0× logged out** — proti `api` 81/74 a `winbox`
+317/318, které sedí. Odhlášení se u REST **nezaloguje nikdy**, a to je ten ex-post signál: rozdíl mezi
+počtem loginů a logoutů per `via`.
+
+#### Praktický důsledek
+
+**Počet řádků v `/user/active` neměří nic o klientovi.** Naměřených 164 řádků (109 `api` + 55 `rest-api`)
+v P2.35 sedí přesně na ten poměr ~2:1 a je to účetnictví routeru — close path je v tik4netu čistý na
+všech transportech (viz `UserActiveSessionProbeTest`). V `RestConnection.Close()` není co opravit;
+cokoli, co by tam kdo přidal, by na tohle nemělo vliv.
 
 ---
 

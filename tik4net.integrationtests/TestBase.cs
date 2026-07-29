@@ -46,9 +46,22 @@ namespace tik4net.integrationtests
         /// A fresh channel per test sidesteps that; the TCP native transport (<c>WinboxNative</c>) is unaffected
         /// and keeps reuse.
         /// </para>
+        /// <para>
+        /// ⚠️ <b>That exclusion looks stale and is kept only because it has not been retired deliberately.</b>
+        /// Set <c>TIK4NET_FORCE_REUSE=1</c> to drop it and re-measure. Two full <c>winboxnativemac</c> runs on
+        /// 2026-07-29 with reuse forced on came back <b>172 passed</b> each — <i>no</i> test on the transport
+        /// under test failed, i.e. the symptom above did not reproduce at all (most likely already fixed by the
+        /// MAC-layer ACK correction and the NIC-binding fix). Each run did have exactly one failure, but in a
+        /// standalone WinBox protocol test that builds its own session and never touches the shared connection
+        /// (<c>WinboxCliMac_Login_ListInterfaces_ReturnsAtLeastOne</c>, then a different one,
+        /// <c>WinboxTcp_GetSystemInfo_PrintsAllFields</c>), both with the bogus "Wrong username or password"
+        /// of P2.41. Removing the exclusion is tracked as a plan item; do not do it casually, because P2.41
+        /// makes any such run look red for an unrelated reason.
+        /// </para>
         /// </summary>
         protected virtual bool ReuseConnectionAcrossTests
-            => ResolveConnectionType() != TikConnectionType.WinboxNativeMac;
+            => ResolveConnectionType() != TikConnectionType.WinboxNativeMac
+               || Environment.GetEnvironmentVariable("TIK4NET_FORCE_REUSE") == "1";
 
         [TestInitialize]
         public void Init()

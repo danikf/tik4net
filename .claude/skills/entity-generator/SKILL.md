@@ -113,6 +113,25 @@ Reconcile: field exists on router but not wiki → keep it (R/O string, note "un
 but not on router → likely version-specific, keep it but verify. The router is truth for **names**, the
 wiki is truth for **types/defaults/docs**.
 
+#### 2b-bis. CLI reference — the fastest R/O split, keyed by the API path
+
+`https://manual.mikrotik.com/docs/cli-reference/<path>` mirrors the RouterOS menu tree **1:1**, so the
+URL falls straight out of the `[TikEntity]` path — `/tool/ip-scan` →
+<https://manual.mikrotik.com/docs/cli-reference/tool/ip-scan/>. Try this **before** hunting for a help.mikrotik.com
+page: it is terser, it is per-menu, and it splits exactly the way the entity attributes do.
+
+Each page gives:
+- **Arguments** → writable properties, with the type in italics (`iface_enum`, `ipRange`, `num`, `macAddr`, …).
+- **Read-only Arguments** → these are your `IsReadOnly = true` fields, already separated for you.
+- **Flags** → the single-letter status flags (`D` / *dhcp*), which are usually R/O bools.
+- Header metadata: **Package:** (e.g. `advanced-tools`) and **Conditions:** (e.g. `!smips`) — worth
+  carrying into the entity `///` doc, because a missing package is the usual reason a path 404s on a
+  live router and a test goes Inconclusive.
+
+Caveat: this reference does **not** print default values. For those you still need the wiki page (2b) or
+the `add ` tab-completion (2c). Types here are CLI type names, not the wiki's prose types — map them with
+the type table below, and keep honouring "keep typed-looking fields as `string`".
+
 ### 2c. CLI Tab-completion via MCP — the writable-field enumerator
 
 `mcp__tik4net-mcp__mikrotik_cli_complete` drives RouterOS terminal **Tab-completion** and returns the
