@@ -154,17 +154,62 @@ namespace tik4net.Winbox
 
         /// <inheritdoc/>
         /// <remarks>
-        /// Deliberately <c>false</c>. <see cref="MacLayerTransport"/> sends ACK/PONG from inside its receive
-        /// path (<c>RecvDataPayload</c>), so handing reads to a background loop would make the transport
-        /// write from two threads with no write-side lock. Multiplexing the MAC transports is a separate
-        /// change — design §4.5.
+        /// <c>true</c> since P2.42. It was <c>false</c> because <see cref="MacLayerTransport"/> sends
+        /// ACK/PONG from inside its receive path, so a background reader would have the transport writing
+        /// from two threads (design §4.5). Both halves of that are now covered: every write already went
+        /// through <c>SendGate</c>, and the outbound retransmit state — which really did assume one packet
+        /// in flight — became a queue in the same change, because the MAC counter is a cumulative byte
+        /// offset and a lost first packet of two is exactly what a single-slot buffer cannot resend.
         /// </remarks>
-        public bool SupportsReaderLoop => false;
+        public bool SupportsReaderLoop => true;
+
+        // How long one ReceiveNextFrame poll waits before looping. The method itself carries no deadline —
+        // per-request deadlines belong to the multiplexer's registrations — but the MAC layer has no
+        // blocking primitive, and the slice has to end periodically so RetransmitIfUnacked keeps running
+        // while the channel is idle. Long enough not to spin, short enough that disposal is noticed promptly.
+        private const int ReaderPollSliceMs = 500;
+
+        // Set on the disposal path so the reader loop stops asking rather than waiting for the socket to
+        // throw underneath it.
+        private volatile bool _closed;
+
+        private bool _readerLoopHandover;
 
         /// <inheritdoc/>
         public byte[] ReceiveNextFrame()
-            => throw new NotSupportedException(
-                "The MAC-layer WinBox channel does not support a reader loop; see SupportsReaderLoop.");
+        {
+            // One-time handover from the lockstep path (the MAC counterpart of the TCP channel's one-time
+            // switch to an infinite socket timeout). Anything still in the reassembly buffer was left by an
+            // init exchange that has already completed, and the multiplexer restarts request ids from 1 — so
+            // a leftover reply echoing, say, id 3 would be handed to a *new* request that later gets id 3.
+            // Only this thread ever fills the buffer, and it has not read anything yet, so nothing live can
+            // be discarded here. The connection's own DrainBufferedFrames cannot do this job: it is driven by
+            // DataAvailable, which on UDP counts ACK/PING noise (SupportsStaleDrain is false for that reason).
+            if (!_readerLoopHandover)
+            {
+                _rxBuf.Clear();
+                _readerLoopHandover = true;
+            }
+
+            while (!_closed)
+            {
+                byte[] frame;
+                try
+                {
+                    frame = RecvFrame(ReaderPollSliceMs);
+                }
+                catch (ObjectDisposedException) { return null; }   // socket closed under us — normal shutdown
+                catch (System.Net.Sockets.SocketException) { return null; }
+
+                // A slice that expires is not an error and must not surface as one: partial chunks stay in
+                // the receive buffer and the next slice resumes reassembly where this one stopped.
+                if (frame == null) continue;
+
+                try { return WinboxStreamCrypto.Decrypt(frame, _receiveAesKey); }
+                catch { /* not a clean M2 frame — drop it and keep reading, as Receive does */ }
+            }
+            return null;
+        }
 
         // WinBox over MAC uses the SAME chunked framing as TCP ([chunkLen][tag][data]…), carried inside
         // MAC DATA packets — NOT a bare encrypted blob. The encrypted frame is chunk-wrapped on send and
@@ -260,15 +305,17 @@ namespace tik4net.Winbox
         /// login open until its own timeout. Measured on 7.23.2 (P2.35): six WinBox-native-over-MAC
         /// connections opened and disposed left six <c>winbox</c> rows in <c>/user/active</c> that were
         /// still there 15 s later and only expired after roughly a minute and a half — while the TCP
-        /// sibling left none, because there the FIN does the telling. It matters because
-        /// <c>WinboxNativeMac</c> is excluded from test-connection reuse (one connection per test), so a
-        /// run holds a rolling ~90 s worth of dead sessions on the router for no reason.
+        /// sibling left none, because there the FIN does the telling. It mattered most while
+        /// <c>WinboxNativeMac</c> was excluded from test-connection reuse — one connection per test meant a
+        /// run held a rolling ~90 s worth of dead sessions on the router — and still matters for any caller
+        /// that opens short-lived connections. The exclusion itself was retired in P2.42.
         /// <para>Best-effort by design: this runs on the disposal path, where a channel that never
         /// finished connecting has no MACs or socket to send with, and a router that has already dropped
         /// the session has nothing to hear it.</para>
         /// </remarks>
         protected override void OnDisposing()
         {
+            _closed = true;   // stops the reader loop before the socket it polls is disposed
             try { Send(PKT_END, null); } catch { /* ignore — see remarks */ }
         }
     }

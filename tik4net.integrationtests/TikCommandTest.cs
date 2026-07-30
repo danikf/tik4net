@@ -304,16 +304,19 @@ namespace tik4net.integrationtests
                 // Verify the script actually executed: the unique error-severity log entry must appear
                 // in the router log. The log write lags the run completion on the slower CLI transports
                 // (MAC-Telnet / WinBox terminal), so poll for a few seconds rather than checking once.
+                //
+                // Filter on the router, not here. Pulling the whole log meant up to ten dumps of the full
+                // 1000-line memory buffer — ~85 000 characters each — and over a MAC terminal a single dump
+                // takes longer than the 30 s read budget, so this test tipped red purely on how verbose the
+                // router's log happened to be that day (measured 2026-07-30: 85 593 chars on mactelnet,
+                // 73 710 on winboxclimac). The marker is logged by `:log error ("RUN53_<guid>")`, so the
+                // message matches exactly and the filter returns one row or none.
                 bool found = false;
                 for (int attempt = 0; attempt < 10 && !found; attempt++)
                 {
                     Thread.Sleep(500);
-                    var logEntries = Connection.CreateCommand("/log/print").ExecuteList();
-                    found = logEntries.Any(e =>
-                    {
-                        try { return (e.GetResponseField("message") ?? "").Contains(logMarker); }
-                        catch { return false; }
-                    });
+                    found = Connection.CreateCommandAndParameters("/log/print", "message", logMarker)
+                                      .ExecuteList().Any();
                 }
                 Assert.IsTrue(found, $"Expected log entry '{logMarker}' not found in router log — script may not have run.");
             }

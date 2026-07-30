@@ -9,7 +9,7 @@ tik4net is a .NET `netstandard2.0` library for communicating with MikroTik route
 |---|---|---|
 | **tik4net** | [![NuGet](https://img.shields.io/nuget/v/tik4net.svg)](https://www.nuget.org/packages/tik4net) | Everything you normally need: the [low-level ADO.NET-like API](https://github.com/danikf/tik4net/wiki/ADO.NET-like-API) (sync and async R/W access) **and** the [high-level O/R mapper](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper) (strongly typed entities, full CRUD) |
 | **tik4net.testing** | [![NuGet](https://img.shields.io/nuget/v/tik4net.testing.svg)](https://www.nuget.org/packages/tik4net.testing) | Unit-testing support — `TikFakeConnection` lets you write tests without a live router |
-| **tik4net.ssh** | [![NuGet](https://img.shields.io/nuget/v/tik4net.ssh.svg)](https://www.nuget.org/packages/tik4net.ssh) | SSH (TCP 22) transport — drives the RouterOS CLI over an SSH shell (full CRUD, Listen, Safe Mode). A separate package because of its `Renci.SshNet` dependency. |
+| **tik4net.ssh** | [![NuGet](https://img.shields.io/nuget/v/tik4net.ssh.svg)](https://www.nuget.org/packages/tik4net.ssh) | SSH (TCP 22) transport — drives the RouterOS CLI over an SSH shell (`Crud`, `Listen`, `SafeMode`, `RawCommand`, like the other CLI transports). A separate package because of its `Renci.SshNet` dependency. |
 
 > **⚠️ Upgrading from 3.x?** The O/R mapper used to be a separate `tik4net.objects` package.
 > Since 4.0 it is part of `tik4net` itself — **remove any `PackageReference` to `tik4net.objects`**
@@ -36,14 +36,23 @@ tik4net is a .NET `netstandard2.0` library for communicating with MikroTik route
 
 All transports share the same `ITikConnection` API and O/R mapper — pick one via `TikConnectionType`. See [Connection types and capabilities](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities).
 
-* **Api** — native MikroTik API protocol (TCP 8728); the default, fastest transport with full Listen/Streaming support.
-* **ApiSsl** — the API protocol over TLS (TCP 8729), using a certificate on the router.
-* **Rest** / **RestSsl** — REST API over HTTP (80) / HTTPS (443); requires RouterOS 7.1+.
-* **Ssh** — drives the RouterOS CLI over an SSH shell (TCP 22); full CRUD plus Listen and Safe Mode.
-* **Telnet** — drives the RouterOS CLI over plain-text Telnet (TCP 23); full CRUD.
-* **MacTelnet** — drives the CLI over MAC-Telnet (UDP 20561), reaching the router with no IP route.
-* **WinboxCli** / **WinboxCliMac** — drives the CLI over the encrypted WinBox channel (TCP 8291 / MAC layer).
-* **WinboxNative** / **WinboxNativeMac** — structured WinBox M2 CRUD with no terminal (TCP 8291 / MAC layer).
+| Transport | Port | What it is | Capabilities |
+|---|---|---|---|
+| **Api** / **ApiSsl** | TCP 8728 / 8729 | native MikroTik API protocol — the default and fastest; TLS variant needs a certificate on the router | **all of them**: `Crud`, `Listen`, `Streaming`, `RawSentences`, `Tagging`, `SafeMode`, `RawCommand` |
+| **Rest** / **RestSsl** | TCP 80 / 443 | REST API, RouterOS 7.1+ | `Crud` **only** — stateless HTTP, so no listen, no streaming, no Safe Mode |
+| **Telnet** | TCP 23 | RouterOS CLI over plain-text Telnet | `Crud`, `Listen`\*, `SafeMode`, `RawCommand` |
+| **Ssh** | TCP 22 | RouterOS CLI over an SSH shell (separate `tik4net.ssh` package) | `Crud`, `Listen`\*, `SafeMode`, `RawCommand` |
+| **MacTelnet** | UDP 20561 | CLI over MAC-Telnet — reaches the router with **no IP route** | `Crud`, `Listen`\*, `SafeMode`, `RawCommand` |
+| **WinboxCli** / **WinboxCliMac** | TCP 8291 / UDP 20561 | CLI over the encrypted WinBox channel (EC-SRP5 + AES, no certificates) | `Crud`, `Listen`\*, `SafeMode`, `RawCommand` |
+| **WinboxNative** / **WinboxNativeMac** | TCP 8291 / UDP 20561 | structured WinBox M2 CRUD, no terminal | `Crud`, `Listen`\*, `SafeMode` |
+
+\* **`Listen` outside the API is emulated by polling** (re-issuing a snapshot on a background worker), not
+server push. **`Streaming`** (`ExecuteListWithDuration`) is binary-API only — no other transport holds a
+command exchange open for a blocking multi-row read.
+
+Every transport can have its connection **reused**. Concurrent commands on one connection work on
+`Api`/`ApiSsl` (set `SendTagWithSyncCommand = true` first), `Rest`/`RestSsl` and both WinBox-native
+transports; the CLI family drives a single request/reply terminal and serializes by design.
 
 # Binaries
 

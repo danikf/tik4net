@@ -208,3 +208,39 @@ nestihla druhý pokus. Kratší login timeout (15 s) → retry reálně proběhn
 - MNDP (UDP 5678) zapnuté, pokud se nepoužije `RouterMac` override.
 - Hyper-V: SESSIONSTART na **subnet broadcast** (`192.168.x.255`), ne `255.255.255.255`; DATA/ACK na
   **unicast** IP routeru; preferovat NIC na stejné podsíti. (kap. D)
+
+## 10. Retransmise: jeden slot nestačí, jakmile je víc requestů v letu (2026-07-30, P2.42)
+
+**Kontext:** P2.19 přidala odesílací spolehlivost — držíme poslední odeslaný DATA paket a když ho router
+nepotvrdí, pošleme ho znovu byte-identicky. To bylo správně, dokud byl každý volající lockstep: v letu byl
+vždy nejvýš jeden paket, takže jeden slot (`_lastDataPacket`) pokryl všechno.
+
+**Co se rozbije při multiplexování** (`WinboxNativeMac`, viz [winbox-m2-multiplexing-design.md](winbox-m2-multiplexing-design.md) §4.5):
+counter je **kumulativní byte-offset** (§1), takže potvrzení je kumulativní taky. Pošleme A (offset 0–99)
+a B (100–199), A se ztratí:
+
+- router dostane B, ale nemůže potvrdit **nic** — ve streamu je díra, jeho ACK zůstane na 0,
+- paket, který musí jít znovu, je **A**,
+- jenže jediný slot už mezitím přepsalo B.
+
+Výsledek není pomalý round trip, ale **trvalé zaseknutí session**: my čekáme na odpověď, router čeká na
+bajty, které nikdy nedorazí, a retransmit posílá pořád B, které už dávno má.
+
+**Oprava:** fronta nepotvrzených paketů místo slotu.
+
+- `SendCore` **přidává** na konec (nikdy nepřepisuje cizí nepotvrzený paket),
+- `NoteAck(counter)` zahodí všechno s `End <= counter` (jeden ACK může retirovat víc paketů) a resetuje
+  rozpočet retransmisí — ten patří paketu na hlavě fronty, a ta se právě změnila,
+- `RetransmitIfUnacked` posílá **nejstarší** nepotvrzený, protože při kumulativním ACK je díra vždy na
+  začátku fronty; při jednom requestu v letu je to tentýž paket jako dřív, takže chování beze změny,
+- `NoteAck` běží pod `SendGate` — volá se z příjmové strany, což je u multiplexovaného kanálu jiné vlákno
+  než to odesílající. Předtím se překrýt nemohly a zámek tam nebyl potřeba.
+- Fronta je omezená (`MaxUnackedTracked = 256`), aby volající píšící do mrtvé session nerostl bez limitu.
+
+**Pozn. k write-side zámku:** design §4.5 čekal, že hlavní překážkou multiplexování bude posílání ACK/PONG
+z příjmové cesty. Nebyla — všechny zápisy (`Send`, `SendAck`, `SendPong`, `RetransmitIfUnacked`) šly přes
+`SendGate` už kvůli MAC-Telnet pumpě. Skutečná překážka byla o patro níž, právě ta retransmitní fronta.
+
+**Testy:** `tik4net.unittests/MacTelnet/MacLayerRetransmitTests.cs` — loopback UDP, bez routeru. Živě se
+tyhle případy nedají vyrobit (laboratorní router nezahazuje pakety na povel), takže díra ve streamu,
+částečný ACK, vyčerpaný rozpočet a souběžný send/ACK jsou pokryté jen tady.

@@ -104,8 +104,9 @@ namespace tik4net.Winbox
             return LockstepSendReceive(request);
         }
 
-        // Pre-multiplexing path: still used during connect/auth/init, and for the whole lifetime of the MAC
-        // transports, which cannot run a reader loop (IWinboxM2Channel.SupportsReaderLoop).
+        // Pre-multiplexing path: used during connect/auth/init on every transport, and for the whole lifetime
+        // of any channel that cannot run a reader loop (IWinboxM2Channel.SupportsReaderLoop). Both native
+        // transports multiplex after init — the MAC one since P2.42.
         private byte[] LockstepSendReceive(byte[] request)
         {
             // Discard any frame already buffered on the shared channel before issuing a synchronous

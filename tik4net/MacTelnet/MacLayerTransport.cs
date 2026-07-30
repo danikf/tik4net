@@ -81,14 +81,34 @@ namespace tik4net.MacTelnet
         // which loss is not. Whatever stops the router consuming our stream there is still unidentified.
         // This stays because the ACK is a real signal we were throwing away and a genuinely lost packet
         // must be recoverable; it is not the answer to the wedge.
-        private byte[] _lastDataPacket;            // the exact datagram, so a resend is byte-identical
-        private uint   _lastDataEnd;               // offset past it - what the router's ACK must reach
+        //
+        // A QUEUE, not one slot (P2.42). While every caller was lockstep, one outstanding DATA packet at a
+        // time was all there could be, so holding only the most recent one was enough. A multiplexed channel
+        // has several requests in flight, and the counter is a CUMULATIVE byte offset: if the first packet is
+        // lost and the second arrives, the router can acknowledge neither — the stream has a hole — and the
+        // one packet that has to be resent is precisely the one a single slot has already overwritten. That
+        // is a permanent stall, not a slow round trip. Retransmission therefore walks the oldest unacked
+        // packet, which is the hole by construction.
+        private readonly List<Unacked> _unacked = new List<Unacked>();   // send order; guarded by SendGate
         private uint   _highestAck;                // highest ACK counter the router has returned
         private bool   _haveAck;                   // distinguishes "no ACK yet" from a genuine ack of 0
-        private int      _retransmits;             // resends spent on _lastDataPacket
+        private int      _retransmits;             // resends spent on the packet currently at the head
         private DateTime _lastRetransmitUtc;       // rate limit, so a 20 ms poll loop cannot flood
         private const int MaxRetransmits = 8;
         private const int MinRetransmitIntervalMs = 400;   // 8 tries ~= 3.2 s, well inside a 30 s read
+
+        // Bounds the queue if the router stops acknowledging altogether: without a cap a caller that keeps
+        // writing into a dead session would grow it without limit. Far above any real concurrency (the
+        // multiplexer's request ids top out at 255, and outstanding count is normally <10).
+        private const int MaxUnackedTracked = 256;
+
+        // One sent DATA datagram held verbatim, so a resend is byte-identical and the router simply sees a
+        // duplicate if the original did arrive.
+        private struct Unacked
+        {
+            public byte[] Packet;
+            public uint   End;     // stream offset past this packet — what the router's ACK must reach
+        }
 
         /// <summary>
         /// Serialises everything that writes to the socket and to the outbound stream state. MAC-Telnet
@@ -202,23 +222,50 @@ namespace tik4net.MacTelnet
         }
 
         /// <summary>
-        /// Records an ACK from the router. Its counter is the stream offset the router has consumed up
-        /// to, so it is what <see cref="RetransmitIfUnacked"/> compares the last sent packet against.
+        /// Records an ACK from the router. Its counter is the stream offset the router has consumed up to,
+        /// so it both retires every queued packet that now falls below it and gives
+        /// <see cref="RetransmitIfUnacked"/> the mark to compare the rest against.
         /// </summary>
+        /// <remarks>
+        /// Under <see cref="SendGate"/> because it mutates the same outbound state the send path owns. It is
+        /// called from the receive side, which on a multiplexed channel is a different thread from the one
+        /// sending (P2.42); before that the two could not overlap and the lock was unnecessary.
+        /// </remarks>
         protected void NoteAck(uint counter)
         {
-            if (!_haveAck || counter > _highestAck)
+            lock (SendGate)
             {
-                _highestAck = counter;
-                _haveAck    = true;
+                if (!_haveAck || counter > _highestAck)
+                {
+                    _highestAck = counter;
+                    _haveAck    = true;
+                }
+
+                // Retire what the router has taken. The ACK is cumulative and the queue is in send order,
+                // so this can clear several at once. A plain loop rather than FindIndex: this runs once per
+                // received DATA packet — thousands of times in a terminal session — and a lambda there is a
+                // per-packet allocation for nothing.
+                int retired = 0;
+                while (retired < _unacked.Count && _unacked[retired].End <= counter)
+                    retired++;
+                if (retired > 0)
+                {
+                    _unacked.RemoveRange(0, retired);
+                    _retransmits = 0;   // the budget belongs to the packet at the head, which just changed
+                }
             }
         }
 
         /// <summary>
-        /// Resends the last DATA packet if the router has not acknowledged it. Called from the read loops
-        /// when nothing is arriving - that idle moment is precisely the "my command never landed" case.
-        /// The resend is byte-identical (same counter), so a packet that did arrive is simply seen as a
-        /// duplicate and re-ACKed.
+        /// Resends the <em>oldest</em> unacknowledged DATA packet. Called from the read loops when nothing
+        /// is arriving - that idle moment is precisely the "my command never landed" case. The resend is
+        /// byte-identical (same counter), so a packet that did arrive is simply seen as a duplicate and
+        /// re-ACKed.
+        /// <para>
+        /// Oldest rather than newest because the ACK is cumulative: the router cannot acknowledge past a
+        /// gap, so the packet blocking the stream is always the one at the head of the queue. With a single
+        /// request in flight the two are the same packet.
+        /// </para>
         /// <para>
         /// Rate-limited internally rather than by the caller, because the read loops poll at very
         /// different cadences (500 ms in the terminal loops, 20 ms in <see cref="RecvUntil"/>) and a
@@ -228,29 +275,32 @@ namespace tik4net.MacTelnet
         /// <returns><c>true</c> if a retransmission was sent.</returns>
         protected bool RetransmitIfUnacked()
         {
+            Unacked head;
             lock (SendGate)
             {
-                if (_lastDataPacket == null || !_haveAck || _highestAck >= _lastDataEnd)
+                if (_unacked.Count == 0 || !_haveAck)
                     return false;
                 if (_retransmits >= MaxRetransmits)
                     return false;
                 if ((DateTime.UtcNow - _lastRetransmitUtc).TotalMilliseconds < MinRetransmitIntervalMs)
                     return false;
 
+                head = _unacked[0];
                 _lastRetransmitUtc = DateTime.UtcNow;
                 _retransmits++;
-                _udp.Send(_lastDataPacket, _lastDataPacket.Length, _routerUnicastEp);
+                _udp.Send(head.Packet, head.Packet.Length, _routerUnicastEp);
             }
 
             if (Diagnostics.TikWireTrace.Enabled)
                 Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note,
-                    "RETRANSMIT #" + _retransmits + " end=" + _lastDataEnd + " highestAck=" + _highestAck);
+                    "RETRANSMIT #" + _retransmits + " end=" + head.End + " highestAck=" + _highestAck
+                    + " queued=" + _unacked.Count);
             return true;
         }
 
         /// <summary>
-        /// <c>true</c> once the last DATA packet has been retransmitted to exhaustion without the router
-        /// ever acknowledging it. The MAC layer acknowledges the byte stream, so this is the one signal
+        /// <c>true</c> once an unacknowledged DATA packet has been retransmitted to exhaustion without the
+        /// router ever taking it. The MAC layer acknowledges the byte stream, so this is the one signal
         /// that says the router did <em>not</em> take our bytes — as opposed to taking them and being slow
         /// to answer. That distinction is what makes a retry safe: an unacknowledged command cannot have
         /// reached the console, so it cannot have half-executed (P2.39).
@@ -260,8 +310,7 @@ namespace tik4net.MacTelnet
             get
             {
                 lock (SendGate)
-                    return _lastDataPacket != null && _haveAck
-                        && _highestAck < _lastDataEnd && _retransmits >= MaxRetransmits;
+                    return _unacked.Count > 0 && _haveAck && _retransmits >= MaxRetransmits;
             }
         }
 
@@ -474,10 +523,12 @@ namespace tik4net.MacTelnet
             if (type == PKT_DATA && payload != null && payload.Length > 0)
             {
                 _outCounter += (uint)payload.Length;
-                // Hold it for retransmission until the router's ACK reaches past it (P2.19).
-                _lastDataPacket = pkt;
-                _lastDataEnd    = counter + (uint)payload.Length;
-                _retransmits    = 0;
+                // Hold it for retransmission until the router's ACK reaches past it (P2.19). Appended, not
+                // replaced, so a concurrent sender cannot drop someone else's still-unacked packet (P2.42).
+                if (_unacked.Count == 0)
+                    _retransmits = 0;   // fresh head; earlier entries keep the budget already spent on them
+                if (_unacked.Count < MaxUnackedTracked)
+                    _unacked.Add(new Unacked { Packet = pkt, End = counter + (uint)payload.Length });
             }
         }
 

@@ -35,31 +35,57 @@ namespace tik4net.integrationtests
         public void Connect(string host, int port)
             => _transport.Connect(host, port);
 
+        // Mirrors tik4net.Winbox.WinboxLoginRetry, which the production connections use. It cannot be reused
+        // directly here: that helper retries a whole Open(), whereas these tests hold the client and only the
+        // handshake needs redoing. The measurement behind both is the same (P2.41).
+        private const int LoginAttempts = 3;
+        private const int LoginRetryDelayMs = 100;
+
         public void Authenticate(string host, int port, string user, string pass)
         {
-            try
+            for (int attempt = 1; ; attempt++)
             {
-                EcSrp5Auth(user, pass);
-                _encrypted = true;
-            }
-            catch (tik4net.Winbox.WinboxEcSrp5UnsupportedException unsupported)
-            {
-                // Old RouterOS — reconnect and try legacy MD5 auth
-                _transport.Dispose();
-                _reqId = 0;
-                Connect(host, port);
                 try
                 {
-                    LegacyMd5Auth(user, pass);
+                    EcSrp5Auth(user, pass);
+                    _encrypted = true;
+                    return;
                 }
-                catch (UnauthorizedAccessException ex)
+                catch (tik4net.Winbox.WinboxLoginRefusedException) when (attempt < LoginAttempts)
                 {
-                    throw new InvalidOperationException(
-                        $"{ex.Message} — but legacy MD5 was only tried because {unsupported.Reason}, " +
-                        "so the EC-SRP5 handshake is the likelier failure.", unsupported);
+                    // The router refuses roughly one WinBox login in 100-200 although the credentials are
+                    // correct (P2.41). A refused handshake leaves the channel unusable, so the retry has to
+                    // build a new one — the same reconnect the legacy-MD5 fallback below does. Without this
+                    // the standalone protocol tests stayed exposed to it after the production paths were
+                    // fixed, which is how it kept surfacing as a lone red test in an otherwise green run.
+                    Reconnect(host, port);
+                    System.Threading.Thread.Sleep(LoginRetryDelayMs);
                 }
-                _encrypted = false;
+                catch (tik4net.Winbox.WinboxEcSrp5UnsupportedException unsupported)
+                {
+                    // Old RouterOS — reconnect and try legacy MD5 auth
+                    Reconnect(host, port);
+                    try
+                    {
+                        LegacyMd5Auth(user, pass);
+                    }
+                    catch (UnauthorizedAccessException ex)
+                    {
+                        throw new InvalidOperationException(
+                            $"{ex.Message} — but legacy MD5 was only tried because {unsupported.Reason}, " +
+                            "so the EC-SRP5 handshake is the likelier failure.", unsupported);
+                    }
+                    _encrypted = false;
+                    return;
+                }
             }
+        }
+
+        private void Reconnect(string host, int port)
+        {
+            _transport.Dispose();
+            _reqId = 0;
+            Connect(host, port);
         }
 
         // After auth, read /home/web/webfig/list via mproxy [2,2]
@@ -555,13 +581,16 @@ namespace tik4net.integrationtests
             SendHandshake(clientCc);
 
             byte[] srvHdr = _transport.ReadExact(2);
-            if (srvHdr[1] != 0x06 || srvHdr[0] != 32)
+            if (srvHdr[1] != 0x06)
                 throw new InvalidOperationException(
-                    $"WinBox EC-SRP5 handshake: expected a 32 B server confirmation tagged 0x06, got " +
-                    $"len={srvHdr[0]} tag=0x{srvHdr[1]:x2}. The handshake did not complete; this says " +
-                    "nothing about the credentials.");
+                    $"WinBox EC-SRP5 handshake: server confirmation carried tag 0x{srvHdr[1]:x2}, not 0x06. " +
+                    "The handshake did not complete; this says nothing about the credentials.");
 
             byte[] serverCc = _transport.ReadExact(srvHdr[0]);
+            // Same classification as the production channel: where the digest belongs the router sometimes
+            // puts its own words instead, and a wrong length must be read before it is compared (P2.41).
+            tik4net.Winbox.WinboxHandshakeReply.ThrowIfRouterMessage(serverCc, 32);
+
             byte[] expectedCc = EcSrp5.Sha256(j.Concat(clientCc).Concat(zMont).ToArray());
             if (!serverCc.SequenceEqual(expectedCc))
                 throw new UnauthorizedAccessException("Wrong username or password");

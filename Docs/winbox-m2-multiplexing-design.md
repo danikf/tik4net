@@ -205,15 +205,36 @@ A frame with no `0xFF0006`, or one whose id has no pending registration (late re
 Policy: **log via `TransportDiagnostic` and drop.** Do not throw — a late reply to a cancelled request is
 expected once `CancelInFlight` exists, and it must not take the connection down.
 
-### 4.5 The MAC transport is not the same problem
+### 4.5 The MAC transport is not the same problem — **done in P2.42 (2026-07-30)**
 
 `WinboxMacM2Session` runs M2 over UDP 20561 with its own sequencing/ACK layer, and already declares
 `SupportsStaleDrain = false` because `_udp.Available` reflects ACK/PING/retransmit noise rather than real
 frames ([IWinboxM2Channel.cs:24-30](tik4net/Winbox/IWinboxM2Channel.cs:24)). Per the MAC-Telnet memory the
 ACK accounting is `counter + payloadLen` and is easy to get subtly wrong.
 
-**Recommendation: multiplex the TCP session first and ship it; treat the MAC variant as a separate follow-up**
-with its own live verification. Same interface, materially different failure modes.
+**Original recommendation: multiplex the TCP session first and ship it; treat the MAC variant as a separate
+follow-up** with its own live verification. Same interface, materially different failure modes. That
+follow-up is P2.42, and the "materially different failure modes" turned out to be one specific thing —
+**not** the ACK/PING sends this section worried about:
+
+- **The write side was already safe.** Every send (`Send`, `SendAck`, `SendPong`, `RetransmitIfUnacked`) goes
+  through `MacLayerTransport.SendGate`, which MAC-Telnet needed anyway for its background receive pump. A
+  reader loop adds no new writer that the gate does not already cover.
+- **The real blocker was the retransmit buffer, one level below.** `MacLayerTransport` held exactly one
+  outstanding DATA packet (`_lastDataPacket`), which is sufficient only while every caller is lockstep. The
+  MAC counter is a *cumulative byte offset*, so with two requests in flight and the first one lost, the
+  router can acknowledge neither — and the packet that must be resent is precisely the one a single slot has
+  already overwritten. Not a slow round trip: a permanent stall. P2.42 replaced it with a queue of unacked
+  packets, retransmitting the **oldest** (the hole, by construction) and retiring everything a cumulative ACK
+  covers. With one request in flight the behaviour is unchanged.
+- **Handover.** The MAC channel does the reader-loop handover inside its first `ReceiveNextFrame` — clearing
+  the chunk-reassembly buffer, the way the TCP channel switches its socket to an infinite timeout there. The
+  connection's `DrainBufferedFrames` cannot do it: that path is driven by `DataAvailable`, which on UDP counts
+  control noise, which is exactly why `SupportsStaleDrain` is false.
+
+Deterministic coverage for the queue rules lives in `tik4net.unittests/MacTelnet/MacLayerRetransmitTests.cs`
+(loopback UDP, no router) — the lab router does not drop packets on demand, so a hole in the stream, a partial
+ACK and an exhausted retransmit budget cannot be produced live at all.
 
 ### 4.6 What must not change
 

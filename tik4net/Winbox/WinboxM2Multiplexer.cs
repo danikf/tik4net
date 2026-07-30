@@ -23,10 +23,10 @@ namespace tik4net.Winbox
     ///   <item>One request maps to exactly one reply frame; <c>0xFE0019</c> is an object count, not a
     ///     "more frames follow" marker, and getall pagination issues a fresh request per page (§12.7).</item>
     /// </list>
-    /// <para><b>Scope.</b> Native M2 only. The mepty terminal path (<c>WinboxCliClient</c>) streams
-    /// unsolicited frames that carry no request id, so it keeps reading the channel directly and must never
-    /// be given a multiplexer — see design §3.0. The MAC transports opt out via
-    /// <see cref="IWinboxM2Channel.SupportsReaderLoop"/> (design §4.5).</para>
+    /// <para><b>Scope.</b> Native M2 only, over either carrier — TCP since P2.1, the MAC layer since P2.42.
+    /// The mepty terminal path (<c>WinboxCliClient</c>) streams unsolicited frames that carry no request id,
+    /// so it keeps reading the channel directly and must never be given a multiplexer — see design §3.0. That
+    /// is what <see cref="IWinboxM2Channel.SupportsReaderLoop"/> guards.</para>
     /// <para><b>Lifetime.</b> Start this only after connect, authentication and one-time init (router
     /// version, <c>.jg</c> catalog) have completed on the lockstep path: those sequences read the channel
     /// directly and would race the reader loop. Same reasoning as design §4.2.</para>

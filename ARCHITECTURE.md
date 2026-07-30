@@ -228,7 +228,9 @@ MSTest, **net48 only**, ~410 test methods, nearly all requiring a live router. N
 - Transport selection: `*.runsettings` files (one per transport) set `tik.connectionType`;
   falls back to the `connectionType` app setting. The suite is meant to be run once per transport.
 - `TestBase` caches one connection per run (`ReuseConnectionAcrossTests`) and self-heals it on
-  failure; `WinboxNativeMac` opts out because of its lossy-UDP ACK state.
+  failure. Every transport reuses; only lifecycle-sensitive classes (`SafeModeTest`) opt out. The
+  `WinboxNativeMac` exclusion was retired in P2.42 once its lossy-UDP ACK symptom stopped
+  reproducing.
 - Capability-gated tests call `EnsureCapability` and report **Inconclusive** rather than failing on
   transports that can't do the thing.
 ### CI

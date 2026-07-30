@@ -275,6 +275,16 @@ jen pojistka proti zaseknutému routeru.
 
 Script se spustí, ale `:put [/log print as-value]` ho nezachytí v době dotazu. Projevuje se na MacTelnet, WinboxCli, WinboxCliMac.
 
+> **2026-07-30:** k tomu se přidal druhý, horší problém — pollování bez filtru. Test tahal **celý**
+> 1000řádkový memory log, až 10× po sobě (**85 593 znaků** na mactelnet, 73 710 na winboxclimac), a jeden
+> takový dump přes MAC terminál nestihne 30 s budget. Test tedy padal podle toho, jak upovídaný zrovna log
+> byl. Opraveno filtrem **na routeru**: `CreateCommandAndParameters("/log/print", "message", logMarker)` —
+> marker je psaný `:log error ("RUN53_<guid>")`, takže matchne přesně a vrátí jeden řádek nebo nic. Filtr
+> ctí Api (`?message=`), Rest, CLI (`where message=…`) i WinboxNative — ověřeno živě. Po opravě prochází na
+> **všech 11 transportech** (mactelnet 31 s timeout → 2 s, winboxclimac 1 m 16 s fail → 32 s pass).
+> **Poučení pro nové testy:** nikdy netahej `/log/print` (ani jiný velký seznam) bez filtru v poll smyčce —
+> na CLI/MAC transportech je to přímá cesta k `TikConnectionReceiveTimeoutException`.
+
 ---
 
 ## WinboxNative / WinboxNativeMac gotchas
@@ -392,7 +402,7 @@ Hledej:
 | H | `GenerateAndDeleteIpsecKeyWillNotFail` (REST) | `RestRequestBuilder._writeVerbs` += `generate-key`/`export-pub-key`/`import` — bez nich se přidalo `/print` |
 | I | `AddSystemScriptWillNotFail` (WinboxNative) | `bool` DefaultValue `"false"/"true"`→`"no"/"yes"` — **plošně ve všech `bool` entitách** (17 souborů); `YesNoOptions` enum ponechán (`[TikEnum("false")]`) |
 | A/B | add/singleton flaky timeout na WinboxCli | `WinboxCliClient`: pre-send `DrainSync` když jsou reziduální data (proti desyncu) |
-| G | `RunScript_Issue53_WillNotFail` — log race | test pollne log ~5 s místo jediného checku |
+| G | `RunScript_Issue53_WillNotFail` — log race + **dump celého logu** | test pollne log ~5 s místo jediného checku; **2026-07-30** navíc filtruje `?message=<marker>` na routeru místo tahání 1000 řádků (viz sekce G) |
 | J | `/system/health` native (board-gated) | `PreferSingletonHealthHandler` → singleton `[24,14]` get-singleton (handler živě z `.jg`) |
 | K | bridge-vlan `vlan-ids` native (tichý drop) | `multinumberrange` enkódování/dekódování (u32[]) + loud-throw u nepodporovaných list typů |
 | a | `/tool/netwatch` native unmapped path | shipped alias `/tool/netwatch` → `[51,1]` ve `WinboxHandlerMap` |
@@ -413,6 +423,13 @@ Hledej:
 > chybu, nemaskuje jiné bugy a sám zmizí, až transport feature podpoří) před blanket transport-name
 > skipem. **Než nastavíš gate, ověř živě, že to není falešný předpoklad** (jako bylo `SkipOnRest`/
 > `SkipOnNonApi`/stará Kat. K). `IsNonApiTransport` zůstává jen pro větvení **asercí** (ne skip).
+
+> **Výjimka, která je transport-name schválně:** `SkipOnSingleCommandTransport()` (P2.42, používá
+> `ConcurrentCommandsTest`). Vyjmenovává CLI rodinu (Telnet/SSH/MacTelnet/WinboxCli/WinboxCliMac), protože
+> **to je ta aserce**: jen ony mají důvod serializovat, všechno ostatní (API, API-SSL, REST, oba native
+> WinBoxy) musí umět běžet souběžně na jednom spojení. Feature-bound varianta („přeskoč, když to transport
+> nezvládne") by přesně tu regresi, kvůli které test existuje, zametla pod koberec. Nemíchej si to s
+> odstraněnými slepými gaty — tenhle skipuje **očekávané** chování, ne nezměřený předpoklad.
 
 ### ⚠️ Orphan-kontaminace (NE bug — uklízej router před/mezi běhy)
 
@@ -447,6 +464,7 @@ protected Version GetMikrotikVersion()
 // Skip helpers (Assert.Inconclusive). PREFER runtime/feature-bound nad transport-name skipy:
 protected static bool IsWinboxNativeUnsupported(Exception ex) // catch-when: konkrétní M2 error/field-resolve → Inconclusive
 protected void SkipOnWinboxNativeUnmappedPath(string feature) // path absent from .jg catalog (ověř, že fakt chybí)
+protected void SkipOnSingleCommandTransport()                 // CLI rodina serializuje ZÁMĚRNĚ — viz výjimka výše
 protected bool IsNonApiTransport()                            // JEN pro větvení asercí, NE jako skip-gate
 // (SkipOnNonApi a SkipOnRest/SkipOnWinboxNative byly odstraněny — slepé/neověřené transport-name gaty)
 ```

@@ -39,29 +39,19 @@ namespace tik4net.integrationtests
         /// Connection-lifecycle-sensitive classes (e.g. <c>SafeModeTest</c>) override this to false to get a
         /// guaranteed-isolated connection per test.
         /// <para>
-        /// The native WinBox-over-MAC transport (<see cref="TikConnectionType.WinboxNativeMac"/>) is excluded
-        /// from reuse: it rides the lossy UDP MAC layer whose cumulative-byte ACK/retransmit state does not
-        /// survive an arbitrary sequence of unrelated exchanges on one channel (a prior multi-frame test can
-        /// leave the next test's first <c>getall</c> unanswered — the test passes in isolation but not mid-run).
-        /// A fresh channel per test sidesteps that; the TCP native transport (<c>WinboxNative</c>) is unaffected
-        /// and keeps reuse.
-        /// </para>
-        /// <para>
-        /// ⚠️ <b>That exclusion looks stale and is kept only because it has not been retired deliberately.</b>
-        /// Set <c>TIK4NET_FORCE_REUSE=1</c> to drop it and re-measure. Two full <c>winboxnativemac</c> runs on
-        /// 2026-07-29 with reuse forced on came back <b>172 passed</b> each — <i>no</i> test on the transport
-        /// under test failed, i.e. the symptom above did not reproduce at all (most likely already fixed by the
-        /// MAC-layer ACK correction and the NIC-binding fix). Each run did have exactly one failure, but in a
-        /// standalone WinBox protocol test that builds its own session and never touches the shared connection
-        /// (<c>WinboxCliMac_Login_ListInterfaces_ReturnsAtLeastOne</c>, then a different one,
-        /// <c>WinboxTcp_GetSystemInfo_PrintsAllFields</c>), both with the bogus "Wrong username or password"
-        /// of P2.41. Removing the exclusion is tracked as a plan item; do not do it casually, because P2.41
-        /// makes any such run look red for an unrelated reason.
+        /// <b>Every transport reuses, including the MAC-layer ones.</b> The native WinBox-over-MAC transport
+        /// (<see cref="TikConnectionType.WinboxNativeMac"/>) used to be excluded, on the theory that the lossy
+        /// UDP MAC layer's cumulative-byte ACK/retransmit state could not survive an arbitrary sequence of
+        /// unrelated exchanges on one channel — a prior multi-frame test leaving the next test's first
+        /// <c>getall</c> unanswered. That exclusion was retired in P2.42 (2026-07-30) after the symptom failed
+        /// to reproduce: five full <c>winboxnativemac</c> runs with reuse on (two on 2026-07-29 plus three
+        /// confirming runs) came back green on every test using the shared connection. The cause it was written
+        /// for had already been removed by the MAC-layer cumulative-ACK correction (P2.19) and the broadcast-NIC
+        /// binding fix (P2.36); the exclusion outlived it and merely cost one fresh MAC session per test, which
+        /// is the session churn P2.35 measured on <c>/user/active</c>.
         /// </para>
         /// </summary>
-        protected virtual bool ReuseConnectionAcrossTests
-            => ResolveConnectionType() != TikConnectionType.WinboxNativeMac
-               || Environment.GetEnvironmentVariable("TIK4NET_FORCE_REUSE") == "1";
+        protected virtual bool ReuseConnectionAcrossTests => true;
 
         [TestInitialize]
         public void Init()
@@ -470,6 +460,28 @@ namespace tik4net.integrationtests
                 Assert.Inconclusive(
                     $"'{feature}' is not exposed by WinBox as an M2 handler (absent from the .jg catalog), " +
                     "so the native WinBox transport cannot reach it — use the API or a CLI transport. Test skipped.");
+        }
+
+        /// <summary>
+        /// Marks the test as Inconclusive on the CLI-family transports, which drive a single request/reply
+        /// terminal and therefore serialize commands by design.
+        /// </summary>
+        /// <remarks>
+        /// The expectation this encodes (P2.42): <b>only</b> Telnet, SSH, WinBox-CLI and WinBox-CLI-MAC have
+        /// a real reason to be single-command. Everything else — API, API-SSL, REST and both native WinBox
+        /// transports — must be able to run commands concurrently on one connection, because the router
+        /// plainly can. A transport moving out of that list is a regression, not a limitation to accept, so
+        /// this skips by naming the CLI family rather than by asking whether the transport happens to manage.
+        /// </remarks>
+        protected void SkipOnSingleCommandTransport()
+        {
+            var t = ResolveConnectionType();
+            if (t == TikConnectionType.Telnet || t == TikConnectionType.Ssh
+                || t == TikConnectionType.MacTelnet
+                || t == TikConnectionType.WinboxCli || t == TikConnectionType.WinboxCliMac)
+                Assert.Inconclusive(
+                    $"Transport '{t}' drives a single request/reply terminal and serializes commands by " +
+                    "design — concurrent execution is not expected of it. Test skipped.");
         }
 
         /// <summary>

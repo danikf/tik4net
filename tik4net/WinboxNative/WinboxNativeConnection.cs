@@ -268,9 +268,9 @@ namespace tik4net.WinboxNative
         /// Deliberately the <b>last</b> step of <see cref="InitAfterAuth"/>: authentication, the router
         /// version probe and the <c>.jg</c> catalog fetch all read the channel directly and would race the
         /// reader loop. Those run once, so leaving them lockstep costs nothing (design §4.2).
-        /// <para>Transports whose channel cannot yield its read side — the MAC family, see
-        /// <see cref="IWinboxM2Channel.SupportsReaderLoop"/> — keep the lockstep path and its stale-frame
-        /// drain. No behaviour change there.</para>
+        /// <para>Both native transports multiplex — the MAC one since P2.42. A channel that cannot yield its
+        /// read side (<see cref="IWinboxM2Channel.SupportsReaderLoop"/>) would keep the lockstep path and its
+        /// stale-frame drain instead.</para>
         /// </remarks>
         private void StartMultiplexer(IWinboxM2Channel session)
         {
@@ -290,9 +290,9 @@ namespace tik4net.WinboxNative
         /// <summary>
         /// Acquires the command gate for one M2 operation. On a multiplexed connection this is a no-op:
         /// the reader loop correlates replies by request id, so concurrent operations are safe and
-        /// serializing them would give back exactly the throughput multiplexing was added to gain. On the
-        /// MAC transports — which keep the lockstep channel path — it is still the real semaphore, because
-        /// there a reader that takes "the next frame" would otherwise pick up someone else's reply.
+        /// serializing them would give back exactly the throughput multiplexing was added to gain. It stays
+        /// the real semaphore on any channel left on the lockstep path, where a reader that takes "the next
+        /// frame" would otherwise pick up someone else's reply.
         /// </summary>
         private CommandGate EnterCommand() => new CommandGate(_mux == null ? _cmdLock : null);
 
