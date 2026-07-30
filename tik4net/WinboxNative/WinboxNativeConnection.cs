@@ -192,21 +192,27 @@ namespace tik4net.WinboxNative
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
         {
-            var session = CreateChannel();
-            try
+            IWinboxM2Channel session = null;
+            // A refused handshake leaves the channel unusable, so the retry builds a fresh one rather
+            // than reopening this one — see WinboxLoginRetry for why a WinBox login is retried at all.
+            Winbox.WinboxLoginRetry.Run(() =>
             {
-                session.Open(host, port, user, password, ConnectTimeout, ReceiveTimeout);
-            }
-            catch (TikConnectionLoginException)
-            {
-                session.Dispose();
-                throw;
-            }
-            catch (Exception ex)
-            {
-                session.Dispose();
-                throw new TikConnectionLoginException(ex);
-            }
+                session = CreateChannel();
+                try
+                {
+                    session.Open(host, port, user, password, ConnectTimeout, ReceiveTimeout);
+                }
+                catch (TikConnectionLoginException)
+                {
+                    session.Dispose();
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    session.Dispose();
+                    throw new TikConnectionLoginException(ex);
+                }
+            });
             InitAfterAuth(session, host);
         }
 

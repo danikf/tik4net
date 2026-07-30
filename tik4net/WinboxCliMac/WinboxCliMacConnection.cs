@@ -52,8 +52,15 @@ namespace tik4net.WinboxCliMac
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
         {
-            var (login, send, sendRaw, sendRawSettle, close) = BuildTransport(host, port, user, password);
-            OpenWith(login, send, sendRaw, close);
+            // BuildTransport is inside the retry, not outside it: a refused handshake leaves the client
+            // and its channel unusable, so a retry needs new ones (see Winbox.WinboxLoginRetry).
+            Func<byte[], int, CancellationToken, Task<string>> sendRawSettle = null;
+            tik4net.Winbox.WinboxLoginRetry.Run(() =>
+            {
+                var (login, send, sendRaw, settle, close) = BuildTransport(host, port, user, password);
+                OpenWith(login, send, sendRaw, close);
+                sendRawSettle = settle;
+            });
             RegisterCompletionDriver(sendRawSettle);
         }
 
@@ -64,8 +71,13 @@ namespace tik4net.WinboxCliMac
         /// <inheritdoc/>
         public override async Task OpenAsync(string host, int port, string user, string password)
         {
-            var (login, send, sendRaw, sendRawSettle, close) = BuildTransport(host, port, user, password);
-            await OpenWithAsync(login, send, sendRaw, close).ConfigureAwait(false);
+            Func<byte[], int, CancellationToken, Task<string>> sendRawSettle = null;
+            await tik4net.Winbox.WinboxLoginRetry.RunAsync(async () =>
+            {
+                var (login, send, sendRaw, settle, close) = BuildTransport(host, port, user, password);
+                await OpenWithAsync(login, send, sendRaw, close).ConfigureAwait(false);
+                sendRawSettle = settle;
+            }).ConfigureAwait(false);
             RegisterCompletionDriver(sendRawSettle);
         }
 

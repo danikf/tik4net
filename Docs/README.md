@@ -19,7 +19,7 @@ here either; they are the author's local working notes.
 | [`findings-mactelnet.md`](findings-mactelnet.md) | MAC-Telnet session behaviour |
 | [`mactelnet-protocol.md`](mactelnet-protocol.md) | MAC-Telnet wire protocol: framing, the counter/ACK rule, control packets |
 | [`findings-mepty-byte-ack.md`](findings-mepty-byte-ack.md) | WinBox `mepty` counter is a cumulative **byte** ACK, not a message counter — a wrong value caps a session at ~8 KB |
-| [`findings-winbox.md`](findings-winbox.md) | WinBox transport/session layer: EC-SRP5 login, stream cipher, M2 framing, error codes |
+| [`findings-winbox.md`](findings-winbox.md) | WinBox transport/session layer: EC-SRP5 login, stream cipher, M2 framing, error codes — incl. §13, the router refusing ~1 % of *valid* logins |
 | [`findings-winbox-terminal.md`](findings-winbox-terminal.md) | WinBox CLI (terminal-over-M2) behaviour |
 
 ## WinBox native (structured M2)

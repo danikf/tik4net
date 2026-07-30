@@ -293,3 +293,76 @@ u MAC variant), **na M2 vrstvě neplatí** — rozlišuje se pod ní:
 Kandidátem na „reply-channel id" je z §12.2 `0xFF0003` (konstantní 2 napříč session) — ve webfig JS se
 ale nevyskytuje vůbec, takže jeho význam zůstává neurčený. Pro dispatch je to jedno: **je konstantní,
 takže by dva souběžné requesty stejně nerozlišil.** Korelace zůstává výhradně na `0xFF0006`.
+
+---
+
+## 13. Router odmítne správné přihlášení asi jednou ze sta (2026-07-30, P2.41)
+
+**Ověřeno živě na RouterOS 7.23.2.** Zhruba **0,5–1 % WinBox loginů** skončí tím, že router pošle
+tam, kde patří 32bajtový potvrzovací digest, **33 bajtů ASCII**:
+
+```
+69 6E 76 61 6C 69 64 20 75 73 65 72 20 6E 61 6D 65 20 6F 72 20 70 61 73 73 77 6F 72 64 20 28 36 29
+"invalid user name or password (6)"
+```
+
+Router si za tím stojí i ve vlastním logu (`system,error,critical login failure for user admin …
+via winbox`), takže **naše hláška o špatném hesle vymyšlená nebyla** — jen nikdo nevěděl proč.
+Přihlašovací údaje jsou přitom správné a o 50 ms později fungují.
+
+### 13.1 Není to v nás — důkaz přehráním téhož klíče
+
+Rozhodující experiment (`WinboxHandshakeLoopProbeTest.Probe_WinboxHandshake_SameKeyRetry`): po každém
+odmítnutí se handshake zopakuje s **týmž** klientským klíčem `privA`. Výsledek **9 z 9 přehrání přijato**
+— tedy tytéž bajty, které router právě odmítl, o chvíli později přijme. Jediné, co se mezi pokusy mění,
+je routerův vlastní efemérní klíč `xWB`. Vyloučeno tím bylo:
+
+| podezření | jak vyvráceno |
+|---|---|
+| chyba v naší EC-SRP5 aritmetice | 4000 round-tripů klient↔server offline, **0 divergencí** (`EcSrp5RoundTripTests`) |
+| vedoucí nula v `xWA` (1/256 ≈ pozorovaná četnost) | vynuceno záměrně: **4 z 5 uspělo**; náhoda v prvním vzorku |
+| rate-limit / frekvence pokusů | 2/40 při 0 ms, 0/40 při 250 ms, 1/40 při 1000 ms — bez trendu |
+| desync rámců | rámec je korektní chunk s tagem `0x06`, délka 33 přesně odpovídá délce textu — nic nepřeteklo ani nechybí |
+| jiný transport / jiný auth | API: **0 z 400** odmítnutí — jev je specifický pro WinBox handshake |
+
+V logu je i jeden osamocený `via api` záznam, který se nepodařilo připsat žádnému našemu klientovi;
+400 čerstvých API loginů bylo čistých, takže se na něm nic nestaví.
+
+### 13.2 Co s tím — bounded retry, protože obsah obě příčiny nerozliší
+
+**Skutečně špatné heslo vypadá úplně stejně** (je to routerova normální cesta pro odmítnutí), takže
+podle obsahu odpovědi je odlišit nelze — jedině podle toho, že přechodné odmítnutí zmizí a skutečné ne.
+Proto `WinboxLoginRetry`: 3 pokusy, 100 ms mezi nimi, a retryuje se **výhradně**
+`WinboxLoginRefusedException`. Každý pokus staví **nový kanál** — odmítnutý handshake nechá ten starý
+nepoužitelný.
+
+Cena je vědomá: opravdu špatné heslo selže o ~200 ms později a zanechá v routeru 3 řádky `login failure`
+místo jednoho.
+
+**Ověřeno:** 600 produkčních otevření (WinboxCli / WinboxNative / WinboxNativeMac po 200), **0 selhání
+a 6 pohlcených odmítnutí**, všechna vyřešená prvním retry. Že retry opravdu koná práci (a ne že router
+zrovna mlčel) je vidět z trace note `wbx.login` — bez něj je zelený běh nerozlišitelný od zametení pod
+koberec.
+
+### 13.3 Vedlejší nálezy
+
+- **Handshake se do wire trace vůbec nepromítal.** `SendHandshake` zapisuje přímo do `Stream` a čte
+  přes `ReadExact`, takže míjel emit pointy v `SendChunked`/`RecvChunked` — právě ta výměna, která se
+  nejhůř ladí, byla jediná neviditelná. Doplněno (`wbxtcp.frame`, note `ecsrp5 …`).
+- **MAC vrstva traceovala jen odesílání.** `RecvUntil` neemitoval nic, takže z trace nešlo poznat
+  „odpověď nedorazila" od „nikdy jsme se neptali". Doplněno.
+- **Fallback na legacy MD5 se vybíral podle textu hlášky** (`ex.Message.Contains("EC-SRP5")`) a čekalo
+  se na challenge jen 3 s. Pomalý router tak spadl do MD5 auth, ta na moderním RouterOS selhala a
+  výsledkem bylo „wrong username or password". Nahrazeno typem `WinboxEcSrp5UnsupportedException`
+  a oknem `max(3 s, ConnectTimeout)` = 15 s.
+- **WinboxCliMac je tak pomalý, že 9 testů vyprší** — plný běh 1 h 22 m a 313/9, zatímco týž CLI engine
+  přes TCP (`winboxcli`) dá 322/322 za 8 minut. Login ~11 s proti ~1,4 s. **Nesouvisí to s P2.41**:
+  těch 9 testů dopadlo na buildu s P2.41 i na stashnutém baseline **identicky (6 fail / 3 pass /
+  3 m 14 s)**.
+
+  Past, na kterou nenaletět: nabízí se `RecvUntil` a jeho `Thread.Sleep(20)` místo čekání na socketu
+  (každý rámec, který dorazí těsně po kontrole `Available`, platí až 20 ms). **Vyzkoušeno** —
+  `_udp.Client.Poll(20 ms, SelectRead)` posunul podmnožinu z 6 fail / 3 m 14 s na 5 fail / 2 m 45 s,
+  tedy **~15 %, a pořád červeně**. Vráceno zpět; zbylých ~85 % je jinde, nejspíš v tom, že
+  `WinboxCliClient` pollje `DataAvailable` vlastními sleepy (viz §3 — to gatování je záměrné a rušit
+  se nesmí, jen předělat na event-driven). Rozepsáno jako P2.43.

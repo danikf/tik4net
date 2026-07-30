@@ -544,11 +544,27 @@ namespace tik4net.MacTelnet
                     if (parsed == null) continue;
                     var (type, counter, payload, srcMac) = parsed.Value;
                     if (srcMac.SequenceEqual(_localMac)) continue;  // skip own echo
+
+                    // Counterpart of the Send emit above. Without it the trace shows only our half of
+                    // the conversation, so an exchange that goes wrong (a missing reply, a packet type
+                    // arriving where another was expected) is indistinguishable from one that never
+                    // happened — which is precisely what made the WinBox handshake failures of P2.41
+                    // undiagnosable.
+                    if (Diagnostics.TikWireTrace.Enabled)
+                        Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Recv,
+                            payload, 0, payload?.Length ?? 0,
+                            "type=0x" + type.ToString("x2") + " counter=" + counter);
+
                     if (handler(type, payload, counter)) return;
                 }
                 else
                 {
                     RetransmitIfUnacked();   // self-rate-limited; safe at this 20 ms cadence
+                    // Sleeping rather than waiting on the socket costs up to 20 ms per received frame,
+                    // which is a real drag on terminal traffic — but replacing it with
+                    // Socket.Poll(20 ms, SelectRead) only recovered ~15% of a WinboxCliMac run, so the
+                    // bulk of the cost is elsewhere (WinboxCliClient sleep-polls DataAvailable too).
+                    // Measured while diagnosing P2.41; left alone deliberately, see P2.43.
                     Thread.Sleep(20);
                 }
             }

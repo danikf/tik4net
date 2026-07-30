@@ -42,13 +42,22 @@ namespace tik4net.integrationtests
                 EcSrp5Auth(user, pass);
                 _encrypted = true;
             }
-            catch (Exception ex) when (ex.Message.Contains("EC-SRP5"))
+            catch (tik4net.Winbox.WinboxEcSrp5UnsupportedException unsupported)
             {
                 // Old RouterOS — reconnect and try legacy MD5 auth
                 _transport.Dispose();
                 _reqId = 0;
                 Connect(host, port);
-                LegacyMd5Auth(user, pass);
+                try
+                {
+                    LegacyMd5Auth(user, pass);
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    throw new InvalidOperationException(
+                        $"{ex.Message} — but legacy MD5 was only tried because {unsupported.Reason}, " +
+                        "so the EC-SRP5 handshake is the likelier failure.", unsupported);
+                }
                 _encrypted = false;
             }
         }
@@ -496,7 +505,10 @@ namespace tik4net.integrationtests
                 .Concat(new byte[] { (byte)parityA }).ToArray();
             SendHandshake(payload);
 
-            _transport.SetReceiveTimeout(3000);
+            // Mirrors WinboxM2Session: silence is the only evidence of a router too old for EC-SRP5, so
+            // the window must not be short enough for a busy router to miss (P2.41).
+            const int probeTimeoutMs = 10000;
+            _transport.SetReceiveTimeout(probeTimeoutMs);
             byte respLen, respTag;
             try
             {
@@ -504,18 +516,19 @@ namespace tik4net.integrationtests
                 respLen = hdr[0];
                 respTag = hdr[1];
             }
-            catch (IOException)
+            catch (IOException ex)
             {
-                throw new InvalidOperationException("EC-SRP5 not supported by server");
+                throw new tik4net.Winbox.WinboxEcSrp5UnsupportedException(
+                    $"the router sent nothing within {probeTimeoutMs} ms of the client public key", ex);
             }
-            _transport.SetReceiveTimeout(10000);
+            finally { _transport.SetReceiveTimeout(10000); }
 
             if (respTag != 0x06)
-                throw new InvalidOperationException(
-                    $"EC-SRP5 not supported by server (tag=0x{respTag:x2})");
+                throw new tik4net.Winbox.WinboxEcSrp5UnsupportedException(
+                    $"the challenge frame carried tag 0x{respTag:x2}, not 0x06");
             if (respLen != 49)
                 throw new InvalidOperationException(
-                    $"Unexpected challenge size {respLen}, expected 49");
+                    $"WinBox EC-SRP5 handshake: challenge frame is {respLen} B, expected 49.");
 
             byte[] challenge = _transport.ReadExact(respLen);
             byte[] xWB   = challenge.Take(32).ToArray();
@@ -541,7 +554,13 @@ namespace tik4net.integrationtests
             byte[] clientCc = EcSrp5.Sha256(j.Concat(zMont).ToArray());
             SendHandshake(clientCc);
 
-            byte[] srvHdr   = _transport.ReadExact(2);
+            byte[] srvHdr = _transport.ReadExact(2);
+            if (srvHdr[1] != 0x06 || srvHdr[0] != 32)
+                throw new InvalidOperationException(
+                    $"WinBox EC-SRP5 handshake: expected a 32 B server confirmation tagged 0x06, got " +
+                    $"len={srvHdr[0]} tag=0x{srvHdr[1]:x2}. The handshake did not complete; this says " +
+                    "nothing about the credentials.");
+
             byte[] serverCc = _transport.ReadExact(srvHdr[0]);
             byte[] expectedCc = EcSrp5.Sha256(j.Concat(clientCc).Concat(zMont).ToArray());
             if (!serverCc.SequenceEqual(expectedCc))

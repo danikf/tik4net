@@ -102,9 +102,20 @@ namespace tik4net.Winbox
             byte[] clientCc = EcSrp5.Sha256(j.Concat(zMont).ToArray());
             SendHandshakeFrame(clientCc);
 
+            // Establish what actually arrived before reading anything into it. Folding "no frame" into
+            // the digest comparison made a lost or late UDP reply indistinguishable from a rejected
+            // password — and over the MAC layer a lost reply is by far the likelier of the two (P2.41).
             byte[] serverCc = RecvHandshakeFrame(timeoutMs);
+            if (serverCc == null)
+                throw new InvalidOperationException(
+                    $"MAC-WinBox: no server confirmation within {timeoutMs} ms. The handshake did not " +
+                    "complete; this says nothing about the credentials.");
+            // Same reply shapes as TCP — the MAC layer carries the identical WinBox handshake, refusal
+            // text included.
+            WinboxHandshakeReply.ThrowIfRouterMessage(serverCc, 32);
+
             byte[] expectedCc = EcSrp5.Sha256(j.Concat(clientCc).Concat(zMont).ToArray());
-            if (serverCc == null || !serverCc.SequenceEqual(expectedCc))
+            if (!serverCc.SequenceEqual(expectedCc))
                 throw new UnauthorizedAccessException("Wrong username or password");
 
             WinboxStreamCrypto.DeriveStreamKeys(false, secret,
