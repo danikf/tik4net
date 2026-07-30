@@ -109,6 +109,15 @@ namespace tik4net.Winbox
                     apiToJg: Ci(("mac", "mac-address")),
                     jgToApi: Ci(("mac-address", "mac"))),
 
+                // /system/identity: the singleton's one field is labelled 'Identity' in WinBox (.jg
+                // {title:'Identity',type:'item',path:[24,1],c:[{name:'Identity',id:'sc'},…]}), while the API
+                // calls it 'name'. Without the alias a read returned {"identity":…} — so LoadSingle
+                // <SystemIdentity> threw "Missing field 'name'" — and a write resolved 'name' through the
+                // FallbackSeed to key 0x10006, a key this handler does not have.
+                ["/system/identity"] = new FieldAliasSet(
+                    apiToJg: Ci(("name", "identity")),
+                    jgToApi: Ci(("identity", "name"))),
+
                 // /interface: the .jg 'type' field is the numeric type id (key 0x10001), but RouterOS API exposes
                 // 'type' as the type *name* string — which the record also carries at key 0x1001E (e.g. "ether",
                 // "loopback"). Map the string key to 'type' and rename the numeric one so they don't collide.
@@ -504,7 +513,15 @@ namespace tik4net.Winbox
         // this check, so it never reaches here.
         private static bool IsUnsupportedListType(string wireType, string uiType)
             => (wireType != null && wireType.EndsWith("[]", StringComparison.Ordinal))
-               || (uiType != null && uiType.StartsWith("multi", StringComparison.OrdinalIgnoreCase));
+               || (uiType != null && uiType.StartsWith("multi", StringComparison.OrdinalIgnoreCase)
+                   && !IsScalarDespiteMultiPrefix(uiType));
+
+        // The one 'multi…' UI type that is NOT a list: webfig declares
+        // `types.multilinestring = inherit(types.string)` and overrides only its VIEW (a text area instead of
+        // a one-line input) — every other multi* inherits `types.multi`. Reading the prefix as "list" refused
+        // /system/note's 'note' field as unencodable when it is a plain string.
+        private static bool IsScalarDespiteMultiPrefix(string uiType)
+            => string.Equals(uiType, "multilinestring", StringComparison.OrdinalIgnoreCase);
 
         // The IPv4 sub-key inside a webfig 'addr' compound object (master.js property 'ufeff20' = u32@0xFEFF20).
         private const int AddrV4SubKey = 0xFEFF20;

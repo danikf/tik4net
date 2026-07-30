@@ -347,7 +347,7 @@ namespace tik4net.Cli
                     continue;
 
                 string name = p.Name;
-                string val = p.Value ?? string.Empty;
+                string val = p.Value;   // null and "" mean different things here — see BuildCondition
 
                 if (IsSpecialParam(name))
                     continue;
@@ -364,7 +364,13 @@ namespace tik4net.Cli
 
         private static string BuildCondition(string name, string val)
         {
-            if (string.IsNullOrEmpty(val))
+            // A NULL value is the binary API's '?name' — "the property is set" — which the CLI spells as the
+            // bare field name. An EMPTY value is '?name=' — "the property equals the empty string" — and is
+            // spelled 'name=""'. Emitting the bare name for both INVERTED the empty case: measured on
+            // 7.23.2 against two /system/script rows (one with a comment, one without), 'where comment'
+            // returns the row that HAS a comment, while '?comment=' over the binary API and
+            // 'where comment=""' over the CLI both return none.
+            if (val == null)
                 return name;
 
             // Negation: ?name=!value → name!=value
@@ -401,8 +407,11 @@ namespace tik4net.Cli
         /// </summary>
         internal static string QuoteForWhere(string value)
         {
+            // Empty → the explicit empty literal, for the same reason as in QuoteIfNeeded: a bare
+            // 'where comment=' does not parse. (A null never reaches here — BuildCondition emits the bare
+            // field name for it, which is the CLI's "property is set" test.)
             if (string.IsNullOrEmpty(value))
-                return value;
+                return value == null ? null : "\"\"";
 
             bool safe = true;
             foreach (char c in value)
@@ -589,8 +598,14 @@ namespace tik4net.Cli
         /// </summary>
         internal static string QuoteIfNeeded(string value)
         {
+            // An EMPTY value must be written as the two-character empty literal — a bare 'name=' is a
+            // RouterOS syntax error the moment anything follows it on the line ("/system note set note=
+            // show-at-login=yes" → "expected end of command (line 1 column 37)"), and even where it is
+            // accepted (last argument on the line) the intent is clearer spelled out. This is how clearing a
+            // field over a CLI transport failed: nothing in the suite ever saved an empty string, so the
+            // trap only surfaced when a round-trip test restored a field that started out empty.
             if (string.IsNullOrEmpty(value))
-                return value;
+                return value == null ? null : "\"\"";
 
             bool needsQuote = false;
             foreach (char c in value)

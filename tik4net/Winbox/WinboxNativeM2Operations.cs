@@ -304,6 +304,28 @@ namespace tik4net.Winbox
         }
 
         /// <summary>
+        /// Sends <c>set-singleton</c> (<see cref="WinboxM2Protocol.Command.SetSingleton"/> + changed fields)
+        /// to a singleton (<c>type:'item'</c>) handler such as <c>/system/identity</c> or <c>/ip/dns</c>.
+        /// A singleton holds no record list, so there is normally no <c>.id</c> to address —
+        /// <paramref name="id"/> is sent only when non-negative, matching webfig's
+        /// <c>ObjectHolder.setObject</c> (<c>uff0007 = setcmd || 0xfe000e</c>, and <c>ufe0001</c> forwarded
+        /// only <c>if ("ufe0001" in obj)</c>, which is how the hidden 'Change Password' holder targets a user).
+        /// </summary>
+        internal void SetSingleton(int[] handler, IList<byte[]> fields, int id = -1)
+        {
+            var head = new List<byte[]>
+            {
+                M2Message.SysToArr(handler), M2Message.SysFrom(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
+                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.SetSingleton),
+            };
+            if (id >= 0) head.Add(M2Message.SessionIdField(id));
+            if (fields != null) head.AddRange(fields);
+            byte[] resp = SendReceive(M2Message.BuildM2(head.ToArray()));
+            ThrowOnStatus(resp, "set-singleton", handler);
+        }
+
+        /// <summary>
         /// Sends <c>add</c> (<see cref="WinboxM2Protocol.Command.Add"/> + fields, no .id) and returns the
         /// new record's M2 id (reply field <see cref="WinboxM2Protocol.RecordKey.Id"/>), or <c>-1</c> if
         /// the reply carries no id.

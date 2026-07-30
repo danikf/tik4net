@@ -183,8 +183,13 @@ namespace tik4net.Rest
             }
             else
             {
-                // Singleton — PATCH /rest/path (no id in path)
-                return new RestRequest(new HttpMethod("PATCH"), restBase, SerialiseBody(body));
+                // Singleton (/system/identity, /ip/dns, /snmp, …) — POST /rest/path/set, the router's own
+                // spelling and identical to the binary API's. It is NOT PATCH /rest/path: RouterOS answers
+                // that with 400 "missing or invalid resource identifier", because PATCH addresses a record
+                // and a singleton has no .id to put in the URL (measured on 7.23.2; the POST form clears the
+                // same 400 on /system/identity, /ip/dns and /snmp alike). No test covered a singleton WRITE
+                // over REST, which is why the wrong verb survived (P2.44).
+                return new RestRequest(HttpMethod.Post, restBase + "/set", SerialiseBody(body));
             }
         }
 

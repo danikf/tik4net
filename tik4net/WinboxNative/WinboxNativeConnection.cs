@@ -630,29 +630,26 @@ namespace tik4net.WinboxNative
                 }
                 case "set":
                 {
-                    int id = ResolveRecordId(handler, resolver, descriptor, required: true);
-                    var fields = EncodeNameValueFields(handler, descriptor, resolver, skipId: true);
-                    _ops.Set(handler, id, fields);
+                    WriteFields(handler, resolver, descriptor,
+                        () => EncodeNameValueFields(handler, descriptor, resolver, skipId: true));
                     break;
                 }
                 case "enable":
                 case "disable":
                 {
-                    int id = ResolveRecordId(handler, resolver, descriptor, required: true);
-                    var f = resolver.EncodeField("disabled", verb == "disable" ? "true" : "false");
-                    _ops.Set(handler, id, f);
+                    WriteFields(handler, resolver, descriptor,
+                        () => resolver.EncodeField("disabled", verb == "disable" ? "true" : "false"));
                     break;
                 }
                 case "unset":
                 {
-                    int id = ResolveRecordId(handler, resolver, descriptor, required: true);
                     // unset names its target in a PSEUDO-parameter — '=value-name=<field>' — exactly as the
                     // binary API spells it; the field itself carries no value. Encoding the parameter list
                     // verbatim therefore asked the resolver for an M2 key for a field called 'value-name'
                     // and threw WinboxFieldResolutionException. Translate instead: unset = set the named
                     // field back to empty/default.
-                    var fields = EncodeUnsetFields(handler, descriptor, resolver);
-                    _ops.Set(handler, id, fields);
+                    WriteFields(handler, resolver, descriptor,
+                        () => EncodeUnsetFields(handler, descriptor, resolver));
                     break;
                 }
                 case "comment":
@@ -660,9 +657,8 @@ namespace tik4net.WinboxNative
                     // A real RouterOS menu command, and on the M2 layer simply a write of the comment
                     // field — WinBox has no separate comment operation. Without this it reached
                     // DispatchActionVerb and threw "not an action verb".
-                    int id = ResolveRecordId(handler, resolver, descriptor, required: true);
-                    var fields = EncodeNameValueFields(handler, descriptor, resolver, skipId: true);
-                    _ops.Set(handler, id, fields);
+                    WriteFields(handler, resolver, descriptor,
+                        () => EncodeNameValueFields(handler, descriptor, resolver, skipId: true));
                     break;
                 }
                 case "remove":
@@ -1019,6 +1015,40 @@ namespace tik4net.WinboxNative
                         + "=<field>' parameter naming the field to clear."));
 
             return fields;
+        }
+
+        // Write changed fields back to the router. An ordinary table addresses one record by .id (set); a
+        // SINGLETON (.jg type:'item') window — /system/identity, /ip/dns, /ip/settings, /snmp, … — holds a
+        // single object and no record list, so it has no .id to address and webfig writes it with
+        // set-singleton instead (ObjectHolder.setObject). Without this split every singleton write over the
+        // native transport failed with "no such item: could not resolve record .id ''", i.e. no
+        // IsSingleton entity was saveable at all — the suite only ever read them, so it went unnoticed
+        // (P2.44). <paramref name="encodeFields"/> is deferred so the .id still resolves before the fields
+        // are encoded, keeping "no such item" the error a caller sees when both are wrong.
+        private void WriteFields(int[] handler, WinboxFieldResolver resolver, TikCommandDescriptor descriptor,
+            Func<IList<byte[]>> encodeFields)
+        {
+            if (_catalog.IsSingletonHandler(handler))
+            {
+                _ops.SetSingleton(handler, encodeFields(), SingletonIdOf(descriptor));
+                return;
+            }
+            int id = ResolveRecordId(handler, resolver, descriptor, required: true);
+            _ops.Set(handler, id, encodeFields());
+        }
+
+        // The optional .id of a singleton write. Only the literal "*HEX" handle is honored — the hidden
+        // holders that carry one address a record of another table (webfig's 'Change Password' holder targets
+        // a user), and resolving a friendly name would mean a getall, which a singleton handler has no record
+        // list to answer. Returns -1 (send no .id) otherwise, which is the normal case.
+        private static int SingletonIdOf(TikCommandDescriptor descriptor)
+        {
+            string idParam = FindParam(descriptor, TikSpecialProperties.Id);
+            if (!string.IsNullOrEmpty(idParam) && idParam.StartsWith("*")
+                && int.TryParse(idParam.Substring(1), System.Globalization.NumberStyles.HexNumber,
+                    System.Globalization.CultureInfo.InvariantCulture, out int hexId))
+                return hexId;
+            return -1;
         }
 
         // Resolve the M2 numeric record id from the command's .id parameter. The .id may be the RouterOS

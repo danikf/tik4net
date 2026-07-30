@@ -89,9 +89,14 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
-        public void QuoteIfNeeded_EmptyAndNull_PassThrough()
+        public void QuoteIfNeeded_Empty_BecomesTheExplicitEmptyLiteral()
         {
-            Assert.AreEqual("", CliCommandBuilder.QuoteIfNeeded(""));
+            // Was passed through as "", which put a bare 'name=' on the line. RouterOS rejects that as soon
+            // as anything follows it:
+            //   /system note set note= show-at-login=yes  ->  expected end of command (line 1 column 37)
+            // (measured on 7.23.2). So clearing a field over a CLI transport always failed mid-line, and
+            // only accidentally worked when the empty value happened to be the last argument.
+            Assert.AreEqual("\"\"", CliCommandBuilder.QuoteIfNeeded(""));
             Assert.IsNull(CliCommandBuilder.QuoteIfNeeded(null));
         }
 
@@ -126,5 +131,43 @@ namespace tik4net.unittests.Cli
             // context, so where address=192.168.1.1/24 matches nothing.
             Assert.AreEqual("\"192.168.1.1/24\"", CliCommandBuilder.QuoteForWhere("192.168.1.1/24"));
         }
+
+        [TestMethod]
+        public void QuoteForWhere_Empty_BecomesTheExplicitEmptyLiteral()
+        {
+            Assert.AreEqual("\"\"", CliCommandBuilder.QuoteForWhere(""));
+            Assert.IsNull(CliCommandBuilder.QuoteForWhere(null));
+        }
+
+        // ── BuildWhereClause: '?name' (is set) vs '?name=' (equals empty) ───────
+
+        [TestMethod]
+        public void WhereClause_NullFilterValue_IsTheBareFieldName()
+        {
+            // The binary API's '?comment' — "the property is set". The CLI spells that as the bare name.
+            Assert.AreEqual("comment", BuildWhere("comment", null));
+        }
+
+        [TestMethod]
+        public void WhereClause_EmptyFilterValue_ComparesAgainstTheEmptyString()
+        {
+            // The binary API's '?comment=' — "the property equals the empty string". Both spellings used to
+            // collapse to the bare name, which is the OPPOSITE query: measured on 7.23.2 against two
+            // /system/script rows (one commented, one not), 'where comment' returns the COMMENTED row, while
+            // '?comment=' over the API and 'where comment=""' over the CLI both return nothing.
+            Assert.AreEqual("comment=\"\"", BuildWhere("comment", ""));
+        }
+
+        [TestMethod]
+        public void WhereClause_NegatedEmptyFilterValue_IsStillQuoted()
+        {
+            Assert.AreEqual("comment!=\"\"", BuildWhere("comment", "!"));
+        }
+
+        private static string BuildWhere(string name, string value)
+            => CliCommandBuilder.BuildWhereClause(new ITikCommandParameter[]
+            {
+                new tik4net.Connection.TikCommandParameter(name, value, TikCommandParameterFormat.Filter)
+            });
     }
 }

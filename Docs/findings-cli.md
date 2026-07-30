@@ -333,3 +333,40 @@ Sdílený `WinboxCliClient` → platí i pro `winboxclimac`.
 ### Dopad na už zapracované
 Odblokovává `TestBase.SaveTracked` orphan-sweep na tomto transportu (dřív četl přes totéž rozbité
 spojení). Po fixu čtení funguje → sweep dohledá i id-less orphany.
+
+## 13. ✅ Prázdná hodnota není prázdný token (P2.44, 2026-07-30)
+
+Živě ověřeno na RouterOS 7.23.2 přes telnet. Týká se **všech CLI transportů** (sdílený
+`CliCommandBuilder`).
+
+### 13.1 `name=` uprostřed řádku je syntaktická chyba
+
+```
+/system note set note= show-at-login=yes
+  → expected end of command (line 1 column 37)     ← sloupec 37 = začátek `show-at-login`
+/system script add name=X source=":put 1" comment=
+  → *1                                             ← na KONCI řádku projde
+```
+
+Bare `name=` tedy nepředává prázdný řetězec — parser jím nic nespotřebuje a zakopne o následující
+token. Správný zápis je dvouznakový literál `name=""`, který funguje v obou pozicích.
+
+Proč to tak dlouho nikoho netrklo: suita nikdy neukládala prázdný řetězec. Vyplavalo to až na
+round-trip testu `/system/note`, který na konci obnovuje původní hodnotu — a ta byla prázdná. Pád
+navíc nechal na routeru reziduum (obnova neproběhla), takže **další běhy testu prošly** — obnovovaly
+už neprázdný text. Přesně ten druh chyby, který se sám zahladí.
+
+### 13.2 `where name` a `where name=""` jsou opačné dotazy
+
+Dvě `/system/script` položky, jedna s komentářem `hello`, druhá bez:
+
+```
+:put [/system script print as-value where comment]      → řádek S komentářem
+:put [/system script print as-value where comment=""]   → nic
+API  ?comment=                                          → nic
+```
+
+`where <field>` je test „je nastaveno" (truthiness), kdežto API `?field=` znamená „rovná se prázdné".
+Builder do té doby posílal bare `name` pro obojí, takže filtr na prázdnou hodnotu vracel přesně
+doplňkovou množinu. Rozlišuje se podle toho, zda je hodnota parametru `null` (→ bare `name`, API
+`?name`) nebo prázdný řetězec (→ `name=""`, API `?name=`).

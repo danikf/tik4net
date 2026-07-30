@@ -889,8 +889,17 @@ namespace tik4net.Winbox
         // values/c). Returns the first dynamic path found, or null for a static/non-reference enum.
         private static int[] ExtractRefHandler(Dictionary<string, object> node)
         {
-            if (!node.TryGetValue("values", out var vv)) return null;
-            return FindDynamicPath(vv, 0);
+            if (node.TryGetValue("values", out var vv))
+                return FindDynamicPath(vv, 0);
+
+            // A LIST field declares its element type as an unnamed child instead of carrying 'values' itself
+            // — the log's Topics is {name:'Topics',type:'multinumber',id:'U4',c:[{type:'enm',values:{type:
+            // 'dynamic',path:[3,3]}}]}. Reading only 'values' left its RefHandler null, so a log row's topics
+            // decoded as the raw handle "[9,3]" instead of "script,error". Only reached for a field leaf (the
+            // caller requires an 'id'), so this cannot pick up a path from an unrelated menu child.
+            if (node.TryGetValue("c", out var cv))
+                return FindDynamicPath(cv, 0);
+            return null;
         }
 
         private static int[] FindDynamicPath(object node, int depth)

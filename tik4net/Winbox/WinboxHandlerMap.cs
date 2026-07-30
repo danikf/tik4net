@@ -93,6 +93,10 @@ namespace tik4net.Winbox
             ["/system/identity"]             = "/system/identity/identity",          // singleton
             ["/system/resource"]             = "/system/resources/resources",        // singleton
             ["/system/health"]               = "/system/health/health",
+            // The login-banner singleton: menu 'System ▸ Note', but the window is titled 'System Note'
+            // ([24,33]), so the derived leaf doubles the menu word and the plain /system/note/note guess
+            // misses it.
+            ["/system/note"]                 = "/system/note/system-note",       // singleton
             ["/system/script"]               = "/system/scripts/script",
             ["/system/scheduler"]            = "/system/scheduler/schedule",
 

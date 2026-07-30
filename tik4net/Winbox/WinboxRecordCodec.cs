@@ -129,6 +129,15 @@ namespace tik4net.Winbox
                         return negated ? "!" + joined : joined;
                     }
                 }
+                // A LIST of dynamic-enum references (webfig 'multinumber' whose element type is an enm): the
+                // value is a u32[] of referenced ids, which the API renders as their comma-joined names —
+                // e.g. the log's topics u32[9,3] → "script,error". Falls back to the raw text when the
+                // referenced table cannot be read, exactly as the scalar case does.
+                if (jf.RefHandler != null && IsMultiNumberList(jf.UiType))
+                {
+                    string joined = ResolveRefNameList(jf.RefHandler, value);
+                    if (joined != null) return joined;
+                }
                 // dynamic enum reference: render the referenced object's name (e.g. interface id → "ether1").
                 if (jf.RefHandler != null)
                 {
@@ -147,6 +156,28 @@ namespace tik4net.Winbox
                 }
             }
             return FormatValue(wireType, value);
+        }
+
+        // webfig list types whose ELEMENT is a reference (types.multinumber and everything inheriting it).
+        // multinumberrange/numberrangelist are ranges of literal numbers, not references, and are formatted
+        // before this point.
+        private static bool IsMultiNumberList(string uiType)
+            => string.Equals(uiType, "multinumber", StringComparison.OrdinalIgnoreCase);
+
+        // Resolve a u32[] of referenced ids (rendered by M2Message as "[a,b,…]") to comma-joined names.
+        // Returns null when nothing resolved, so the caller can fall back to the raw text rather than
+        // hand back an empty string that reads like "no topics".
+        private string ResolveRefNameList(int[] refHandler, object value)
+        {
+            var names = new List<string>();
+            foreach (System.Text.RegularExpressions.Match m in
+                     System.Text.RegularExpressions.Regex.Matches(value?.ToString() ?? "", @"-?\d+"))
+            {
+                string n = ResolveRefName(refHandler, m.Value);
+                if (n == null) return null;   // table unreadable / id unknown — keep the raw form
+                names.Add(n);
+            }
+            return names.Count > 0 ? string.Join(",", names) : null;
         }
 
         // Resolve a dynamic-enum reference value (the referenced record's numeric id) back to its name.

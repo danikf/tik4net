@@ -4,7 +4,12 @@ namespace tik4net.Objects.System
     /// Gets the info provided by
 	/// /system/identity
 	/// </summary>
-	[TikEntity("/system/identity")]
+	/// <remarks>
+	/// A singleton — the router holds exactly one identity and it has no <c>.id</c>, so
+	/// <c>connection.Save(identity)</c> issues <c>/system/identity/set name=…</c>. Read it with
+	/// <c>LoadSingle</c>.
+	/// </remarks>
+	[TikEntity("/system/identity", IsSingleton = true)]
 	public class SystemIdentity
 	{
 		/// <summary>

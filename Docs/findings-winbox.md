@@ -366,3 +366,69 @@ koberec.
   tedy **~15 %, a pořád červeně**. Vráceno zpět; zbylých ~85 % je jinde, nejspíš v tom, že
   `WinboxCliClient` pollje `DataAvailable` vlastními sleepy (viz §3 — to gatování je záměrné a rušit
   se nesmí, jen předělat na event-driven). Rozepsáno jako P2.43.
+
+## 14. Singletony se nezapisovaly vůbec (P2.44, 2026-07-30)
+
+`0xFE000E` (`setcmd(holder)`) je v `winbox-native-m2-protocol.md` zdokumentovaný od začátku, ale
+transport ho **nikdy nevolal**. Zápis šel jedinou cestou — `0xFE0003` (`set`) + `ufe0001` = `.id` —
+a singleton (`.jg` `type:'item'`) žádné `.id` nemá, takže `ResolveRecordId(required:true)` skončil na
+
+```
+no such item: could not resolve record .id '' on '/system/identity/set'
+```
+
+Platí to pro **každou** `IsSingleton` entitu (`/system/identity`, `/ip/dns`, `/ip/settings`, `/snmp`,
+`/system/note`, … ~35 tříd). Suita to neodhalila, protože singletony jenom **četla**.
+
+Tvar požadavku podle webfig `ObjectHolder.setObject`:
+
+```js
+req.Uff0001 = this.attrs.path;
+req.uff0007 = this.attrs.setcmd || 0xfe000e;
+if ("ufe0001" in obj) req.ufe0001 = obj.ufe0001;   // .id jen když ho objekt sám nese
+```
+
+`.id` se tedy posílá **volitelně** — jediný známý případ je skryté okno „Change Password“
+(`setcmd:3`), které míří na záznam uživatele. `WinboxNativeConnection.WriteFields` proto pošle `.id`
+jen v doslovném tvaru `*HEX`; dohledávání podle jména by znamenalo `getall`, na který singleton
+handler nemá co odpovědět.
+
+### 14.1 `/system/identity` navíc vrací pole pod GUI labelem
+
+Handler `[24,1]`, `.jg`:
+
+```js
+{title:'Identity',type:'item',path:[ 24,1 ],autostart:1,
+ c:[{name:'Identity',type:'string',id:'sc'},{name:'Version',type:'string',id:'sd',nonpublic:1}]}
+```
+
+Čtení tedy vracelo `{"version":"7.23.2","identity":"CHR"}`, kdežto API vrací `{"name":"CHR"}` —
+`LoadSingle<SystemIdentity>()` padal na `Missing field 'name'`. Řešeno shipped field aliasem
+`name ↔ identity` (stabilní text, klíč pořád z `.jg`).
+
+Pole `version` se **nezahazuje**: `nonpublic:1` neznamená „není to API pole“ — nese ho i řada polí,
+která API běžně vrací (`MAC Address`, `Interface`, `L2 MTU`). Native záznamy jsou obecně nadmnožinou
+API polí a mapper pole navíc ignoruje.
+
+### 14.2 `multilinestring` je řetězec, ne seznam
+
+`EncodeField` odmítal jako neenkódovatelný seznam všechno, čeho `.jg` UI typ začíná na `multi…`.
+Webfig ale říká:
+
+```js
+types.multilinestring = inherit(types.string);   // liší se jen VIEW (textarea místo inputu)
+```
+
+Ze všech `multi*` typů je to jediný skalár — ostatní (`multinumber`, `multinumberrange`,
+`multiipaddr`, `multistring`, …) dědí `types.multi`. Kvůli prefixu se nedal zapsat `note`
+u `/system/note`.
+
+### 14.3 Element-typ seznamu nese `c`, ne `values`
+
+`ExtractRefHandler` četl jenom `node["values"]`, takže u seznamu referencí zůstal `RefHandler` prázdný:
+
+```js
+{name:'Topics',type:'multinumber',id:'U4',c:[{type:'enm',values:{type:'dynamic',path:[ 3,3 ]}}]}
+```
+
+`topics` u `/log` se proto dekódovaly jako surové `"[9,3]"` místo `"script,error"`.

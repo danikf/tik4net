@@ -505,6 +505,13 @@ namespace tik4net.integrationtests
         /// Ensures the given API command path exists on the router.
         /// If not, marks the test as inconclusive with a message suggesting the required package may not be installed.
         /// </summary>
+        /// <remarks>
+        /// The probe is an <b>unfiltered</b> print, so do not call it on a large table. On <c>/log</c> it
+        /// pulls the router's whole memory log (~1000 rows, 139 358 characters measured on 7.23.2) and blows
+        /// the 30 s read budget of a MAC transport outright — the same trap that made
+        /// <c>RunScript_Issue53_WillNotFail</c> look like a transport defect (P2.43). For a path every
+        /// RouterOS has, skip the check.
+        /// </remarks>
         protected void EnsureCommandAvailable(string commandPath)
         {
             try
