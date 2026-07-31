@@ -47,11 +47,15 @@ namespace tik4net.integrationtests
 
         /// <summary>
         /// Writes the marker line over a side API connection rather than over the transport under test.
-        /// This test is about how a log row DECODES, and `/log/error` is not dispatchable on every
-        /// transport today — WinboxNative rejects the verb outright and REST sends it as a `GET`, even
-        /// though the router accepts `POST /rest/log/error`. Filed separately; writing over the API keeps
-        /// this test measuring the one thing it is named for.
         /// </summary>
+        /// <remarks>
+        /// This stays even though P2.48 fixed <c>/log/&lt;level&gt;</c> dispatch, and the reason has changed:
+        /// REST now posts it correctly, but the native WinBox transports still cannot write a log line at all
+        /// — the router's own <c>.jg</c> catalog declares no log-writing action on any handler. Writing over
+        /// the transport under test would therefore make this test SKIP on WinBox native, which is the one
+        /// transport it exists for (the raw-handle-list decode bug in its summary was a native bug). The
+        /// write path itself is covered per transport by <see cref="LogWriteTest"/>.
+        /// </remarks>
         private static void WriteMarkerOverApi(string marker)
         {
             using (var api = ConnectionFactory.OpenConnection(TikConnectionType.Api,

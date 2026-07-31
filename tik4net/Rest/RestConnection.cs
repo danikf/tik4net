@@ -165,10 +165,12 @@ namespace tik4net.Rest
 
         // ── HTTP execution ─────────────────────────────────────────────────────
 
+        // Only reached from RunNonQuery, so the builder is told so: an unrecognised trailing segment here is
+        // an action verb, not a menu name (P2.48 — /log/error and friends).
         private void ExecuteRequest(string commandText, IList<ITikCommandParameter> parameters)
         {
             EnsureOpened();
-            var req = RestRequestBuilder.Build(commandText, parameters);
+            var req = RestRequestBuilder.Build(commandText, parameters, RestRequestBuilder.RestCallKind.NonQuery);
             FireWriteRow(req.Method.Method + " " + req.RelativePath);
 
             var httpResp = SendHttpSync(BuildHttpRequest(req));

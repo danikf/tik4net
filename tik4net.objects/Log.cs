@@ -74,6 +74,22 @@ namespace tik4net.Objects
     /// <summary>
     /// Connection extension class for <see cref="Log"/>
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Each level is its own RouterOS command (<c>/log/debug</c>, <c>/log/info</c>, <c>/log/warning</c>,
+    /// <c>/log/error</c>), and all of them work over the binary API, REST and every CLI-family transport.
+    /// </para>
+    /// <para>
+    /// The two <b>native WinBox</b> transports (<see cref="TikConnectionType.WinboxNative"/> and
+    /// <see cref="TikConnectionType.WinboxNativeMac"/>) throw <see cref="T:System.NotSupportedException"/>:
+    /// that protocol can only invoke actions the router's own WinBox catalog declares, and it declares no
+    /// log-writing action anywhere — WinBox itself cannot write a log line. Use any other transport.
+    /// </para>
+    /// <para>
+    /// <c>/log/debug</c> is accepted by the router but the line is only recorded when the logging
+    /// configuration enables the debug topics; on a default configuration it is discarded silently.
+    /// </para>
+    /// </remarks>
     public static class LogConnectionExtensions
     {
         private static void WriteToLog(ITikConnection connection, string message, string logLevelCommandSufix)

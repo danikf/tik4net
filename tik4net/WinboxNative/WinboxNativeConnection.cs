@@ -508,9 +508,23 @@ namespace tik4net.WinboxNative
                 foreach (var kv in actions)
                     if (ActionMatchesVerb(kv.Key, verb)) { cmd = kv.Value; break; }
             if (cmd < 0)
+            {
+                // Say WHAT was looked for and WHAT the handler actually offers. The old message named only
+                // the verb, so every reader had to re-derive whether the verb was missing from the catalog
+                // or merely spelled differently by its GUI label — the two need opposite fixes (a genuine
+                // protocol gap vs. an ActionMatchesVerb/override problem), and only the catalog can tell
+                // them apart. See P2.48, where '/log/error' turned out to be the first kind: the router's
+                // own .jg declares no log-writing action on ANY handler, so WinBox itself cannot write a
+                // log line.
+                string offered = (actions == null || actions.Count == 0)
+                    ? "it declares no actions at all"
+                    : "it declares: " + string.Join(", ", actions.Keys.OrderBy(k => k, StringComparer.Ordinal));
                 throw new NotSupportedException(
-                    $"WinBox native: command verb '{verb}' on '{apiPath}' is not supported. " +
-                    "Use a WinboxCli or Api connection.");
+                    $"WinBox native: '{apiPath}' has no action matching the command verb '{verb}' — {offered}. " +
+                    "The WinBox protocol invokes actions declared by the router's own .jg catalog, so a verb " +
+                    "absent from it cannot be sent over this transport at all. Use a WinboxCli, Api, Rest or " +
+                    "other CLI connection for this command.");
+            }
 
             int id = ResolveRecordId(handler, resolver, descriptor, required: false);
             try { _ops.InvokeAction(handler, cmd, id); }

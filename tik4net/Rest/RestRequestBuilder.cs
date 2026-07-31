@@ -13,6 +13,22 @@ namespace tik4net.Rest
     /// </summary>
     internal static class RestRequestBuilder
     {
+        /// <summary>
+        /// Which command method the caller invoked. The builder cannot tell a path from an action verb by
+        /// looking at the text alone — <c>/log/error</c> and <c>/ip/address</c> are the same shape — so the
+        /// caller has to say whether it expects rows back. Without it every unrecognised trailing segment
+        /// became part of the path with an implicit <c>print</c>, which is how <c>/log/error</c> went out as
+        /// <c>GET /rest/log/error</c> and came back <c>400 no such command</c> (P2.48).
+        /// </summary>
+        internal enum RestCallKind
+        {
+            /// <summary>Rows are expected (<c>print</c>/<c>ExecuteList</c>/<c>ExecuteScalar</c>/add).</summary>
+            Read,
+
+            /// <summary>No rows are expected (<c>ExecuteNonQuery</c>) — an unknown trailing segment is an action.</summary>
+            NonQuery,
+        }
+
         // Verbs recognised as the trailing segment of a MikroTik API command path.
         private static readonly HashSet<string> _writeVerbs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -24,8 +40,10 @@ namespace tik4net.Rest
             "monitor", "start", "stop", "install", "upgrade",
             "take", "release", "unroll",   // /safe-mode/* actions
             "generate-key", "export-pub-key", "import",   // /ip/ipsec/key/rsa/* actions
-            "wol",   // /tool/wol — an action, not a table; without this it falls through to implicit
-                     // 'print' and POSTs /tool/wol/print, which RouterOS rejects with "no such command"
+            "wol",   // /tool/wol — an action, not a table, and one that is legitimately invoked through a
+                     // READ method because it answers with a row. RestCallKind.NonQuery does not cover that
+                     // case, so this entry is still what keeps it off the implicit-'print' path (which
+                     // POSTed /tool/wol/print and got "no such command").
         };
 
         private static readonly HashSet<string> _readVerbs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -52,7 +70,13 @@ namespace tik4net.Rest
         /// </summary>
         /// <param name="commandText">API command path, e.g. /ip/address/print</param>
         /// <param name="parameters">Command parameters.</param>
-        public static RestRequest Build(string commandText, IList<ITikCommandParameter> parameters)
+        /// <param name="kind">
+        /// Which command method the caller invoked; see <see cref="RestCallKind"/>. Defaults to
+        /// <see cref="RestCallKind.Read"/> so an unrecognised trailing segment keeps its historic meaning
+        /// (part of the path, implicit <c>print</c>) on every read path.
+        /// </param>
+        public static RestRequest Build(string commandText, IList<ITikCommandParameter> parameters,
+            RestCallKind kind = RestCallKind.Read)
         {
             // Normalise: ensure leading slash, no trailing slash
             commandText = commandText.Trim();
@@ -69,6 +93,21 @@ namespace tik4net.Rest
             {
                 verb = lastSeg.ToLowerInvariant();
                 apiPath = "/" + string.Join("/", segments.Take(segments.Length - 1));
+            }
+            else if (kind == RestCallKind.NonQuery)
+            {
+                // An unknown trailing segment on a call that expects NO rows back is an action — the caller
+                // asked for something to happen, not for a table to be listed. /log/error, /log/info,
+                // /log/warning and /log/debug are the worked examples: RouterOS answers POST /rest/log/error
+                // with 200 and writes the line (measured on 7.23.2), while the implicit-'print' reading sent
+                // GET /rest/log/error and got 400 "no such command".
+                //
+                // The rule is deliberately "POST the path we were given", NOT "split off the last segment as
+                // a verb". Both produce the same URL here, because BuildGenericPost joins path and verb
+                // straight back together — but the split is a guess about WHICH segment names the operation,
+                // and for /tool/wol the whole path IS the operation (the same trap CLAUDE.md records for wol
+                // under 'print'). Not splitting means never having to make that guess.
+                return BuildGenericPost("/" + string.Join("/", segments), parameters);
             }
             else
             {

@@ -192,11 +192,14 @@ nezmenšují.
 ## Parsování TRX výsledků
 
 ```powershell
-# Souhrn všech TRX najednou:
+# Souhrn všech TRX najednou.
+# Skipy (Inconclusive) čti VŽDY — dva „zelené" běhy se od sebe můžou lišit jenom jejich počtem
+# a to je u intermitentní chyby to jediné pozorování, které máš (viz Lov intermitentní chyby).
 foreach ($trx in (Get-ChildItem TestResults\results_*.trx | Sort-Object Name)) {
     [xml]$x = Get-Content $trx.FullName
     $c = $x.TestRun.ResultSummary.Counters
-    "$($trx.Name): pass=$($c.passed) fail=$($c.failed)"
+    # MSTest Assert.Inconclusive se v TRX vykazuje jako notExecuted, ne jako inconclusive.
+    "$($trx.Name): pass=$($c.passed) fail=$($c.failed) skip=$($c.notExecuted) total=$($c.total)"
 }
 
 # Výpis selhání z jednoho TRX:
@@ -207,7 +210,48 @@ $x.TestRun.Results.UnitTestResult |
         $msg = ($_.Output.ErrorInfo.Message -replace '\r?\n',' ').Trim()
         "$($_.testName) | $($msg.Substring(0,[Math]::Min(120,$msg.Length)))"
     }
+
+# Pojmenované skipy (to `-v q` ani souhrnný řádek neumí):
+$x.TestRun.Results.UnitTestResult |
+    Where-Object { $_.outcome -eq 'NotExecuted' } |
+    Select-Object -ExpandProperty testName | Sort-Object
 ```
+
+---
+
+## Lov intermitentní chyby
+
+Chyba, která padne jednou za N plných běhů (P2.19, P2.47, P2.49), se **nedá reprodukovat opakováním
+naslepo** — každý pokus stojí desítky minut routeru. Cílem není trefit ji znovu, ale zařídit, aby
+příští výskyt sám o sobě stačil k diagnóze.
+
+1. **Vždy `--logger trx`, s per-běh jménem souboru.** Souhrn `Neúspěšné: 0` neznamená, že běh byl
+   stejný jako předchozí — test může intermitentně spadnout na `Assert.Inconclusive` závislý na
+   datech místo na assert, a pak se změní jenom **počet skipů**. Bez TRX se nedozvíš ani to, ani
+   který test to byl.
+2. **Zapni byte-level trace na celý běh** přes `TIK4NET_WIRETRACE` (cesta k souboru, nebo `1` pro
+   default vedle assembly). `WireTraceCapture` píše do trace hranice testů jako
+   `--- TEST <jméno>` / `--- END <outcome> <jméno>`, takže selhání se v něm dá najít bez
+   korelace časů:
+
+   ```powershell
+   $stamp = Get-Date -Format yyyyMMdd-HHmmss
+   $env:TIK4NET_WIRETRACE = "TestResults\wire_telnet_$stamp.txt"
+   dotnet test tik4net.integrationtests/tik4net.integrationtests.csproj `
+       --settings tik4net.integrationtests/telnet.runsettings `
+       --logger "trx;LogFileName=results_telnet_$stamp.trx" `
+       --results-directory TestResults
+   Remove-Item Env:\TIK4NET_WIRETRACE
+   ```
+
+3. **Artefakty zelených běhů maž až po porovnání běhů mezi sebou**, ne hned po zeleném výsledku.
+   Trace je velký, takže úklid je v pokušení — ale běh s odlišným počtem skipů je zajímavý přesně
+   tak jako červený, a když jsi ho už smazal, pozorování je nenávratně pryč.
+4. **Než uvěříš, že jsi něco reprodukoval, vyluč artefakt loginu.** Řetězec `login failure` v trace
+   bývá **login banner** (router při přihlášení tiskne poslední logy), ne asynchronní událost;
+   rozliš podle toho, jestli je poblíž IAC negociace `<FF><FD>`.
+5. **Nejdřív reziduum, potom kód.** Selhání na nečekaném `.id`, kolizi jmen nebo počtu řádků je
+   obvykle reakce na orphan po předchozím běhu (viz sekce Orphany), ne defekt.
 
 ---
 

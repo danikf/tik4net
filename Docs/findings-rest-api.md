@@ -205,3 +205,40 @@ cokoli, co by tam kdo přidal, by na tohle nemělo vliv.
 - `ExecuteScalar` u `Save` (čtení nového `.id`): PUT vrací celý objekt → `.id` číst z těla odpovědi.
 - `/unset` mapperu → `PATCH {field:null}` (s known-limitation poznámkou).
 - `/move` → `POST /<path>/move {".id"|"numbers", "destination"}`.
+
+---
+
+## 10. ✅ Akční příkazy nejdou poznat z cesty (P2.48, 2026-07-31)
+
+`/log/error` a `/ip/address` mají **stejný tvar** — poslední segment nejde odlišit „menu vs. akce"
+pohledem na text. `RestRequestBuilder` to do 4.0 řešil pevným allow-listem známých write-verbů a všechno
+ostatní připojil k cestě s implicitním `print`. `connection.LogError(…)` proto odešel jako
+`GET /rest/log/error`.
+
+**Živě ověřeno na 7.23.2** (curl, mimo náš kód):
+
+```
+GET  /rest/log/error                              → 400 {"detail":"no such command","error":400}
+POST /rest/log/error   {"message":"…"}            → 200 []      a řádek je v /log
+POST /rest/log/info    {"message":"…"}            → 200 []      a řádek je v /log
+POST /rest/log/warning {"message":"…"}            → 200 []      a řádek je v /log
+POST /rest/log/debug   {"message":"…"}            → 200 []      ale v /log NIC
+```
+
+- Router tedy **není** limit — platí parity rule, byla to naše chyba.
+- `debug` je přijat, ale řádek se zapíše jen když ho pouští `/system/logging` (na default konfiguraci
+  ne). „200 a nic v logu" je korektní chování routeru, ne tichá chyba.
+
+**Řešení:** builder dostane od volajícího `RestCallKind` — tj. *kterou metodou* se příkaz spustil.
+`ExecuteNonQuery()` (žádné řádky zpět) ⇒ neznámý poslední segment je **akce**; čtení si drží původní
+význam (součást cesty + implicitní `print`). Pravidlo je záměrně **„POSTni cestu, jak přišla"**, ne
+„urvi poslední segment jako verb": obojí dá stejnou URL, ale split je hádání, který segment je operace —
+a u `/tool/wol` je operací **celá cesta** (stejná past, jakou CLAUDE.md zaznamenává pro wol pod `print`).
+
+**Pozor na `/tool/wol`:** je dosažitelný i přes *read* metodu (vrací řádek), a `RestCallKind.NonQuery`
+tenhle případ nepokrývá — proto `wol` zůstává v `_writeVerbs`.
+
+**WinBox native tohle nedožene:** `/log` = handler `[3,4]`, v `.jg` `cmds={}`, a v celém katalogu (18
+pluginů, 805 oken) neexistuje žádná `doit`/`action` pro zápis do logu. WinBox sám neumí zapsat řádek do
+logu, takže tady nejde o špatně sestavený požadavek — transport hlásí `NotSupportedException` a říká,
+co handler nabízí místo toho.
