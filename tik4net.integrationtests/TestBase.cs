@@ -485,6 +485,37 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
+        /// Marks the test as Inconclusive on the CLI-family transports for an assertion about <b>incremental</b>
+        /// delivery from a long-running monitor — something they do not do today.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// This is a <b>filed defect, not an accepted limitation</b> (P2.50). A CLI monitor is issued as one
+        /// blocking one-shot: measured over Telnet, <c>LoadAsync&lt;ToolPing&gt;(count=20)</c> sends
+        /// <c>:put [/ping address=127.0.0.1 count=20 as-value]</c> and delivers all 20 rows in a single lump
+        /// at ~20 s, having delivered nothing before that. The API and both native transports stream the same
+        /// command a row at a time.
+        /// </para>
+        /// <para>
+        /// Existing async tests miss it because <c>count=1</c> completes immediately and the
+        /// <c>count=100</c>-with-close test only asserts that FEWER than 100 rows arrived — which zero
+        /// satisfies. Delete this guard once P2.50 lands; the tests it gates should then pass unchanged.
+        /// </para>
+        /// </remarks>
+        /// <param name="feature">Feature shown in the skip message.</param>
+        protected void SkipOnNonStreamingAsyncTransport(string feature)
+        {
+            var t = ResolveConnectionType();
+            if (t == TikConnectionType.Telnet || t == TikConnectionType.Ssh
+                || t == TikConnectionType.MacTelnet
+                || t == TikConnectionType.WinboxCli || t == TikConnectionType.WinboxCliMac)
+                Assert.Inconclusive(
+                    $"'{feature}' needs incremental delivery, and transport '{t}' runs a monitor as one " +
+                    "blocking command, emitting every row only when it finishes (P2.50 — a filed defect, " +
+                    "not a property of the router). Test skipped.");
+        }
+
+        /// <summary>
         /// True when the active transport is NOT the binary API — i.e. a CLI-family transport
         /// (Telnet/MACTelnet/WinBox-CLI/WinBox-CLI-MAC) or native WinBox M2. These transports go
         /// through the structured-command model rather than the binary-API sentence protocol, so they

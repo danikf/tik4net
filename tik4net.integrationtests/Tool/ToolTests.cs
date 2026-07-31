@@ -46,6 +46,65 @@ namespace tik4net.integrationtests
             Assert.AreEqual(responseList.Single().Host, HOST);
         }
 
+        /// <summary>
+        /// An async ping must keep delivering for as long as the router keeps pinging — not stop after the
+        /// first few seconds.
+        /// </summary>
+        /// <remarks>
+        /// P2.45: over both native WinBox transports this delivered exactly 5 rows at ~4 s and then went
+        /// silent for good — no exception, no completion. A <c>type:'query'</c> monitor is ONE getall pass in
+        /// which the router blocks each continuation until the next record exists, and the poll had a
+        /// 4-second budget: it abandoned the pass mid-stream, lost the continuation cursor, and every
+        /// subsequent poll started a fresh getall that the router answered "no more rows". Nothing caught it,
+        /// because the only async-ping tests used <c>count=1</c> and <c>count=100</c>-with-close, both of
+        /// which are satisfied inside the first pass. Hence the two things asserted here: rows still arriving
+        /// AFTER the old cut-off, and no row delivered twice (a restarted pass would repeat sequence 0).
+        /// </remarks>
+        [TestMethod]
+        public void PingAsyncKeepsStreamingPastTheFirstSeconds()
+        {
+            EnsureCapability(TikConnectionCapability.Listen, "async ping");
+            SkipOnNonStreamingAsyncTransport("a streaming async ping");
+            const string HOST = "127.0.0.1";
+            const int COUNT = 20;      // must outlast the observation window, so a short ping cannot pass by ending
+
+            var responseList = new List<ToolPing>();
+            Exception responseException = null;
+
+            ITikCommand pingCommand = Connection.LoadAsync<ToolPing>(
+                ping => { lock (responseList) responseList.Add(ping); },
+                exception => responseException = exception,
+                Connection.CreateParameter("address", HOST),
+                Connection.CreateParameter("count", COUNT.ToString()));
+
+            try
+            {
+                Thread.Sleep(5 * 1000);
+                int afterFive;
+                lock (responseList) afterFive = responseList.Count;
+
+                Thread.Sleep(5 * 1000);
+                int afterTen;
+                List<ToolPing> snapshot;
+                lock (responseList) { afterTen = responseList.Count; snapshot = responseList.ToList(); }
+
+                Assert.IsNull(responseException, "the monitor reported an error");
+                // The defect's signature: the stream stops dead. RouterOS pings once a second, so the second
+                // window must add rows — the exact count is timing-dependent and deliberately not asserted.
+                Assert.IsTrue(afterTen > afterFive,
+                    $"the ping stream stopped: {afterFive} rows after 5 s, still {afterTen} after 10 s");
+                Assert.IsTrue(afterTen > 5,
+                    $"expected the stream to outlive the first few seconds, got only {afterTen} rows in 10 s");
+                Assert.AreEqual(snapshot.Count, snapshot.Select(p => p.SequenceNo).Distinct().Count(),
+                    "a sequence number arrived twice — the monitor restarted its pass instead of continuing it");
+                Assert.IsTrue(snapshot.All(p => p.Host == HOST), "a row came back for the wrong host");
+            }
+            finally
+            {
+                try { pingCommand.Cancel(); } catch { /* best-effort: the assert above is the result */ }
+            }
+        }
+
         [TestMethod]
         public void PingLocalhostAsyncWithCloseWillNotFail()
         {

@@ -317,3 +317,43 @@ Plný `winboxnative` suite: **163 pass / 0 fail / 81 skip** (vše uncommitted, 4
 
 **Pozn.**: dvě `M2Message` — knihovní (má `MessageSys`) vs `tik4net.tests/Protocols/_Shared/M2Message.cs` (nemá).
 Nové soubory: `TikMonitorHandle.cs`, `WinboxMonitorSpec.cs`.
+
+---
+
+## 21. ✅ Query okno = JEDEN dlouhý getall pass, ne stránkovaný snapshot (P2.45, 2026-07-31)
+
+`type:'query'` okno **nemá `pollcmd`** (ověřeno na celém katalogu: 18 pluginů / 805 oken — *žádné*
+query okno pollcmd nenese, mají ho jen `action` okna). Poll je tedy obyčejný `getall` na monitor id,
+a jeho odpověď má tvar, který §20 nepopisoval:
+
+> Router odpoví **jedním recordem + continuation tokenem** (`ufe0003`) a **další continuation
+> BLOKUJE, dokud nevznikne další record**. Poslední odpověď nese `bfe000b` (Finished) a už žádný token.
+
+Živě změřeno na 7.23.2, `/ping` = handler `[22]`, `count=30`:
+
+```
+REQ  cmd=0xFE000F (start)  0x16={0xFEFF20=127.0.0.1}  0x11=30      → reply ufe0001=2  (monitor id)
+REQ  cmd=0xFE0004 (getall) ufe0001=2 ufe000c=flags                → 1 record (seq 0) + ufe0003=1
+REQ  cmd=0xFE0004          ufe0001=2 ufe000c=flags ufe0003=1      → …+1000 ms… 1 record (seq 1) + ufe0003=2
+…
+count=3: třetí odpověď nese bfe000b=True a token už ne → konec
+```
+
+**Náš defekt (P2.45):** `PollMonitor` běžel pod rozpočtem 4 s / 256 kol, protože byl psaný pro
+stránkovaný snapshot. U 30sekundového pingu rozpočet vypršel uprostřed passu, **continuation kurzor
+se zahodil**, a další poll poslal `getall` bez tokenu — na to router odpovídá `uff0008=0xFE0004`
+(ObjectNonexistent = „žádné další řádky"). Od té chvíle monitor mlčel: bez chyby, bez onDone, 5 řádků
+a konec. Řádky navíc chodily **v dávce po 4 s**, ne průběžně.
+
+**Oprava:** `PollMonitorRound` dělá jedno request/reply kolo; pass řídí `MonitorLoop`, kde žije cancel
+handle i emit. `continuation != null` ⇒ hned další kolo (bez spánku), `Finished` ⇒ konec, konec passu
+bez `Finished` ⇒ počkej `autorefresh` a začni nový pass (to je model snapshot oken jako Torch/Scan).
+Žádný časový ani kolový strop — pass končí jen tím, co řekne router, nebo cancelem. Gate se drží
+**per kolo**, ne per pass, takže 30sekundový monitor neblokuje CRUD.
+
+**Pozor na dva tvary query okna** — oba jsou `type:'query'` a rozliší se až za běhu:
+- **stream** (ping, traceroute, profile): pass běží dlouho, končí `Finished`.
+- **snapshot** (torch, scan, ip-scan): pass doběhne hned, `Finished` nepřijde, opakuje se á `autorefresh`.
+
+`action` okna (`pollcmd`) zůstávají beze změny: jedna odpověď = jeden status record, continuation se
+u nich záměrně nesleduje (webfig `ObjectAction` taky ne).

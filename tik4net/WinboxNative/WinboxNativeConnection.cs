@@ -848,21 +848,32 @@ namespace tik4net.WinboxNative
                     started = true;
                 }
 
+                // The pass is driven here rather than inside the operations layer, because this is where the
+                // cancel handle and the row callback live — and because a pass is unbounded in time (see
+                // PollMonitorRound). `continuation != null` means the router is still mid-pass, so the next
+                // round goes out immediately; the autorefresh sleep applies only BETWEEN passes.
+                object continuation = null;
                 while (!handle.CancelRequested)
                 {
                     bool done;
                     List<Dictionary<int, Tuple<string, object>>> records;
-                    // On a multiplexed connection this poll no longer blocks CRUD calls on other threads —
-                    // the headline benefit of the change (design §2).
+                    // Gated per ROUND, not per pass: on a multiplexed connection this is a no-op, but a
+                    // 30-second ping must not hold the lockstep gate for its whole duration (design §2).
                     using (EnterCommand())
-                        (records, done) = _ops.PollMonitor(spec.Handler, spec.PollCmd, id, spec.IsQuery);
+                        (records, done, continuation) =
+                            _ops.PollMonitorRound(spec.Handler, spec.PollCmd, id, spec.IsQuery, continuation);
 
+                    // Emitted per round, so a streaming window (ping, traceroute, torch) reaches the caller
+                    // as the router produces it instead of in a lump when the pass ends.
                     foreach (var rec in records)
                         onRow?.Invoke(new TikRecordSentence(_codec.DecodeRecord(rec, keyToName, keyToField)));
 
-                    if (done) break;
+                    if (done) break;              // router set Finished: the operation is over for good
+                    if (continuation != null) continue;   // same pass, next record — no sleep
 
-                    // Sleep the autorefresh interval in short slices so Cancel is responsive.
+                    // The pass ended without Finished: an autorefresh snapshot window (Torch, Scan, …) whose
+                    // getall lists what exists right now. Wait the interval, then start a fresh pass.
+                    // Sleep in short slices so Cancel stays responsive.
                     int slept = 0, interval = Math.Max(100, spec.AutorefreshMs);
                     while (slept < interval && !handle.CancelRequested) { Thread.Sleep(50); slept += 50; }
                 }

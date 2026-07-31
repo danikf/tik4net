@@ -468,55 +468,77 @@ namespace tik4net.Winbox
         }
 
         /// <summary>
-        /// Polls a monitor once: SYS_CMD <paramref name="pollCmd"/> (+ the <paramref name="id"/> when ≥ 0),
-        /// following getall continuation pagination within the pass. A query window
+        /// Issues ONE monitor round: SYS_CMD <paramref name="pollCmd"/> (+ the <paramref name="id"/> when ≥ 0,
+        /// + <paramref name="contToken"/> when continuing a getall pass). A query window
         /// (<paramref name="isQuery"/>) returns its rows from <see cref="WinboxM2Protocol.RecordKey.Records"/>
         /// and includes the flag field; a poll-action returns a single status record (the reply's top-level
-        /// fields). The <c>done</c> result reflects the router's <see cref="WinboxM2Protocol.RecordKey.Finished"/>
-        /// flag (stop polling when set).
+        /// fields).
         /// </summary>
-        internal (List<Dictionary<int, Tuple<string, object>>> records, bool done) PollMonitor(
-            int[] handler, int pollCmd, uint? id, bool isQuery,
-            int flags = WinboxM2Protocol.GetAllFlags, int maxMs = 4000)
+        /// <returns>
+        /// <c>done</c> — the router's <see cref="WinboxM2Protocol.RecordKey.Finished"/> flag: the monitored
+        /// operation is over for good, stop. <c>continuation</c> — the token to pass back to continue the same
+        /// pass, or <c>null</c> when this pass has ended (no token, or the
+        /// <see cref="WinboxM2Protocol.Error.ObjectNonexistent"/> terminator).
+        /// </returns>
+        /// <remarks>
+        /// <para>
+        /// This deliberately runs ONE request/reply and lets the caller drive the pass — see
+        /// <c>WinboxNativeConnection.MonitorLoop</c>. It used to loop internally under a 4-second /
+        /// 256-round budget, which was wrong for the shape a <c>type:'query'</c> window actually has: the
+        /// router answers a getall on such a window with ONE record plus a continuation token, and BLOCKS the
+        /// next continuation until the next record exists. A 30-second ping is therefore a single pass of 30
+        /// round trips a second apart, not a page-able snapshot. The budget cut that pass off after 5 records
+        /// and threw the cursor away; the next poll started a fresh getall, which the router answered
+        /// <c>ObjectNonexistent</c> ("no more rows") from then on — the monitor went silent with no error and
+        /// no completion (P2.45). Measured on 7.23.2: with <c>count=3</c> the third reply carries
+        /// <c>Finished</c> and the stream ends cleanly; with <c>count=30</c> it never got that far.
+        /// </para>
+        /// <para>
+        /// Keeping the round here also keeps the connection's command gate per round rather than per pass,
+        /// which is what makes a long monitor coexist with CRUD on other threads.
+        /// </para>
+        /// </remarks>
+        internal (List<Dictionary<int, Tuple<string, object>>> records, bool done, object continuation) PollMonitorRound(
+            int[] handler, int pollCmd, uint? id, bool isQuery, object contToken,
+            int flags = WinboxM2Protocol.GetAllFlags)
         {
-            var records = new List<Dictionary<int, Tuple<string, object>>>();
-            bool done = false;
-            object contToken = null;
-            var sw = Stopwatch.StartNew();
-            for (int round = 0; round < 256 && sw.ElapsedMilliseconds < maxMs; round++)
+            var head = new List<byte[]>
             {
-                var head = new List<byte[]>
-                {
-                    M2Message.SysToArr(handler), M2Message.SysFrom(),
-                    M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
-                    M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, pollCmd),
-                };
-                if (id.HasValue) head.Add(M2Message.SessionIdField(id.Value));
-                if (isQuery) head.Add(M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, flags));
-                if (contToken != null) head.Add(M2Message.U32Sys(WinboxM2Protocol.RecordKey.Continuation, Convert.ToInt32(contToken)));
+                M2Message.SysToArr(handler), M2Message.SysFrom(),
+                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
+                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, pollCmd),
+            };
+            if (id.HasValue) head.Add(M2Message.SessionIdField(id.Value));
+            if (isQuery) head.Add(M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, flags));
+            if (contToken != null) head.Add(M2Message.U32Sys(WinboxM2Protocol.RecordKey.Continuation, Convert.ToInt32(contToken)));
 
-                byte[] resp = SendReceive(M2Message.BuildM2(head.ToArray()));
-                int status = M2Message.ParseSysStatus(resp);
-                if (status != WinboxM2Protocol.Error.None && status != WinboxM2Protocol.Error.ObjectNonexistent)
-                {
-                    var ef = M2Message.ParseAllFields(resp);
-                    string errStr = ef.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es) ? es.Item2?.ToString() : null;
-                    throw new WinboxM2OperationException(status, errStr, "monitor-poll", handler);
-                }
-
-                var fields = M2Message.ParseAllFields(resp);
-                if (isQuery)
-                    records.AddRange(M2Message.ParseRecords(resp, WinboxM2Protocol.RecordKey.Records));
-                else
-                    records.Add(fields); // poll-action: the status record is the reply's top-level fields
-
-                if (fields.TryGetValue(WinboxM2Protocol.RecordKey.Finished, out var dt) && dt.Item2 is bool db && db)
-                    done = true;
-                if (status == WinboxM2Protocol.Error.ObjectNonexistent) break; // end of this getall pass
-                if (!fields.TryGetValue(WinboxM2Protocol.RecordKey.Continuation, out var ct)) break;
-                contToken = ct.Item2;
+            byte[] resp = SendReceive(M2Message.BuildM2(head.ToArray()));
+            int status = M2Message.ParseSysStatus(resp);
+            if (status != WinboxM2Protocol.Error.None && status != WinboxM2Protocol.Error.ObjectNonexistent)
+            {
+                var ef = M2Message.ParseAllFields(resp);
+                string errStr = ef.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es) ? es.Item2?.ToString() : null;
+                throw new WinboxM2OperationException(status, errStr, "monitor-poll", handler);
             }
-            return (records, done);
+
+            var fields = M2Message.ParseAllFields(resp);
+            var records = isQuery
+                ? M2Message.ParseRecords(resp, WinboxM2Protocol.RecordKey.Records)
+                : new List<Dictionary<int, Tuple<string, object>>> { fields }; // poll-action: the reply's top-level fields ARE the status record
+
+            bool done = fields.TryGetValue(WinboxM2Protocol.RecordKey.Finished, out var dt)
+                        && dt.Item2 is bool db && db;
+
+            object continuation = null;
+            // Pagination is a getall concept: only a query window continues a pass. A poll-action's reply is
+            // one status record and webfig's ObjectAction never continues it — following a token there would
+            // spin the round trip instead of waiting out the autorefresh interval.
+            if (isQuery
+                && status != WinboxM2Protocol.Error.ObjectNonexistent
+                && fields.TryGetValue(WinboxM2Protocol.RecordKey.Continuation, out var ct))
+                continuation = ct.Item2;
+
+            return (records, done, continuation);
         }
 
         /// <summary>
