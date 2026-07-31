@@ -103,6 +103,15 @@ namespace tik4net.Winbox
                     keyToApi: new Dictionary<int, string> { [0x1] = "host" },
                     keyUiType: new Dictionary<int, string> { [0x1] = "ipaddr" }),
 
+                // NOT here: /tool/traceroute. Its .jg window (type:'query', path:[26]) does label the target
+                // 'Traceroute To' and the per-hop responder 'Host' where the API says 'address' both times, and
+                // adding those two aliases does make the command run — but the rows come back with no address
+                // in them: the responder rides in a type:'multi' submessage (id 'M1'), and the router answers
+                // `0x1=[{}]`, one EMPTY element, for a hop the binary API reports as 127.0.0.1 (measured on
+                // 7.23.2 while fixing P2.51). Aliasing it would therefore trade a loud
+                // WinboxFieldResolutionException naming the exact missing mapping for a silent row whose
+                // address field is blank — the wrong direction. Left unmapped until the M2 shape is understood.
+
                 // /tool/wol (ToolWol, standalone 'Wake on LAN' doit window): the API sends 'mac', WinBox labels
                 // the same field 'MAC Address'. 'interface' matches verbatim, so only the one alias is needed.
                 ["/tool/wol"] = new FieldAliasSet(

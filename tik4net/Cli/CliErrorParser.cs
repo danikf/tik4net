@@ -105,7 +105,7 @@ namespace tik4net.Cli
         /// <summary>
         /// Extracts the first non-blank line from <paramref name="output"/> to use as the error message.
         /// </summary>
-        private static string ExtractErrorLine(string output)
+        internal static string ExtractErrorLine(string output)
         {
             if (string.IsNullOrWhiteSpace(output))
                 return string.Empty;

@@ -128,11 +128,22 @@ namespace tik4net.Cli
         /// Wrapping in <c>:put [ … ]</c> forces RouterOS to materialise the as-value line (bare
         /// <c>as-value</c> prints nothing to a terminal — see <see cref="BuildPrint"/>).
         /// </summary>
-        internal static string BuildMonitorSnapshot(string apiPath, IList<ITikCommandParameter> parameters, string snapshotModifier)
+        /// <param name="apiPath">API-style path of the monitor command.</param>
+        /// <param name="parameters">Command parameters — the monitor's inputs.</param>
+        /// <param name="snapshotModifier">Per-verb snapshot token; see <see cref="CliMonitorVerbs"/>.</param>
+        /// <param name="includeFilters">
+        /// Set on the READ path (<c>ExecuteList</c>/<c>LoadList</c> of <c>/ping</c>, <c>/tool/traceroute</c>, …),
+        /// where <c>TikGenericCommand.ResolveParamsForRead</c> has already rewritten the caller's Default-format
+        /// parameters to Filter format. A monitor has no query semantics, so a Filter parameter here can only be
+        /// that rewrite — dropping it is how a ping went out as <c>:put [/ping as-value]</c> (P2.51). Same
+        /// reasoning, and the same flag name, as <see cref="BuildNonQuery"/> uses for <c>/tool/wol</c>.
+        /// </param>
+        internal static string BuildMonitorSnapshot(string apiPath, IList<ITikCommandParameter> parameters,
+            string snapshotModifier, bool includeFilters = false)
         {
             var sb = new StringBuilder(":put [");
             sb.Append(ApiPathToCli(apiPath));
-            AppendMonitorInputs(sb, parameters, snapshotModifier);
+            AppendMonitorInputs(sb, parameters, snapshotModifier, includeFilters);
             sb.Append(" as-value]");
             return sb.ToString();
         }
@@ -163,14 +174,16 @@ namespace tik4net.Cli
 
         // Appends the monitor's inputs (NameValue parameters; an empty value becomes a bare flag) followed
         // by the snapshot modifier, unless the caller already supplied a parameter of that name.
-        private static void AppendMonitorInputs(StringBuilder sb, IList<ITikCommandParameter> parameters, string snapshotModifier)
+        // includeFilters: see BuildMonitorSnapshot — on the read path the inputs arrive in Filter format.
+        private static void AppendMonitorInputs(StringBuilder sb, IList<ITikCommandParameter> parameters,
+            string snapshotModifier, bool includeFilters = false)
         {
             string modName = string.IsNullOrEmpty(snapshotModifier) ? null : snapshotModifier.Split('=')[0];
             bool modifierAlreadyPresent = false;
 
             foreach (var p in parameters)
             {
-                if (p.ParameterFormat == TikCommandParameterFormat.Filter)
+                if (p.ParameterFormat == TikCommandParameterFormat.Filter && !includeFilters)
                     continue;
                 if (p.Name == TikSpecialProperties.Id || IsSpecialParam(p.Name))
                     continue;

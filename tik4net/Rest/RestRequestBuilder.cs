@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using tik4net.Connection;
 
 namespace tik4net.Rest
 {
@@ -51,6 +52,14 @@ namespace tik4net.Rest
             "print", "listen",
         };
 
+        // Monitor commands (see TikMonitorVerbs) are POSTed to the path as given: their trailing segment IS the
+        // operation and their parameters are its INPUTS, not a print query. They are legitimately invoked
+        // through a READ method (they answer with rows), so RestCallKind.NonQuery does not cover them and the
+        // implicit-'print' branch claimed them instead — POST /rest/ping/print → 400 "no such command" (P2.51).
+        // Verified live on 7.23.2 that POST /rest/ping with {"address":…,"count":…} returns the echo rows, and
+        // the same for traceroute and monitor-traffic. 'monitor' is in the shared list AND in _writeVerbs; both
+        // routes produce the same URL for it, so the overlap is harmless.
+
         internal sealed class RestRequest
         {
             public HttpMethod Method { get; }
@@ -88,6 +97,12 @@ namespace tik4net.Rest
 
             string verb;
             string apiPath;
+
+            // A monitor command: POST the path as given, with the parameters as the body. Checked before the
+            // verb split for the same reason the NonQuery branch does not split — the whole path is the
+            // operation, and splitting would guess at which segment names it.
+            if (TikMonitorVerbs.Contains(lastSeg))
+                return BuildGenericPost("/" + string.Join("/", segments), parameters);
 
             if (_readVerbs.Contains(lastSeg) || _writeVerbs.Contains(lastSeg))
             {

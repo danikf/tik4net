@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using tik4net.Connection;
 
 namespace tik4net.Cli
 {
@@ -17,6 +18,11 @@ namespace tik4net.Cli
     ///   <item><c>once</c> — RouterOS's convention for most monitors (<c>monitor-traffic</c>,
     ///         <c>/system resource monitor</c>, <c>/interface ethernet monitor</c>, …); the default.</item>
     ///   <item><c>ping</c> → <c>count=1</c> (ping has no <c>once</c>).</item>
+    ///   <item><c>traceroute</c> → <c>count=1</c>. It has no <c>once</c> either: measured on 7.23.2,
+    ///         <c>:put [/tool traceroute address=127.0.0.1 count=1 once as-value]</c> answers
+    ///         <c>bad parameter once (line 1 column 54)</c>, while the same command without it returns the hop
+    ///         rows (P2.51). Until then traceroute inherited <c>once</c> from the default, so every CLI
+    ///         traceroute the modifier reached was refused by the router.</item>
     ///   <item><c>profile</c> → <c>duration=1</c> (profile rejects <c>once</c> with "expected end of command").</item>
     /// </list>
     /// </para>
@@ -52,8 +58,9 @@ namespace tik4net.Cli
         private static readonly Dictionary<string, string> Modifiers =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                { "ping",    "count=1"    },
-                { "profile", "duration=1" },
+                { "ping",       "count=1"    },
+                { "traceroute", "count=1"    },
+                { "profile",    "duration=1" },
             };
 
         // Finite commands that terminate themselves (a built-in count/duration bounds them): run ONCE,
@@ -90,5 +97,21 @@ namespace tik4net.Cli
         /// <summary>The snapshot modifier token to append for <paramref name="verb"/> (defaults to <c>once</c>).</summary>
         public static string SnapshotModifier(string verb)
             => verb != null && Modifiers.TryGetValue(verb, out var m) ? m : DefaultModifier;
+
+        /// <summary>
+        /// True when <paramref name="verb"/> names a monitor command whose parameters are the command's own
+        /// INPUTS (<c>/ping address=…</c>, <c>/interface monitor-traffic interface=…</c>) rather than a print
+        /// filter — i.e. one that a synchronous read must build with
+        /// <see cref="CliCommandBuilder.BuildMonitorSnapshot"/> instead of <c>BuildPrint</c>.
+        /// </summary>
+        /// <remarks>
+        /// The shared <see cref="TikMonitorVerbs"/> list, minus <c>torch</c>: torch's <c>as-value</c> form
+        /// prints nothing and it rejects the snapshot modifier ("bad parameter once (line 1 column 40)",
+        /// measured on 7.23.2), so over a terminal it has no working one-shot form to route to — see
+        /// <see cref="Kind.FreezeFrame"/> for how the async path drives it instead.
+        /// </remarks>
+        public static bool IsSyncMonitorVerb(string verb)
+            => TikMonitorVerbs.Contains(verb)
+               && !string.Equals(verb, "torch", StringComparison.OrdinalIgnoreCase);
     }
 }

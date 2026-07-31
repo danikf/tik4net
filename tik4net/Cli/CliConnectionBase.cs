@@ -417,6 +417,14 @@ namespace tik4net.Cli
                 return new List<TikRecordSentence>();
             }
 
+            // Monitor commands (/ping, /tool/traceroute, /interface/monitor-traffic, …) reached through a READ
+            // method. Their parameters are the command's own INPUTS, but BuildPrint only understands print
+            // modifiers and a 'where' clause, so it dropped every one of them: '/ping =address=127.0.0.1
+            // =count=2' went out as ':put [/ping as-value]' → "failure: resolve failed" (P2.51). The async path
+            // never had the bug — it has always used BuildMonitorSnapshot, which is what is used here too.
+            if (CliMonitorVerbs.IsSyncMonitorVerb(printVerb))
+                return RunMonitorSnapshot(descriptor, printVerb);
+
             bool needStats = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliStats);
             bool wantJson = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliJson);
 
@@ -477,6 +485,54 @@ namespace tik4net.Cli
             }
 
             return merged;
+        }
+
+        /// <summary>
+        /// Runs one monitor snapshot synchronously and returns its records — the read-method counterpart of
+        /// <c>MonitorPollLoop</c>'s single iteration.
+        /// </summary>
+        /// <remarks>
+        /// <c>includeFilters</c> is what makes this correct on the read path: by the time a descriptor gets
+        /// here, <c>TikGenericCommand.ResolveParamsForRead</c> has rewritten the caller's parameters to Filter
+        /// format, and a monitor has no query semantics for them to mean anything else.
+        /// </remarks>
+        private IList<TikRecordSentence> RunMonitorSnapshot(TikCommandDescriptor descriptor, string verb)
+        {
+            string cliText = CliCommandBuilder.BuildMonitorSnapshot(
+                descriptor.CommandText, descriptor.Parameters,
+                CliMonitorVerbs.SnapshotModifier(verb), includeFilters: true);
+
+            string output = ExecuteCliCommand(cliText);
+            CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+            return ParseMonitorSnapshot(output, descriptor);
+        }
+
+        /// <summary>
+        /// Parses a monitor snapshot's <c>as-value</c> output, treating text that yields no record as the
+        /// router's refusal rather than as an empty result.
+        /// </summary>
+        /// <remarks>
+        /// The positional rule of P2.12, narrowed to monitors: a monitor exists to produce output, so a
+        /// snapshot that SUCCEEDS always prints at least one <c>.id=…</c> record, and a snapshot that fails
+        /// prints its complaint and nothing else. Measured on 7.23.2:
+        /// <c>:put [/interface monitor-traffic interface=kjdshfkjdhf once as-value]</c> answers
+        /// <c>input does not match any value of interface</c> — a phrase no classifier in
+        /// <see cref="CliErrorParser"/> matches, so the call returned "no rows" and the O/R layer reported
+        /// success for a command the router had rejected (P2.51). Unlike
+        /// <see cref="CliErrorParser.IsSilentOnSuccessVerb"/> this needs no phrase list and no verb whitelist:
+        /// output-with-no-record is the signal.
+        /// <para>
+        /// Empty output is deliberately NOT an error — <c>/tool torch … as-value</c> legitimately prints
+        /// nothing at all (see <see cref="CliMonitorVerbs"/>), and "nothing happened" is not a refusal.
+        /// </para>
+        /// </remarks>
+        private IList<TikRecordSentence> ParseMonitorSnapshot(string output, TikCommandDescriptor descriptor)
+        {
+            IList<TikRecordSentence> rows = CliOutputParser.ParseAsValue(output);
+            if (rows.Count == 0 && !string.IsNullOrWhiteSpace(output))
+                throw new TikCommandTrapException(CreateDummyCommand(descriptor),
+                    new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(output)));
+            return rows;
         }
 
         /// <summary>
@@ -752,7 +808,10 @@ namespace tik4net.Cli
                 {
                     string output = ExecuteCliCommand(cliText);
                     CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
-                    foreach (var row in CliOutputParser.ParseAsValue(output))
+                    // ParseMonitorSnapshot, not ParseAsValue: a rejected monitor (bad interface name) prints a
+                    // diagnostic no phrase list catches, and a poll loop that shrugs it off spins forever
+                    // delivering nothing instead of reporting the error once (P2.51).
+                    foreach (var row in ParseMonitorSnapshot(output, descriptor))
                     {
                         if (handle.CancelRequested) break;
                         onRow?.Invoke(row);
@@ -801,13 +860,20 @@ namespace tik4net.Cli
                     // Checked after the fact rather than per line: an error ends the command, so it is in the
                     // final output too, and a half-arrived line must never be classified as one.
                     CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+                    // The table's own header is the acceptance signal: RouterOS prints it before the first
+                    // reading, so text that never produced one is the refusal instead (P2.51). Keyed on the
+                    // header rather than on the row count, because a monitor can legitimately be accepted and
+                    // then print no reading.
+                    if (!table.HasHeader && !string.IsNullOrWhiteSpace(output))
+                        throw new TikCommandTrapException(CreateDummyCommand(descriptor),
+                            new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(output)));
                     return;
                 }
 
                 output = ExecuteCliCommand(CliCommandBuilder.BuildMonitorSnapshot(
                     descriptor.CommandText, descriptor.Parameters, snapshotModifier));
                 CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
-                foreach (var row in CliOutputParser.ParseAsValue(output))
+                foreach (var row in ParseMonitorSnapshot(output, descriptor))
                 {
                     if (handle.CancelRequested) break;
                     onRow?.Invoke(row);

@@ -445,6 +445,37 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
+        /// Runs <paramref name="body"/>, and marks the test Inconclusive when the native WinBox transport
+        /// answers that it cannot carry the operation (see <see cref="IsWinboxNativeUnsupported"/>).
+        /// </summary>
+        /// <remarks>
+        /// Prefer this over a capability gate whenever the operation is expected to work on every OTHER
+        /// transport. It attempts the command on all of them and skips only on the transport that actually
+        /// refused, so a mapping added later turns the test green with no test edit — whereas a capability
+        /// gate keyed on <c>Streaming</c> skipped the sync monitor tests on ten of eleven transports and hid
+        /// the defect P2.51 fixed. <paramref name="feature"/> names the path in the skip message.
+        /// </remarks>
+        protected void SkipIfWinboxNativeCannot(string feature, Action body)
+        {
+            try
+            {
+                body();
+            }
+            catch (Exception ex) when (IsWinboxNativeUnsupported(ex) || IsWinboxNativeUnmappedPath(ex))
+            {
+                Assert.Inconclusive(
+                    $"The native WinBox transport cannot carry '{feature}' on this router: {ex.Message} " +
+                    "Test skipped (it runs on every other transport).");
+            }
+        }
+
+        // The native transport's "this path has no M2 handler" report — raised as TikNoSuchCommandException
+        // with the transport named, so it cannot be confused with the router's own "no such command".
+        private static bool IsWinboxNativeUnmappedPath(Exception ex)
+            => ex is TikNoSuchCommandException
+               && ex.Message.IndexOf("WinBox native", StringComparison.OrdinalIgnoreCase) >= 0;
+
+        /// <summary>
         /// Marks the test as inconclusive (skipped) only on the native WinBox M2 transport, for an
         /// API path that WinBox itself does not expose as a structured handler. Native CRUD is driven
         /// by the version-matched WinBox <c>.jg</c> catalog (path → handler array); a path absent from

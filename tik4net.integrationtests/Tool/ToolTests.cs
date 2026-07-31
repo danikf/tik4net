@@ -14,10 +14,20 @@ namespace tik4net.integrationtests
     public class ToolTests : TestBase
     {
         #region ping
+        /// <summary>
+        /// A synchronous ping is a plain <c>LoadList&lt;ToolPing&gt;</c> and must work on every transport.
+        /// </summary>
+        /// <remarks>
+        /// This used to gate on <c>Streaming</c>, which only the binary API reports — so it was Inconclusive on
+        /// ten of eleven transports, and the whole synchronous monitor path had no coverage at all. What that
+        /// hid (P2.51): the CLI family sent <c>:put [/ping as-value]</c> with every parameter dropped, REST
+        /// posted <c>/ping/print</c> ("no such command"), and native WinBox ran a getall on a monitor window
+        /// and returned zero rows while reporting success. <c>ToolPing.Execute</c> never needed
+        /// <c>Streaming</c>: it does not stream, it asks for a bounded count and waits.
+        /// </remarks>
         [TestMethod]
         public void PingLocalhostWillNotFail()
         {
-            EnsureCapability(TikConnectionCapability.Streaming, "sync ping");
             const string HOST = "127.0.0.1";
             var result = ToolPing.Execute(Connection, HOST, 4);
             Assert.IsTrue(result.Count() == 4);
@@ -190,32 +200,41 @@ namespace tik4net.integrationtests
 
         #region ExecuteListUntilDone
 
+        /// <remarks>
+        /// No <c>Streaming</c> gate: on a transport without it <c>ExecuteListUntilDone</c> falls back to
+        /// <c>ExecuteList()</c>, which is exactly what this asserts. See <see cref="PingLocalhostWillNotFail"/>
+        /// for what the gate was hiding (P2.51).
+        /// </remarks>
         [TestMethod]
         public void ExecuteListUntilDone_Traceroute_ReturnsResults()
         {
-            EnsureCapability(TikConnectionCapability.Streaming, "traceroute");
             const string IP = "127.0.0.1";
 
-            var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
-                "address", IP,
-                "count", "1");
-            var result = cmd.ExecuteListUntilDone();
+            SkipIfWinboxNativeCannot("/tool/traceroute", () =>
+            {
+                var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
+                    "address", IP,
+                    "count", "1");
+                var result = cmd.ExecuteListUntilDone();
 
-            Assert.IsTrue(result.Any());
+                Assert.IsTrue(result.Any());
+            });
         }
 
         [TestMethod]
         public void ExecuteListUntilDone_Traceroute_WithTimeout_ReturnsResults()
         {
-            EnsureCapability(TikConnectionCapability.Streaming, "traceroute");
             const string IP = "127.0.0.1";
 
-            var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
-                "address", IP,
-                "count", "1");
-            var result = cmd.ExecuteListUntilDone(timeoutSec: 30);
+            SkipIfWinboxNativeCannot("/tool/traceroute", () =>
+            {
+                var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
+                    "address", IP,
+                    "count", "1");
+                var result = cmd.ExecuteListUntilDone(timeoutSec: 30);
 
-            Assert.IsTrue(result.Any());
+                Assert.IsTrue(result.Any());
+            });
         }
 
         [TestMethod]
@@ -275,51 +294,71 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void TracerouteToLocalhostWillNotFail()
         {
-            EnsureCapability(TikConnectionCapability.Streaming, "traceroute");
             const string IP = "127.0.0.1";
 
-            var result = ToolTraceroute.Execute(Connection, IP);
-            Assert.IsTrue(result.Count() > 0);
+            SkipIfWinboxNativeCannot("/tool/traceroute", () =>
+            {
+                var result = ToolTraceroute.Execute(Connection, IP);
+                Assert.IsTrue(result.Count() > 0);
+            });
         }
 
         [TestMethod]
         public void TracerouteToLocalhostWillNotFail_2()
         {
-            EnsureCapability(TikConnectionCapability.Streaming, "traceroute");
             const string IP = "127.0.0.1";
 
-            var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
-                "address", IP,
-                "count", "1");
-            var result = cmd.ExecuteList();
-            Assert.IsTrue(result.Count() > 0);
+            SkipIfWinboxNativeCannot("/tool/traceroute", () =>
+            {
+                var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
+                    "address", IP,
+                    "count", "1");
+                var result = cmd.ExecuteList();
+                Assert.IsTrue(result.Count() > 0);
+            });
         }
 
 
         [TestMethod]
         public void TracerouteToGoogleDnsWillNotFail()
         {
-            EnsureCapability(TikConnectionCapability.Streaming, "traceroute");
             const string IP = "8.8.8.8";
 
-            var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
-                "address", IP,
-                "count", "1");
-            var result = cmd.ExecuteList();
-            Assert.IsTrue(result.Count() > 1);
+            SkipIfWinboxNativeCannot("/tool/traceroute", () =>
+            {
+                var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
+                    "address", IP,
+                    "count", "1");
+                var result = cmd.ExecuteList();
+                Assert.IsTrue(result.Count() > 1);
+            });
         }
 
+        /// <summary>
+        /// An address nothing answers for still yields hop rows rather than an error.
+        /// </summary>
+        /// <remarks>
+        /// <c>max-hops</c> is what keeps this test finite. Unbounded, RouterOS walks its full hop limit at one
+        /// second of timeout per hop: measured on 7.23.2, the binary API took <b>30.2 s</b> to return, and over
+        /// a terminal that is past the 30 s default <c>ReceiveTimeout</c> — which a CLI transport fixes at
+        /// Open, so a test cannot raise it afterwards. Bounding the walk keeps what the test is actually
+        /// about (an unreachable target answers with rows, not a trap) and costs ~5 s on every transport.
+        /// It only ever ran on the binary API before P2.51, which is why the duration never showed up.
+        /// </remarks>
         [TestMethod]
         public void TracerouteUnreachableAddressWillNotFail()
         {
-            EnsureCapability(TikConnectionCapability.Streaming, "traceroute");
             const string IP = "192.168.4.255";
 
-            var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
-                "address", IP,
-                "count", "1");
-            var result = cmd.ExecuteList();
-            Assert.IsTrue(result.Count() > 1); //returns exactly 20 rows ...
+            SkipIfWinboxNativeCannot("/tool/traceroute", () =>
+            {
+                var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
+                    "address", IP,
+                    "count", "1",
+                    "max-hops", "5");
+                var result = cmd.ExecuteList();
+                Assert.IsTrue(result.Count() > 1);
+            });
         }
 
 

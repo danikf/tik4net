@@ -357,3 +357,50 @@ bez `Finished` ⇒ počkej `autorefresh` a začni nový pass (to je model snapsh
 
 `action` okna (`pollcmd`) zůstávají beze změny: jedna odpověď = jeden status record, continuation se
 u nich záměrně nesleduje (webfig `ObjectAction` taky ne).
+
+---
+
+## 22. ✅ Monitor okno nemá řádky mimo monitor cyklus (P2.51, 2026-08-01)
+
+`RunPrintCore` uměl monitor okno jen asynchronně. Synchronní čtení (`ExecuteList` / `LoadList`)
+spadlo do obecného `getall` na handleru monitoru — a ten router odpoví **bez záznamů**:
+
+```
+/ping =address=127.0.0.1 =count=2  (WinboxNative, před opravou)
+  >> M2 0xFF0001=u32[]:[22] 0xFE000C=u32:268435463        (getall na handler [22])
+  << M2 (žádné 0xFE0002 záznamy)
+  → volajícímu "OK (no data returned)"                     ← tichá chyba
+```
+
+Monitor okno (`.jg` `type:'query'`, resp. `action`+`pollcmd`) **není tabulka**: jeho řádky vznikají
+až tím, že klient spustí cyklus. `RunMonitorWindowSync` proto dělá start → poll → cancel na volajícím
+vlákně a vrátí, co cyklus vyprodukoval:
+
+- **dokud router nenastaví Finished** — sebeukončující příkaz (`ping count=N`),
+- **nebo dokud neskončí první pass** — průběžné okno, jehož pass *je* jeden snímek.
+
+Je to totéž pravidlo, které CLI transporty dostávají z modifikátoru `once`/`count=1`, a shoduje se
+s tím, co na stejný příkaz vrátí binární API.
+
+**`once` se na M2 neposílá.** RouterOS ho potřebuje, protože monitor na API i v terminálu jinak běží
+donekonečna. WinBox okno takový vstup nemá — „jeden odečet" rozhoduje klient — a pokus zakódovat ho
+skončí `WinboxFieldResolutionException` na poli, které volající jako data nikdy nemyslel
+(`IsMonitorSnapshotModifier`).
+
+### Co tím ještě nefunguje (změřeno, nezahlazeno)
+
+- **`/tool/traceroute`**: okno v `.jg` je (`type:'query'`, `path:[26]`), ale jeho vstup se jmenuje
+  `Traceroute To` a odpověď nese hop v podokně `type:'multi'` `id:'M1'`. Aliasy `address↔traceroute-to`
+  a `host↔address` příkaz rozběhnou, jenže router pro hop, který API hlásí jako `127.0.0.1`, pošle
+  `0x1=[{}]` — **prázdný** prvek. Alias by tedy vyměnil hlasitou `WinboxFieldResolutionException`
+  (která rovnou říká, jaký `FieldOverride` chybí) za tichý řádek s prázdnou adresou. Ponecháno
+  nenamapované, dokud nebude tvar M2 pochopený.
+- **`/interface/monitor-traffic`**: `_handlerMap.Resolve` na tuhle cestu handler nemá. Parent
+  fallback (jak ho dělá `RunMonitorAsync`) skončí na generickém okně rozhraní `[20,0]`, jehož mapa
+  polí odpověď monitoru dekóduje pod špatnými jmény — řádky se vrátí dokonce bez `name`. Synchronní
+  cesta ho proto **nepoužívá** a nechá platit hlásku „no M2 handler mapping … přidej PathAlias".
+  Asynchronní cesta stejný přepis má; její test počítá jen řádky, proto si toho nikdo nevšiml.
+- **Chyba pingu nedojde jako trap.** `/ping` na nepřeložitelné jméno vrátí přes API
+  `failure: resolve failed`, přes M2 ale **řádek** s `status=no address was specified`. Volající tak
+  dostane úspěch s chybovým textem v poli. (Pole `status` nese i legitimní hodnoty typu `timeout`,
+  takže z něj nejde dělat výjimku bez dalšího rozlišení.)

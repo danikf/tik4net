@@ -473,3 +473,71 @@ a chodí až za posledním záznamem, takže ho nejde navěsit na řádky tak, j
 chunku padne doprostřed escape sekvence, jeden průchod ji nechá být (není kompletní) a další ji
 odstraní — text *před* aktuální pozicí se tím zkrátí. Ukazatel do řetězce se tak rozjede a doručí
 posunutá data. `CliLineStreamer` proto počítá **doručené řádky**, ne znaky.
+
+---
+
+## 16. ✅ Monitor přes READ metodu ztratil všechny parametry (P2.51, 2026-08-01)
+
+**Kontext.** `/ping`, `/tool/traceroute`, `/interface/monitor-traffic` a `/interface/ethernet/monitor`
+se volají **čtecí** metodou (`ExecuteList` / `LoadList`) — vrací řádky, takže to konzumenti dělají
+správně. `CliConnectionBase.RunPrint` je ale posílal do `CliCommandBuilder.BuildPrint`, který zná jen
+print modifikátory a `where` klauzuli. Vstupy příkazu tím **mizely beze stopy**.
+
+Naměřeno na 7.23.2 přes Telnet:
+
+```
+/ping =address=127.0.0.1 =count=2
+  >> :put [/ping as-value]
+  << failure: resolve failed
+
+/interface/monitor-traffic =interface=ether1
+  >> :put [/interface monitor-traffic once as-value]
+  << input does not match any value of interface
+  → volajícímu vráceno "OK (no data returned)"          ← tichá chyba (třída P2.12)
+```
+
+Asynchronní cesta vadu nikdy neměla — ta staví `BuildMonitorSnapshot`, který vstupy vypisuje.
+
+**Co s tím.** `RunPrint` posílá monitor slovesa (`CliMonitorVerbs.IsSyncMonitorVerb`) do
+`BuildMonitorSnapshot(..., includeFilters: true)`. `includeFilters` je nutné proto, že
+`TikGenericCommand.ResolveParamsForRead` přepíše parametry volajícího do Filter formátu ještě než je
+transport uvidí; monitor žádnou dotazovací sémantiku nemá, takže Filter tam může znamenat jen tohle
+přepsání. Přesně stejný důvod a stejný přepínač jako u `/tool/wol` (`BuildNonQuery`).
+
+### `traceroute` odmítá `once`
+
+Výchozí snapshot modifikátor je `once` a traceroute ho **nebere**:
+
+```
+:put [/tool traceroute address=127.0.0.1 count=1 once as-value]
+  << bad parameter once (line 1 column 54)
+:put [/tool traceroute address=127.0.0.1 count=1 as-value]
+  << .id=*1;address=127.0.0.1;avg=0;best=0;last=0;loss=0;sent=1;status=;std-dev=0;worst=0
+```
+
+`CliMonitorVerbs.Modifiers` proto mapuje `traceroute` → `count=1` (jako ping). Do P2.51 dostal
+každý CLI traceroute, kam modifikátor dosáhl, od routeru odmítnutí. Totéž platí pro `torch` —
+`bad parameter once (line 1 column 40)`, a jeho `as-value` tvar navíc netiskne nic — proto v
+seznamu synchronních monitor sloves **není**.
+
+### Tichou chybu pozná pozice, ne fráze
+
+Fráze `input does not match any value of interface` nechytá žádný klasifikátor v `CliErrorParser`.
+Monitor ale existuje proto, aby něco vytiskl: úspěšný snapshot vždy vypíše aspoň jeden `.id=…`
+záznam, neúspěšný vypíše jen svou stížnost. `ParseMonitorSnapshot` proto bere **výstup bez záznamu**
+jako odmítnutí — bez seznamu frází a bez whitelistu sloves. Prázdný výstup chybou není (torch
+legitimně netiskne nic). U streamovaného tvaru (P2.50) hraje stejnou roli **hlavička tabulky**:
+router ji vytiskne dřív než první měření, takže text, který ji nikdy nevyrobil, je odmítnutí.
+
+### `#` v tabulce není pole
+
+Interaktivní tabulka traceroute začíná sloupcem `#` — pořadové číslo řádku v terminálu. Binární API
+na jeho místě vrací `.id` a žádné pole `#` nezná, takže `CliTableParser` ten sloupec drží kvůli
+offsetům ostatních, ale jako slovo ho nikdy nevydá.
+
+### Neběželo to nikde
+
+Všechny synchronní monitor testy měly `EnsureCapability(TikConnectionCapability.Streaming)`, kterou
+hlásí **jen binární API** — takže na deseti transportech z jedenácti byly Inconclusive a celá
+synchronní monitor cesta neměla žádné pokrytí. `ToolPing.Execute` je přitom obyčejný `LoadList` a
+`Streaming` nepotřebuje. Viz `[[feedback_silent_failures_are_invisible]]`.

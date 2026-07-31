@@ -357,6 +357,14 @@ namespace tik4net.WinboxNative
                 // the snapshot. Tried before the action-verb path (monitor is not a doit/action cmd).
                 if (TryRunMonitor(descriptor, out var monitorRows)) return monitorRows;
 
+                // NOT tried here: the parent-handler fallback that RunMonitorAsync uses (ResolveMonitorWindow).
+                // For /interface/monitor-traffic it lands on the generic [20,0] interface window, whose field
+                // map decodes the monitor's rows under the wrong names (the rows come back without so much as
+                // a 'name'). A read that answers with mislabelled data is worse than one that says it cannot
+                // do this at all, so this path keeps the actionable "no M2 handler mapping … add a PathAlias"
+                // below. Measured while fixing P2.51; the async path has the same mis-decode and its test only
+                // counts rows, which is why nobody had noticed.
+
                 // The path may be an action verb (e.g. /system/script/run) rather than a table — a .jg
                 // doit/action SYS_CMD on the parent handler. Actions perform work and yield no rows, so they
                 // belong on the non-query path: reject the read misuse explicitly (R7) and guide to
@@ -383,6 +391,23 @@ namespace tik4net.WinboxNative
             // shipped ToolWol entity reads it with ExecuteSingleRow rather than ExecuteNonQuery.
             if (_catalog.IsActionOnlyHandler(handler))
                 return RunActionWindow(apiPath, handler, descriptor);
+
+            // A monitor command (/ping, /tool/traceroute) reached through a read method. Checked before the
+            // getall below because that is what the router answers with nothing: a monitor window holds no
+            // records outside a monitor cycle, so the getall came back empty and ToolPing.Execute reported
+            // success with zero rows (P2.51).
+            //
+            // Gated on the COMMAND's verb, not on "the resolved window happens to be a query window". The
+            // latter reads like the more precise test and is in fact far too wide: /interface resolves to an
+            // autorefresh window too, so keying on the window sent every LoadAll of the interface table down
+            // the monitor path — which then tried to encode the mapper's 'detail' flag as an M2 request field
+            // and threw. Caught by the full native suite, not by any monitor test.
+            if (TikMonitorVerbs.Contains(TikPath.Verb(descriptor.CommandText)))
+            {
+                var monitorSpec = _catalog.GetMonitorByHandler(handler);
+                if (monitorSpec != null)
+                    return RunMonitorWindowSync(monitorSpec, apiPath, handler, descriptor);
+            }
 
             var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames);
             var keyToName = resolver.BuildKeyToApiName();
@@ -779,18 +804,7 @@ namespace tik4net.WinboxNative
             }
 
             // Otherwise a streaming-monitor window (/tool/torch, /tool/profile, /interface/monitor-traffic, …).
-            // The monitor path is the command path itself or carries a trailing verb; try the plain path first,
-            // then the verb-stripped parent.
-            string apiPath = ApiPathOf(descriptor.CommandText);
-            int[] handler = _handlerMap.Resolve(apiPath);
-            WinboxMonitorSpec spec = _catalog.GetMonitorByHandler(handler);
-            if (spec == null)
-            {
-                string parent = TikPath.Parent(descriptor.CommandText);
-                int[] ph = _handlerMap.Resolve(parent);
-                var pspec = _catalog.GetMonitorByHandler(ph);
-                if (pspec != null) { apiPath = parent; handler = ph; spec = pspec; }
-            }
+            WinboxMonitorSpec spec = ResolveMonitorWindow(descriptor.CommandText, out string apiPath, out int[] handler);
             if (spec == null)
             {
                 var cmd = new TikGenericCommand(this, descriptor.CommandText);
@@ -804,6 +818,102 @@ namespace tik4net.WinboxNative
             var keyToField = resolver.BuildKeyToField();
             return PollingMonitorEngine.StartWorker("winbox-native-monitor",
                 handle => MonitorLoop(spec, descriptor, resolver, keyToName, keyToField, handle, onRow, onError, onDone));
+        }
+
+        /// <summary>
+        /// Finds the streaming-monitor window a command path names, or <c>null</c> when it names none. The
+        /// monitor path is either the command path itself (<c>/ping</c>, <c>/interface/monitor-traffic</c>) or
+        /// the parent of a trailing verb, so both are tried — in that order.
+        /// </summary>
+        /// <remarks>
+        /// Shared by the async and the synchronous monitor paths deliberately: they must agree on WHICH window
+        /// a command means, or the same command answers differently depending on the method used to call it —
+        /// which is the class of defect P2.51 is about.
+        /// </remarks>
+        private WinboxMonitorSpec ResolveMonitorWindow(string commandText, out string apiPath, out int[] handler)
+        {
+            apiPath = ApiPathOf(commandText);
+            handler = _handlerMap.Resolve(apiPath);
+            WinboxMonitorSpec spec = _catalog.GetMonitorByHandler(handler);
+            if (spec != null) return spec;
+
+            string parent = TikPath.Parent(commandText);
+            int[] ph = _handlerMap.Resolve(parent);
+            var pspec = _catalog.GetMonitorByHandler(ph);
+            if (pspec == null) return null;
+
+            apiPath = parent;
+            handler = ph;
+            return pspec;
+        }
+
+        /// <summary>
+        /// Runs a monitor window to completion on the CALLING thread and returns everything it produced — the
+        /// read-method (<c>ExecuteList</c>/<c>LoadList</c>) counterpart of <see cref="MonitorLoop"/>.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Before this existed, a synchronous <c>/ping</c> over native fell through to the generic getall on the
+        /// monitor handler, which the router answers with no records at all — so <c>ToolPing.Execute</c>
+        /// returned an empty list and the caller was told the ping had succeeded with nothing to report
+        /// (P2.51). A monitor window is not a table: its rows only exist while a monitor cycle is running.
+        /// </para>
+        /// <para>
+        /// "To completion" means: until the router sets Finished (a self-terminating command — <c>ping
+        /// count=N</c>, <c>traceroute</c>), or until the first pass ends without it (a continuous window —
+        /// <c>monitor-traffic</c>, <c>torch</c> — whose pass IS one snapshot). That is the same rule the CLI
+        /// transports get from the <c>once</c>/<c>count=1</c> snapshot modifier, and it matches what the binary
+        /// API returns for the same command. A monitor the caller never bounded (a <c>/ping</c> with no
+        /// <c>count</c>) blocks until the connection is closed — exactly as it does on the binary API, which
+        /// waits for a <c>!done</c> that never comes.
+        /// </para>
+        /// </remarks>
+        private IList<TikRecordSentence> RunMonitorWindowSync(
+            WinboxMonitorSpec spec, string apiPath, int[] handler, TikCommandDescriptor descriptor)
+        {
+            var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames);
+            var keyToName = resolver.BuildKeyToApiName();
+            var keyToField = resolver.BuildKeyToField();
+
+            var rows = new List<TikRecordSentence>();
+            uint? id = null;
+            bool started = false;
+            try
+            {
+                // allowReadOnly / includeFilters: a window's input fields are .jg-marked read-only (they are
+                // display widgets in the GUI) yet are the monitor's request inputs, and the read path has
+                // already rewritten the caller's parameters to Filter format — the same pair of exceptions
+                // RunActionWindow makes, for the same reasons.
+                var requestFields = EncodeNameValueFields(
+                    spec.Handler, descriptor, resolver, skipId: true, allowReadOnly: true, includeFilters: true,
+                    skipSnapshotModifier: true);
+                id = _ops.StartMonitor(spec.Handler, spec.StartCmd, requestFields);
+                started = true;
+
+                object continuation = null;
+                while (true)
+                {
+                    var (records, done, next) =
+                        _ops.PollMonitorRound(spec.Handler, spec.PollCmd, id, spec.IsQuery, continuation);
+                    continuation = next;
+
+                    foreach (var rec in records)
+                        rows.Add(new TikRecordSentence(_codec.DecodeRecord(rec, keyToName, keyToField)));
+
+                    if (done) break;                    // router set Finished: the command is over
+                    if (continuation == null) break;    // the pass ended without it: one snapshot is the result
+                }
+            }
+            catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
+            finally
+            {
+                if (started && IsOpened)
+                {
+                    try { _ops.CancelMonitor(spec.Handler, spec.CancelCmd, id); }
+                    catch { /* best-effort — the rows above are the result */ }
+                }
+            }
+            return rows;
         }
 
         // ── IPollingMonitorHost (shared listen/async-list scaffolding lives in PollingMonitorEngine) ──
@@ -974,7 +1084,7 @@ namespace tik4net.WinboxNative
         // to two entries (address + mask); a dynamic enum reference is resolved name→id via getall.
         private List<byte[]> EncodeNameValueFields(
             int[] handler, TikCommandDescriptor descriptor, WinboxFieldResolver resolver, bool skipId,
-            bool allowReadOnly = false, bool includeFilters = false)
+            bool allowReadOnly = false, bool includeFilters = false, bool skipSnapshotModifier = false)
         {
             var fields = new List<byte[]>();
             foreach (var p in descriptor.Parameters)
@@ -988,6 +1098,7 @@ namespace tik4net.WinboxNative
                 if (p.Name.StartsWith(".") && p.Name != TikSpecialProperties.Id) continue; // .proplist/.tag/…
                 if (p.Name == TikSpecialProperties.Id) { if (skipId) continue; }
                 if (p.Name == "move-before" || p.Name == "destination") continue; // handled by move dest
+                if (skipSnapshotModifier && IsMonitorSnapshotModifier(p.Name)) continue;
 
                 // A bad field VALUE is what the router itself would trap on over the API, so surface it as a
                 // trap here too — the native transport catches it client-side only because it has to resolve
@@ -1005,6 +1116,20 @@ namespace tik4net.WinboxNative
             }
             return fields;
         }
+
+        /// <summary>
+        /// Parameters that ask a monitor for a SINGLE reading rather than naming one of its inputs.
+        /// </summary>
+        /// <remarks>
+        /// RouterOS needs <c>once</c> because a monitor on the API or a terminal runs until something stops it.
+        /// A WinBox monitor window has no such input: the client starts a cycle, reads it and cancels it, so
+        /// "one reading" is decided here (see <c>RunMonitorWindowSync</c>) and there is no M2 key to encode it
+        /// to. Sending it anyway is what made <c>/interface/monitor-traffic interface=ether1 once</c> fail
+        /// resolution on the field the caller never meant as data. Same idea as <c>.proplist</c>/<c>detail</c>
+        /// being dropped per transport — what is a wire word on one is a client-side instruction on another.
+        /// </remarks>
+        private static bool IsMonitorSnapshotModifier(string name)
+            => string.Equals(name, "once", StringComparison.OrdinalIgnoreCase);
 
         // Encode an 'unset' into M2 fields: every 'value-name=<field>' pseudo-parameter names a field to be
         // written back as empty. The parameter's own name is NOT a router field, so it must never reach the

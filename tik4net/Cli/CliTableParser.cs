@@ -58,7 +58,7 @@ namespace tik4net.Cli
         // A header token and the character span its column occupies in the data rows below it.
         private struct Column
         {
-            internal string Name;
+            internal string Name; // null for a column that occupies space but names no field (the '#' ordinal)
             internal int Start;   // inclusive
             internal int End;     // exclusive; int.MaxValue for the last column
         }
@@ -105,6 +105,8 @@ namespace tik4net.Cli
             var words = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var col in _columns)
             {
+                if (col.Name == null)     // the '#' ordinal — spans the line, names no field
+                    continue;
                 if (col.Start >= line.Length)
                     continue;
                 int end = col.End == int.MaxValue ? line.Length : Math.Min(col.End, line.Length);
@@ -154,7 +156,16 @@ namespace tik4net.Cli
                 // everything from the start of the line (its value may be wider than its own header).
                 int start = i == 0 ? 0 : tokens[i].Index - 1;
                 int end = i == tokens.Count - 1 ? int.MaxValue : Math.Max(tokens[i + 1].Index - 1, start);
-                columns.Add(new Column { Name = tokens[i].Value.ToLowerInvariant(), Start = start, End = end });
+                string name = tokens[i].Value.ToLowerInvariant();
+                // '#' is the terminal's row ordinal (traceroute prints one; ping does not), not a field —
+                // the binary API returns '.id' in its place and no field named '#'. Kept as a column so the
+                // spans of the real ones stay right, but never emitted as a word.
+                columns.Add(new Column
+                {
+                    Name = name == "#" ? null : name,
+                    Start = start,
+                    End = end,
+                });
             }
             return columns;
         }

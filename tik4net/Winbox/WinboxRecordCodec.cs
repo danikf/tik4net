@@ -235,7 +235,34 @@ namespace tik4net.Winbox
         {
             if (value == null) return "";
             if (wireType == "bool") return (value is bool b && b) ? "true" : "false";
+            if (value is Dictionary<int, Tuple<string, object>> one) return FormatNestedMessage(one);
+            if (value is List<Dictionary<int, Tuple<string, object>>> many)
+                return string.Join(",", many.Select(FormatNestedMessage));
             return value.ToString();
+        }
+
+        /// <summary>
+        /// Renders a nested M2 submessage (a webfig <c>multi</c> element, or a wrapper such as the traceroute
+        /// window's per-hop <c>Host</c>) as its first present inner value.
+        /// </summary>
+        /// <remarks>
+        /// This is what webfig itself does, not a guess: <c>types.multi.tostr</c> walks the array and renders
+        /// each element through its single child type, and <c>types.union.get</c> with <c>single:1</c> returns
+        /// the first child that is present. Without it the value fell through to <c>object.ToString()</c> and
+        /// a caller was handed the literal text
+        /// <c>System.Collections.Generic.List`1[System.Collections.Generic.Dictionary`2[…]]</c> as if it were
+        /// the field's value — a nested field on any handler could do this, not just traceroute (found while
+        /// fixing P2.51). An element the router sent empty renders empty, which is the honest answer.
+        /// </remarks>
+        private static string FormatNestedMessage(Dictionary<int, Tuple<string, object>> msg)
+        {
+            if (msg == null || msg.Count == 0) return "";
+            foreach (var kv in msg.OrderBy(k => k.Key))
+            {
+                if (kv.Value?.Item2 == null) continue;
+                return FormatValue(kv.Value.Item1, kv.Value.Item2);
+            }
+            return "";
         }
 
         // Render a webfig multinumberrange value (a u32[] parsed by M2Message to the text "[lo0,hi0,lo1,hi1,…]")

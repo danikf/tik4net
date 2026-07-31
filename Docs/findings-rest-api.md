@@ -242,3 +242,34 @@ tenhle případ nepokrývá — proto `wol` zůstává v `_writeVerbs`.
 pluginů, 805 oken) neexistuje žádná `doit`/`action` pro zápis do logu. WinBox sám neumí zapsat řádek do
 logu, takže tady nejde o špatně sestavený požadavek — transport hlásí `NotSupportedException` a říká,
 co handler nabízí místo toho.
+
+---
+
+## 11. ✅ Monitor příkazy skončily na `POST /path/print` (P2.51, 2026-08-01)
+
+Stejná past jako §10, jiná sada cest. `/ping`, `/tool/traceroute`, `/interface/monitor-traffic`,
+`/tool/torch` a `/tool/profile` se volají **čtecí** metodou (vrací řádky), takže je
+`RestCallKind.NonQuery` nepokrývá; a protože žádné z těch jmen nebylo na verb-listu, sebrala si je
+větev s implicitním `print`.
+
+**Živě ověřeno na 7.23.2** (curl, mimo náš kód):
+
+```
+POST /rest/ping/print                                     → 400 {"detail":"no such command"}
+POST /rest/ping  {"address":"127.0.0.1","count":"2"}      → 200 [{seq:0,…},{seq:1,…}]
+POST /rest/interface/monitor-traffic/print                → 400 {"detail":"no such command"}
+POST /rest/interface/monitor-traffic {"interface":"ether1","once":""}
+                                                          → 200 [{name:"ether1",rx-bits-per-second:…}]
+POST /rest/tool/traceroute {"address":"127.0.0.1","count":"1"}
+                                                          → 200 [{address:"127.0.0.1",…}]
+```
+
+Router tedy zase není limit. `_monitorCommands` je proto kontrolován **před** rozpadem na verb+cestu
+a POSTne cestu tak, jak přišla — stejné pravidlo („nehádej, který segment je operace") jako v §10.
+`monitor` (`/interface/ethernet/monitor`) v seznamu není: to je už dávno ve `_writeVerbs` a obě větve
+pro něj dají stejnou URL.
+
+**`once` je u REST potřeba.** `POST /rest/interface/monitor-traffic {"interface":"ether1"}` bez `once`
+**nikdy neodpoví** (měřeno: 8 s bez jediného bajtu, pak jsme to utnuli) — monitor běží dál a HTTP
+požadavek visí. Mapper `once` posílá (`InterfaceMonitorTraffic.GetSnapshot`), takže se to netýká
+shipped entit, ale volající, který si příkaz staví sám, si ho musí přidat.
