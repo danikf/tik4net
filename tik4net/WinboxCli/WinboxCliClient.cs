@@ -96,6 +96,14 @@ namespace tik4net.WinboxCli
         // ── Command execution ─────────────────────────────────────────────────
 
         internal Task<string> SendCommandAndReadAsync(string command, CancellationToken ct)
+            => SendCommandAndReadAsync(command, null, ct);
+
+        /// <summary>
+        /// As <see cref="SendCommandAndReadAsync(string,CancellationToken)"/>, but also reports each
+        /// completed output line to <paramref name="onLine"/> while the command is still running — the
+        /// streaming driver registered by the WinBox-CLI connections (P2.50).
+        /// </summary>
+        internal Task<string> SendCommandAndReadAsync(string command, Action<string> onLine, CancellationToken ct)
         {
             return Task.Run(() =>
             {
@@ -110,7 +118,7 @@ namespace tik4net.WinboxCli
 
                 string cmd = CliOutputHelper.InjectWithoutPaging(command);
                 SendInput(_encoding.GetBytes(cmd + "\r"));
-                string raw = ReadCommandResponseSync(cmd);
+                string raw = ReadCommandResponseSync(cmd, onLine);
                 return CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), cmd);
             }, ct);
         }
@@ -324,12 +332,18 @@ namespace tik4net.WinboxCli
         /// <see cref="TikConnectionReceiveTimeoutException"/> instead of returning the partial text — see
         /// <see cref="Cli.CliReadTimeout"/>. <c>null</c> for control keys, which need not end at a prompt.
         /// </param>
-        private string ReadCommandResponseSync(string sentCommand)
+        /// <param name="onLine">
+        /// Optional: called with each completed line as it arrives, so a long-running command can be
+        /// consumed while it runs (see <see cref="Cli.CliLineStreamer"/>). Does not affect when the read
+        /// returns — the stable prompt plus its settle window is still the only terminator.
+        /// </param>
+        private string ReadCommandResponseSync(string sentCommand, Action<string> onLine = null)
         {
             var sb = new StringBuilder();
             var sw = Stopwatch.StartNew();
             DateTime? settleUntil = null;
             bool prompted = false;
+            var streamer = new Cli.CliLineStreamer(onLine);
             long lastPullMs = -1;   // -1 = a pull is due now (fire immediately)
 
             while (sw.ElapsedMilliseconds < _receiveTimeoutMs)
@@ -376,6 +390,7 @@ namespace tik4net.WinboxCli
                 }
 
                 string stripped = VtStripper.StripAnsi(sb.ToString());
+                streamer.Feed(stripped);
                 if (!prompted && RouterOsCliLogin.IsShellPrompt(stripped))
                 {
                     if (TikWireTrace.Enabled)

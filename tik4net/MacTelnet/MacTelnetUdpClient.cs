@@ -103,13 +103,21 @@ namespace tik4net.MacTelnet
         // ── Command execution ─────────────────────────────────────────────────
 
         internal Task<string> SendCommandAndReadAsync(string command, CancellationToken ct)
+            => SendCommandAndReadAsync(command, null, ct);
+
+        /// <summary>
+        /// As <see cref="SendCommandAndReadAsync(string,CancellationToken)"/>, but also reports each
+        /// completed output line to <paramref name="onLine"/> while the command is still running — the
+        /// streaming driver registered by <see cref="MacTelnetConnection"/> (P2.50).
+        /// </summary>
+        internal Task<string> SendCommandAndReadAsync(string command, Action<string> onLine, CancellationToken ct)
         {
             return Task.Run(() =>
             {
                 string cmd = CliOutputHelper.InjectWithoutPaging(command);
                 ResetReadBuffer();
                 SendTerminalBytes(_encoding.GetBytes(cmd + "\r"));
-                string raw = ReadCommandResponse(cmd);
+                string raw = ReadCommandResponse(cmd, onLine);
                 return CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), cmd);
             }, ct);
         }
@@ -291,11 +299,17 @@ namespace tik4net.MacTelnet
         /// <see cref="TikConnectionReceiveTimeoutException"/> instead of returning the partial text — see
         /// <see cref="CliReadTimeout"/>. <c>null</c> for control keys, which need not end at a prompt.
         /// </param>
-        private string ReadCommandResponse(string sentCommand)
+        /// <param name="onLine">
+        /// Optional: called with each completed line as it arrives, so a long-running command can be
+        /// consumed while it runs (see <see cref="CliLineStreamer"/>). Does not affect when the read
+        /// returns — the stable prompt is still the only terminator.
+        /// </param>
+        private string ReadCommandResponse(string sentCommand, Action<string> onLine = null)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
             DateTime? settleUntil = null;
             int lastLength = -1;
+            var streamer = new CliLineStreamer(onLine);
 
             while (sw.ElapsedMilliseconds < _receiveTimeoutMs)
             {
@@ -303,6 +317,7 @@ namespace tik4net.MacTelnet
                 _rxSignal.Reset();
 
                 string stripped = Snapshot(out int length);
+                streamer.Feed(stripped);
                 if (length != lastLength)
                 {
                     lastLength  = length;

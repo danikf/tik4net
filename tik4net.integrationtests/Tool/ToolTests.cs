@@ -51,20 +51,31 @@ namespace tik4net.integrationtests
         /// first few seconds.
         /// </summary>
         /// <remarks>
+        /// <para>
         /// P2.45: over both native WinBox transports this delivered exactly 5 rows at ~4 s and then went
         /// silent for good — no exception, no completion. A <c>type:'query'</c> monitor is ONE getall pass in
         /// which the router blocks each continuation until the next record exists, and the poll had a
         /// 4-second budget: it abandoned the pass mid-stream, lost the continuation cursor, and every
-        /// subsequent poll started a fresh getall that the router answered "no more rows". Nothing caught it,
-        /// because the only async-ping tests used <c>count=1</c> and <c>count=100</c>-with-close, both of
-        /// which are satisfied inside the first pass. Hence the two things asserted here: rows still arriving
-        /// AFTER the old cut-off, and no row delivered twice (a restarted pass would repeat sequence 0).
+        /// subsequent poll started a fresh getall that the router answered "no more rows".
+        /// </para>
+        /// <para>
+        /// P2.50: the same assertion then failed on all five CLI transports, for an unrelated reason — the
+        /// monitor was issued as <c>:put [/ping … as-value]</c>, which hands <c>:put</c> a completed array,
+        /// so RouterOS printed nothing until the whole ping had finished (0 rows for 20 s, then all 20).
+        /// They now send the bare interactive form, which the router streams a row at a time.
+        /// </para>
+        /// <para>
+        /// Nothing caught either defect, because the only async-ping tests used <c>count=1</c> (satisfied
+        /// inside the first pass / the first second) and <c>count=100</c>-with-close, which asserts merely
+        /// that FEWER than 100 rows arrived — and zero satisfies that. Hence the two things asserted here:
+        /// rows still arriving AFTER the old cut-off, and no row delivered twice (a restarted pass would
+        /// repeat sequence 0).
+        /// </para>
         /// </remarks>
         [TestMethod]
         public void PingAsyncKeepsStreamingPastTheFirstSeconds()
         {
             EnsureCapability(TikConnectionCapability.Listen, "async ping");
-            SkipOnNonStreamingAsyncTransport("a streaming async ping");
             const string HOST = "127.0.0.1";
             const int COUNT = 20;      // must outlast the observation window, so a short ping cannot pass by ending
 

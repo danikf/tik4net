@@ -142,6 +142,53 @@ namespace tik4net.Cli
         protected string ExecuteCliCommand(string cliText)
             => ExecuteCliCommandAsync(cliText, CancellationToken.None).GetAwaiter().GetResult();
 
+        // ── Streaming read (incremental line delivery) ─────────────────────────
+
+        // Optional driver: "send a command and report each COMPLETED output line while the command is still
+        // running", returning the same cleaned output the normal driver returns when it finally ends. A leaf
+        // transport registers this in Open if its read loop can hand out lines mid-command; a transport that
+        // does not is not broken, it just falls back to the one-shot as-value monitor (see SnapshotOnce).
+        private Func<string, Action<string>, CancellationToken, Task<string>> _sendStreaming;
+
+        /// <summary>
+        /// Registers the driver that enables incremental (line-at-a-time) reads on this transport. Leaf
+        /// transports whose read loop can report completed lines before the command returns to the prompt
+        /// call this from their Open, right after <see cref="OpenWith"/>.
+        /// </summary>
+        /// <remarks>
+        /// Registered separately from <see cref="OpenWith"/> — rather than by widening its delegate set —
+        /// so that adding the capability neither breaks a transport built outside this assembly nor claims
+        /// the capability on its behalf. Same pattern as <see cref="RegisterCompletionDriver"/>.
+        /// </remarks>
+        protected void RegisterStreamingDriver(Func<string, Action<string>, CancellationToken, Task<string>> sendStreaming)
+            => _sendStreaming = sendStreaming;
+
+        /// <summary>True when this transport can deliver a command's output line by line as it arrives.</summary>
+        protected bool SupportsStreamingRead => _sendStreaming != null;
+
+        /// <summary>
+        /// Runs a command, reporting each completed output line to <paramref name="onLine"/> as the router
+        /// produces it, and returns the full cleaned output once the command ends. The lines are raw — echo,
+        /// header and prompt included — because the caller parses them positionally.
+        /// </summary>
+        protected string ExecuteCliCommandStreaming(string cliText, Action<string> onLine)
+        {
+            var send = _sendStreaming ?? throw new NotSupportedException(
+                $"{TransportName} does not support incremental reads.");
+            _cmdLock.Wait();
+            try
+            {
+                FireWriteRow(cliText);
+                string result = send(cliText, onLine, CancellationToken.None).GetAwaiter().GetResult();
+                FireReadRow(result);
+                return result;
+            }
+            finally
+            {
+                _cmdLock.Release();
+            }
+        }
+
         // ── Safe Mode (Ctrl+X / Ctrl+D control keys) ───────────────────────────
 
         /// <summary>Ctrl+X — toggles Safe Mode in the RouterOS terminal (take, then commit). Byte 0x18.</summary>
@@ -720,17 +767,45 @@ namespace tik4net.Cli
             finally { onDone?.Invoke(); }
         }
 
-        // Self-terminating monitor (ping/traceroute): run the snapshot command once (its built-in count/
-        // duration bounds it), emit each resulting record, then complete — matches the binary API's
-        // async ping/traceroute (one execution → N rows → done), not a repeating poll.
+        /// <summary>
+        /// Self-terminating monitor (ping/traceroute): one execution → N rows → done, matching the binary
+        /// API's async ping/traceroute rather than a repeating poll (its built-in count/duration bounds it).
+        /// </summary>
+        /// <remarks>
+        /// The rows are streamed as the router produces them where the transport can do that. The command
+        /// shape is what decides this, not the read loop: <c>:put [/ping … as-value]</c> hands <c>:put</c> an
+        /// already-complete array, so RouterOS prints nothing at all until the ping has finished — measured
+        /// on 7.23.2, a <c>count=20</c> ping delivered 0 rows for 20 s and then all 20 at once (P2.50). The
+        /// bare interactive form of the same command emits its header at +58 ms and a row every ~1000 ms, so
+        /// that is what a streaming transport sends, reading it back with <see cref="CliTableParser"/>.
+        /// A transport with no streaming driver keeps the as-value one-shot: later, but not wrong.
+        /// </remarks>
         private void SnapshotOnce(TikCommandDescriptor descriptor, string snapshotModifier, TikMonitorHandle handle,
             Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
         {
             try
             {
-                string cliText = CliCommandBuilder.BuildMonitorSnapshot(
-                    descriptor.CommandText, descriptor.Parameters, snapshotModifier);
-                string output = ExecuteCliCommand(cliText);
+                string output;
+                if (SupportsStreamingRead)
+                {
+                    var table = new CliTableParser();
+                    output = ExecuteCliCommandStreaming(
+                        CliCommandBuilder.BuildInteractiveMonitor(
+                            descriptor.CommandText, descriptor.Parameters, snapshotModifier),
+                        line =>
+                        {
+                            if (handle.CancelRequested) return;
+                            TikRecordSentence row = table.Feed(line);
+                            if (row != null) onRow?.Invoke(row);
+                        });
+                    // Checked after the fact rather than per line: an error ends the command, so it is in the
+                    // final output too, and a half-arrived line must never be classified as one.
+                    CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+                    return;
+                }
+
+                output = ExecuteCliCommand(CliCommandBuilder.BuildMonitorSnapshot(
+                    descriptor.CommandText, descriptor.Parameters, snapshotModifier));
                 CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
                 foreach (var row in CliOutputParser.ParseAsValue(output))
                 {

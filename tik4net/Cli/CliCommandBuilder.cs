@@ -130,10 +130,41 @@ namespace tik4net.Cli
         /// </summary>
         internal static string BuildMonitorSnapshot(string apiPath, IList<ITikCommandParameter> parameters, string snapshotModifier)
         {
-            string cliBase = ApiPathToCli(apiPath);
             var sb = new StringBuilder(":put [");
-            sb.Append(cliBase);
+            sb.Append(ApiPathToCli(apiPath));
+            AppendMonitorInputs(sb, parameters, snapshotModifier);
+            sb.Append(" as-value]");
+            return sb.ToString();
+        }
 
+        /// <summary>
+        /// Builds the same monitor command in its <b>bare interactive</b> form — <c>/path &lt;inputs&gt;
+        /// &lt;modifier&gt;</c>, with no <c>:put [ … ]</c> wrapper and no <c>as-value</c> — for a caller that
+        /// wants the rows AS THEY HAPPEN rather than in one lump at the end.
+        /// </summary>
+        /// <remarks>
+        /// The wrapper is what costs the streaming: <c>:put</c> is handed a completed array, so the router
+        /// prints nothing until the command has finished. Measured on 7.23.2 (P2.50), a <c>count=5</c> ping
+        /// wrapped in <c>:put [… as-value]</c> emitted its first byte of data at +4019 ms and all five rows
+        /// at once; the same ping unwrapped emitted the header at +58 ms and then a row every ~1000 ms.
+        /// <para>
+        /// The output is therefore RouterOS's fixed-width table rather than an as-value line, and is read by
+        /// <see cref="CliTableParser"/>. Callers that want one complete result set and do not care when it
+        /// arrives should keep using <see cref="BuildMonitorSnapshot"/> — the as-value form needs no column
+        /// arithmetic and is the safer parse.
+        /// </para>
+        /// </remarks>
+        internal static string BuildInteractiveMonitor(string apiPath, IList<ITikCommandParameter> parameters, string snapshotModifier)
+        {
+            var sb = new StringBuilder(ApiPathToCli(apiPath));
+            AppendMonitorInputs(sb, parameters, snapshotModifier);
+            return sb.ToString();
+        }
+
+        // Appends the monitor's inputs (NameValue parameters; an empty value becomes a bare flag) followed
+        // by the snapshot modifier, unless the caller already supplied a parameter of that name.
+        private static void AppendMonitorInputs(StringBuilder sb, IList<ITikCommandParameter> parameters, string snapshotModifier)
+        {
             string modName = string.IsNullOrEmpty(snapshotModifier) ? null : snapshotModifier.Split('=')[0];
             bool modifierAlreadyPresent = false;
 
@@ -161,9 +192,6 @@ namespace tik4net.Cli
                 sb.Append(' ');
                 sb.Append(snapshotModifier);
             }
-
-            sb.Append(" as-value]");
-            return sb.ToString();
         }
 
         // ── Torch (freeze-frame) ──────────────────────────────────────────────

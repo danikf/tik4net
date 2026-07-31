@@ -404,3 +404,72 @@ není prompt a není fragment příkazu) a **echo příkazu za ním propadlo do 
 nalepí před první záznam, u tiše-úspěšného zápisu vznikne neprázdný „výstup", který poziční pravidlo
 z P2.12 čte jako odmítnutí routerem. Opraveno tím, že se log řádek přeskakuje i v hlavičce — spojovací
 smyčka ho zahazovala už předtím, takže se tím nic nového neztrácí.
+
+## 15. ✅ `:put [… as-value]` nic nevypíše, dokud příkaz neskončí (P2.50, 2026-07-31)
+
+Streamování přes CLI **není vlastnost čtecí smyčky, ale tvaru příkazu**. `:put` dostane už hotové
+pole, takže router nepošle ani bajt, dokud příkaz nedoběhne. Změřeno na 7.23.2 (telnet, timestampy
+jsou od odeslání příkazu):
+
+```
+:put [/ping address=127.0.0.1 count=5 as-value]
+  +     5 ms     49 B  echo příkazu
+  +  4019 ms    322 B  .id=*0;host=…;seq=0;…  ← VŠECH pět záznamů najednou, až na konci
+  +  4066 ms     24 B  prompt
+```
+
+Holý interaktivní tvar téhož příkazu streamuje:
+
+```
+/ping address=127.0.0.1 count=5
+  +     4 ms     33 B  echo příkazu
+  +    58 ms    150 B  hlavička + řádek seq=0
+  +  1008 ms     68 B  seq=1
+  +  2025 ms     68 B  seq=2
+  +  3021 ms     68 B  seq=3
+  +  4003 ms    148 B  seq=4 + souhrn sent=/received=/min-rtt=…
+```
+
+Platí to pro celou CLI rodinu (telnet, ssh, winboxcli, winboxclimac, mactelnet) — je to chování
+routeru, ne transportu. `LoadAsync<ToolPing>(count=20)` proto přes CLI vracel **0 řádků po 20 s a pak
+všech 20 naráz**; API i oba native transporty tentýž příkaz streamují po řádku.
+
+**Co s tím.** Sebeukončující monitory (`ping`, `traceroute` — `CliMonitorVerbs.Kind.Once`) se posílají
+holé (`CliCommandBuilder.BuildInteractiveMonitor`) a čtou se po řádcích: každá CLI čtecí smyčka volá
+`CliLineStreamer.Feed(stripped)` v místě, kde už `stripped` počítá kvůli detekci promptu. Prompt
+zůstává jediným ukončovatelem čtení — streamování nemění, *kdy* čtení skončí, jen kdy se volající
+dozví o řádcích. Průběžné monitory (`monitor-traffic`, `profile`, …) se nemění: ty se pollují
+`once`-snapshotem každých 500 ms, takže řádky tečou i tak.
+
+### Sloupce se čtou podle offsetů, ne whitespace splitem
+
+Prázdný sloupec zůstane prázdný a ty za ním se tisknou na svých místech. Timeoutový řádek nese jen
+SEQ, HOST a STATUS:
+
+```
+  SEQ HOST                                     SIZE TTL TIME       STATUS
+    0 127.0.0.1                                  56  64 107us
+    1 192.168.4.99                                                 timeout
+```
+
+Split podle mezer dá u druhého řádku `[1, 192.168.4.99, timeout]` a `timeout` skončí v `size`.
+Naměřené offsety: hlavičky `SEQ[3..5] HOST[7..10] SIZE[48..51] TTL[53..55] TIME[57..60] STATUS[68..73]`,
+hodnoty `0[4] 127.0.0.1[6..14] 56[49..50] 64[53..54] 107us[56..60] timeout[67..73]`. Všimni si, že
+hodnota může začít **o jeden znak vlevo** od své hlavičky (`107us` na 56 pod `TIME` na 57) — router
+rezervuje jeden pad znak před sloupcem — a že zarovnaná doleva může svou hlavičku daleko přetéct
+(`192.168.4.99` pod `HOST`). Sloupec proto sahá od jednoho znaku před svou hlavičku po jeden znak
+před hlavičku následující; to je jediné pravidlo, které oba tvary řádku umístí správně
+(`CliTableParser`).
+
+**Jména polí = hlavička malými písmeny**, což jsou přesně jména z binárního API (`seq`, `host`,
+`size`, `ttl`, `time`, `status`). Tenhle tvar je dokonce věrnější než as-value: API hlásí
+`time=60us` stejně jako tabulka, zatímco `as-value` totéž pole vypíše jako `00:00:00.000060`.
+Souhrnný řádek (`sent=…/received=…/min-rtt=…`) se zahazuje — je to souhrn tabulky, ne její řádek,
+a chodí až za posledním záznamem, takže ho nejde navěsit na řádky tak, jak to dělá API.
+
+### Proč se offsety nedají hlídat pozicí v bufferu
+
+`VtStripper.StripAnsi` se pouští na **celý** akumulovaný text při každém průchodu. Když hranice
+chunku padne doprostřed escape sekvence, jeden průchod ji nechá být (není kompletní) a další ji
+odstraní — text *před* aktuální pozicí se tím zkrátí. Ukazatel do řetězce se tak rozjede a doručí
+posunutá data. `CliLineStreamer` proto počítá **doručené řádky**, ne znaky.

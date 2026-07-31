@@ -114,7 +114,15 @@ namespace tik4net.Ssh
         /// removed, trailing prompt (last line) removed. If the command contains "print" but not
         /// "without-paging", the modifier is injected to prevent paging from blocking the read.
         /// </summary>
-        internal async Task<string> SendCommandAndReadAsync(string command, CancellationToken ct)
+        internal Task<string> SendCommandAndReadAsync(string command, CancellationToken ct)
+            => SendCommandAndReadAsync(command, null, ct);
+
+        /// <summary>
+        /// As <see cref="SendCommandAndReadAsync(string,CancellationToken)"/>, but also reports each
+        /// completed output line to <paramref name="onLine"/> while the command is still running — the
+        /// streaming driver registered by <see cref="SshConnection"/> (P2.50).
+        /// </summary>
+        internal async Task<string> SendCommandAndReadAsync(string command, Action<string> onLine, CancellationToken ct)
         {
             // Discard anything still buffered from the PREVIOUS command — see the same guard in
             // TelnetClient for the mechanism (a read returning on the prompt inside the line editor's echo
@@ -125,7 +133,7 @@ namespace tik4net.Ssh
                 await DrainAsync(SettleMs, ct).ConfigureAwait(false);
 
             await SendLineAsync(cmd, ct).ConfigureAwait(false);
-            string raw = await ReadCommandResponseAsync(ct, cmd).ConfigureAwait(false);
+            string raw = await ReadCommandResponseAsync(ct, cmd, onLine).ConfigureAwait(false);
             return CliOutputHelper.CleanOutput(raw, cmd);
         }
 
@@ -212,12 +220,19 @@ namespace tik4net.Ssh
         /// than returning the partial text (see <see cref="CliReadTimeout"/>). <c>null</c> for control keys,
         /// which RouterOS need not answer with a prompt.
         /// </param>
-        private async Task<string> ReadCommandResponseAsync(CancellationToken ct, string sentCommand)
+        /// <param name="onLine">
+        /// Optional: called with each completed line as it arrives, so a long-running command can be
+        /// consumed while it runs (see <see cref="CliLineStreamer"/>). Does not affect when the read
+        /// returns — the stable prompt is still the only terminator.
+        /// </param>
+        private async Task<string> ReadCommandResponseAsync(CancellationToken ct, string sentCommand,
+            Action<string> onLine = null)
         {
             var buffer = new byte[4096];
             var accumulated = new StringBuilder();
             var deadline = DateTime.UtcNow.AddMilliseconds(_receiveTimeoutMs);
             DateTime? settleUntil = null;
+            var streamer = new CliLineStreamer(onLine);
 
             while (true)
             {
@@ -237,6 +252,7 @@ namespace tik4net.Ssh
                     settleUntil = null; // fresh data → the prompt (if any) is not yet stable
 
                 string stripped = VtStripper.StripAnsi(accumulated.ToString());
+                streamer.Feed(stripped);
 
                 if (RouterOsCliLogin.IsShellPrompt(stripped))
                 {

@@ -38,8 +38,9 @@ namespace tik4net.Ssh
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
         {
-            var (login, send, sendRaw, close) = BuildTransport(host, port, user, password);
+            var (login, send, sendRaw, sendStreaming, close) = BuildTransport(host, port, user, password);
             OpenWith(login, send, sendRaw, close);
+            RegisterStreamingDriver(sendStreaming);
         }
 
         /// <inheritdoc/>
@@ -49,14 +50,17 @@ namespace tik4net.Ssh
         /// <inheritdoc/>
         public override Task OpenAsync(string host, int port, string user, string password)
         {
-            var (login, send, sendRaw, close) = BuildTransport(host, port, user, password);
-            return OpenWithAsync(login, send, sendRaw, close);
+            var (login, send, sendRaw, sendStreaming, close) = BuildTransport(host, port, user, password);
+            var opened = OpenWithAsync(login, send, sendRaw, close);
+            RegisterStreamingDriver(sendStreaming);
+            return opened;
         }
 
         // Build the SSH PTY-shell client (Renci.SshNet) and the delegates that drive it (connect+settle,
-        // send, send-raw, close).
+        // send, send-raw, send-streaming for incremental monitor reads, close).
         private (Func<CancellationToken, Task>, Func<string, CancellationToken, Task<string>>,
-            Func<byte[], CancellationToken, Task<string>>, Action)
+            Func<byte[], CancellationToken, Task<string>>,
+            Func<string, Action<string>, CancellationToken, Task<string>>, Action)
             BuildTransport(string host, int port, string user, string password)
         {
             var client = new SshShellClient(Encoding, ReceiveTimeout);
@@ -65,7 +69,8 @@ namespace tik4net.Ssh
                 client.Connect(host, port, user, password, SendTimeout);
                 await client.SettleAfterConnectAsync(ct).ConfigureAwait(false);
             };
-            return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync, client.Close);
+            return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,
+                client.SendCommandAndReadAsync, client.Close);
         }
 
         // ── Safe Mode ───────────────────────────────────────────────────────────

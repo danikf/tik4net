@@ -64,9 +64,10 @@ namespace tik4net.MacTelnet
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
         {
-            var (login, send, sendRaw, sendRawSettle, close) = BuildTransport(host, port, user, password);
+            var (login, send, sendRaw, sendRawSettle, sendStreaming, close) = BuildTransport(host, port, user, password);
             OpenWith(login, send, sendRaw, close);
             RegisterCompletionDriver(sendRawSettle);
+            RegisterStreamingDriver(sendStreaming);
         }
 
         /// <inheritdoc/>
@@ -76,15 +77,17 @@ namespace tik4net.MacTelnet
         /// <inheritdoc/>
         public override async Task OpenAsync(string host, int port, string user, string password)
         {
-            var (login, send, sendRaw, sendRawSettle, close) = BuildTransport(host, port, user, password);
+            var (login, send, sendRaw, sendRawSettle, sendStreaming, close) = BuildTransport(host, port, user, password);
             await OpenWithAsync(login, send, sendRaw, close).ConfigureAwait(false);
             RegisterCompletionDriver(sendRawSettle);
+            RegisterStreamingDriver(sendStreaming);
         }
 
         // Build the MAC-Telnet client and the delegates that drive it. The port parameter is ignored —
         // MAC-Telnet always uses UDP 20561; login is by router MAC, discovered via MNDP or RouterMac.
         private (Func<CancellationToken, Task>, Func<string, CancellationToken, Task<string>>,
-            Func<byte[], CancellationToken, Task<string>>, Func<byte[], int, CancellationToken, Task<string>>, Action)
+            Func<byte[], CancellationToken, Task<string>>, Func<byte[], int, CancellationToken, Task<string>>,
+            Func<string, Action<string>, CancellationToken, Task<string>>, Action)
             BuildTransport(string host, int port, string user, string password)
         {
             // The client is held in a variable rather than captured once, because a session that RouterOS
@@ -115,12 +118,33 @@ namespace tik4net.MacTelnet
                 }
             };
 
+            // Streaming send (incremental monitor reads, P2.50). Same reconnect-on-logout treatment as
+            // `send`, with one restriction: a retry re-runs the command from the start, so it is only safe
+            // while NOTHING has been handed to the caller yet. Once a row has been emitted, re-running would
+            // deliver the same sequence numbers twice — a silently wrong stream — so the close is reported
+            // instead. A monitor that dies mid-stream is an error the caller must see.
+            Func<string, Action<string>, CancellationToken, Task<string>> sendStreaming = async (cmd, onLine, ct) =>
+            {
+                bool anyLineDelivered = false;
+                Action<string> track = line => { anyLineDelivered = true; onLine?.Invoke(line); };
+                try
+                {
+                    return await client.SendCommandAndReadAsync(cmd, track, ct).ConfigureAwait(false);
+                }
+                catch (TikConnectionSessionClosedException) when (ReconnectAllowed && !anyLineDelivered)
+                {
+                    await reopen(ct).ConfigureAwait(false);
+                    return await client.SendCommandAndReadAsync(cmd, track, ct).ConfigureAwait(false);
+                }
+            };
+
             // Raw sends are control keys (Safe Mode, Tab completion). They are not retried: a control key
             // is a keystroke against a specific terminal state, and replaying it on a fresh session would
             // be sending it to a console that never saw what came before.
             return (login, send,
                 (raw, ct) => client.SendRawAndReadAsync(raw, ct),
                 (raw, quietMs, ct) => client.SendRawAndReadUntilQuietAsync(raw, quietMs, ct),
+                sendStreaming,
                 close);
         }
     }

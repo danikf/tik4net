@@ -40,9 +40,10 @@ namespace tik4net.Telnet
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
         {
-            var (login, send, sendRaw, sendRawSettle, close) = BuildTransport(host, port, user, password);
+            var (login, send, sendRaw, sendRawSettle, sendStreaming, close) = BuildTransport(host, port, user, password);
             OpenWith(login, send, sendRaw, close);
             RegisterCompletionDriver(sendRawSettle);
+            RegisterStreamingDriver(sendStreaming);
         }
 
         /// <inheritdoc/>
@@ -52,15 +53,17 @@ namespace tik4net.Telnet
         /// <inheritdoc/>
         public override async Task OpenAsync(string host, int port, string user, string password)
         {
-            var (login, send, sendRaw, sendRawSettle, close) = BuildTransport(host, port, user, password);
+            var (login, send, sendRaw, sendRawSettle, sendStreaming, close) = BuildTransport(host, port, user, password);
             await OpenWithAsync(login, send, sendRaw, close).ConfigureAwait(false);
             RegisterCompletionDriver(sendRawSettle);
+            RegisterStreamingDriver(sendStreaming);
         }
 
         // Build the Telnet client and the delegates that drive it (connect+login, send, send-raw,
-        // send-raw-settle for Tab-completion, close).
+        // send-raw-settle for Tab-completion, send-streaming for incremental monitor reads, close).
         private (Func<CancellationToken, Task>, Func<string, CancellationToken, Task<string>>,
-            Func<byte[], CancellationToken, Task<string>>, Func<byte[], int, CancellationToken, Task<string>>, Action)
+            Func<byte[], CancellationToken, Task<string>>, Func<byte[], int, CancellationToken, Task<string>>,
+            Func<string, Action<string>, CancellationToken, Task<string>>, Action)
             BuildTransport(string host, int port, string user, string password)
         {
             var client = new TelnetClient(Encoding, ReceiveTimeout);
@@ -70,7 +73,7 @@ namespace tik4net.Telnet
                 await client.LoginAsync(user, password, ct).ConfigureAwait(false);
             };
             return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,
-                client.SendRawAndReadUntilQuietAsync, client.Close);
+                client.SendRawAndReadUntilQuietAsync, client.SendCommandAndReadAsync, client.Close);
         }
     }
 }
