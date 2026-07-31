@@ -81,6 +81,14 @@ namespace tik4net.Cli
                 string lineCore = line.TrimStart('/');
                 bool isEcho =
                     IsPromptPrefixed(line)
+                    // An asynchronous log line (see IsRouterLogLine) can land at the HEAD of a response,
+                    // ahead of the echo — the router writes it whenever it is emitted, not where it fits.
+                    // Without this it is the first line that looks like data, so the loop stopped here and
+                    // the command echo behind it survived into the output: a read got the echo prepended to
+                    // its first record, and a silent-on-success write got a non-empty "output" that P2.12's
+                    // positional rule reads as the router rejecting it. The join below already discards log
+                    // lines, so skipping them here loses nothing it did not already lose.
+                    || IsRouterLogLine(line)
                     || (cmdCore.Length > 0
                         && (cmdCore.IndexOf(lineCore, StringComparison.OrdinalIgnoreCase) >= 0
                             || cmdCore.StartsWith(lineCore, StringComparison.OrdinalIgnoreCase)));

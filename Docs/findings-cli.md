@@ -370,3 +370,37 @@ API  ?comment=                                          → nic
 Builder do té doby posílal bare `name` pro obojí, takže filtr na prázdnou hodnotu vracel přesně
 doplňkovou množinu. Rozlišuje se podle toho, zda je hodnota parametru `null` (→ bare `name`, API
 `?name`) nebo prázdný řetězec (→ `name=""`, API `?name=`).
+
+## 14. ✅ Router píše do živého terminálu sám od sebe (P2.47, 2026-07-31)
+
+RouterOS má v základní konfiguraci pravidlo `topics=critical action=echo` (`/system/logging`), a
+`echo` neznamená „na lokální konzoli" — znamená **do otevřených terminálových session**. Do relace
+tedy může kdykoli přiletět řádek, o který nikdo nežádal:
+
+```
+21:18:05.412 telnet.sock RECV | <CR>23:17:46 echo: system,error,critical login failure for user
+                                admin from 192.168.4.31 via api<ESC>[K<CR><LF><CR><ESC>[9999B[admin@CHR] >
+```
+
+Změřeno na wire-trace celého (zeleného) telnet běhu suity. Vlastnosti, které je potřeba znát:
+
+- **Není to login banner.** Přiletělo to na dávno ustavené session, mezi dvěma testy, bez IAC
+  negociace v okolí. (Banner recentní logy taky tiskne — při hledání v trace se to snadno splete,
+  filtruj podle toho, jestli je poblíž `<FF><FD>` negociace.)
+- **Router to bufferuje.** Časové razítko v řádku bylo ~19 s starší než okamžik doručení, takže
+  příčina a projev spolu časově nesouvisí.
+- **Přiletí jen do session, která zrovna nic nedělá.** Pokus vynutit si to během 20s čtení
+  (`/system script run` s `:delay 20s`) nedoručil nic; v ostrém případě byla relace idle mezi příkazy.
+- **Za frontou následuje překreslený prompt** (`<ESC>[9999B[admin@CHR] > `), takže čtení, které
+  zrovna běží, na konci prompt zase uvidí.
+- **Vyrobit se to dá** neúspěšným loginem z druhé session — `login failure` je `critical`. Log
+  vznikne u telnetu i u API (`/log/print ?message=login failure...` to potvrdí); doručení do cizí
+  relace je ale řízené tím, jestli je relace idle, takže to není spolehlivý injektor.
+
+Pokud řádek dorazí **mezi příkazy**, sežere ho `DrainAsync` a nic se nestane — to je i případ výše.
+Nebezpečné je, když dorazí až **za** drainem, tedy na začátek odpovědi na další příkaz: v
+`CliOutputHelper.CleanOutput` pak přeskakovací smyčka na hlavičce zastavila (log řádek není prázdný,
+není prompt a není fragment příkazu) a **echo příkazu za ním propadlo do dat**. U čtení se echo
+nalepí před první záznam, u tiše-úspěšného zápisu vznikne neprázdný „výstup", který poziční pravidlo
+z P2.12 čte jako odmítnutí routerem. Opraveno tím, že se log řádek přeskakuje i v hlavičce — spojovací
+smyčka ho zahazovala už předtím, takže se tím nic nového neztrácí.

@@ -50,6 +50,35 @@ namespace tik4net.unittests.Cli
                 "a log line must not be mistaken for a data record");
         }
 
+        // The log line is written when the router emits it, which can be BEFORE the command echo has been
+        // painted. That order defeated the leading-noise loop: the log line is not blank, not a prompt and
+        // not a fragment of the command, so the loop stopped on it and the echo behind it was returned as
+        // data. Measured live — one such line appeared in a full telnet suite run (P2.47).
+        [TestMethod]
+        public void CleanOutput_DropsARouterLogLineThatArrivesAheadOfTheEcho()
+        {
+            const string sent = ":put [/ip address print detail as-value]";
+            string raw = "19:54:32 echo: system,error,critical login failure for user admin from 10.0.0.1 via api\r\n"
+                       + sent + "\r\n"
+                       + ".id=*1;address=192.168.1.1/24\r\n"
+                       + Prompt;
+
+            Assert.AreEqual(".id=*1;address=192.168.1.1/24", CliOutputHelper.CleanOutput(raw, sent),
+                "the echo must still be recognised when a log line precedes it");
+        }
+
+        [TestMethod]
+        public void CleanOutput_LogLineAheadOfASilentWriteDoesNotLookLikeAnError()
+        {
+            const string sent = "/interface set [find .id=*2] comment=x";
+            string raw = "19:54:32 system,error,critical login failure for user admin\r\n"
+                       + sent + "\r\n"
+                       + Prompt;
+
+            Assert.AreEqual(string.Empty, CliOutputHelper.CleanOutput(raw, sent),
+                "otherwise the surviving echo is read as the router rejecting the write");
+        }
+
         [TestMethod]
         public void CleanOutput_LogLineDuringASilentWriteDoesNotLookLikeAnError()
         {
