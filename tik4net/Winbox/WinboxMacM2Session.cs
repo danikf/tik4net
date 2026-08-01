@@ -93,6 +93,11 @@ namespace tik4net.Winbox
         // covers stray frames.
         public bool SupportsStaleDrain => false;
 
+        // The MAC layer acknowledges the byte stream, so it is the one carrier here that can tell a dropped
+        // session from a slow one. See MacLayerTransport.LastSendAbandoned for why an unacknowledged command
+        // is also known not to have run.
+        public bool SendAbandoned => LastSendAbandoned;
+
         /// <summary>
         /// Connects over the MAC layer and authenticates (EC-SRP5). <paramref name="port"/> is ignored
         /// (MAC always uses UDP 20561), as is <paramref name="ioTimeoutMs"/> — UDP has no socket-level

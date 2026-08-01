@@ -322,6 +322,14 @@ namespace tik4net.WinboxCli
             throw new TimeoutException("WinBox: timed out waiting for shell prompt.");
         }
 
+        private static TikConnectionSessionClosedException SessionClosed(string sentCommand)
+            => new TikConnectionSessionClosedException(
+                "WinBox CLI: the router stopped acknowledging this session — it did not take the bytes of "
+                + (string.IsNullOrEmpty(sentCommand) ? "the last request" : "'" + sentCommand.Trim() + "'")
+                + ", so the command did not run. The MAC-layer carrier keeps the UDP socket open and RouterOS "
+                + "sends no error when it drops a console session, so the session goes silent rather than "
+                + "reporting anything.");
+
         /// <summary>
         /// Reads a command response, requiring the prompt to be stable for <see cref="SettleMs"/>
         /// before returning (the line-editor repaints the prompt, so a single prompt sighting is not
@@ -388,6 +396,15 @@ namespace tik4net.WinboxCli
                     settleUntil = null;
                     lastPullMs  = -1;   // output is flowing — allow the next batch-pull immediately
                 }
+
+                // Nothing has come back AND the carrier says the router never took the bytes, even after the
+                // retransmits ran out. Spending the rest of _receiveTimeoutMs would only turn an answer we
+                // already have into "nothing was received within 30000 ms" — a message that blames the read
+                // for what the session did (P2.54). Safe to call the command un-run: see
+                // TikConnectionSessionClosedException. On carriers that cannot tell, SendAbandoned is false
+                // and this costs a field read per poll.
+                if (sb.Length == 0 && _session.SendAbandoned)
+                    throw SessionClosed(sentCommand);
 
                 string stripped = VtStripper.StripAnsi(sb.ToString());
                 streamer.Feed(stripped);

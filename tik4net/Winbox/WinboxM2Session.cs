@@ -45,6 +45,12 @@ namespace tik4net.Winbox
         // TCP: a waiting byte is a real buffered M2 frame, so the stale-frame drain is safe and effective.
         public bool SupportsStaleDrain => true;
 
+        // TCP has no per-message acknowledgement to notice the absence of: the kernel either delivers the
+        // bytes or tears the connection down, and a router that drops the session sends a FIN/RST that
+        // surfaces as an IOException from the read. There is nothing to report here that the socket has not
+        // already reported louder.
+        public bool SendAbandoned => false;
+
         // ── Connect + authenticate ────────────────────────────────────────────
 
         /// <inheritdoc/>

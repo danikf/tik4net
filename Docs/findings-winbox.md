@@ -485,3 +485,39 @@ jen jednovláknová terminálová smyčka `WinboxCliClient` (nativní transport 
 
 **Poučení:** vlastnost, kterou volající bere jako povolení zablokovat se, musí být pravdivá.
 MAC-Telnet stejnou vadu nemá — má background pump s blokujícím socketem, ne `DataAvailable` gating.
+
+## 16. Router tiše zahodí session a my to 30 s nepoznáme (P2.54, 2026-08-01)
+
+Po opravě P2.43 zbyly v `winboxclimac` tři červené: `SearchByName_Interface_WillWork`,
+`Create_IpAddress_With_LowLevel_API`, `ListRadiusServersWillNotFail` — vždy
+`nothing was received within 30000 ms`, vždy ~30,1 s, beze změny napříč třemi plnými běhy před
+opravou i po ní. Je to trojice, kterou P2.32 zapsal jako „wedge signature" tohoto transportu.
+
+**Co ukázal trace.** Mechanismus je u všech tří identický: datagram s příkazem odejde, router ho
+**nikdy nepotvrdí** a osm bajtově identických retransmisí ignoruje —
+`RETRANSMIT #8 end=15639 highestAck=15475`, kde `highestAck` je přesně startovní offset toho
+příkazu. Není to hranice bajtového okna (wedge padá na 15491, 107989 a 15475). A hlavně: **router
+celých 30 s neposílá vůbec nic** — ani ACK, ani PING, ani retransmisi. To obrací dosavadní výklad
+téhle rodiny naruby: není to „router odmítá náš vstup", je to „router tu session už nemá".
+
+**Co jsme s tím udělali teď.** Ne příčinu — tu ještě neznáme (podezření: v sekundách před každým
+wedgem router přeposílá rámce, které jsme už potvrdili, takže naše pakety k němu přestaly chodit
+dřív, než příkaz vůbec odešel; a všem třem bezprostředně předchází test, který otevřel a zavřel
+druhé spojení). Udělali jsme to, co jde udělat bez znalosti příčiny a co má cenu samo o sobě:
+
+* **`IWinboxM2Channel.SendAbandoned`** vynáší `MacLayerTransport.LastSendAbandoned` do CLI enginu.
+  Nad TCP je vždy `false` — TCP nemá co nepotvrdit, mrtvé spojení tam přijde jako FIN/RST.
+* **`WinboxCliClient.ReadCommandResponseSync`** ho konzultuje a při „nic nepřišlo **a** router naše
+  bajty nevzal" hází `TikConnectionSessionClosedException` místo dojetí na 30 s.
+  Podmínka `sb.Length == 0` je podstatná: jakmile konzole cokoli vydala, příkaz **prokazatelně**
+  dorazil a mohl proběhnout — tvrdit tam „neproběhl" by byla lež, kterou volající nemá jak ověřit.
+* **`WinboxCliMacConnection`** na to navěsil reopen + retry, přesně podle `MacTelnetConnection`
+  (tentýž nosič, tentýž problém): nové spojení + nový EC-SRP5 login přes `WinboxLoginRetry`,
+  s dvěma zákazy — ne v Safe Mode (zahození session je právě to, před čím Safe Mode chrání) a ne
+  poté, co už nějaký řádek odešel volajícímu (znovuspuštění by tytéž řádky doručilo dvakrát).
+
+Rozlišení „mrtvá session" vs. „pomalý příkaz" je celá hodnota toho signálu — proto ta rychlá cesta
+visí na nepotvrzení, ne na tichu. Kdyby visela na tichu, každý legitimně dlouhý příkaz by padal.
+
+**Poučení (stejné jako P2.39, jen o vrstvu jinde):** hláška „nothing was received within N ms"
+popisuje naše čtení, ne to, co udělal protějšek. Když nosič umí říct víc, musí se ho někdo zeptat.

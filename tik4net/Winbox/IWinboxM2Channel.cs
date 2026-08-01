@@ -41,6 +41,20 @@ namespace tik4net.Winbox
         bool SupportsStaleDrain { get; }
 
         /// <summary>
+        /// True once the channel knows the router did <b>not</b> take the bytes we last sent — it has been
+        /// retransmitting them to exhaustion and has never been acknowledged. Always false on a channel that
+        /// cannot tell (see the implementations).
+        /// </summary>
+        /// <remarks>
+        /// This is the one signal that separates "the router has dropped this session" from "the router took
+        /// the command and is being slow", and only the former can be reported without lying about whether
+        /// the command ran. Without it a dead session costs the caller a whole
+        /// <see cref="ITikConnection.ReceiveTimeout"/> and then reports "nothing was received", which names
+        /// the symptom at the wrong layer (P2.54; MAC-Telnet learned the same lesson in P2.39).
+        /// </remarks>
+        bool SendAbandoned { get; }
+
+        /// <summary>
         /// Connects to the router and authenticates. <paramref name="port"/> is honoured by TCP
         /// transports and ignored by the MAC transport (which always uses UDP 20561).
         /// </summary>
