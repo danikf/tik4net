@@ -63,6 +63,9 @@ IOException.
 a teprve pak `_session.Receive(5000)` s velkorysým per-frame timeoutem (jen ohraničí už přicházející
 rámec, nikdy nevyprší mid-frame). Funguje to spolehlivě i pro vícepaketové odpovědi.
 
+⚠️ Ten velkorysý timeout je bezpečný **jen dokud `DataAvailable` nelže**. Nad MAC/UDP lhal a stál
+5 s na každý příkaz — viz kap. 15.
+
 ---
 
 ## 4. Persistentní mepty session funguje
@@ -432,3 +435,53 @@ u `/system/note`.
 ```
 
 `topics` u `/log` se proto dekódovaly jako surové `"[9,3]"` místo `"script,error"`.
+
+---
+
+## 15. `DataAvailable` nad UDP lhal a stál 5 s na příkaz (P2.43, 2026-08-01)
+
+`WinboxCliMac` byl proti `WinboxCli` řádově pomalejší (plný běh 1 h 22 m vs. 8 min) a bylo to
+zapsané jako „latence MAC kanálu". **Není.** Změřeno na 7.23.2 probem
+`WinboxCliLatencyProbeTest`, který rozpadá jeden příkaz podle wire-trace kanálu `wbxcli.mepty`
+(sdílí ho oba transporty, takže jsou přímo porovnatelné):
+
+| span | WinboxCli | WinboxCliMac (před) | WinboxCliMac (po) |
+|---|---|---|---|
+| send → první bajt | 25 ms | **25 ms** | 25 ms |
+| první bajt → prompt | 25 ms | 1 ms | 0 ms |
+| prompt → return | 166 ms | **5012 ms** | 164 ms |
+| celkem / příkaz | 216 ms | **5039 ms** | 193 ms |
+| open | 1142 ms | **6053 ms** | 1053 ms |
+
+První bajt chodil **stejně rychle jako po TCP**. Celá ztráta seděla za promptem a rovnala se
+přesně `WinboxCliClient.FrameTimeoutMs` = 5000 ms.
+
+**Příčina.** Kap. 3 výše říká, že každé čtení terminálu je gated `DataAvailable` a teprve pak
+`Receive(5000)` — ten timeout smí ohraničit jen rámec, který **už přichází**. Nad TCP to platí,
+protože `NetworkStream.DataAvailable` znamená „jsou tu bajty rámce". Nad UDP `_udp.Available > 0`
+znamená jen „přišel nějaký datagram", a naprostá většina provozu na tom socketu jsou ACK, PING a
+retransmise routeru. Zachycená časová osa jednoho příkazu:
+
+```
+34,8 ms  prompt seen (bytes=254)
+34,8 ms  Recv 310B type=0x01 counter=3021   ← duplikát, AckData ho zahodí
+34,8 ms  Recv 310B type=0x01 counter=3021   ← druhý duplikát
+…        RecvUntil dojede na deadline
+5033 ms  settled -> return @5024ms
+```
+
+`RecvUntil` má kontrakt „čekej do timeoutu, dokud handler neřekne dost" — pro čekajícího volajícího
+správně, pro **pollujícího** katastrofa: každý falešně pozitivní `DataAvailable` stál celý frame
+timeout. Padlo to jednou na příkaz a znovu jednou na `DrainSync(250)` po loginu, což je přesně ta
+změřená „skipnutý test stojí 6 s" z P2.50.
+
+**Oprava.** `MacLayerTransport.RecvAvailable(handler)` = polling protějšek `RecvUntil`: zpracuje
+všechno, co už v socketu leží, a hned se vrátí (společné tělo `ReceiveOne`, takže ACK/PING/duplikáty
+se řeší identicky v obou cestách). `WinboxMacM2Session.DataAvailable` na něm stojí a odpovídá
+**„je připravený celý M2 rámec"**, ne „přišel datagram"; hotový rámec si drží v `_pendingFrame` a
+následující `RecvFrame` ho vydá. Getter tedy dělá I/O — záměrně: je to poll operace kanálu a čte ji
+jen jednovláknová terminálová smyčka `WinboxCliClient` (nativní transport jede reader loop a
+`SupportsStaleDrain = false` mu polling zakazuje).
+
+**Poučení:** vlastnost, kterou volající bere jako povolení zablokovat se, musí být pravdivá.
+MAC-Telnet stejnou vadu nemá — má background pump s blokujícím socketem, ne `DataAvailable` gating.

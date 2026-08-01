@@ -18,14 +18,25 @@ namespace tik4net.Winbox
         /// <summary>True once an encrypted channel is established (EC-SRP5 keys derived).</summary>
         bool IsEncrypted { get; }
 
-        /// <summary>True when at least one inbound frame/packet is waiting to be read.</summary>
+        /// <summary>
+        /// True when a <see cref="Receive"/> can be expected to return a frame promptly — i.e. inbound
+        /// data for one is actually waiting.
+        /// </summary>
+        /// <remarks>
+        /// Callers treat this as permission to <b>block</b>: the terminal loops gate a generous per-frame
+        /// receive on it, because a receive that times out mid-frame leaves the stream unrecoverable. An
+        /// implementation that answers true for traffic which cannot produce a frame therefore does not
+        /// merely cost a wasted poll — it costs the caller a whole frame timeout. The MAC channel used to
+        /// answer on any datagram, most of which are ACK/PING/retransmit control packets, and that alone
+        /// accounted for 5 s per command and per open (P2.43).
+        /// </remarks>
         bool DataAvailable { get; }
 
         /// <summary>
         /// True when <see cref="DataAvailable"/> + <see cref="Receive"/> can be used to cheaply drain stale
-        /// buffered frames before a synchronous request (TCP: a waiting byte means a real buffered M2 frame).
-        /// False for the MAC transport, where <c>_udp.Available</c> also reflects ACK/PING/retransmit control
-        /// traffic, so a drain loop would thrash on noise rather than discard a single leftover frame.
+        /// buffered <em>frames</em> before a synchronous request (TCP: a waiting byte means a real buffered
+        /// M2 frame). False for the MAC transport, where a stale frame is not the problem — leftover partial
+        /// reassembly state underneath it is, and discarding whole frames cannot clear that.
         /// </summary>
         bool SupportsStaleDrain { get; }
 

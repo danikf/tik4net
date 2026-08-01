@@ -589,24 +589,7 @@ namespace tik4net.MacTelnet
             {
                 if (_udp.Available > 0)
                 {
-                    IPEndPoint ep = new IPEndPoint(IPAddress.Any, 0);
-                    byte[] pkt = _udp.Receive(ref ep);
-                    var parsed = ParsePacket(pkt);
-                    if (parsed == null) continue;
-                    var (type, counter, payload, srcMac) = parsed.Value;
-                    if (srcMac.SequenceEqual(_localMac)) continue;  // skip own echo
-
-                    // Counterpart of the Send emit above. Without it the trace shows only our half of
-                    // the conversation, so an exchange that goes wrong (a missing reply, a packet type
-                    // arriving where another was expected) is indistinguishable from one that never
-                    // happened — which is precisely what made the WinBox handshake failures of P2.41
-                    // undiagnosable.
-                    if (Diagnostics.TikWireTrace.Enabled)
-                        Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Recv,
-                            payload, 0, payload?.Length ?? 0,
-                            "type=0x" + type.ToString("x2") + " counter=" + counter);
-
-                    if (handler(type, payload, counter)) return;
+                    if (ReceiveOne(handler)) return;
                 }
                 else
                 {
@@ -614,12 +597,68 @@ namespace tik4net.MacTelnet
                     // Sleeping rather than waiting on the socket costs up to 20 ms per received frame,
                     // which is a real drag on terminal traffic — but replacing it with
                     // Socket.Poll(20 ms, SelectRead) only recovered ~15% of a WinboxCliMac run, so the
-                    // bulk of the cost is elsewhere (WinboxCliClient sleep-polls DataAvailable too).
-                    // Measured while diagnosing P2.41; left alone deliberately, see P2.43.
+                    // bulk of the cost is elsewhere. Measured while diagnosing P2.41; left alone
+                    // deliberately, see P2.43.
                     Thread.Sleep(20);
                 }
             }
             throw new TimeoutException("Timed out waiting for expected MAC-layer packet");
+        }
+
+        /// <summary>
+        /// Processes every datagram <em>already</em> in the socket buffer and returns whether
+        /// <paramref name="handler"/> was satisfied by one of them. Never waits and never sleeps: an empty
+        /// socket is an immediate <c>false</c>, not a timeout.
+        /// </summary>
+        /// <remarks>
+        /// The polling counterpart of <see cref="RecvUntil"/>, for a caller that wants to know whether
+        /// anything useful has arrived rather than to wait for it. The distinction matters because most of
+        /// what arrives on this socket is control traffic — ACK, PING and the router's retransmits — which
+        /// <see cref="RecvUntil"/> handles and then keeps waiting on, correctly for a caller that is
+        /// waiting, but at the cost of the caller's whole timeout for one that is polling (P2.43).
+        /// <para>Control handling is identical either way: the handler sees the same packets, so ACKs are
+        /// noted, PINGs are ponged and duplicates re-ACKed regardless of which loop consumed them.</para>
+        /// </remarks>
+        protected bool RecvAvailable(Func<byte, byte[], uint, bool> handler)
+        {
+            while (_udp != null && _udp.Available > 0)
+                if (ReceiveOne(handler)) return true;
+
+            // An empty socket is exactly the "my command never landed" moment, and it means the same thing
+            // whether the caller is waiting or polling — so the poll drives retransmission too. Without
+            // this, moving a read loop from RecvUntil to RecvAvailable silently takes the only recovery
+            // from a lost outbound datagram away from it: the caller then sits out its whole deadline and
+            // reports "nothing was received", which is precisely the shape of a wedge that is not one.
+            // Self-rate-limited (MinRetransmitIntervalMs), so a fast poll cannot flood the router.
+            RetransmitIfUnacked();
+            return false;
+        }
+
+        /// <summary>
+        /// Receives one datagram (the caller has established there is one), parses it, traces it and hands
+        /// it to <paramref name="handler"/>. Returns the handler's verdict; malformed packets and our own
+        /// broadcast echo are <c>false</c>.
+        /// </summary>
+        private bool ReceiveOne(Func<byte, byte[], uint, bool> handler)
+        {
+            IPEndPoint ep = new IPEndPoint(IPAddress.Any, 0);
+            byte[] pkt = _udp.Receive(ref ep);
+            var parsed = ParsePacket(pkt);
+            if (parsed == null) return false;
+            var (type, counter, payload, srcMac) = parsed.Value;
+            if (srcMac.SequenceEqual(_localMac)) return false;  // skip own echo
+
+            // Counterpart of the Send emit above. Without it the trace shows only our half of
+            // the conversation, so an exchange that goes wrong (a missing reply, a packet type
+            // arriving where another was expected) is indistinguishable from one that never
+            // happened — which is precisely what made the WinBox handshake failures of P2.41
+            // undiagnosable.
+            if (Diagnostics.TikWireTrace.Enabled)
+                Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Recv,
+                    payload, 0, payload?.Length ?? 0,
+                    "type=0x" + type.ToString("x2") + " counter=" + counter);
+
+            return handler(type, payload, counter);
         }
 
         // Parses a raw UDP datagram. Returns null if too short.

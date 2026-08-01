@@ -41,11 +41,56 @@ namespace tik4net.Winbox
 
         public bool IsEncrypted => _sendAesKey != null;
 
-        public bool DataAvailable => _udp != null && _udp.Available > 0;
+        /// <summary>
+        /// True when a complete M2 frame is ready to be taken by <see cref="Receive"/> — <b>not</b> merely
+        /// when a datagram has arrived. Answering it drains whatever the socket already holds: ACKs are
+        /// noted, PINGs ponged, duplicates re-ACKed and real payload buffered for reassembly.
+        /// </summary>
+        /// <remarks>
+        /// The raw <c>_udp.Available &gt; 0</c> this used to be was a false positive on most polls, because
+        /// the great majority of packets on this socket are control traffic. That mattered far more than it
+        /// looks: <c>WinboxCliClient</c> uses this property to gate a <em>blocking</em> read, so every
+        /// "available" that turned out to be an ACK or a router retransmit cost that read's whole frame
+        /// timeout — <b>5 s, measured, per command and again per connection open</b> (P2.43). The property
+        /// has to be honest precisely because its consumer treats it as permission to block.
+        /// <para>Doing I/O in a getter is deliberate and safe here: this is the channel's poll operation,
+        /// and only the single-threaded terminal loops in <c>WinboxCliClient</c> ever read it. The native
+        /// transport runs a reader loop instead (<see cref="ReceiveNextFrame"/>) and never polls — which is
+        /// what <see cref="SupportsStaleDrain"/> being <c>false</c> already guarantees.</para>
+        /// </remarks>
+        public bool DataAvailable
+        {
+            get
+            {
+                if (_udp == null) return false;
+                if (_pendingFrame != null) return true;
 
-        // MAC/UDP: _udp.Available also counts ACK/PING/retransmit control packets, so a DataAvailable-driven
-        // drain loop would thrash on control noise instead of discarding one stale DATA frame. Disable it
-        // here — the request-id correlation guard in WinboxNativeM2Operations still covers stray frames.
+                // Consume everything already buffered — the handler never stops the drain early, so one
+                // poll cannot leave a second frame behind to be found only on the next one.
+                RecvAvailable((type, payload, counter) =>
+                {
+                    if (type == PKT_ACK)  { NoteAck(counter); return false; }
+                    if (type == PKT_PING) { SendPong(counter); return false; }
+                    if (type != PKT_DATA) return false;
+                    if (!AckData(counter, payload.Length)) return false;  // duplicate retransmit
+                    if (IsControlPacket(payload)) return false;
+                    _rxBuf.AddRange(payload);
+                    return false;
+                });
+
+                _pendingFrame = TryExtractFrame();
+                return _pendingFrame != null;
+            }
+        }
+
+        // Set by DataAvailable when its drain completes a frame, handed straight out by the next RecvFrame.
+        // Without it the poll would have to either discard the frame it just assembled or leave it in a
+        // state the blocking path cannot tell from a partial one.
+        private byte[] _pendingFrame;
+
+        // MAC/UDP: a stale-frame drain loop would thrash on control noise instead of discarding one stale
+        // DATA frame. Disable it here — the request-id correlation guard in WinboxNativeM2Operations still
+        // covers stray frames.
         public bool SupportsStaleDrain => false;
 
         /// <summary>
@@ -183,11 +228,13 @@ namespace tik4net.Winbox
             // init exchange that has already completed, and the multiplexer restarts request ids from 1 — so
             // a leftover reply echoing, say, id 3 would be handed to a *new* request that later gets id 3.
             // Only this thread ever fills the buffer, and it has not read anything yet, so nothing live can
-            // be discarded here. The connection's own DrainBufferedFrames cannot do this job: it is driven by
-            // DataAvailable, which on UDP counts ACK/PING noise (SupportsStaleDrain is false for that reason).
+            // be discarded here. The connection's own DrainBufferedFrames cannot do this job: it discards
+            // whole frames, and what has to go is the partial reassembly state underneath them
+            // (SupportsStaleDrain is false for that reason).
             if (!_readerLoopHandover)
             {
                 _rxBuf.Clear();
+                _pendingFrame = null;
                 _readerLoopHandover = true;
             }
 
@@ -237,6 +284,13 @@ namespace tik4net.Winbox
         // reading further DATA packets as needed. Returns the concatenated chunk data, or null on timeout.
         private byte[] RecvFrame(int timeoutMs)
         {
+            if (_pendingFrame != null)
+            {
+                byte[] ready = _pendingFrame;
+                _pendingFrame = null;
+                return ready;
+            }
+
             byte[] frame = TryExtractFrame();
             var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
             while (frame == null)
