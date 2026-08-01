@@ -115,6 +115,13 @@ namespace tik4net.WinboxCliMac
             // that inherits that failure rate is worse than no recovery path at all.
             Func<CancellationToken, Task> reopen = async ct =>
             {
+                // Marked in the trace because the retry is otherwise invisible: it turns a failure into a
+                // slow success, and the question P2.55 has to answer — how often does the router drop a
+                // session, and always in the same places? — cannot be read off the test results any more.
+                if (tik4net.Diagnostics.TikWireTrace.Enabled)
+                    tik4net.Diagnostics.TikWireTrace.Emit("wbxclimac.session", tik4net.Diagnostics.TikWireDir.Note,
+                        "SESSION DROPPED BY ROUTER — reopening");
+
                 try { client.Dispose(); } catch { /* the old session is gone anyway */ }
                 await WinboxLoginRetry.RunAsync(async () =>
                 {

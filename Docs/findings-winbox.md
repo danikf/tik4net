@@ -496,9 +496,14 @@ opravou i po ní. Je to trojice, kterou P2.32 zapsal jako „wedge signature" to
 **Co ukázal trace.** Mechanismus je u všech tří identický: datagram s příkazem odejde, router ho
 **nikdy nepotvrdí** a osm bajtově identických retransmisí ignoruje —
 `RETRANSMIT #8 end=15639 highestAck=15475`, kde `highestAck` je přesně startovní offset toho
-příkazu. Není to hranice bajtového okna (wedge padá na 15491, 107989 a 15475). A hlavně: **router
-celých 30 s neposílá vůbec nic** — ani ACK, ani PING, ani retransmisi. To obrací dosavadní výklad
-téhle rodiny naruby: není to „router odmítá náš vstup", je to „router tu session už nemá".
+příkazu. A hlavně: **router celých 30 s neposílá vůbec nic** — ani ACK, ani PING, ani retransmisi.
+Takže to není „router odmítá náš vstup", jak tahle rodina symptomů dosud vykládala.
+
+> ⚠️ Opraveno §17: původně tu stálo „router tu session už nemá". To **přestřelilo** — routerův
+> vlastní log si v okamžiku wedge nezapíše nic, žádné odhlášení ani chybu. Přesné tvrzení, které
+> data unesou, je: *jeho MAC vrstva přestane naše bajty potvrzovat*, zatímco jeho účetnictví o
+> žádném ukončení session neví. Co P2.54 dodává, na tom nestojí — zotavení visí na tom nepotvrzení,
+> ne na výkladu, proč k němu došlo.
 
 **Co jsme s tím udělali teď.** Ne příčinu — tu ještě neznáme (podezření: v sekundách před každým
 wedgem router přeposílá rámce, které jsme už potvrdili, takže naše pakety k němu přestaly chodit
@@ -521,3 +526,71 @@ visí na nepotvrzení, ne na tichu. Kdyby visela na tichu, každý legitimně dl
 
 **Poučení (stejné jako P2.39, jen o vrstvu jinde):** hláška „nothing was received within N ms"
 popisuje naše čtení, ne to, co udělal protějšek. Když nosič umí říct víc, musí se ho někdo zeptat.
+
+## 17. Proč router zahodí MAC session — šest vyloučených hypotéz (P2.55, 2026-08-01)
+
+P2.54 wedge přežívá, ale nevysvětluje. Tři traceované plné běhy ho ohraničily ostře: **na 27 otevřených
+session připadají přesně tři zahození, pokaždé ve stejných třech testech** (`Create_IpAddress_With_-
+LowLevel_API`, `ListRadiusServersWillNotFail`, `SearchByName_Interface_WillWork`). Je to deterministické,
+ne režie na pozadí, kterou by retry jen schoval.
+
+Nástroje, které to umožnily: `MacLayerTransport` teď loguje `SESSION OPEN key= local= srcMac=` a **každý
+traceovaný řádek nese `key=`**. Kanál `wbxmac.udp` je totiž společný pro všechny MAC session, takže trace
+pořízený, když jich žije víc, je prokládá — a otázku „co dělala *tahle* session" nešlo položit vůbec.
+Bez toho vyšlo měření odstupu od poslední přijaté zprávy o dva řády vedle.
+
+| hypotéza | verdikt |
+|---|---|
+| kolize 16bitového session key nebo lokálního portu | **ne** — 27 session, žádný klíč ani port se neopakoval. Klíč se navíc losuje při každém otevření, takže by kolize stěhovala chybu mezi běhy; ta se nestěhuje. |
+| náš vlastní flood | **následek, ne příčina** — před wedgem se za nepotvrzenou hlavou nakupí ~24 paketů / 2,4 kB, protože pull loop střílí 8×/s bez ohledu na cokoli. Začíná to ale **až po** příkazu, který zůstal bez odpovědi. |
+| zavření sourozenecké session | **ne** — `Probe_SiblingSessionTeardown`, 20 cyklů (WinBox-MAC, MAC-Telnet, API sourozenec), nula wedge. Byl to hlavní podezřelý. |
+| objem provozu / hranice v bajtovém streamu | **ne** — `Probe_LongLivedSession` ušel na jedné session 400 příkazů a 101 099 odchozích bajtů bez zadrhnutí, tedy za dvěma ze tří offsetů, kde v suitě umírá. |
+| idle logout (jako u MAC-Telnetu) | **ne** — per-session trace ukazuje, že session přijímá pakety až do okamžiku startu testu. Žije a umírá až na **prvním příkazu** toho testu. |
+| echo logu routeru do terminálu (rodina P2.47) | **ne** — v celém běhu je jediné takové echo, pokrylo by nanejvýš jeden ze tří. |
+| ten konkrétní příkaz | **ne** — všechny tři v izolaci projdou za 3 s bez zahození. |
+
+| bezprostředně předchozí test | **ne** — všechny tři dvojice (předchůdce + oběť) projdou za 2–5 s bez zahození |
+| limit počtu session / eviction na routeru | **ne** — wedge padá po 2, 14 a 22 otevřených session a živé jsou vždy jen 1–2 |
+
+**Pohled z routeru (nově doplněný).** `/log` přes všechna tři okna: **v okamžiku wedge si router
+nezapíše nic** — žádné `logged out`, žádnou chybu. Nejbližší odhlášení je 4 s *po* jednom wedge a 4 s
+*před* jiným, obojí cizí spojení. Naše session zůstává v jeho účetnictví přihlášená, zatímco jeho MAC
+vrstva přestala potvrzovat naše bajty. To je nesoulad mezi dvěma vrstvami routeru, ne ukončení session
+— a proto byla formulace „router tu session už nemá" v §16 opravena.
+
+Vedlejší pozorování ze stejného logu, zatím nevysvětlené: na 27 session, které náš trace otevřel,
+připadá 47 loginů `via winbox` z naší MAC — část v párech ve stejné sekundě, část samostatně. Nerovnoměrné,
+takže to není systematické zdvojení; stojí za to zjistit, co ty páry zakládá.
+
+**Reprodukce, kterou se podařilo zmenšit.** Tři testy, 10 s, spolehlivě vyrobí jeden ze tří wedge
+(z 340testové suity):
+
+```
+ListRoutingTablesWillNotFail                 založí sdílenou WinboxCliMac session
+SafeMode_DisconnectWithoutRelease_RollsBack  vlastní spojení: SafeModeTake, add, Close
+SearchByName_Interface_WillWork              první příkaz sdílené session zůstane bez potvrzení
+```
+
+Na pořadí záleží: když Safe Mode krok proběhne **první**, dokud sdílená session neexistuje, nestane se nic.
+Klíč k tomu byl, že `ConcurrentCommandsTest` a `SafeModeTest` jsou jediné dvě třídy s
+`ReuseConnectionAcrossTests => false` — jedou po vlastním spojení, takže se v per-session analýze mezi
+„uživateli" sdílené session vůbec neobjeví, i když jsou to ony, kdo ji rozbije. Všechny tři wedge sedí
+na hranici testovací třídy.
+
+> ⚠️ **Safe Mode ale příčina není.** `Probe_SafeModeRollbackOnASibling` dělá přesně tuhle sekvenci
+> knihovními prostředky a **nereprodukuje** — dvakrát, jednou se Safe Mode sekcí jen pro čtení a jednou
+> se skutečnou změnou k vrácení (223 / 224 ms, session zdravá). Takže „rollback sourozence zabije drženou
+> session" je špatný závěr, i když k němu testová sekvence svádí. Něco, co má testová cesta a probe ne,
+> pořád chybí — test si po `Close()` ještě obnoví vlastní spojení a až 30 s poluje, zatímco sdílená
+> session leží.
+
+**Kde to stojí:** je to kontextové a závislé na pořadí, session je zdravá zlomek sekundy předtím, než
+umře, router o ničem neví — a existuje 10sekundová reprodukce, na které se to dá dál pitvat.
+
+**Vedlejší nález, který stojí za opravu bez ohledu na wedge:** nemáme žádné **odesílací okno**. Když
+hlava fronty není potvrzená, pull loop na ni dál přisypává 8 paketů/s, takže do díry ve streamu
+napumpujeme 2,4 kB, které router nemá jak přijmout. Retransmise chodí po 400 ms a resílá správně jen
+hlavu — ale nic nebrání zbytku růst.
+
+**Poučení:** vyloučená hypotéza je taky výsledek, když je zapsaná i s tím, čím byla vyvrácena. Pět z těch
+šesti znělo věrohodně a čtyři z nich už jednou v poznámkách figurovaly jako pravděpodobná příčina.

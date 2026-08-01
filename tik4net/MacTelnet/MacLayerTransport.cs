@@ -179,6 +179,17 @@ namespace tik4net.MacTelnet
             _routerUnicastEp = new IPEndPoint(IPAddress.Parse(host), 20561);
             _outCounter = 0;
             _inCounter  = 0;
+
+            // The session's whole identity in one line, so a trace of a full suite run can be asked which
+            // sessions were alive at once and whether any two shared a key. The router distinguishes
+            // concurrent sessions from one host by this 16-bit key alone, and it is drawn at random per
+            // open — with hundreds of sessions in a suite run a birthday collision is not exotic (P2.55).
+            if (Diagnostics.TikWireTrace.Enabled)
+                Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note,
+                    "SESSION OPEN key=0x" + _sessionKey.ToString("x4")
+                    + " local=" + _udp.Client.LocalEndPoint
+                    + " srcMac=" + BitConverter.ToString(_localMac)
+                    + " clientType=0x" + clientType.ToString("x4"));
         }
 
         /// <summary>
@@ -294,9 +305,16 @@ namespace tik4net.MacTelnet
             if (Diagnostics.TikWireTrace.Enabled)
                 Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note,
                     "RETRANSMIT #" + _retransmits + " end=" + head.End + " highestAck=" + _highestAck
-                    + " queued=" + _unacked.Count);
+                    + " queued=" + _unacked.Count + TraceTag);
             return true;
         }
+
+        /// <summary>
+        /// Session marker appended to every traced line. The wire-trace channel is per transport, not per
+        /// connection, so a trace taken while several MAC sessions are alive interleaves them and cannot be
+        /// asked what ONE session was doing — which is exactly the question a wedge poses (P2.55).
+        /// </summary>
+        private string TraceTag => " key=" + _sessionKey.ToString("x4");
 
         /// <summary>
         /// <c>true</c> once an unacknowledged DATA packet has been retransmitted to exhaustion without the
@@ -518,7 +536,7 @@ namespace tik4net.MacTelnet
             if (Diagnostics.TikWireTrace.Enabled)
                 Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Send,
                     payload, 0, payload?.Length ?? 0,
-                    "type=0x" + type.ToString("x2") + " counter=" + counter);
+                    "type=0x" + type.ToString("x2") + " counter=" + counter + TraceTag);
 
             if (type == PKT_DATA && payload != null && payload.Length > 0)
             {
@@ -555,7 +573,7 @@ namespace tik4net.MacTelnet
             // it (P2.19).
             if (Diagnostics.TikWireTrace.Enabled)
                 Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Send,
-                    "type=0x02 ack=" + ackCounter);
+                    "type=0x02 ack=" + ackCounter + TraceTag);
         }
 
         protected void SendPong(uint counter)
@@ -656,7 +674,7 @@ namespace tik4net.MacTelnet
             if (Diagnostics.TikWireTrace.Enabled)
                 Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Recv,
                     payload, 0, payload?.Length ?? 0,
-                    "type=0x" + type.ToString("x2") + " counter=" + counter);
+                    "type=0x" + type.ToString("x2") + " counter=" + counter + TraceTag);
 
             return handler(type, payload, counter);
         }
