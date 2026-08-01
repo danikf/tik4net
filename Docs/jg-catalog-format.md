@@ -98,6 +98,13 @@ oken/dialogů WinBox UI. Příklad:
 | `a` | ip6addr 16B | `A` = ip6[] |
 
 Velké písmeno = pole. Hex suffix se čte hexadecimálně (`sfe0010` → key `0xFE0010`).
+
+⚠️ **Prefix je typ hodnoty, ne typ pole na drátě.** `a` (ip6addr) jede jako **vlastní ftype**
+`FT_ADDR6` = typový bajt `0x18`, 16 bajtů **bez délkového prefixu** — ne jako `raw`. `m` (`addr`) není
+skalár vůbec, ale vnořená zpráva, jejíž členy určuje atribut `allow` daného pole (`4`/`6`/`D`/`m`/`R`/
+`/`/`i`/`v` → sub-klíče `0xFEFF20`/`21`/`26`/`2F`/`27`/`25`/`22`/`23`). Bez `allow` se `addr` zakódovat
+nedá; katalog ho proto nese v `WinboxJgField.Allow`. Podrobně
+[winbox-native-m2-protocol.md §23](winbox-native-m2-protocol.md).
 Histogram (7.17, 9 souborů): u×4773, b×2442, s×1437, U×334, q×287, r×241, Q×141,
 M×134, a×133, m×105, S×57, R×8, A×6. **Žádné jiné typové kódy** → tabulka je úplná.
 

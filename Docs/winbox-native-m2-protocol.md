@@ -389,18 +389,91 @@ skončí `WinboxFieldResolutionException` na poli, které volající jako data n
 
 ### Co tím ještě nefunguje (změřeno, nezahlazeno)
 
-- **`/tool/traceroute`**: okno v `.jg` je (`type:'query'`, `path:[26]`), ale jeho vstup se jmenuje
-  `Traceroute To` a odpověď nese hop v podokně `type:'multi'` `id:'M1'`. Aliasy `address↔traceroute-to`
-  a `host↔address` příkaz rozběhnou, jenže router pro hop, který API hlásí jako `127.0.0.1`, pošle
-  `0x1=[{}]` — **prázdný** prvek. Alias by tedy vyměnil hlasitou `WinboxFieldResolutionException`
-  (která rovnou říká, jaký `FieldOverride` chybí) za tichý řádek s prázdnou adresou. Ponecháno
-  nenamapované, dokud nebude tvar M2 pochopený.
-- **`/interface/monitor-traffic`**: `_handlerMap.Resolve` na tuhle cestu handler nemá. Parent
-  fallback (jak ho dělá `RunMonitorAsync`) skončí na generickém okně rozhraní `[20,0]`, jehož mapa
-  polí odpověď monitoru dekóduje pod špatnými jmény — řádky se vrátí dokonce bez `name`. Synchronní
-  cesta ho proto **nepoužívá** a nechá platit hlásku „no M2 handler mapping … přidej PathAlias".
-  Asynchronní cesta stejný přepis má; její test počítá jen řádky, proto si toho nikdo nevšiml.
-- **Chyba pingu nedojde jako trap.** `/ping` na nepřeložitelné jméno vrátí přes API
-  `failure: resolve failed`, přes M2 ale **řádek** s `status=no address was specified`. Volající tak
-  dostane úspěch s chybovým textem v poli. (Pole `status` nese i legitimní hodnoty typu `timeout`,
-  takže z něj nejde dělat výjimku bez dalšího rozlišení.)
+Nic z původního seznamu — všechny tři body vyřešila kapitola 23 níž. Zůstalo jen tohle:
+`/ping` bez `count` (a `/tool/torch` přes `ExecuteList`) běží, dokud ho něco nezastaví; sync čtení
+ho proto ohraničuje `ReceiveTimeout` a skončí `TikConnectionReceiveTimeoutException` místo toho, aby
+drželo vlákno navždy.
+
+## 23. ✅ `addr` není string a IPv6 je vlastní ftype (P2.52 + P2.53, 2026-08-01)
+
+Tři symptomy zapsané v kapitole 22 jako tři různé mezery měly **dvě společné příčiny**, obě v kodeku,
+ne v routeru. Diagnóza začala tím, že se místo odpovědí četly **requesty**:
+
+```
+/ping address=127.0.0.1    >> 0x16=msg:{0xFEFF20=16777343}         ← funguje
+/ping address=example.com  >> 0x16=str:example.com                  ← router: "no address was specified"
+/ping address=2001:db8::1  >> 0x16=str:2001:db8::1                  ← totéž
+```
+
+Router tedy nic nehlásil špatně: **odpovídal na náš zmršený dotaz.**
+
+### 23.1 `addr` = compound, každý tvar adresy má vlastní sub-klíč
+
+`master*.js` (`types.addr.fromstr`) zkouší tvary v tomto pořadí a podle masky `allow` z `.jg`:
+
+| tvar | sub-klíč | wire | `allow` |
+|---|---|---|---|
+| IPv4 | `0xFEFF20` | u32 (octet-LSB) | `4` |
+| IPv6 | `0xFEFF21` | **FT_ADDR6** | `6` |
+| DNS jméno | `0xFEFF26` | string (**celý** vstup, ne část před oddělovačem) | `D` |
+| route distinguisher | `0xFEFF27` | string | `R` |
+| MAC | `0xFEFF2F` | raw 6 B | `m` |
+| `/len` | `0xFEFF25` | u32 | `/` |
+| `%iface` / `@vrf` | `0xFEFF22` / `0xFEFF23` | u32 (id z dropdownu) | `i` / `v` |
+
+Do P2.53 uměl kodek jen IPv4 a na cokoli jiného **spadl na holý string na klíči pole**. Router takový
+tvar nečte — chová se, jako by pole nepřišlo. Ping na jméno i na IPv6 byl tedy tiše rozbitý.
+`%iface`/`@vrf` se teď odmítají hlasitě (rozlišení jména proti dropdownu zatím neumíme) — zahodit
+kvalifikátor by znamenalo adresovat něco jiného.
+
+### 23.2 IPv6 pole je `FT_ADDR6` (typový bajt `0x18`), ne `raw`
+
+Tabulka ftype z `master*.js` (`msg2buffer`), typový bajt = `ftype << 3 | size-flags`:
+
+| ftype | 0 | 1 | 2 | **3** | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|---|
+| skalár | bool `0x00` | u32 `0x08` | u64 `0x10` | **addr6 `0x18`** | string `0x20` | message `0x28` | raw `0x30` |
+| pole (+16) | `0x80` | `0x88` | `0x90` | `0x98` | `0xA0` | `0xA8` | `0xB0` |
+
+`FT_ADDR6` je **16 bajtů bez délkového prefixu** — jediný variabilně široký typ, který ho nemá.
+Poslat IPv6 jako `raw` znamená dát na místo prvního bajtu adresy délku, takže router pole ignoruje.
+
+**Druhý, horší důsledek:** `0x18` neuměl ani *parser*. Neznámý typ padal do `default: return 0`, takže
+se hodnota přečetla jako další klíč+typ a **zbytek zprávy se rozsypal do nesmyslných klíčů** — tiše.
+Přesně tohle byl ten „prázdný `0x1=[{}]`" u traceroute: hop je `union{ip6addr a1 allowipv4, string s2}`
+uvnitř `multi` a jeho 16 bajtů parser přeskočil o nulu. Po doplnění `0x18` (a chybějících polí
+`0x80/0x90/0x98/0xB0`) traceroute vrací `address=127.0.0.1` bez jediné změny v resolveru.
+
+> Poučení pro celou tabulku: **každý ftype musí mít případ v `SkipTypeBytes`**, i když pro něj není
+> dekodér. Chybějící case není „nepodporovaný typ", ale tichý rozsyp všeho, co následuje — stejná
+> past, jakou dřív předvedlo `0xA0 str_array`.
+
+### 23.3 `/interface/monitor-traffic` = živá pole okna rozhraní, ne monitor okno
+
+V celém katalogu (18 pluginů, `jg_analyze.py`) **žádné monitor okno pro traffic není**. WinBox ukazuje
+průtok jako živé sloupce seznamu rozhraní, které `getall` se stats bitem vrací normálně:
+
+| API jméno | klíč | `.jg` label | ftype |
+|---|---|---|---|
+| `rx-bits-per-second` | `0x100D3` | `Rx` | bigbitrate |
+| `tx-bits-per-second` | `0x100D4` | `Tx` | bigbitrate |
+| `rx-packets-per-second` | `0x100CB` | `Rx Packet` | decimal p/s |
+| `tx-packets-per-second` | `0x100CD` | `Tx Packet` | decimal p/s |
+| `rx-byte` | `0x100FC` | `Rx Bytes` | bigbytes |
+| `rx-packet` | `0x100FE` | `Rx Packets` | bigdecimal |
+
+**A tady byla ještě jedna, samostatná chyba:** normalizér labelů má `'Rx' → rx-byte`, takže API jméno
+`rx-byte` dostal **rate**. Na ether1 vracelo native `rx-byte=5536`, zatímco API pro tentýž záznam
+`rx-byte=76024833` — správné jméno, špatná hodnota, o pět řádů. Proto se celý traffic blok mapuje
+**podle klíčů** (`ShippedFieldAliases["/interface"].KeyToApi`) a alias set se dědí i na podcesty
+(`/interface/ethernet`, `/interface/monitor-traffic`), které čtou stejný handler.
+
+Ověřeno: API i native hlásí ve stejné chvíli **shodně** `rx-bits/s=3584, rx-pkt/s=3`.
+
+### 23.4 Sebeukončující monitor se musí dočkat Finished
+
+Pass, který skončí bez `Finished`, znamená u průběžného okna „tohle je snímek", ale u `ping`/
+`traceroute` znamená „ještě pracuju". Traceroute na nedosažitelnou adresu publikuje každou sekundu
+delší tabulku: první pass = 1 hop. Sync čtení proto u sebeukončujících příkazů
+(`TikMonitorVerbs.SelfTerminating`) pollimuje dál, dokud router neřekne Finished — 20 řádků za 5,2 s,
+stejný tvar jako přes API — a je ohraničené `ReceiveTimeout`.

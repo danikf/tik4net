@@ -101,6 +101,15 @@ namespace tik4net.Winbox
                     }
                     case "macaddr":
                         return WinboxFieldResolver.MacFromBytes(value);
+                    case "ip6addr":
+                        return value is byte[] v6 ? WinboxFieldResolver.IpV6FromBytes(v6) : value.ToString();
+                    case "addr":
+                        // The compound webfig 'addr' object, read back the way types.addr.tostr renders it:
+                        // by SUB-KEY, not by position. The generic nested-message fallback returns the
+                        // first member, which is right only when IPv4 is the one present.
+                        if (value is Dictionary<int, Tuple<string, object>> addrMsg)
+                            return FormatAddr(addrMsg);
+                        break;
                     case "multinumberrange":
                     case "numberrangelist":
                     {
@@ -231,10 +240,34 @@ namespace tik4net.Winbox
             catch { return value.ToString(); }
         }
 
+        /// <summary>
+        /// Renders a webfig <c>addr</c> compound (a nested message with one member per address form) as the
+        /// RouterOS text, following <c>types.addr.tostr</c>: IPv6 wins over IPv4 when both are present, then
+        /// the DNS name, then the MAC, with the <c>/prefix</c> appended.
+        /// </summary>
+        private static string FormatAddr(Dictionary<int, Tuple<string, object>> addr)
+        {
+            object Get(int subKey) =>
+                addr.TryGetValue(subKey, out var t) ? t?.Item2 : null;
+
+            string text = null;
+            if (Get(WinboxFieldResolver.AddrV6SubKey) is byte[] v6) text = WinboxFieldResolver.IpV6FromBytes(v6);
+            else if (Get(WinboxFieldResolver.AddrV4SubKey) is object v4) text = WinboxFieldResolver.IpFromU32(v4);
+            else if (Get(WinboxFieldResolver.AddrDnsSubKey) is object dns) text = dns.ToString();
+            else if (Get(WinboxFieldResolver.AddrMacSubKey) is object mac) text = WinboxFieldResolver.MacFromBytes(mac);
+            if (text == null) return FormatNestedMessage(addr);
+
+            if (Get(WinboxFieldResolver.AddrPrefixSubKey) is object plen) text += "/" + plen;
+            return text;
+        }
+
         private static string FormatValue(string wireType, object value)
         {
             if (value == null) return "";
             if (wireType == "bool") return (value is bool b && b) ? "true" : "false";
+            // An FT_ADDR6 value arrives as 16 bytes; without this it renders as "System.Byte[]" whenever the
+            // .jg does not also give the field an ip6addr UI type.
+            if (wireType == "ip6" && value is byte[] v6) return WinboxFieldResolver.IpV6FromBytes(v6);
             if (value is Dictionary<int, Tuple<string, object>> one) return FormatNestedMessage(one);
             if (value is List<Dictionary<int, Tuple<string, object>>> many)
                 return string.Join(",", many.Select(FormatNestedMessage));

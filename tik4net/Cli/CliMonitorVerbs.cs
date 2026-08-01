@@ -63,12 +63,6 @@ namespace tik4net.Cli
                 { "profile",    "duration=1" },
             };
 
-        // Finite commands that terminate themselves (a built-in count/duration bounds them): run ONCE,
-        // emit the resulting rows, then complete — exactly like the binary API's async ping/traceroute
-        // (one execution → N rows → !done). They must NOT be re-polled, or the row count would multiply.
-        private static readonly HashSet<string> Finite =
-            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ping", "traceroute" };
-
         // Monitors driven by the dedicated freeze-frame builder/parser pair instead of once/as-value.
         private static readonly HashSet<string> FreezeFrame =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "torch" };
@@ -90,7 +84,10 @@ namespace tik4net.Cli
         public static Kind Classify(string verb)
         {
             if (verb != null && FreezeFrame.Contains(verb)) return Kind.FreezeFrame;
-            if (verb != null && Finite.Contains(verb)) return Kind.Once;
+            // Self-terminating commands (ping, traceroute) run ONCE, emit their rows and complete — exactly
+            // like the binary API's async ping (one execution → N rows → !done). Re-polling them would
+            // multiply the row count. Which verbs those are is transport-neutral, so the list is shared.
+            if (TikMonitorVerbs.SelfTerminating(verb)) return Kind.Once;
             return Kind.Poll;
         }
 

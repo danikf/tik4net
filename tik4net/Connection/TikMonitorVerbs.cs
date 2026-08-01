@@ -46,7 +46,28 @@ namespace tik4net.Connection
         // collision costs one error message rather than a wrong answer. Worth remembering before adding
         // an implicit-print fallback for verb-less paths.
 
+        // Monitors that END BY THEMSELVES once their work is done, as opposed to running until cancelled.
+        // A bound (count / max-hops) shortens them but is not what makes them finite: /ping and
+        // /tool/traceroute both stop of their own accord, while torch, profile and monitor-traffic run until
+        // someone stops them.
+        private static readonly HashSet<string> SelfTerminatingVerbs =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ping", "traceroute" };
+
         /// <summary>True when <paramref name="verb"/> names a monitor command.</summary>
         public static bool Contains(string verb) => verb != null && Verbs.Contains(verb);
+
+        /// <summary>
+        /// True when the command finishes on its own, so a synchronous read should wait for the router to say
+        /// it is done rather than treating the first batch of readings as the whole answer.
+        /// </summary>
+        /// <remarks>
+        /// The distinction is what a synchronous <c>ExecuteList</c> means for each shape. A self-terminating
+        /// monitor's answer is everything it produces up to its own end — a traceroute to an unreachable
+        /// address reports one hop in the first second and adds another every second after — whereas a
+        /// continuous monitor never ends, so its answer can only be one reading. Getting this wrong is quiet:
+        /// the native transport returned traceroute's FIRST hop and stopped, which is a plausible-looking
+        /// answer to a caller who cannot see that four more hops were coming (P2.52).
+        /// </remarks>
+        public static bool SelfTerminating(string verb) => verb != null && SelfTerminatingVerbs.Contains(verb);
     }
 }

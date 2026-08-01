@@ -152,6 +152,25 @@ namespace tik4net.Winbox
             return b.ToArray();
         }
 
+        /// <summary>
+        /// IPv6 address field (webfig ftype 3, <c>FT_ADDR6</c> — type byte <c>0x18</c>): sixteen raw bytes
+        /// with NO length prefix, unlike every other variable-width type.
+        /// </summary>
+        /// <remarks>
+        /// It has its own field type; an IPv6 value is NOT a <c>raw</c> field. Sending one as raw (what we did
+        /// before P2.53) puts a length byte where the router expects the first address byte, and the router
+        /// answers as though the field had never been sent — an IPv6 ping came back "no address was
+        /// specified". Read from <c>master*.js</c>: <c>case'a':writeId(FT_ADDR6,r);for(let i=0;i&lt;16;++i)
+        /// {arr[pos++]=val[i];}</c>.
+        /// </remarks>
+        internal static byte[] Addr6Sys(int fullKey, byte[] addr16)
+        {
+            if (addr16 == null || addr16.Length != 16)
+                throw new ArgumentException("An FT_ADDR6 field is exactly 16 bytes.", nameof(addr16));
+            byte kl = (byte)(fullKey & 0xFF), kh = (byte)((fullKey >> 8) & 0xFF), ns = (byte)((fullKey >> 16) & 0xFF);
+            return new byte[] { kl, kh, ns, 0x18 }.Concat(addr16).ToArray();
+        }
+
         // u32 array field for a system key (namespace 0xFF or 0xFE).
         internal static byte[] U32ArraySys(int fullKey, params int[] values)
         {
@@ -236,6 +255,10 @@ namespace tik4net.Winbox
                     }
                     return sb.Append(']').ToString();
                 }
+                case byte[] bytes:
+                    // An FT_ADDR6 value is a byte array; ToString() renders it as "System.Byte[]", which in a
+                    // wire trace hides exactly the bytes the trace exists to show.
+                    return BitConverter.ToString(bytes).Replace("-", "");
                 default:
                     return value.ToString();
             }
@@ -332,6 +355,11 @@ namespace tik4net.Winbox
                                 arr[i] = BitConverter.ToUInt32(m2, pos);
                             val = "[" + string.Join(",", arr) + "]";
                         }
+                        break;
+                    case 0x18:
+                        // FT_ADDR6: 16 raw bytes, no length prefix (see Addr6Sys).
+                        typeName = "ip6";
+                        if (pos + 16 <= m2.Length) { val = m2.Skip(pos).Take(16).ToArray(); pos += 16; }
                         break;
                     case 0x21:
                         typeName = "str";
@@ -545,6 +573,14 @@ namespace tik4net.Winbox
         // Returns number of bytes to skip for a given TLV type byte (not counting the type byte itself).
         // The 0xA0 str_array case MUST be kept — RouterOS 7.21.4 sends it in mepty responses
         // (e.g. "msg-proxy-7.21.4"); without it the parser walks into the payload and misaligns.
+        //
+        // The type byte is (ftype << 3) | size-flags (short=1, long=2), and the ftype table is in master*.js:
+        // 0 bool, 1 u32, 2 u64, 3 addr6, 4 string, 5 message, 6 raw, and the same +16 for the array forms.
+        // EVERY ftype must have a case here even when ParseAllFields has no decoder for it: an unhandled type
+        // falls to `default: return 0`, after which the parser reads the value's own bytes as the next key and
+        // type, and the rest of the message decodes into garbage keys — silently. That is how the 0xA0
+        // str_array bug behaved before it was found, and 0x18 (addr6) was the same trap waiting on any handler
+        // with an IPv6 field.
         internal static int SkipTypeBytes(int type, byte[] data, int pos)
         {
             switch (type)
@@ -553,6 +589,10 @@ namespace tik4net.Winbox
                 case 0x09: return 1;
                 case 0x08: return 4;
                 case 0x10: return 8;
+                case 0x18: return 16;                                                   // addr6 (fixed width)
+                case 0x80: case 0x82: return CountedArrayBytes(type, data, pos, 1);     // bool[]
+                case 0x90: case 0x92: return CountedArrayBytes(type, data, pos, 8);     // u64[]
+                case 0x98: case 0x9A: return CountedArrayBytes(type, data, pos, 16);    // addr6[]
                 case 0x21: return pos < data.Length ? 1 + data[pos] : 1;
                 case 0x20: return pos + 1 < data.Length ? 2 + BitConverter.ToUInt16(data, pos) : 2;
                 case 0x31: return pos < data.Length ? 1 + data[pos] : 1;
@@ -560,10 +600,10 @@ namespace tik4net.Winbox
                 case 0x29: return pos < data.Length ? 1 + data[pos] : 1;             // message short
                 case 0x28: return pos + 1 < data.Length ? 2 + BitConverter.ToUInt16(data, pos) : 2; // message normal
                 case 0x2A: return pos + 3 < data.Length ? 4 + (int)BitConverter.ToUInt32(data, pos) : 4; // message long
-                case 0x88: return pos + 1 < data.Length ? 2 + BitConverter.ToUInt16(data, pos) * 4 : 2;
-                // str_array / msg_array: count + (len + data) per entry — skip sum of all entry sizes.
-                // Normal form (no flags): 2B count, 2B per-element len. Long form (0xA2/0xAA): 4B/4B.
-                case 0xA0: case 0xA8: case 0xA2: case 0xAA:
+                case 0x88: case 0x8A: return CountedArrayBytes(type, data, pos, 4);    // u32[]
+                // str_array / msg_array / raw_array: count + (len + data) per entry — skip sum of all entry
+                // sizes. Normal form (no flags): 2B count, 2B per-element len. Long form (…2): 4B/4B.
+                case 0xA0: case 0xA8: case 0xA2: case 0xAA: case 0xB0: case 0xB2:
                 {
                     bool lng = (type & 0x02) != 0;
                     int p = pos;
@@ -580,6 +620,15 @@ namespace tik4net.Winbox
                 }
                 default: return 0;  // unknown type — stop parsing
             }
+        }
+
+        // Byte length of a fixed-element-width array field: a count (2B, or 4B in the long form) followed by
+        // `count` elements of `elemSize` bytes each — the shape master*.js writes for bool[]/u32[]/u64[]/addr6[].
+        private static int CountedArrayBytes(int type, byte[] data, int pos, int elemSize)
+        {
+            bool lng = (type & 0x02) != 0;
+            if (lng) return pos + 3 < data.Length ? 4 + (int)BitConverter.ToUInt32(data, pos) * elemSize : 4;
+            return pos + 1 < data.Length ? 2 + BitConverter.ToUInt16(data, pos) * elemSize : 2;
         }
     }
 }

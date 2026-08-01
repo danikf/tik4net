@@ -210,15 +210,12 @@ namespace tik4net.integrationtests
         {
             const string IP = "127.0.0.1";
 
-            SkipIfWinboxNativeCannot("/tool/traceroute", () =>
-            {
-                var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
-                    "address", IP,
-                    "count", "1");
-                var result = cmd.ExecuteListUntilDone();
+            var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
+                "address", IP,
+                "count", "1");
+            var result = cmd.ExecuteListUntilDone();
 
-                Assert.IsTrue(result.Any());
-            });
+            Assert.IsTrue(result.Any());
         }
 
         [TestMethod]
@@ -226,15 +223,12 @@ namespace tik4net.integrationtests
         {
             const string IP = "127.0.0.1";
 
-            SkipIfWinboxNativeCannot("/tool/traceroute", () =>
-            {
-                var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
-                    "address", IP,
-                    "count", "1");
-                var result = cmd.ExecuteListUntilDone(timeoutSec: 30);
+            var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
+                "address", IP,
+                "count", "1");
+            var result = cmd.ExecuteListUntilDone(timeoutSec: 30);
 
-                Assert.IsTrue(result.Any());
-            });
+            Assert.IsTrue(result.Any());
         }
 
         [TestMethod]
@@ -296,11 +290,11 @@ namespace tik4net.integrationtests
         {
             const string IP = "127.0.0.1";
 
-            SkipIfWinboxNativeCannot("/tool/traceroute", () =>
-            {
-                var result = ToolTraceroute.Execute(Connection, IP);
-                Assert.IsTrue(result.Count() > 0);
-            });
+            var result = ToolTraceroute.Execute(Connection, IP);
+            Assert.IsTrue(result.Count() > 0);
+            // The hop ADDRESS, not just the row count: over WinBox native the hop rode in a nested field the
+            // M2 parser could not read, so the rows arrived complete but with a blank address (P2.52).
+            Assert.AreEqual(IP, result.First().Address, "a hop must name the host that answered");
         }
 
         [TestMethod]
@@ -308,14 +302,11 @@ namespace tik4net.integrationtests
         {
             const string IP = "127.0.0.1";
 
-            SkipIfWinboxNativeCannot("/tool/traceroute", () =>
-            {
-                var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
-                    "address", IP,
-                    "count", "1");
-                var result = cmd.ExecuteList();
-                Assert.IsTrue(result.Count() > 0);
-            });
+            var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
+                "address", IP,
+                "count", "1");
+            var result = cmd.ExecuteList();
+            Assert.IsTrue(result.Count() > 0);
         }
 
 
@@ -324,14 +315,11 @@ namespace tik4net.integrationtests
         {
             const string IP = "8.8.8.8";
 
-            SkipIfWinboxNativeCannot("/tool/traceroute", () =>
-            {
-                var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
-                    "address", IP,
-                    "count", "1");
-                var result = cmd.ExecuteList();
-                Assert.IsTrue(result.Count() > 1);
-            });
+            var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
+                "address", IP,
+                "count", "1");
+            var result = cmd.ExecuteList();
+            Assert.IsTrue(result.Count() > 1);
         }
 
         /// <summary>
@@ -350,15 +338,12 @@ namespace tik4net.integrationtests
         {
             const string IP = "192.168.4.255";
 
-            SkipIfWinboxNativeCannot("/tool/traceroute", () =>
-            {
-                var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
-                    "address", IP,
-                    "count", "1",
-                    "max-hops", "5");
-                var result = cmd.ExecuteList();
-                Assert.IsTrue(result.Count() > 1);
-            });
+            var cmd = Connection.CreateCommandAndParameters("/tool/traceroute", TikCommandParameterFormat.NameValue,
+                "address", IP,
+                "count", "1",
+                "max-hops", "5");
+            var result = cmd.ExecuteList();
+            Assert.IsTrue(result.Count() > 1);
         }
 
 

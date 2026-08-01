@@ -91,6 +91,38 @@ namespace tik4net.Connection
         }
 
         /// <summary>
+        /// Repeating-snapshot monitor: re-read the same one-shot snapshot every <paramref name="intervalMs"/>
+        /// and emit its rows, until the caller cancels. This is the async face of a monitor whose values are
+        /// ordinary read-only fields of a record rather than a streaming window — RouterOS answers
+        /// <c>/interface/monitor-traffic</c> without <c>once</c> exactly this way, one row per interval.
+        /// </summary>
+        /// <remarks>
+        /// The point of routing such a path here is that the synchronous and the asynchronous read then take
+        /// the SAME snapshot, so they cannot disagree about what the command means (P2.52).
+        /// </remarks>
+        public static void SnapshotLoop(IPollingMonitorHost host, TikCommandDescriptor descriptor, int intervalMs,
+            TikMonitorHandle handle, Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
+        {
+            try
+            {
+                while (!handle.CancelRequested && host.IsOpen)
+                {
+                    foreach (var row in host.PollSnapshot(descriptor))
+                    {
+                        if (handle.CancelRequested) break;
+                        onRow?.Invoke(row);
+                    }
+                    SleepInterruptible(intervalMs, handle);
+                }
+            }
+            catch (Exception ex)
+            {
+                if (!Stopping(host, handle)) onError?.Invoke(host.ToTrap(ex));
+            }
+            finally { onDone?.Invoke(); }
+        }
+
+        /// <summary>
         /// <c>/listen</c> emulation: poll the table and diff snapshots by <c>.id</c>. The first pass seeds silently
         /// (RouterOS listen only pushes future deltas, never replays the table); afterwards an added/changed row is
         /// emitted as itself, and a vanished <c>.id</c> as a synthetic <c>.dead=true</c> record. <paramref name="onDone"/>

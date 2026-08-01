@@ -19,6 +19,34 @@ namespace tik4net.integrationtests
             Assert.IsNotNull(list);
         }
 
+        /// <summary>
+        /// <c>rx-byte</c>/<c>rx-packet</c> are LIFETIME counters on every transport — not the live rates the
+        /// same record also carries.
+        /// </summary>
+        /// <remarks>
+        /// The invariant is physical rather than numeric, so it holds on any router at any moment: an Ethernet
+        /// frame is at least 20 bytes, so a genuine byte counter cannot be smaller than 20× the packet counter.
+        /// It is what distinguishes the two families. WinBox labels the interface window's live bit rate 'Rx'
+        /// and the lifetime total 'Rx Bytes'; normalizing those labels handed the API name <c>rx-byte</c> to the
+        /// RATE, so the native transport reported 5 536 where the API reported 76 024 833 for the same
+        /// interface — a wrong value under a right name, which no "did it throw" test can see (P2.52).
+        /// </remarks>
+        [TestMethod]
+        public void InterfaceByteCountersAreCountersNotRates()
+        {
+            var iface = Connection.LoadAll<Interface>().FirstOrDefault(i => i.Name == TestConstants.Interface);
+            Assert.IsNotNull(iface, $"Interface {TestConstants.Interface} not found on this router.");
+
+            long rxPackets = iface.RxPacket;
+            long rxBytes = iface.RxByte;
+            if (rxPackets == 0)
+                Assert.Inconclusive($"{TestConstants.Interface} has received nothing yet — no counter to check.");
+
+            Assert.IsTrue(rxBytes >= rxPackets * 20,
+                $"rx-byte ({rxBytes}) is smaller than the smallest possible frame times rx-packet " +
+                $"({rxPackets}), so it is not a byte counter — most likely a live rate under the wrong name.");
+        }
+
         [TestMethod]
         public void ListAllWirelessInterfaceWillNotFail()
         {
@@ -134,10 +162,18 @@ namespace tik4net.integrationtests
             EnsureCapability(TikConnectionCapability.Listen, "async monitor-traffic");
             var cmd = Connection.CreateCommandAndParameters("/interface/monitor-traffic", "interface", TestConstants.Interface);
             List<ITikReSentence> responses = new List<ITikReSentence>();
-            cmd.ExecuteAsync(re => responses.Add(re));
+            cmd.ExecuteAsync(re => { lock (responses) responses.Add(re); });
             Thread.Sleep(2 * 1000);
 
-            Assert.IsTrue(responses.Count > 0);
+            ITikReSentence[] got;
+            lock (responses) got = responses.ToArray();
+            Assert.IsTrue(got.Length > 0, "the monitor produced no rows at all");
+            // Assert on the CONTENT, not just the count: over WinBox native this streamed two blank records a
+            // second — a monitor cycle on the wrong window — and a row count read that as success (P2.52).
+            Assert.AreEqual(TestConstants.Interface, got[0].GetResponseField("name"),
+                "a monitor-traffic row must name the interface it is monitoring");
+            Assert.IsNotNull(got[0].GetResponseField("rx-bits-per-second"),
+                "a monitor-traffic row must carry the reading the command exists for");
             cmd.CancelAndJoin(2 * 1000);
         }
 

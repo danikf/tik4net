@@ -15,29 +15,24 @@ namespace tik4net.integrationtests
         /// <remarks>
         /// A <c>once</c> snapshot is an ordinary synchronous read, not a stream — it used to gate on
         /// <c>Streaming</c>, which only the binary API reports, so it never ran anywhere else and the
-        /// CLI/REST defects P2.51 fixed went unseen. The native WinBox transport still has no handler mapping
-        /// for this path and says so, which is what the skip below is bound to.
+        /// CLI/REST defects P2.51 fixed went unseen. It runs on every transport now, WinBox native included
+        /// (P2.52 mapped the path onto the interface window's live rate fields).
         /// </remarks>
         [TestMethod]
         public void GetTrafficSnapshotForEther1WillNotFail()
         {
-            SkipIfWinboxNativeCannot("/interface/monitor-traffic", () =>
-            {
-                var tmp = Connection.GetInterfaceMonitorTrafficSnapshot(TestConstants.Interface);
-                Assert.AreEqual(TestConstants.Interface, tmp.Name);
-            });
+            var tmp = Connection.GetInterfaceMonitorTrafficSnapshot(TestConstants.Interface);
+            Assert.AreEqual(TestConstants.Interface, tmp.Name);
+            Assert.IsNotNull(tmp.RxBitsPerSecond, "the reading the command exists for");
         }
 
         [TestMethod]
         public void LoadTrafficSnapshotWillNotFail()
         {
-            SkipIfWinboxNativeCannot("/interface/monitor-traffic", () =>
-            {
-                var tmp = Connection.LoadSingle<InterfaceMonitorTraffic>(
-                    Connection.CreateParameter("interface", TestConstants.Interface),
-                    Connection.CreateParameter("once", ""));
-                Assert.AreEqual(TestConstants.Interface, tmp.Name);
-            });
+            var tmp = Connection.LoadSingle<InterfaceMonitorTraffic>(
+                Connection.CreateParameter("interface", TestConstants.Interface),
+                Connection.CreateParameter("once", ""));
+            Assert.AreEqual(TestConstants.Interface, tmp.Name);
         }
 
         [TestMethod]

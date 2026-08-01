@@ -55,6 +55,15 @@ namespace tik4net.Winbox
         internal int[] RefHandler { get; }
 
         /// <summary>
+        /// For <c>type:'addr'</c> fields, the <c>allow</c> mask that says which address FORMS the field accepts
+        /// — <c>4</c> IPv4, <c>6</c> IPv6, <c>D</c> DNS name, <c>m</c> MAC, <c>R</c> route distinguisher,
+        /// <c>/</c> prefix length, <c>i</c> interface suffix, <c>v</c> VRF suffix (e.g. <c>"46v%Dm"</c> on the
+        /// Ping window's target). Each form rides at its OWN sub-key inside the compound, so the mask decides
+        /// how a value is encoded, not merely whether it is valid. <c>null</c> for non-addr fields.
+        /// </summary>
+        internal string Allow { get; }
+
+        /// <summary>
         /// For fields wrapped in a WinBox <c>type:'opt'</c> container (an optional/toggleable field such as a
         /// firewall <c>connection-state</c> flag set), the <c>opt</c> bool key that must be set to 1 on the wire
         /// to mark the option present. <c>0</c> when the field is not opt-wrapped.
@@ -69,8 +78,10 @@ namespace tik4net.Winbox
 
         internal WinboxJgField(string apiName, int key, string wireType, bool readOnly,
             IReadOnlyDictionary<int, string> enumMap = null, string uiType = null, int maskKey = 0,
-            int[] refHandler = null, int optKey = 0, int notKey = 0, bool isRange = false)
+            int[] refHandler = null, int optKey = 0, int notKey = 0, bool isRange = false,
+            string allow = null)
         {
+            Allow = allow;
             ApiName = apiName;
             Key = key;
             WireType = wireType;

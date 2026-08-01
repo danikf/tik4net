@@ -466,10 +466,25 @@ namespace tik4net.WinboxNative
         // interface record — webfig surfaces them as a Status tab of the [20,0] window, not a separate handler.
         // A getall on the parent handler filtered to the named interface yields the same single snapshot the
         // RouterOS "monitor once" returns. Returns false (fall through) when this is not a monitor path.
+        /// <summary>
+        /// True when the path is a "monitor once"-style snapshot served from the parent record rather than
+        /// from a monitor window of its own — the async counterpart of the <see cref="TryRunMonitor"/> test,
+        /// kept next to it so the two stay in step.
+        /// </summary>
+        private bool IsSnapshotMonitorPath(string commandText)
+            => IsSnapshotMonitorVerb(TikPath.Verb(commandText))
+               && _handlerMap.Resolve(ApiPathOf(commandText)) == null
+               && _handlerMap.Resolve(TikPath.Parent(commandText)) != null;
+
+        // The monitor verbs whose readings are fields of the parent record rather than a window of their own.
+        private static bool IsSnapshotMonitorVerb(string verb)
+            => string.Equals(verb, "monitor", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(verb, "monitor-traffic", StringComparison.OrdinalIgnoreCase);
+
         private bool TryRunMonitor(TikCommandDescriptor descriptor, out IList<TikRecordSentence> rows)
         {
             rows = null;
-            if (!string.Equals(TikPath.Verb(descriptor.CommandText), "monitor", StringComparison.OrdinalIgnoreCase))
+            if (!IsSnapshotMonitorVerb(TikPath.Verb(descriptor.CommandText)))
                 return false;
 
             string parentPath = TikPath.Parent(descriptor.CommandText);
@@ -482,7 +497,12 @@ namespace tik4net.WinboxNative
                 ?? FindParam(descriptor, TikSpecialProperties.Id);
             if (string.IsNullOrEmpty(target)) return false;
 
-            var resolver = new WinboxFieldResolver(parentPath, handler, _catalog, OverridesFor(parentPath), _useGuiNames);
+            // Keys and overrides come from the PARENT window (that is where the values live), but the field
+            // NAMES come from the monitor path's own alias set — the same record is called 'rx' in the
+            // interface list and 'rx-bits-per-second' by /interface/monitor-traffic, and a caller asking for
+            // the monitor must get the monitor's names.
+            var resolver = new WinboxFieldResolver(ApiPathOf(descriptor.CommandText), handler, _catalog,
+                OverridesFor(parentPath), _useGuiNames);
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
             int flags = WinboxM2Protocol.GetAllFlags
@@ -803,7 +823,18 @@ namespace tik4net.WinboxNative
                     handle => PollingMonitorEngine.AsyncListOnce(this, descriptor, handle, onRow, onError, onDone));
             }
 
-            // Otherwise a streaming-monitor window (/tool/torch, /tool/profile, /interface/monitor-traffic, …).
+            // A snapshot monitor with no window of its own (/interface/monitor-traffic,
+            // /interface/ethernet/monitor): its values are read-only fields of the PARENT record, which the
+            // synchronous path reads with a getall + name filter (TryRunMonitor). Async re-reads that same
+            // snapshot on a timer instead of resolving a monitor window, because the parent-handler fallback
+            // below lands on the generic [20,0] interface window — a real monitor window, but the wrong one:
+            // it started a monitor cycle whose records decoded to EMPTY rows, and the caller got two blank
+            // records per second that its row count read as success (P2.52).
+            if (IsSnapshotMonitorPath(descriptor.CommandText))
+                return PollingMonitorEngine.StartWorker("winbox-native-monitor-snapshot",
+                    handle => PollingMonitorEngine.SnapshotLoop(this, descriptor, 1000, handle, onRow, onError, onDone));
+
+            // Otherwise a streaming-monitor window (/tool/torch, /tool/profile, …).
             WinboxMonitorSpec spec = ResolveMonitorWindow(descriptor.CommandText, out string apiPath, out int[] handler);
             if (spec == null)
             {
@@ -890,6 +921,13 @@ namespace tik4net.WinboxNative
                 id = _ops.StartMonitor(spec.Handler, spec.StartCmd, requestFields);
                 started = true;
 
+                // A self-terminating command's answer is everything it produces up to its own end, so a pass
+                // that ends without Finished means "still working", not "that was the snapshot": a traceroute
+                // republishes a longer table every autorefresh until the last hop is probed. A continuous
+                // window has no end to wait for, so for those the first pass IS the answer.
+                bool waitForDone = TikMonitorVerbs.SelfTerminating(TikPath.Verb(descriptor.CommandText));
+                var deadline = DateTime.UtcNow.AddMilliseconds(ReceiveTimeout);
+
                 object continuation = null;
                 while (true)
                 {
@@ -901,7 +939,16 @@ namespace tik4net.WinboxNative
                         rows.Add(new TikRecordSentence(_codec.DecodeRecord(rec, keyToName, keyToField)));
 
                     if (done) break;                    // router set Finished: the command is over
-                    if (continuation == null) break;    // the pass ended without it: one snapshot is the result
+                    if (continuation != null) continue; // mid-pass: keep reading this one
+                    if (!waitForDone) break;            // continuous window: one pass is the snapshot
+
+                    // Bounded so a command that never finishes fails like any other unfinished read instead of
+                    // hanging on this thread forever.
+                    if (DateTime.UtcNow >= deadline)
+                        throw new TikConnectionReceiveTimeoutException(ReceiveTimeout,
+                            $"WinBox native: '{descriptor.CommandText}' produced {rows.Count} row(s) but never " +
+                            $"reported itself finished within {ReceiveTimeout} ms.");
+                    System.Threading.Thread.Sleep(Math.Max(100, spec.AutorefreshMs));
                 }
             }
             catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }

@@ -103,14 +103,12 @@ namespace tik4net.Winbox
                     keyToApi: new Dictionary<int, string> { [0x1] = "host" },
                     keyUiType: new Dictionary<int, string> { [0x1] = "ipaddr" }),
 
-                // NOT here: /tool/traceroute. Its .jg window (type:'query', path:[26]) does label the target
-                // 'Traceroute To' and the per-hop responder 'Host' where the API says 'address' both times, and
-                // adding those two aliases does make the command run — but the rows come back with no address
-                // in them: the responder rides in a type:'multi' submessage (id 'M1'), and the router answers
-                // `0x1=[{}]`, one EMPTY element, for a hop the binary API reports as 127.0.0.1 (measured on
-                // 7.23.2 while fixing P2.51). Aliasing it would therefore trade a loud
-                // WinboxFieldResolutionException naming the exact missing mapping for a silent row whose
-                // address field is blank — the wrong direction. Left unmapped until the M2 shape is understood.
+                // /tool/traceroute (ToolTraceroute). The .jg window (type:'query', path:[26]) labels the target
+                // 'Traceroute To' and the per-hop responder 'Host'; the API calls both 'address'.
+                // 'count'/'max-hops' need no alias — the window labels them exactly that.
+                ["/tool/traceroute"] = new FieldAliasSet(
+                    apiToJg: Ci(("address", "traceroute-to"), ("size", "packet-size")),
+                    jgToApi: Ci(("host", "address"), ("packet-size", "size"))),
 
                 // /tool/wol (ToolWol, standalone 'Wake on LAN' doit window): the API sends 'mac', WinBox labels
                 // the same field 'MAC Address'. 'interface' matches verbatim, so only the one alias is needed.
@@ -130,14 +128,63 @@ namespace tik4net.Winbox
                 // /interface: the .jg 'type' field is the numeric type id (key 0x10001), but RouterOS API exposes
                 // 'type' as the type *name* string — which the record also carries at key 0x1001E (e.g. "ether",
                 // "loopback"). Map the string key to 'type' and rename the numeric one so they don't collide.
+                //
+                // The traffic block is mapped BY KEY, because the WinBox labels and the API names disagree in a
+                // way that silently swaps a rate for a counter. The window shows two families: 'Rx'/'Tx' and
+                // 'Rx Packet'/'Tx Packet' are LIVE RATES (.jg bigbitrate / decimal p/s — what
+                // /interface/monitor-traffic reports), while 'Rx Bytes'/'Rx Packets' are the CUMULATIVE
+                // counters (.jg bigbytes / bigdecimal — what /interface print reports as rx-byte/rx-packet).
+                // Normalizing the labels put the RATE under the API's counter name: ether1 read back
+                // rx-byte=5536 where the API says rx-byte=76024833 for the same record, and the real counter
+                // arrived as "rx-bytes", a name the API never uses. Naming them by key fixes both directions,
+                // and gives /interface/monitor-traffic its field names for free (see TryRunMonitor).
                 ["/interface"] = new FieldAliasSet(
                     apiToJg: Ci(),
                     jgToApi: Ci(),
-                    keyToApi: new Dictionary<int, string> { [0x1001E] = "type", [0x10001] = "type-id" }),
+                    keyToApi: new Dictionary<int, string>
+                    {
+                        [0x1001E] = "type",      [0x10001] = "type-id",
+                        // cumulative counters — /interface print
+                        [0x100FC] = "rx-byte",   [0x100FD] = "tx-byte",
+                        [0x100FE] = "rx-packet", [0x100FF] = "tx-packet",
+                        [0x100F8] = "rx-drop",   [0x100F9] = "tx-drop",
+                        [0x100FA] = "rx-error",  [0x100FB] = "tx-error",
+                        [0x10104] = "tx-queue-drop",
+                        // live rates — /interface/monitor-traffic
+                        [0x100D3] = "rx-bits-per-second",       [0x100D4] = "tx-bits-per-second",
+                        [0x100CB] = "rx-packets-per-second",    [0x100CD] = "tx-packets-per-second",
+                        [0x100D5] = "fp-rx-bits-per-second",    [0x100D6] = "fp-tx-bits-per-second",
+                        [0x100D7] = "fp-rx-packets-per-second", [0x100D8] = "fp-tx-packets-per-second",
+                    }),
             };
 
-        private FieldAliasSet Aliases =>
-            ShippedFieldAliases.TryGetValue(WinboxHandlerMap.Normalize(_apiPath ?? ""), out var s) ? s : null;
+        /// <summary>
+        /// The shipped alias set for this path, or the nearest ANCESTOR path's set when the path itself has
+        /// none.
+        /// </summary>
+        /// <remarks>
+        /// The walk up matters because several API paths read the SAME handler and must therefore agree on
+        /// what its keys are called: every interface subtype (<c>/interface/ethernet</c>, <c>/interface/vlan</c>,
+        /// …) is the generic <c>[20,0]</c> window with a type filter, and <c>/interface/monitor-traffic</c> is
+        /// that window read for one interface. Without the walk, only reads spelled exactly <c>/interface</c>
+        /// got the corrected traffic-field names and an <c>EthernetInterface</c> still reported a bit rate as
+        /// <c>rx-byte</c>.
+        /// </remarks>
+        private FieldAliasSet Aliases
+        {
+            get
+            {
+                string path = WinboxHandlerMap.Normalize(_apiPath ?? "");
+                while (!string.IsNullOrEmpty(path))
+                {
+                    if (ShippedFieldAliases.TryGetValue(path, out var s)) return s;
+                    int cut = path.LastIndexOf('/');
+                    if (cut <= 0) break;
+                    path = path.Substring(0, cut);
+                }
+                return null;
+            }
+        }
 
         // Rewrite an API field name to its .jg label (encode/resolve direction); identity when no alias.
         private string AliasToJg(string apiName)
@@ -458,17 +505,12 @@ namespace tik4net.Winbox
                     $"('{uiType ?? wireType}') that is not yet encodable over native WinBox M2 writes. " +
                     "Use an Api/REST/CLI connection for this field (or a FieldOverride to a scalar key).");
 
-            // 'addr' (webfig types.addr) is a compound: the field value is a nested object, IPv4 riding as a u32
-            // at sub-key 0xFEFF20 (master.js: val.ufeff20=string2ipaddr(str)). Send it as a nested message field.
+            // 'addr' (webfig types.addr) is a compound: the value is a nested message, and each address FORM
+            // rides at its own sub-key. Encoding it needs the whole set, not just IPv4 — see EncodeAddr.
             if (wireType == "addr" && value.Length > 0)
             {
-                uint? v4 = PackIpV4(value.Split('/', '%')[0]);
-                if (v4 != null)
-                {
-                    result.Add(M2Message.MessageSys(key, M2Message.U32Sys(AddrV4SubKey, unchecked((int)v4.Value))));
-                    return result;
-                }
-                // non-IPv4 (hostname / IPv6) → fall through to plain string at the field key.
+                result.Add(M2Message.MessageSys(key, EncodeAddr(value, jg?.Allow, apiName, _apiPath)));
+                return result;
             }
 
             switch (wireType)
@@ -487,7 +529,17 @@ namespace tik4net.Winbox
                 case "raw":
                     result.Add(M2Message.RawSys(key, ParseRaw(value)));
                     break;
-                default: // "string", "addr", "ip6" and unknowns round-trip as string text
+                case "ip6":
+                {
+                    // A standalone IPv6 field (.jg 'a' prefix), as opposed to the '6' member of an addr
+                    // compound. Same FT_ADDR6 encoding; a value that is not an address stays text so the
+                    // router reports it rather than us guessing 16 bytes.
+                    byte[] v6 = PackIpV6(value.Split('/')[0]);
+                    if (v6 != null) result.Add(M2Message.Addr6Sys(key, v6));
+                    else result.Add(M2Message.StringSys(key, value));
+                    break;
+                }
+                default: // "string", "addr" and unknowns round-trip as string text
                     result.Add(M2Message.StringSys(key, value));
                     break;
             }
@@ -532,8 +584,146 @@ namespace tik4net.Winbox
         private static bool IsScalarDespiteMultiPrefix(string uiType)
             => string.Equals(uiType, "multilinestring", StringComparison.OrdinalIgnoreCase);
 
-        // The IPv4 sub-key inside a webfig 'addr' compound object (master.js property 'ufeff20' = u32@0xFEFF20).
-        private const int AddrV4SubKey = 0xFEFF20;
+        // ── webfig 'addr' compound (master.js types.addr) ──────────────────────
+        //
+        // An 'addr' field is a nested message, and every address FORM has its own sub-key. Which forms a
+        // particular field accepts is the .jg 'allow' mask (WinboxJgField.Allow) — the Ping window's target
+        // is allow:'46v%Dm', a /ip/route gateway is allow:'46i', and so on.
+        internal const int AddrV4SubKey     = 0xFEFF20;   // ufeff20 — IPv4, u32 octet-LSB
+        internal const int AddrV6SubKey     = 0xFEFF21;   // afeff21 — IPv6, 16 raw bytes big-endian
+        private  const int AddrIfaceSubKey  = 0xFEFF22;   // ufeff22 — '%iface' suffix (dropdown id)
+        private  const int AddrVrfSubKey    = 0xFEFF23;   // ufeff23 — '@vrf' suffix (dropdown id)
+        internal const int AddrPrefixSubKey = 0xFEFF25;   // ufeff25 — '/len' prefix length, u32
+        internal const int AddrDnsSubKey    = 0xFEFF26;   // sfeff26 — DNS name, string
+        private  const int AddrRdSubKey     = 0xFEFF27;   // sfeff27 — route distinguisher, string
+        internal const int AddrMacSubKey    = 0xFEFF2F;   // rfeff2f — MAC, 6 raw bytes
+
+        // Fallback mask for the one .jg addr field that carries no 'allow' — webfig itself cannot render that
+        // field either (types.addr.tostr returns '' when allow is null), so any choice is ours; the three
+        // ordinary forms are the least surprising.
+        private const string DefaultAddrAllow = "46D";
+
+        /// <summary>
+        /// Encodes an address string into the sub-fields of a webfig <c>addr</c> compound, following
+        /// <c>types.addr.fromstr</c> in <c>master*.js</c>: try IPv4, then IPv6, then a DNS name, then a route
+        /// distinguisher, then a MAC — each only if <paramref name="allow"/> permits it — and append the
+        /// <c>/prefix</c> suffix when present.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Only the IPv4 branch existed before P2.53, and anything else fell back to a bare string at the
+        /// FIELD key. The router does not read that shape: it answers as though the field had never been sent
+        /// — <c>/ping address=example.com</c> came back "no address was specified" for a host the binary API
+        /// pings fine, and so did every IPv6 target. So the missing branches were not a missing feature but a
+        /// silent wrong-request bug, which the "no address was specified" row then made look like a router
+        /// error (see Docs/winbox-native-m2-protocol.md §23).
+        /// </para>
+        /// <para>
+        /// The DNS branch deliberately sends the WHOLE input, not the part before the first separator —
+        /// master.js writes <c>val.sfeff26=str</c> where every other branch takes <c>l[i]</c>.
+        /// </para>
+        /// </remarks>
+        internal static byte[][] EncodeAddr(string value, string allow, string apiName, string apiPath)
+        {
+            allow = allow ?? DefaultAddrAllow;
+            var parts = value.Split('/', '%', '@', '&');
+            string head = parts[0];
+            var sub = new List<byte[]>();
+
+            if (allow.IndexOf('4') >= 0 && PackIpV4(head) is uint v4)
+                sub.Add(M2Message.U32Sys(AddrV4SubKey, unchecked((int)v4)));
+            else if (allow.IndexOf('6') >= 0 && PackIpV6(head) is byte[] v6)
+                sub.Add(M2Message.Addr6Sys(AddrV6SubKey, v6));
+            else if (allow.IndexOf('D') >= 0)
+                sub.Add(M2Message.StringSys(AddrDnsSubKey, value));
+            else if (allow.IndexOf('R') >= 0)
+                sub.Add(M2Message.StringSys(AddrRdSubKey, head));
+            else if (allow.IndexOf('m') >= 0 && TryParseMac(head, out byte[] mac))
+                sub.Add(M2Message.RawSys(AddrMacSubKey, mac));
+            else
+                throw new WinboxFieldValueException(
+                    $"input does not match any value of {apiName}");
+
+            // '/len' — the only suffix with a self-contained value. '%iface' and '@vrf' name a record in a
+            // dropdown table ([20,0] / [20,101]) and would need the same reference resolution the enm path
+            // does; refuse them loudly rather than dropping the qualifier and silently addressing something
+            // else (an fe80:: link-local without its %iface is a different destination).
+            int slash = value.IndexOf('/');
+            if (slash >= 0 && allow.IndexOf('D') < 0)
+            {
+                // A prefix on a field that does not accept one changes what the value means, so it is a bad
+                // value rather than something to trim off (webfig's fromstr returns null here too).
+                if (allow.IndexOf('/') < 0 || !int.TryParse(value.Substring(slash + 1), out int plen))
+                    throw new WinboxFieldValueException($"input does not match any value of {apiName}");
+                sub.Add(EncodeU32(AddrPrefixSubKey, (uint)plen));
+            }
+            if (value.IndexOfAny(new[] { '%', '@' }) >= 0)
+                throw new WinboxFieldResolutionException(
+                    $"WinBox native: address '{value}' for field '{apiName}' on '{apiPath}' carries an " +
+                    "interface ('%') or VRF ('@') qualifier, which is not yet encodable over native WinBox M2 " +
+                    $"(it would have to resolve the name against the {AddrIfaceSubKey:X}/{AddrVrfSubKey:X} " +
+                    "dropdown). Use an Api/REST/CLI connection for this value.");
+
+            return sub.ToArray();
+        }
+
+        // "1:2::3" → 16 bytes big-endian, matching webfig string2ip6addr (including its trailing-IPv4 form,
+        // "::ffff:1.2.3.4"). Returns null when the text is not an IPv6 address.
+        internal static byte[] PackIpV6(string s)
+        {
+            if (string.IsNullOrEmpty(s) || s.IndexOf(':') < 0) return null;
+            var groups = s.Split(':');
+            var head = new List<byte>();
+            var tail = new List<byte>();
+            var cur = head;
+            for (int i = 0; i < groups.Length; i++)
+            {
+                if (groups[i].Length == 0)
+                {
+                    // "::" — one run of zero groups, and only in the middle ("::1" splits to ["","","1"]).
+                    if (i > 0 && i + 1 < groups.Length)
+                    {
+                        if (cur == tail) return null;   // a second "::" is not an address
+                        cur = tail;
+                        continue;
+                    }
+                    if (i == 0 || i + 1 == groups.Length) continue;
+                }
+                if (i + 1 == groups.Length && PackIpV4(groups[i]) is uint tail4)
+                {
+                    // A trailing dotted quad ("::ffff:192.0.2.1"): PackIpV4 packs octet-LSB, so the bytes go
+                    // out in that same order — exactly what master.js pushes (a&0xff, a>>8, a>>16, a>>24).
+                    for (int b = 0; b < 4; b++) cur.Add((byte)(tail4 >> (8 * b)));
+                    break;
+                }
+                if (!ushort.TryParse(groups[i], System.Globalization.NumberStyles.HexNumber,
+                        System.Globalization.CultureInfo.InvariantCulture, out ushort g))
+                    return null;
+                cur.Add((byte)(g >> 8));
+                cur.Add((byte)(g & 0xff));
+            }
+            if (head.Count + tail.Count > 16) return null;
+            if (cur == head && head.Count != 16) return null;   // no "::" → must be exactly 8 groups
+            var bytes = new byte[16];
+            head.CopyTo(bytes, 0);
+            tail.CopyTo(bytes, 16 - tail.Count);
+            return bytes;
+        }
+
+        // "AA:BB:CC:DD:EE:FF" → 6 raw bytes (webfig string2macaddr). Returns false when it is not a MAC.
+        private static bool TryParseMac(string s, out byte[] mac)
+        {
+            mac = null;
+            var p = (s ?? "").Split(':');
+            if (p.Length != 6) return false;
+            var bytes = new byte[6];
+            for (int i = 0; i < 6; i++)
+                if (!byte.TryParse(p[i], System.Globalization.NumberStyles.HexNumber,
+                        System.Globalization.CultureInfo.InvariantCulture, out bytes[i]))
+                    return false;
+            mac = bytes;
+            return true;
+        }
 
         private static byte[] EncodeU32(int key, uint n)
             => (n <= 255) ? M2Message.U8Sys(key, (byte)n) : M2Message.U32Sys(key, unchecked((int)n));
@@ -570,6 +760,70 @@ namespace tik4net.Winbox
             int n = 0;
             while (v != 0) { n += (int)(v & 1); v >>= 1; }
             return n;
+        }
+
+        /// <summary>
+        /// Raw 16 bytes → IPv6 text, compressing the longest run of zero groups to "::" (inverse of
+        /// <see cref="PackIpV6"/>, following webfig's <c>ip6addr2string</c>).
+        /// </summary>
+        /// <remarks>
+        /// One deliberate difference from <c>ip6addr2string</c>: an IPv4-MAPPED address (<c>::ffff:a.b.c.d</c>)
+        /// renders as the bare dotted quad. In webfig that is the job of a per-field <c>allowipv4</c> flag on
+        /// the <c>ip6addr</c> node (<c>types.ip6addr.tostr</c>), which sits on nested union members the catalog
+        /// does not model — and the fields that carry v4-mapped values are exactly the ones declaring it (the
+        /// traceroute hop). The binary API calls such a hop <c>127.0.0.1</c>, so rendering
+        /// <c>::ffff:127.0.0.1</c> would make the same record read differently per transport, which is the
+        /// defect class P2.33 is about. An IPv4-COMPATIBLE address (<c>::a.b.c.d</c>) keeps webfig's form.
+        /// </remarks>
+        internal static string IpV6FromBytes(byte[] b)
+        {
+            if (b == null || b.Length != 16) return "";
+
+            bool leading10Zero = true;
+            for (int i = 0; i < 10; i++) if (b[i] != 0) { leading10Zero = false; break; }
+            if (leading10Zero)
+            {
+                string quad = $"{b[12]}.{b[13]}.{b[14]}.{b[15]}";
+                if (b[10] == 0xFF && b[11] == 0xFF) return quad;                    // ::ffff:a.b.c.d (mapped)
+                // ::a.b.c.d (compatible) — only when the zero run stops at byte 12, exactly as webfig's
+                // zerosLen==12 test does; ::1 and friends keep the ordinary "::1" form.
+                if (b[10] == 0 && b[11] == 0 && (b[12] != 0 || b[13] != 0))
+                    return "::" + quad;
+            }
+
+            var groups = new int[8];
+            for (int i = 0; i < 8; i++) groups[i] = (b[i * 2] << 8) | b[i * 2 + 1];
+
+            int bestStart = -1, bestLen = 1, curStart = -1, curLen = 0;
+            for (int i = 0; i < 8; i++)
+            {
+                if (groups[i] == 0)
+                {
+                    if (curStart < 0) { curStart = i; curLen = 0; }
+                    curLen++;
+                    if (curLen > bestLen) { bestStart = curStart; bestLen = curLen; }
+                }
+                else curStart = -1;
+            }
+
+            // The zero run contributes ONE colon and the group after it contributes its own separator, which
+            // is what makes "::" — the same two-halves trick ip6addr2string uses. A run that ends the address
+            // has no following group, so it closes itself.
+            var sb = new StringBuilder();
+            for (int i = 0; i < 8; )
+            {
+                if (i == bestStart)
+                {
+                    sb.Append(':');
+                    i += bestLen;
+                    if (i == 8) sb.Append(':');
+                    continue;
+                }
+                if (i > 0) sb.Append(':');
+                sb.Append(groups[i].ToString("x"));
+                i++;
+            }
+            return sb.Length == 0 ? "::" : sb.ToString();
         }
 
         /// <summary>Raw 6-byte MAC → "AA:BB:CC:DD:EE:FF".</summary>
