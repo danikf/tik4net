@@ -157,5 +157,24 @@ namespace tik4net.integrationtests
                 if (committed) { try { DeleteAllItems(PATH); } catch { /* best-effort */ } }
             }
         }
+
+        /// <summary>
+        /// Discards the process-wide shared connection after every test in this class.
+        /// </summary>
+        /// <remarks>
+        /// <para>This class is the one that deliberately makes RouterOS perform a Safe Mode <b>rollback</b>,
+        /// and a rollback kills any WinBox-CLI-MAC console held on another connection — measured 3/3, while
+        /// the same terminal over TCP 8291 is untouched (P2.55, <c>Docs/findings-winbox.md</c> §17). The
+        /// shared connection is exactly such a console, sitting idle here, so it becomes collateral damage
+        /// and the next class's first test is the one that discovers it.</para>
+        /// <para>Waiting longer does not help and neither does a sleep: the disconnect test already polls
+        /// until the rollback has landed, so by the time it finishes the damage is done. The shared session
+        /// has to be treated as dead rather than waited for.</para>
+        /// <para>Not a workaround for a library defect — the transport recovers on its own
+        /// (<see cref="TikConnectionSessionClosedException"/> + reopen, P2.54). What it removes is the
+        /// suite's silent reliance on that recovery, which cost ~4.5 s and made an unrelated test look like
+        /// the faulty one.</para>
+        /// </remarks>
+        protected override void OnCleanup() => DisposeSharedConnection();
     }
 }

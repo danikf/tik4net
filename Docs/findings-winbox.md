@@ -562,27 +562,33 @@ Vedlejší pozorování ze stejného logu, zatím nevysvětlené: na 27 session,
 připadá 47 loginů `via winbox` z naší MAC — část v párech ve stejné sekundě, část samostatně. Nerovnoměrné,
 takže to není systematické zdvojení; stojí za to zjistit, co ty páry zakládá.
 
-**Reprodukce, kterou se podařilo zmenšit.** Tři testy, 10 s, spolehlivě vyrobí jeden ze tří wedge
-(z 340testové suity):
+**Příčina jednoho ze tří: Safe Mode rollback zabije souběžnou MAC konzoli.** Reprodukce 3/3 přes
+`Probe_SafeModeRollbackOnASibling`:
 
-```
-ListRoutingTablesWillNotFail                 založí sdílenou WinboxCliMac session
-SafeMode_DisconnectWithoutRelease_RollsBack  vlastní spojení: SafeModeTake, add, Close
-SearchByName_Interface_WillWork              první příkaz sdílené session zůstane bez potvrzení
-```
+| držená session | rollback dopadl | odpověď držené session | |
+|---|---|---|---|
+| `WinboxCliMac` | 2150 / 2136 / 2141 ms | ~4,3 s | **wedge** |
+| `WinboxCli` (TCP 8291) | 3198 / 2142 ms | ~0,4 s | v pořádku |
 
-Na pořadí záleží: když Safe Mode krok proběhne **první**, dokud sdílená session neexistuje, nestane se nic.
-Klíč k tomu byl, že `ConcurrentCommandsTest` a `SafeModeTest` jsou jediné dvě třídy s
-`ReuseConnectionAcrossTests => false` — jedou po vlastním spojení, takže se v per-session analýze mezi
-„uživateli" sdílené session vůbec neobjeví, i když jsou to ony, kdo ji rozbije. Všechny tři wedge sedí
-na hranici testovací třídy.
+Je to tedy **vlastnost MAC nosiče, ne CLI enginu** — týž terminál po TCP se nehne. V řeči suity:
+`ListRoutingTablesWillNotFail` založí sdílenou session, `SafeMode_DisconnectWithoutRelease_RollsBack`
+si vezme Safe Mode na **vlastním** spojení a zavře ho bez uvolnění, a `SearchByName_Interface_WillWork`
+je první, kdo na sdílenou session sáhne.
 
-> ⚠️ **Safe Mode ale příčina není.** `Probe_SafeModeRollbackOnASibling` dělá přesně tuhle sekvenci
-> knihovními prostředky a **nereprodukuje** — dvakrát, jednou se Safe Mode sekcí jen pro čtení a jednou
-> se skutečnou změnou k vrácení (223 / 224 ms, session zdravá). Takže „rollback sourozence zabije drženou
-> session" je špatný závěr, i když k němu testová sekvence svádí. Něco, co má testová cesta a probe ne,
-> pořád chybí — test si po `Close()` ještě obnoví vlastní spojení a až 30 s poluje, zatímco sdílená
-> session leží.
+> ⚠️ **Rollback je asynchronní**, a to je celý ten trik. RouterOS drží vlastníka Safe Mode i po zániku
+> spojení, až do connection-tracking timeoutu, takže rollback dopadne **~2 s poté** — proto ostatně
+> `SafeModeTest` na něj čeká pollingem až 30 s. Když se držené session zeptáš hned po zavření sourozence,
+> ptáš se ve špatný okamžik a dostaneš zdravých 223/224 ms. Přesně tak se do těchhle poznámek dvakrát
+> dostalo tvrzení „Safe Mode příčina není". **Byla.** A vysvětluje to i to, proč je obětí vždy první test
+> **následující** třídy: rollback dopadne až po skončení té třídy, která ho způsobila.
+
+Cesta k tomu vedla přes pozorování, že `ConcurrentCommandsTest` a `SafeModeTest` jsou jediné dvě třídy
+s `ReuseConnectionAcrossTests => false`. Jedou po vlastním spojení, takže se v per-session analýze mezi
+„uživateli" sdílené session vůbec neobjeví, i když jsou to ony, kdo ji rozbije — proto jsem je nejdřív
+jako předchůdce vyškrtl. Všechny tři wedge sedí na hranici testovací třídy.
+
+**Pro uživatele knihovny to znamená:** kdo drží WinBox-CLI-MAC spojení a zároveň na jiném spojení pustí
+Safe Mode, který skončí rollbackem, přijde o to první. P2.54 se z toho zotaví, ale stojí to ~4,5 s.
 
 **Kde to stojí:** je to kontextové a závislé na pořadí, session je zdravá zlomek sekundy předtím, než
 umře, router o ničem neví — a existuje 10sekundová reprodukce, na které se to dá dál pitvat.

@@ -5,22 +5,26 @@
 // the SAME three tests every time (Create_IpAddress_With_LowLevel_API, ListRadiusServersWillNotFail,
 // SearchByName_Interface_WillWork). It is deterministic, not a background rate the retry now hides.
 //
-// ── The one reproduction found so far, 2026-08-01 on RouterOS 7.23.2 ────────────────────────────────
+// ── ROOT CAUSE of one of the three, 2026-08-02 on RouterOS 7.23.2 ──────────────────────────────────
 //
-// Three MSTest methods, 10 s, reliably wedge one of the three (down from a 340-test suite run):
+// A Safe Mode ROLLBACK triggered by another connection kills a concurrent WinBox-CLI-MAC console.
+// Probe_SafeModeRollbackOnASibling reproduces it 3 times out of 3:
 //
-//     ListRoutingTablesWillNotFail            establishes the shared WinboxCliMac session
-//     SafeMode_DisconnectWithoutRelease_RollsBack   own connection: SafeModeTake, add, Close
-//     SearchByName_Interface_WillWork         the shared session's next command is never acknowledged
+//     held WinboxCliMac   rollback landed after 2150 / 2136 / 2141 ms -> held answered in ~4.3 s (WEDGED)
+//     held WinboxCli/TCP  rollback landed after 3198 / 2142 ms        -> held answered in ~0.4 s (fine)
 //
-// Order matters: run the Safe Mode step FIRST, before the held session exists, and nothing happens.
+// So it is specific to the MAC carrier, not to the CLI engine: the same terminal over TCP 8291 is
+// untouched. In suite terms: ListRoutingTablesWillNotFail establishes the shared session,
+// SafeMode_DisconnectWithoutRelease_RollsBack takes Safe Mode on its OWN connection and closes without
+// releasing, and SearchByName_Interface_WillWork is the next thing to touch the shared session.
 //
-// BUT Probe_SafeModeRollbackOnASibling, which performs exactly that sequence in library terms, does
-// NOT reproduce it — twice, once with a read-only Safe Mode section and once with a real change to roll
-// back (223/224 ms, healthy). So "a sibling's Safe Mode rollback kills the held session" is NOT the
-// mechanism, tempting as the test sequence makes it look. Something the test path has and the probe
-// does not is still missing — the test also recreates its own connection afterwards and polls for up
-// to 30 s for the rollback to land, while the shared session sits untouched.
+// THE ROLLBACK IS ASYNCHRONOUS, and that is what two earlier versions of this probe got wrong. RouterOS
+// keeps the Safe Mode owner alive after the connection goes away, until a connection-tracking timeout,
+// so the rollback lands ~2 s later — which is exactly why SafeModeTest polls up to 30 s for it. Poking
+// the held session immediately after the sibling closes therefore asks at the wrong instant and reports
+// a healthy 223/224 ms, which is how "Safe Mode is not the cause" got written down twice before the
+// timing was understood. It also explains why the victim is always the FIRST test of the NEXT class:
+// the rollback lands after the class that caused it has finished.
 //
 // ── Ruled out, each with its disproof (do not chase these again) ─────────────────────────────────────
 //
@@ -31,7 +35,8 @@
 //     because the pull loop fires 8/s regardless. That is real and worth fixing on its own (we have no
 //     send window at all), but it is the CONSEQUENCE: it starts after the command that goes unanswered.
 //   * a plain sibling session's teardown — Probe_SiblingSessionTeardown, 20 cycles across WinBox-MAC,
-//     MAC-Telnet and Api siblings, zero wedges.
+//     MAC-Telnet and Api siblings, zero wedges. (A sibling holding SAFE MODE is a different matter — see
+//     the root cause above. A plain one really is harmless.)
 //   * traffic volume / a boundary in the byte stream — Probe_LongLivedSession ran 400 commands and
 //     101 099 outbound bytes on ONE session with no stall, past two of the three offsets that wedge.
 //   * an idle logout — per-session tracing shows the held session receiving packets right up to the
@@ -43,13 +48,14 @@
 //     (counter + length), and a duplicate is correctly re-ACKed at the high-water mark.
 //   * anything the router admits to — /log records NOTHING at any of the three wedges.
 //
-// Env: TIK4NET_SIBLING_CYCLES (default 3 rounds of each disturbance).
+// Env: TIK4NET_SIBLING_CYCLES (default 3), TIK4NET_SAFEMODE_CYCLES (default 2), TIK4NET_SOAK_COMMANDS.
 // Cost: roughly 15 s per cycle. Nothing is left on the router — reads only, everything disposed.
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Configuration;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using tik4net;
 
@@ -193,27 +199,44 @@ namespace tik4net.integrationtests
         /// </list>
         /// <para>
         /// The ordering is the part that took longest to see: run the Safe Mode step FIRST, before the
-        /// held session exists, and nothing happens — which is why
-        /// <see cref="Probe_SiblingSessionTeardown_DoesNotKillTheHeldSession"/> found nothing. It tears a
-        /// sibling down, but a plain sibling, and a plain sibling is harmless. What is not harmless is a
-        /// rollback, which is a router-wide operation and evidently reaches other consoles.
+        /// held session exists, and nothing happens.
         /// </para>
-        /// <para>This accounts for ONE of the three wedges in a suite run. The other two involve no Safe
-        /// Mode at all and are still unexplained.</para>
+        /// <para>
+        /// <b>The rollback is asynchronous</b>, and that is what two earlier versions of this probe got
+        /// wrong. RouterOS keeps the Safe Mode owner alive after the connection goes away — until a
+        /// connection-tracking timeout — so the rollback lands seconds later, which is exactly why
+        /// <c>SafeModeTest</c> polls for up to 30 s for it. Poking the held session immediately after the
+        /// sibling closes therefore tests the wrong instant, and reported a healthy 223/224 ms twice. This
+        /// version waits for the rollback to actually land before asking the held session anything.
+        /// </para>
+        /// <para>This accounts for at most ONE of the three wedges in a suite run. The other two involve no
+        /// Safe Mode at all and are still unexplained.</para>
         /// </summary>
         [TestMethod]
         public void Probe_SafeModeRollbackOnASibling_KillsTheHeldSession()
         {
-            Log("=== P2.55 minimal repro: Safe Mode rollback on a sibling ===");
-            using (var held = Open(TikConnectionType.WinboxCliMac))
+            int cycles = int.TryParse(
+                Environment.GetEnvironmentVariable("TIK4NET_SAFEMODE_CYCLES"), out int n) && n > 0
+                ? n : 2;
+
+            Log("=== P2.55 repro: Safe Mode rollback on a sibling ===");
+            // WinboxCli (TCP) runs the SAME CLI engine over a different carrier, so it separates "the
+            // rollback disturbs any concurrent console" from "it disturbs the MAC carrier specifically".
+            foreach (var heldTransport in new[] { TikConnectionType.WinboxCliMac, TikConnectionType.WinboxCli })
+                for (int c = 0; c < cycles; c++)
+                    RunSafeModeCycle(heldTransport);
+        }
+
+        private static void RunSafeModeCycle(TikConnectionType heldTransport)
+        {
+            Log("-- held=" + heldTransport);
+            using (var held = Open(heldTransport))
             {
                 Poke(held);
                 Poke(held);   // give the session some history, as the suite's shared connection has
 
                 // Mirrors SafeModeTest.SafeMode_DisconnectWithoutRelease_RollsBack. The change inside Safe
-                // Mode is not decoration: a first attempt that only READ inside Safe Mode did not reproduce
-                // (224 ms, healthy), because a rollback with nothing to roll back evidently costs the router
-                // nothing. What the held session cannot survive is the rollback actually doing work.
+                // Mode is not decoration: the rollback has to have something to undo.
                 string name = "p255-probe-" + Guid.NewGuid().ToString("N").Substring(0, 8);
                 var sibling = Open(TikConnectionType.WinboxCliMac);
                 try
@@ -223,6 +246,28 @@ namespace tik4net.integrationtests
                     sibling.Close();        // dropped while still holding Safe Mode -> RouterOS rolls back
                 }
                 finally { try { sibling.Dispose(); } catch { } }
+
+                // Wait for the rollback to LAND, on a third connection, exactly as the test does. The held
+                // session is deliberately not touched while we wait — in the suite it sits idle here too.
+                var rollback = Stopwatch.StartNew();
+                bool landed = false;
+                using (var watcher = Open(TikConnectionType.Api))
+                {
+                    for (int i = 0; i < 30 && !landed; i++)
+                    {
+                        int count = watcher.CreateCommandAndParameters("/ppp/secret/print", "?name", name)
+                                           .ExecuteList().Count();
+                        if (count == 0) landed = true;
+                        else Thread.Sleep(1000);
+                    }
+                }
+                rollback.Stop();
+                Log("  rollback " + (landed ? "landed after " + rollback.ElapsedMilliseconds + " ms"
+                                            : "NEVER landed within 30 s — cleaning up"));
+                if (!landed)
+                    using (var cleanup = Open(TikConnectionType.Api))
+                        foreach (var row in cleanup.CreateCommandAndParameters("/ppp/secret/print", "?name", name).ExecuteList())
+                            cleanup.CreateCommandAndParameters("/ppp/secret/remove", ".id", row.GetId()).ExecuteNonQuery();
 
                 var sw = Stopwatch.StartNew();
                 try
