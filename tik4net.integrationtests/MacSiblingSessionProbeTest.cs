@@ -10,11 +10,15 @@
 // A Safe Mode ROLLBACK triggered by another connection kills a concurrent WinBox-CLI-MAC console.
 // Probe_SafeModeRollbackOnASibling reproduces it 3 times out of 3:
 //
-//     held WinboxCliMac   rollback landed after 2150 / 2136 / 2141 ms -> held answered in ~4.3 s (WEDGED)
-//     held WinboxCli/TCP  rollback landed after 3198 / 2142 ms        -> held answered in ~0.4 s (fine)
+//     held WinboxCliMac  MAC/UDP 20561 + WinBox M2   -> ~4.3 s   WEDGED, 5 of 5
+//     held MacTelnet     MAC/UDP 20561 + plain telnet -> ~0.15 s  fine,   0 of 2
+//     held WinboxCli     TCP 8291      + WinBox M2    -> ~0.37 s  fine,   0 of 2
 //
-// So it is specific to the MAC carrier, not to the CLI engine: the same terminal over TCP 8291 is
-// untouched. In suite terms: ListRoutingTablesWillNotFail establishes the shared session,
+// It is that transport SPECIFICALLY, not a property of either layer it is built from - which is worth
+// stating because "so it is the MAC carrier" was written here first, on the TCP result alone, and is
+// wrong: MAC-Telnet rides the same port with the same 22-byte framing and survives. Both halves of a
+// hypothesis have to be measured, not one inferred from the other. The router-side suspect is therefore
+// the mac-winbox service. In suite terms: ListRoutingTablesWillNotFail establishes the shared session,
 // SafeMode_DisconnectWithoutRelease_RollsBack takes Safe Mode on its OWN connection and closes without
 // releasing, and SearchByName_Interface_WillWork is the next thing to touch the shared session.
 //
@@ -222,7 +226,10 @@ namespace tik4net.integrationtests
             Log("=== P2.55 repro: Safe Mode rollback on a sibling ===");
             // WinboxCli (TCP) runs the SAME CLI engine over a different carrier, so it separates "the
             // rollback disturbs any concurrent console" from "it disturbs the MAC carrier specifically".
-            foreach (var heldTransport in new[] { TikConnectionType.WinboxCliMac, TikConnectionType.WinboxCli })
+            // MacTelnet shares the MAC carrier but not the WinBox layer; WinboxCli shares the CLI engine but
+            // not the carrier. Between them they say which of the two the rollback actually reaches.
+            foreach (var heldTransport in new[] { TikConnectionType.WinboxCliMac, TikConnectionType.MacTelnet,
+                                                 TikConnectionType.WinboxCli })
                 for (int c = 0; c < cycles; c++)
                     RunSafeModeCycle(heldTransport);
         }

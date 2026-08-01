@@ -562,18 +562,22 @@ Vedlejší pozorování ze stejného logu, zatím nevysvětlené: na 27 session,
 připadá 47 loginů `via winbox` z naší MAC — část v párech ve stejné sekundě, část samostatně. Nerovnoměrné,
 takže to není systematické zdvojení; stojí za to zjistit, co ty páry zakládá.
 
-**Příčina jednoho ze tří: Safe Mode rollback zabije souběžnou MAC konzoli.** Reprodukce 3/3 přes
-`Probe_SafeModeRollbackOnASibling`:
+**Příčina jednoho ze tří: Safe Mode rollback zabije souběžnou WinBox-over-MAC session.** Reprodukce
+5/5 přes `Probe_SafeModeRollbackOnASibling`:
 
-| držená session | rollback dopadl | odpověď držené session | |
-|---|---|---|---|
-| `WinboxCliMac` | 2150 / 2136 / 2141 ms | ~4,3 s | **wedge** |
-| `WinboxCli` (TCP 8291) | 3198 / 2142 ms | ~0,4 s | v pořádku |
+| držená session | nosič | horní vrstva | odpověď | |
+|---|---|---|---|---|
+| `WinboxCliMac` | MAC / UDP 20561 | WinBox M2 | ~4,3 s | **wedge 5/5** |
+| `MacTelnet` | MAC / UDP 20561 | plain telnet | ~0,15 s | v pořádku 0/2 |
+| `WinboxCli` | TCP 8291 | WinBox M2 | ~0,37 s | v pořádku 0/2 |
 
-Je to tedy **vlastnost MAC nosiče, ne CLI enginu** — týž terminál po TCP se nehne. V řeči suity:
-`ListRoutingTablesWillNotFail` založí sdílenou session, `SafeMode_DisconnectWithoutRelease_RollsBack`
-si vezme Safe Mode na **vlastním** spojení a zavře ho bez uvolnění, a `SearchByName_Interface_WillWork`
-je první, kdo na sdílenou session sáhne.
+Rollback dopadá pokaždé po ~2,15 s, nezávisle na tom, kdo drží druhou session.
+
+> ⚠️ Zde stálo „je to vlastnost MAC nosiče, ne CLI enginu". **Špatně** — a bylo to publikované, než jsem
+> to doměřil. `MacTelnet` jede po tomtéž portu s týmž 22bajtovým rámcováním a nic se mu nestane; po TCP je
+> taky klid. Není to tedy ani nosič, ani WinBox vrstva, ale **výhradně jejich kombinace**, tj. služba
+> `mac-winbox` na routeru. Poučení stejné jako u toho async rollbacku: obě poloviny hypotézy je potřeba
+> změřit, ne jednu odvodit z druhé.
 
 > ⚠️ **Rollback je asynchronní**, a to je celý ten trik. RouterOS drží vlastníka Safe Mode i po zániku
 > spojení, až do connection-tracking timeoutu, takže rollback dopadne **~2 s poté** — proto ostatně
@@ -590,8 +594,15 @@ jako předchůdce vyškrtl. Všechny tři wedge sedí na hranici testovací tř�
 **Pro uživatele knihovny to znamená:** kdo drží WinBox-CLI-MAC spojení a zároveň na jiném spojení pustí
 Safe Mode, který skončí rollbackem, přijde o to první. P2.54 se z toho zotaví, ale stojí to ~4,5 s.
 
-**Kde to stojí:** je to kontextové a závislé na pořadí, session je zdravá zlomek sekundy předtím, než
-umře, router o ničem neví — a existuje 10sekundová reprodukce, na které se to dá dál pitvat.
+**Oprava v suitě:** `SafeModeTest.OnCleanup() => DisposeSharedConnection()`. Delší čekání ani sleep
+nepomůžou — ten test už poluje, dokud rollback nedopadne, takže než skončí, je po všem; sdílená session
+mezitím umře a nikdo se jí do konce testu nedotkne. Musí se prohlásit za mrtvou, ne se na ni čekat.
+Není to zametení chyby knihovny (transport se zotaví sám), jen odstranění tichého spoléhání suity na to
+zotavení. Měřený dopad: plný běh 3 → 2 zahozené session, reprodukce z 1 zahození / 10 s na 0 / 7 s.
+
+**Kde to stojí:** zbývají dva wedge (`Create_IpAddress_With_LowLevel_API`, `ListRadiusServersWillNotFail`),
+oba bez Safe Mode, router o nich neví. Nová je ale třída mechanismu, kterou jde zkoušet: co dalšího dělá
+RouterOS asynchronně a co dosáhne až na `mac-winbox` session.
 
 **Vedlejší nález, který stojí za opravu bez ohledu na wedge:** nemáme žádné **odesílací okno**. Když
 hlava fronty není potvrzená, pull loop na ni dál přisypává 8 paketů/s, takže do díry ve streamu
