@@ -15,7 +15,7 @@ here either; they are the author's local working notes.
 |---|---|
 | [`findings-cli.md`](findings-cli.md) | RouterOS terminal/PTY layer: `print as-value`, `:put` framing, `detail`, `print stats`, VT100 negotiation, where-quoting, and why a settled prompt is not proof the router is answering *your* command (P2.47) |
 | [`terminal-cli-parsing.md`](terminal-cli-parsing.md) | Parsing the CLI's as-value output into records |
-| [`findings-rest-api.md`](findings-rest-api.md) | REST endpoint shapes, verb mapping, error responses |
+| [`findings-rest-api.md`](findings-rest-api.md) | REST endpoint shapes, verb mapping, error responses, and why the router's own `listen` cannot be used (§12) |
 | [`findings-mactelnet.md`](findings-mactelnet.md) | MAC-Telnet session behaviour, the shared MAC layer's cumulative ACK / retransmission rules, and the login the router refuses *after* reporting the handshake successful (P2.49) |
 | [`mactelnet-protocol.md`](mactelnet-protocol.md) | MAC-Telnet wire protocol: framing, the counter/ACK rule, control packets |
 | [`findings-mepty-byte-ack.md`](findings-mepty-byte-ack.md) | WinBox `mepty` counter is a cumulative **byte** ACK, not a message counter — a wrong value caps a session at ~8 KB |

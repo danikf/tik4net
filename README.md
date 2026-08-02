@@ -39,7 +39,7 @@ All transports share the same `ITikConnection` API and O/R mapper — pick one v
 | Transport | Port | What it is | Capabilities |
 |---|---|---|---|
 | **Api** / **ApiSsl** | TCP 8728 / 8729 | native MikroTik API protocol — the default and fastest; TLS variant needs a certificate on the router | **all of them**: `Crud`, `Listen`, `Streaming`, `RawSentences`, `Tagging`, `SafeMode`, `RawCommand` |
-| **Rest** / **RestSsl** | TCP 80 / 443 | REST API, RouterOS 7.1+ | `Crud` **only** — stateless HTTP, so no listen, no streaming, no Safe Mode |
+| **Rest** / **RestSsl** | TCP 80 / 443 | REST API, RouterOS 7.1+ | `Crud`, `Listen`\*† — stateless HTTP, so no streaming and no Safe Mode |
 | **Telnet** | TCP 23 | RouterOS CLI over plain-text Telnet | `Crud`, `Listen`\*, `SafeMode`, `RawCommand` |
 | **Ssh** | TCP 22 | RouterOS CLI over an SSH shell (separate `tik4net.ssh` package) | `Crud`, `Listen`\*, `SafeMode`, `RawCommand` |
 | **MacTelnet** | UDP 20561 | CLI over MAC-Telnet — reaches the router with **no IP route** | `Crud`, `Listen`\*, `SafeMode`, `RawCommand` |
@@ -49,6 +49,10 @@ All transports share the same `ITikConnection` API and O/R mapper — pick one v
 \* **`Listen` outside the API is emulated by polling** (re-issuing a snapshot on a background worker), not
 server push. **`Streaming`** (`ExecuteListWithDuration`) is binary-API only — no other transport holds a
 command exchange open for a blocking multi-row read.
+
+† On REST an async monitor's rows arrive **when the command ends**, not as the router produces them: RouterOS
+buffers the whole HTTP response. Prefer an explicit bound (`count`/`duration`) on a REST monitor — and note
+that closing the connection does not stop a command already running on the router.
 
 Every transport can have its connection **reused**. Concurrent commands on one connection work on
 `Api`/`ApiSsl` (set `SendTagWithSyncCommand = true` first), `Rest`/`RestSsl` and both WinBox-native

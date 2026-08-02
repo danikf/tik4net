@@ -26,6 +26,11 @@ namespace tik4net.unittests
             TikConnectionCapability.Crud | TikConnectionCapability.Listen
             | TikConnectionCapability.SafeMode | TikConnectionCapability.RawCommand;
 
+        // Listen is polled, like the CLI and native transports — RouterOS's own REST 'listen' is accepted and
+        // then never flushes anything (P2.26). No Streaming: an HTTP response arrives in one lump.
+        private const TikConnectionCapability Rest =
+            TikConnectionCapability.Crud | TikConnectionCapability.Listen;
+
         private const TikConnectionCapability Native =
             TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode;
 
@@ -40,8 +45,8 @@ namespace tik4net.unittests
             {
                 [TikConnectionType.Api]             = Full,
                 [TikConnectionType.ApiSsl]          = Full,
-                [TikConnectionType.Rest]            = TikConnectionCapability.Crud,
-                [TikConnectionType.RestSsl]         = TikConnectionCapability.Crud,
+                [TikConnectionType.Rest]            = Rest,
+                [TikConnectionType.RestSsl]         = Rest,
                 [TikConnectionType.Telnet]          = Cli,
                 [TikConnectionType.MacTelnet]       = Cli,
                 [TikConnectionType.WinboxCli]       = Cli,

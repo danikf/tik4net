@@ -110,12 +110,27 @@ namespace tik4net.integrationtests
                 lock (responseList) { afterTen = responseList.Count; snapshot = responseList.ToList(); }
 
                 Assert.IsNull(responseException, "the monitor reported an error");
-                // The defect's signature: the stream stops dead. RouterOS pings once a second, so the second
-                // window must add rows — the exact count is timing-dependent and deliberately not asserted.
-                Assert.IsTrue(afterTen > afterFive,
-                    $"the ping stream stopped: {afterFive} rows after 5 s, still {afterTen} after 10 s");
-                Assert.IsTrue(afterTen > 5,
-                    $"expected the stream to outlive the first few seconds, got only {afterTen} rows in 10 s");
+
+                if (DeliversMonitorRowsLive())
+                {
+                    // The defect's signature: the stream stops dead. RouterOS pings once a second, so the second
+                    // window must add rows — the exact count is timing-dependent and deliberately not asserted.
+                    Assert.IsTrue(afterTen > afterFive,
+                        $"the ping stream stopped: {afterFive} rows after 5 s, still {afterTen} after 10 s");
+                    Assert.IsTrue(afterTen > 5,
+                        $"expected the stream to outlive the first few seconds, got only {afterTen} rows in 10 s");
+                }
+                else
+                {
+                    // REST delivers the whole ping at once when it ends, so "did it stop dead?" cannot be asked
+                    // of the first ten seconds — but the property the test exists for still can: every reply
+                    // must arrive. Waiting past the ping's own duration is the REST spelling of the same check.
+                    Thread.Sleep((COUNT - 10 + 5) * 1000);
+                    lock (responseList) snapshot = responseList.ToList();
+                    Assert.AreEqual(COUNT, snapshot.Count,
+                        $"the ping delivered {snapshot.Count} of {COUNT} replies (see TestBase.DeliversMonitorRowsLive)");
+                }
+
                 Assert.AreEqual(snapshot.Count, snapshot.Select(p => p.SequenceNo).Distinct().Count(),
                     "a sequence number arrived twice — the monitor restarted its pass instead of continuing it");
                 Assert.IsTrue(snapshot.All(p => p.Host == HOST), "a row came back for the wrong host");
@@ -131,7 +146,11 @@ namespace tik4net.integrationtests
         {
             EnsureCapability(TikConnectionCapability.Listen, "async ping");
             const string HOST = "127.0.0.1";
-            const int MAX_CNT = 100;
+            // Long enough that the close lands mid-ping, which is the point of the test. On REST it must also
+            // be SHORT enough to finish soon after: closing the connection does not stop the router's command,
+            // and until it ends the router's REST session refuses everything else — including the reconnect
+            // below (measured: a count=100 ping left REST unusable for the rest of its 100 s).
+            int MAX_CNT = DeliversMonitorRowsLive() ? 100 : 10;
 
             List<ToolPing> responseList = new List<ToolPing>();
             Exception responseException = null;

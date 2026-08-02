@@ -54,15 +54,6 @@ namespace tik4net.Cli
         /// <summary>RouterOS's default monitor snapshot modifier, used for any verb not specially mapped.</summary>
         public const string DefaultModifier = "once";
 
-        // verb (last path segment, lower-case) → snapshot modifier token appended before 'as-value'.
-        private static readonly Dictionary<string, string> Modifiers =
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                { "ping",       "count=1"    },
-                { "traceroute", "count=1"    },
-                { "profile",    "duration=1" },
-            };
-
         // Monitors driven by the dedicated freeze-frame builder/parser pair instead of once/as-value.
         private static readonly HashSet<string> FreezeFrame =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "torch" };
@@ -92,8 +83,19 @@ namespace tik4net.Cli
         }
 
         /// <summary>The snapshot modifier token to append for <paramref name="verb"/> (defaults to <c>once</c>).</summary>
+        /// <remarks>
+        /// The CLI rendering of the shared <see cref="TikMonitorVerbs.SnapshotBound"/> fact — a bare flag stays
+        /// bare (<c>once</c>), a valued one becomes <c>name=value</c> (<c>count=1</c>). Only the spelling lives
+        /// here; which parameter bounds which verb is transport-neutral and is answered in one place, so a
+        /// verb that gets a measured bound for one transport cannot silently keep the wrong one on another.
+        /// <c>torch</c> is the exception that never reaches this method — <see cref="Kind.FreezeFrame"/> drives
+        /// it instead — so its shared entry (<c>duration=2</c>) is unused over a terminal.
+        /// </remarks>
         public static string SnapshotModifier(string verb)
-            => verb != null && Modifiers.TryGetValue(verb, out var m) ? m : DefaultModifier;
+        {
+            TikMonitorVerbs.SnapshotBound(verb, out string name, out string value);
+            return string.IsNullOrEmpty(value) ? name : name + "=" + value;
+        }
 
         /// <summary>
         /// True when <paramref name="verb"/> names a monitor command whose parameters are the command's own

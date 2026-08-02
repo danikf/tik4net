@@ -69,5 +69,44 @@ namespace tik4net.Connection
         /// answer to a caller who cannot see that four more hops were coming (P2.52).
         /// </remarks>
         public static bool SelfTerminating(string verb) => verb != null && SelfTerminatingVerbs.Contains(verb);
+
+        // The parameter that bounds a monitor to one reading, per verb. 'once' is RouterOS's convention and
+        // the default; the entries below are the verbs that reject it and want a count/duration instead —
+        // each measured live, not guessed (see the CliMonitorVerbs remarks for the refusal messages).
+        private static readonly Dictionary<string, KeyValuePair<string, string>> SnapshotBounds =
+            new Dictionary<string, KeyValuePair<string, string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "ping",       new KeyValuePair<string, string>("count",    "1") },
+                { "traceroute", new KeyValuePair<string, string>("count",    "1") },
+                { "profile",    new KeyValuePair<string, string>("duration", "1") },
+                // torch takes duration like profile, but one second yields an EMPTY frame — measured on
+                // 7.23.2 over REST, duration=1 answers "[]" in 1.5 s and duration=2 answers rows. The CLI's
+                // freeze-frame driver hit the same floor from the other side (a frame needs two intervals).
+                { "torch",      new KeyValuePair<string, string>("duration", "2") },
+            };
+
+        /// <summary>
+        /// The parameter that bounds <paramref name="verb"/> to a single reading, as a name/value pair
+        /// (an empty <paramref name="value"/> means the parameter is a bare flag, e.g. <c>once</c>).
+        /// </summary>
+        /// <remarks>
+        /// Transport-neutral because the FACT is: RouterOS runs a monitor until something stops it, so any
+        /// transport that cannot consume an open-ended stream has to ask for one reading instead — and they
+        /// all have to ask for the same thing. What differs is only the spelling: a terminal appends the
+        /// token to the command line (<see cref="tik4net.Cli.CliMonitorVerbs.SnapshotModifier"/>), REST puts
+        /// it in the JSON body, and native WinBox drops it entirely (its monitor window has no such input —
+        /// it starts a cycle, reads it and cancels it).
+        /// </remarks>
+        public static void SnapshotBound(string verb, out string name, out string value)
+        {
+            if (verb != null && SnapshotBounds.TryGetValue(verb, out var bound))
+            {
+                name = bound.Key;
+                value = bound.Value;
+                return;
+            }
+            name = "once";
+            value = string.Empty;
+        }
     }
 }

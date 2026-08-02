@@ -516,6 +516,31 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
+        /// True when an async monitor delivers its rows <b>as the router produces them</b>, rather than all
+        /// at once when the command ends. False only on REST.
+        /// </summary>
+        /// <remarks>
+        /// Not a client-side property and not a limitation to accept quietly — measured on 7.23.2 (P2.26):
+        /// RouterOS buffers a REST response until the command completes, so <c>POST /rest/ping
+        /// {"address":…}</c> with no <c>count</c> receives <b>0 bytes in 8 s</b>, and <c>/rest/log/listen</c>
+        /// receives 0 bytes across 30 s while 60 log lines are written. Everything else streams: the binary
+        /// API natively, the CLI family via the bare interactive command form (P2.50), native WinBox via the
+        /// M2 monitor window. A test asserting <i>when</i> rows arrive has to branch on this; one asserting
+        /// <i>that</i> they all arrive does not, and should not.
+        /// <para>
+        /// The second consequence matters more in a suite than in an assertion: an unfinished REST command
+        /// keeps the router's REST session busy, and it survives the client aborting the socket — after
+        /// abandoning a <c>count=30</c> ping at 5 s, further REST requests timed out for the remaining ~23 s.
+        /// So a REST test must not leave a long monitor running behind it.
+        /// </para>
+        /// </remarks>
+        protected bool DeliversMonitorRowsLive()
+        {
+            var t = ResolveConnectionType();
+            return t != TikConnectionType.Rest && t != TikConnectionType.RestSsl;
+        }
+
+        /// <summary>
         /// True when the active transport is NOT the binary API — i.e. a CLI-family transport
         /// (Telnet/MACTelnet/WinBox-CLI/WinBox-CLI-MAC) or native WinBox M2. These transports go
         /// through the structured-command model rather than the binary-API sentence protocol, so they

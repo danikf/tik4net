@@ -21,9 +21,12 @@ namespace tik4net.Rest
     /// <see cref="ITikCommand"/> (<see cref="TikGenericCommand"/>) are inherited. REST only supplies the three
     /// CRUD hooks (<see cref="RunPrint"/>/<see cref="RunAdd"/>/<see cref="RunNonQuery"/>) implemented over HTTP
     /// plus the request build (<see cref="RestRequestBuilder"/>), JSON parsing and HTTP-status→exception mapping.
-    /// <para>Capability is <see cref="TikConnectionCapability.Crud"/> only — REST is stateless, so there is no
-    /// Listen/Streaming and no Safe Mode (each call is an independent HTTP request, so RouterOS cannot bind
-    /// safe mode's rollback-on-disconnect to "the connection"; the inherited <c>SafeMode*</c> methods throw).</para>
+    /// <para>Capability is <see cref="TikConnectionCapability.Crud"/> | <see cref="TikConnectionCapability.Listen"/>.
+    /// Listen, async lists and monitors are emulated by polling, exactly as the CLI and native-WinBox
+    /// transports do it (<see cref="PollingMonitorEngine"/>) — see <c>RunMonitorAsync</c> for what the
+    /// router does and does not offer here. There is no <see cref="TikConnectionCapability.Streaming"/> and no
+    /// Safe Mode: each call is an independent HTTP request, so RouterOS cannot bind safe mode's
+    /// rollback-on-disconnect to "the connection"; the inherited <c>SafeMode*</c> methods throw.</para>
     /// <para>
     /// <b>Known RouterOS defect — REST logins are never released.</b> Using REST at all can leave rows in
     /// the router's <c>/user/active</c> table that never go away. This is a RouterOS bug (reported for
@@ -39,8 +42,13 @@ namespace tik4net.Rest
     /// logout never is. Details and measurements in <c>Docs/findings-rest-api.md</c> §5.1.
     /// </para>
     /// </remarks>
-    public class RestConnection : TikCommandConnectionBase
+    public class RestConnection : TikCommandConnectionBase, ITikMonitorTransport, IPollingMonitorHost
     {
+        // How often a listen diff / a continuous monitor re-reads the router. Same cadence as the CLI and
+        // native transports, which poll the same way for the same reason.
+        private const int ListenPollIntervalMs = 1000;
+        private const int MonitorPollIntervalMs = 1000;
+
         private readonly bool _useSsl;
         private readonly bool _allowInvalidCert;
         private readonly RemoteCertificateValidationCallback _certificateValidationCallback;
@@ -51,8 +59,12 @@ namespace tik4net.Rest
         /// <inheritdoc/>
         protected override string DiagnosticPrefix => "REST";
 
-        /// <summary>REST supports only CRUD (no Listen/Streaming/SafeMode).</summary>
-        public override TikConnectionCapability Capabilities => TikConnectionCapability.Crud;
+        /// <summary>
+        /// CRUD plus <see cref="TikConnectionCapability.Listen"/> (polled — see <c>RunMonitorAsync</c>).
+        /// No <see cref="TikConnectionCapability.Streaming"/> and no Safe Mode.
+        /// </summary>
+        public override TikConnectionCapability Capabilities =>
+            TikConnectionCapability.Crud | TikConnectionCapability.Listen;
 
         /// <summary>Creates a REST connection.</summary>
         /// <param name="useSsl">Use HTTPS (port 443) instead of HTTP (port 80).</param>
@@ -162,6 +174,126 @@ namespace tik4net.Rest
         /// <inheritdoc/>
         internal override void RunNonQuery(TikCommandDescriptor descriptor)
             => ExecuteRequest(descriptor.CommandText, descriptor.Parameters);
+
+        // ── Monitor / async / listen (ITikMonitorTransport) ────────────────────
+
+        /// <summary>
+        /// Dispatches a callback-based async command (<c>ExecuteAsync</c>/<c>LoadAsync</c>/<c>LoadListenAsync</c>)
+        /// onto a background worker that polls the router over ordinary HTTP requests: a <c>/path/listen</c>
+        /// diffs snapshots by <c>.id</c>, a <c>/path/print</c> runs once off-thread, and a monitor verb is
+        /// re-issued as a bounded one-shot on a timer (<c>ping</c>/<c>traceroute</c> run once and complete).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <b>RouterOS does have a REST <c>listen</c>, and it cannot be used.</b> The verb is real — POST
+        /// <c>/rest/system/resource/listen</c> answers <c>400 unknown parameter follow-only</c>, which is the
+        /// singleton refusing the <c>follow-only</c> that REST itself adds, not "no such command". On a table
+        /// it is accepted and the request is held open. But nothing ever comes out of it: measured on 7.23.2,
+        /// three windows of 20-30 s on <c>/ip/address/listen</c> and <c>/log/listen</c> received <b>0 bytes</b>
+        /// while an add, a set and 60 log lines happened inside them. RouterOS buffers the whole response and
+        /// flushes it when the command completes, and <c>listen</c> never completes — so the caller waits
+        /// forever for a body that is being accumulated on the router. That is why this transport polls:
+        /// not because "REST is stateless HTTP", but because the router's own streaming form delivers nothing.
+        /// </para>
+        /// <para>
+        /// The same buffering decides how monitors are driven. An unbounded monitor over REST hangs with no
+        /// output for the same reason (<c>POST /rest/ping {address}</c> and <c>POST /rest/interface/monitor-traffic
+        /// {interface}</c> both received 0 bytes in 8 s), so every monitor is given the snapshot bound its verb
+        /// takes — <see cref="TikMonitorVerbs.SnapshotBound"/>, the same fact the CLI transports append to the
+        /// command line — unless the caller supplied that parameter themselves.
+        /// </para>
+        /// <para>
+        /// Consequence worth knowing: an async <c>/ping</c> with no <c>count</c> is bounded to one reply here,
+        /// where the binary API would stream replies until cancelled. That matches what the CLI transports do
+        /// with the same command, and it is the reason to prefer an explicit <c>count</c> on a REST ping.
+        /// </para>
+        /// </remarks>
+        TikMonitorHandle ITikMonitorTransport.RunMonitorAsync(TikCommandDescriptor descriptor,
+            Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
+        {
+            EnsureOpened();
+            string verb = TikPath.Verb(descriptor.CommandText);
+
+            if (verb == "listen")
+            {
+                string listPath = TikPath.Parent(descriptor.CommandText);
+                var printDescriptor = new TikCommandDescriptor(listPath + "/print", descriptor.Parameters);
+                return PollingMonitorEngine.StartWorker("rest-listen",
+                    h => PollingMonitorEngine.ListenLoop(this, printDescriptor, null, ListenPollIntervalMs, h, onRow, onError, onDone));
+            }
+
+            if (verb == "print" || verb == "getall")
+                return PollingMonitorEngine.StartWorker("rest-asynclist",
+                    h => PollingMonitorEngine.AsyncListOnce(this, descriptor, h, onRow, onError, onDone));
+
+            var bounded = ApplySnapshotBound(descriptor, verb);
+
+            // Self-terminating (ping/traceroute): one request → N rows → done, like the binary API's async
+            // ping. Re-polling it would multiply the row count.
+            if (TikMonitorVerbs.SelfTerminating(verb))
+                return PollingMonitorEngine.StartWorker("rest-monitor-once",
+                    h => MonitorOnce(bounded, h, onRow, onError, onDone));
+
+            return PollingMonitorEngine.StartWorker("rest-monitor",
+                h => PollingMonitorEngine.SnapshotLoop(this, bounded, MonitorPollIntervalMs, h, onRow, onError, onDone));
+        }
+
+        // ── IPollingMonitorHost (the loop scaffolding lives in PollingMonitorEngine) ──
+
+        /// <inheritdoc/>
+        bool IPollingMonitorHost.IsOpen => IsOpened;
+
+        /// <inheritdoc/>
+        IList<TikRecordSentence> IPollingMonitorHost.PollSnapshot(TikCommandDescriptor printDescriptor)
+            => RunPrint(printDescriptor);
+
+        /// <inheritdoc/>
+        TikTrapSentenceResult IPollingMonitorHost.ToTrap(Exception ex) => new TikTrapSentenceResult(ex.Message);
+
+        /// <summary>
+        /// Runs a self-terminating monitor once and emits its rows. Deliberately not
+        /// <see cref="PollingMonitorEngine.AsyncListOnce"/>: that one strips Filter-format parameters and
+        /// evaluates them as a client-side query, and a monitor's parameters are its INPUTS, not a filter over
+        /// a table — the distinction P2.51 is about.
+        /// </summary>
+        private void MonitorOnce(TikCommandDescriptor descriptor, TikMonitorHandle handle,
+            Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
+        {
+            try
+            {
+                foreach (var row in RunPrint(descriptor))
+                {
+                    if (handle.CancelRequested) break;
+                    onRow?.Invoke(row);
+                }
+            }
+            catch (Exception ex)
+            {
+                if (!PollingMonitorEngine.Stopping(this, handle)) onError?.Invoke(new TikTrapSentenceResult(ex.Message));
+            }
+            finally { onDone?.Invoke(); }
+        }
+
+        // Appends the verb's snapshot bound (once / count=1 / duration=N) unless the caller already supplied a
+        // parameter of that name — without it RouterOS runs the monitor forever and, because it buffers the
+        // response until the command ends, answers with nothing at all rather than with a partial reading.
+        // internal rather than private so the unit tests can pin it: getting this wrong does not fail, it
+        // hangs — the worker sits on a request the router will never answer and the caller sees no rows,
+        // no error and no completion.
+        internal static TikCommandDescriptor ApplySnapshotBound(TikCommandDescriptor descriptor, string verb)
+        {
+            TikMonitorVerbs.SnapshotBound(verb, out string name, out string value);
+
+            foreach (var p in descriptor.Parameters)
+                if (string.Equals(p.Name.TrimStart('?', '='), name, StringComparison.OrdinalIgnoreCase))
+                    return descriptor;
+
+            var parameters = new List<ITikCommandParameter>(descriptor.Parameters)
+            {
+                new TikCommandParameter(name, value, TikCommandParameterFormat.NameValue),
+            };
+            return new TikCommandDescriptor(descriptor.CommandText, parameters);
+        }
 
         // ── HTTP execution ─────────────────────────────────────────────────────
 

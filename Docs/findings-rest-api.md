@@ -178,12 +178,16 @@ anything added there would have no effect on this.
 
 ## 7. Capability gaps (📄 + reasoning)
 
-- **No `/listen` / push** — REST is request-response.
+- ⚠️ **Superseded by [§12](#12--rest-has-a-listen-and-it-delivers-nothing-p226-2026-08-02) — read that first.**
+  This section reasoned from protocol style ("REST is request-response"), which turned out to be the wrong
+  kind of argument even though the conclusion about *push* held: RouterOS does have a `/rest/<path>/listen`,
+  it is accepted, and it delivers nothing. `Listen` is now supported by polling, as on the CLI transports.
+- **No server push** — the router's own streaming form never flushes (§12).
 - **No streaming/follow.** Monitor commands (`/interface/monitor`, `/tool/ping`, etc.) must be called with
-  `{"once":""}` (or `once`), otherwise the request would "hang". Continuous results (Torch, continuous ping)
-  are not possible → `NotSupportedException` in `RestConnection`.
+  `{"once":""}` (or `once`/`count`/`duration` — §12.2), otherwise the request hangs with no output.
+  Continuous results (Torch, continuous ping) are produced by re-issuing a bounded snapshot on a timer.
 - 📄 **~60s hard timeout** on a request on the router side → long-running operations cannot be kept open.
-- → In the capability matrix: `Crud` yes; `Listen`, `Streaming`, `RawSentences`, `Tagging` no.
+- → In the capability matrix: `Crud` and `Listen` (polled) yes; `Streaming`, `RawSentences`, `Tagging` no.
 
 ---
 
@@ -273,3 +277,59 @@ produce the same URL for it anyway.
 **never responds** (measured: 8 s without a single byte before we cut it off) — the monitor keeps running and the HTTP
 request hangs. The mapper sends `once` (`InterfaceMonitorTraffic.GetSnapshot`), so shipped entities are unaffected,
 but a caller building the command by hand needs to add it themselves.
+
+---
+
+## 12. ✅ REST *has* a `listen`, and it delivers nothing (P2.26, 2026-08-02)
+
+§7 recorded "no `/listen` / push — REST is request-response" as reasoning from protocol style, which is exactly
+the shape of claim CLAUDE.md says to challenge. Challenged, on 7.23.2:
+
+**The verb is real.** RouterOS maps `/rest/<path>/listen` onto its own `print follow-only`, and says so when a
+menu cannot take it:
+
+```
+POST /rest/system/resource/listen  {}   → 400 {"detail":"unknown parameter follow-only"}
+POST /rest/ip/address/listen       {}   → accepted, request held open
+POST /rest/log/listen              {}   → accepted, request held open
+```
+
+**And it never produces a byte.** Three windows, with real events generated inside each from a separate API
+connection:
+
+| window | duration | events during the window | received |
+|---|---|---|---|
+| `/rest/ip/address/listen` | 25 s | one `set` (comment change) | **0 B** |
+| `/rest/ip/address/listen` | 25 s | one `add`, one `set` | **0 B** |
+| `/rest/log/listen` | 30 s | 60 `:log info` lines | **0 B** |
+
+Measured at the socket, not through a client library: no response headers arrive either, so this is not client
+buffering. RouterOS accumulates the whole REST response and flushes it when the command completes — and
+`listen` never completes. The same mechanism explains §11's unbounded-monitor hang, and it is why an unbounded
+`/rest/ping` also answers nothing (0 B in 8 s) rather than answering progressively.
+
+So the gap is the router's, and it is now recorded as what the router did rather than as an argument from
+protocol style. **What REST gains anyway is `Listen` by polling** — the same
+`PollingMonitorEngine` the CLI family and native WinBox already use, since it needs nothing but a repeatable
+"read the table". Twelve integration tests moved from skipped to passing (332/99 → 344/87 on
+`rest.runsettings`).
+
+### 12.1 Two consequences worth knowing
+
+**Monitor rows arrive at the end, not as they happen.** An async `/ping count=20` over REST delivers 0 rows for
+20 s and then all 20. Every other transport streams (the API natively, the CLI family via the bare interactive
+form — P2.50, native WinBox via the M2 monitor window), so a test asserting *when* rows arrive has to branch:
+`TestBase.DeliversMonitorRowsLive()`.
+
+**An unfinished command keeps the router's REST session busy, and aborting the socket does not free it.**
+Measured: a `count=30` ping abandoned by the client at 5 s left every further REST request timing out for the
+remaining ~23 s — including opening a *new* connection, because RouterOS reuses one session per (user, source
+address) (§5.1). Closing a tik4net REST connection therefore stops our delivery but not the router's work.
+
+### 12.2 The bound is per verb, and one of them is not one second
+
+Because an unbounded monitor answers nothing, REST appends the snapshot bound its verb takes, unless the caller
+supplied that parameter themselves — the same fact the CLI transports append to the command line, now stated
+once in `TikMonitorVerbs.SnapshotBound`. `torch` is the one that does not fit the pattern: `duration=1` answers
+`[]` in 1.5 s and `duration=2` answers rows, which is the same floor the CLI's freeze-frame driver hit from the
+other side (a frame needs two intervals).
