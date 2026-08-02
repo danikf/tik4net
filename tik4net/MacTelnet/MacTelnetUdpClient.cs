@@ -292,7 +292,9 @@ namespace tik4net.MacTelnet
 
         /// <summary>
         /// Reads a command response, requiring the prompt to be stable for
-        /// <see cref="SettleMs"/> before returning.
+        /// <see cref="SettleMs"/> before returning — and to have been preceded by the command's own echo
+        /// (<see cref="CliOutputHelper.ContainsEcho"/>), so that a prompt left behind by the PREVIOUS
+        /// response cannot end this read before the router has said anything (P2.47).
         /// </summary>
         /// <param name="sentCommand">
         /// The command being answered. When non-null, reaching the deadline without a prompt throws
@@ -310,6 +312,7 @@ namespace tik4net.MacTelnet
             DateTime? settleUntil = null;
             int lastLength = -1;
             var streamer = new CliLineStreamer(onLine);
+            bool echoSeen = false;   // latched: see CliOutputHelper.ContainsEcho
 
             while (sw.ElapsedMilliseconds < _receiveTimeoutMs)
             {
@@ -330,7 +333,10 @@ namespace tik4net.MacTelnet
                 if (length == 0 && LastSendAbandoned)
                     throw SessionClosed(sentCommand);
 
-                if (RouterOsCliLogin.IsShellPrompt(stripped))
+                if (!echoSeen)
+                    echoSeen = CliOutputHelper.ContainsEcho(stripped, sentCommand);
+
+                if (echoSeen && RouterOsCliLogin.IsShellPrompt(stripped))
                 {
                     if (settleUntil == null)
                         settleUntil = DateTime.UtcNow.AddMilliseconds(SettleMs);

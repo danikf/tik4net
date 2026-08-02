@@ -13,7 +13,7 @@ here either; they are the author's local working notes.
 
 | Document | Covers |
 |---|---|
-| [`findings-cli.md`](findings-cli.md) | RouterOS terminal/PTY layer: `print as-value`, `:put` framing, `detail`, `print stats`, VT100 negotiation, where-quoting |
+| [`findings-cli.md`](findings-cli.md) | RouterOS terminal/PTY layer: `print as-value`, `:put` framing, `detail`, `print stats`, VT100 negotiation, where-quoting, and why a settled prompt is not proof the router is answering *your* command (P2.47) |
 | [`terminal-cli-parsing.md`](terminal-cli-parsing.md) | Parsing the CLI's as-value output into records |
 | [`findings-rest-api.md`](findings-rest-api.md) | REST endpoint shapes, verb mapping, error responses |
 | [`findings-mactelnet.md`](findings-mactelnet.md) | MAC-Telnet session behaviour, and the shared MAC layer's cumulative ACK / retransmission rules |

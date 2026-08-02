@@ -121,6 +121,94 @@ namespace tik4net.unittests.Cli
                 "the repeat must stop at the first line that is not a prompt repaint");
         }
 
+        // P2.47. The previous command's tail arrives after its read has already returned on a settled
+        // prompt and after the next command's pre-send drain has looked at the socket, so it becomes the
+        // HEAD of the next response. Nothing used to notice: foreign output is not blank, not a prompt and
+        // not a fragment of the sent command, so the head-trim loop treats it as the first data line and
+        // stops there — the caller is handed someone else's answer with its own echo still inside it.
+        [TestMethod]
+        public void CleanOutput_DropsThePreviousCommandsTailFromTheHeadOfThisResponse()
+        {
+            const string sent = ":put [/interface/l2tp-client add name=t4ntest-l2tp1a2b3c4d comment=x]";
+            string raw = "*8E\r\n"                                    // the tail of the PREVIOUS add
+                       + Prompt + "\r\n"                              // and its prompt, arriving late
+                       + sent + "\r\n"
+                       + "*9F\r\n"
+                       + Prompt;
+
+            Assert.AreEqual("*9F", CliOutputHelper.CleanOutput(raw, sent),
+                "the id returned must be the one this add printed, not the one left in the socket");
+        }
+
+        // The same splice on a read: the residue is a whole record, which parses perfectly well and is
+        // simply the wrong row.
+        [TestMethod]
+        public void CleanOutput_DropsAForeignRecordThatPrecedesTheEcho()
+        {
+            const string sent = ":put [/ip/address print detail as-value where .id=\"*2\"]";
+            const string record = ".id=*2;address=192.168.1.1/24";
+            string raw = ".id=*1;address=10.0.0.1/24\r\n"
+                       + sent + "\r\n"
+                       + record + "\r\n"
+                       + Prompt;
+
+            Assert.AreEqual(record, CliOutputHelper.CleanOutput(raw, sent));
+        }
+
+        // The ordinary head must not be touched by the alignment: a blank line, a repainted prompt, an
+        // asynchronous log line and a split character-echo are all normal in front of the echo.
+        [TestMethod]
+        public void CleanOutput_AlignmentLeavesTheOrdinaryHeadAlone()
+        {
+            const string sent = ":put [/ip/address print detail as-value]";
+            const string record = ".id=*1;address=192.168.1.1/24";
+            string raw = "\r\n"
+                       + "19:54:32 system,error,critical login failure for user x\r\n"
+                       + ":put [/ip/addre\r\n"                        // character-echo split by a repaint
+                       + Prompt + sent + "\r\n"
+                       + record + "\r\n"
+                       + Prompt;
+
+            Assert.AreEqual(record, CliOutputHelper.CleanOutput(raw, sent));
+        }
+
+        // A data line that happens to contain the command text must not be mistaken for the echo — the
+        // real echo comes first, so the first match is always the right one.
+        [TestMethod]
+        public void CleanOutput_KeepsARecordThatQuotesTheCommandItself()
+        {
+            const string sent = ":put [/system/script print detail as-value]";
+            const string record = ".id=*1;source=:put [/system/script print detail as-value]";
+            string raw = sent + "\r\n" + record + "\r\n" + Prompt;
+
+            Assert.AreEqual(record, CliOutputHelper.CleanOutput(raw, sent));
+        }
+
+        // The gate every PTY read loop gets its terminator from: a prompt only ends the read once the
+        // router has started answering THIS command.
+        [TestMethod]
+        public void ContainsEcho_TellsOurResponseFromTheOneLeftInTheSocket()
+        {
+            const string sent = ":put [/ip/address print detail as-value where .id=\"*2\"]";
+
+            Assert.IsFalse(CliOutputHelper.ContainsEcho(".id=*1;address=10.0.0.1/24\r\n" + Prompt, sent),
+                "the previous command's tail plus its prompt must not end this read");
+            Assert.IsTrue(CliOutputHelper.ContainsEcho(Prompt + sent + "\r\n", sent),
+                "the prompt-prefixed repaint is the echo");
+            Assert.IsTrue(CliOutputHelper.ContainsEcho(":put  [/ip/address  print detail as-value where .id=\"*2\"]", sent),
+                "the line editor repaints the echo, it does not replay the bytes — whitespace may differ");
+        }
+
+        [TestMethod]
+        public void ContainsEcho_DoesNotGateWhatItCannotAnchorOn()
+        {
+            // A control key is not a command and RouterOS need not answer one at all.
+            Assert.IsTrue(CliOutputHelper.ContainsEcho("anything", null));
+            Assert.IsTrue(CliOutputHelper.ContainsEcho("anything", ""));
+            // Too short to be distinctive among a response's data lines.
+            Assert.IsTrue(CliOutputHelper.ContainsEcho("anything", "/quit"));
+        }
+
         [TestMethod]
         public void IsRouterLogLine_DoesNotSwallowRealOutput()
         {

@@ -339,7 +339,9 @@ namespace tik4net.WinboxCli
         /// <summary>
         /// Reads a command response, requiring the prompt to be stable for <see cref="SettleMs"/>
         /// before returning (the line-editor repaints the prompt, so a single prompt sighting is not
-        /// proof the output is complete).
+        /// proof the output is complete) — and to have been preceded by the command's own echo
+        /// (<see cref="Cli.CliOutputHelper.ContainsEcho"/>), so that a prompt left behind by the PREVIOUS
+        /// response cannot end this read before the router has said anything (P2.47).
         /// </summary>
         /// <param name="sentCommand">
         /// The command being answered. When non-null, reaching the deadline without a prompt throws
@@ -357,6 +359,7 @@ namespace tik4net.WinboxCli
             var sw = Stopwatch.StartNew();
             DateTime? settleUntil = null;
             bool prompted = false;
+            bool echoSeen = false;   // latched: see CliOutputHelper.ContainsEcho
             var streamer = new Cli.CliLineStreamer(onLine);
             long lastPullMs = -1;   // -1 = a pull is due now (fire immediately)
 
@@ -422,7 +425,10 @@ namespace tik4net.WinboxCli
 
                 string stripped = VtStripper.StripAnsi(sb.ToString());
                 streamer.Feed(stripped);
-                if (!prompted && RouterOsCliLogin.IsShellPrompt(stripped))
+                if (!echoSeen)
+                    echoSeen = Cli.CliOutputHelper.ContainsEcho(stripped, sentCommand);
+
+                if (!prompted && echoSeen && RouterOsCliLogin.IsShellPrompt(stripped))
                 {
                     if (TikWireTrace.Enabled)
                         TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note,

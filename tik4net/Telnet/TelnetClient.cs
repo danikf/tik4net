@@ -270,6 +270,9 @@ namespace tik4net.Telnet
         /// prompt and returns empty. Instead we require the prompt to be at the end AND the stream to fall
         /// silent for <see cref="SettleMs"/> afterwards — any output that follows a redraw prompt resets the
         /// settle window, so only the final, stable prompt terminates the read. Bounded by the receive deadline.
+        /// <para>And the prompt only counts once the command's own echo is on screen
+        /// (<see cref="CliOutputHelper.ContainsEcho"/>) — otherwise a prompt left behind by the PREVIOUS
+        /// response ends this read before the router has said anything (P2.47).</para>
         /// </summary>
         /// <param name="ct">Cancellation token.</param>
         /// <param name="sentCommand">
@@ -291,6 +294,7 @@ namespace tik4net.Telnet
             var deadline = DateTime.UtcNow.AddMilliseconds(_receiveTimeoutMs);
             DateTime? settleUntil = null;
             var streamer = new CliLineStreamer(onLine);
+            bool echoSeen = false;   // latched: see CliOutputHelper.ContainsEcho
 
             while (true)
             {
@@ -313,7 +317,10 @@ namespace tik4net.Telnet
                 string stripped = VtStripper.StripAnsi(accumulated.ToString());
                 streamer.Feed(stripped);
 
-                if (RouterOsCliLogin.IsShellPrompt(stripped))
+                if (!echoSeen)
+                    echoSeen = CliOutputHelper.ContainsEcho(stripped, sentCommand);
+
+                if (echoSeen && RouterOsCliLogin.IsShellPrompt(stripped))
                 {
                     if (settleUntil == null)
                         settleUntil = DateTime.UtcNow.AddMilliseconds(SettleMs);

@@ -599,3 +599,57 @@ All the synchronous monitor tests had `EnsureCapability(TikConnectionCapability.
 reported **only by the binary API** — so on ten of the eleven transports they were Inconclusive, and
 the entire synchronous monitor path had no coverage at all. Yet `ToolPing.Execute` is a plain
 `LoadList` and doesn't need `Streaming`. See `[[feedback_silent_failures_are_invisible]]`.
+
+## 17. ✅ A prompt is not proof the router is answering *you* (P2.47, 2026-08-02)
+
+Every PTY read here ends the same way: wait until the accumulated text ends at a shell prompt, then
+wait `SettleMs` (120 ms) more to be sure nothing follows. That test asks whether **a** command has
+finished, never whether **this** one has — and the two come apart, because a response can arrive
+after the read that asked for it has already returned:
+
+- the read returns as soon as the prompt has been quiet for 120 ms;
+- the next command's pre-send drain is gated on `DataAvailable` **at one instant**;
+- so a tail that arrives after both is still in the socket when the next command goes out.
+
+That tail then lands ahead of the next command's echo, and both layers accept it:
+
+| layer | what it saw | what it did |
+|---|---|---|
+| read loop | the leftover **prompt** settles for 120 ms | returns before the router has said a word |
+| `CleanOutput` | leftover **output** is not blank, not a prompt, not a command fragment | stops the head-trim there and calls it the first data line |
+
+Neither is detectable from the result. A read gets the wrong row; a silent-on-success write gets
+non-empty "output" that P2.12's positional rule reads as a rejection; and an `add` gets back an
+`.id` that was never created here — which fails one call later, in the read-back, with `no such
+item`, pointing at everything except the cause.
+
+### The echo is the anchor
+
+The router echoes the command before it answers it, so the response carries its own identity. Both
+layers now use it (`CliOutputHelper.ContainsEcho` / `SkipForeignResidue`):
+
+- a settled prompt terminates a read **only once this command's echo is on screen**;
+- content in front of the echo that is genuinely foreign — not blank, not a repainted prompt, not an
+  asynchronous log line (§14), not a partial echo — is dropped, and noted to the wire trace on
+  channel `cli.align`.
+
+Matching is on whitespace-squashed text (the line editor repaints the echo, it does not replay the
+bytes) and only on a leading 40-character slice, since the tail of a long `add` may be wrapped or
+repainted separately. The **first** match wins, which is what makes a false match harmless: a record
+that quotes the command back — a stored script `source`, say — can only appear after the echo that
+introduced it.
+
+### Why the gate is free
+
+Measured over full traced suite runs on all five CLI transports, `echo-missing` fired **0 times**:
+at the moment each read returned, its own echo was already present. So requiring it changes nothing
+on a healthy session — and where the echo is merely late, waiting for it turns a wrong answer into a
+correct one rather than into a failure. Only a response that never arrives now reaches the receive
+deadline, where the read already throws (`CliReadTimeout`).
+
+### What it does not fix
+
+Two identical commands in a row — the poll-and-diff Listen emulation issues those — cannot be told
+apart this way: the previous response's echo satisfies the gate just as well as our own. The splice
+is then invisible to both layers, and shows up (if at all) as a duplicated row rather than a wrong
+one.
