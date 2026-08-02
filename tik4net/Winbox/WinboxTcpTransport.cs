@@ -46,6 +46,14 @@ namespace tik4net.Winbox
 
             _tcp.ReceiveTimeout = ioTimeoutMs;
             _tcp.SendTimeout    = ioTimeoutMs;
+
+            // Nagle off, matching TelnetClient. Every M2 message is one small write and the next one is
+            // not issued until this one is answered, so coalescing can only ever add latency waiting for
+            // an acknowledgement. Hygiene rather than a fix: the P2.46 A/B (six runs, 950 round trips)
+            // found no significant difference, because the stall it was chasing is not ours at all —
+            // see Docs/findings-router-session-throughput.md.
+            _tcp.NoDelay = true;
+
             _ns = _tcp.GetStream();
         }
 

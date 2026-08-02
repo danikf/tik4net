@@ -94,7 +94,12 @@ namespace tik4net.Winbox
         /// <param name="request">
         /// A built M2 message that must already contain a request id from <see cref="NextReqIdField"/>.
         /// </param>
-        /// <param name="timeoutMs">Deadline for this request alone (design §4.2a).</param>
+        /// <param name="timeoutMs">
+        /// Deadline for this request alone (design §4.2a). It has to survive a stalled router, not just a
+        /// slow one: a session driven hard enough degrades ~30× and, on TCP, delivers a batch of replies
+        /// only after seconds of silence, so a timeout here usually means the router went quiet rather
+        /// than that a reply was mislaid. See <c>Docs/findings-router-session-throughput.md</c>.
+        /// </param>
         internal byte[] SendReceive(byte[] request, int timeoutMs)
         {
             ThrowIfFaulted();

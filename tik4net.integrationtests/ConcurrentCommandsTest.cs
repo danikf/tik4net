@@ -29,6 +29,10 @@ namespace tik4net.integrationtests
     /// millisecond and thread hand-off costs more than it saves. An assertion on elapsed time would therefore
     /// have to differ per transport and would still be a stopwatch race; what must never break, on any of
     /// them, is that a caller gets its own reply.</para>
+    /// <para>Those figures are also a <i>fresh</i> connection's. Keep driving one connection hard and the
+    /// router slows the session by ~30× — on every transport, recovering only after seconds of idle — so
+    /// this test's 180 s budget is not the safety margin it looks like. That is the router's behaviour,
+    /// not the multiplexer's: <c>Docs/findings-router-session-throughput.md</c>.</para>
     /// </remarks>
     [TestClass]
     public class ConcurrentCommandsTest : TestBase
