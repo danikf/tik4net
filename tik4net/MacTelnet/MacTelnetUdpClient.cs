@@ -410,6 +410,7 @@ namespace tik4net.MacTelnet
         {
             var sb = new StringBuilder();
             bool nagSent = false;
+            int  dataPackets = 0;
             var sw = System.Diagnostics.Stopwatch.StartNew();
 
             while (sw.ElapsedMilliseconds < _loginTimeoutMs)
@@ -424,12 +425,21 @@ namespace tik4net.MacTelnet
 
                     if (type == PKT_ACK) { NoteAck(counter); continue; }
                     if (type == PKT_PING) { SendPong(counter); continue; }
+
+                    // The router closing the session is an answer, and waiting out the rest of the login
+                    // timeout after it cannot produce a better one. It sends PKT_END repeatedly, and on a
+                    // refused login it sends the refusal text first — so whatever is already on screen is
+                    // the reason, and it is worth more than the fact that the session is gone (P2.49).
+                    if (type == PKT_END)
+                        throw RefusalOrClosure(VtStripper.StripAnsi(sb.ToString()));
+
                     if (type != PKT_DATA) continue;
 
                     if (!AckData(counter, payload.Length)) continue;   // duplicate retransmit
                     if (IsControlPacket(payload))
                         continue;
 
+                    dataPackets++;
                     string text = _encoding.GetString(payload);
                     sb.Append(text);
 
@@ -447,13 +457,54 @@ namespace tik4net.MacTelnet
                         continue;
                     }
 
+                    // Checked before the prompt, and on every packet: the refusal is the last thing the
+                    // router says before it stops talking, so nothing later will arrive to be examined.
+                    if (IsLoginRefusal(stripped))
+                        throw new TikConnectionLoginRefusedException("MAC-Telnet", FirstLine(stripped));
+
                     if (RouterOsCliLogin.IsShellPrompt(stripped))
                         return;
                 }
                 catch (SocketException) { RetransmitIfUnacked(); /* poll timeout — continue loop */ }
             }
 
-            throw new TimeoutException("MAC-Telnet: timed out waiting for shell prompt.");
+            // What it was waiting for is only half the story; the other half is what it had already been
+            // given, and without that the failure is indistinguishable between "the router said nothing at all"
+            // (a lost SESSIONSTART or a dead MAC path) and "the router is mid-negotiation and one packet
+            // went missing" (a stalled VT100 probe exchange). P2.49 spent nine reproduction runs on a
+            // message that carried neither.
+            string seen = VtStripper.StripAnsi(sb.ToString());
+            if (seen.Length > 200)
+                seen = seen.Substring(seen.Length - 200);
+            throw new TimeoutException(
+                "MAC-Telnet: timed out waiting for shell prompt after " + sw.ElapsedMilliseconds + " ms; "
+                + dataPackets + " terminal packet(s) received, " + sb.Length + " char(s)"
+                + (nagSent ? ", change-password nag dismissed" : "")
+                + (seen.Length == 0 ? ", nothing on screen." : ", screen tail: " + seen.Replace("\r", "\\r").Replace("\n", "\\n")));
+        }
+
+        // RouterOS refuses a MAC-Telnet login with this exact line, on its own, AFTER the EC-SRP5 exchange
+        // has ended in CTRL_END_AUTH. Matched narrowly rather than through RouterOsCliLogin.IsLoginFailure,
+        // which also matches "login failure" — the wording of the router's own log lines, which the shipped
+        // logging rules echo onto any console at any moment, including this one (see findings-cli.md §5).
+        private static bool IsLoginRefusal(string stripped)
+            => !string.IsNullOrEmpty(stripped)
+            && stripped.IndexOf("Login failed", StringComparison.OrdinalIgnoreCase) >= 0;
+
+        // Whatever the router said before it hung up: a refusal if it said one, otherwise the plain fact
+        // that the session was closed during login.
+        private Exception RefusalOrClosure(string stripped)
+            => IsLoginRefusal(stripped)
+             ? (Exception)new TikConnectionLoginRefusedException("MAC-Telnet", FirstLine(stripped))
+             : new TikConnectionSessionClosedException(
+                   "MAC-Telnet: the router closed the session during login"
+                   + (string.IsNullOrEmpty(stripped.Trim()) ? "." : ": " + FirstLine(stripped)));
+
+        private static string FirstLine(string s)
+        {
+            foreach (string line in s.Split('\r', '\n'))
+                if (line.Trim().Length > 0) return line.Trim();
+            return s.Trim();
         }
 
         /// <summary>
@@ -510,7 +561,8 @@ namespace tik4net.MacTelnet
 
             if (Diagnostics.TikWireTrace.Enabled)
                 Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Recv,
-                    payload, 0, payload.Length, "type=0x" + type.ToString("x2") + " counter=" + counter);
+                    payload, 0, payload.Length,
+                    "type=0x" + type.ToString("x2") + " counter=" + counter + TraceTag);
 
             return true;
         }

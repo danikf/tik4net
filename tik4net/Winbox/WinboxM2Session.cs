@@ -289,7 +289,7 @@ namespace tik4net.Winbox
             TraceHandshake(TikWireDir.Recv, serverCc, "server confirmation");
             // Where the confirmation digest belongs, the router may instead put a refusal in plain words.
             // Reading it beats inferring one: "invalid user name or password (6)" is the router's own
-            // account of what happened, and it is not always true — see WinboxLoginRefusedException.
+            // account of what happened, and it is not always true — see TikConnectionLoginRefusedException.
             WinboxHandshakeReply.ThrowIfRouterMessage(serverCc, ConfirmationLength);
 
             byte[] expectedCc = EcSrp5.Sha256(j.Concat(clientCc).Concat(zMont).ToArray());

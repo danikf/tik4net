@@ -26,7 +26,7 @@
 // frequency (no trend across 0 / 250 / 1000 ms gaps).
 //
 // Since a genuinely wrong password produces the same message, content cannot separate the two and only
-// persistence can — hence Winbox.WinboxLoginRetry. Verification runs through Probe_WinboxHandshake_-
+// persistence can — hence Winbox.RouterLoginRetry. Verification runs through Probe_WinboxHandshake_-
 // RepeatedOpens, which counts the refusals the retry absorbed: a green run alone would be worthless,
 // because "the router never refused" and "we swallowed it" look identical from the outside.
 //
@@ -216,7 +216,7 @@ namespace tik4net.integrationtests
                     k.IndexOf("Wrong username or password", StringComparison.Ordinal) >= 0 ||
                     k.IndexOf("refused the WinBox login", StringComparison.Ordinal) >= 0),
                 "A login against known-good credentials was reported as a credential failure, after " +
-                $"{WinboxLoginRetry.MaxAttempts} attempts.");
+                $"{RouterLoginRetry.MaxAttempts} attempts.");
         }
 
         private static string InnermostMessage(Exception ex)

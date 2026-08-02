@@ -349,7 +349,7 @@ only thing that changes between attempts is the router's own ephemeral key `xWB`
 | a leading zero byte in `xWA` (1/256 ≈ observed frequency) | forced deliberately: **4 of 5 succeeded**; the first sample was just luck |
 | rate-limiting / attempt frequency | 2/40 at 0 ms, 0/40 at 250 ms, 1/40 at 1000 ms — no trend |
 | frame desync | the frame is a well-formed chunk with tag `0x06`; the length of 33 matches the text length exactly — nothing overflowed or was missing |
-| a different transport / different auth | API: **0 of 400** refusals — the phenomenon is specific to the WinBox handshake |
+| a different transport / different auth | API: **0 of 400** refusals — the phenomenon follows the **EC-SRP5 handshake**, not the transport (see 13.4) |
 
 The log also has one lone `via api` entry that couldn't be attributed to any of our clients; the
 400 fresh API logins were all clean, so nothing is built on that entry.
@@ -358,8 +358,8 @@ The log also has one lone `via api` entry that couldn't be attributed to any of 
 
 **A genuinely wrong password looks exactly the same** (it's the router's normal path for a
 refusal), so the response content can't tell them apart — only the fact that a transient refusal
-disappears and a real one doesn't. Hence `WinboxLoginRetry`: 3 attempts, 100 ms apart, retrying
-**exclusively** on `WinboxLoginRefusedException`. Each attempt builds a **new channel** — a refused
+disappears and a real one doesn't. Hence `RouterLoginRetry`: 3 attempts, 100 ms apart, retrying
+**exclusively** on `TikConnectionLoginRefusedException`. Each attempt builds a **new channel** — a refused
 handshake leaves the old one unusable.
 
 The cost is deliberate: a truly wrong password now fails ~200 ms later and leaves 3 `login failure`
@@ -368,7 +368,8 @@ lines in the router instead of one.
 **Verified:** 600 production connection opens (WinboxCli / WinboxNative / WinboxNativeMac, 200
 each), **0 failures and 6 absorbed refusals**, all resolved on the first retry. That the retry is
 actually doing work (and the router wasn't simply silent) is visible from the trace note
-`wbx.login` — without it, a green run is indistinguishable from sweeping the problem under the rug.
+`login` (`wbx.login` before P2.49 made it cross-transport) — without it, a green run is
+indistinguishable from sweeping the problem under the rug.
 
 ### 13.3 Side findings
 
@@ -394,6 +395,24 @@ actually doing work (and the router wasn't simply silent) is visible from the tr
   2 m 45 s, i.e. **~15%, and still red**. Reverted; the remaining ~85% is elsewhere, most likely in
   `WinboxCliClient` polling `DataAvailable` with its own sleeps (see §3 — that gating is
   intentional and must not be removed, only converted to event-driven). Written up as P2.43.
+
+### 13.4 It is not the WinBox handshake — it is EC-SRP5 (2026-08-02, P2.49)
+
+**MAC-Telnet does it too**, which is why the retry is now called `RouterLoginRetry` and keys on the
+public `TikConnectionLoginRefusedException` rather than on a WinBox-only type. MAC-Telnet carries the
+same EC-SRP5 exchange over a different framing, and refuses the same way — only the *reporting* is
+different, and much later:
+
+- WinBox refuses **inside** the handshake, with `"invalid user name or password (6)"` where the
+  confirmation digest belongs;
+- MAC-Telnet completes the handshake, sends `CTRL_END_AUTH`, and **then** — up to a second later —
+  writes `Login failed, incorrect username or password` to the terminal and tears the session down
+  with `PKT_END`.
+
+Both produce the same router log line (`login failure for user … via winbox` / `via mac-telnet`), and
+both clear on retry. See [findings-mactelnet.md](findings-mactelnet.md) §11 for the MAC-Telnet side —
+including why it went unrecognised for so long: the refusal was reported as *our* login timeout, so
+nothing in the failure said the router had answered at all.
 
 ## 14. Singletons weren't being written at all (P2.44, 2026-07-30)
 
@@ -555,7 +574,7 @@ what's worth doing on its own merits:
   be a lie the caller has no way to verify.
 * **`WinboxCliMacConnection`** hangs reopen + retry off this, following `MacTelnetConnection`
   exactly (same carrier, same problem): a new connection plus a new EC-SRP5 login via
-  `WinboxLoginRetry`, with two exceptions — not inside Safe Mode (dropping the session is exactly
+  `RouterLoginRetry`, with two exceptions — not inside Safe Mode (dropping the session is exactly
   what Safe Mode protects against), and not once any line has already been delivered to the caller
   (restarting would deliver those same lines twice).
 

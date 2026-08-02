@@ -77,6 +77,55 @@ namespace tik4net
             : base("Cannot log in. " + innerException.Message, innerException)
         {
         }
+
+        /// <summary>
+        /// Initializes a new instance for a subclass that composes its own message and has no underlying
+        /// exception to carry — the router refusing a login is a reply, not a failure of something else.
+        /// </summary>
+        /// <param name="message">The complete message.</param>
+        protected TikConnectionLoginException(string message)
+            : base(message)
+        {
+        }
+    }
+
+    /// <summary>
+    /// Thrown when the router refused the login in its own words, and went on refusing it. Carries the
+    /// router's verbatim message in <see cref="RouterMessage"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>This is <b>not</b> reported on the router's first refusal. RouterOS occasionally refuses a
+    /// login whose credentials are correct — measured on 7.23.2, about one EC-SRP5 login in one to two
+    /// hundred, on every transport carrying that handshake (WinBox refuses inside the handshake with
+    /// <c>"invalid user name or password (6)"</c>; MAC-Telnet completes the handshake and only then
+    /// writes <c>"Login failed, incorrect username or password"</c> to the terminal and hangs up). The
+    /// identical request, replayed 50 ms later, is accepted — nine replays out of nine.</para>
+    /// <para>The connection therefore retries a bounded number of times by itself, and this exception is
+    /// what is left when the refusal did <b>not</b> clear. So by the time a caller sees it, retrying is
+    /// the one thing already known not to help: treat it as a credential failure, not as something to
+    /// loop on.</para>
+    /// <para>It derives from <see cref="TikConnectionLoginException"/>, so code that already catches that
+    /// is unaffected.</para>
+    /// </remarks>
+    public class TikConnectionLoginRefusedException : TikConnectionLoginException
+    {
+        /// <summary>The router's own refusal text, verbatim — the router speaking, not our wording.</summary>
+        public string RouterMessage { get; }
+
+        /// <summary>Which login the router refused, e.g. <c>"WinBox"</c> or <c>"MAC-Telnet"</c>.</summary>
+        public string Transport { get; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TikConnectionLoginRefusedException"/> class.
+        /// </summary>
+        /// <param name="transport">Which login was refused, for the message.</param>
+        /// <param name="routerMessage">The router's refusal text, verbatim.</param>
+        public TikConnectionLoginRefusedException(string transport, string routerMessage)
+            : base("Cannot log in. The router refused the " + transport + " login: \"" + routerMessage + "\".")
+        {
+            Transport     = transport;
+            RouterMessage = routerMessage;
+        }
     }
 
     /// <summary>

@@ -53,6 +53,7 @@ namespace tik4net.unittests.MacTelnet
             DrainRouter(2);
 
             _client.Ack(0);   // the router has taken nothing: offset 0 is still the head of the stream
+            LetTheHeadAge();
 
             Assert.IsTrue(_client.Retransmit());
             var resent = ReceiveFromRouter();
@@ -86,6 +87,7 @@ namespace tik4net.unittests.MacTelnet
             DrainRouter(2);
 
             _client.Ack(10);   // first packet consumed, second not
+            LetTheHeadAge();
 
             Assert.IsTrue(_client.Retransmit());
             var resent = ReceiveFromRouter();
@@ -176,6 +178,7 @@ namespace tik4net.unittests.MacTelnet
 
             Assert.IsFalse(_client.Stalled, "unacknowledged, but not yet retried — that is normal flight");
 
+            LetTheHeadAge();
             Assert.IsTrue(_client.Retransmit());
             DrainRouter(1);
             Assert.IsTrue(_client.Stalled, "one resend has gone unanswered: the stream is blocked");
@@ -193,6 +196,7 @@ namespace tik4net.unittests.MacTelnet
             _client.SendData(Payload(10, 0xAA));
             DrainRouter(1);
             _client.Ack(0);
+            LetTheHeadAge();
             Assert.IsTrue(_client.Retransmit());
             DrainRouter(1);
             Assert.IsTrue(_client.Stalled);
@@ -313,6 +317,7 @@ namespace tik4net.unittests.MacTelnet
             _client.SendData(Payload(10, 0xAA));
             DrainRouter(1);
             _client.Ack(0);   // the router has taken nothing
+            LetTheHeadAge();
 
             Assert.IsFalse(_client.Poll(AcceptDataOnly()), "the socket is empty");
 
@@ -321,10 +326,46 @@ namespace tik4net.unittests.MacTelnet
             Assert.AreEqual(0xAA, resent.payload[0]);
         }
 
+        // ── What counts as "unanswered" (P2.49) ───────────────────────────────
+
+        /// <summary>
+        /// A packet still in normal flight must not be resent, however discouraging the ACK that arrives
+        /// alongside it. An ACK is cumulative and the router emits one per packet it takes, so an ACK
+        /// covering less than the head is the ordinary state of a stream with anything outstanding — it says
+        /// "not yet", not "lost". Only silence for <c>MinRetransmitIntervalMs</c> says that.
+        /// </summary>
+        /// <remarks>
+        /// Measured on a live router before the rule existed: every MAC-layer session in five traced suite
+        /// runs resent its authentication packet within ~25 ms of sending it, triggered by the router's ACK
+        /// of the SESSIONSTART that preceded it — a duplicate on the wire and one of eight retransmissions
+        /// spent, on a packet the router acknowledged moments later.
+        /// </remarks>
+        [TestMethod]
+        public void APacketStillInFlight_IsNotResentJustBecauseAnEarlierAckArrived()
+        {
+            _client.SendData(Payload(10, 0xAA));
+            DrainRouter(1);
+
+            _client.Ack(0);   // the ACK of what came BEFORE this packet, arriving while it is still in flight
+
+            Assert.IsFalse(_client.Retransmit(),
+                "the packet is milliseconds old — that is normal flight, not a loss");
+            Assert.IsFalse(_client.Stalled, "and nothing about the stream is blocked yet");
+
+            LetTheHeadAge();
+            Assert.IsTrue(_client.Retransmit(), "once it has genuinely gone unanswered, it must go again");
+        }
+
         // ── helpers ───────────────────────────────────────────────────────────
 
         private const byte PktData = 1;
         private const byte PktAck  = 2;
+
+        // Retransmission triggers on the head packet having gone unanswered for MinRetransmitIntervalMs
+        // (400 ms), so a test that wants a resend has to let real time pass. Sleeping rather than injecting a
+        // clock: the rule lives in the protected reliability surface that three transports share, and a
+        // test-only seam through it would be a worse trade than a few hundred milliseconds per test.
+        private static void LetTheHeadAge() => Thread.Sleep(450);
 
         private static Func<byte, byte[], uint, bool> AcceptDataOnly()
             => (type, payload, counter) => type == PktData && payload != null && payload.Length > 0;

@@ -94,6 +94,7 @@ namespace tik4net.MacTelnet
         private bool   _haveAck;                   // distinguishes "no ACK yet" from a genuine ack of 0
         private int      _retransmits;             // resends spent on the packet currently at the head
         private DateTime _lastRetransmitUtc;       // rate limit, so a 20 ms poll loop cannot flood
+        private bool     _budgetNoted;             // the "we have given up on this packet" note is emitted once
         private const int MaxRetransmits = 8;
         private const int MinRetransmitIntervalMs = 400;   // 8 tries ~= 3.2 s, well inside a 30 s read
 
@@ -106,8 +107,9 @@ namespace tik4net.MacTelnet
         // duplicate if the original did arrive.
         private struct Unacked
         {
-            public byte[] Packet;
-            public uint   End;     // stream offset past this packet — what the router's ACK must reach
+            public byte[]   Packet;
+            public uint     End;      // stream offset past this packet — what the router's ACK must reach
+            public DateTime SentUtc;  // when it went out — a packet still in normal flight must not be resent
         }
 
         /// <summary>
@@ -213,6 +215,14 @@ namespace tik4net.MacTelnet
             // RouterOS retransmit the hole.
             if (counter > _inCounter)
             {
+                // Traced because this is the inbound half of a stall and it is otherwise invisible: we drop
+                // the packet, hold the ACK where it was, and depend entirely on the ROUTER resending the
+                // missing bytes. If it does not, every read from here on times out with nothing to show for
+                // it, and the trace looks merely quiet rather than blocked (P2.49).
+                if (Diagnostics.TikWireTrace.Enabled)
+                    Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note,
+                        "HOLE counter=" + counter + " expected=" + _inCounter
+                        + " missing=" + (counter - _inCounter) + TraceTag);
                 SendAck(_inCounter);
                 return false;
             }
@@ -263,6 +273,7 @@ namespace tik4net.MacTelnet
                 {
                     _unacked.RemoveRange(0, retired);
                     _retransmits = 0;   // the budget belongs to the packet at the head, which just changed
+                    _budgetNoted = false;
                 }
             }
         }
@@ -282,6 +293,15 @@ namespace tik4net.MacTelnet
         /// different cadences (500 ms in the terminal loops, 20 ms in <see cref="RecvUntil"/>) and a
         /// caller-paced resend would flood the router from the fast one.
         /// </para>
+        /// <para>
+        /// The head packet must also be <see cref="MinRetransmitIntervalMs"/> OLD, not merely followed by
+        /// that much idle time. The rate limit alone does not say that: <c>_lastRetransmitUtc</c> starts at
+        /// <see cref="DateTime.MinValue"/>, so the first call after a send always passed it, and the first
+        /// ACK of a session — which arrives while the packet behind it is still in flight — fired a resend
+        /// of a packet a few milliseconds old. Measured across five traced suite runs: <em>every</em>
+        /// MAC-layer session spent one of its eight retransmissions that way, on a packet that was
+        /// acknowledged moments later (P2.49).
+        /// </para>
         /// </summary>
         /// <returns><c>true</c> if a retransmission was sent.</returns>
         protected bool RetransmitIfUnacked()
@@ -292,8 +312,13 @@ namespace tik4net.MacTelnet
                 if (_unacked.Count == 0 || !_haveAck)
                     return false;
                 if (_retransmits >= MaxRetransmits)
+                {
+                    NoteBudgetSpentOnce();
                     return false;
+                }
                 if ((DateTime.UtcNow - _lastRetransmitUtc).TotalMilliseconds < MinRetransmitIntervalMs)
+                    return false;
+                if ((DateTime.UtcNow - _unacked[0].SentUtc).TotalMilliseconds < MinRetransmitIntervalMs)
                     return false;
 
                 head = _unacked[0];
@@ -314,7 +339,29 @@ namespace tik4net.MacTelnet
         /// connection, so a trace taken while several MAC sessions are alive interleaves them and cannot be
         /// asked what ONE session was doing — which is exactly the question a wedge poses (P2.55).
         /// </summary>
-        private string TraceTag => " key=" + _sessionKey.ToString("x4");
+        /// <remarks>
+        /// It must be on <em>every</em> line, including the receive paths that do their own parsing. Leaving
+        /// it off there does not merely lose detail, it produces confident nonsense: replaying a green suite
+        /// run through a per-session reconstruction, the untagged inbound lines were attributed to whichever
+        /// session opened last and yielded 311 stream holes that never happened (P2.49).
+        /// </remarks>
+        protected string TraceTag => " key=" + _sessionKey.ToString("x4");
+
+        /// <summary>
+        /// Emits the one state this layer cannot recover from: the head packet has been resent to
+        /// exhaustion and the router has still not taken it, so the byte stream is blocked for good and
+        /// every caller from here on will fail on its own deadline, far from the cause. Once per packet —
+        /// the read loops ask on every poll.
+        /// </summary>
+        private void NoteBudgetSpentOnce()
+        {
+            if (_budgetNoted || !Diagnostics.TikWireTrace.Enabled)
+                return;
+            _budgetNoted = true;
+            Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note,
+                "RETRANSMIT BUDGET SPENT end=" + _unacked[0].End + " highestAck=" + _highestAck
+                + " queued=" + _unacked.Count + TraceTag);
+        }
 
         /// <summary>
         /// <c>true</c> once an unacknowledged DATA packet has been retransmitted to exhaustion without the
@@ -455,8 +502,7 @@ namespace tik4net.MacTelnet
             using (var rng = RandomNumberGenerator.Create()) rng.GetBytes(privA);
             var (xWA, parityA) = EcSrp5.GenPublicKey(privA);
 
-            Send(PKT_SESSIONSTART, null);
-            Thread.Sleep(80);
+            StartSession();
 
             byte[] psd = Encoding.UTF8.GetBytes(user)
                 .Concat(new byte[] { 0 }).Concat(xWA).Concat(new byte[] { (byte)parityA })
@@ -531,6 +577,58 @@ namespace tik4net.MacTelnet
             });
         }
 
+        /// <summary>
+        /// Opens the session on the router: sends SESSIONSTART and waits for the router to acknowledge it,
+        /// resending on silence. Returns once acknowledged, or after <paramref name="timeoutMs"/> — the
+        /// caller proceeds either way, because authentication will fail on its own deadline anyway and a
+        /// second error here would only hide the first.
+        /// </summary>
+        /// <remarks>
+        /// SESSIONSTART is the one packet this layer cannot resend through <see cref="RetransmitIfUnacked"/>:
+        /// it is not DATA, so it never enters the unacknowledged queue — and that queue is inert until the
+        /// first ACK arrives (<c>_haveAck</c>), which is the very thing SESSIONSTART is waiting for. It is
+        /// also the one packet sent to <em>broadcast</em>. Before this, a single lost SESSIONSTART cost the
+        /// full authentication timeout with no retry at all; the previous code waited a blind 80 ms and sent
+        /// the auth request into a session the router might never have created (P2.49).
+        /// <para>
+        /// Measured on 7.23.2 across five traced suite runs: 76 of 76 SESSIONSTARTs were acknowledged, all
+        /// of them before the old blind sleep was over — so on a healthy link this waits less, not more.
+        /// </para>
+        /// </remarks>
+        protected void StartSession(int timeoutMs = 2000)
+        {
+            var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+            var resendAt = DateTime.UtcNow;
+
+            while (DateTime.UtcNow < deadline)
+            {
+                if (DateTime.UtcNow >= resendAt)
+                {
+                    Send(PKT_SESSIONSTART, null);
+                    resendAt = DateTime.UtcNow.AddMilliseconds(SessionStartRetryMs);
+                }
+
+                bool acked = false;
+                while (_udp.Available > 0 && !acked)
+                    acked = ReceiveOne((type, payload, counter) =>
+                    {
+                        if (type != PKT_ACK) return false;
+                        NoteAck(counter);
+                        return true;
+                    });
+                if (acked)
+                    return;
+
+                Thread.Sleep(5);
+            }
+
+            if (Diagnostics.TikWireTrace.Enabled)
+                Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note,
+                    "SESSIONSTART UNACKED after " + timeoutMs + " ms" + TraceTag);
+        }
+
+        private const int SessionStartRetryMs = 300;
+
         // ── Send / Receive ───────────────────────────────────────────────────────
 
         protected void Send(byte type, byte[] payload)
@@ -571,7 +669,12 @@ namespace tik4net.MacTelnet
                 if (_unacked.Count == 0)
                     _retransmits = 0;   // fresh head; earlier entries keep the budget already spent on them
                 if (_unacked.Count < MaxUnackedTracked)
-                    _unacked.Add(new Unacked { Packet = pkt, End = counter + (uint)payload.Length });
+                    _unacked.Add(new Unacked
+                    {
+                        Packet  = pkt,
+                        End     = counter + (uint)payload.Length,
+                        SentUtc = DateTime.UtcNow,
+                    });
             }
         }
 

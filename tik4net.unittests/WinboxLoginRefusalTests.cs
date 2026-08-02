@@ -33,7 +33,7 @@ namespace tik4net.unittests
             byte[] payload = Encoding.ASCII.GetBytes("invalid user name or password (6)");
             Assert.AreEqual(33, payload.Length, "the measured refusal is 33 bytes");
 
-            var ex = Assert.ThrowsException<WinboxLoginRefusedException>(
+            var ex = Assert.ThrowsException<TikConnectionLoginRefusedException>(
                 () => WinboxHandshakeReply.ThrowIfRouterMessage(payload, ConfirmationLength));
 
             Assert.AreEqual("invalid user name or password (6)", ex.RouterMessage);
@@ -93,10 +93,10 @@ namespace tik4net.unittests
         public void Run_RetriesUntilTheRefusalClears()
         {
             int attempts = 0;
-            WinboxLoginRetry.Run(() =>
+            RouterLoginRetry.Run(() =>
             {
                 attempts++;
-                if (attempts < 2) throw new WinboxLoginRefusedException("invalid user name or password (6)");
+                if (attempts < 2) throw new TikConnectionLoginRefusedException("WinBox", "invalid user name or password (6)");
             });
 
             Assert.AreEqual(2, attempts);
@@ -110,13 +110,13 @@ namespace tik4net.unittests
         public void Run_GivesUpAfterMaxAttempts_AndRethrowsTheRefusal()
         {
             int attempts = 0;
-            Assert.ThrowsException<WinboxLoginRefusedException>(() => WinboxLoginRetry.Run(() =>
+            Assert.ThrowsException<TikConnectionLoginRefusedException>(() => RouterLoginRetry.Run(() =>
             {
                 attempts++;
-                throw new WinboxLoginRefusedException("invalid user name or password (6)");
+                throw new TikConnectionLoginRefusedException("WinBox", "invalid user name or password (6)");
             }));
 
-            Assert.AreEqual(WinboxLoginRetry.MaxAttempts, attempts);
+            Assert.AreEqual(RouterLoginRetry.MaxAttempts, attempts);
         }
 
         /// <summary>
@@ -135,11 +135,11 @@ namespace tik4net.unittests
             })
             {
                 int attempts = 0;
-                WinboxLoginRetry.Run(() =>
+                RouterLoginRetry.Run(() =>
                 {
                     attempts++;
                     if (attempts < 2)
-                        throw wrap(new WinboxLoginRefusedException("invalid user name or password (6)"));
+                        throw wrap(new TikConnectionLoginRefusedException("WinBox", "invalid user name or password (6)"));
                 });
                 Assert.AreEqual(2, attempts, "unwrapping failed for " + wrap(new Exception("x")).GetType().Name);
             }
@@ -163,7 +163,7 @@ namespace tik4net.unittests
                 Exception thrown = null;
                 try
                 {
-                    WinboxLoginRetry.Run(() => { attempts++; throw other; });
+                    RouterLoginRetry.Run(() => { attempts++; throw other; });
                 }
                 catch (Exception ex) { thrown = ex; }
 
@@ -172,26 +172,47 @@ namespace tik4net.unittests
             }
         }
 
+        /// <summary>
+        /// One exception type, not one per transport: the same router behaviour reaches MAC-Telnet, which
+        /// carries the identical EC-SRP5 handshake and is refused as terminal text after
+        /// <c>CTRL_END_AUTH</c> rather than as an M2 error (P2.49). Nothing anywhere catches the two
+        /// cases separately, so splitting them would only be a distinction the code has to re-erase.
+        /// </summary>
+        [TestMethod]
+        public void Run_RetriesARefusalFromAnyTransport_NotJustWinbox()
+        {
+            int attempts = 0;
+            RouterLoginRetry.Run(() =>
+            {
+                attempts++;
+                if (attempts < 2)
+                    throw new TikConnectionLoginRefusedException(
+                        "MAC-Telnet", "Login failed, incorrect username or password");
+            });
+
+            Assert.AreEqual(2, attempts);
+        }
+
         [TestMethod]
         public async Task RunAsync_BehavesLikeRun()
         {
             int attempts = 0;
-            await WinboxLoginRetry.RunAsync(() =>
+            await RouterLoginRetry.RunAsync(() =>
             {
                 attempts++;
-                if (attempts < 2) throw new WinboxLoginRefusedException("invalid user name or password (6)");
+                if (attempts < 2) throw new TikConnectionLoginRefusedException("WinBox", "invalid user name or password (6)");
                 return Task.CompletedTask;
             });
             Assert.AreEqual(2, attempts);
 
             int failing = 0;
-            await Assert.ThrowsExceptionAsync<WinboxLoginRefusedException>(
-                () => WinboxLoginRetry.RunAsync(() =>
+            await Assert.ThrowsExceptionAsync<TikConnectionLoginRefusedException>(
+                () => RouterLoginRetry.RunAsync(() =>
                 {
                     failing++;
-                    throw new WinboxLoginRefusedException("invalid user name or password (6)");
+                    throw new TikConnectionLoginRefusedException("WinBox", "invalid user name or password (6)");
                 }));
-            Assert.AreEqual(WinboxLoginRetry.MaxAttempts, failing);
+            Assert.AreEqual(RouterLoginRetry.MaxAttempts, failing);
         }
     }
 }

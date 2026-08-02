@@ -64,8 +64,18 @@ namespace tik4net.MacTelnet
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
         {
-            var (login, send, sendRaw, sendRawSettle, sendStreaming, close) = BuildTransport(host, port, user, password);
-            OpenWith(login, send, sendRaw, close);
+            // BuildTransport is inside the retry, not outside it: a refused login ends with the router
+            // tearing the session down, so a retry needs a new client and a new session key — see
+            // Winbox.RouterLoginRetry for why a login refusal is retried at all.
+            Func<byte[], int, CancellationToken, Task<string>> sendRawSettle = null;
+            Func<string, Action<string>, CancellationToken, Task<string>> sendStreaming = null;
+            Winbox.RouterLoginRetry.Run(() =>
+            {
+                var (login, send, sendRaw, settle, streaming, close) = BuildTransport(host, port, user, password);
+                OpenWith(login, send, sendRaw, close);
+                sendRawSettle = settle;
+                sendStreaming = streaming;
+            });
             RegisterCompletionDriver(sendRawSettle);
             RegisterStreamingDriver(sendStreaming);
         }
@@ -77,8 +87,15 @@ namespace tik4net.MacTelnet
         /// <inheritdoc/>
         public override async Task OpenAsync(string host, int port, string user, string password)
         {
-            var (login, send, sendRaw, sendRawSettle, sendStreaming, close) = BuildTransport(host, port, user, password);
-            await OpenWithAsync(login, send, sendRaw, close).ConfigureAwait(false);
+            Func<byte[], int, CancellationToken, Task<string>> sendRawSettle = null;
+            Func<string, Action<string>, CancellationToken, Task<string>> sendStreaming = null;
+            await Winbox.RouterLoginRetry.RunAsync(async () =>
+            {
+                var (login, send, sendRaw, settle, streaming, close) = BuildTransport(host, port, user, password);
+                await OpenWithAsync(login, send, sendRaw, close).ConfigureAwait(false);
+                sendRawSettle = settle;
+                sendStreaming = streaming;
+            }).ConfigureAwait(false);
             RegisterCompletionDriver(sendRawSettle);
             RegisterStreamingDriver(sendStreaming);
         }

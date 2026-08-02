@@ -63,10 +63,10 @@ namespace tik4net.WinboxCliMac
         public override void Open(string host, int port, string user, string password)
         {
             // BuildTransport is inside the retry, not outside it: a refused handshake leaves the client
-            // and its channel unusable, so a retry needs new ones (see Winbox.WinboxLoginRetry).
+            // and its channel unusable, so a retry needs new ones (see Winbox.RouterLoginRetry).
             Func<byte[], int, CancellationToken, Task<string>> sendRawSettle = null;
             Func<string, Action<string>, CancellationToken, Task<string>> sendStreaming = null;
-            tik4net.Winbox.WinboxLoginRetry.Run(() =>
+            tik4net.Winbox.RouterLoginRetry.Run(() =>
             {
                 var (login, send, sendRaw, settle, streaming, close) = BuildTransport(host, port, user, password);
                 OpenWith(login, send, sendRaw, close);
@@ -86,7 +86,7 @@ namespace tik4net.WinboxCliMac
         {
             Func<byte[], int, CancellationToken, Task<string>> sendRawSettle = null;
             Func<string, Action<string>, CancellationToken, Task<string>> sendStreaming = null;
-            await tik4net.Winbox.WinboxLoginRetry.RunAsync(async () =>
+            await tik4net.Winbox.RouterLoginRetry.RunAsync(async () =>
             {
                 var (login, send, sendRaw, settle, streaming, close) = BuildTransport(host, port, user, password);
                 await OpenWithAsync(login, send, sendRaw, close).ConfigureAwait(false);
@@ -110,7 +110,7 @@ namespace tik4net.WinboxCliMac
             Func<CancellationToken, Task> login = ct => client.LoginAsync(host, port, user, password, ct);
             Action close = () => { client.TryCloseSession(); client.Dispose(); };
 
-            // The re-login goes through WinboxLoginRetry for the same reason the initial one does: RouterOS
+            // The re-login goes through RouterLoginRetry for the same reason the initial one does: RouterOS
             // refuses roughly 1 % of WinBox logins that use correct credentials (P2.41), and a recovery path
             // that inherits that failure rate is worse than no recovery path at all.
             Func<CancellationToken, Task> reopen = async ct =>
@@ -123,7 +123,7 @@ namespace tik4net.WinboxCliMac
                         "SESSION DROPPED BY ROUTER — reopening");
 
                 try { client.Dispose(); } catch { /* the old session is gone anyway */ }
-                await WinboxLoginRetry.RunAsync(async () =>
+                await RouterLoginRetry.RunAsync(async () =>
                 {
                     client = new WinboxCliClient(new WinboxMacM2Session(RouterMac), Encoding, ReceiveTimeout, ConnectTimeout);
                     await client.LoginAsync(host, port, user, password, ct).ConfigureAwait(false);

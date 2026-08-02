@@ -55,10 +55,10 @@ namespace tik4net.WinboxCli
         public override void Open(string host, int port, string user, string password)
         {
             // BuildTransport is inside the retry, not outside it: a refused handshake leaves the client
-            // and its channel unusable, so a retry needs new ones (see Winbox.WinboxLoginRetry).
+            // and its channel unusable, so a retry needs new ones (see Winbox.RouterLoginRetry).
             Func<byte[], int, CancellationToken, Task<string>> sendRawSettle = null;
             Func<string, Action<string>, CancellationToken, Task<string>> sendStreaming = null;
-            tik4net.Winbox.WinboxLoginRetry.Run(() =>
+            tik4net.Winbox.RouterLoginRetry.Run(() =>
             {
                 var (login, send, sendRaw, settle, streaming, close) = BuildTransport(host, port, user, password);
                 OpenWith(login, send, sendRaw, close);
@@ -78,7 +78,7 @@ namespace tik4net.WinboxCli
         {
             Func<byte[], int, CancellationToken, Task<string>> sendRawSettle = null;
             Func<string, Action<string>, CancellationToken, Task<string>> sendStreaming = null;
-            await tik4net.Winbox.WinboxLoginRetry.RunAsync(async () =>
+            await tik4net.Winbox.RouterLoginRetry.RunAsync(async () =>
             {
                 var (login, send, sendRaw, settle, streaming, close) = BuildTransport(host, port, user, password);
                 await OpenWithAsync(login, send, sendRaw, close).ConfigureAwait(false);

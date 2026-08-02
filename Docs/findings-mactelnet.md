@@ -125,8 +125,8 @@ can see `internal` types via `InternalsVisibleTo("tik4net.tests")`.
 ## 4. Login sequence (`MacTelnetUdpClient.LoginAsync`, all synchronous inside `Task.Run`)
 
 ```
-BaseConnect(host, CLIENT_TYPE=0x0015)   // MNDP/MAC override, SESSIONSTART to subnet broadcast
-Authenticate(user, pass)                // EC-SRP5 (sync), ends with END_AUTH
+BaseConnect(host, CLIENT_TYPE=0x0015)   // NIC selection, MNDP/MAC override, socket bind
+Authenticate(user, pass)                // StartSession() then EC-SRP5 (sync), ends with END_AUTH
 WaitForPromptSync()                      // responds to cursor-probe; Ctrl-C on nag; waits for "] >"
 DrainSync(250)                           // drains leftover redraw so it doesn't leak into the 1st command
 ```
@@ -272,3 +272,140 @@ obstacle was one layer down, in the retransmission queue itself.
 required. These scenarios can't be reproduced live (the lab router doesn't drop packets on demand),
 so the stream hole, partial ACK, exhausted budget, and concurrent send/ACK cases are covered only
 here.
+
+## 11. The login that "timed out" was refused (2026-08-02, P2.49)
+
+**`MacTelnet_Login_ListInterfaces_ReturnsAtLeastOne` failed about once per full suite run, always at
+login, always after ~15.7 s, and never in isolation.** Nine reproduction runs found nothing, because
+the message it produced — `timed out waiting for shell prompt` — described our own deadline and not
+what the router had said. The first run after that message was given the tail of the screen answered
+it outright:
+
+```
+tik4net.TikConnectionLoginException: Cannot log in. MAC-Telnet: timed out waiting for shell prompt
+after 15004 ms; 1 terminal packet(s) received, 46 char(s),
+screen tail: Login failed, incorrect username or password
+```
+
+The wire trace of that session (`key=bb39`, now readable because §11.4 tagged it) shows the whole
+shape:
+
+| t | packet | |
+|---|---|---|
+| +0.0 s | `RECV 0x01 counter=58` × 3 | `CTRL_END_AUTH` — **authentication reported success** |
+| +1.1 s | `RECV 0x01 counter=67 len=46` | `Login failed, incorrect username or password` |
+| +1.1 s | `RECV 0xff` × n | `PKT_END` — the router tears the session down |
+| … | *(nothing)* | we wait out the remaining ~13.9 s for a prompt |
+
+Three things were wrong, and all three had to be for the failure to look like a timeout:
+
+1. **The refusal arrives after `CTRL_END_AUTH`.** `Authenticate` ends there, correctly — so no part of
+   the EC-SRP5 exchange can detect this. It has to be recognised by the code waiting for the prompt,
+   which had no idea the text existed.
+2. **`PKT_END` was ignored by every loop** (`if (type != PKT_DATA) continue;`). The router says the
+   session is over and we spend the rest of the timeout waiting for it to speak. Now handled **in the
+   login wait only** — that is the one place it has been observed. Across two full traced runs
+   `PKT_END` appears exactly six times, all six in the refused session; RouterOS does **not** send it
+   when it logs an idle console out, so teaching the pump about it would be inventing a contract.
+3. **The refusal is not evidence about the credentials.** It is the MAC-Telnet face of the transient
+   refusal already measured on the WinBox handshake (P2.41, [findings-winbox.md](findings-winbox.md)
+   §13): the same EC-SRP5 login, retried immediately, is accepted. The router even logs it as
+   `login failure for user admin from 48:EA:62:D0:AD:17 via mac-telnet` — visible in the same trace on
+   a *different* session's console, courtesy of the shipped logging rules.
+
+**Fix:** `TikConnectionLoginRefusedException` thrown as soon as the line appears or the router hangs
+up, and `MacTelnetConnection.Open`/`OpenAsync` wrapped in `Winbox.RouterLoginRetry` exactly as the three
+WinBox connections already are. A refused login now fails in ~1 s instead of 15, and is retried up to
+three times before it is reported.
+
+**One exception type, not one per transport.** The refusal started life as a MAC-Telnet-specific class
+alongside the WinBox one, reunited by a marker interface — an interface invented to undo a split that
+should not have happened: nothing anywhere catches the two cases separately, and they carry identical
+information. It is now the single **public** `TikConnectionLoginRefusedException : TikConnectionLoginException`,
+with the router’s verbatim text on `RouterMessage` and the handshake on `Transport`. Public because it
+already reached callers as an `InnerException` — visible in the message, impossible to catch by type —
+and under `TikConnectionLoginException` so existing catch blocks are unaffected. The retry is
+`RouterLoginRetry` (renamed from `WinboxLoginRetry`) and its trace channel is `login`, not `wbx.login`.
+
+> **It is deliberately not called “transient”.** The retry is internal and bounded, so by the time this
+> exception reaches a caller it is precisely the refusal that did **not** clear — telling them it is
+> temporary would invite a retry loop exactly where retrying is already known not to help.
+
+> **The narrow match is deliberate.** `RouterOsCliLogin.IsLoginFailure` is *not* used here: it matches
+> `login failure`, which is the wording of the router's own log lines — echoed onto any console at any
+> moment. Matching it during login would turn an unrelated background event into a refused login.
+
+### The rest: the session opens on trust, and one packet has no way back
+
+Three further defects found in the same few lines while chasing the above, all about the moment a
+session is created — before there is any acknowledged traffic to reason from.
+
+### 11.1 SESSIONSTART is the one packet that cannot be resent
+
+`Authenticate` (and `WinboxMacM2Session.MacAuthEcSrp5`) sent SESSIONSTART, slept a blind **80 ms**,
+and then sent the authentication request into a session the router might never have created. If that
+first datagram is lost, nothing recovers it:
+
+- it is **not** DATA, so it never enters the unacknowledged queue that §10 built, and
+- that queue is inert until the first ACK arrives (`_haveAck`) — which is precisely the ACK
+  SESSIONSTART was waiting for.
+
+It is also the **only packet sent to subnet broadcast**, i.e. the one most likely to be dropped on the
+way out — see the NIC-selection comment in `BaseConnect` for a measured case where every SESSIONSTART
+left via a disconnected adapter and vanished. The cost of losing it was the full authentication
+timeout with no retry at all.
+
+Replaced by `MacLayerTransport.StartSession()`: send, wait for the router's ACK, resend every 300 ms,
+give up after 2 s and let authentication fail on its own deadline (a second error here would only
+hide the first). **Measured on 7.23.2 across five traced suite runs: 76 of 76 SESSIONSTARTs were
+acknowledged, every one of them before the old blind sleep was over** — so on a healthy link the new
+code waits *less*, and the retry only ever costs something in the case that used to be fatal.
+
+> Beware of reading the old traces for that latency: the ACK is timestamped when *we read it*, and we
+> were not reading during the 80 ms sleep. Every measurement said "81–108 ms" because the sleep was
+> 80 ms, not because the router took that long (the P2.55 lesson, again).
+
+### 11.2 Every session spent a retransmission on a packet that was in flight
+
+`RetransmitIfUnacked` rate-limited itself with `_lastRetransmitUtc`, which starts at
+`DateTime.MinValue` — so the **first** call after any send always passed the limit. The first ACK of a
+session arrives while the packet behind it is still in flight, the read loop calls the retransmit
+check on the very next poll, and out goes a duplicate of a packet a few milliseconds old.
+
+This is visible in every trace as `RETRANSMIT #1` immediately after the first `RECV type=0x02`:
+in five full runs, **every single MAC-layer session did it**, spending one of its eight
+retransmissions before the exchange had properly begun. The rule was missing the obvious half: the
+head packet must itself have been **unanswered for `MinRetransmitIntervalMs`**, not merely followed by
+that much idle time. An ACK that covers less than the head says "not yet", not "lost".
+
+### 11.3 The two states you cannot recover from were both silent
+
+A MAC session has exactly two dead ends, and neither left a trace:
+
+| state | what it means | now traced as |
+|---|---|---|
+| inbound hole (`counter > _inCounter`) | we dropped the packet and re-ACKed the low-water mark; recovery is entirely up to the **router** resending | `HOLE counter=… expected=… missing=…` |
+| retransmit budget spent | the router never took our bytes; the stream is blocked for good | `RETRANSMIT BUDGET SPENT end=… highestAck=…` |
+
+From either one, every subsequent read fails on its own deadline, far from the cause — which is the
+exact shape P2.49 was filed as. And `MacTelnetUdpClient.WaitForPromptSync` reported that as a bare
+`timed out waiting for shell prompt`, which cannot distinguish "the router said nothing at all" from
+"we are mid-negotiation and one packet went missing". It now carries the elapsed time, the packet and
+character counts, whether the nag was dismissed, and the tail of the screen.
+
+### 11.4 Untagged trace lines produce confident nonsense
+
+`MacTelnetUdpClient.TryParsePacket` — the parser the login loops and the pump use — emitted its RECV
+line **without the session tag** that §10's sibling path (`ReceiveOne`) adds. With several MAC
+sessions alive at once, a per-session reconstruction has no way to attribute those lines. This is not
+a cosmetic gap: replaying a **green** suite run through such a reconstruction attributed the untagged
+inbound lines to whichever session opened last and reported **311 stream holes that never happened**.
+Now tagged, so a trace can be split by `key=` and read one session at a time.
+
+### A hypothesis worth retiring
+
+P2.49 was filed suspecting that *"a prior test's MAC session may still be occupying the local UDP
+endpoint (20561)"*. It cannot: we bind to an **ephemeral** local port
+(`Bind(new IPEndPoint(nic.LocalIp, 0))`, plus `ReuseAddress`) — 20561 is the *router's* port, never
+ours. The traces say so directly, consecutive sessions showing `local=…:49931`, `local=…:49932`. Two
+MAC sessions never contend for a local endpoint.

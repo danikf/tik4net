@@ -137,8 +137,7 @@ namespace tik4net.Winbox
 
         private void MacAuthEcSrp5(string user, string pass, int timeoutMs)
         {
-            Send(PKT_SESSIONSTART, null);
-            Thread.Sleep(80);
+            StartSession();
 
             byte[] privA = new byte[32];
             using (var rng = RandomNumberGenerator.Create()) rng.GetBytes(privA);

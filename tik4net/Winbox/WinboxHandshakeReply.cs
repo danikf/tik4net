@@ -11,7 +11,7 @@ namespace tik4net.Winbox
     {
         /// <summary>
         /// Throws if <paramref name="payload"/> is the router talking rather than a confirmation digest:
-        /// <see cref="WinboxLoginRefusedException"/> when it is readable text,
+        /// <see cref="TikConnectionLoginRefusedException"/> when it is readable text,
         /// <see cref="InvalidOperationException"/> when it is neither text nor the right size.
         /// Returns quietly when the payload could be a digest, leaving the comparison to the caller.
         /// </summary>
@@ -25,7 +25,7 @@ namespace tik4net.Winbox
             if (payload != null && payload.Length == confirmationLength) return;
 
             string text = AsPrintableText(payload);
-            if (text != null) throw new WinboxLoginRefusedException(text);
+            if (text != null) throw new TikConnectionLoginRefusedException("WinBox", text);
 
             throw new InvalidOperationException(
                 $"WinBox EC-SRP5 handshake: expected a {confirmationLength} B server confirmation, got " +
