@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace tik4net.Testing
 {
@@ -10,7 +11,7 @@ namespace tik4net.Testing
     /// Delegates all Execute* calls back to <see cref="TikFakeConnection.CallCommandSync(System.Collections.Generic.IEnumerable{string})"/> so that
     /// registered handlers are invoked and the real sentence-processing logic runs.
     /// </summary>
-    public sealed class TikFakeCommand : ITikCommand
+    public sealed class TikFakeCommand : ITikCommand, ITikCommandAsync
     {
         private readonly TikFakeConnection _fakeConnection;
         private Thread _asyncThread;
@@ -196,6 +197,74 @@ namespace tik4net.Testing
         /// <inheritdoc/>
         public IEnumerable<ITikReSentence> ExecuteListUntilDone(int? timeoutSec = null)
             => ExecuteListCore();
+
+        // ── ITikCommandAsync ──────────────────────────────────────────────────
+        //
+        // The fake has no wire, so every one of these completes synchronously — awaiting them never yields, and
+        // a test can assert on the result immediately after. The token is honoured at the only point that has a
+        // meaning here: before dispatch (Level 0 of the cancellation contract). There is nothing in flight to
+        // cancel afterwards, which is why TikFakeConnection declares AsyncCommands but NOT CancelInFlight —
+        // code under test that branches on that capability must see the same shape it would against a router.
+
+        /// <inheritdoc/>
+        public Task ExecuteNonQueryAsync(CancellationToken cancellationToken = default(CancellationToken))
+            => Run(() => { ExecuteNonQuery(); return (object)null; }, cancellationToken);
+
+        /// <inheritdoc/>
+        public Task<string> ExecuteScalarAsync(CancellationToken cancellationToken = default(CancellationToken))
+            => Run(ExecuteScalar, cancellationToken);
+
+        /// <inheritdoc/>
+        public Task<string> ExecuteScalarAsync(string target, CancellationToken cancellationToken = default(CancellationToken))
+            => Run(() => ExecuteScalar(target), cancellationToken);
+
+        /// <inheritdoc/>
+        public Task<string> ExecuteScalarOrDefaultAsync(string defaultValue = null, string target = null,
+            CancellationToken cancellationToken = default(CancellationToken))
+            => Run(() => target == null ? ExecuteScalarOrDefault(defaultValue) : ExecuteScalarOrDefault(defaultValue, target), cancellationToken);
+
+        /// <inheritdoc/>
+        public Task<ITikReSentence> ExecuteSingleRowAsync(CancellationToken cancellationToken = default(CancellationToken))
+            => Run(ExecuteSingleRow, cancellationToken);
+
+        /// <inheritdoc/>
+        public Task<ITikReSentence> ExecuteSingleRowOrDefaultAsync(CancellationToken cancellationToken = default(CancellationToken))
+            => Run(ExecuteSingleRowOrDefault, cancellationToken);
+
+        /// <inheritdoc/>
+        public Task<IList<ITikReSentence>> ExecuteListAsync(CancellationToken cancellationToken = default(CancellationToken))
+            => Run(() => (IList<ITikReSentence>)ExecuteListCore().ToList(), cancellationToken);
+
+        /// <inheritdoc/>
+        public Task<IList<ITikReSentence>> ExecuteListAsync(string[] proplistFields, CancellationToken cancellationToken = default(CancellationToken))
+            => ExecuteListAsync(cancellationToken);
+
+        /// <summary>
+        /// Runs the synchronous body and reports its outcome through an already-completed <see cref="Task{T}"/> —
+        /// exceptions included, so <c>await</c> throws exactly what the synchronous call would.
+        /// </summary>
+        private static Task<T> Run<T>(Func<T> body, CancellationToken cancellationToken)
+        {
+            if (cancellationToken.IsCancellationRequested)
+                return CancelledTask<T>();
+            try
+            {
+                return Task.FromResult(body());
+            }
+            catch (Exception ex)
+            {
+                var tcs = new TaskCompletionSource<T>();
+                tcs.SetException(ex);
+                return tcs.Task;
+            }
+        }
+
+        private static Task<T> CancelledTask<T>()
+        {
+            var tcs = new TaskCompletionSource<T>();
+            tcs.SetCanceled();
+            return tcs.Task;
+        }
 
         /// <inheritdoc/>
         public void ExecuteAsync(

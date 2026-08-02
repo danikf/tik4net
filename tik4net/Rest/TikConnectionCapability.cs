@@ -3,8 +3,9 @@ using System;
 namespace tik4net
 {
     /// <summary>
-    /// Flags declaring which capabilities a transport supports.
-    /// REST supports only <see cref="Crud"/>.
+    /// Flags declaring which capabilities a transport supports. Fail-closed: what is not declared is not offered,
+    /// and a transport must declare a capability to be allowed to use it. The per-transport matrix lives in the
+    /// wiki (<i>Connection types and capabilities</i>).
     /// </summary>
     [Flags]
     public enum TikConnectionCapability
@@ -51,6 +52,31 @@ namespace tik4net
         /// Distinct from <see cref="RawSentences"/> (read access to raw response sentences below the O/R mapper).
         /// </summary>
         RawCommand   = 64,
+        /// <summary>
+        /// Transport implements the Task-based command surface (<see cref="ITikCommandAsync"/>, reached through the
+        /// <c>Execute*Async</c> extension methods on <see cref="ITikCommand"/>) with a <b>real</b> async core — the
+        /// I/O is awaited, not a blocking call pushed onto a thread-pool thread. tik4net never fakes this with
+        /// <c>Task.Run</c>: a transport either awaits its socket or does not report the flag.
+        /// <para>
+        /// The flag says nothing about cancellation once the command is on the wire — that is
+        /// <see cref="CancelInFlight"/>, and the two differ per transport.
+        /// </para>
+        /// </summary>
+        AsyncCommands = 128,
+        /// <summary>
+        /// A <see cref="System.Threading.CancellationToken"/> cancelled <b>after</b> the command was dispatched really
+        /// stops it <i>and leaves the connection usable</i>. Two protocols can do that: the binary API (<c>/cancel
+        /// tag=N</c>, answered by <c>!trap interrupted</c> + <c>!done</c>, so the sentence stream stays framed) and
+        /// REST (abort the HTTP request — a killed request cannot desynchronize anything that follows).
+        /// <para>
+        /// Where this flag is absent the token is still honoured <i>before</i> dispatch and between monitor rows, but
+        /// a mid-command cancel is deferred to the next safe point: on the CLI family and native WinBox the response
+        /// is an unframed byte stream, and abandoning a read there would leave output that the <i>next</i> command
+        /// parses as its own — a silently wrong result, which is worse than waiting. The library never abandons a
+        /// read it cannot resynchronize.
+        /// </para>
+        /// </summary>
+        CancelInFlight = 256,
     }
 
     /// <summary>

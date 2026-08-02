@@ -149,6 +149,34 @@ namespace tik4net.Connection
             => throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.RawCommand,
                 "This transport does not support raw command pass-through (CreateRawCommand).");
 
+        // ── Async CRUD hooks — subclass contract ──────────────────────────────
+        //
+        // The Task-based siblings of the four hooks above, driving ITikCommandAsync on TikGenericCommand.
+        // The defaults throw rather than wrapping the synchronous hook in a Task: a Task.Run façade would report
+        // "async" for a transport that still blocks a thread per command, which is exactly what the capability
+        // model exists to prevent. A transport implements these by awaiting its own I/O and then declares
+        // TikConnectionCapability.AsyncCommands — the two go together, and neither is useful alone.
+
+        private const string AsyncUnsupported =
+            "This transport has no Task-based command implementation yet. Use the synchronous Execute* methods, or "
+            + "a transport that reports the 'AsyncCommands' capability.";
+
+        /// <summary>Async <see cref="RunPrint"/>. Default: not supported (see the note on the async hooks).</summary>
+        internal virtual Task<IList<TikRecordSentence>> RunPrintAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+            => throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.AsyncCommands, AsyncUnsupported);
+
+        /// <summary>Async <see cref="RunAdd"/>. Default: not supported (see the note on the async hooks).</summary>
+        internal virtual Task<string> RunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+            => throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.AsyncCommands, AsyncUnsupported);
+
+        /// <summary>Async <see cref="RunNonQuery"/>. Default: not supported (see the note on the async hooks).</summary>
+        internal virtual Task RunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+            => throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.AsyncCommands, AsyncUnsupported);
+
+        /// <summary>Async <see cref="RunRawText"/>. Default: not supported (see the note on the async hooks).</summary>
+        internal virtual Task<string> RunRawTextAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+            => throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.AsyncCommands, AsyncUnsupported);
+
         // ── ITikConnection — Command factory ──────────────────────────────────
 
         /// <inheritdoc/>

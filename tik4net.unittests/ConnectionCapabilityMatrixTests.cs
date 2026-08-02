@@ -28,8 +28,11 @@ namespace tik4net.unittests
 
         // Listen is polled, like the CLI and native transports — RouterOS's own REST 'listen' is accepted and
         // then never flushes anything (P2.26). No Streaming: an HTTP response arrives in one lump.
+        // AsyncCommands + CancelInFlight are the first transport to declare them (P2.2): HttpClient is async to
+        // the bottom, and aborting one stateless request cannot desynchronize the next.
         private const TikConnectionCapability Rest =
-            TikConnectionCapability.Crud | TikConnectionCapability.Listen;
+            TikConnectionCapability.Crud | TikConnectionCapability.Listen
+            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight;
 
         private const TikConnectionCapability Native =
             TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode;

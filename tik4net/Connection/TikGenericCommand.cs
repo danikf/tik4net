@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace tik4net.Connection
 {
@@ -9,7 +11,7 @@ namespace tik4net.Connection
     /// owning <see cref="TikCommandConnectionBase"/> CRUD hooks (RunPrint/RunAdd/RunNonQuery);
     /// it does not itself build any transport-specific (CLI text / native M2) payload.
     /// </summary>
-    internal class TikGenericCommand : ITikCommand, ITikRawCommand
+    internal class TikGenericCommand : ITikCommand, ITikRawCommand, ITikCommandAsync
     {
         private readonly List<ITikCommandParameter> _parameters = new List<ITikCommandParameter>();
         private TikCommandConnectionBase _connection;
@@ -169,56 +171,15 @@ namespace tik4net.Connection
             try
             {
                 if (_isRaw)
-                {
-                    // Raw scalar: return the cleaned response text as-is (e.g. /export, /system routerboard print).
-                    // No verb detection / row extraction — raw has no record model.
-                    string rawText = _connection.RunRawText(BuildRawDescriptor());
-                    if (string.IsNullOrEmpty(rawText))
-                    {
-                        // Empty output is NOT "no such item": a raw command has no record model, and the
-                        // silent answer is exactly what a successful write prints over the CLI
-                        // (set/unset/remove/enable/comment all echo nothing). Reporting that as
-                        // TikNoSuchItemException fabricated a router error for a command that had worked.
-                        if (throwIfMissing)
-                            throw new TikCommandEmptyResponseException(this,
-                                "Raw command returned no output, so there is no scalar value to return. "
-                                + "Commands that print nothing (set/unset/remove/enable/comment/…) succeed silently — "
-                                + "run them with ExecuteNonQuery(), or use ExecuteScalarOrDefault() when the output is optional.");
-                        return defaultValue;
-                    }
-                    return rawText;
-                }
+                    return ScalarFromRawText(_connection.RunRawText(BuildRawDescriptor()), throwIfMissing, defaultValue);
 
                 var (normalCmd, normalParams) = NormalizeMultilineCommand(_commandText, _parameters);
                 string verb = TikPath.Verb(normalCmd);
 
                 if (verb == "add")
-                {
-                    // :put [/path add k=v …] returns new .id
-                    string newId = _connection.RunAdd(BuildCommand(normalCmd, normalParams));
-                    if (newId == null)
-                    {
-                        // The add itself did not fail — a failing add raises a trap in RunAdd. Getting here
-                        // means the router accepted the row but answered without the new .id, so saying
-                        // "no such item" pointed the caller at a nonexistent record instead of at the
-                        // missing return value (and the row is on the router either way).
-                        if (throwIfMissing)
-                            throw new TikCommandEmptyResponseException(this,
-                                "The router accepted the add but did not return the new .id. "
-                                + "The record was most probably created — re-read the table to obtain its id.");
-                        return defaultValue;
-                    }
-                    return newId;
-                }
+                    return ScalarFromAddedId(_connection.RunAdd(BuildCommand(normalCmd, normalParams)), throwIfMissing, defaultValue);
 
-                // For reads: resolve Default params to Filter, then read via print and pick the target
-                // field from the row. We deliberately do NOT use 'get value-name=…' here: RouterOS
-                // rejects 'get .id=*N' ("syntax error") and 'value-name=.id' ("input does not match any
-                // value of value-name"). The print path (':put [/path print as-value where .id=*N]')
-                // works for all fields including '.id'.
-                var paramsForRead = ResolveParamsForRead(normalParams);
-                var cmd = BuildCommand(normalCmd, paramsForRead);
-
+                var cmd = BuildCommand(normalCmd, ResolveParamsForRead(normalParams));
                 IList<TikRecordSentence> rows;
                 try
                 {
@@ -232,76 +193,120 @@ namespace tik4net.Connection
                         throw;
                     return defaultValue;
                 }
-                if (rows.Count == 0)
-                {
-                    if (throwIfMissing)
-                        // A read that matched nothing really is 'no such item'; any other verb printing
-                        // nothing has simply succeeded without a return value (same rule as the binary API
-                        // applies to a bare !done — the two shapes are indistinguishable without the verb).
-                        throw IsReadVerb(verb)
-                            ? (TikCommandException)new TikNoSuchItemException(this)
-                            : new TikCommandEmptyResponseException(this,
-                                $"'{verb}' returned no output, so there is no scalar value to return. "
-                                + "Commands that print nothing (set/unset/remove/enable/comment/…) succeed silently — "
-                                + "run them with ExecuteNonQuery(), or use ExecuteScalarOrDefault() when the output is optional.");
-                    return defaultValue;
-                }
-                if (rows.Count > 1)
-                    throw new TikCommandUnexpectedResponseException("Single value expected but multiple rows returned.", this, rows.Cast<ITikSentence>());
+                return ScalarFromRows(rows, verb, target, throwIfMissing, defaultValue);
+            }
+            finally
+            {
+                _isRunning = false;
+            }
+        }
 
-                var single = rows[0];
-                string fieldToRead = target
-                    ?? single.Words.Keys.FirstOrDefault(k => k != TikSpecialProperties.Id && k != TikSpecialProperties.Tag)
-                    ?? TikSpecialProperties.Id;
-                if (single.TryGetResponseField(fieldToRead, out var val))
-                    return val;
+        // ── Scalar result interpretation ──────────────────────────────────────
+        // Shared by the synchronous and the Task-based scalar paths, which differ only in how they obtain the
+        // response. Keeping the interpretation in one place matters more than the few lines it saves: these
+        // three helpers encode which empty answer is "not found" and which is "succeeded with nothing to
+        // return", and the two must not drift apart between the sync and async surfaces.
+
+        /// <summary>
+        /// Raw scalar: the cleaned response text as-is (e.g. /export, /system routerboard print). No verb
+        /// detection or row extraction — raw has no record model.
+        /// </summary>
+        private string ScalarFromRawText(string rawText, bool throwIfMissing, string defaultValue)
+        {
+            if (!string.IsNullOrEmpty(rawText))
+                return rawText;
+
+            // Empty output is NOT "no such item": a raw command has no record model, and the silent answer is
+            // exactly what a successful write prints over the CLI (set/unset/remove/enable/comment all echo
+            // nothing). Reporting that as TikNoSuchItemException fabricated a router error for a command that
+            // had worked.
+            if (throwIfMissing)
+                throw new TikCommandEmptyResponseException(this,
+                    "Raw command returned no output, so there is no scalar value to return. "
+                    + "Commands that print nothing (set/unset/remove/enable/comment/…) succeed silently — "
+                    + "run them with ExecuteNonQuery(), or use ExecuteScalarOrDefault() when the output is optional.");
+            return defaultValue;
+        }
+
+        /// <summary>Scalar of an <c>add</c>: the new record's <c>.id</c> (<c>:put [/path add k=v …]</c>).</summary>
+        private string ScalarFromAddedId(string newId, bool throwIfMissing, string defaultValue)
+        {
+            if (newId != null)
+                return newId;
+
+            // The add itself did not fail — a failing add raises a trap in RunAdd. Getting here means the
+            // router accepted the row but answered without the new .id, so saying "no such item" pointed the
+            // caller at a nonexistent record instead of at the missing return value (and the row is on the
+            // router either way).
+            if (throwIfMissing)
+                throw new TikCommandEmptyResponseException(this,
+                    "The router accepted the add but did not return the new .id. "
+                    + "The record was most probably created — re-read the table to obtain its id.");
+            return defaultValue;
+        }
+
+        /// <summary>
+        /// Scalar of a read: pick <paramref name="target"/> (or the first non-<c>.id</c> field) out of the single
+        /// returned row. Reads go through <c>print</c> rather than <c>get value-name=…</c> on purpose: RouterOS
+        /// rejects <c>get .id=*N</c> ("syntax error") and <c>value-name=.id</c> ("input does not match any value
+        /// of value-name"), while <c>:put [/path print as-value where .id=*N]</c> works for every field.
+        /// </summary>
+        private string ScalarFromRows(IList<TikRecordSentence> rows, string verb, string target, bool throwIfMissing, string defaultValue)
+        {
+            if (rows.Count == 0)
+            {
                 if (throwIfMissing)
-                    throw new TikSentenceException($"Field '{fieldToRead}' not found in CLI response.", single);
+                    // A read that matched nothing really is 'no such item'; any other verb printing
+                    // nothing has simply succeeded without a return value (same rule as the binary API
+                    // applies to a bare !done — the two shapes are indistinguishable without the verb).
+                    throw IsReadVerb(verb)
+                        ? (TikCommandException)new TikNoSuchItemException(this)
+                        : new TikCommandEmptyResponseException(this,
+                            $"'{verb}' returned no output, so there is no scalar value to return. "
+                            + "Commands that print nothing (set/unset/remove/enable/comment/…) succeed silently — "
+                            + "run them with ExecuteNonQuery(), or use ExecuteScalarOrDefault() when the output is optional.");
                 return defaultValue;
             }
-            finally
-            {
-                _isRunning = false;
-            }
+            if (rows.Count > 1)
+                throw new TikCommandUnexpectedResponseException("Single value expected but multiple rows returned.", this, rows.Cast<ITikSentence>());
+
+            var single = rows[0];
+            string fieldToRead = target
+                ?? single.Words.Keys.FirstOrDefault(k => k != TikSpecialProperties.Id && k != TikSpecialProperties.Tag)
+                ?? TikSpecialProperties.Id;
+            if (single.TryGetResponseField(fieldToRead, out var val))
+                return val;
+            if (throwIfMissing)
+                throw new TikSentenceException($"Field '{fieldToRead}' not found in CLI response.", single);
+            return defaultValue;
         }
 
-        public ITikReSentence ExecuteSingleRow()
+        /// <summary>Single-row result interpretation, shared by the sync and Task-based paths.</summary>
+        private ITikReSentence SingleRowFromRows(IList<TikRecordSentence> rows, bool throwIfMissing)
         {
-            EnsureConnectionSet();
-            EnsureCommandTextSet();
-            _isRunning = true;
-            try
+            if (rows.Count == 0)
             {
-                var rows = _isRaw
-                    ? _connection.RunPrint(BuildRawDescriptor())
-                    : RunPrintNormalized();
-                if (rows.Count == 0)
+                if (throwIfMissing)
                     throw new TikNoSuchItemException(this);
-                if (rows.Count > 1)
-                    throw new TikCommandAmbiguousResultException(this, rows.Count);
-                return rows[0];
+                return null;
             }
-            finally
-            {
-                _isRunning = false;
-            }
+            if (rows.Count > 1)
+                throw new TikCommandAmbiguousResultException(this, rows.Count);
+            return rows[0];
         }
 
-        public ITikReSentence ExecuteSingleRowOrDefault()
+        public ITikReSentence ExecuteSingleRow() => ExecuteSingleRowInternal(throwIfMissing: true);
+
+        public ITikReSentence ExecuteSingleRowOrDefault() => ExecuteSingleRowInternal(throwIfMissing: false);
+
+        private ITikReSentence ExecuteSingleRowInternal(bool throwIfMissing)
         {
             EnsureConnectionSet();
             EnsureCommandTextSet();
             _isRunning = true;
             try
             {
-                var rows = _isRaw
-                    ? _connection.RunPrint(BuildRawDescriptor())
-                    : RunPrintNormalized();
-                if (rows.Count == 0)
-                    return null;
-                if (rows.Count > 1)
-                    throw new TikCommandAmbiguousResultException(this, rows.Count);
-                return rows[0];
+                return SingleRowFromRows(_connection.RunPrint(BuildReadDescriptor()), throwIfMissing);
             }
             finally
             {
@@ -327,9 +332,7 @@ namespace tik4net.Connection
             try
             {
                 // proplist is ignored for CLI (as-value always returns all fields)
-                return _isRaw
-                    ? _connection.RunPrint(BuildRawDescriptor())
-                    : RunPrintNormalized();
+                return _connection.RunPrint(BuildReadDescriptor());
             }
             finally
             {
@@ -357,13 +360,156 @@ namespace tik4net.Connection
         }
 
         /// <summary>
-        /// Normalizes a multiline command + params into a read descriptor and runs the print hook
-        /// (the shared non-raw read path for ExecuteList/ExecuteSingleRow).
+        /// The descriptor the read paths (ExecuteList/ExecuteSingleRow and their async siblings) hand to the print
+        /// hook: verbatim for a raw command, otherwise the multiline command + params normalized and with Default
+        /// parameters resolved to Filter.
         /// </summary>
-        private IList<TikRecordSentence> RunPrintNormalized()
+        private TikCommandDescriptor BuildReadDescriptor()
         {
+            if (_isRaw)
+                return BuildRawDescriptor();
             var (cmd, baseParams) = NormalizeMultilineCommand(_commandText, _parameters);
-            return _connection.RunPrint(BuildCommand(cmd, ResolveParamsForRead(baseParams)));
+            return BuildCommand(cmd, ResolveParamsForRead(baseParams));
+        }
+
+        // ── ITikCommandAsync ──────────────────────────────────────────────────
+        //
+        // Deliberately mirrors the synchronous methods above instead of either side wrapping the other: the sync
+        // path must keep working on transports whose async hooks are not implemented yet (they throw), and running
+        // the async path over a blocking hook would be the Task.Run façade the design rules out. What the two
+        // paths must NOT do is interpret a response differently, so everything after the Run*/Run*Async call is
+        // the shared Scalar*/SingleRowFromRows helpers.
+        //
+        // Explicit implementation: consumers reach these through the Execute*Async extension methods on
+        // ITikCommand, which apply the fail-closed AsyncCommands check first.
+
+        Task ITikCommandAsync.ExecuteNonQueryAsync(CancellationToken cancellationToken)
+            => ExecuteNonQueryInternalAsync(cancellationToken);
+
+        Task<string> ITikCommandAsync.ExecuteScalarAsync(CancellationToken cancellationToken)
+            => ExecuteScalarInternalAsync(null, throwIfMissing: true, defaultValue: null, cancellationToken: cancellationToken);
+
+        Task<string> ITikCommandAsync.ExecuteScalarAsync(string target, CancellationToken cancellationToken)
+            => ExecuteScalarInternalAsync(target, throwIfMissing: true, defaultValue: null, cancellationToken: cancellationToken);
+
+        Task<string> ITikCommandAsync.ExecuteScalarOrDefaultAsync(string defaultValue, string target, CancellationToken cancellationToken)
+            => ExecuteScalarInternalAsync(target, throwIfMissing: false, defaultValue: defaultValue, cancellationToken: cancellationToken);
+
+        Task<ITikReSentence> ITikCommandAsync.ExecuteSingleRowAsync(CancellationToken cancellationToken)
+            => ExecuteSingleRowInternalAsync(throwIfMissing: true, cancellationToken: cancellationToken);
+
+        Task<ITikReSentence> ITikCommandAsync.ExecuteSingleRowOrDefaultAsync(CancellationToken cancellationToken)
+            => ExecuteSingleRowInternalAsync(throwIfMissing: false, cancellationToken: cancellationToken);
+
+        Task<IList<ITikReSentence>> ITikCommandAsync.ExecuteListAsync(CancellationToken cancellationToken)
+            => ExecuteListInternalAsync(cancellationToken);
+
+        // proplist is ignored here for the same reason as in the synchronous ExecuteList: the CLI's as-value form
+        // always returns every field, and REST answers with the whole object.
+        Task<IList<ITikReSentence>> ITikCommandAsync.ExecuteListAsync(string[] proplistFields, CancellationToken cancellationToken)
+            => ExecuteListInternalAsync(cancellationToken);
+
+        private async Task ExecuteNonQueryInternalAsync(CancellationToken cancellationToken)
+        {
+            EnsureConnectionSet();
+            EnsureCommandTextSet();
+            // Level 0 of the cancellation contract, applied here so it holds on every transport rather than
+            // depending on each one remembering: a token that is already cancelled sends nothing at all.
+            cancellationToken.ThrowIfCancellationRequested();
+            _isRunning = true;
+            try
+            {
+                if (_isRaw)
+                {
+                    // Fire-and-forget raw send; response discarded.
+                    await _connection.RunRawTextAsync(BuildRawDescriptor(), cancellationToken).ConfigureAwait(false);
+                    return;
+                }
+                var (cmd, p) = NormalizeMultilineCommand(_commandText, _parameters);
+                await _connection.RunNonQueryAsync(BuildCommand(cmd, p), cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                _isRunning = false;
+            }
+        }
+
+        private async Task<string> ExecuteScalarInternalAsync(string target, bool throwIfMissing, string defaultValue,
+            CancellationToken cancellationToken)
+        {
+            EnsureConnectionSet();
+            EnsureCommandTextSet();
+            cancellationToken.ThrowIfCancellationRequested();   // Level 0 — see ExecuteNonQueryInternalAsync
+            _isRunning = true;
+            try
+            {
+                if (_isRaw)
+                {
+                    string rawText = await _connection.RunRawTextAsync(BuildRawDescriptor(), cancellationToken).ConfigureAwait(false);
+                    return ScalarFromRawText(rawText, throwIfMissing, defaultValue);
+                }
+
+                var (normalCmd, normalParams) = NormalizeMultilineCommand(_commandText, _parameters);
+                string verb = TikPath.Verb(normalCmd);
+
+                if (verb == "add")
+                {
+                    string newId = await _connection.RunAddAsync(BuildCommand(normalCmd, normalParams), cancellationToken).ConfigureAwait(false);
+                    return ScalarFromAddedId(newId, throwIfMissing, defaultValue);
+                }
+
+                var readCmd = BuildCommand(normalCmd, ResolveParamsForRead(normalParams));
+                IList<TikRecordSentence> rows;
+                try
+                {
+                    rows = await _connection.RunPrintAsync(readCmd, cancellationToken).ConfigureAwait(false);
+                }
+                catch (TikNoSuchItemException)
+                {
+                    if (throwIfMissing)
+                        throw;
+                    return defaultValue;
+                }
+                return ScalarFromRows(rows, verb, target, throwIfMissing, defaultValue);
+            }
+            finally
+            {
+                _isRunning = false;
+            }
+        }
+
+        private async Task<ITikReSentence> ExecuteSingleRowInternalAsync(bool throwIfMissing, CancellationToken cancellationToken)
+        {
+            EnsureConnectionSet();
+            EnsureCommandTextSet();
+            cancellationToken.ThrowIfCancellationRequested();   // Level 0 — see ExecuteNonQueryInternalAsync
+            _isRunning = true;
+            try
+            {
+                var rows = await _connection.RunPrintAsync(BuildReadDescriptor(), cancellationToken).ConfigureAwait(false);
+                return SingleRowFromRows(rows, throwIfMissing);
+            }
+            finally
+            {
+                _isRunning = false;
+            }
+        }
+
+        private async Task<IList<ITikReSentence>> ExecuteListInternalAsync(CancellationToken cancellationToken)
+        {
+            EnsureConnectionSet();
+            EnsureCommandTextSet();
+            cancellationToken.ThrowIfCancellationRequested();   // Level 0 — see ExecuteNonQueryInternalAsync
+            _isRunning = true;
+            try
+            {
+                var rows = await _connection.RunPrintAsync(BuildReadDescriptor(), cancellationToken).ConfigureAwait(false);
+                return rows.Cast<ITikReSentence>().ToList();
+            }
+            finally
+            {
+                _isRunning = false;
+            }
         }
 
         // ── Unsupported: streaming / async ────────────────────────────────────

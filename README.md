@@ -39,7 +39,7 @@ All transports share the same `ITikConnection` API and O/R mapper — pick one v
 | Transport | Port | What it is | Capabilities |
 |---|---|---|---|
 | **Api** / **ApiSsl** | TCP 8728 / 8729 | native MikroTik API protocol — the default and fastest; TLS variant needs a certificate on the router | **all of them**: `Crud`, `Listen`, `Streaming`, `RawSentences`, `Tagging`, `SafeMode`, `RawCommand` |
-| **Rest** / **RestSsl** | TCP 80 / 443 | REST API, RouterOS 7.1+ | `Crud`, `Listen`\*† — stateless HTTP, so no streaming and no Safe Mode |
+| **Rest** / **RestSsl** | TCP 80 / 443 | REST API, RouterOS 7.1+ | `Crud`, `Listen`\*†, `AsyncCommands`‡, `CancelInFlight`‡ — stateless HTTP, so no streaming and no Safe Mode |
 | **Telnet** | TCP 23 | RouterOS CLI over plain-text Telnet | `Crud`, `Listen`\*, `SafeMode`, `RawCommand` |
 | **Ssh** | TCP 22 | RouterOS CLI over an SSH shell (separate `tik4net.ssh` package) | `Crud`, `Listen`\*, `SafeMode`, `RawCommand` |
 | **MacTelnet** | UDP 20561 | CLI over MAC-Telnet — reaches the router with **no IP route** | `Crud`, `Listen`\*, `SafeMode`, `RawCommand` |
@@ -53,6 +53,13 @@ command exchange open for a blocking multi-row read.
 † On REST an async monitor's rows arrive **when the command ends**, not as the router produces them: RouterOS
 buffers the whole HTTP response. Prefer an explicit bound (`count`/`duration`) on a REST monitor — and note
 that closing the connection does not stop a command already running on the router.
+
+‡ **`Execute*Async` — the Task-based command surface** (`ExecuteListAsync`, `ExecuteScalarAsync`, … with a
+`CancellationToken`) is being rolled out per transport and REST has it first, natively over `HttpClient`. Where
+`AsyncCommands` is absent the async methods throw rather than block a thread pretending to be asynchronous; use
+the synchronous methods there. `CancelInFlight` means a token cancelled *after* dispatch really stops the wait
+and leaves the connection usable — elsewhere the cancel is deferred to the next safe point, because abandoning
+an unframed byte stream would leave output for the next command to misparse.
 
 Every transport can have its connection **reused**. Concurrent commands on one connection work on
 `Api`/`ApiSsl` (set `SendTagWithSyncCommand = true` first), `Rest`/`RestSsl` and both WinBox-native

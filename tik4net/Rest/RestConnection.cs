@@ -6,6 +6,7 @@ using System.Net.Http.Headers;
 using System.Net.Security;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using tik4net.Connection;
 
@@ -21,12 +22,23 @@ namespace tik4net.Rest
     /// <see cref="ITikCommand"/> (<see cref="TikGenericCommand"/>) are inherited. REST only supplies the three
     /// CRUD hooks (<see cref="RunPrint"/>/<see cref="RunAdd"/>/<see cref="RunNonQuery"/>) implemented over HTTP
     /// plus the request build (<see cref="RestRequestBuilder"/>), JSON parsing and HTTP-status→exception mapping.
-    /// <para>Capability is <see cref="TikConnectionCapability.Crud"/> | <see cref="TikConnectionCapability.Listen"/>.
-    /// Listen, async lists and monitors are emulated by polling, exactly as the CLI and native-WinBox
+    /// <para>Capability is <see cref="TikConnectionCapability.Crud"/> | <see cref="TikConnectionCapability.Listen"/> |
+    /// <see cref="TikConnectionCapability.AsyncCommands"/> | <see cref="TikConnectionCapability.CancelInFlight"/>.
+    /// Listen and the callback monitors are emulated by polling, exactly as the CLI and native-WinBox
     /// transports do it (<see cref="PollingMonitorEngine"/>) — see <c>RunMonitorAsync</c> for what the
     /// router does and does not offer here. There is no <see cref="TikConnectionCapability.Streaming"/> and no
     /// Safe Mode: each call is an independent HTTP request, so RouterOS cannot bind safe mode's
     /// rollback-on-disconnect to "the connection"; the inherited <c>SafeMode*</c> methods throw.</para>
+    /// <para>
+    /// The Task-based command surface (<see cref="ITikCommandAsync"/>, reached through the <c>Execute*Async</c>
+    /// extension methods) is <b>native</b> here rather than emulated: <c>HttpClient</c> is async to the bottom, so
+    /// the async hooks are the real implementation and the synchronous ones block on them. That independence of
+    /// each request is also what makes REST the cleanest cancellation story of all twelve transports — a cancelled
+    /// token aborts the HTTP request, and since nothing is shared between requests, nothing that follows can be
+    /// desynchronized by it. <b>But an aborted request does not stop the command on the router</b>: RouterOS runs
+    /// it to the end and keeps its REST session busy meanwhile (measured in <c>Docs/findings-rest-api.md</c> §12.1),
+    /// so cancelling a long monitor frees the caller, not the router.
+    /// </para>
     /// <para>
     /// <b>Known RouterOS defect — REST logins are never released.</b> Using REST at all can leave rows in
     /// the router's <c>/user/active</c> table that never go away. This is a RouterOS bug (reported for
@@ -60,11 +72,13 @@ namespace tik4net.Rest
         protected override string DiagnosticPrefix => "REST";
 
         /// <summary>
-        /// CRUD plus <see cref="TikConnectionCapability.Listen"/> (polled — see <c>RunMonitorAsync</c>).
+        /// CRUD, <see cref="TikConnectionCapability.Listen"/> (polled — see <c>RunMonitorAsync</c>),
+        /// <see cref="TikConnectionCapability.AsyncCommands"/> and <see cref="TikConnectionCapability.CancelInFlight"/>.
         /// No <see cref="TikConnectionCapability.Streaming"/> and no Safe Mode.
         /// </summary>
         public override TikConnectionCapability Capabilities =>
-            TikConnectionCapability.Crud | TikConnectionCapability.Listen;
+            TikConnectionCapability.Crud | TikConnectionCapability.Listen
+            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight;
 
         /// <summary>Creates a REST connection.</summary>
         /// <param name="useSsl">Use HTTPS (port 443) instead of HTTP (port 80).</param>
@@ -157,23 +171,40 @@ namespace tik4net.Rest
         }
 
         // ── CRUD hooks (over HTTP) ─────────────────────────────────────────────
+        //
+        // HttpClient is async to the bottom, so the Task-based hooks are the real implementation here and the
+        // synchronous ones block on them (D5: async is the primitive, and nothing is pushed onto a thread-pool
+        // thread to look asynchronous). Every await inside carries ConfigureAwait(false), which is also what keeps
+        // the blocking wrapper safe to call from a UI or ASP.NET-classic SynchronizationContext.
 
         /// <inheritdoc/>
         internal override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)
-            => ExecuteRequestList(descriptor.CommandText, descriptor.Parameters);
+            => RunPrintAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
 
         /// <inheritdoc/>
         internal override string RunAdd(TikCommandDescriptor descriptor)
+            => RunAddAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
+
+        /// <inheritdoc/>
+        internal override void RunNonQuery(TikCommandDescriptor descriptor)
+            => RunNonQueryAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
+
+        /// <inheritdoc/>
+        internal override Task<IList<TikRecordSentence>> RunPrintAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+            => ExecuteRequestListAsync(descriptor.CommandText, descriptor.Parameters, cancellationToken);
+
+        /// <inheritdoc/>
+        internal override async Task<string> RunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
-            var single = ExecuteRequestSingle(descriptor.CommandText, descriptor.Parameters);
+            var single = await ExecuteRequestSingleAsync(descriptor.CommandText, descriptor.Parameters, cancellationToken).ConfigureAwait(false);
             string id = null;
             single?.TryGetResponseField(TikSpecialProperties.Id, out id);
             return id;
         }
 
         /// <inheritdoc/>
-        internal override void RunNonQuery(TikCommandDescriptor descriptor)
-            => ExecuteRequest(descriptor.CommandText, descriptor.Parameters);
+        internal override Task RunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+            => ExecuteRequestAsync(descriptor.CommandText, descriptor.Parameters, cancellationToken);
 
         // ── Monitor / async / listen (ITikMonitorTransport) ────────────────────
 
@@ -299,54 +330,61 @@ namespace tik4net.Rest
 
         // Only reached from RunNonQuery, so the builder is told so: an unrecognised trailing segment here is
         // an action verb, not a menu name (P2.48 — /log/error and friends).
-        private void ExecuteRequest(string commandText, IList<ITikCommandParameter> parameters)
+        private async Task ExecuteRequestAsync(string commandText, IList<ITikCommandParameter> parameters,
+            CancellationToken cancellationToken)
         {
-            EnsureOpened();
-            var req = RestRequestBuilder.Build(commandText, parameters, RestRequestBuilder.RestCallKind.NonQuery);
-            FireWriteRow(req.Method.Method + " " + req.RelativePath);
-
-            var httpResp = SendHttpSync(BuildHttpRequest(req));
-            var body = httpResp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-            FireReadRow(body);
+            var (body, statusCode) = await SendAndReadAsync(commandText, parameters,
+                RestRequestBuilder.RestCallKind.NonQuery, cancellationToken).ConfigureAwait(false);
             // parse errors only; we don't return anything
-            ParseErrorOrIgnore(commandText, body, (int)httpResp.StatusCode, parameters);
+            ParseErrorOrIgnore(commandText, body, statusCode, parameters);
         }
 
-        private IList<TikRecordSentence> ExecuteRequestList(string commandText, IList<ITikCommandParameter> parameters)
+        private async Task<IList<TikRecordSentence>> ExecuteRequestListAsync(string commandText,
+            IList<ITikCommandParameter> parameters, CancellationToken cancellationToken)
         {
-            EnsureOpened();
-            var req = RestRequestBuilder.Build(commandText, parameters);
-            FireWriteRow(req.Method.Method + " " + req.RelativePath);
-
-            var httpResp = SendHttpSync(BuildHttpRequest(req));
-            var body = httpResp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-            FireReadRow(body);
+            var (body, statusCode) = await SendAndReadAsync(commandText, parameters,
+                RestRequestBuilder.RestCallKind.Read, cancellationToken).ConfigureAwait(false);
 
             if (string.IsNullOrWhiteSpace(body) || body == "null" || body == "[]" || body == "{}")
                 return new List<TikRecordSentence>();
 
             // Try to detect error first
-            ParseErrorOrIgnore(commandText, body, (int)httpResp.StatusCode, parameters);
+            ParseErrorOrIgnore(commandText, body, statusCode, parameters);
 
             return ParseResponseList(body);
         }
 
-        private TikRecordSentence ExecuteRequestSingle(string commandText, IList<ITikCommandParameter> parameters)
+        private async Task<TikRecordSentence> ExecuteRequestSingleAsync(string commandText,
+            IList<ITikCommandParameter> parameters, CancellationToken cancellationToken)
         {
-            EnsureOpened();
-            var req = RestRequestBuilder.Build(commandText, parameters);
-            FireWriteRow(req.Method.Method + " " + req.RelativePath);
-
-            var httpResp = SendHttpSync(BuildHttpRequest(req));
-            var body = httpResp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-            FireReadRow(body);
+            var (body, statusCode) = await SendAndReadAsync(commandText, parameters,
+                RestRequestBuilder.RestCallKind.Read, cancellationToken).ConfigureAwait(false);
 
             if (string.IsNullOrWhiteSpace(body) || body == "null" || body == "{}")
                 return null;
 
-            ParseErrorOrIgnore(commandText, body, (int)httpResp.StatusCode, parameters);
+            ParseErrorOrIgnore(commandText, body, statusCode, parameters);
 
             return ParseSingleObject(body);
+        }
+
+        /// <summary>
+        /// Builds the request, sends it and reads the whole body — the single point where this transport touches
+        /// the network, so the request/response tracing and the token handling exist once.
+        /// </summary>
+        private async Task<(string Body, int StatusCode)> SendAndReadAsync(string commandText,
+            IList<ITikCommandParameter> parameters, RestRequestBuilder.RestCallKind kind, CancellationToken cancellationToken)
+        {
+            EnsureOpened();
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var req = RestRequestBuilder.Build(commandText, parameters, kind);
+            FireWriteRow(req.Method.Method + " " + req.RelativePath);
+
+            var httpResp = await SendHttpAsync(BuildHttpRequest(req), cancellationToken).ConfigureAwait(false);
+            var body = await httpResp.Content.ReadAsStringAsync().ConfigureAwait(false);
+            FireReadRow(body);
+            return (body, (int)httpResp.StatusCode);
         }
 
         // ── HTTP helpers ───────────────────────────────────────────────────────
@@ -362,8 +400,24 @@ namespace tik4net.Rest
         }
 
         private HttpResponseMessage SendHttpSync(HttpRequestMessage req)
+            => SendHttpAsync(req, CancellationToken.None).GetAwaiter().GetResult();
+
+        private async Task<HttpResponseMessage> SendHttpAsync(HttpRequestMessage req, CancellationToken cancellationToken)
         {
-            var response = _httpClient.SendAsync(req).GetAwaiter().GetResult();
+            HttpResponseMessage response;
+            try
+            {
+                response = await _httpClient.SendAsync(req, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                // HttpClient reports its OWN Timeout as a cancellation too, and the two must not be conflated:
+                // a caller that cancelled expects OperationCanceledException, while a request that ran out of
+                // time is a configuration problem the caller has to be able to see (see ITikCommandAsync's
+                // remarks). The token tells them apart — nobody asked for this one.
+                int timeoutMs = Math.Max(SendTimeout, ReceiveTimeout);
+                throw new TikConnectionReceiveTimeoutException(timeoutMs, ex);
+            }
 
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                 throw new TikConnectionLoginException(new Exception("HTTP 401 Unauthorized — check credentials."));

@@ -40,7 +40,7 @@ namespace tik4net.Testing
     /// var list = conn.LoadAll&lt;IpAddress&gt;();
     /// </code>
     /// </example>
-    public sealed class TikFakeConnection : ITikConnection
+    public sealed class TikFakeConnection : ITikConnection, ITikConnectionCapabilities
     {
         private readonly List<(Func<IEnumerable<string>, bool> Predicate, Func<IEnumerable<string>, IEnumerable<ITikSentence>> Response)> _handlers
             = new List<(Func<IEnumerable<string>, bool>, Func<IEnumerable<string>, IEnumerable<ITikSentence>>)>();
@@ -211,6 +211,27 @@ namespace tik4net.Testing
             lock (_cancelledTags)
                 _cancelledTags.Add(tag);
         }
+
+        // ── Capabilities ───────────────────────────────────────────────────────
+
+        /// <summary>
+        /// What this fake claims to support. Defaults to what it actually implements:
+        /// <see cref="TikConnectionCapability.Crud"/>, <see cref="TikConnectionCapability.Listen"/> (the
+        /// callback <c>ExecuteAsync</c>/<c>LoadAsync</c> pattern) and
+        /// <see cref="TikConnectionCapability.AsyncCommands"/> (the <c>Execute*Async</c> surface, completing
+        /// synchronously — see <see cref="TikFakeCommand"/>).
+        /// <para>
+        /// Set it to test how your code behaves against a transport that lacks something — clearing
+        /// <see cref="TikConnectionCapability.AsyncCommands"/>, for instance, makes <c>ExecuteListAsync</c> throw
+        /// <see cref="TikConnectionCapabilityNotSupportedException"/> here exactly as it would over a CLI
+        /// transport. It is deliberately <b>not</b> the full flag set: a fake that claims everything cannot be
+        /// used to test the fail-closed branches, and claiming a capability it does not implement
+        /// (<see cref="TikConnectionCapability.RawCommand"/>, <see cref="TikConnectionCapability.SafeMode"/>)
+        /// would only move the failure later.
+        /// </para>
+        /// </summary>
+        public TikConnectionCapability Capabilities { get; set; } =
+            TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.AsyncCommands;
 
         // ── ITikConnection ─────────────────────────────────────────────────────
 

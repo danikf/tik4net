@@ -46,25 +46,33 @@ standalone discovery helper — matching the "12 transports" figure in the top-l
 ## Capability flags
 
 `TikConnectionCapability` (`tik4net/Rest/TikConnectionCapability.cs`) is a `[Flags]` enum:
-`Crud`, `Listen`, `Streaming`, `RawSentences`, `Tagging`, `SafeMode`, `RawCommand`. A connection
-that does not implement `ITikConnectionCapabilities` is treated as supporting **nothing**
-(fail-closed) — see `connection.Supports(...)` / `connection.Require(...)`.
+`Crud`, `Listen`, `Streaming`, `RawSentences`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`,
+`CancelInFlight`. A connection that does not implement `ITikConnectionCapabilities` is treated as
+supporting **nothing** (fail-closed) — see `connection.Supports(...)` / `connection.Require(...)`.
 
-Three flag sets recur across the transport families:
+Four flag sets recur across the transport families:
 
 | Name | Flags | Who declares it |
 |---|---|---|
 | **Full** | `Crud`, `Listen`, `Streaming`, `RawSentences`, `Tagging`, `SafeMode`, `RawCommand` | `Api`, `ApiSsl` |
 | **Cli** | `Crud`, `Listen`, `SafeMode`, `RawCommand` | `Telnet`, `Ssh`, `MacTelnet`, `WinboxCli`, `WinboxCliMac` (all inherit `CliConnectionBase`) |
 | **Native** | `Crud`, `Listen`, `SafeMode` | `WinboxNative`, `WinboxNativeMac` |
-| — | `Crud` only | `Rest`, `RestSsl` (stateless HTTP — no Listen, no SafeMode) |
+| **Rest** | `Crud`, `Listen`, `AsyncCommands`, `CancelInFlight` | `Rest`, `RestSsl` (stateless HTTP — no Streaming, no SafeMode) |
 
 `Listen` outside the binary API is emulated by polling (re-issuing a snapshot on a background
-worker), not server push; `Streaming` (`ExecuteListWithDuration`, a blocking multi-row read within
-one command exchange) is binary-API only. `RawCommand` on the CLI family sends a verbatim CLI line;
-WinBox Native does **not** report it (its wire form is a numeric M2 message, not a string — use a
-CLI transport for raw access over that channel). See the XML doc on `TikConnectionCapability` for
-the full per-flag semantics, including how `/tool/torch` is handled differently per transport family.
+worker), not server push — on REST because the router's own `listen` never flushes anything, which
+is measured in [`findings-rest-api.md`](findings-rest-api.md) §12, not assumed from "REST is
+stateless". `Streaming` (`ExecuteListWithDuration`, a blocking multi-row read within one command
+exchange) is binary-API only. `RawCommand` on the CLI family sends a verbatim CLI line; WinBox
+Native does **not** report it (its wire form is a numeric M2 message, not a string — use a CLI
+transport for raw access over that channel).
+
+`AsyncCommands` (the `Execute*Async` surface) and `CancelInFlight` (a token that stops a command
+already on the wire and still leaves the connection usable) are being rolled out per transport;
+REST is the first to declare either. Note what `CancelInFlight` does **not** promise anywhere: that
+the router stops working. On REST it does not — aborting the HTTP request frees the caller while
+RouterOS runs the command to the end (§12.1). See the XML doc on `TikConnectionCapability` for the
+full per-flag semantics, including how `/tool/torch` is handled differently per transport family.
 
 ---
 
@@ -137,9 +145,10 @@ IEnumerable<TikInstanceDescriptor> routers = MndpHelper.Discover(stopWhenFirstFo
 | HTTP Basic auth | ✅ |
 | HTTPS (SSL variant) | ✅ |
 | `System.Text.Json` serialization (BCL, no extra dependency) | ✅ |
-| `ITikConnectionCapabilities` — declares `Crud` only | ✅ |
-| Listen/push (`ExecuteAsync`) | ❌ not supported (stateless HTTP) |
-| Streaming (Torch, monitor-traffic follow) | ❌ not supported |
+| `ITikConnectionCapabilities` — declares `Crud`, `Listen`, `AsyncCommands`, `CancelInFlight` | ✅ |
+| Listen/push (`ExecuteAsync`) | ✅ polled — the router's own `listen` is accepted and delivers nothing (§12) |
+| `Execute*Async` with `CancellationToken` | ✅ native (`HttpClient`), cancellable mid-request |
+| Streaming (Torch, monitor-traffic follow) | ❌ not supported — the response arrives in one lump |
 | SafeMode | ❌ not supported |
 | `/unset` → default value | ⚠️ `PATCH {field:null}` sets an empty string, not the default |
 
