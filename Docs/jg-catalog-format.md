@@ -1,71 +1,71 @@
-# WinBox `.jg` katalog — formát a M2 mapping (RE 2026-06-07)
+# WinBox `.jg` catalog — format and M2 mapping (RE 2026-06-07)
 
-Tento adresář = lokální kopie WinBox plugin cache + analyzátor. Slouží jako zdroj
-katalogu operací pro **nativní M2 volání** (bez mepty konzole).
+This directory = local copy of the WinBox plugin cache plus an analyzer. It serves as the
+source of the operation catalog for **native M2 calls** (without the mepty console).
 
-## Obsah
+## Contents
 
 ```
-6.45.9-48807417/        10× .jg  (RouterOS 6.45.9, z WinBox cache)
-6.45beta63-2796463005/   9× .jg  (z WinBox cache)
-7.17rc3-3521562961/      9× .jg  (RouterOS 7.17rc3, z WinBox cache)
-7.21.4-http/            18× .jg + 3 png + list  ← VERSION-MATCHED testbed, přes HTTP webfig
-jg_analyze.py            parser + extraktor + diff/detail/report
-catalog-7.21.json        všechny path-ops z 7.21.4 (testbed, strojově čitelné)
-catalog-7.17.json / catalog-6.45.json   starší verze
-catalog-*-windows.txt    lidsky čitelný katalog oken+polí
+6.45.9-48807417/        10× .jg  (RouterOS 6.45.9, from WinBox cache)
+6.45beta63-2796463005/   9× .jg  (from WinBox cache)
+7.17rc3-3521562961/      9× .jg  (RouterOS 7.17rc3, from WinBox cache)
+7.21.4-http/            18× .jg + 3 png + list  ← VERSION-MATCHED testbed, via HTTP webfig
+jg_analyze.py            parser + extractor + diff/detail/report
+catalog-7.21.json        all path-ops from 7.21.4 (testbed, machine-readable)
+catalog-7.17.json / catalog-6.45.json   older versions
+catalog-*-windows.txt    human-readable catalog of windows+fields
 ```
 
-Dva zdroje `.jg`:
-1. **WinBox cache** (`%APPDATA%\MikroTik\WinBox\<verze>-<id>\`) — per-verze,
-   plní se když WinBox.exe připojí router. Offline, ale závisí na WinBox instalaci.
-2. **HTTP webfig** (⭐ DYNAMICKÉ, version-matched) — viz níže. Bez WinBox, bez auth.
+Two sources of `.jg`:
+1. **WinBox cache** (`%APPDATA%\MikroTik\WinBox\<version>-<id>\`) — per-version,
+   populated when WinBox.exe connects to a router. Offline, but depends on a WinBox install.
+2. **HTTP webfig** (⭐ DYNAMIC, version-matched) — see below. No WinBox, no auth.
 
-## ⭐ Dynamické stažení `.jg` z routeru přes HTTP webfig (W4 — VYŘEŠENO 2026-06-07)
+## ⭐ Dynamically fetching `.jg` from the router via HTTP webfig (W4 — RESOLVED 2026-06-07)
 
-`.jg` **nejde** přes mproxy `[2,2]` (cmd=3/7 → "cannot open source file" na CHR), ALE
-webfig je servíruje přes HTTP **gzipované**, **bez autentizace**:
+`.jg` **cannot** be fetched via mproxy `[2,2]` (cmd=3/7 → "cannot open source file" on CHR), BUT
+webfig serves it over HTTP **gzip-compressed**, **without authentication**:
 
 ```bash
-# Katalog (plain):
+# Catalog (plain):
 GET http://<router>/webfig/list                      → 200, text { crc,size,name,unique,version }
 
-# Plugin .jg — VYŽADUJE Accept-Encoding: gzip (jinak HTTP 406 Not Acceptable!):
+# Plugin .jg — REQUIRES Accept-Encoding: gzip (otherwise HTTP 406 Not Acceptable!):
 GET http://<router>/webfig/roteros.jg
-    Accept-Encoding: gzip                             → 200, gzip → rozbal → JS literal
+    Accept-Encoding: gzip                             → 200, gzip → unpack → JS literal
 ```
 
-- Past: **bez `Accept-Encoding: gzip` vrací webfig HTTP 406** (servíruje jen komprimované).
-- `unique` název netřeba — stačí plain `name` (`roteros.jg`). Auth netřeba (statické UI assety).
-- Wire size = `size` z `list`; po gunzipu plný JS literal (roteros.jg 7.21.4: 109706 B → 918451 B).
-- ⇒ **version-matched katalog** kdykoliv, čistě HTTP. Stažen celý 7.21.4 do `7.21.4-http/`.
-- Pozn.: HTTPS varianta na portu 443 (`/webfig/`) by měla fungovat stejně pro SSL-only routery.
+- Gotcha: **without `Accept-Encoding: gzip` webfig returns HTTP 406** (it only serves compressed content).
+- The `unique` name isn't needed — the plain `name` (`roteros.jg`) is enough. No auth needed (static UI assets).
+- Wire size = `size` from `list`; after gunzip, the full JS literal (roteros.jg 7.21.4: 109706 B → 918451 B).
+- ⇒ **version-matched catalog** on demand, purely over HTTP. Downloaded the full 7.21.4 into `7.21.4-http/`.
+- Note: the HTTPS variant on port 443 (`/webfig/`) should work the same way for SSL-only routers.
 
-## ⭐⭐ Dynamické stažení přes WinBox M2 / mproxy (port 8291) — OVĚŘENO 2026-06-07
+## ⭐⭐ Dynamically fetching via WinBox M2 / mproxy (port 8291) — VERIFIED 2026-06-07
 
-**Preferovaná cesta** — jeden port pro vše (auth+data), funguje i když je www služba vypnutá.
-Dřívější „`.jg` nejde přes mproxy" bylo MYLNÉ — dvě příčiny, obě opravené:
+**Preferred path** — a single port for everything (auth+data), works even when the www service
+is disabled. The earlier "`.jg` doesn't work via mproxy" was WRONG — two causes, both fixed:
 
-1. **Špatné jméno souboru.** Soubor na disku je `<name>.jg.gz` (gzipovaný), ne `<name>.jg`.
-   mproxy `[2,2] cmd=7 open "roteros.jg.gz"` → multi-chunk `cmd=4` read → klientský gunzip.
-2. **File handle >255 jako u8.** mproxy open vrací session handle, který může být >255
-   (stejně jako mepty SESSION_ID 265, kap. G). `M2Message.SessionIdField` ho kódoval jako u8
-   → useknutí → read mířil na špatnou session → prázdná odpověď (i pro `list`!).
-   **Fix:** `SessionIdField` auto-switch u8(≤255)/u32 (jako produkční `tik4net/Winbox/M2Message`).
+1. **Wrong file name.** The file on disk is `<name>.jg.gz` (gzip-compressed), not `<name>.jg`.
+   mproxy `[2,2] cmd=7 open "roteros.jg.gz"` → multi-chunk `cmd=4` read → client-side gunzip.
+2. **File handle >255 treated as u8.** mproxy open returns a session handle that can exceed 255
+   (same as mepty SESSION_ID 265, chapter G). `M2Message.SessionIdField` encoded it as u8
+   → truncation → the read targeted the wrong session → empty response (even for `list`!).
+   **Fix:** `SessionIdField` auto-switch u8(≤255)/u32 (same as the production `tik4net/Winbox/M2Message`).
 
-Ověřeno `WinboxJgFetchTest.Winbox_FetchJgGz_ViaMproxy_Works`: `roteros.jg.gz` 109706 B →
-gunzip 918451 B JS literál, **bajtově identické s HTTP variantou**. Uloženo do `via-mproxy/`.
+Verified by `WinboxJgFetchTest.Winbox_FetchJgGz_ViaMproxy_Works`: `roteros.jg.gz` 109706 B →
+gunzip 918451 B JS literal, **byte-identical to the HTTP variant**. Saved into `via-mproxy/`.
 
-| Cesta | Port | Auth | Šifrování | Stav |
+| Path | Port | Auth | Encryption | Status |
 |---|---|---|---|---|
-| **WinBox mproxy** | 8291 | ✅ EC-SRP5 | ✅ AES | ✅ **OVĚŘENO** (`<name>.jg.gz` + gunzip) |
-| HTTP webfig | 80 | ne | ne | ✅ ověřeno (`Accept-Encoding: gzip`) |
-| HTTPS webfig | 443 | ne | ✅ TLS | (předpoklad, neověřeno) |
+| **WinBox mproxy** | 8291 | ✅ EC-SRP5 | ✅ AES | ✅ **VERIFIED** (`<name>.jg.gz` + gunzip) |
+| HTTP webfig | 80 | none | none | ✅ verified (`Accept-Encoding: gzip`) |
+| HTTPS webfig | 443 | none | ✅ TLS | (assumed, not verified) |
 
-## Formát `.jg`
+## `.jg` format
 
-**Plain-text JS object literal** (NE binárka, NE gzip), 100 % tisknutelné ASCII. Strom
-oken/dialogů WinBox UI. Příklad:
+**Plain-text JS object literal** (NOT binary, NOT gzip), 100% printable ASCII. A tree of
+WinBox UI windows/dialogs. Example:
 
 ```js
 [{name:'Interface',title:'Interface',type:'map',path:[ 20,0 ],autorefresh:1000,
@@ -75,19 +75,19 @@ oken/dialogů WinBox UI. Příklad:
     {name:'running',type:'flag',id:'b1000e'}, ... ]}]
 ```
 
-## Mapping `.jg` → M2 protokol (KLÍČOVÉ)
+## Mapping `.jg` → M2 protocol (KEY)
 
-| `.jg` | M2 | Pozn. |
+| `.jg` | M2 | Note |
 |---|---|---|
 | `path:[ a,b ]` | **SYS_TO** handler array (`0xFF0001`) | `[20,0]`=/interface, `[13,4]`=sysinfo, `[2,2]`=mproxy/file |
-| `cmd`/`startcmd`/`pollcmd`/`cancelcmd`/`setcmd` | **SYS_CMD** (`0xFF0007`) | viz „Příkazy" níže |
-| `id:'<typ><hexKey>'` | field key + typ v zprávě | `s10006` → key `0x10006`, typ string |
-| `nameval:'Name'` | které pole je „primární jméno" záznamu | |
-| `generic:'iface'` | aplikuje generickou šablonu příkazů | proto `map` nemá explicitní cmd |
+| `cmd`/`startcmd`/`pollcmd`/`cancelcmd`/`setcmd` | **SYS_CMD** (`0xFF0007`) | see "Commands" below |
+| `id:'<type><hexKey>'` | field key + type in the message | `s10006` → key `0x10006`, type string |
+| `nameval:'Name'` | which field is the record's "primary name" | |
+| `generic:'iface'` | applies a generic command template | that's why `map` has no explicit cmd |
 
-### Typové prefixy (1 písmeno; zbytek = hex key)
+### Type prefixes (1 letter; rest = hex key)
 
-| prefix | typ | array varianta |
+| prefix | type | array variant |
 |---|---|---|
 | `u` | u32 | `U` = u32[] |
 | `q` | u64 | `Q` = u64[] |
@@ -97,67 +97,68 @@ oken/dialogů WinBox UI. Příklad:
 | `m` | addr (ip/ip6) | `M` = addr[] |
 | `a` | ip6addr 16B | `A` = ip6[] |
 
-Velké písmeno = pole. Hex suffix se čte hexadecimálně (`sfe0010` → key `0xFE0010`).
+Uppercase letter = array. The hex suffix is read as hexadecimal (`sfe0010` → key `0xFE0010`).
 
-⚠️ **Prefix je typ hodnoty, ne typ pole na drátě.** `a` (ip6addr) jede jako **vlastní ftype**
-`FT_ADDR6` = typový bajt `0x18`, 16 bajtů **bez délkového prefixu** — ne jako `raw`. `m` (`addr`) není
-skalár vůbec, ale vnořená zpráva, jejíž členy určuje atribut `allow` daného pole (`4`/`6`/`D`/`m`/`R`/
-`/`/`i`/`v` → sub-klíče `0xFEFF20`/`21`/`26`/`2F`/`27`/`25`/`22`/`23`). Bez `allow` se `addr` zakódovat
-nedá; katalog ho proto nese v `WinboxJgField.Allow`. Podrobně
+⚠️ **The prefix is the value's type, not the field's wire type.** `a` (ip6addr) travels as its
+own ftype, `FT_ADDR6` = type byte `0x18`, 16 bytes **without a length prefix** — not as `raw`.
+`m` (`addr`) is not a scalar at all, but a nested message whose members are determined by the
+field's `allow` attribute (`4`/`6`/`D`/`m`/`R`/`/`/`i`/`v` → sub-keys `0xFEFF20`/`21`/`26`/`2F`/`27`/`25`/`22`/`23`).
+Without `allow`, `addr` cannot be encoded at all; the catalog therefore carries it in
+`WinboxJgField.Allow`. Details in
 [winbox-native-m2-protocol.md §23](winbox-native-m2-protocol.md).
-Histogram (7.17, 9 souborů): u×4773, b×2442, s×1437, U×334, q×287, r×241, Q×141,
-M×134, a×133, m×105, S×57, R×8, A×6. **Žádné jiné typové kódy** → tabulka je úplná.
+Histogram (7.17, 9 files): u×4773, b×2442, s×1437, U×334, q×287, r×241, Q×141,
+M×134, a×133, m×105, S×57, R×8, A×6. **No other type codes appear** → the table is complete.
 
-### Namespace klíčů
+### Key namespace
 
-- **User namespace** (`0x00xxxx`): per-objekt pole (`0x10006` Name, `0x10064` MTU…).
-- **System namespace** (`0xFExxxx`): well-known pole.
-  - `0xFE0001` = `.id` (record handle; = `M2Message.SessionIdField`). V katalogu jako
-    `ufe0001 'Interface'` = „vyber objekt podle id".
+- **User namespace** (`0x00xxxx`): per-object fields (`0x10006` Name, `0x10064` MTU…).
+- **System namespace** (`0xFExxxx`): well-known fields.
+  - `0xFE0001` = `.id` (record handle; = `M2Message.SessionIdField`). In the catalog as
+    `ufe0001 'Interface'` = "select object by id".
   - `0xFE0008` = interface `inactive` flag.
-  - **comment** = generický `{type:'comment'}` element **bez `id`** → well-known key
-    (kandidát `0xFE0009`, ověřit empiricky ve Fázi 3).
+  - **comment** = generic `{type:'comment'}` element **without an `id`** → well-known key
+    (candidate `0xFE0009`, to be verified empirically in Phase 3).
 
-### Příkazy (SYS_CMD `0xFF0007`)
+### Commands (SYS_CMD `0xFF0007`)
 
-Generická okna `type:'map'`/`item` mají **`cmds={}`** — list/get/set/add/remove jsou
-**winbox-builtin konstanty** (nejsou v `.jg`, plynou z `generic:`). Explicitní `cmd` mají
-jen speciální akce (`doit`, `action`, `query`). Histogram explicitních cmd (7.17):
+Generic `type:'map'`/`item` windows have **`cmds={}`** — list/get/set/add/remove are
+**WinBox-builtin constants** (not present in `.jg`, they follow from `generic:`). Only special
+actions (`doit`, `action`, `query`) have an explicit `cmd`. Histogram of explicit cmds (7.17):
 
 ```
 1 ×32   0xFE0011 ×28   0xFE000F ×23   2 ×21   6 ×15   3 ×15   0xFE0010 ×9
 7 ×7    5 ×5    1006 ×4   10/9/8 ×4   ...
 ```
 
-- `0xFE000F/0xFE0010/0xFE0011` = standardní **monitor** start/poll/cancel (mnoho `action` oken).
-- Malá čísla (1–12) = per-handler subpříkazy.
-- Standardní getall/set pro generický objekt = **TODO empiricky** (Fáze 3), nejsou v `.jg`.
+- `0xFE000F/0xFE0010/0xFE0011` = standard **monitor** start/poll/cancel (used by many `action` windows).
+- Small numbers (1–12) = per-handler sub-commands.
+- Standard getall/set for a generic object = **TODO empirically** (Phase 3), not present in `.jg`.
 
-## Stabilita napříč verzemi (6.45.9 → 7.17rc3)
+## Stability across versions (6.45.9 → 7.17rc3)
 
 `python jg_analyze.py diff 6.45.9-48807417 7.17rc3-3521562961`:
 
-- paths: A=403, B=484, společných 327, jen v A 76, jen v B **+157**.
-- **259/327** společných paths má klíče A ⊆ B (stabilní/rozšířené), 66 přidalo klíče.
-- 68 paths „ztratilo" klíč — ale koncentrované v `[120,*]` (wireless) a `[16,*]` →
-  **major rewrite wireless subsystému** (wlan6 → wave2 v 7.x), ne náhodné přejmenování.
-- **Závěr:** core handlery (interface `[20,0]`, …) jsou stabilní; protokol se rozšiřuje,
-  nepřejmenovává (potvrzeno). ⇒ WinboxCli používající stabilní cesty je oprávněný;
-  pro nativní volání lze katalog 7.17 použít i proti 7.21.4 pro základní objekty.
+- paths: A=403, B=484, common 327, only in A 76, only in B **+157**.
+- **259/327** common paths have keys A ⊆ B (stable/extended), 66 added keys.
+- 68 paths "lost" a key — but these are concentrated in `[120,*]` (wireless) and `[16,*]` →
+  a **major rewrite of the wireless subsystem** (wlan6 → wave2 in 7.x), not random renaming.
+- **Conclusion:** core handlers (interface `[20,0]`, …) are stable; the protocol expands,
+  it doesn't rename (confirmed). ⇒ WinboxCli relying on stable paths is justified;
+  for native calls, the 7.17 catalog can be used even against 7.21.4 for basic objects.
 
-### Version-exact diff 7.17rc3 → 7.21.4 (testbed, přes HTTP)
+### Version-exact diff 7.17rc3 → 7.21.4 (testbed, via HTTP)
 
 `python jg_analyze.py diff 7.17rc3-3521562961 7.21.4-http`:
-- paths: A=484, B=599, společných **479**, jen v A **5**, v B **+120**.
-- **451/479** společných paths má klíče A ⊆ B (stabilní/rozšířené), 67 přidalo klíče.
-- jen **28** paths „ztratilo" klíč, vesměs po 1 klíči (drobné, např. `[138,4]` -0x6002).
-- Interface `[20,0]` má v 7.21.4 **identická core pole** jako 7.17 (Name 0x10006, type 0x10001…).
-- ⇒ Tvrdé potvrzení: mezi minor verzemi se mění **<6 %** paths, core 100 % stabilní.
-  **Proč tedy WinBox stahuje .jg per-verze?** Kvůli těch +120 nových paths/příkazů a +67
-  rozšířených — tj. PŘÍRŮSTKY, ne přejmenování. Pro základní příkazy stačí starší katalog;
-  pro plné/nejnovější pokrytí je nutný version-matched (proto W4 = HTTP fetch).
+- paths: A=484, B=599, common **479**, only in A **5**, in B **+120**.
+- **451/479** common paths have keys A ⊆ B (stable/extended), 67 added keys.
+- only **28** paths "lost" a key, mostly by 1 key (minor, e.g. `[138,4]` -0x6002).
+- Interface `[20,0]` has **identical core fields** in 7.21.4 as in 7.17 (Name 0x10006, type 0x10001…).
+- ⇒ Hard confirmation: between minor versions, **<6%** of paths change, core is 100% stable.
+  **So why does WinBox download `.jg` per version?** Because of those +120 new paths/commands and
+  the +67 extended ones — i.e. ADDITIONS, not renames. For basic commands an older catalog
+  suffices; for full/latest coverage a version-matched one is required (hence W4 = HTTP fetch).
 
-## Interface handler `[20,0]` — pole pro PoC (Fáze 3)
+## Interface handler `[20,0]` — fields for the PoC (Phase 3)
 
 `python jg_analyze.py detail 7.17rc3-3521562961 20,0`:
 
@@ -167,17 +168,17 @@ key=0x10001 u32     'type'  RO
 key=0x10002 u32     'caps'  RO
 key=0x10064 u32     'MTU'
 key=0x1000e bool    'running'
-... + statistiky Tx/Rx (q100d4 …)
-comment  = generický {type:'comment'} → well-known key (ověřit)
+... + Tx/Rx statistics (q100d4 …)
+comment  = generic {type:'comment'} → well-known key (to verify)
 .id      = 0xFE0001
 ```
 
-## Nástroj `jg_analyze.py`
+## Tool `jg_analyze.py`
 
 ```
-python jg_analyze.py <dir>                      # souhrn + --json out.json
-python jg_analyze.py detail <dir> 20,0          # okna na handleru + pole
-python jg_analyze.py diff <dirA> <dirB>         # stabilita paths/keys
-python jg_analyze.py report <dir> out.txt       # lidsky čitelný katalog
+python jg_analyze.py <dir>                      # summary + --json out.json
+python jg_analyze.py detail <dir> 20,0          # windows on a handler + fields
+python jg_analyze.py diff <dirA> <dirB>         # path/key stability
+python jg_analyze.py report <dir> out.txt       # human-readable catalog
 ```
-Pozn.: na cp1250 konzoli nastav `$env:PYTHONUTF8=1` (kvůli `⊆` ve výpisu diff).
+Note: on a cp1250 console, set `$env:PYTHONUTF8=1` (because of the `⊆` character in the diff output).

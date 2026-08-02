@@ -124,26 +124,26 @@ actions log nothing by default (a good `/tool/wol` is silent; a bad MAC / ipsec 
 /log/print                     — system log (all entries)
 ```
 
-### Log — filtrování podle času
+### Log — filtering by time
 
-MikroTik API podporuje porovnávací operátory ve filtru — prefix `?>` znamená "větší než", `?<` "menší než":
+The MikroTik API supports comparison operators in filters — the `?>` prefix means "greater than", `?<` means "less than":
 
-| Záměr | Parametr |
+| Intent | Parameter |
 |---|---|
-| záznamy po datu/čase | `"?>time=2026-05-31 00:00:00"` |
-| záznamy před datem/časem | `"?<time=2026-05-31 00:00:00"` |
-| pouze dnešní log | `"?>time=2026-05-31 00:00:00"` |
+| entries after a date/time | `"?>time=2026-05-31 00:00:00"` |
+| entries before a date/time | `"?<time=2026-05-31 00:00:00"` |
+| today's log only | `"?>time=2026-05-31 00:00:00"` |
 
-Formát hodnoty: `YYYY-MM-DD HH:MM:SS` (přesně jak ho vrací `/log/print`).
+Value format: `YYYY-MM-DD HH:MM:SS` (exactly as returned by `/log/print`).
 
-Příklad — dnešní log:
+Example — today's log:
 ```
 command: /log/print
 parameters: ["?>time=2026-05-31 00:00:00"]
 ```
 
-> **Poznámka:** Pokud je potřeba `>=` (od daného okamžiku včetně), použij o sekundu nižší hodnotu,
-> např. `?>time=2026-05-30 23:59:59`, protože API operátor `?>` je striktně "větší než".
+> **Note:** If you need `>=` (from a given moment inclusive), use a value one second lower,
+> e.g. `?>time=2026-05-30 23:59:59`, because the API's `?>` operator is strictly "greater than".
 
 ### Modify
 

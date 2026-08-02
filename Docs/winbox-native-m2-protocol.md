@@ -11,10 +11,10 @@ Companion documents: [`jg-catalog-format.md`](jg-catalog-format.md) for the `.jg
 
 ---
 
-## 0. Klíčový objev (2026-06-07): `.jg` = JS object literal
+## 0. Key discovery (2026-06-07): `.jg` = JS object literal
 
-`.jg` soubory **NEJSOU** binární ani gzip — jsou to **plain-text JavaScript object literály**
-(pseudo-JSON), 100 % tisknutelné ASCII. Příklad (`advtool.jg`):
+`.jg` files are **NOT** binary or gzip — they are **plain-text JavaScript object literals**
+(pseudo-JSON), 100% printable ASCII. Example (`advtool.jg`):
 
 ```js
 [{name:'IP Scan',title:'IP Scan',group:'Tools',c:[{title:'IP Scan',type:'query',
@@ -23,45 +23,45 @@ Companion documents: [`jg-catalog-format.md`](jg-catalog-format.md) for the `.jg
   {name:'MAC Address',type:'macaddr',id:'r2',opt:1,width:120}, ... ]}]}]
 ```
 
-### Mapování `.jg` → M2 protokol (zásadní)
+### `.jg` → M2 protocol mapping (essential)
 
-| `.jg` konstrukt | M2 význam |
+| `.jg` construct | M2 meaning |
 |---|---|
 | `path:[ 20,0 ]` | **SYS_TO** handler array (`0xFF0001`). `[20,0]`=/interface, `[13,4]`=sysinfo, `[2,2]`=mproxy, `[101,1]`=ip-scan, `[51,1]`=netwatch |
-| `cmd:N`, `startcmd:N`, `pollcmd:N`, `cancelcmd:N` | **SYS_CMD** (`0xFF0007`) číslo příkazu. Malá čísla (1,2,3) = per-handler subcmd; velká (`16646160`=`0xFE0010`) = systémové base `0xFE0000` |
-| `id:'u1'` | field **key=0x1**, **typ=u32** (`u`) |
-| `id:'s10006'` | field **key=0x10006**, **typ=string** (`s`) |
-| `id:'b3'` | field **key=0x3**, **typ=bool** (`b`) |
-| `id:'r2'` | field **key=0x2**, **typ=raw**/mac (`r`) |
-| `id:'ma'` | field **key=0xa**, **typ=addr** (`m`) |
-| `id:'S11'` | field **key=0x11**, **typ=string-array** (velké `S`) |
-| `id:'U3d'` | field **key=0x3d**, **typ=u32-array** (velké `U`) |
-| `type:'map'/'query'/'item'/'doit'/'action'` | druh okna → implikuje default příkazy (list/get/set/add/remove) |
+| `cmd:N`, `startcmd:N`, `pollcmd:N`, `cancelcmd:N` | **SYS_CMD** (`0xFF0007`) command number. Small numbers (1,2,3) = per-handler subcmd; large ones (`16646160`=`0xFE0010`) = system base `0xFE0000` |
+| `id:'u1'` | field **key=0x1**, **type=u32** (`u`) |
+| `id:'s10006'` | field **key=0x10006**, **type=string** (`s`) |
+| `id:'b3'` | field **key=0x3**, **type=bool** (`b`) |
+| `id:'r2'` | field **key=0x2**, **type=raw**/mac (`r`) |
+| `id:'ma'` | field **key=0xa**, **type=addr** (`m`) |
+| `id:'S11'` | field **key=0x11**, **type=string-array** (uppercase `S`) |
+| `id:'U3d'` | field **key=0x3d**, **type=u32-array** (uppercase `U`) |
+| `type:'map'/'query'/'item'/'doit'/'action'` | window kind → implies default commands (list/get/set/add/remove) |
 
-### Prefix → TLV typ (hypotéza, ověřit ve Fázi 2)
+### Prefix → TLV type (hypothesis, to be verified in Phase 2)
 
-| prefix | význam | TLV typ (z memory ref_mikrotik_api) |
+| prefix | meaning | TLV type (from memory ref_mikrotik_api) |
 |---|---|---|
-| `u` | u32 | 0x08 (nebo 0x09 u8 dle velikosti) |
+| `u` | u32 | 0x08 (or 0x09 u8 depending on size) |
 | `s` | string | 0x21 |
 | `b` | bool | 0x00/0x01 (bool sys) |
 | `r` | raw (mac 6B) | 0x31 |
 | `m` | addr (ip/ip6) | raw |
 | `a` | ip6addr | raw 16B |
-| `U` (velké) | u32 array | 0x88 |
-| `S` (velké) | string array | 0xA0 |
-| `x`/`q` | u64? | ověřit |
+| `U` (uppercase) | u32 array | 0x88 |
+| `S` (uppercase) | string array | 0xA0 |
+| `x`/`q` | u64? | to be verified |
 
-> Velké písmeno = pole (array) varianta téhož typu. Hex suffix se čte jako hexadecimální
-> číslo (`fe0010` → 0xFE0010), takže klíče v system namespace (`0xFExxxx`) i user namespace.
+> Uppercase letter = array variant of the same type. The hex suffix reads as a hexadecimal
+> number (`fe0010` → 0xFE0010), covering both the system namespace (`0xFExxxx`) and the user namespace.
 
 ---
 
-## 6. Empirické výsledky Fáze 3 (živý router 7.21.4, 2026-06-07)
+## 6. Phase 3 empirical results (live router 7.21.4, 2026-06-07)
 
-### Autoritativní field konstanty (tenable/routeros `common/winbox_message.cpp`)
+### Authoritative field constants (tenable/routeros `common/winbox_message.cpp`)
 
-| název | klíč | | error kód | význam |
+| name | key | | error code | meaning |
 |---|---|---|---|---|
 | `k_sys_to` | `0xFF0001` | | `0xFE0002` | k_not_implemented |
 | `k_from` | `0xFF0002` | | `0xFE0004` | k_obj_nonexistant |
@@ -72,176 +72,177 @@ Companion documents: [`jg-catalog-format.md`](jg-catalog-format.md) for the `.jg
 | `k_error_string` | `0xFF0009` | | | |
 | `k_session_id` = **`.id`** | `0xFE0001` | | | |
 
-Builtin commands `0xFE0000–0xFE0016` jsou **systémové** (`0xFE0001`=cmdGetPolicies),
-NE objektové CRUD → CRUD jsou per-handler malá čísla.
+Builtin commands `0xFE0000–0xFE0016` are **system-level** (`0xFE0001`=cmdGetPolicies),
+NOT object CRUD → CRUD is per-handler small numbers.
 
-### Probe výsledky na handleru `[20,0]` (/interface)
+### Probe results on handler `[20,0]` (/interface)
 
-- **`cmd=3` (bez id) = getall-ids** ✅ → vrací user key `0x000001` = u32[] všech .id
-  (živě 47 ids: `[1,3,10,11,...,77]`). **Nativní read funguje.**
-- `cmd=3 + .id` → ignoruje id, vrací vždy celý id-list.
-- `cmd=2 + .id` → prázdný ACK bez erroru (pravděpodobně **set**, no-op bez polí).
-- `cmd=2` bez id → `0xFE0004` obj_nonexistant (set vyžaduje id).
-- `cmd=1,4,5,6,7,8 (+.id i bez)` → `0xFE0009` k_not_permitted (příkazy existují, ale gated/chybí arg).
-- Sweep `0x00–0x28` s id jako `.id` i `u1`: **žádný nevrací plný záznam** (Name `0x10006`).
+- **`cmd=3` (no id) = getall-ids** ✅ → returns user key `0x000001` = u32[] of all .ids
+  (live: 47 ids: `[1,3,10,11,...,77]`). **Native read works.**
+- `cmd=3 + .id` → ignores the id, always returns the full id-list.
+- `cmd=2 + .id` → empty ACK with no error (probably **set**, a no-op with no fields).
+- `cmd=2` without id → `0xFE0004` obj_nonexistant (set requires an id).
+- `cmd=1,4,5,6,7,8 (with and without .id)` → `0xFE0009` k_not_permitted (the commands exist, but are gated/missing an argument).
+- Sweep `0x00–0x28` with id as both `.id` and `u1`: **none returns the full record** (Name `0x10006`).
 
-### Otevřená otázka: jak získat plný záznam (fields)?
+### Open question: how to get the full record (fields)?
 
-Model „getall-ids → get-one-by-id" takhle nefunguje. Hypotézy (pro Fázi 3b):
-1. **Streaming**: `cmd=3` s `reply_expected=false` → handler streamuje řádky (každý = 1 frame).
-2. **Column subscription**: request nese seznam požadovaných field-keys (souvisí s `.jg` `refreshfilter`).
-3. **get-one** je příkaz mimo 0x00–0x28, nebo id patří do jiného pole.
-Reference k prozkoumání: tenable/routeros `bytheway/src/main.cpp`, „Make It Rain" článek,
+The "getall-ids → get-one-by-id" model doesn't work this way. Hypotheses (for Phase 3b):
+1. **Streaming**: `cmd=3` with `reply_expected=false` → the handler streams rows (each = 1 frame).
+2. **Column subscription**: the request carries a list of requested field-keys (related to `.jg` `refreshfilter`).
+3. **get-one** is a command outside 0x00–0x28, or the id belongs to a different field.
+References to investigate: tenable/routeros `bytheway/src/main.cpp`, the "Make It Rain" article,
 subixonfire/winbox-terminal-protocol (auth+session infra).
 
 
 ---
 
-## 10. ✅✅ PRŮLOM (2026-06-09): nativní CRUD vyřešen z webfig master.js
+## 10. ✅✅ BREAKTHROUGH (2026-06-09): native CRUD solved from webfig master.js
 
-**Zdroj pravdy = `_notes/WinboxMessage/webfig/master-d53cd8ec58cb.js`** (jediný ne-crypto
-webfig script, M2 protokol v JS přes HTTP `/jsproxy`). Funkce `msg2buffer`/`buffer2msg`
-(serializace), `ObjectMap.getall/fetch/setObject` (CRUD), `subscribe` (push model).
-Black-box probing byl slepá ulička — webfig dal kompletní katalog příkazů přímo.
+**Source of truth = `_notes/WinboxMessage/webfig/master-d53cd8ec58cb.js`** (the only non-crypto
+webfig script, the M2 protocol implemented in JS over HTTP `/jsproxy`). Functions `msg2buffer`/`buffer2msg`
+(serialization), `ObjectMap.getall/fetch/setObject` (CRUD), `subscribe` (push model).
+Black-box probing was a dead end — webfig handed over the complete command catalog directly.
 
-### Tři chyby předchozích pokusů (VŠECHNY opraveny)
-1. **Špatný příkaz.** getall = **`0xfe0004`** (webfig default `getallcmd`), NE malé číslo.
-   `cmd=3` na `[20,0]` vrací TYPE registry, ne instance. Agenti svépisně označili
-   `0xfe0000–0xfe0016` za „systémové, ne CRUD" — to bylo MYLNÉ. CRUD JSOU tato čísla
-   (generické defaulty, proto je `.jg` u `type:'map'` neuvádí).
-2. **Chybějící flag field.** getall vyžaduje **`ufe000c`** (klíč `0xFE000C`, u32) =
-   `0x10000005` (`| refetchonopen | refreshfilter`). Bez něj handler nevrací řádky.
-3. **Records = MESSAGE-ARRAY** pod klíčem **`0xFE0002`** (webfig `Mfe0002`, wire type
-   **0xA8**). Starý parser neměl case pro 0xA8 a `SkipTypeBytes` default=0 → zastavil se →
-   řádky se NIKDY neobjevily. Opraveno: message (0x28/9/A) + message-array (0xA8/9/A)
-   v `M2Message.ParseAllFields` + `ParseRecords` + `SkipTypeBytes`.
+### Three mistakes from earlier attempts (ALL fixed)
+1. **Wrong command.** getall = **`0xfe0004`** (webfig default `getallcmd`), NOT a small number.
+   `cmd=3` on `[20,0]` returns the TYPE registry, not instances. Earlier agents had labeled
+   `0xfe0000–0xfe0016` as "system-level, not CRUD" — that was WRONG. Those numbers ARE CRUD
+   (generic defaults, which is why `.jg` doesn't list them for `type:'map'`).
+2. **Missing flag field.** getall requires **`ufe000c`** (key `0xFE000C`, u32) =
+   `0x10000005` (`| refetchonopen | refreshfilter`). Without it the handler returns no rows.
+3. **Records are a MESSAGE-ARRAY** under key **`0xFE0002`** (webfig `Mfe0002`, wire type
+   **0xA8**). The old parser had no case for 0xA8 and `SkipTypeBytes` defaulted to 0 → it stopped →
+   rows NEVER showed up. Fixed: message (0x28/9/A) + message-array (0xA8/9/A)
+   in `M2Message.ParseAllFields` + `ParseRecords` + `SkipTypeBytes`.
 
-### Kompletní katalog příkazů (uff0007, z webfig)
-| cmd | konstanta | význam | request pole | reply |
+### Complete command catalog (uff0007, from webfig)
+| cmd | constant | meaning | request fields | reply |
 |---|---|---|---|---|
-| `0xfe0004` | getallcmd | **list all** | `ufe000c`=flags, `ufe0018`=maxobjs, pagin. `ufe0003` | `Mfe0002` records, `ufe0019` count, `ufe0003` cont. token |
-| `0xfe0002` | — | **get one** | `ufe0001`=.id | record (v `Mfe0002` nebo top-level) |
-| `0xfe0003` | setcmd(map) | **set/change** | `ufe0001`=.id + změněná pole | status |
-| `0xfe0005` | — | **add** | pole (bez .id) | `ufe0001`=nové .id |
+| `0xfe0004` | getallcmd | **list all** | `ufe000c`=flags, `ufe0018`=maxobjs, paging `ufe0003` | `Mfe0002` records, `ufe0019` count, `ufe0003` cont. token |
+| `0xfe0002` | — | **get one** | `ufe0001`=.id | record (in `Mfe0002` or top-level) |
+| `0xfe0003` | setcmd(map) | **set/change** | `ufe0001`=.id + changed fields | status |
+| `0xfe0005` | — | **add** | fields (no .id) | `ufe0001`=new .id |
 | `0xfe0006` | — | **remove** | `ufe0001`=.id | status |
 | `0xfe0007` | — | **move** (ordered) | `ufe0001`=.id, `ufe0005`=next-id | |
 | `0xfe000d` | getcmd | get singleton | `ufe000c`=flags | record |
-| `0xfe000e` | setcmd(holder) | set singleton | pole | |
-| `0xfe0008` | — | setup/wizard krok | `mfe000f`=obj, `ufe000e`=page | |
-| `0xfe0012` | — | **subscribe** (push) | path v `Uff0001` | async push klíč `Uff0002`=path |
+| `0xfe000e` | setcmd(holder) | set singleton | fields | |
+| `0xfe0008` | — | setup/wizard step | `mfe000f`=obj, `ufe000e`=page | |
+| `0xfe0012` | — | **subscribe** (push) | path in `Uff0001` | async push key `Uff0002`=path |
 | `0xfe0013` | — | unsubscribe | | |
 
-### Klíčová systémová pole (writeId: 3B key LE + 1B type v horním bajtu)
-- `Uff0001` (u32[]) = **SYS_TO** = path `[20,0]`. **Velké U = array!**
-- `uff0007` (u32) = **SYS_CMD**.  `Sff001c` = trace (webfig, lze vynechat).
-- `Uff0002` (u32[]) = SYS_FROM (v push notifikaci = která subscription).
+### Key system fields (writeId: 3B key LE + 1B type in the top byte)
+- `Uff0001` (u32[]) = **SYS_TO** = path `[20,0]`. **Uppercase U = array!**
+- `uff0007` (u32) = **SYS_CMD**.  `Sff001c` = trace (webfig, can be omitted).
+- `Uff0002` (u32[]) = SYS_FROM (in a push notification = which subscription).
 - `uff0008` = error code, `sff0009` = error string.
 - `ufe0001` = **.id** (record handle).  `ufe000c` = getall/get **flags**.
 - `ufe0018` = maxobjs.  `ufe0003` = getall continuation token.  `ufe0019` = count.
 - `Mfe0002` = **records** (message-array).  `ufe0005` = next-id (ordered).
 - `ufe0013` = removed flag.  `mfe001d` = default config (`setDefaultConf` cmd `0xfe0004`+`ufe000c=0x20000000`).
 
-### Field-key konvence (z `.jg` id + webfig)
-- **comment = `sfe0009`** = string klíč **`0xFE0009`** (webfig `types.comment.get/put`). Potvrzeno živě.
+### Field-key convention (from `.jg` id + webfig)
+- **comment = `sfe0009`** = string key **`0xFE0009`** (webfig `types.comment.get/put`). Confirmed live.
 - Name = `s10006` (0x10006).  .id = `ufe0001` (0xFE0001).  type = `u10001`.
-- Typ-byte = `(ftype<<3)|sizeFlags`; ftype 5=message, 21=message[]; flags short=0x01 long=0x02;
-  délka/count: short=1B, normal=2B, long=4B (webfig `readLen`).
+- Type-byte = `(ftype<<3)|sizeFlags`; ftype 5=message, 21=message[]; flags short=0x01 long=0x02;
+  length/count: short=1B, normal=2B, long=4B (webfig `readLen`).
 
-### Wire-format detail (z `msg2buffer`)
-- M2 zpráva = `'M2'` + pole. Sub-message (message/message-array element) má TAKÉ `'M2'` prefix.
-- Field header (4B): `[key_lo][key_mid][key_hi][typeByte]` — key 24-bit LE, typ+flags v horním bajtu.
+### Wire-format detail (from `msg2buffer`)
+- An M2 message = `'M2'` + fields. A sub-message (message/message-array element) ALSO carries an `'M2'` prefix.
+- Field header (4B): `[key_lo][key_mid][key_hi][typeByte]` — 24-bit LE key, type+flags in the top byte.
 - message-array (0xA8): `[2B count][ (2B elemLen + M2-submsg) × count ]`.
 
-### Edit = „uprav vše, ulož" (potvrzeno)
-webfig `setObject` pošle CELÝ objekt (`update(req,obj._exportObj||obj)`) + cmd `0xfe0003` +
-`ufe0001`=.id. Prakticky stačí poslat .id + jen změněná pole (živě ověřeno: set jen `sfe0009`).
+### Edit = "modify everything, save" (confirmed)
+webfig's `setObject` sends the ENTIRE object (`update(req,obj._exportObj||obj)`) + cmd `0xfe0003` +
+`ufe0001`=.id. In practice, sending .id plus only the changed fields is enough (verified live: setting only `sfe0009`).
 
-### Živé ověření (router 7.21.4, `WinboxNativeGetallTest.cs`, 3/3 ✅)
-- `Native_GetAllInterfaces` — `[20,0]` getall → názvy **shodné s API** (`CollectionAssert`).
-- `Native_GetAllIpAddresses` — `[20,1]` getall → 1 record (generický napříč tabulkami).
+### Live verification (router 7.21.4, `WinboxNativeGetallTest.cs`, 3/3 ✅)
+- `Native_GetAllInterfaces` — `[20,0]` getall → names **match the API** (`CollectionAssert`).
+- `Native_GetAllIpAddresses` — `[20,1]` getall → 1 record (generic across tables).
 - `Native_SetAndRestoreEther1Comment` — get-one ether1 (.id=2, `sfe0009`="My comment" = API),
-  set `sfe0009`="native-m2-ok" → API potvrdí změnu → restore → API potvrdí. **status=0.**
+  set `sfe0009`="native-m2-ok" → API confirms the change → restore → API confirms. **status=0.**
 
-### Další krok (W5 — produkční resolver)
-Katalog-driven `Resolve(path, op) → (handler, cmd, fields)` z `.jg` (W4 fetch hotový) +
-`NativeGetAll/GetOne/SetRecord` v `WinboxM2Client`. add/remove/move dle tabulky výše.
-Povýšit do `tik4net/Winbox/` (`WinboxNativeM2Session`) — infra (auth, AES, M2) už existuje.
+### Next step (W5 — production resolver)
+Catalog-driven `Resolve(path, op) → (handler, cmd, fields)` from `.jg` (W4 fetch done) +
+`NativeGetAll/GetOne/SetRecord` in `WinboxM2Client`. add/remove/move per the table above.
+Promote into `tik4net/Winbox/` (`WinboxNativeM2Session`) — the infrastructure (auth, AES, M2) already exists.
 
 ---
 
-## 20. KAPITOLA: Plný streaming monitor pro WinboxNative (zahájeno 2026-06-13)
+## 20. CHAPTER: Full streaming monitor for WinboxNative (started 2026-06-13)
 
-### Cíl
-Nativní podpora **kontinuálního/streamovaného monitoringu** — `.jg` okna typu `type:'query'` s
-`autorefresh` + `startcmd`/`pollcmd`/`cancelcmd`, kde router místo jednoho getall **opakovaně pushuje
-aktualizované řádky** (torch, ip-scan, netwatch, ethernet monitor s živým rate, traffic-monitor…).
-Dnes nativní transport umí jen **once-shot** (getall + filtr, §18) — živé hodnoty (rate,
-auto-negotiation) base getall vynechá.
+### Goal
+Native support for **continuous/streamed monitoring** — `.jg` windows of `type:'query'` with
+`autorefresh` + `startcmd`/`pollcmd`/`cancelcmd`, where instead of a single getall the router
+**repeatedly pushes updated rows** (torch, ip-scan, netwatch, ethernet monitor with a live rate,
+traffic-monitor…). Today the native transport only supports **once-shot** (getall + filter, §18) —
+live values (rate, auto-negotiation) are missing from a plain getall.
 
-### Co už je hotové (stavební kameny)
-- `WinboxM2Protocol.Command`: `Subscribe=0xFE0012`, `Unsubscribe=0xFE0013` + monitor trojice
-  `0xFE000F/10/11` (startcmd/pollcmd/cancelcmd — viz §17 pozn.). Konstanty existují.
-- `.jg` parser už čte `type:'query'`, harvestuje window path do `_derivedPaths` (query je ve
-  `WindowTypes`). Chybí harvest `startcmd/pollcmd/cancelcmd` čísel a `request:[…]` polí.
-- M2 session umí poslat request + číst frame; subscribe push model je popsán v §10 (cmd `0xFE0012`,
-  async push pod klíčem `Uff0002`=path).
+### What's already in place (building blocks)
+- `WinboxM2Protocol.Command`: `Subscribe=0xFE0012`, `Unsubscribe=0xFE0013` + the monitor triple
+  `0xFE000F/10/11` (startcmd/pollcmd/cancelcmd — see the §17 note). The constants already exist.
+- The `.jg` parser already reads `type:'query'`, harvesting the window path into `_derivedPaths`
+  (query is in `WindowTypes`). Missing: harvesting the `startcmd/pollcmd/cancelcmd` numbers and the
+  `request:[…]` fields.
+- The M2 session can send a request and read a frame; the subscribe push model is described in §10
+  (cmd `0xFE0012`, async push under key `Uff0002`=path).
 
-### Otevřené otázky (k prozkoumání z webfig master.js + .jg)
-1. **Dva modely**: (a) CRUD `subscribe 0xFE0012` (config-table push, autorefresh okna jako firewall),
-   (b) per-handler `startcmd/pollcmd/cancelcmd` (tool okna jako torch/ip-scan z `advtool.jg`).
-   Zjistit, které okno používá který — `.jg` to nese (`startcmd:N` přítomen ⇒ model b).
-2. Jak tik4net API tohle vystaví? Existuje `ExecuteAsync`(callback) + `LoadAsync<T>` v O/R mapperu
-   (binární API streaming, viz `TikCommandTest.ExecuteAsync_OnDoneCallback_Called`). Nativní transport
-   musí naplnit `TikConnectionCapability.Listen` / `Streaming`, nebo zůstat unsupported.
-3. Vlákno čtení: M2 kanál je dnes request/reply. Push model = async frames bez vyžádání → potřebuje
-   reader smyčku + dispatch na request-id/subscription-id.
+### Open questions (to investigate from webfig master.js + .jg)
+1. **Two models**: (a) CRUD `subscribe 0xFE0012` (config-table push, autorefresh windows like firewall),
+   (b) per-handler `startcmd/pollcmd/cancelcmd` (tool windows like torch/ip-scan from `advtool.jg`).
+   Determine which window uses which — `.jg` carries this (`startcmd:N` present ⇒ model b).
+2. How does tik4net's API expose this? There is `ExecuteAsync`(callback) + `LoadAsync<T>` in the O/R mapper
+   (binary API streaming, see `TikCommandTest.ExecuteAsync_OnDoneCallback_Called`). The native transport
+   must fulfil `TikConnectionCapability.Listen` / `Streaming`, or remain unsupported.
+3. Read thread: the M2 channel is currently request/reply. A push model means async frames arriving
+   unrequested → needs a reader loop + dispatch on request-id/subscription-id.
 
-### ✅ RE HOTOVO (2026-06-13) — KLÍČOVÝ OBJEV: streaming = CLIENT POLLING, ne server push
+### ✅ RE DONE (2026-06-13) — KEY DISCOVERY: streaming = CLIENT POLLING, not server push
 
-Ground-truth z webfig `master.js` (`ObjectQuery`, `ObjectAction`, `ObjectMap.getall`) + `.jg` query/action
-oken. **Předchozí hypotéza §9 („router pushuje řádky asynchronně, autorefresh:1000") byla MYLNÁ.**
-Realita: webfig si řádky **sám opakovaně vyžádá** (timer každých `autorefresh` ms) přes normální
-request/reply na témže kanálu. Žádný async server-push reader není potřeba — stávající synchronní
-M2 session stačí, monitor jen re-postuje requesty z worker vlákna.
+Ground-truth from webfig `master.js` (`ObjectQuery`, `ObjectAction`, `ObjectMap.getall`) + `.jg` query/action
+windows. **The earlier §9 hypothesis ("the router pushes rows asynchronously, autorefresh:1000") was WRONG.**
+Reality: webfig **repeatedly requests rows itself** (a timer every `autorefresh` ms) over normal
+request/reply on the same channel. No async server-push reader is needed — the existing synchronous
+M2 session is sufficient; the monitor just re-posts requests from a worker thread.
 
-#### `.jg` okno → cmd trojice (vše SYS_CMD `uff0007` na `Uff0001`=path)
-| pole v `.jg` | význam | příklad |
+#### `.jg` window → cmd triple (all SYS_CMD `uff0007` on `Uff0001`=path)
+| `.jg` field | meaning | example |
 |---|---|---|
-| `startcmd:N` | spustí monitor → reply nese **`ufe0001`=id** (session handle) | Torch [45,5] `startcmd:1`, IP Scan [101,1] `startcmd:1` |
-| `getallcmd:N` (query) / `pollcmd:N` (action) | jeden poll pass; default getall = `0xfe0004` | Monitor Slaves `getallcmd:0xFE0010`, Bandwidth Test `pollcmd:1` |
-| `cancelcmd:N` | zastaví monitor (`ufe0001`=id) | Torch `cancelcmd:2`, systémové `0xFE0011`=16646161 |
-| `autorefresh:ms` | interval re-pollu (typicky 1000) | |
-| `request:[…]` | vstupní parametry (Interface enm, Address Range network, …) | |
-| `c:[…]` | výsledné sloupce (řádky decode jako normální getall — `Mfe0002`) | |
+| `startcmd:N` | starts the monitor → reply carries **`ufe0001`=id** (session handle) | Torch [45,5] `startcmd:1`, IP Scan [101,1] `startcmd:1` |
+| `getallcmd:N` (query) / `pollcmd:N` (action) | one poll pass; default getall = `0xfe0004` | Monitor Slaves `getallcmd:0xFE0010`, Bandwidth Test `pollcmd:1` |
+| `cancelcmd:N` | stops the monitor (`ufe0001`=id) | Torch `cancelcmd:2`, system-level `0xFE0011`=16646161 |
+| `autorefresh:ms` | re-poll interval (typically 1000) | |
+| `request:[…]` | input parameters (Interface enm, Address Range network, …) | |
+| `c:[…]` | result columns (rows decode like a normal getall — `Mfe0002`) | |
 
-Systémová monitor trojice (okna bez vlastních čísel): `0xFE000F`=start, `0xFE0010`=poll/getall,
-`0xFE0011`=cancel. Sentinel `0xFFFFFFFF` = „žádný cmd" (`startcmd==0xffffffff && autorefresh==null`
-⇒ okno je ve skutečnosti jen one-shot getall, ne stream).
+The system-level monitor triple (windows without their own numbers): `0xFE000F`=start, `0xFE0010`=poll/getall,
+`0xFE0011`=cancel. Sentinel `0xFFFFFFFF` = "no cmd" (`startcmd==0xffffffff && autorefresh==null`
+⇒ the window is actually just a one-shot getall, not a stream).
 
 #### Model A — `ObjectQuery` (`type:'query'`: torch, ip-scan, ping, traceroute, profile)
 1. **start**: `post({…request, Uff0001=path, uff0007=startcmd})` → reply `ufe0001` = **id**.
 2. **poll loop**: `map.getall(id)` = `post({Uff0001=path, uff0007=getallcmd||0xfe0004, ufe000c=0x10000005,
-   ufe0018=maxobjs, ufe0001=id})`. Řádky v `rep.Mfe0002` (stejný decode jako běžný getall!), klíčované
-   `obj.ufe0001`. **Paginace v rámci passu**: `rep.ufe0003` (continuation token) / `rep.mfe0015` → re-post
-   s tím tokenem. **Konec passu**: `rep.uff0008===0xfe0004` (ObjectNonexistent). Po dokončení passu timer
-   `autorefresh` ms → další pass.
+   ufe0018=maxobjs, ufe0001=id})`. Rows in `rep.Mfe0002` (same decoding as an ordinary getall!), keyed by
+   `obj.ufe0001`. **Pagination within a pass**: `rep.ufe0003` (continuation token) / `rep.mfe0015` → re-post
+   with that token. **End of pass**: `rep.uff0008===0xfe0004` (ObjectNonexistent). Once a pass completes, a
+   timer waits `autorefresh` ms → next pass.
 3. **stop**: `post({Uff0001=path, uff0007=cancelcmd, ufe0001=id})`.
 
-#### Model B — `ObjectAction` (`type:'action'` + `pollcmd`: bandwidth-test, cable-test, ping-akce)
+#### Model B — `ObjectAction` (`type:'action'` + `pollcmd`: bandwidth-test, cable-test, ping actions)
 1. **start**: `post({…request, Uff0001=path, uff0007=startcmd})` → reply `ufe0001`=id, `started=true`.
-2. **fetch (poll)**: `post({Uff0001=path, uff0007=pollcmd, ufe0001=id})` → reply = **jeden status record**
-   (`update(rep)`, ne mapa řádků). Timer `autorefresh` → další fetch.
+2. **fetch (poll)**: `post({Uff0001=path, uff0007=pollcmd, ufe0001=id})` → reply = **a single status record**
+   (`update(rep)`, not a row map). Timer `autorefresh` → next fetch.
 3. **stop**: `post({Uff0001=path, uff0007=cancelcmd, ufe0001=id})`.
-Rozdíl A↔B: A vrací **mapu řádků** (Mfe0002) per pass; B vrací **jeden status** per poll.
+Difference A↔B: A returns a **row map** (Mfe0002) per pass; B returns **one status** per poll.
 
-#### Společné stop podmínky
-- **`bfe000b`** (klíč `0xFE000B`, bool) = „**finished/done**" → ukončit stream (router signalizuje konec, např.
-  traceroute dorazil k cíli). webfig: `if(rep.bfe000b){this.stop();return;}`.
-- Volající odhlásí (unlisten) → cancel. Chyba (jiná než 0xFE0004 terminátor) → stop.
+#### Shared stop conditions
+- **`bfe000b`** (key `0xFE000B`, bool) = "**finished/done**" → ends the stream (the router signals completion,
+  e.g. traceroute reached its target). webfig: `if(rep.bfe000b){this.stop();return;}`.
+- The caller unsubscribes (unlisten) → cancel. An error (other than the 0xFE0004 terminator) → stop.
 
-#### Důsledek pro implementaci (zjednodušení!)
-NEpotřebujeme async push reader ani dispatch na subscription-id. Stačí **worker vlákno** s poll smyčkou
-na stávajícím request/reply M2 session:
+#### Implication for the implementation (a simplification!)
+We do NOT need an async push reader or dispatch on subscription-id. A **worker thread** with a poll loop
+over the existing request/reply M2 session is enough:
 ```
 id = Post(startcmd, requestFields).ufe0001
 while (!cancelled):
@@ -253,207 +254,221 @@ while (!cancelled):
     sleep(autorefresh)
 Post(cancelcmd, id)
 ```
-Mapuje se 1:1 na tik4net `ExecuteAsync(onReply, onError, onDone)` + `CancelAndJoin()` a kapabilitu
-`TikConnectionCapability.Listen`. `subscribe 0xFE0012` (config-table change push) je SAMOSTATNÝ
-mechanismus — pro monitor okna se nepoužívá, neřešíme ho teď.
+This maps 1:1 onto tik4net's `ExecuteAsync(onReply, onError, onDone)` + `CancelAndJoin()` and the
+`TikConnectionCapability.Listen` capability. `subscribe 0xFE0012` (config-table change push) is a SEPARATE
+mechanism — not used for monitor windows, and out of scope for now.
 
-### ✅ ŽIVÝ PoC HOTOVÝ (2026-06-13) — start→poll→cancel ověřen proti routeru
-Test `WinboxNativeM2Test.Native_MonitorCycle_Profile` ([Ignore] PoC, run přes `--filter`).
-Target = Profile okno **[49]** (CPU profiler — bez závislosti na provozu, na každém routeru):
-- **start** = `0xFE000F` + request `u1=0xFFFFFFFD` ("total") → reply status 0, **id v `.id` (0xFE0001) =
-  `0xFFFFFFFD`** (Profile echo-uje CPU selector jako id; pozor: u32 > int.MaxValue → nosit jako uint,
-  re-enkódovat `SessionIdFieldU32`).
-- **poll** = `0xFE0004` (default getall) + `.id` + flags `0x10000005` → řádky pod `Mfe0002` (1–2 CPU
-  profile recordy/pass), opakováno á 1000 ms.
+### ✅ LIVE PoC DONE (2026-06-13) — start→poll→cancel verified against the router
+Test `WinboxNativeM2Test.Native_MonitorCycle_Profile` ([Ignore] PoC, run via `--filter`).
+Target = the Profile window **[49]** (CPU profiler — no dependency on traffic, works on any router):
+- **start** = `0xFE000F` + request `u1=0xFFFFFFFD` ("total") → reply status 0, **id in `.id` (0xFE0001) =
+  `0xFFFFFFFD`** (Profile echoes the CPU selector as the id; note: u32 > int.MaxValue → must be carried as uint,
+  re-encoded via `SessionIdFieldU32`).
+- **poll** = `0xFE0004` (default getall) + `.id` + flags `0x10000005` → rows under `Mfe0002` (1–2 CPU
+  profile records/pass), repeated every 1000 ms.
 - **cancel** = `0xFE0011` + `.id` → status 0.
-Výstup: `monitor cycle OK: 4 total rows across 3 passes`. **RE 100% potvrzena živě** — streaming JE
-client-polling na request/reply kanálu, žádný push. Tím odpadá dříve domnělý blocker (async reader).
+Output: `monitor cycle OK: 4 total rows across 3 passes`. **The hypothesis was 100% confirmed live** —
+streaming IS client-polling over the request/reply channel, no push. This removes the previously assumed
+blocker (an async reader).
 
-### Návrh implementace (další krok)
-1. **Katalog**: `WinboxJgCatalog` harvestovat z `type:'query'/'action'` oken `startcmd/pollcmd/getallcmd/
-   cancelcmd/autorefresh` + `request:[…]` pole → nová struktura `WinboxMonitorSpec` keyovaná derived path
-   (`/tool/torch`, `/tool/ip-scan`, …). Princip stejný jako `_actionsByHandler` (§17).
-2. **Operace**: `WinboxNativeM2Operations.StartMonitor(handler, startcmd, requestFields) → id`,
+### Implementation proposal (next step)
+1. **Catalog**: harvest `startcmd/pollcmd/getallcmd/cancelcmd/autorefresh` and `request:[…]` fields from
+   `WinboxJgCatalog` `type:'query'/'action'` windows → a new `WinboxMonitorSpec` structure keyed by derived path
+   (`/tool/torch`, `/tool/ip-scan`, …). Same principle as `_actionsByHandler` (§17).
+2. **Operations**: `WinboxNativeM2Operations.StartMonitor(handler, startcmd, requestFields) → id`,
    `PollMonitor(handler, cmd, id, token) → (rows, nextToken, done)`, `CancelMonitor(handler, cancelcmd, id)`.
-3. **Connection**: `WinboxNativeConnection` implementovat async cestu (`RunAsync`/ekvivalent v bázi) —
-   worker vlákno s poll smyčkou, callbacky přes existující `ITikCommand.ExecuteAsync`. Nastavit
+3. **Connection**: implement an async path in `WinboxNativeConnection` (`RunAsync`/base equivalent) —
+   a worker thread with a poll loop, callbacks via the existing `ITikCommand.ExecuteAsync`. Set
    `Supports(Listen)=true`.
-4. **Capability + testy**: `EthernetMonitorForEth1` (živý rate), torch test napříč transporty
-   (`EnsureCapability(Listen)` na CLI transportech skipne). Wiki: aktualizovat „Capability" sekci.
+4. **Capability + tests**: `EthernetMonitorForEth1` (live rate), a torch test across transports
+   (`EnsureCapability(Listen)` skips on CLI transports). Wiki: update the "Capability" section.
 
-### ✅ HOTOVO (2026-06-14) — streaming monitor + listen + async list, suite 0 fail
-Plný `winboxnative` suite: **163 pass / 0 fail / 81 skip** (vše uncommitted, 4.x).
+### ✅ DONE (2026-06-14) — streaming monitor + listen + async list, suite 0 fail
+Full `winboxnative` suite: **163 pass / 0 fail / 81 skip** (all uncommitted, 4.x).
 
-**Architektura** (po feedbacku „RunMonitor v bázi bourá abstrakci + ID musí být uint"):
-- opt-in `ITikMonitorTransport` (`TikMonitorHandle.cs`) — NE v neutrální `TikCommandConnectionBase`.
-  `TikGenericCommand.ExecuteAsync` routuje přes `is ITikMonitorTransport` (jinak `NotSupported`).
-  `WinboxNativeConnection` ho implementuje (`Capabilities = Crud | Listen`); CLI ne.
-- Monitor id = **uint** všude (Profile echo 0xFFFFFFFD > int.MaxValue). `M2Message.SessionIdField(uint)`.
-- `ExecuteAsync` normalizuje multiline command (`?type=ether\n?#|`) na Filter pole — dřív jen sync cesta.
+**Architecture** (following feedback "RunMonitor in the base class breaks the abstraction + the ID must be uint"):
+- opt-in `ITikMonitorTransport` (`TikMonitorHandle.cs`) — NOT in the neutral `TikCommandConnectionBase`.
+  `TikGenericCommand.ExecuteAsync` routes through `is ITikMonitorTransport` (otherwise `NotSupported`).
+  `WinboxNativeConnection` implements it (`Capabilities = Crud | Listen`); CLI does not.
+- Monitor id is **uint** everywhere (Profile echoes 0xFFFFFFFD > int.MaxValue). `M2Message.SessionIdField(uint)`.
+- `ExecuteAsync` normalizes a multiline command (`?type=ether\n?#|`) into Filter fields — previously only the sync path did this.
 
-**Dispatch dle verbu** v `RunMonitorAsync`:
-- `listen` → **poll+diff** (`ListenLoop`): getall á 1s, diff dle `.id` přes signaturu **jen config polí**
-  (`RowSignature` vynechá ro:1 countery — `ReadOnlyFieldNames` z `.jg`), smazaný `.id` → syntetický
-  `.dead=true` record (O/R `LoadListenAsync` → onDeleted). Webfig dělá totéž (polluje config tabulky).
-- `print`/`getall` → **async list** (`AsyncListOnce`): RunPrint off-thread, emit řádky, done.
-- jinak → **streaming monitor** (`MonitorLoop`): spec z `WinboxJgCatalog.GetMonitorByHandler`, start/poll/cancel
-  přes `WinboxNativeM2Operations.{Start,Poll,Cancel}Monitor`. Request pole se enkódují **ve workeru** (ne sync)
-  → resolve-fail (neexist. iface) jde async přes `onError` jako API, ne sync throw.
-- **Close/Cancel během monitoru = graceful** (`MonitorStopping` = CancelRequested || !IsOpened → polkni error).
+**Dispatch by verb** in `RunMonitorAsync`:
+- `listen` → **poll+diff** (`ListenLoop`): getall every 1s, diff by `.id` using a signature over **config
+  fields only** (`RowSignature` skips ro:1 counters — `ReadOnlyFieldNames` from `.jg`), a deleted `.id` becomes a
+  synthetic `.dead=true` record (O/R `LoadListenAsync` → onDeleted). webfig does the same thing (it polls config tables).
+- `print`/`getall` → **async list** (`AsyncListOnce`): runs `RunPrint` off-thread, emits rows, done.
+- otherwise → **streaming monitor** (`MonitorLoop`): the spec comes from `WinboxJgCatalog.GetMonitorByHandler`,
+  start/poll/cancel via `WinboxNativeM2Operations.{Start,Poll,Cancel}Monitor`. Request fields are encoded
+  **in the worker** (not synchronously) → a resolve failure (e.g. a nonexistent interface) goes async through
+  `onError` like the API does, rather than throwing synchronously.
+- **Close/Cancel during a monitor is graceful** (`MonitorStopping` = CancelRequested || !IsOpened → swallows the error).
 
-**Native query-stack filtry**: `RunPrint` vyhodnocuje `?#|`/`?#&`/`?#!` postfix stack + `?<`/`?>` (ne naivní AND).
+**Native query-stack filters**: `RunPrint` evaluates the `?#|`/`?#&`/`?#!` postfix stack + `?<`/`?>` (not a naive AND).
 
-**Shipped field aliasy** (nový subsystém `WinboxFieldResolver`, analogie `WinboxHandlerMap.ShippedAlias`):
-`ApiToJg`/`JgToApi`/`KeyToApi`/`KeyUiType`, klíčováno apiPath. Jen stabilní text/klíč — typy živě z `.jg`.
+**Shipped field aliases** (a new subsystem, `WinboxFieldResolver`, analogous to `WinboxHandlerMap.ShippedAlias`):
+`ApiToJg`/`JgToApi`/`KeyToApi`/`KeyUiType`, keyed by apiPath. Only stable text/keys — types still come live from `.jg`.
 
 **Ping** (`/ping`→[22], query, start `0xFE000F`/cancel `0xFE0011`/poll `0xFE0004`):
-- aliasy: address→`ping-to`, count→`packet-count`, size→`packet-size`, min/avg/max-rtt; reply **host=klíč 0x1**
-  (u32 ipaddr, v `.jg` bezejmenný → `KeyToApi`+`KeyUiType`).
-- **`addr` kompozit** (master.js `types.addr`): nested message (`M2Message.MessageSys`, wire `0x29`) pod 0x16,
-  IPv4 jako u32 na sub-klíči **0xFEFF20**. Request pole jdou i ro:1 (`allowReadOnly`).
+- aliases: address→`ping-to`, count→`packet-count`, size→`packet-size`, min/avg/max-rtt; the reply's
+  **host = key 0x1** (u32 ipaddr, unnamed in `.jg` → resolved via `KeyToApi`+`KeyUiType`).
+- **`addr` composite** (master.js `types.addr`): a nested message (`M2Message.MessageSys`, wire `0x29`) under 0x16,
+  with IPv4 as a u32 on sub-key **0xFEFF20**. Request fields go through even for ro:1 (`allowReadOnly`).
 
-**Interface `type` label**: `.jg` type = číslo (0x10001); API string ("ether"/"loopback") je v recordu na **0x1001E**
-(živě ověřeno + API cross-check). Alias `/interface`: 0x1001E→`type`, 0x10001→`type-id`. **Žádný registry/hardcode.**
+**Interface `type` label**: `.jg` type is a number (0x10001); the API string ("ether"/"loopback") lives in the
+record at **0x1001E** (verified live + cross-checked against the API). `/interface` alias: 0x1001E→`type`,
+0x10001→`type-id`. **No registry/hardcoding.**
 
-**Pozn.**: dvě `M2Message` — knihovní (má `MessageSys`) vs `tik4net.tests/Protocols/_Shared/M2Message.cs` (nemá).
-Nové soubory: `TikMonitorHandle.cs`, `WinboxMonitorSpec.cs`.
+**Note**: there are two `M2Message` classes — the library one (which has `MessageSys`) vs.
+`tik4net.tests/Protocols/_Shared/M2Message.cs` (which does not).
+New files: `TikMonitorHandle.cs`, `WinboxMonitorSpec.cs`.
 
 ---
 
-## 21. ✅ Query okno = JEDEN dlouhý getall pass, ne stránkovaný snapshot (P2.45, 2026-07-31)
+## 21. ✅ A query window is ONE long getall pass, not a paged snapshot (P2.45, 2026-07-31)
 
-`type:'query'` okno **nemá `pollcmd`** (ověřeno na celém katalogu: 18 pluginů / 805 oken — *žádné*
-query okno pollcmd nenese, mají ho jen `action` okna). Poll je tedy obyčejný `getall` na monitor id,
-a jeho odpověď má tvar, který §20 nepopisoval:
+A `type:'query'` window **has no `pollcmd`** (verified across the entire catalog: 18 plugins / 805
+windows — *no* query window carries a pollcmd, only `action` windows have one). So a poll is just an
+ordinary `getall` on the monitor id, and its reply has a shape §20 didn't describe:
 
-> Router odpoví **jedním recordem + continuation tokenem** (`ufe0003`) a **další continuation
-> BLOKUJE, dokud nevznikne další record**. Poslední odpověď nese `bfe000b` (Finished) a už žádný token.
+> The router replies with **one record plus a continuation token** (`ufe0003`), and requesting the
+> next continuation **BLOCKS until another record exists**. The final reply carries `bfe000b`
+> (Finished) and no further token.
 
-Živě změřeno na 7.23.2, `/ping` = handler `[22]`, `count=30`:
+Measured live on 7.23.2, `/ping` = handler `[22]`, `count=30`:
 
 ```
 REQ  cmd=0xFE000F (start)  0x16={0xFEFF20=127.0.0.1}  0x11=30      → reply ufe0001=2  (monitor id)
 REQ  cmd=0xFE0004 (getall) ufe0001=2 ufe000c=flags                → 1 record (seq 0) + ufe0003=1
 REQ  cmd=0xFE0004          ufe0001=2 ufe000c=flags ufe0003=1      → …+1000 ms… 1 record (seq 1) + ufe0003=2
 …
-count=3: třetí odpověď nese bfe000b=True a token už ne → konec
+count=3: the third reply carries bfe000b=True and no further token → end
 ```
 
-**Náš defekt (P2.45):** `PollMonitor` běžel pod rozpočtem 4 s / 256 kol, protože byl psaný pro
-stránkovaný snapshot. U 30sekundového pingu rozpočet vypršel uprostřed passu, **continuation kurzor
-se zahodil**, a další poll poslal `getall` bez tokenu — na to router odpovídá `uff0008=0xFE0004`
-(ObjectNonexistent = „žádné další řádky"). Od té chvíle monitor mlčel: bez chyby, bez onDone, 5 řádků
-a konec. Řádky navíc chodily **v dávce po 4 s**, ne průběžně.
+**Our defect (P2.45):** `PollMonitor` ran under a 4s / 256-round budget, because it had been written for
+a paged snapshot. On a 30-second ping the budget expired mid-pass, **the continuation cursor was
+discarded**, and the next poll sent a `getall` without a token — to which the router responds with
+`uff0008=0xFE0004` (ObjectNonexistent = "no more rows"). From that point the monitor went silent: no
+error, no onDone, 5 rows and done. Rows also arrived **in a 4-second batch**, not continuously.
 
-**Oprava:** `PollMonitorRound` dělá jedno request/reply kolo; pass řídí `MonitorLoop`, kde žije cancel
-handle i emit. `continuation != null` ⇒ hned další kolo (bez spánku), `Finished` ⇒ konec, konec passu
-bez `Finished` ⇒ počkej `autorefresh` a začni nový pass (to je model snapshot oken jako Torch/Scan).
-Žádný časový ani kolový strop — pass končí jen tím, co řekne router, nebo cancelem. Gate se drží
-**per kolo**, ne per pass, takže 30sekundový monitor neblokuje CRUD.
+**Fix:** `PollMonitorRound` does a single request/reply round; the pass itself is driven by `MonitorLoop`,
+which owns the cancel handle and the emit. `continuation != null` ⇒ go straight to the next round (no
+sleep), `Finished` ⇒ done, end of pass without `Finished` ⇒ wait `autorefresh` and start a new pass
+(that's the model for snapshot windows like Torch/Scan). There is no time or round cap — a pass ends
+only on what the router says, or on cancel. The gate is held **per round**, not per pass, so a
+30-second monitor doesn't block CRUD.
 
-**Pozor na dva tvary query okna** — oba jsou `type:'query'` a rozliší se až za běhu:
-- **stream** (ping, traceroute, profile): pass běží dlouho, končí `Finished`.
-- **snapshot** (torch, scan, ip-scan): pass doběhne hned, `Finished` nepřijde, opakuje se á `autorefresh`.
+**Watch out for two shapes of query window** — both are `type:'query'` and only distinguishable at
+runtime:
+- **stream** (ping, traceroute, profile): the pass runs for a long time, ending in `Finished`.
+- **snapshot** (torch, scan, ip-scan): the pass completes immediately, `Finished` never arrives, and it
+  repeats every `autorefresh`.
 
-`action` okna (`pollcmd`) zůstávají beze změny: jedna odpověď = jeden status record, continuation se
-u nich záměrně nesleduje (webfig `ObjectAction` taky ne).
+`action` windows (`pollcmd`) remain unchanged: one reply = one status record, and continuation is
+deliberately not tracked for them (webfig's `ObjectAction` doesn't either).
 
 ---
 
-## 22. ✅ Monitor okno nemá řádky mimo monitor cyklus (P2.51, 2026-08-01)
+## 22. ✅ A monitor window has no rows outside the monitor cycle (P2.51, 2026-08-01)
 
-`RunPrintCore` uměl monitor okno jen asynchronně. Synchronní čtení (`ExecuteList` / `LoadList`)
-spadlo do obecného `getall` na handleru monitoru — a ten router odpoví **bez záznamů**:
-
-```
-/ping =address=127.0.0.1 =count=2  (WinboxNative, před opravou)
-  >> M2 0xFF0001=u32[]:[22] 0xFE000C=u32:268435463        (getall na handler [22])
-  << M2 (žádné 0xFE0002 záznamy)
-  → volajícímu "OK (no data returned)"                     ← tichá chyba
-```
-
-Monitor okno (`.jg` `type:'query'`, resp. `action`+`pollcmd`) **není tabulka**: jeho řádky vznikají
-až tím, že klient spustí cyklus. `RunMonitorWindowSync` proto dělá start → poll → cancel na volajícím
-vlákně a vrátí, co cyklus vyprodukoval:
-
-- **dokud router nenastaví Finished** — sebeukončující příkaz (`ping count=N`),
-- **nebo dokud neskončí první pass** — průběžné okno, jehož pass *je* jeden snímek.
-
-Je to totéž pravidlo, které CLI transporty dostávají z modifikátoru `once`/`count=1`, a shoduje se
-s tím, co na stejný příkaz vrátí binární API.
-
-**`once` se na M2 neposílá.** RouterOS ho potřebuje, protože monitor na API i v terminálu jinak běží
-donekonečna. WinBox okno takový vstup nemá — „jeden odečet" rozhoduje klient — a pokus zakódovat ho
-skončí `WinboxFieldResolutionException` na poli, které volající jako data nikdy nemyslel
-(`IsMonitorSnapshotModifier`).
-
-### Co tím ještě nefunguje (změřeno, nezahlazeno)
-
-Nic z původního seznamu — všechny tři body vyřešila kapitola 23 níž. Zůstalo jen tohle:
-`/ping` bez `count` (a `/tool/torch` přes `ExecuteList`) běží, dokud ho něco nezastaví; sync čtení
-ho proto ohraničuje `ReceiveTimeout` a skončí `TikConnectionReceiveTimeoutException` místo toho, aby
-drželo vlákno navždy.
-
-## 23. ✅ `addr` není string a IPv6 je vlastní ftype (P2.52 + P2.53, 2026-08-01)
-
-Tři symptomy zapsané v kapitole 22 jako tři různé mezery měly **dvě společné příčiny**, obě v kodeku,
-ne v routeru. Diagnóza začala tím, že se místo odpovědí četly **requesty**:
+`RunPrintCore` only knew how to handle a monitor window asynchronously. A synchronous read (`ExecuteList` /
+`LoadList`) fell through to a generic `getall` on the monitor's handler — and the router replies **with
+no records**:
 
 ```
-/ping address=127.0.0.1    >> 0x16=msg:{0xFEFF20=16777343}         ← funguje
+/ping =address=127.0.0.1 =count=2  (WinboxNative, before the fix)
+  >> M2 0xFF0001=u32[]:[22] 0xFE000C=u32:268435463        (getall on handler [22])
+  << M2 (no 0xFE0002 records)
+  → caller sees "OK (no data returned)"                    ← silent failure
+```
+
+A monitor window (`.jg` `type:'query'`, or `action`+`pollcmd`) **is not a table**: its rows only come
+into existence once the client runs the cycle. `RunMonitorWindowSync` therefore does start → poll →
+cancel on the calling thread and returns whatever the cycle produced:
+
+- **until the router sets Finished** — for a self-terminating command (`ping count=N`),
+- **or until the first pass ends** — for a continuous window, whose pass *is* a single snapshot.
+
+This is the same rule CLI transports get from the `once`/`count=1` modifier, and it matches what the
+binary API returns for the same command.
+
+**`once` is never sent over M2.** RouterOS needs it because a monitor otherwise runs forever both over
+the API and in the terminal. A WinBox window has no such input — "a single reading" is decided by the
+client — and attempting to encode it results in a `WinboxFieldResolutionException` on a field the
+caller never meant as data (`IsMonitorSnapshotModifier`).
+
+### What still doesn't work as a result (measured, not glossed over)
+
+Nothing from the original list — chapter 23 below resolved all three points. Only this remains:
+`/ping` without `count` (and `/tool/torch` via `ExecuteList`) run until something stops them; a
+synchronous read is therefore bounded by `ReceiveTimeout` and ends in a
+`TikConnectionReceiveTimeoutException` instead of holding the thread forever.
+
+## 23. ✅ `addr` is not a string, and IPv6 is its own ftype (P2.52 + P2.53, 2026-08-01)
+
+Three symptoms recorded in chapter 22 as three separate gaps actually shared **two root causes**, both
+in the codec, not in the router. The diagnosis started by reading the **requests** instead of the
+responses:
+
+```
+/ping address=127.0.0.1    >> 0x16=msg:{0xFEFF20=16777343}         ← works
 /ping address=example.com  >> 0x16=str:example.com                  ← router: "no address was specified"
-/ping address=2001:db8::1  >> 0x16=str:2001:db8::1                  ← totéž
+/ping address=2001:db8::1  >> 0x16=str:2001:db8::1                  ← same
 ```
 
-Router tedy nic nehlásil špatně: **odpovídal na náš zmršený dotaz.**
+So the router wasn't reporting anything wrong: **it was answering our malformed query.**
 
-### 23.1 `addr` = compound, každý tvar adresy má vlastní sub-klíč
+### 23.1 `addr` is a compound — each address shape has its own sub-key
 
-`master*.js` (`types.addr.fromstr`) zkouší tvary v tomto pořadí a podle masky `allow` z `.jg`:
+`master*.js` (`types.addr.fromstr`) tries the shapes in this order, gated by the `allow` mask from `.jg`:
 
-| tvar | sub-klíč | wire | `allow` |
+| shape | sub-key | wire | `allow` |
 |---|---|---|---|
 | IPv4 | `0xFEFF20` | u32 (octet-LSB) | `4` |
 | IPv6 | `0xFEFF21` | **FT_ADDR6** | `6` |
-| DNS jméno | `0xFEFF26` | string (**celý** vstup, ne část před oddělovačem) | `D` |
+| DNS name | `0xFEFF26` | string (the **entire** input, not just the part before a separator) | `D` |
 | route distinguisher | `0xFEFF27` | string | `R` |
 | MAC | `0xFEFF2F` | raw 6 B | `m` |
 | `/len` | `0xFEFF25` | u32 | `/` |
-| `%iface` / `@vrf` | `0xFEFF22` / `0xFEFF23` | u32 (id z dropdownu) | `i` / `v` |
+| `%iface` / `@vrf` | `0xFEFF22` / `0xFEFF23` | u32 (id from the dropdown) | `i` / `v` |
 
-Do P2.53 uměl kodek jen IPv4 a na cokoli jiného **spadl na holý string na klíči pole**. Router takový
-tvar nečte — chová se, jako by pole nepřišlo. Ping na jméno i na IPv6 byl tedy tiše rozbitý.
-`%iface`/`@vrf` se teď odmítají hlasitě (rozlišení jména proti dropdownu zatím neumíme) — zahodit
-kvalifikátor by znamenalo adresovat něco jiného.
+Before P2.53 the codec only handled IPv4 and, for anything else, **fell back to a bare string on the
+field's own key**. The router doesn't read that shape — it behaves as if the field never arrived. So
+pinging a hostname or an IPv6 address was silently broken. `%iface`/`@vrf` are now rejected loudly
+(we can't yet tell a name apart from a dropdown selection) — dropping the qualifier would mean
+addressing something else entirely.
 
-### 23.2 IPv6 pole je `FT_ADDR6` (typový bajt `0x18`), ne `raw`
+### 23.2 The IPv6 field is `FT_ADDR6` (type byte `0x18`), not `raw`
 
-Tabulka ftype z `master*.js` (`msg2buffer`), typový bajt = `ftype << 3 | size-flags`:
+The ftype table from `master*.js` (`msg2buffer`), where the type byte = `ftype << 3 | size-flags`:
 
 | ftype | 0 | 1 | 2 | **3** | 4 | 5 | 6 |
 |---|---|---|---|---|---|---|---|
-| skalár | bool `0x00` | u32 `0x08` | u64 `0x10` | **addr6 `0x18`** | string `0x20` | message `0x28` | raw `0x30` |
-| pole (+16) | `0x80` | `0x88` | `0x90` | `0x98` | `0xA0` | `0xA8` | `0xB0` |
+| scalar | bool `0x00` | u32 `0x08` | u64 `0x10` | **addr6 `0x18`** | string `0x20` | message `0x28` | raw `0x30` |
+| array (+16) | `0x80` | `0x88` | `0x90` | `0x98` | `0xA0` | `0xA8` | `0xB0` |
 
-`FT_ADDR6` je **16 bajtů bez délkového prefixu** — jediný variabilně široký typ, který ho nemá.
-Poslat IPv6 jako `raw` znamená dát na místo prvního bajtu adresy délku, takže router pole ignoruje.
+`FT_ADDR6` is **16 bytes with no length prefix** — the only variable-width-looking type that lacks one.
+Sending IPv6 as `raw` puts a length byte where the address's first byte belongs, so the router ignores
+the field.
 
-**Druhý, horší důsledek:** `0x18` neuměl ani *parser*. Neznámý typ padal do `default: return 0`, takže
-se hodnota přečetla jako další klíč+typ a **zbytek zprávy se rozsypal do nesmyslných klíčů** — tiše.
-Přesně tohle byl ten „prázdný `0x1=[{}]`" u traceroute: hop je `union{ip6addr a1 allowipv4, string s2}`
-uvnitř `multi` a jeho 16 bajtů parser přeskočil o nulu. Po doplnění `0x18` (a chybějících polí
-`0x80/0x90/0x98/0xB0`) traceroute vrací `address=127.0.0.1` bez jediné změny v resolveru.
+**A second, worse consequence:** the *parser* didn't know `0x18` either. An unknown type fell into
+`default: return 0`, so the value got misread as the next key+type and **the rest of the message
+scrambled into nonsense keys** — silently. This was exactly the "empty `0x1=[{}]`" seen with
+traceroute: a hop is `union{ip6addr a1 allowipv4, string s2}` inside a `multi`, and the parser skipped
+its 16 bytes as zero. After adding `0x18` (and the missing `0x80/0x90/0x98/0xB0` cases), traceroute
+returns `address=127.0.0.1` with no change to the resolver at all.
 
-> Poučení pro celou tabulku: **každý ftype musí mít případ v `SkipTypeBytes`**, i když pro něj není
-> dekodér. Chybějící case není „nepodporovaný typ", ale tichý rozsyp všeho, co následuje — stejná
-> past, jakou dřív předvedlo `0xA0 str_array`.
+> Lesson for the whole table: **every ftype must have a case in `SkipTypeBytes`**, even when there's no
+> decoder for it. A missing case isn't "unsupported type" — it's a silent scramble of everything that
+> follows, the same trap the `0xA0 str_array` case demonstrated earlier.
 
-### 23.3 `/interface/monitor-traffic` = živá pole okna rozhraní, ne monitor okno
+### 23.3 `/interface/monitor-traffic` is live fields on the interface list window, not a monitor window
 
-V celém katalogu (18 pluginů, `jg_analyze.py`) **žádné monitor okno pro traffic není**. WinBox ukazuje
-průtok jako živé sloupce seznamu rozhraní, které `getall` se stats bitem vrací normálně:
+Across the entire catalog (18 plugins, `jg_analyze.py`) **there is no monitor window for traffic at
+all**. WinBox shows throughput as live columns on the interface list, which a normal `getall` with the
+stats bit returns directly:
 
-| API jméno | klíč | `.jg` label | ftype |
+| API name | key | `.jg` label | ftype |
 |---|---|---|---|
 | `rx-bits-per-second` | `0x100D3` | `Rx` | bigbitrate |
 | `tx-bits-per-second` | `0x100D4` | `Tx` | bigbitrate |
@@ -462,18 +477,19 @@ průtok jako živé sloupce seznamu rozhraní, které `getall` se stats bitem vr
 | `rx-byte` | `0x100FC` | `Rx Bytes` | bigbytes |
 | `rx-packet` | `0x100FE` | `Rx Packets` | bigdecimal |
 
-**A tady byla ještě jedna, samostatná chyba:** normalizér labelů má `'Rx' → rx-byte`, takže API jméno
-`rx-byte` dostal **rate**. Na ether1 vracelo native `rx-byte=5536`, zatímco API pro tentýž záznam
-`rx-byte=76024833` — správné jméno, špatná hodnota, o pět řádů. Proto se celý traffic blok mapuje
-**podle klíčů** (`ShippedFieldAliases["/interface"].KeyToApi`) a alias set se dědí i na podcesty
-(`/interface/ethernet`, `/interface/monitor-traffic`), které čtou stejný handler.
+**And there was a second, separate bug here:** the label normalizer had `'Rx' → rx-byte`, so the API
+name `rx-byte` ended up getting the **rate**. On ether1, native returned `rx-byte=5536` while the API
+reported `rx-byte=76024833` for the same record — right name, wrong value, off by five orders of
+magnitude. Because of this, the entire traffic block is now mapped **by key**
+(`ShippedFieldAliases["/interface"].KeyToApi`), and the alias set is inherited by subpaths
+(`/interface/ethernet`, `/interface/monitor-traffic`) that read the same handler.
 
-Ověřeno: API i native hlásí ve stejné chvíli **shodně** `rx-bits/s=3584, rx-pkt/s=3`.
+Verified: at the same moment, both API and native report **matching** `rx-bits/s=3584, rx-pkt/s=3`.
 
-### 23.4 Sebeukončující monitor se musí dočkat Finished
+### 23.4 A self-terminating monitor must wait for Finished
 
-Pass, který skončí bez `Finished`, znamená u průběžného okna „tohle je snímek", ale u `ping`/
-`traceroute` znamená „ještě pracuju". Traceroute na nedosažitelnou adresu publikuje každou sekundu
-delší tabulku: první pass = 1 hop. Sync čtení proto u sebeukončujících příkazů
-(`TikMonitorVerbs.SelfTerminating`) pollimuje dál, dokud router neřekne Finished — 20 řádků za 5,2 s,
-stejný tvar jako přes API — a je ohraničené `ReceiveTimeout`.
+A pass that ends without `Finished` means "this is a snapshot" for a continuous window, but means
+"still working" for `ping`/`traceroute`. A traceroute to an unreachable address publishes a longer
+table each second: the first pass = 1 hop. So for self-terminating commands
+(`TikMonitorVerbs.SelfTerminating`), a synchronous read keeps polling until the router says Finished —
+20 rows in 5.2 s, the same shape as over the API — bounded by `ReceiveTimeout`.

@@ -1,92 +1,92 @@
-# tik4net — Přehled pokrytí protokolů
+# tik4net — Protocol Coverage Overview
 
-> Lokální soubor, není v gitu. Naposledy aktualizováno: 2026-06-07.
-> Souhrnný pohled přes všechny komunikační protokoly MikroTiku.
+> Local file, not tracked in git. Last updated: 2026-06-07.
+> A summary view across all of MikroTik's communication protocols.
 
 ---
 
-## Legenda
+## Legend
 
-| Symbol | Stav |
+| Symbol | Status |
 |---|---|
-| ✅ Produkce | Implementováno v lib, unit testy, NuGet |
-| 🔬 PoC | Funkční kód, ale jen v testovacím souboru, ne v lib |
-| 📄 Research | Protokol zdokumentován, žádný kód |
-| 📐 Design | Architektonicky navrženo pro v4.x, není implementace |
-| ❌ Neprobádáno | Neznámé |
+| ✅ Production | Implemented in the library, unit tests, NuGet |
+| 🔬 PoC | Working code, but only in a test file, not in the library |
+| 📄 Research | Protocol documented, no code |
+| 📐 Design | Architecturally designed for v4.x, not implemented |
+| ❌ Unexplored | Unknown |
 
 ---
 
-## Matice protokolů
+## Protocol matrix
 
-| Protokol | Transport | Port | Vrstva | Stav | Soubor |
+| Protocol | Transport | Port | Layer | Status | File |
 |---|---|---|---|---|---|
-| MikroTik API | TCP | 8728 | L3/IP | ✅ **Produkce** | `tik4net/Api/ApiConnection.cs` |
-| MikroTik API/SSL | TCP+TLS | 8729 | L3/IP | ✅ **Produkce** | `tik4net/Api/ApiConnection.cs` (isSsl flag) |
-| MNDP Discovery | UDP broadcast | 5678 | L3/IP | ✅ **Produkce** | `tik4net/Mndp/MndpHelper.cs` |
-| REST API | HTTP(S) | 80/443 | L3/IP | ✅ **Produkce** | `tik4net/Rest/RestConnection.cs` |
-| Telnet | TCP | 23 | L3/IP | ✅ **Produkce** | `tik4net/Telnet/TelnetConnection.cs` |
-| MAC Telnet | UDP broadcast | 20561 | L2/MAC | ✅ **Produkce** | `tik4net/MacTelnet/MacTelnetConnection.cs` |
-| WinBox CLI | TCP | 8291 | L3/IP | ✅ **Produkce** | `tik4net/WinboxCli/WinboxCliConnection.cs` |
-| WinBox CLI/MAC | UDP | 20561 | L2/MAC | ✅ **Produkce** | `tik4net/WinboxCliMac/WinboxCliMacConnection.cs` |
+| MikroTik API | TCP | 8728 | L3/IP | ✅ **Production** | `tik4net/Api/ApiConnection.cs` |
+| MikroTik API/SSL | TCP+TLS | 8729 | L3/IP | ✅ **Production** | `tik4net/Api/ApiConnection.cs` (isSsl flag) |
+| MNDP Discovery | UDP broadcast | 5678 | L3/IP | ✅ **Production** | `tik4net/Mndp/MndpHelper.cs` |
+| REST API | HTTP(S) | 80/443 | L3/IP | ✅ **Production** | `tik4net/Rest/RestConnection.cs` |
+| Telnet | TCP | 23 | L3/IP | ✅ **Production** | `tik4net/Telnet/TelnetConnection.cs` |
+| MAC Telnet | UDP broadcast | 20561 | L2/MAC | ✅ **Production** | `tik4net/MacTelnet/MacTelnetConnection.cs` |
+| WinBox CLI | TCP | 8291 | L3/IP | ✅ **Production** | `tik4net/WinboxCli/WinboxCliConnection.cs` |
+| WinBox CLI/MAC | UDP | 20561 | L2/MAC | ✅ **Production** | `tik4net/WinboxCliMac/WinboxCliMacConnection.cs` |
 | Winbox M2 (native) | TCP | 8291 | L3/IP | 🔬 **PoC** | `tik4net.tests/Protocols/Clients/WinboxM2Client.cs` |
-| SSH | TCP | 22 | L3/IP | 📐 **Design** | `_notes/4x-ideas.md` (vyžaduje SSH.NET) |
+| SSH | TCP | 22 | L3/IP | 📐 **Design** | `_notes/4x-ideas.md` (requires SSH.NET) |
 
 ---
 
-## Detail: MikroTik API (✅ Produkce)
+## Detail: MikroTik API (✅ Production)
 
 **TCP port 8728 (plain) / 8729 (SSL)**
 
-Produkční implementace, dvě NuGet vrstvy.
+Production implementation, two NuGet layers.
 
-### Schopnosti
+### Capabilities
 
-| Schopnost | API | API/SSL |
+| Capability | API | API/SSL |
 |---|---|---|
-| Otevření spojení | ✅ | ✅ |
+| Opening a connection | ✅ | ✅ |
 | Login (≥ 6.43 challenge-response) | ✅ | ✅ |
-| Login (< 6.43 MD5 legacy) | ✅ | ✅ |
+| Login (< 6.43 legacy MD5) | ✅ | ✅ |
 | ExecuteNonQuery / ExecuteScalar / ExecuteList | ✅ | ✅ |
 | ExecuteAsync (callback push = Listen) | ✅ | ✅ |
-| Tags (tagy pro synchronizaci) | ✅ | ✅ |
+| Tags (synchronization tags) | ✅ | ✅ |
 | O/R mapper (LoadAll, Save, Delete…) | ✅ | ✅ |
-| Streaming (Torch, Ping průběžně) | ✅ | ✅ |
-| Šifrování | ❌ | ✅ |
-| Vyžaduje IP konektivitu | ✅ (ano) | ✅ (ano) |
+| Streaming (Torch, ongoing Ping) | ✅ | ✅ |
+| Encryption | ❌ | ✅ |
+| Requires IP connectivity | ✅ (yes) | ✅ (yes) |
 
-### Klíčové třídy
+### Key classes
 
 ```
-tik4net/Api/ApiConnection.cs      — ITikConnection implementace
-tik4net/Api/ApiCommand.cs         — ITikCommand implementace
+tik4net/Api/ApiConnection.cs      — ITikConnection implementation
+tik4net/Api/ApiCommand.cs         — ITikCommand implementation
 tik4net/ConnectionFactory.cs      — entry point
 tik4net.objects/                  — O/R mapper + entity classes
 ```
 
-### Testovací pokrytí
+### Test coverage
 
-`ConnectionTest.cs`, `CrudTest.cs`, `InterfaceTest.cs`, `IpFirewallTest.cs`, … (15+ test tříd)
+`ConnectionTest.cs`, `CrudTest.cs`, `InterfaceTest.cs`, `IpFirewallTest.cs`, … (15+ test classes)
 
 ---
 
-## Detail: MNDP Discovery (✅ Produkce)
+## Detail: MNDP Discovery (✅ Production)
 
 **UDP broadcast port 5678 (IPv4) + multicast ff02::1 (IPv6)**
 
-Router na MNDP broadcast odpovídá záznamem o sobě.
+The router responds to an MNDP broadcast with a record describing itself.
 
-### Schopnosti
+### Capabilities
 
-| Schopnost | Stav |
+| Capability | Status |
 |---|---|
 | IPv4 broadcast discovery | ✅ |
 | IPv6 multicast discovery | ✅ |
-| Parsování MAC, IPv4, IPv6, verze, board, identity, uptime | ✅ |
-| `stopWhenFirstFound` optimalizace | ✅ |
-| Zápis / management routerů | ❌ (jen read-only discovery) |
+| Parsing MAC, IPv4, IPv6, version, board, identity, uptime | ✅ |
+| `stopWhenFirstFound` optimization | ✅ |
+| Writing / router management | ❌ (read-only discovery only) |
 
-### Použití
+### Usage
 
 ```csharp
 IEnumerable<TikInstanceDescriptor> routers = MndpHelper.Discover(stopWhenFirstFound: true);
@@ -99,246 +99,246 @@ IEnumerable<TikInstanceDescriptor> routers = MndpHelper.Discover(stopWhenFirstFo
 
 **TCP port 8291**
 
-Implementace: `tik4net.tests/WinboxM2CatalogTest.cs` (~1700 řádků, self-contained).  
-Netestuje Winbox UI logiku — testuje přístup k datům přes Winbox protokol přímo z .NET.
+Implementation: `tik4net.tests/WinboxM2CatalogTest.cs` (~1700 lines, self-contained).
+It doesn't test the Winbox UI logic — it tests data access over the Winbox protocol directly from .NET.
 
-### Schopnosti PoC
+### PoC capabilities
 
-| Schopnost | Stav | Test |
+| Capability | Status | Test |
 |---|---|---|
-| EC-SRP5 autentizace (RouterOS ≥ 6.43) | ✅ | všechny catalog testy |
-| Legacy MD5 autentizace (starší ROS) | ✅ | fallback v `Authenticate()` |
-| AES-128-CBC šifrovaná session | ✅ | všechny testy po auth |
+| EC-SRP5 authentication (RouterOS ≥ 6.43) | ✅ | all catalog tests |
+| Legacy MD5 authentication (older ROS) | ✅ | fallback in `Authenticate()` |
+| AES-128-CBC encrypted session | ✅ | all tests after auth |
 | IP-layer smoke test (raw TCP handshake) | ✅ | `WinboxM2_IpLayer_TcpPort8291_*` |
-| Čtení souborů přes mproxy [2,2] | ✅ | `WinboxM2_ReadListCatalog_*` |
-| Parsování plugin katalogu (`/home/web/webfig/list`) | ✅ | `WinboxM2_ParseCatalog_*` |
-| System info (verze, board, arch, identity) | ✅ | `WinboxM2_GetSystemInfo_*` |
-| Mepty terminál (PTY session handler [76]) | ✅ | `WinboxM2_ListInterfaces_*` |
-| VT100 negociace (cursor dimension probes) | ✅ | třída `Vt100State` |
-| Příkaz přes terminál + parsování výstupu | ✅ | `/interface print` → `List<InterfaceEntry>` |
-| Set/get interface comment přes mepty | ✅ | `WinboxM2_SetAndVerify_InterfaceEther1Comment` |
+| Reading files via mproxy [2,2] | ✅ | `WinboxM2_ReadListCatalog_*` |
+| Parsing the plugin catalog (`/home/web/webfig/list`) | ✅ | `WinboxM2_ParseCatalog_*` |
+| System info (version, board, arch, identity) | ✅ | `WinboxM2_GetSystemInfo_*` |
+| Mepty terminal (PTY session handler [76]) | ✅ | `WinboxM2_ListInterfaces_*` |
+| VT100 negotiation (cursor dimension probes) | ✅ | `Vt100State` class |
+| Command via terminal + output parsing | ✅ | `/interface print` → `List<InterfaceEntry>` |
+| Set/get interface comment via mepty | ✅ | `WinboxM2_SetAndVerify_InterfaceEther1Comment` |
 
-### Co PoC zatím neumí
+### What the PoC still can't do
 
-- Winbox přes MAC adresu (Layer 2 Winbox) — L2 transport neprobádán
-- Keepalive / reconnect šifrované session
-- Plný katalog handlerů (desítky, zmapované jen [2,2], [13,4], [76])
-- Není v produkční lib, jen v testech
+- Winbox over MAC address (Layer 2 Winbox) — L2 transport unexplored
+- Keepalive / reconnect of the encrypted session
+- Full handler catalog (dozens exist, only [2,2], [13,4], [76] mapped)
+- Not in the production library, only in tests
 
-### Klíčové třídy v PoC
+### Key classes in the PoC
 
 ```
 WinboxM2Client    — transport + EC-SRP5 + AES + mproxy + mepty
-Vt100State        — VT100 cursor state machine pro terminal negotiation
-CatalogEntry      — plugin katalog entry (name, version, size, crc)
-SystemInfo        — board, version, arch, identity z handleru [13,4]
-InterfaceEntry    — výsledek parsování /interface print
+Vt100State        — VT100 cursor state machine for terminal negotiation
+CatalogEntry      — plugin catalog entry (name, version, size, crc)
+SystemInfo        — board, version, arch, identity from handler [13,4]
+InterfaceEntry    — result of parsing /interface print
 ```
 
-### Důležité technické detaily (viz také memory/project_winbox_m2_poc.md a _notes/winbox-terminal-findings.md)
+### Important technical details (see also memory/project_winbox_m2_poc.md and _notes/winbox-terminal-findings.md)
 
-- **DataAvailable polling**: nikdy nevolej `RecvAndDecrypt` s krátkým timeoutem — mid-frame timeout korumpuje TCP stream
-- **TLV typ 0xA0 (str_array)**: musí být explicitně obsloužen v `SkipTypeBytes`, jinak misalignment parseru
-- **8-bit CSI 0x9B**: RouterOS 7.x používá jako alternativu ESC[
-- **"Change your password" nag**: RouterOS zobrazí prompt před CLI, nutno odeslat Ctrl-C (0x03)
-- **RouterOS comment formát**: zobrazuje se jako `;;; text` (triple-semicolon), ne jako `comment=text`
-- **Phase 2 break condition**: `TrimEnd().EndsWith("] >")` — ne `Contains`, kvůli echu příkazu
-- **DrainEncryptedFrames(600 ms)**: povinné mezi sekcemi — bez toho nová session dostane stará data
+- **DataAvailable polling**: never call `RecvAndDecrypt` with a short timeout — a mid-frame timeout corrupts the TCP stream
+- **TLV type 0xA0 (str_array)**: must be handled explicitly in `SkipTypeBytes`, otherwise the parser misaligns
+- **8-bit CSI 0x9B**: RouterOS 7.x uses this as an alternative to ESC[
+- **"Change your password" nag**: RouterOS shows a prompt before the CLI; Ctrl-C (0x03) must be sent
+- **RouterOS comment format**: displayed as `;;; text` (triple-semicolon), not as `comment=text`
+- **Phase 2 break condition**: `TrimEnd().EndsWith("] >")` — not `Contains`, because of command echo
+- **DrainEncryptedFrames(600 ms)**: mandatory between sections — without it, a new session receives stale data
 
 ---
 
-## Detail: MAC Telnet (✅ Produkce)
+## Detail: MAC Telnet (✅ Production)
 
-**UDP broadcast port 20561, L2/MAC** — implementováno v kapitole E (2026-06-04)
+**UDP broadcast port 20561, L2/MAC** — implemented in chapter E (2026-06-04)
 
-Přístup k routeru bez IP konektivity — přes MAC adresu.
+Access to the router without IP connectivity — via MAC address.
 
-### Schopnosti
+### Capabilities
 
-| Schopnost | Stav |
+| Capability | Status |
 |---|---|
-| EC-SRP5 autentizace (Curve25519 Weierstrass, RouterOS ≥ 6.43) | ✅ |
-| Legacy MD5 autentizace (starší ROS) | ✅ |
-| L2 UDP transport (pure .NET, žádný Pcap) | ✅ |
-| CLI přístup přes `CliConnectionBase` (`ITikConnection`) | ✅ |
-| MNDP discovery pro nalezení routeru | ✅ |
-| Konfigurovatelný login timeout | ✅ |
-| Sdílená krypto vrstva v `tik4net/Crypto/` | ✅ |
+| EC-SRP5 authentication (Curve25519 Weierstrass, RouterOS ≥ 6.43) | ✅ |
+| Legacy MD5 authentication (older ROS) | ✅ |
+| L2 UDP transport (pure .NET, no Pcap) | ✅ |
+| CLI access via `CliConnectionBase` (`ITikConnection`) | ✅ |
+| MNDP discovery to locate the router | ✅ |
+| Configurable login timeout | ✅ |
+| Shared crypto layer in `tik4net/Crypto/` | ✅ |
 
-### Klíčové třídy
+### Key classes
 
 ```
 tik4net/MacTelnet/MacTelnetConnection.cs   — ITikConnection : CliConnectionBase
-tik4net/MacTelnet/MacTelnetUdpClient.cs    — internal async UDP klient
-tik4net/MacTelnet/MacLayerTransport.cs     — public abstract base pro MAC vrstvu
-tik4net/Crypto/EcSrp5.cs                  — sdílená EC-SRP5 matematika (MAC + Winbox)
-tik4net/Crypto/WinboxStreamCrypto.cs       — AES-128-CBC (sdíleno s Winbox)
+tik4net/MacTelnet/MacTelnetUdpClient.cs    — internal async UDP client
+tik4net/MacTelnet/MacLayerTransport.cs     — public abstract base for the MAC layer
+tik4net/Crypto/EcSrp5.cs                  — shared EC-SRP5 math (MAC + Winbox)
+tik4net/Crypto/WinboxStreamCrypto.cs       — AES-128-CBC (shared with Winbox)
 ```
 
-### Testovací pokrytí
+### Test coverage
 
-`MacTelnetProtocolTest.cs` — login + list interfaces + set comment, 3 testy zelené.
+`MacTelnetProtocolTest.cs` — login + list interfaces + set comment, 3 tests green.
 
 ---
 
-## Detail: REST API (✅ Produkce)
+## Detail: REST API (✅ Production)
 
-**HTTP port 80 / HTTPS port 443, RouterOS ≥ 7.1** — implementováno v kapitole A (2026-05-31)
+**HTTP port 80 / HTTPS port 443, RouterOS ≥ 7.1** — implemented in chapter A (2026-05-31)
 
-### Schopnosti
+### Capabilities
 
-| Schopnost | Stav |
+| Capability | Status |
 |---|---|
 | GET (print) / POST (add) / PATCH (set) / DELETE (remove) | ✅ |
 | HTTP Basic auth | ✅ |
-| HTTPS (SSL varianta) | ✅ |
-| `System.Text.Json` serializace (BCL, žádná extra závislost) | ✅ |
+| HTTPS (SSL variant) | ✅ |
+| `System.Text.Json` serialization (BCL, no extra dependency) | ✅ |
 | `ITikConnectionCapabilities` — capability gating | ✅ |
 | Listen/push (`ExecuteAsync`) | ❌ `NotSupportedException` |
 | Streaming (Torch, monitor-traffic follow) | ❌ `NotSupportedException` |
-| `/unset` → default hodnota | ⚠️ `PATCH {field:null}` nastaví prázdný string, ne default |
+| `/unset` → default value | ⚠️ `PATCH {field:null}` sets an empty string, not the default |
 
-### Klíčové třídy
+### Key classes
 
 ```
 tik4net/Rest/RestConnection.cs        — ITikConnection + ITikConnectionCapabilities
 tik4net/Rest/RestCommand.cs           — ITikCommand
-tik4net/Rest/RestRequestBuilder.cs    — mapování API path → HTTP verb/URL/JSON
+tik4net/Rest/RestRequestBuilder.cs    — mapping of API path → HTTP verb/URL/JSON
 tik4net/TikConnectionSetup.cs         — CreateRestConnection() / CreateRestSslConnection()
 ```
 
-### Testovací pokrytí
+### Test coverage
 
 136 pass, 34 skip (streaming/listen), 10 fail (preexisting / CLI). RouterOS 7.21.4.
 
 ---
 
-## Detail: Telnet (✅ Produkce)
+## Detail: Telnet (✅ Production)
 
-**TCP port 23** — implementováno v kapitole C (2026-05-31)
+**TCP port 23** — implemented in chapter C (2026-05-31)
 
-IP ekvivalent MAC Telnet — identický terminálový výstup (VT100), stejné CLI RouterOS.
+The IP equivalent of MAC Telnet — identical terminal output (VT100), same RouterOS CLI.
 
-### Schopnosti
+### Capabilities
 
-| Schopnost | Stav |
+| Capability | Status |
 |---|---|
-| CLI přístup přes `CliConnectionBase` (`ITikConnection`) | ✅ |
-| Plain text autentizace (login/password prompt) | ✅ |
-| Telnet IAC option negotiation (minimální, ~30 LOC) | ✅ |
+| CLI access via `CliConnectionBase` (`ITikConnection`) | ✅ |
+| Plain text authentication (login/password prompt) | ✅ |
+| Telnet IAC option negotiation (minimal, ~30 LOC) | ✅ |
 | VT100 stripping (`VtStripper`) | ✅ |
-| Sdílí CLI Layer s MAC Telnet, SSH | ✅ |
+| Shares the CLI layer with MAC Telnet, SSH | ✅ |
 
-### Klíčové třídy
+### Key classes
 
 ```
 tik4net/Telnet/TelnetConnection.cs     — ITikConnection : CliConnectionBase
-tik4net/Cli/CliConnectionBase.cs       — společná CLI základna
-tik4net/Cli/VtStripper.cs             — ANSI escape remover (sdíleno)
+tik4net/Cli/CliConnectionBase.cs       — shared CLI base
+tik4net/Cli/VtStripper.cs             — ANSI escape remover (shared)
 ```
 
-### Testovací pokrytí
+### Test coverage
 
 139 pass, 41 skip, 0 fail.
 
 ---
 
-## Detail: WinBox CLI / WinBox CLI/MAC (✅ Produkce)
+## Detail: WinBox CLI / WinBox CLI/MAC (✅ Production)
 
-**WinBox CLI: TCP port 8291** — implementováno v kapitole G (2026-06-05)  
-**WinBox CLI/MAC: UDP port 20561, L2/MAC** — implementováno v kapitole H (2026-06-05)
+**WinBox CLI: TCP port 8291** — implemented in chapter G (2026-06-05)
+**WinBox CLI/MAC: UDP port 20561, L2/MAC** — implemented in chapter H (2026-06-05)
 
-CLI přístup přes WinBox M2 protokol — klient otevře mepty (PTY handler [76]), v něm pracuje
-jako běžný CLI transport (stejný parsing jako Telnet/MAC-Telnet).
+CLI access via the WinBox M2 protocol — the client opens a mepty (PTY handler [76]) and works
+inside it like a regular CLI transport (same parsing as Telnet/MAC-Telnet).
 
-### Schopnosti
+### Capabilities
 
-| Schopnost | Stav |
+| Capability | Status |
 |---|---|
-| EC-SRP5 autentizace + AES-128-CBC session | ✅ (oba transporty) |
-| Mepty terminál (handler [76], VT100 negociace) | ✅ (oba transporty) |
-| CLI přístup přes `CliConnectionBase` (`ITikConnection`) | ✅ (oba transporty) |
+| EC-SRP5 authentication + AES-128-CBC session | ✅ (both transports) |
+| Mepty terminal (handler [76], VT100 negotiation) | ✅ (both transports) |
+| CLI access via `CliConnectionBase` (`ITikConnection`) | ✅ (both transports) |
 | TCP transport (port 8291) | ✅ (WinboxCli) |
 | MAC/UDP transport (port 20561, client_type 0x0f90) | ✅ (WinboxCliMac) |
-| Transport-agnostický mepty engine (`IWinboxM2Channel`) | ✅ |
-| SESSION_ID > 255 jako u32 | ✅ (root-cause fix vs. PoC) |
-| Sdílená krypto vrstva `tik4net/Crypto/` | ✅ |
+| Transport-agnostic mepty engine (`IWinboxM2Channel`) | ✅ |
+| SESSION_ID > 255 as u32 | ✅ (root-cause fix vs. PoC) |
+| Shared crypto layer `tik4net/Crypto/` | ✅ |
 
-### Klíčové třídy
+### Key classes
 
 ```
 tik4net/WinboxCli/WinboxCliConnection.cs       — ITikConnection : CliConnectionBase (TCP)
 tik4net/WinboxCliMac/WinboxCliMacConnection.cs — ITikConnection : CliConnectionBase (MAC)
-tik4net/WinboxCli/WinboxCliClient.cs           — mepty [76] + VT100, transport-agnostický
-tik4net/Winbox/IWinboxM2Channel.cs             — abstrakce kanálu (TCP/MAC)
-tik4net/Winbox/WinboxM2Session.cs              — TCP kanál (EC-SRP5+AES+Send/Receive)
-tik4net/Winbox/WinboxMacM2Session.cs           — MAC UDP kanál (dědí MacLayerTransport)
+tik4net/WinboxCli/WinboxCliClient.cs           — mepty [76] + VT100, transport-agnostic
+tik4net/Winbox/IWinboxM2Channel.cs             — channel abstraction (TCP/MAC)
+tik4net/Winbox/WinboxM2Session.cs              — TCP channel (EC-SRP5+AES+Send/Receive)
+tik4net/Winbox/WinboxMacM2Session.cs           — MAC UDP channel (inherits MacLayerTransport)
 tik4net/Winbox/M2Message.cs                    — TLV builder + parser
 ```
 
-### Testovací pokrytí
+### Test coverage
 
-`WinboxCliProtocolTest`: 2/2 zelené + InterfaceTest 9 pass / 6 skip.  
-`WinboxCliMacProtocolTest`: 2/2 zelené (WinboxCli + WinboxCliMac + MacTelnet regrese 6/6).
+`WinboxCliProtocolTest`: 2/2 green + InterfaceTest 9 pass / 6 skip.
+`WinboxCliMacProtocolTest`: 2/2 green (WinboxCli + WinboxCliMac + MacTelnet regression 6/6).
 
 ---
 
 ## Detail: SSH (📐 Design)
 
-**TCP port 22, vyžaduje SSH.NET (Renci.SshNet)**
+**TCP port 22, requires SSH.NET (Renci.SshNet)**
 
-Dvě úrovně: `SshConnection : ITikConnection` přes `exec + print as-value` a  
-`SshTerminalSession : ITikSession` pro interaktivní PTY.  
-Viz `_notes/4x-ideas.md` bod 4 a `_notes/4x-package-architecture.md`.
+Two levels: `SshConnection : ITikConnection` via `exec + print as-value` and
+`SshTerminalSession : ITikSession` for an interactive PTY.
+See `_notes/4x-ideas.md` item 4 and `_notes/4x-package-architecture.md`.
 
 ---
 
-## Capability matice (aktuální stav)
+## Capability matrix (current status)
 
 | Capability | API | API/SSL | MNDP | REST | Telnet | MAC Telnet | WinboxCli | WinboxCliMac | SSH |
 |---|---|---|---|---|---|---|---|---|---|
-| Produkční kód | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| PoC kód | — | — | — | — | — | — | — | — | ❌ |
+| Production code | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| PoC code | — | — | — | — | — | — | — | — | ❌ |
 | CRUD (read/write) | ✅ | ✅ | ❌ | ✅ | ⚠️ CLI | ⚠️ CLI | ⚠️ CLI | ⚠️ CLI | 📐 |
 | Listen (push) | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Terminálový přístup | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | 📐 |
-| Discovery routerů | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ MNDP | ❌ | ✅ MNDP | ❌ |
-| Bez IP konektivity | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ |
-| Šifrování | ❌ | ✅ TLS | ❌ | ✅ HTTPS | ❌ | ❌ | ✅ AES | ✅ AES | ✅ SSH |
-| NuGet balíček | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 📐 |
+| Terminal access | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | 📐 |
+| Router discovery | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ MNDP | ❌ | ✅ MNDP | ❌ |
+| No IP connectivity required | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ |
+| Encryption | ❌ | ✅ TLS | ❌ | ✅ HTTPS | ❌ | ❌ | ✅ AES | ✅ AES | ✅ SSH |
+| NuGet package | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 📐 |
 
-Legenda: ⚠️ CLI = CRUD přes CLI parsing (`print as-value`), omezené capabilities (bez Listen/Streaming)
+Legend: ⚠️ CLI = CRUD via CLI parsing (`print as-value`), limited capabilities (no Listen/Streaming)
 
 ---
 
-## 7. Přehled stavu testů (po kapitolách A–H)
+## 7. Test status overview (through chapters A–H)
 
-> Naposledy aktualizováno: 2026-06-07.
+> Last updated: 2026-06-07.
 
-### Produkční testy (`tik4net.tests/`)
+### Production tests (`tik4net.tests/`)
 
-| Test třída | Protokol | Transport | Stav | Výsledek |
+| Test class | Protocol | Transport | Status | Result |
 |---|---|---|---|---|
-| `ApiProtocolTest` | MikroTik API | TCP 8728 | ✅ **zelená** | 15+ tříd, plné pokrytí |
-| `RestProtocolTest` / TestBase | REST API | HTTP/HTTPS | ✅ **zelená** | 136 pass, 34 skip |
-| `TelnetProtocolTest` / TestBase | Telnet | TCP 23 | ✅ **zelená** | 139 pass, 41 skip, 0 fail |
-| `MacTelnetProtocolTest` / TestBase | MAC-Telnet | UDP 20561 ct=0x0015 | ✅ **zelená** | 3 testy pass |
-| `WinboxCliProtocolTest` / TestBase | WinBox CLI | TCP 8291 | ✅ **zelená** | 2+9 pass, 6 skip |
-| `WinboxCliMacProtocolTest` / TestBase | WinBox CLI/MAC | UDP 20561 ct=0x0f90 | ✅ **zelená** | 2 testy pass |
+| `ApiProtocolTest` | MikroTik API | TCP 8728 | ✅ **green** | 15+ classes, full coverage |
+| `RestProtocolTest` / TestBase | REST API | HTTP/HTTPS | ✅ **green** | 136 pass, 34 skip |
+| `TelnetProtocolTest` / TestBase | Telnet | TCP 23 | ✅ **green** | 139 pass, 41 skip, 0 fail |
+| `MacTelnetProtocolTest` / TestBase | MAC-Telnet | UDP 20561 ct=0x0015 | ✅ **green** | 3 tests pass |
+| `WinboxCliProtocolTest` / TestBase | WinBox CLI | TCP 8291 | ✅ **green** | 2+9 pass, 6 skip |
+| `WinboxCliMacProtocolTest` / TestBase | WinBox CLI/MAC | UDP 20561 ct=0x0f90 | ✅ **green** | 2 tests pass |
 
-### PoC / experimental testy (`tik4net.tests/Protocols/`)
+### PoC / experimental tests (`tik4net.tests/Protocols/`)
 
-| Test třída | Protokol | Stav | Poznámka |
+| Test class | Protocol | Status | Note |
 |---|---|---|---|
-| `WinboxTcpProtocolTest` | Winbox M2 native (TCP) | ✅ 7/7 | EC-SRP5 + AES + mproxy + mepty v PoC klientech |
-| `WinboxMacProtocolTest` | Winbox M2 native (MAC) | ⚠️ `[Ignore]` EXPERIMENTAL | WinboxMacClient existuje, neverifikovaný |
-| `MacLayerTest` (starý) | MAC-Telnet PoC | superseded | Nahrazen produkční kapitolou E |
+| `WinboxTcpProtocolTest` | Winbox M2 native (TCP) | ✅ 7/7 | EC-SRP5 + AES + mproxy + mepty in the PoC clients |
+| `WinboxMacProtocolTest` | Winbox M2 native (MAC) | ⚠️ `[Ignore]` EXPERIMENTAL | WinboxMacClient exists, unverified |
+| `MacLayerTest` (old) | MAC-Telnet PoC | superseded | Replaced by production chapter E |
 
-### Sdílená krypto vrstva (`tik4net/Crypto/`)
+### Shared crypto layer (`tik4net/Crypto/`)
 
-Po přesunu z PoC do core (kapitoly E, G):
+After the move from PoC into core (chapters E, G):
 
-| Soubor | Obsah |
+| File | Contents |
 |---|---|
-| `EcSrp5.cs` | Curve25519 Weierstrass + EC-SRP5 matematika (jediná kopie, sdílena MAC-Telnet + Winbox) |
+| `EcSrp5.cs` | Curve25519 Weierstrass + EC-SRP5 math (single copy, shared by MAC-Telnet + Winbox) |
 | `WinboxStreamCrypto.cs` | `DeriveStreamKeys`, `HkdfExpand`, AES-128-CBC encrypt/decrypt |

@@ -1,21 +1,22 @@
-# Findings — WinBox CLI connection (kapitola G)
+# Findings — WinBox CLI connection (Chapter G)
 
-**Datum:** 2026-06-05
-**Transport:** `TikConnectionType.WinboxCli` (TCP 8291, mepty terminál)
-**Ověřeno živě:** RouterOS 7.21.4 CHR (souřadnice v `tik4net.integrationtests/App.config`)
+**Date:** 2026-06-05
+**Transport:** `TikConnectionType.WinboxCli` (TCP 8291, mepty terminal)
+**Verified live:** RouterOS 7.21.4 CHR (coordinates in `tik4net.integrationtests/App.config`)
 
-Sdílené poznatky o protokolu jsou v paměti `project_winbox_m2_poc` a `ref_cli_telnet`. Tady jen to,
-co vyšlo najevo nebo se vyřešilo při produkční integraci (kapitola G).
+Shared protocol findings live in memory notes `project_winbox_m2_poc` and `ref_cli_telnet`. This
+file covers only what came to light or got resolved during production integration (Chapter G).
 
 ---
 
-## 1. ROOT CAUSE — SESSION_ID > 255 je u32, ne u8 (vyřešeno)
+## 1. ROOT CAUSE — SESSION_ID > 255 is a u32, not a u8 (resolved)
 
-**Symptom:** mepty terminál nešel otevřít — `OpenTerminalSession` házelo
-`InvalidOperationException: No SESSION_ID in M2 response`. PoC měl proto oba mepty testy
-`[Ignore]` s domněnkou „drain timing between terminal sessions" — **mylná diagnóza**.
+**Symptom:** the mepty terminal wouldn't open — `OpenTerminalSession` threw
+`InvalidOperationException: No SESSION_ID in M2 response`. Because of this, the PoC had both mepty
+tests marked `[Ignore]` with the assumption "drain timing between terminal sessions" — a **wrong
+diagnosis**.
 
-**Skutečná příčina (živý dump mepty-open response):**
+**Actual root cause (live dump of the mepty-open response):**
 
 ```
 4D 32                                              "M2"
@@ -27,213 +28,230 @@ co vyšlo najevo nebo se vyřešilo při produkční integraci (kapitola G).
 06 00 FF 09 01                                       0xFF0006 u8 = 1
 ```
 
-Session id = **265**, poslané jako **u32 (typ 0x08)**, protože nemůže být v jednom bajtu.
-PoC `M2Message.ParseSessionId` hledal jen `type == 0x09` (u8) → nenašel. A `SessionIdField(int)`
-kódoval vždy u8 → poslání 265 zpět = `(byte)265 = 9` → adresování špatné session → mrtvý terminál.
+Session id = **265**, sent as **u32 (type 0x08)**, because it can't fit in a single byte.
+The PoC's `M2Message.ParseSessionId` only looked for `type == 0x09` (u8) → found nothing. And
+`SessionIdField(int)` always encoded a u8 → sending 265 back turned into `(byte)265 = 9` →
+addressing the wrong session → dead terminal.
 
 **Fix** (`tik4net/Winbox/M2Message.cs`):
-- `ParseSessionId` čte u klíče `0xFE0001` typ 0x09 (u8) i 0x08 (u32).
-- `SessionIdField(int id)` kóduje u8 pro `id ≤ 255`, jinak u32.
+- `ParseSessionId` reads key `0xFE0001` as both type 0x09 (u8) and 0x08 (u32).
+- `SessionIdField(int id)` encodes u8 for `id ≤ 255`, u32 otherwise.
 
-Predikováno v `project_winbox_m2_poc` §9: „Správná implementace SessionIdField — reálně může být 2B".
-Drain-timing hypotéza z PoC ignore komentáře byla scestná.
-
----
-
-## 2. Login terminal-size hint: 80×25, NE wide
-
-`meptyLogin` (cmd `0x0A0065`) nese `U32User(3)=cols`, `U32User(4)=rows`. Když se sem dá velká
-hodnota (zkoušeno 65535), RouterOS vrátí **error response bez SESSION_ID** (stejný symptom jako §1,
-jiná příčina!). Drž **80×25** jako v PoC.
-
-Skutečnou šířku terminálu stejně určí až **VT100 cursor-probe** (`ESC[9999C ESC[6n`), na kterou
-odpovídá `Vt100State(65535, 25)` — reply se capne ~9999 sloupců, což stačí, aby se nezalamovaly
-dlouhé `print as-value` řádky. (Stejný princip jako MAC-Telnet, viz findings-mactelnet.)
+This was actually predicted in `project_winbox_m2_poc` §9: "Correct SessionIdField implementation —
+in reality it may be 2B". The drain-timing hypothesis from the PoC's ignore comment was a dead end.
 
 ---
 
-## 3. Šifrovaný kanál — DataAvailable gating je povinný
+## 2. Login terminal-size hint: 80×25, NOT wide
 
-Na rozdíl od MAC-Telnet (UDP datagramy) jede WinBox přes **TCP + AES-128-CBC rámce**. Past
-(potvrzeno z `project_winbox_m2_poc` §2): nikdy nevolej decrypt s krátkým timeoutem v retry smyčce —
-když timeout vyprší **uprostřed rámce**, TCP stream zůstane misaligned a každé další čtení selže
-IOException.
+`meptyLogin` (cmd `0x0A0065`) carries `U32User(3)=cols`, `U32User(4)=rows`. Feeding it a large value
+(65535 was tried) makes RouterOS return an **error response with no SESSION_ID** (same symptom as
+§1, different cause!). Stick with **80×25** as in the PoC.
 
-Řešení v `WinboxCliClient`: každé čtení je gated `while (!_session.DataAvailable) Thread.Sleep(20)`
-a teprve pak `_session.Receive(5000)` s velkorysým per-frame timeoutem (jen ohraničí už přicházející
-rámec, nikdy nevyprší mid-frame). Funguje to spolehlivě i pro vícepaketové odpovědi.
-
-⚠️ Ten velkorysý timeout je bezpečný **jen dokud `DataAvailable` nelže**. Nad MAC/UDP lhal a stál
-5 s na každý příkaz — viz kap. 15.
+The actual terminal width is determined later anyway, by the **VT100 cursor probe**
+(`ESC[9999C ESC[6n`), which gets back `Vt100State(65535, 25)` — the reply caps at ~9999 columns,
+which is enough to keep long `print as-value` lines from wrapping. (Same principle as MAC-Telnet,
+see findings-mactelnet.)
 
 ---
 
-## 4. Persistentní mepty session funguje
+## 3. Encrypted channel — DataAvailable gating is mandatory
 
-PoC otvíral **novou** mepty session pro každý příkaz (`RunTerminalCommand`). Produkce otevře mepty
-**jednou** v `LoginAsync` a všechny příkazy jdou stejnou session (counter `U32User(3)` se inkrementuje
-napříč příkazy). Žádný problém — PTY je terminál, drží stav. Tím odpadá i domnělá „drain timing between
-terminal sessions" potíž.
+Unlike MAC-Telnet (UDP datagrams), WinBox runs over **TCP + AES-128-CBC frames**. The trap
+(confirmed from `project_winbox_m2_poc` §2): never call decrypt with a short timeout inside a retry
+loop — when the timeout expires **mid-frame**, the TCP stream is left misaligned and every
+subsequent read fails with an IOException.
 
----
+The fix in `WinboxCliClient`: every read is gated by `while (!_session.DataAvailable)
+Thread.Sleep(20)`, and only then does `_session.Receive(5000)` run with a generous per-frame
+timeout (it only bounds a frame that is *already arriving*, and never expires mid-frame). This
+works reliably even for multi-packet responses.
 
-## 5. Architektura — sdílené vs CLI-specifické
-
-- `tik4net/Winbox/` = **jen sdílené**: `M2Message` (TLV), `WinboxTcpTransport` (chunked framing),
-  `WinboxM2Session` (EC-SRP5/legacy MD5 auth + AES frame I/O + generické `Send`/`Receive`/`SendReceive`
-  /`NextReqIdField`). **Bez mepty/VT100** — aby to převzal budoucí `WinboxNative*`.
-- `tik4net/WinboxCli/` = terminálový mód: `WinboxCliClient` (mepty [76] + VT100), `WinboxCliConnection`.
-
-Krypto (`EcSrp5`, `WinboxStreamCrypto`) je už v `tik4net/Crypto/` z kapitoly E (sdílí MAC-Telnet) →
-WinBox NEpotřebuje separátní NuGet, žije in-core jako Telnet/MAC-Telnet.
-
-Pro kapitolu H (`WinboxCliMac*`) bude potřeba `WinboxM2Session` zobecnit nad transport
-(`WinboxTcpTransport` → `MacLayerTransport`); generické Send/Receive jsou na to připravené.
+Warning: that generous timeout is safe **only as long as `DataAvailable` doesn't lie**. Over
+MAC/UDP it did lie, and cost 5 s per command — see Chapter 15.
 
 ---
 
-## 6. Legacy MD5 + terminál = nepodporováno
+## 4. A persistent mepty session works
 
-mepty session jede jen přes šifrovaný EC-SRP5 kanál. Pokud server spadne na legacy MD5 auth
-(pre-6.43 RouterOS), `WinboxCliClient.OpenTerminalSession` hodí `NotSupportedException`.
-Auth fallback v `WinboxM2Session` zůstává (pro budoucí native legacy operace), ale terminál ne.
+The PoC opened a **new** mepty session for every command (`RunTerminalCommand`). Production opens
+mepty **once**, in `LoginAsync`, and every subsequent command reuses the same session (the counter
+`U32User(3)` increments across commands). No problem there — a PTY is a terminal, it holds state.
+This also makes the supposed "drain timing between terminal sessions" issue moot.
 
 ---
 
-## 7. Výsledky (WinboxCli / TCP)
+## 5. Architecture — shared vs. CLI-specific
+
+- `tik4net/Winbox/` = **shared only**: `M2Message` (TLV), `WinboxTcpTransport` (chunked framing),
+  `WinboxM2Session` (EC-SRP5/legacy MD5 auth + AES frame I/O + generic `Send`/`Receive`/`SendReceive`
+  /`NextReqIdField`). **No mepty/VT100** here — so a future `WinboxNative*` can build on it.
+- `tik4net/WinboxCli/` = the terminal mode: `WinboxCliClient` (mepty [76] + VT100),
+  `WinboxCliConnection`.
+
+The crypto (`EcSrp5`, `WinboxStreamCrypto`) already lives in `tik4net/Crypto/` from Chapter E
+(shared with MAC-Telnet) → WinBox does NOT need a separate NuGet package, it lives in-core just
+like Telnet/MAC-Telnet.
+
+For Chapter H (`WinboxCliMac*`), `WinboxM2Session` will need to be generalized over the transport
+(`WinboxTcpTransport` → `MacLayerTransport`); the generic Send/Receive methods are already set up
+for that.
+
+---
+
+## 6. Legacy MD5 + terminal = unsupported
+
+A mepty session only runs over the encrypted EC-SRP5 channel. If the server falls back to legacy
+MD5 auth (pre-6.43 RouterOS), `WinboxCliClient.OpenTerminalSession` throws a
+`NotSupportedException`. The auth fallback in `WinboxM2Session` stays in place (for future native
+legacy operations), but the terminal path does not support it.
+
+---
+
+## 7. Results (WinboxCli / TCP)
 
 - `WinboxCliProtocolTest` — **2/2** (login+list interfaces, set+verify ether1 comment)
-- `InterfaceTest` přes `winboxcli.runsettings` — **9 pass / 6 skip / 0 fail** (skip = CLI limitace:
-  async/listen/monitor-traffic; přesná parita s Telnet/MAC-Telnet)
+- `InterfaceTest` over `winboxcli.runsettings` — **9 pass / 6 skip / 0 fail** (skips are CLI
+  limitations: async/listen/monitor-traffic; exact parity with Telnet/MAC-Telnet)
 - Login ~0.6 s, set+verify ~2 s.
 
 ---
 
-# WinBox CLI over MAC (`WinboxCliMac`, kapitola H)
+# WinBox CLI over MAC (`WinboxCliMac`, Chapter H)
 
-**Transport:** UDP 20561, `client_type=0x0f90`, mepty terminál. Sdílí celý CLI engine s G přes
-abstrakci `IWinboxM2Channel`; liší se jen kanál (`WinboxMacM2Session : MacLayerTransport`).
+**Transport:** UDP 20561, `client_type=0x0f90`, mepty terminal. Shares the entire CLI engine with
+Chapter G through the `IWinboxM2Channel` abstraction; only the channel differs
+(`WinboxMacM2Session : MacLayerTransport`).
 
-## 8. ROOT CAUSE — MAC-WinBox = WinBox protokol tunelovaný přes MAC (PoC měl obojí špatně)
+## 8. ROOT CAUSE — MAC-WinBox is the WinBox protocol tunneled over MAC (the PoC got both parts wrong)
 
-PoC `WinboxMacClient` byl `[Ignore]` „EXPERIMENTAL, M2 framing unverified". Dvě mylné hypotézy,
-živě vyvráceny (RouterOS 7.21.4):
+The PoC's `WinboxMacClient` was `[Ignore]`d as "EXPERIMENTAL, M2 framing unverified". Two mistaken
+hypotheses, disproven live (RouterOS 7.21.4):
 
-1. **Auth NENÍ MAC-Telnet control-packet auth.** PoC volal base `MacLayerTransport.Authenticate`
-   (CTRL_BEGINAUTH/PASSSALT) → **timeout** (router neodpoví). Správně: **identický WinBox EC-SRP5
-   handshake jako TCP** — length-prefixed `[len][0x06][payload]` rámce poslané jako DATA payload.
-   Challenge dorazila jako `31-06-0E-22-…` = `[len=49][tag=0x06][32B xWB][1B parity][16B salt]`.
-   ⇒ V `WinboxMacM2Session.MacAuthEcSrp5` se po `BaseConnect(0x0f90)` posílá WinBox hello a dělá se
-   stejná EC-SRP5 matematika jako `WinboxM2Session.EcSrp5Auth`.
+1. **Auth is NOT MAC-Telnet control-packet auth.** The PoC called the base
+   `MacLayerTransport.Authenticate` (CTRL_BEGINAUTH/PASSSALT) → **timeout** (the router never
+   replies). The correct behavior: the **same WinBox EC-SRP5 handshake as over TCP** —
+   length-prefixed `[len][0x06][payload]` frames sent as DATA payload. The challenge arrived as
+   `31-06-0E-22-…` = `[len=49][tag=0x06][32B xWB][1B parity][16B salt]`.
+   ⇒ In `WinboxMacM2Session.MacAuthEcSrp5`, after `BaseConnect(0x0f90)` the WinBox hello is sent and
+   the same EC-SRP5 math runs as in `WinboxM2Session.EcSrp5Auth`.
 
-2. **Šifrované M2 NENÍ holý `Encrypt(m2)` v DATA.** PoC posílal `Send(PKT_DATA, Encrypt(m2))` a
-   dekódoval holý payload → dekrypt z špatného offsetu → „Not a valid M2 response". Správně:
-   **stejné chunk framing jako TCP** (`[chunkLen 1B][tag][data]…`, 0xFF = continuation) uvnitř DATA
-   paketů. ⇒ `Send` chunk-wrapuje (`ChunkWrap`), `Receive` reassembluje přes `_rxBuf` buffer
-   (chunk může přesáhnout hranici DATA paketu) a teprve pak `WinboxStreamCrypto.Decrypt`.
+2. **Encrypted M2 is NOT a bare `Encrypt(m2)` inside DATA.** The PoC sent
+   `Send(PKT_DATA, Encrypt(m2))` and decoded the raw payload → decrypting from the wrong offset →
+   "Not a valid M2 response". The correct behavior: **the same chunk framing as over TCP**
+   (`[chunkLen 1B][tag][data]…`, 0xFF = continuation) inside the DATA packets. ⇒ `Send` chunk-wraps
+   (`ChunkWrap`), `Receive` reassembles via the `_rxBuf` buffer (a chunk can cross a DATA packet
+   boundary), and only then does `WinboxStreamCrypto.Decrypt` run.
 
-**Závěr:** MAC-WinBox = celý WinBox protokol (EC-SRP5 handshake + chunked AES rámce) tunelovaný přes
-MAC reliable stream. Jediný rozdíl oproti TCP je transport (DATA/ACK pakety místo TCP streamu).
-To je důvod, proč šel CLI engine (`WinboxCliClient`) sdílet beze změny — stačila kanálová abstrakce.
+**Conclusion:** MAC-WinBox is the entire WinBox protocol (EC-SRP5 handshake + chunked AES frames)
+tunneled over the MAC reliable stream. The only difference from TCP is the transport (DATA/ACK
+packets instead of a TCP stream). That's why the CLI engine (`WinboxCliClient`) could be shared
+unchanged — a channel abstraction was all that was needed.
 
-## 9. Další MAC poznatky
+## 9. Further MAC findings
 
-- **ACK = counter+payloadLen** — produkční `MacLayerTransport.AckData` (z kap. D/E), ne holý
-  `SendAck(counter)` z PoC. Dedup retransmisí přes `_inCounter`.
-- **mac-winbox server** je samostatný od mac-telnet: `/tool/mac-server/mac-winbox set
-  allowed-interface-list=all` (test ho nastaví v `[ClassInitialize]`). Oba byly živě enabled.
-- **SESSION_ID u8/u32 fix z G** platí i tady (sdílený `M2Message`).
-- **Rychlost:** login ~16 s, set+verify ~32 s (MNDP ~5 s + per-frame AES + UDP polling se sleepy).
-  Mnohem pomalejší než TCP (~1–2 s). Pro produkci nastavit `RouterMac` (bypass MNDP).
+- **ACK = counter+payloadLen** — the production `MacLayerTransport.AckData` (from Chapter D/E), not
+  the bare `SendAck(counter)` from the PoC. Retransmission dedup happens via `_inCounter`.
+- **The mac-winbox server is separate from mac-telnet:** `/tool/mac-server/mac-winbox set
+  allowed-interface-list=all` (the test sets this in `[ClassInitialize]`). Both were enabled live.
+- **The SESSION_ID u8/u32 fix from Chapter G applies here too** (shared `M2Message`).
+- **Speed:** login ~16 s, set+verify ~32 s (MNDP ~5 s + per-frame AES + UDP polling with sleeps).
+  Much slower than TCP (~1–2 s). For production, set `RouterMac` to bypass MNDP.
 
-## 10. Výsledky (WinboxCliMac / MAC)
+## 10. Results (WinboxCliMac / MAC)
 
 - `WinboxCliMacProtocolTest` — **2/2** (login+list, set+verify ether1 comment).
-- Regrese: WinboxCli 2/2 + MacTelnet 2/2 + WinboxCliMac 2/2 = **6/6** dohromady.
+- Regression: WinboxCli 2/2 + MacTelnet 2/2 + WinboxCliMac 2/2 = **6/6** combined.
 
 ---
 
-## 11. Konstanty protokolu centralizovány (2026-06-11)
+## 11. Protocol constants centralized (2026-06-11)
 
-Všechna M2 čísla zmíněná výše inline (`0x0A0065` meptyLogin, `0x0A0067` meptyData, mepty
+All the M2 numbers mentioned above inline (`0x0A0065` meptyLogin, `0x0A0067` meptyData, mepty
 `U32User(3)=cols`/`U32User(4)=rows`, `0xFF0005/06/07`, mproxy cmd 7/3/4/5, SESSION_ID `0xFE0001`)
-žijí teď v **`tik4net/Winbox/WinboxM2Protocol.cs`** (`internal static`, sdíleno produkcí i testem).
-Sekce: `SysKey` / `RecordKey` / `Command` / `Error` / `Mproxy` / `SysInfo` / `LegacyAuth` / `Mepty` / `Tlv`.
-Pozn.: mepty `Key.Cols`(3 na Login) a `Key.Counter`(3 na Data) = stejné číslo, jiný význam (zdokumentováno).
-Plný soupis + kolize viz `winbox-native-m2-plan.md` §12.
+now live in **`tik4net/Winbox/WinboxM2Protocol.cs`** (`internal static`, shared by production code
+and tests). Sections: `SysKey` / `RecordKey` / `Command` / `Error` / `Mproxy` / `SysInfo` /
+`LegacyAuth` / `Mepty` / `Tlv`.
+Note: mepty `Key.Cols` (3 on Login) and `Key.Counter` (3 on Data) are the same number with different
+meanings (now documented).
+See `winbox-native-m2-plan.md` §12 for the full list and collisions.
 
 ---
 
-## 12. M2 request/response korelace — podklad pro multiplexing (2026-07-21)
+## 12. M2 request/response correlation — groundwork for multiplexing (2026-07-21)
 
-Ověřeno živě (RouterOS 7.21.4, testovací CHR) při přípravě `winbox-m2-multiplexing-design.md`.
-Do té doby M2 vrstva jela **lockstep** — `SendRecvRaw` čte „další rámec", ne „můj rámec" — takže korelaci
-nikdo nepotřeboval a `M2Message` na ni dodnes nemá parser.
+Verified live (RouterOS 7.21.4, test CHR) while preparing `winbox-m2-multiplexing-design.md`. Up to
+this point the M2 layer ran **lockstep** — `SendRecvRaw` reads "the next frame", not "my frame" — so
+nobody needed correlation, and `M2Message` still has no parser for it.
 
-### 12.1 `0xFF0006` (RequestId) se v odpovědi vrací ⇒ je to korelační klíč
+### 12.1 `0xFF0006` (RequestId) comes back in the response ⇒ it's the correlation key
 
-`/ip/address/print` přes WinboxNative = tři M2 výměny v jedné session (reference resolution — adresa
-odkazuje `ether1`, takže následuje getall interface a VRF):
+`/ip/address/print` over WinboxNative is three M2 exchanges within one session (reference
+resolution — the address refers to `ether1`, so a getall for interface and VRF follows):
 
-| výměna | handler (`0xFF0001` To) | request `0xFF0006` | response `0xFF0006` | response `0xFF0003` |
+| exchange | handler (`0xFF0001` To) | request `0xFF0006` | response `0xFF0006` | response `0xFF0003` |
 |---|---|---|---|---|
 | getall address | `[20,1]` | 2 | **2** | 2 |
 | getall vrf | `[20,101]` | 3 | **3** | 2 |
 | getall interface | `[20,0]` | 4 | **4** | 2 |
 
-`0xFF0006` sleduje request přesně. Multiplexing (víc requestů v letu, dispatch odpovědí podle id) je
-tedy proveditelný.
+`0xFF0006` tracks the request exactly. Multiplexing (multiple requests in flight, dispatching
+responses by id) is therefore feasible.
 
-### 12.2 `0xFF0003` korelační pole NENÍ — past na jednovýměnový trace
+### 12.2 `0xFF0003` is NOT a correlation field — a trap for single-exchange traces
 
-`0xFF0003` není v `WinboxM2Protocol` definované a napříč session zůstává konstantní (2), zatímco req id
-roste. Vypadá to na session / reply-channel id.
+`0xFF0003` isn't defined in `WinboxM2Protocol`, and it stays constant (2) across the session while
+the req id keeps increasing. It looks like a session / reply-channel id.
 
-**Past:** v trace o jedné výměně (`/system/identity/print`, req id = 2) má `0xFF0003` *náhodou stejnou
-hodnotu* jako req id → na jednom vzorku by se vybralo špatné pole. Rozliší je až víc round-tripů.
+**Trap:** in a trace of a single exchange (`/system/identity/print`, req id = 2), `0xFF0003`
+*happens to have the same value* as the req id → on a single sample you'd pick the wrong field.
+Only more round-trips tell them apart.
 
-Nezávislé potvrzení je ostatně **už v §1 tohoto dokumentu**: mepty-open dump z 2026-06-05 má
-`0xFF0003 u8 = 2` a `0xFF0006 u8 = 1` — tam se ta dvě pole liší. Ten důkaz ležel v repu 6 týdnů,
-než ho někdo potřeboval.
+Independent confirmation is, in fact, **already in §1 of this document**: the mepty-open dump from
+2026-06-05 has `0xFF0003 u8 = 2` and `0xFF0006 u8 = 1` — there the two fields differ. That evidence
+sat in the repo for 6 weeks before anyone needed it.
 
-### 12.3 Krypto je bezstavové per rámec ⇒ multiplexing je krypticky bezpečný
+### 12.3 The crypto is stateless per frame ⇒ multiplexing is cryptographically safe
 
-Klíčové zjištění, protože tohle byl jediný reálný blocker. Přes název `WinboxStreamCrypto` **to není
-běžící stream cipher**: `Encrypt` emituje `[enc_len 2B BE][IV 16B][ciphertext]` s **novým náhodným IV
-pro každý rámec** a `Decrypt` si vystačí s tím rámcem + fixními klíči z handshake. Žádný cross-frame
-stav, žádný čítač, žádné replay okno.
+The key finding, because this was the only real blocker. Despite the name `WinboxStreamCrypto`,
+**it is not a running stream cipher**: `Encrypt` emits `[enc_len 2B BE][IV 16B][ciphertext]` with a
+**fresh random IV for every frame**, and `Decrypt` needs only that frame plus the fixed keys from the
+handshake. No cross-frame state, no counter, no replay window.
 
-⇒ Rámce jde dešifrovat nezávisle a **dokončovat mimo pořadí**. Kdyby šlo o stavový stream cipher,
-multiplexing by bez redesignu krypto vrstvy nešel vůbec.
+⇒ Frames can be decrypted independently and **completed out of order**. If this were a stateful
+stream cipher, multiplexing would be impossible without redesigning the crypto layer.
 
-Jediné pořadové omezení zůstává **framing**: `RecvChunked` skládá sekvenci chunků, takže čtení musí být
-serializované (jeden reader) a zápis taky (sekvence chunků se nesmí proplést). To je přesně reader-loop +
-write-lock, nic navíc.
+The only remaining ordering constraint is **framing**: `RecvChunked` assembles a sequence of chunks,
+so reads must be serialized (a single reader) and so must writes (a chunk sequence must not
+interleave). That's exactly a reader-loop plus a write-lock, nothing more.
 
-### 12.4 `0xFF0001`/`0xFF0002` (To/From) se v odpovědi prohazují
+### 12.4 `0xFF0001`/`0xFF0002` (To/From) swap in the response
 
-Request `To=[20,1] From=[0,8]` → response `To=[0,8] From=[20,1]`. Handler je tedy sekundární signál,
-ale **není unikátní** — dva souběžné requesty na stejný handler se podle něj nerozliší. Dispatchovat
-výhradně podle `0xFF0006`.
+Request `To=[20,1] From=[0,8]` → response `To=[0,8] From=[20,1]`. The handler is therefore a
+secondary signal, but **not unique** — two concurrent requests to the same handler can't be told
+apart by it. Dispatch exclusively on `0xFF0006`.
 
-### 12.5 Dnes neexistují nevyžádané příchozí rámce
+### 12.5 Today there are no unsolicited incoming frames
 
-Monitory jsou **polling smyčky**, ne subscription: `MonitorLoop` dělá `StartMonitor` →
-opakovaně `PollMonitor` → `CancelMonitor`, každý krok normální request/response. Proto lockstep vůbec
-funguje. Multiplexovaná implementace ale musí umět zahodit nespárovaný rámec (opožděná odpověď po
-timeoutu) — robustnost, ne běžná cesta.
+Monitors are **polling loops**, not subscriptions: `MonitorLoop` does `StartMonitor` → repeated
+`PollMonitor` → `CancelMonitor`, each step a normal request/response. That's exactly why lockstep
+works at all. A multiplexed implementation, though, still needs to be able to discard an unmatched
+frame (a late response after a timeout) — a robustness concern, not the common path.
 
-### 12.6 Req id je jeden bajt
+### 12.6 The req id is one byte
 
-`NextReqIdField()` = `U8Sys(RequestId, (byte)(++_reqId))` → **wrapuje na 256**, a `++_reqId` nad prostým
-`int` polem přestane být bezpečné, jakmile budou souběžní odesílatelé (`Interlocked` + maska na 8 bitů).
-Id `0` se dnes nikdy nepoužije (counter je pre-inkrementovaný) → nechat rezervované jako „žádné id".
+`NextReqIdField()` = `U8Sys(RequestId, (byte)(++_reqId))` → **wraps at 256**, and `++_reqId` on a
+plain `int` field stops being safe as soon as there are concurrent senders (needs `Interlocked` +
+an 8-bit mask). Id `0` is never used today (the counter is pre-incremented) → keep it reserved as
+"no id".
 
-### 12.7 `0xFE0019` = objCount, nikoli „následují další rámce" (uzavřeno 2026-07-21)
+### 12.7 `0xFE0019` is objCount, not "more frames follow" (closed 2026-07-21)
 
-Podezření z předchozí verze této sekce (že `0xFE0019=u8:1` značí pokračování) se **nepotvrdilo**.
+The suspicion from an earlier version of this section (that `0xFE0019=u8:1` signals continuation)
+did **not** hold up.
 
-Zdroj pravdy — webfig `master-d53cd8ec58cb.js`, obě jediná dvě použití pole v celém souboru:
+Source of truth — webfig `master-d53cd8ec58cb.js`, the only two uses of the field in the entire
+file:
 
 ```js
 // ObjectMap.prototype.getall  → onreply
@@ -242,161 +260,170 @@ if (rep.ufe0019 != null) me.objCount = rep.ufe0019;
 if (msg.ufe0019 != null) me.objCount = msg.ufe0019;
 ```
 
-Uloží se do `objCount` a **nikde se nečte** v řízení toku — žádná podmínka smyčky, žádné ukončení,
-žádná registrace. Je to informativní celkový počet objektů (proto `1` u výměn s jedním záznamem a
-nepřítomnost tam, kde ho handler neposlal). V `WinboxM2Protocol.RecordKey.Count` už ostatně takto
-zdokumentovaný **byl** — konstanta ležela v repu s komentářem „total object count" a stačilo se na ni
-podívat, než jsem to vedl jako otevřenou otázku.
+It's stored into `objCount` and **never read** anywhere in flow control — no loop condition, no
+termination check, no registration. It's just an informational total object count (hence `1` for
+exchanges with a single record, and its absence where the handler didn't send it). In fact
+`WinboxM2Protocol.RecordKey.Count` was already documented that way — the constant sat in the repo
+with a comment saying "total object count", and all it took was actually looking at it instead of
+carrying it forward as an open question.
 
-**Dopad na multiplexing: žádný.** Pravidlo dokončení zůstává „jeden request → právě jeden rámec
-odpovědi", registrace se uzavírá prvním rámcem s odpovídajícím `0xFF0006`.
+**Impact on multiplexing: none.** The completion rule stays "one request → exactly one response
+frame"; a registration closes on the first frame with a matching `0xFF0006`.
 
-#### 12.7.1 Stránkování multi-frame není
+#### 12.7.1 There is no multi-frame paging
 
-Ověřeno tamtéž — pokračování je **nový request**, ne další nevyžádaný rámec:
+Verified in the same source — a continuation is a **new request**, not another unsolicited frame:
 
 ```js
 else if ((rep.ufe0003 != null || rep.mfe0015) && !me.block) {
     if (rep.ufe0003 != null) req.ufe0003 = rep.ufe0003;
-    post(req, onreply);            // ← nový request, nové id
+    post(req, onreply);            // ← new request, new id
 }
 ```
 
-Přesně to dělá i náš klient: smyčka volá `NextReqIdField()` uvnitř každé iterace
-([WinboxNativeM2Operations.cs:129](tik4net/Winbox/WinboxNativeM2Operations.cs:129)) a token přikládá
-jako `RecordKey.Continuation` ([:134](tik4net/Winbox/WinboxNativeM2Operations.cs:134)). V modelu
-registrací se tedy nic nemění: **každá stránka je samostatná registrace s vlastním id.**
+That's exactly what our client does too: the loop calls `NextReqIdField()` on every iteration
+([WinboxNativeM2Operations.cs:129](tik4net/Winbox/WinboxNativeM2Operations.cs:129)) and attaches the
+token as `RecordKey.Continuation` ([:134](tik4net/Winbox/WinboxNativeM2Operations.cs:134)). So the
+registration model doesn't change at all: **each page is a separate registration with its own id.**
 
-Vedlejší nález (mimo rozsah multiplexingu): webfig pokračuje i na `rep.mfe0015`, náš klient sleduje
-jen `ufe0003` ([:151](tik4net/Winbox/WinboxNativeM2Operations.cs:151)). U handleru, který stránkuje
-přes `mfe0015`, bychom tiše vrátili jen první stránku. Živě jsme na to nenarazili; stojí za samostatné
-ověření.
+Side finding (out of scope for multiplexing): webfig also continues on `rep.mfe0015`, while our
+client only watches `ufe0003` ([:151](tik4net/Winbox/WinboxNativeM2Operations.cs:151)). For a
+handler that pages via `mfe0015`, we would silently return only the first page. We haven't hit this
+live; it's worth verifying separately.
 
-#### 12.7.2 Pozn. k `post()` — webfig koreluje HTTP, ne `0xFF0006`
+#### 12.7.2 Note on `post()` — webfig correlates over HTTP, not `0xFF0006`
 
-`uff0006` se ve webfig JS **nevyskytuje vůbec**: jde o jsproxy nad HTTP, kde pár request/response drží
-samo HTTP. Webfig proto **není** zdroj pravdy pro sémantiku req-id — ta stojí na živém trace v §12.1.
-Pro `0xFE0019` zdrojem pravdy je, protože význam pole je na transportu nezávislý.
+`uff0006` **never appears at all** in the webfig JS: it's a jsproxy over HTTP, where the
+request/response pairing is handled by HTTP itself. Webfig is therefore **not** a source of truth
+for req-id semantics — that rests on the live trace in §12.1. For `0xFE0019` it *is* a source of
+truth, because that field's meaning is transport-independent.
 
-Nevyžádané zprávy webfig zná jen přes `subscribe` (cmd `0xFE0012`) a dispatchuje je podle `Uff0002`
-(`From`/path) na odděleném long-pollu (`post_notification_request`). Nad nativním TCP by takové pushe
-chodily in-band — dnes je nepoužíváme (§12.5), ale je to druhý důvod, proč reader loop potřebuje větev
-pro nespárovaný rámec (§4.4 návrhu), a naznačuje, čím by se dispatchovala, kdyby subscribe přibylo.
+Webfig only learns about unsolicited messages through `subscribe` (cmd `0xFE0012`), and dispatches
+them by `Uff0002` (`From`/path) on a separate long-poll (`post_notification_request`). Over native
+TCP, such pushes would arrive in-band — we don't use them today (§12.5), but this is a second
+reason the reader loop needs a branch for an unmatched frame (§4.4 of the design doc), and it hints
+at what such dispatching would key on if subscribe were ever added.
 
-### 12.8 Paralelní spojení z jednoho stroje se v M2 neznačí
+### 12.8 Parallel connections from one machine are not marked in M2
 
-Hypotéza, že by některé pole muselo identifikovat spojení (kvůli víc session z jednoho stroje, typicky
-u MAC variant), **na M2 vrstvě neplatí** — rozlišuje se pod ní:
+The hypothesis that some field must identify the connection (because of multiple sessions from one
+machine, typically with MAC variants) **doesn't hold at the M2 layer** — it's distinguished below
+that layer:
 
-| transport | co odděluje paralelní session |
+| transport | what separates parallel sessions |
 |---|---|
-| WinBox TCP / TCP-MAC | TCP socket (4-tuple), každá session má vlastní spojení |
-| WinBox nad MAC vrstvou | náhodný `_sessionKey` v hlavičce paketu ([MacLayerTransport.cs:98](tik4net/MacTelnet/MacLayerTransport.cs:98)) |
+| WinBox TCP / TCP-MAC | TCP socket (4-tuple), each session has its own connection |
+| WinBox over the MAC layer | a random `_sessionKey` in the packet header ([MacLayerTransport.cs:98](tik4net/MacTelnet/MacLayerTransport.cs:98)) |
 
-Kandidátem na „reply-channel id" je z §12.2 `0xFF0003` (konstantní 2 napříč session) — ve webfig JS se
-ale nevyskytuje vůbec, takže jeho význam zůstává neurčený. Pro dispatch je to jedno: **je konstantní,
-takže by dva souběžné requesty stejně nerozlišil.** Korelace zůstává výhradně na `0xFF0006`.
+The candidate for a "reply-channel id" from §12.2, `0xFF0003` (constant 2 across the session), never
+appears in the webfig JS at all, so its meaning remains undetermined. It doesn't matter for
+dispatch either way: **it's constant, so it wouldn't distinguish two concurrent requests anyway.**
+Correlation stays exclusively on `0xFF0006`.
 
 ---
 
-## 13. Router odmítne správné přihlášení asi jednou ze sta (2026-07-30, P2.41)
+## 13. The router refuses a correct login roughly one time in a hundred (2026-07-30, P2.41)
 
-**Ověřeno živě na RouterOS 7.23.2.** Zhruba **0,5–1 % WinBox loginů** skončí tím, že router pošle
-tam, kde patří 32bajtový potvrzovací digest, **33 bajtů ASCII**:
+**Verified live on RouterOS 7.23.2.** Roughly **0.5–1% of WinBox logins** end with the router
+sending **33 bytes of ASCII** where a 32-byte confirmation digest belongs:
 
 ```
 69 6E 76 61 6C 69 64 20 75 73 65 72 20 6E 61 6D 65 20 6F 72 20 70 61 73 73 77 6F 72 64 20 28 36 29
 "invalid user name or password (6)"
 ```
 
-Router si za tím stojí i ve vlastním logu (`system,error,critical login failure for user admin …
-via winbox`), takže **naše hláška o špatném hesle vymyšlená nebyla** — jen nikdo nevěděl proč.
-Přihlašovací údaje jsou přitom správné a o 50 ms později fungují.
+The router's own log backs this up (`system,error,critical login failure for user admin … via
+winbox`), so **our "wrong password" message wasn't a fabrication** — nobody just knew why. The
+credentials are correct the whole time and work again 50 ms later.
 
-### 13.1 Není to v nás — důkaz přehráním téhož klíče
+### 13.1 It's not us — proof by replaying the same key
 
-Rozhodující experiment (`WinboxHandshakeLoopProbeTest.Probe_WinboxHandshake_SameKeyRetry`): po každém
-odmítnutí se handshake zopakuje s **týmž** klientským klíčem `privA`. Výsledek **9 z 9 přehrání přijato**
-— tedy tytéž bajty, které router právě odmítl, o chvíli později přijme. Jediné, co se mezi pokusy mění,
-je routerův vlastní efemérní klíč `xWB`. Vyloučeno tím bylo:
+The decisive experiment (`WinboxHandshakeLoopProbeTest.Probe_WinboxHandshake_SameKeyRetry`): after
+each refusal, the handshake is repeated with the **same** client key `privA`. Result: **9 of 9
+replays accepted** — the exact same bytes the router just refused get accepted moments later. The
+only thing that changes between attempts is the router's own ephemeral key `xWB`. This ruled out:
 
-| podezření | jak vyvráceno |
+| suspicion | how it was ruled out |
 |---|---|
-| chyba v naší EC-SRP5 aritmetice | 4000 round-tripů klient↔server offline, **0 divergencí** (`EcSrp5RoundTripTests`) |
-| vedoucí nula v `xWA` (1/256 ≈ pozorovaná četnost) | vynuceno záměrně: **4 z 5 uspělo**; náhoda v prvním vzorku |
-| rate-limit / frekvence pokusů | 2/40 při 0 ms, 0/40 při 250 ms, 1/40 při 1000 ms — bez trendu |
-| desync rámců | rámec je korektní chunk s tagem `0x06`, délka 33 přesně odpovídá délce textu — nic nepřeteklo ani nechybí |
-| jiný transport / jiný auth | API: **0 z 400** odmítnutí — jev je specifický pro WinBox handshake |
+| a bug in our EC-SRP5 arithmetic | 4000 client↔server round-trips offline, **0 divergences** (`EcSrp5RoundTripTests`) |
+| a leading zero byte in `xWA` (1/256 ≈ observed frequency) | forced deliberately: **4 of 5 succeeded**; the first sample was just luck |
+| rate-limiting / attempt frequency | 2/40 at 0 ms, 0/40 at 250 ms, 1/40 at 1000 ms — no trend |
+| frame desync | the frame is a well-formed chunk with tag `0x06`; the length of 33 matches the text length exactly — nothing overflowed or was missing |
+| a different transport / different auth | API: **0 of 400** refusals — the phenomenon is specific to the WinBox handshake |
 
-V logu je i jeden osamocený `via api` záznam, který se nepodařilo připsat žádnému našemu klientovi;
-400 čerstvých API loginů bylo čistých, takže se na něm nic nestaví.
+The log also has one lone `via api` entry that couldn't be attributed to any of our clients; the
+400 fresh API logins were all clean, so nothing is built on that entry.
 
-### 13.2 Co s tím — bounded retry, protože obsah obě příčiny nerozliší
+### 13.2 What to do about it — bounded retry, since the content can't distinguish the two causes
 
-**Skutečně špatné heslo vypadá úplně stejně** (je to routerova normální cesta pro odmítnutí), takže
-podle obsahu odpovědi je odlišit nelze — jedině podle toho, že přechodné odmítnutí zmizí a skutečné ne.
-Proto `WinboxLoginRetry`: 3 pokusy, 100 ms mezi nimi, a retryuje se **výhradně**
-`WinboxLoginRefusedException`. Každý pokus staví **nový kanál** — odmítnutý handshake nechá ten starý
-nepoužitelný.
+**A genuinely wrong password looks exactly the same** (it's the router's normal path for a
+refusal), so the response content can't tell them apart — only the fact that a transient refusal
+disappears and a real one doesn't. Hence `WinboxLoginRetry`: 3 attempts, 100 ms apart, retrying
+**exclusively** on `WinboxLoginRefusedException`. Each attempt builds a **new channel** — a refused
+handshake leaves the old one unusable.
 
-Cena je vědomá: opravdu špatné heslo selže o ~200 ms později a zanechá v routeru 3 řádky `login failure`
-místo jednoho.
+The cost is deliberate: a truly wrong password now fails ~200 ms later and leaves 3 `login failure`
+lines in the router instead of one.
 
-**Ověřeno:** 600 produkčních otevření (WinboxCli / WinboxNative / WinboxNativeMac po 200), **0 selhání
-a 6 pohlcených odmítnutí**, všechna vyřešená prvním retry. Že retry opravdu koná práci (a ne že router
-zrovna mlčel) je vidět z trace note `wbx.login` — bez něj je zelený běh nerozlišitelný od zametení pod
-koberec.
+**Verified:** 600 production connection opens (WinboxCli / WinboxNative / WinboxNativeMac, 200
+each), **0 failures and 6 absorbed refusals**, all resolved on the first retry. That the retry is
+actually doing work (and the router wasn't simply silent) is visible from the trace note
+`wbx.login` — without it, a green run is indistinguishable from sweeping the problem under the rug.
 
-### 13.3 Vedlejší nálezy
+### 13.3 Side findings
 
-- **Handshake se do wire trace vůbec nepromítal.** `SendHandshake` zapisuje přímo do `Stream` a čte
-  přes `ReadExact`, takže míjel emit pointy v `SendChunked`/`RecvChunked` — právě ta výměna, která se
-  nejhůř ladí, byla jediná neviditelná. Doplněno (`wbxtcp.frame`, note `ecsrp5 …`).
-- **MAC vrstva traceovala jen odesílání.** `RecvUntil` neemitoval nic, takže z trace nešlo poznat
-  „odpověď nedorazila" od „nikdy jsme se neptali". Doplněno.
-- **Fallback na legacy MD5 se vybíral podle textu hlášky** (`ex.Message.Contains("EC-SRP5")`) a čekalo
-  se na challenge jen 3 s. Pomalý router tak spadl do MD5 auth, ta na moderním RouterOS selhala a
-  výsledkem bylo „wrong username or password". Nahrazeno typem `WinboxEcSrp5UnsupportedException`
-  a oknem `max(3 s, ConnectTimeout)` = 15 s.
-- **WinboxCliMac je tak pomalý, že 9 testů vyprší** — plný běh 1 h 22 m a 313/9, zatímco týž CLI engine
-  přes TCP (`winboxcli`) dá 322/322 za 8 minut. Login ~11 s proti ~1,4 s. **Nesouvisí to s P2.41**:
-  těch 9 testů dopadlo na buildu s P2.41 i na stashnutém baseline **identicky (6 fail / 3 pass /
-  3 m 14 s)**.
+- **The handshake never showed up in the wire trace at all.** `SendHandshake` writes directly to the
+  `Stream` and reads via `ReadExact`, so it bypassed the emit points in `SendChunked`/`RecvChunked`
+  — exactly the exchange that's hardest to debug was the one invisible piece. Fixed (`wbxtcp.frame`,
+  note `ecsrp5 …`).
+- **The MAC layer only traced sends.** `RecvUntil` emitted nothing, so the trace couldn't
+  distinguish "no response arrived" from "we never even asked." Fixed.
+- **The fallback to legacy MD5 was selected by matching message text**
+  (`ex.Message.Contains("EC-SRP5")`), and it only waited 3 s for the challenge. A slow router would
+  fall through to MD5 auth, which then failed on modern RouterOS, resulting in "wrong username or
+  password". Replaced with a dedicated `WinboxEcSrp5UnsupportedException` type and a window of
+  `max(3 s, ConnectTimeout)` = 15 s.
+- **WinboxCliMac is slow enough that 9 tests time out** — a full run takes 1 h 22 m with 313/9,
+  while the same CLI engine over TCP (`winboxcli`) does 322/322 in 8 minutes. Login ~11 s versus
+  ~1.4 s. **Unrelated to P2.41**: those 9 tests behaved **identically (6 fail / 3 pass / 3 m 14 s)**
+  on a build with P2.41 and on a stashed baseline.
 
-  Past, na kterou nenaletět: nabízí se `RecvUntil` a jeho `Thread.Sleep(20)` místo čekání na socketu
-  (každý rámec, který dorazí těsně po kontrole `Available`, platí až 20 ms). **Vyzkoušeno** —
-  `_udp.Client.Poll(20 ms, SelectRead)` posunul podmnožinu z 6 fail / 3 m 14 s na 5 fail / 2 m 45 s,
-  tedy **~15 %, a pořád červeně**. Vráceno zpět; zbylých ~85 % je jinde, nejspíš v tom, že
-  `WinboxCliClient` pollje `DataAvailable` vlastními sleepy (viz §3 — to gatování je záměrné a rušit
-  se nesmí, jen předělat na event-driven). Rozepsáno jako P2.43.
+  A trap worth avoiding: it's tempting to blame `RecvUntil`'s `Thread.Sleep(20)` instead of waiting
+  on the socket (any frame arriving right after the `Available` check waits up to 20 ms). **Tried
+  it** — `_udp.Client.Poll(20 ms, SelectRead)` moved the subset from 6 fail / 3 m 14 s to 5 fail /
+  2 m 45 s, i.e. **~15%, and still red**. Reverted; the remaining ~85% is elsewhere, most likely in
+  `WinboxCliClient` polling `DataAvailable` with its own sleeps (see §3 — that gating is
+  intentional and must not be removed, only converted to event-driven). Written up as P2.43.
 
-## 14. Singletony se nezapisovaly vůbec (P2.44, 2026-07-30)
+## 14. Singletons weren't being written at all (P2.44, 2026-07-30)
 
-`0xFE000E` (`setcmd(holder)`) je v `winbox-native-m2-protocol.md` zdokumentovaný od začátku, ale
-transport ho **nikdy nevolal**. Zápis šel jedinou cestou — `0xFE0003` (`set`) + `ufe0001` = `.id` —
-a singleton (`.jg` `type:'item'`) žádné `.id` nemá, takže `ResolveRecordId(required:true)` skončil na
+`0xFE000E` (`setcmd(holder)`) has been documented in `winbox-native-m2-protocol.md` from the start,
+but the transport **never called it**. Writes only went through one path — `0xFE0003` (`set`) +
+`ufe0001` = `.id` — and a singleton (`.jg` `type:'item'`) has no `.id` at all, so
+`ResolveRecordId(required:true)` ended up with:
 
 ```
 no such item: could not resolve record .id '' on '/system/identity/set'
 ```
 
-Platí to pro **každou** `IsSingleton` entitu (`/system/identity`, `/ip/dns`, `/ip/settings`, `/snmp`,
-`/system/note`, … ~35 tříd). Suita to neodhalila, protože singletony jenom **četla**.
+This applies to **every** `IsSingleton` entity (`/system/identity`, `/ip/dns`, `/ip/settings`,
+`/snmp`, `/system/note`, … ~35 classes). The test suite never caught this because it only ever
+**read** singletons.
 
-Tvar požadavku podle webfig `ObjectHolder.setObject`:
+The shape of the request, per webfig's `ObjectHolder.setObject`:
 
 ```js
 req.Uff0001 = this.attrs.path;
 req.uff0007 = this.attrs.setcmd || 0xfe000e;
-if ("ufe0001" in obj) req.ufe0001 = obj.ufe0001;   // .id jen když ho objekt sám nese
+if ("ufe0001" in obj) req.ufe0001 = obj.ufe0001;   // .id only when the object itself carries it
 ```
 
-`.id` se tedy posílá **volitelně** — jediný známý případ je skryté okno „Change Password“
-(`setcmd:3`), které míří na záznam uživatele. `WinboxNativeConnection.WriteFields` proto pošle `.id`
-jen v doslovném tvaru `*HEX`; dohledávání podle jména by znamenalo `getall`, na který singleton
-handler nemá co odpovědět.
+So `.id` is sent **optionally** — the only known case is the hidden "Change Password" window
+(`setcmd:3`), which targets a user record. `WinboxNativeConnection.WriteFields` therefore only
+sends `.id` in its literal `*HEX` form; looking it up by name would require a `getall`, which a
+singleton handler has nothing to answer.
 
-### 14.1 `/system/identity` navíc vrací pole pod GUI labelem
+### 14.1 `/system/identity` also returns a field under its GUI label
 
 Handler `[24,1]`, `.jg`:
 
@@ -405,304 +432,339 @@ Handler `[24,1]`, `.jg`:
  c:[{name:'Identity',type:'string',id:'sc'},{name:'Version',type:'string',id:'sd',nonpublic:1}]}
 ```
 
-Čtení tedy vracelo `{"version":"7.23.2","identity":"CHR"}`, kdežto API vrací `{"name":"CHR"}` —
-`LoadSingle<SystemIdentity>()` padal na `Missing field 'name'`. Řešeno shipped field aliasem
-`name ↔ identity` (stabilní text, klíč pořád z `.jg`).
+So a read returned `{"version":"7.23.2","identity":"CHR"}`, whereas the API returns
+`{"name":"CHR"}` — `LoadSingle<SystemIdentity>()` failed with `Missing field 'name'`. Fixed with a
+shipped field alias `name ↔ identity` (the text is stable, the key still comes from `.jg`).
 
-Pole `version` se **nezahazuje**: `nonpublic:1` neznamená „není to API pole“ — nese ho i řada polí,
-která API běžně vrací (`MAC Address`, `Interface`, `L2 MTU`). Native záznamy jsou obecně nadmnožinou
-API polí a mapper pole navíc ignoruje.
+The `version` field is **not discarded**: `nonpublic:1` doesn't mean "not an API field" — plenty of
+fields the API routinely returns carry it too (`MAC Address`, `Interface`, `L2 MTU`). Native records
+are generally a superset of API fields, and the mapper simply ignores the extras.
 
-### 14.2 `multilinestring` je řetězec, ne seznam
+### 14.2 `multilinestring` is a string, not a list
 
-`EncodeField` odmítal jako neenkódovatelný seznam všechno, čeho `.jg` UI typ začíná na `multi…`.
-Webfig ale říká:
+`EncodeField` rejected anything whose `.jg` UI type started with `multi…` as an unencodable list.
+But webfig says:
 
 ```js
-types.multilinestring = inherit(types.string);   // liší se jen VIEW (textarea místo inputu)
+types.multilinestring = inherit(types.string);   // differs only in VIEW (textarea instead of input)
 ```
 
-Ze všech `multi*` typů je to jediný skalár — ostatní (`multinumber`, `multinumberrange`,
-`multiipaddr`, `multistring`, …) dědí `types.multi`. Kvůli prefixu se nedal zapsat `note`
-u `/system/note`.
+Of all the `multi*` types, this is the only scalar one — the others (`multinumber`,
+`multinumberrange`, `multiipaddr`, `multistring`, …) inherit `types.multi`. Because of the shared
+prefix, `note` on `/system/note` couldn't be written at all.
 
-### 14.3 Element-typ seznamu nese `c`, ne `values`
+### 14.3 A list's element type is carried in `c`, not `values`
 
-`ExtractRefHandler` četl jenom `node["values"]`, takže u seznamu referencí zůstal `RefHandler` prázdný:
+`ExtractRefHandler` only read `node["values"]`, so `RefHandler` ended up empty for a list of
+references:
 
 ```js
 {name:'Topics',type:'multinumber',id:'U4',c:[{type:'enm',values:{type:'dynamic',path:[ 3,3 ]}}]}
 ```
 
-`topics` u `/log` se proto dekódovaly jako surové `"[9,3]"` místo `"script,error"`.
+so `topics` on `/log` decoded as the raw `"[9,3]"` instead of `"script,error"`.
 
 ---
 
-## 15. `DataAvailable` nad UDP lhal a stál 5 s na příkaz (P2.43, 2026-08-01)
+## 15. `DataAvailable` over UDP lied and cost 5 s per command (P2.43, 2026-08-01)
 
-`WinboxCliMac` byl proti `WinboxCli` řádově pomalejší (plný běh 1 h 22 m vs. 8 min) a bylo to
-zapsané jako „latence MAC kanálu". **Není.** Změřeno na 7.23.2 probem
-`WinboxCliLatencyProbeTest`, který rozpadá jeden příkaz podle wire-trace kanálu `wbxcli.mepty`
-(sdílí ho oba transporty, takže jsou přímo porovnatelné):
+`WinboxCliMac` was an order of magnitude slower than `WinboxCli` (a full run took 1 h 22 m vs.
+8 min), and this had been written off as "MAC channel latency". **It isn't.** Measured on 7.23.2
+with the `WinboxCliLatencyProbeTest` probe, which breaks a single command down by the
+`wbxcli.mepty` wire-trace channel (shared by both transports, so they're directly comparable):
 
-| span | WinboxCli | WinboxCliMac (před) | WinboxCliMac (po) |
+| span | WinboxCli | WinboxCliMac (before) | WinboxCliMac (after) |
 |---|---|---|---|
-| send → první bajt | 25 ms | **25 ms** | 25 ms |
-| první bajt → prompt | 25 ms | 1 ms | 0 ms |
+| send → first byte | 25 ms | **25 ms** | 25 ms |
+| first byte → prompt | 25 ms | 1 ms | 0 ms |
 | prompt → return | 166 ms | **5012 ms** | 164 ms |
-| celkem / příkaz | 216 ms | **5039 ms** | 193 ms |
+| total / command | 216 ms | **5039 ms** | 193 ms |
 | open | 1142 ms | **6053 ms** | 1053 ms |
 
-První bajt chodil **stejně rychle jako po TCP**. Celá ztráta seděla za promptem a rovnala se
-přesně `WinboxCliClient.FrameTimeoutMs` = 5000 ms.
+The first byte arrived **just as fast as over TCP**. The entire loss sat right after the prompt and
+matched `WinboxCliClient.FrameTimeoutMs` = 5000 ms exactly.
 
-**Příčina.** Kap. 3 výše říká, že každé čtení terminálu je gated `DataAvailable` a teprve pak
-`Receive(5000)` — ten timeout smí ohraničit jen rámec, který **už přichází**. Nad TCP to platí,
-protože `NetworkStream.DataAvailable` znamená „jsou tu bajty rámce". Nad UDP `_udp.Available > 0`
-znamená jen „přišel nějaký datagram", a naprostá většina provozu na tom socketu jsou ACK, PING a
-retransmise routeru. Zachycená časová osa jednoho příkazu:
+**Cause.** Chapter 3 above says every terminal read is gated by `DataAvailable` and only then does
+`Receive(5000)` run — that timeout is only allowed to bound a frame that's **already arriving**.
+Over TCP that holds, because `NetworkStream.DataAvailable` means "there are bytes of a frame here".
+Over UDP, `_udp.Available > 0` only means "some datagram arrived", and the vast majority of traffic
+on that socket is ACKs, PINGs, and router retransmissions. Captured timeline of a single command:
 
 ```
-34,8 ms  prompt seen (bytes=254)
-34,8 ms  Recv 310B type=0x01 counter=3021   ← duplikát, AckData ho zahodí
-34,8 ms  Recv 310B type=0x01 counter=3021   ← druhý duplikát
-…        RecvUntil dojede na deadline
+34.8 ms  prompt seen (bytes=254)
+34.8 ms  Recv 310B type=0x01 counter=3021   ← duplicate, AckData discards it
+34.8 ms  Recv 310B type=0x01 counter=3021   ← second duplicate
+…        RecvUntil rides out to the deadline
 5033 ms  settled -> return @5024ms
 ```
 
-`RecvUntil` má kontrakt „čekej do timeoutu, dokud handler neřekne dost" — pro čekajícího volajícího
-správně, pro **pollujícího** katastrofa: každý falešně pozitivní `DataAvailable` stál celý frame
-timeout. Padlo to jednou na příkaz a znovu jednou na `DrainSync(250)` po loginu, což je přesně ta
-změřená „skipnutý test stojí 6 s" z P2.50.
+`RecvUntil`'s contract is "wait up to the timeout, until the handler says enough" — correct for a
+caller that's willing to block, but a catastrophe for a **poller**: every false-positive
+`DataAvailable` cost the entire frame timeout. This hit once per command, and again once on
+`DrainSync(250)` after login, which is exactly the "a skipped test costs 6 s" measurement from
+P2.50.
 
-**Oprava.** `MacLayerTransport.RecvAvailable(handler)` = polling protějšek `RecvUntil`: zpracuje
-všechno, co už v socketu leží, a hned se vrátí (společné tělo `ReceiveOne`, takže ACK/PING/duplikáty
-se řeší identicky v obou cestách). `WinboxMacM2Session.DataAvailable` na něm stojí a odpovídá
-**„je připravený celý M2 rámec"**, ne „přišel datagram"; hotový rámec si drží v `_pendingFrame` a
-následující `RecvFrame` ho vydá. Getter tedy dělá I/O — záměrně: je to poll operace kanálu a čte ji
-jen jednovláknová terminálová smyčka `WinboxCliClient` (nativní transport jede reader loop a
-`SupportsStaleDrain = false` mu polling zakazuje).
+**Fix.** `MacLayerTransport.RecvAvailable(handler)` is the polling counterpart to `RecvUntil`: it
+processes everything already sitting on the socket and returns immediately (sharing the
+`ReceiveOne` body, so ACK/PING/duplicates are handled identically on both paths).
+`WinboxMacM2Session.DataAvailable` is built on it and now answers **"is a complete M2 frame
+ready"**, not "did a datagram arrive"; a finished frame is held in `_pendingFrame` and the next
+`RecvFrame` call hands it out. So the getter does perform I/O — deliberately: it's a poll operation
+on the channel, and only the single-threaded terminal loop in `WinboxCliClient` reads it (the
+native transport runs a reader loop, and `SupportsStaleDrain = false` forbids it from polling).
 
-**Poučení:** vlastnost, kterou volající bere jako povolení zablokovat se, musí být pravdivá.
-MAC-Telnet stejnou vadu nemá — má background pump s blokujícím socketem, ne `DataAvailable` gating.
+**Lesson:** a property that a caller treats as permission to block must actually be true.
+MAC-Telnet doesn't have the same defect — it has a background pump with a blocking socket, not
+`DataAvailable` gating.
 
-## 16. Router tiše zahodí session a my to 30 s nepoznáme (P2.54, 2026-08-01)
+## 16. The router silently drops a session and we don't find out for 30 s (P2.54, 2026-08-01)
 
-Po opravě P2.43 zbyly v `winboxclimac` tři červené: `SearchByName_Interface_WillWork`,
-`Create_IpAddress_With_LowLevel_API`, `ListRadiusServersWillNotFail` — vždy
-`nothing was received within 30000 ms`, vždy ~30,1 s, beze změny napříč třemi plnými běhy před
-opravou i po ní. Je to trojice, kterou P2.32 zapsal jako „wedge signature" tohoto transportu.
+After the P2.43 fix, `winboxclimac` still had three red tests: `SearchByName_Interface_WillWork`,
+`Create_IpAddress_With_LowLevel_API`, `ListRadiusServersWillNotFail` — always
+`nothing was received within 30000 ms`, always ~30.1 s, unchanged across three full runs before and
+after the fix. It's the same trio P2.32 recorded as this transport's "wedge signature".
 
-**Co ukázal trace.** Mechanismus je u všech tří identický: datagram s příkazem odejde, router ho
-**nikdy nepotvrdí** a osm bajtově identických retransmisí ignoruje —
-`RETRANSMIT #8 end=15639 highestAck=15475`, kde `highestAck` je přesně startovní offset toho
-příkazu. A hlavně: **router celých 30 s neposílá vůbec nic** — ani ACK, ani PING, ani retransmisi.
-Takže to není „router odmítá náš vstup", jak tahle rodina symptomů dosud vykládala.
+**What the trace showed.** The mechanism is identical across all three: the datagram carrying the
+command goes out, the router **never acknowledges it**, and ignores eight byte-identical
+retransmissions — `RETRANSMIT #8 end=15639 highestAck=15475`, where `highestAck` is exactly the
+starting offset of that command. And critically: **the router sends nothing at all for the full
+30 s** — no ACK, no PING, no retransmission. So this isn't "the router is rejecting our input", as
+this family of symptoms had been read up to now.
 
-> ⚠️ Opraveno §17: původně tu stálo „router tu session už nemá". To **přestřelilo** — routerův
-> vlastní log si v okamžiku wedge nezapíše nic, žádné odhlášení ani chybu. Přesné tvrzení, které
-> data unesou, je: *jeho MAC vrstva přestane naše bajty potvrzovat*, zatímco jeho účetnictví o
-> žádném ukončení session neví. Co P2.54 dodává, na tom nestojí — zotavení visí na tom nepotvrzení,
-> ne na výkladu, proč k němu došlo.
+> Warning, corrected in §17: this used to say "the router no longer has that session". That
+> **overstated the case** — the router's own log records nothing at all at the moment of the
+> wedge, no logout, no error. The precise claim the data supports is: *its MAC layer stops
+> acknowledging our bytes*, while its own accounting has no record of any session ending. What
+> P2.54 adds doesn't depend on that claim — recovery hinges on the missing acknowledgment, not on
+> an explanation of why it's missing.
 
-**Co jsme s tím udělali teď.** Ne příčinu — tu ještě neznáme (podezření: v sekundách před každým
-wedgem router přeposílá rámce, které jsme už potvrdili, takže naše pakety k němu přestaly chodit
-dřív, než příkaz vůbec odešel; a všem třem bezprostředně předchází test, který otevřel a zavřel
-druhé spojení). Udělali jsme to, co jde udělat bez znalosti příčiny a co má cenu samo o sobě:
+**What we did about it now.** Not the cause — we still don't know it (suspicion: in the seconds
+before each wedge the router re-sends frames we already acknowledged, so our packets stopped
+reaching it before the command was even sent; and all three are immediately preceded by a test
+that opened and closed a second connection). We did what's doable without knowing the cause and
+what's worth doing on its own merits:
 
-* **`IWinboxM2Channel.SendAbandoned`** vynáší `MacLayerTransport.LastSendAbandoned` do CLI enginu.
-  Nad TCP je vždy `false` — TCP nemá co nepotvrdit, mrtvé spojení tam přijde jako FIN/RST.
-* **`WinboxCliClient.ReadCommandResponseSync`** ho konzultuje a při „nic nepřišlo **a** router naše
-  bajty nevzal" hází `TikConnectionSessionClosedException` místo dojetí na 30 s.
-  Podmínka `sb.Length == 0` je podstatná: jakmile konzole cokoli vydala, příkaz **prokazatelně**
-  dorazil a mohl proběhnout — tvrdit tam „neproběhl" by byla lež, kterou volající nemá jak ověřit.
-* **`WinboxCliMacConnection`** na to navěsil reopen + retry, přesně podle `MacTelnetConnection`
-  (tentýž nosič, tentýž problém): nové spojení + nový EC-SRP5 login přes `WinboxLoginRetry`,
-  s dvěma zákazy — ne v Safe Mode (zahození session je právě to, před čím Safe Mode chrání) a ne
-  poté, co už nějaký řádek odešel volajícímu (znovuspuštění by tytéž řádky doručilo dvakrát).
+* **`IWinboxM2Channel.SendAbandoned`** surfaces `MacLayerTransport.LastSendAbandoned` up into the
+  CLI engine. Over TCP it's always `false` — TCP has nothing to leave unacknowledged; a dead
+  connection there shows up as FIN/RST.
+* **`WinboxCliClient.ReadCommandResponseSync`** consults it and, when "nothing arrived **and** the
+  router never took our bytes", throws `TikConnectionSessionClosedException` instead of riding out
+  the full 30 s.
+  The `sb.Length == 0` condition matters: once the console has produced any output at all, the
+  command **provably** arrived and could have run — claiming "it didn't run" at that point would
+  be a lie the caller has no way to verify.
+* **`WinboxCliMacConnection`** hangs reopen + retry off this, following `MacTelnetConnection`
+  exactly (same carrier, same problem): a new connection plus a new EC-SRP5 login via
+  `WinboxLoginRetry`, with two exceptions — not inside Safe Mode (dropping the session is exactly
+  what Safe Mode protects against), and not once any line has already been delivered to the caller
+  (restarting would deliver those same lines twice).
 
-Rozlišení „mrtvá session" vs. „pomalý příkaz" je celá hodnota toho signálu — proto ta rychlá cesta
-visí na nepotvrzení, ne na tichu. Kdyby visela na tichu, každý legitimně dlouhý příkaz by padal.
+Telling "dead session" apart from "slow command" is the entire value of this signal — which is why
+the fast path hinges on the missing acknowledgment, not on silence. If it hinged on silence, every
+legitimately long-running command would fail.
 
-**Poučení (stejné jako P2.39, jen o vrstvu jinde):** hláška „nothing was received within N ms"
-popisuje naše čtení, ne to, co udělal protějšek. Když nosič umí říct víc, musí se ho někdo zeptat.
+**Lesson (same as P2.39, just one layer over):** the message "nothing was received within N ms"
+describes our read, not what the other side did. When the carrier can say more, someone has to ask
+it.
 
-## 17. Proč router zahodí MAC session — šest vyloučených hypotéz (P2.55, 2026-08-01)
+## 17. Why the router drops a MAC session — six hypotheses ruled out (P2.55, 2026-08-01)
 
-P2.54 wedge přežívá, ale nevysvětluje. Tři traceované plné běhy ho ohraničily ostře: **na 27 otevřených
-session připadají přesně tři zahození, pokaždé ve stejných třech testech** (`Create_IpAddress_With_-
-LowLevel_API`, `ListRadiusServersWillNotFail`, `SearchByName_Interface_WillWork`). Je to deterministické,
-ne režie na pozadí, kterou by retry jen schoval.
+The P2.54 wedge survives but goes unexplained. Three traced full runs bounded it sharply: **out of
+27 opened sessions, exactly three are dropped, always in the same three tests**
+(`Create_IpAddress_With_LowLevel_API`, `ListRadiusServersWillNotFail`,
+`SearchByName_Interface_WillWork`). It's deterministic, not background noise that a retry merely
+papers over.
 
-Nástroje, které to umožnily: `MacLayerTransport` teď loguje `SESSION OPEN key= local= srcMac=` a **každý
-traceovaný řádek nese `key=`**. Kanál `wbxmac.udp` je totiž společný pro všechny MAC session, takže trace
-pořízený, když jich žije víc, je prokládá — a otázku „co dělala *tahle* session" nešlo položit vůbec.
-Bez toho vyšlo měření odstupu od poslední přijaté zprávy o dva řády vedle.
+What made this possible: `MacLayerTransport` now logs `SESSION OPEN key= local= srcMac=`, and
+**every traced line carries `key=`**. The `wbxmac.udp` channel is shared across all MAC sessions, so
+a trace captured while several are alive interleaves them — and the question "what did *this*
+session do" simply couldn't be asked before. Without this, an earlier measurement of the gap since
+the last received message was off by two orders of magnitude.
 
-| hypotéza | verdikt |
+| hypothesis | verdict |
 |---|---|
-| kolize 16bitového session key nebo lokálního portu | **ne** — 27 session, žádný klíč ani port se neopakoval. Klíč se navíc losuje při každém otevření, takže by kolize stěhovala chybu mezi běhy; ta se nestěhuje. |
-| náš vlastní flood | **následek, ne příčina** — před wedgem se za nepotvrzenou hlavou nakupí ~24 paketů / 2,4 kB, protože pull loop střílí 8×/s bez ohledu na cokoli. Začíná to ale **až po** příkazu, který zůstal bez odpovědi. |
-| zavření sourozenecké session | **ne** — `Probe_SiblingSessionTeardown`, 20 cyklů (WinBox-MAC, MAC-Telnet, API sourozenec), nula wedge. Byl to hlavní podezřelý. |
-| objem provozu / hranice v bajtovém streamu | **ne** — `Probe_LongLivedSession` ušel na jedné session 400 příkazů a 101 099 odchozích bajtů bez zadrhnutí, tedy za dvěma ze tří offsetů, kde v suitě umírá. |
-| idle logout (jako u MAC-Telnetu) | ~~**ne** — per-session trace ukazuje, že session přijímá pakety až do okamžiku startu testu. Žije a umírá až na **prvním příkazu** toho testu.~~ **Tenhle řádek byl špatně, viz §18.** Časové razítko v trace říká, kdy jsme socket *vybrali*, ne kdy paket přišel — neobsluhovaná session proto nevykazuje žádnou mezeru, protože se celý její backlog vysype naráz na dalším čtení. |
-| echo logu routeru do terminálu (rodina P2.47) | **ne** — v celém běhu je jediné takové echo, pokrylo by nanejvýš jeden ze tří. |
-| ten konkrétní příkaz | **ne** — všechny tři v izolaci projdou za 3 s bez zahození. |
+| collision of the 16-bit session key or the local port | **no** — across 27 sessions, no key or port ever repeated. The key is also drawn randomly on every open, so a collision would move around between runs; it doesn't. |
+| our own flood | **an effect, not a cause** — before a wedge, ~24 packets / 2.4 kB pile up behind the unacknowledged head, because the pull loop fires 8×/s regardless of anything. But this only starts **after** the command that went unanswered. |
+| closing a sibling session | **no** — `Probe_SiblingSessionTeardown`, 20 cycles (WinBox-MAC, MAC-Telnet, an API sibling), zero wedges. This was the prime suspect. |
+| traffic volume / a boundary in the byte stream | **no** — `Probe_LongLivedSession` ran 400 commands and 101,099 outbound bytes on a single session without a hiccup, past two of the three offsets where the suite dies. |
+| idle logout (like MAC-Telnet) | ~~**no** — per-session trace shows the session receiving packets right up to the start of the test. It lives and dies only on the **first command** of that test.~~ **This line was wrong, see §18.** The trace timestamp records when we *picked up* the socket, not when the packet arrived — an unserviced session therefore shows no gap at all, because its entire backlog dumps out at once on the next read. |
+| the router's log echoing into the terminal (P2.47 family) | **no** — the entire run has exactly one such echo, which could at most cover one of the three. |
+| that specific command | **no** — all three pass in isolation in 3 s with no drop. |
+| the immediately preceding test | **no** — all three pairs (predecessor + victim) pass in 2–5 s with no drop |
+| a session-count limit / eviction on the router | **no** — the wedge hits after 2, 14, and 22 opened sessions, and never more than 1–2 are alive at once |
 
-| bezprostředně předchozí test | **ne** — všechny tři dvojice (předchůdce + oběť) projdou za 2–5 s bez zahození |
-| limit počtu session / eviction na routeru | **ne** — wedge padá po 2, 14 a 22 otevřených session a živé jsou vždy jen 1–2 |
+**View from the router (newly added).** `/log` across all three windows: **at the moment of the
+wedge the router logs nothing at all** — no `logged out`, no error. The nearest logout is 4 s
+*after* one wedge and 4 s *before* another, both unrelated connections. Our session stays logged in
+per the router's own accounting, while its MAC layer has stopped acknowledging our bytes. That's a
+mismatch between two of the router's own layers, not a session termination — which is why the
+phrasing "the router no longer has that session" in §16 was corrected.
 
-**Pohled z routeru (nově doplněný).** `/log` přes všechna tři okna: **v okamžiku wedge si router
-nezapíše nic** — žádné `logged out`, žádnou chybu. Nejbližší odhlášení je 4 s *po* jednom wedge a 4 s
-*před* jiným, obojí cizí spojení. Naše session zůstává v jeho účetnictví přihlášená, zatímco jeho MAC
-vrstva přestala potvrzovat naše bajty. To je nesoulad mezi dvěma vrstvami routeru, ne ukončení session
-— a proto byla formulace „router tu session už nemá" v §16 opravena.
+Side observation from the same log, still unexplained: the 27 sessions our trace opened correspond
+to 47 `via winbox` logins from our MAC — some paired within the same second, some standalone.
+Uneven, so it isn't systematic double-logging; worth finding out what causes the pairs.
 
-Vedlejší pozorování ze stejného logu, zatím nevysvětlené: na 27 session, které náš trace otevřel,
-připadá 47 loginů `via winbox` z naší MAC — část v párech ve stejné sekundě, část samostatně. Nerovnoměrné,
-takže to není systematické zdvojení; stojí za to zjistit, co ty páry zakládá.
+**Cause of one of the three: a Safe Mode rollback kills a concurrent WinBox-over-MAC session.**
+Reproduced 5/5 via `Probe_SafeModeRollbackOnASibling`:
 
-**Příčina jednoho ze tří: Safe Mode rollback zabije souběžnou WinBox-over-MAC session.** Reprodukce
-5/5 přes `Probe_SafeModeRollbackOnASibling`:
-
-| držená session | nosič | horní vrstva | odpověď | |
+| held session | carrier | upper layer | response | |
 |---|---|---|---|---|
-| `WinboxCliMac` | MAC / UDP 20561 | WinBox M2 | ~4,3 s | **wedge 5/5** |
-| `MacTelnet` | MAC / UDP 20561 | plain telnet | ~0,15 s | v pořádku 0/2 |
-| `WinboxCli` | TCP 8291 | WinBox M2 | ~0,37 s | v pořádku 0/2 |
+| `WinboxCliMac` | MAC / UDP 20561 | WinBox M2 | ~4.3 s | **wedge 5/5** |
+| `MacTelnet` | MAC / UDP 20561 | plain telnet | ~0.15 s | fine 0/2 |
+| `WinboxCli` | TCP 8291 | WinBox M2 | ~0.37 s | fine 0/2 |
 
-Rollback dopadá pokaždé po ~2,15 s, nezávisle na tom, kdo drží druhou session.
+The rollback lands each time after ~2.15 s, independent of who holds the second session.
 
-> ⚠️ Zde stálo nejdřív „je to vlastnost MAC nosiče, ne CLI enginu" (odvozeno z jediného TCP kontrastu,
-> `MacTelnet` doměřen až potom — přežije), pak „je to tedy výhradně jejich kombinace, tj. služba
-> `mac-winbox` na routeru". **Obojí špatně, a to druhé stejně zbrkle jako to první:** vyloučit dvě vrstvy
-> neznamená, že viník je na routeru. Rozdíl mezi `MacTelnet` a `WinboxCliMac` nebyl v tom, co dělá router,
-> ale v tom, co děláme **my** — `MacTelnetUdpClient` má od začátku receive pump, WinBox-over-MAC ho neměl.
-> Viz §18; s pumpou je reprodukce 0/2. Poučení: „ani A, ani B" je stále jen o A a B a neříká nic o C.
+> Warning: this section originally said "it's a property of the MAC carrier, not the CLI engine"
+> (drawn from a single TCP contrast; `MacTelnet` was only measured afterward — and survives), then
+> "so it's exclusively their combination, i.e. the router's `mac-winbox` service". **Both wrong, and
+> the second just as hastily as the first:** ruling out two layers doesn't mean the culprit is on the
+> router. The difference between `MacTelnet` and `WinboxCliMac` wasn't in what the router does, but
+> in what **we** do — `MacTelnetUdpClient` has had a receive pump from the start; WinBox-over-MAC
+> didn't. See §18; with a pump the reproduction rate is 0/2. Lesson: "neither A nor B" is still only
+> about A and B, and says nothing about C.
 
-> ⚠️ **Rollback je asynchronní**, a to je celý ten trik. RouterOS drží vlastníka Safe Mode i po zániku
-> spojení, až do connection-tracking timeoutu, takže rollback dopadne **~2 s poté** — proto ostatně
-> `SafeModeTest` na něj čeká pollingem až 30 s. Když se držené session zeptáš hned po zavření sourozence,
-> ptáš se ve špatný okamžik a dostaneš zdravých 223/224 ms. Přesně tak se do těchhle poznámek dvakrát
-> dostalo tvrzení „Safe Mode příčina není". **Byla.** A vysvětluje to i to, proč je obětí vždy první test
-> **následující** třídy: rollback dopadne až po skončení té třídy, která ho způsobila.
+> Warning: **the rollback is asynchronous**, and that's the whole trick. RouterOS keeps the Safe Mode
+> owner alive even after the connection dies, until the connection-tracking timeout, so the rollback
+> lands **~2 s later** — which is exactly why `SafeModeTest` polls for it for up to 30 s. Query the
+> held session right after closing the sibling, and you're asking at the wrong moment and get a
+> healthy 223/224 ms. That's precisely how the claim "Safe Mode isn't the cause" made it into these
+> notes twice. **It was.** And it also explains why the victim is always the first test of the class
+> **following** the one that triggered it: the rollback lands only after that triggering class has
+> already finished.
 
-Cesta k tomu vedla přes pozorování, že `ConcurrentCommandsTest` a `SafeModeTest` jsou jediné dvě třídy
-s `ReuseConnectionAcrossTests => false`. Jedou po vlastním spojení, takže se v per-session analýze mezi
-„uživateli" sdílené session vůbec neobjeví, i když jsou to ony, kdo ji rozbije — proto jsem je nejdřív
-jako předchůdce vyškrtl. Všechny tři wedge sedí na hranici testovací třídy.
+The path here ran through noticing that `ConcurrentCommandsTest` and `SafeModeTest` are the only two
+classes with `ReuseConnectionAcrossTests => false`. They run on their own connection, so they never
+show up in per-session analysis among the "users" of a shared session — even though they're the ones
+that break it — which is why I initially ruled them out as a predecessor. All three wedges sit right
+on a test-class boundary.
 
-**Pro uživatele knihovny to znamená:** kdo drží WinBox-CLI-MAC spojení a zároveň na jiném spojení pustí
-Safe Mode, který skončí rollbackem, přijde o to první. P2.54 se z toho zotaví, ale stojí to ~4,5 s.
+**What this means for library consumers:** whoever holds a WinBox-CLI-MAC connection while, on
+another connection, running Safe Mode that ends in a rollback, loses that first connection. P2.54
+recovers from it, but it costs ~4.5 s.
 
-**Oprava v suitě:** `SafeModeTest.OnCleanup() => DisposeSharedConnection()`. Delší čekání ani sleep
-nepomůžou — ten test už poluje, dokud rollback nedopadne, takže než skončí, je po všem; sdílená session
-mezitím umře a nikdo se jí do konce testu nedotkne. Musí se prohlásit za mrtvou, ne se na ni čekat.
-Není to zametení chyby knihovny (transport se zotaví sám), jen odstranění tichého spoléhání suity na to
-zotavení. Měřený dopad: plný běh 3 → 2 zahozené session, reprodukce z 1 zahození / 10 s na 0 / 7 s.
+**Fix in the suite:** `SafeModeTest.OnCleanup() => DisposeSharedConnection()`. Waiting longer, or
+sleeping, doesn't help — that test already polls until the rollback lands, so by the time it
+finishes it's already too late; the shared session dies in the meantime and nothing touches it again
+before the test ends. It has to be declared dead, not waited on. This isn't papering over a library
+bug (the transport recovers on its own), just removing the suite's silent reliance on that recovery.
+Measured impact: full run 3 → 2 dropped sessions, reproduction rate from 1 drop / 10 s to 0 / 7 s.
 
-**Kde to stojí:** zbývají dva wedge (`Create_IpAddress_With_LowLevel_API`, `ListRadiusServersWillNotFail`),
-oba bez Safe Mode, router o nich neví. Nová je ale třída mechanismu, kterou jde zkoušet: co dalšího dělá
-RouterOS asynchronně a co dosáhne až na tu session. → **vyřešeno v §18.**
+**Where this stands:** two wedges remain (`Create_IpAddress_With_LowLevel_API`,
+`ListRadiusServersWillNotFail`), neither involving Safe Mode, and the router has no record of them.
+But there's now a new class of mechanism worth testing: what else does RouterOS do asynchronously
+that only reaches that session later. → **resolved in §18.**
 
-**Vedlejší nález, který stojí za opravu bez ohledu na wedge:** nemáme žádné **odesílací okno**. Když
-hlava fronty není potvrzená, pull loop na ni dál přisypává 8 paketů/s, takže do díry ve streamu
-napumpujeme 2,4 kB, které router nemá jak přijmout. Retransmise chodí po 400 ms a resílá správně jen
-hlavu — ale nic nebrání zbytku růst.
+**Side finding worth fixing regardless of the wedge:** we have no **send window** at all. When the
+head of the queue is unacknowledged, the pull loop keeps piling 8 packets/s on top of it, pumping
+2.4 kB into a hole in the stream that the router has no way to accept. Retransmission runs every
+400 ms and correctly resends only the head — but nothing stops the rest of the queue from growing.
 
-**Poučení:** vyloučená hypotéza je taky výsledek, když je zapsaná i s tím, čím byla vyvrácena. Pět z těch
-šesti znělo věrohodně a čtyři z nich už jednou v poznámkách figurovaly jako pravděpodobná příčina.
+**Lesson:** a ruled-out hypothesis is a result too, as long as it's recorded along with what
+disproved it. Five of these six sounded plausible, and four of them had already once appeared in
+these notes as the likely cause.
 
-## 18. Nikdo neobsluhoval socket mezi příkazy (P2.55 dokončení, 2026-08-02)
+## 18. Nobody serviced the socket between commands (P2.55 completion, 2026-08-02)
 
-Zbylé dva wedge z §17 mají jednu společnou vlastnost, které si tři traceované běhy nevšimly, protože se
-na ni nikdo nezeptal: **předchází jim jediná delší nečinnost na té session v celém běhu.**
+The two remaining wedges from §17 share one property that the three traced runs missed, because
+nobody had asked about it: **they're each preceded by the single longest idle stretch on that
+session in the whole run.**
 
-| session | idle před příkazem | výsledek |
+| session | idle before the command | outcome |
 |---|---|---|
-| `1eba` | **19,7 s** | wedge (`Create_IpAddress_With_LowLevel_API`) |
-| `ff1c` | **56,1 s** | wedge (`ListRadiusServersWillNotFail`) |
-| `ef45` | 3,6 s | v pořádku |
+| `1eba` | **19.7 s** | wedge (`Create_IpAddress_With_LowLevel_API`) |
+| `ff1c` | **56.1 s** | wedge (`ListRadiusServersWillNotFail`) |
+| `ef45` | 3.6 s | fine |
 
-To jsou všechny mezery ≥ 3 s v celém 340testovém běhu. Dvě mezery, dva wedge.
+Those are every gap ≥ 3 s in the entire 340-test run. Two gaps, two wedges.
 
-**Proč to §17 vyloučil.** Tvrzením „session přijímá pakety až do startu testu, odstup 0,0 s" — jenže
-časové razítko v trace je okamžik, kdy jsme socket **vybrali**, ne kdy paket dorazil. Session, kterou
-dvacet vteřin nikdo nečte, proto v trace nemá žádnou mezeru: celý backlog se vysype naráz na dalším
-čtení. V trace to jde vidět doslova — v okamžiku startu oběti přiletí naráz **desetkrát tentýž
-`counter=37405`**, tedy router celou tu dobu retransmitoval jeden nepotvrzený paket.
+**Why §17 ruled this out.** Because of the claim "the session receives packets right up to the start
+of the test, gap 0.0 s" — but the trace timestamp is the moment we *picked up* the socket, not when
+the packet arrived. A session nobody reads for twenty seconds therefore shows no gap in the trace at
+all: the entire backlog dumps out at once on the next read. This is visible literally in the trace —
+at the moment the victim test starts, **the same `counter=37405` arrives ten times in a row**,
+meaning the router had been retransmitting one unacknowledged packet the whole time.
 
-**Příčina.** RouterOS terminál není request/reply: router do něj píše sám od sebe (událost v logu, Safe
-Mode rollback) a na MAC vrstvě musí být každý takový zápis potvrzený, jinak ho router retransmituje a
-nakonec session přestane obsluhovat. `WinboxCliClient` se ale channelu dotkne **jen když běží příkaz** —
-mezi dvěma příkazy socket nikdo nevybírá.
+**Cause.** The RouterOS terminal isn't request/reply: the router writes into it on its own (a log
+event, a Safe Mode rollback), and at the MAC layer every such write must be acknowledged, or the
+router keeps retransmitting it and eventually stops servicing the session. But `WinboxCliClient`
+only touches the channel **while a command is running** — nobody picks up the socket between
+commands.
 
-Bylo to přitom v repu napsané. `MacTelnetUdpClient` má tuhle větu v komentáři třídy od svého vzniku
-(„drops the session when that output is left unacknowledged") a proto má **receive pump**. WinBox nad
-MAC ho neměl. Odtud i vysvětlení rozdílu, který §17 přisoudil routeru: `MacTelnet` přežije Safe Mode
-rollback, protože ho jeho pump potvrdí; `WinboxCliMac` ne, protože o něm nikdo neví. Rozdíl byl u nás.
-`WinboxNativeMac` netrpí ze stejného důvodu — jede přes `ReceiveNextFrame` reader loop, který socket
-obsluhuje pořád.
+This was actually already written down in the repo. `MacTelnetUdpClient` has carried this sentence
+in its class comment since it was created ("drops the session when that output is left
+unacknowledged"), and that's exactly why it has a **receive pump**. WinBox over MAC didn't. This
+also explains the difference §17 attributed to the router: `MacTelnet` survives a Safe Mode
+rollback because its pump acknowledges it; `WinboxCliMac` doesn't, because nothing is watching. The
+difference was on our side. `WinboxNativeMac` doesn't suffer from this for the same reason — it runs
+through the `ReceiveNextFrame` reader loop, which services the socket continuously.
 
-**Oprava:** `IWinboxM2Channel.StartIdleServicing()`, volaná jednou po loginu. TCP nedělá nic (bajtový
-stream potvrzuje kernel), MAC rozjede vlákno, které každých 200 ms vezme `_rxGate` přes `TryEnter(0)` a
-vybere, co na socketu je. Čtení drží stejný zámek po celou dobu skládání rámce, takže pump nemůže vzít
-paket z jeho prostředku. Pump **jen potvrzuje a odpovídá na PING, nikdy nemluví sám od sebe** — čtyři
-způsoby, jak si idle provoz vymyslet, jsou u MAC-Telnetu změřené a všechny čtyři život session zkrátily.
+**Fix:** `IWinboxM2Channel.StartIdleServicing()`, called once after login. Over TCP it's a no-op (the
+kernel acknowledges the byte stream); over MAC it starts a thread that, every 200 ms, takes
+`_rxGate` via `TryEnter(0)` and drains whatever is on the socket. A read holds the same lock for the
+entire duration of assembling a frame, so the pump can never grab a packet mid-frame. The pump
+**only acknowledges and answers PING, it never initiates anything on its own** — four ways of
+concocting idle traffic have been measured against MAC-Telnet, and all four shortened a session's
+life.
 
-**Změřeno:**
+**Measured:**
 
-| | před | po |
+| | before | after |
 |---|---|---|
-| Safe Mode rollback na sourozenci (`WinboxCliMac`) | wedge 5/5, ~4,3 s | **0/2, ~0,34 s** |
-| zahozené session za plný běh | 3 → 2 (§17) | **1** |
-| idle 20 s → příkaz | ok | ok |
-| idle 30 s / 45 s → příkaz | wedge | **wedge** (viz níže) |
+| Safe Mode rollback on a sibling (`WinboxCliMac`) | wedge 5/5, ~4.3 s | **0/2, ~0.34 s** |
+| dropped sessions per full run | 3 → 2 (§17) | **1** |
+| idle 20 s → command | ok | ok |
+| idle 30 s / 45 s → command | wedge | **wedge** (see below) |
 
-Zbylý wedge v plném běhu je ten s 35,9 s idle a je to **jiný mechanismus**: router odhlásí nečinnou MAC
-konzoli po ~30 s a říká to o sobě sám. Idle ladder to potvrzuje symetricky — `MacTelnet`, který pump má
-od začátku, wedguje na 30 s úplně stejně. Tohle se z klienta zalepit nedá a nemá; řeší to reopen+retry
-z P2.54. Dvě různé příčiny, dvě různá řešení:
+The remaining wedge in a full run is the one with 35.9 s idle, and it's a **different mechanism**:
+the router logs out an idle MAC console after ~30 s, and it says so itself. The idle ladder confirms
+this symmetrically — `MacTelnet`, which has had the pump from the start, wedges at 30 s in exactly
+the same way. This can't be, and shouldn't be, papered over from the client side; the reopen+retry
+from P2.54 handles it. Two different causes, two different fixes:
 
-* **nepotvrzený zápis routeru** → naše chyba, opraveno pumpou
-* **~30 s idle logout** → routerova smlouva, řeší se znovupřipojením
+* **an unacknowledged write from the router** → our bug, fixed by the pump
+* **~30 s idle logout** → the router's own contract, handled by reconnecting
 
-**Poučení:** „změřeno, nepotvrzeno" a „nezměřeno" vypadají v tabulce hypotéz stejně a nejsou totéž. Ten
-řádek o idle logoutu byl vyvrácen údajem, který měřil něco jiného, než jsem si myslel — a tak tam devět
-hodin stál jako vyřízený.
+**Lesson:** "measured, unconfirmed" and "unmeasured" look the same in a hypothesis table, but they're
+not the same thing. That idle-logout line was disproved by a measurement of something other than
+what I thought it measured — and it sat there marked resolved for nine hours as a result.
 
-## 19. MAC vrstva nemá odesílací okno (P2.56, 2026-08-02)
+## 19. The MAC layer has no send window (P2.56, 2026-08-02)
 
-Vedlejší nález z P2.55, opravený samostatně, protože s příčinou wedge nesouvisí — jen ho zbytečně
-zdražoval.
+A side finding from P2.55, fixed separately because it isn't related to the wedge's cause — it just
+made it needlessly more expensive.
 
-Když router nepotvrdí hlavu fronty, `WinboxCliClient` mu do ní přesto **dál sype prázdné pully**
-(8/s, `PullIntervalMs = 120`). ACK na MAC vrstvě je kumulativní, takže **nic za nepotvrzeným paketem
-router zpracovat nemůže** — všechno další je provoz na dráty pro nic a pohřbívá to ten jediný paket,
-který se prosadit musí. `RetransmitIfUnacked` přeposílá správně jen hlavu a `MaxUnackedTracked = 256`
-hlídá paměť, ale **odesílatele nebrzdilo nic**.
+When the router doesn't acknowledge the head of the queue, `WinboxCliClient` keeps **pumping empty
+pulls** into it regardless (8/s, `PullIntervalMs = 120`). ACK at the MAC layer is cumulative, so
+**the router can't process anything behind the unacknowledged packet** — everything else is traffic
+sent for nothing, and it buries the one packet that actually needs to get through.
+`RetransmitIfUnacked` correctly resends only the head, and `MaxUnackedTracked = 256` bounds memory
+use, but **nothing throttled the sender**.
 
-Změřeno stejnou sondou (`Probe_IdleSession_HowLongBeforeItWedges`, idle 45 s, hloubka fronty ze
-`queued=` v RETRANSMIT řádcích):
+Measured with the same probe (`Probe_IdleSession_HowLongBeforeItWedges`, 45 s idle, queue depth read
+from `queued=` in the RETRANSMIT lines):
 
-| | před | po |
+| | before | after |
 |---|---|---|
-| max. hloubka nepotvrzené fronty | **23 paketů** (1→2→4→7→10→14→17→20→23) | **2** |
-| doba zotavení | beze změny | beze změny |
+| max. depth of the unacknowledged queue | **23 packets** (1→2→4→7→10→14→17→20→23) | **2** |
+| recovery time | unchanged | unchanged |
 
-**Oprava:** `MacLayerTransport.LastSendStalled` = hlava fronty je nepotvrzená a **už alespoň jednou
-přeposlaná** (tj. stream stojí ≥ `MinRetransmitIntervalMs`), vytažené přes `IWinboxM2Channel.SendStalled`
-(na TCP `false` — tam okno řeší kernel). Terminálová smyčka na něj váže **jen spekulativní pull**;
-příkaz uživatele odchází dál, protože zahodit ho by znamenalo zahodit požadavek volajícího.
+**Fix:** `MacLayerTransport.LastSendStalled` = the head of the queue is unacknowledged and **has
+already been retransmitted at least once** (i.e. the stream has been stuck for at least
+`MinRetransmitIntervalMs`), surfaced through `IWinboxM2Channel.SendStalled` (`false` over TCP — there
+the window is handled by the kernel). The terminal loop only gates **speculative pulls** on it; a
+user's actual command still goes out, since dropping it would mean dropping the caller's own
+request.
 
-Dvě věci, na kterých to stojí:
+Two things this rests on:
 
-* **jedno přeposlání, ne nula** — paket v normálním letu je potvrzený v jednotkách ms, takže běžný
-  provoz signál nesmí nikdy zvednout (jinak by potlačení prosáklo do streamování velkých výstupů,
-  které na pullu stojí),
-* **potlačení končí samo** příchodem ACK a `lastPullMs` se během něj neposouvá, takže hned následující
-  pull odejde okamžitě. Jinak by jeden ztracený datagram umlčel terminál do konce session — wedge
-  zavedený opravou wedge.
+* **one retransmission, not zero** — a packet in normal flight is acknowledged within a few ms, so
+  ordinary traffic must never trip the signal (otherwise the throttling would leak into streaming of
+  large outputs, which relies on pulling),
+* **the throttling ends on its own** once the ACK arrives, and `lastPullMs` doesn't advance while
+  it's active, so the very next pull goes out immediately. Otherwise a single lost datagram would
+  silence the terminal for the rest of the session — a wedge introduced by the wedge fix.
 
-Rozdíl proti `SendAbandoned` (§16): ten říká „session je pryč" a je až na konci rozpočtu; tenhle říká
-„stream stojí, ale může se vzpamatovat" a je o tom, co smíme **posílat**, ne co smíme hlásit.
+The difference from `SendAbandoned` (§16): that one says "the session is gone" and sits at the very
+end of the budget; this one says "the stream is stuck but may still recover" and governs what we're
+allowed to **send**, not what we're allowed to report.

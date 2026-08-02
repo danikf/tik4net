@@ -6,7 +6,7 @@ description: >
   showing up in the MCP tools, when the MCP server is missing/unavailable/failing to start, when
   `dotnet build tik4net.sln` fails with a locked file under Tools/tik4net.mcp/bin, when setting the
   server up on a fresh machine, or when asked to "reinstall / refresh / rebuild the MCP server",
-  "aktualizovat tik4net.mcp", "čistá instalace MCP". Not for using the server — that is the
+  "update tik4net.mcp", "clean install of the MCP server". Not for using the server — that is the
   `mikrotik` skill.
 ---
 

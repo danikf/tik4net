@@ -34,67 +34,67 @@ description: >
 
 ---
 
-## Connection types — všech 11
+## Connection types — all 11
 
-| Enum / runsettings | Protokol | Port | Capability set | Approx. skip count |
+| Enum / runsettings | Protocol | Port | Capability set | Approx. skip count |
 |--------------------|----------|------|----------------|--------------------|
 | `Api` / `api` | MikroTik API plain | 8728 | Crud+Listen+Streaming+RawSentences+Tagging | 60 |
 | `ApiSsl` / `apissl` | MikroTik API TLS | 8729 | Crud+Listen+Streaming+RawSentences+Tagging | 60 |
 | `Rest` / `rest` | REST HTTP | 80 | **Crud only** | 90 |
 | `RestSsl` / `restssl` | REST HTTPS | 443 | **Crud only** | 90 |
 | `Telnet` / `telnet` | CLI plain | 23 | Crud+Listen\*+SafeMode+RawCommand | 77 |
-| `MacTelnet` / `mactelnet` | CLI přes MAC UDP | 20561 | Crud+Listen\*+SafeMode+RawCommand | 77 |
-| `Ssh` / `ssh` | CLI přes SSH | 22 | Crud+Listen\*+SafeMode+RawCommand | 77 |
-| `WinboxCli` / `winboxcli` | CLI v Winbox terminálu | 8291 | Crud+Listen\*+SafeMode+RawCommand | 77 |
-| `WinboxCliMac` / `winboxclimac` | CLI v Winbox terminálu přes MAC | 20561 | Crud+Listen\*+SafeMode+RawCommand | 77 |
-| `WinboxNative` / `winboxnative` | M2 nativní protokol | 8291 | **Crud+Listen\*+SafeMode** | 221 |
-| `WinboxNativeMac` / `winboxnativemac` | M2 přes MAC | 20561 | **Crud+Listen\*+SafeMode** | 221 |
+| `MacTelnet` / `mactelnet` | CLI over MAC UDP | 20561 | Crud+Listen\*+SafeMode+RawCommand | 77 |
+| `Ssh` / `ssh` | CLI over SSH | 22 | Crud+Listen\*+SafeMode+RawCommand | 77 |
+| `WinboxCli` / `winboxcli` | CLI in the Winbox terminal | 8291 | Crud+Listen\*+SafeMode+RawCommand | 77 |
+| `WinboxCliMac` / `winboxclimac` | CLI in the Winbox terminal over MAC | 20561 | Crud+Listen\*+SafeMode+RawCommand | 77 |
+| `WinboxNative` / `winboxnative` | M2 native protocol | 8291 | **Crud+Listen\*+SafeMode** | 221 |
+| `WinboxNativeMac` / `winboxnativemac` | M2 over MAC | 20561 | **Crud+Listen\*+SafeMode** | 221 |
 
-\* **Listen** je u CLI/native emulovaný pollingem (re-issue snapshot na pozadí), ne push. **Streaming** jen API.
+\* **Listen** is emulated on CLI/native via polling (background re-issue snapshot), not push. **Streaming** is API only.
 
-**CLI transporty** = Telnet, MacTelnet, Ssh, WinboxCli, WinboxCliMac — všechny sdílejí chování popsané v sekci *CLI transport gotchas*.
+**CLI transports** = Telnet, MacTelnet, Ssh, WinboxCli, WinboxCliMac — all share the behavior described in the *CLI transport gotchas* section.
 
-**WinboxNative/WinboxNativeMac** mají největší počet skipů (221 z 415): jejich capability set je nejužší (no Listen, no Streaming, no CLI-specifika). Testy závislé na CLI syntaxi jsou skipnuty.
+**WinboxNative/WinboxNativeMac** have the highest skip count (221 of 415): their capability set is the narrowest (no Listen, no Streaming, no CLI-specifics). Tests that depend on CLI syntax are skipped.
 
-### Capabilities (ověřeno z kódu)
+### Capabilities (verified from code)
 
 ```
-Crud         — základní CRUD (všechny transporty)
-Listen       — async watch (Api/ApiSsl push; CLI + WinboxNative pollingem)
+Crud         — basic CRUD (all transports)
+Listen       — async watch (Api/ApiSsl push; CLI + WinboxNative via polling)
 Streaming    — ExecuteListWithDuration (Api/ApiSsl only)
 RawSentences — raw sentence access (Api/ApiSsl only)
 Tagging      — tag multiplexing (Api/ApiSsl only)
-SafeMode     — Api/ApiSsl + CLI family + WinboxNative (NE Rest)
-RawCommand   — Api/ApiSsl + CLI family (NE Rest, NE WinboxNative)
+SafeMode     — Api/ApiSsl + CLI family + WinboxNative (NOT Rest)
+RawCommand   — Api/ApiSsl + CLI family (NOT Rest, NOT WinboxNative)
 ```
 
-- **Api/ApiSsl**: vše. **Rest/RestSsl**: jen Crud (stateless HTTP). **CLI family** (Telnet/MacTelnet/
+- **Api/ApiSsl**: everything. **Rest/RestSsl**: Crud only (stateless HTTP). **CLI family** (Telnet/MacTelnet/
   Ssh/WinboxCli/WinboxCliMac): Crud+Listen\*+SafeMode+RawCommand. **WinboxNative/Mac**: Crud+Listen\*+SafeMode.
-- `EnsureCapability(cap)` → `Inconclusive` (skip) pokud transport cap nepodporuje.
+- `EnsureCapability(cap)` → `Inconclusive` (skip) if the transport doesn't support the capability.
 
 ---
 
-## Spouštění testů
+## Running the tests
 
-### Jeden transport
+### Single transport
 
 ```powershell
-# S TRX výsledky (doporučeno):
+# With TRX results (recommended):
 dotnet test tik4net.integrationtests/tik4net.integrationtests.csproj \
   --settings tik4net.integrationtests/winboxcli.runsettings \
   --logger "trx;LogFileName=results_winboxcli.trx" \
   --results-directory TestResults \
   --verbosity normal
 
-# Bez TRX (výstup jen na konzoli):
+# Without TRX (console output only):
 dotnet test tik4net.integrationtests/tik4net.integrationtests.csproj --settings tik4net.integrationtests/api.runsettings
 ```
 
-### Všechny transporty sériově — doporučená strategie
+### All transports in series — recommended strategy
 
 ```powershell
-# Seřazení od nejrychlejšího (API) po nejpomalejší (WinboxCliMac).
-# WinboxNative/WinboxNativeMac jsou rychlé díky velkému počtu skipů.
+# Ordered from fastest (API) to slowest (WinboxCliMac).
+# WinboxNative/WinboxNativeMac are fast thanks to their large skip count.
 $transports = @("api","apissl","rest","restssl","telnet","ssh","mactelnet",
                 "winboxnative","winboxnativemac","winboxcli","winboxclimac")
 
@@ -108,35 +108,37 @@ foreach ($t in $transports) {
 }
 ```
 
-**Pořadí je důležité:** CLI transporty zanechávají orphany (viz sekce Orphany). Spouštěj API-based first, pak CLI. WinboxCli před WinboxCliMac — jinak orphan z WinboxCli způsobí odlišnou chybu v WinboxCliMac.
+**Order matters:** CLI transports leave orphans behind (see the Orphans section). Run the API-based
+transports first, then CLI. WinboxCli before WinboxCliMac — otherwise an orphan left by WinboxCli
+causes a different error in WinboxCliMac.
 
-### Opakování pouze spadlých testů
+### Re-running only the failed tests
 
-Po sériovém běhu parsuj TRX a opakuj jen selhání:
+After a series run, parse the TRX and re-run only the failures:
 
 ```powershell
-# Získej seznam spadlých testů z TRX:
+# Get the list of failed tests from the TRX:
 [xml]$trx = Get-Content "TestResults\results_winboxcli.trx"
 $failed = $trx.TestRun.Results.UnitTestResult |
     Where-Object { $_.outcome -eq 'Failed' } |
     Select-Object -ExpandProperty testName
 
-# Spusť jen je (--filter přijímá | jako OR):
+# Run just those (--filter accepts | as OR):
 $filter = ($failed | ForEach-Object { "Name=$_" }) -join "|"
 dotnet test tik4net.integrationtests/tik4net.integrationtests.csproj `
     --settings tik4net.integrationtests/winboxcli.runsettings `
     --filter $filter
 ```
 
-### Smoke subset pro větší změny (rychlá kontrola napříč transporty)
+### Smoke subset for larger changes (quick cross-transport check)
 
-Full 11-transportní matice je na plné code review / release. Pro **běžné větší změny** (mimo
-unit testy) stačí:
+The full 11-transport matrix is for a full code review / release. For **regular larger changes**
+(beyond unit tests), this is enough:
 
-1. **Plný běh přes API** (`api.runsettings`) — nejrychlejší (~5 min) a nejširší capability set,
-   odchytí většinu logických regresí.
-2. **Lehký smoke subset přes zbytek transportů** — jen pár rychlých, samostatných testů, které
-   nenechávají orphany a pokrývají základní CRUD + singleton load + connection handshake:
+1. **Full run over API** (`api.runsettings`) — fastest (~5 min) and widest capability set,
+   catches most logical regressions.
+2. **Light smoke subset over the remaining transports** — just a few fast, self-contained tests
+   that don't leave orphans and cover basic CRUD + singleton load + connection handshake:
 
    ```powershell
    $smokeFilter = "FullyQualifiedName~ConnectionTest|FullyQualifiedName~SystemClockTest|FullyQualifiedName~InterfaceListTest|FullyQualifiedName~IpRouteTest"
@@ -161,48 +163,48 @@ unit testy) stačí:
    transport-specific area (`Crypto/`, `WinboxNative*/`, `MacTelnet/`, `ApiConnection`
    reader/tag multiplexing, CLI parsers) or before a release.
 
-### Přibližné doby trvání celého běhu
+### Approximate duration of a full run
 
-| Transport | Doba |
+| Transport | Duration |
 |-----------|------|
 | Api, ApiSsl | ~5 min |
 | Rest, RestSsl | ~3 min |
 | Telnet, Ssh | ~7 min |
 | MacTelnet | ~13 min |
-| WinboxNative, WinboxNativeMac | ~5–8 min (hodně skipů) |
+| WinboxNative, WinboxNativeMac | ~5-8 min (lots of skips) |
 | WinboxCli | ~7 min |
 | WinboxCliMac | **~1 h 20 min** |
 
-Přeměřeno 2026-07-26 (plný běh na 7.23.2, 390 testů). **WinboxCli už NENÍ pomalý transport** — dřív tu
-stálo ~52 min, ale to byl důsledek mepty wedge, který opravila P2.13c (byte-ACK); dnes běží stejně
-rychle jako Telnet/SSH. Pomalý zůstává jen **WinboxCliMac**, a to kvůli MAC vrstvě, ne kvůli Winbox
-terminálu: MAC transporty platí ~5 s za příkaz proti ~200 ms přes TCP a navíc se v plném běhu zasekávají
-(P2.19) — každý wedge stojí 30 s receive-timeout. Timeouty testů (SafeMode: 1 min, traceroute: skip) se
-nezmenšují.
+Re-measured 2026-07-26 (full run on 7.23.2, 390 tests). **WinboxCli is NO LONGER a slow transport** —
+it used to take ~52 min, but that was caused by the mepty wedge, which P2.13c (byte-ACK) fixed; today
+it runs as fast as Telnet/SSH. Only **WinboxCliMac** remains slow, and that's due to the MAC layer, not
+the Winbox terminal: MAC transports pay ~5 s per command versus ~200 ms over TCP, and they also get stuck
+during a full run (P2.19) — each wedge costs a 30 s receive-timeout. Test timeouts (SafeMode: 1 min,
+traceroute: skip) don't shrink.
 
-### Výsledky ze všech 11 transportů
+### Results from all 11 transports
 
-> Staré počty pass/fail (2026-06-20) byly **stale** — většina selhání po opravách + živém ověření
-> nereprodukovala. Dispozici všech kategorií (A–K) a aktuální tabulku limitů viz
-> [`TestResults/test-failures-report.md`](../../../TestResults/test-failures-report.md). Po čistém
-> full běhu přegeneruj počty z TRX (sekce *Parsování TRX*).
+> The old pass/fail counts (2026-06-20) were **stale** — most of the A/B failures didn't reproduce
+> after fixes + live verification. For the disposition of all categories (A–K) and the current limits
+> table, see [`TestResults/test-failures-report.md`](../../../TestResults/test-failures-report.md).
+> After a clean full run, regenerate the counts from the TRX files (see *Parsing TRX results*).
 
 ---
 
-## Parsování TRX výsledků
+## Parsing TRX results
 
 ```powershell
-# Souhrn všech TRX najednou.
-# Skipy (Inconclusive) čti VŽDY — dva „zelené" běhy se od sebe můžou lišit jenom jejich počtem
-# a to je u intermitentní chyby to jediné pozorování, které máš (viz Lov intermitentní chyby).
+# Summary of all TRX files at once.
+# ALWAYS read the skips (Inconclusive) — two "green" runs can differ only by their count,
+# and for an intermittent bug that is the only observation you have (see Hunting an intermittent bug).
 foreach ($trx in (Get-ChildItem TestResults\results_*.trx | Sort-Object Name)) {
     [xml]$x = Get-Content $trx.FullName
     $c = $x.TestRun.ResultSummary.Counters
-    # MSTest Assert.Inconclusive se v TRX vykazuje jako notExecuted, ne jako inconclusive.
+    # MSTest Assert.Inconclusive is reported in the TRX as notExecuted, not as inconclusive.
     "$($trx.Name): pass=$($c.passed) fail=$($c.failed) skip=$($c.notExecuted) total=$($c.total)"
 }
 
-# Výpis selhání z jednoho TRX:
+# List failures from a single TRX:
 [xml]$x = Get-Content TestResults\results_winboxcli.trx
 $x.TestRun.Results.UnitTestResult |
     Where-Object { $_.outcome -eq 'Failed' } |
@@ -211,7 +213,7 @@ $x.TestRun.Results.UnitTestResult |
         "$($_.testName) | $($msg.Substring(0,[Math]::Min(120,$msg.Length)))"
     }
 
-# Pojmenované skipy (to `-v q` ani souhrnný řádek neumí):
+# Named skips (neither `-v q` nor the summary line gives you this):
 $x.TestRun.Results.UnitTestResult |
     Where-Object { $_.outcome -eq 'NotExecuted' } |
     Select-Object -ExpandProperty testName | Sort-Object
@@ -219,20 +221,20 @@ $x.TestRun.Results.UnitTestResult |
 
 ---
 
-## Lov intermitentní chyby
+## Hunting an intermittent bug
 
-Chyba, která padne jednou za N plných běhů (P2.19, P2.47, P2.49), se **nedá reprodukovat opakováním
-naslepo** — každý pokus stojí desítky minut routeru. Cílem není trefit ji znovu, ale zařídit, aby
-příští výskyt sám o sobě stačil k diagnóze.
+A bug that fails once every N full runs (P2.19, P2.47, P2.49) **cannot be reproduced by blind
+repetition** — each attempt costs the router tens of minutes. The goal isn't to hit it again, but
+to make sure the next occurrence is enough by itself for a diagnosis.
 
-1. **Vždy `--logger trx`, s per-běh jménem souboru.** Souhrn `Neúspěšné: 0` neznamená, že běh byl
-   stejný jako předchozí — test může intermitentně spadnout na `Assert.Inconclusive` závislý na
-   datech místo na assert, a pak se změní jenom **počet skipů**. Bez TRX se nedozvíš ani to, ani
-   který test to byl.
-2. **Zapni byte-level trace na celý běh** přes `TIK4NET_WIRETRACE` (cesta k souboru, nebo `1` pro
-   default vedle assembly). `WireTraceCapture` píše do trace hranice testů jako
-   `--- TEST <jméno>` / `--- END <outcome> <jméno>`, takže selhání se v něm dá najít bez
-   korelace časů:
+1. **Always use `--logger trx`, with a per-run file name.** A summary of `Failed: 0` doesn't mean
+   the run was identical to the previous one — a test can intermittently fail on a data-dependent
+   `Assert.Inconclusive` instead of an assert, and then only the **skip count** changes. Without
+   the TRX you won't know that happened, let alone which test it was.
+2. **Turn on byte-level trace for the whole run** via `TIK4NET_WIRETRACE` (a file path, or `1` for
+   the default next to the assembly). `WireTraceCapture` writes test boundaries into the trace as
+   `--- TEST <name>` / `--- END <outcome> <name>`, so a failure can be located in it without
+   correlating timestamps:
 
    ```powershell
    $stamp = Get-Date -Format yyyyMMdd-HHmmss
@@ -244,252 +246,260 @@ příští výskyt sám o sobě stačil k diagnóze.
    Remove-Item Env:\TIK4NET_WIRETRACE
    ```
 
-3. **Artefakty zelených běhů maž až po porovnání běhů mezi sebou**, ne hned po zeleném výsledku.
-   Trace je velký, takže úklid je v pokušení — ale běh s odlišným počtem skipů je zajímavý přesně
-   tak jako červený, a když jsi ho už smazal, pozorování je nenávratně pryč.
-4. **Než uvěříš, že jsi něco reprodukoval, vyluč artefakt loginu.** Řetězec `login failure` v trace
-   bývá **login banner** (router při přihlášení tiskne poslední logy), ne asynchronní událost;
-   rozliš podle toho, jestli je poblíž IAC negociace `<FF><FD>`.
-5. **Nejdřív reziduum, potom kód.** Selhání na nečekaném `.id`, kolizi jmen nebo počtu řádků je
-   obvykle reakce na orphan po předchozím běhu (viz sekce Orphany), ne defekt.
+3. **Only delete green-run artifacts after comparing runs against each other**, not right after a
+   green result. The trace is large, so cleanup is tempting — but a run with a different skip count
+   is just as interesting as a red one, and once you've deleted it, the observation is gone for good.
+4. **Before you believe you've reproduced something, rule out login artifacts.** The string
+   `login failure` in the trace is usually a **login banner** (the router prints recent logs on
+   login), not an async event; tell them apart by whether it's near the IAC negotiation `<FF><FD>`.
+5. **Residue first, code second.** A failure on an unexpected `.id`, a name collision, or a row
+   count is usually a reaction to an orphan left by a previous run (see the Orphans section), not
+   a defect.
 
 ---
 
 ## CLI transport gotchas
 
-Tyto jevy se projevují na **Telnet, MacTelnet, Ssh, WinboxCli, WinboxCliMac**.
+These symptoms show up on **Telnet, MacTelnet, Ssh, WinboxCli, WinboxCliMac**.
 
-### A — `add` vrátí prázdný string (objekt na routeru vznikne, ale bez ID)
+### A — `add` returns an empty string (the object is created on the router, but without an ID)
 
-`:put [/path add ...]` vrátí `""` místo nového `.id`. Knihovna nemá ID → `TikNoSuchItemException`. Objekt přitom **na routeru existuje** → orphan (cleanup selže — viz sekce Orphany).
+`:put [/path add ...]` returns `""` instead of the new `.id`. The library has no ID → `TikNoSuchItemException`. Meanwhile the object **does exist on the router** → orphan (cleanup fails — see the Orphans section).
 
 ```
 CLI>> :put [/interface eoip add name=test-eoip ...]
-CLI<<         ← prázdný string
+CLI<<         ← empty string
 → TikNoSuchItemException: no such item /interface/eoip/add
 ```
 
-Projevuje se **hlavně na WinboxCli/WinboxCliMac**. Na Telnet/SSH jen výjimečně (např. AddRadiusServerWillNotFail na MacTelnet).  
-Příčina: WinboxCli terminál má vyšší latenci; odpověď z routeru přijde mimo read-window.
+Shows up **mainly on WinboxCli/WinboxCliMac**. On Telnet/SSH only rarely (e.g. AddRadiusServerWillNotFail on MacTelnet).
+Cause: the WinboxCli terminal has higher latency; the router's response arrives outside the read window.
 
-### B — Singleton `LoadSingle` — druhý `print` vrátí prázdno
+### B — Singleton `LoadSingle` — the second `print` returns empty
 
-`LoadSingle<T>` volá `print as-value` dvakrát (první pro detekci prázdného výsledku, druhé pro data). Na WinboxCli/WinboxCliMac druhé volání vrátí `""`.
+`LoadSingle<T>` calls `print as-value` twice (the first to detect an empty result, the second for data). On WinboxCli/WinboxCliMac the second call returns `""`.
 
 ```
 CLI>> :put [/ip settings print as-value]
 CLI<< ip-forward=yes;...
 CLI>> :put [/ip settings print as-value]
-CLI<<         ← prázdné
+CLI<<         ← empty
 → TikNoSuchItemException: no such item /ip/settings/print
 ```
 
-Dotčené testy: `LoadIpSettingsWillNotFail`, `LoadIpTrafficFlowWillNotFail`, `LoadPppAaaWilNotFail`, `LoadSnmpWillNotFail`, `LoadMacServerWillNotFail`, `ExecuteSingleRow_With_Tag_Parameter`.
+Affected tests: `LoadIpSettingsWillNotFail`, `LoadIpTrafficFlowWillNotFail`, `LoadPppAaaWilNotFail`, `LoadSnmpWillNotFail`, `LoadMacServerWillNotFail`, `ExecuteSingleRow_With_Tag_Parameter`.
 
-### C — ~~Truncace terminálu~~ multi-value pole: `Missing field 'name'` ✅ OPRAVENO
+### C — ~~Terminal truncation~~ multi-value field: `Missing field 'name'` ✅ FIXED
 
-**Původní diagnóza (truncace) byla CHYBNÁ.** Skutečná příčina: RouterOS renderuje
-multi-value (list) pole v `as-value` výstupu s oddělovačem `;` — TÝMŽ znakem jako mezi poli:
-`key-usage=key-cert-sign;crl-sign;name=mikrotik-CA`. Parser splitoval na `;`, takže `name`
-skončilo pod sloučeným klíčem `crl-sign;name` → `GetResponseField("name")` selhalo.
+**The original diagnosis (truncation) was WRONG.** The real cause: RouterOS renders a
+multi-value (list) field in `as-value` output with a `;` separator — the SAME character used
+between fields: `key-usage=key-cert-sign;crl-sign;name=mikrotik-CA`. The parser split on `;`,
+so `name` ended up merged into the key `crl-sign;name` → `GetResponseField("name")` failed.
 
-Oprava: `CliOutputParser.ParseOrderedFields` — `;`-token bez `=` je pokračování (element)
-předchozího multi-value pole (spojené čárkou, jako API). Platí pro VŠECHNY CLI transporty
-(sdílený parser), žádná „jiná šířka terminálu". Ověřeno: Certificate/HotspotProfile/File/Pptp
-procházejí přes Telnet i WinboxCli.
+Fix: `CliOutputParser.ParseOrderedFields` — a `;`-token without `=` is a continuation (element)
+of the previous multi-value field (joined by comma, like the API). Applies to ALL CLI transports
+(shared parser), there is no "different terminal width". Verified: Certificate/HotspotProfile/File/Pptp
+pass over both Telnet and WinboxCli.
 
-### D — `fib=yes` odmítnuto (presence-flag) ✅ OPRAVENO
+### D — `fib=yes` rejected (presence-flag) ✅ FIXED
 
-RouterOS CLI odmítá `fib=yes` — `fib` je presence-flag: nastavuje se holým názvem (`… fib`),
-`=hodnota` vrátí `expected end of command`. Binární API/REST `fib=yes` akceptují (proto selhával
-jen CLI). Ověřeno živě: `/routing/table/add` tab-completion uvádí `fib`; `fib=yes` → chyba na
-sloupci s `=`.
+The RouterOS CLI rejects `fib=yes` — `fib` is a presence-flag: it's set with a bare name (`… fib`),
+`=value` returns `expected end of command`. The binary API/REST accept `fib=yes` (which is why only
+CLI failed). Verified live: `/routing/table/add` tab-completion lists `fib`; `fib=yes` → error at the
+`=` column.
 
-Oprava: `CliCommandBuilder` — `CliPresenceFlagFields = { "fib" }`; truthy → holý název,
-falsy → vynechat. Rozšiřitelné o další presence-flagy. Ověřeno: AddRoutingTable přes Telnet.
+Fix: `CliCommandBuilder` — `CliPresenceFlagFields = { "fib" }`; truthy → bare name,
+falsy → omit. Extensible to further presence-flags. Verified: AddRoutingTable over Telnet.
 
-### E — SafeMode rollback po disconnect
+### E — SafeMode rollback after disconnect
 
-`SafeMode_DisconnectWithoutRelease_RollsBack` očekává rollback po disconnect bez release. **Předpoklad
-„CLI nerollbackne" nebyl ověřen** → `SkipOnNonApi` odstraněn. Test teď chování **pozoruje** (30 s poll):
-projde, pokud transport rollbackne (i CLI/native), jinak `Inconclusive` (ne fail). `[Timeout(90000)]` je
-jen pojistka proti zaseknutému routeru.
+`SafeMode_DisconnectWithoutRelease_RollsBack` expects a rollback after a disconnect without release.
+**The assumption "CLI doesn't roll back" was never verified** → `SkipOnNonApi` removed. The test now
+**observes** the behavior (30 s poll): it passes if the transport rolls back (including CLI/native),
+otherwise `Inconclusive` (not a failure). `[Timeout(90000)]` is just a safety net against a stuck router.
 
 ### G — RunScript log race condition
 
-Script se spustí, ale `:put [/log print as-value]` ho nezachytí v době dotazu. Projevuje se na MacTelnet, WinboxCli, WinboxCliMac.
+The script runs, but `:put [/log print as-value]` doesn't catch it at query time. Shows up on MacTelnet, WinboxCli, WinboxCliMac.
 
-> **2026-07-30:** k tomu se přidal druhý, horší problém — pollování bez filtru. Test tahal **celý**
-> 1000řádkový memory log, až 10× po sobě (**85 593 znaků** na mactelnet, 73 710 na winboxclimac), a jeden
-> takový dump přes MAC terminál nestihne 30 s budget. Test tedy padal podle toho, jak upovídaný zrovna log
-> byl. Opraveno filtrem **na routeru**: `CreateCommandAndParameters("/log/print", "message", logMarker)` —
-> marker je psaný `:log error ("RUN53_<guid>")`, takže matchne přesně a vrátí jeden řádek nebo nic. Filtr
-> ctí Api (`?message=`), Rest, CLI (`where message=…`) i WinboxNative — ověřeno živě. Po opravě prochází na
-> **všech 11 transportech** (mactelnet 31 s timeout → 2 s, winboxclimac 1 m 16 s fail → 32 s pass).
-> **Poučení pro nové testy:** nikdy netahej `/log/print` (ani jiný velký seznam) bez filtru v poll smyčce —
-> na CLI/MAC transportech je to přímá cesta k `TikConnectionReceiveTimeoutException`.
+> **2026-07-30:** a second, worse problem was added on top — polling without a filter. The test pulled
+> the **entire** 1000-line memory log, up to 10 times in a row (**85,593 characters** on mactelnet, 73,710
+> on winboxclimac), and a single such dump over the MAC terminal can't fit the 30 s budget. So the test
+> failed depending on how chatty the log happened to be. Fixed with a filter **on the router**:
+> `CreateCommandAndParameters("/log/print", "message", logMarker)` — the marker is written via
+> `:log error ("RUN53_<guid>")`, so it matches exactly and returns one line or none. The filter is honored
+> by Api (`?message=`), Rest, CLI (`where message=…`), and WinboxNative — verified live. After the fix it
+> passes on **all 11 transports** (mactelnet 31 s timeout → 2 s, winboxclimac 1 m 16 s fail → 32 s pass).
+> **Lesson for new tests:** never pull `/log/print` (or any other large list) without a filter inside a
+> poll loop — on CLI/MAC transports that's a direct path to `TikConnectionReceiveTimeoutException`.
 
 ---
 
 ## WinboxNative / WinboxNativeMac gotchas
 
-### Nemapované cesty (.jg katalog)
+### Unmapped paths (.jg catalog)
 
-Native CRUD jede jen po cestách ve verzově-spárovaném `.jg` katalogu. Cesta v žádném WinBox okně →
-`WinBox native: no M2 handler mapping for path '…'`. Ověřeno nemapované: `/tool/netwatch`,
-`/routing/bgp/advertisements`. Řešení: `connection.PathOverride(path, new[]{maj,min})` nebo CLI/API.
-Guard v testech: `SkipOnWinboxNativeUnmappedPath(path)`.
+Native CRUD only works for paths present in the version-matched `.jg` catalog. A path absent from
+every WinBox window → `WinBox native: no M2 handler mapping for path '…'`. Verified unmapped:
+`/tool/netwatch`, `/routing/bgp/advertisements`. Workaround: `connection.PathOverride(path, new[]{maj,min})`
+or CLI/API. Test guard: `SkipOnWinboxNativeUnmappedPath(path)`.
 
-### I — bool-DefaultValue (NE chybějící mapping)
+### I — bool DefaultValue (NOT a missing mapping)
 
-`AddSystemScriptWillNotFail` padal, protože `bool` se serializuje na `"no"/"yes"`, ale entity měla
-`DefaultValue="false"` → `HasDefaultValue` nikdy nesedělo → pole se vždy posílalo → native nemělo M2 key.
-Opraveno (`"no"`) + plošný audit všech `bool` entit. **Nebyl to chybějící katalog.** Pozor na tento vzor
-u nových entit: `bool` default vždy wire forma `"no"/"yes"`, ne `"false"/"true"`.
+`AddSystemScriptWillNotFail` failed because `bool` serializes to `"no"/"yes"`, but the entity had
+`DefaultValue="false"` → `HasDefaultValue` never matched → the field was always sent → native had no
+M2 key for it. Fixed (`"no"`) + a blanket audit of all `bool` entities. **It was not a missing catalog
+entry.** Watch for this pattern in new entities: a `bool` default is always the wire form `"no"/"yes"`,
+not `"false"/"true"`.
 
-### J — `/system/health` native ✅ OPRAVENO (board-gated singleton)
+### J — `/system/health` native ✅ FIXED (board-gated singleton)
 
-Root cause: health je board-gated. Alias mířil na `map` okno `[24,29]` → `getall` = `0xFE0002 NotImplemented`
-na x86/CHR. Správné okno na x86 je singleton `item` `[24,14]` čtené **get-singleton** (`0xFE000D`, ověřeno
-živě). Fix: `WinboxNativeConnection.PreferSingletonHealthHandler` → `WinboxJgCatalog.FindSingletonHandlerByLeaf("health")`
-(handler živě z `.jg`, ne hardcode). `LoadSingle<SystemHealth>` přes native **projde**. Pozn.:
-`state`/`state-after-reboot` jsou API/CLI-only — WinBox health okno je read-only HW-senzor display
-(`on:'lm87'`), na CHR prázdné → genuine WinBox limit. Guard `catch when (IsWinboxNativeUnsupported)` zůstává
-jako safety net.
+Root cause: health is board-gated. The alias pointed at the `map` window `[24,29]` → `getall` =
+`0xFE0002 NotImplemented` on x86/CHR. The correct window on x86 is the singleton `item` `[24,14]`
+read via **get-singleton** (`0xFE000D`, verified live). Fix: `WinboxNativeConnection.PreferSingletonHealthHandler`
+→ `WinboxJgCatalog.FindSingletonHandlerByLeaf("health")` (handler resolved live from `.jg`, not
+hardcoded). `LoadSingle<SystemHealth>` over native now **passes**. Note: `state`/`state-after-reboot`
+are API/CLI-only — the WinBox health window is a read-only HW-sensor display (`on:'lm87'`), empty on
+CHR → a genuine WinBox limit. The `catch when (IsWinboxNativeUnsupported)` guard remains as a safety net.
 
-### K — bridge-vlan `vlan-ids` native ✅ OPRAVENO (multinumberrange)
+### K — bridge-vlan `vlan-ids` native ✅ FIXED (multinumberrange)
 
-`vlan-ids` = `multinumberrange` (`[16,13]` id `U1`, u32[]). webfig `types.multinumberrange.put` (bez id2)
-flatuje rozsahy na u32[] `[lo0,hi0,…]` (`"3999"` → `[3999,3999]`). Fix: `WinboxFieldResolver.EncodeField`
-enkóduje (`U32ArraySys`), `WinboxRecordCodec` dekóduje zpět; round-trip ověřen živě. **Navíc:** resolver
-HODÍ loud (`WinboxFieldResolutionException`) u nepodporovaných list/array polí (wireType `…[]` nebo uiType
-`multi…`) místo tichého zahození. Zbývající TODO: `tagged`/`untagged` (multinumber interface-listy) a native
-**vytvoření** bridge (`add type=bridge` → `0xFE0006`, separátní gap — test ho safety-net skipne když není
-existující bridge).
+`vlan-ids` = `multinumberrange` (`[16,13]` id `U1`, u32[]). The webfig `types.multinumberrange.put`
+(without id2) flattens ranges to a u32[] `[lo0,hi0,…]` (`"3999"` → `[3999,3999]`). Fix:
+`WinboxFieldResolver.EncodeField` encodes it (`U32ArraySys`), `WinboxRecordCodec` decodes it back;
+the round-trip was verified live. **In addition:** the resolver now throws loud
+(`WinboxFieldResolutionException`) for unsupported list/array fields (wireType `…[]` or uiType
+`multi…`) instead of silently dropping them. Remaining TODO: `tagged`/`untagged` (multinumber
+interface lists) and native **bridge creation** (`add type=bridge` → `0xFE0006`, a separate gap —
+the test's safety net skips it when there's no existing bridge).
 
 ---
 
-## Mezirunová kontaminace — orphany
+## Cross-run contamination — orphans
 
-**Klíčový problém:** CLI add (Kat. A) zanechá objekt na routeru bez sledování ID. Cleanup selže. Příští transport pak dostane odlišnou chybu (`already have interface with name X` místo `no such item`).
+**Core issue:** a CLI add (Cat. A) leaves an object on the router without a tracked ID. Cleanup fails.
+The next transport then gets a different error (`already have interface with name X` instead of
+`no such item`).
 
 ```
 WinboxCli:
-  AddEoipWillNotFail → add vrátí "" → fail → orphan test-eoip na routeru
+  AddEoipWillNotFail → add returns "" → fail → orphan test-eoip left on the router
 
-WinboxCliMac (po):
-  AddEoipWillNotFail → already have interface with name test-eoip → jiná chyba!
+WinboxCliMac (after):
+  AddEoipWillNotFail → already have interface with name test-eoip → a different error!
 ```
 
-**Objekty náchylné k orphan problému** (CLI transporty):
-- IPsec peery (`AddIpsecIdentityWillNotFail`, `AddIpsecPolicyWillNotFail`) → způsobí `ipsec,error` flood v logu
-- Eoip rozhraní (`AddEoipWillNotFail`)
-- L2TP klienty (`AddL2tpClientWillNotFail`)
+**Objects prone to the orphan problem** (CLI transports):
+- IPsec peers (`AddIpsecIdentityWillNotFail`, `AddIpsecPolicyWillNotFail`) → causes an `ipsec,error` flood in the log
+- Eoip interfaces (`AddEoipWillNotFail`)
+- L2TP clients (`AddL2tpClientWillNotFail`)
 - WiFi channel/security
-- Bridge filter pravidla
-- Hotspot profily, hotspot users
-- Firewall filter/raw pravidla
+- Bridge filter rules
+- Hotspot profiles, hotspot users
+- Firewall filter/raw rules
 
 ---
 
-## Kontrola orphanů a logu po každém běhu
+## Checking for orphans and the log after each run
 
-Po každém transportním běhu ověř stav routeru:
+After each transport run, verify the router's state:
 
 ```python
-# Přes MCP:
-/ip/ipsec/peer/print                        # IPsec peery (způsobí error flood)
-/interface/eoip/print                       # Eoip orphany
-/interface/l2tp-client/print                # L2TP orphany
-/ip/hotspot/profile/print  ?name~TEST_      # Hotspot profily
+# Via MCP:
+/ip/ipsec/peer/print                        # IPsec peers (cause an error flood)
+/interface/eoip/print                       # Eoip orphans
+/interface/l2tp-client/print                # L2TP orphans
+/ip/hotspot/profile/print  ?name~TEST_      # Hotspot profiles
 /interface/bridge/filter/print              # Bridge filter rules
 /interface/wifi/channel/print               # WiFi channels
 /interface/wifi/security/print              # WiFi securities
 ```
 
-**Posledních 100 řádků logu** (detekce error flood):
+**Last 100 log lines** (error-flood detection):
 
 ```python
-# Přes MCP — filtr dnešního dne:
+# Via MCP — filter for today's date:
 command: /log/print
 parameters: ["?>time=2026-06-20 00:00:00"]
-# (uprav datum)
+# (adjust the date)
 ```
 
-Hledej:
-- `ipsec,error initiator can't find identity` — orphan IPsec peer, smaž přes `/ip/ipsec/peer/remove`
-- `dhcp,error bonding1: DHCP offer rejected` — konfigurace routeru, nesouvisí s testy
-- Opakující se záznamy stejné chyby = něco je špatně
+Look for:
+- `ipsec,error initiator can't find identity` — orphan IPsec peer, remove it via `/ip/ipsec/peer/remove`
+- `dhcp,error bonding1: DHCP offer rejected` — router configuration, unrelated to the tests
+- Repeated entries of the same error = something is wrong
 
-**Ruční čištění orphanů:**
+**Manual orphan cleanup:**
 ```python
-/ip/ipsec/peer/remove  params: ["=.id=*X"]       # konkrétní ID
+/ip/ipsec/peer/remove  params: ["=.id=*X"]       # specific ID
 /interface/eoip/remove params: ["=name=test-eoip"]
 ```
 
 ---
 
-## Známá baseline selhání (stav 2026-06-20)
+## Known baseline failures (state as of 2026-06-20)
 
-> **POZOR — report `TestResults/test-failures-report.md` (2026-06-20) je z velké části ZASTARALÝ.**
-> Při ověření na aktuálním zdroji většina „selhání" A/B vůbec nereprodukovala (add vrací id,
-> singleton load funguje). Mnoho položek byly orphan-kontaminace nebo flaky timing, ne bugy.
-> Níže je stav PO opravách v této session. Při nejasnosti vždy spusť konkrétní test živě —
-> nevěř starému reportu.
+> **NOTE — the `TestResults/test-failures-report.md` report (2026-06-20) is largely OUTDATED.**
+> When verified against the current source, most A/B "failures" didn't reproduce at all (add
+> returns an id, singleton load works). Many entries were orphan contamination or flaky timing,
+> not bugs. Below is the state AFTER the fixes made in this session. When in doubt, always run
+> the specific test live — don't trust the old report.
 
-### ✅ Opraveno v knihovně (procházejí na všech transportech)
+### ✅ Fixed in the library (pass on all transports)
 
-| Kat. | Co | Oprava |
+| Cat. | What | Fix |
 |------|----|--------|
-| C | `Certificate`/`HotspotProfile`/`File`/`Pptp` — `Missing field 'name'` | `CliOutputParser`: multi-value `;`-elementy = pokračování pole (ne nové pole) |
-| D | `AddRoutingTableWillNotFail` — `fib=yes` | `CliCommandBuilder.CliPresenceFlagFields` — holý `fib` |
-| H | `GenerateAndDeleteIpsecKeyWillNotFail` (REST) | `RestRequestBuilder._writeVerbs` += `generate-key`/`export-pub-key`/`import` — bez nich se přidalo `/print` |
-| I | `AddSystemScriptWillNotFail` (WinboxNative) | `bool` DefaultValue `"false"/"true"`→`"no"/"yes"` — **plošně ve všech `bool` entitách** (17 souborů); `YesNoOptions` enum ponechán (`[TikEnum("false")]`) |
-| A/B | add/singleton flaky timeout na WinboxCli | `WinboxCliClient`: pre-send `DrainSync` když jsou reziduální data (proti desyncu) |
-| G | `RunScript_Issue53_WillNotFail` — log race + **dump celého logu** | test pollne log ~5 s místo jediného checku; **2026-07-30** navíc filtruje `?message=<marker>` na routeru místo tahání 1000 řádků (viz sekce G) |
-| J | `/system/health` native (board-gated) | `PreferSingletonHealthHandler` → singleton `[24,14]` get-singleton (handler živě z `.jg`) |
-| K | bridge-vlan `vlan-ids` native (tichý drop) | `multinumberrange` enkódování/dekódování (u32[]) + loud-throw u nepodporovaných list typů |
-| a | `/tool/netwatch` native unmapped path | shipped alias `/tool/netwatch` → `[51,1]` ve `WinboxHandlerMap` |
+| C | `Certificate`/`HotspotProfile`/`File`/`Pptp` — `Missing field 'name'` | `CliOutputParser`: multi-value `;`-elements = continuation of a field (not a new field) |
+| D | `AddRoutingTableWillNotFail` — `fib=yes` | `CliCommandBuilder.CliPresenceFlagFields` — bare `fib` |
+| H | `GenerateAndDeleteIpsecKeyWillNotFail` (REST) | `RestRequestBuilder._writeVerbs` += `generate-key`/`export-pub-key`/`import` — without them `/print` was appended |
+| I | `AddSystemScriptWillNotFail` (WinboxNative) | `bool` DefaultValue `"false"/"true"`→`"no"/"yes"` — **fixed across all `bool` entities** (17 files); `YesNoOptions` enum left as-is (`[TikEnum("false")]`) |
+| A/B | add/singleton flaky timeout on WinboxCli | `WinboxCliClient`: pre-send `DrainSync` when residual data is present (against desync) |
+| G | `RunScript_Issue53_WillNotFail` — log race + **dumping the entire log** | test polls the log for ~5 s instead of a single check; **2026-07-30** additionally filters `?message=<marker>` on the router instead of pulling 1000 lines (see section G) |
+| J | `/system/health` native (board-gated) | `PreferSingletonHealthHandler` → singleton `[24,14]` get-singleton (handler resolved live from `.jg`) |
+| K | bridge-vlan `vlan-ids` native (silent drop) | `multinumberrange` encoding/decoding (u32[]) + loud-throw for unsupported list types |
+| a | `/tool/netwatch` native unmapped path | shipped alias `/tool/netwatch` → `[51,1]` in `WinboxHandlerMap` |
 
-> **POZN. (H):** REST action verby FUNGUJÍ (`POST /rest/<path>/<verb>`, ověřeno `…/generate-key`→200).
-> Chyba byla v knihovně (verb nebyl rozpoznán → přidal se `/print`). NE skip — oprava v builderu.
+> **NOTE (H):** REST action verbs DO WORK (`POST /rest/<path>/<verb>`, verified `…/generate-key`→200).
+> The bug was in the library (the verb wasn't recognized → `/print` got appended). NOT a skip — fixed in the builder.
 
-### ✅ Skip-guardy — vázané na konkrétní limit (`Inconclusive`, ne fail)
+### ✅ Skip guards — tied to a specific limit (`Inconclusive`, not a failure)
 
-| Kat. | Test | Guard | Pozn. |
+| Cat. | Test | Guard | Note |
 |------|------|-------|-------|
-| J | `LoadSystemHealthWillNotFail` | ✅ OPRAVENO — `catch when (IsWinboxNativeUnsupported)` zůstává jen jako safety net | native teď čte health get-singleton `[24,14]`; LoadSingle projde |
-| K | `AddBridgeVlanWillNotFail` | ✅ OPRAVENO — `vlan-ids` round-trip asertován pro všechny transporty; `catch when (IsWinboxNativeUnsupported)` jen safety net | safety net teď chytá native bridge-**creation** gap (`0xFE0006`), když není existující bridge |
-| E | `SafeMode_DisconnectWithoutRelease_RollsBack` | žádný skip — runtime poll → pass/`Inconclusive` | předpoklad neověřitelný přes stateless MCP → test pozoruje |
-| — | bgp/advertisements (a další nepokryté) | `SkipOnWinboxNativeUnmappedPath` | cesta není v `.jg` / handler-mapě. **netwatch už OPRAVENO** (alias `[51,1]`) |
+| J | `LoadSystemHealthWillNotFail` | ✅ FIXED — `catch when (IsWinboxNativeUnsupported)` remains only as a safety net | native now reads health via get-singleton `[24,14]`; LoadSingle passes |
+| K | `AddBridgeVlanWillNotFail` | ✅ FIXED — `vlan-ids` round-trip asserted for all transports; `catch when (IsWinboxNativeUnsupported)` is just a safety net | the safety net now catches the native bridge-**creation** gap (`0xFE0006`) when there's no existing bridge |
+| E | `SafeMode_DisconnectWithoutRelease_RollsBack` | no skip — runtime poll → pass/`Inconclusive` | the assumption couldn't be verified over the stateless MCP → the test observes instead |
+| — | bgp/advertisements (and other uncovered paths) | `SkipOnWinboxNativeUnmappedPath` | path is absent from the `.jg` / handler map. **netwatch already FIXED** (alias `[51,1]`) |
 
-> **Princip:** preferuj feature/runtime-bound skip (`IsWinboxNativeUnsupported` — chytá KONKRÉTNÍ M2
-> chybu, nemaskuje jiné bugy a sám zmizí, až transport feature podpoří) před blanket transport-name
-> skipem. **Než nastavíš gate, ověř živě, že to není falešný předpoklad** (jako bylo `SkipOnRest`/
-> `SkipOnNonApi`/stará Kat. K). `IsNonApiTransport` zůstává jen pro větvení **asercí** (ne skip).
+> **Principle:** prefer a feature/runtime-bound skip (`IsWinboxNativeUnsupported` — catches a
+> SPECIFIC M2 error, doesn't mask other bugs, and disappears by itself once the transport supports
+> the feature) over a blanket transport-name skip. **Before setting a gate, verify live that it's
+> not a false assumption** (like the old `SkipOnRest`/`SkipOnNonApi`/old Cat. K were). `IsNonApiTransport`
+> remains only for branching **assertions** (not as a skip gate).
 
-> **Výjimka, která je transport-name schválně:** `SkipOnSingleCommandTransport()` (P2.42, používá
-> `ConcurrentCommandsTest`). Vyjmenovává CLI rodinu (Telnet/SSH/MacTelnet/WinboxCli/WinboxCliMac), protože
-> **to je ta aserce**: jen ony mají důvod serializovat, všechno ostatní (API, API-SSL, REST, oba native
-> WinBoxy) musí umět běžet souběžně na jednom spojení. Feature-bound varianta („přeskoč, když to transport
-> nezvládne") by přesně tu regresi, kvůli které test existuje, zametla pod koberec. Nemíchej si to s
-> odstraněnými slepými gaty — tenhle skipuje **očekávané** chování, ne nezměřený předpoklad.
+> **The exception that's deliberately transport-name based:** `SkipOnSingleCommandTransport()` (P2.42,
+> used by `ConcurrentCommandsTest`). It enumerates the CLI family (Telnet/SSH/MacTelnet/WinboxCli/WinboxCliMac),
+> because **that's the assertion itself**: only they have a reason to serialize, everything else (API,
+> API-SSL, REST, both native WinBoxes) must be able to run concurrently on a single connection. A
+> feature-bound variant ("skip if the transport can't handle it") would sweep under the rug exactly the
+> regression this test exists to catch. Don't confuse this with the removed blind gates — this one
+> skips **expected** behavior, not an unverified assumption.
 
-### ⚠️ Orphan-kontaminace (NE bug — uklízej router před/mezi běhy)
+### ⚠️ Orphan contamination (NOT a bug — clean up the router before/between runs)
 
-`AddEoipWillNotFail` apod. spadnou s `already have interface with name test-eoip`, když
-předchozí (starý) běh nechal orphan. Smaž orphany přes API (viz sekce *Kontrola orphanů*).
-Na čistém routeru add projde.
+`AddEoipWillNotFail` and similar tests fail with `already have interface with name test-eoip` when a
+previous (old) run left an orphan behind. Delete the orphans via the API (see the *Checking for orphans*
+section). On a clean router, add passes.
 
-### ⚠️ Flaky (intermittent, ne deterministicky) — při selhání opakuj
+### ⚠️ Flaky (intermittent, not deterministic) — retry on failure
 
 `LoadIpTrafficFlowWillNotFail`, `LoadListenAsync_*`, `*Async*`, `ParallelSniff*`,
-`PingLocalhostAsyncWillNotFail` — polling/async přes pomalé CLI transporty. Pre-send drain
-(Kat. A/B oprava) flakiness zmírnil; přesto při ojedinělém selhání opakuj jen daný test.
+`PingLocalhostAsyncWillNotFail` — polling/async over the slower CLI transports. The pre-send drain
+(Cat. A/B fix) reduced the flakiness; still, on an isolated failure, retry just that test.
 
 ---
 
-## TestBase — klíčové metody
+## TestBase — key methods
 
 ```csharp
 public TestContext TestContext { get; set; }   // injected by MSTest
@@ -505,17 +515,17 @@ protected void EnsureMaxRouterOsVersion(int removedInMajor, string featureDescri
 protected void EnsureCommandAvailable(string commandPath)
 protected Version GetMikrotikVersion()
 
-// Skip helpers (Assert.Inconclusive). PREFER runtime/feature-bound nad transport-name skipy:
-protected static bool IsWinboxNativeUnsupported(Exception ex) // catch-when: konkrétní M2 error/field-resolve → Inconclusive
-protected void SkipOnWinboxNativeUnmappedPath(string feature) // path absent from .jg catalog (ověř, že fakt chybí)
-protected void SkipOnSingleCommandTransport()                 // CLI rodina serializuje ZÁMĚRNĚ — viz výjimka výše
-protected bool IsNonApiTransport()                            // JEN pro větvení asercí, NE jako skip-gate
-// (SkipOnNonApi a SkipOnRest/SkipOnWinboxNative byly odstraněny — slepé/neověřené transport-name gaty)
+// Skip helpers (Assert.Inconclusive). PREFER runtime/feature-bound skips over transport-name skips:
+protected static bool IsWinboxNativeUnsupported(Exception ex) // catch-when: specific M2 error/field-resolve → Inconclusive
+protected void SkipOnWinboxNativeUnmappedPath(string feature) // path absent from .jg catalog (verify it's actually missing)
+protected void SkipOnSingleCommandTransport()                 // CLI family serializes ON PURPOSE — see the exception above
+protected bool IsNonApiTransport()                            // ONLY for branching assertions, NOT as a skip gate
+// (SkipOnNonApi and SkipOnRest/SkipOnWinboxNative were removed — blind/unverified transport-name gates)
 ```
 
 ---
 
-## Vytvoření nového O/R mapper testu
+## Creating a new O/R mapper test
 
 ```csharp
 [TestClass]
@@ -540,23 +550,23 @@ public class IpDhcpServerTest : TestBase
             var loaded = Connection.LoadById<DhcpServer>(entry.Id);
             Assert.IsNotNull(loaded);
         } finally {
-            if (entry.Id != null) Connection.Delete(entry);  // vždy cleanup!
+            if (entry.Id != null) Connection.Delete(entry);  // always clean up!
         }
     }
 }
 ```
 
 **Patterns:**
-- Vždy `try/finally` cleanup — i při fail musí test smazat co vytvořil.
-- `EnsureCapability`, `EnsureMinRouterOsVersion`, `EnsureCommandAvailable` na začátek.
-- Prefix `t4n` + GUID suffix pro testovací objekty (snadno dohledatelné na routeru).
-- `Console.WriteLine(...)` pro debug — MSTest zachytí stdout.
+- Always `try/finally` cleanup — even on failure the test must delete what it created.
+- `EnsureCapability`, `EnsureMinRouterOsVersion`, `EnsureCommandAvailable` at the start.
+- Prefix `t4n` + a GUID suffix for test objects (easy to find on the router).
+- `Console.WriteLine(...)` for debugging — MSTest captures stdout.
 
 ---
 
-## Vytvoření protokolového PoC testu
+## Creating a protocol PoC test
 
-Protokolové testy (Winbox, MacTelnet, raw API) **nepoužívají TestBase** — spravují vlastní spojení.
+Protocol tests (Winbox, MacTelnet, raw API) **don't use TestBase** — they manage their own connection.
 
 ```csharp
 [TestClass]
@@ -568,39 +578,39 @@ public class MyProtocolTest
         var host = ConfigurationManager.AppSettings["host"];
         var user = ConfigurationManager.AppSettings["user"];
         var pass = ConfigurationManager.AppSettings["pass"] ?? "";
-        // raw TCP/UDP, vlastní client, assertions
+        // raw TCP/UDP, custom client, assertions
     }
 }
 ```
 
-**Pozor:** Protokolové testy neskipují při jiných transportech! Pokud spustíš `winboxnative.runsettings`, WinboxTcpProtocolTest stále poběží (vlastní spojení). Selhání protokolového testu v jiném transportním běhu = resource/timing kolize, ne transport bug.
+**Note:** Protocol tests don't skip under other transports! If you run `winboxnative.runsettings`, WinboxTcpProtocolTest still runs (it manages its own connection). A protocol test failing during a different transport run = a resource/timing collision, not a transport bug.
 
 ---
 
-## Inspekce routeru přes MCP
+## Inspecting the router via MCP
 
 ```python
-# Verze a identita
+# Version and identity
 /system/resource/print
 /system/identity/print
 
-# Stav po testech — hledej orphany
-/ip/ipsec/peer/print                    # → smaž vše s name~t4n
-/interface/eoip/print                   # → smaž name=test-eoip
-/interface/l2tp-client/print            # → smaž name~t4ntest-l2tp
-/ip/hotspot/profile/print               # → smaž name~TEST_
-/interface/bridge/filter/print          # → smaž s GUID komentáři
-/interface/wifi/channel/print           # → smaž name~test-
-/interface/wifi/security/print          # → smaž name~test-
+# State after tests — look for orphans
+/ip/ipsec/peer/print                    # → delete anything with name~t4n
+/interface/eoip/print                   # → delete name=test-eoip
+/interface/l2tp-client/print            # → delete name~t4ntest-l2tp
+/ip/hotspot/profile/print               # → delete name~TEST_
+/interface/bridge/filter/print          # → delete entries with GUID comments
+/interface/wifi/channel/print           # → delete name~test-
+/interface/wifi/security/print          # → delete name~test-
 
-# Log po testech (poslednich ~100 zaznamu = dnesni den)
+# Log after tests (last ~100 entries = today)
 /log/print  params: ["?>time=2026-06-20 00:00:00"]
-# Hledej: ipsec,error + opakující se stejná zpráva = orphan flood
+# Look for: ipsec,error + a repeated identical message = orphan flood
 ```
 
 ---
 
-## Souborová struktura
+## File structure
 
 ```
 tik4net.integrationtests/
@@ -609,7 +619,7 @@ tik4net.integrationtests/
 ├── api.runsettings ... winboxnativemac.runsettings  — 11 transport settings
 ├── TestResults/
 │   ├── results_api.trx ... results_winboxnativemac.trx
-│   └── test-failures-report.md           — dispozice kategorií A–K + matice limitů transportů
+│   └── test-failures-report.md           — disposition of categories A–K + transport limits matrix
 ├── Protocols/
 │   ├── _Shared/                           — EcSrp5, WinboxStreamCrypto, M2Message, VT100
 │   ├── Transport/                         — TCP, MAC layer helpers

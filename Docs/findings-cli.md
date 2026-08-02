@@ -1,450 +1,503 @@
 # Findings — MikroTik RouterOS CLI (Command Line Interface)
 
-**Zdroj:** https://help.mikrotik.com/docs/spaces/ROS/pages/328134/Command+Line+Interface
-**Datum:** 2026-05-31
-**Retrieval status:** Oficiální dokumentaci zpracoval research agent (Sonnet). Označení 📄 = z dokumentace.
-**✅ ŽIVĚ OVĚŘENO 2026-05-31** při implementaci kapitoly C (Telnet) proti testovacímu CHR routeru (ROS 7.x).
-Část původních předpokladů se ukázala jako NEPŘESNÁ — viz **sekce 10 (živě ověřené poznatky)**, která má
-přednost před staršími 📄 tvrzeními. Probe nástroj: [`telnet-cli-probe.ps1`](telnet-cli-probe.ps1).
+**Source:** https://help.mikrotik.com/docs/spaces/ROS/pages/328134/Command+Line+Interface
+**Date:** 2026-05-31
+**Retrieval status:** Official documentation processed by a research agent (Sonnet). 📄 marks material from the documentation.
+**✅ LIVE-VERIFIED 2026-05-31** during the implementation of Chapter C (Telnet) against the test CHR router (ROS 7.x).
+Some of the original assumptions turned out to be INACCURATE — see **section 10 (live-verified findings)**,
+which takes precedence over the earlier 📄 claims. Probe tool: [`telnet-cli-probe.ps1`](telnet-cli-probe.ps1).
 
-> Účel: podklad pro CLI-based transporty (Telnet/SSH/MACTelnet) — překlad `ITikCommand` → CLI string
-> a parsing výstupu. **Doplňuje** existující návrhový dokument
-> [terminal-cli-parsing.md](../terminal-cli-parsing.md) (ten obsahuje plnou implementační architekturu
-> `CliConnectionBase`/`CliOutputParser`/`VtStripper`); zde jsou jen **nové/ověřující poznatky z oficiálních docs**.
+> Purpose: groundwork for the CLI-based transports (Telnet/SSH/MACTelnet) — translating `ITikCommand`
+> into a CLI string and parsing the output. This **complements** the existing design document
+> [terminal-cli-parsing.md](../terminal-cli-parsing.md) (which holds the full implementation architecture
+> for `CliConnectionBase`/`CliOutputParser`/`VtStripper`); this file only adds **new/confirming findings
+> from the official docs**.
 
 ---
 
-## 1. Nejlepší formát pro parsování: `print as-value`
+## 1. Best format for parsing: `print as-value`
 
-📄 `print as-value` je **strojově čitelný** výstup, jeden řádek = jeden záznam, pole jako `key=value`
-oddělená `;` **bez mezer**. Názvy polí i bool hodnoty (`yes`/`no`) jsou **byte-for-byte shodné s API
-protokolem** → `tik4net.entities` mapper funguje beze změny (viz [terminal-cli-parsing.md](../terminal-cli-parsing.md)).
+📄 `print as-value` is **machine-readable** output, one line per record, fields as `key=value`
+separated by `;` **with no spaces**. Both field names and boolean values (`yes`/`no`) are
+**byte-for-byte identical to the API protocol** → the `tik4net.entities` mapper works unchanged
+(see [terminal-cli-parsing.md](../terminal-cli-parsing.md)).
 
 ```
 /ip/address/print as-value
 → .id=*1;address=192.168.1.1/24;interface=ether1;comment=;dynamic=no;disabled=no
 ```
 
-Doplňkové modifikátory `print`:
-| Modifikátor | Účel |
+Additional `print` modifiers:
+| Modifier | Purpose |
 |---|---|
-| `as-value` | strojový `key=value;…` výstup (**primární pro parsing**) |
-| `without-paging` | vypne stránkování (`-- [Q quit...]`) — **nutné na PTY transportech** (Telnet/MACTelnet) |
-| `detail` | human-readable detail; komentář jako `;;;` prefix (NE pro parsing) |
-| `terse` | řádkový strojově-čitelnější výstup (alternativa) |
-| `count-only` | jen počet záznamů |
-| `where <cond>` | filtr (ekvivalent API `?name=value`) |
+| `as-value` | machine `key=value;…` output (**primary format for parsing**) |
+| `without-paging` | disables paging (`-- [Q quit...]`) — **required on PTY transports** (Telnet/MACTelnet) |
+| `detail` | human-readable detail; comment shown as a `;;;` prefix (NOT for parsing) |
+| `terse` | a more machine-friendly line-based output (alternative) |
+| `count-only` | record count only |
+| `where <cond>` | filter (equivalent of the API `?name=value`) |
 
 ---
 
-## 2. ⚠️ Kritický caveat — středník `;` uvnitř list-type polí
+## 2. ⚠️ Critical caveat — semicolon `;` inside list-type fields
 
-📄 Některá pole používají `;` jako **interní** oddělovač seznamu → v `print as-value` vypadají jako
-další pole a **naivní split-on-`;` parser je rozbije**. Konkrétně hlášeno u:
-- `route-count` (a podobné statistické agregáty),
-- wireless `ranges=` (seznam frekvenčních rozsahů),
-- BGP statistiky.
+📄 Some fields use `;` as an **internal** list separator → in `print as-value` they look like
+additional fields, and a **naive split-on-`;` parser will break on them**. Specifically reported for:
+- `route-count` (and similar statistical aggregates),
+- wireless `ranges=` (a list of frequency ranges),
+- BGP statistics.
 
-**Workaround (RouterOS 7.x):** `:serialize to=dsv delimiter="#"` — přeserializuje s jiným oddělovačem:
+**Workaround (RouterOS 7.x):** `:serialize to=dsv delimiter="#"` — re-serializes with a different
+separator:
 ```
 :put [:serialize to=dsv delimiter="#" [/ip route print as-value]]
 ```
-→ záznamy/pole oddělené `#` místo `;`, takže vnořené `;` nevadí.
+→ records/fields separated by `#` instead of `;`, so embedded `;` no longer matters.
 
-**Dopad na plán:** `CliOutputParser` (kapitola B) by měl umět volitelně použít `:serialize`/`delimiter`
-pro entity s rizikovými poli, nebo escape-aware parser. Pro běžné entity (interface, address, firewall)
-naivní split-on-`;` stačí. → Aktualizovat „Otevřené otázky" v [terminal-cli-parsing.md](../terminal-cli-parsing.md) bod 1.
+**Impact on the plan:** `CliOutputParser` (Chapter B) should optionally support `:serialize`/`delimiter`
+for entities with risky fields, or an escape-aware parser. For ordinary entities (interface, address,
+firewall) a naive split-on-`;` is sufficient. → Update item 1 of "Open questions" in
+[terminal-cli-parsing.md](../terminal-cli-parsing.md).
 
 ---
 
 ## 3. Transport: SSH exec vs PTY (Telnet/MACTelnet)
 
-📄 **SSH exec (bez PTY) je nejčistší transport pro parsing:**
-- žádný banner, žádný prompt, žádné ANSI escape kódy,
-- oddělený stderr a dostupný **exit code** → robustní detekce chyb,
-- **ALE: MikroTik SSH server nepodporuje PTY pro exec kanál** → každý `RunCommand()` musí být
-  **jeden kompletní příkaz** (žádná interaktivní session, žádné víceřádkové stavové sekvence).
+📄 **SSH exec (no PTY) is the cleanest transport for parsing:**
+- no banner, no prompt, no ANSI escape codes,
+- separate stderr and an available **exit code** → robust error detection,
+- **BUT: the MikroTik SSH server does not support PTY for the exec channel** → every `RunCommand()`
+  must be **one complete command** (no interactive session, no multi-line stateful sequences).
 
-📄 **PTY transporty (Telnet, MACTelnet):**
-- výstup obsahuje ANSI escape sekvence → nutný `VtStripper` (už navržen v terminal-cli-parsing.md),
-- nutné `print without-paging` na **každém** `print` (jinak stránkování blokuje),
-- výstup = echo příkazu + data + nový prompt → odstranit echo a prompt (řešeno v `VtStripper.RemovePromptAndEcho`).
-
----
-
-## 4. Telnet/PTY: login a prompt sekvence
-
-📄 Expect-patterny pro Telnet auth (pozor na velikost písmen a mezeru):
-- `"Login: "` (velké L) → poslat username
-- `"Password: "` (velké P) → poslat password
-- `"] > "` → shell prompt (konec promptu; detekovat **`EndsWith("] > ")`**, ne celý prompt — identity může mít libovolné znaky)
-
-📄 **Login modifikátor `admin+ct80w`** (přidat za username): vypne ANSI barvy (`c`), nastaví fixní
-šířku `80` (`t80`), `w` = bez wrap → **výrazně zjednoduší `VtStripper`** (méně escape sekvencí, stabilní šířka).
-Obecný tvar: `<user>+<flags>`. Doporučeno pro Telnet/MACTelnet PTY session.
-
-📄 RouterOS může po loginu zobrazit „change password" nag → poslat Ctrl-C (`0x03`) pro přeskočení
-(shodné s WinBox terminál findings).
+📄 **PTY transports (Telnet, MACTelnet):**
+- output contains ANSI escape sequences → requires a `VtStripper` (already designed in
+  terminal-cli-parsing.md),
+- `print without-paging` is required on **every** `print` (otherwise paging blocks),
+- output = command echo + data + new prompt → echo and prompt must be stripped (handled by
+  `VtStripper.RemovePromptAndEcho`).
 
 ---
 
-## 5. Komentáře a další parsovací drobnosti
+## 4. Telnet/PTY: login and prompt sequence
 
-📄 Komentář:
-- `print as-value` → inline `comment=<text>` (parsovatelné jako běžné pole),
-- `print detail` (human) → `;;;` prefix na samostatném řádku (NE pro parsing — to je past WinBox terminálu).
+📄 Expect patterns for Telnet auth (watch case and the trailing space):
+- `"Login: "` (capital L) → send username
+- `"Password: "` (capital P) → send password
+- `"] > "` → shell prompt (end of prompt; detect via **`EndsWith("] > ")`**, not the whole prompt —
+  the identity can contain arbitrary characters)
 
-📄 Quoting/escaping: hodnoty s mezerami/speciálními znaky se v CLI uzavírají do `"..."`;
-`;` odděluje příkazy na řádku; `#` uvozuje komentář; `\` line continuation; `[ ... ]` = command substitution.
+📄 **Login modifier `admin+ct80w`** (appended to the username): disables ANSI colors (`c`), sets a
+fixed width of `80` (`t80`), `w` = no wrap → **considerably simplifies `VtStripper`** (fewer escape
+sequences, stable width). General form: `<user>+<flags>`. Recommended for Telnet/MACTelnet PTY
+sessions.
 
----
-
-## 6. Add / scalar přes CLI (potvrzuje terminal-cli-parsing.md)
-
-📄 `:put [/ip/address/add address=10.0.0.1/24 interface=ether1]` → vrátí **`.id`** nového záznamu
-(např. `*3`), ekvivalent API `=ret=*3`. Bez `:put [...]` wrapperu `add` vrací prázdno/index, ne `*N`.
-→ Mapper `Save` (čtení nového `.id`) musí používat `:put [...]` formu.
-
-📄 Scalar: `:put [/system/identity/get name]` nebo `/path get .id=*N value-name=x` → jedna hodnota.
+📄 RouterOS may show a "change password" nag after login → send Ctrl-C (`0x03`) to skip it (matches
+the WinBox terminal findings).
 
 ---
 
-## 7. Monitor / streaming přes CLI
+## 5. Comments and other parsing details
 
-📄 Kontinuální příkazy (`/interface/monitor`, `/tool/torch`, `/tool/ping`) v PTY produkují průběžný
-výstup → pro one-shot použít `once` (`/interface ethernet monitor ether1 once`).
-Streaming/`/listen` ekvivalent přes CLI **není** spolehlivý (viz capability gaps v terminal-cli-parsing.md).
+📄 Comment:
+- `print as-value` → inline `comment=<text>` (parses like any other field),
+- `print detail` (human) → `;;;` prefix on its own line (NOT for parsing — that's the WinBox
+  terminal trap).
 
----
-
-## 8. Open questions / k ověření při implementaci
-
-1. `:serialize to=dsv delimiter="#"` — přesné chování a dostupnost napříč ROS 7.x; jak parsovat výstup
-   (oddělovač záznamů vs polí). Ověřit na entitách s `;`-poli (route, wireless, BGP).
-2. `admin+ct80w` — ověřit, že modifikátory fungují u Telnet i MACTelnet a skutečně potlačí barvy/wrap.
-3. SSH no-PTY: ověřit, že `print as-value` přes `RunCommand` vrací čistý výstup bez nutnosti `without-paging`.
-4. Přesné texty CLI chyb pro mapování na `Tik*Exception` (částečně v terminal-cli-parsing.md §„Detekce chyb").
-5. `once` přesný tvar pro různé monitor příkazy.
+📄 Quoting/escaping: values with spaces/special characters are enclosed in `"..."`;
+`;` separates commands on a line; `#` introduces a comment; `\` is a line continuation;
+`[ ... ]` is command substitution.
 
 ---
 
-## 9. Dopady na plán (kapitoly B/C/F)
+## 6. Add / scalar via CLI (confirms terminal-cli-parsing.md)
 
-- Potvrzuje volbu `print as-value` jako parsovací formát a `CliConnectionBase` se `SemaphoreSlim` (terminal-cli-parsing.md).
-- **Nové:** přidat do `CliOutputParser` ošetření `;`-v-hodnotách přes `:serialize`/escape (rizikové entity).
-- **Nové:** Telnet/MACTelnet PTY session použít `<user>+ct80w` + `print without-paging` + Ctrl-C na password nag.
-- **Nové:** SSH `RunCommand` = vždy jeden kompletní příkaz (no-PTY) — pasuje na `ExecuteCliCommandCoreAsync` model.
-- Tyto poznatky promítnout do kapitol B (CLI vrstva), C (Telnet), F (SSH) až na ně dojde řada.
+📄 `:put [/ip/address/add address=10.0.0.1/24 interface=ether1]` → returns the **`.id`** of the new
+record (e.g. `*3`), equivalent to the API's `=ret=*3`. Without the `:put [...]` wrapper, `add`
+returns nothing/an index, not `*N`.
+→ The mapper's `Save` (reading the new `.id`) must use the `:put [...]` form.
+
+📄 Scalar: `:put [/system/identity/get name]` or `/path get .id=*N value-name=x` → a single value.
 
 ---
 
-## 10. ✅ Živě ověřené poznatky (kapitola C, Telnet, 2026-05-31)
+## 7. Monitor / streaming via CLI
 
-Při prvním živém nasazení CLI vrstvy přes Telnet se odhalilo několik věcí, které dokumentace
-neuváděla nebo uváděla nepřesně. **Tato sekce má přednost** před staršími 📄 tvrzeními.
-Detailní kontext: [`C-telnet-implementation-plan.md`](C-telnet-implementation-plan.md) (sekce „Výsledky implementace").
+📄 Continuous commands (`/interface/monitor`, `/tool/torch`, `/tool/ping`) produce ongoing output in
+a PTY → use `once` for a one-shot read (`/interface ethernet monitor ether1 once`).
+There is **no** reliable Streaming/`/listen` equivalent over CLI (see the capability gaps in
+terminal-cli-parsing.md).
 
-### 10.1 `print as-value` v interaktivním terminálu NIC nevypíše ⚠️ KRITICKÉ
-Bare `/interface print as-value` zadané do PTY (telnet) vrátí **prázdno** (jen echo + prompt).
-`as-value` se materializuje jen ve **skriptovém kontextu**. Nutné obalit do `:put [ … ]`:
+---
+
+## 8. Open questions / to verify during implementation
+
+1. `:serialize to=dsv delimiter="#"` — exact behavior and availability across ROS 7.x; how to parse
+   the output (record vs. field separator). Verify against entities with `;`-bearing fields (route,
+   wireless, BGP).
+2. `admin+ct80w` — verify the modifiers work on both Telnet and MACTelnet and actually suppress
+   colors/wrap.
+3. SSH no-PTY: verify that `print as-value` via `RunCommand` returns clean output without needing
+   `without-paging`.
+4. Exact CLI error texts for mapping onto `Tik*Exception` (partially covered in
+   terminal-cli-parsing.md §"Error detection").
+5. Exact `once` form for the various monitor commands.
+
+---
+
+## 9. Impact on the plan (Chapters B/C/F)
+
+- Confirms the choice of `print as-value` as the parsing format and `CliConnectionBase` with
+  `SemaphoreSlim` (terminal-cli-parsing.md).
+- **New:** add handling in `CliOutputParser` for `;`-in-values via `:serialize`/escaping (risky
+  entities).
+- **New:** Telnet/MACTelnet PTY sessions should use `<user>+ct80w` + `print without-paging` +
+  Ctrl-C on the password nag.
+- **New:** SSH `RunCommand` = always one complete command (no-PTY) — fits the
+  `ExecuteCliCommandCoreAsync` model.
+- Carry these findings into Chapters B (CLI layer), C (Telnet), F (SSH) once they're up.
+
+---
+
+## 10. ✅ Live-verified findings (Chapter C, Telnet, 2026-05-31)
+
+The first live deployment of the CLI layer over Telnet revealed a number of things the documentation
+either omitted or stated inaccurately. **This section takes precedence** over the earlier 📄 claims.
+Detailed context: [`C-telnet-implementation-plan.md`](C-telnet-implementation-plan.md)
+(section "Implementation results").
+
+### 10.1 `print as-value` in an interactive terminal prints NOTHING ⚠️ CRITICAL
+A bare `/interface print as-value` typed into a PTY (telnet) returns **nothing** (just echo + prompt).
+`as-value` only materializes in a **script context**. It must be wrapped in `:put [ … ]`:
 ```
 :put [/interface print detail as-value where name=ether1]
 ```
-Výstup `:put` je **jeden řádek**, záznamy zřetězené `;`, **hranice nového záznamu = `.id=`**
-(singleton bez `.id` = jeden záznam). Tj. NE jeden-řádek-na-záznam, jak uváděla sekce 1!
-→ `CliOutputParser` proto splituje záznamy na `.id`.
+The output of `:put` is **a single line**, records chained together with `;`, where the **boundary of
+a new record is `.id=`** (a singleton with no `.id` is a single record). In other words, this is NOT
+one-line-per-record, as section 1 stated!
+→ `CliOutputParser` therefore splits records on `.id`.
 
-### 10.2 `detail` je nutný pro plnou sadu polí
-`:put [/path print as-value]` vrací jen **souhrnné sloupce** (např. `/interface` vynechá
-`default-name`, `mtu`, `rx-byte`…). Pro plnou sadu (paritní s API) je nutné `print detail as-value`.
-O/R mapper to řídí přes `IncludeDetails` → builder přeloží na `print detail`.
+### 10.2 `detail` is required for the full field set
+`:put [/path print as-value]` only returns **summary columns** (e.g. `/interface` omits
+`default-name`, `mtu`, `rx-byte`…). Getting the full set (parity with the API) requires
+`print detail as-value`. The O/R mapper controls this via `IncludeDetails` → the builder translates
+it to `print detail`.
 
-### 10.3 `print stats` — live countery (✅ VYŘEŠENO `IncludeCliStats`, 2026-06-01)
-`:put [/path print detail as-value]` **NEobsahuje** runtime countery (`bytes`/`packets`, `rx-byte`…).
-Countery jsou jen v `print stats as-value`, což je **jiný sloupcový režim** — vrací countery + `.id`
-+ pár identity polí, ale **ne config pole**. `detail stats` dohromady = ≈ jako `stats` (config-only pole
-zmizí). **Žádný jediný modifikátor nedá config I countery** → nutné **dva dotazy + merge podle `.id`**.
+### 10.3 `print stats` — live counters (✅ RESOLVED via `IncludeCliStats`, 2026-06-01)
+`:put [/path print detail as-value]` does **NOT** include runtime counters (`bytes`/`packets`,
+`rx-byte`…). Counters only appear in `print stats as-value`, which is a **different column mode** —
+it returns counters + `.id` + a handful of identity fields, but **not** the config fields.
+`detail stats` together behaves roughly like `stats` alone (config-only fields disappear). **No
+single modifier gives both config and counters** → this requires **two queries plus a merge by
+`.id`**.
 
-**Řešení (commit `a72431c`):** CLI-only metadata flag **`IncludeCliStats`** (na `FirewallFilter/Mangle/Nat`,
-`Interface`, `QueueSimple/Tree`). Mapper přidá marker `.cli-stats` (`TikSpecialProperties.CliStats`);
-`CliConnectionBase.RunPrint` při markeru udělá `print detail` (config) + `print stats` (countery) a
-mergne záznamy podle `.id`. API/REST marker **ignorují** (countery mají z `detail`; marker se nedostane
-na drát) — viz `IsSpecialParam` v ApiCommand/RestRequestBuilder. Detaily: [`cli-print-stats-design.md`](cli-print-stats-design.md).
+**Solution (commit `a72431c`):** a CLI-only metadata flag **`IncludeCliStats`** (on
+`FirewallFilter/Mangle/Nat`, `Interface`, `QueueSimple/Tree`). The mapper adds a marker
+`.cli-stats` (`TikSpecialProperties.CliStats`); when `CliConnectionBase.RunPrint` sees the marker it
+issues `print detail` (config) plus `print stats` (counters) and merges records by `.id`. API/REST
+**ignore** the marker (they get counters from `detail` already; the marker never reaches the wire) —
+see `IsSpecialParam` in ApiCommand/RestRequestBuilder. Details:
+[`cli-print-stats-design.md`](cli-print-stats-design.md).
 
-### 10.4 `where` hodnoty se speciálními znaky MUSÍ být v uvozovkách
-`where address=192.168.1.1/24` (bez uvozovek) **nematchuje nic** — v `where` expression kontextu se
-`/` (a `:`) interpretují jako operátory. Nutné `where address="192.168.1.1/24"`. Bezpečná sada bez
-uvozovek: `[A-Za-z0-9._-]`. Hodnoty `*N` (id) se NEuvozovkují (`where .id=*1` funguje). → `QuoteForWhere`.
-Pozn.: `name=value` pro `add`/`set` uvozovkování `/` NEpotřebuje (není to expression kontext).
+### 10.4 `where` values with special characters MUST be quoted
+`where address=192.168.1.1/24` (unquoted) **matches nothing** — in a `where` expression context,
+`/` (and `:`) are interpreted as operators. It must be `where address="192.168.1.1/24"`. The safe
+unquoted character set is `[A-Za-z0-9._-]`. `*N` (id) values must NOT be quoted (`where .id=*1`
+works). → `QuoteForWhere`.
+Note: `name=value` for `add`/`set` does NOT need `/` quoting (it isn't an expression context).
 
-### 10.4b Uvnitř uvozovek jsou `$` a `\` speciální — zapsaná hodnota se tiše přepíše (P2.38)
-RouterOS console nemá jednoduché uvozovky vůbec (`:put 'a$b'` → `syntax error` na `'`), takže jediná
-forma je dvojitá — a v ní platí **substituce proměnných** a **escape sekvence**. Změřeno na 7.23.2
-(probe `Tools/probes/telnet-cli-probe.ps1`), zápis do `/system script`:
+### 10.4b Inside quotes, `$` and `\` are special — a written value gets silently rewritten (P2.38)
+The RouterOS console has no single-quote form at all (`:put 'a$b'` → `syntax error` at the `'`), so
+double quotes are the only form — and inside them, **variable substitution** and **escape sequences**
+both apply. Measured on 7.23.2 (probe `Tools/probes/telnet-cli-probe.ps1`), writing to
+`/system script`:
 
-| Odesláno | Router uloží | Pozn. |
+| Sent | Router stores | Note |
 |---|---|---|
-| `source="x\$y z"` | `x$y z` | `\$` = literál `$` |
-| `source="x$y z"` | `x z` | **tichá substituce** — `$y` nedefinováno → prázdno |
-| `source="x\\y z"` | `x\y z` | `\\` = literál `\` |
+| `source="x\$y z"` | `x$y z` | `\$` = literal `$` |
+| `source="x$y z"` | `x z` | **silent substitution** — `$y` undefined → empty |
+| `source="x\\y z"` | `x\y z` | `\\` = literal `\` |
 | `source="x\"b"` | `x"b` | |
-| `source="C:\temp\new w"` | `C:<TAB>emp<LF>ew w` | **tichá** — `\t`, `\n` jsou známé escapy |
-| `source="x\y z"` | `syntax error` | neznámý escape |
-| `source=x$y` | `syntax error` | `$` mimo uvozovky není nikdy legální |
-| `source=x\y` | `syntax error` | `\` mimo uvozovky taky ne |
+| `source="C:\temp\new w"` | `C:<TAB>emp<LF>ew w` | **silent** — `\t`, `\n` are known escapes |
+| `source="x\y z"` | `syntax error` | unknown escape |
+| `source=x$y` | `syntax error` | `$` outside quotes is never legal |
+| `source=x\y` | `syntax error` | neither is `\` outside quotes |
 
-Plná sada escapů (MikroTik docs, ověřeno pro `\$ \\ \" \t \n \_ \41`): `\"` `\\` `\n` `\r` `\t` `\$`
+Full escape set (MikroTik docs, verified for `\$ \\ \" \t \n \_ \41`): `\"` `\\` `\n` `\r` `\t` `\$`
 `\_` `\a` `\b` `\f` `\v` `\<hex>`.
 
-Důsledky pro `QuoteIfNeeded`: hodnota s `$` nebo `\` **musí** být uvozovkovaná (nekvotovaná = tvrdá
-chyba) a uvnitř uvozovek **musí** být obojí escapované (neescapované = tichá koruptce). Escapovat v
-pořadí `\` → `"` → `$`, jinak si backslash pass zdvojí to, co přidal dollar pass. Reálný newline se
-NEpřepisuje na `\n` (router bere zalomení uvnitř otevřených uvozovek; `\n` by navíc nešlo odlišit od
-hodnoty, která opravdu nese `\`+`n`) — CR/LF jsou v trigger setu jen proto, že nekvotované by ukončily
-příkazový řádek.
+Consequences for `QuoteIfNeeded`: a value containing `$` or `\` **must** be quoted (leaving it
+unquoted is a hard error), and inside the quotes **both** must be escaped (an unescaped one causes
+silent corruption). Escape in the order `\` → `"` → `$`, otherwise the backslash pass would double
+what the dollar pass added. An actual newline is NOT rewritten to `\n` (the router accepts a literal
+line break inside open quotes; `\n` would also be indistinguishable from a value that genuinely
+contains `\`+`n`) — CR/LF are only in the trigger set because unquoted they would terminate the
+command line.
 
-Tohle je **write**-side zrcadlo P2.17: tam se hodnota rozbíjela při čtení, tady ji router přepíše
-dřív, než ji uloží — add projde, `.id` se vrátí, nic netrapne, a poškozená je routerova vlastní kopie,
-takže se na špatné hodnotě shodnou i všechny ostatní transporty.
+This is the **write**-side mirror of P2.17: there, a value got corrupted on read; here the router
+rewrites it before storing it — the add succeeds, the `.id` comes back, nothing complains, and it's
+the router's own stored copy that's damaged, so every other transport agrees on the wrong value too.
 
-### 10.5 VT100 cursor-probe negociace je POVINNÁ
-Bez odpovědí na RouterOS cursor-probe (`ESC[6n` → cursor report `ESC[row;colR`) považuje router
-terminál za 1×1 a **nevykreslí výstup příkazu** (typicky `…\r\n\r\r\r\r] > ` bez dat). Nutné sledovat
-pozici kurzoru a odpovídat (`Vt100State` v `tik4net/Cli`). Inzerovat **velkou šířku** (ne 80), jinak
-RouterOS zalamuje dlouhé as-value řádky a vkládá do dat `\r\n` → rozbije parsing.
-Pozn.: RouterOS měří šířku sondou `ESC[9999C ESC[6n`, takže reportovaný sloupec je `min(Vt100State.Width, ~10000)`
-— `Width` musí být **≥ 10000** (jinak si odpověď usekne sám klient). Pro MAC-Telnet viz
-[findings-mactelnet.md](findings-mactelnet.md) §1–2 (kritická i **ACK = counter + payloadLen** sémantika).
+### 10.5 VT100 cursor-probe negotiation is MANDATORY
+Without responses to RouterOS's cursor probe (`ESC[6n` → cursor report `ESC[row;colR`), the router
+treats the terminal as 1×1 and **does not render the command's output** (typically just
+`…\r\n\r\r\r\r] > ` with no data). The cursor position must be tracked and answered (`Vt100State` in
+`tik4net/Cli`). A **large width** must be advertised (not 80), otherwise RouterOS wraps long
+as-value lines and inserts `\r\n` into the data → breaking parsing.
+Note: RouterOS measures the width with the probe `ESC[9999C ESC[6n`, so the reported column is
+`min(Vt100State.Width, ~10000)` — `Width` must be **≥ 10000** (otherwise the client truncates its own
+answer). For MAC-Telnet see [findings-mactelnet.md](findings-mactelnet.md) §1–2 (also critical: the
+**ACK = counter + payloadLen** semantics).
 
-### 10.6 Change-password nag = `new password>` (NE „change password")
-Router s default/prázdným heslem zobrazí po loginu `new password>` (a `repeat new password>`).
-Odmítnout **Ctrl-C (0x03)**. Detekce na substring `password>`. (`RouterOsCliLogin`.)
+### 10.6 Change-password nag = `new password>` (NOT "change password")
+A router with a default/empty password shows `new password>` after login (and
+`repeat new password>`). Decline with **Ctrl-C (0x03)**. Detected via the substring `password>`.
+(`RouterOsCliLogin`.)
 
-### 10.7 `.NET Framework NetworkStream.ReadAsync` nectí timeout ani CancellationToken
-U čekajícího readu bez dat blokuje **navždy** (ReadTimeout platí jen pro sync `Read`; CT se kontroluje
-jen před začátkem). Nutné číst přes polling `stream.DataAvailable` + `Task.Delay` a hlídat deadline ručně.
+### 10.7 .NET Framework's `NetworkStream.ReadAsync` respects neither timeout nor CancellationToken
+A pending read with no data blocks **forever** (`ReadTimeout` only applies to synchronous `Read`;
+the CancellationToken is only checked before the read starts). Reading must instead poll
+`stream.DataAvailable` with `Task.Delay` and track the deadline manually.
 
-### 10.8 Prompt detekce: redraw a „settle"
-RouterOS prompt překresluje (`\r\r\r\r] > `) i PŘED výstupem příkazu → naivní „ends with `] >`" matchne
-předčasně. Řešení: po loginu **drainnout** zbytkový redraw; výstup příkazu číst do „prompt + ustálení"
-(prompt na konci a pak ~120 ms ticho). Prompt suffix porovnávat jako `TrimEnd().EndsWith("] >")` (bez koncové mezery).
+### 10.8 Prompt detection: redraw and "settle"
+The RouterOS prompt redraws itself (`\r\r\r\r] > `) even BEFORE a command's output → a naive
+"ends with `] >`" check matches prematurely. Solution: after login, **drain** the leftover redraw;
+read a command's output until "prompt, then settled" (prompt at the end followed by ~120 ms of
+silence). Compare the prompt suffix as `TrimEnd().EndsWith("] >")` (without the trailing space).
 
-### 10.9 Texty CLI chyb → výjimky (ověřené)
-| CLI text | Mapování |
+### 10.9 CLI error text → exception mapping (verified)
+| CLI text | Mapping |
 |---|---|
 | `no such item`, `expected item id (line N column M)` | `TikNoSuchItemException` |
 | `no such command`, `bad command name …`, `expected end of command`, `syntax error (line …)` | `TikNoSuchCommandException` |
 | `already have such …`, `item with such name already …` | `TikAlreadyHaveSuchItemException` |
-| `failure:` / `error:` / jiný error stream | `TikCommandTrapException` |
+| `failure:` / `error:` / other error stream | `TikCommandTrapException` |
 
-Pozn.: `remove`/`set` s neexistujícím/nevalidním `.id` (`[find .id=…]` prázdné) → `expected item id`.
+Note: `remove`/`set` with a nonexistent/invalid `.id` (`[find .id=…]` empty) → `expected item id`.
 
-### 10.10 Scalar: `get value-name=.id` je nevalidní
-`:put [/path get .id=*N value-name=.id]` → `get .id=` je syntax error a `value-name=.id` →
-„input does not match any value of value-name". **Scalar se čte přes `print`** a hodnota se vybere
-z řádku (funguje i pro `.id`). `get value-name=…` nepoužívat pro `.id`.
+### 10.10 Scalar: `get value-name=.id` is invalid
+`:put [/path get .id=*N value-name=.id]` → `get .id=` is a syntax error, and `value-name=.id` →
+"input does not match any value of value-name". **Scalars must be read via `print`**, selecting the
+value from the row (this also works for `.id`). Do not use `get value-name=…` for `.id`.
 
-### 10.11 Akční příkazy bez per-řádkového výstupu (`script run`) — ✅ podporováno
-`/system/script/run` přes terminál **skript spustí** (`/system script run [find .id=*N]`), ale nevrací
-per-řádkové `!re` jako binární API (je to fire-and-forget akce). `CliConnectionBase.RunPrint` proto verb
-`run` routuje jako akci a vrací **prázdný** result set. Test `RunScript_Issue53` je transport-aware
-(`TestBase.IsCliTransport()`): na CLI ověří jen že běh neselhal, na API/REST drží počet `!re` řádků.
-(commit `eb5e687`)
+### 10.11 Action commands with no per-row output (`script run`) — ✅ supported
+`/system/script/run` via the terminal **does run the script**
+(`/system script run [find .id=*N]`), but it does not return per-row `!re` output the way the binary
+API does (it's a fire-and-forget action). `CliConnectionBase.RunPrint` therefore routes the `run`
+verb as an action and returns an **empty** result set. The `RunScript_Issue53` test is
+transport-aware (`TestBase.IsCliTransport()`): on CLI it only checks that the run did not fail, on
+API/REST it checks the `!re` row count. (commit `eb5e687`)
 
-### 10.12 Monitor příkazy: `numbers=` + `once`
-`/interface/ethernet/monitor` vyžaduje `numbers=<iface> once` před `as-value`:
-`:put [/interface ethernet monitor numbers=ether1 once as-value]`. Builder předává NameValue paramy
-`numbers` a flag `once` (kontinuální monitor/torch jinak v PTY blokuje — viz sekce 7).
+### 10.12 Monitor commands: `numbers=` + `once`
+`/interface/ethernet/monitor` requires `numbers=<iface> once` before `as-value`:
+`:put [/interface ethernet monitor numbers=ether1 once as-value]`. The builder passes the `numbers`
+NameValue param and the `once` flag (a continuous monitor/torch would otherwise block in a PTY —
+see section 7).
 
 ---
 
-## 11. ✅ Živě ověřené poznatky (kapitola F, SSH, 2026-06-15)
+## 11. ✅ Live-verified findings (Chapter F, SSH, 2026-06-15)
 
-SSH **NENÍ** „exec bez PTY" (jak naznačovala sekce 3), ale **interaktivní PTY ShellStream** — RouterOS přes
-exec kanál `as-value` nevypíše stejně jako Telnet, takže se používá tentýž PTY/CLI stack jako u Telnetu.
-Sdílené `RouterOsCliLogin`/`Vt100State`/`CliOutputHelper` fungují beze změny; SSH dodává jen ~280 LOC
-transportu (`tik4net.ssh`, balíček kvůli `Renci.SshNet`).
+SSH is **NOT** "exec without PTY" (as section 3 implied) but an **interactive PTY ShellStream** —
+over the exec channel, RouterOS doesn't print `as-value` output any better than Telnet does, so it
+uses the same PTY/CLI stack as Telnet. The shared `RouterOsCliLogin`/`Vt100State`/`CliOutputHelper`
+work unchanged; SSH only adds ~280 LOC of transport (`tik4net.ssh`, a separate package because of the
+`Renci.SshNet` dependency).
 
-### 11.1 Auth dělá SSH.NET — žádné Login:/Password: prompty
-Po `SshClient.Connect()` se jen dotáhne prompt přes **`RouterOsCliLogin.ResolveToPromptAsync`** (nag→prompt,
-extrahováno z `LoginAsync`) + drain post-login redraw. Username flag `+c` přes SSH přijat; fallback na
-čisté jméno při `SshAuthenticationException`.
+### 11.1 Auth is handled by SSH.NET — no Login:/Password: prompts
+After `SshClient.Connect()`, the prompt is simply pulled in via
+**`RouterOsCliLogin.ResolveToPromptAsync`** (nag→prompt, extracted from `LoginAsync`) plus a drain of
+the post-login redraw. The username flag `+c` is accepted over SSH; it falls back to the plain
+username on `SshAuthenticationException`.
 
-### 11.2 Raw PTY módy
-`CreateShellStream(..., terminalModes)` s `ECHO/ICANON/ISIG/IEXTEN/IXON/IXOFF/ICRNL/INLCR/OPOST = 0` —
-RouterOS chce raw keystrokes (vlastní VT100 editor). RouterOS SSH server ale módy z velké části ignoruje.
+### 11.2 Raw PTY modes
+`CreateShellStream(..., terminalModes)` with
+`ECHO/ICANON/ISIG/IEXTEN/IXON/IXOFF/ICRNL/INLCR/OPOST = 0` — RouterOS wants raw keystrokes (it has
+its own VT100 editor). The RouterOS SSH server largely ignores these modes anyway.
 
-### 11.3 ⚠️ Ctrl+D = SSH EOF → zavře kanál (Safe Mode unroll)
-Discard klávesa **Ctrl+D (0x04)** je v SSH konvence EOF; RouterOS SSH server na ni **zavře kanál**
-(`ShellStream` disposed) bez ohledu na raw módy. Telnet to nemá (holý byte → konzole → undo). **Řešení:**
-SSH unroll jede přes **scriptable `/safe-mode/unroll`** (RouterOS 7.18+) — normální příkaz, kanál žije,
-in-place. Fallback (starší verze, `TikNoSuchCommandException`): Ctrl+D = rollback-by-disconnect (+ `Close`).
-Take/Release (**Ctrl+X**) přes SSH fungují in-place bez problému.
+### 11.3 ⚠️ Ctrl+D = SSH EOF → closes the channel (Safe Mode unroll)
+The discard key **Ctrl+D (0x04)** is conventionally SSH EOF; the RouterOS SSH server **closes the
+channel** on it (`ShellStream` disposed) regardless of the raw modes. Telnet doesn't have this issue
+(a bare byte → console → undo). **Solution:** SSH unroll goes through the **scriptable
+`/safe-mode/unroll`** (RouterOS 7.18+) — a normal command, the channel stays alive, in place.
+Fallback (older versions, `TikNoSuchCommandException`): Ctrl+D as rollback-by-disconnect (+ `Close`).
+Take/Release (**Ctrl+X**) work fine in place over SSH.
 
 ### 11.4 `ShellStream.DataAvailable` polling
-Stejný vzor jako Telnet `NetworkStream` (poll + `Task.Delay`, deadline z `ReceiveTimeout`) — žádný hang,
-echo/prompt trim (`CliOutputHelper.CleanOutput`) sedí i pod raw módy. **Výsledek: SSH suite 172/1→0/77,
-SafeMode 3/3.**
+Same pattern as Telnet's `NetworkStream` (poll + `Task.Delay`, deadline from `ReceiveTimeout`) — no
+hang, echo/prompt trimming (`CliOutputHelper.CleanOutput`) holds up even under the raw modes.
+**Result: SSH suite 172/1→0/77, SafeMode 3/3.**
 
-## 12. ✅ WinboxCli/MacCli: mepty je PULL protokol — velký výstup se zasekne (P2.13)
+## 12. ✅ WinboxCli/MacCli: mepty is a PULL protocol — large output stalls (P2.13)
 
-**Stav: OPRAVENO 2026-07-23** (`WinboxCliClient.SendPull`). Vysoce riziková RE oblast; ověřeno živě
-raw-byte instrumentací (dočasná, odstraněna — viz P2.15 pro promotion do MCP).
+**Status: FIXED 2026-07-23** (`WinboxCliClient.SendPull`). A high-risk RE area; verified live with
+raw-byte instrumentation (temporary, removed — see P2.15 for promotion into the MCP).
 
 ### Symptom
-Plný sólo `winboxcli`: **35 deterministických selhání** (ne latence, ne kontaminace paralelními běhy,
-ne counter-semantika — vše vyvráceno živě). Selhávající = timeouty (násobky 30s), ne pomalé odpovědi.
-Izolovaně projdou; selhává až po dost příkazech na **sdíleném** spojení.
+A full solo `winboxcli` run: **35 deterministic failures** (not latency, not contamination from
+parallel runs, not a counter-semantics issue — all disproven live). The failures were timeouts
+(multiples of 30s), not slow responses. In isolation they pass; failure only starts appearing after
+enough commands on a **shared** connection.
 
 ### Root cause (raw-byte trace)
-mepty `Data` command (`0x0A0067`) dělá DVĚ věci: **posílá klávesy I tahá výstup**. RouterOS odpoví na
-jeden `Data` **jednou dávkou** čekajícího výstupu. Odpověď větší než dávka (řádově pár set bajtů — např.
-`print detail as-value` přes víc záznamů) se doručí, jen když klient **dál pulluje**. Náš klient poslal
-jeden `Data` na příkaz a pak jen pasivně četl → velký výstup se nedotáhne.
+The mepty `Data` command (`0x0A0067`) does TWO things: it **sends keystrokes AND pulls output**.
+RouterOS replies to a single `Data` with **one batch** of whatever output is pending. A response
+larger than a batch (on the order of a few hundred bytes — e.g. `print detail as-value` across
+several records) only gets delivered if the client **keeps pulling**. Our client sent one `Data` per
+command and then just passively read → large output never arrived.
 
-Klíč: po velké odpovědi RouterOS pošle **echo** dalšího příkazu, ale výstup už NE, a od dalšího příkazu
-**přestane echovat úplně** (`DataAvailable=False` 30 s, `bufLen=0`) — terminál je zaseknutý do konce
-session. Ta downstream prázdnota je přesně to, co skill vedl jako „gotcha A" (add prázdno) a „gotcha B"
-(druhý print prázdno). **Jeden bug, ne dva.** (Moje průběžná diagnóza „posun o jednu" byla TAKÉ špatná —
-opraveno až raw-byte tracem.)
+Key detail: after a large response, RouterOS sends the **echo** of the next command, but no output —
+and from the following command onward it **stops echoing entirely**
+(`DataAvailable=False` for 30 s, `bufLen=0`) — the terminal is stuck for the rest of the session.
+That downstream emptiness is exactly what the skill logged as "gotcha A" (add returns empty) and
+"gotcha B" (second print empty). **One bug, not two.** (My earlier running diagnosis of an "off by
+one" was ALSO wrong — only fixed by the raw-byte trace.)
 
 ```
-SEND :put [… datapath print as-value]     → RETURN len=526 ✓ (velká odpověď)
+SEND :put [… datapath print as-value]     → RETURN len=526 ✓ (large response)
 SEND :put [… datapath print detail …]     → echo (228 B) → DataAvailable=False 30 s → timeout
-SEND :put [… datapath print as-value]     → bufLen=0 (ani echo) → timeout
-…                                          všechny další příkazy prázdno
+SEND :put [… datapath print as-value]     → bufLen=0 (not even echo) → timeout
+…                                          every further command comes back empty
 ```
 
 ### Fix
-`WinboxCliClient.SendPull()` — prázdný `Data` frame (bez `Input` klíče, monotonic counter; stejný tvar
-jako `SendTerminalReady`). V `ReadCommandResponseSync` se pulluje pokaždé, když nic není v bufferu A
-completion prompt ještě nedorazil (`prompted==false`). Po promptu je výstup kompletní → jen settle,
-žádný další pull (jinak zbytečný churn). Ověřeno: `print detail` z 30s záseku → 620 B plný výsledek.
-Sdílený `WinboxCliClient` → platí i pro `winboxclimac`.
+`WinboxCliClient.SendPull()` — an empty `Data` frame (no `Input` key, monotonic counter; same shape
+as `SendTerminalReady`). `ReadCommandResponseSync` now pulls whenever the buffer is empty AND the
+completion prompt hasn't arrived yet (`prompted==false`). Once the prompt arrives the output is
+complete → just settle, no further pulling (otherwise it would churn needlessly). Verified: `print
+detail` went from a 30s stall to a full 620 B result. `WinboxCliClient` is shared, so this also fixes
+`winboxclimac`.
 
-### Otevřené / k doladění
-- `ReadUntilQuietSync` (Tab-completion) pulluje NErozšířeno — completion výstup je malý, ale pokud by
-  někdy překročil dávku, zasekne se stejně. Kandidát na stejný pull, až/pokud se projeví.
-- Cadence: pull každých ~`PollSleepMs` (20 ms) během čekání. Funguje; případná optimalizace (pull jen po
-  N ms ticha) je kosmetika, ne korektnost.
-- Přesná velikost „dávky" neproměřena (nepotřeba pro fix). Pokud by šlo o počet záznamů/bajtů, dá se
-  dohledat ve webfig mepty JS — ale pull-until-prompt je robustní bez znalosti prahu.
+### Open / to refine
+- `ReadUntilQuietSync` (Tab completion) does NOT pull — completion output is small, but if it ever
+  exceeds a batch it would stall the same way. Candidate for the same pull, if/when it shows up.
+- Cadence: pulls every ~`PollSleepMs` (20 ms) while waiting. Works; further optimization (pull only
+  after N ms of silence) is cosmetic, not a correctness issue.
+- The exact "batch" size was never measured (not needed for the fix). If it's a record/byte count,
+  it could be tracked down in the webfig mepty JS — but pull-until-prompt is robust without knowing
+  the threshold.
 
-### Dopad na už zapracované
-Odblokovává `TestBase.SaveTracked` orphan-sweep na tomto transportu (dřív četl přes totéž rozbité
-spojení). Po fixu čtení funguje → sweep dohledá i id-less orphany.
+### Impact on already-shipped work
+Unblocks `TestBase.SaveTracked`'s orphan sweep on this transport (it previously read over the same
+broken connection). After the fix, reads work → the sweep also finds id-less orphans.
 
-## 13. ✅ Prázdná hodnota není prázdný token (P2.44, 2026-07-30)
+## 13. ✅ An empty value is not an empty token (P2.44, 2026-07-30)
 
-Živě ověřeno na RouterOS 7.23.2 přes telnet. Týká se **všech CLI transportů** (sdílený
+Live-verified on RouterOS 7.23.2 over telnet. Applies to **all CLI transports** (shared
 `CliCommandBuilder`).
 
-### 13.1 `name=` uprostřed řádku je syntaktická chyba
+### 13.1 `name=` mid-line is a syntax error
 
 ```
 /system note set note= show-at-login=yes
-  → expected end of command (line 1 column 37)     ← sloupec 37 = začátek `show-at-login`
+  → expected end of command (line 1 column 37)     ← column 37 = start of `show-at-login`
 /system script add name=X source=":put 1" comment=
-  → *1                                             ← na KONCI řádku projde
+  → *1                                             ← passes at END of line
 ```
 
-Bare `name=` tedy nepředává prázdný řetězec — parser jím nic nespotřebuje a zakopne o následující
-token. Správný zápis je dvouznakový literál `name=""`, který funguje v obou pozicích.
+So a bare `name=` doesn't pass an empty string — the parser consumes nothing for it and stumbles on
+the next token. The correct form is the two-character literal `name=""`, which works in both
+positions.
 
-Proč to tak dlouho nikoho netrklo: suita nikdy neukládala prázdný řetězec. Vyplavalo to až na
-round-trip testu `/system/note`, který na konci obnovuje původní hodnotu — a ta byla prázdná. Pád
-navíc nechal na routeru reziduum (obnova neproběhla), takže **další běhy testu prošly** — obnovovaly
-už neprázdný text. Přesně ten druh chyby, který se sám zahladí.
+Why this went unnoticed for so long: the suite never stored an empty string. It only surfaced on the
+`/system/note` round-trip test, which restores the original value at the end — and that value was
+empty. The failure also left residue on the router (the restore didn't happen), so **subsequent runs
+passed** — they were restoring an already non-empty text. Exactly the kind of bug that erases its own
+trace.
 
-### 13.2 `where name` a `where name=""` jsou opačné dotazy
+### 13.2 `where name` and `where name=""` are opposite queries
 
-Dvě `/system/script` položky, jedna s komentářem `hello`, druhá bez:
+Two `/system/script` entries, one with the comment `hello`, the other without:
 
 ```
-:put [/system script print as-value where comment]      → řádek S komentářem
-:put [/system script print as-value where comment=""]   → nic
-API  ?comment=                                          → nic
+:put [/system script print as-value where comment]      → the row WITH a comment
+:put [/system script print as-value where comment=""]   → nothing
+API  ?comment=                                          → nothing
 ```
 
-`where <field>` je test „je nastaveno" (truthiness), kdežto API `?field=` znamená „rovná se prázdné".
-Builder do té doby posílal bare `name` pro obojí, takže filtr na prázdnou hodnotu vracel přesně
-doplňkovou množinu. Rozlišuje se podle toho, zda je hodnota parametru `null` (→ bare `name`, API
-`?name`) nebo prázdný řetězec (→ `name=""`, API `?name=`).
+`where <field>` is a test for "is set" (truthiness), while the API's `?field=` means "equals empty".
+The builder used to send a bare `name` for both, so filtering on an empty value returned exactly the
+complementary set. It's now distinguished by whether the parameter's value is `null` (→ bare `name`,
+API `?name`) or an empty string (→ `name=""`, API `?name=`).
 
-## 14. ✅ Router píše do živého terminálu sám od sebe (P2.47, 2026-07-31)
+## 14. ✅ The router writes into a live terminal on its own (P2.47, 2026-07-31)
 
-RouterOS má v základní konfiguraci pravidlo `topics=critical action=echo` (`/system/logging`), a
-`echo` neznamená „na lokální konzoli" — znamená **do otevřených terminálových session**. Do relace
-tedy může kdykoli přiletět řádek, o který nikdo nežádal:
+RouterOS ships by default with a `/system/logging` rule `topics=critical action=echo`, and `echo`
+does not mean "to the local console" — it means **into every open terminal session**. A line nobody
+asked for can therefore land in a session at any time:
 
 ```
 21:18:05.412 telnet.sock RECV | <CR>23:17:46 echo: system,error,critical login failure for user
                                 admin from 192.168.4.31 via api<ESC>[K<CR><LF><CR><ESC>[9999B[admin@CHR] >
 ```
 
-Změřeno na wire-trace celého (zeleného) telnet běhu suity. Vlastnosti, které je potřeba znát:
+Measured on a wire trace of an entire (green) telnet suite run. Properties worth knowing:
 
-- **Není to login banner.** Přiletělo to na dávno ustavené session, mezi dvěma testy, bez IAC
-  negociace v okolí. (Banner recentní logy taky tiskne — při hledání v trace se to snadno splete,
-  filtruj podle toho, jestli je poblíž `<FF><FD>` negociace.)
-- **Router to bufferuje.** Časové razítko v řádku bylo ~19 s starší než okamžik doručení, takže
-  příčina a projev spolu časově nesouvisí.
-- **Přiletí jen do session, která zrovna nic nedělá.** Pokus vynutit si to během 20s čtení
-  (`/system script run` s `:delay 20s`) nedoručil nic; v ostrém případě byla relace idle mezi příkazy.
-- **Za frontou následuje překreslený prompt** (`<ESC>[9999B[admin@CHR] > `), takže čtení, které
-  zrovna běží, na konci prompt zase uvidí.
-- **Vyrobit se to dá** neúspěšným loginem z druhé session — `login failure` je `critical`. Log
-  vznikne u telnetu i u API (`/log/print ?message=login failure...` to potvrdí); doručení do cizí
-  relace je ale řízené tím, jestli je relace idle, takže to není spolehlivý injektor.
+- **It is not a login banner.** It arrived on a long-established session, between two tests, with no
+  IAC negotiation nearby. (The banner also prints recent log lines, so it's easy to confuse the two
+  when scanning a trace — filter by whether `<FF><FD>` negotiation is nearby.)
+- **The router buffers it.** The timestamp in the line was ~19 s older than the moment of delivery,
+  so cause and effect are not adjacent in time.
+- **It only arrives on a session that is currently idle.** An attempt to force it during a 20s read
+  (`/system script run` with `:delay 20s`) delivered nothing; in the actual incident the session was
+  idle between commands.
+- **A redrawn prompt follows the injected line** (`<ESC>[9999B[admin@CHR] > `), so a read that is in
+  progress will still see the prompt at the end.
+- **It can be triggered** by a failed login from a second session — `login failure` is `critical`.
+  The log entry appears for both telnet and API (`/log/print ?message=login failure...` confirms
+  it); delivery into a different session, though, depends on that session being idle, so it isn't a
+  reliable injector.
 
-Pokud řádek dorazí **mezi příkazy**, sežere ho `DrainAsync` a nic se nestane — to je i případ výše.
-Nebezpečné je, když dorazí až **za** drainem, tedy na začátek odpovědi na další příkaz: v
-`CliOutputHelper.CleanOutput` pak přeskakovací smyčka na hlavičce zastavila (log řádek není prázdný,
-není prompt a není fragment příkazu) a **echo příkazu za ním propadlo do dat**. U čtení se echo
-nalepí před první záznam, u tiše-úspěšného zápisu vznikne neprázdný „výstup", který poziční pravidlo
-z P2.12 čte jako odmítnutí routerem. Opraveno tím, že se log řádek přeskakuje i v hlavičce — spojovací
-smyčka ho zahazovala už předtím, takže se tím nic nového neztrácí.
+If the line arrives **between commands**, `DrainAsync` swallows it and nothing happens — which is
+also what occurred above. It becomes dangerous when it arrives **after** the drain, i.e. right at the
+start of the response to the next command: in `CliOutputHelper.CleanOutput`, the header skip-loop
+then stops (the log line isn't blank, isn't the prompt, and isn't a command fragment), and **the echo
+of the command after it leaks into the data**. On a read, the echo attaches itself before the first
+record; on a silently-successful write, it produces non-empty "output" that the positional rule from
+P2.12 reads as a router rejection. Fixed by having the header also skip the log line — the
+line-joining loop was already discarding it later, so nothing new is lost.
 
-## 15. ✅ `:put [… as-value]` nic nevypíše, dokud příkaz neskončí (P2.50, 2026-07-31)
+## 15. ✅ `:put [… as-value]` prints nothing until the command finishes (P2.50, 2026-07-31)
 
-Streamování přes CLI **není vlastnost čtecí smyčky, ale tvaru příkazu**. `:put` dostane už hotové
-pole, takže router nepošle ani bajt, dokud příkaz nedoběhne. Změřeno na 7.23.2 (telnet, timestampy
-jsou od odeslání příkazu):
+Streaming over CLI **is a property of the command's shape, not of the read loop**. `:put` receives an
+already-complete array, so the router doesn't send a single byte until the command finishes.
+Measured on 7.23.2 (telnet, timestamps are from when the command was sent):
 
 ```
 :put [/ping address=127.0.0.1 count=5 as-value]
-  +     5 ms     49 B  echo příkazu
-  +  4019 ms    322 B  .id=*0;host=…;seq=0;…  ← VŠECH pět záznamů najednou, až na konci
+  +     5 ms     49 B  command echo
+  +  4019 ms    322 B  .id=*0;host=…;seq=0;…  ← ALL five records at once, at the end
   +  4066 ms     24 B  prompt
 ```
 
-Holý interaktivní tvar téhož příkazu streamuje:
+The bare interactive form of the same command streams:
 
 ```
 /ping address=127.0.0.1 count=5
-  +     4 ms     33 B  echo příkazu
-  +    58 ms    150 B  hlavička + řádek seq=0
+  +     4 ms     33 B  command echo
+  +    58 ms    150 B  header + seq=0 row
   +  1008 ms     68 B  seq=1
   +  2025 ms     68 B  seq=2
   +  3021 ms     68 B  seq=3
-  +  4003 ms    148 B  seq=4 + souhrn sent=/received=/min-rtt=…
+  +  4003 ms    148 B  seq=4 + summary sent=/received=/min-rtt=…
 ```
 
-Platí to pro celou CLI rodinu (telnet, ssh, winboxcli, winboxclimac, mactelnet) — je to chování
-routeru, ne transportu. `LoadAsync<ToolPing>(count=20)` proto přes CLI vracel **0 řádků po 20 s a pak
-všech 20 naráz**; API i oba native transporty tentýž příkaz streamují po řádku.
+This holds across the whole CLI family (telnet, ssh, winboxcli, winboxclimac, mactelnet) — it's
+router behavior, not transport behavior. `LoadAsync<ToolPing>(count=20)` over CLI therefore used to
+return **0 rows for 20 s and then all 20 at once**; both the API and the two native transports stream
+the same command row by row.
 
-**Co s tím.** Sebeukončující monitory (`ping`, `traceroute` — `CliMonitorVerbs.Kind.Once`) se posílají
-holé (`CliCommandBuilder.BuildInteractiveMonitor`) a čtou se po řádcích: každá CLI čtecí smyčka volá
-`CliLineStreamer.Feed(stripped)` v místě, kde už `stripped` počítá kvůli detekci promptu. Prompt
-zůstává jediným ukončovatelem čtení — streamování nemění, *kdy* čtení skončí, jen kdy se volající
-dozví o řádcích. Průběžné monitory (`monitor-traffic`, `profile`, …) se nemění: ty se pollují
-`once`-snapshotem každých 500 ms, takže řádky tečou i tak.
+**What was done about it.** Self-terminating monitors (`ping`, `traceroute` —
+`CliMonitorVerbs.Kind.Once`) are now sent in bare form (`CliCommandBuilder.BuildInteractiveMonitor`)
+and read line by line: every CLI read loop calls `CliLineStreamer.Feed(stripped)` at the point where
+`stripped` is already computed for prompt detection anyway. The prompt remains the sole terminator of
+the read — streaming doesn't change *when* the read finishes, only when the caller learns about
+individual rows. Continuous monitors (`monitor-traffic`, `profile`, …) are unchanged: they're polled
+with a `once` snapshot every 500 ms, so rows already flow that way.
 
-### Sloupce se čtou podle offsetů, ne whitespace splitem
+### Columns are read by offset, not by whitespace splitting
 
-Prázdný sloupec zůstane prázdný a ty za ním se tisknou na svých místech. Timeoutový řádek nese jen
-SEQ, HOST a STATUS:
+An empty column stays empty and the ones after it print in their own positions. A timeout row only
+carries SEQ, HOST and STATUS:
 
 ```
   SEQ HOST                                     SIZE TTL TIME       STATUS
@@ -452,38 +505,41 @@ SEQ, HOST a STATUS:
     1 192.168.4.99                                                 timeout
 ```
 
-Split podle mezer dá u druhého řádku `[1, 192.168.4.99, timeout]` a `timeout` skončí v `size`.
-Naměřené offsety: hlavičky `SEQ[3..5] HOST[7..10] SIZE[48..51] TTL[53..55] TIME[57..60] STATUS[68..73]`,
-hodnoty `0[4] 127.0.0.1[6..14] 56[49..50] 64[53..54] 107us[56..60] timeout[67..73]`. Všimni si, že
-hodnota může začít **o jeden znak vlevo** od své hlavičky (`107us` na 56 pod `TIME` na 57) — router
-rezervuje jeden pad znak před sloupcem — a že zarovnaná doleva může svou hlavičku daleko přetéct
-(`192.168.4.99` pod `HOST`). Sloupec proto sahá od jednoho znaku před svou hlavičku po jeden znak
-před hlavičku následující; to je jediné pravidlo, které oba tvary řádku umístí správně
-(`CliTableParser`).
+Splitting on whitespace would turn the second row into `[1, 192.168.4.99, timeout]`, landing
+`timeout` in `size`. Measured offsets: header `SEQ[3..5] HOST[7..10] SIZE[48..51] TTL[53..55]
+TIME[57..60] STATUS[68..73]`, values `0[4] 127.0.0.1[6..14] 56[49..50] 64[53..54] 107us[56..60]
+timeout[67..73]`. Note that a value can start **one character to the left** of its header
+(`107us` at 56 under `TIME` at 57) — the router reserves one padding character before the column —
+and a left-aligned value can overflow far past its own header (`192.168.4.99` under `HOST`). A
+column therefore spans from one character before its own header to one character before the next
+header; that's the one rule that places both row shapes correctly (`CliTableParser`).
 
-**Jména polí = hlavička malými písmeny**, což jsou přesně jména z binárního API (`seq`, `host`,
-`size`, `ttl`, `time`, `status`). Tenhle tvar je dokonce věrnější než as-value: API hlásí
-`time=60us` stejně jako tabulka, zatímco `as-value` totéž pole vypíše jako `00:00:00.000060`.
-Souhrnný řádek (`sent=…/received=…/min-rtt=…`) se zahazuje — je to souhrn tabulky, ne její řádek,
-a chodí až za posledním záznamem, takže ho nejde navěsit na řádky tak, jak to dělá API.
+**Field names = the header, lowercased**, which happen to match the binary API's field names
+exactly (`seq`, `host`, `size`, `ttl`, `time`, `status`). This form is actually more faithful than
+as-value: the API reports `time=60us` the same way the table does, whereas `as-value` prints the
+same field as `00:00:00.000060`. The summary row (`sent=…/received=…/min-rtt=…`) is discarded — it's
+a summary of the table, not a row of it, and it arrives after the last record, so it can't be
+attached to rows the way the API does it.
 
-### Proč se offsety nedají hlídat pozicí v bufferu
+### Why offsets can't be tracked by position in the buffer
 
-`VtStripper.StripAnsi` se pouští na **celý** akumulovaný text při každém průchodu. Když hranice
-chunku padne doprostřed escape sekvence, jeden průchod ji nechá být (není kompletní) a další ji
-odstraní — text *před* aktuální pozicí se tím zkrátí. Ukazatel do řetězce se tak rozjede a doručí
-posunutá data. `CliLineStreamer` proto počítá **doručené řádky**, ne znaky.
+`VtStripper.StripAnsi` runs over the **entire** accumulated text on every pass. When a chunk boundary
+falls in the middle of an escape sequence, one pass leaves it alone (it's incomplete) and the next
+pass strips it — shortening the text *before* the current position. A pointer into the string would
+therefore drift and deliver shifted data. `CliLineStreamer` therefore counts **delivered lines**, not
+characters.
 
 ---
 
-## 16. ✅ Monitor přes READ metodu ztratil všechny parametry (P2.51, 2026-08-01)
+## 16. ✅ Monitor via the READ method lost all its parameters (P2.51, 2026-08-01)
 
-**Kontext.** `/ping`, `/tool/traceroute`, `/interface/monitor-traffic` a `/interface/ethernet/monitor`
-se volají **čtecí** metodou (`ExecuteList` / `LoadList`) — vrací řádky, takže to konzumenti dělají
-správně. `CliConnectionBase.RunPrint` je ale posílal do `CliCommandBuilder.BuildPrint`, který zná jen
-print modifikátory a `where` klauzuli. Vstupy příkazu tím **mizely beze stopy**.
+**Context.** `/ping`, `/tool/traceroute`, `/interface/monitor-traffic` and
+`/interface/ethernet/monitor` are invoked via a **read** method (`ExecuteList` / `LoadList`) — they
+return rows, so consumers use them correctly. But `CliConnectionBase.RunPrint` sent them into
+`CliCommandBuilder.BuildPrint`, which only knows about print modifiers and the `where` clause. The
+command's own inputs were **vanishing without a trace**.
 
-Naměřeno na 7.23.2 přes Telnet:
+Measured on 7.23.2 over Telnet:
 
 ```
 /ping =address=127.0.0.1 =count=2
@@ -493,20 +549,21 @@ Naměřeno na 7.23.2 přes Telnet:
 /interface/monitor-traffic =interface=ether1
   >> :put [/interface monitor-traffic once as-value]
   << input does not match any value of interface
-  → volajícímu vráceno "OK (no data returned)"          ← tichá chyba (třída P2.12)
+  → caller received "OK (no data returned)"          ← silent failure (P2.12 class)
 ```
 
-Asynchronní cesta vadu nikdy neměla — ta staví `BuildMonitorSnapshot`, který vstupy vypisuje.
+The async path never had this bug — it builds via `BuildMonitorSnapshot`, which does emit the
+inputs.
 
-**Co s tím.** `RunPrint` posílá monitor slovesa (`CliMonitorVerbs.IsSyncMonitorVerb`) do
-`BuildMonitorSnapshot(..., includeFilters: true)`. `includeFilters` je nutné proto, že
-`TikGenericCommand.ResolveParamsForRead` přepíše parametry volajícího do Filter formátu ještě než je
-transport uvidí; monitor žádnou dotazovací sémantiku nemá, takže Filter tam může znamenat jen tohle
-přepsání. Přesně stejný důvod a stejný přepínač jako u `/tool/wol` (`BuildNonQuery`).
+**Fix.** `RunPrint` now routes monitor verbs (`CliMonitorVerbs.IsSyncMonitorVerb`) to
+`BuildMonitorSnapshot(..., includeFilters: true)`. `includeFilters` is needed because
+`TikGenericCommand.ResolveParamsForRead` rewrites the caller's parameters into Filter form before the
+transport ever sees them; a monitor has no query semantics of its own, so Filter can only mean this
+rewrite here. Same reason and same switch as `/tool/wol` (`BuildNonQuery`).
 
-### `traceroute` odmítá `once`
+### `traceroute` rejects `once`
 
-Výchozí snapshot modifikátor je `once` a traceroute ho **nebere**:
+The default snapshot modifier is `once`, and traceroute **won't accept it**:
 
 ```
 :put [/tool traceroute address=127.0.0.1 count=1 once as-value]
@@ -515,29 +572,30 @@ Výchozí snapshot modifikátor je `once` a traceroute ho **nebere**:
   << .id=*1;address=127.0.0.1;avg=0;best=0;last=0;loss=0;sent=1;status=;std-dev=0;worst=0
 ```
 
-`CliMonitorVerbs.Modifiers` proto mapuje `traceroute` → `count=1` (jako ping). Do P2.51 dostal
-každý CLI traceroute, kam modifikátor dosáhl, od routeru odmítnutí. Totéž platí pro `torch` —
-`bad parameter once (line 1 column 40)`, a jeho `as-value` tvar navíc netiskne nic — proto v
-seznamu synchronních monitor sloves **není**.
+`CliMonitorVerbs.Modifiers` therefore maps `traceroute` → `count=1` (same as ping). Before P2.51,
+every CLI traceroute that reached the modifier got rejected by the router. The same applies to
+`torch` — `bad parameter once (line 1 column 40)`, and its `as-value` form additionally prints
+nothing at all — which is why it is **not** in the list of synchronous monitor verbs.
 
-### Tichou chybu pozná pozice, ne fráze
+### A silent failure is recognized by position, not by phrase
 
-Fráze `input does not match any value of interface` nechytá žádný klasifikátor v `CliErrorParser`.
-Monitor ale existuje proto, aby něco vytiskl: úspěšný snapshot vždy vypíše aspoň jeden `.id=…`
-záznam, neúspěšný vypíše jen svou stížnost. `ParseMonitorSnapshot` proto bere **výstup bez záznamu**
-jako odmítnutí — bez seznamu frází a bez whitelistu sloves. Prázdný výstup chybou není (torch
-legitimně netiskne nic). U streamovaného tvaru (P2.50) hraje stejnou roli **hlavička tabulky**:
-router ji vytiskne dřív než první měření, takže text, který ji nikdy nevyrobil, je odmítnutí.
+The phrase `input does not match any value of interface` isn't caught by any classifier in
+`CliErrorParser`. But a monitor exists to print something: a successful snapshot always emits at
+least one `.id=…` record, a failed one only prints its complaint. `ParseMonitorSnapshot` therefore
+treats **output with no record** as a rejection — no phrase list, no verb whitelist needed. Empty
+output isn't itself an error (torch legitimately prints nothing). For the streamed form (P2.50), the
+**table header** plays the same role: the router prints it before the first measurement, so text that
+never produced a header is a rejection.
 
-### `#` v tabulce není pole
+### `#` in the table is not a field
 
-Interaktivní tabulka traceroute začíná sloupcem `#` — pořadové číslo řádku v terminálu. Binární API
-na jeho místě vrací `.id` a žádné pole `#` nezná, takže `CliTableParser` ten sloupec drží kvůli
-offsetům ostatních, ale jako slovo ho nikdy nevydá.
+The interactive traceroute table starts with a `#` column — the terminal's row sequence number. The
+binary API returns `.id` in its place and has no `#` field at all, so `CliTableParser` keeps that
+column for offset purposes but never emits it as a value.
 
-### Neběželo to nikde
+### It had no coverage anywhere
 
-Všechny synchronní monitor testy měly `EnsureCapability(TikConnectionCapability.Streaming)`, kterou
-hlásí **jen binární API** — takže na deseti transportech z jedenácti byly Inconclusive a celá
-synchronní monitor cesta neměla žádné pokrytí. `ToolPing.Execute` je přitom obyčejný `LoadList` a
-`Streaming` nepotřebuje. Viz `[[feedback_silent_failures_are_invisible]]`.
+All the synchronous monitor tests had `EnsureCapability(TikConnectionCapability.Streaming)`, which is
+reported **only by the binary API** — so on ten of the eleven transports they were Inconclusive, and
+the entire synchronous monitor path had no coverage at all. Yet `ToolPing.Execute` is a plain
+`LoadList` and doesn't need `Streaming`. See `[[feedback_silent_failures_are_invisible]]`.

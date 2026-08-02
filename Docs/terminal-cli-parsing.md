@@ -1,13 +1,16 @@
-# Terminálový výstup → tik4net entities: design
+# Terminal output → tik4net entities: design
 
-> Lokální soubor, není v gitu. Naposledy aktualizov\xE1no: 2026-05-26 (přid\xE1n Telnet, async/semaphore strategie).
-> Navazuje na [`4x-package-architecture.md`](4x-package-architecture.md).
+> Local file, not tracked in git. Last updated: 2026-05-26 (added Telnet, async/semaphore strategy).
+> Builds on [`4x-package-architecture.md`](4x-package-architecture.md).
 
 ---
 
-## Základní myšlenka
+## Core idea
 
-RouterOS CLI nabízí formát `print as-value`, který je **strojově čitelný** a **přímočaře mapovatelný** na strukturu `ITikReSentence`. To umožňuje implementovat `ITikConnection` nad SSH nebo MACTelnet bez potřeby full VT100 emulace — stačí textové zpracování.
+The RouterOS CLI offers the `print as-value` format, which is **machine-readable** and **maps
+directly** onto the `ITikReSentence` structure. This makes it possible to implement
+`ITikConnection` over SSH or MACTelnet without full VT100 emulation — plain text processing is
+enough.
 
 ```
 API protokol:         CLI (print as-value):
@@ -15,25 +18,27 @@ API protokol:         CLI (print as-value):
 !re                   .id=*1;address=192.168.1.1/24;interface=ether1;dynamic=no
 =.id=*1
 =address=192.168.1.1/24
-=interface=ether1             ←── přímá 1:1 shoda klíčů a hodnot
+=interface=ether1             ←── direct 1:1 match of keys and values
 =dynamic=no
 !re
 =.id=*2;...
 !done
 ```
 
-Hodnoty jsou identické s API (`yes`/`no` pro bool, formáty adres atd.) — `tik4net.entities` entitní mapper **nemusí vědět**, že komunikuje přes CLI místo API.
+The values are identical to the API's (`yes`/`no` for bools, the same address formats, etc.) —
+the `tik4net.entities` entity mapper **doesn't need to know** it is talking over CLI instead of
+the API.
 
 ---
 
-## Formát `print as-value` — dokumentace
+## The `print as-value` format — documentation
 
 ### List entities
 
 ```
 /ip address print as-value
 ```
-Výstup (jeden řádek = jedna entita, `;` separátor klíčů):
+Output (one line per entity, `;` separates the keys):
 ```
 .id=*1;address=192.168.1.1/24;network=192.168.1.0;interface=ether1;comment=;dynamic=no;disabled=no;invalid=no;actual-interface=ether1
 .id=*2;address=10.0.0.1/8;network=10.0.0.0;interface=bridge;comment=;dynamic=no;disabled=no;invalid=no;actual-interface=bridge
@@ -44,40 +49,41 @@ Výstup (jeden řádek = jedna entita, `;` separátor klíčů):
 ```
 /system resource print as-value
 ```
-Výstup (jeden řádek, bez `.id`):
+Output (a single line, no `.id`):
 ```
 uptime=1h30m;version=7.16;build-time=2024-01-01 00:00:00;free-memory=128.0MiB;total-memory=256.0MiB;cpu=ARM;cpu-count=4;cpu-load=3;free-hdd-space=10.0MiB
 ```
 
-### Filtrovaný print
+### Filtered print
 
 ```
 /ip address print as-value where interface=ether1
 ```
-Vrátí jen matching záznamy — stejné chování jako API `?interface=ether1`.
+Returns only the matching records — the same behavior as the API's `?interface=ether1`.
 
-### Add — získání .id přes `:put`
+### Add — obtaining the .id via `:put`
 
 ```
 :put [/ip address add address=10.0.0.1/24 interface=bridge]
 ```
-Výstup: `*3` (vrací .id nové entity — ekvivalent API `=ret=*3`).
+Output: `*3` (returns the .id of the new entity — the equivalent of the API's `=ret=*3`).
 
-Bez `:put [...]` wrapper vrátí `add` prázdný výstup nebo index (číslo), ne `*N` formát.
+Without the `:put [...]` wrapper, `add` returns an empty output or an index (a plain number), not
+the `*N` format.
 
 ### Set
 
 ```
 /ip address set [find .id=*1] comment=updated-comment
 ```
-Výstup: prázdný (úspěch).
+Output: empty (success).
 
 ### Remove
 
 ```
 /ip address remove [find .id=*1]
 ```
-Výstup: prázdný (úspěch).
+Output: empty (success).
 
 ### Enable / Disable
 
@@ -86,7 +92,7 @@ Výstup: prázdný (úspěch).
 /ip firewall filter disable [find .id=*1]
 ```
 
-### Chybový výstup (příklady)
+### Error output (examples)
 
 ```
 no such item
@@ -96,14 +102,14 @@ failure: already have such entry
 
 ---
 
-## Překladová logika: API příkaz → CLI string
+## Translation logic: API command → CLI string
 
-### 1. Překlad cesty (`CommandText`)
+### 1. Path translation (`CommandText`)
 
-API formát: `/ip/address/print`
-CLI formát: `/ip address print`
+API format: `/ip/address/print`
+CLI format: `/ip address print`
 
-Algoritmus: rozdělení po `/`, spojení mezerami s vedoucím `/`.
+Algorithm: split on `/`, join the parts with spaces, keep the leading `/`.
 
 ```csharp
 // /ip/address/print  →  /ip address print
@@ -114,8 +120,8 @@ string ApiPathToCli(string apiPath)
 }
 ```
 
-Příklady:
-| API CommandText | CLI string (základ) |
+Examples:
+| API CommandText | CLI string (base) |
 |---|---|
 | `/ip/address/print` | `/ip address print` |
 | `/ip/address/add` | `/ip address add` |
@@ -125,26 +131,26 @@ Příklady:
 | `/system/identity/get` | `/system identity get` |
 | `/system/reboot` | `/system reboot` |
 
-### 2. Překlad parametrů
+### 2. Parameter translation
 
-`ITikCommandParameter` má dva typy (`ParameterFormat`):
+`ITikCommandParameter` has two kinds (`ParameterFormat`):
 
-**Filter parametry** (`Format = Filter`, API: `?name=value`):
-- Přidávají se jako `where name=value` za `print`
-- Negace: `?name=!value` → `where name!=value`
-- Porovnání: `?>count=5` → `where count>5`
+**Filter parameters** (`Format = Filter`, API: `?name=value`):
+- Appended as `where name=value` after `print`
+- Negation: `?name=!value` → `where name!=value`
+- Comparison: `?>count=5` → `where count>5`
 - Regex: `?~comment=eth` → `where comment~eth`
 - Multiple filters: `where a=x && b=y`
 
-**NameValue parametry** (`Format = NameValue`, API: `=name=value`):
-- Pro `add`: `name=value name2=value2 ...`
-- Pro `set`: extrahovat `.id` → `[find .id=*N]`, zbytek `name=value`
-- Pro ostatní (nonquery): `name=value ...`
-- Speciální: `.proplist` je ignorováno (as-value vrátí vždy všechna pole)
+**NameValue parameters** (`Format = NameValue`, API: `=name=value`):
+- For `add`: `name=value name2=value2 ...`
+- For `set`: extract `.id` → `[find .id=*N]`, the rest as `name=value`
+- For everything else (nonquery): `name=value ...`
+- Special case: `.proplist` is ignored (`as-value` always returns every field)
 
-### 3. Sestavení CLI příkazu dle operace
+### 3. Building the CLI command per operation
 
-Detekce operace z poslední části cesty:
+Operation is detected from the last segment of the path:
 
 ```
 print   → /path print as-value [where filter1=val && filter2=val]
@@ -154,10 +160,10 @@ remove  → /path remove [find .id=*N]
 enable  → /path enable [find .id=*N]
 disable → /path disable [find .id=*N]
 move    → /path move [find .id=*N] destination=*M
-get     → /path get .id=*N value-name=name  (alias pro scalar)
+get     → /path get .id=*N value-name=name  (alias for scalar)
 ```
 
-**Příklady sestavení:**
+**Build examples:**
 
 ```
 API: /ip/address/print + ?interface=ether1
@@ -178,9 +184,9 @@ CLI: /system reboot
 
 ---
 
-## Parsování výstupu `print as-value`
+## Parsing `print as-value` output
 
-### Algoritmus
+### Algorithm
 
 ```csharp
 IEnumerable<ITikReSentence> ParseAsValue(string output)
@@ -194,12 +200,12 @@ IEnumerable<ITikReSentence> ParseAsValue(string output)
         int pos = 0;
         while (pos < trimmed.Length)
         {
-            // najdi '=' jako konec klíče
+            // find '=' marking the end of the key
             int eq = trimmed.IndexOf('=', pos);
             if (eq < 0) break;
             string key = trimmed.Substring(pos, eq - pos);
 
-            // najdi ';' jako konec hodnoty (nebo konec řádku)
+            // find ';' marking the end of the value (or end of line)
             int semi = trimmed.IndexOf(';', eq + 1);
             string value = semi < 0
                 ? trimmed.Substring(eq + 1)
@@ -215,7 +221,7 @@ IEnumerable<ITikReSentence> ParseAsValue(string output)
 }
 ```
 
-### Mock implementace `ITikReSentence`
+### Mock implementation of `ITikReSentence`
 
 ```csharp
 internal sealed class CliReSentence : ITikReSentence
@@ -240,14 +246,14 @@ internal sealed class CliReSentence : ITikReSentence
 }
 ```
 
-### Detekce a překlad chyb
+### Error detection and translation
 
-Chybový výstup nemá strukturu — detekce na základě prefixů:
+Error output has no structure — detection is based on prefixes:
 
 ```csharp
 void ThrowIfError(string output, int? exitCode = null)
 {
-    if (exitCode.HasValue && exitCode != 0) { /* SSH: parse output jako error */ }
+    if (exitCode.HasValue && exitCode != 0) { /* SSH: parse output as an error */ }
 
     var line = output.Trim();
     if (line.StartsWith("no such item")) throw new TikNoSuchItemException(line);
@@ -256,46 +262,50 @@ void ThrowIfError(string output, int? exitCode = null)
         throw new TikNoSuchCommandException(line);
     if (line.StartsWith("failure:") || line.StartsWith("error:"))
         throw new TikCommandTrapException(line);
-    // Ostatní neprázdný výstup z error streamu → TikCommandTrapException
+    // Any other non-empty output on the error stream → TikCommandTrapException
 }
 ```
 
-**SSH výhoda:** `SshClient.RunCommand()` vrací oddělené stdout/stderr a exit code — error detekce je robustnější.
+**SSH advantage:** `SshClient.RunCommand()` returns stdout/stderr separately along with an exit
+code — error detection is more robust.
 
-**MACTelnet nevýhoda:** vše je jeden stream, nutné heuristické parsování.
+**MACTelnet disadvantage:** everything is a single stream, so heuristic parsing is required.
 
 ---
 
-## Architektura — sdílená vrstva `tik4net.cli`
+## Architecture — the shared `tik4net.cli` layer
 
-Protože logika překladu a parsování je identická pro SSH, MACTelnet i Telnet a nemá žádné externí závislosti, **žije přímo v `tik4net` core** (namespace `Tik4Net.Cli`). Samostatný NuGet `tik4net.cli` nevzniká — není důvod.
+Because the translation and parsing logic is identical for SSH, MACTelnet, and Telnet, and has no
+external dependencies, it **lives directly in the `tik4net` core** (namespace `Tik4Net.Cli`). A
+separate `tik4net.cli` NuGet package doesn't exist — there's no reason for one.
 
 ```
 tik4net/Cli/
 ├── CliCommandBuilder.cs                ~ 120 LOC  (ITikCommand → CLI string)
 ├── CliOutputParser.cs                  ~ 80 LOC   (as-value text → IEnumerable<ITikReSentence>)
-├── CliErrorParser.cs                   ~ 40 LOC   (chybový text → výjimky tik4net)
+├── CliErrorParser.cs                   ~ 40 LOC   (error text → tik4net exceptions)
 ├── CliReSentence.cs                    ~ 40 LOC   (mock ITikReSentence)
-├── VtStripper.cs                       ~ 50 LOC   (ANSI escape remover pro MACTelnet + Telnet)
-└── CliConnectionBase.cs                ~ 220 LOC  (společná logika, abstract; SemaphoreSlim pro async)
+├── VtStripper.cs                       ~ 50 LOC   (ANSI escape remover for MACTelnet + Telnet)
+└── CliConnectionBase.cs                ~ 220 LOC  (shared logic, abstract; SemaphoreSlim for async)
 ```
 
-Transportní balíčky (`tik4net.ssh`, `tik4net.mactelnet`, `tik4net.telnet`) závisí pouze na `tik4net` — CLI vrstva přichází zadarmo.
+The transport packages (`tik4net.ssh`, `tik4net.mactelnet`, `tik4net.telnet`) depend only on
+`tik4net` — the CLI layer comes for free.
 
-Abstraktní základ (včetně async strategie):
+The abstract base class (including the async strategy):
 
 ```csharp
 // tik4net.cli
 public abstract class CliConnectionBase : ITikConnection
 {
-    // Terminál je inherentně sekvenční — jeden příkaz najednou.
-    // SemaphoreSlim serializuje operace; volající vidí čistý async/await.
+    // A terminal is inherently sequential — one command at a time.
+    // SemaphoreSlim serializes operations; callers still see plain async/await.
     private readonly SemaphoreSlim _cmdLock = new(1, 1);
 
-    // Podtřídy implementují async transport (TCP, UDP PTY…):
+    // Subclasses implement the async transport (TCP, UDP PTY…):
     protected abstract Task<string> ExecuteCliCommandCoreAsync(string cliText, CancellationToken ct);
 
-    // Vstupní bod pro všechny operace — serializovaný přes semafor:
+    // Entry point for all operations — serialized through the semaphore:
     protected async Task<string> ExecuteCliCommandAsync(string cliText, CancellationToken ct)
     {
         await _cmdLock.WaitAsync(ct).ConfigureAwait(false);
@@ -303,7 +313,7 @@ public abstract class CliConnectionBase : ITikConnection
         finally { _cmdLock.Release(); }
     }
 
-    // Sync wrapper pro zpětnou kompatibilitu s ITikCommand.Execute*:
+    // Sync wrapper for backward compatibility with ITikCommand.Execute*:
     protected string ExecuteCliCommand(string cliText)
         => ExecuteCliCommandAsync(cliText, CancellationToken.None).GetAwaiter().GetResult();
 
@@ -323,7 +333,7 @@ public abstract class CliConnectionBase : ITikConnection
         var cli = CliCommandBuilder.BuildAdd(cmd);    // :put [/path add ...]
         var output = ExecuteCliCommand(cli);
         CliErrorParser.ThrowIfError(output);
-        return output.Trim();                         // vrátí *N (nové .id)
+        return output.Trim();                         // returns *N (the new .id)
     }
 
     internal void RunNonQuery(CliCommand cmd)
@@ -334,9 +344,15 @@ public abstract class CliConnectionBase : ITikConnection
 }
 ```
 
-**Async strategie pro terminálová spojení:** MACTelnet, Telnet i SSH-terminal jsou sekvenční protokoly — není možné odeslat druhý příkaz dříve, než dorazí odpověď na první (žádná tag-based korelace jako v API protokolu). Správné řešení je `SemaphoreSlim(1,1)` v `CliConnectionBase` — ne pool spojení (limit sessions na routeru, overhead) a ne background task s korelací (komplexní, výstup se může preplést). Operace jsou interně seřazeny, ale z pohledu TikLink jsou stále `await`itelné.
+**Async strategy for terminal connections:** MACTelnet, Telnet, and SSH-terminal are all
+sequential protocols — a second command cannot be sent before the reply to the first has arrived
+(there's no tag-based correlation like in the API protocol). The right solution is a
+`SemaphoreSlim(1,1)` in `CliConnectionBase` — not a connection pool (limits sessions on the
+router, adds overhead) and not a background task with correlation (complex, and output could
+interleave). Operations are serialized internally, but from the caller's point of view they are
+still `await`able.
 
-`tik4net.ssh`, `tik4net.mactelnet` a `tik4net.telnet` pouze implementují transport vrstvu:
+`tik4net.ssh`, `tik4net.mactelnet`, and `tik4net.telnet` only implement the transport layer:
 
 ```csharp
 // tik4net.ssh
@@ -346,7 +362,7 @@ public class SshConnection : CliConnectionBase
 
     protected override async Task<string> ExecuteCliCommandCoreAsync(string cliText, CancellationToken ct)
     {
-        // SSH.NET RunCommand je synchronní — offloadujeme na thread pool
+        // SSH.NET's RunCommand is synchronous — offload it to the thread pool
         var cmd = await Task.Run(() => _ssh.RunCommand(cliText), ct);
         if (!string.IsNullOrWhiteSpace(cmd.Error))
             CliErrorParser.ThrowIfError(cmd.Error, cmd.ExitStatus);
@@ -362,11 +378,11 @@ public class MacTelnetConnection : CliConnectionBase
     protected override async Task<string> ExecuteCliCommandCoreAsync(string cliText, CancellationToken ct)
     {
         var raw = await _session.RunCommandAndWaitAsync(cliText, ct);
-        return VtStripper.Strip(raw);     // odstranit ANSI escape kódy + echo + prompt
+        return VtStripper.Strip(raw);     // strip ANSI escape codes + echo + prompt
     }
 }
 
-// tik4net.telnet — identická struktura jako MacTelnetConnection, liší se jen transport
+// tik4net.telnet — identical structure to MacTelnetConnection, only the transport differs
 public class TelnetConnection : CliConnectionBase
 {
     private TelnetSession _session;
@@ -374,23 +390,25 @@ public class TelnetConnection : CliConnectionBase
     protected override async Task<string> ExecuteCliCommandCoreAsync(string cliText, CancellationToken ct)
     {
         var raw = await _session.RunCommandAndWaitAsync(cliText, ct);
-        return VtStripper.Strip(raw);     // stejný VT100 výstup jako MACTelnet
+        return VtStripper.Strip(raw);     // same VT100 output as MACTelnet
     }
 }
 ```
 
 ---
 
-## VT stripping (pro MACTelnet a Telnet)
+## VT stripping (for MACTelnet and Telnet)
 
-SSH `RunCommand` vrací čistý stdout — **VT stripping není potřeba**.
+SSH's `RunCommand` returns plain stdout — **no VT stripping is needed**.
 
-MACTelnet i Telnet používají PTY → výstup obsahuje ANSI escape sekvence. `VtStripper` je sdílený v `tik4net.cli` a reusuje se pro oba transporty. Jednoduchý regex stripper:
+MACTelnet and Telnet both use a PTY → the output contains ANSI escape sequences. `VtStripper`
+lives in the shared `tik4net.cli` layer and is reused by both transports. A simple regex-based
+stripper:
 
 ```csharp
 public static class VtStripper
 {
-    // Pokrývá: CSI sekvence, OSC sekvence, ostatní ESC sekvence
+    // Covers: CSI sequences, OSC sequences, other ESC sequences
     private static readonly Regex AnsiRegex = new(
         @"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\][^\x07]*\x07)",
         RegexOptions.Compiled);
@@ -398,16 +416,16 @@ public static class VtStripper
     public static string Strip(string input)
     {
         var stripped = AnsiRegex.Replace(input, "");
-        // Odstranit echoed prompt a vstupní příkaz (MACTelnet echo):
+        // Remove the echoed prompt and the echoed input command (MACTelnet echo):
         return RemovePromptAndEcho(stripped);
     }
 
     private static string RemovePromptAndEcho(string text)
     {
         // RouterOS prompt: "[user@identity] > "
-        // Výstup = echo_of_command + newline + actual_output + newline + prompt
+        // Output = echo_of_command + newline + actual_output + newline + prompt
         var lines = text.Split('\n');
-        // První řádek je echo příkazu, poslední je nový prompt → odříznout
+        // The first line is the command echo, the last is the new prompt → trim both
         return string.Join("\n", lines.Skip(1).SkipLast(1));
     }
 }
@@ -415,95 +433,123 @@ public static class VtStripper
 
 ---
 
-## Mapovací matice: `ITikCommand` metody
+## Mapping matrix: `ITikCommand` methods
 
-| Metoda | Implementace přes CLI | Poznámka |
+| Method | Implementation over CLI | Note |
 |---|---|---|
-| `ExecuteNonQuery()` | `/path verb [find .id=*N] params` | empty výstup = úspěch |
-| `ExecuteList()` | `/path print as-value [where ...]` | parsování řádků |
-| `ExecuteSingleRow()` | `/path print as-value [where ...]` | assert 1 řádek |
-| `ExecuteScalar()` | `:put [/path get .id=*N value-name=x]` | skalární výstup |
+| `ExecuteNonQuery()` | `/path verb [find .id=*N] params` | empty output = success |
+| `ExecuteList()` | `/path print as-value [where ...]` | parses the lines |
+| `ExecuteSingleRow()` | `/path print as-value [where ...]` | asserts exactly 1 line |
+| `ExecuteScalar()` | `:put [/path get .id=*N value-name=x]` | scalar output |
 | `ExecuteScalar(target)` | `:put [/path get .id=*N value-name=target]` | |
-| `ExecuteAsync(cb,...)` | ⚠️ emulace přes thread + sync | bez true push |
-| `ExecuteListWithDuration` | ❌ nelze | potřebuje streaming |
-| `ExecuteListUntilDone` | ⚠️ jen pro self-terminating commands | `/ping count=N` |
-| `CallCommandSync` | ❌ low-level, nelze mapovat | raw API sentences |
-| `CallCommandAsync` | ❌ nelze | |
-| `Cancel()` | ❌ nelze | no in-flight command |
+| `ExecuteAsync(cb,...)` | ⚠️ emulated via thread + sync exec | no true push |
+| `ExecuteListWithDuration` | ❌ not possible | needs streaming |
+| `ExecuteListUntilDone` | ⚠️ only for self-terminating commands | `/ping count=N` |
+| `CallCommandSync` | ❌ low-level, can't be mapped | raw API sentences |
+| `CallCommandAsync` | ❌ not possible | |
+| `Cancel()` | ❌ not possible | no in-flight command |
 
-**Capabilities pro CLI-based connection:**
+**Capabilities for a CLI-based connection:**
 - `Read = ✅`, `Write = ✅`, `Listen = ❌`, `Streaming = ❌`, `Async = ⚠️`
 
 ---
 
-## Co `tik4net.entities` potřebuje a dostane
+## What `tik4net.entities` needs and gets
 
-Entitní mapper (`LoadAll<T>()`, `Save<T>()`, `Delete<T>()`, …) volá:
+The entity mapper (`LoadAll<T>()`, `Save<T>()`, `Delete<T>()`, …) calls:
 
-| Entities operace | Volá na ITikConnection/Command | CLI výsledek |
+| Entities operation | Calls on ITikConnection/Command | CLI result |
 |---|---|---|
-| `LoadAll<IpAddress>()` | `ExecuteList()` na `/ip/address/print` | `as-value` parsing → `CliReSentence` list |
-| `LoadById<IpAddress>("*1")` | `ExecuteSingleRow()` na `/ip/address/print ?=.id=*1` | 1 `as-value` řádek |
-| `Save<IpAddress>(newEntity)` | `ExecuteNonQuery()` na `/ip/address/add` s params | `:put [add ...]` → nové `.id` |
-| `Save<IpAddress>(existing)` | `ExecuteNonQuery()` na `/ip/address/set` s `.id` + změny | `set [find .id=*N] ...` |
-| `Delete<IpAddress>(entity)` | `ExecuteNonQuery()` na `/ip/address/remove` s `.id` | `remove [find .id=*N]` |
-| `LoadSingle<SystemResource>()` | `ExecuteSingleRow()` na `/system/resource/print` | 1 `as-value` řádek (bez `.id`) |
+| `LoadAll<IpAddress>()` | `ExecuteList()` on `/ip/address/print` | `as-value` parsing → `CliReSentence` list |
+| `LoadById<IpAddress>("*1")` | `ExecuteSingleRow()` on `/ip/address/print ?=.id=*1` | 1 `as-value` line |
+| `Save<IpAddress>(newEntity)` | `ExecuteNonQuery()` on `/ip/address/add` with params | `:put [add ...]` → new `.id` |
+| `Save<IpAddress>(existing)` | `ExecuteNonQuery()` on `/ip/address/set` with `.id` + changes | `set [find .id=*N] ...` |
+| `Delete<IpAddress>(entity)` | `ExecuteNonQuery()` on `/ip/address/remove` with `.id` | `remove [find .id=*N]` |
+| `LoadSingle<SystemResource>()` | `ExecuteSingleRow()` on `/system/resource/print` | 1 `as-value` line (no `.id`) |
 
-**Entities mapper neví** o CLI — vidí jen `ITikReSentence` objekty, které jsou naplněny z `CliReSentence`.
-
----
-
-## Hranice a omezení
-
-### Spolehlivé (pro produkční použití)
-
-- Read operace přes `LoadAll`, `LoadList`, `LoadById`, `LoadSingle`
-- Write operace: `Save` (add i set), `Delete`, `Enable`, `Disable`, `Move`
-- Filtry přes `?name=value` parametry → `where name=value`
-- Singleton entity (bez `.id`)
-- Boolean hodnoty: RouterOS CLI i API používají `yes`/`no`
-
-### Podmíněně spolehlivé (s caveaty)
-
-- **Values se středníkem (`;`):** komentáře nebo hodnoty obsahující `;` rozbijí parsování.
-  Workaround: omezit na entity kde to nehrozí, nebo implementovat escape-aware parser.
-- **SSH vs MACTelnet:** SSH je robustnější (exit code, oddělený stderr). MACTelnet je fragile (heuristiky).
-- **RouterOS verze:** `as-value` formát je konzistentní od ROS 6.x. Pro ROS < 6 může být odlišný.
-
-### Nelze nebo jen s velkým effort
-
-- **Listen (`/listen`)** — real-time push notifikace nejsou možné přes terminál.
-- **Streaming commands** — `/tool/torch`, `/tool/ping` průběžné výsledky: SSH by to zvládl přes streaming RunCommand, ale integrace s `ITikCommand.ExecuteListWithDuration` je složitá.
-- **Async cancel** — `Cancel()` nemá ekvivalent pro synchronní SSH RunCommand.
-- **Batch commands** — pipelining není.
-- **Proplist optimalizace** — `print as-value` vždy vrátí všechna pole (nelze omezit jako v API přes `.proplist`).
+**The entities mapper has no knowledge** of CLI — it only sees `ITikReSentence` objects, populated
+from `CliReSentence`.
 
 ---
 
-## Implementační přístup — doporučené pořadí
+## Boundaries and limitations
 
-1. **CLI vrstva v `tik4net`** — implementovat `CliCommandBuilder` + `CliOutputParser` + `CliReSentence` + `CliConnectionBase` se semaforem (jsou na sobě nezávislé, testovatelné bez sítě). Součástí téhož milníku: `TikConnectionSetup` s `CreateApiConnection()` / `CreateApiSslConnectionAsync()` — nahradí `ConnectionFactory`.
-2. **`tik4net.ssh` — `SshConnection`** — nejjednodušší CLI transport (čistý stdout, exit code); ověřit funkčnost entitního mapperu. Extension metoda `TikConnectionSetup.CreateSshConnection(privateKeyPath?)`.
-3. **Unit testy parseru** — `CliOutputParser` testovat se zaznamenanými výstupy z RouterOS (bez živého routeru).
-4. **`tik4net.mactelnet` — `MacTelnetConnection`** — přidat VtStripper a prompt-detection; fragile, potřebuje integrační testy na živém routeru. Extension metoda `TikConnectionSetup.CreateMacTelnetConnection()`.
-5. **`tik4net.telnet` — `TelnetConnection`** — přidat `TelnetNegotiator` (~30 LOC), detekci login/password promptu; reuse `VtStripper` beze změny. Implementační effort cca 20 % oproti MACTelnet. Extension metoda `TikConnectionSetup.CreateTelnetConnection()`.
+### Reliable (production-ready)
+
+- Read operations via `LoadAll`, `LoadList`, `LoadById`, `LoadSingle`
+- Write operations: `Save` (both add and set), `Delete`, `Enable`, `Disable`, `Move`
+- Filters via `?name=value` parameters → `where name=value`
+- Singleton entities (no `.id`)
+- Boolean values: both the RouterOS CLI and the API use `yes`/`no`
+
+### Conditionally reliable (with caveats)
+
+- **Values containing a semicolon (`;`):** comments or values containing `;` will break parsing.
+  Workaround: restrict to entities where this can't happen, or implement an escape-aware parser.
+- **SSH vs. MACTelnet:** SSH is more robust (exit code, separate stderr). MACTelnet is fragile
+  (heuristics).
+- **RouterOS version:** the `as-value` format has been consistent since ROS 6.x. It may differ on
+  ROS < 6.
+
+### Not possible, or only with major effort
+
+- **Listen (`/listen`)** — real-time push notifications are not possible over a terminal.
+- **Streaming commands** — incremental results for `/tool/torch`, `/tool/ping`: SSH could handle
+  this via a streaming `RunCommand`, but integrating it with
+  `ITikCommand.ExecuteListWithDuration` is complex.
+- **Async cancel** — `Cancel()` has no equivalent for a synchronous SSH `RunCommand`.
+- **Batch commands** — no pipelining.
+- **Proplist optimization** — `print as-value` always returns every field (can't be restricted the
+  way the API does via `.proplist`).
 
 ---
 
-## Otevřené otázky
+## Implementation approach — recommended order
 
-1. **Escape-aware `;` parser**: Je třeba pro robustní produkční nasazení? Komentáře se středníky jsou reálné.  
-   Možnost: parsovat zleva, sledovat `=` a přeskakovat hodnoty s uvozovkami (pokud RouterOS quote-uje).
+1. **CLI layer in `tik4net`** — implement `CliCommandBuilder` + `CliOutputParser` +
+   `CliReSentence` + `CliConnectionBase` with the semaphore (these are independent of each other
+   and testable without a network). Part of the same milestone: `TikConnectionSetup` with
+   `CreateApiConnection()` / `CreateApiSslConnectionAsync()` — replacing `ConnectionFactory`.
+2. **`tik4net.ssh` — `SshConnection`** — the simplest CLI transport (clean stdout, exit code);
+   verify the entity mapper works against it. Extension method
+   `TikConnectionSetup.CreateSshConnection(privateKeyPath?)`.
+3. **Parser unit tests** — test `CliOutputParser` against recorded RouterOS output (no live
+   router needed).
+4. **`tik4net.mactelnet` — `MacTelnetConnection`** — add `VtStripper` and prompt detection;
+   fragile, needs integration tests against a live router. Extension method
+   `TikConnectionSetup.CreateMacTelnetConnection()`.
+5. **`tik4net.telnet` — `TelnetConnection`** — add a `TelnetNegotiator` (~30 LOC), login/password
+   prompt detection; reuse `VtStripper` unchanged. Implementation effort roughly 20% of
+   MACTelnet's. Extension method `TikConnectionSetup.CreateTelnetConnection()`.
 
-2. **`add` a nové `.id`**: `:put [/path add ...]` vrátí `.id` jen pokud `add` vrací handle.  
-   Ne všechny entity v RouterOS vrací `.id` z `add` — nutno otestovat na různých entitách.
+---
 
-3. **MACTelnet prompt-detection spolehlivost**: RouterOS prompt může obsahovat custom identity s libovolnými znaky.  
-   Robustnější pattern: detekovat `] > ` (konec promptu) místo celého promptu.
+## Open questions
 
-4. **Sdílení `tik4net.cli`**: Jako samostatný NuGet, nebo interní dependency (InternalsVisibleTo)?  
-   Doporučení: samostatný NuGet od začátku — umožňuje jiným projektům reusovat parsing.
+1. **Escape-aware `;` parser**: Is this needed for robust production use? Comments containing
+   semicolons are a real occurrence.
+   Option: parse left to right, track `=`, and skip over quoted values (if RouterOS quotes them).
 
-5. **`ExecuteAsync` emulace**: `CliConnectionBase.ExecuteCliCommandAsync` + semafor je správný základ. `ITikCommand.ExecuteAsync(callback, done, trap)` lze emulovat jako `Task.Run(() => { /* sync exec */; callback(each_re); done(); })` — vrátí se okamžitě, výsledky dorazí přes callback. Cancel není možný (žádný in-flight command). Doporučení: implementovat, ale dokumentovat omezení.
+2. **`add` and the new `.id`**: `:put [/path add ...]` only returns a `.id` if `add` returns a
+   handle.
+   Not every RouterOS entity returns a `.id` from `add` — this needs testing across different
+   entities.
 
-6. **Telnet vs. MACTelnet prompt-detection**: RouterOS Telnet prompt je identický s MACTelnet promptem (`[user@identity] > `). `VtStripper.RemovePromptAndEcho` lze reusovat beze změny — ověřit na živém routeru.
+3. **MACTelnet prompt-detection reliability**: the RouterOS prompt can contain a custom identity
+   with arbitrary characters.
+   A more robust pattern: detect `] > ` (the end of the prompt) rather than the whole prompt.
+
+4. **Sharing `tik4net.cli`**: as a separate NuGet package, or an internal dependency
+   (InternalsVisibleTo)?
+   Recommendation: a separate NuGet package from the start — lets other projects reuse the
+   parsing.
+
+5. **`ExecuteAsync` emulation**: `CliConnectionBase.ExecuteCliCommandAsync` plus the semaphore is
+   the right foundation. `ITikCommand.ExecuteAsync(callback, done, trap)` can be emulated as
+   `Task.Run(() => { /* sync exec */; callback(each_re); done(); })` — it returns immediately, and
+   results arrive via the callback. Cancel is not possible (no in-flight command). Recommendation:
+   implement it, but document the limitation.
+
+6. **Telnet vs. MACTelnet prompt detection**: the RouterOS Telnet prompt is identical to the
+   MACTelnet prompt (`[user@identity] > `). `VtStripper.RemovePromptAndEcho` can be reused
+   unchanged — verify against a live router.

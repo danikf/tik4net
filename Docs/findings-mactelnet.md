@@ -1,246 +1,274 @@
-# findings-mactelnet.md — MAC-Telnet (UDP 20561) produkční implementace
+# findings-mactelnet.md — MAC-Telnet (UDP 20561) production implementation
 
-**Kapitola E** v [implementation-plan.md](implementation-plan.md). Doplňuje protokolovou
-referenci [mactelnet-protocol.md](../mactelnet-protocol.md) a sdílené CLI poznatky
-[findings-cli.md](findings-cli.md) o věci ověřené přímo při produkční integraci do `tik4net`
-(2026-06-04, RouterOS 7.21.4, Hyper-V CHR VM).
+**Chapter E** in [implementation-plan.md](implementation-plan.md). Complements the protocol
+reference [mactelnet-protocol.md](../mactelnet-protocol.md) and the shared CLI findings
+[findings-cli.md](findings-cli.md) with things verified directly during the production integration
+into `tik4net` (2026-06-04, RouterOS 7.21.4, Hyper-V CHR VM).
 
-> **Princip:** MAC-Telnet je **CLI transport** (jako Telnet/SSH), **ne** API protokol. Po EC-SRP5
-> autentizaci proudí přes UDP **raw VT100 terminál** (nešifrovaný). CRUD jede přes `CliConnectionBase`
-> → `:put [/path print … as-value]` a parsování textu, **identicky jako Telnet**. Žádné binární `!re`
-> sentence; `.id` se získává z `as-value` výstupu (CLI), ne z API.
+> **Principle:** MAC-Telnet is a **CLI transport** (like Telnet/SSH), **not** an API protocol. After
+> EC-SRP5 authentication it streams a **raw VT100 terminal** over UDP (unencrypted). CRUD goes through
+> `CliConnectionBase` → `:put [/path print … as-value]` and text parsing, **identically to Telnet**.
+> No binary `!re` sentences; `.id` is obtained from `as-value` output (CLI), not from the API.
 
 ---
 
-## Architektura (kde co je)
+## Architecture (where things live)
 
 ```
 tik4net/MacTelnet/
 ├── MacLayerTransport.cs    public abstract — UDP 22-byte framing, EC-SRP5 auth, ACK/dedup, MNDP
-├── MacTelnetUdpClient.cs   internal sealed — VT100 terminál: login + příkazy (plně synchronní)
+├── MacTelnetUdpClient.cs   internal sealed — VT100 terminal: login + commands (fully synchronous)
 └── MacTelnetConnection.cs  public sealed  — CliConnectionBase wrapper (ITikConnection)
 ```
 
-- `MacTelnetConnection : CliConnectionBase` — `ExecuteCliCommandCoreAsync` deleguje na
-  `MacTelnetUdpClient.SendCommandAndReadAsync`. `RouterMac` property = bypass MNDP (jinak ~5 s discovery).
-- Krypto v `tik4net/Crypto/` (`EcSrp5`, `WinboxStreamCrypto`), VT100/strip v `tik4net/Cli/`
-  (`Vt100State`, `VtStripper`, `RouterOsCliLogin`, `CliOutputHelper`, `CliOutputParser`).
-- `MacLayerTransport` je **public** záměrně — dědí z něj i `WinboxMacClient` (kap. H PoC) v jiném assembly.
+- `MacTelnetConnection : CliConnectionBase` — `ExecuteCliCommandCoreAsync` delegates to
+  `MacTelnetUdpClient.SendCommandAndReadAsync`. The `RouterMac` property bypasses MNDP (otherwise
+  ~5 s of discovery).
+- Crypto lives in `tik4net/Crypto/` (`EcSrp5`, `WinboxStreamCrypto`); VT100/stripping lives in
+  `tik4net/Cli/` (`Vt100State`, `VtStripper`, `RouterOsCliLogin`, `CliOutputHelper`,
+  `CliOutputParser`).
+- `MacLayerTransport` is **public** on purpose — `WinboxMacClient` (chapter H PoC) in another
+  assembly also derives from it.
 
 ---
 
-## 1. ⚠️ ACK counter sémantika = KRITICKÝ root-cause (2026-06-04)
+## 1. ⚠️ ACK counter semantics = CRITICAL root cause (2026-06-04)
 
-**Symptom:** po úspěšné autentizaci (`END_AUTH`, router loguje *"logged in"*) klient 30 s čeká na
-prompt a spadne `TimeoutException: timed out waiting for shell prompt`. V diagnostice se tentýž DATA
-paket (např. `ctr=859`, 100 B) opakuje **tisíckrát** a terminálový výstup je rozsekaný — router
-vkládá `\r\n` přibližně po každých **3 znacích** (`you\r\nr p\r\nass\r\nwor\r\nd …`), takže
-`IsChangePasswordNag`/`IsShellPrompt` nikdy nematchnou.
+**Symptom:** after successful authentication (`END_AUTH`, router logs *"logged in"*), the client
+waits 30 s for the prompt and throws `TimeoutException: timed out waiting for shell prompt`. In
+diagnostics, the same DATA packet (e.g. `ctr=859`, 100 B) repeats **thousands of times** and the
+terminal output is chopped up — the router inserts `\r\n` roughly every **3 characters**
+(`you\r\nr p\r\nass\r\nwor\r\nd …`), so `IsChangePasswordNag`/`IsShellPrompt` never match.
 
-**Příčina:** MAC-Telnet counter je **kumulativní byte-offset streamu**. Po přijetí DATA paketu se ACKuje
-offset **za** paketem, tj. `ACK.counter = pkt.counter + payload.Length` — **ne** `pkt.counter`.
-Původní port ACKoval holý `counter`, takže RouterOS považoval paket za nedoručený a donekonečna ho
-retransmitoval **a** slučoval (coalescing) následné terminálové update do jednoho paketu. To rozhodilo
-**cursor-probe negociaci šířky** (viz §2) → router změřil šířku ~3 → zalomený výstup → rozbitá detekce.
+**Cause:** the MAC-Telnet counter is a **cumulative byte offset into the stream**. After receiving a
+DATA packet, you must ACK the offset **past** the packet, i.e. `ACK.counter = pkt.counter +
+payload.Length` — **not** `pkt.counter`. The original port ACKed the bare `counter`, so RouterOS
+considered the packet undelivered and kept retransmitting it forever, **while also coalescing**
+subsequent terminal updates into a single packet. This threw off the **cursor-probe width
+negotiation** (see §2) → the router measured a width of ~3 → wrapped output → broken detection.
 
-**Důkaz counteru** (živý sniff): `ctr=0(len58) → 58 → 58(len9) → 67 → 67(len24) → 91 → 91(len39) →
-130 → …` Každý další `counter == předchozí counter + předchozí len`. ACK tedy musí potvrzovat
-`counter + len`.
+**Proof of the counter behavior** (live sniff): `ctr=0(len58) → 58 → 58(len9) → 67 → 67(len24) → 91 →
+91(len39) → 130 → …` Each subsequent counter equals the previous counter plus the previous len. The
+ACK must therefore confirm `counter + len`.
 
-**Oprava** (`MacLayerTransport.AckData`):
+**Fix** (`MacLayerTransport.AckData`):
 ```csharp
 protected bool AckData(uint counter, int payloadLen)
 {
-    SendAck(counter + (uint)payloadLen);        // potvrď offset ZA paketem
-    if (counter < _inCounter) return false;     // retransmise → znovu NEzpracovávat
+    SendAck(counter + (uint)payloadLen);        // confirm the offset PAST the packet
+    if (counter < _inCounter) return false;     // retransmission → do NOT reprocess
     _inCounter = counter + (uint)payloadLen;
     return true;
 }
 ```
-- `_inCounter` (kumulativní přijaté byty) se resetuje v `BaseConnect`.
-- **Dedup je povinný**: bez něj se retransmitovaný paket znovu nakrmí do `Vt100State` (rozhodí kurzor)
-  a znovu připojí do output bufferu (duplicitní/poškozené záznamy). Shoda s protokolem:
-  *"klient ignoruje pakety s counter ≤ incounter"* ([mactelnet-protocol.md](../mactelnet-protocol.md)).
-- `AckData` se používá ve **všech** příjmových smyčkách: `Authenticate`/`FinishAuth` (auth handlery),
+- `_inCounter` (cumulative bytes received) is reset in `BaseConnect`.
+- **Deduplication is mandatory**: without it, a retransmitted packet gets fed into `Vt100State` again
+  (throwing off the cursor) and gets appended to the output buffer again (duplicate/corrupted
+  records). This matches the protocol: *"the client ignores packets with counter ≤ incounter"*
+  ([mactelnet-protocol.md](../mactelnet-protocol.md)).
+- `AckData` is used in **all** receive loops: `Authenticate`/`FinishAuth` (auth handlers),
   `WaitForPromptSync`, `ReadCommandResponseSync`, `DrainSync`.
 
-**Ověřeno:** s opravou login spolehlivě uspěje (3/3 běhy), router projde celou cursor-probe negociaci
-a pošle nag/prompt **čistě** (`Change your password (Ctrl-C to skip) … new password>`).
+**Verified:** with the fix, login reliably succeeds (3/3 runs), the router completes the full
+cursor-probe negotiation and sends the nag/prompt **cleanly** (`Change your password (Ctrl-C to
+skip) … new password>`).
 
-> Pozn.: PoC z kap. D „fungoval" i s holým `SendAck(counter)`, protože `/interface print` (sloupcový,
-> krátké řádky) přežil i s retransmisemi — ale delší/časově citlivá terminálová negociace ne.
-> Šlo o latentní bug zděděný z PoC, ne o regresi portace.
+> Note: the chapter D PoC "worked" even with a bare `SendAck(counter)`, because `/interface print`
+> (tabular, short lines) survived even with retransmissions — but the longer, time-sensitive
+> terminal negotiation did not. This was a latent bug inherited from the PoC, not a porting
+> regression.
 
 ---
 
-## 2. VT100 cursor-probe negociace šířky — POVINNÁ + „velmi velká šířka"
+## 2. VT100 cursor-probe width negotiation — MANDATORY + "very large width"
 
-RouterOS po authu **změří terminál** posloupností cursor-move + `ESC[6n` (DSR). Klient musí odpovědět
-skutečnou pozicí kurzoru `ESC[row;colR` (řeší `Vt100State`). Bez odpovědí → router předpokládá 1×1 a
-nevykreslí výstup. Pozorované sondy (živě):
+After auth, RouterOS **measures the terminal** using a sequence of cursor moves plus `ESC[6n` (DSR).
+The client must respond with the actual cursor position `ESC[row;colR` (handled by `Vt100State`).
+Without responses, the router assumes 1×1 and doesn't render output. Observed probes (live):
 
-| Sekvence | Význam | Naše odpověď |
+| Sequence | Meaning | Our response |
 |---|---|---|
 | `ESC Z` | DECID | `ESC[?1;0c` |
-| `ESC[6n` | DSR (dotaz na pozici) | `ESC[{Row};{Col}R` |
-| `ESC[H` … `ESC[9999C` … `ESC[6n` | **měření šířky** (jeď max doprava, kde jsi?) | `ESC[1;{min(Width,10000)}R` |
-| `ESC[9999B`/`ESC[9999A`/`ESC D`/`ESC[r` | měření výšky / scroll region | sledování Row |
-| `ESC[H ě H ESC[6n` | UTF-8 test (vícebajtový znak = 1 sloupec) | `ESC[1;3R` |
+| `ESC[6n` | DSR (position query) | `ESC[{Row};{Col}R` |
+| `ESC[H` … `ESC[9999C` … `ESC[6n` | **width measurement** (go as far right as possible, where are you?) | `ESC[1;{min(Width,10000)}R` |
+| `ESC[9999B`/`ESC[9999A`/`ESC D`/`ESC[r` | height / scroll-region measurement | tracking Row |
+| `ESC[H ě H ESC[6n` | UTF-8 test (multi-byte character = 1 column) | `ESC[1;3R` |
 
-**Klíč:** měřicí sonda je `ESC[9999C` → reportovaný sloupec = `min(Vt100State.Width, ~1+9999)`.
-RouterOS se ptá max ~9999, takže `Width` **musí být ≥ 10000**, jinak si `Vt100State` sám usekne odpověď
-a router změří úzký terminál → dlouhé `as-value` řádky se zalomí a do dat se vloží `\r\n` → rozbije
-parsing. Produkce používá `Vt100State(65535, 25)`. (Telnet má 4096, což stačí jen pro kratší řádky;
-pro MAC-Telnet i obecně je bezpečnější ≥ 10000.) Viz [findings-cli.md](findings-cli.md) §10.5.
+**Key point:** the measuring probe is `ESC[9999C` → the reported column = `min(Vt100State.Width,
+~1+9999)`. RouterOS probes up to ~9999, so `Width` **must be ≥ 10000**, otherwise `Vt100State` itself
+truncates the response and the router measures a narrow terminal → long `as-value` lines get wrapped
+and `\r\n` gets inserted into the data → breaks parsing. Production uses `Vt100State(65535, 25)`.
+(Telnet uses 4096, which is only enough for shorter lines; for MAC-Telnet, and generally, ≥ 10000 is
+safer.) See [findings-cli.md](findings-cli.md) §10.5.
 
-**`CTRL_TERM_WIDTH` v authu** (aktuálně `(ushort)80`, little-endian) RouterOS po cursor-probe
-**ignoruje** — řídí se naměřenou šířkou. Hodnota tedy login neblokuje (ověřeno: i s 80 se po správném
-ACK vykreslí široký banner). Ponecháno na 80.
-
----
-
-## 3. Timing příjmu — nedávat drahou práci do smyčky
-
-Cursor-probe odpovědi jsou **časově citlivé**. Per-paketové logování (`Console.Write` přes
-`TransportDiagnostic` hook s hex + `StripAnsi` rostoucího bufferu + substring) v `WaitForPromptSync`
-zpomalovalo odpovědi a bylo zprvu podezřelé jako příčina. **Skutečná příčina byla ACK (§1)**, ale
-zásada platí: příjmová smyčka musí zůstat bez drahé práce. Verbose diagnostika z hot-loopu odstraněna.
-
-**Ladění bez zásahu do produkce:** místo `Console.Write` v produkčním kódu použít neinvazivní
-**session hook** — debug subclass veřejné `MacLayerTransport` v test projektu
-(`tik4net.tests/Protocols/Tests/MacTelnetDebugTest.cs`) s in-memory hex dumpem. Test assembly vidí
-`internal` typy přes `InternalsVisibleTo("tik4net.tests")`.
+**`CTRL_TERM_WIDTH` in auth** (currently `(ushort)80`, little-endian) is **ignored** by RouterOS after
+the cursor-probe — it goes by the measured width instead. So this value doesn't block login (verified:
+even with 80, the wide banner renders correctly after a proper ACK). Left at 80.
 
 ---
 
-## 4. Login sekvence (`MacTelnetUdpClient.LoginAsync`, vše synchronní v `Task.Run`)
+## 3. Receive-side timing — don't put expensive work in the loop
+
+Cursor-probe responses are **time-sensitive**. Per-packet logging (`Console.Write` via the
+`TransportDiagnostic` hook, with hex + `StripAnsi` of a growing buffer + substring) in
+`WaitForPromptSync` slowed down responses and was initially suspected as the cause. **The real cause
+was the ACK issue (§1)**, but the principle still holds: the receive loop must stay free of expensive
+work. Verbose diagnostics were removed from the hot loop.
+
+**Debugging without touching production code:** instead of `Console.Write` in production code, use a
+non-invasive **session hook** — a debug subclass of the public `MacLayerTransport` in the test project
+(`tik4net.tests/Protocols/Tests/MacTelnetDebugTest.cs`) with an in-memory hex dump. The test assembly
+can see `internal` types via `InternalsVisibleTo("tik4net.tests")`.
+
+---
+
+## 4. Login sequence (`MacTelnetUdpClient.LoginAsync`, all synchronous inside `Task.Run`)
 
 ```
-BaseConnect(host, CLIENT_TYPE=0x0015)   // MNDP/override MAC, SESSIONSTART na subnet broadcast
-Authenticate(user, pass)                // EC-SRP5 (sync), končí END_AUTH
-WaitForPromptSync()                      // odpovídá cursor-probe; Ctrl-C na nag; čeká na "] >"
-DrainSync(250)                           // dojede zbytkový redraw, aby neprosákl do 1. příkazu
+BaseConnect(host, CLIENT_TYPE=0x0015)   // MNDP/MAC override, SESSIONSTART to subnet broadcast
+Authenticate(user, pass)                // EC-SRP5 (sync), ends with END_AUTH
+WaitForPromptSync()                      // responds to cursor-probe; Ctrl-C on nag; waits for "] >"
+DrainSync(250)                           // drains leftover redraw so it doesn't leak into the 1st command
 ```
 
-- **Plně synchronní** (`UdpClient.ReceiveTimeout` + blokující `Receive`, poll 500 ms). Míchání
-  sync/async `Receive` na .NET Framework 4.8 rozbíjelo `SO_RCVTIMEO` → async varianty
-  (`AuthenticateAsync`, `RecvUntilAsync`, `TryReceivePacketAsync`) jsou **nepoužité dead-code** a lze
-  je smazat.
-- **Change-password nag**: router s prázdným/def. heslem zobrazí `new password>` → odpovědět
-  **Ctrl-C (0x03)**, `sb.Clear()`, pokračovat. Detekce `RouterOsCliLogin.IsChangePasswordNag`
-  (substring `password>`). Viz [findings-cli.md](findings-cli.md) §10.6.
+- **Fully synchronous** (`UdpClient.ReceiveTimeout` + blocking `Receive`, 500 ms poll). Mixing
+  sync/async `Receive` on .NET Framework 4.8 broke `SO_RCVTIMEO` → the async variants
+  (`AuthenticateAsync`, `RecvUntilAsync`, `TryReceivePacketAsync`) are **unused dead code** and can be
+  removed.
+- **Change-password nag**: a router with an empty/default password shows `new password>` — respond
+  with **Ctrl-C (0x03)**, `sb.Clear()`, then continue. Detected via
+  `RouterOsCliLogin.IsChangePasswordNag` (substring `password>`). See
+  [findings-cli.md](findings-cli.md) §10.6.
 - **Prompt**: `RouterOsCliLogin.IsShellPrompt` = `TrimEnd().EndsWith("] >")`.
 
-## 5. Vykonání příkazu (`SendCommandAndReadAsync` → `ReadCommandResponseSync`)
+## 5. Executing a command (`SendCommandAndReadAsync` → `ReadCommandResponseSync`)
 
 ```
-cmd = CliOutputHelper.InjectWithoutPaging(command)   // "without-paging" za "print"
+cmd = CliOutputHelper.InjectWithoutPaging(command)   // "without-paging" after "print"
 Send(PKT_DATA, cmd + "\r")
-raw = ReadCommandResponseSync()                       // prompt + 150 ms ticho (settle), jako Telnet
-return CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), cmd)  // ořež echo + koncový prompt
+raw = ReadCommandResponseSync()                       // prompt + 150 ms silence (settle), same as Telnet
+return CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), cmd)  // strip echo + trailing prompt
 ```
-Settle logika je shodná s `TelnetClient.ReadCommandResponseAsync` (prompt na konci + `SettleMs` ticha;
-redraw promptu před výstupem resetuje settle window). Viz [findings-cli.md](findings-cli.md) §10.8.
+The settle logic matches `TelnetClient.ReadCommandResponseAsync` (prompt at the end + `SettleMs` of
+silence; a prompt redraw before the output resets the settle window). See
+[findings-cli.md](findings-cli.md) §10.8.
 
 ---
 
-## 6. ⚠️ Dvojité echo příkazu → `CleanOutput` (root-cause „Missing '.id'")
+## 6. ⚠️ Double command echo → `CleanOutput` (root cause of "Missing '.id'")
 
-**Symptom:** po opraveném loginu `LoadAll<Interface>()` spadne na `TikSentenceException: Missing field
-'.id'` v `CliReSentence`/mapperu. **Pozor — vzniká to ve sdílené CLI output vrstvě, ne v transportu
-ani v mapperu** (mapper i `.id` jsou v CLI legitimní a sdílené s funkčním Telnetem).
+**Symptom:** after the login fix, `LoadAll<Interface>()` throws `TikSentenceException: Missing field
+'.id'` in `CliReSentence`/the mapper. **Note — this arises in the shared CLI output layer, not in the
+transport or the mapper** (the mapper and `.id` are legitimately CLI-based and shared with the
+working Telnet transport).
 
-**Raw výstup je čistý a `.id` OBSAHUJE** (ověřeno dumpem, šířka 65535 funguje):
+**The raw output is clean and DOES contain `.id`** (verified via dump, width 65535 works):
 ```
 :put [/interface print … as-value]\r[admin@MikroTik] > :put [/interface print … as-value]\r\n
 .id=*2;…;name=ether1;…;.id=*1;…;name=lo;…\r\n
 \r\r\r[admin@MikroTik] >
 ```
-MAC-Telnet (raw VT100, řádek zakončen jen `\r`) echuje příkaz **dvakrát**: (1) znakové echo zadaného
-příkazu na vlastním řádku, (2) překreslení line-editoru jako `<prompt> <příkaz>`. Telnet (`\r\n`)
-produkuje jen jedno echo. Původní `CleanOutput` odstraňoval **jen první** echo řádek → zbylá
-`[admin@…] > :put […]` se v `ParseAsValue` (které normalizuje `\r\n` → `;`) slila s prvním `.id=*2`
-záznamem do jednoho „klíče" → první záznam neměl pole `.id` → výjimka.
+MAC-Telnet (raw VT100, lines terminated with just `\r`) echoes the command **twice**: (1) character
+echo of the typed command on its own line, (2) a line-editor redraw as `<prompt> <command>`. Telnet
+(`\r\n`) produces only one echo. The original `CleanOutput` removed **only the first** echo line, so
+the leftover `[admin@…] > :put […]` merged into the first `.id=*2` record inside `ParseAsValue`
+(which normalizes `\r\n` → `;`) — producing one merged "key" — so the first record was missing its
+`.id` field → exception.
 
-**Oprava** (`CliOutputHelper.CleanOutput`): smyčkou odstranit **všechny** úvodní prázdné i echo řádky.
-Řádek je echo/šum, pokud (a) obsahuje prompt `] >` (prompt-prefixed překreslení / zbytkový prompt),
-nebo (b) je fragmentem odeslaného příkazu (`cmdCore.Contains(line)` / `cmdCore.StartsWith(line)`).
-Bod (b) řeší i **víceřádkové příkazy** — `/system/script/add` s `source` obsahujícím `\n` se echuje
-přes víc řádků; bez toho zbylý fragment splynul s 1. záznamem / byl mylně vrácen jako id přidaného
-záznamu (`RunAdd`). Datový řádek (`.id=…`, holé `*N`, error) žádné z kritérií nesplňuje → smyčka se
-na něm zastaví. Bezpečné napříč transporty (Telnet beze změny).
+**Fix** (`CliOutputHelper.CleanOutput`): loop and remove **all** leading blank/echo lines. A line
+counts as echo/noise if (a) it contains the prompt `] >` (prompt-prefixed redraw / leftover prompt),
+or (b) it is a fragment of the sent command (`cmdCore.Contains(line)` / `cmdCore.StartsWith(line)`).
+Point (b) also handles **multi-line commands** — `/system/script/add` with a `source` containing `\n`
+gets echoed across multiple lines; without this fix, the leftover fragment merged into the first
+record / was mistakenly returned as the id of the added record (`RunAdd`). A data line (`.id=…`, a
+bare `*N`, or an error) meets none of these criteria → the loop stops there. Safe across transports
+(no change for Telnet).
 
-## 7. Stav (2026-06-04) — ✅ HOTOVO
+## 7. Status (2026-06-04) — ✅ DONE
 
-| Položka | Stav |
+| Item | Status |
 |---|---|
-| Transport / framing (22 B, big-endian session_key/client_type) | ✅ (kap. D) |
+| Transport / framing (22 B, big-endian session_key/client_type) | ✅ (chapter D) |
 | EC-SRP5 auth (`END_AUTH`) | ✅ |
-| **ACK counter + dedup (§1)** | ✅ opraveno + ověřeno |
-| Cursor-probe šířka ≥ 10000 (§2) | ✅ `Vt100State(65535,25)` |
-| Detekce nag/promptu, Ctrl-C | ✅ |
-| **Dvojité echo → `CleanOutput` (§6)** | ✅ opraveno (sdílené s Telnetem, bezpečné) |
+| **ACK counter + dedup (§1)** | ✅ fixed + verified |
+| Cursor-probe width ≥ 10000 (§2) | ✅ `Vt100State(65535,25)` |
+| Nag/prompt detection, Ctrl-C | ✅ |
+| **Double echo → `CleanOutput` (§6)** | ✅ fixed (shared with Telnet, safe) |
 | `MacTelnet_Login_ListInterfaces_ReturnsAtLeastOne` | ✅ **PASS** |
 | `MacTelnet_SetAndVerify_InterfaceEther1Comment` | ✅ **PASS** |
 
-**Úklid:** odstraněn verbose `TransportDiagnostic` z hot-loopu, nepoužité pole `_diagnostic` i nepoužité
-async varianty (`AuthenticateAsync`, `RecvUntilAsync`, `TryReceivePacketAsync`) — MacTelnetUdpClient je
-plně synchronní. Ladění probíhalo neinvazivně přes dočasný debug subclass `MacLayerTransport` v test
-projektu (smazán po dokončení).
+**Cleanup:** removed the verbose `TransportDiagnostic` from the hot loop, the unused `_diagnostic`
+field, and the unused async variants (`AuthenticateAsync`, `RecvUntilAsync`,
+`TryReceivePacketAsync`) — `MacTelnetUdpClient` is now fully synchronous. Debugging was done
+non-invasively via a temporary debug subclass of `MacLayerTransport` in the test project (deleted
+after completion).
 
 ---
 
-## 8. Login timeout (`ConnectTimeout`) + chování pod zátěží
+## 8. Login timeout (`ConnectTimeout`) + behavior under load
 
-Login (`WaitForPromptSync`) má vlastní timeout `MacTelnetConnection.ConnectTimeout` (default **15 000 ms**),
-**oddělený** od per-command `ReceiveTimeout` (30 000 ms). Důvod: pod zátěží (stovky rychle po sobě
-jdoucích MAC-Telnet sezení v plné test-sadě) občas jedno přihlášení nedoběhne k promptu. Když by login
-blokoval celých 30 s (`ReceiveTimeout`), connect-retry smyčka volajícího (TestBase: 1 s × 20 s okno) by
-nestihla druhý pokus. Kratší login timeout (15 s) → retry reálně proběhne a flaky sezení se zotaví.
+Login (`WaitForPromptSync`) has its own timeout, `MacTelnetConnection.ConnectTimeout` (default
+**15,000 ms**), **separate** from the per-command `ReceiveTimeout` (30,000 ms). Reason: under load
+(hundreds of MAC-Telnet sessions in quick succession during the full test suite), occasionally one
+login fails to reach the prompt. If login could block for the full 30 s (`ReceiveTimeout`), the
+caller's connect-retry loop (TestBase: 1 s × 20 s window) wouldn't have time for a second attempt. A
+shorter login timeout (15 s) means the retry actually happens and a flaky session recovers.
 
-`TikConnectionSetup.ConnectTimeout` (TimeSpan, default 15 s) se propisuje do
-`MacTelnetConnection.ConnectTimeout` v `CreateMacTelnetConnection[Async]`. Lze nastavit i přímo:
-`new MacTelnetConnection { ConnectTimeout = 10000 }`.
+`TikConnectionSetup.ConnectTimeout` (TimeSpan, default 15 s) propagates to
+`MacTelnetConnection.ConnectTimeout` in `CreateMacTelnetConnection[Async]`. It can also be set
+directly: `new MacTelnetConnection { ConnectTimeout = 10000 }`.
 
-## 9. Předpoklady na routeru
+## 9. Router-side prerequisites
 
-- `/tool mac-server set allowed-interface-list=all` (nebo povolený interface) — jinak MAC-Telnet neodpoví.
-- MNDP (UDP 5678) zapnuté, pokud se nepoužije `RouterMac` override.
-- Hyper-V: SESSIONSTART na **subnet broadcast** (`192.168.x.255`), ne `255.255.255.255`; DATA/ACK na
-  **unicast** IP routeru; preferovat NIC na stejné podsíti. (kap. D)
+- `/tool mac-server set allowed-interface-list=all` (or an allowed interface) — otherwise MAC-Telnet
+  won't respond.
+- MNDP (UDP 5678) enabled, unless the `RouterMac` override is used.
+- Hyper-V: SESSIONSTART goes to the **subnet broadcast** (`192.168.x.255`), not
+  `255.255.255.255`; DATA/ACK go to the router's **unicast** IP; prefer a NIC on the same subnet.
+  (chapter D)
 
-## 10. Retransmise: jeden slot nestačí, jakmile je víc requestů v letu (2026-07-30, P2.42)
+## 10. Retransmission: one slot isn't enough once multiple requests are in flight (2026-07-30, P2.42)
 
-**Kontext:** P2.19 přidala odesílací spolehlivost — držíme poslední odeslaný DATA paket a když ho router
-nepotvrdí, pošleme ho znovu byte-identicky. To bylo správně, dokud byl každý volající lockstep: v letu byl
-vždy nejvýš jeden paket, takže jeden slot (`_lastDataPacket`) pokryl všechno.
+**Context:** P2.19 added send-side reliability — we hold the last sent DATA packet and resend it
+byte-identically if the router doesn't ACK it. That was correct as long as every caller was
+lockstep: at most one packet was ever in flight, so a single slot (`_lastDataPacket`) covered
+everything.
 
-**Co se rozbije při multiplexování** (`WinboxNativeMac`, viz [winbox-m2-multiplexing-design.md](winbox-m2-multiplexing-design.md) §4.5):
-counter je **kumulativní byte-offset** (§1), takže potvrzení je kumulativní taky. Pošleme A (offset 0–99)
-a B (100–199), A se ztratí:
+**What breaks under multiplexing** (`WinboxNativeMac`, see
+[winbox-m2-multiplexing-design.md](winbox-m2-multiplexing-design.md) §4.5): the counter is a
+**cumulative byte offset** (§1), so acknowledgment is cumulative too. We send A (offset 0–99) and B
+(100–199); A gets lost:
 
-- router dostane B, ale nemůže potvrdit **nic** — ve streamu je díra, jeho ACK zůstane na 0,
-- paket, který musí jít znovu, je **A**,
-- jenže jediný slot už mezitím přepsalo B.
+- the router receives B, but can't ACK **anything** — there's a hole in the stream, so its ACK stays
+  at 0,
+- the packet that needs to be resent is **A**,
+- but the single slot has already been overwritten by B.
 
-Výsledek není pomalý round trip, ale **trvalé zaseknutí session**: my čekáme na odpověď, router čeká na
-bajty, které nikdy nedorazí, a retransmit posílá pořád B, které už dávno má.
+The result isn't a slow round trip but a **permanently stuck session**: we wait for a response, the
+router waits for bytes that will never arrive, and the retransmit keeps resending B, which it
+already has.
 
-**Oprava:** fronta nepotvrzených paketů místo slotu.
+**Fix:** a queue of unacknowledged packets instead of a single slot.
 
-- `SendCore` **přidává** na konec (nikdy nepřepisuje cizí nepotvrzený paket),
-- `NoteAck(counter)` zahodí všechno s `End <= counter` (jeden ACK může retirovat víc paketů) a resetuje
-  rozpočet retransmisí — ten patří paketu na hlavě fronty, a ta se právě změnila,
-- `RetransmitIfUnacked` posílá **nejstarší** nepotvrzený, protože při kumulativním ACK je díra vždy na
-  začátku fronty; při jednom requestu v letu je to tentýž paket jako dřív, takže chování beze změny,
-- `NoteAck` běží pod `SendGate` — volá se z příjmové strany, což je u multiplexovaného kanálu jiné vlákno
-  než to odesílající. Předtím se překrýt nemohly a zámek tam nebyl potřeba.
-- Fronta je omezená (`MaxUnackedTracked = 256`), aby volající píšící do mrtvé session nerostl bez limitu.
+- `SendCore` **appends** to the end (never overwrites another unacknowledged packet),
+- `NoteAck(counter)` discards everything with `End <= counter` (one ACK can retire multiple packets)
+  and resets the retransmit budget — that budget belongs to the packet at the head of the queue, and
+  the head has just changed,
+- `RetransmitIfUnacked` resends the **oldest** unacknowledged packet, because with cumulative ACKs the
+  hole is always at the front of the queue; with a single request in flight this is the same packet as
+  before, so behavior is unchanged for that case,
+- `NoteAck` runs under `SendGate` — it's called from the receive side, which for a multiplexed channel
+  is a different thread than the sending side. Previously these couldn't overlap, so no lock was
+  needed there.
+- The queue is bounded (`MaxUnackedTracked = 256`), so a caller writing into a dead session doesn't
+  grow it without limit.
 
-**Pozn. k write-side zámku:** design §4.5 čekal, že hlavní překážkou multiplexování bude posílání ACK/PONG
-z příjmové cesty. Nebyla — všechny zápisy (`Send`, `SendAck`, `SendPong`, `RetransmitIfUnacked`) šly přes
-`SendGate` už kvůli MAC-Telnet pumpě. Skutečná překážka byla o patro níž, právě ta retransmitní fronta.
+**Note on the write-side lock:** the §4.5 design expected the main obstacle to multiplexing to be
+sending ACK/PONG from the receive path. It wasn't — all writes (`Send`, `SendAck`, `SendPong`,
+`RetransmitIfUnacked`) already went through `SendGate` because of the MAC-Telnet pump. The real
+obstacle was one layer down, in the retransmission queue itself.
 
-**Testy:** `tik4net.unittests/MacTelnet/MacLayerRetransmitTests.cs` — loopback UDP, bez routeru. Živě se
-tyhle případy nedají vyrobit (laboratorní router nezahazuje pakety na povel), takže díra ve streamu,
-částečný ACK, vyčerpaný rozpočet a souběžný send/ACK jsou pokryté jen tady.
+**Tests:** `tik4net.unittests/MacTelnet/MacLayerRetransmitTests.cs` — loopback UDP, no router
+required. These scenarios can't be reproduced live (the lab router doesn't drop packets on demand),
+so the stream hole, partial ACK, exhausted budget, and concurrent send/ACK cases are covered only
+here.
