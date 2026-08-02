@@ -90,6 +90,12 @@ namespace tik4net.WinboxCli
 
                 WaitForPromptSync();
                 DrainSync(250);
+
+                // From here the terminal is idle between commands, and a RouterOS terminal is written to
+                // unprompted. On a carrier that expects each write to be acknowledged, leaving it unread is
+                // what kills the session (P2.55) — so hand the channel the job of servicing itself. TCP has
+                // nothing to do here.
+                _session.StartIdleServicing();
             }, ct);
         }
 

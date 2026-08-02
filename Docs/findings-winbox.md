@@ -545,7 +545,7 @@ Bez toho vyšlo měření odstupu od poslední přijaté zprávy o dva řády ve
 | náš vlastní flood | **následek, ne příčina** — před wedgem se za nepotvrzenou hlavou nakupí ~24 paketů / 2,4 kB, protože pull loop střílí 8×/s bez ohledu na cokoli. Začíná to ale **až po** příkazu, který zůstal bez odpovědi. |
 | zavření sourozenecké session | **ne** — `Probe_SiblingSessionTeardown`, 20 cyklů (WinBox-MAC, MAC-Telnet, API sourozenec), nula wedge. Byl to hlavní podezřelý. |
 | objem provozu / hranice v bajtovém streamu | **ne** — `Probe_LongLivedSession` ušel na jedné session 400 příkazů a 101 099 odchozích bajtů bez zadrhnutí, tedy za dvěma ze tří offsetů, kde v suitě umírá. |
-| idle logout (jako u MAC-Telnetu) | **ne** — per-session trace ukazuje, že session přijímá pakety až do okamžiku startu testu. Žije a umírá až na **prvním příkazu** toho testu. |
+| idle logout (jako u MAC-Telnetu) | ~~**ne** — per-session trace ukazuje, že session přijímá pakety až do okamžiku startu testu. Žije a umírá až na **prvním příkazu** toho testu.~~ **Tenhle řádek byl špatně, viz §18.** Časové razítko v trace říká, kdy jsme socket *vybrali*, ne kdy paket přišel — neobsluhovaná session proto nevykazuje žádnou mezeru, protože se celý její backlog vysype naráz na dalším čtení. |
 | echo logu routeru do terminálu (rodina P2.47) | **ne** — v celém běhu je jediné takové echo, pokrylo by nanejvýš jeden ze tří. |
 | ten konkrétní příkaz | **ne** — všechny tři v izolaci projdou za 3 s bez zahození. |
 
@@ -573,11 +573,12 @@ takže to není systematické zdvojení; stojí za to zjistit, co ty páry zakl�
 
 Rollback dopadá pokaždé po ~2,15 s, nezávisle na tom, kdo drží druhou session.
 
-> ⚠️ Zde stálo „je to vlastnost MAC nosiče, ne CLI enginu". **Špatně** — a bylo to publikované, než jsem
-> to doměřil. `MacTelnet` jede po tomtéž portu s týmž 22bajtovým rámcováním a nic se mu nestane; po TCP je
-> taky klid. Není to tedy ani nosič, ani WinBox vrstva, ale **výhradně jejich kombinace**, tj. služba
-> `mac-winbox` na routeru. Poučení stejné jako u toho async rollbacku: obě poloviny hypotézy je potřeba
-> změřit, ne jednu odvodit z druhé.
+> ⚠️ Zde stálo nejdřív „je to vlastnost MAC nosiče, ne CLI enginu" (odvozeno z jediného TCP kontrastu,
+> `MacTelnet` doměřen až potom — přežije), pak „je to tedy výhradně jejich kombinace, tj. služba
+> `mac-winbox` na routeru". **Obojí špatně, a to druhé stejně zbrkle jako to první:** vyloučit dvě vrstvy
+> neznamená, že viník je na routeru. Rozdíl mezi `MacTelnet` a `WinboxCliMac` nebyl v tom, co dělá router,
+> ale v tom, co děláme **my** — `MacTelnetUdpClient` má od začátku receive pump, WinBox-over-MAC ho neměl.
+> Viz §18; s pumpou je reprodukce 0/2. Poučení: „ani A, ani B" je stále jen o A a B a neříká nic o C.
 
 > ⚠️ **Rollback je asynchronní**, a to je celý ten trik. RouterOS drží vlastníka Safe Mode i po zániku
 > spojení, až do connection-tracking timeoutu, takže rollback dopadne **~2 s poté** — proto ostatně
@@ -602,7 +603,7 @@ zotavení. Měřený dopad: plný běh 3 → 2 zahozené session, reprodukce z 1
 
 **Kde to stojí:** zbývají dva wedge (`Create_IpAddress_With_LowLevel_API`, `ListRadiusServersWillNotFail`),
 oba bez Safe Mode, router o nich neví. Nová je ale třída mechanismu, kterou jde zkoušet: co dalšího dělá
-RouterOS asynchronně a co dosáhne až na `mac-winbox` session.
+RouterOS asynchronně a co dosáhne až na tu session. → **vyřešeno v §18.**
 
 **Vedlejší nález, který stojí za opravu bez ohledu na wedge:** nemáme žádné **odesílací okno**. Když
 hlava fronty není potvrzená, pull loop na ni dál přisypává 8 paketů/s, takže do díry ve streamu
@@ -611,3 +612,61 @@ hlavu — ale nic nebrání zbytku růst.
 
 **Poučení:** vyloučená hypotéza je taky výsledek, když je zapsaná i s tím, čím byla vyvrácena. Pět z těch
 šesti znělo věrohodně a čtyři z nich už jednou v poznámkách figurovaly jako pravděpodobná příčina.
+
+## 18. Nikdo neobsluhoval socket mezi příkazy (P2.55 dokončení, 2026-08-02)
+
+Zbylé dva wedge z §17 mají jednu společnou vlastnost, které si tři traceované běhy nevšimly, protože se
+na ni nikdo nezeptal: **předchází jim jediná delší nečinnost na té session v celém běhu.**
+
+| session | idle před příkazem | výsledek |
+|---|---|---|
+| `1eba` | **19,7 s** | wedge (`Create_IpAddress_With_LowLevel_API`) |
+| `ff1c` | **56,1 s** | wedge (`ListRadiusServersWillNotFail`) |
+| `ef45` | 3,6 s | v pořádku |
+
+To jsou všechny mezery ≥ 3 s v celém 340testovém běhu. Dvě mezery, dva wedge.
+
+**Proč to §17 vyloučil.** Tvrzením „session přijímá pakety až do startu testu, odstup 0,0 s" — jenže
+časové razítko v trace je okamžik, kdy jsme socket **vybrali**, ne kdy paket dorazil. Session, kterou
+dvacet vteřin nikdo nečte, proto v trace nemá žádnou mezeru: celý backlog se vysype naráz na dalším
+čtení. V trace to jde vidět doslova — v okamžiku startu oběti přiletí naráz **desetkrát tentýž
+`counter=37405`**, tedy router celou tu dobu retransmitoval jeden nepotvrzený paket.
+
+**Příčina.** RouterOS terminál není request/reply: router do něj píše sám od sebe (událost v logu, Safe
+Mode rollback) a na MAC vrstvě musí být každý takový zápis potvrzený, jinak ho router retransmituje a
+nakonec session přestane obsluhovat. `WinboxCliClient` se ale channelu dotkne **jen když běží příkaz** —
+mezi dvěma příkazy socket nikdo nevybírá.
+
+Bylo to přitom v repu napsané. `MacTelnetUdpClient` má tuhle větu v komentáři třídy od svého vzniku
+(„drops the session when that output is left unacknowledged") a proto má **receive pump**. WinBox nad
+MAC ho neměl. Odtud i vysvětlení rozdílu, který §17 přisoudil routeru: `MacTelnet` přežije Safe Mode
+rollback, protože ho jeho pump potvrdí; `WinboxCliMac` ne, protože o něm nikdo neví. Rozdíl byl u nás.
+`WinboxNativeMac` netrpí ze stejného důvodu — jede přes `ReceiveNextFrame` reader loop, který socket
+obsluhuje pořád.
+
+**Oprava:** `IWinboxM2Channel.StartIdleServicing()`, volaná jednou po loginu. TCP nedělá nic (bajtový
+stream potvrzuje kernel), MAC rozjede vlákno, které každých 200 ms vezme `_rxGate` přes `TryEnter(0)` a
+vybere, co na socketu je. Čtení drží stejný zámek po celou dobu skládání rámce, takže pump nemůže vzít
+paket z jeho prostředku. Pump **jen potvrzuje a odpovídá na PING, nikdy nemluví sám od sebe** — čtyři
+způsoby, jak si idle provoz vymyslet, jsou u MAC-Telnetu změřené a všechny čtyři život session zkrátily.
+
+**Změřeno:**
+
+| | před | po |
+|---|---|---|
+| Safe Mode rollback na sourozenci (`WinboxCliMac`) | wedge 5/5, ~4,3 s | **0/2, ~0,34 s** |
+| zahozené session za plný běh | 3 → 2 (§17) | **1** |
+| idle 20 s → příkaz | ok | ok |
+| idle 30 s / 45 s → příkaz | wedge | **wedge** (viz níže) |
+
+Zbylý wedge v plném běhu je ten s 35,9 s idle a je to **jiný mechanismus**: router odhlásí nečinnou MAC
+konzoli po ~30 s a říká to o sobě sám. Idle ladder to potvrzuje symetricky — `MacTelnet`, který pump má
+od začátku, wedguje na 30 s úplně stejně. Tohle se z klienta zalepit nedá a nemá; řeší to reopen+retry
+z P2.54. Dvě různé příčiny, dvě různá řešení:
+
+* **nepotvrzený zápis routeru** → naše chyba, opraveno pumpou
+* **~30 s idle logout** → routerova smlouva, řeší se znovupřipojením
+
+**Poučení:** „změřeno, nepotvrzeno" a „nezměřeno" vypadají v tabulce hypotéz stejně a nejsou totéž. Ten
+řádek o idle logoutu byl vyvrácen údajem, který měřil něco jiného, než jsem si myslel — a tak tam devět
+hodin stál jako vyřízený.

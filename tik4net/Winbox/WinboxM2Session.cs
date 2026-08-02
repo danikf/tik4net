@@ -51,6 +51,10 @@ namespace tik4net.Winbox
         // already reported louder.
         public bool SendAbandoned => false;
 
+        // Nothing to do: TCP acknowledges the byte stream in the kernel, so router-initiated console output
+        // is acknowledged whether or not anyone is reading. It simply waits in the receive buffer.
+        public void StartIdleServicing() { }
+
         // ── Connect + authenticate ────────────────────────────────────────────
 
         /// <inheritdoc/>

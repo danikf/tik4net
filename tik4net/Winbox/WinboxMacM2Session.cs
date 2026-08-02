@@ -32,6 +32,13 @@ namespace tik4net.Winbox
         // Buffer of received DATA payload bytes not yet consumed into a complete chunked frame.
         private readonly List<byte> _rxBuf = new List<byte>();
 
+        /// <summary>
+        /// Serialises everything that <em>receives</em>: the reassembly buffer, the pending frame, and the
+        /// ACK/PONG bookkeeping that receiving performs. Until the idle pump (<see cref="StartIdleServicing"/>)
+        /// there was only ever one reader and none of it needed guarding.
+        /// </summary>
+        private readonly object _rxGate = new object();
+
         internal WinboxMacM2Session(string routerMac)
         {
             RouterMacOverride = routerMac;
@@ -63,24 +70,34 @@ namespace tik4net.Winbox
             get
             {
                 if (_udp == null) return false;
-                if (_pendingFrame != null) return true;
-
-                // Consume everything already buffered — the handler never stops the drain early, so one
-                // poll cannot leave a second frame behind to be found only on the next one.
-                RecvAvailable((type, payload, counter) =>
+                lock (_rxGate)
                 {
-                    if (type == PKT_ACK)  { NoteAck(counter); return false; }
-                    if (type == PKT_PING) { SendPong(counter); return false; }
-                    if (type != PKT_DATA) return false;
-                    if (!AckData(counter, payload.Length)) return false;  // duplicate retransmit
-                    if (IsControlPacket(payload)) return false;
-                    _rxBuf.AddRange(payload);
-                    return false;
-                });
-
-                _pendingFrame = TryExtractFrame();
-                return _pendingFrame != null;
+                    if (_pendingFrame != null) return true;
+                    DrainSocket();
+                    _pendingFrame = TryExtractFrame();
+                    return _pendingFrame != null;
+                }
             }
+        }
+
+        /// <summary>
+        /// Consumes everything the socket already holds: ACKs are noted, PINGs ponged, duplicates re-ACKed
+        /// and real payload buffered for reassembly. The handler never stops the drain early, so one pass
+        /// cannot leave a second frame behind to be found only on the next one.
+        /// </summary>
+        /// <remarks>Caller holds <see cref="_rxGate"/>.</remarks>
+        private void DrainSocket()
+        {
+            RecvAvailable((type, payload, counter) =>
+            {
+                if (type == PKT_ACK)  { NoteAck(counter); return false; }
+                if (type == PKT_PING) { SendPong(counter); return false; }
+                if (type != PKT_DATA) return false;
+                if (!AckData(counter, payload.Length)) return false;  // duplicate retransmit
+                if (IsControlPacket(payload)) return false;
+                _rxBuf.AddRange(payload);
+                return false;
+            });
         }
 
         // Set by DataAvailable when its drain completes a frame, handed straight out by the next RecvFrame.
@@ -238,8 +255,11 @@ namespace tik4net.Winbox
             // (SupportsStaleDrain is false for that reason).
             if (!_readerLoopHandover)
             {
-                _rxBuf.Clear();
-                _pendingFrame = null;
+                lock (_rxGate)
+                {
+                    _rxBuf.Clear();
+                    _pendingFrame = null;
+                }
                 _readerLoopHandover = true;
             }
 
@@ -261,6 +281,74 @@ namespace tik4net.Winbox
                 catch { /* not a clean M2 frame — drop it and keep reading, as Receive does */ }
             }
             return null;
+        }
+
+        // ── Idle servicing ────────────────────────────────────────────────────
+
+        // How often the pump looks at the socket while nothing else is. The router retransmits an
+        // unacknowledged packet roughly every second, so this is comfortably inside its patience while
+        // costing one non-blocking syscall per tick.
+        private const int IdlePumpIntervalMs = 200;
+
+        private Thread _idlePump;
+        private volatile bool _idlePumpStop;
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// The terminal consumer (<c>WinboxCliClient</c>) touches this channel only while a command is in
+        /// flight. Between two commands nobody receives, so anything RouterOS writes to the console on its
+        /// own initiative goes unacknowledged, the router retransmits it, and when it runs out of patience it
+        /// stops serving the session altogether — silently, with nothing in <c>/log</c>.
+        /// <para>Measured in a suite run (P2.55): the only two idle stretches on a live session in a whole
+        /// 340-test run, 19.7 s and 56.1 s, were the only two sessions that died. The mechanism was already
+        /// written down for the sibling transport — see the class remarks on <c>MacTelnetUdpClient</c> —
+        /// where the pump has existed from the start for exactly this reason.</para>
+        /// <para>What it does is narrow on purpose: it acknowledges what arrives and answers PINGs, and it
+        /// never sends anything unprompted. It is not a keepalive and cannot become one — that was measured
+        /// four different ways on a MAC console and every one of them shortened the session's life. Nor does
+        /// it extend the router's ~30 s idle window; past that the session is gone, and the reopen-and-retry
+        /// path handles it.</para>
+        /// </remarks>
+        public void StartIdleServicing()
+        {
+            if (_idlePump != null) return;
+            _idlePumpStop = false;
+            _idlePump = new Thread(IdlePumpLoop)
+            {
+                IsBackground = true,
+                Name = "tik4net WinBox-MAC idle ACK pump",
+            };
+            _idlePump.Start();
+        }
+
+        private void IdlePumpLoop()
+        {
+            while (!_idlePumpStop && !_closed)
+            {
+                Thread.Sleep(IdlePumpIntervalMs);
+                if (_idlePumpStop || _closed) return;
+
+                // TryEnter, never a blocking wait: a reader holding the gate is already servicing the socket,
+                // and queueing behind it would only park this thread inside a 30 s command read.
+                if (!Monitor.TryEnter(_rxGate)) continue;
+                try
+                {
+                    if (_udp != null && !_closed) DrainSocket();
+                }
+                catch (ObjectDisposedException) { return; }   // socket closed under us — normal shutdown
+                catch (System.Net.Sockets.SocketException) { return; }
+                catch { /* a malformed packet must not take the pump down with it */ }
+                finally { Monitor.Exit(_rxGate); }
+            }
+        }
+
+        private void StopIdlePump()
+        {
+            var pump = _idlePump;
+            if (pump == null) return;
+            _idlePumpStop = true;
+            _idlePump = null;
+            try { pump.Join(IdlePumpIntervalMs * 5); } catch { }
         }
 
         // WinBox over MAC uses the SAME chunked framing as TCP ([chunkLen][tag][data]…), carried inside
@@ -289,25 +377,32 @@ namespace tik4net.Winbox
         // reading further DATA packets as needed. Returns the concatenated chunk data, or null on timeout.
         private byte[] RecvFrame(int timeoutMs)
         {
-            if (_pendingFrame != null)
+            // Held for the whole read, not per packet: a frame is reassembled across several DATA packets,
+            // and letting the idle pump take a packet out of the middle of one would lose the boundary. The
+            // pump asks with TryEnter and simply skips while this is held — a read is servicing the socket
+            // anyway, which is the only thing the pump exists to guarantee.
+            lock (_rxGate)
             {
-                byte[] ready = _pendingFrame;
-                _pendingFrame = null;
-                return ready;
-            }
+                if (_pendingFrame != null)
+                {
+                    byte[] ready = _pendingFrame;
+                    _pendingFrame = null;
+                    return ready;
+                }
 
-            byte[] frame = TryExtractFrame();
-            var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
-            while (frame == null)
-            {
-                int remaining = (int)(deadline - DateTime.UtcNow).TotalMilliseconds;
-                if (remaining <= 0) return null;
-                byte[] data = RecvDataPayload(remaining);
-                if (data == null) return null;
-                _rxBuf.AddRange(data);
-                frame = TryExtractFrame();
+                byte[] frame = TryExtractFrame();
+                var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+                while (frame == null)
+                {
+                    int remaining = (int)(deadline - DateTime.UtcNow).TotalMilliseconds;
+                    if (remaining <= 0) return null;
+                    byte[] data = RecvDataPayload(remaining);
+                    if (data == null) return null;
+                    _rxBuf.AddRange(data);
+                    frame = TryExtractFrame();
+                }
+                return frame;
             }
-            return frame;
         }
 
         // Tries to pull one complete frame out of _rxBuf. Returns null (and leaves the buffer intact) if
@@ -375,6 +470,7 @@ namespace tik4net.Winbox
         protected override void OnDisposing()
         {
             _closed = true;   // stops the reader loop before the socket it polls is disposed
+            StopIdlePump();   // and the idle pump, for the same reason
             try { Send(PKT_END, null); } catch { /* ignore — see remarks */ }
         }
     }

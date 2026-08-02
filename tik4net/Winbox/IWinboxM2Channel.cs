@@ -100,5 +100,24 @@ namespace tik4net.Winbox
         /// <see cref="SupportsReaderLoop"/> is <c>false</c>.
         /// </exception>
         byte[] ReceiveNextFrame();
+
+        /// <summary>
+        /// Asks the channel to keep servicing its inbound side <b>between</b> commands, for consumers that
+        /// otherwise only touch it while a command is in flight (the terminal loops in
+        /// <c>WinboxCliClient</c>). Called once, after login. A channel that needs nothing does nothing.
+        /// </summary>
+        /// <remarks>
+        /// A RouterOS terminal is not request/reply: the router writes to it unprompted (a logged event, a
+        /// Safe Mode rollback), and on the MAC layer every such write has to be acknowledged or the router
+        /// retransmits it and eventually drops the session — which is why <c>MacTelnetUdpClient</c> has run a
+        /// receive pump since it was written. The WinBox-over-MAC channel did not, and paid for it in
+        /// sessions that died during a quiet stretch between two tests (P2.55). TCP needs none of this: the
+        /// kernel acknowledges the byte stream whether or not anyone reads it.
+        /// <para><b>Acknowledging is not a keepalive</b>, and must not become one. Nothing here may speak
+        /// unprompted: four ways of inventing idle traffic were measured against a MAC console and all four
+        /// shortened its life — see the note in <c>MacTelnetUdpClient</c>. A session left idle past the
+        /// router's own ~30 s window is gone regardless, and that is handled by reconnecting.</para>
+        /// </remarks>
+        void StartIdleServicing();
     }
 }

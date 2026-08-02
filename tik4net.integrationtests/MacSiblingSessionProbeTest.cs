@@ -5,22 +5,31 @@
 // the SAME three tests every time (Create_IpAddress_With_LowLevel_API, ListRadiusServersWillNotFail,
 // SearchByName_Interface_WillWork). It is deterministic, not a background rate the retry now hides.
 //
-// ── ROOT CAUSE of one of the three, 2026-08-02 on RouterOS 7.23.2 ──────────────────────────────────
+// ── ROOT CAUSE, 2026-08-02 on RouterOS 7.23.2 ─────────────────────────────────────────────────────
 //
-// A Safe Mode ROLLBACK triggered by another connection kills a concurrent WinBox-CLI-MAC console.
-// Probe_SafeModeRollbackOnASibling reproduces it 3 times out of 3:
+// NOBODY SERVICED THE SOCKET BETWEEN COMMANDS. A RouterOS terminal is not request/reply - the router
+// writes to it unprompted - and on the MAC layer every such write must be acknowledged or the router
+// retransmits it and eventually stops serving the session. WinboxCliClient touches the channel only
+// while a command is in flight, so a quiet stretch left the router talking to nobody. Fixed by
+// IWinboxM2Channel.StartIdleServicing(); see Docs/findings-winbox.md §18.
 //
-//     held WinboxCliMac  MAC/UDP 20561 + WinBox M2   -> ~4.3 s   WEDGED, 5 of 5
-//     held MacTelnet     MAC/UDP 20561 + plain telnet -> ~0.15 s  fine,   0 of 2
-//     held WinboxCli     TCP 8291      + WinBox M2    -> ~0.37 s  fine,   0 of 2
+// That single mechanism covers all three wedges, which is why this header used to describe them as
+// unrelated:
 //
-// It is that transport SPECIFICALLY, not a property of either layer it is built from - which is worth
-// stating because "so it is the MAC carrier" was written here first, on the TCP result alone, and is
-// wrong: MAC-Telnet rides the same port with the same 22-byte framing and survives. Both halves of a
-// hypothesis have to be measured, not one inferred from the other. The router-side suspect is therefore
-// the mac-winbox service. In suite terms: ListRoutingTablesWillNotFail establishes the shared session,
-// SafeMode_DisconnectWithoutRelease_RollsBack takes Safe Mode on its OWN connection and closes without
-// releasing, and SearchByName_Interface_WillWork is the next thing to touch the shared session.
+//   * a Safe Mode ROLLBACK on another connection is one such unprompted write. Probe_SafeMode-
+//     RollbackOnASibling reproduced it 5 of 5 at ~4.3 s; with the pump, 0 of 2 at ~0.34 s.
+//   * the other two simply sat idle - 19.7 s and 56.1 s, the only two idle stretches in a whole run.
+//
+// Two attributions were published from this file before being measured, both wrong: "so it is the MAC
+// carrier" (from the TCP result alone - MacTelnet rides the same port and survives) and then "so it is
+// the router's mac-winbox service" (from having eliminated both layers - which says nothing about a
+// third possibility, namely us). MacTelnet survives because MacTelnetUdpClient has always run a receive
+// pump, and its class comment has said why since the day it was written. WinboxNativeMac never wedged
+// for the same reason: its reader loop services the socket continuously.
+//
+// What the pump does NOT fix: RouterOS logs an idle MAC console out after ~30 s, and says so itself.
+// MacTelnet - pump and all - wedges at 30 s exactly like this transport does. That one is the router's
+// contract and is handled by reopen+retry (P2.54), not by inventing traffic.
 //
 // THE ROLLBACK IS ASYNCHRONOUS, and that is what two earlier versions of this probe got wrong. RouterOS
 // keeps the Safe Mode owner alive after the connection goes away, until a connection-tracking timeout,
@@ -43,8 +52,11 @@
 //     the root cause above. A plain one really is harmless.)
 //   * traffic volume / a boundary in the byte stream — Probe_LongLivedSession ran 400 commands and
 //     101 099 outbound bytes on ONE session with no stall, past two of the three offsets that wedge.
-//   * an idle logout — per-session tracing shows the held session receiving packets right up to the
-//     doomed command; the per-session idle gap before it is 0.0 s.
+//   * an idle logout — THIS ONE WAS WRONG, and is the root cause above. "Per-session tracing shows the
+//     held session receiving packets right up to the doomed command, idle gap 0.0 s" measured the wrong
+//     thing: a trace timestamp records when WE drained the socket. A session nobody reads shows no gap
+//     at all, because its backlog surfaces in one burst on the next read. Kept here because a hypothesis
+//     disproved by a mismeasurement looks exactly like a hypothesis disproved.
 //   * RouterOS echoing a log line into the terminal (the P2.47 family) — exactly one such echo in a
 //     whole run, so it can account for at most one of the three.
 //   * the command itself — the three run green in isolation, in 3 s, with no drop.
@@ -332,6 +344,67 @@ namespace tik4net.integrationtests
                     }
                 }
                 Log("=== survived " + commands + " commands in " + total.Elapsed + ", stalls=" + stalls + " ===");
+            }
+        }
+
+        /// <summary>
+        /// How long may a WinBox-CLI-MAC session sit idle before the router stops serving it?
+        /// <para>
+        /// This is the probe that the "an idle logout — the per-session idle gap before the wedge is
+        /// 0.0 s" entry above should have been before it was written down. That reading came from trace
+        /// timestamps, and a trace timestamp on this transport records when <b>we drained the socket</b>,
+        /// not when the packet arrived: a session nobody reads for twenty seconds shows no gap at all,
+        /// because its whole backlog surfaces at once on the next read. Re-measured properly, the two
+        /// remaining wedges in a suite run are the only two idle gaps in it — 19.7 s and 56.1 s, against a
+        /// 3.6 s gap that survives.
+        /// </para>
+        /// <para>
+        /// MAC-Telnet is the control, and the interesting one: it rides the same carrier and its own
+        /// <c>MacTelnetUdpClient</c> already says why in a comment — RouterOS writes to a terminal on its
+        /// own initiative and "drops the session when that output is left unacknowledged", so that client
+        /// services the socket from a background pump. WinBox-CLI-MAC has no pump and only touches the
+        /// socket while a command is in flight. If that is the mechanism, MAC-Telnet survives an idle that
+        /// kills WinBox-CLI-MAC — and note this is about ACKing what the router sends, NOT about a
+        /// keepalive: four ways of inventing idle traffic were measured for MAC-Telnet and all four made
+        /// things worse.
+        /// </para>
+        /// </summary>
+        [TestMethod]
+        public void Probe_IdleSession_HowLongBeforeItWedges()
+        {
+            var ladder = new[] { 5, 10, 15, 20, 30, 45, 60 };
+            var env = Environment.GetEnvironmentVariable("TIK4NET_IDLE_LADDER");
+            if (!string.IsNullOrEmpty(env))
+                ladder = env.Split(',').Select(s => int.Parse(s.Trim())).ToArray();
+
+            Log("=== P2.55 idle ladder: how long may a MAC console sit unread? ===");
+            foreach (var transport in new[] { TikConnectionType.WinboxCliMac, TikConnectionType.MacTelnet })
+            {
+                Log("-- " + transport);
+                foreach (int seconds in ladder)
+                {
+                    using (var conn = Open(transport))
+                    {
+                        Poke(conn);
+                        Poke(conn);            // some history, as the suite's shared connection has
+                        Thread.Sleep(seconds * 1000);
+
+                        var sw = Stopwatch.StartNew();
+                        try
+                        {
+                            Poke(conn);
+                            sw.Stop();
+                            Log(string.Format("  idle {0,3} s -> poke {1,6} ms  {2}", seconds,
+                                sw.ElapsedMilliseconds,
+                                sw.ElapsedMilliseconds > 2000 ? "<== WEDGED (recovered)" : "ok"));
+                        }
+                        catch (Exception ex)
+                        {
+                            Log(string.Format("  idle {0,3} s -> THREW after {1} ms  {2}", seconds,
+                                sw.ElapsedMilliseconds, Describe(ex)));
+                        }
+                    }
+                }
             }
         }
     }

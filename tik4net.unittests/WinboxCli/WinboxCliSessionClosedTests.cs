@@ -62,6 +62,7 @@ namespace tik4net.unittests.WinboxCli
             public bool DataAvailable => _toDeliver.Count > 0;
 
             public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs) { }
+            public void StartIdleServicing() { }
             public byte[] NextReqIdField() => M2Message.U8Sys(WinboxM2Protocol.SysKey.RequestId, 1);
             public void Send(byte[] m2)
             {
