@@ -354,6 +354,34 @@ namespace tik4net.Winbox
 
             string uiType = jg?.UiType;
 
+            // ── opt/not container flags ──
+            //
+            // An opt-wrapped field is IGNORED BY THE ROUTER unless its opt bool says the option is present, and
+            // a not-wrapped one negates via its own bool (RouterOS's leading '!'). This has to happen before the
+            // typed switch below, not after it: 'network', 'ipaddr', 'macaddr' and 'addr' all return from inside
+            // the switch, so emitting the flags afterwards skipped exactly them — which is why every firewall
+            // address written over native reached the router as a rule matching EVERYTHING (P2.33).
+            //
+            // Clearing one is the same bool the other way round: an empty value on an opt-wrapped field means
+            // "the option is not present". The flag is emitted ALONGSIDE whatever the encoders below make of
+            // the empty value, not instead of it — a string field is cleared by writing it empty, and dropping
+            // that write leaves the old value on the router (the unset verb then reports a success that did
+            // nothing). For a typed field whose branch sends nothing for an empty value (network, ipaddr, …)
+            // this bool is the entire write, which is what makes an unset of one a valid request at all.
+            if (jg != null && jg.OptKey != 0 && value.Length == 0)
+                result.Add(M2Message.BoolSys(jg.OptKey, false));
+
+            if (jg != null && value.Length > 0)
+            {
+                if (jg.NotKey != 0 && value.StartsWith("!"))
+                {
+                    value = value.Substring(1);
+                    result.Add(M2Message.BoolSys(jg.NotKey, true));
+                }
+                if (jg.OptKey != 0 && value.Length > 0)
+                    result.Add(M2Message.BoolSys(jg.OptKey, true));
+            }
+
             // ── typed UI encodings (more specific than the wire type) ──
             switch (uiType)
             {
@@ -363,14 +391,13 @@ namespace tik4net.Winbox
                     if (value.Length == 0) return result;
                     if (jg.IsRange)
                     {
-                        // range:1 → the maskid sibling is the range-END address, not a netmask. "a" (host) →
-                        // start=end=a; "a-b" → start=a,end=b. Sending end=start for a host avoids the router
-                        // storing an open-ended range (the bug when a /32 netmask was sent as the "end").
-                        var rp = value.Split('-');
-                        uint? start = PackIpV4(rp[0].Trim());
-                        if (start == null) break; // not v4 — fall through to generic encoders
-                        uint end = (rp.Length > 1 ? PackIpV4(rp[1].Trim()) : start) ?? start.Value;
-                        result.Add(EncodeU32(key, start.Value));
+                        // range:1 → the maskid sibling is the range-END address, not a netmask. All three
+                        // RouterOS forms are accepted ("a", "a-b", "a/len"); sending end=start for a host
+                        // avoids the router storing an open-ended range (which is what a /32 netmask sent as
+                        // the "end" produced).
+                        if (!TryParseV4Range(value, out uint start, out uint end))
+                            break; // not v4 — fall through to generic encoders
+                        result.Add(EncodeU32(key, start));
                         if (jg.MaskKey != 0) result.Add(EncodeU32(jg.MaskKey, end));
                         return result;
                     }
@@ -403,14 +430,12 @@ namespace tik4net.Winbox
                 case "set":
                 {
                     // Bitmask flag set (e.g. connection-state "established,related"). Empty → unset (send nothing).
-                    // A leading '!' negates (API "!established") → set the not-flag. The opt-flag marks the option
-                    // present; the value rides as a u32 of OR'd (1<<bitIndex) per the .jg bit map.
+                    // The value rides as a u32 of OR'd (1<<bitIndex) per the .jg bit map; the opt/not flags and
+                    // the leading '!' were handled above.
                     if (value.Length == 0) return result;
-                    bool negate = value.StartsWith("!");
-                    string body = negate ? value.Substring(1) : value;
                     long bits = 0;
                     if (jg.EnumMap != null)
-                        foreach (var tok in body.Split(','))
+                        foreach (var tok in value.Split(','))
                         {
                             string t = tok.Trim();
                             if (t.Length == 0) continue;
@@ -418,8 +443,6 @@ namespace tik4net.Winbox
                                 if (string.Equals(kv.Value, t, StringComparison.OrdinalIgnoreCase))
                                 { bits |= 1L << kv.Key; break; }
                         }
-                    if (jg.OptKey != 0) result.Add(M2Message.BoolSys(jg.OptKey, true));
-                    if (jg.NotKey != 0 && negate) result.Add(M2Message.BoolSys(jg.NotKey, true));
                     result.Add(EncodeU32(key, unchecked((uint)bits)));
                     return result;
                 }
@@ -447,31 +470,18 @@ namespace tik4net.Winbox
                     // A list of number ranges: bridge-vlan 'vlan-ids', firewall 'dst-port'/'dscp'/'pcp', … .
                     // webfig types.multinumberrange.put (no id2) and types.numberrangelist (inherits def) both
                     // store a flat u32[] of [lo0,hi0,lo1,hi1,…]; a bare "10" is the range [10,10]. An invertible
-                    // (not-wrapped) field negates via its not-flag bool (RouterOS "!80"). Empty → unset.
-                    bool negate = value.StartsWith("!");
-                    string body = negate ? value.Substring(1) : value;
-                    if (body.Length == 0) return result;
-                    var nums = ParseNumberRangeList(body, apiName);
+                    // (not-wrapped) field negates via its not-flag bool (RouterOS "!80"), handled above along
+                    // with the opt flag. Empty → unset.
+                    if (value.Length == 0) return result;
+                    var nums = ParseNumberRangeList(value, apiName);
                     if (nums.Count == 0) return result;
-                    if (jg.OptKey != 0) result.Add(M2Message.BoolSys(jg.OptKey, true));
-                    if (jg.NotKey != 0 && negate) result.Add(M2Message.BoolSys(jg.NotKey, true));
                     result.Add(M2Message.U32ArraySys(key, nums.ToArray()));
                     return result;
                 }
             }
 
-            // opt/not-wrapped scalar (e.g. firewall 'protocol' = opt→not→number, with a static proto-name map):
-            // mark the option present via its opt-flag bool and a leading '!' via its not-flag bool — otherwise
-            // the router IGNORES the value (e.g. "ports can be specified if proto is tcp,…" when protocol's opt
-            // flag is missing). Shared by the enum-static-map and generic scalar encoders below. The 'set' and
-            // multinumberrange/numberrangelist UI types emit their own opt/not flags and return before this.
-            if (jg != null && jg.NotKey != 0 && value.StartsWith("!"))
-            {
-                value = value.Substring(1);
-                result.Add(M2Message.BoolSys(jg.NotKey, true));
-            }
-            if (jg != null && jg.OptKey != 0 && value.Length > 0)
-                result.Add(M2Message.BoolSys(jg.OptKey, true));
+            // (opt/not flags for the generic encoders below were emitted before the switch, together with every
+            // typed branch's — see the "opt/not container flags" block.)
 
             // enum static map: encode the API string to its numeric index.
             if (jg?.EnumMap != null)
@@ -839,6 +849,81 @@ namespace tik4net.Winbox
             try { return unchecked((uint)Convert.ToInt64(value)); }
             catch { return 0; }
         }
+
+        // ── v4 address RANGE (network + range:1) ──────────────────────────────
+        //
+        // A range:1 'network' field stores a START address and, at its maskid sibling, an END address — every
+        // firewall address field is one. RouterOS renders that pair in three forms, and picks between them by
+        // the SPAN, not by how the value was entered (all three verified live on 7.23.2, see
+        // Docs/winbox-native-m2-protocol.md §24):
+        //   start == end                     → "192.0.2.74"          (bare host, NOT "/32")
+        //   span is an aligned CIDR block    → "192.0.2.0/30"        (even when entered as 192.0.2.0-192.0.2.3)
+        //   anything else                    → "192.0.2.10-192.0.2.20"
+        // Matching that exactly is the whole point: the same record must read identically over every transport.
+
+        /// <summary>
+        /// Renders a range:1 <c>network</c> pair (start + end, both octet-LSB u32) as the RouterOS API text.
+        /// </summary>
+        internal static string FormatV4Range(object startValue, object endValue)
+        {
+            uint start = ToBigEndian(ToU32(startValue));
+            uint end = ToBigEndian(ToU32(endValue));
+
+            if (start == end) return IpFromU32(startValue);
+            if (end > start)
+            {
+                // An aligned block has span 2^n and a start aligned to it; then n bits are the host part.
+                // Counted in 64 bits because 0.0.0.0-255.255.255.255 is a legal block whose span is 2^32.
+                ulong span = (ulong)end - start + 1;
+                if ((span & (span - 1)) == 0 && (start & (span - 1)) == 0)
+                {
+                    int hostBits = 0;
+                    for (ulong s = span; s > 1; s >>= 1) hostBits++;
+                    return IpFromU32(startValue) + "/" + (32 - hostBits);
+                }
+            }
+            return IpFromU32(startValue) + "-" + IpFromU32(endValue);
+        }
+
+        /// <summary>
+        /// Parses the RouterOS text of a range:1 <c>network</c> field into the start/end pair the wire carries,
+        /// accepting all three forms <see cref="FormatV4Range"/> emits. Returns <c>false</c> when the text is
+        /// not IPv4 (the caller then falls through to the generic encoders).
+        /// </summary>
+        internal static bool TryParseV4Range(string value, out uint start, out uint end)
+        {
+            start = end = 0;
+            if (string.IsNullOrEmpty(value)) return false;
+
+            int dash = value.IndexOf('-');
+            if (dash >= 0)
+            {
+                uint? lo = PackIpV4(value.Substring(0, dash).Trim());
+                uint? hi = PackIpV4(value.Substring(dash + 1).Trim());
+                if (lo == null || hi == null) return false;
+                start = lo.Value; end = hi.Value;
+                return true;
+            }
+
+            int slash = value.IndexOf('/');
+            uint? addr = PackIpV4((slash >= 0 ? value.Substring(0, slash) : value).Trim());
+            if (addr == null) return false;
+            start = addr.Value;
+            if (slash < 0) { end = addr.Value; return true; }
+
+            // "a.b.c.d/len" → the block's first and last address. The mask is octet-LSB like the address, so
+            // the host part is its complement; a /32 collapses to start==end, which is the bare-host form.
+            uint mask = MaskFrom(value.Substring(slash + 1).Trim());
+            start = addr.Value & mask;
+            end = start | ~mask;
+            return true;
+        }
+
+        // Octet-LSB u32 (the M2/webfig packing) → the same address as a numerically ORDERED value. Comparing
+        // or subtracting the packed form directly compares the last octet first, which makes 192.0.2.255 look
+        // smaller than 192.0.2.0.
+        private static uint ToBigEndian(uint v)
+            => (v >> 24) | ((v >> 8) & 0xFF00u) | ((v << 8) & 0xFF0000u) | (v << 24);
 
         // Netmask as octet-LSB u32: dotted "255.255.255.0" → packed, or prefix length "24" → len2netmask.
         private static uint MaskFrom(string s)

@@ -493,3 +493,62 @@ A pass that ends without `Finished` means "this is a snapshot" for a continuous 
 table each second: the first pass = 1 hop. So for self-terminating commands
 (`TikMonitorVerbs.SelfTerminating`), a synchronous read keeps polling until the router says Finished —
 20 rows in 5.2 s, the same shape as over the API — bounded by `ReceiveTimeout`.
+
+## 24. ✅ A `range:1` network field stores start+end, and an `opt` field needs its flag (P2.33, 2026-08-02)
+
+Filed as "native rewrites an IP field into CIDR, so `192.0.2.74` reads back as `192.0.2.74/32`". The
+value was wrong in a different way (`192.0.2.74/6`), the cause was in the **catalog parser** rather
+than the codec, and the same root cause was corrupting **writes** far more seriously than reads.
+
+### 24.1 The sibling key is the range END, not a netmask
+
+Every firewall address field is declared in `roteros.jg` as an `opt` → `not` → `network` with
+`range:1`:
+
+```js
+{name:'Src. Address',type:'opt',id:'b1a2',c:[
+  {type:'not',id:'bc8',c:[{type:'network',id:'u32',maskid:'u33',range:1}]}]}
+```
+
+`range:1` means the `maskid` sibling carries the **last address of the range**, not a netmask. Read
+live from the router (`0x32` = start, `0x33` = end):
+
+| stored value | `0x32` | `0x33` | what the API prints |
+|---|---|---|---|
+| `192.0.2.74` | 192.0.2.74 | 192.0.2.74 | `192.0.2.74` |
+| `192.0.2.0/24` | 192.0.2.0 | 192.0.2.255 | `192.0.2.0/24` |
+| `192.0.2.10-192.0.2.20` | 192.0.2.10 | 192.0.2.20 | `192.0.2.10-192.0.2.20` |
+| `192.0.2.0-192.0.2.3` | 192.0.2.0 | 192.0.2.3 | **`192.0.2.0/30`** |
+
+So RouterOS picks the rendering from the **span**, not from how the value was entered: `start == end`
+is a bare host (never `/32`), an aligned power-of-two block is CIDR, anything else is `a-b`. That rule
+is `WinboxFieldResolver.FormatV4Range` / `TryParseV4Range`, and matching it exactly is what makes the
+record read identically over native and over every other transport.
+
+### 24.2 The flag was lost in the opt/not flattening, not in the codec
+
+`WinboxJgCatalog.AddOptionField` — which drills through `opt`/`not` wrappers to the value leaf — read
+`ro`, `maskid`, `allow` and the enum map, but **not `range`**. So `IsRange` was false for exactly the
+fields WinBox makes optional, i.e. all of them here, and the end address went through the netmask
+path: `MaskToPrefix` counts set bits, and 192.0.2.74 as a "netmask" has six of them — hence `/6`.
+
+The lesson generalises past this field: the catalog has **two** places that build a field, and any
+attribute the wrapped path forgets is silently absent only for wrapped fields.
+
+### 24.3 An `opt` field is ignored unless its flag is sent — and cleared by the same flag
+
+`EncodeField` emitted the `opt`/`not` bools *after* the typed switch, but `network`, `ipaddr`,
+`macaddr` and `addr` all `return` from inside it. So those fields went out **without** the opt flag,
+and the router **discarded them**: `/ip/firewall/filter/add src-address=203.0.113.5` over native
+created a rule with no `src-address` at all — one that matches every source address. Verified live
+before and after; the flags are now emitted once, before the switch.
+
+The same bool clears the field: an empty value emits `opt=false`. It has to travel **alongside** the
+cleared value rather than replacing it — a string field is cleared by writing it empty, and sending
+only the flag makes `unset` report a success that changed nothing. For a typed field whose branch
+sends nothing for an empty value, that bool is the whole write, and without it a mapper-level `unset`
+of an optional field produced an empty M2 message that `unset` refused as naming no field.
+
+**Coverage:** `VerbMatrixTest.CrossTransport_AddressValues_MatchTheBinaryApi` compares all three forms
+against the binary API on whatever transport is under test (verified RED pre-fix); the rendering rule
+and the flattening are pinned router-free by `WinboxAddressRangeTests` and `WinboxJgFieldFlagTests`.

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
@@ -325,6 +326,64 @@ namespace tik4net.integrationtests
 
             return Connection.CreateRawCommand(
                 Path + " set [find comment=\"" + currentComment + "\"] comment=\"" + newComment + "\"");
+        }
+
+        // ── cross-transport value parity ──────────────────────────────────────
+
+        /// <summary>
+        /// The same record, read over the transport under test and over the binary API, must yield the same
+        /// FIELD VALUES — not merely the same rows.
+        /// </summary>
+        /// <remarks>
+        /// P2.33: WinBox native rendered <c>src-address=192.0.2.74</c> as <c>192.0.2.74/6</c>, because the
+        /// range-END sibling of a <c>range:1</c> network field was being bit-counted as a netmask. Nothing in
+        /// the suite compared a value ACROSS transports, so eleven green runs said nothing about the eleven
+        /// answers agreeing. The three forms below are the three the router renders (host / CIDR block /
+        /// span), which is exactly where the rendering rule can go wrong one form at a time.
+        /// </remarks>
+        [TestMethod]
+        public void CrossTransport_AddressValues_MatchTheBinaryApi()
+        {
+            var expected = new Dictionary<string, string>();
+            foreach (var probe in new[]
+                     {
+                         new { Value = "192.0.2.74", Tag = "host" },
+                         new { Value = "192.0.2.0/24", Tag = "block" },
+                         new { Value = "192.0.2.10-192.0.2.20", Tag = "span" },
+                     })
+            {
+                string comment = _stamp + "-parity-" + probe.Tag;
+                AddRule(probe.Value, comment);
+                expected[comment] = probe.Value;
+            }
+
+            string host = ConfigurationManager.AppSettings["host"];
+            string user = ConfigurationManager.AppSettings["user"];
+            string pass = ConfigurationManager.AppSettings["pass"] ?? "";
+
+            foreach (var kv in expected)
+            {
+                var mine = ReadByComment(kv.Key);
+                Assert.IsNotNull(mine, "the rule '" + kv.Key + "' is not readable over the transport under test");
+
+                string reference;
+                using (var api = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
+                {
+                    var cmd = api.CreateCommand(Path + "/print");
+                    cmd.AddParameter("comment", kv.Key, TikCommandParameterFormat.Filter);
+                    var apiRow = cmd.ExecuteList().FirstOrDefault();
+                    Assert.IsNotNull(apiRow, "the rule '" + kv.Key + "' is not on the router at all");
+                    reference = apiRow.GetResponseFieldOrDefault("src-address", string.Empty);
+                }
+
+                // The API's own rendering is the canonical form, so it is both the reference AND the check
+                // that the value survived the write: a transport that dropped src-address on 'add' shows up
+                // here as an empty reference rather than as a passing comparison of two empty strings.
+                Assert.AreEqual(kv.Value, reference,
+                    "the value written over the transport under test did not reach the router intact");
+                Assert.AreEqual(reference, mine.GetResponseFieldOrDefault("src-address", string.Empty),
+                    "src-address reads differently over this transport than over the binary API");
+            }
         }
 
         // ── helpers ───────────────────────────────────────────────────────────

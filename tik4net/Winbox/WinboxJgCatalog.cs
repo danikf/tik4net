@@ -513,7 +513,7 @@ namespace tik4net.Winbox
         // dropped plugin is a catalog that is quietly missing handlers, which surfaces later as wrong values
         // rather than as an error, so the drop is always traced. Expect this to fire first on a RouterOS
         // version whose .jg syntax has moved (P2.24).
-        private bool TryParseInto(string text)
+        internal bool TryParseInto(string text)
         {
             try
             {
@@ -819,9 +819,13 @@ namespace tik4net.Winbox
                     int maskKey = (cur.TryGetValue("maskid", out var mkv) && mkv is string mks
                         && DecodeId(mks) is var md && md != null) ? md.Value.key : 0;
                     int[] refHandler = ExtractRefHandler(cur);
+                    // 'range' must be read here as well as on the unwrapped path: EVERY firewall address field
+                    // is an opt→not→network with range:1, so dropping it here made the range-END sibling decode
+                    // as a netmask (see P2.33 / Docs/winbox-native-m2-protocol.md §24).
+                    bool isRange = cur.TryGetValue("range", out var rgv) && rgv is int rgi && rgi != 0;
                     string allow = cur.TryGetValue("allow", out var alv) ? alv as string : null;
                     AddField(handlerKey, label, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(cur),
-                        ty, maskKey, refHandler, optKey, notKey, allow: allow);
+                        ty, maskKey, refHandler, optKey, notKey, isRange, allow);
                 }
                 return;
             }

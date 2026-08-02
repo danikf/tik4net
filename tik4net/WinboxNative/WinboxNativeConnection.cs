@@ -1250,14 +1250,14 @@ namespace tik4net.WinboxNative
 
         // Resolve the M2 numeric record id from the command's .id parameter. The .id may be the RouterOS
         // "*HEX" handle form, or a friendly name (e.g. "ether1") — names are resolved via getall.
-        /// <param name="alternateIdParam">
-        /// Parameter that names the target record instead of <c>.id</c> on this verb, tried first. <c>move</c> is
-        /// the case: RouterOS spells its target <c>numbers</c>, and that is what
-        /// <see cref="tik4net.Objects.TikConnectionExtensions.Move{TEntity}"/> sends. Reading only <c>.id</c> made
-        /// every mapper-level move fail here with "could not resolve record .id ''" — on a command the API, REST
-        /// and all four CLI transports carry out fine. It went unnoticed because the one move test in the suite
-        /// hand-builds the command with <c>.id</c>.
-        /// </param>
+        // alternateIdParam names the target record instead of ".id" on this verb, and is tried first. `move` is
+        // the case: RouterOS spells its target "numbers", and that is what the mapper's Move<TEntity> sends.
+        // Reading only ".id" made every mapper-level move fail here with "could not resolve record .id ''" — on
+        // a command the API, REST and all four CLI transports carry out fine. It went unnoticed because the one
+        // move test in the suite hand-builds the command with ".id".
+        // (Prose kept as a plain comment: a private method with a lone <param> tag is an incomplete XML doc
+        // comment — CS1573 for every other parameter — and the mapper's Move<TEntity> is in tik4net.objects,
+        // which this assembly does not reference, so the cref could not resolve either (CS1574).)
         private int ResolveRecordId(int[] handler, WinboxFieldResolver resolver,
             TikCommandDescriptor descriptor, bool required, string alternateIdParam = null)
         {
