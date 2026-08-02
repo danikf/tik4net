@@ -670,3 +670,39 @@ z P2.54. Dvě různé příčiny, dvě různá řešení:
 **Poučení:** „změřeno, nepotvrzeno" a „nezměřeno" vypadají v tabulce hypotéz stejně a nejsou totéž. Ten
 řádek o idle logoutu byl vyvrácen údajem, který měřil něco jiného, než jsem si myslel — a tak tam devět
 hodin stál jako vyřízený.
+
+## 19. MAC vrstva nemá odesílací okno (P2.56, 2026-08-02)
+
+Vedlejší nález z P2.55, opravený samostatně, protože s příčinou wedge nesouvisí — jen ho zbytečně
+zdražoval.
+
+Když router nepotvrdí hlavu fronty, `WinboxCliClient` mu do ní přesto **dál sype prázdné pully**
+(8/s, `PullIntervalMs = 120`). ACK na MAC vrstvě je kumulativní, takže **nic za nepotvrzeným paketem
+router zpracovat nemůže** — všechno další je provoz na dráty pro nic a pohřbívá to ten jediný paket,
+který se prosadit musí. `RetransmitIfUnacked` přeposílá správně jen hlavu a `MaxUnackedTracked = 256`
+hlídá paměť, ale **odesílatele nebrzdilo nic**.
+
+Změřeno stejnou sondou (`Probe_IdleSession_HowLongBeforeItWedges`, idle 45 s, hloubka fronty ze
+`queued=` v RETRANSMIT řádcích):
+
+| | před | po |
+|---|---|---|
+| max. hloubka nepotvrzené fronty | **23 paketů** (1→2→4→7→10→14→17→20→23) | **2** |
+| doba zotavení | beze změny | beze změny |
+
+**Oprava:** `MacLayerTransport.LastSendStalled` = hlava fronty je nepotvrzená a **už alespoň jednou
+přeposlaná** (tj. stream stojí ≥ `MinRetransmitIntervalMs`), vytažené přes `IWinboxM2Channel.SendStalled`
+(na TCP `false` — tam okno řeší kernel). Terminálová smyčka na něj váže **jen spekulativní pull**;
+příkaz uživatele odchází dál, protože zahodit ho by znamenalo zahodit požadavek volajícího.
+
+Dvě věci, na kterých to stojí:
+
+* **jedno přeposlání, ne nula** — paket v normálním letu je potvrzený v jednotkách ms, takže běžný
+  provoz signál nesmí nikdy zvednout (jinak by potlačení prosáklo do streamování velkých výstupů,
+  které na pullu stojí),
+* **potlačení končí samo** příchodem ACK a `lastPullMs` se během něj neposouvá, takže hned následující
+  pull odejde okamžitě. Jinak by jeden ztracený datagram umlčel terminál do konce session — wedge
+  zavedený opravou wedge.
+
+Rozdíl proti `SendAbandoned` (§16): ten říká „session je pryč" a je až na konci rozpočtu; tenhle říká
+„stream stojí, ale může se vzpamatovat" a je o tom, co smíme **posílat**, ne co smíme hlásit.

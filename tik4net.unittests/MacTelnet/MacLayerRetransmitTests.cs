@@ -159,6 +159,49 @@ namespace tik4net.unittests.MacTelnet
             Assert.IsFalse(_client.Abandoned);
         }
 
+        // ── The stall signal (P2.56) ──────────────────────────────────────────
+
+        /// <summary>
+        /// The layer has retransmission but no send window, so the only thing that can stop a caller from
+        /// queueing more behind a hole is being told there is one. It must say so as soon as a resend has
+        /// gone unanswered — long before the budget is spent — because by the time
+        /// <see cref="LoopbackMacTransport.Abandoned"/> is true the pile-up has already happened.
+        /// </summary>
+        [TestMethod]
+        public void Stalled_AsSoonAsTheHeadHasBeenResentOnce()
+        {
+            _client.SendData(Payload(10, 0xAA));
+            DrainRouter(1);
+            _client.Ack(0);   // the router has taken nothing
+
+            Assert.IsFalse(_client.Stalled, "unacknowledged, but not yet retried — that is normal flight");
+
+            Assert.IsTrue(_client.Retransmit());
+            DrainRouter(1);
+            Assert.IsTrue(_client.Stalled, "one resend has gone unanswered: the stream is blocked");
+            Assert.IsFalse(_client.Abandoned, "and it may still recover — this is the softer signal");
+        }
+
+        /// <summary>
+        /// Suppression has to end by itself the moment the router takes the packet, or a single lost datagram
+        /// would silence the terminal's pull for the rest of the session — a wedge introduced by the fix for
+        /// a wedge.
+        /// </summary>
+        [TestMethod]
+        public void Stalled_ClearsWhenTheRouterFinallyTakesTheHead()
+        {
+            _client.SendData(Payload(10, 0xAA));
+            DrainRouter(1);
+            _client.Ack(0);
+            Assert.IsTrue(_client.Retransmit());
+            DrainRouter(1);
+            Assert.IsTrue(_client.Stalled);
+
+            _client.Ack(10);   // the resend landed
+
+            Assert.IsFalse(_client.Stalled, "nothing is outstanding — the caller must be free to send again");
+        }
+
         // ── Polling vs. waiting (P2.43) ───────────────────────────────────────
 
         /// <summary>
@@ -364,6 +407,7 @@ namespace tik4net.unittests.MacTelnet
             internal void Ack(uint counter) => NoteAck(counter);
             internal bool Retransmit() => RetransmitIfUnacked();
             internal bool Abandoned => LastSendAbandoned;
+            internal bool Stalled => LastSendStalled;
 
             internal IPEndPoint LocalEndPoint => (IPEndPoint)_udp.Client.LocalEndPoint;
             internal int Available => _udp.Available;

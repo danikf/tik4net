@@ -21,6 +21,11 @@ namespace tik4net.unittests.WinboxCli
     /// value of the signal, so the tests below assert both halves of it: it is honoured when the router
     /// demonstrably has not taken our bytes, and ignored once it demonstrably has.
     /// </para>
+    /// <para>
+    /// The same fake also carries the softer <see cref="IWinboxM2Channel.SendStalled"/> signal (P2.56) —
+    /// same carrier, one step earlier, and about what the client may <em>send</em> rather than what it may
+    /// report.
+    /// </para>
     /// </summary>
     [TestClass]
     public class WinboxCliSessionClosedTests
@@ -39,6 +44,7 @@ namespace tik4net.unittests.WinboxCli
             private readonly Queue<byte[]> _toDeliver = new Queue<byte[]>();
 
             internal volatile bool Abandoned;
+            internal volatile bool Stalled;
             internal int SentCount;
 
             // Answered on the first send rather than queued up front: the command path drains whatever is
@@ -59,6 +65,7 @@ namespace tik4net.unittests.WinboxCli
             public bool SupportsStaleDrain => false;
             public bool SupportsReaderLoop => false;
             public bool SendAbandoned => Abandoned;
+            public bool SendStalled => Stalled;
             public bool DataAvailable => _toDeliver.Count > 0;
 
             public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs) { }
@@ -151,6 +158,49 @@ namespace tik4net.unittests.WinboxCli
                 Assert.IsInstanceOfType(ex, typeof(TikConnectionReceiveTimeoutException),
                     "The command's output came back, so this is an unfinished read, not an un-run command. "
                     + "Got: " + ex);
+            }
+        }
+
+        // ── Pull suppression while the carrier is blocked (P2.56) ─────────────
+
+        /// <summary>
+        /// The terminal fires an empty pull whenever nothing is buffered, which is right while the stream is
+        /// moving and pure waste while it is not: the MAC layer acknowledges cumulatively, so nothing sent
+        /// past an unacknowledged packet can be processed until that packet lands. Left unthrottled it piled
+        /// ~2.4 KB into 24 queued packets behind one hole, burying the very packet that had to get through.
+        /// </summary>
+        [TestMethod]
+        public void StalledCarrier_StopsTheClientFromPullingIntoTheHole()
+        {
+            var channel = new SilentChannel { Stalled = true };
+            using (var client = ClientOver(channel))
+            {
+                RunCommand(client);
+
+                // The command's own keystrokes still go out — suppressing those would be dropping the
+                // caller's request. What must not happen is the ~12 speculative pulls the timeout allows.
+                Assert.IsTrue(channel.SentCount <= 2,
+                    "A blocked carrier must not be pulled through: sent " + channel.SentCount
+                    + " frames, expected only the command itself.");
+            }
+        }
+
+        /// <summary>
+        /// The contrast that gives the test above its meaning: with the carrier flowing, the idle pull is
+        /// exactly what makes multi-batch output arrive at all (RouterOS delivers one batch per Data frame
+        /// and pushes no more on its own), so suppression must not leak into the normal case.
+        /// </summary>
+        [TestMethod]
+        public void FlowingCarrier_KeepsPullingWhileTheResponseHasNotArrived()
+        {
+            var channel = new SilentChannel { Stalled = false };
+            using (var client = ClientOver(channel))
+            {
+                RunCommand(client);
+
+                Assert.IsTrue(channel.SentCount > 5,
+                    "With nothing blocking the stream the terminal has to keep pulling, or output larger "
+                    + "than one batch never arrives; sent only " + channel.SentCount + " frames.");
             }
         }
     }

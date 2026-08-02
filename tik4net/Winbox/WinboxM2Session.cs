@@ -51,6 +51,10 @@ namespace tik4net.Winbox
         // already reported louder.
         public bool SendAbandoned => false;
 
+        // Same reason: there is no per-message acknowledgement to be waiting for, and TCP's own window
+        // already throttles a sender the kernel cannot drain.
+        public bool SendStalled => false;
+
         // Nothing to do: TCP acknowledges the byte stream in the kernel, so router-initiated console output
         // is acknowledged whether or not anyone is reading. It simply waits in the receive buffer.
         public void StartIdleServicing() { }

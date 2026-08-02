@@ -55,6 +55,21 @@ namespace tik4net.Winbox
         bool SendAbandoned { get; }
 
         /// <summary>
+        /// True while the channel is still waiting for the router to take the bytes it last sent, and has
+        /// already had to resend them at least once. Callers that emit <b>speculative</b> traffic — the
+        /// terminal's fire-on-idle pull — should hold it back while this is set. Always false on a channel
+        /// with no per-message acknowledgement to wait for.
+        /// </summary>
+        /// <remarks>
+        /// Softer and earlier than <see cref="SendAbandoned"/>, and answering a different question: that one
+        /// says the session is gone, this one only says the stream is blocked and may yet recover. The MAC
+        /// layer acknowledges cumulatively, so nothing sent past an unacknowledged packet can be processed
+        /// until that packet lands — queueing more is bytes on the wire for nothing, and it buries the one
+        /// packet that has to get through (P2.56).
+        /// </remarks>
+        bool SendStalled { get; }
+
+        /// <summary>
         /// Connects to the router and authenticates. <paramref name="port"/> is honoured by TCP
         /// transports and ignored by the MAC transport (which always uses UDP 20561).
         /// </summary>

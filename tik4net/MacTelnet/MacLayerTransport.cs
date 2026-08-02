@@ -333,6 +333,31 @@ namespace tik4net.MacTelnet
         }
 
         /// <summary>
+        /// <c>true</c> while the head of the unacknowledged queue has already been retransmitted at least
+        /// once without being taken — i.e. the stream has been blocked for at least
+        /// <see cref="MinRetransmitIntervalMs"/>. The signal a caller needs to stop <em>adding</em> to a
+        /// queue that cannot drain, and the earlier, softer sibling of <see cref="LastSendAbandoned"/>
+        /// (which only becomes true once the whole budget is spent).
+        /// </summary>
+        /// <remarks>
+        /// This layer has retransmission but no send window: nothing here stops a caller from queueing more
+        /// DATA behind a packet the router is not acknowledging. Because the ACK is cumulative the router
+        /// cannot take any of it either, so every packet added past the hole is bytes on the wire that
+        /// provably cannot be processed — a WinBox-CLI-MAC terminal piled up ~2.4 KB in 24 packets that way
+        /// before the retransmit budget ran out (P2.56). One retransmission rather than none is deliberate:
+        /// a packet still in normal flight is acknowledged in milliseconds, so an ordinary send must never
+        /// trip this.
+        /// </remarks>
+        protected bool LastSendStalled
+        {
+            get
+            {
+                lock (SendGate)
+                    return _unacked.Count > 0 && _haveAck && _retransmits > 0;
+            }
+        }
+
+        /// <summary>
         /// The one NIC used for the whole MAC-layer exchange: its MAC goes in the packet header, its
         /// address is what the socket binds to, and its subnet broadcast is where SESSIONSTART is sent.
         /// Resolving all three together is the point — see the bind in <see cref="BaseConnect"/>.

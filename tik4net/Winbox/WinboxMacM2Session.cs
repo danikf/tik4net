@@ -115,6 +115,10 @@ namespace tik4net.Winbox
         // is also known not to have run.
         public bool SendAbandoned => LastSendAbandoned;
 
+        // Same bookkeeping, read earlier: the stream is blocked but the head may still land. Nothing below
+        // this layer throttles the sender, so it is the caller that has to stop adding (P2.56).
+        public bool SendStalled => LastSendStalled;
+
         /// <summary>
         /// Connects over the MAC layer and authenticates (EC-SRP5). <paramref name="port"/> is ignored
         /// (MAC always uses UDP 20561), as is <paramref name="ioTimeoutMs"/> — UDP has no socket-level

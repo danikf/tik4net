@@ -389,7 +389,15 @@ namespace tik4net.WinboxCli
                     // after ~8 KB. Receiving any batch clears lastPullMs so the next pull fires immediately —
                     // multi-batch output streams at full speed (one pull per delivered batch) and only a true
                     // stall is rate-limited, purely to avoid emitting frames nobody will answer.
-                    if (!prompted && (lastPullMs < 0 || sw.ElapsedMilliseconds - lastPullMs >= PullIntervalMs))
+                    // ...unless the carrier is still waiting for the router to take what we already sent.
+                    // A pull is speculative traffic, and on a cumulatively acknowledged carrier nothing sent
+                    // past an unacknowledged packet can be processed until that packet lands — so pulling
+                    // through a stall only piles bytes up behind the hole (~2.4 KB in 24 packets, measured)
+                    // and buries the one packet that has to get through. Suppression ends the moment the ACK
+                    // arrives, and no pull is lost: lastPullMs is not advanced, so the next one fires at
+                    // once. False on carriers that cannot tell (P2.56).
+                    if (!prompted && !_session.SendStalled
+                        && (lastPullMs < 0 || sw.ElapsedMilliseconds - lastPullMs >= PullIntervalMs))
                     {
                         SendPull();
                         lastPullMs = sw.ElapsedMilliseconds;
