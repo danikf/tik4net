@@ -36,7 +36,7 @@ here either; they are the author's local working notes.
 | Document | Covers |
 |---|---|
 | [`protocol-coverage.md`](protocol-coverage.md) | Which capabilities each transport actually supports, and where the gaps are |
-| [`findings-router-session-throughput.md`](findings-router-session-throughput.md) | A session degrades ~30× under sustained load and recovers after ~5 s idle — on every transport, so it is the router's, not ours (P2.46) |
+| [`findings-router-throughput-ceiling.md`](findings-router-throughput-ceiling.md) | Sustained load hits an **aggregate** ceiling — ~1 ms round trips clamp to ~20 ms after a shared burst budget, on every transport and across all connections at once (P2.46) |
 
 Related tooling: [`../Tools/probes/`](../Tools/probes/README.md) holds the standalone Telnet probe
 and the `.jg` analyzer used to produce much of the above.

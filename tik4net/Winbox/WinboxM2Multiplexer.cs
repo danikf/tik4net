@@ -96,9 +96,10 @@ namespace tik4net.Winbox
         /// </param>
         /// <param name="timeoutMs">
         /// Deadline for this request alone (design §4.2a). It has to survive a stalled router, not just a
-        /// slow one: a session driven hard enough degrades ~30× and, on TCP, delivers a batch of replies
-        /// only after seconds of silence, so a timeout here usually means the router went quiet rather
-        /// than that a reply was mislaid. See <c>Docs/findings-router-session-throughput.md</c>.
+        /// slow one: sustained load — from *any* connection, the ceiling is aggregate — clamps round trips
+        /// from ~1 ms to ~20 ms, and on TCP that arrives as a batch of replies after seconds of silence.
+        /// So a timeout here usually means the router went quiet, not that a reply was mislaid. See
+        /// <c>Docs/findings-router-throughput-ceiling.md</c>.
         /// </param>
         internal byte[] SendReceive(byte[] request, int timeoutMs)
         {
