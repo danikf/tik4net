@@ -728,7 +728,7 @@ namespace tik4net.WinboxNative
                 }
                 case "move":
                 {
-                    int id = ResolveRecordId(handler, resolver, descriptor, required: true);
+                    int id = ResolveRecordId(handler, resolver, descriptor, required: true, alternateIdParam: "numbers");
                     int dest = ResolveMoveDest(handler, resolver, descriptor);
                     _ops.Move(handler, id, dest);
                     break;
@@ -1250,10 +1250,20 @@ namespace tik4net.WinboxNative
 
         // Resolve the M2 numeric record id from the command's .id parameter. The .id may be the RouterOS
         // "*HEX" handle form, or a friendly name (e.g. "ether1") — names are resolved via getall.
+        /// <param name="alternateIdParam">
+        /// Parameter that names the target record instead of <c>.id</c> on this verb, tried first. <c>move</c> is
+        /// the case: RouterOS spells its target <c>numbers</c>, and that is what
+        /// <see cref="tik4net.Objects.TikConnectionExtensions.Move{TEntity}"/> sends. Reading only <c>.id</c> made
+        /// every mapper-level move fail here with "could not resolve record .id ''" — on a command the API, REST
+        /// and all four CLI transports carry out fine. It went unnoticed because the one move test in the suite
+        /// hand-builds the command with <c>.id</c>.
+        /// </param>
         private int ResolveRecordId(int[] handler, WinboxFieldResolver resolver,
-            TikCommandDescriptor descriptor, bool required)
+            TikCommandDescriptor descriptor, bool required, string alternateIdParam = null)
         {
-            string idParam = FindParam(descriptor, TikSpecialProperties.Id);
+            string idParam = alternateIdParam != null ? FindParam(descriptor, alternateIdParam) : null;
+            if (string.IsNullOrEmpty(idParam))
+                idParam = FindParam(descriptor, TikSpecialProperties.Id);
             if (!string.IsNullOrEmpty(idParam))
             {
                 if (idParam.StartsWith("*") &&

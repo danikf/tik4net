@@ -244,6 +244,12 @@ namespace tik4net.Objects
         /// <param name="updateCnt">Number of items to be updated.</param>
         /// <param name="deleteCnt">Number of items to be deleted.</param>
         /// <returns>Expected list of final entities on mikrotik router after save operation.</returns>
+        /// <remarks>
+        /// This overload hides the move count. On an ordered entity (<c>IsOrdered</c> — firewall filter, mangle,
+        /// NAT…) <see cref="Save"/> still reorders the rows, so a run that only changes the ORDER reports 0/0/0
+        /// here and is easily mistaken for "nothing to do". Prefer
+        /// <see cref="Simulate(out int, out int, out int, out int)"/> for those entities.
+        /// </remarks>
         /// <seealso cref="Save"/>
         public IEnumerable<TEntity> Simulate(out int insertCnt, out int updateCnt, out int deleteCnt)
         {
@@ -265,8 +271,13 @@ namespace tik4net.Objects
             List<TEntity> result = new List<TEntity>();
             Dictionary<string, TEntity> expectedDict = _expected.ToDictionaryEx(_keyExtractor);
             Dictionary<string, TEntity> originalDict = _original.ToDictionaryEx(_keyExtractor);
-            int idx = 0;
-            Dictionary<string, int> originalIndexes = _original.ToDictionaryEx(_keyExtractor, i => idx++);
+
+            // Keys in the order the router currently holds them, kept up to date as this merge deletes, inserts
+            // and moves. Deciding whether a move is needed requires the CURRENT order, not the original one:
+            // every move already applied changes who sits next to whom, so a check against the starting indexes
+            // skips moves that are still needed and leaves the list scrambled (it did — a three-way reorder of a
+            // mangle section applied 3 of the 7 moves it needed and produced an order matching neither input).
+            List<string> currentOrder = _original.Select(_keyExtractor).ToList();
 
             //Delete
             foreach (var originalEntityPair in originalDict.Reverse()) //delete from end to begining of the list (just for better show in WinBox)
@@ -280,6 +291,7 @@ namespace tik4net.Objects
                             LogDml(MergeOperation.Delete, originalEntityPair.Value, default(TEntity));
                             _connection.Delete(originalEntityPair.Value);
                         }
+                        currentOrder.Remove(originalEntityPair.Key);
                         deleteCnt++;
                     }
                 }
@@ -319,6 +331,7 @@ namespace tik4net.Objects
                             LogDml(MergeOperation.Insert, default(TEntity), expectedEntityPair.Value);
                             _connection.Save(expectedEntityPair.Value, mergedFieldNames.Concat(insertedFieldNames));
                         }
+                        currentOrder.Add(expectedEntityPair.Key); //the router appends new items - the move below puts it in place
                         insertCnt++;
                     }
                     resultEntity = expectedEntityPair.Value;
@@ -329,18 +342,26 @@ namespace tik4net.Objects
                 {
                     if (result.Count > 0) // last one in the list (first taken) should be just added/leavedOnPosition and the next should be moved before the one which was added immediatelly before <=> result[0]
                     {
-                        // only if is in different position (is not after result[0])
-                        int resultEntityIdx, previousEntityIdx = -1;
-                        if (!originalIndexes.TryGetValue(_keyExtractor(resultEntity), out resultEntityIdx)
-                            || !originalIndexes.TryGetValue(_keyExtractor(result[0]), out previousEntityIdx)
-                            || resultEntityIdx != previousEntityIdx - 1)
+                        string movedKey = _keyExtractor(resultEntity);
+                        string anchorKey = _keyExtractor(result[0]);
+                        int movedIdx = currentOrder.IndexOf(movedKey);
+                        int anchorIdx = currentOrder.IndexOf(anchorKey);
+
+                        // only if is in different position (is not immediately before result[0] right now)
+                        if (movedIdx < 0 || anchorIdx < 0 || movedIdx != anchorIdx - 1)
                         {
                             if (!simulateOnly)
                             {
-                                LogMove(resultEntity, resultEntityIdx, previousEntityIdx);
+                                LogMove(resultEntity, movedIdx, anchorIdx);
                                 _connection.Move(resultEntity, result[0]); //before lastly added entity (foreach in reversed order)
                             }
                             moveCnt++;
+
+                            if (movedIdx >= 0)
+                                currentOrder.RemoveAt(movedIdx);
+                            anchorIdx = currentOrder.IndexOf(anchorKey);
+                            if (anchorIdx >= 0)
+                                currentOrder.Insert(anchorIdx, movedKey);
                         }
                     }
                 }
