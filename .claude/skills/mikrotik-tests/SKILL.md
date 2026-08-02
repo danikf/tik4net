@@ -327,7 +327,7 @@ The script runs, but `:put [/log print as-value]` doesn't catch it at query time
 > on winboxclimac), and a single such dump over the MAC terminal can't fit the 30 s budget. So the test
 > failed depending on how chatty the log happened to be. Fixed with a filter **on the router**:
 > `CreateCommandAndParameters("/log/print", "message", logMarker)` — the marker is written via
-> `:log error ("RUN53_<guid>")`, so it matches exactly and returns one line or none. The filter is honored
+> `:log info ("RUN53_<guid>")`, so it matches exactly and returns one line or none. The filter is honored
 > by Api (`?message=`), Rest, CLI (`where message=…`), and WinboxNative — verified live. After the fix it
 > passes on **all 11 transports** (mactelnet 31 s timeout → 2 s, winboxclimac 1 m 16 s fail → 32 s pass).
 > **Lesson for new tests:** never pull `/log/print` (or any other large list) without a filter inside a
@@ -428,6 +428,19 @@ Look for:
 - `ipsec,error initiator can't find identity` — orphan IPsec peer, remove it via `/ip/ipsec/peer/remove`
 - `dhcp,error bonding1: DHCP offer rejected` — router configuration, unrelated to the tests
 - Repeated entries of the same error = something is wrong
+
+**The suite must not leave error-severity lines behind.** A red `/log` after a run scares whoever opens
+the router next, so every marker the tests write is `info`. The single deliberate exception is
+`LogWriteTest.LogErrorWritesALineReadableBack`, which covers `LogError` itself — one line per run per
+transport. Two historical sources of noise, both fixed **2026-08-02**:
+
+- `dhcp,error events on master port will be handled by slave ether1, update your config!!! (IPv4)` —
+  `InterfaceBondingTest` enslaved `TestConstants.Interface` (the management port carrying the DHCP
+  client) because a bond needs at least one slave. It now bonds a disposable `test-bond-slave` veth
+  (`container` package), which logs nothing; `/interface/veth` is in `RouterOrphanCleaner` after
+  `/interface/bonding`.
+- `RunScript_Issue53` and `LogTopicsTest` wrote their markers with `:log error` / `LogError` — both now
+  log at `info`, and `LogTopicsTest` asserts the `info` topic instead.
 
 **Manual orphan cleanup:**
 ```python

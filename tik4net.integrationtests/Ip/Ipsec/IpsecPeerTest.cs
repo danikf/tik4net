@@ -28,6 +28,11 @@ namespace tik4net.integrationtests
                 Name = marker,
                 Address = "192.0.2.1",
                 Comment = marker,
+                // Disabled, because an enabled peer is one RouterOS immediately tries to negotiate with:
+                // every run left "ipsec,error initiator can't find identity for peer: t4n…" in the router log
+                // (there is no matching identity, and 192.0.2.1 is a TEST-NET address that answers nothing).
+                // The test asserts the CRUD round-trip, which does not need the peer to be live.
+                Disabled = true,
             };
             SaveTracked(peer);
 

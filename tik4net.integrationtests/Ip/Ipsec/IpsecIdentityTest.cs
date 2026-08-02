@@ -31,6 +31,9 @@ namespace tik4net.integrationtests
                 Name    = peerName,
                 Address = "192.0.2.50",
                 Comment = peerName,
+                // Disabled so the router does not start negotiating with a TEST-NET address that answers
+                // nothing — the identity is attached to the peer either way, which is what this asserts.
+                Disabled = true,
             };
             SaveTracked(peer);
 

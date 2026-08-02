@@ -15,6 +15,11 @@ namespace tik4net.integrationtests
     /// of the path with an implicit <c>print</c> and went out as <c>GET /rest/log/error</c> — answered
     /// <c>400 no such command</c>. The router was never the limit: <c>POST /rest/log/error</c> returns
     /// <c>200</c> and the line appears in <c>/log</c> (measured on 7.23.2).
+    /// <para>
+    /// This is the one test that deliberately leaves an <b>error</b>-severity line in the router log, because
+    /// <c>LogError</c> is precisely what it covers — everywhere else the suite logs at <c>info</c>, so a red
+    /// line in <c>/log</c> after a run is a real event and not test noise.
+    /// </para>
     /// </remarks>
     [TestClass]
     public class LogWriteTest : TestBase

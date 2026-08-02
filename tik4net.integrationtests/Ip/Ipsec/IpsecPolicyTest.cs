@@ -30,6 +30,10 @@ namespace tik4net.integrationtests
             {
                 Name = peerName,
                 Address = "192.0.2.1",
+                // Disabled: an enabled peer with no identity makes RouterOS log
+                // "ipsec,error initiator can't find identity for peer: …" on every run. The policy only needs
+                // the peer to exist, not to negotiate.
+                Disabled = true,
             };
             SaveTracked(peer);
 

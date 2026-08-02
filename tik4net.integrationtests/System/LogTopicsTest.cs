@@ -41,14 +41,19 @@ namespace tik4net.integrationtests
             Assert.IsFalse(string.IsNullOrEmpty(topics), "the log row carries no topics field");
             Assert.IsFalse(RawHandleList.IsMatch(topics),
                 $"topics came back as an undecoded reference list: '{topics}'");
-            Assert.IsTrue(topics.Split(',').Any(t => t.Trim() == "error"),
-                $"a /log error line must carry the 'error' topic, got '{topics}'");
+            Assert.IsTrue(topics.Split(',').Any(t => t.Trim() == "info"),
+                $"a /log info line must carry the 'info' topic, got '{topics}'");
         }
 
         /// <summary>
         /// Writes the marker line over a side API connection rather than over the transport under test.
         /// </summary>
         /// <remarks>
+        /// <para>
+        /// Written at <b>info</b> severity on purpose. Any level decodes its topics the same way, and an
+        /// error-severity marker left a red line in the router log for every run of every transport —
+        /// alarming for anyone who inspects the box afterwards, for no test value.
+        /// </para>
         /// This stays even though P2.48 fixed <c>/log/&lt;level&gt;</c> dispatch, and the reason has changed:
         /// REST now posts it correctly, but the native WinBox transports still cannot write a log line at all
         /// — the router's own <c>.jg</c> catalog declares no log-writing action on any handler. Writing over
@@ -63,7 +68,7 @@ namespace tik4net.integrationtests
                        ConfigurationManager.AppSettings["user"],
                        ConfigurationManager.AppSettings["pass"]))
             {
-                api.LogError(marker);
+                api.LogInfo(marker);
             }
         }
     }

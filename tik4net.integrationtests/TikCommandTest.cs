@@ -268,7 +268,9 @@ namespace tik4net.integrationtests
                 "/ system identity print \r\n" +
                 "/ system identity print\r\n" +
                 ":log info (\"end\") \r\n" +
-                ":log error (\"" + logMarker + "\")";
+                // info, not error: the marker only has to be findable, and an error-severity line makes the
+                // router's log light up red for whoever looks at the box after a test run.
+                ":log info (\"" + logMarker + "\")";
 
             // pre-cleanup: remove any leftover script with this name that would cause add to fail
             foreach (var leftover in Connection.CreateCommand("/system/script/print").ExecuteList().Where(s => s.GetResponseField("name") == name))
@@ -301,7 +303,7 @@ namespace tik4net.integrationtests
                     Assert.IsTrue(responseRows.Count() == commandRowsCnt); //one empty !re row per script line command
                 }
 
-                // Verify the script actually executed: the unique error-severity log entry must appear
+                // Verify the script actually executed: the unique marker log entry must appear
                 // in the router log. The log write lags the run completion on the slower CLI transports
                 // (MAC-Telnet / WinBox terminal), so poll for a few seconds rather than checking once.
                 //
@@ -309,7 +311,7 @@ namespace tik4net.integrationtests
                 // 1000-line memory buffer — ~85 000 characters each — and over a MAC terminal a single dump
                 // takes longer than the 30 s read budget, so this test tipped red purely on how verbose the
                 // router's log happened to be that day (measured 2026-07-30: 85 593 chars on mactelnet,
-                // 73 710 on winboxclimac). The marker is logged by `:log error ("RUN53_<guid>")`, so the
+                // 73 710 on winboxclimac). The marker is logged by `:log info ("RUN53_<guid>")`, so the
                 // message matches exactly and the filter returns one row or none.
                 bool found = false;
                 for (int attempt = 0; attempt < 10 && !found; attempt++)

@@ -51,6 +51,7 @@ namespace tik4net.integrationtests
             "/interface/list/member",
             "/interface/list",
             "/interface/bonding",
+            "/interface/veth",   // after /interface/bonding: the bond references it as its slave
             "/interface/eoip",
             "/interface/l2tp-client",
             "/interface/wifi/security",
