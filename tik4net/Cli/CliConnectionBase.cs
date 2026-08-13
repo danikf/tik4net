@@ -48,10 +48,28 @@ namespace tik4net.Cli
         /// <c>LoadListenAsync</c> are emulated by re-issuing a one-shot snapshot/print on a background timer
         /// (see <see cref="ITikMonitorTransport"/> below). Streaming (<c>ExecuteListWithDuration</c>) is NOT
         /// reported — use the binary API for that.
+        /// <para>
+        /// <see cref="TikConnectionCapability.AsyncCommands"/> is reported because the terminal clients are
+        /// async to the socket and the <c>Execute*Async</c> surface awaits them — nothing is pushed onto a
+        /// thread-pool thread to look asynchronous. <see cref="TikConnectionCapability.CancelInFlight"/> is
+        /// <b>not</b>, and never will be: a terminal answers with an unframed byte stream, so a read that is
+        /// abandoned mid-command leaves output for the next command to misread. See
+        /// <see cref="TikCancellationMode"/> for what a token does here instead.
+        /// </para>
         /// </summary>
         public override TikConnectionCapability Capabilities
             => TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode
-             | TikConnectionCapability.RawCommand;
+             | TikConnectionCapability.RawCommand | TikConnectionCapability.AsyncCommands;
+
+        /// <summary>
+        /// What a <see cref="CancellationToken"/> cancelled <b>after</b> the command was dispatched does on
+        /// this connection. Defaults to <see cref="TikCancellationMode.Cooperative"/> — the response is
+        /// drained and the cancel reported afterwards, so the session stays consistent. Set it to
+        /// <see cref="TikCancellationMode.AbandonAndClose"/> (usually via
+        /// <see cref="TikConnectionSetup.CancellationMode"/>) to trade the connection for a prompt return.
+        /// A token cancelled <i>before</i> dispatch always throws without writing anything, in either mode.
+        /// </summary>
+        public TikCancellationMode CancellationMode { get; set; } = TikCancellationMode.Cooperative;
 
         // ── Transport driver — subclass contract ──────────────────────────────
 
@@ -121,20 +139,68 @@ namespace tik4net.Cli
         /// <summary>
         /// Serialises access, fires diagnostics events, then sends the command through the transport.
         /// </summary>
+        /// <remarks>
+        /// <paramref name="ct"/> is observed at the points where observing it is safe, which on a terminal is
+        /// not the same as "wherever it fires" — see <see cref="TransportToken"/> and
+        /// <see cref="TikCancellationMode"/>. Cancelling while queued for <c>_cmdLock</c> is free: the command
+        /// has not been written, so nothing needs resynchronizing.
+        /// </remarks>
         protected async Task<string> ExecuteCliCommandAsync(string cliText, CancellationToken ct)
         {
             var send = _send ?? throw NotOpen();
             await _cmdLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                ct.ThrowIfCancellationRequested();   // level 0 — nothing written yet
                 FireWriteRow(cliText);
-                string result = await send(cliText, ct).ConfigureAwait(false);
+                string result;
+                try
+                {
+                    result = await send(cliText, TransportToken(ct)).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    // Only reachable in AbandonAndClose: the read was cut mid-response, so whatever the router
+                    // is still writing would be read by the next command. Close instead of pretending we are
+                    // in step again.
+                    CloseAfterAbandonedRead();
+                    throw;
+                }
                 FireReadRow(result);
+                // The safe point. The response has been drained, so the channel is consistent and the caller's
+                // cancel can finally be honoured without costing the next command its answer.
+                ct.ThrowIfCancellationRequested();
                 return result;
             }
             finally
             {
                 _cmdLock.Release();
+            }
+        }
+
+        /// <summary>
+        /// The token the <b>transport read</b> is given, which is deliberately not always the caller's.
+        /// In <see cref="TikCancellationMode.Cooperative"/> it is <see cref="CancellationToken.None"/>: the
+        /// response must be read to its end before the cancel is reported, because a terminal has no framing
+        /// to resynchronize on. In <see cref="TikCancellationMode.AbandonAndClose"/> the caller's token is
+        /// passed down, and the connection is closed if it fires.
+        /// </summary>
+        private CancellationToken TransportToken(CancellationToken ct)
+            => CancellationMode == TikCancellationMode.AbandonAndClose ? ct : CancellationToken.None;
+
+        // Closes the session after a read was abandoned. Best-effort: the point is that the connection is
+        // marked unusable, and a transport that throws while closing an already-broken channel must not
+        // replace the OperationCanceledException the caller is waiting for.
+        private void CloseAfterAbandonedRead()
+        {
+            TikWireTrace.Emit("cli.cancel", TikWireDir.Note,
+                "in-flight cancel with TikCancellationMode.AbandonAndClose — closing the connection, "
+                    + "the unread response cannot be resynchronized");
+            try { Close(); }
+            catch (Exception ex)
+            {
+                TikWireTrace.Emit("cli.cancel", TikWireDir.Note,
+                    "close after abandoned read failed: " + ex.GetType().Name + ": " + ex.Message);
             }
         }
 
@@ -363,6 +429,27 @@ namespace tik4net.Cli
         }
 
         // ── CRUD hooks — CLI text build + parse ────────────────────────────────
+        //
+        // The terminal clients are async to the socket, so the Task-based hooks are the real implementation
+        // here and the synchronous ones block on them (D5: async is the primitive; nothing is pushed onto a
+        // thread-pool thread to look asynchronous). Every await below carries ConfigureAwait(false), which is
+        // also what keeps the blocking wrappers safe to call from a UI / ASP.NET-classic SynchronizationContext.
+
+        /// <inheritdoc/>
+        internal override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)
+            => RunPrintAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
+
+        /// <inheritdoc/>
+        internal override string RunAdd(TikCommandDescriptor descriptor)
+            => RunAddAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
+
+        /// <inheritdoc/>
+        internal override void RunNonQuery(TikCommandDescriptor descriptor)
+            => RunNonQueryAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
+
+        /// <inheritdoc/>
+        internal override string RunRawText(TikCommandDescriptor descriptor)
+            => RunRawTextAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
 
         /// <summary>
         /// Executes a <c>print as-value</c> command and returns parsed sentences.
@@ -370,7 +457,8 @@ namespace tik4net.Cli
         /// performs two queries (detail + stats) and merges the results by <c>.id</c>
         /// so that config fields and live counter fields are combined in each record.
         /// </summary>
-        internal override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)
+        internal override async Task<IList<TikRecordSentence>> RunPrintAsync(
+            TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             EnsureOpened();
 
@@ -382,7 +470,7 @@ namespace tik4net.Cli
                 string rawCli = descriptor.WrapAsValue
                     ? WrapRawAsValue(descriptor.CommandText)
                     : descriptor.CommandText;
-                string rawOutput = ExecuteCliCommand(rawCli);
+                string rawOutput = await ExecuteCliCommandAsync(rawCli, cancellationToken).ConfigureAwait(false);
                 return CliOutputParser.ParseAsValue(rawOutput);
             }
 
@@ -409,7 +497,7 @@ namespace tik4net.Cli
                 // Filter format — see CliCommandBuilder.BuildNonQuery.
                 string actionText = CliCommandBuilder.BuildNonQuery(
                     descriptor.CommandText, descriptor.Parameters, includeFilters: true);
-                string actionOutput = ExecuteCliCommand(actionText);
+                string actionOutput = await ExecuteCliCommandAsync(actionText, cancellationToken).ConfigureAwait(false);
                 // An empty-row action (wol) is silent when it succeeds and prints its complaint when it does
                 // not — e.g. "input does not match any value of interface", which no phrase list caught, so
                 // WolWithInvalidInterfaceWillFail saw a failed send reported as success (P2.12).
@@ -423,7 +511,7 @@ namespace tik4net.Cli
             // =count=2' went out as ':put [/ping as-value]' → "failure: resolve failed" (P2.51). The async path
             // never had the bug — it has always used BuildMonitorSnapshot, which is what is used here too.
             if (CliMonitorVerbs.IsSyncMonitorVerb(printVerb))
-                return RunMonitorSnapshot(descriptor, printVerb);
+                return await RunMonitorSnapshotAsync(descriptor, printVerb, cancellationToken).ConfigureAwait(false);
 
             bool needStats = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliStats);
             bool wantJson = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliJson);
@@ -431,16 +519,19 @@ namespace tik4net.Cli
             if (!needStats)
             {
                 // Normal single-query path.
-                return RunPrintQuery(descriptor, wantJson,
-                    json => CliCommandBuilder.BuildPrint(descriptor.CommandText, descriptor.Parameters, json));
+                return await RunPrintQueryAsync(descriptor, wantJson,
+                    json => CliCommandBuilder.BuildPrint(descriptor.CommandText, descriptor.Parameters, json),
+                    cancellationToken).ConfigureAwait(false);
             }
 
             // Two-query path: detail (config) + stats (counters), merged by .id.
-            IList<TikRecordSentence> configRecords = RunPrintQuery(descriptor, wantJson,
-                json => CliCommandBuilder.BuildPrint(descriptor.CommandText, descriptor.Parameters, json));
+            IList<TikRecordSentence> configRecords = await RunPrintQueryAsync(descriptor, wantJson,
+                json => CliCommandBuilder.BuildPrint(descriptor.CommandText, descriptor.Parameters, json),
+                cancellationToken).ConfigureAwait(false);
 
-            IList<TikRecordSentence> statsRecords = RunPrintQuery(descriptor, wantJson,
-                json => CliCommandBuilder.BuildPrintStats(descriptor.CommandText, descriptor.Parameters, json));
+            IList<TikRecordSentence> statsRecords = await RunPrintQueryAsync(descriptor, wantJson,
+                json => CliCommandBuilder.BuildPrintStats(descriptor.CommandText, descriptor.Parameters, json),
+                cancellationToken).ConfigureAwait(false);
 
             // Build index of stats records by .id for O(1) lookup.
             var statsById = new Dictionary<string, TikRecordSentence>(StringComparer.OrdinalIgnoreCase);
@@ -496,13 +587,14 @@ namespace tik4net.Cli
         /// here, <c>TikGenericCommand.ResolveParamsForRead</c> has rewritten the caller's parameters to Filter
         /// format, and a monitor has no query semantics for them to mean anything else.
         /// </remarks>
-        private IList<TikRecordSentence> RunMonitorSnapshot(TikCommandDescriptor descriptor, string verb)
+        private async Task<IList<TikRecordSentence>> RunMonitorSnapshotAsync(
+            TikCommandDescriptor descriptor, string verb, CancellationToken cancellationToken)
         {
             string cliText = CliCommandBuilder.BuildMonitorSnapshot(
                 descriptor.CommandText, descriptor.Parameters,
                 CliMonitorVerbs.SnapshotModifier(verb), includeFilters: true);
 
-            string output = ExecuteCliCommand(cliText);
+            string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false);
             CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
             return ParseMonitorSnapshot(output, descriptor);
         }
@@ -556,14 +648,15 @@ namespace tik4net.Cli
         /// is known either way, no retry happens again on this connection.
         /// </para>
         /// </summary>
-        private IList<TikRecordSentence> RunPrintQuery(
-            TikCommandDescriptor descriptor, bool wantJson, Func<bool, string> buildCommand)
+        private async Task<IList<TikRecordSentence>> RunPrintQueryAsync(
+            TikCommandDescriptor descriptor, bool wantJson, Func<bool, string> buildCommand,
+            CancellationToken cancellationToken)
         {
             if (wantJson && _serializeSupported != false)
             {
                 try
                 {
-                    string jsonOutput = ExecuteCliCommand(buildCommand(true));
+                    string jsonOutput = await ExecuteCliCommandAsync(buildCommand(true), cancellationToken).ConfigureAwait(false);
                     CliErrorParser.ThrowIfError(jsonOutput, CreateDummyCommand(descriptor));
                     IList<TikRecordSentence> records = CliJsonParser.ParseJson(jsonOutput);
                     _serializeSupported = true;
@@ -579,7 +672,7 @@ namespace tik4net.Cli
                 }
             }
 
-            string output = ExecuteCliCommand(buildCommand(false));
+            string output = await ExecuteCliCommandAsync(buildCommand(false), cancellationToken).ConfigureAwait(false);
             CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
 
             if (wantJson && _serializeSupported == null)
@@ -599,11 +692,11 @@ namespace tik4net.Cli
         /// <summary>
         /// Executes an <c>add</c> command and returns the new record's .id.
         /// </summary>
-        internal override string RunAdd(TikCommandDescriptor descriptor)
+        internal override async Task<string> RunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             EnsureOpened();
             string cliText = CliCommandBuilder.BuildAdd(descriptor.CommandText, descriptor.Parameters);
-            string output = ExecuteCliCommand(cliText);
+            string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false);
             CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
             return ExtractAddId(output);
         }
@@ -652,7 +745,7 @@ namespace tik4net.Cli
         /// <summary>
         /// Executes a non-query command (set, remove, enable, disable, move, reboot, …).
         /// </summary>
-        internal override void RunNonQuery(TikCommandDescriptor descriptor)
+        internal override async Task RunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             EnsureOpened();
             string verb = TikPath.Verb(descriptor.CommandText);
@@ -686,7 +779,7 @@ namespace tik4net.Cli
                     break;
             }
 
-            string output = ExecuteCliCommand(cliText);
+            string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false);
             // set/remove/enable/disable/move/unset print nothing when they succeed, so anything left after
             // echo/prompt trimming is the router rejecting the command — catch it by position rather than
             // by phrase, or it is reported to the caller as success (P2.12).
@@ -700,13 +793,13 @@ namespace tik4net.Cli
         /// by output text — raw mode cannot know what counts as an error for an arbitrary command, so the text is
         /// returned as-is. Used by <c>ExecuteScalar</c> (e.g. <c>/export</c>) and <c>ExecuteNonQuery</c>.
         /// </summary>
-        internal override string RunRawText(TikCommandDescriptor descriptor)
+        internal override async Task<string> RunRawTextAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             EnsureOpened();
             string rawCli = descriptor.WrapAsValue
                 ? WrapRawAsValue(descriptor.CommandText)
                 : descriptor.CommandText;
-            return (ExecuteCliCommand(rawCli) ?? string.Empty).Trim();
+            return (await ExecuteCliCommandAsync(rawCli, cancellationToken).ConfigureAwait(false) ?? string.Empty).Trim();
         }
 
         // Wraps a verbatim CLI line so RouterOS materialises its as-value output (bare 'print as-value' prints

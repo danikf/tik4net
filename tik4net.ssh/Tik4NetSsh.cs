@@ -34,7 +34,7 @@ namespace tik4net.Ssh
         /// </summary>
         public static ITikConnection CreateSshConnection(this TikConnectionSetup setup)
         {
-            var conn = new SshConnection();
+            var conn = new SshConnection { CancellationMode = setup.CancellationMode };
             if (setup.Port.HasValue)
                 conn.Open(setup.Host, setup.Port.Value, setup.User, setup.Password);
             else
@@ -46,7 +46,7 @@ namespace tik4net.Ssh
         public static async Task<ITikConnection> CreateSshConnectionAsync(
             this TikConnectionSetup setup, CancellationToken ct = default)
         {
-            var conn = new SshConnection();
+            var conn = new SshConnection { CancellationMode = setup.CancellationMode };
             ct.ThrowIfCancellationRequested();
             if (setup.Port.HasValue)
                 await conn.OpenAsync(setup.Host, setup.Port.Value, setup.User, setup.Password).ConfigureAwait(false);

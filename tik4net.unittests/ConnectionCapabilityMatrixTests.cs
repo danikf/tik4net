@@ -22,9 +22,14 @@ namespace tik4net.unittests
     [TestClass]
     public class ConnectionCapabilityMatrixTests
     {
+        // AsyncCommands, but deliberately NOT CancelInFlight (P2.2 step 3): the terminal clients await their
+        // socket, so the Task-based surface is real — while the response is an unframed byte stream, so a read
+        // abandoned mid-command would leave output for the next command to misread. The second flag's absence
+        // here is intrinsic and permanent, not a backlog item.
         private const TikConnectionCapability Cli =
             TikConnectionCapability.Crud | TikConnectionCapability.Listen
-            | TikConnectionCapability.SafeMode | TikConnectionCapability.RawCommand;
+            | TikConnectionCapability.SafeMode | TikConnectionCapability.RawCommand
+            | TikConnectionCapability.AsyncCommands;
 
         // Listen is polled, like the CLI and native transports — RouterOS's own REST 'listen' is accepted and
         // then never flushes anything (P2.26). No Streaming: an HTTP response arrives in one lump.

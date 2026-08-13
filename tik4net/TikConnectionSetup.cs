@@ -33,6 +33,15 @@ namespace tik4net
         public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(15);
 
         /// <summary>
+        /// What a <see cref="CancellationToken"/> cancelled <b>after</b> a command was dispatched may do to
+        /// the connection. Applies to the CLI transports (Telnet, SSH, MAC-Telnet, WinBox CLI over TCP and
+        /// over MAC), whose terminal byte stream has no point to resynchronize on; the API and REST cancel
+        /// for real and ignore it (<see cref="TikConnectionCapability.CancelInFlight"/>). Defaults to
+        /// <see cref="TikCancellationMode.Cooperative"/> — the connection is never left desynchronized.
+        /// </summary>
+        public TikCancellationMode CancellationMode { get; set; } = TikCancellationMode.Cooperative;
+
+        /// <summary>
         /// When true, self-signed / invalid SSL certificates on the router are accepted.
         /// Default is true (matching prior behaviour). Applies to both API-SSL and REST-SSL.
         /// Ignored when <see cref="CertificateValidationCallback"/> is set.
@@ -139,7 +148,11 @@ namespace tik4net
             => OpenAsync(NewTelnetConnection(), ct);
 
         private TelnetConnection NewTelnetConnection()
-            => new TelnetConnection { ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds };
+            => new TelnetConnection
+            {
+                ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
+                CancellationMode = CancellationMode,
+            };
 
         // ── MAC-Telnet ────────────────────────────────────────────────────────
 
@@ -158,6 +171,7 @@ namespace tik4net
             {
                 RouterMac = routerMac,
                 ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
+                CancellationMode = CancellationMode,
             };
             OpenSync(conn);
             return conn;
@@ -170,6 +184,7 @@ namespace tik4net
                 {
                     RouterMac = routerMac,
                     ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
+                    CancellationMode = CancellationMode,
                 },
                 ct);
 
@@ -185,6 +200,7 @@ namespace tik4net
             var conn = new WinboxCliConnection
             {
                 ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
+                CancellationMode = CancellationMode,
             };
             OpenSync(conn);
             return conn;
@@ -196,6 +212,7 @@ namespace tik4net
                 new WinboxCliConnection
                 {
                     ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
+                    CancellationMode = CancellationMode,
                 },
                 ct);
 
@@ -217,6 +234,7 @@ namespace tik4net
             {
                 RouterMac = routerMac,
                 ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
+                CancellationMode = CancellationMode,
             };
             OpenSync(conn);
             return conn;
@@ -229,6 +247,7 @@ namespace tik4net
                 {
                     RouterMac = routerMac,
                     ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
+                    CancellationMode = CancellationMode,
                 },
                 ct);
 

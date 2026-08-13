@@ -21,7 +21,7 @@ namespace tik4net.integrationtests
     /// different thing.
     /// <para>
     /// Transports without the capability report Inconclusive rather than failing: they have no async core yet,
-    /// which is a scheduled gap (the CLI family is next), not a router refusal.
+    /// which is a scheduled gap (WinBox native is next), not a router refusal.
     /// </para>
     /// </remarks>
     [TestClass]
@@ -210,6 +210,46 @@ namespace tik4net.integrationtests
             string identity = await Connection.CreateCommand("/system/identity/print").ExecuteScalarAsync();
             Assert.IsFalse(string.IsNullOrEmpty(identity),
                 "the connection was left unusable by the cancel");
+        }
+
+        [TestMethod]
+        public async Task WithoutCancelInFlight_TheCancelWaitsForTheAnswer_AndTheConnectionStaysInStep()
+        {
+            EnsureCapability(TikConnectionCapability.AsyncCommands, "Execute*Async");
+            if (Connection.Supports(TikConnectionCapability.CancelInFlight))
+                Assert.Inconclusive("this transport cancels for real — covered by CancelInFlight_StopsWaiting");
+
+            // The other half of the cancellation contract, and the half that can only be observed live: on the
+            // CLI family the token does NOT cut the read, because the response is an unframed byte stream and
+            // abandoning it would leave output for the next command to read as its own. So the call is expected
+            // to take as long as the command does — and the assertion that matters is the one after it.
+            var ping = Connection.CreateCommand("/ping", TikCommandParameterFormat.NameValue);
+            ping.AddParameter("address", "127.0.0.1");
+            ping.AddParameter("count", "3");
+
+            var stopwatch = Stopwatch.StartNew();
+            using (var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300)))
+            {
+                try
+                {
+                    await ping.ExecuteListAsync(cts.Token);
+                    Assert.Fail("the cancel was swallowed — it must surface once the response has been drained");
+                }
+                catch (OperationCanceledException)
+                {
+                    // expected: reported at the safe point, not at the moment the token fired
+                }
+            }
+            stopwatch.Stop();
+            Assert.IsTrue(stopwatch.Elapsed > TimeSpan.FromSeconds(2),
+                $"the call returned after {stopwatch.Elapsed.TotalSeconds:F1} s, i.e. before a 3-count ping can "
+                + "have finished — the read was abandoned, and the unread output will be misread as the next "
+                + "command's answer");
+
+            // The whole reason for waiting: the channel is back in step, so the next command gets ITS answer.
+            string identity = Connection.CreateCommand("/system/identity/print").ExecuteScalar();
+            var again = await Connection.CreateCommand("/system/identity/print").ExecuteScalarAsync();
+            Assert.AreEqual(identity, again, "the connection was left out of step by the cancel");
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────

@@ -55,7 +55,7 @@ Four flag sets recur across the transport families:
 | Name | Flags | Who declares it |
 |---|---|---|
 | **Full** | `Crud`, `Listen`, `Streaming`, `RawSentences`, `Tagging`, `SafeMode`, `RawCommand` | `Api`, `ApiSsl` |
-| **Cli** | `Crud`, `Listen`, `SafeMode`, `RawCommand` | `Telnet`, `Ssh`, `MacTelnet`, `WinboxCli`, `WinboxCliMac` (all inherit `CliConnectionBase`) |
+| **Cli** | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands` | `Telnet`, `Ssh`, `MacTelnet`, `WinboxCli`, `WinboxCliMac` (all inherit `CliConnectionBase`) |
 | **Native** | `Crud`, `Listen`, `SafeMode` | `WinboxNative`, `WinboxNativeMac` |
 | **Rest** | `Crud`, `Listen`, `AsyncCommands`, `CancelInFlight` | `Rest`, `RestSsl` (stateless HTTP — no Streaming, no SafeMode) |
 
@@ -68,11 +68,21 @@ Native does **not** report it (its wire form is a numeric M2 message, not a stri
 transport for raw access over that channel).
 
 `AsyncCommands` (the `Execute*Async` surface) and `CancelInFlight` (a token that stops a command
-already on the wire and still leaves the connection usable) are being rolled out per transport;
-REST is the first to declare either. Note what `CancelInFlight` does **not** promise anywhere: that
-the router stops working. On REST it does not — aborting the HTTP request frees the caller while
-RouterOS runs the command to the end (§12.1). See the XML doc on `TikConnectionCapability` for the
-full per-flag semantics, including how `/tool/torch` is handled differently per transport family.
+already on the wire and still leaves the connection usable) are being rolled out per transport:
+REST first, then the CLI family; the binary API and WinBox native are still to come. Note what
+`CancelInFlight` does **not** promise anywhere: that the router stops working. On REST it does not —
+aborting the HTTP request frees the caller while RouterOS runs the command to the end (§12.1).
+
+The CLI family declares `AsyncCommands` **without** `CancelInFlight`, and that gap is intrinsic
+rather than scheduled: a RouterOS terminal answers with an unframed byte stream — no sentence
+boundary, no request id — so a read abandoned mid-command leaves output that the *next* command
+reads as its own. That does not throw; it returns the wrong answer. So the caller's token is never
+handed to the transport read: it is honoured before dispatch, and after dispatch it is reported once
+the response has been drained (`TikCancellationMode.Cooperative`, the default). A caller who would
+rather lose the connection than wait sets `TikCancellationMode.AbandonAndClose`, which cuts the read
+**and closes the session** — a close, never a silent skip. See the XML doc on
+`TikConnectionCapability` for the full per-flag semantics, including how `/tool/torch` is handled
+differently per transport family.
 
 ---
 
@@ -168,7 +178,8 @@ tik4net/TikConnectionSetup.cs         — CreateRestConnection() / CreateRestSsl
 **TCP port 23**
 
 The IP equivalent of MAC Telnet — identical terminal output (VT100), same RouterOS CLI. Declares
-the **Cli** flag set (`Crud`, `Listen`, `SafeMode`, `RawCommand`) via `CliConnectionBase`.
+the **Cli** flag set (`Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands`) via
+`CliConnectionBase`.
 
 ### Capabilities
 
@@ -195,7 +206,8 @@ tik4net/Cli/VtStripper.cs             — ANSI escape remover (shared)
 **TCP port 22, satellite package `tik4net.ssh` (dependency: `Renci.SshNet`)**
 
 Drives the RouterOS CLI over an SSH PTY shell — same `CliConnectionBase` plumbing, parsing, and
-capability set (**Cli**: `Crud`, `Listen`, `SafeMode`, `RawCommand`) as Telnet/MAC-Telnet/WinBox CLI.
+capability set (**Cli**: `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands`) as
+Telnet/MAC-Telnet/WinBox CLI.
 Kept out of the core `tik4net` package specifically so consumers who don't need SSH don't pull in
 `Renci.SshNet`.
 
@@ -204,7 +216,7 @@ Kept out of the core `tik4net` package specifically so consumers who don't need 
 | Capability | Status |
 |---|---|
 | CLI access via `CliConnectionBase` (`ITikConnection`) | ✅ |
-| `Crud`, `Listen` (poll-emulated), `SafeMode`, `RawCommand` | ✅ |
+| `Crud`, `Listen` (poll-emulated), `SafeMode`, `RawCommand`, `AsyncCommands` | ✅ |
 | Streaming (`ExecuteListWithDuration`) | ❌ not supported (CLI family, not binary API) |
 | Registration via `ConnectionFactory` | requires one-time `tik4net.Ssh.Tik4NetSsh.Register()` |
 
@@ -275,7 +287,7 @@ inside it like a regular CLI transport (same parsing as Telnet/MAC-Telnet). Both
 | EC-SRP5 authentication + AES-128-CBC session | ✅ (both transports) |
 | Mepty terminal (handler `[76]`, VT100 negotiation) | ✅ (both transports) |
 | CLI access via `CliConnectionBase` (`ITikConnection`) | ✅ (both transports) |
-| `Crud`, `Listen` (poll-emulated), `SafeMode`, `RawCommand` | ✅ (both transports) |
+| `Crud`, `Listen` (poll-emulated), `SafeMode`, `RawCommand`, `AsyncCommands` | ✅ (both transports) |
 | TCP transport (port 8291) | ✅ (WinboxCli) |
 | MAC/UDP transport (port 20561, `client_type=0x0f90`) | ✅ (WinboxCliMac) |
 | Transport-agnostic mepty engine (`IWinboxM2Channel`) | ✅ |

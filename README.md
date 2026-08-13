@@ -40,10 +40,10 @@ All transports share the same `ITikConnection` API and O/R mapper — pick one v
 |---|---|---|---|
 | **Api** / **ApiSsl** | TCP 8728 / 8729 | native MikroTik API protocol — the default and fastest; TLS variant needs a certificate on the router | **all of them**: `Crud`, `Listen`, `Streaming`, `RawSentences`, `Tagging`, `SafeMode`, `RawCommand` |
 | **Rest** / **RestSsl** | TCP 80 / 443 | REST API, RouterOS 7.1+ | `Crud`, `Listen`\*†, `AsyncCommands`‡, `CancelInFlight`‡ — stateless HTTP, so no streaming and no Safe Mode |
-| **Telnet** | TCP 23 | RouterOS CLI over plain-text Telnet | `Crud`, `Listen`\*, `SafeMode`, `RawCommand` |
-| **Ssh** | TCP 22 | RouterOS CLI over an SSH shell (separate `tik4net.ssh` package) | `Crud`, `Listen`\*, `SafeMode`, `RawCommand` |
-| **MacTelnet** | UDP 20561 | CLI over MAC-Telnet — reaches the router with **no IP route** | `Crud`, `Listen`\*, `SafeMode`, `RawCommand` |
-| **WinboxCli** / **WinboxCliMac** | TCP 8291 / UDP 20561 | CLI over the encrypted WinBox channel (EC-SRP5 + AES, no certificates) | `Crud`, `Listen`\*, `SafeMode`, `RawCommand` |
+| **Telnet** | TCP 23 | RouterOS CLI over plain-text Telnet | `Crud`, `Listen`\*, `SafeMode`, `RawCommand`, `AsyncCommands`‡ |
+| **Ssh** | TCP 22 | RouterOS CLI over an SSH shell (separate `tik4net.ssh` package) | `Crud`, `Listen`\*, `SafeMode`, `RawCommand`, `AsyncCommands`‡ |
+| **MacTelnet** | UDP 20561 | CLI over MAC-Telnet — reaches the router with **no IP route** | `Crud`, `Listen`\*, `SafeMode`, `RawCommand`, `AsyncCommands`‡ |
+| **WinboxCli** / **WinboxCliMac** | TCP 8291 / UDP 20561 | CLI over the encrypted WinBox channel (EC-SRP5 + AES, no certificates) | `Crud`, `Listen`\*, `SafeMode`, `RawCommand`, `AsyncCommands`‡ |
 | **WinboxNative** / **WinboxNativeMac** | TCP 8291 / UDP 20561 | structured WinBox M2 CRUD, no terminal | `Crud`, `Listen`\*, `SafeMode` |
 
 \* **`Listen` outside the API is emulated by polling** (re-issuing a snapshot on a background worker), not
@@ -55,11 +55,15 @@ buffers the whole HTTP response. Prefer an explicit bound (`count`/`duration`) o
 that closing the connection does not stop a command already running on the router.
 
 ‡ **`Execute*Async` — the Task-based command surface** (`ExecuteListAsync`, `ExecuteScalarAsync`, … with a
-`CancellationToken`) is being rolled out per transport and REST has it first, natively over `HttpClient`. Where
-`AsyncCommands` is absent the async methods throw rather than block a thread pretending to be asynchronous; use
-the synchronous methods there. `CancelInFlight` means a token cancelled *after* dispatch really stops the wait
-and leaves the connection usable — elsewhere the cancel is deferred to the next safe point, because abandoning
-an unframed byte stream would leave output for the next command to misparse.
+`CancellationToken`) is being rolled out per transport: REST first, then the whole CLI family, each over its own
+awaited socket. Where `AsyncCommands` is absent (today the binary API and WinBox native) the async methods throw
+rather than block a thread pretending to be asynchronous; use the synchronous methods there. `CancelInFlight`
+means a token cancelled *after* dispatch really stops the wait and leaves the connection usable. **On the CLI
+transports it never will**: a terminal answers with an unframed byte stream, so abandoning a read would leave
+output for the next command to misparse. There a mid-command cancel is reported once the response has been
+drained — correct, but no faster than the command itself. A caller who would rather lose the session than wait
+opts in with `TikConnectionSetup.CancellationMode = TikCancellationMode.AbandonAndClose`, which closes the
+connection instead of silently desynchronizing it.
 
 Every transport can have its connection **reused**. Concurrent commands on one connection work on
 `Api`/`ApiSsl` (set `SendTagWithSyncCommand = true` first), `Rest`/`RestSsl` and both WinBox-native
