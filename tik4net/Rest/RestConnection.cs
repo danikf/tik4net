@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using tik4net.Connection;
+using tik4net.Diagnostics;
 
 namespace tik4net.Rest
 {
@@ -279,7 +280,7 @@ namespace tik4net.Rest
             => RunPrint(printDescriptor);
 
         /// <inheritdoc/>
-        TikTrapSentenceResult IPollingMonitorHost.ToTrap(Exception ex) => new TikTrapSentenceResult(ex.Message);
+        TikTrapSentenceResult IPollingMonitorHost.ToTrap(Exception ex) => TikTrapSentenceResult.FromException(ex);
 
         /// <summary>
         /// Runs a self-terminating monitor once and emits its rows. Deliberately not
@@ -435,17 +436,34 @@ namespace tik4net.Rest
             // Try to parse REST error body
             string message = null;
             string detail = null;
-            try
+            // Falling back to the raw body is honest here — the caller still gets an error carrying whatever
+            // the router said, nothing is invented — but the catch is narrowed to the parse itself so a bug in
+            // this method cannot hide inside it (P2.25), and a body we could not read is traced.
+            if (!string.IsNullOrEmpty(body))
             {
-                using (var doc = JsonDocument.Parse(body))
+                try
                 {
-                    if (doc.RootElement.TryGetProperty("message", out var msgEl))
-                        message = msgEl.GetString();
-                    if (doc.RootElement.TryGetProperty("detail", out var detEl))
-                        detail = detEl.GetString();
+                    using (var doc = JsonDocument.Parse(body))
+                    {
+                        if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                        {
+                            // ToString() rather than GetString(): a non-string "message" (RouterOS has been
+                            // seen answering with a number) must render as itself, not throw out of an error
+                            // path whose whole job is to report the error that got us here.
+                            if (doc.RootElement.TryGetProperty("message", out var msgEl))
+                                message = msgEl.ToString();
+                            if (doc.RootElement.TryGetProperty("detail", out var detEl))
+                                detail = detEl.ToString();
+                        }
+                    }
+                }
+                catch (JsonException ex)
+                {
+                    if (TikWireTrace.Enabled)
+                        TikWireTrace.Emit("rest.http", TikWireDir.Note,
+                            $"HTTP {statusCode} body is not JSON ({ex.Message}); reported verbatim");
                 }
             }
-            catch { /* ignore JSON parse error, use raw body */ }
 
             string fullMessage = message ?? body;
             if (!string.IsNullOrEmpty(detail) && detail != message)

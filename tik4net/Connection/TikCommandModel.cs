@@ -123,6 +123,29 @@ namespace tik4net.Connection
             CategoryDescription = categoryDescription;
         }
 
+        /// <summary>
+        /// Builds the trap a background monitor/async worker reports when its poll threw. The exception object
+        /// itself cannot cross the callback (the contract is a trap sentence), so this is the only copy of the
+        /// reason that survives — and <c>ex.Message</c> alone loses the half that says WHOSE fault it was: a
+        /// router trap, a socket error and a <c>NullReferenceException</c> in our own decoder all reach the
+        /// caller as an unattributed sentence (P2.25, the same defect fixed in <c>ApiConnection</c>'s synthetic
+        /// <c>!fatal</c>). Exceptions that already carry the router's own wording keep it verbatim; anything
+        /// else is prefixed with its type and carries its inner exception.
+        /// </summary>
+        internal static TikTrapSentenceResult FromException(System.Exception ex)
+        {
+            if (ex == null) return new TikTrapSentenceResult("unknown error");
+            // A trap exception's message IS the router's own wording (TikNoSuchItemException and friends all
+            // derive from it) — prefixing it with a CLR type name would only obscure it.
+            if (ex is TikCommandTrapException)
+                return new TikTrapSentenceResult(ex.Message);
+
+            string text = ex.GetType().Name + ": " + ex.Message;
+            for (var inner = ex.InnerException; inner != null; inner = inner.InnerException)
+                text += " -> " + inner.GetType().Name + ": " + inner.Message;
+            return new TikTrapSentenceResult(text);
+        }
+
         /// <inheritdoc/>
         public IReadOnlyDictionary<string, string> Words
             => new Dictionary<string, string> { ["message"] = Message ?? string.Empty };

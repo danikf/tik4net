@@ -793,7 +793,7 @@ namespace tik4net.Cli
             => RunPrint(printDescriptor);   // RunPrint serialises via ExecuteCliCommand's _cmdLock
 
         /// <inheritdoc/>
-        TikTrapSentenceResult IPollingMonitorHost.ToTrap(Exception ex) => new TikTrapSentenceResult(ex.Message);
+        TikTrapSentenceResult IPollingMonitorHost.ToTrap(Exception ex) => TikTrapSentenceResult.FromException(ex);
 
         // Monitor poll loop: re-issue the one-shot snapshot, emit each record, sleep, honour cancel.
         private void MonitorPollLoop(TikCommandDescriptor descriptor, string snapshotModifier, TikMonitorHandle handle,

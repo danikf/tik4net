@@ -123,8 +123,14 @@ namespace tik4net.Winbox
                         // 'not' flag (key NotKey) renders as the RouterOS '!' negation prefix on the whole
                         // value (CLI/API form, e.g. "!established,related").
                         if (jf.EnumMap == null) break;
-                        long bits;
-                        try { bits = Convert.ToInt64(value); } catch { break; }
+                        if (!WinboxFieldResolver.TryToInt64(value, out long bits))
+                        {
+                            // Falls through to the raw wire text, which is visibly not a label list — but a
+                            // silent fall-through is how a .jg/router mismatch goes unnoticed for a release
+                            // (P2.25), so say so on the trace channel.
+                            TraceNonNumeric("set", value);
+                            break;
+                        }
                         var labels = jf.EnumMap.Where(kv => (bits & (1L << kv.Key)) != 0)
                             .OrderBy(kv => kv.Key).Select(kv => kv.Value);
                         string joined = string.Join(",", labels);
@@ -151,12 +157,11 @@ namespace tik4net.Winbox
                 // static enum: map the numeric value back to its API string label.
                 if (jf.EnumMap != null)
                 {
-                    try
+                    if (WinboxFieldResolver.TryToInt64(value, out long ev))
                     {
-                        int iv = unchecked((int)Convert.ToInt64(value));
-                        if (jf.EnumMap.TryGetValue(iv, out var label)) return label;
+                        if (jf.EnumMap.TryGetValue(unchecked((int)ev), out var label)) return label;
                     }
-                    catch { /* not numeric — fall through */ }
+                    else TraceNonNumeric("enum", value);   // falls through to the raw text, see above
                 }
             }
             return FormatValue(wireType, value);
@@ -187,9 +192,12 @@ namespace tik4net.Winbox
         // Resolve a dynamic-enum reference value (the referenced record's numeric id) back to its name.
         private string ResolveRefName(int[] refHandler, object idValue)
         {
-            int id;
-            try { id = unchecked((int)Convert.ToInt64(idValue)); }
-            catch { return null; }
+            if (!WinboxFieldResolver.TryToInt64(idValue, out long idl))
+            {
+                TraceNonNumeric("reference", idValue);
+                return null;                       // caller keeps the raw text — never a fabricated name
+            }
+            int id = unchecked((int)idl);
 
             string key = string.Join(",", refHandler);
             if (!_refNameCache.TryGetValue(key, out var map))
@@ -206,8 +214,12 @@ namespace tik4net.Winbox
                         if (r.TryGetValue(idKey, out var idt) && idt.Item2 != null
                             && nameKey >= 0 && r.TryGetValue(nameKey, out var nt) && nt.Item2 != null)
                         {
-                            try { map[unchecked((int)Convert.ToInt64(idt.Item2))] = nt.Item2.ToString(); }
-                            catch { /* skip */ }
+                            // A row whose id is not numeric is left out of the map, so the value it would have
+                            // named stays raw rather than picking up a neighbour's name; traced because the map
+                            // is cached and the omission would otherwise be permanent and invisible.
+                            if (WinboxFieldResolver.TryToInt64(idt.Item2, out long rowId))
+                                map[unchecked((int)rowId)] = nt.Item2.ToString();
+                            else TraceNonNumeric("reference table id", idt.Item2);
                         }
                 }
                 catch (Exception ex)
@@ -231,8 +243,22 @@ namespace tik4net.Winbox
         private static string FormatId(object value)
         {
             if (value == null) return "*0";
-            try { return "*" + Convert.ToUInt64(value).ToString("X"); }
-            catch { return value.ToString(); }
+            if (WinboxFieldResolver.TryToInt64(value, out long id) && id >= 0)
+                return "*" + ((ulong)id).ToString("X");
+            // Handing back the raw text produces an .id that is not a RouterOS handle at all, so every
+            // later set/remove addressed by it will fail — noisily, but a long way from here. Trace it.
+            TraceNonNumeric(".id", value);
+            return value.ToString();
+        }
+
+        // One place for "the router sent something this decode step cannot read as a number". None of the
+        // callers fabricate a value — they fall back to the raw wire text — but a fall-back nobody can see is
+        // how a .jg/router mismatch survives a release (P2.25).
+        private static void TraceNonNumeric(string what, object value)
+        {
+            if (!TikWireTrace.Enabled) return;
+            TikWireTrace.Emit("wbx.codec", TikWireDir.Note,
+                $"{what} value '{value}' ({value?.GetType().Name ?? "null"}) is not numeric, left as raw text");
         }
 
         /// <summary>

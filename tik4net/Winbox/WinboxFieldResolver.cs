@@ -757,16 +757,18 @@ namespace tik4net.Winbox
         // ── decode-side formatting (u32/bytes → text) ──────────────────────────
 
         /// <summary>u32 packed octet-LSB → "a.b.c.d" (inverse of <see cref="PackIpV4"/>).</summary>
+        /// <exception cref="WinboxFieldResolutionException">The value is not numeric — see <see cref="ToU32"/>.</exception>
         internal static string IpFromU32(object value)
         {
-            uint v = ToU32(value);
+            uint v = ToU32(value, "an IPv4 address");
             return $"{v & 0xff}.{(v >> 8) & 0xff}.{(v >> 16) & 0xff}.{(v >> 24) & 0xff}";
         }
 
         /// <summary>Netmask u32 (octet-LSB) → prefix length (count of set bits).</summary>
+        /// <exception cref="WinboxFieldResolutionException">The value is not numeric — see <see cref="ToU32"/>.</exception>
         internal static int MaskToPrefix(object value)
         {
-            uint v = ToU32(value);
+            uint v = ToU32(value, "an IPv4 netmask");
             int n = 0;
             while (v != 0) { n += (int)(v & 1); v >>= 1; }
             return n;
@@ -844,10 +846,39 @@ namespace tik4net.Winbox
             return value?.ToString() ?? "";
         }
 
-        private static uint ToU32(object value)
+        /// <summary>
+        /// Reads an M2 value as a 64-bit integer, reporting failure instead of substituting one. Every numeric
+        /// read on the decode path goes through this so the "not a number" case is a decision the caller has to
+        /// take, not a value it silently inherits (P2.25).
+        /// </summary>
+        internal static bool TryToInt64(object value, out long result)
         {
-            try { return unchecked((uint)Convert.ToInt64(value)); }
-            catch { return 0; }
+            // Convert.ToInt64(null) is 0 and does NOT throw — the one substitution the exception list below
+            // would not have caught, and the one most likely to be hit (an absent field decodes to null).
+            if (value == null) { result = 0; return false; }
+            // Otherwise Convert.ToInt64 answers "not a number" with four different exception types depending on
+            // what it was handed (a byte[], "x", a value out of range); none of them are caught anywhere else,
+            // so listing them keeps a genuine bug in this method from being swallowed as "not numeric".
+            try { result = Convert.ToInt64(value); return true; }
+            catch (InvalidCastException) { }
+            catch (FormatException) { }
+            catch (OverflowException) { }
+            catch (ArgumentNullException) { }
+            result = 0;
+            return false;
+        }
+
+        // Numeric read on a path whose fallback would be INDISTINGUISHABLE from a real answer: an unreadable
+        // ipaddr used to render 0.0.0.0 and an unreadable netmask prefix /0, both of which reach the caller
+        // looking like something the router said (P2.25). There is no honest substitute, so this throws — and
+        // it means our .jg UI type and the value the router sent disagree, which is our bug to fix, not the
+        // caller's to work around.
+        private static uint ToU32(object value, string what)
+        {
+            if (TryToInt64(value, out long v)) return unchecked((uint)v);
+            throw new WinboxFieldResolutionException(
+                $"WinBox M2 value '{value}' (CLR type {value?.GetType().Name ?? "null"}) is not a number, " +
+                $"so it cannot be decoded as {what}. The field's .jg UI type does not match what the router sent.");
         }
 
         // ── v4 address RANGE (network + range:1) ──────────────────────────────
@@ -866,8 +897,8 @@ namespace tik4net.Winbox
         /// </summary>
         internal static string FormatV4Range(object startValue, object endValue)
         {
-            uint start = ToBigEndian(ToU32(startValue));
-            uint end = ToBigEndian(ToU32(endValue));
+            uint start = ToBigEndian(ToU32(startValue, "an IPv4 range start"));
+            uint end = ToBigEndian(ToU32(endValue, "an IPv4 range end"));
 
             if (start == end) return IpFromU32(startValue);
             if (end > start)

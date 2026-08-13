@@ -281,7 +281,16 @@ namespace tik4net.Winbox
                 if (frame == null) continue;
 
                 try { return WinboxStreamCrypto.Decrypt(frame, _receiveAesKey); }
-                catch { /* not a clean M2 frame — drop it and keep reading, as Receive does */ }
+                catch (Exception ex)
+                {
+                    // Not a clean M2 frame — drop it and keep reading, as Receive does. Traced because a
+                    // dropped frame is invisible by construction: the caller sees a read that produced
+                    // nothing, which is also what a silent router looks like (P2.25), and this is the layer
+                    // the MAC-side wedge (P2.19) lives on.
+                    if (tik4net.Diagnostics.TikWireTrace.Enabled)
+                        tik4net.Diagnostics.TikWireTrace.Emit("wbxclimac.session", tik4net.Diagnostics.TikWireDir.Note,
+                            $"undecryptable {frame.Length}B frame dropped: {ex.GetType().Name}: {ex.Message}");
+                }
             }
             return null;
         }
@@ -340,7 +349,14 @@ namespace tik4net.Winbox
                 }
                 catch (ObjectDisposedException) { return; }   // socket closed under us — normal shutdown
                 catch (System.Net.Sockets.SocketException) { return; }
-                catch { /* a malformed packet must not take the pump down with it */ }
+                catch (Exception ex)
+                {
+                    // A malformed packet must not take the pump down with it — but a pump that keeps
+                    // swallowing the same failure looks exactly like an idle router (P2.25).
+                    if (tik4net.Diagnostics.TikWireTrace.Enabled)
+                        tik4net.Diagnostics.TikWireTrace.Emit("wbxclimac.session", tik4net.Diagnostics.TikWireDir.Note,
+                            $"idle pump swallowed {ex.GetType().Name}: {ex.Message}");
+                }
                 finally { Monitor.Exit(_rxGate); }
             }
         }

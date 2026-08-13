@@ -441,8 +441,17 @@ namespace tik4net.WinboxNative
             if (_handlerMap.TryResolveSubtypeFilter(apiPath, out int typeKey, out int typeValue))
                 records = records.Where(r =>
                 {
+                    // A row with no discriminator genuinely is not of this subtype. A row whose discriminator
+                    // is not a number is a different thing: our model of the field is wrong, and dropping the
+                    // row silently shortens the result set — a missing row reads exactly like "the router has
+                    // none" (P2.25). It is still dropped (including it would be a guess), but it says so.
                     if (!r.TryGetValue(typeKey, out var t) || t.Item2 == null) return false;
-                    try { return Convert.ToInt64(t.Item2) == typeValue; } catch { return false; }
+                    if (WinboxFieldResolver.TryToInt64(t.Item2, out long tv)) return tv == typeValue;
+                    if (TikWireTrace.Enabled)
+                        TikWireTrace.Emit("wbx.codec", TikWireDir.Note,
+                            $"subtype key {typeKey} of {apiPath} is '{t.Item2}' ({t.Item2.GetType().Name}), " +
+                            "not a number — row dropped from the result");
+                    return false;
                 }).ToList();
 
             var rows = new List<TikRecordSentence>(records.Count);
@@ -980,7 +989,7 @@ namespace tik4net.WinboxNative
         TikTrapSentenceResult IPollingMonitorHost.ToTrap(Exception ex)
             => ex is WinboxM2OperationException m
                 ? new TikTrapSentenceResult(m.Message, $"0x{m.Code:X}", m.ErrorText)
-                : new TikTrapSentenceResult(ex.Message);
+                : TikTrapSentenceResult.FromException(ex);
 
         // The monitor worker: encode request fields → start → poll loop (emit decoded rows, sleep autorefresh,
         // honour cancel/finished) → cancel. Request-field encoding runs here (not on the caller) so a runtime
