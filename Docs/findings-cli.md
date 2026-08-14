@@ -653,3 +653,72 @@ Two identical commands in a row — the poll-and-diff Listen emulation issues th
 apart this way: the previous response's echo satisfies the gate just as well as our own. The splice
 is then invisible to both layers, and shows up (if at all) as a duplicated row rather than a wrong
 one.
+
+---
+
+## 18. ✅ What the CLI login assumes about a RouterOS version, and how much of it is checked (P2.24)
+
+The session bring-up shared by all five CLI transports (`RouterOsCliLogin`) reads a screen and decides
+what state the router is in. Every decision is a guess about **wording and layout**, both of which
+differ by version *and* by router state — and a guess that is wrong here does **not** fail. There is no
+error channel on a terminal: an unrecognised screen simply never satisfies the predicate, so the read
+runs to the receive deadline and the caller gets something plausible, late. That is the same shape as
+the safe-mode prompt (P2.31, 30 s per command with the tests green) and the refusal wording below.
+
+### 18.1 The assumptions, and what each one costs when it is wrong
+
+| Assumption | Where | Evidence | Cost if wrong |
+|---|---|---|---|
+| Login prompt contains `ogin:` | `IsLoginPrompt` | 7.23.2 | Credentials typed into a screen that is not asking for them |
+| Password prompt contains `assword:` | `IsPasswordPrompt` | 7.23.2 | Same |
+| Nag contains `password>` | `IsChangePasswordNag` | 7.23.2 | Ctrl-C never sent → login ends at the deadline; worse, **bytes meant for the shell land in the new-password field** (P2.13c) |
+| Prompt ends `] >` / `] <SAFE>` | `EndsWithPromptSuffix` | 7.23.2 (+ one historical form) | 30 s per command, results still "correct" (P2.31) |
+| Refusal wording | `IsLoginFailure` | see 18.2 | Full receive deadline per rejected login |
+| `+c` login flag accepted | `TerminalLoginFlags` | 7.23.2, all CLI transports | SSH falls back to the bare name; Telnet would fail the login |
+
+### 18.2 The refusal wording did not match, and could not have told us
+
+RouterOS 7.23.2 answers a wrong password with:
+
+```
+\r\nLogin failed, incorrect username or password\r\n\r\nLogin:
+```
+
+None of the five phrases `IsLoginFailure` carried matched it. Measured 2026-08-14 with the same
+credentials on the same router: **binary API 127 ms, Telnet 30 193 ms** — the CLI login waited out the
+whole receive deadline and then threw a login exception quoting the very text it had failed to
+recognise. The suite never noticed because the only bad-credentials test
+(`ConnectionTest.OpenConnectionWithInvalidCredential_WillFailWithProperException`) is hardcoded to the
+binary API, so it runs eleven times against one transport.
+
+**Fix — the signal is positional, not lexical.** After a refusal RouterOS *restarts the login
+dialogue*, so a `Login:` prompt arriving **after credentials have been sent** means rejected, in any
+language and on any version. `ResolveToPromptAsync` takes `loginPromptMeansFailure`, set only by the
+interactive login (a transport that authenticated below the terminal never sends credentials, so a
+`Login:` string reaching it is not evidence of anything). Telnet now reports in **1 258 ms**. The
+phrase list is kept as a fast path and a better message, and is *not* load-bearing: with it emptied,
+the transcript tests still pass.
+
+### 18.3 SSH accepts a wrong password for a password-less account — and that is the router
+
+`admin` with an **empty** password authenticates over SSH with method `none`:
+
+```
+ssh -o PreferredAuthentications=none admin@<host> "/system/identity/print"   →   name: CHR
+```
+
+The server grants the shell without ever checking a password, so a wrong one is accepted. Telnet and
+WinBox-CLI, which have no such method, reject the same credentials. This is RouterOS policy for an
+account with no password, not something a client can detect or refuse — `LoginFailureTest` reports
+Inconclusive for SSH while `App.config` points at a password-less user, rather than pretending to
+cover it. Worth knowing before treating "SSH with a password" as an access control.
+
+### 18.4 The transcripts are now data
+
+`tik4net.unittests/Cli/RouterOsTranscripts.cs` holds the 7.23.2 byte streams captured off the wire
+(banner, nag — which the router **repaints**, so one read carries `new password>` twice — prompt,
+refusal), and `FakeRouterTerminal` replays them into the real state machine. A second RouterOS version
+is a new block in that file, not another live campaign. Two of the tests exist specifically because
+the failure mode is silence: one asserts nothing but Ctrl-C is ever sent while the nag is on screen,
+and one refuses a login whose wording nobody here has seen (`Authentisierung fehlgeschlagen`) to prove
+the positional signal carries it alone.

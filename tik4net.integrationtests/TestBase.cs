@@ -293,6 +293,18 @@ namespace tik4net.integrationtests
         /// </remarks>
         protected ITikConnection OpenSecondaryConnection() => OpenNewConnection();
 
+        /// <summary>
+        /// Creates — but does not open — a connection for the transport under test, with the MAC-layer
+        /// coordinates already applied. For tests that need to drive <c>Open</c> itself (credentials,
+        /// timeouts) rather than be handed a working session.
+        /// </summary>
+        protected ITikConnection CreateUnopenedConnection()
+        {
+            var conn = ConnectionFactory.CreateConnection(ResolveConnectionType());
+            ApplyRouterMac(conn);
+            return conn;
+        }
+
         /// <summary>Opens a brand-new connection to the router for the resolved transport, with retry.</summary>
         private ITikConnection OpenNewConnection(int retryTimeoutSeconds = 20)
         {

@@ -122,10 +122,32 @@ namespace tik4net.Cli
         public static bool IsChangePasswordNag(string s)
             => !string.IsNullOrEmpty(s) && s.IndexOf("password>", StringComparison.OrdinalIgnoreCase) >= 0;
 
+        /// <summary>
+        /// Refusal phrases. <b>Lexical detection is the fast path, not the contract</b> — the authority is
+        /// the positional signal in <see cref="ResolveToPromptAsync"/>: RouterOS restarts the login dialogue
+        /// after a refusal, so a <c>Login:</c> prompt arriving once credentials have been sent means rejected,
+        /// whatever the wording.
+        /// </summary>
+        /// <remarks>
+        /// The list is what the phrase table cost when it was the only signal: RouterOS 7.23.2 answers a wrong
+        /// password with <c>"Login failed, incorrect username or password"</c>, which matched <b>none</b> of
+        /// the five phrases here and was measured (P2.24) at <b>30 193 ms</b> to report on Telnet against
+        /// 127 ms on the binary API — the full receive deadline, then a login exception carrying the very text
+        /// we had failed to recognise. It could not have failed any other way: an unmatched phrase does not
+        /// throw, it waits. The older phrases are kept because the evidence base for each is one router on one
+        /// version and matching a wording we no longer see costs nothing.
+        /// <para>
+        /// Measured by mutation (P2.24): with this list emptied and only the positional signal left, the
+        /// transcript tests still pass — the phrases are a fast path and a better exception message, not the
+        /// contract. A temptation to extend the list is a sign that something has come to rely on it.
+        /// </para>
+        /// </remarks>
         public static bool IsLoginFailure(string s)
         {
             if (string.IsNullOrEmpty(s)) return false;
-            return s.IndexOf("login failure", StringComparison.OrdinalIgnoreCase) >= 0
+            return s.IndexOf("login failed", StringComparison.OrdinalIgnoreCase) >= 0       // 7.23.2, verified live
+                || s.IndexOf("incorrect username", StringComparison.OrdinalIgnoreCase) >= 0 // 7.23.2, verified live
+                || s.IndexOf("login failure", StringComparison.OrdinalIgnoreCase) >= 0
                 || s.IndexOf("incorrect login", StringComparison.OrdinalIgnoreCase) >= 0
                 || s.IndexOf("invalid user name", StringComparison.OrdinalIgnoreCase) >= 0
                 || s.IndexOf("bad password", StringComparison.OrdinalIgnoreCase) >= 0
@@ -171,8 +193,11 @@ namespace tik4net.Cli
                     await sendLine(password, ct).ConfigureAwait(false);
             }
 
-            // 3. Resolve to the shell prompt, dismissing the change-password nag with Ctrl-C.
-            await ResolveToPromptAsync(readUntil, sendBytes, ct).ConfigureAwait(false);
+            // 3. Resolve to the shell prompt, dismissing the change-password nag with Ctrl-C. Credentials
+            //    have been sent by now, so a fresh "Login:" is the router restarting the dialogue — i.e.
+            //    a refusal, whatever wording it used.
+            await ResolveToPromptAsync(readUntil, sendBytes, ct,
+                loginPromptMeansFailure: true).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -185,21 +210,35 @@ namespace tik4net.Cli
         /// <param name="readUntil">Reads (ANSI-stripped) until the predicate holds or the receive deadline expires.</param>
         /// <param name="sendBytes">Sends raw bytes (used for Ctrl-C).</param>
         /// <param name="ct">Cancellation token.</param>
-        /// <exception cref="TikConnectionLoginException">The shell prompt was never reached.</exception>
+        /// <param name="loginPromptMeansFailure">
+        /// When <c>true</c>, a <c>Login:</c> prompt in this phase is treated as a refusal. Set by
+        /// <see cref="LoginAsync"/>, where credentials have already been sent, so RouterOS re-offering the
+        /// login dialogue can only mean it rejected them. Left <c>false</c> for transports that authenticate
+        /// below the terminal (SSH, WinBox mepty) and merely settle an already-authenticated shell.
+        /// </param>
+        /// <remarks>
+        /// The positional signal exists because the lexical one cannot be trusted across versions: it is the
+        /// router's own dialogue state rather than its choice of words, so it holds on a RouterOS whose
+        /// refusal text nobody here has ever seen (P2.24).
+        /// </remarks>
+        /// <exception cref="TikConnectionLoginException">Credentials rejected, or the shell prompt was never reached.</exception>
         public static async Task ResolveToPromptAsync(
             Func<Func<string, bool>, CancellationToken, Task<string>> readUntil,
             Func<byte[], CancellationToken, Task> sendBytes,
-            CancellationToken ct)
+            CancellationToken ct,
+            bool loginPromptMeansFailure = false)
         {
-            string result = await readUntil(
-                s => IsShellPrompt(s) || IsChangePasswordNag(s) || IsLoginFailure(s), ct).ConfigureAwait(false);
+            Func<string, bool> settled = s =>
+                IsShellPrompt(s) || IsChangePasswordNag(s) || IsLoginFailure(s)
+                || (loginPromptMeansFailure && IsLoginPrompt(s));
+
+            string result = await readUntil(settled, ct).ConfigureAwait(false);
 
             int nagRounds = 0;
             while (!IsShellPrompt(result) && IsChangePasswordNag(result) && nagRounds++ < MaxNagRounds)
             {
                 await sendBytes(new[] { CtrlC }, ct).ConfigureAwait(false);
-                result = await readUntil(
-                    s => IsShellPrompt(s) || IsChangePasswordNag(s) || IsLoginFailure(s), ct).ConfigureAwait(false);
+                result = await readUntil(settled, ct).ConfigureAwait(false);
             }
 
             if (!IsShellPrompt(result))
