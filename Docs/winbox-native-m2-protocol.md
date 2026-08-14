@@ -119,7 +119,7 @@ Black-box probing was a dead end — webfig handed over the complete command cat
 ### Complete command catalog (uff0007, from webfig)
 | cmd | constant | meaning | request fields | reply |
 |---|---|---|---|---|
-| `0xfe0004` | getallcmd | **list all** | `ufe000c`=flags, `ufe0018`=maxobjs, paging `ufe0003` | `Mfe0002` records, `ufe0019` count, `ufe0003` cont. token |
+| `0xfe0004` | getallcmd | **list all** | `ufe000c`=flags, `ufe0018`=maxobjs, paging `ufe0003` **and/or** `mfe0015` (echoed back as received) | `Mfe0002` records, `ufe0019` count, `ufe0003` and/or `mfe0015` cont. token |
 | `0xfe0002` | — | **get one** | `ufe0001`=.id | record (in `Mfe0002` or top-level) |
 | `0xfe0003` | setcmd(map) | **set/change** | `ufe0001`=.id + changed fields | status |
 | `0xfe0005` | — | **add** | fields (no .id) | `ufe0001`=new .id |

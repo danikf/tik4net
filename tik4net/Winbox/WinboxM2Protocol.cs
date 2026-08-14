@@ -77,6 +77,19 @@ namespace tik4net.Winbox
             internal const int Records = 0xFE0002;
             /// <summary>Continuation token — present on a getall reply while more pages remain. webfig <c>ufe0003</c>.</summary>
             internal const int Continuation = 0xFE0003;
+            /// <summary>
+            /// Second continuation token — the message-array (ftype 21) form of
+            /// <see cref="Continuation"/>. webfig <c>mfe0015</c>.
+            /// </summary>
+            /// <remarks>
+            /// A handler may page via this key instead of (or alongside) <see cref="Continuation"/>. webfig
+            /// echoes it back untouched — <c>if(rep.mfe0015!=null)req.mfe0015=rep.mfe0015</c> — and
+            /// <c>0xFE0015</c> appears nowhere else in <c>master*.js</c>: nothing names it, reads into it or
+            /// constructs one. So it is an opaque cursor, and this client treats it the same way, copying the
+            /// reply's raw TLV bytes into the next request rather than decoding and re-encoding them
+            /// (<c>Docs/findings-winbox.md §12.7.1</c>).
+            /// </remarks>
+            internal const int ContinuationRaw = 0xFE0015;
             /// <summary>Next-id — destination for an ordered <see cref="Command.Move"/> (insert before this id). webfig <c>ufe0005</c>.</summary>
             internal const int NextId = 0xFE0005;
             /// <summary>Comment — well-known string field (<c>types.comment</c>). webfig <c>sfe0009</c>; verified live.</summary>

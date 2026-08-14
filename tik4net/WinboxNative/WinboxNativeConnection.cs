@@ -937,7 +937,7 @@ namespace tik4net.WinboxNative
                 bool waitForDone = TikMonitorVerbs.SelfTerminating(TikPath.Verb(descriptor.CommandText));
                 var deadline = DateTime.UtcNow.AddMilliseconds(ReceiveTimeout);
 
-                object continuation = null;
+                WinboxM2Continuation continuation = null;
                 while (true)
                 {
                     var (records, done, next) =
@@ -1018,7 +1018,7 @@ namespace tik4net.WinboxNative
                 // cancel handle and the row callback live — and because a pass is unbounded in time (see
                 // PollMonitorRound). `continuation != null` means the router is still mid-pass, so the next
                 // round goes out immediately; the autorefresh sleep applies only BETWEEN passes.
-                object continuation = null;
+                WinboxM2Continuation continuation = null;
                 while (!handle.CancelRequested)
                 {
                     bool done;

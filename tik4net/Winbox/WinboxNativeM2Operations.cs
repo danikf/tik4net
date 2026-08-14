@@ -178,14 +178,15 @@ namespace tik4net.Winbox
 
         /// <summary>
         /// Sends <c>getall</c> to <paramref name="handler"/> and returns every record's decoded
-        /// field dictionary, following <see cref="WinboxM2Protocol.RecordKey.Continuation"/> pagination
-        /// until the handler signals "no more".
+        /// field dictionary, following <see cref="WinboxM2Continuation"/> pagination until the handler
+        /// signals "no more" — either by omitting both continuation keys or by answering
+        /// <see cref="WinboxM2Protocol.Error.ObjectNonexistent"/>.
         /// </summary>
         internal List<Dictionary<int, Tuple<string, object>>> GetAll(
             int[] handler, int flags = WinboxM2Protocol.GetAllFlags, int maxObjs = 0, int maxMs = 8000)
         {
             var records = new List<Dictionary<int, Tuple<string, object>>>();
-            object contToken = null; // continuation value carried back on the next request
+            WinboxM2Continuation cont = null; // cursor carried back verbatim on the next request
             var sw = Stopwatch.StartNew();
             for (int round = 0; round < 256 && sw.ElapsedMilliseconds < maxMs; round++)
             {
@@ -198,7 +199,7 @@ namespace tik4net.Winbox
                     M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, flags),
                 };
                 if (maxObjs > 0) head.Add(M2Message.U32Sys(WinboxM2Protocol.RecordKey.MaxObjs, maxObjs));
-                if (contToken != null) head.Add(M2Message.U32Sys(WinboxM2Protocol.RecordKey.Continuation, Convert.ToInt32(contToken)));
+                if (cont != null) cont.AppendTo(head);
 
                 byte[] resp = SendReceive(M2Message.BuildM2(head.ToArray()));
 
@@ -212,11 +213,10 @@ namespace tik4net.Winbox
 
                 records.AddRange(M2Message.ParseRecords(resp, WinboxM2Protocol.RecordKey.Records));
 
-                var fields = M2Message.ParseAllFields(resp);
                 // The handler signals "no more rows" with ObjectNonexistent in the error slot.
                 if (status == WinboxM2Protocol.Error.ObjectNonexistent) break;
-                if (!fields.TryGetValue(WinboxM2Protocol.RecordKey.Continuation, out var ct)) break;
-                contToken = ct.Item2;
+                cont = WinboxM2Continuation.From(resp);
+                if (cont == null) break; // no cursor of either kind: that was the last page
             }
             return records;
         }
@@ -498,8 +498,8 @@ namespace tik4net.Winbox
         /// which is what makes a long monitor coexist with CRUD on other threads.
         /// </para>
         /// </remarks>
-        internal (List<Dictionary<int, Tuple<string, object>>> records, bool done, object continuation) PollMonitorRound(
-            int[] handler, int pollCmd, uint? id, bool isQuery, object contToken,
+        internal (List<Dictionary<int, Tuple<string, object>>> records, bool done, WinboxM2Continuation continuation) PollMonitorRound(
+            int[] handler, int pollCmd, uint? id, bool isQuery, WinboxM2Continuation contToken,
             int flags = WinboxM2Protocol.GetAllFlags)
         {
             var head = new List<byte[]>
@@ -510,7 +510,7 @@ namespace tik4net.Winbox
             };
             if (id.HasValue) head.Add(M2Message.SessionIdField(id.Value));
             if (isQuery) head.Add(M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, flags));
-            if (contToken != null) head.Add(M2Message.U32Sys(WinboxM2Protocol.RecordKey.Continuation, Convert.ToInt32(contToken)));
+            if (contToken != null) contToken.AppendTo(head);
 
             byte[] resp = SendReceive(M2Message.BuildM2(head.ToArray()));
             int status = M2Message.ParseSysStatus(resp);
@@ -529,14 +529,13 @@ namespace tik4net.Winbox
             bool done = fields.TryGetValue(WinboxM2Protocol.RecordKey.Finished, out var dt)
                         && dt.Item2 is bool db && db;
 
-            object continuation = null;
             // Pagination is a getall concept: only a query window continues a pass. A poll-action's reply is
             // one status record and webfig's ObjectAction never continues it — following a token there would
             // spin the round trip instead of waiting out the autorefresh interval.
-            if (isQuery
-                && status != WinboxM2Protocol.Error.ObjectNonexistent
-                && fields.TryGetValue(WinboxM2Protocol.RecordKey.Continuation, out var ct))
-                continuation = ct.Item2;
+            WinboxM2Continuation continuation =
+                isQuery && status != WinboxM2Protocol.Error.ObjectNonexistent
+                    ? WinboxM2Continuation.From(resp)
+                    : null;
 
             return (records, done, continuation);
         }

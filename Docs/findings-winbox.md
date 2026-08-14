@@ -277,19 +277,38 @@ Verified in the same source — a continuation is a **new request**, not another
 ```js
 else if ((rep.ufe0003 != null || rep.mfe0015) && !me.block) {
     if (rep.ufe0003 != null) req.ufe0003 = rep.ufe0003;
+    if (rep.mfe0015 != null) req.mfe0015 = rep.mfe0015;
     post(req, onreply);            // ← new request, new id
 }
 ```
+
+⚠️ The `mfe0015` line was **missing from the transcription originally filed here** (2026-08-13,
+re-read verbatim from `master-d53cd8ec58cb.js` at offset 234101). It matters: the truncated form made
+`mfe0015` look like a bare "more pages" flag, when it is a **second continuation token, echoed back
+verbatim** exactly like `ufe0003` — only carried as a message-array (`m` prefix, ftype 21) instead of
+a u32. `0xFE0015` has no other occurrence anywhere in `master*.js`: nothing names it, nothing reads
+inside it, nothing constructs one. To webfig it is opaque bytes that come back on the next request.
 
 That's exactly what our client does too: the loop calls `NextReqIdField()` on every iteration
 ([WinboxNativeM2Operations.cs:129](tik4net/Winbox/WinboxNativeM2Operations.cs:129)) and attaches the
 token as `RecordKey.Continuation` ([:134](tik4net/Winbox/WinboxNativeM2Operations.cs:134)). So the
 registration model doesn't change at all: **each page is a separate registration with its own id.**
 
-Side finding (out of scope for multiplexing): webfig also continues on `rep.mfe0015`, while our
-client only watches `ufe0003` ([:151](tik4net/Winbox/WinboxNativeM2Operations.cs:151)). For a
-handler that pages via `mfe0015`, we would silently return only the first page. We haven't hit this
-live; it's worth verifying separately.
+Side finding (out of scope for multiplexing, tracked as P2.9): webfig also continues on
+`rep.mfe0015`, while our client only watches `ufe0003`
+([:218](tik4net/Winbox/WinboxNativeM2Operations.cs:218)). For a handler that pages via `mfe0015`, we
+would silently return only the first page.
+
+**Catalog sweep, 2026-08-13 — negative, and the sweep cannot decide the question.** `fe0015` does not
+appear in any prefix form in the live 7.23.2 catalog (18 plugins, 2104 path-ops), nor in the three
+archived catalogs (`6.45.9`, `6.45beta63`, `7.17rc3`, `7.21.4-http`). But neither does **`fe0003`** —
+the continuation token we demonstrably *do* use. The `.jg` catalog declares a window's **display
+fields**; a pagination token is a protocol-level reply key that no window ever shows, so its absence
+from the catalog is evidence of nothing. (The system keys that *do* appear as displayed fields are
+`fe0010`, `fe0001`, `fe0008`, `fe000a`, `fe0029`, `fe0009`, `fe000d`, `fe0007`, `fe0024`, `fe0026`,
+`fe0011` — and `m`-prefixed system ids such as `id:'mfe0026'` exist, so the sweep *would* have found
+an `mfe0015` had one been declared.) Live confirmation of a handler that uses it is therefore still
+open; a `/log/print` over WinboxNative (999 rows, 5 pages) was checked and pages via `ufe0003` only.
 
 #### 12.7.2 Note on `post()` — webfig correlates over HTTP, not `0xFF0006`
 

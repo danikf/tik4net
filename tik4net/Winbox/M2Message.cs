@@ -471,6 +471,39 @@ namespace tik4net.Winbox
             return false;
         }
 
+        /// <summary>
+        /// Returns the complete TLV bytes (4-byte header + payload) of the first field carrying
+        /// <paramref name="fullKey"/>, or <c>null</c> when the message has no such field.
+        /// </summary>
+        /// <remarks>
+        /// The slice is byte-identical to what the router sent, so it can be echoed back into a request
+        /// without the client knowing how to decode it. That is what the getall continuation tokens need:
+        /// <see cref="WinboxM2Protocol.RecordKey.ContinuationRaw"/> is an opaque cursor of an unknown shape,
+        /// and decoding it only to re-encode it would be a guess at that shape — copying the bytes is not.
+        /// </remarks>
+        internal static byte[] ExtractRawField(byte[] m2, int fullKey)
+        {
+            if (m2 == null || m2.Length < 2 || m2[0] != 'M' || m2[1] != '2') return null;
+            int pos = 2;
+            while (pos + 4 <= m2.Length)
+            {
+                int key = (m2[pos + 2] << 16) | (m2[pos + 1] << 8) | m2[pos];
+                int type = m2[pos + 3];
+                int start = pos;
+                pos += 4;
+                pos += SkipTypeBytes(type, m2, pos);
+                if (key != fullKey) continue;
+                // A field whose declared length runs past the end of the frame is truncated: echoing a
+                // malformed cursor would make the next request the router's problem to reject. Drop it and
+                // let the caller treat the page as the last one.
+                if (pos > m2.Length) return null;
+                var slice = new byte[pos - start];
+                Buffer.BlockCopy(m2, start, slice, 0, slice.Length);
+                return slice;
+            }
+            return null;
+        }
+
         // Parses the bytes of a user-namespace field; handles raw_s/raw_l and string_s/string_l.
         internal static byte[] ParseUserBytes(byte[] m2, int keyId)
         {
@@ -590,9 +623,9 @@ namespace tik4net.Winbox
                 case 0x08: return 4;
                 case 0x10: return 8;
                 case 0x18: return 16;                                                   // addr6 (fixed width)
-                case 0x80: case 0x82: return CountedArrayBytes(type, data, pos, 1);     // bool[]
-                case 0x90: case 0x92: return CountedArrayBytes(type, data, pos, 8);     // u64[]
-                case 0x98: case 0x9A: return CountedArrayBytes(type, data, pos, 16);    // addr6[]
+                case 0x80: case 0x81: case 0x82: return CountedArrayBytes(type, data, pos, 1);   // bool[]
+                case 0x90: case 0x91: case 0x92: return CountedArrayBytes(type, data, pos, 8);   // u64[]
+                case 0x98: case 0x99: case 0x9A: return CountedArrayBytes(type, data, pos, 16);  // addr6[]
                 case 0x21: return pos < data.Length ? 1 + data[pos] : 1;
                 case 0x20: return pos + 1 < data.Length ? 2 + BitConverter.ToUInt16(data, pos) : 2;
                 case 0x31: return pos < data.Length ? 1 + data[pos] : 1;
@@ -600,21 +633,22 @@ namespace tik4net.Winbox
                 case 0x29: return pos < data.Length ? 1 + data[pos] : 1;             // message short
                 case 0x28: return pos + 1 < data.Length ? 2 + BitConverter.ToUInt16(data, pos) : 2; // message normal
                 case 0x2A: return pos + 3 < data.Length ? 4 + (int)BitConverter.ToUInt32(data, pos) : 4; // message long
-                case 0x88: case 0x8A: return CountedArrayBytes(type, data, pos, 4);    // u32[]
+                case 0x88: case 0x89: case 0x8A: return CountedArrayBytes(type, data, pos, 4); // u32[]
                 // str_array / msg_array / raw_array: count + (len + data) per entry — skip sum of all entry
-                // sizes. Normal form (no flags): 2B count, 2B per-element len. Long form (…2): 4B/4B.
-                case 0xA0: case 0xA8: case 0xA2: case 0xAA: case 0xB0: case 0xB2:
+                // sizes. Widths follow the type's size flags exactly as ReadLen reads them: short (…1) = 1B,
+                // normal = 2B, long (…2) = 4B, for both the count and each element length.
+                case 0xA0: case 0xA1: case 0xA8: case 0xA9: case 0xA2: case 0xAA:
+                case 0xB0: case 0xB1: case 0xB2:
                 {
-                    bool lng = (type & 0x02) != 0;
+                    int w = LenWidth(type);
                     int p = pos;
-                    int cnt = lng ? (p + 3 < data.Length ? (int)BitConverter.ToUInt32(data, p) : 0)
-                                  : (p + 1 < data.Length ? BitConverter.ToUInt16(data, p) : 0);
-                    p += lng ? 4 : 2;
+                    int cnt = ReadCounter(data, ref p, w);
                     for (int i = 0; i < cnt && p < data.Length; i++)
                     {
-                        int elen = lng ? (p + 3 < data.Length ? (int)BitConverter.ToUInt32(data, p) : 0)
-                                       : (p + 1 < data.Length ? BitConverter.ToUInt16(data, p) : 0);
-                        p += (lng ? 4 : 2) + elen;
+                        // Read the element length first: `p += ReadCounter(…, ref p, …)` would capture p
+                        // before the call advanced it, silently dropping the length field's own bytes.
+                        int elen = ReadCounter(data, ref p, w);
+                        p += elen;
                     }
                     return p - pos;
                 }
@@ -622,13 +656,33 @@ namespace tik4net.Winbox
             }
         }
 
-        // Byte length of a fixed-element-width array field: a count (2B, or 4B in the long form) followed by
-        // `count` elements of `elemSize` bytes each — the shape master*.js writes for bool[]/u32[]/u64[]/addr6[].
+        // Byte length of a fixed-element-width array field: a count followed by `count` elements of
+        // `elemSize` bytes each — the shape master*.js writes for bool[]/u32[]/u64[]/addr6[].
         private static int CountedArrayBytes(int type, byte[] data, int pos, int elemSize)
         {
-            bool lng = (type & 0x02) != 0;
-            if (lng) return pos + 3 < data.Length ? 4 + (int)BitConverter.ToUInt32(data, pos) * elemSize : 4;
-            return pos + 1 < data.Length ? 2 + BitConverter.ToUInt16(data, pos) * elemSize : 2;
+            int w = LenWidth(type);
+            int p = pos;
+            int cnt = ReadCounter(data, ref p, w);
+            return (p - pos) + cnt * elemSize;
+        }
+
+        // Width in bytes of a length/count field, from the type's size flags — the same rule ReadLen applies
+        // when decoding. Kept separate so the skip path and the decode path cannot drift: a width the skipper
+        // gets wrong does not fail, it silently walks into the payload and turns the rest of the message into
+        // garbage keys (see the SkipTypeBytes comment).
+        private static int LenWidth(int type) => IsShort(type) ? 1 : IsLong(type) ? 4 : 2;
+
+        // Reads a little-endian counter of `width` bytes at `pos` and advances past it. A truncated counter
+        // yields 0, so a short read ends the walk instead of running off the buffer.
+        private static int ReadCounter(byte[] data, ref int pos, int width)
+        {
+            int v = 0;
+            for (int i = 0; i < width; i++)
+            {
+                if (pos >= data.Length) { pos = data.Length; return 0; }
+                v |= data[pos++] << (8 * i);
+            }
+            return v;
         }
     }
 }
