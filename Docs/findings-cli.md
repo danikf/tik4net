@@ -708,10 +708,24 @@ ssh -o PreferredAuthentications=none admin@<host> "/system/identity/print"   →
 ```
 
 The server grants the shell without ever checking a password, so a wrong one is accepted. Telnet and
-WinBox-CLI, which have no such method, reject the same credentials. This is RouterOS policy for an
-account with no password, not something a client can detect or refuse — `LoginFailureTest` reports
-Inconclusive for SSH while `App.config` points at a password-less user, rather than pretending to
-cover it. Worth knowing before treating "SSH with a password" as an access control.
+WinBox-CLI, which have no such method, reject the same credentials.
+
+**Measured per account** (`SshAuthProbeTest`, 7.23.2, 2026-08-14) — and what is granted is a full
+session, not a bare shell: each OPENED row below ran `/system/identity/print` **and** `/user/print`
+and got real data back.
+
+| account | password given | result |
+|---|---|---|
+| `admin` (no password) | correct (empty) | OPENED — identity `CHR`, `/user/print` 2 rows |
+| `admin` (no password) | **wrong** | **OPENED — identity `CHR`, `/user/print` 2 rows** |
+| `test` (has a password) | correct | OPENED — identity `CHR`, `/user/print` 2 rows |
+| `test` (has a password) | **wrong** | **REFUSED — `Permission denied (password)`** |
+
+So SSH *is* an access control — for an account that has a password. An account without one has no
+check at all, and the password a client sends is never examined. This is RouterOS policy, not
+something a client can detect or refuse: `LoginFailureTest` reports Inconclusive for SSH while
+`App.config` points at a password-less user, rather than pretending to cover it. Point it at a
+password-protected account to cover SSH properly.
 
 ### 18.4 The transcripts are now data
 
