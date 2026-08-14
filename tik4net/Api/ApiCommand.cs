@@ -4,10 +4,11 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace tik4net.Api
 {
-    internal class ApiCommand: ITikCommand
+    internal class ApiCommand: ITikCommand, ITikCommandAsync
     {
         private volatile bool _isRuning;
         private volatile int _asynchronouslyRunningTag;
@@ -303,17 +304,7 @@ namespace tik4net.Api
             try
             {
                 string[] commandRows = ConstructCommandText(TikCommandParameterFormat.NameValue);
-                IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
-                var responseArray = response.ToArray();
-
-                // !fatal means the router closed the connection after executing the command
-                // (e.g. /system/reboot, /system/shutdown, /system/poweroff). Treat as success.
-                if (responseArray.Any(s => s is ApiFatalSentence))
-                    return;
-
-                ThrowPossibleResponseError(responseArray);
-                ApiSentence responseSentence = EnsureSingleResponse(responseArray);
-                EnsureDoneResponse(responseSentence);
+                InterpretNonQuery(EnsureApiSentences(_connection.CallCommandSync(commandRows)).ToArray());
             }
             finally
             {
@@ -357,6 +348,35 @@ namespace tik4net.Api
                 var targetParameterInArray = target != null ? new ITikCommandParameter[] { new ApiCommandParameter(TikSpecialProperties.Proplist, target, TikCommandParameterFormat.NameValue) } : new ITikCommandParameter[] { };
                 string[] commandRows = ConstructCommandText(TikCommandParameterFormat.NameValue, targetParameterInArray);
                 IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
+                return InterpretScalar(response, allowReturnDefault, defaultValue);
+            }
+            finally
+            {
+                _isRuning = false;
+            }
+        }
+
+        // ── Response interpretation, shared by the sync and async surfaces ────
+        //
+        // Extracted rather than duplicated: which answer means "not found", which means "succeeded with
+        // nothing to return", and which is a protocol violation must not be allowed to drift between the two
+        // paths (the same rule P2.2 applied to the CLI/REST transports).
+
+        private void InterpretNonQuery(ApiSentence[] responseArray)
+        {
+            // !fatal means the router closed the connection after executing the command
+            // (e.g. /system/reboot, /system/shutdown, /system/poweroff). Treat as success.
+            if (responseArray.Any(s => s is ApiFatalSentence))
+                return;
+
+            ThrowPossibleResponseError(responseArray);
+            ApiSentence responseSentence = EnsureSingleResponse(responseArray);
+            EnsureDoneResponse(responseSentence);
+        }
+
+        private string InterpretScalar(IEnumerable<ApiSentence> response, bool allowReturnDefault, string defaultValue)
+        {
+            {
                 ThrowPossibleResponseError(response.ToArray());
 
                 if (response.Count() == 1) //!done + =ret=result word
@@ -390,6 +410,106 @@ namespace tik4net.Api
                 else
                     throw new TikCommandUnexpectedResponseException("Single !done response or exactly one !re sentences expected. (1x!done or 1x!re + 1x!done )", this, response.Cast<ITikSentence>());
             }
+        }
+
+        private ITikReSentence InterpretSingleRow(IEnumerable<ApiSentence> response)
+        {
+            ThrowPossibleResponseError(response.ToArray());
+
+            if (response.OfType<ApiReSentence>().Count() > 1)
+                throw new TikCommandAmbiguousResultException(this);
+            EnsureOneReAndDone(response);
+            return (ApiReSentence)response.First();
+        }
+
+        private IList<ITikReSentence> InterpretList(IEnumerable<ApiSentence> response)
+        {
+            ThrowPossibleResponseError(response.ToArray());
+
+            EnsureReReponse(response.Take(response.Count() - 1).ToArray());   //!re  - reapeating
+            EnsureDoneResponse(response.Last()); //!done
+
+            return response.Take(response.Count() - 1).Cast<ITikReSentence>().ToList();
+        }
+
+        // ── ITikCommandAsync (P2.3 / job B) ───────────────────────────────────
+        //
+        // Mirrors the synchronous methods rather than either side wrapping the other — the same rule P2.2
+        // applied to the CLI and REST transports. Everything after the call is the shared Interpret* helpers
+        // above, so the two surfaces cannot disagree about what an answer means.
+        //
+        // These are reached through the Execute*Async extension methods on ITikCommand, which apply the
+        // fail-closed AsyncCommands check first, so consumers never cast.
+
+        Task ITikCommandAsync.ExecuteNonQueryAsync(CancellationToken cancellationToken)
+            => RunAsync(TikCommandParameterFormat.NameValue, null,
+                r => { InterpretNonQuery(r.ToArray()); return (object)null; }, cancellationToken);
+
+        Task<string> ITikCommandAsync.ExecuteScalarAsync(CancellationToken cancellationToken)
+            => ExecuteScalarInternalAsync(null, allowReturnDefault: false, defaultValue: null, cancellationToken);
+
+        Task<string> ITikCommandAsync.ExecuteScalarAsync(string target, CancellationToken cancellationToken)
+            => ExecuteScalarInternalAsync(target, allowReturnDefault: false, defaultValue: null, cancellationToken);
+
+        Task<string> ITikCommandAsync.ExecuteScalarOrDefaultAsync(string defaultValue, string target, CancellationToken cancellationToken)
+            => ExecuteScalarInternalAsync(target, allowReturnDefault: true, defaultValue, cancellationToken);
+
+        Task<ITikReSentence> ITikCommandAsync.ExecuteSingleRowAsync(CancellationToken cancellationToken)
+            => RunAsync(TikCommandParameterFormat.Filter, null, InterpretSingleRow, cancellationToken);
+
+        async Task<ITikReSentence> ITikCommandAsync.ExecuteSingleRowOrDefaultAsync(CancellationToken cancellationToken)
+        {
+            var rows = await RunAsync(TikCommandParameterFormat.Filter, null, InterpretList, cancellationToken)
+                .ConfigureAwait(false);
+            if (rows.Count > 1)
+                throw new TikCommandAmbiguousResultException(this);
+            return rows.SingleOrDefault();
+        }
+
+        Task<IList<ITikReSentence>> ITikCommandAsync.ExecuteListAsync(CancellationToken cancellationToken)
+            => RunAsync(TikCommandParameterFormat.Filter, null, InterpretList, cancellationToken);
+
+        Task<IList<ITikReSentence>> ITikCommandAsync.ExecuteListAsync(string[] proplistFields, CancellationToken cancellationToken)
+        {
+            Guard.ArgumentNotNull(proplistFields, nameof(proplistFields));
+            return RunAsync(TikCommandParameterFormat.Filter, ProplistParameters(proplistFields), InterpretList, cancellationToken);
+        }
+
+        private Task<string> ExecuteScalarInternalAsync(string target, bool allowReturnDefault, string defaultValue,
+            CancellationToken cancellationToken)
+        {
+            var targetParameter = target != null
+                ? new ITikCommandParameter[] { new ApiCommandParameter(TikSpecialProperties.Proplist, target, TikCommandParameterFormat.NameValue) }
+                : new ITikCommandParameter[] { };
+            return RunAsync(TikCommandParameterFormat.NameValue, targetParameter,
+                r => InterpretScalar(r, allowReturnDefault, defaultValue), cancellationToken);
+        }
+
+        private ITikCommandParameter[] ProplistParameters(string[] proplist)
+            => proplist == null
+                ? new ITikCommandParameter[] { }
+                : proplist.Select(p => (ITikCommandParameter)new ApiCommandParameter(TikSpecialProperties.Proplist, p, TikCommandParameterFormat.NameValue)).ToArray();
+
+        // The one place the async surface talks to the connection: build the sentence, await the answer,
+        // hand it to the shared interpreter. _isRuning is set and cleared here exactly as the sync methods
+        // do it, so the two surfaces share the "one command at a time per ITikCommand" rule too.
+        private async Task<T> RunAsync<T>(TikCommandParameterFormat format, ITikCommandParameter[] extraParameters,
+            Func<IEnumerable<ApiSentence>, T> interpret, CancellationToken cancellationToken)
+        {
+            EnsureConnectionSet();
+            EnsureNotRunning();
+
+            var apiConnection = _connection as ApiConnection;
+            if (apiConnection == null)
+                throw new InvalidOperationException("ApiCommand requires an ApiConnection.");
+
+            _isRuning = true;
+            try
+            {
+                string[] commandRows = ConstructCommandText(format, extraParameters ?? new ITikCommandParameter[] { });
+                var response = await apiConnection.CallCommandSyncAsync(commandRows, cancellationToken).ConfigureAwait(false);
+                return interpret(EnsureApiSentences(response));
+            }
             finally
             {
                 _isRuning = false;
@@ -405,15 +525,7 @@ namespace tik4net.Api
             try
             {
                 string[] commandRows = ConstructCommandText(TikCommandParameterFormat.Filter);
-                IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
-                ThrowPossibleResponseError(response.ToArray());
-
-                if (response.OfType<ApiReSentence>().Count() > 1)
-                    throw new TikCommandAmbiguousResultException(this);
-                EnsureOneReAndDone(response);
-                ApiReSentence result = (ApiReSentence)response.First();
-
-                return result;
+                return InterpretSingleRow(EnsureApiSentences(_connection.CallCommandSync(commandRows)));
             }
             finally
             {
@@ -452,13 +564,7 @@ namespace tik4net.Api
             {
                 var proplistParameters = proplist == null ? new ITikCommandParameter[] { } : proplist.Select(p => new ApiCommandParameter(TikSpecialProperties.Proplist, p, TikCommandParameterFormat.NameValue)).ToArray();
                 string[] commandRows = ConstructCommandText(TikCommandParameterFormat.Filter, proplistParameters);
-                IEnumerable<ApiSentence> response = EnsureApiSentences(_connection.CallCommandSync(commandRows));
-                ThrowPossibleResponseError(response.ToArray());
-
-                EnsureReReponse(response.Take(response.Count() - 1).ToArray());   //!re  - reapeating 
-                EnsureDoneResponse(response.Last()); //!done
-
-                return response.Take(response.Count() - 1).Cast<ITikReSentence>().ToList();
+                return InterpretList(EnsureApiSentences(_connection.CallCommandSync(commandRows)));
             }
             finally
             {

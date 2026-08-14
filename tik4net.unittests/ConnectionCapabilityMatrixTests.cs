@@ -42,11 +42,16 @@ namespace tik4net.unittests
         private const TikConnectionCapability Native =
             TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode;
 
+        // The binary API declares everything, including CancelInFlight — the only transport where cancelling
+        // is the protocol's own operation (`/cancel tag=N`) rather than an abandon we hope is safe: the router
+        // answers the cancelled command with !trap interrupted + !done and the sentence stream stays framed
+        // (P2.3 / job B). Tagging is what makes that addressable.
         private const TikConnectionCapability Full =
             TikConnectionCapability.Crud | TikConnectionCapability.Listen
             | TikConnectionCapability.Streaming | TikConnectionCapability.RawSentences
             | TikConnectionCapability.Tagging | TikConnectionCapability.SafeMode
-            | TikConnectionCapability.RawCommand;
+            | TikConnectionCapability.RawCommand
+            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight;
 
         private static readonly Dictionary<TikConnectionType, TikConnectionCapability> Expected =
             new Dictionary<TikConnectionType, TikConnectionCapability>

@@ -54,7 +54,7 @@ Four flag sets recur across the transport families:
 
 | Name | Flags | Who declares it |
 |---|---|---|
-| **Full** | `Crud`, `Listen`, `Streaming`, `RawSentences`, `Tagging`, `SafeMode`, `RawCommand` | `Api`, `ApiSsl` |
+| **Full** | `Crud`, `Listen`, `Streaming`, `RawSentences`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`, `CancelInFlight` | `Api`, `ApiSsl` |
 | **Cli** | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands` | `Telnet`, `Ssh`, `MacTelnet`, `WinboxCli`, `WinboxCliMac` (all inherit `CliConnectionBase`) |
 | **Native** | `Crud`, `Listen`, `SafeMode` | `WinboxNative`, `WinboxNativeMac` |
 | **Rest** | `Crud`, `Listen`, `AsyncCommands`, `CancelInFlight` | `Rest`, `RestSsl` (stateless HTTP — no Streaming, no SafeMode) |
@@ -68,10 +68,19 @@ Native does **not** report it (its wire form is a numeric M2 message, not a stri
 transport for raw access over that channel).
 
 `AsyncCommands` (the `Execute*Async` surface) and `CancelInFlight` (a token that stops a command
-already on the wire and still leaves the connection usable) are being rolled out per transport:
-REST first, then the CLI family; the binary API and WinBox native are still to come. Note what
-`CancelInFlight` does **not** promise anywhere: that the router stops working. On REST it does not —
-aborting the HTTP request frees the caller while RouterOS runs the command to the end (§12.1).
+already on the wire and still leaves the connection usable) were rolled out per transport: REST
+first, then the CLI family, then the binary API; WinBox native is still to come. Note what
+`CancelInFlight` does **not** promise everywhere: that the router stops working. On REST it does not
+— aborting the HTTP request frees the caller while RouterOS runs the command to the end (§12.1).
+
+On the **binary API** it does, and that is the difference between a cancel and an abandon: the
+client sends `/cancel tag=N`, the router answers the cancelled command with `!trap interrupted` +
+`!done`, both are consumed, and the connection is left framed and immediately usable. This is the
+one transport where cancelling is an operation the protocol defines rather than a decision to stop
+listening. It rests on `Tagging`: an async command is therefore always tagged, whatever
+`SendTagWithSyncCommand` says, because `/cancel` addresses a tag. Since P2.3 the API also has one
+reader per connection dispatching each sentence to the tag that asked for it, so an async command
+holds no thread of its own.
 
 The CLI family declares `AsyncCommands` **without** `CancelInFlight`, and that gap is intrinsic
 rather than scheduled: a RouterOS terminal answers with an unframed byte stream — no sentence

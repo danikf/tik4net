@@ -31,6 +31,13 @@ namespace tik4net.Api
         {
             internal readonly Queue<ITikSentence> Items = new Queue<ITikSentence>();
             internal int Waiters;
+
+            // Async waiters, oldest first. A waiter that has already timed out or been cancelled stays in the
+            // queue as a completed TCS and is skipped on the next push — cheaper and less error-prone than
+            // removing it from the middle, and it cannot swallow a sentence because TrySetResult tells us it
+            // was already done.
+            internal readonly Queue<System.Threading.Tasks.TaskCompletionSource<ITikSentence>> AsyncWaiters
+                = new Queue<System.Threading.Tasks.TaskCompletionSource<ITikSentence>>();
         }
 
         private readonly object _sync = new object();
@@ -53,6 +60,15 @@ namespace tik4net.Api
                     queue = new TagQueue();
                     _queues.Add(key, queue);
                 }
+                // Hand it straight to an async waiter if one is still live; only queue it when nobody is
+                // waiting for it yet.
+                while (queue.AsyncWaiters.Count > 0)
+                {
+                    var waiter = queue.AsyncWaiters.Dequeue();
+                    if (waiter.TrySetResult(sentence))
+                        return;
+                }
+
                 queue.Items.Enqueue(sentence);
                 System.Threading.Monitor.PulseAll(_sync);
             }
@@ -68,6 +84,9 @@ namespace tik4net.Api
             lock (_sync)
             {
                 _termination = sentence;
+                foreach (var queue in _queues.Values)
+                    while (queue.AsyncWaiters.Count > 0)
+                        queue.AsyncWaiters.Dequeue().TrySetResult(sentence);
                 System.Threading.Monitor.PulseAll(_sync);
             }
         }
@@ -128,12 +147,106 @@ namespace tik4net.Api
                 finally
                 {
                     queue.Waiters--;
-                    // Keep the queue alive while anyone is waiting on it: dropping it here would leave that
-                    // waiter blocked on an object no pusher can find any more.
-                    if (queue.Items.Count == 0 && queue.Waiters == 0)
-                        _queues.Remove(key);
+                    DropIfIdle(key, queue);
                 }
             }
+        }
+
+        /// <summary>
+        /// Task-based sibling of <see cref="Wait"/>: completes with the next sentence for
+        /// <paramref name="tag"/> without blocking a thread.
+        /// </summary>
+        /// <param name="tag">Tag to wait for; empty for the untagged command.</param>
+        /// <param name="timeoutMs">Caller's own deadline, or <c>0</c>/negative to wait indefinitely.</param>
+        /// <param name="cancellationToken">
+        /// Cancels this <b>wait</b> only. Whether the command itself is cancelled on the router is the
+        /// caller's business — on the binary API that means <c>/cancel tag=N</c>, which is a write, not a
+        /// property of waiting.
+        /// </param>
+        internal async System.Threading.Tasks.Task<ITikSentence> WaitAsync(
+            string tag, int timeoutMs, System.Threading.CancellationToken cancellationToken)
+        {
+            string key = KeyOf(tag);
+            System.Threading.Tasks.TaskCompletionSource<ITikSentence> tcs;
+
+            lock (_sync)
+            {
+                if (!_queues.TryGetValue(key, out var queue))
+                {
+                    queue = new TagQueue();
+                    _queues.Add(key, queue);
+                }
+
+                if (queue.Items.Count > 0)
+                {
+                    var ready = queue.Items.Dequeue();
+                    DropIfIdle(key, queue);
+                    return ready;
+                }
+
+                if (_termination != null)
+                    return _termination;
+
+                // RunContinuationsAsynchronously: the reader loop completes these, and it must not end up
+                // running a caller's continuation — a slow continuation would stall the whole connection.
+                tcs = new System.Threading.Tasks.TaskCompletionSource<ITikSentence>(
+                    System.Threading.Tasks.TaskCreationOptions.RunContinuationsAsynchronously);
+                queue.AsyncWaiters.Enqueue(tcs);
+            }
+
+            using (var cts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+            {
+                var delay = timeoutMs > 0
+                    ? System.Threading.Tasks.Task.Delay(timeoutMs, cts.Token)
+                    : System.Threading.Tasks.Task.Delay(System.Threading.Timeout.Infinite, cts.Token);
+
+                var completed = await System.Threading.Tasks.Task.WhenAny(tcs.Task, delay).ConfigureAwait(false);
+                if (completed == tcs.Task)
+                {
+                    cts.Cancel();                       // stop the timer
+                    return await tcs.Task.ConfigureAwait(false);
+                }
+
+                // The delay won. Claim the waiter so a sentence arriving now is queued for whoever asks next
+                // instead of vanishing into an abandoned TCS.
+                bool claimed = tcs.TrySetCanceled();
+                if (!claimed)
+                    return await tcs.Task.ConfigureAwait(false);   // it was answered in the meantime after all
+
+                PruneAbandonedWaiters(key);
+                cancellationToken.ThrowIfCancellationRequested();
+                throw new TikConnectionReceiveTimeoutException(timeoutMs,
+                    $"No response received from the router within {timeoutMs} ms for "
+                    + (key == UntaggedKey ? "the untagged command." : $"tag '{tag}'."));
+            }
+        }
+
+        // A wait that gave up leaves its (completed) TCS in the queue. Push skips those, but on a tag that
+        // never sees another sentence nothing would ever clean up — so the giver-upper does it itself.
+        private void PruneAbandonedWaiters(string key)
+        {
+            lock (_sync)
+            {
+                if (!_queues.TryGetValue(key, out var queue))
+                    return;
+
+                int live = queue.AsyncWaiters.Count;
+                for (int i = 0; i < live; i++)
+                {
+                    var waiter = queue.AsyncWaiters.Dequeue();
+                    if (!waiter.Task.IsCompleted)
+                        queue.AsyncWaiters.Enqueue(waiter);
+                }
+                DropIfIdle(key, queue);
+            }
+        }
+
+        // Called with _sync held: a tag nobody is using any more must not stay in the dictionary, but one
+        // with a waiter must — dropping it would leave that waiter on an object no pusher can find.
+        private void DropIfIdle(string key, TagQueue queue)
+        {
+            if (queue.Items.Count == 0 && queue.Waiters == 0 && queue.AsyncWaiters.Count == 0)
+                _queues.Remove(key);
         }
     }
 }

@@ -38,7 +38,7 @@ All transports share the same `ITikConnection` API and O/R mapper — pick one v
 
 | Transport | Port | What it is | Capabilities |
 |---|---|---|---|
-| **Api** / **ApiSsl** | TCP 8728 / 8729 | native MikroTik API protocol — the default and fastest; TLS variant needs a certificate on the router | **all of them**: `Crud`, `Listen`, `Streaming`, `RawSentences`, `Tagging`, `SafeMode`, `RawCommand` |
+| **Api** / **ApiSsl** | TCP 8728 / 8729 | native MikroTik API protocol — the default and fastest; TLS variant needs a certificate on the router | **all of them**: `Crud`, `Listen`, `Streaming`, `RawSentences`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`‡, `CancelInFlight`‡ |
 | **Rest** / **RestSsl** | TCP 80 / 443 | REST API, RouterOS 7.1+ | `Crud`, `Listen`\*†, `AsyncCommands`‡, `CancelInFlight`‡ — stateless HTTP, so no streaming and no Safe Mode |
 | **Telnet** | TCP 23 | RouterOS CLI over plain-text Telnet | `Crud`, `Listen`\*, `SafeMode`, `RawCommand`, `AsyncCommands`‡ |
 | **Ssh** | TCP 22 | RouterOS CLI over an SSH shell (separate `tik4net.ssh` package) | `Crud`, `Listen`\*, `SafeMode`, `RawCommand`, `AsyncCommands`‡ |
@@ -55,10 +55,12 @@ buffers the whole HTTP response. Prefer an explicit bound (`count`/`duration`) o
 that closing the connection does not stop a command already running on the router.
 
 ‡ **`Execute*Async` — the Task-based command surface** (`ExecuteListAsync`, `ExecuteScalarAsync`, … with a
-`CancellationToken`) is being rolled out per transport: REST first, then the whole CLI family, each over its own
-awaited socket. Where `AsyncCommands` is absent (today the binary API and WinBox native) the async methods throw
+`CancellationToken`) was rolled out per transport: REST first, then the whole CLI family, then the binary API,
+each over its own awaited socket. Where `AsyncCommands` is absent (today WinBox native) the async methods throw
 rather than block a thread pretending to be asynchronous; use the synchronous methods there. `CancelInFlight`
-means a token cancelled *after* dispatch really stops the wait and leaves the connection usable. **On the CLI
+means a token cancelled *after* dispatch really stops the wait and leaves the connection usable. **On the binary
+API it is the protocol's own operation**: the client sends `/cancel tag=N`, the router answers the cancelled
+command with `!trap interrupted` + `!done`, and the connection carries on — nothing is abandoned mid-stream. **On the CLI
 transports it never will**: a terminal answers with an unframed byte stream, so abandoning a read would leave
 output for the next command to misparse. There a mid-command cancel is reported once the response has been
 drained — correct, but no faster than the command itself. A caller who would rather lose the session than wait

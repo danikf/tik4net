@@ -37,7 +37,10 @@ namespace tik4net.Api
         private const int API_DEFAULT_PORT = 8728;
         private const int APISSL_DEFAULT_PORT = 8729;
 
-        private readonly object _writeLockObj = new object();
+        // Serializes writes: sentences must not interleave on the wire. A SemaphoreSlim rather than a lock
+        // because the async path holds it across an await, which C# does not allow for a monitor — and two
+        // different mutexes for the two paths would serialize neither against the other.
+        private readonly System.Threading.SemaphoreSlim _writeLock = new System.Threading.SemaphoreSlim(1, 1);
         private volatile bool _isOpened = false;
         private bool _safeModeHeld = false;
         private bool _isSsl = false;
@@ -65,11 +68,19 @@ namespace tik4net.Api
         /// and connection-bound Safe Mode. It declares the full set explicitly (a positive declaration)
         /// rather than relying on the "no interface = supports everything" fallback.
         /// </summary>
+        /// <remarks>
+        /// <see cref="TikConnectionCapability.CancelInFlight"/> is real here rather than best-effort: the
+        /// protocol has <c>/cancel tag=N</c>, the router answers the cancelled command with
+        /// <c>!trap interrupted</c> + <c>!done</c>, and the sentence stream stays framed — so a cancelled
+        /// command leaves the connection usable instead of merely un-desynchronized-by-luck. It is the
+        /// per-command <c>.tag</c> (<see cref="TikConnectionCapability.Tagging"/>) that makes this possible.
+        /// </remarks>
         public TikConnectionCapability Capabilities =>
             TikConnectionCapability.Crud | TikConnectionCapability.Listen
             | TikConnectionCapability.Streaming | TikConnectionCapability.RawSentences
             | TikConnectionCapability.Tagging | TikConnectionCapability.SafeMode
-            | TikConnectionCapability.RawCommand;
+            | TikConnectionCapability.RawCommand
+            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight;
 
         public bool IsOpened
         {
@@ -604,6 +615,46 @@ namespace tik4net.Api
             _dispatcher.TerminateAll(new ApiFatalSentence(new[] { "connection closed by the client" }));
         }
 
+        // Async sibling of WriteCommand. Same framing, same trace hooks; the difference is that it awaits the
+        // socket instead of blocking a thread on it, and holds the write lock across that await — which is
+        // why the lock is a SemaphoreSlim.
+        private async System.Threading.Tasks.Task WriteCommandAsync(
+            IEnumerable<string> commandRows, System.Threading.CancellationToken cancellationToken)
+        {
+            await _writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                foreach (string row in commandRows)
+                {
+                    byte[] bytes = _encoding.GetBytes(row.ToCharArray());
+                    byte[] length = ApiConnectionHelper.EncodeLength(bytes.Length);
+
+                    await _tcpConnectionStream.WriteAsync(length, 0, length.Length).ConfigureAwait(false);
+                    await _tcpConnectionStream.WriteAsync(bytes, 0, bytes.Length).ConfigureAwait(false);
+
+                    if (Diagnostics.TikWireTrace.Enabled)
+                        Diagnostics.TikWireTrace.Emit("api.word", Diagnostics.TikWireDir.Send,
+                            bytes, 0, bytes.Length, "len=" + bytes.Length);
+
+                    OnWriteRow?.Invoke(this, new TikConnectionCommCallbackEventArgs(row));
+                    if (DebugEnabled)
+                        System.Diagnostics.Debug.WriteLine("> " + row);
+                }
+
+                await _tcpConnectionStream.WriteAsync(new byte[] { 0 }, 0, 1).ConfigureAwait(false); //sentence terminator
+                await _tcpConnectionStream.FlushAsync().ConfigureAwait(false);
+            }
+            catch (IOException)
+            {
+                _isOpened = _tcpConnection.Connected;
+                throw;
+            }
+            finally
+            {
+                _writeLock.Release();
+            }
+        }
+
         private ITikSentence GetOne(string tag)
         {
             // A sentence already delivered for this tag is returned even after the connection dropped: it is
@@ -663,16 +714,116 @@ namespace tik4net.Api
                 commandRows = commandRows.Concat(new string[] { string.Format("{0}={1}", TikSpecialProperties.Tag, tagOrEmptyString) }).ToArray();
             }
 
-            lock (_writeLockObj)
-            {
-                WriteCommand(commandRows);
-            }
+            _writeLock.Wait();
+            try { WriteCommand(commandRows); }
+            finally { _writeLock.Release(); }
             return GetAll(tagOrEmptyString).ToList();
         }
 
         public IEnumerable<ITikSentence> CallCommandSync(IEnumerable<string> commandRows)
         {
             return CallCommandSync(commandRows.ToArray());
+        }
+
+        /// <summary>
+        /// Task-based sibling of <see cref="CallCommandSync(string[])"/>: writes the command and awaits its
+        /// sentences without holding a thread (D9).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The command is <b>always</b> tagged, whatever <see cref="SendTagWithSyncCommand"/> says. A tag is
+        /// what makes the answer addressable, and it is also what makes cancelling possible at all — the
+        /// router's <c>/cancel</c> takes a tag, so an untagged command could only be "cancelled" by giving up
+        /// on the connection.
+        /// </para>
+        /// <para>
+        /// Cancellation is level 2 of the contract: the token triggers a real <c>/cancel tag=N</c>, the
+        /// router answers <c>!trap interrupted</c> + <c>!done</c>, both are consumed, and the connection is
+        /// left fully usable — which is the property worth testing, far more than the exception type.
+        /// </para>
+        /// </remarks>
+        internal async System.Threading.Tasks.Task<IList<ITikSentence>> CallCommandSyncAsync(
+            string[] commandRows, System.Threading.CancellationToken cancellationToken)
+        {
+            EnsureOpened();
+            cancellationToken.ThrowIfCancellationRequested();   // level 0: nothing is written
+
+            // Both spellings are accepted: the connection writes the tag row as `.tag=N`, while a caller who
+            // supplies it as a command parameter produces `=.tag=N`. Missing the second would make us add a
+            // second tag and then wait on the one the router does not answer with.
+            string tag = null;
+            foreach (var row in commandRows)
+            {
+                var match = tagRegex.Match(row.StartsWith("=", StringComparison.Ordinal) ? row.Substring(1) : row);
+                if (match.Success) { tag = match.Groups["TAG"].Value; break; }
+            }
+            if (string.IsNullOrEmpty(tag))
+            {
+                tag = TagSequence.Next().ToString();
+                commandRows = commandRows.Concat(new[] { $"{TikSpecialProperties.Tag}={tag}" }).ToArray();
+            }
+
+            await WriteCommandAsync(commandRows, cancellationToken).ConfigureAwait(false);
+
+            var result = new List<ITikSentence>();
+
+            // The cancel is driven by the TOKEN, not by the next sentence arriving. Sending it from inside
+            // the read loop looks equivalent and is not: a command that has gone quiet — precisely the case
+            // a caller cancels — leaves the loop parked in the wait, so the router is never asked to stop
+            // and the cancel only takes effect at the receive timeout, if at all.
+            System.Threading.Tasks.Task cancelTask = null;
+            using (cancellationToken.Register(() => cancelTask = SendCancelAsync(tag)))
+            {
+                while (true)
+                {
+                    ITikSentence sentence;
+                    try
+                    {
+                        // The wait itself is NOT given the caller's token: abandoning it would leave the
+                        // router still answering a tag nobody is reading. We ask the router to stop and keep
+                        // reading until it says it has — that is what keeps the connection usable afterwards.
+                        sentence = await _dispatcher.WaitAsync(tag, _receiveTimeout,
+                            System.Threading.CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (TikConnectionReceiveTimeoutException)
+                    {
+                        // Cancelled and silent: the caller asked to stop and the router said nothing at all.
+                        // Report the cancellation — the timeout is a symptom of it, not the news.
+                        cancellationToken.ThrowIfCancellationRequested();
+                        throw;
+                    }
+
+                    result.Add(sentence);
+
+                    if (sentence is ApiDoneSentence || sentence is ApiFatalSentence)
+                        break;
+                }
+            }
+
+            if (cancelTask != null)
+                await cancelTask.ConfigureAwait(false);   // observe it; it swallows its own failures
+
+            cancellationToken.ThrowIfCancellationRequested();
+            return result;
+        }
+
+        // Asks the router to abandon a running command. Sent on its own tag so its own !done cannot be
+        // mistaken for the cancelled command's; failures are swallowed because the caller is already
+        // cancelling and a cancel that could not be delivered still ends with the command's own !done.
+        private async System.Threading.Tasks.Task SendCancelAsync(string tag)
+        {
+            try
+            {
+                await WriteCommandAsync(
+                    new[] { "/cancel", $"={TikSpecialProperties.Tag}={tag}",
+                            $"{TikSpecialProperties.Tag}={TagSequence.Next()}" },
+                    System.Threading.CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                // Nothing to do: we are cancelling, and the read loop below still ends on the command's
+                // own terminal sentence or on the receive timeout.
+            }
         }
 
         public Thread CallCommandAsync(IEnumerable<string> commandRows, string tag, 
@@ -682,10 +833,9 @@ namespace tik4net.Api
             EnsureOpened();
 
             commandRows = commandRows.Concat(new string[] { string.Format("{0}={1}", TikSpecialProperties.Tag, tag) }); // .tag=1234
-            lock (_writeLockObj)
-            {
-                WriteCommand(commandRows);
-            }
+            _writeLock.Wait();
+            try { WriteCommand(commandRows); }
+            finally { _writeLock.Release(); }
 
             // The thread pumps this tag's sentences into the callback — it does NOT touch the socket. Before
             // P2.3 it was one of many readers, so a slow callback ran with nobody servicing the connection
