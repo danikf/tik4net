@@ -38,7 +38,6 @@ namespace tik4net.Api
         private const int APISSL_DEFAULT_PORT = 8729;
 
         private readonly object _writeLockObj = new object();
-        private readonly object _readLockObj = new object();
         private volatile bool _isOpened = false;
         private bool _safeModeHeld = false;
         private bool _isSsl = false;
@@ -48,7 +47,11 @@ namespace tik4net.Api
         private int _receiveTimeout = 30000;
         private TcpClient _tcpConnection;
         private /*NetworkStream*/System.IO.Stream _tcpConnectionStream;
-        private SentenceList _readSentences = new SentenceList();
+
+        // One reader owns the socket for the connection's whole life; callers wait on their tag (P2.3).
+        private readonly ApiSentenceDispatcher _dispatcher = new ApiSentenceDispatcher();
+        private System.Threading.Tasks.Task _readerTask;
+        private volatile bool _readerStopRequested;
 
         public event EventHandler<TikConnectionCommCallbackEventArgs> OnReadRow;
         public event EventHandler<TikConnectionCommCallbackEventArgs> OnWriteRow;
@@ -171,9 +174,24 @@ namespace tik4net.Api
         // and from a failed Open()/OpenAsync() to avoid leaking a half-opened socket.
         private void DisposeConnectionResources()
         {
+            // Tell the reader this is our doing before pulling the socket out from under it, so a caller
+            // waiting on a tag is told "closed by the client" rather than being handed the socket error that
+            // closing produced. The blocked read ends when the stream goes.
+            _readerStopRequested = true;
             try { _tcpConnectionStream?.Dispose(); } catch { /* Close/Dispose must not throw */ }
             try { _tcpConnection?.Dispose(); } catch { /* Close/Dispose must not throw */ }
             _isOpened = false;
+
+            // Bounded: the reader is blocked in a read on a stream that has just been disposed, so it is
+            // about to throw. Waiting keeps "closed" meaning the reader is actually gone — a Dispose that
+            // leaves a live reader behind is how a test suite accumulates threads on a pooled connection.
+            var reader = _readerTask;
+            _readerTask = null;
+            try { reader?.Wait(2000); } catch { /* the loop's own exception is its business */ }
+
+            // Whatever the reader did or did not manage to publish, nobody may still be waiting on a
+            // connection that no longer exists.
+            _dispatcher.TerminateAll(new ApiFatalSentence(new[] { "connection closed by the client" }));
         }
 
         /// <inheritdoc/>
@@ -264,6 +282,7 @@ namespace tik4net.Api
                 }
 
                 _isOpened = true;
+                StartReaderLoop();          // login is an ordinary exchange — it goes through the reader too
                 Login_v3(user, password);  //LoginInternal(user, password);
             }
             catch
@@ -316,6 +335,7 @@ namespace tik4net.Api
                 }
 
                 _isOpened = true;
+                StartReaderLoop();        // login is an ordinary exchange — it goes through the reader too
                 Login_v3(user, password); // LoginInternal(user, password);
             }
             catch
@@ -540,41 +560,55 @@ namespace tik4net.Api
             }
         }
 
+        // ── Reader loop (P2.3) ────────────────────────────────────────────────
+
+        /// <summary>
+        /// Starts the one thread that reads this connection's socket. Runs from just after the stream is
+        /// ready — the login exchange goes through it like any other command — until the connection ends.
+        /// </summary>
+        private void StartReaderLoop()
+        {
+            _readerStopRequested = false;
+
+            // The socket read must NOT carry ReceiveTimeout any more. That value bounds a caller waiting for
+            // its answer, and a reader that sits on an idle socket between commands would otherwise read its
+            // own idleness as a failure and kill a perfectly healthy connection every ReceiveTimeout. The
+            // deadline now lives where the waiting happens: ApiSentenceDispatcher.Wait.
+            try { _tcpConnectionStream.ReadTimeout = System.Threading.Timeout.Infinite; }
+            catch (InvalidOperationException) { /* stream does not support timeouts — nothing to relax */ }
+
+            _readerTask = System.Threading.Tasks.Task.Factory.StartNew(
+                ReaderLoop, System.Threading.Tasks.TaskCreationOptions.LongRunning);
+        }
+
+        private void ReaderLoop()
+        {
+            try
+            {
+                while (!_readerStopRequested)
+                    _dispatcher.Push(ReadSentence());
+            }
+            catch (Exception ex)
+            {
+                // Every caller learns of this, not just whoever happened to own the read. Carry the reason:
+                // an empty !fatal makes a router reboot, a socket error and a bug in our own reader
+                // indistinguishable, and this is the only place the exception exists (P2.14).
+                _isOpened = false;
+                _dispatcher.TerminateAll(_readerStopRequested
+                    ? new ApiFatalSentence(new[] { "connection closed by the client" })
+                    : new ApiFatalSentence(new[] { "connection lost: " + ex.GetType().Name + ": " + ex.Message }));
+                return;
+            }
+
+            _isOpened = false;
+            _dispatcher.TerminateAll(new ApiFatalSentence(new[] { "connection closed by the client" }));
+        }
+
         private ITikSentence GetOne(string tag)
         {
-            do
-            {
-                if (!_tcpConnection.Connected)
-                    _isOpened = false;
-
-                if (!_isOpened)
-                    return new ApiTrapSentence(new string[] { "=category=-1", "=message=connection closed" });
-
-                ITikSentence result;
-                // try to find in in _readSentences
-                if (_readSentences.TryDequeue(tag, out result)) // found => removed from _readSentences and return as result
-                    return result;
-
-                lock (_readLockObj)
-                {
-                    // again - try to find in in _readSentences (could be added between last try and lock)  (see double check lock pattern)
-                    if (_readSentences.TryDequeue(tag, out result)) // found => removed from _readSentences and return as result
-                        return result;
-
-                    ITikSentence sentenceFromTcp = ReadSentence();
-                    if (sentenceFromTcp.Tag == tag)
-                    {
-                        return sentenceFromTcp;
-                    }
-                    else // another tag => add to _readSentences for another reading thread
-                    {
-                        _readSentences.Enqueue(sentenceFromTcp);
-                    }
-                }
-                // repeat until we get a response for this tag; a stuck peer is bounded by ReceiveTimeout —
-                // ReadSentence() (via ReadByteChecked) throws TikConnectionReceiveTimeoutException instead
-                // of blocking forever once the underlying socket read times out.
-            } while (true);
+            // A sentence already delivered for this tag is returned even after the connection dropped: it is
+            // this caller's answer, and the router had sent it before anything went wrong.
+            return _dispatcher.Wait(tag, _receiveTimeout);
         }
         
         private IEnumerable<ITikSentence> GetAll(string tag)
@@ -653,6 +687,10 @@ namespace tik4net.Api
                 WriteCommand(commandRows);
             }
 
+            // The thread pumps this tag's sentences into the callback — it does NOT touch the socket. Before
+            // P2.3 it was one of many readers, so a slow callback ran with nobody servicing the connection
+            // and every command's deadline depended on what else was in flight (F8). The signature stays a
+            // Thread because it is public API; what it does underneath is now dispatch, not I/O.
             Thread result = new Thread(() =>
             {
                 try
@@ -669,18 +707,17 @@ namespace tik4net.Api
                         {
                             //Do not crash reading thread because of implementation error in called code
                         }
-                    } while (_isOpened && !(sentence is ApiDoneSentence /*|| sentence is ApiTrapSentence*/ || sentence is ApiFatalSentence)); // read sentences via TryGetOne(wait) for TAG until !done or !fatal is returned
+                    } while (!(sentence is ApiDoneSentence /*|| sentence is ApiTrapSentence*/ || sentence is ApiFatalSentence)); // read sentences via TryGetOne(wait) for TAG until !done or !fatal is returned
                     //NOTE: Should be ended via !done or !trap+!done (called via Cancel() command for specific tag)
+                    // The loop no longer tests _isOpened: a closed connection reaches the callback as the
+                    // reader's synthetic !fatal, which ends it. Testing the flag instead ended the pump
+                    // silently, leaving ExecuteAsync's caller with a monitor that simply stopped.
                 }
                 catch (Exception ex)
                 {
-                    // Connection closed unexpectedly (e.g. router rebooted/shutdown).
-                    // Synthesize !fatal so the caller (ExecuteAsync) can clear its _isRuning state.
-                    // Carry the reason: an empty fatal makes a router reboot, a socket error and a bug in
-                    // our own reader indistinguishable to the caller, and this is the only place the
-                    // exception exists — swallowing it here is why an async/listen that dies leaves nothing
-                    // to diagnose (P2.14). Free text matches how RouterOS words a real !fatal, and the
-                    // sentence's word dictionary ignores anything that is not key=value.
+                    // Everything that can still land here is local (a receive timeout on this tag). Connection
+                    // loss arrives as the reader's !fatal, above. Either way the caller (ExecuteAsync) must be
+                    // told, or it never clears its running state — carry the reason (P2.14).
                     try
                     {
                         oneResponseCallback(new ApiFatalSentence(

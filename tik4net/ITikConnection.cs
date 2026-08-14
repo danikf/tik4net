@@ -55,7 +55,15 @@ namespace tik4net
         /// <summary>
         ///     Gets or sets the amount of time a ITikConnection will wait to receive data once a read operation is initiated. In miliseconds.
         /// </summary>
-        /// <remarks>Must be called before <see cref="Open(string, string, string)"/> call.</remarks>
+        /// <remarks>
+        /// <para>Must be called before <see cref="Open(string, string, string)"/> call.</para>
+        /// <para>
+        /// This bounds <b>one command waiting for its answer</b>, not the connection's right to exist: an
+        /// idle connection with no command in flight is not subject to it and stays open. On the binary API
+        /// the budget is per caller and runs from dispatch, so concurrent commands do not consume each
+        /// other's (P2.3).
+        /// </para>
+        /// </remarks>
         int ReceiveTimeout { get; set; }
 
         /// <summary>
