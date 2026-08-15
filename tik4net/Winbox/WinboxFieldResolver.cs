@@ -102,6 +102,66 @@ namespace tik4net.Winbox
         private static string SeedWireType(string apiName)
             => string.Equals(apiName, "disabled", StringComparison.OrdinalIgnoreCase) ? "bool" : "string";
 
+        // ── Deck panes: the kind prefix (stable text) ──────────────────────────
+
+        /// <summary>
+        /// The name a pane field is filed under: the kind and the field's own label joined with '-', unless
+        /// the label already begins with the kind (WinBox writes 'Remote Port' inside the remote pane and
+        /// 'PFIFO Queue Size' inside the pfifo one, where the API says <c>remote-port</c> and
+        /// <c>pfifo-limit</c> — not <c>remote-remote-port</c>).
+        /// </summary>
+        internal static string PrefixWithKind(string kind, string apiName)
+        {
+            if (string.IsNullOrEmpty(kind) || string.IsNullOrEmpty(apiName)) return apiName;
+            if (apiName.Equals(kind, StringComparison.OrdinalIgnoreCase)
+                || apiName.StartsWith(kind + "-", StringComparison.OrdinalIgnoreCase))
+                return apiName;
+            return kind + "-" + apiName;
+        }
+
+        /// <summary>
+        /// Which <c>deck</c> panes RouterOS's API spells with the kind prefix, per path — <c>"*"</c> for every
+        /// pane of that window.
+        /// </summary>
+        /// <remarks>
+        /// <para>It is NOT derivable, which is why it is shipped and why the default is "leave the name
+        /// alone". <c>/queue/type</c> prefixes every pane without exception (<c>pcq-rate</c>,
+        /// <c>red-burst</c>, <c>codel-limit</c>, <c>fq-codel-limit</c>), while <c>/system/logging/action</c>
+        /// prefixes memory, disk and email but leaves the remote, echo and script panes alone — the API calls
+        /// those <c>src-address</c>, <c>syslog-facility</c>, <c>remember</c>, <c>script</c>. Both lists were
+        /// read off the live router with tab completion (<c>/queue/type add ?</c>,
+        /// <c>/system/logging/action add ?</c>), not inferred.</para>
+        /// <para>The catalog files every pane field under BOTH names regardless (see
+        /// <c>WinboxJgCatalog.AddField</c>), so a caller can always WRITE the prefixed spelling; this table
+        /// only decides which of the two a READ reports. Leaving a path out therefore costs nothing that
+        /// worked before — the ~70 deck windows in the 7.23.2 catalog keep the names they have always
+        /// decoded to.</para>
+        /// </remarks>
+        private static readonly Dictionary<string, HashSet<string>> PanePrefixedPaths =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["/queue/type"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "*" },
+                ["/system/logging/action"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    { "memory", "disk", "email" },
+            };
+
+        // True when the API spells THIS path's fields of THIS pane kind with the kind prefix.
+        private bool PanePrefixed(string kind)
+        {
+            if (string.IsNullOrEmpty(kind)) return false;
+            string path = WinboxHandlerMap.Normalize(_apiPath ?? "");
+            return PanePrefixedPaths.TryGetValue(path, out var kinds)
+                   && (kinds.Contains("*") || kinds.Contains(kind));
+        }
+
+        /// <summary>
+        /// Which of a field's catalog registrations is the one a read reports it under — the kind-prefixed
+        /// spelling where the API uses it, the plain label otherwise. (The shipped label alias is applied on
+        /// top by the caller, so this stays comparable with the catalog's own keys.)
+        /// </summary>
+        private string RegisteredNameToReport(WinboxJgField f)
+            => PanePrefixed(f.PaneKind) ? PrefixWithKind(f.PaneKind, f.ApiName) : f.ApiName;
+
         // ── Shipped field aliases (stable API-name ↔ .jg-label text) ───────────
         // Some WinBox windows label fields differently from the RouterOS API (e.g. the Ping window's API
         // 'address' is WinBox 'ping-to'). Only the stable name↔label text is shipped here — the label↔key
@@ -176,9 +236,54 @@ namespace tik4net.Winbox
 
                 // /system/logging/action: the window's field is {name:'Type',title:'Target'} — the API name
                 // is 'target', and 'type' is not an API field of this table at all.
+                //
+                // The rest are deck-pane leaves whose label the API spells differently. The memory/disk/email
+                // panes are kind-prefixed (see PanePrefixedPaths) and their labels then match the API exactly
+                // — memory-lines, disk-file-count, email-cc — so only three remain, plus the echo pane's one
+                // field. Checked against `/system/logging/action add ?` on 7.23.2.
                 ["/system/logging/action"] = new FieldAliasSet(
-                    apiToJg: Ci(("target", "type")),
-                    jgToApi: Ci(("type", "target"))),
+                    apiToJg: Ci(("target", "type"),
+                               ("remote", "remote-address"),          // remote pane, 'Remote Address'
+                               ("remote-protocol", "remote-log-protocol"),
+                               ("email-to", "email"),                 // email pane, 'Email' (already kind-named)
+                               ("remember", "save")),                 // echo pane, 'Save'
+                    jgToApi: Ci(("type", "target"),
+                               ("remote-address", "remote"),
+                               ("remote-log-protocol", "remote-protocol"),
+                               ("email", "email-to"),
+                               ("save", "remember"))),
+                // NOT aliased here, deliberately: the remote pane's 'Timestamp Format' (u13) looks like the
+                // API's syslog-time-format, but the API reports that field only when the action's log format
+                // is BSD syslog (the .jg marks it `on:'timestamp'`, a condition this catalog does not model),
+                // and it spells the value 'bsd-syslog' where the window's enum says 'BSD'. Naming it would
+                // hand the mapper a field the API does not report for the row, with a value it cannot convert
+                // — which is exactly what it did. Same for 'Syslog Facility'/'Add Topics'. An alias is only
+                // shipped when the NAME and the VALUE both match what the router prints.
+
+                // /queue/type: every pane IS kind-prefixed, so the prefix is derived and only the leaf text
+                // differs — WinBox calls the queue depth 'Queue Size' where the API says 'limit', and the RED
+                // pane's 'Avg. Packet Size' is 'avg-packet'. The kind-carrying labels ('BFIFO Queue Size')
+                // keep their own prefix, so the alias is on the whole name. Checked against
+                // `/queue/type add ?` on 7.23.2.
+                // ('Type Name' is the window's nameval, the same shape as /file's 'File Name' — without it
+                // every row came back without a 'name' and the entity read threw "Missing field 'name'".)
+                ["/queue/type"] = new FieldAliasSet(
+                    apiToJg: Ci(("name", "type-name"),
+                               ("bfifo-limit", "bfifo-queue-size"),
+                               ("pfifo-limit", "pfifo-queue-size"),
+                               ("mq-pfifo-limit", "mq-pfifo-mq-queue-size"),
+                               ("red-limit", "red-queue-size"),
+                               ("red-avg-packet", "red-avg-packet-size"),
+                               ("pcq-limit", "pcq-queue-size"),
+                               ("pcq-total-limit", "pcq-total-queue-size")),
+                    jgToApi: Ci(("type-name", "name"),
+                               ("bfifo-queue-size", "bfifo-limit"),
+                               ("pfifo-queue-size", "pfifo-limit"),
+                               ("mq-pfifo-mq-queue-size", "mq-pfifo-limit"),
+                               ("red-queue-size", "red-limit"),
+                               ("red-avg-packet-size", "red-avg-packet"),
+                               ("pcq-queue-size", "pcq-limit"),
+                               ("pcq-total-queue-size", "pcq-total-limit"))),
 
                 // /ip/upnp: the settings singleton's second field is labelled 'Allow To Disable External
                 // Interface' in WinBox and 'allow-disable-external-interface' in the API — one stray "to".
@@ -284,7 +389,18 @@ namespace tik4net.Winbox
             foreach (var kv in SystemSeed) Put(kv.Value, kv.Key);
             var jg = JgFields;
             if (jg != null)
-                foreach (var f in jg.Values) Put(f.Key, AliasToApi(f.ApiName));
+                foreach (var kv in jg)
+                {
+                    // A pane field is registered TWICE (plain + kind-prefixed), and only the spelling this
+                    // path actually reports may contribute a name — otherwise both spellings would claim the
+                    // field's key, and on a path that does NOT prefix, the second pane's field (which owns no
+                    // plain registration, its label having been taken by the first pane) would start
+                    // answering under the first pane's name. Skipping the other registration keeps such a
+                    // field out of the decode exactly as it was before panes were harvested.
+                    if (!string.Equals(kv.Key, RegisteredNameToReport(kv.Value), StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    Put(kv.Value.Key, AliasToApi(kv.Key));
+                }
             foreach (var kv in FallbackSeed) Put(kv.Value, kv.Key);
 
             return map;

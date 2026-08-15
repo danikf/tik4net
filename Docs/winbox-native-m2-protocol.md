@@ -669,3 +669,68 @@ that number on the wire.
 transport is under test (all RED pre-fix on `winboxnative`); the four rules are pinned router-free by
 `WinboxEnumAndUnsetDecodeTests`, of which nine fail against the old catalog and two are regression
 guards for the values that must NOT be dropped.
+
+---
+
+## 27. ✅ A `deck` pane is a KIND of record, and the API names it (A3, 2026-08-15)
+
+WinBox shows one window per table and hides the settings that do not apply to the record you selected, in a
+`type:'deck'` whose panes are chosen by another field (`selon`). RouterOS has no panes: it puts every
+kind's parameters in one flat record and tells them apart by **prefixing the kind**.
+
+```js
+{name:'Kind',type:'enm',id:'u15',values:{type:'static',map:['','bfifo','pfifo','red','sfq','pcq',…]}},
+{type:'deck',selon:'Kind',panes:[
+  {vals:[ 3 ],c:[{name:'RED Queue Size',title:'Queue Size',id:'u12d'},{name:'Burst',id:'u130'},…]},
+  {vals:[ 5 ],c:[{name:'Rate',id:'u1f5'},{name:'Queue Size',id:'u1f6'},…]},
+  {vals:[ 8 ],c:[{name:'Limit',id:'u2bd'},{name:'Interval',id:'u2be'},…]},     // codel
+  {vals:[ 9 ],c:[{name:'Limit',id:'u321'},{name:'Interval',id:'u322'},…]}]}    // fq codel
+```
+
+### 27.1 Two panes, one label, one lost field
+
+The catalog is keyed by label, first-wins — so codel's `Limit` kept the name and fq-codel's was **dropped
+from the map entirely**, as were disk's `Stop on Full` (memory's `b4` took it) and every later pane's
+repeat. Those fields could not be written at all, and a read reported the survivor under a name RouterOS
+does not use (`stop-on-full`, `rate`).
+
+A pane field is now filed under **both** its plain label and `<kind>-<label>`, the kind coming live from the
+selector's own enum map. The prefix is not doubled when the label already carries it: WinBox writes
+'Remote Port' inside the remote pane and 'PFIFO Queue Size' inside the pfifo one, where the API says
+`remote-port` and `pfifo-limit`. Writes therefore work for every pane, everywhere in the catalog, with no
+shipped data at all.
+
+### 27.2 Which spelling a READ reports is not derivable
+
+`/queue/type` prefixes every pane without exception (`pcq-rate`, `red-burst`, `codel-limit`,
+`fq-codel-limit`), but `/system/logging/action` prefixes memory, disk and email and leaves the remote, echo
+and script panes alone — the API calls those `src-address`, `syslog-facility`, `remember`, `script`. Both
+lists were read off the router with tab completion (`/queue/type add ?`,
+`/system/logging/action add ?`), and nothing in the `.jg` distinguishes the two cases.
+
+So the reported spelling is a shipped per-path table (`WinboxFieldResolver.PanePrefixedPaths`), defaulting
+to "leave the name alone". That matters: the 7.23.2 catalog has ~70 deck windows and we have ground truth
+for two, so an unlisted path decodes exactly as it always has. The leaves whose text the API spells
+differently ride in the existing per-path alias set — `pcq-limit` ↔ WinBox 'Queue Size', `red-avg-packet` ↔
+'Avg. Packet Size', `remember` ↔ the echo pane's 'Save'.
+
+An alias is only shipped when the NAME **and** the VALUE match what the router prints. The remote pane's
+'Timestamp Format' looks like the API's `syslog-time-format` and is deliberately left unaliased: the API
+reports that field only when the log format is BSD syslog (`on:'timestamp'`, a condition this catalog does
+not model) and spells the value `bsd-syslog` where the window's enum says `BSD`. Aliasing it handed the
+mapper a field the API had not reported, carrying a value it could not convert.
+
+### 27.3 A record only has the fields of its own kind
+
+The router sends **every** pane's keys on every row — a memory logging action's M2 record carries both
+'Stop on Full' bools — while the API reports only the live pane's. A field whose pane does not cover the
+record's selector value is now dropped, which is also what makes `/ip/ipsec/identity` read correctly: its
+'My ID' pane covers fqdn/user-fqdn/key-id, so on an `auto` identity neither pane applies and the API's
+`my-id=auto` is what the mapper's default produces — where before it received `my-id=''` and threw. A
+record that does not carry the selector at all keeps every pane: without the kind there is no honest way to
+say which one is live.
+
+**Coverage:** the new `QueueTypeTest` (four methods, RED on `winboxnative` before this — including
+"Missing field 'name'", since the window labels it 'Type Name'), plus `SystemLoggingActionTest` and
+`IpsecIdentityTest`; the pane rules are pinned router-free by `WinboxDeckPaneTests`, of which ten fail
+against the old catalog and two guard what must NOT change.

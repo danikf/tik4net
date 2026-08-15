@@ -90,6 +90,44 @@ namespace tik4net.Winbox
         internal const long UnsetSentinel = 0xFFFFFFFFL;
 
         /// <summary>
+        /// For a field declared inside a <c>type:'deck'</c> PANE — the part of a window that WinBox shows only
+        /// for one KIND of record (a logging action's memory/disk/remote settings, a queue type's
+        /// pcq/red/sfq parameters) — the kind's label, normalized (<c>memory</c>, <c>fq-codel</c>).
+        /// <c>null</c> for an ordinary field.
+        /// </summary>
+        /// <remarks>
+        /// RouterOS has no panes: it puts every kind's parameters in one flat record and tells them apart by
+        /// prefixing the kind (<c>memory-lines</c>, <c>pcq-rate</c>). Two panes therefore routinely use the
+        /// SAME label for different fields — 'Stop on Full' is <c>b4</c> for memory and <c>b6</c> for disk,
+        /// and codel/fq-codel repeat all five of theirs — and a per-label field map kept only the first,
+        /// leaving the rest unaddressable.
+        /// </remarks>
+        internal string PaneKind { get; }
+
+        /// <summary>
+        /// The M2 key of the field that SELECTS the pane (the deck's <c>selon</c>, e.g. a logging action's
+        /// 'Type' or a queue type's 'Kind'), and the selector values this pane is shown for. A record whose
+        /// selector value is not among them is of another kind, and RouterOS omits this field from it
+        /// entirely. <c>0</c>/<c>null</c> for an ordinary field.
+        /// </summary>
+        internal int PaneSelectorKey { get; }
+
+        /// <inheritdoc cref="PaneSelectorKey"/>
+        internal int[] PaneValues { get; }
+
+        /// <summary>
+        /// True when this field belongs to a pane that a record with selector value
+        /// <paramref name="selectorValue"/> does NOT show — i.e. the field is another kind's, and the record
+        /// is not describing it.
+        /// </summary>
+        internal bool IsForeignPane(long selectorValue)
+        {
+            if (PaneValues == null || PaneValues.Length == 0) return false;
+            foreach (int v in PaneValues) if (v == selectorValue) return false;
+            return true;
+        }
+
+        /// <summary>
         /// True when this field declares the <see cref="UnsetSentinel"/> as its default and the catalog gives
         /// that number no label of its own — so a record carrying it is telling us the field is not set.
         /// </summary>
@@ -100,8 +138,12 @@ namespace tik4net.Winbox
         internal WinboxJgField(string apiName, int key, string wireType, bool readOnly,
             IReadOnlyDictionary<int, string> enumMap = null, string uiType = null, int maskKey = 0,
             int[] refHandler = null, int optKey = 0, int notKey = 0, bool isRange = false,
-            string allow = null, long? def = null)
+            string allow = null, long? def = null,
+            string paneKind = null, int paneSelectorKey = 0, int[] paneValues = null)
         {
+            PaneKind = paneKind;
+            PaneSelectorKey = paneSelectorKey;
+            PaneValues = paneValues;
             Def = def;
             Allow = allow;
             ApiName = apiName;

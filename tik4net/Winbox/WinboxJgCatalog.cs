@@ -713,7 +713,20 @@ namespace tik4net.Winbox
 
         // ── Tree walk + field extraction (port of jg_analyze.py walk) ──────────
 
-        private void Walk(object node, string handlerKey, List<string> crumb)
+        // What a `type:'deck'` pane tells us about the fields inside it: which KIND of record they belong to,
+        // and how a record says it is of that kind. Carried down the walk so a field several levels inside a
+        // pane still knows (a pane's children are wrapped in tabs, groups and opt containers).
+        private sealed class PaneContext
+        {
+            internal readonly string Kind;      // normalized selector label ("memory", "fq-codel"); null when
+                                                // the pane covers several selector values and so has no one kind
+            internal readonly int SelectorKey;  // M2 key of the deck's `selon` field
+            internal readonly int[] Values;     // the pane's `vals`
+            internal PaneContext(string kind, int selectorKey, int[] values)
+            { Kind = kind; SelectorKey = selectorKey; Values = values; }
+        }
+
+        private void Walk(object node, string handlerKey, List<string> crumb, PaneContext pane = null)
         {
             if (node is Dictionary<string, object> dict)
             {
@@ -834,7 +847,7 @@ namespace tik4net.Winbox
                 if (owner != null && (ty == "opt" || ty == "not")
                     && dict.ContainsKey("c") && !string.IsNullOrEmpty(nodeName))
                 {
-                    AddOptionField(owner, nodeName, dict);
+                    AddOptionField(owner, nodeName, dict, pane);
                 }
                 // A named `union` holds one value that can be of several families, each child carrying its
                 // OWN key — IPsec 'Address' is {union, c:[network u1, network6 a17, string s2f]}. The union
@@ -846,7 +859,7 @@ namespace tik4net.Winbox
                 else if (owner != null && ty == "union" && !dict.ContainsKey("id")
                          && !string.IsNullOrEmpty(nodeName))
                 {
-                    AddUnionField(owner, nodeName, dict);
+                    AddUnionField(owner, nodeName, dict, pane);
                 }
                 else if (owner != null && dict.TryGetValue("id", out var idv) && idv is string idStr)
                 {
@@ -860,7 +873,8 @@ namespace tik4net.Winbox
                         bool isRange = dict.TryGetValue("range", out var rgv) && rgv is int rgi && rgi != 0;
                         string allow = dict.TryGetValue("allow", out var alv) ? alv as string : null;
                         AddField(owner, nodeName, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(dict),
-                            ty, maskKey, refHandler, isRange: isRange, allow: allow, def: ExtractDef(dict));
+                            ty, maskKey, refHandler, isRange: isRange, allow: allow, def: ExtractDef(dict),
+                            pane: pane);
                     }
                 }
 
@@ -889,17 +903,72 @@ namespace tik4net.Winbox
                     if (leaf.Length > 0) childCrumb.Add(leaf);
                 }
 
+                // A deck's panes are walked here, each with its own pane context, so their fields carry the
+                // kind they belong to. A window of its own inside a pane starts fresh (handlerInts != null).
+                if (ty == "deck" && handlerInts == null)
+                {
+                    WalkDeck(dict, owner, childCrumb);
+                    return;
+                }
+
                 foreach (var kv in dict)
                 {
                     if (kv.Key == "id") continue;
-                    Walk(kv.Value, owner, childCrumb);
+                    Walk(kv.Value, owner, childCrumb, handlerInts != null ? null : pane);
                 }
             }
             else if (node is List<object> list)
             {
                 foreach (var it in list)
-                    Walk(it, handlerKey, crumb);
+                    Walk(it, handlerKey, crumb, pane);
             }
+        }
+
+        /// <summary>
+        /// Walks a <c>type:'deck'</c> node: resolves the selector field named by <c>selon</c> (its M2 key and
+        /// its value labels) among the fields already harvested for this handler, then walks each pane with a
+        /// <see cref="PaneContext"/> naming the kind it belongs to.
+        /// </summary>
+        /// <remarks>
+        /// The selector is looked up in the handler's own field map rather than by re-reading the .jg, so it
+        /// works wherever the deck sits relative to its selector — in every window seen on 7.23.2 the selector
+        /// ('Type', 'Kind') is declared before the deck. A deck whose selector or labels cannot be resolved is
+        /// walked as an ordinary node: its fields keep the plain names they have always had.
+        /// </remarks>
+        private void WalkDeck(Dictionary<string, object> deck, string owner, List<string> crumb)
+        {
+            int selectorKey = 0;
+            IReadOnlyDictionary<int, string> kinds = null;
+            if (deck.TryGetValue("selon", out var sv) && sv is string selon
+                && owner != null && _byHandler.TryGetValue(owner, out var known)
+                && known.TryGetValue(WinboxFieldResolver.NormalizeLabel(selon), out var selField))
+            {
+                selectorKey = selField.Key;
+                kinds = selField.EnumMap;
+            }
+
+            if (deck.TryGetValue("panes", out var pv2) && pv2 is List<object> panes)
+                foreach (var p in panes)
+                {
+                    if (!(p is Dictionary<string, object> pd)) continue;
+                    var vals = new List<int>();
+                    if (pd.TryGetValue("vals", out var vv) && vv is List<object> vl)
+                        foreach (var v in vl) if (v is int vi) vals.Add(vi);
+
+                    // One kind per pane — but only a pane shown for a SINGLE selector value has one to be
+                    // named after. A pane covering several (IPsec identity's 'My ID' is shown for fqdn, user
+                    // fqdn AND key id) is walked without a kind: its fields keep their plain names, and only
+                    // the "which kind is this record" filter applies to them. That filter needs the selector
+                    // and the values, not the label, so it is deliberately not conditioned on the kind.
+                    string kind = null;
+                    if (kinds != null && vals.Count == 1 && kinds.TryGetValue(vals[0], out var label))
+                        kind = label;
+
+                    var ctx = (selectorKey != 0 && vals.Count > 0)
+                        ? new PaneContext(kind, selectorKey, vals.ToArray())
+                        : null;
+                    if (pd.TryGetValue("c", out var pc)) Walk(pc, owner, crumb, ctx);
+                }
         }
 
         // Build a derived menu-label path "/ip/firewall/connection" from the breadcrumb + this window's
@@ -916,13 +985,25 @@ namespace tik4net.Winbox
 
         private void AddField(string handlerKey, string label, int key, string wireType, bool ro,
             IReadOnlyDictionary<int, string> enumMap, string uiType, int maskKey, int[] refHandler,
-            int optKey = 0, int notKey = 0, bool isRange = false, string allow = null, long? def = null)
+            int optKey = 0, int notKey = 0, bool isRange = false, string allow = null, long? def = null,
+            PaneContext pane = null)
         {
             string apiName = WinboxFieldResolver.NormalizeLabel(label);
             if (string.IsNullOrEmpty(apiName)) return;
             var field = new WinboxJgField(apiName, key, wireType, ro, enumMap, uiType, maskKey,
-                refHandler, optKey, notKey, isRange, allow, def);
+                refHandler, optKey, notKey, isRange, allow, def,
+                pane?.Kind, pane?.SelectorKey ?? 0, pane?.Values);
             Put(handlerKey, apiName, field);
+            // A pane field is ALSO filed under the kind-prefixed name the API uses for it (memory-lines,
+            // pcq-rate). Both registrations are needed: the plain one keeps every name that resolved before
+            // resolving, and the prefixed one is the only way to reach a field whose label another pane
+            // already claimed — 'Stop on Full' is memory's b4 AND disk's b6, and first-wins kept only b4, so
+            // disk-stop-on-full could not be written at all.
+            if (pane != null)
+            {
+                string prefixed = WinboxFieldResolver.PrefixWithKind(pane.Kind, apiName);
+                if (prefixed != apiName) Put(handlerKey, prefixed, field);
+            }
             // An action's arguments belong to the action AND, as before, to the handler that owns it — a
             // handler whose only window is an action (Wake on LAN) has no other map to be found in. Written
             // second, so the handler map keeps exactly the first-wins content it had before actions were
@@ -946,7 +1027,8 @@ namespace tik4net.Winbox
         // dict child through nested opt/not layers; the first non-wrapper node is the value leaf (its own id is
         // the value key, uiType the control type — 'set' for a bitmask). If no inner leaf is found, the wrapper
         // itself is the value (a bare bool option) — register its own key as a bool.
-        private void AddOptionField(string handlerKey, string label, Dictionary<string, object> wrapper)
+        private void AddOptionField(string handlerKey, string label, Dictionary<string, object> wrapper,
+            PaneContext pane = null)
         {
             int optKey = 0, notKey = 0;
             var cur = wrapper;
@@ -963,7 +1045,8 @@ namespace tik4net.Winbox
                     {
                         // wrapper with no inner control: it is a plain bool option (e.g. opt around a checkbox).
                         if (dec != null)
-                            AddField(handlerKey, label, dec.Value.key, "bool", false, null, "bool", 0, null);
+                            AddField(handlerKey, label, dec.Value.key, "bool", false, null, "bool", 0, null,
+                                pane: pane);
                         return;
                     }
                     cur = child;
@@ -983,7 +1066,7 @@ namespace tik4net.Winbox
                     bool isRange = cur.TryGetValue("range", out var rgv) && rgv is int rgi && rgi != 0;
                     string allow = cur.TryGetValue("allow", out var alv) ? alv as string : null;
                     AddField(handlerKey, label, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(cur),
-                        ty, maskKey, refHandler, optKey, notKey, isRange, allow, ExtractDef(cur));
+                        ty, maskKey, refHandler, optKey, notKey, isRange, allow, ExtractDef(cur), pane);
                 }
                 return;
             }
@@ -1003,7 +1086,8 @@ namespace tik4net.Winbox
         /// encode error naming the value) instead of being unnameable — never silently written to the IPv4
         /// key, because the codec parses the value against the registered wire type first.
         /// </remarks>
-        private void AddUnionField(string handlerKey, string label, Dictionary<string, object> union)
+        private void AddUnionField(string handlerKey, string label, Dictionary<string, object> union,
+            PaneContext pane = null)
         {
             var child = FirstChildDict(union);
             if (child == null) return;
@@ -1022,7 +1106,7 @@ namespace tik4net.Winbox
 
             AddField(handlerKey, label, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(child),
                 uiType, maskKey, ExtractRefHandler(child), isRange: isRange, allow: allow,
-                def: ExtractDef(child));
+                def: ExtractDef(child), pane: pane);
         }
 
         // Registers a per-record action verb (doit/action label → SYS_CMD) under its owning handler and

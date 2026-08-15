@@ -109,7 +109,30 @@ namespace tik4net.Winbox
             if (jf.OptKey != 0 && rec.TryGetValue(jf.OptKey, out var opt)
                 && opt?.Item2 is bool present && !present)
                 return true;
+            if (IsAnotherKindsField(jf, rec)) return true;
             return jf.Def.HasValue && WinboxFieldResolver.TryToInt64(value, out long n) && jf.IsUnsetValue(n);
+        }
+
+        /// <summary>
+        /// True when the field belongs to a <c>deck</c> pane this record is not of — a disk logging action's
+        /// file settings on a memory action, a red queue's thresholds on a pcq one.
+        /// </summary>
+        /// <remarks>
+        /// The router sends every pane's keys on every row of the table (a memory action's M2 record carries
+        /// both 'Stop on Full' bools, memory's and disk's), while RouterOS's own API reports only the fields
+        /// of the record's kind: a <c>memory</c> action prints <c>memory-lines</c> and
+        /// <c>memory-stop-on-full</c> and nothing else. Keeping the others would add a dozen fields per row
+        /// that no other transport reports — and, for the leftovers of a kind the record is not, values that
+        /// mean nothing.
+        /// <para>A record that does not carry the selector at all is left alone: without knowing its kind
+        /// there is no honest way to say which pane is the live one.</para>
+        /// </remarks>
+        private static bool IsAnotherKindsField(WinboxJgField jf, Dictionary<int, Tuple<string, object>> rec)
+        {
+            if (jf.PaneSelectorKey == 0 || jf.PaneValues == null) return false;
+            if (!rec.TryGetValue(jf.PaneSelectorKey, out var sel) || sel?.Item2 == null) return false;
+            if (!WinboxFieldResolver.TryToInt64(sel.Item2, out long kind)) return false;
+            return jf.IsForeignPane(kind);
         }
 
         // Format an M2 value to its RouterOS API text using the .jg UI-semantic type: IPs unpack from u32,
