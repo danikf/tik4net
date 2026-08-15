@@ -239,7 +239,22 @@ namespace tik4net.Api
             Open(host, _isSsl ? APISSL_DEFAULT_PORT : API_DEFAULT_PORT, user, password);
         }
 
+        // Open and OpenAsync are ONE implementation, the async one, with the synchronous entry point
+        // blocking on it (P2.5; the same D5 inversion the CLI, REST and WinBox-native CRUD paths use).
+        // They used to be two near-identical copies, and they had already drifted where it mattered: the
+        // synchronous copy negotiated TLS with `AuthenticateAsClientAsync(host, null, SslProtocols.None,
+        // false)` and translated a handshake failure into TikConnectionSSLErrorException, while the async
+        // copy called the one-argument overload and let a raw AuthenticationException out. So the same
+        // ApiSsl connection reported a certificate problem differently depending on which method opened it.
+        // Every await below carries ConfigureAwait(false), which is what keeps the blocking entry point
+        // safe under a UI / ASP.NET-classic SynchronizationContext.
         public void Open(string host, int port, string user, string password)
+            => OpenAsync(host, port, user, password).GetAwaiter().GetResult();
+
+        public System.Threading.Tasks.Task OpenAsync(string host, string user, string password)
+            => OpenAsync(host, _isSsl ? APISSL_DEFAULT_PORT : API_DEFAULT_PORT, user, password);
+
+        public async System.Threading.Tasks.Task OpenAsync(string host, int port, string user, string password)
         {
             try
             {
@@ -250,20 +265,18 @@ namespace tik4net.Api
                 if (_receiveTimeout > 0)
                     _tcpConnection.ReceiveTimeout = _receiveTimeout;
 
-                // ConnectAsync with manual timeout so we work on netstandard2.0 (no CancellationToken overload there).
-                // NOTE: Task.Wait(timeout) throws AggregateException (not the original exception) when the
-                // task completes faulted within the timeout window (e.g. an immediate "connection refused") —
-                // unwrap it so callers see the same SocketException they would from a direct ConnectAsync await.
+                // Task.WhenAny + Task.Delay so we work on netstandard2.0 (no ConnectAsync(CancellationToken) overload there).
                 var connectTask = _tcpConnection.ConnectAsync(host, port);
-                try
+                var timeoutTask = System.Threading.Tasks.Task.Delay(ConnectTimeout);
+                if (await System.Threading.Tasks.Task.WhenAny(connectTask, timeoutTask).ConfigureAwait(false) == timeoutTask)
                 {
-                    if (!connectTask.Wait(ConnectTimeout))
-                        throw new SocketException((int)SocketError.TimedOut);
+                    // Observe the abandoned connect so a later "connection refused" cannot surface as an
+                    // unobserved task exception in an unrelated part of the process.
+                    _ = connectTask.ContinueWith(t => { _ = t.Exception; },
+                        System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
+                    throw new SocketException((int)SocketError.TimedOut);
                 }
-                catch (AggregateException aex)
-                {
-                    throw aex.InnerException ?? aex;
-                }
+                await connectTask.ConfigureAwait(false); // observe/rethrow any connect exception
 
                 var tcpStream = _tcpConnection.GetStream();
                 if (_receiveTimeout > 0)
@@ -283,9 +296,10 @@ namespace tik4net.Api
                     {
                         // SslProtocols.None lets the OS negotiate the best available version (TLS 1.2/1.3).
                         // TLS 1.0 (the former explicit value) is disabled on modern systems and RouterOS 7+.
-                        sslStream.AuthenticateAsClientAsync(host, null, SslProtocols.None, false).GetAwaiter().GetResult();
+                        await sslStream.AuthenticateAsClientAsync(host, null, SslProtocols.None, false)
+                            .ConfigureAwait(false);
                     }
-                    catch(AuthenticationException ex)
+                    catch (AuthenticationException ex)
                     {
                         throw new TikConnectionSSLErrorException(ex);
                     }
@@ -293,61 +307,8 @@ namespace tik4net.Api
                 }
 
                 _isOpened = true;
-                StartReaderLoop();          // login is an ordinary exchange — it goes through the reader too
-                Login_v3(user, password);  //LoginInternal(user, password);
-            }
-            catch
-            {
-                // Do not leak a half-opened socket when Open fails at any stage (connect, SSL auth, login) —
-                // the caller never gets a connection object back to Dispose.
-                DisposeConnectionResources();
-                throw;
-            }
-        }
-
-        public async System.Threading.Tasks.Task OpenAsync(string host, string user, string password)
-        {
-            await OpenAsync(host, _isSsl ? APISSL_DEFAULT_PORT : API_DEFAULT_PORT, user, password);
-        }
-
-        public async System.Threading.Tasks.Task OpenAsync(string host, int port, string user, string password)
-        {
-            try
-            {
-                //open connection
-                _tcpConnection = new TcpClient();
-                if (_sendTimeout > 0)
-                    _tcpConnection.SendTimeout = _sendTimeout;
-                if (_receiveTimeout > 0)
-                    _tcpConnection.ReceiveTimeout = _receiveTimeout;
-
-                // Task.WhenAny + Task.Delay so we work on netstandard2.0 (no ConnectAsync(CancellationToken) overload there).
-                var connectTask = _tcpConnection.ConnectAsync(host, port);
-                var timeoutTask = System.Threading.Tasks.Task.Delay(ConnectTimeout);
-                if (await System.Threading.Tasks.Task.WhenAny(connectTask, timeoutTask).ConfigureAwait(false) == timeoutTask)
-                    throw new SocketException((int)SocketError.TimedOut);
-                await connectTask.ConfigureAwait(false); // observe/rethrow any connect exception
-
-                var tcpStream = _tcpConnection.GetStream();
-                if (_receiveTimeout > 0)
-                    tcpStream.ReadTimeout = _receiveTimeout;
-                if (_sendTimeout > 0)
-                    tcpStream.WriteTimeout = _sendTimeout;
-                if (!_isSsl)
-                {
-                    _tcpConnectionStream = tcpStream;
-                }
-                else
-                {
-                    var sslStream = new SslStream(tcpStream, false,
-                        new RemoteCertificateValidationCallback(ValidateServerCertificate), null);
-                    await sslStream.AuthenticateAsClientAsync(host);
-                    _tcpConnectionStream = sslStream;
-                }
-
-                _isOpened = true;
                 StartReaderLoop();        // login is an ordinary exchange — it goes through the reader too
-                Login_v3(user, password); // LoginInternal(user, password);
+                await Login_v3Async(user, password).ConfigureAwait(false);
             }
             catch
             {
@@ -358,14 +319,20 @@ namespace tik4net.Api
             }
         }
 
-        private void Login_v3(string user, string password)
+        /// <summary>
+        /// The RouterOS login exchange — one sentence on 6.43+, two on the pre-6.43 challenge/response
+        /// protocol. Awaited rather than blocking: it is the reason <c>OpenAsync</c> was not actually
+        /// asynchronous before P2.5, since the connect was awaited and then the handshake — the part that
+        /// costs the round trips — ran synchronously on the caller's thread.
+        /// </summary>
+        private async System.Threading.Tasks.Task Login_v3Async(string user, string password)
         {
             try
             {
                 ApiCommand loginCommand = new ApiCommand(this, "/login", TikCommandParameterFormat.NameValue,
                     new ApiCommandParameter("name", user), new ApiCommandParameter("password", password)); //parameters will be ignored with old login protocol
 
-                var responseHashOrNull = loginCommand.ExecuteScalarOrDefault();
+                var responseHashOrNull = await loginCommand.LoginScalarOrDefaultAsync().ConfigureAwait(false);
 
                 //old login protocol
                 if (!string.IsNullOrEmpty(responseHashOrNull))
@@ -374,7 +341,7 @@ namespace tik4net.Api
                     string hashedPass = ApiConnectionHelper.EncodePassword(password, responseHashOrNull);
                     ApiCommand loginCommand2 = new ApiCommand(this, "/login", TikCommandParameterFormat.NameValue,
                         new ApiCommandParameter("name", user), new ApiCommandParameter("response", hashedPass));
-                    loginCommand2.ExecuteNonQuery();
+                    await loginCommand2.LoginNonQueryAsync().ConfigureAwait(false);
                 }
             }
             catch(TikCommandTrapException ex)
@@ -749,7 +716,7 @@ namespace tik4net.Api
         /// The command is <b>always</b> tagged, whatever <see cref="SendTagWithSyncCommand"/> says. A tag is
         /// what makes the answer addressable, and it is also what makes cancelling possible at all — the
         /// router's <c>/cancel</c> takes a tag, so an untagged command could only be "cancelled" by giving up
-        /// on the connection.
+        /// on the connection. The single exception is <paramref name="forceTag"/>.
         /// </para>
         /// <para>
         /// Cancellation is level 2 of the contract: the token triggers a real <c>/cancel tag=N</c>, the
@@ -757,14 +724,24 @@ namespace tik4net.Api
         /// left fully usable — which is the property worth testing, far more than the exception type.
         /// </para>
         /// </remarks>
+        /// <param name="commandRows">The sentence to send, one word per row.</param>
+        /// <param name="cancellationToken">Cancels the command; see the remarks for what that means here.</param>
+        /// <param name="forceTag">
+        /// <c>false</c> makes this follow <see cref="SendTagWithSyncCommand"/> exactly as
+        /// <see cref="CallCommandSync(string[])"/> does, instead of tagging unconditionally. Used by the login
+        /// exchange and nothing else: login is not cancellable, and it is the one command whose bytes must
+        /// stay identical between the synchronous and asynchronous open — a tag we started adding here would
+        /// be a wire change on the most sensitive exchange there is, including against pre-6.43 routers that
+        /// no test here can reach.
+        /// </param>
         internal async System.Threading.Tasks.Task<IList<ITikSentence>> CallCommandSyncAsync(
-            string[] commandRows, System.Threading.CancellationToken cancellationToken)
+            string[] commandRows, System.Threading.CancellationToken cancellationToken, bool forceTag = true)
         {
             EnsureOpened();
             cancellationToken.ThrowIfCancellationRequested();   // level 0: nothing is written
 
-            string tag = FindTag(commandRows);
-            if (string.IsNullOrEmpty(tag))
+            string tag = FindTag(commandRows) ?? string.Empty;
+            if (string.IsNullOrEmpty(tag) && (forceTag || _sendTagWithSyncCommand))
             {
                 tag = TagSequence.Next().ToString();
                 commandRows = commandRows.Concat(new[] { $"{TikSpecialProperties.Tag}={tag}" }).ToArray();

@@ -476,14 +476,32 @@ namespace tik4net.Api
         }
 
         private Task<string> ExecuteScalarInternalAsync(string target, bool allowReturnDefault, string defaultValue,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken, bool forceTag = true)
         {
             var targetParameter = target != null
                 ? new ITikCommandParameter[] { new ApiCommandParameter(TikSpecialProperties.Proplist, target, TikCommandParameterFormat.NameValue) }
                 : new ITikCommandParameter[] { };
             return RunAsync(TikCommandParameterFormat.NameValue, targetParameter,
-                r => InterpretScalar(r, allowReturnDefault, defaultValue), cancellationToken);
+                r => InterpretScalar(r, allowReturnDefault, defaultValue), cancellationToken, forceTag);
         }
+
+        // ── The login exchange (ApiConnection.Login_v3Async) ───────────────────
+        //
+        // Same two calls the synchronous login made, with the same interpreters — the only difference is
+        // forceTag:false, which keeps login following the connection's SendTagWithSyncCommand policy exactly
+        // as CallCommandSync does. The async surface otherwise tags unconditionally (so /cancel has something
+        // to address), and letting that reach login would have changed the bytes of the one exchange that
+        // must not change: it is not cancellable, and pre-6.43 routers speak a different login protocol that
+        // no test in this repo can reach.
+
+        internal Task<string> LoginScalarOrDefaultAsync()
+            => ExecuteScalarInternalAsync(null, allowReturnDefault: true, defaultValue: null,
+                CancellationToken.None, forceTag: false);
+
+        internal Task LoginNonQueryAsync()
+            => RunAsync(TikCommandParameterFormat.NameValue, null,
+                r => { InterpretNonQuery(r.ToArray()); return (object)null; },
+                CancellationToken.None, forceTag: false);
 
         private ITikCommandParameter[] ProplistParameters(string[] proplist)
             => proplist == null
@@ -494,7 +512,7 @@ namespace tik4net.Api
         // hand it to the shared interpreter. _isRuning is set and cleared here exactly as the sync methods
         // do it, so the two surfaces share the "one command at a time per ITikCommand" rule too.
         private async Task<T> RunAsync<T>(TikCommandParameterFormat format, ITikCommandParameter[] extraParameters,
-            Func<IEnumerable<ApiSentence>, T> interpret, CancellationToken cancellationToken)
+            Func<IEnumerable<ApiSentence>, T> interpret, CancellationToken cancellationToken, bool forceTag = true)
         {
             EnsureConnectionSet();
             EnsureNotRunning();
@@ -507,7 +525,7 @@ namespace tik4net.Api
             try
             {
                 string[] commandRows = ConstructCommandText(format, extraParameters ?? new ITikCommandParameter[] { });
-                var response = await apiConnection.CallCommandSyncAsync(commandRows, cancellationToken).ConfigureAwait(false);
+                var response = await apiConnection.CallCommandSyncAsync(commandRows, cancellationToken, forceTag).ConfigureAwait(false);
                 return interpret(EnsureApiSentences(response));
             }
             finally

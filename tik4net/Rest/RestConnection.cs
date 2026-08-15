@@ -102,23 +102,29 @@ namespace tik4net.Rest
 
         // ── Open / Close ──────────────────────────────────────────────────────
 
+        // As with the CRUD hooks below, the async form is the implementation and the synchronous one blocks
+        // on it (D5). OpenAsync used to be `Task.Run(() => Open(...))` — which held a thread-pool thread for
+        // the whole connectivity/credential probe, an HTTP round trip that SendHttpAsync could already await.
+        // A Task.Run façade is exactly what the AsyncCommands capability exists to rule out, so leaving one
+        // on the open path made the flag mean less than it says (P2.5).
+
         /// <inheritdoc/>
         public override void Open(string host, string user, string password)
-            => OpenInternal(host, _useSsl ? 443 : 80, user, password);
+            => OpenInternalAsync(host, _useSsl ? 443 : 80, user, password).GetAwaiter().GetResult();
 
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
-            => OpenInternal(host, port, user, password);
+            => OpenInternalAsync(host, port, user, password).GetAwaiter().GetResult();
 
         /// <inheritdoc/>
         public override Task OpenAsync(string host, string user, string password)
-            => Task.Run(() => Open(host, user, password));
+            => OpenInternalAsync(host, _useSsl ? 443 : 80, user, password);
 
         /// <inheritdoc/>
         public override Task OpenAsync(string host, int port, string user, string password)
-            => Task.Run(() => Open(host, port, user, password));
+            => OpenInternalAsync(host, port, user, password);
 
-        private void OpenInternal(string host, int port, string user, string password)
+        private async Task OpenInternalAsync(string host, int port, string user, string password)
         {
             string scheme = _useSsl ? "https" : "http";
             _baseUrl = $"{scheme}://{host}:{port}/rest";
@@ -145,8 +151,9 @@ namespace tik4net.Rest
             // Probe: verify connectivity and credentials.
             try
             {
-                SendHttpSync(new HttpRequestMessage(HttpMethod.Get, _baseUrl + "/system/resource"));
-                // 401 = wrong credentials, already handled by SendHttpSync → TikConnectionLoginException
+                await SendHttpAsync(new HttpRequestMessage(HttpMethod.Get, _baseUrl + "/system/resource"),
+                    CancellationToken.None).ConfigureAwait(false);
+                // 401 = wrong credentials, already handled by SendHttpAsync → TikConnectionLoginException
                 SetOpened();
             }
             catch (TikConnectionLoginException)
@@ -400,9 +407,8 @@ namespace tik4net.Rest
             return httpReq;
         }
 
-        private HttpResponseMessage SendHttpSync(HttpRequestMessage req)
-            => SendHttpAsync(req, CancellationToken.None).GetAwaiter().GetResult();
-
+        // (SendHttpSync removed in P2.5 — the open probe was its last caller, and nothing on this transport
+        // needs a blocking HTTP send any more: the CRUD hooks and the open path all await SendHttpAsync.)
         private async Task<HttpResponseMessage> SendHttpAsync(HttpRequestMessage req, CancellationToken cancellationToken)
         {
             HttpResponseMessage response;

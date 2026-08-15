@@ -223,8 +223,15 @@ namespace tik4net.WinboxNative
         /// <inheritdoc/>
         public override Task OpenAsync(string host, int port, string user, string password)
         {
-            // WinboxM2Session.Open is synchronous (blocking socket); run it on a worker thread so
-            // OpenAsync does not block the caller's thread.
+            // A Task.Run façade, and knowingly so — the one place on this transport that still is, now that
+            // the command surface awaits for real (P2.8). Opening means a blocking connect followed by the
+            // EC-SRP5 handshake and the .jg catalog fetch, none of which has an awaitable form:
+            // IWinboxM2Channel.Open is synchronous down through WinboxTcpTransport and the crypto, and that
+            // is reverse-engineered code with no deterministic coverage. So this holds a thread-pool thread
+            // for the duration of the open, which is what D5 says not to do; it is called out here rather
+            // than left to be discovered, and tracked as its own item (P2.5). It does at least keep its
+            // promise to the CALLER — control returns immediately — unlike a hook that would claim async
+            // and then block the caller.
             return Task.Run(() => Open(host, port, user, password));
         }
 
