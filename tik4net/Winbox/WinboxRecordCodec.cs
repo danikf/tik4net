@@ -80,9 +80,36 @@ namespace tik4net.Winbox
 
                 WinboxJgField jf = null;
                 keyToField?.TryGetValue(kv.Key, out jf);
+                if (IsUnsetField(jf, kv.Value.Item2, rec)) continue;
                 fields[apiName] = FormatTyped(jf, kv.Value.Item1, kv.Value.Item2, rec, collectRefTables);
             }
             return fields;
+        }
+
+        /// <summary>
+        /// True when the record carries a key for a field that is NOT SET — which RouterOS's own API answers
+        /// by leaving the field out of the row entirely, so emitting anything here would be a value the other
+        /// transports do not report.
+        /// </summary>
+        /// <remarks>
+        /// <para>Two ways the router says "not set". An <c>opt</c>-wrapped field has a flag bool that is
+        /// <c>false</c> — verified live on 7.23.2: a <c>/ip/proxy/access</c> rule created with only
+        /// <c>dst-host</c> and <c>action</c> comes back over the API with no <c>method</c>, <c>src-address</c>,
+        /// <c>dst-port</c> or <c>path</c> at all, while the M2 record carries their keys with the flags down.
+        /// Decoding those produced <c>method=''</c>, which the O/R mapper then failed to convert to an enum —
+        /// the failure was real, but the field should never have been there.</para>
+        /// <para>The other is the u32 unset marker on a field that declares it as its default
+        /// (<see cref="WinboxJgField.IsUnsetValue"/>): a logging action's <c>Syslog Severity</c> arrives as
+        /// 4294967295 on a row where the API prints no <c>syslog-severity</c>.</para>
+        /// </remarks>
+        private static bool IsUnsetField(WinboxJgField jf, object value,
+            Dictionary<int, Tuple<string, object>> rec)
+        {
+            if (jf == null) return false;
+            if (jf.OptKey != 0 && rec.TryGetValue(jf.OptKey, out var opt)
+                && opt?.Item2 is bool present && !present)
+                return true;
+            return jf.Def.HasValue && WinboxFieldResolver.TryToInt64(value, out long n) && jf.IsUnsetValue(n);
         }
 
         // Format an M2 value to its RouterOS API text using the .jg UI-semantic type: IPs unpack from u32,
@@ -163,6 +190,11 @@ namespace tik4net.Winbox
                     string joined = ResolveRefNameList(jf.RefHandler, value, collectRefTables);
                     if (joined != null) return joined;
                 }
+                // The same list shape with LITERAL elements — a number (/ip/proxy 'Port' u32[8080] → "8080")
+                // or a static enum (/ip/ssh 'Ciphers' u32[0] → "auto"). Without this the wire form reached the
+                // caller verbatim as "[8080]"/"[0]"; the API prints one value per element, comma-joined.
+                if (IsMultiNumberList(jf.UiType))
+                    return FormatNumberList(value, jf.EnumMap);
                 // dynamic enum reference: render the referenced object's name (e.g. interface id → "ether1").
                 if (jf.RefHandler != null)
                 {
@@ -448,6 +480,25 @@ namespace tik4net.Winbox
                 return FormatValue(kv.Value.Item1, kv.Value.Item2);
             }
             return "";
+        }
+
+        // Render a webfig 'multinumber' value (a u32[] parsed by M2Message to the text "[a,b,…]") as the
+        // comma-joined API form: each element through the element's static enum map when it has one, else the
+        // number itself. An element the map does not name stays numeric rather than being dropped — a shorter
+        // list would read as "the router has fewer of these", which is the P2.25 defect class.
+        private static string FormatNumberList(object value, IReadOnlyDictionary<int, string> enumMap)
+        {
+            var parts = new List<string>();
+            foreach (System.Text.RegularExpressions.Match m in
+                     System.Text.RegularExpressions.Regex.Matches(value?.ToString() ?? "", @"-?\d+"))
+            {
+                if (enumMap != null && int.TryParse(m.Value, out int n)
+                    && enumMap.TryGetValue(n, out var label))
+                    parts.Add(label);
+                else
+                    parts.Add(m.Value);
+            }
+            return string.Join(",", parts);
         }
 
         // Render a webfig multinumberrange value (a u32[] parsed by M2Message to the text "[lo0,hi0,lo1,hi1,…]")

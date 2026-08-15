@@ -76,11 +76,33 @@ namespace tik4net.Winbox
         /// </summary>
         internal int NotKey { get; }
 
+        /// <summary>
+        /// The <c>.jg</c> <c>def</c> value, when the field declares one. Only interesting for the u32
+        /// <b>unset marker</b> <c>0xFFFFFFFF</c>: a field declaring <c>def:4294967295</c> (e.g. a logging
+        /// action's <c>Syslog Severity</c>, whose real domain is 0–7) carries that value when it is NOT SET,
+        /// and RouterOS's own API omits the field from the record rather than printing a number. An ordinary
+        /// default — an IPsec proposal's <c>def:1800</c> lifetime — is a real value the API does print, which
+        /// is why only the sentinel is acted on. <c>null</c> when the field declares no <c>def</c>.
+        /// </summary>
+        internal long? Def { get; }
+
+        /// <summary>The u32 "not set" marker RouterOS uses in a <c>def</c> (see <see cref="Def"/>).</summary>
+        internal const long UnsetSentinel = 0xFFFFFFFFL;
+
+        /// <summary>
+        /// True when this field declares the <see cref="UnsetSentinel"/> as its default and the catalog gives
+        /// that number no label of its own — so a record carrying it is telling us the field is not set.
+        /// </summary>
+        internal bool IsUnsetValue(long value)
+            => value == UnsetSentinel && Def == UnsetSentinel
+               && (EnumMap == null || !EnumMap.ContainsKey(unchecked((int)UnsetSentinel)));
+
         internal WinboxJgField(string apiName, int key, string wireType, bool readOnly,
             IReadOnlyDictionary<int, string> enumMap = null, string uiType = null, int maskKey = 0,
             int[] refHandler = null, int optKey = 0, int notKey = 0, bool isRange = false,
-            string allow = null)
+            string allow = null, long? def = null)
         {
+            Def = def;
             Allow = allow;
             ApiName = apiName;
             Key = key;

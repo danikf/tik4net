@@ -860,7 +860,7 @@ namespace tik4net.Winbox
                         bool isRange = dict.TryGetValue("range", out var rgv) && rgv is int rgi && rgi != 0;
                         string allow = dict.TryGetValue("allow", out var alv) ? alv as string : null;
                         AddField(owner, nodeName, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(dict),
-                            ty, maskKey, refHandler, isRange: isRange, allow: allow);
+                            ty, maskKey, refHandler, isRange: isRange, allow: allow, def: ExtractDef(dict));
                     }
                 }
 
@@ -916,12 +916,12 @@ namespace tik4net.Winbox
 
         private void AddField(string handlerKey, string label, int key, string wireType, bool ro,
             IReadOnlyDictionary<int, string> enumMap, string uiType, int maskKey, int[] refHandler,
-            int optKey = 0, int notKey = 0, bool isRange = false, string allow = null)
+            int optKey = 0, int notKey = 0, bool isRange = false, string allow = null, long? def = null)
         {
             string apiName = WinboxFieldResolver.NormalizeLabel(label);
             if (string.IsNullOrEmpty(apiName)) return;
             var field = new WinboxJgField(apiName, key, wireType, ro, enumMap, uiType, maskKey,
-                refHandler, optKey, notKey, isRange, allow);
+                refHandler, optKey, notKey, isRange, allow, def);
             Put(handlerKey, apiName, field);
             // An action's arguments belong to the action AND, as before, to the handler that owns it — a
             // handler whose only window is an action (Wake on LAN) has no other map to be found in. Written
@@ -983,7 +983,7 @@ namespace tik4net.Winbox
                     bool isRange = cur.TryGetValue("range", out var rgv) && rgv is int rgi && rgi != 0;
                     string allow = cur.TryGetValue("allow", out var alv) ? alv as string : null;
                     AddField(handlerKey, label, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(cur),
-                        ty, maskKey, refHandler, optKey, notKey, isRange, allow);
+                        ty, maskKey, refHandler, optKey, notKey, isRange, allow, ExtractDef(cur));
                 }
                 return;
             }
@@ -1021,7 +1021,8 @@ namespace tik4net.Winbox
             string uiType = child.TryGetValue("type", out var tv) && tv is string ts ? ts : null;
 
             AddField(handlerKey, label, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(child),
-                uiType, maskKey, ExtractRefHandler(child), isRange: isRange, allow: allow);
+                uiType, maskKey, ExtractRefHandler(child), isRange: isRange, allow: allow,
+                def: ExtractDef(child));
         }
 
         // Registers a per-record action verb (doit/action label → SYS_CMD) under its owning handler and
@@ -1132,28 +1133,112 @@ namespace tik4net.Winbox
             return null;
         }
 
-        // Pulls a static enum value list into {numeric → label}. Two .jg forms:
-        //  • array  (values:{map:['off','on',…]})            → index = the numeric value (plain enum)
-        //  • object (values:{map:{0:'invalid',1:'established'}}) → the explicit key; for type:'set' this key is
-        //    the BIT INDEX of a bitmask (webfig types.set.tostr: `if(val&(1<<i))`), for a sparse enum it is the value.
+        /// <summary>
+        /// Pulls a static enum value list into <c>{numeric → label}</c>, following the <c>values:</c> chain
+        /// wherever the map actually sits.
+        /// </summary>
+        /// <remarks>
+        /// <para>Two map forms: an <b>array</b> (<c>values:{map:['off','on',…]}</c>) whose index is the numeric
+        /// value, and an <b>object</b> (<c>values:{map:{0:'invalid',1:'established'}}</c>) with explicit keys —
+        /// for <c>type:'set'</c> that key is the BIT INDEX of a bitmask (webfig <c>types.set.tostr</c>:
+        /// <c>if(val&amp;(1&lt;&lt;i))</c>), for a sparse enum it is the value itself.</para>
+        /// <para>The map is not always the first thing under <c>values</c>. RouterOS wraps it in
+        /// <c>enumfilter</c> (which members this board offers), <c>defenum</c> (a sentinel id/name in front of
+        /// the real list) and <c>pair</c> (a static sentinel list beside a dynamic table), and nests those —
+        /// an IPsec proposal's PFS group is <c>enumfilter → defenum → static</c>. Reading only the top level
+        /// left those fields with NO map at all, so <c>pfs-group</c> reached the caller as the bare number
+        /// <c>2</c> where the API says <c>modp1024</c>. A list field carries its element's values on its
+        /// unnamed child instead (<c>multinumber c:[{type:'enm',values:…}]</c>), same as
+        /// <see cref="ExtractRefHandler"/> already handles for references.</para>
+        /// <para>The runtime-computed wrappers (<c>queryenum</c>, <c>offsetenum</c>, <c>slotenum</c>,
+        /// <c>remapenum</c>) are deliberately NOT followed: their members come from a live query or from
+        /// another field's value, so there is no static map to read and inventing one would name values the
+        /// router never meant.</para>
+        /// </remarks>
         private static IReadOnlyDictionary<int, string> ExtractEnumMap(Dictionary<string, object> node)
         {
-            if (!node.TryGetValue("values", out var vv) || !(vv is Dictionary<string, object> vals)) return null;
-            if (!vals.TryGetValue("map", out var mv)) return null;
             var map = new Dictionary<int, string>();
-            if (mv is List<object> arr)
-            {
-                for (int i = 0; i < arr.Count; i++)
-                    if (arr[i] is string s) map[i] = WinboxFieldResolver.NormalizeLabel(s);
-            }
-            else if (mv is Dictionary<string, object> obj)
-            {
-                foreach (var kv in obj)
-                    if (kv.Value is string s && int.TryParse(kv.Key, out int k))
-                        map[k] = WinboxFieldResolver.NormalizeLabel(s);
-            }
+            if (node.TryGetValue("values", out var vv)) CollectEnumMap(vv, map, 0);
+            // A list field's element type is an unnamed child ({type:'multinumber',c:[{type:'enm',values:…}]}).
+            if (map.Count == 0 && node.TryGetValue("c", out var cv)) CollectEnumMap(cv, map, 0);
             return map.Count > 0 ? map : null;
         }
+
+        // The wrappers whose inner `values` still lead to a static map. Anything else (queryenum, slotenum, …)
+        // is computed at runtime and has none — see the remarks on ExtractEnumMap.
+        private static readonly HashSet<string> EnumMapWrappers =
+            new HashSet<string>(StringComparer.Ordinal) { "enumfilter", "defenum", "pair", "static", "enm" };
+
+        private static void CollectEnumMap(object node, Dictionary<int, string> map, int depth)
+        {
+            if (depth > 5) return;
+            if (node is List<object> list)
+            {
+                foreach (var it in list) CollectEnumMap(it, map, depth + 1);
+                return;
+            }
+            if (!(node is Dictionary<string, object> d)) return;
+
+            string ty = d.TryGetValue("type", out var tv) && tv is string ts ? ts : null;
+            // A defenum names ONE id in front of the list it wraps (defid:0,defname:'none'); the wrapped list
+            // then fills in the rest. Put it in first — first-wins below keeps the inner map from renaming it.
+            if (ty == "defenum" && d.TryGetValue("defid", out var dv) && TryToLong(dv, out long defId)
+                && d.TryGetValue("defname", out var dnv) && dnv is string defName)
+                Put(unchecked((int)defId), defName);
+
+            if (d.TryGetValue("map", out var mv))
+            {
+                if (mv is List<object> arr)
+                {
+                    for (int i = 0; i < arr.Count; i++)
+                        if (arr[i] is string s) Put(i, s);
+                }
+                else if (mv is Dictionary<string, object> obj)
+                {
+                    foreach (var kv in obj)
+                        if (kv.Value is string s && long.TryParse(kv.Key, out long k))
+                            Put(unchecked((int)k), s);
+                }
+            }
+
+            if (ty != null && !EnumMapWrappers.Contains(ty)) return;
+            if (d.TryGetValue("values", out var inner)) CollectEnumMap(inner, map, depth + 1);
+            if (d.TryGetValue("c", out var children)) CollectEnumMap(children, map, depth + 1);
+
+            void Put(int key, string label)
+            {
+                if (map.ContainsKey(key)) return;
+                map[key] = WinboxFieldResolver.NormalizeLabel(StripValueSuffix(label, key));
+            }
+        }
+
+        // WinBox spells out the numeric value of a DH group in the label — 'modp1024 (2)' at key 2 — while the
+        // API calls it 'modp1024'. The suffix is display decoration, and it is only treated as such when the
+        // number in it IS the key, so a label that genuinely ends in a parenthesised number is left alone.
+        private static string StripValueSuffix(string label, int key)
+        {
+            if (string.IsNullOrEmpty(label) || label[label.Length - 1] != ')') return label;
+            int open = label.LastIndexOf('(');
+            if (open <= 0 || label[open - 1] != ' ') return label;
+            string inside = label.Substring(open + 1, label.Length - open - 2);
+            return (long.TryParse(inside, out long n) && n == key) ? label.Substring(0, open - 1) : label;
+        }
+
+        // A .jg number too large for int stays a string token after parsing (JgParser.Scalar), so a `def` or
+        // `defid` of 4294967295 arrives as text. Read both forms.
+        private static bool TryToLong(object v, out long result)
+        {
+            if (v is int i) { result = i; return true; }
+            if (v is string s && long.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out result))
+                return true;
+            result = 0;
+            return false;
+        }
+
+        // The .jg `def` (the field's default), kept only so the u32 unset marker can be recognised — see
+        // WinboxJgField.Def.
+        private static long? ExtractDef(Dictionary<string, object> node)
+            => node.TryGetValue("def", out var dv) && TryToLong(dv, out long d) ? (long?)d : null;
 
         // 's10006' → (key=0x10006, type="string"); prefix is exactly one leading letter, rest is hex.
         private static (int key, string type)? DecodeId(string idStr)

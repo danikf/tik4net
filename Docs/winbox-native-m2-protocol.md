@@ -598,3 +598,74 @@ handler backs no list) ever had.
 size on whatever transport is under test (verified RED pre-fix on `winboxnative`: the router created
 a 1024-bit key); the catalog scoping and the encode are pinned router-free by
 `WinboxJgActionFieldTests`.
+
+---
+
+## 26. ✅ Enum maps hide under wrappers, and "not set" is not a value (A2, 2026-08-15)
+
+Six live failures on `winboxnative`/`winboxnativemac`, all the same shape: the caller was handed the raw
+wire form where every other transport reports a RouterOS value. Each rule below was settled by asking the
+router (7.23.2 API) what it prints for the same record, not by reading webfig alone.
+
+| path | field | native said | the API says |
+|---|---|---|---|
+| `/ip/proxy` | `port` | `[8080]` | `8080` |
+| `/ip/ssh` | `ciphers` | `[0]` | `auto` |
+| `/ip/ipsec/proposal` | `pfs-group` | `2` | `modp1024` |
+| `/system/logging/action` | `syslog-severity` | `4294967295` | *(field absent)* |
+| `/ip/proxy/access` | `method` | `''` | *(field absent)* |
+
+### 26.1 The static map is not always the first thing under `values`
+
+RouterOS wraps a value list in `enumfilter` (which members this board offers), `defenum` (a sentinel
+id/name in front of the real list) and `pair` (a static sentinel list beside a dynamic table) — and
+nests them. An IPsec proposal's PFS group is `enumfilter → defenum → static`:
+
+```js
+{name:'PFS Group',type:'enm',id:'u4',values:{type:'enumfilter',filters:[{id:0},{id:2},…],
+  values:{type:'defenum',defid:0,defname:'none',values:{type:'static',
+    map:{1:'modp768 (1)',2:'modp1024 (2)',5:'modp1536 (5)',…}}}}}
+```
+
+Reading only the top level left the field with **no map at all**, in both directions: the value decoded
+as the bare number and `pfs-group=modp1024` could not be encoded either. The chain is now followed, and
+the `defenum`'s own `defid`/`defname` joins the map as a member. The runtime-computed wrappers
+(`queryenum`, `offsetenum`, `slotenum`, `remapenum`) are deliberately **not** followed — their members
+come from a live query or from another field's value, so there is no static map to read.
+
+The labels also spell the numeric value out: WinBox shows `modp1024 (2)` where the API says `modp1024`.
+The suffix is stripped only when the number in it IS the key, so a label that genuinely ends in a
+parenthesised number is left alone. Twelve labels in the whole 7.23.2 catalog carry it, all DH groups.
+
+### 26.2 A `multinumber` list of literals
+
+`{name:'Port',type:'multinumber',id:'U2',c:[{type:'number'}]}` and
+`{name:'Ciphers',type:'multinumber',id:'Ub',c:[{type:'enm',values:{type:'static',map:{0:'Auto',…}}}]}`
+are u32 arrays whose elements are a plain number and a static enum. Only the *reference* flavour of
+this shape was decoded (the log's `topics`), so both fell through to the wire text `[8080]` / `[0]`.
+They now render one element per value, comma-joined, each through the element's map when it has one.
+An element the map does not name stays numeric rather than being dropped — a shorter list would read
+as "the router has fewer of these".
+
+### 26.3 "Not set" is an absent field, not an empty one
+
+Two ways the router says a field is not set, and in both the API answers by leaving the field **out of
+the row**:
+
+- an **`opt`-wrapped** field whose flag bool is `false`. Verified live: a `/ip/proxy/access` rule
+  created with only `dst-host` and `action` comes back over the API with no `method`, `src-address`,
+  `dst-port` or `path`, while the M2 record carries all of those keys with the flags down. Decoding
+  them produced `method=''`, which the O/R mapper then failed to convert — the exception was real, but
+  the field should never have been in the record.
+- the **u32 unset marker** `0xFFFFFFFF` on a field that declares it as its `def`
+  (`{name:'Syslog Severity',type:'number',id:'ue',def:4294967295,max:7,…}` — its real domain is 0–7).
+
+Only the marker is treated this way, never "the value equals its default": an IPsec proposal declares
+`def:1800` for its lifetime and the API prints `lifetime=30m` for a row carrying exactly that. And a
+`def` of `0xFFFFFFFF` that the catalog NAMES stays a value — `/ip/proxy` `max-cache-size=unlimited` is
+that number on the wire.
+
+**Coverage:** `IpProxyTest`, `IpSshTest`, `IpsecProposalTest` and `SystemLoggingActionTest` on whatever
+transport is under test (all RED pre-fix on `winboxnative`); the four rules are pinned router-free by
+`WinboxEnumAndUnsetDecodeTests`, of which nine fail against the old catalog and two are regression
+guards for the values that must NOT be dropped.
