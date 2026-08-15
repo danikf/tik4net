@@ -31,10 +31,15 @@ namespace tik4net.Winbox
         // The derived menu-label path of the WINDOW this path resolves to, when it has one of its own —
         // interface subtypes (EoIP Tunnel, L2TP Client, …) share handler [20,0] but declare their own fields.
         private readonly string _windowKey;
+        // The arguments of the ACTION being invoked (WinboxJgCatalog.GetActionFields), laid over everything
+        // else — an action's argument and a record column of the same name are different fields on the same
+        // handler. Null for every ordinary (non-action) command.
+        private readonly IReadOnlyDictionary<string, WinboxJgField> _actionFields;
         private IReadOnlyDictionary<string, WinboxJgField> _fields;
 
         internal WinboxFieldResolver(string apiPath, int[] handler, WinboxJgCatalog catalog,
-            IReadOnlyDictionary<string, int> overrides, bool useGuiNames = false, string windowKey = null)
+            IReadOnlyDictionary<string, int> overrides, bool useGuiNames = false, string windowKey = null,
+            IReadOnlyDictionary<string, WinboxJgField> actionFields = null)
         {
             _apiPath = apiPath;
             _handler = handler;
@@ -42,13 +47,16 @@ namespace tik4net.Winbox
             _overrides = overrides ?? new Dictionary<string, int>();
             _useGuiNames = useGuiNames;
             _windowKey = windowKey;
+            _actionFields = actionFields;
         }
 
         /// <summary>
-        /// The <c>.jg</c> fields in force for this path: the handler's map with the window's own fields laid
-        /// over it. The overlay is what makes an interface subtype addressable — every subtype reads handler
-        /// <c>[20,0]</c>, but 'Remote Address' is a different key on EoIP, GRE and IPIP, so the window has
-        /// the last word. Computed once per resolver.
+        /// The <c>.jg</c> fields in force for this path: the handler's map, with the window's own fields laid
+        /// over it and the invoked action's arguments laid over those. The window overlay is what makes an
+        /// interface subtype addressable — every subtype reads handler <c>[20,0]</c>, but 'Remote Address' is a
+        /// different key on EoIP, GRE and IPIP, so the window has the last word. The action overlay is the same
+        /// rule one level further in: 'Key Size' is a read-only column of the IPsec 'Keys' list and a writable
+        /// enum argument of its 'Generate Key' doit. Computed once per resolver.
         /// </summary>
         private IReadOnlyDictionary<string, WinboxJgField> JgFields
         {
@@ -57,12 +65,17 @@ namespace tik4net.Winbox
                 if (_fields != null) return _fields;
                 var handlerFields = _catalog?.GetHandlerFields(_handler);
                 var windowFields = _catalog?.GetWindowFields(_windowKey);
-                if (windowFields == null || windowFields.Count == 0) return _fields = handlerFields;
+                bool hasWindow = windowFields != null && windowFields.Count > 0;
+                bool hasAction = _actionFields != null && _actionFields.Count > 0;
+                if (!hasWindow && !hasAction) return _fields = handlerFields;
 
                 var merged = new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase);
                 if (handlerFields != null)
                     foreach (var kv in handlerFields) merged[kv.Key] = kv.Value;
-                foreach (var kv in windowFields) merged[kv.Key] = kv.Value;   // the window wins
+                if (hasWindow)
+                    foreach (var kv in windowFields) merged[kv.Key] = kv.Value;   // the window wins
+                if (hasAction)
+                    foreach (var kv in _actionFields) merged[kv.Key] = kv.Value;  // the action wins over both
                 return _fields = merged;
             }
         }

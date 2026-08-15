@@ -552,3 +552,49 @@ of an optional field produced an empty M2 message that `unset` refused as naming
 **Coverage:** `VerbMatrixTest.CrossTransport_AddressValues_MatchTheBinaryApi` compares all three forms
 against the binary API on whatever transport is under test (verified RED pre-fix); the rendering rule
 and the flattening are pinned router-free by `WinboxAddressRangeTests` and `WinboxJgFieldFlagTests`.
+
+---
+
+## 25. ✅ An action window's arguments are not the record window's columns (A1, 2026-08-15)
+
+`/ip/ipsec/key/rsa/generate-key name=X key-size=2048` over native produced an **unnamed 1024-bit
+key** and reported success. Two independent causes, both silent.
+
+### 25.1 The dispatcher sent no arguments at all
+
+`DispatchActionVerb` invoked the `.jg` SYS_CMD with `fields: null`. The router takes an argument-less
+`generate-key` at face value and applies its own defaults, so every parameter the caller passed was
+dropped before the request was built. Confirmed on the wire (7.23.2): the reply row carries
+`0x1=1024` — the router's default key size — for a request that asked for 2048.
+
+### 25.2 The arguments share the handler's field map with the list's columns
+
+`secure.jg` declares the IPsec 'Keys' window `[85,5]` as a record list **and** three global `doit`s
+on the same handler:
+
+```js
+{name:'IPsec Key',title:'Keys',type:'map',path:[ 85,5 ],c:[
+  {name:'Name',type:'string',id:'sfe0010',min:1},
+  {name:'Key Size',type:'number',id:'u1',ro:1},                       // list COLUMN, read-only
+  {name:'Generate Key',type:'doit',cmd:1,global:1,c:[
+    {name:'Name',type:'string',id:'sfe0010',min:1},
+    {name:'Key Size',type:'enm',id:'u1',                              // ARGUMENT, writable
+     values:{type:'static',map:{1024:'1024',2048:'2048',4096:'4096'}}}]}]}
+```
+
+Both are labelled 'Key Size'. Merged into one per-handler map the **first label wins**, so the
+read-only column won — and `EncodeField` drops read-only fields, which means that even once 25.1 was
+fixed the argument still encoded to zero bytes. Same defect shape as the interface subtypes (§ the
+`[20,0]` windows that disagree about 'Remote Address'), one level further in.
+
+So an action's fields are now attributed to the **action** as well as to its handler
+(`WinboxJgCatalog.GetActionFields`), and an invocation resolves against handler → window → action,
+the action having the last word (`WinboxFieldResolver`, `MakeActionResolver`). The handler map keeps
+exactly the content it had — that map is what a `getall` row decodes against, where the column really
+is the right answer, and it is also the only map a standalone action window (Wake on LAN `[82]`, whose
+handler backs no list) ever had.
+
+**Coverage:** `IpsecKeyTest.GenerateAndDeleteIpsecKeyWillNotFail` asserts the name and the 2048-bit
+size on whatever transport is under test (verified RED pre-fix on `winboxnative`: the router created
+a 1024-bit key); the catalog scoping and the encode are pinned router-free by
+`WinboxJgActionFieldTests`.

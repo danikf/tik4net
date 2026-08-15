@@ -128,6 +128,39 @@ namespace tik4net.Winbox
         // cannot collide with a handler key ("20,0").
         private static string WindowKey(string derivedPath) => "win:" + derivedPath;
 
+        // The same trick for the ARGUMENTS of one action window (a .jg doit/action with a cmd): its fields are
+        // kept under their own key as well as merged into the owning handler's map, so a caller invoking the
+        // action can be given the action's own vocabulary. See GetActionFields.
+        private static string ActionKey(string handlerKey, string normalizedLabel)
+            => "act:" + handlerKey + "|" + normalizedLabel;
+
+        private static bool IsActionKey(string key) => key != null && key.StartsWith("act:", StringComparison.Ordinal);
+
+        // "act:85,5|generate-key" → "85,5"
+        private static string HandlerOfActionKey(string actionKey)
+        {
+            int bar = actionKey.IndexOf('|');
+            return actionKey.Substring(4, bar - 4);
+        }
+
+        /// <summary>
+        /// The argument fields declared by ONE action window (<c>type:'doit'/'action'</c> with a <c>cmd</c>),
+        /// as <c>apiName → field</c>, or <c>null</c> when that action declares none.
+        /// </summary>
+        /// <remarks>
+        /// These OVERLAY <see cref="GetHandlerFields"/> the same way a subtype window's fields do, and for the
+        /// same reason: an action's arguments and the record list's columns share one handler and routinely
+        /// share LABELS while meaning different things. <c>/ip/ipsec/key/rsa</c> is the worked example — the
+        /// 'Keys' window lists 'Key Size' as a read-only column (<c>u1</c>, <c>ro:1</c>) and the 'Generate Key'
+        /// doit takes 'Key Size' as an argument (<c>u1</c>, an enum, writable). Merged into one per-handler map
+        /// the read-only column wins (first label wins), so the argument encoded to nothing and the router
+        /// generated a default 1024-bit key while the caller was told it had asked for 2048.
+        /// </remarks>
+        internal IReadOnlyDictionary<string, WinboxJgField> GetActionFields(int[] handler, string normalizedLabel)
+            => handler != null && normalizedLabel != null
+               && _byHandler.TryGetValue(ActionKey(HandlerKey(handler), normalizedLabel), out var map)
+                ? map : null;
+
         /// <summary>
         /// The field map declared by one specific window (an interface subtype: EoIP Tunnel, L2TP Client, …),
         /// or <c>null</c> when the window declares none. These fields OVERLAY
@@ -208,12 +241,15 @@ namespace tik4net.Winbox
         /// <summary>
         /// The single SYS_CMD for an <see cref="IsActionOnlyHandler"/> handler, or <c>-1</c> when the handler
         /// exposes no action or more than one (ambiguous — the caller must name the verb instead).
+        /// <paramref name="label"/> receives the action's normalized label, which
+        /// <see cref="GetActionFields"/> keys its arguments by.
         /// </summary>
-        internal int GetSoleActionCmd(int[] handler)
+        internal int GetSoleActionCmd(int[] handler, out string label)
         {
+            label = null;
             var actions = GetHandlerActions(handler);
             if (actions == null || actions.Count != 1) return -1;
-            foreach (var kv in actions) return kv.Value;
+            foreach (var kv in actions) { label = kv.Key; return kv.Value; }
             return -1;
         }
 
@@ -834,7 +870,12 @@ namespace tik4net.Winbox
                 if (owner != null && (ty == "doit" || ty == "action") && !dict.ContainsKey("id")
                     && dict.TryGetValue("cmd", out var cmdv) && cmdv is int cmdN && !string.IsNullOrEmpty(nodeName))
                 {
-                    AddAction(owner, nodeName, cmdN);
+                    string actionLabel = AddAction(owner, nodeName, cmdN);
+                    // Descend into the action's ARGUMENTS under a key of their own. They keep going into the
+                    // handler's map as well (AddField writes both, so nothing that resolved before stops
+                    // resolving), but the action's own map is what the caller invoking it resolves against —
+                    // otherwise an argument sharing a label with a record column loses to it. See GetActionFields.
+                    if (actionLabel != null) owner = ActionKey(owner, actionLabel);
                 }
 
                 // Descend. A structural menu node (has children, no field id, has a name) extends the
@@ -879,15 +920,25 @@ namespace tik4net.Winbox
         {
             string apiName = WinboxFieldResolver.NormalizeLabel(label);
             if (string.IsNullOrEmpty(apiName)) return;
-            if (!_byHandler.TryGetValue(handlerKey, out var map))
+            var field = new WinboxJgField(apiName, key, wireType, ro, enumMap, uiType, maskKey,
+                refHandler, optKey, notKey, isRange, allow);
+            Put(handlerKey, apiName, field);
+            // An action's arguments belong to the action AND, as before, to the handler that owns it — a
+            // handler whose only window is an action (Wake on LAN) has no other map to be found in. Written
+            // second, so the handler map keeps exactly the first-wins content it had before actions were
+            // scoped: the record window's column still wins there.
+            if (IsActionKey(handlerKey)) Put(HandlerOfActionKey(handlerKey), apiName, field);
+        }
+
+        private void Put(string mapKey, string apiName, WinboxJgField field)
+        {
+            if (!_byHandler.TryGetValue(mapKey, out var map))
             {
                 map = new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase);
-                _byHandler[handlerKey] = map;
+                _byHandler[mapKey] = map;
             }
             // first label wins for a given apiName; do not let later, less-specific windows clobber it.
-            if (!map.ContainsKey(apiName))
-                map[apiName] = new WinboxJgField(apiName, key, wireType, ro, enumMap, uiType, maskKey,
-                    refHandler, optKey, notKey, isRange, allow);
+            if (!map.ContainsKey(apiName)) map[apiName] = field;
         }
 
         // Resolves a named opt/not wrapper (e.g. firewall 'Connection State': opt→not→set) to its inner value
@@ -973,17 +1024,19 @@ namespace tik4net.Winbox
                 uiType, maskKey, ExtractRefHandler(child), isRange: isRange, allow: allow);
         }
 
-        // Registers a per-record action verb (doit/action label → SYS_CMD) under its owning handler.
-        private void AddAction(string handlerKey, string label, int cmd)
+        // Registers a per-record action verb (doit/action label → SYS_CMD) under its owning handler and
+        // returns the normalized label its arguments are keyed by (null when the label is unusable).
+        private string AddAction(string handlerKey, string label, int cmd)
         {
             string norm = WinboxFieldResolver.NormalizeLabel(label);
-            if (string.IsNullOrEmpty(norm)) return;
+            if (string.IsNullOrEmpty(norm)) return null;
             if (!_actionsByHandler.TryGetValue(handlerKey, out var m))
             {
                 m = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
                 _actionsByHandler[handlerKey] = m;
             }
             if (!m.ContainsKey(norm)) m[norm] = cmd;
+            return norm;
         }
 
         // Harvest a streaming-monitor window. A monitor is a type:'query' window, or a type:'action' window
