@@ -115,5 +115,23 @@ namespace tik4net.unittests
             CollectionAssert.AreEqual(new[] { 20, 12 }, map.Resolve("/PPP/Secret"));
             CollectionAssert.AreEqual(new[] { 20, 12 }, map.Resolve("/ppp/secrets/PPP Secret"));
         }
+
+        [TestMethod]
+        public void PathNotMapped_IsDistinguishableFromARouterRefusal()
+        {
+            // The two must never be confused: "no such command" is the ROUTER's answer (package missing,
+            // path gone), while this one means the request was never sent because we could not address the
+            // path. Reporting ours as the router's is what let 142 unmapped-path skips read as router
+            // configuration. It still derives from TikNoSuchCommandException so existing handling keeps
+            // working — the distinction is in the type, not in the message text.
+            var ex = new TikPathNotMappedException(null, "/interface/eoip", "no M2 handler mapping");
+
+            Assert.IsInstanceOfType(ex, typeof(TikNoSuchCommandException));
+            Assert.AreEqual("/interface/eoip", ex.ApiPath);
+
+            var routerRefusal = new TikNoSuchCommandException(null, new tik4net.Connection.TikTrapSentenceResult("no such command"));
+            Assert.IsNotInstanceOfType(routerRefusal, typeof(TikPathNotMappedException),
+                "a router refusal must not be reported as our own mapping gap");
+        }
     }
 }

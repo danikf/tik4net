@@ -421,15 +421,11 @@ namespace tik4net.WinboxNative
                 if (IsActionVerbPath(descriptor))
                     throw ActionVerbOnReadPath(descriptor.CommandText);
 
-                // No native handler mapping for this read path. Surface it like other transports surface a
-                // missing command, so EnsureCommandAvailable / TikNoSuchCommandException handling kicks in
-                // (e.g. /interface/wireless on a router without the wireless package).
-                var cmd = new TikGenericCommand(this, descriptor.CommandText);
-                throw new TikNoSuchCommandException(cmd, new TikTrapSentenceResult(
-                    $"WinBox native: no M2 handler mapping for path '{apiPath}'. " +
-                    $"Add one via connection.PathAlias(\"{apiPath}\", \"/winbox/menu/label-path\") " +
-                    $"(the labels WinBox shows for that window), or connection.PathOverride(\"{apiPath}\", " +
-                    $"new[]{{maj,min}}) for a raw handler, or use a WinboxCli connection."));
+                // No native handler mapping for this read path. This is OUR gap, not the router's answer —
+                // the request was never sent — so it is raised as TikPathNotMappedException (a
+                // TikNoSuchCommandException, so existing handling still works, but distinguishable from a
+                // router that really refused the command).
+                throw PathNotMapped(descriptor.CommandText, apiPath);
             }
             handler = PreferSingletonHealthHandler(apiPath, handler);
 
@@ -459,7 +455,7 @@ namespace tik4net.WinboxNative
                         .ConfigureAwait(false);
             }
 
-            var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames);
+            var resolver = MakeResolver(apiPath, handler);
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
 
@@ -468,7 +464,7 @@ namespace tik4net.WinboxNative
             List<Dictionary<int, Tuple<string, object>>> records;
             try
             {
-                if (_catalog.IsSingletonHandler(handler))
+                if (IsSingletonWindow(apiPath, handler))
                 {
                     var one = await _ops.GetSingletonAsync(handler, cancellationToken).ConfigureAwait(false);
                     records = (one != null && one.Count > 0)
@@ -566,7 +562,7 @@ namespace tik4net.WinboxNative
             // interface list and 'rx-bits-per-second' by /interface/monitor-traffic, and a caller asking for
             // the monitor must get the monitor's names.
             var resolver = new WinboxFieldResolver(ApiPathOf(descriptor.CommandText), handler, _catalog,
-                OverridesFor(parentPath), _useGuiNames);
+                OverridesFor(parentPath), _useGuiNames, _handlerMap.ResolveDerivedKey(parentPath));
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
             int flags = WinboxM2Protocol.GetAllFlags
@@ -658,7 +654,7 @@ namespace tik4net.WinboxNative
                     $"WinBox native: '{apiPath}' maps to an action window with no single action to invoke. " +
                     "Use a WinboxCli or Api connection.");
 
-            var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames);
+            var resolver = MakeResolver(apiPath, handler);
             var fields = EncodeNameValueFields(handler, descriptor, resolver,
                 skipId: true, allowReadOnly: true, includeFilters: true);
 
@@ -931,12 +927,12 @@ namespace tik4net.WinboxNative
             if (spec == null)
             {
                 var cmd = new TikGenericCommand(this, descriptor.CommandText);
-                throw new TikNoSuchCommandException(cmd, new TikTrapSentenceResult(
+                throw new TikPathNotMappedException(cmd, apiPath,
                     $"WinBox native: '{descriptor.CommandText}' is not a streaming-monitor window in the .jg catalog. " +
-                    $"Add a PathOverride(\"{apiPath}\", new[]{{maj,min}}) to a monitor handler, or use a CLI transport."));
+                    $"Add a PathOverride(\"{apiPath}\", new[]{{maj,min}}) to a monitor handler, or use a CLI transport.");
             }
 
-            var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames);
+            var resolver = MakeResolver(apiPath, handler);
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
             return PollingMonitorEngine.StartWorker("winbox-native-monitor",
@@ -1003,7 +999,7 @@ namespace tik4net.WinboxNative
             WinboxMonitorSpec spec, string apiPath, int[] handler, TikCommandDescriptor descriptor,
             CancellationToken cancellationToken)
         {
-            var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames);
+            var resolver = MakeResolver(apiPath, handler);
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
 
@@ -1173,7 +1169,7 @@ namespace tik4net.WinboxNative
             var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             int[] handler = _handlerMap.Resolve(apiPath);
             if (handler == null) return set;
-            var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames);
+            var resolver = MakeResolver(apiPath, handler);
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
             foreach (var kv in keyToField)
@@ -1185,6 +1181,24 @@ namespace tik4net.WinboxNative
         // Query-filter evaluation (postfix stack) is shared with the CLI async-list path — see
         // tik4net.Connection.TikQueryStack.
 
+        /// <summary>
+        /// The one place that reports "this transport cannot address that path". It is a CLIENT-side gap —
+        /// the router was never asked — so it must never be reported as a router fact ("the package may not
+        /// be installed"): the same path very likely works over API/CLI. <see cref="TikPathNotMappedException"/>
+        /// carries that distinction in the type, so callers can branch on it instead of matching message text.
+        /// </summary>
+        private TikPathNotMappedException PathNotMapped(string commandText, string apiPath)
+        {
+            var cmd = new TikGenericCommand(this, commandText);
+            return new TikPathNotMappedException(cmd, apiPath,
+                $"WinBox native: no M2 handler mapping for path '{apiPath}'. " +
+                $"This is a gap in tik4net's WinBox path map, not a statement about the router — the request " +
+                $"was never sent, and the same path is expected to work over the API and CLI transports. " +
+                $"Add a mapping via connection.PathAlias(\"{apiPath}\", \"/winbox/menu/label-path\") " +
+                $"(the labels WinBox shows for that window), or connection.PathOverride(\"{apiPath}\", " +
+                $"new[]{{maj,min}}) for a raw handler, or use a WinboxCli connection.");
+        }
+
         // ── Write helpers ──────────────────────────────────────────────────────
 
         private (int[] handler, WinboxFieldResolver resolver) ResolveHandlerAndFields(string apiPath)
@@ -1192,17 +1206,12 @@ namespace tik4net.WinboxNative
             int[] handler = _handlerMap.Resolve(apiPath);
             if (handler == null)
             {
-                // Surface an unmapped write path the same way reads do — as "no such command" — so callers
-                // get a consistent exception type across read and write (e.g. invalid path, or a path under a
-                // package the router lacks).
-                var c = new TikGenericCommand(this, apiPath);
-                throw new TikNoSuchCommandException(c, new TikTrapSentenceResult(
-                    $"WinBox native: no M2 handler mapping for path '{apiPath}'. " +
-                    $"Add one via connection.PathAlias(\"{apiPath}\", \"/winbox/menu/label-path\") " +
-                    $"(the labels WinBox shows for that window), or connection.PathOverride(\"{apiPath}\", " +
-                    $"new[]{{maj,min}}) for a raw handler, or use a WinboxCli connection."));
+                // Surface an unmapped write path exactly as reads do, so callers get one exception type
+                // across read and write — and one that says plainly this is our mapping gap, not a router
+                // refusal.
+                throw PathNotMapped(apiPath, apiPath);
             }
-            var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames);
+            var resolver = MakeResolver(apiPath, handler);
             return (handler, resolver);
         }
 
@@ -1331,7 +1340,7 @@ namespace tik4net.WinboxNative
         private async Task WriteFieldsAsync(int[] handler, WinboxFieldResolver resolver, TikCommandDescriptor descriptor,
             Func<IList<byte[]>> encodeFields, CancellationToken cancellationToken)
         {
-            if (_catalog.IsSingletonHandler(handler))
+            if (IsSingletonWindow(ApiPathOf(descriptor.CommandText), handler))
             {
                 await _ops.SetSingletonAsync(handler, encodeFields(), SingletonIdOf(descriptor), cancellationToken)
                     .ConfigureAwait(false);
@@ -1435,6 +1444,43 @@ namespace tik4net.WinboxNative
             return _fieldOverrides.TryGetValue(WinboxHandlerMap.Normalize(apiPath), out var map)
                 ? map
                 : new Dictionary<string, int>();
+        }
+
+        /// <summary>
+        /// Whether the window <paramref name="apiPath"/> resolves to is a singleton (get-singleton /
+        /// set-singleton) rather than a record list. Asks the catalog about the WINDOW first and falls back to
+        /// the handler-level answer for paths reached by a raw <see cref="PathOverride"/>, where there is no
+        /// window to ask about.
+        /// </summary>
+        /// <summary>
+        /// Builds the field resolver for a path, telling it which WINDOW the path resolves to. That matters
+        /// wherever several windows share one handler: every interface subtype reads <c>[20,0]</c> but
+        /// declares its own field keys, so a resolver that only knew the handler could not tell EoIP's
+        /// 'Remote Address' from GRE's.
+        /// </summary>
+        private WinboxFieldResolver MakeResolver(string apiPath, int[] handler)
+            => new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames,
+                                       _handlerMap.ResolveDerivedKey(apiPath));
+
+        private bool IsSingletonWindow(string apiPath, int[] handler)
+        {
+            // Only when the window the path resolves to is the one actually being read. A caller may hand us
+            // a DIFFERENT handler than the path resolves to — PreferSingletonHealthHandler swaps
+            // /system/health from its map window [24,29] to the board-gated singleton [24,14] — and answering
+            // "that window is a list" about a handler it no longer describes turns a get-singleton into a
+            // getall the router rejects (0xFE0003, measured live on 7.23.2).
+            string derivedKey = _handlerMap.ResolveDerivedKey(apiPath);
+            if (derivedKey != null && SameHandler(_handlerMap.Resolve(apiPath), handler)
+                && _catalog.TryIsSingletonPath(derivedKey, out bool singleton))
+                return singleton;
+            return _catalog.IsSingletonHandler(handler);
+        }
+
+        private static bool SameHandler(int[] a, int[] b)
+        {
+            if (a == null || b == null || a.Length != b.Length) return false;
+            for (int i = 0; i < a.Length; i++) if (a[i] != b[i]) return false;
+            return true;
         }
 
         // Board-gated singleton recovery for /system/health. The WinBox menu has a name/value 'map' window

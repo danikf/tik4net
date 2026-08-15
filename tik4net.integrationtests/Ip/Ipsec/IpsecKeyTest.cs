@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Ip.Ipsec;
@@ -29,29 +30,40 @@ namespace tik4net.integrationtests
 
             string keyName = "t4n" + Guid.NewGuid().ToString("N").Substring(0, 12);
 
+            // Remember what was there BEFORE. The key is created by an action verb, so it cannot be
+            // registered with SaveTracked — and when the action's arguments do not reach the router (the
+            // WinBox-native transport currently drops them, see below) the new row has neither the name the
+            // test looks for nor anything else to find it by, and every run leaves one more orphan behind.
+            // Diffing the .id set finds it whatever it ended up called.
+            var before = new HashSet<string>();
+            foreach (var k in Connection.LoadAll<IpsecKey>()) before.Add(k.Id);
+
             // Generate a 2048-bit key via the extension method.
             Connection.GenerateIpsecKey(keyName, "2048");
 
-            // Verify it appeared in the table.
             var list = Connection.LoadAll<IpsecKey>();
             Assert.IsNotNull(list);
 
-            IpsecKey created = null;
+            IpsecKey created = null, appeared = null;
             foreach (var k in list)
             {
-                if (k.Name == keyName)
-                {
-                    created = k;
-                    break;
-                }
+                if (k.Name == keyName) created = k;
+                if (!before.Contains(k.Id)) appeared = k;
             }
 
-            Assert.IsNotNull(created, "Generated key was not found in /ip/ipsec/key/rsa table.");
-            Assert.AreEqual("2048", created.KeySize);
-            Assert.IsTrue(created.PrivateKey, "Locally generated key should have private-key=true.");
-
-            // Clean up.
-            Connection.Delete(created);
+            try
+            {
+                Assert.IsNotNull(created, "Generated key was not found in /ip/ipsec/key/rsa table.");
+                Assert.AreEqual("2048", created.KeySize);
+                Assert.IsTrue(created.PrivateKey, "Locally generated key should have private-key=true.");
+            }
+            finally
+            {
+                // Delete whatever appeared, named or not, so a failed assert cannot leave a key on the router.
+                var toDelete = created ?? appeared;
+                if (toDelete != null)
+                    try { Connection.Delete(toDelete); } catch { /* teardown must not mask the outcome */ }
+            }
         }
     }
 }

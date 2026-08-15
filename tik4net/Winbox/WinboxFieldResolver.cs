@@ -28,14 +28,43 @@ namespace tik4net.Winbox
         // (GUI-name addressing: "MAC Address"/"MAC_Address" → "mac-address"). Opt-in per connection.
         private readonly bool _useGuiNames;
 
+        // The derived menu-label path of the WINDOW this path resolves to, when it has one of its own —
+        // interface subtypes (EoIP Tunnel, L2TP Client, …) share handler [20,0] but declare their own fields.
+        private readonly string _windowKey;
+        private IReadOnlyDictionary<string, WinboxJgField> _fields;
+
         internal WinboxFieldResolver(string apiPath, int[] handler, WinboxJgCatalog catalog,
-            IReadOnlyDictionary<string, int> overrides, bool useGuiNames = false)
+            IReadOnlyDictionary<string, int> overrides, bool useGuiNames = false, string windowKey = null)
         {
             _apiPath = apiPath;
             _handler = handler;
             _catalog = catalog;
             _overrides = overrides ?? new Dictionary<string, int>();
             _useGuiNames = useGuiNames;
+            _windowKey = windowKey;
+        }
+
+        /// <summary>
+        /// The <c>.jg</c> fields in force for this path: the handler's map with the window's own fields laid
+        /// over it. The overlay is what makes an interface subtype addressable — every subtype reads handler
+        /// <c>[20,0]</c>, but 'Remote Address' is a different key on EoIP, GRE and IPIP, so the window has
+        /// the last word. Computed once per resolver.
+        /// </summary>
+        private IReadOnlyDictionary<string, WinboxJgField> JgFields
+        {
+            get
+            {
+                if (_fields != null) return _fields;
+                var handlerFields = _catalog?.GetHandlerFields(_handler);
+                var windowFields = _catalog?.GetWindowFields(_windowKey);
+                if (windowFields == null || windowFields.Count == 0) return _fields = handlerFields;
+
+                var merged = new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase);
+                if (handlerFields != null)
+                    foreach (var kv in handlerFields) merged[kv.Key] = kv.Value;
+                foreach (var kv in windowFields) merged[kv.Key] = kv.Value;   // the window wins
+                return _fields = merged;
+            }
         }
 
         // ── Protocol-constant seeds (stable, hardcoded) ────────────────────────
@@ -124,6 +153,26 @@ namespace tik4net.Winbox
                 ["/system/identity"] = new FieldAliasSet(
                     apiToJg: Ci(("name", "identity")),
                     jgToApi: Ci(("identity", "name"))),
+
+                // /file: the Files window labels the record's name 'File Name' (it is the window's
+                // nameval), while the API calls it 'name'. Without the alias every file row came back
+                // without a 'name' and the entity read threw "Missing field 'name'".
+                ["/file"] = new FieldAliasSet(
+                    apiToJg: Ci(("name", "file-name")),
+                    jgToApi: Ci(("file-name", "name"))),
+
+                // /system/logging/action: the window's field is {name:'Type',title:'Target'} — the API name
+                // is 'target', and 'type' is not an API field of this table at all.
+                ["/system/logging/action"] = new FieldAliasSet(
+                    apiToJg: Ci(("target", "type")),
+                    jgToApi: Ci(("type", "target"))),
+
+                // /ip/upnp: the settings singleton's second field is labelled 'Allow To Disable External
+                // Interface' in WinBox and 'allow-disable-external-interface' in the API — one stray "to".
+                // Without the alias the entity read back a field name RouterOS never uses.
+                ["/ip/upnp"] = new FieldAliasSet(
+                    apiToJg: Ci(("allow-disable-external-interface", "allow-to-disable-external-interface")),
+                    jgToApi: Ci(("allow-to-disable-external-interface", "allow-disable-external-interface"))),
 
                 // /interface: the .jg 'type' field is the numeric type id (key 0x10001), but RouterOS API exposes
                 // 'type' as the type *name* string — which the record also carries at key 0x1001E (e.g. "ether",
@@ -220,7 +269,7 @@ namespace tik4net.Winbox
             if (aliasSet != null)
                 foreach (var kv in aliasSet.KeyToApi) Put(kv.Key, kv.Value);
             foreach (var kv in SystemSeed) Put(kv.Value, kv.Key);
-            var jg = _catalog?.GetHandlerFields(_handler);
+            var jg = JgFields;
             if (jg != null)
                 foreach (var f in jg.Values) Put(f.Key, AliasToApi(f.ApiName));
             foreach (var kv in FallbackSeed) Put(kv.Value, kv.Key);
@@ -235,7 +284,7 @@ namespace tik4net.Winbox
         internal IReadOnlyDictionary<int, WinboxJgField> BuildKeyToField()
         {
             var map = new Dictionary<int, WinboxJgField>();
-            var jg = _catalog?.GetHandlerFields(_handler);
+            var jg = JgFields;
             if (jg != null)
                 foreach (var f in jg.Values)
                     if (!map.ContainsKey(f.Key)) map[f.Key] = f;
@@ -292,7 +341,7 @@ namespace tik4net.Winbox
             // universal system keys (.id/comment) are authoritative; name and other fields come from the .jg.
             if (SystemSeed.TryGetValue(jgName, out key)) return true;
 
-            var jg = _catalog?.GetHandlerFields(_handler);
+            var jg = JgFields;
             if (jg != null && jg.TryGetValue(jgName, out var f)) { key = f.Key; return true; }
 
             // fallback only when the catalog has no such field (e.g. name → 0x10006 on tables w/o a .jg name).
@@ -345,7 +394,7 @@ namespace tik4net.Winbox
             // they default to string, which is correct for comment/name. Use the aliased .jg label so a shipped
             // API alias (e.g. ping 'address' → 'ping-to') resolves to its typed field.
             WinboxJgField jg = null;
-            _catalog?.GetHandlerFields(_handler)?.TryGetValue(AliasToJg(apiName), out jg);
+            JgFields?.TryGetValue(AliasToJg(apiName), out jg);
 
             // Read-only fields are unsendable for CRUD writes, but a monitor's request inputs (e.g. ping
             // 'address') are .jg-marked ro as display fields yet must still be sent — allowReadOnly keeps them.

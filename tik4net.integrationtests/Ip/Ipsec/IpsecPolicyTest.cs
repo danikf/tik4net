@@ -54,7 +54,9 @@ namespace tik4net.integrationtests
 
             try
             {
-                SaveTracked(policy);
+                // A list/array field (peer) is not yet encodable over native WinBox M2 writes; the resolver
+                // says so explicitly. Reading the same table works — skip only the write, only where refused.
+                SkipIfWinboxNativeCannot("/ip/ipsec/policy add", () => SaveTracked(policy));
 
                 var loaded = Connection.LoadById<IpsecPolicy>(policy.Id);
                 Assert.IsNotNull(loaded);

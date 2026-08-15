@@ -46,6 +46,14 @@ namespace tik4net.Winbox
         // Handlers backed by a singleton window (type:'item') — read via get-singleton, not getall.
         private readonly HashSet<string> _singletonHandlers = new HashSet<string>(StringComparer.Ordinal);
 
+        // The same, but per WINDOW rather than per handler: derived menu-label path → is that window a
+        // singleton. One handler routinely hosts both kinds — [28,0] is 'UPnP Settings' (item) AND the 'UPnP
+        // Interfaces' list (map), [96,1] is the web-proxy settings item and its connections list — so asking
+        // the handler alone answers "singleton" for the list too and returns one record where there are many.
+        // Consulted first, with the handler-level set as the fallback for paths reached by override.
+        private readonly Dictionary<string, bool> _singletonPaths =
+            new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+
         // Handlers that appear behind an action window (type:'doit'/'action') and, separately, behind a
         // record-listing window (map/query/item). A handler in the first set but NOT the second is a
         // standalone action — invoking it is the only thing it can do, there are no records to read.
@@ -67,6 +75,16 @@ namespace tik4net.Winbox
             new Dictionary<string, Tuple<int, int>>(StringComparer.OrdinalIgnoreCase);
         private int[] _genericIfaceHandler;
         private int _ifaceTypeKey;
+
+        // Windows that declare `generic:'<name>'` — the bases other windows extend with `inherit:'<name>'`.
+        // The interface subtype tree is NOT one level deep: the PPP tunnel windows inherit a `generic:'ppp'`
+        // base which itself inherits 'iface', and the wireless ones go 'iface' → 'wlan' → 'ath' → 'athhw'.
+        // Recognising only `inherit:'iface'` therefore missed every PPP client/server binding and every
+        // wireless interface window — 6 API paths that the API and CLI transports carry without trouble.
+        // Value: the discriminator this base declares for ITS children (`typeon`, default 'type') and
+        // whether the base belongs to the interface family (transitively rooted at generic:'iface').
+        private readonly Dictionary<string, Tuple<string, bool>> _generics =
+            new Dictionary<string, Tuple<string, bool>>(StringComparer.Ordinal);
 
         // Per-record action verbs (.jg type:'doit'/'action' with a cmd, e.g. the scripts window's
         // "Run Script" doit cmd:1). These are NOT CRUD — they invoke a command on the owning handler targeting
@@ -106,6 +124,21 @@ namespace tik4net.Winbox
             return _byHandler.TryGetValue(HandlerKey(handler), out var map) ? map : null;
         }
 
+        // Field maps of a WINDOW rather than of a handler live in the same dictionary under a key that
+        // cannot collide with a handler key ("20,0").
+        private static string WindowKey(string derivedPath) => "win:" + derivedPath;
+
+        /// <summary>
+        /// The field map declared by one specific window (an interface subtype: EoIP Tunnel, L2TP Client, …),
+        /// or <c>null</c> when the window declares none. These fields OVERLAY
+        /// <see cref="GetHandlerFields"/>: the subtype adds its own fields to the generic interface window's,
+        /// and where a label appears in both, the subtype's key is the right one.
+        /// </summary>
+        internal IReadOnlyDictionary<string, WinboxJgField> GetWindowFields(string derivedPath)
+        {
+            return derivedPath != null && _byHandler.TryGetValue(WindowKey(derivedPath), out var map) ? map : null;
+        }
+
         /// <summary>
         /// API paths derived from the <c>.jg</c> menu tree: <c>derivedApiPath → handler</c>.
         /// Built from every <c>type:'map'/'query'</c> window node (its <c>path:[…]</c> handler keyed by
@@ -130,8 +163,27 @@ namespace tik4net.Winbox
         internal IReadOnlyDictionary<string, int> GetHandlerActions(int[] handler)
             => handler != null && _actionsByHandler.TryGetValue(HandlerKey(handler), out var m) ? m : null;
 
+        /// <summary>
+        /// Whether the window behind a specific derived menu-label path is a singleton (<c>type:'item'</c>,
+        /// read with get-singleton) or a record list (<c>map</c>/<c>query</c>, read with getall). Returns
+        /// <c>false</c> with <paramref name="isSingleton"/> unset when the path is unknown — the caller then
+        /// falls back to <see cref="IsSingletonHandler"/>.
+        /// </summary>
+        /// <remarks>
+        /// Prefer this over the handler-level answer whenever the path is known: a handler that hosts both a
+        /// settings item and a list (UPnP, web proxy) reports "singleton" for both, which turns the list into
+        /// a single record.
+        /// </remarks>
+        internal bool TryIsSingletonPath(string derivedKey, out bool isSingleton)
+        {
+            isSingleton = false;
+            return derivedKey != null && _singletonPaths.TryGetValue(derivedKey, out isSingleton);
+        }
+
         /// <summary>True when <paramref name="handler"/> is backed by a singleton (<c>type:'item'</c>)
-        /// window — its sole record is read via get-singleton rather than getall.</summary>
+        /// window — its sole record is read via get-singleton rather than getall. Handler-level, so it
+        /// answers <c>true</c> for a handler that ALSO hosts a list window; prefer
+        /// <see cref="TryIsSingletonPath"/> when the path is known.</summary>
         internal bool IsSingletonHandler(int[] handler) =>
             handler != null && _singletonHandlers.Contains(HandlerKey(handler));
 
@@ -658,7 +710,12 @@ namespace tik4net.Winbox
                 {
                     string apiPath = BuildPath(crumb, groupSeg, nodeName);
                     if (apiPath != null && !_derivedPaths.ContainsKey(apiPath))
+                    {
                         _derivedPaths[apiPath] = handlerInts;
+                        // Record what THIS window is, not what its handler is — see _singletonPaths.
+                        if (ty == "item" || ty == "map" || ty == "query")
+                            _singletonPaths[apiPath] = ty == "item";
+                    }
                     if (ty == "item") _singletonHandlers.Add(HandlerKey(handlerInts));
                     // Track record-listing vs action-only windows separately so a handler that has BOTH (e.g.
                     // [20,125] = 'SMS Message' map + 'Send SMS' doit) is never mistaken for action-only.
@@ -678,21 +735,59 @@ namespace tik4net.Winbox
                     }
                 }
 
-                // Interface subtype window: inherit:'iface' (reuse the generic handler, has no own path:) +
-                // typevalue:N (the discriminator). Register a derived path → the generic handler, plus a subtype
-                // filter (typeKey, N). The leaf is the window TITLE — `name` is the generic 'Interface' shared by
-                // every subtype, so it cannot discriminate; the title carries the subtype ('Bridge','VLAN',…).
+                // A window declaring `generic:'X'` is a BASE others extend with `inherit:'X'`. Remember what
+                // discriminator it hands its children (`typeon`, default 'type') and whether it belongs to the
+                // interface family, so a chain (iface → ppp → 'L2TP Client') resolves. Recorded outside the
+                // window block above because these bases often have no `path:` of their own.
+                if (dict.TryGetValue("generic", out var genv2) && genv2 is string genName && genName.Length > 0
+                    && !_generics.ContainsKey(genName))
+                {
+                    string typeonChild = dict.TryGetValue("typeon", out var tov2) && tov2 is string tos2 ? tos2 : "type";
+                    bool ifaceFamily = genName == "iface"
+                        || (dict.TryGetValue("inherit", out var ginh) && ginh is string ginhs
+                            && _generics.TryGetValue(ginhs, out var gbase) && gbase.Item2);
+                    _generics[genName] = Tuple.Create(typeonChild, ifaceFamily);
+                }
+
+                // Interface subtype window: inherit:'<base>' (reuse the generic interface handler, has no path:
+                // of its own) + typevalue:N (the discriminator value). Register a derived path → the generic
+                // handler, plus a subtype filter (typeKey, N). The leaf is the window TITLE — `name` is the
+                // generic 'Interface' shared by every subtype, so it cannot discriminate; the title carries the
+                // subtype ('Bridge', 'VLAN', 'L2TP Client', …).
+                //
+                // Two constraints keep this honest. The base must be in the interface family, so an unrelated
+                // inherit tree cannot be filtered against the interface `type` field. And the base must hand its
+                // children the 'type' discriminator: the wireless tree switches to `typeon:'hwtype'` below the
+                // 'Wireless' window, and those hardware variants (Atheros AR5212, …) are NOT addressable by an
+                // interface type filter — registering them would answer with a filter on the wrong field.
+                // A wildcard `typevalue:4294967295` (a base standing for "any of my subtypes") is not an int
+                // after parsing and is skipped here for the same reason: it is a set, not a value.
                 if (handlerInts == null && _genericIfaceHandler != null && _ifaceTypeKey != 0
-                    && dict.TryGetValue("inherit", out var inhv) && inhv is string inh && inh == "iface"
-                    && dict.TryGetValue("typevalue", out var tvv) && tvv is int tval)
+                    && dict.TryGetValue("inherit", out var inhv) && inhv is string inh
+                    && dict.TryGetValue("typevalue", out var tvv) && tvv is int tval
+                    && (inh == "iface"
+                        || (_generics.TryGetValue(inh, out var baseGen) && baseGen.Item2 && baseGen.Item1 == "type")))
                 {
                     string title = dict.TryGetValue("title", out var ttv) && ttv is string tts && tts.Length > 0
                         ? tts : nodeName;
                     string apiPath = BuildPath(crumb, groupSeg, title);
-                    if (apiPath != null && !_derivedPaths.ContainsKey(apiPath))
+                    if (apiPath != null)
                     {
-                        _derivedPaths[apiPath] = _genericIfaceHandler;
-                        _subtypeFilters[apiPath] = Tuple.Create(_ifaceTypeKey, tval);
+                        if (!_derivedPaths.ContainsKey(apiPath))
+                        {
+                            _derivedPaths[apiPath] = _genericIfaceHandler;
+                            _subtypeFilters[apiPath] = Tuple.Create(_ifaceTypeKey, tval);
+                            _singletonPaths[apiPath] = false;   // a subtype window is always a record list
+                        }
+                        // Attribute this window's fields to the WINDOW, not to the shared [20,0] handler.
+                        // The subtypes disagree about keys under identical labels — 'Remote Address' is
+                        // 0x7E1 on EoIP, 0x7E5 on GRE and 0x7E3 on IPIP, 'Local Address' is a u32 on EoIP
+                        // and an addr on VXLAN — so merging them into one per-handler map would hand every
+                        // subtype but the first-parsed one a wrong key: a write that lands on another field.
+                        // (Before this, these fields were attributed to the enclosing menu node, i.e. to no
+                        // handler at all, and were simply lost — every subtype `add` failed with "cannot
+                        // resolve API field 'remote-address'".)
+                        owner = WindowKey(apiPath);
                     }
                 }
 
@@ -704,6 +799,18 @@ namespace tik4net.Winbox
                     && dict.ContainsKey("c") && !string.IsNullOrEmpty(nodeName))
                 {
                     AddOptionField(owner, nodeName, dict);
+                }
+                // A named `union` holds one value that can be of several families, each child carrying its
+                // OWN key — IPsec 'Address' is {union, c:[network u1, network6 a17, string s2f]}. The union
+                // node itself has no id, and its children have no name, so without this the field is not in
+                // the catalog at all: every dual-stack address field (IPsec peer/policy/identity, graphing
+                // 'Allow Address', traffic-flow 'Src./Dst. Address', …) answered "cannot resolve API field".
+                // The first child is registered, i.e. the IPv4 family — an IPv6 value then fails to encode
+                // with the codec's own error rather than being sent on the wrong key.
+                else if (owner != null && ty == "union" && !dict.ContainsKey("id")
+                         && !string.IsNullOrEmpty(nodeName))
+                {
+                    AddUnionField(owner, nodeName, dict);
                 }
                 else if (owner != null && dict.TryGetValue("id", out var idv) && idv is string idStr)
                 {
@@ -829,6 +936,41 @@ namespace tik4net.Winbox
                 }
                 return;
             }
+        }
+
+        /// <summary>
+        /// Registers a named <c>type:'union'</c> field from its FIRST child that carries a usable id. A union
+        /// is one logical value with a per-family key (IPv4 <c>network</c>, IPv6 <c>network6</c>, a free-form
+        /// <c>string</c>); WinBox picks the member by what the user typed. tik4net has one key per API field
+        /// name, so it takes the first member — the IPv4 family in every union seen on 7.23.2 — which is the
+        /// one RouterOS's own API answers with for an IPv4 value.
+        /// </summary>
+        /// <remarks>
+        /// The alternative was to keep dropping the field, which is what happened before: the union node has
+        /// no <c>id</c> and its children have no <c>name</c>, so nothing was registered and the field did not
+        /// exist as far as the resolver was concerned. An IPv6 value now fails in the codec (a reported
+        /// encode error naming the value) instead of being unnameable — never silently written to the IPv4
+        /// key, because the codec parses the value against the registered wire type first.
+        /// </remarks>
+        private void AddUnionField(string handlerKey, string label, Dictionary<string, object> union)
+        {
+            var child = FirstChildDict(union);
+            if (child == null) return;
+            if (!(child.TryGetValue("id", out var idv) && idv is string ids)) return;
+            var dec = DecodeId(ids);
+            if (dec == null) return;
+
+            // ro / opt live on the union node, the typed attributes on the member.
+            bool ro = (union.TryGetValue("ro", out var urov) && urov is int uri && uri != 0)
+                   || (child.TryGetValue("ro", out var rov) && rov is int rin && rin != 0);
+            int maskKey = (child.TryGetValue("maskid", out var mkv) && mkv is string mks
+                && DecodeId(mks) is var md && md != null) ? md.Value.key : 0;
+            bool isRange = child.TryGetValue("range", out var rgv) && rgv is int rgi && rgi != 0;
+            string allow = child.TryGetValue("allow", out var alv) ? alv as string : null;
+            string uiType = child.TryGetValue("type", out var tv) && tv is string ts ? ts : null;
+
+            AddField(handlerKey, label, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(child),
+                uiType, maskKey, ExtractRefHandler(child), isRange: isRange, allow: allow);
         }
 
         // Registers a per-record action verb (doit/action label → SYS_CMD) under its owning handler.

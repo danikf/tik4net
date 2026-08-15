@@ -374,6 +374,31 @@ tik4net/WinboxNativeMac/WinboxNativeMacConnection.cs — ITikConnection : ITikCo
 See `Docs/winbox-native-m2-protocol.md` for the handler/command model and streaming monitor
 protocol, and `Docs/jg-catalog-format.md` for the `.jg` catalog format itself.
 
+### Path coverage vs. the binary API (measured 2026-08-15, RouterOS 7.23.2)
+
+`WinboxNativePathMapAuditTest` (integration, `[Ignore]`d — run it by hand) reads every O/R-mapper
+entity path over the binary API and over WinBox-native and compares row counts and field names.
+Result: **every path the API reaches is reachable natively** except `/routing/bgp/advertisements`,
+which WinBox exposes as an action on the BGP session window rather than as a table.
+
+What the audit does NOT yet agree on is the FIELD vocabulary of some of those tables. These are
+decode/encode-layer gaps, not path-map gaps, and they are the next piece of work:
+
+| Class | Symptom | Examples |
+|---|---|---|
+| enum / set / sentinel decode | the raw wire form reaches the caller instead of the API value | `/ip/proxy` port `[8080]`, `/ip/ssh` ciphers `[0]`, `/ip/ipsec/proposal` pfs-group `2`, `/system/logging/action` syslog-severity `4294967295`, `/ip/proxy/access` method `''` |
+| kind-scoped parameters | the API prefixes a parameter with the record's kind, WinBox labels it inside that kind's pane | `/queue/type` `pcq-rate`, `/system/logging/action` `memory-lines` / `disk-file-name` |
+| API-only fields | the field exists in RouterOS but in no WinBox window, so a write that includes it cannot be sent | `/routing/ospf/*` `use-dn`, `/interface/wifi/security` `ft-preserve-vlanid` |
+| action-window field collision | a `doit` window's arguments share the handler's field map with the record window, and the record's (read-only) field wins — the action's arguments are dropped | `/ip/ipsec/key/rsa` generate-key produced a nameless 1024-bit key instead of the requested name/2048 |
+
+The last one is the same shape as the interface-subtype fix already made (fields belong to a WINDOW,
+not to its handler); the fix is to scope a `doit`/`action` window's fields the same way.
+
+Two limits below are the router's or the protocol's, not ours, and the suite skips only where they
+are actually refused (`TestBase.SkipIfWinboxNativeCannot`): `add` of an interface SUBTYPE is refused
+by the router itself (`0xFE0006 'unsupported device type'`), and list/array field writes
+(`multinumber`, `multitristatearray`, `multi`) are not yet encodable over M2.
+
 ---
 
 ## Capability matrix (current status)

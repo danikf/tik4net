@@ -131,6 +131,25 @@ The split is deliberate: **only text is ever shipped or pinned by the user; ever
 from the router.** Prefer `PathAlias` over `PathOverride` for that reason. Decoded output always comes
 back in canonical API names regardless of how the request was addressed.
 
+The shipped alias table is an explicit list rather than a rule, and deliberately so: tried against the
+live 7.23.2 catalog, a leaf-matching normalizer resolved `/routing/rule` to the routing *filter* rule
+window (both labels end in "rule") — a wrong table, confidently, where the table answers "no mapping".
+Coverage is therefore verified against the binary API instead of reasoned about:
+`WinboxNativePathMapAuditTest` (integration, `[Ignore]`d) reads every O/R-mapper entity path over both
+transports and compares row counts and field vocabularies.
+
+Two structures inside the catalog decide whether a path is reachable at all, and both are per-WINDOW,
+not per-handler (`Docs/jg-catalog-format.md` has the `.jg` shapes):
+
+- **interface subtypes** (`/interface/eoip`, `/interface/l2tp-client`, `/interface/wireless`, …) are the
+  generic interface table `[20,0]` filtered on a numeric `type`, declared through an `inherit` chain that
+  can be several levels deep. Each subtype window also carries its OWN field keys — 'Remote Address' is a
+  different key on EoIP, GRE and IPIP — so `WinboxFieldResolver` overlays the window's field map on the
+  handler's;
+- **singleton vs list** is a property of the window (`type:'item'` vs `'map'`), and one handler hosts both
+  (`[28,0]` = UPnP settings *and* the UPnP interface list), so asking the handler returns one record where
+  the router has many.
+
 ### `TikCommandConnectionBase`
 
 Every non-API transport derives from it (`tik4net/Connection/`). It implements the whole

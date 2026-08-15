@@ -481,11 +481,10 @@ namespace tik4net.integrationtests
             }
         }
 
-        // The native transport's "this path has no M2 handler" report — raised as TikNoSuchCommandException
-        // with the transport named, so it cannot be confused with the router's own "no such command".
-        private static bool IsWinboxNativeUnmappedPath(Exception ex)
-            => ex is TikNoSuchCommandException
-               && ex.Message.IndexOf("WinBox native", StringComparison.OrdinalIgnoreCase) >= 0;
+        // The native transport's "this path has no M2 handler" report. It has its own exception type
+        // (TikPathNotMappedException) precisely so it is never confused with the router's own
+        // "no such command" — match on the type, not on message text.
+        private static bool IsWinboxNativeUnmappedPath(Exception ex) => ex is TikPathNotMappedException;
 
         /// <summary>
         /// Marks the test as inconclusive (skipped) only on the native WinBox M2 transport, for an
@@ -580,12 +579,29 @@ namespace tik4net.integrationtests
         /// <c>RunScript_Issue53_WillNotFail</c> look like a transport defect (P2.43). For a path every
         /// RouterOS has, skip the check.
         /// </remarks>
+        /// <summary>
+        /// Marker every "our transport could not address the path" skip carries, so the gap can be counted
+        /// across a run (<c>findstr</c>/<c>grep</c> the .trx or console output for it). Distinct from the
+        /// router-refusal skip on purpose — see <see cref="EnsureCommandAvailable"/>.
+        /// </summary>
+        internal const string TransportGapMarker = "TRANSPORT GAP";
+
         protected void EnsureCommandAvailable(string commandPath)
         {
             try
             {
                 // ExecuteList (not CallCommandSync) interprets !trap and throws TikNoSuchCommandException.
                 _connection.CreateCommand(commandPath + "/print").ExecuteList();
+            }
+            catch (TikPathNotMappedException ex)
+            {
+                // NOT a router fact: the transport never sent the request, because tik4net has no path →
+                // handler mapping for it. Reporting this as "the package may not be installed" is how 142
+                // WinBox-native skips passed for router configuration when they were our own coverage gap.
+                Assert.Inconclusive(
+                    $"{TransportGapMarker}: transport '{ResolveConnectionType()}' cannot address '{commandPath}' — " +
+                    $"the router was never asked, and the path works on other transports. " +
+                    $"This is a tik4net gap to fix, not a router limitation. Details: {ex.Message}");
             }
             catch (TikNoSuchCommandException ex)
             {

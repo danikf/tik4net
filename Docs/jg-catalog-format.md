@@ -119,6 +119,53 @@ M×134, a×133, m×105, S×57, R×8, A×6. **No other type codes appear** → th
   - **comment** = generic `{type:'comment'}` element **without an `id`** → well-known key
     (candidate `0xFE0009`, to be verified empirically in Phase 3).
 
+### Window inheritance: `generic` / `inherit` / `typeon` / `typevalue`
+
+RouterOS interface subtypes are **not** separate M2 handlers. They all live in the generic interface
+table (`generic:'iface'`, `path:[20,0]`) and are told apart by a numeric discriminator field. The catalog
+declares that with four attributes, and reading only part of them loses whole families of windows:
+
+| attribute | meaning |
+|---|---|
+| `generic:'X'` | this window is a **base** other windows may extend by name `X` |
+| `inherit:'X'` | this window **is** base `X`'s table, narrowed to one subtype |
+| `typeon:'<field>'` | the discriminator this window hands its **children** (default `type`) |
+| `typevalue:N` | this window's value of the **parent's** `typeon` field |
+| `prefix:'l2tp-out'` | the RouterOS interface-name prefix, i.e. the `type` string the API reports |
+
+The chain is deeper than one level, in both directions:
+
+```
+Interface (generic:'iface', path:[20,0], typeon:'type')
+├── EoIP Tunnel        inherit:'iface'  typevalue:17          → type == 17
+├── Ethernet           inherit:'iface'  typevalue:1           → type == 1
+├── Interface (PPP)    generic:'ppp'  inherit:'iface'  typeon:'type'  typevalue:4294967295
+│   ├── L2TP Client    inherit:'ppp'    typevalue:34  prefix:'l2tp-out'
+│   └── PPPoE Client   inherit:'ppp'    typevalue:18  prefix:'pppoe-out'
+└── WiFi Interfaces    generic:'wlan' inherit:'iface' typeon:'type'  typevalue:4294967295
+    └── Wireless       generic:'ath'  inherit:'wlan'  typeon:'hwtype' typevalue:35
+        └── Wireless (Hardware) … → discriminated by hwtype, NOT by type
+```
+
+Two values are **not** subtype filters and must be skipped rather than used:
+
+* `typevalue:4294967295` (`0xFFFFFFFF`) on a base window means "any of my subtypes" — a set, not a value.
+  Filtering `type == 4294967295` matches nothing.
+* a `typevalue` under a base whose `typeon` is something other than `type` (the wireless hardware variants,
+  discriminated by `hwtype`) is a filter on a **different field**; applying it to `type` yields a plausible
+  wrong answer rather than an error.
+
+The window's leaf name is its **`title`**, not its `name` — every subtype window is `name:'Interface'`,
+and only the title carries "L2TP Client" / "EoIP Tunnel".
+
+### `item` is a property of the WINDOW, not of the handler
+
+`type:'item'` (singleton, read with get-singleton) and `type:'map'` (record list, read with getall) can sit
+on the **same** `path:[…]`. `[28,0]` is both the *UPnP Settings* item and the *UPnP Interfaces* map;
+`[96,1]` is the web-proxy settings item and its connections list. So singleton-ness must be recorded per
+derived window path — deciding it per handler answers "singleton" for the list too, and returns one record
+where the router has many.
+
 ### Commands (SYS_CMD `0xFF0007`)
 
 Generic `type:'map'`/`item` windows have **`cmds={}`** — list/get/set/add/remove are

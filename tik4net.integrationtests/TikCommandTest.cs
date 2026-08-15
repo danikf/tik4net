@@ -24,8 +24,12 @@ namespace tik4net.integrationtests
             }
         }
 
+        // AllowDerivedTypes: on WinBox-native an unknown path cannot even be addressed, so it raises the
+        // TikNoSuchCommandException subclass TikPathNotMappedException ("we could not map it" rather than
+        // "the router refused it"). A caller's catch(TikNoSuchCommandException) matches either; MSTest's
+        // ExpectedException does not unless told to.
         [TestMethod]
-        [ExpectedException(typeof(TikNoSuchCommandException))]
+        [ExpectedException(typeof(TikNoSuchCommandException), AllowDerivedTypes = true)]
         public void InvalidSyntaxCommand_WillThrowCorrectException()
         {
             var cmd = Connection.CreateCommand("/blablabla/blabla");

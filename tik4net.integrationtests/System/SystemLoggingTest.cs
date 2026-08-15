@@ -28,7 +28,9 @@ namespace tik4net.integrationtests
                 Action = "memory",
                 Prefix = "t4n-test",
             };
-            SaveTracked(entity);
+            // A list/array field (topics) is not yet encodable over native WinBox M2 writes; the resolver
+            // says so explicitly. Reading the same table works — skip only the write, only where refused.
+            SkipIfWinboxNativeCannot("/system/logging add", () => SaveTracked(entity));
 
             var loaded = Connection.LoadById<SystemLogging>(entity.Id);
             Assert.IsNotNull(loaded);

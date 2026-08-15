@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using tik4net.Connection;
 
 namespace tik4net
 {
@@ -97,6 +98,41 @@ namespace tik4net
         }
     }
 
+
+    /// <summary>
+    /// Exception thrown when the <b>client</b> could not address an API path on the active transport — the
+    /// router was never asked. Today this is the native WinBox M2 transport, which needs a path → M2 handler
+    /// mapping (from the router's <c>.jg</c> menu catalog, a <c>PathAlias</c> or a <c>PathOverride</c>) before
+    /// it can send anything at all.
+    /// <para>
+    /// It derives from <see cref="TikNoSuchCommandException"/> because the practical consequence is the same —
+    /// the command cannot be run — but the <b>cause is ours, not the router's</b>. A plain
+    /// <see cref="TikNoSuchCommandException"/> means the router itself refused ("no such command", e.g. a
+    /// RouterOS package that is not installed); this one means our mapping does not cover the path, and the
+    /// same command very likely works on the API and CLI transports. Callers that report "the router does not
+    /// have this feature" must catch this type first and say something else, otherwise a gap in tik4net is
+    /// reported as a fact about the router (which is how 142 unmapped-path skips hid behind "the required
+    /// RouterOS package may not be installed").
+    /// </para>
+    /// </summary>
+    /// <seealso cref="tik4net.WinboxNative.WinboxNativeConnection.PathAlias(string, string)"/>
+    public class TikPathNotMappedException : TikNoSuchCommandException
+    {
+        /// <summary>The API path that could not be mapped, e.g. <c>/interface/eoip</c>.</summary>
+        public string ApiPath { get; private set; }
+
+        /// <summary>
+        /// .ctor
+        /// </summary>
+        /// <param name="command">Command that throws exception.</param>
+        /// <param name="apiPath">API path the transport could not map.</param>
+        /// <param name="message">Description of the gap and how to bridge it.</param>
+        public TikPathNotMappedException(ITikCommand command, string apiPath, string message)
+            : base(command, new TikTrapSentenceResult(message))
+        {
+            ApiPath = apiPath;
+        }
+    }
 
     /// <summary>
     /// Exception thrown when item with identifier was not found. ('no such item' message from API)
