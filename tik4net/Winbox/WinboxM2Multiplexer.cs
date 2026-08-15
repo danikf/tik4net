@@ -102,8 +102,27 @@ namespace tik4net.Winbox
         /// <c>Docs/findings-router-throughput-ceiling.md</c>.
         /// </param>
         internal byte[] SendReceive(byte[] request, int timeoutMs)
+            => SendReceiveAsync(request, timeoutMs, CancellationToken.None).GetAwaiter().GetResult();
+
+        /// <summary>
+        /// The awaitable form of <see cref="SendReceive"/>, and the real implementation of both — the
+        /// synchronous one blocks on this rather than the other way round (design D5: async is the primitive,
+        /// nothing is pushed onto a thread-pool thread to look asynchronous).
+        /// </summary>
+        /// <param name="request"><inheritdoc cref="SendReceive" path="/param[@name='request']"/></param>
+        /// <param name="timeoutMs"><inheritdoc cref="SendReceive" path="/param[@name='timeoutMs']"/></param>
+        /// <param name="cancellationToken">
+        /// Cancels the <i>wait</i>, not the router's work. M2 has no "abandon this request" verb for an
+        /// ordinary round trip, so cancelling here drops the registration and lets the reply — if it ever
+        /// comes — be discarded as unmatched. That is safe precisely because dispatch is by request id: a late
+        /// reply is identified and dropped, never handed to whoever asked next. Streaming windows are the
+        /// exception and do have a real router-side stop; see
+        /// <see cref="WinboxNativeM2Operations.CancelMonitor"/>.
+        /// </param>
+        internal async Task<byte[]> SendReceiveAsync(byte[] request, int timeoutMs, CancellationToken cancellationToken)
         {
             ThrowIfFaulted();
+            cancellationToken.ThrowIfCancellationRequested();
 
             int id = M2Message.ParseSysReqId(request)
                 ?? throw new InvalidOperationException(
@@ -121,26 +140,38 @@ namespace tik4net.Winbox
             try
             {
                 // Serialize writes only. A frame is a sequence of chunks and two interleaved sends would
-                // produce an unparseable stream.
+                // produce an unparseable stream. The send stays synchronous: a request is a handful of bytes
+                // into the socket buffer, and neither channel offers an async send to await instead.
                 lock (_writeLock)
                 {
                     ThrowIfFaulted();
                     _channel.Send(request);
                 }
 
-                if (!tcs.Task.Wait(timeoutMs))
-                    throw new TimeoutException(
-                        $"No WinBox M2 reply for request id {id} within {timeoutMs} ms.");
+                // The deadline and the token are raced against the reply rather than folded into a socket
+                // timeout: the reader loop owns the read side with no per-read deadline of its own, precisely
+                // so a timeout can never fire mid-frame and desynchronize the stream (design §4.2a).
+                using (var giveUp = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+                {
+                    var timeout = Task.Delay(timeoutMs, giveUp.Token);
+                    var finished = await Task.WhenAny(tcs.Task, timeout).ConfigureAwait(false);
+                    giveUp.Cancel();          // stop the timer whichever way this ended
 
-                return tcs.Task.Result;
-            }
-            catch (AggregateException aex) when (aex.InnerException != null)
-            {
-                throw aex.InnerException;   // surface the reader loop's fault, not the wrapper
+                    if (finished != tcs.Task)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        throw new TimeoutException(
+                            $"No WinBox M2 reply for request id {id} within {timeoutMs} ms.");
+                    }
+                }
+
+                return await tcs.Task.ConfigureAwait(false);
             }
             finally
             {
-                // Covers the timeout and failure paths; on success the reader loop has already removed it.
+                // Covers the timeout, cancellation and failure paths; on success the reader loop has already
+                // removed it. Dropping the registration is what makes a late reply unmatched rather than
+                // mistaken for the next request that reuses this id.
                 _pending.TryRemove(id, out _);
             }
         }

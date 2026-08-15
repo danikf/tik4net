@@ -296,6 +296,18 @@ namespace tik4net.WinboxNative
         /// </summary>
         private CommandGate EnterCommand() => new CommandGate(_mux == null ? _cmdLock : null);
 
+        /// <summary>
+        /// <see cref="EnterCommand"/> for an awaiting caller: on the multiplexed path there is nothing to
+        /// acquire, so it completes synchronously; on the lockstep path it waits for the semaphore without
+        /// blocking a thread.
+        /// </summary>
+        private async Task<CommandGate> EnterCommandAsync(CancellationToken cancellationToken)
+        {
+            if (_mux != null) return default;
+            await _cmdLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            return new CommandGate(_cmdLock, alreadyHeld: true);
+        }
+
         /// <summary>Scope object for <see cref="EnterCommand"/>; releases the semaphore if one was taken.</summary>
         private readonly struct CommandGate : IDisposable
         {
@@ -305,6 +317,13 @@ namespace tik4net.WinboxNative
             {
                 _held = toAcquire;
                 _held?.Wait();
+            }
+
+            /// <summary>Wraps a semaphore the caller has already acquired (see <c>EnterCommandAsync</c>).</summary>
+            internal CommandGate(SemaphoreSlim held, bool alreadyHeld)
+            {
+                _held = alreadyHeld ? held : throw new ArgumentException(
+                    "Use the single-argument constructor to acquire the semaphore here.", nameof(alreadyHeld));
             }
 
             public void Dispose() => _held?.Release();
@@ -334,17 +353,39 @@ namespace tik4net.WinboxNative
 
         // ── Native read overrides ───────────────────────────────────────────────
 
+        // The M2 round trips below are awaited, so the Task-based hooks are the real implementation and the
+        // synchronous ones block on them (D5: async is the primitive; nothing is pushed onto a thread-pool
+        // thread to look asynchronous). Every await carries ConfigureAwait(false), which is also what keeps
+        // the blocking wrappers safe under a UI / ASP.NET-classic SynchronizationContext.
+        //
+        // What is NOT awaited: field encoding and record decoding may themselves issue a getall to translate a
+        // referenced record between its name and its numeric id (WinboxIdResolver, and the codec's per-handler
+        // reference-name cache). Those stay synchronous and block the awaiting thread for one round trip on a
+        // cache miss. It is bounded — the codec memoizes per handler for the connection's lifetime, and the
+        // resolver only runs when a caller names a referenced record instead of giving its .id — but it is
+        // real, and making it await would turn WinboxFieldResolver.EncodeField's resolveRef delegate async
+        // and with it the whole encoder. Tracked as a follow-up rather than smuggled into this change.
+
         /// <inheritdoc/>
         internal override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)
+            => RunPrintAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
+
+        /// <inheritdoc/>
+        internal override async Task<IList<TikRecordSentence>> RunPrintAsync(
+            TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             // Gate the M2 channel (see EnterCommand): a no-op when multiplexed, a real lock on the lockstep
             // MAC path, where a concurrent CRUD call or monitor poll would otherwise interleave with ours.
             // Background workers enter the gate themselves and call RunPrintCore directly (not reentrant).
-            using (EnterCommand())
-                return RunPrintCore(descriptor);
+            using (await EnterCommandAsync(cancellationToken).ConfigureAwait(false))
+                return await RunPrintCoreAsync(descriptor, cancellationToken).ConfigureAwait(false);
         }
 
         private IList<TikRecordSentence> RunPrintCore(TikCommandDescriptor descriptor)
+            => RunPrintCoreAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
+
+        private async Task<IList<TikRecordSentence>> RunPrintCoreAsync(
+            TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             EnsureNativeOpen();
 
@@ -355,7 +396,8 @@ namespace tik4net.WinboxNative
                 // A "monitor once" snapshot (e.g. /interface/ethernet/monitor numbers=ether1): the live
                 // values are read-only fields on the parent interface record, so a getall + name filter gives
                 // the snapshot. Tried before the action-verb path (monitor is not a doit/action cmd).
-                if (TryRunMonitor(descriptor, out var monitorRows)) return monitorRows;
+                var monitorRows = await TryRunMonitorAsync(descriptor, cancellationToken).ConfigureAwait(false);
+                if (monitorRows != null) return monitorRows;
 
                 // NOT tried here: the parent-handler fallback that RunMonitorAsync uses (ResolveMonitorWindow).
                 // For /interface/monitor-traffic it lands on the generic [20,0] interface window, whose field
@@ -390,7 +432,7 @@ namespace tik4net.WinboxNative
             // on RouterOS 7.21.4 — "/tool/wol =mac=…" answers "!re" (no words) then "!done", which is why the
             // shipped ToolWol entity reads it with ExecuteSingleRow rather than ExecuteNonQuery.
             if (_catalog.IsActionOnlyHandler(handler))
-                return RunActionWindow(apiPath, handler, descriptor);
+                return await RunActionWindowAsync(apiPath, handler, descriptor, cancellationToken).ConfigureAwait(false);
 
             // A monitor command (/ping, /tool/traceroute) reached through a read method. Checked before the
             // getall below because that is what the router answers with nothing: a monitor window holds no
@@ -406,7 +448,8 @@ namespace tik4net.WinboxNative
             {
                 var monitorSpec = _catalog.GetMonitorByHandler(handler);
                 if (monitorSpec != null)
-                    return RunMonitorWindowSync(monitorSpec, apiPath, handler, descriptor);
+                    return await RunMonitorWindowAsync(monitorSpec, apiPath, handler, descriptor, cancellationToken)
+                        .ConfigureAwait(false);
             }
 
             var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames);
@@ -420,7 +463,7 @@ namespace tik4net.WinboxNative
             {
                 if (_catalog.IsSingletonHandler(handler))
                 {
-                    var one = _ops.GetSingleton(handler);
+                    var one = await _ops.GetSingletonAsync(handler, cancellationToken).ConfigureAwait(false);
                     records = (one != null && one.Count > 0)
                         ? new List<Dictionary<int, Tuple<string, object>>> { one }
                         : new List<Dictionary<int, Tuple<string, object>>>();
@@ -431,7 +474,7 @@ namespace tik4net.WinboxNative
                     // OR the stats bit so getall returns bytes/packets, matching RouterOS `print`.
                     int flags = WinboxM2Protocol.GetAllFlags
                         | (_catalog.HasDynamicFields(handler) ? WinboxM2Protocol.GetAllStatsFlag : 0);
-                    records = _ops.GetAll(handler, flags);
+                    records = await _ops.GetAllAsync(handler, cancellationToken, flags).ConfigureAwait(false);
                 }
             }
             catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
@@ -477,8 +520,8 @@ namespace tik4net.WinboxNative
         // RouterOS "monitor once" returns. Returns false (fall through) when this is not a monitor path.
         /// <summary>
         /// True when the path is a "monitor once"-style snapshot served from the parent record rather than
-        /// from a monitor window of its own — the async counterpart of the <see cref="TryRunMonitor"/> test,
-        /// kept next to it so the two stay in step.
+        /// from a monitor window of its own — the async counterpart of the <see cref="TryRunMonitorAsync"/>
+        /// test, kept next to it so the two stay in step.
         /// </summary>
         private bool IsSnapshotMonitorPath(string commandText)
             => IsSnapshotMonitorVerb(TikPath.Verb(commandText))
@@ -490,21 +533,26 @@ namespace tik4net.WinboxNative
             => string.Equals(verb, "monitor", StringComparison.OrdinalIgnoreCase)
                || string.Equals(verb, "monitor-traffic", StringComparison.OrdinalIgnoreCase);
 
-        private bool TryRunMonitor(TikCommandDescriptor descriptor, out IList<TikRecordSentence> rows)
+        /// <returns>
+        /// The snapshot rows, or <c>null</c> when this is not a snapshot-monitor path and the caller should
+        /// fall through. A null return rather than a <c>bool</c> + <c>out</c> because an <c>out</c> parameter
+        /// cannot be written across an <c>await</c>.
+        /// </returns>
+        private async Task<IList<TikRecordSentence>> TryRunMonitorAsync(
+            TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
-            rows = null;
             if (!IsSnapshotMonitorVerb(TikPath.Verb(descriptor.CommandText)))
-                return false;
+                return null;
 
             string parentPath = TikPath.Parent(descriptor.CommandText);
             int[] handler = _handlerMap.Resolve(parentPath);
-            if (handler == null) return false;
+            if (handler == null) return null;
 
             // The interface is named via 'numbers' (RouterOS monitor convention), or 'interface'/'.id'.
             string target = FindParam(descriptor, "numbers")
                 ?? FindParam(descriptor, "interface")
                 ?? FindParam(descriptor, TikSpecialProperties.Id);
-            if (string.IsNullOrEmpty(target)) return false;
+            if (string.IsNullOrEmpty(target)) return null;
 
             // Keys and overrides come from the PARENT window (that is where the values live), but the field
             // NAMES come from the monitor path's own alias set — the same record is called 'rx' in the
@@ -518,7 +566,7 @@ namespace tik4net.WinboxNative
                 | (_catalog.HasDynamicFields(handler) ? WinboxM2Protocol.GetAllStatsFlag : 0);
 
             List<Dictionary<int, Tuple<string, object>>> records;
-            try { records = _ops.GetAll(handler, flags); }
+            try { records = await _ops.GetAllAsync(handler, cancellationToken, flags).ConfigureAwait(false); }
             catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
 
             var result = new List<TikRecordSentence>();
@@ -531,8 +579,7 @@ namespace tik4net.WinboxNative
                     break;
                 }
             }
-            rows = result;
-            return true;
+            return result;
         }
 
         // True when the command's last path segment matches a .jg doit/action on the parent handler
@@ -553,8 +600,8 @@ namespace tik4net.WinboxNative
         // Invokes the action verb's .jg doit/SYS_CMD on its (already-resolved) parent handler with the
         // optional target .id, mirroring how CLI terminals run actions fire-and-forget (no rows). Throws
         // NotSupported when the verb is not a known action on the handler.
-        private void DispatchActionVerb(string verb, string apiPath, int[] handler,
-            WinboxFieldResolver resolver, TikCommandDescriptor descriptor)
+        private async Task DispatchActionVerbAsync(string verb, string apiPath, int[] handler,
+            WinboxFieldResolver resolver, TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             int cmd = -1;
             var actions = _catalog.GetHandlerActions(handler);
@@ -581,7 +628,7 @@ namespace tik4net.WinboxNative
             }
 
             int id = ResolveRecordId(handler, resolver, descriptor, required: false);
-            try { _ops.InvokeAction(handler, cmd, id); }
+            try { await _ops.InvokeActionAsync(handler, cmd, id, fields: null, cancellationToken: cancellationToken).ConfigureAwait(false); }
             catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
         }
 
@@ -595,8 +642,8 @@ namespace tik4net.WinboxNative
         /// read-only (they are display widgets in the GUI) yet are exactly the values that must be sent —
         /// Wake on LAN's MAC address is one.
         /// </remarks>
-        private IList<TikRecordSentence> RunActionWindow(
-            string apiPath, int[] handler, TikCommandDescriptor descriptor)
+        private async Task<IList<TikRecordSentence>> RunActionWindowAsync(
+            string apiPath, int[] handler, TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             int cmd = _catalog.GetSoleActionCmd(handler);
             if (cmd < 0)
@@ -608,7 +655,7 @@ namespace tik4net.WinboxNative
             var fields = EncodeNameValueFields(handler, descriptor, resolver,
                 skipId: true, allowReadOnly: true, includeFilters: true);
 
-            try { _ops.InvokeAction(handler, cmd, id: -1, fields: fields); }
+            try { await _ops.InvokeActionAsync(handler, cmd, id: -1, fields: fields, cancellationToken: cancellationToken).ConfigureAwait(false); }
             catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
 
             // One empty row — the API's answer shape for these commands (see the call site).
@@ -635,6 +682,10 @@ namespace tik4net.WinboxNative
 
         /// <inheritdoc/>
         internal override string RunAdd(TikCommandDescriptor descriptor)
+            => RunAddAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
+
+        /// <inheritdoc/>
+        internal override async Task<string> RunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             EnsureNativeOpen();
             // descriptor.CommandText is "/path/add"; the resolution path is the parent.
@@ -642,11 +693,11 @@ namespace tik4net.WinboxNative
 
             try
             {
-                using (EnterCommand())   // see RunPrint
+                using (await EnterCommandAsync(cancellationToken).ConfigureAwait(false))   // see RunPrint
                 {
                     var (handler, resolver) = ResolveHandlerAndFields(apiPath);
                     var fields = EncodeNameValueFields(handler, descriptor, resolver, skipId: true);
-                    int newId = _ops.Add(handler, fields);
+                    int newId = await _ops.AddAsync(handler, fields, cancellationToken).ConfigureAwait(false);
                     return newId >= 0 ? "*" + ((uint)newId).ToString("X") : null;
                 }
             }
@@ -655,6 +706,10 @@ namespace tik4net.WinboxNative
 
         /// <inheritdoc/>
         internal override void RunNonQuery(TikCommandDescriptor descriptor)
+            => RunNonQueryAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
+
+        /// <inheritdoc/>
+        internal override async Task RunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             EnsureNativeOpen();
             // Try the whole command text as a standalone action window first (e.g. /tool/wol). Splitting it
@@ -665,8 +720,9 @@ namespace tik4net.WinboxNative
             int[] actionHandler = _handlerMap.Resolve(ApiPathOf(descriptor.CommandText));
             if (_catalog.IsActionOnlyHandler(actionHandler))
             {
-                using (EnterCommand())
-                    RunActionWindow(ApiPathOf(descriptor.CommandText), actionHandler, descriptor);
+                using (await EnterCommandAsync(cancellationToken).ConfigureAwait(false))
+                    await RunActionWindowAsync(ApiPathOf(descriptor.CommandText), actionHandler, descriptor, cancellationToken)
+                        .ConfigureAwait(false);
                 return;
             }
 
@@ -675,17 +731,17 @@ namespace tik4net.WinboxNative
 
             try
             {
-                using (EnterCommand())   // see RunPrint
+                using (await EnterCommandAsync(cancellationToken).ConfigureAwait(false))   // see RunPrint
                 {
                     var (handler, resolver) = ResolveHandlerAndFields(apiPath);
-                    RunVerb(verb, apiPath, handler, resolver, descriptor);
+                    await RunVerbAsync(verb, apiPath, handler, resolver, descriptor, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
         }
 
-        private void RunVerb(string verb, string apiPath, int[] handler, WinboxFieldResolver resolver,
-            TikCommandDescriptor descriptor)
+        private async Task RunVerbAsync(string verb, string apiPath, int[] handler, WinboxFieldResolver resolver,
+            TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             switch (verb)
             {
@@ -693,20 +749,22 @@ namespace tik4net.WinboxNative
                 {
                     // /path/add invoked via ExecuteNonQuery (the new id, if any, is discarded here).
                     var fields = EncodeNameValueFields(handler, descriptor, resolver, skipId: true);
-                    _ops.Add(handler, fields);
+                    await _ops.AddAsync(handler, fields, cancellationToken).ConfigureAwait(false);
                     break;
                 }
                 case "set":
                 {
-                    WriteFields(handler, resolver, descriptor,
-                        () => EncodeNameValueFields(handler, descriptor, resolver, skipId: true));
+                    await WriteFieldsAsync(handler, resolver, descriptor,
+                        () => EncodeNameValueFields(handler, descriptor, resolver, skipId: true),
+                        cancellationToken).ConfigureAwait(false);
                     break;
                 }
                 case "enable":
                 case "disable":
                 {
-                    WriteFields(handler, resolver, descriptor,
-                        () => resolver.EncodeField("disabled", verb == "disable" ? "true" : "false"));
+                    await WriteFieldsAsync(handler, resolver, descriptor,
+                        () => resolver.EncodeField("disabled", verb == "disable" ? "true" : "false"),
+                        cancellationToken).ConfigureAwait(false);
                     break;
                 }
                 case "unset":
@@ -716,8 +774,9 @@ namespace tik4net.WinboxNative
                     // verbatim therefore asked the resolver for an M2 key for a field called 'value-name'
                     // and threw WinboxFieldResolutionException. Translate instead: unset = set the named
                     // field back to empty/default.
-                    WriteFields(handler, resolver, descriptor,
-                        () => EncodeUnsetFields(handler, descriptor, resolver));
+                    await WriteFieldsAsync(handler, resolver, descriptor,
+                        () => EncodeUnsetFields(handler, descriptor, resolver),
+                        cancellationToken).ConfigureAwait(false);
                     break;
                 }
                 case "comment":
@@ -725,27 +784,29 @@ namespace tik4net.WinboxNative
                     // A real RouterOS menu command, and on the M2 layer simply a write of the comment
                     // field — WinBox has no separate comment operation. Without this it reached
                     // DispatchActionVerb and threw "not an action verb".
-                    WriteFields(handler, resolver, descriptor,
-                        () => EncodeNameValueFields(handler, descriptor, resolver, skipId: true));
+                    await WriteFieldsAsync(handler, resolver, descriptor,
+                        () => EncodeNameValueFields(handler, descriptor, resolver, skipId: true),
+                        cancellationToken).ConfigureAwait(false);
                     break;
                 }
                 case "remove":
                 {
                     int id = ResolveRecordId(handler, resolver, descriptor, required: true);
-                    _ops.Remove(handler, id);
+                    await _ops.RemoveAsync(handler, id, cancellationToken).ConfigureAwait(false);
                     break;
                 }
                 case "move":
                 {
                     int id = ResolveRecordId(handler, resolver, descriptor, required: true, alternateIdParam: "numbers");
                     int dest = ResolveMoveDest(handler, resolver, descriptor);
-                    _ops.Move(handler, id, dest);
+                    await _ops.MoveAsync(handler, id, dest, cancellationToken).ConfigureAwait(false);
                     break;
                 }
                 default:
                     // Action verb (e.g. /system/script/run → a .jg doit/SYS_CMD on this handler), invoked via
                     // ExecuteNonQuery. Dispatch it fire-and-forget; throws NotSupported if it is not an action.
-                    DispatchActionVerb(verb, apiPath, handler, resolver, descriptor);
+                    await DispatchActionVerbAsync(verb, apiPath, handler, resolver, descriptor, cancellationToken)
+                        .ConfigureAwait(false);
                     break;
             }
         }
@@ -757,8 +818,23 @@ namespace tik4net.WinboxNative
         /// Native WinBox M2 supports streaming monitors (<c>.jg</c> <c>type:'query'</c> / poll-action windows),
         /// so it reports <see cref="TikConnectionCapability.Listen"/> on top of <see cref="TikConnectionCapability.Crud"/>.
         /// </summary>
+        /// <remarks>
+        /// <para><see cref="TikConnectionCapability.AsyncCommands"/>: the M2 reader loop dispatches replies by
+        /// request id, so an awaiting command holds a registration rather than a thread (P2.8).</para>
+        /// <para><see cref="TikConnectionCapability.CancelInFlight"/> means two different things here, and the
+        /// stronger one is why it is declared. A <b>streaming window</b> — torch, ping, scan, traceroute,
+        /// bandwidth-test — is closed with the window's own <c>cancelcmd</c>, which is what WinBox sends when
+        /// you close its window; the router stops. That is a genuine router-side cancel, the same guarantee the
+        /// binary API's <c>/cancel tag=N</c> gives, and every streaming window in the router's <c>.jg</c>
+        /// catalog declares one (68 of them on 7.23.2, exactly one per <c>startcmd</c>). An <b>ordinary round
+        /// trip</b> (getall/set/add) has no cancel verb, so cancelling it frees the caller and drops the
+        /// registration while the router finishes the work — which is safe precisely because dispatch is by
+        /// request id, so the late reply is identified and discarded rather than handed to the next command.
+        /// That weaker half is the same shape REST declares the flag with.</para>
+        /// </remarks>
         public override TikConnectionCapability Capabilities =>
-            TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode;
+            TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode
+            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight;
 
         // ── Safe Mode (system handler [17]) ──────────────────────────────────────
         // Take/release map to the webfig toggleSafeMode() M2 commands. WebFig exposes no in-place
@@ -907,9 +983,18 @@ namespace tik4net.WinboxNative
         /// <c>count</c>) blocks until the connection is closed — exactly as it does on the binary API, which
         /// waits for a <c>!done</c> that never comes.
         /// </para>
+        /// <para>
+        /// This is also the one place on the native transport where cancelling a running command is a
+        /// router-side stop rather than a local abandon: the <c>finally</c> sends the window's
+        /// <c>.jg</c>-declared <c>cancelcmd</c>, which is what WinBox itself sends when its torch/ping/scan
+        /// window is closed, and every streaming window in the 7.23.2 catalog declares one (68 of them,
+        /// exactly one per <c>startcmd</c>). That is what <see cref="TikConnectionCapability.CancelInFlight"/>
+        /// means on this transport — see the remarks on <see cref="Capabilities"/>.
+        /// </para>
         /// </remarks>
-        private IList<TikRecordSentence> RunMonitorWindowSync(
-            WinboxMonitorSpec spec, string apiPath, int[] handler, TikCommandDescriptor descriptor)
+        private async Task<IList<TikRecordSentence>> RunMonitorWindowAsync(
+            WinboxMonitorSpec spec, string apiPath, int[] handler, TikCommandDescriptor descriptor,
+            CancellationToken cancellationToken)
         {
             var resolver = new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames);
             var keyToName = resolver.BuildKeyToApiName();
@@ -927,7 +1012,8 @@ namespace tik4net.WinboxNative
                 var requestFields = EncodeNameValueFields(
                     spec.Handler, descriptor, resolver, skipId: true, allowReadOnly: true, includeFilters: true,
                     skipSnapshotModifier: true);
-                id = _ops.StartMonitor(spec.Handler, spec.StartCmd, requestFields);
+                id = await _ops.StartMonitorAsync(spec.Handler, spec.StartCmd, requestFields, cancellationToken)
+                    .ConfigureAwait(false);
                 started = true;
 
                 // A self-terminating command's answer is everything it produces up to its own end, so a pass
@@ -940,8 +1026,9 @@ namespace tik4net.WinboxNative
                 WinboxM2Continuation continuation = null;
                 while (true)
                 {
-                    var (records, done, next) =
-                        _ops.PollMonitorRound(spec.Handler, spec.PollCmd, id, spec.IsQuery, continuation);
+                    var (records, done, next) = await _ops
+                        .PollMonitorRoundAsync(spec.Handler, spec.PollCmd, id, spec.IsQuery, continuation, cancellationToken)
+                        .ConfigureAwait(false);
                     continuation = next;
 
                     foreach (var rec in records)
@@ -957,7 +1044,7 @@ namespace tik4net.WinboxNative
                         throw new TikConnectionReceiveTimeoutException(ReceiveTimeout,
                             $"WinBox native: '{descriptor.CommandText}' produced {rows.Count} row(s) but never " +
                             $"reported itself finished within {ReceiveTimeout} ms.");
-                    System.Threading.Thread.Sleep(Math.Max(100, spec.AutorefreshMs));
+                    await Task.Delay(Math.Max(100, spec.AutorefreshMs), cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
@@ -965,6 +1052,9 @@ namespace tik4net.WinboxNative
             {
                 if (started && IsOpened)
                 {
+                    // Deliberately NOT passed the caller's token: this is the request that tells the router to
+                    // stop, so cancelling it would leave the window running on the router — the exact failure
+                    // the capability claims not to have. Best-effort otherwise (the monitor may have ended).
                     try { _ops.CancelMonitor(spec.Handler, spec.CancelCmd, id); }
                     catch { /* best-effort — the rows above are the result */ }
                 }
@@ -1231,16 +1321,17 @@ namespace tik4net.WinboxNative
         // IsSingleton entity was saveable at all — the suite only ever read them, so it went unnoticed
         // (P2.44). <paramref name="encodeFields"/> is deferred so the .id still resolves before the fields
         // are encoded, keeping "no such item" the error a caller sees when both are wrong.
-        private void WriteFields(int[] handler, WinboxFieldResolver resolver, TikCommandDescriptor descriptor,
-            Func<IList<byte[]>> encodeFields)
+        private async Task WriteFieldsAsync(int[] handler, WinboxFieldResolver resolver, TikCommandDescriptor descriptor,
+            Func<IList<byte[]>> encodeFields, CancellationToken cancellationToken)
         {
             if (_catalog.IsSingletonHandler(handler))
             {
-                _ops.SetSingleton(handler, encodeFields(), SingletonIdOf(descriptor));
+                await _ops.SetSingletonAsync(handler, encodeFields(), SingletonIdOf(descriptor), cancellationToken)
+                    .ConfigureAwait(false);
                 return;
             }
             int id = ResolveRecordId(handler, resolver, descriptor, required: true);
-            _ops.Set(handler, id, encodeFields());
+            await _ops.SetAsync(handler, id, encodeFields(), cancellationToken).ConfigureAwait(false);
         }
 
         // The optional .id of a singleton write. Only the literal "*HEX" handle is honored — the hidden

@@ -81,6 +81,17 @@ namespace tik4net.unittests.Winbox
         // ── Raw (unencrypted) M2 frame I/O ────────────────────────────────────
 
         /// <summary>
+        /// True when the client has sent bytes the fake has not read yet. For asserting that something was
+        /// <b>not</b> sent: <see cref="ReadRawFrame"/> would have to block for a full timeout to report the
+        /// same absence, and a byte having arrived at all is already the failure.
+        /// </summary>
+        /// <remarks>
+        /// Best-effort in one direction only — a write still in flight can read as "nothing sent". Use it to
+        /// catch a send that should not have happened, never to conclude that one did.
+        /// </remarks>
+        public bool HasBufferedData => _stream != null && _stream.DataAvailable;
+
+        /// <summary>
         /// Reads one raw M2 frame sent by the client and returns the M2 message inside it.
         /// Mirrors <c>WinboxTcpTransport.BuildRawFrame</c>: <c>[b0][0x01][innerLenHi][innerLenLo][m2]</c>,
         /// where <c>b0 = n+2</c> for short messages and <c>0xFF</c> for long ones.

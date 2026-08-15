@@ -44,7 +44,7 @@ All transports share the same `ITikConnection` API and O/R mapper — pick one v
 | **Ssh** | TCP 22 | RouterOS CLI over an SSH shell (separate `tik4net.ssh` package) | `Crud`, `Listen`\*, `SafeMode`, `RawCommand`, `AsyncCommands`‡ |
 | **MacTelnet** | UDP 20561 | CLI over MAC-Telnet — reaches the router with **no IP route** | `Crud`, `Listen`\*, `SafeMode`, `RawCommand`, `AsyncCommands`‡ |
 | **WinboxCli** / **WinboxCliMac** | TCP 8291 / UDP 20561 | CLI over the encrypted WinBox channel (EC-SRP5 + AES, no certificates) | `Crud`, `Listen`\*, `SafeMode`, `RawCommand`, `AsyncCommands`‡ |
-| **WinboxNative** / **WinboxNativeMac** | TCP 8291 / UDP 20561 | structured WinBox M2 CRUD, no terminal | `Crud`, `Listen`\*, `SafeMode` |
+| **WinboxNative** / **WinboxNativeMac** | TCP 8291 / UDP 20561 | structured WinBox M2 CRUD, no terminal | `Crud`, `Listen`\*, `SafeMode`, `AsyncCommands`‡, `CancelInFlight`‡§ |
 
 \* **`Listen` outside the API is emulated by polling** (re-issuing a snapshot on a background worker), not
 server push. **`Streaming`** (`ExecuteListWithDuration`) is binary-API only — no other transport holds a
@@ -56,8 +56,9 @@ that closing the connection does not stop a command already running on the route
 
 ‡ **`Execute*Async` — the Task-based command surface** (`ExecuteListAsync`, `ExecuteScalarAsync`, … with a
 `CancellationToken`) was rolled out per transport: REST first, then the whole CLI family, then the binary API,
-each over its own awaited socket. Where `AsyncCommands` is absent (today WinBox native) the async methods throw
-rather than block a thread pretending to be asynchronous; use the synchronous methods there. `CancelInFlight`
+and finally WinBox native — each over its own awaited I/O. A transport that cannot await its I/O would not
+declare the flag at all and its async methods would throw, rather than block a thread pretending to be
+asynchronous; every shipped transport now awaits. `CancelInFlight`
 means a token cancelled *after* dispatch really stops the wait and leaves the connection usable. **On the binary
 API it is the protocol's own operation**: the client sends `/cancel tag=N`, the router answers the cancelled
 command with `!trap interrupted` + `!done`, and the connection carries on — nothing is abandoned mid-stream. **On the CLI
@@ -66,6 +67,16 @@ output for the next command to misparse. There a mid-command cancel is reported 
 drained — correct, but no faster than the command itself. A caller who would rather lose the session than wait
 opts in with `TikConnectionSetup.CancellationMode = TikCancellationMode.AbandonAndClose`, which closes the
 connection instead of silently desynchronizing it.
+
+§ **On WinBox native `CancelInFlight` means two different things**, and the stronger one is why it is
+declared. A **streaming window** — torch, ping, scan, traceroute, bandwidth-test — is closed by sending the
+window's own `cancelcmd`, exactly what WinBox does when you close that window; the router stops. Every
+streaming window in the router's `.jg` catalog declares one (68 of them on RouterOS 7.23.2, one per
+`startcmd`), so this is as real a stop as the binary API's `/cancel`. An **ordinary round trip**
+(getall/set/add) has no cancel verb: cancelling frees the caller and drops the request's registration while
+the router finishes the work — safe because replies are dispatched by request id, so the late reply is
+identified and discarded rather than handed to the next command. That weaker half is the same guarantee REST
+gives.
 
 Every transport can have its connection **reused**. Concurrent commands on one connection work on
 `Api`/`ApiSsl` (set `SendTagWithSyncCommand = true` first), `Rest`/`RestSsl` and both WinBox-native

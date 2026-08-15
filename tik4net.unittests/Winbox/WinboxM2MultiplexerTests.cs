@@ -48,6 +48,28 @@ namespace tik4net.unittests.Winbox
             }
         }
 
+        /// <summary><see cref="WithMultiplexer"/> for a client script that awaits.</summary>
+        private static async Task WithMultiplexerAsync(Action<FakeWinboxServer> serverScript,
+            Func<WinboxM2Multiplexer, FakeWinboxServer, Task> clientScript)
+        {
+            using (var server = new FakeWinboxServer())
+            using (var session = new WinboxM2Session())
+            {
+                var serverTask = Task.Run(() =>
+                {
+                    server.RunFullLoginSequence();
+                    serverScript?.Invoke(server);
+                });
+
+                // The login sequence is lockstep and blocking, so it stays off the test's own thread.
+                await Task.Run(() => session.Open(Host, server.Port, "admin", "", TimeoutMs, TimeoutMs));
+                using (var mux = new WinboxM2Multiplexer(session))
+                    await clientScript(mux, server);
+
+                await serverTask;
+            }
+        }
+
         /// <summary>Builds a minimal request carrying <paramref name="reqIdField"/>.</summary>
         private static byte[] Request(byte[] reqIdField)
             => M2Message.BuildM2(M2Message.SysToArr(24, 1), M2Message.SysFrom(), reqIdField);
@@ -216,6 +238,148 @@ namespace tik4net.unittests.Winbox
                 CollectionAssert.DoesNotContain(ids, 0, "Id 0 is reserved for \"no request id\".");
                 Assert.IsTrue(ids.All(id => id >= 1 && id <= 255), "Ids must fit the one-byte wire field.");
             });
+        }
+
+        // ── The awaitable surface (P2.8) ──────────────────────────────────────
+        //
+        // SendReceiveAsync is what carries TikConnectionCapability.AsyncCommands on the native transports, and
+        // its cancellation is what CancelInFlight rests on for an ordinary round trip. The claim being tested
+        // is narrow and specific: cancelling frees the CALLER while the router keeps working, and the reply
+        // that then arrives late is identified by its request id and discarded — never handed to whoever asked
+        // next. Asserting only "did it throw OperationCanceledException" would pass on a client that simply
+        // stopped reading and left the next caller to receive someone else's answer.
+
+        /// <summary>Level 0: a token that is already cancelled must put nothing on the wire.</summary>
+        [TestMethod]
+        public async Task PreCancelledToken_WritesNothing()
+        {
+            await WithMultiplexerAsync(null, async (mux, server) =>
+            {
+                using (var cts = new CancellationTokenSource())
+                {
+                    cts.Cancel();
+                    await Assert.ThrowsExceptionAsync<OperationCanceledException>(
+                        () => mux.SendReceiveAsync(Request(mux.NextReqIdField()), TimeoutMs, cts.Token));
+                }
+
+                // Read straight off the socket rather than asking the fake to parse a frame: a byte having
+                // arrived at all is the failure, and ReadRawFrame would block for the full timeout to say so.
+                Assert.IsFalse(server.HasBufferedData,
+                    "A pre-cancelled request must never reach the router.");
+            });
+        }
+
+        /// <summary>
+        /// Cancelling a request in flight frees the caller, and the reply that arrives afterwards is dropped
+        /// as unmatched instead of being delivered to the next caller. That second half is the whole safety
+        /// argument for declaring CancelInFlight on a protocol with no cancel verb for ordinary round trips.
+        /// </summary>
+        [TestMethod]
+        public async Task CancellingARunningRequest_FreesTheCaller_AndItsLateReplyIsNotGivenToTheNextOne()
+        {
+            var firstRequestSeen = new ManualResetEventSlim(false);
+            var cancelled = new ManualResetEventSlim(false);
+            int abandonedId = 0, secondId = 0;
+
+            await WithMultiplexerAsync(
+                server =>
+                {
+                    abandonedId = M2Message.ParseSysReqId(server.ReadRawFrame()).Value;
+                    firstRequestSeen.Set();
+
+                    // Answer only once the caller has given up — this is the "the router finished the work
+                    // anyway" case that the abandoned registration has to survive.
+                    cancelled.Wait(TimeoutMs);
+                    server.SendRawFrame(Reply(abandonedId));
+
+                    secondId = M2Message.ParseSysReqId(server.ReadRawFrame()).Value;
+                    server.SendRawFrame(Reply(secondId));
+                },
+                async (mux, server) =>
+                {
+                    var unmatched = new List<byte[]>();
+                    mux.OnUnmatchedFrame = f => { lock (unmatched) unmatched.Add(f); };
+
+                    using (var cts = new CancellationTokenSource())
+                    {
+                        var running = mux.SendReceiveAsync(Request(mux.NextReqIdField()), TimeoutMs, cts.Token);
+                        Assert.IsTrue(firstRequestSeen.Wait(TimeoutMs), "the request never reached the router");
+
+                        cts.Cancel();
+                        await Assert.ThrowsExceptionAsync<OperationCanceledException>(() => running);
+                    }
+                    cancelled.Set();
+
+                    // The connection is still good, and the answer it gives is its own.
+                    byte[] request = Request(mux.NextReqIdField());
+                    byte[] response = await mux.SendReceiveAsync(request, TimeoutMs, CancellationToken.None);
+
+                    Assert.AreEqual(M2Message.ParseSysReqId(request), M2Message.ParseSysReqId(response),
+                        "The follow-up caller received the abandoned request's reply — id dispatch is what "
+                        + "makes cancelling one request safe for the next.");
+                    lock (unmatched)
+                        Assert.IsTrue(unmatched.Any(f => M2Message.ParseSysReqId(f) == abandonedId),
+                            "The late reply to the cancelled request should have been reported as unmatched.");
+                });
+        }
+
+        /// <summary>
+        /// Two awaited requests in flight at once, answered in reverse: the async path must keep the per-caller
+        /// correlation the synchronous one has, not merely compile.
+        /// </summary>
+        [TestMethod]
+        public async Task ConcurrentAsyncRequests_EachAwaiterGetsItsOwnReply()
+        {
+            await WithMultiplexerAsync(
+                server =>
+                {
+                    int a = M2Message.ParseSysReqId(server.ReadRawFrame()).Value;
+                    int b = M2Message.ParseSysReqId(server.ReadRawFrame()).Value;
+                    server.SendRawFrame(Reply(b));
+                    server.SendRawFrame(Reply(a));
+                },
+                async (mux, server) =>
+                {
+                    byte[] first = Request(mux.NextReqIdField());
+                    byte[] second = Request(mux.NextReqIdField());
+
+                    var firstCall = mux.SendReceiveAsync(first, TimeoutMs, CancellationToken.None);
+                    var secondCall = mux.SendReceiveAsync(second, TimeoutMs, CancellationToken.None);
+
+                    Assert.AreEqual(M2Message.ParseSysReqId(first), M2Message.ParseSysReqId(await firstCall));
+                    Assert.AreEqual(M2Message.ParseSysReqId(second), M2Message.ParseSysReqId(await secondCall));
+                });
+        }
+
+        /// <summary>
+        /// The deadline belongs to the request, not to the connection: a caller with a short deadline must not
+        /// take a caller with a long one down with it, and the survivor's own reply must still arrive.
+        /// </summary>
+        [TestMethod]
+        public async Task AsyncRequests_EachGetTheirOwnDeadline()
+        {
+            var impatientGaveUp = new ManualResetEventSlim(false);
+
+            await WithMultiplexerAsync(
+                server =>
+                {
+                    server.ReadRawFrame();                      // the impatient one — never answered
+                    int patient = M2Message.ParseSysReqId(server.ReadRawFrame()).Value;
+                    impatientGaveUp.Wait(TimeoutMs);
+                    server.SendRawFrame(Reply(patient));
+                },
+                async (mux, server) =>
+                {
+                    var impatient = mux.SendReceiveAsync(Request(mux.NextReqIdField()), 300, CancellationToken.None);
+                    byte[] patientRequest = Request(mux.NextReqIdField());
+                    var patient = mux.SendReceiveAsync(patientRequest, TimeoutMs, CancellationToken.None);
+
+                    await Assert.ThrowsExceptionAsync<TimeoutException>(() => impatient);
+                    impatientGaveUp.Set();
+
+                    Assert.AreEqual(M2Message.ParseSysReqId(patientRequest), M2Message.ParseSysReqId(await patient),
+                        "The patient caller must still be served after its neighbour's deadline expired.");
+                });
         }
     }
 }

@@ -20,8 +20,11 @@ namespace tik4net.integrationtests
     /// the same data — because "it returned some rows" would still pass if the async path quietly read a
     /// different thing.
     /// <para>
-    /// Transports without the capability report Inconclusive rather than failing: they have no async core yet,
-    /// which is a scheduled gap (WinBox native is next), not a router refusal.
+    /// Transports without the capability report Inconclusive rather than failing: a transport that cannot
+    /// await its I/O has no async core, which would be a gap in our client, not a router refusal. Every
+    /// shipped transport declares <c>AsyncCommands</c> since P2.8 gave WinBox native its async surface, so the
+    /// skip should no longer fire — if it does on a transport listed in the capability matrix, that is the
+    /// finding.
     /// </para>
     /// </remarks>
     [TestClass]

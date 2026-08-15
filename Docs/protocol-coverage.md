@@ -56,7 +56,7 @@ Four flag sets recur across the transport families:
 |---|---|---|
 | **Full** | `Crud`, `Listen`, `Streaming`, `RawSentences`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`, `CancelInFlight` | `Api`, `ApiSsl` |
 | **Cli** | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands` | `Telnet`, `Ssh`, `MacTelnet`, `WinboxCli`, `WinboxCliMac` (all inherit `CliConnectionBase`) |
-| **Native** | `Crud`, `Listen`, `SafeMode` | `WinboxNative`, `WinboxNativeMac` |
+| **Native** | `Crud`, `Listen`, `SafeMode`, `AsyncCommands`, `CancelInFlight` | `WinboxNative`, `WinboxNativeMac` |
 | **Rest** | `Crud`, `Listen`, `AsyncCommands`, `CancelInFlight` | `Rest`, `RestSsl` (stateless HTTP — no Streaming, no SafeMode) |
 
 `Listen` outside the binary API is emulated by polling (re-issuing a snapshot on a background
@@ -69,7 +69,7 @@ transport for raw access over that channel).
 
 `AsyncCommands` (the `Execute*Async` surface) and `CancelInFlight` (a token that stops a command
 already on the wire and still leaves the connection usable) were rolled out per transport: REST
-first, then the CLI family, then the binary API; WinBox native is still to come. Note what
+first, then the CLI family, then the binary API, then WinBox native (P2.8). Note what
 `CancelInFlight` does **not** promise everywhere: that the router stops working. On REST it does not
 — aborting the HTTP request frees the caller while RouterOS runs the command to the end (§12.1).
 
@@ -92,6 +92,26 @@ rather lose the connection than wait sets `TikCancellationMode.AbandonAndClose`,
 **and closes the session** — a close, never a silent skip. See the XML doc on
 `TikConnectionCapability` for the full per-flag semantics, including how `/tool/torch` is handled
 differently per transport family.
+
+**WinBox native** declares both flags, and its `CancelInFlight` covers two cases with different
+strength. For a **streaming window** — torch, ping, scan, traceroute, bandwidth-test — cancelling
+sends the window's `.jg`-declared `cancelcmd`, which is exactly what WinBox sends when its window is
+closed, and the router stops. The catalog declares one per `startcmd` for every streaming window (68
+pairs on 7.23.2: roteros 44, wlan6 10, ppp 5, wave2 5, advtool 3, secure 1), so this is not a
+best-effort guess about the protocol — it is the protocol's own stop, the M2 equivalent of
+`/cancel tag=N`. For an **ordinary round trip** (getall/set/add) M2 has no cancel verb, so cancelling
+frees the caller and drops the registration while the router finishes; that is safe because the
+reader loop dispatches by request id, so the late reply is identified and discarded instead of being
+handed to whichever command asked next. Same guarantee as REST, for the same reason.
+
+One residue is worth naming rather than leaving to be discovered: field **encoding and decoding** can
+themselves issue a `getall` to translate a referenced record between its name and its numeric id
+(`WinboxIdResolver`, and the codec's per-handler reference-name cache). Those calls are synchronous
+and block the awaiting thread for one round trip on a cache miss. It is bounded — the codec memoizes
+per handler for the connection's lifetime, and the resolver only runs when a caller names a
+referenced record instead of giving its `.id` — but "async all the way" is not yet literally true on
+this transport. Making it so means turning `WinboxFieldResolver.EncodeField`'s `resolveRef` delegate
+async, and with it the whole encoder.
 
 ---
 
@@ -325,9 +345,9 @@ tik4net/Winbox/M2Message.cs                    — TLV builder + parser
 Structured M2 CRUD — no terminal. Performs `getall`/`get-one`/`set`/`add`/`remove`/`move` as typed
 M2 calls, translating numeric WinBox field keys to/from RouterOS API field names via a
 version-matched `.jg` catalog, so the O/R mapper works unchanged on top of it. Both declare the
-**Native** flag set (`Crud`, `Listen`, `SafeMode` — no `Streaming`, `RawSentences`, `Tagging`, or
-`RawCommand`; its raw wire form is a numeric M2 message, not a string, so `RawCommand` is not
-offered — use a CLI transport for raw access over WinBox).
+**Native** flag set (`Crud`, `Listen`, `SafeMode`, `AsyncCommands`, `CancelInFlight` — no
+`Streaming`, `RawSentences`, or `Tagging`, and no `RawCommand`: its raw wire form is a numeric M2
+message, not a string, so use a CLI transport for raw access over WinBox).
 
 ### Capabilities
 
@@ -337,6 +357,8 @@ offered — use a CLI transport for raw access over WinBox).
 | Structured CRUD (`getall`/`get-one`/`set`/`add`/`remove`/`move`), no terminal | ✅ (both transports) |
 | `.jg`-driven field-key ↔ API-name translation | ✅ |
 | `Crud`, `Listen` (via `.jg` `type:'query'` monitor window), `SafeMode` (RouterOS 7.18+) | ✅ (both transports) |
+| `AsyncCommands` — `Execute*Async` awaited through the id-dispatching M2 reader loop | ✅ (both transports) |
+| `CancelInFlight` — router-side `cancelcmd` on a streaming window; registration drop on a plain round trip | ✅ (both transports) |
 | TCP transport (port 8291) | ✅ (WinboxNative) |
 | MAC/UDP transport (port 20561, `client_type=0x0f90`) | ✅ (WinboxNativeMac) |
 | `/tool/torch` via the `.jg` `type:'query'` monitor window (typed M2 fields, not text) | ✅ |
@@ -366,6 +388,8 @@ protocol, and `Docs/jg-catalog-format.md` for the `.jg` catalog format itself.
 | `Tagging` (`.tag` multiplexing) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | `SafeMode` | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (RouterOS 7.18+) | ✅ (RouterOS 7.18+) |
 | `RawCommand` | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| `AsyncCommands` (`Execute*Async`) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `CancelInFlight` | ✅ `/cancel` | ✅ caller only | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ `cancelcmd` on windows | ✅ `cancelcmd` on windows |
 | Router discovery | ❌ | ❌ | ❌ | ❌ | ✅ MNDP | ❌ | ✅ MNDP | ❌ | ✅ MNDP |
 | No IP connectivity required | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ |
 | Encryption | ❌ / ✅ TLS | ❌ / ✅ HTTPS | ❌ | ✅ SSH | ❌ | ✅ AES | ✅ AES | ✅ AES | ✅ AES |

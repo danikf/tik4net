@@ -39,8 +39,16 @@ namespace tik4net.unittests
             TikConnectionCapability.Crud | TikConnectionCapability.Listen
             | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight;
 
+        // AsyncCommands + CancelInFlight since P2.8. Async because the M2 reader loop dispatches replies by
+        // request id, so an awaiting command holds a registration rather than a thread. CancelInFlight because
+        // a streaming window (torch/ping/scan/…) is closed with the window's own .jg cancelcmd and the router
+        // stops — the same guarantee as the API's /cancel, and every streaming window in the catalog declares
+        // one. An ordinary round trip has no cancel verb, so there cancelling frees the caller and drops the
+        // registration; that is the shape REST declares the flag with, and id dispatch is what makes the late
+        // reply identifiable rather than someone else's answer.
         private const TikConnectionCapability Native =
-            TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode;
+            TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode
+            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight;
 
         // The binary API declares everything, including CancelInFlight — the only transport where cancelling
         // is the protocol's own operation (`/cancel tag=N`) rather than an abandon we hope is safe: the router
