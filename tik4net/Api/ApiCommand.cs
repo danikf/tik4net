@@ -572,9 +572,34 @@ namespace tik4net.Api
             }
         }
 
-        public void ExecuteAsync(Action<ITikReSentence> oneResponseCallback, 
+        public void ExecuteAsync(Action<ITikReSentence> oneResponseCallback,
             Action<ITikTrapSentence> errorCallback = null,
             Action onDoneCallback = null)
+        {
+            ExecuteAsyncCore(oneResponseCallback, errorCallback, onDoneCallback, null);
+        }
+
+        /// <summary>
+        /// <see cref="ExecuteAsync(Action{ITikReSentence}, Action{ITikTrapSentence}, Action)"/> plus one extra
+        /// hook: <paramref name="onTerminalCallback"/> is invoked for whichever sentence ENDED the command —
+        /// <c>!done</c> or <c>!fatal</c> — after the running state has been cleared.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// This is what the bounded readers below wait on (P2.4). <c>onDoneCallback</c> could not serve: it
+        /// deliberately fires only for <c>!done</c>, so a connection that dies mid-stream would leave a waiter
+        /// asleep — which is exactly why those two methods used to poll a clock instead of waiting for the
+        /// command.
+        /// </para>
+        /// <para>
+        /// The <c>!fatal</c> reaches here carrying the reader loop's reason (P2.14), so a waiter can report
+        /// what the other side said rather than a generic "connection has been closed".
+        /// </para>
+        /// </remarks>
+        private void ExecuteAsyncCore(Action<ITikReSentence> oneResponseCallback,
+            Action<ITikTrapSentence> errorCallback,
+            Action onDoneCallback,
+            Action<ITikSentence> onTerminalCallback)
         {
             EnsureConnectionSet();
             EnsureNotRunning();
@@ -621,6 +646,11 @@ namespace tik4net.Api
 
                                                     if (response is ApiDoneSentence && onDoneCallback != null)
                                                         onDoneCallback();
+
+                                                    // Last, so a waiter woken by this signal already sees
+                                                    // everything set above it.
+                                                    if (onTerminalCallback != null)
+                                                        onTerminalCallback(response);
                                                 }
                                             }
                                         });
@@ -649,94 +679,150 @@ namespace tik4net.Api
                 return result;
         }
 
+        // ── Bounded streaming reads (P2.4) ────────────────────────────────────
+        //
+        // Both methods below run the command asynchronously and wait for it in the calling thread. The wait
+        // is on the command itself — the same callbacks that carry the sentences — not on a 100 ms clock that
+        // re-asks "are we there yet?". What that polling loop cost was not CPU but ACCURACY:
+        //
+        //  * an end was noticed up to a full tick after it happened, so every such read paid up to 100 ms;
+        //  * connection loss was read off `_connection.IsOpened` instead of the `!fatal` the reader loop had
+        //    already delivered to this very command — and that `!fatal` carries the reason (P2.14), which the
+        //    flag does not, so the caller got "Connection has been closed" and never learned what happened;
+        //  * the tick could also land between a `!trap` and the `!done` that follows it, and in that ordering
+        //    `ExecuteListWithDuration` overwrote the router's message with the literal "Cancelled". Narrow,
+        //    and gone here: the reason is now decided once, after the command has ended, in priority order.
+        //
+        // The signal is deliberately NOT disposed: the pump thread can still set it after we have returned
+        // (a `!trap` is followed by its own `!done`), and disposing it underneath would throw inside a
+        // callback whose exceptions are swallowed by design.
+
         public IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string abortReason)
         {
-            string asyncExceptionMessage = null;
+            ITikTrapSentence asyncTrap = null;
+            string fatalMessage = null;
             bool doneReceived = false;
             List<ITikReSentence> result = new List<ITikReSentence>();
+            object resultLock = new object();
+            ManualResetEventSlim finished = new ManualResetEventSlim(false);
             wasAborted = false;
             abortReason = null;
 
             //Async execute, responses are stored in result list
-            ExecuteAsync(
+            ExecuteAsyncCore(
                 reSentence =>
                 {
-                    if (_isRuning)
-                        result.Add(reSentence);
+                    lock (resultLock)
+                    {
+                        if (_isRuning)
+                            result.Add(reSentence);
+                    }
                 },
                 error =>
                 {
-                    asyncExceptionMessage = error.Message;
+                    asyncTrap = error;
+                    finished.Set(); //a !trap ends this read; its !done arrives afterwards
                 },
                 onDoneCallback: () =>
                 {
                     doneReceived = true;
+                },
+                onTerminalCallback: sentence =>
+                {
+                    ApiFatalSentence fatal = sentence as ApiFatalSentence;
+                    if (fatal != null)
+                        fatalMessage = string.IsNullOrEmpty(fatal.Message) ? "Connection has been closed" : fatal.Message;
+                    finished.Set();
                 });
 
-            //wait for results (in calling =UI? thread)
-            for (int i = 0; i < durationSec * 10; i++) //step per 100ms
+            //wait for the command (in calling =UI? thread), no longer than the requested duration
+            if (!finished.Wait(TimeSpan.FromSeconds(Math.Max(0, durationSec))))
             {
-                Thread.Sleep(100);
-                if (asyncExceptionMessage != null) //ended with exception
-                {
-                    _isRuning = false;
-                    wasAborted = true;
-                    abortReason = asyncExceptionMessage;
-                }
-                if (!_connection.IsOpened)
-                {
-                    _isRuning = false;
-                    wasAborted = true;
-                    abortReason = "Connection has been closed";
-                    return result;
-                }
-                if (!_isRuning) //already ended
-                {
-                    if (!doneReceived)
-                    {
-                        wasAborted = true;
-                        abortReason = "Cancelled";
-                    }
-                    return result;
-                }
+                //duration elapsed while the command was still streaming - the normal end of a bounded read
+                CancelInternal(true, -1); //Join loading thread
+                return SnapshotResult(result, resultLock);
             }
-            CancelInternal(true, -1); //Join loading thread
 
-            return result;
+            _isRuning = false;
+
+            if (asyncTrap != null) //ended with an error - report what the router said
+            {
+                wasAborted = true;
+                abortReason = asyncTrap.Message;
+            }
+            else if (fatalMessage != null)
+            {
+                wasAborted = true;
+                abortReason = fatalMessage;
+            }
+            else if (!doneReceived)
+            {
+                wasAborted = true;
+                abortReason = "Cancelled";
+            }
+
+            return SnapshotResult(result, resultLock);
         }
 
         public IEnumerable<ITikReSentence> ExecuteListUntilDone(int? timeoutSec = null)
         {
             ITikTrapSentence asyncTrap = null;
+            string fatalMessage = null;
             List<ITikReSentence> result = new List<ITikReSentence>();
+            object resultLock = new object();
+            ManualResetEventSlim finished = new ManualResetEventSlim(false);
 
-            ExecuteAsync(
+            ExecuteAsyncCore(
                 reSentence =>
                 {
-                    if (_isRuning)
-                        result.Add(reSentence);
+                    lock (resultLock)
+                    {
+                        if (_isRuning)
+                            result.Add(reSentence);
+                    }
                 },
                 error =>
                 {
                     asyncTrap = error;
+                    finished.Set();
                 },
-                onDoneCallback: null);
+                onDoneCallback: null,
+                onTerminalCallback: sentence =>
+                {
+                    ApiFatalSentence fatal = sentence as ApiFatalSentence;
+                    if (fatal != null)
+                        fatalMessage = string.IsNullOrEmpty(fatal.Message)
+                            ? "Connection has been closed."
+                            : "Connection has been closed: " + fatal.Message;
+                    finished.Set();
+                });
 
-            int steps = timeoutSec.HasValue ? timeoutSec.Value * 10 : int.MaxValue;
-            for (int i = 0; i < steps; i++) //step per 100ms
+            int timeoutMs = timeoutSec.HasValue
+                ? (int)Math.Min(Math.Max(0L, timeoutSec.Value * 1000L), int.MaxValue)
+                : Timeout.Infinite;
+            if (!finished.Wait(timeoutMs))
             {
-                Thread.Sleep(100);
-                if (asyncTrap != null)
-                    throw new TikCommandTrapException(this, asyncTrap);
-                if (!_connection.IsOpened)
-                    throw new IOException("Connection has been closed.");
-                if (!_isRuning) //!done received
-                    return result;
+                // timeout elapsed — cancel and report
+                CancelInternal(true, -1);
+                throw new TikCommandAbortException(this, string.Format("Command did not finish within {0} second(s).", timeoutSec));
             }
 
-            // timeout elapsed — cancel and report
-            CancelInternal(true, -1);
-            throw new TikCommandAbortException(this, string.Format("Command did not finish within {0} second(s).", timeoutSec));
+            _isRuning = false;
+
+            if (asyncTrap != null)
+                throw new TikCommandTrapException(this, asyncTrap);
+            if (fatalMessage != null)
+                throw new IOException(fatalMessage);
+
+            return SnapshotResult(result, resultLock); //!done received
+        }
+
+        // The pump thread appends to the list; the caller reads it once the command has ended. Handing back
+        // the live list let those two overlap on the trap path, where the pump keeps running until its !done.
+        private static List<ITikReSentence> SnapshotResult(List<ITikReSentence> result, object resultLock)
+        {
+            lock (resultLock)
+                return new List<ITikReSentence>(result);
         }
 
         private bool CancelInternal(bool joinLoadingThread, int milisecondsTimeout)

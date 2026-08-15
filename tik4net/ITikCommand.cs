@@ -180,7 +180,8 @@ namespace tik4net
         /// </summary>
         /// <param name="durationSec">How long will method wait for results.</param>
         /// <returns>List of !re sentences read.</returns>
-        /// <remarks>If no error occurs, calling this method blocks calling thread for <paramref name="durationSec"/>.</remarks>
+        /// <remarks>If no error occurs, calling this method blocks calling thread for <paramref name="durationSec"/>.
+        /// A command that ends earlier (<c>!done</c>, <c>!trap</c> or a lost connection) returns as soon as it ends.</remarks>
         /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
@@ -196,9 +197,13 @@ namespace tik4net
         /// </summary>
         /// <param name="durationSec">How long will method wait for results.</param>
         /// <param name="wasAborted">If command has been terminated before <paramref name="durationSec"/>.</param>
-        /// <param name="abortReason">Detail info if <paramref name="wasAborted"/> is true.</param>
+        /// <param name="abortReason">
+        /// Detail info if <paramref name="wasAborted"/> is true: the router's own <c>!trap</c> message, or the reason
+        /// the connection was lost, whichever ended the command.
+        /// </param>
         /// <returns>List of !re sentences read.</returns>
-        /// <remarks>If no error occurs, calling this method blocks calling thread for <paramref name="durationSec"/>.</remarks>
+        /// <remarks>If no error occurs, calling this method blocks calling thread for <paramref name="durationSec"/>.
+        /// A command that ends earlier (<c>!done</c>, <c>!trap</c> or a lost connection) returns as soon as it ends.</remarks>
         IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string abortReason);
 
         /// <summary>
