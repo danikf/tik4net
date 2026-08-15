@@ -1,22 +1,65 @@
-# Findings — WinBox CLI connection (Chapter G)
+# WinBox (TCP 8291 / UDP 20561) — session, mepty terminal and native M2
 
-**Date:** 2026-06-05
-**Transport:** `TikConnectionType.WinboxCli` (TCP 8291, mepty terminal)
-**Verified live:** RouterOS 7.21.4 CHR (coordinates in `tik4net.integrationtests/App.config`)
+> **Principle:** WinBox is one session/crypto layer — EC-SRP5 handshake, AES-128-CBC chunked frames,
+> M2 TLV messages — shared by two carriers (TCP port 8291, and the MAC-layer transport on UDP 20561
+> that MAC-Telnet also uses) and two client engines built on top of it: the **mepty terminal**
+> (`WinboxCli`/`WinboxCliMac`, streaming a RouterOS CLI like Telnet/MAC-Telnet) and the **structured
+> M2** CRUD/monitor protocol (`WinboxNative`/`WinboxNativeMac`). Complements
+> [findings-mactelnet.md](findings-mactelnet.md) (the shared MAC layer),
+> [findings-mepty-byte-ack.md](findings-mepty-byte-ack.md) (the mepty byte-ACK counter),
+> [winbox-native-m2-protocol.md](winbox-native-m2-protocol.md) (the native CRUD/monitor protocol) and
+> [winbox-m2-multiplexing-design.md](winbox-m2-multiplexing-design.md) (the multiplexer built on §12
+> below).
 
-Shared protocol findings live in memory notes `project_winbox_m2_poc` and `ref_cli_telnet`. This
-file covers only what came to light or got resolved during production integration (Chapter G).
+The C# implementation (`tik4net/Winbox/`, `tik4net/WinboxCli*/`, `tik4net/WinboxNative*/`) cites these
+sections by number, so the section numbers below are stable — do not renumber a heading without
+checking who cites it.
+
+> Superseded diagnoses, incidents and pinned measurements for this area are in
+> [`findings-winbox-history.md`](findings-winbox-history.md); this document describes current behaviour only.
 
 ---
 
-## 1. ROOT CAUSE — SESSION_ID > 255 is a u32, not a u8 (resolved)
+## Architecture
 
-**Symptom:** the mepty terminal wouldn't open — `OpenTerminalSession` threw
-`InvalidOperationException: No SESSION_ID in M2 response`. Because of this, the PoC had both mepty
-tests marked `[Ignore]` with the assumption "drain timing between terminal sessions" — a **wrong
-diagnosis**.
+```
+tik4net/Winbox/                shared session/crypto layer + native M2 protocol constants and codec
+├── M2Message.cs                   M2 TLV parse/build
+├── WinboxM2Protocol.cs            protocol constants: SysKey/RecordKey/Command/Error/Mproxy/SysInfo/LegacyAuth/Mepty/Tlv
+├── WinboxTcpTransport.cs          chunked AES framing over TCP
+├── WinboxM2Session.cs             EC-SRP5 / legacy MD5 auth + frame I/O + generic Send/Receive/SendReceive
+├── WinboxMacM2Session.cs          the same M2 session carried over MacLayerTransport
+├── IWinboxM2Channel.cs            channel abstraction shared by the mepty and native transports
+├── WinboxM2Multiplexer.cs         request/reply correlation for concurrent M2 operations (§12)
+├── WinboxNativeM2Operations.cs    CRUD/monitor operations: getall/get-one/set/add/remove/move/singleton
+├── WinboxM2Continuation.cs        getall/monitor pagination cursor (§12.7.1)
+├── WinboxJgCatalog.cs / WinboxJgField.cs   the `.jg` catalog model
+├── WinboxFieldResolver.cs         field name/type resolution between the API and `.jg` labels
+├── WinboxRecordCodec.cs           record encode/decode
+└── RouterLoginRetry.cs            bounded retry over a transient login refusal (§13)
 
-**Actual root cause (live dump of the mepty-open response):**
+tik4net/WinboxCli/       mepty terminal over TCP — WinboxCliClient, WinboxCliConnection
+tik4net/WinboxCliMac/    mepty terminal over the MAC layer — WinboxCliMacConnection
+tik4net/WinboxNative/    structured M2 CRUD/monitor over TCP — WinboxNativeConnection
+tik4net/WinboxNativeMac/ structured M2 CRUD/monitor over the MAC layer — WinboxNativeMacConnection
+tik4net/Crypto/          EcSrp5, WinboxStreamCrypto — shared with MAC-Telnet
+```
+
+- `WinboxM2Session`/`WinboxMacM2Session` carry no mepty/VT100 knowledge, so both native transports
+  build on the same session type without dragging terminal concerns along.
+- The crypto lives in `tik4net/Crypto/` and is shared with MAC-Telnet, so WinBox does not need a
+  separate NuGet package — it ships in-core alongside Telnet/MAC-Telnet.
+- All four client engines (`WinboxCli`, `WinboxCliMac`, `WinboxNative`, `WinboxNativeMac`) share
+  `IWinboxM2Channel`; only the underlying channel implementation differs between the TCP and MAC-layer
+  pairs.
+
+---
+
+## 1. A session id above 255 must round-trip as u32
+
+Session ids are not always byte-sized. `M2Message.ParseSessionId` reads key `0xFE0001` as **either**
+type `0x09` (u8) or type `0x08` (u32), and `M2Message.SessionIdField(int id)` encodes u8 for
+`id ≤ 255` and u32 otherwise. A live mepty-open response carrying a u32 session id:
 
 ```
 4D 32                                              "M2"
@@ -28,166 +71,151 @@ diagnosis**.
 06 00 FF 09 01                                       0xFF0006 u8 = 1
 ```
 
-Session id = **265**, sent as **u32 (type 0x08)**, because it can't fit in a single byte.
-The PoC's `M2Message.ParseSessionId` only looked for `type == 0x09` (u8) → found nothing. And
-`SessionIdField(int)` always encoded a u8 → sending 265 back turned into `(byte)265 = 9` →
-addressing the wrong session → dead terminal.
+Session id 265 arrives as type `0x08` because it does not fit in a byte.
 
-**Fix** (`tik4net/Winbox/M2Message.cs`):
-- `ParseSessionId` reads key `0xFE0001` as both type 0x09 (u8) and 0x08 (u32).
-- `SessionIdField(int id)` encodes u8 for `id ≤ 255`, u32 otherwise.
-
-This was actually predicted in `project_winbox_m2_poc` §9: "Correct SessionIdField implementation —
-in reality it may be 2B". The drain-timing hypothesis from the PoC's ignore comment was a dead end.
+**Failure mode:** a u8-only implementation of `ParseSessionId`/`SessionIdField` truncates a session id
+above 255 (`(byte)265 == 9`), silently addresses the wrong session, and the terminal never opens
+(`InvalidOperationException: No SESSION_ID in M2 response`).
 
 ---
 
-## 2. Login terminal-size hint: 80×25, NOT wide
+## 2. Login terminal-size hint: 80×25
 
-`meptyLogin` (cmd `0x0A0065`) carries `U32User(3)=cols`, `U32User(4)=rows`. Feeding it a large value
-(65535 was tried) makes RouterOS return an **error response with no SESSION_ID** (same symptom as
-§1, different cause!). Stick with **80×25** as in the PoC.
+`meptyLogin` (cmd `0x0A0065`) carries `U32User(3)=cols`, `U32User(4)=rows`; production sends **80×25**.
+A large hint (e.g. 65535) makes RouterOS return an error response with no SESSION_ID — the same
+symptom as §1, a different cause.
 
-The actual terminal width is determined later anyway, by the **VT100 cursor probe**
-(`ESC[9999C ESC[6n`), which gets back `Vt100State(65535, 25)` — the reply caps at ~9999 columns,
-which is enough to keep long `print as-value` lines from wrapping. (Same principle as MAC-Telnet,
-see findings-mactelnet.)
-
----
-
-## 3. Encrypted channel — DataAvailable gating is mandatory
-
-Unlike MAC-Telnet (UDP datagrams), WinBox runs over **TCP + AES-128-CBC frames**. The trap
-(confirmed from `project_winbox_m2_poc` §2): never call decrypt with a short timeout inside a retry
-loop — when the timeout expires **mid-frame**, the TCP stream is left misaligned and every
-subsequent read fails with an IOException.
-
-The fix in `WinboxCliClient`: every read is gated by `while (!_session.DataAvailable)
-Thread.Sleep(20)`, and only then does `_session.Receive(5000)` run with a generous per-frame
-timeout (it only bounds a frame that is *already arriving*, and never expires mid-frame). This
-works reliably even for multi-packet responses.
-
-Warning: that generous timeout is safe **only as long as `DataAvailable` doesn't lie**. Over
-MAC/UDP it did lie, and cost 5 s per command — see Chapter 15.
+The actual terminal width is negotiated afterwards by the **VT100 cursor probe**
+(`ESC[9999C ESC[6n`), answered with `Vt100State(65535, 25)`; the reply caps at ~9999 columns, which is
+enough to keep long `print as-value` lines from wrapping (same principle as MAC-Telnet — see
+[findings-mactelnet.md](findings-mactelnet.md) §2).
 
 ---
 
-## 4. A persistent mepty session works
+## 3. The encrypted channel requires `DataAvailable` gating before every read
 
-The PoC opened a **new** mepty session for every command (`RunTerminalCommand`). Production opens
-mepty **once**, in `LoginAsync`, and every subsequent command reuses the same session (the counter
-`U32User(3)` increments across commands). No problem there — a PTY is a terminal, it holds state.
-This also makes the supposed "drain timing between terminal sessions" issue moot.
+WinBox runs over **TCP + AES-128-CBC frames** (unlike MAC-Telnet's UDP datagrams). Never decrypt with a
+short timeout inside a retry loop: if the timeout expires **mid-frame**, the TCP stream is left
+misaligned and every subsequent read fails with an `IOException`.
 
----
+`WinboxCliClient` gates every read with `while (!_session.DataAvailable) Thread.Sleep(20)`, and only
+then calls `_session.Receive(5000)` with a generous per-frame timeout — safe because it only bounds a
+frame that is *already arriving*, never one that hasn't started. This works reliably for multi-packet
+responses too.
 
-## 5. Architecture — shared vs. CLI-specific
-
-- `tik4net/Winbox/` = **shared only**: `M2Message` (TLV), `WinboxTcpTransport` (chunked framing),
-  `WinboxM2Session` (EC-SRP5/legacy MD5 auth + AES frame I/O + generic `Send`/`Receive`/`SendReceive`
-  /`NextReqIdField`). **No mepty/VT100** here — so a future `WinboxNative*` can build on it.
-- `tik4net/WinboxCli/` = the terminal mode: `WinboxCliClient` (mepty [76] + VT100),
-  `WinboxCliConnection`.
-
-The crypto (`EcSrp5`, `WinboxStreamCrypto`) already lives in `tik4net/Crypto/` from Chapter E
-(shared with MAC-Telnet) → WinBox does NOT need a separate NuGet package, it lives in-core just
-like Telnet/MAC-Telnet.
-
-For Chapter H (`WinboxCliMac*`), `WinboxM2Session` will need to be generalized over the transport
-(`WinboxTcpTransport` → `MacLayerTransport`); the generic Send/Receive methods are already set up
-for that.
+That generous timeout is only safe as long as `DataAvailable` reports truthfully. Over the MAC layer it
+does not — see §15.
 
 ---
 
-## 6. Legacy MD5 + terminal = unsupported
+## 4. A mepty session is opened once and reused for every command
 
-A mepty session only runs over the encrypted EC-SRP5 channel. If the server falls back to legacy
-MD5 auth (pre-6.43 RouterOS), `WinboxCliClient.OpenTerminalSession` throws a
-`NotSupportedException`. The auth fallback in `WinboxM2Session` stays in place (for future native
-legacy operations), but the terminal path does not support it.
-
----
-
-## 7. Results (WinboxCli / TCP)
-
-- `WinboxCliProtocolTest` — **2/2** (login+list interfaces, set+verify ether1 comment)
-- `InterfaceTest` over `winboxcli.runsettings` — **9 pass / 6 skip / 0 fail** (skips are CLI
-  limitations: async/listen/monitor-traffic; exact parity with Telnet/MAC-Telnet)
-- Login ~0.6 s, set+verify ~2 s.
+`WinboxCliClient` opens a mepty session once, in `LoginAsync`, and every subsequent command reuses it
+— the data counter (`Mepty.Key.Counter`, wire key 3 on `Data`) increments across commands within that
+one session. A PTY is a terminal: it holds state, and nothing requires a fresh session per command.
 
 ---
 
-# WinBox CLI over MAC (`WinboxCliMac`, Chapter H)
+## 5. The shared session layer carries no terminal state
 
-**Transport:** UDP 20561, `client_type=0x0f90`, mepty terminal. Shares the entire CLI engine with
-Chapter G through the `IWinboxM2Channel` abstraction; only the channel differs
-(`WinboxMacM2Session : MacLayerTransport`).
-
-## 8. ROOT CAUSE — MAC-WinBox is the WinBox protocol tunneled over MAC (the PoC got both parts wrong)
-
-The PoC's `WinboxMacClient` was `[Ignore]`d as "EXPERIMENTAL, M2 framing unverified". Two mistaken
-hypotheses, disproven live (RouterOS 7.21.4):
-
-1. **Auth is NOT MAC-Telnet control-packet auth.** The PoC called the base
-   `MacLayerTransport.Authenticate` (CTRL_BEGINAUTH/PASSSALT) → **timeout** (the router never
-   replies). The correct behavior: the **same WinBox EC-SRP5 handshake as over TCP** —
-   length-prefixed `[len][0x06][payload]` frames sent as DATA payload. The challenge arrived as
-   `31-06-0E-22-…` = `[len=49][tag=0x06][32B xWB][1B parity][16B salt]`.
-   ⇒ In `WinboxMacM2Session.MacAuthEcSrp5`, after `BaseConnect(0x0f90)` the WinBox hello is sent and
-   the same EC-SRP5 math runs as in `WinboxM2Session.EcSrp5Auth`.
-
-2. **Encrypted M2 is NOT a bare `Encrypt(m2)` inside DATA.** The PoC sent
-   `Send(PKT_DATA, Encrypt(m2))` and decoded the raw payload → decrypting from the wrong offset →
-   "Not a valid M2 response". The correct behavior: **the same chunk framing as over TCP**
-   (`[chunkLen 1B][tag][data]…`, 0xFF = continuation) inside the DATA packets. ⇒ `Send` chunk-wraps
-   (`ChunkWrap`), `Receive` reassembles via the `_rxBuf` buffer (a chunk can cross a DATA packet
-   boundary), and only then does `WinboxStreamCrypto.Decrypt` run.
-
-**Conclusion:** MAC-WinBox is the entire WinBox protocol (EC-SRP5 handshake + chunked AES frames)
-tunneled over the MAC reliable stream. The only difference from TCP is the transport (DATA/ACK
-packets instead of a TCP stream). That's why the CLI engine (`WinboxCliClient`) could be shared
-unchanged — a channel abstraction was all that was needed.
-
-## 9. Further MAC findings
-
-- **ACK = counter+payloadLen** — the production `MacLayerTransport.AckData` (from Chapter D/E), not
-  the bare `SendAck(counter)` from the PoC. Retransmission dedup happens via `_inCounter`.
-- **The mac-winbox server is separate from mac-telnet:** `/tool/mac-server/mac-winbox set
-  allowed-interface-list=all` (the test sets this in `[ClassInitialize]`). Both were enabled live.
-- **The SESSION_ID u8/u32 fix from Chapter G applies here too** (shared `M2Message`).
-- **Speed:** login ~16 s, set+verify ~32 s (MNDP ~5 s + per-frame AES + UDP polling with sleeps).
-  Much slower than TCP (~1–2 s). For production, set `RouterMac` to bypass MNDP.
-
-## 10. Results (WinboxCliMac / MAC)
-
-- `WinboxCliMacProtocolTest` — **2/2** (login+list, set+verify ether1 comment).
-- Regression: WinboxCli 2/2 + MacTelnet 2/2 + WinboxCliMac 2/2 = **6/6** combined.
+`WinboxM2Session`/`WinboxMacM2Session` know nothing about mepty or VT100 — that lives entirely in
+`WinboxCliClient` — so the native transports (`WinboxNative`, `WinboxNativeMac`) build on exactly the
+same session and channel types without inheriting any terminal concerns. `WinboxMacM2Session`
+implements `IWinboxM2Channel` over `MacLayerTransport` the same way `WinboxM2Session` implements it over
+`WinboxTcpTransport`, which is what lets the mepty engine (`WinboxCliClient`) and the native engine be
+shared unchanged across both carriers — only the channel implementation differs.
 
 ---
 
-## 11. Protocol constants centralized (2026-06-11)
+## 6. Legacy MD5 auth has no terminal support, and the fallback decision has a timeout floor
 
-All the M2 numbers mentioned above inline (`0x0A0065` meptyLogin, `0x0A0067` meptyData, mepty
-`U32User(3)=cols`/`U32User(4)=rows`, `0xFF0005/06/07`, mproxy cmd 7/3/4/5, SESSION_ID `0xFE0001`)
-now live in **`tik4net/Winbox/WinboxM2Protocol.cs`** (`internal static`, shared by production code
-and tests). Sections: `SysKey` / `RecordKey` / `Command` / `Error` / `Mproxy` / `SysInfo` /
-`LegacyAuth` / `Mepty` / `Tlv`.
-Note: mepty `Key.Cols` (3 on Login) and `Key.Counter` (3 on Data) are the same number with different
-meanings (now documented).
-See `winbox-native-m2-plan.md` §12 for the full list and collisions.
+A mepty session only runs over the encrypted EC-SRP5 channel. `WinboxM2Session` keeps a legacy MD5 auth
+fallback for pre-6.43 RouterOS (used by native operations), but `WinboxCliClient.OpenTerminalSession`
+throws `NotSupportedException` when a session authenticated that way — the terminal path does not
+support it.
+
+Whether to fall back to legacy MD5 **at all** is decided exclusively by catching
+`WinboxEcSrp5UnsupportedException` — no other exception triggers it — and that type is thrown only when
+the router stays silent for the EC-SRP5 probe window, or answers with the wrong tag. The probe window is
+`max(MinEcSrp5ProbeMs = 3000, connectTimeoutMs)`: silence is the *only* evidence a router gives for
+"too old to speak EC-SRP5", so a window too short for a busy modern router to answer in time would
+misroute it into the legacy path, where it then fails with a misleading "wrong username or password"
+instead of the EC-SRP5 error that actually applies.
 
 ---
 
-## 12. M2 request/response correlation — groundwork for multiplexing (2026-07-21)
+## 7. Test coverage — WinboxCli (TCP)
 
-Verified live (RouterOS 7.21.4, test CHR) while preparing `winbox-m2-multiplexing-design.md`. Up to
-this point the M2 layer ran **lockstep** — `SendRecvRaw` reads "the next frame", not "my frame" — so
-nobody needed correlation, and `M2Message` still has no parser for it.
+`WinboxCliProtocolTest` (login, list interfaces, set+verify a comment) exercises the mepty engine end
+to end. `InterfaceTest` run over `winboxcli.runsettings` exercises it against the general connection
+contract; skips there are CLI capability limits shared with Telnet/MAC-Telnet (async, `listen`,
+monitor-traffic), not WinBox-specific gaps.
 
-### 12.1 `0xFF0006` (RequestId) comes back in the response ⇒ it's the correlation key
+---
 
-`/ip/address/print` over WinboxNative is three M2 exchanges within one session (reference
-resolution — the address refers to `ether1`, so a getall for interface and VRF follows):
+## 8. WinBox-over-MAC is the WinBox protocol tunneled over the MAC layer, not a MAC-Telnet variant
+
+`WinboxCliMac`/`WinboxNativeMac` (UDP 20561, `client_type=0x0f90`) carry the **entire** WinBox protocol
+— EC-SRP5 handshake and chunked AES frames — over the same MAC-layer reliable stream that MAC-Telnet
+uses, rather than reusing MAC-Telnet's own auth or framing:
+
+1. **Auth is the WinBox EC-SRP5 handshake**, not MAC-Telnet's control-packet auth
+   (`CTRL_BEGINAUTH`/`PASSSALT`, which the router never answers on this port). After
+   `BaseConnect(0x0f90)`, `WinboxMacM2Session.MacAuthEcSrp5` sends the same length-prefixed
+   `[len][0x06][payload]` WinBox hello as DATA payload and runs the same EC-SRP5 math as
+   `WinboxM2Session.EcSrp5Auth`. The challenge arrives as `[len=49][tag=0x06][32B xWB][1B parity][16B
+   salt]`.
+2. **Encrypted M2 uses the same chunk framing as TCP** — `[chunkLen 1B][tag][data]…` (`0xFF` =
+   continuation) — carried inside DATA packets, not a bare `Encrypt(m2)` payload. `Send` chunk-wraps
+   (`ChunkWrap`); `Receive` reassembles via an `_rxBuf` buffer (a chunk can cross a DATA packet
+   boundary) before `WinboxStreamCrypto.Decrypt` runs.
+
+Because the carrier is the only thing that differs, the mepty engine (`WinboxCliClient`) is shared
+unchanged between `WinboxCli` and `WinboxCliMac` — only `IWinboxM2Channel`'s implementation changes.
+
+---
+
+## 9. MAC-layer findings specific to WinBox
+
+- **ACK is `counter + payloadLen`**, via the shared `MacLayerTransport.AckData` — see
+  [findings-mactelnet.md](findings-mactelnet.md) §1. Retransmission dedup runs off `_inCounter`.
+- **`mac-winbox` is a separate router service from `mac-telnet`**: `/tool/mac-server/mac-winbox set
+  allowed-interface-list=all` is required in addition to `/tool/mac-server`.
+- **The u8/u32 SESSION_ID handling from §1 applies here too** — `M2Message` is shared code.
+- MAC-layer WinBox is markedly slower than TCP: MNDP discovery, per-frame AES, and UDP polling with
+  sleeps all add up. Set `RouterMac` to skip MNDP discovery in production.
+
+---
+
+## 10. Test coverage — WinboxCliMac (MAC)
+
+`WinboxCliMacProtocolTest` mirrors §7's login/list/set+verify sequence over the MAC carrier, sharing the
+mepty engine (§8) and asserting the same behaviour.
+
+---
+
+## 11. Protocol constants live in one file
+
+Every M2 constant used by production code and tests — `Mepty.Login`/`Mepty.Data` command numbers, the
+`Mepty.Key.Cols`/`Counter` collision, `Mproxy` command numbers, `SysKey`/`RecordKey`/`Command`/`Error`
+codes — is centralized in [`WinboxM2Protocol.cs`](../tik4net/Winbox/WinboxM2Protocol.cs)
+(`internal static`, grouped into `SysKey`/`RecordKey`/`Command`/`Error`/`Mproxy`/`SysInfo`/
+`LegacyAuth`/`Mepty`/`Tlv`), which documents each constant's meaning and wire encoding, including the
+`0xFE00xx` collisions between command numbers and error codes. `Mepty.Key.Cols` (key 3 on `Login`) and
+`Mepty.Key.Counter` (key 3 on `Data`) are the same wire key with two different meanings depending on
+which command carries it.
+
+---
+
+## 12. M2 request/response correlation
+
+The M2 layer can run **lockstep** (one request, one reply, in order) because every fact below holds.
+Verified live against RouterOS 7.21.4/7.23.2.
+
+### 12.1 `0xFF0006` (RequestId) is echoed in the response — it is the correlation key
+
+A single `/ip/address/print` over WinboxNative is three M2 exchanges (reference resolution: the address
+names `ether1`, so a `getall` for interface and VRF follows):
 
 | exchange | handler (`0xFF0001` To) | request `0xFF0006` | response `0xFF0006` | response `0xFF0003` |
 |---|---|---|---|---|
@@ -195,63 +223,53 @@ resolution — the address refers to `ether1`, so a getall for interface and VRF
 | getall vrf | `[20,101]` | 3 | **3** | 2 |
 | getall interface | `[20,0]` | 4 | **4** | 2 |
 
-`0xFF0006` tracks the request exactly. Multiplexing (multiple requests in flight, dispatching
-responses by id) is therefore feasible.
+`0xFF0006` tracks the request exactly, which is what makes multiplexing (several requests in flight,
+dispatched by id) sound. `WinboxM2Multiplexer` dispatches on it.
 
-### 12.2 `0xFF0003` is NOT a correlation field — a trap for single-exchange traces
+### 12.2 `0xFF0003` is not a correlation field
 
-`0xFF0003` isn't defined in `WinboxM2Protocol`, and it stays constant (2) across the session while
-the req id keeps increasing. It looks like a session / reply-channel id.
+`0xFF0003` is undefined in `WinboxM2Protocol` and stays constant (`2`) across a session while the
+request id keeps increasing — it resembles a session/reply-channel id, but its meaning is undetermined
+(see §12.8) and it must not be used for dispatch: being constant, it cannot distinguish two concurrent
+requests. In a trace of a *single* exchange it happens to equal the request id (both are `2`) — a
+coincidence that only a multi-request trace exposes, which is why the table in §12.1 needs at least two
+round trips before it means anything.
 
-**Trap:** in a trace of a single exchange (`/system/identity/print`, req id = 2), `0xFF0003`
-*happens to have the same value* as the req id → on a single sample you'd pick the wrong field.
-Only more round-trips tell them apart.
+### 12.3 The frame crypto is stateless per frame
 
-Independent confirmation is, in fact, **already in §1 of this document**: the mepty-open dump from
-2026-06-05 has `0xFF0003 u8 = 2` and `0xFF0006 u8 = 1` — there the two fields differ. That evidence
-sat in the repo for 6 weeks before anyone needed it.
+Despite the name, `WinboxStreamCrypto` is **not** a running stream cipher: `Encrypt` emits `[enc_len 2B
+BE][IV 16B][ciphertext]` with a fresh random IV per frame, and `Decrypt` needs only that frame plus the
+fixed keys from the handshake — no cross-frame state, no counter, no replay window. Frames can
+therefore be decrypted independently and **completed out of order**, which is the property that makes
+multiplexing cryptographically safe.
 
-### 12.3 The crypto is stateless per frame ⇒ multiplexing is cryptographically safe
-
-The key finding, because this was the only real blocker. Despite the name `WinboxStreamCrypto`,
-**it is not a running stream cipher**: `Encrypt` emits `[enc_len 2B BE][IV 16B][ciphertext]` with a
-**fresh random IV for every frame**, and `Decrypt` needs only that frame plus the fixed keys from the
-handshake. No cross-frame state, no counter, no replay window.
-
-⇒ Frames can be decrypted independently and **completed out of order**. If this were a stateful
-stream cipher, multiplexing would be impossible without redesigning the crypto layer.
-
-The only remaining ordering constraint is **framing**: `RecvChunked` assembles a sequence of chunks,
-so reads must be serialized (a single reader) and so must writes (a chunk sequence must not
-interleave). That's exactly a reader-loop plus a write-lock, nothing more.
+The remaining ordering constraint is framing, not crypto: `RecvChunked` assembles a sequence of chunks,
+so reads must be serialized (one reader) and writes must not interleave (a write-lock over a chunk
+sequence) — a reader loop plus a write lock, nothing more.
 
 ### 12.4 `0xFF0001`/`0xFF0002` (To/From) swap in the response
 
-Request `To=[20,1] From=[0,8]` → response `To=[0,8] From=[20,1]`. The handler is therefore a
-secondary signal, but **not unique** — two concurrent requests to the same handler can't be told
-apart by it. Dispatch exclusively on `0xFF0006`.
+Request `To=[20,1] From=[0,8]` comes back as `To=[0,8] From=[20,1]`. The handler is a secondary signal
+only — not unique, since two concurrent requests to the same handler are indistinguishable by it.
+Dispatch stays exclusively on `0xFF0006`.
 
-### 12.5 Today there are no unsolicited incoming frames
+### 12.5 There are no unsolicited incoming frames today
 
-Monitors are **polling loops**, not subscriptions: `MonitorLoop` does `StartMonitor` → repeated
-`PollMonitor` → `CancelMonitor`, each step a normal request/response. That's exactly why lockstep
-works at all. A multiplexed implementation, though, still needs to be able to discard an unmatched
-frame (a late response after a timeout) — a robustness concern, not the common path.
+Monitors are polling loops, not subscriptions: `MonitorLoop` does `StartMonitor` → repeated
+`PollMonitor` → `CancelMonitor`, each step an ordinary request/response — which is exactly why lockstep
+works. A multiplexed implementation still needs to discard an unmatched frame (a late response after a
+timeout) as a robustness measure, not as the common path.
 
-### 12.6 The req id is one byte
+### 12.6 The request id is one byte
 
-`NextReqIdField()` = `U8Sys(RequestId, (byte)(++_reqId))` → **wraps at 256**, and `++_reqId` on a
-plain `int` field stops being safe as soon as there are concurrent senders (needs `Interlocked` +
-an 8-bit mask). Id `0` is never used today (the counter is pre-incremented) → keep it reserved as
-"no id".
+`NextReqIdField()` (`U8Sys(RequestId, (byte)(++_reqId))`) wraps at 256; a plain `int` counter is not
+safe once senders can be concurrent (needs `Interlocked` and an 8-bit mask). Id `0` is never used (the
+counter is pre-incremented), so it stays reserved as "no id".
 
-### 12.7 `0xFE0019` is objCount, not "more frames follow" (closed 2026-07-21)
+### 12.7 `0xFE0019` is an object count, not "more frames follow"
 
-The suspicion from an earlier version of this section (that `0xFE0019=u8:1` signals continuation)
-did **not** hold up.
-
-Source of truth — webfig `master-d53cd8ec58cb.js`, the only two uses of the field in the entire
-file:
+Source of truth — the router's own webfig client (served at `/webfig/master-<hash>.js`; the hash
+changes per build), the only two uses of the field in the whole file:
 
 ```js
 // ObjectMap.prototype.getall  → onreply
@@ -260,19 +278,15 @@ if (rep.ufe0019 != null) me.objCount = rep.ufe0019;
 if (msg.ufe0019 != null) me.objCount = msg.ufe0019;
 ```
 
-It's stored into `objCount` and **never read** anywhere in flow control — no loop condition, no
-termination check, no registration. It's just an informational total object count (hence `1` for
-exchanges with a single record, and its absence where the handler didn't send it). In fact
-`WinboxM2Protocol.RecordKey.Count` was already documented that way — the constant sat in the repo
-with a comment saying "total object count", and all it took was actually looking at it instead of
-carrying it forward as an open question.
+It is stored into `objCount` and never read for flow control — no loop condition, no termination check.
+It is an informational total object count (hence `1` for a single-record exchange, and absent where the
+handler doesn't send it). The completion rule stays "one request → exactly one response frame"; a
+registration closes on the first frame with a matching `0xFF0006`.
 
-**Impact on multiplexing: none.** The completion rule stays "one request → exactly one response
-frame"; a registration closes on the first frame with a matching `0xFF0006`.
+#### 12.7.1 A continuation is a new request, not an unsolicited frame
 
-#### 12.7.1 There is no multi-frame paging
-
-Verified in the same source — a continuation is a **new request**, not another unsolicited frame:
+There is no multi-frame paging: a continuation is always echoed back on a fresh request. webfig's
+`post()` callback:
 
 ```js
 else if ((rep.ufe0003 != null || rep.mfe0015) && !me.block) {
@@ -282,173 +296,86 @@ else if ((rep.ufe0003 != null || rep.mfe0015) && !me.block) {
 }
 ```
 
-⚠️ The `mfe0015` line was **missing from the transcription originally filed here** (2026-08-13,
-re-read verbatim from `master-d53cd8ec58cb.js` at offset 234101). It matters: the truncated form made
-`mfe0015` look like a bare "more pages" flag, when it is a **second continuation token, echoed back
-verbatim** exactly like `ufe0003` — only carried as a message-array (`m` prefix, ftype 21) instead of
-a u32. `0xFE0015` has no other occurrence anywhere in `master*.js`: nothing names it, nothing reads
-inside it, nothing constructs one. To webfig it is opaque bytes that come back on the next request.
+A handler can page via **either or both** of two keys: `WinboxM2Protocol.RecordKey.Continuation`
+(`ufe0003`, a u32) and `WinboxM2Protocol.RecordKey.ContinuationRaw` (`mfe0015`, a message-array).
+`0xFE0015` has no other occurrence anywhere in `master*.js` — nothing names it, nothing reads inside it,
+nothing constructs one — so to webfig it is opaque bytes that come back on the next request, and webfig
+itself just echoes whichever keys the reply carried.
 
-That's exactly what our client does too: the loop calls `NextReqIdField()` on every iteration
-([WinboxNativeM2Operations.cs:129](tik4net/Winbox/WinboxNativeM2Operations.cs:129)) and attaches the
-token as `RecordKey.Continuation` ([:134](tik4net/Winbox/WinboxNativeM2Operations.cs:134)). So the
-registration model doesn't change at all: **each page is a separate registration with its own id.**
+`WinboxM2Continuation` (`tik4net/Winbox/WinboxM2Continuation.cs`) does the same: it holds the **raw TLV
+bytes** of whichever continuation key(s) a reply carried and appends them unchanged to the next
+request, instead of decoding and re-encoding a value whose shape is undocumented — this also removes
+the overflow hazard a decoded-u32 round trip would carry for a cursor at or above `0x80000000`.
+`GetAllAsync` (`tik4net/Winbox/WinboxNativeM2Operations.cs`) calls `WinboxM2Continuation.From` on every
+round trip and stops paginating when it returns `null` (no cursor of either kind means "last page") or
+when the handler answers `Error.ObjectNonexistent`. So the registration model doesn't change for
+multiplexing: each page is a separate registration with its own request id.
 
-Side finding (out of scope for multiplexing, tracked as P2.9): webfig also continues on
-`rep.mfe0015`, while our client only watches `ufe0003`
-([:218](tik4net/Winbox/WinboxNativeM2Operations.cs:218)). For a handler that pages via `mfe0015`, we
-would silently return only the first page.
+A `.jg` catalog only declares a window's **display fields**, so a pagination token's absence from any
+catalog version says nothing about whether a handler uses it — `0xFE0003` (known to be used) and
+`0xFE0015` are equally invisible there, since neither is ever shown in a window. Absence-from-catalog is
+not evidence either way; only a live trace of a paging handler settles the question for a given key.
 
-**Catalog sweep, 2026-08-13 — negative, and the sweep cannot decide the question.** `fe0015` does not
-appear in any prefix form in the live 7.23.2 catalog (18 plugins, 2104 path-ops), nor in the three
-archived catalogs (`6.45.9`, `6.45beta63`, `7.17rc3`, `7.21.4-http`). But neither does **`fe0003`** —
-the continuation token we demonstrably *do* use. The `.jg` catalog declares a window's **display
-fields**; a pagination token is a protocol-level reply key that no window ever shows, so its absence
-from the catalog is evidence of nothing. (The system keys that *do* appear as displayed fields are
-`fe0010`, `fe0001`, `fe0008`, `fe000a`, `fe0029`, `fe0009`, `fe000d`, `fe0007`, `fe0024`, `fe0026`,
-`fe0011` — and `m`-prefixed system ids such as `id:'mfe0026'` exist, so the sweep *would* have found
-an `mfe0015` had one been declared.) Live confirmation of a handler that uses it is therefore still
-open; a `/log/print` over WinboxNative (999 rows, 5 pages) was checked and pages via `ufe0003` only.
+### 12.8 Parallel connections from one machine are not marked in the M2 layer
 
-#### 12.7.2 Note on `post()` — webfig correlates over HTTP, not `0xFF0006`
-
-`uff0006` **never appears at all** in the webfig JS: it's a jsproxy over HTTP, where the
-request/response pairing is handled by HTTP itself. Webfig is therefore **not** a source of truth
-for req-id semantics — that rests on the live trace in §12.1. For `0xFE0019` it *is* a source of
-truth, because that field's meaning is transport-independent.
-
-Webfig only learns about unsolicited messages through `subscribe` (cmd `0xFE0012`), and dispatches
-them by `Uff0002` (`From`/path) on a separate long-poll (`post_notification_request`). Over native
-TCP, such pushes would arrive in-band — we don't use them today (§12.5), but this is a second
-reason the reader loop needs a branch for an unmatched frame (§4.4 of the design doc), and it hints
-at what such dispatching would key on if subscribe were ever added.
-
-### 12.8 Parallel connections from one machine are not marked in M2
-
-The hypothesis that some field must identify the connection (because of multiple sessions from one
-machine, typically with MAC variants) **doesn't hold at the M2 layer** — it's distinguished below
-that layer:
+No M2 field identifies which connection sent a request — that distinction lives below the M2 layer:
 
 | transport | what separates parallel sessions |
 |---|---|
-| WinBox TCP / TCP-MAC | TCP socket (4-tuple), each session has its own connection |
-| WinBox over the MAC layer | a random `_sessionKey` in the packet header ([MacLayerTransport.cs:98](tik4net/MacTelnet/MacLayerTransport.cs:98)) |
+| WinBox TCP / TCP-MAC | the TCP socket (4-tuple); each session has its own connection |
+| WinBox over the MAC layer | a random `_sessionKey` in the packet header (`MacLayerTransport`) |
 
-The candidate for a "reply-channel id" from §12.2, `0xFF0003` (constant 2 across the session), never
-appears in the webfig JS at all, so its meaning remains undetermined. It doesn't matter for
-dispatch either way: **it's constant, so it wouldn't distinguish two concurrent requests anyway.**
-Correlation stays exclusively on `0xFF0006`.
+`0xFF0003` (§12.2) never appears in the webfig JS at all, so its meaning stays undetermined — and it
+would not help distinguish concurrent requests regardless, being constant within a session.
 
 ---
 
-## 13. The router refuses a correct login roughly one time in a hundred (2026-07-30, P2.41)
+## 13. The router occasionally refuses a valid WinBox login
 
-**Verified live on RouterOS 7.23.2.** Roughly **0.5–1% of WinBox logins** end with the router
-sending **33 bytes of ASCII** where a 32-byte confirmation digest belongs:
+Roughly **0.5–1% of WinBox logins** on RouterOS 7.23.2 are refused by the router mid-handshake, even
+though the credentials are correct: the router sends **33 bytes of ASCII** where the 32-byte
+confirmation digest belongs —
 
 ```
 69 6E 76 61 6C 69 64 20 75 73 65 72 20 6E 61 6D 65 20 6F 72 20 70 61 73 73 77 6F 72 64 20 28 36 29
 "invalid user name or password (6)"
 ```
 
-The router's own log backs this up (`system,error,critical login failure for user admin … via
-winbox`), so **our "wrong password" message wasn't a fabrication** — nobody just knew why. The
-credentials are correct the whole time and work again 50 ms later.
+— logs `login failure for user admin … via winbox`, and accepts the identical credentials on a retry
+milliseconds later. This is a transient refusal by the router's own EC-SRP5 implementation, not a
+client bug or a real credential problem — see [Settled questions](#settled-questions--do-not-re-investigate)
+below for the elimination evidence.
 
-### 13.1 It's not us — proof by replaying the same key
+### 13.1 Mitigation: bounded retry, since the refusal's content cannot be told apart from a real one
 
-The decisive experiment (`WinboxHandshakeLoopProbeTest.Probe_WinboxHandshake_SameKeyRetry`): after
-each refusal, the handshake is repeated with the **same** client key `privA`. Result: **9 of 9
-replays accepted** — the exact same bytes the router just refused get accepted moments later. The
-only thing that changes between attempts is the router's own ephemeral key `xWB`. This ruled out:
+A genuinely wrong password produces the **same** message — the router's normal path for a refusal — so
+only persistence (a transient refusal disappears, a real one doesn't) can tell them apart.
+`RouterLoginRetry` (`tik4net/Winbox/RouterLoginRetry.cs`) retries **exclusively** on
+`TikConnectionLoginRefusedException`: 3 attempts, 100 ms apart, each attempt opening a **new channel**
+(a refused handshake leaves the old one unusable). The cost is deliberate: a truly wrong password now
+fails a couple hundred ms later than before, and leaves 3 `login failure` lines in the router's log
+instead of one.
 
-| suspicion | how it was ruled out |
-|---|---|
-| a bug in our EC-SRP5 arithmetic | 4000 client↔server round-trips offline, **0 divergences** (`EcSrp5RoundTripTests`) |
-| a leading zero byte in `xWA` (1/256 ≈ observed frequency) | forced deliberately: **4 of 5 succeeded**; the first sample was just luck |
-| rate-limiting / attempt frequency | 2/40 at 0 ms, 0/40 at 250 ms, 1/40 at 1000 ms — no trend |
-| frame desync | the frame is a well-formed chunk with tag `0x06`; the length of 33 matches the text length exactly — nothing overflowed or was missing |
-| a different transport / different auth | API: **0 of 400** refusals — the phenomenon follows the **EC-SRP5 handshake**, not the transport (see 13.4) |
+### 13.2 It is an EC-SRP5-handshake refusal, not a WinBox-specific one
 
-The log also has one lone `via api` entry that couldn't be attributed to any of our clients; the
-400 fresh API logins were all clean, so nothing is built on that entry.
+MAC-Telnet carries the same EC-SRP5 exchange over different framing and is refused the same way — only
+reported differently, and later: WinBox refuses **inside** the handshake with the text above;
+MAC-Telnet completes the handshake, sends `CTRL_END_AUTH`, and only up to a second later writes `Login
+failed, incorrect username or password` to the terminal and tears the session down with `PKT_END`. Both
+log the same router-side line (`login failure for user … via winbox` / `via mac-telnet`), and both clear
+on retry — which is why the retry is named `RouterLoginRetry` and keyed on the public
+`TikConnectionLoginRefusedException` rather than a WinBox-only type. See
+[findings-mactelnet.md](findings-mactelnet.md) §8 for the MAC-Telnet side.
 
-### 13.2 What to do about it — bounded retry, since the content can't distinguish the two causes
+---
 
-**A genuinely wrong password looks exactly the same** (it's the router's normal path for a
-refusal), so the response content can't tell them apart — only the fact that a transient refusal
-disappears and a real one doesn't. Hence `RouterLoginRetry`: 3 attempts, 100 ms apart, retrying
-**exclusively** on `TikConnectionLoginRefusedException`. Each attempt builds a **new channel** — a refused
-handshake leaves the old one unusable.
+## 14. Writing a singleton uses `SetSingleton` (`0xFE000E`), not `Set`
 
-The cost is deliberate: a truly wrong password now fails ~200 ms later and leaves 3 `login failure`
-lines in the router instead of one.
-
-**Verified:** 600 production connection opens (WinboxCli / WinboxNative / WinboxNativeMac, 200
-each), **0 failures and 6 absorbed refusals**, all resolved on the first retry. That the retry is
-actually doing work (and the router wasn't simply silent) is visible from the trace note
-`login` (`wbx.login` before P2.49 made it cross-transport) — without it, a green run is
-indistinguishable from sweeping the problem under the rug.
-
-### 13.3 Side findings
-
-- **The handshake never showed up in the wire trace at all.** `SendHandshake` writes directly to the
-  `Stream` and reads via `ReadExact`, so it bypassed the emit points in `SendChunked`/`RecvChunked`
-  — exactly the exchange that's hardest to debug was the one invisible piece. Fixed (`wbxtcp.frame`,
-  note `ecsrp5 …`).
-- **The MAC layer only traced sends.** `RecvUntil` emitted nothing, so the trace couldn't
-  distinguish "no response arrived" from "we never even asked." Fixed.
-- **The fallback to legacy MD5 was selected by matching message text**
-  (`ex.Message.Contains("EC-SRP5")`), and it only waited 3 s for the challenge. A slow router would
-  fall through to MD5 auth, which then failed on modern RouterOS, resulting in "wrong username or
-  password". Replaced with a dedicated `WinboxEcSrp5UnsupportedException` type and a window of
-  `max(3 s, ConnectTimeout)` = 15 s.
-- **WinboxCliMac is slow enough that 9 tests time out** — a full run takes 1 h 22 m with 313/9,
-  while the same CLI engine over TCP (`winboxcli`) does 322/322 in 8 minutes. Login ~11 s versus
-  ~1.4 s. **Unrelated to P2.41**: those 9 tests behaved **identically (6 fail / 3 pass / 3 m 14 s)**
-  on a build with P2.41 and on a stashed baseline.
-
-  A trap worth avoiding: it's tempting to blame `RecvUntil`'s `Thread.Sleep(20)` instead of waiting
-  on the socket (any frame arriving right after the `Available` check waits up to 20 ms). **Tried
-  it** — `_udp.Client.Poll(20 ms, SelectRead)` moved the subset from 6 fail / 3 m 14 s to 5 fail /
-  2 m 45 s, i.e. **~15%, and still red**. Reverted; the remaining ~85% is elsewhere, most likely in
-  `WinboxCliClient` polling `DataAvailable` with its own sleeps (see §3 — that gating is
-  intentional and must not be removed, only converted to event-driven). Written up as P2.43.
-
-### 13.4 It is not the WinBox handshake — it is EC-SRP5 (2026-08-02, P2.49)
-
-**MAC-Telnet does it too**, which is why the retry is now called `RouterLoginRetry` and keys on the
-public `TikConnectionLoginRefusedException` rather than on a WinBox-only type. MAC-Telnet carries the
-same EC-SRP5 exchange over a different framing, and refuses the same way — only the *reporting* is
-different, and much later:
-
-- WinBox refuses **inside** the handshake, with `"invalid user name or password (6)"` where the
-  confirmation digest belongs;
-- MAC-Telnet completes the handshake, sends `CTRL_END_AUTH`, and **then** — up to a second later —
-  writes `Login failed, incorrect username or password` to the terminal and tears the session down
-  with `PKT_END`.
-
-Both produce the same router log line (`login failure for user … via winbox` / `via mac-telnet`), and
-both clear on retry. See [findings-mactelnet.md](findings-mactelnet.md) §11 for the MAC-Telnet side —
-including why it went unrecognised for so long: the refusal was reported as *our* login timeout, so
-nothing in the failure said the router had answered at all.
-
-## 14. Singletons weren't being written at all (P2.44, 2026-07-30)
-
-`0xFE000E` (`setcmd(holder)`) has been documented in `winbox-native-m2-protocol.md` from the start,
-but the transport **never called it**. Writes only went through one path — `0xFE0003` (`set`) +
-`ufe0001` = `.id` — and a singleton (`.jg` `type:'item'`) has no `.id` at all, so
-`ResolveRecordId(required:true)` ended up with:
-
-```
-no such item: could not resolve record .id '' on '/system/identity/set'
-```
-
-This applies to **every** `IsSingleton` entity (`/system/identity`, `/ip/dns`, `/ip/settings`,
-`/snmp`, `/system/note`, … ~35 classes). The test suite never caught this because it only ever
-**read** singletons.
-
-The shape of the request, per webfig's `ObjectHolder.setObject`:
+A singleton window (`.jg` `type:'item'`, e.g. `/system/identity`, `/ip/dns`, `/ip/settings`, `/snmp`,
+`/system/note` — 35 `IsSingleton` entities in total) has no `.id`, so it cannot go through the generic
+table path (`Command.Set` = `0xFE0003` + `RecordKey.Id`). `WinboxNativeConnection.WriteFieldsAsync`
+detects an `IsSingleton` window (`IsSingletonWindow`) and calls `SetSingletonAsync`
+(`Command.SetSingleton` = `0xFE000E`) instead, matching webfig's `ObjectHolder.setObject`:
 
 ```js
 req.Uff0001 = this.attrs.path;
@@ -456,353 +383,247 @@ req.uff0007 = this.attrs.setcmd || 0xfe000e;
 if ("ufe0001" in obj) req.ufe0001 = obj.ufe0001;   // .id only when the object itself carries it
 ```
 
-So `.id` is sent **optionally** — the only known case is the hidden "Change Password" window
-(`setcmd:3`), which targets a user record. `WinboxNativeConnection.WriteFields` therefore only
-sends `.id` in its literal `*HEX` form; looking it up by name would require a `getall`, which a
-singleton handler has nothing to answer.
+`.id` is sent **optionally** — the only known case is the hidden "Change Password" window
+(`setcmd:3`), which targets a user record. `WriteFieldsAsync` therefore only sends `.id` in its literal
+`*HEX` form; resolving it by name would need a `getall`, which a singleton handler has nothing to
+answer.
 
-### 14.1 `/system/identity` also returns a field under its GUI label
+### 14.1 `/system/identity` returns its name under the `.jg` label `identity`, not `name`
 
-Handler `[24,1]`, `.jg`:
+Handler `[24,1]`:
 
 ```js
 {title:'Identity',type:'item',path:[ 24,1 ],autostart:1,
  c:[{name:'Identity',type:'string',id:'sc'},{name:'Version',type:'string',id:'sd',nonpublic:1}]}
 ```
 
-So a read returned `{"version":"7.23.2","identity":"CHR"}`, whereas the API returns
-`{"name":"CHR"}` — `LoadSingle<SystemIdentity>()` failed with `Missing field 'name'`. Fixed with a
-shipped field alias `name ↔ identity` (the text is stable, the key still comes from `.jg`).
+A read returns `{"version":"…","identity":"…"}`, while the API returns `{"name":"…"}`.
+`WinboxFieldResolver` ships a field alias (`name ↔ identity`) for this handler.
 
-The `version` field is **not discarded**: `nonpublic:1` doesn't mean "not an API field" — plenty of
-fields the API routinely returns carry it too (`MAC Address`, `Interface`, `L2 MTU`). Native records
-are generally a superset of API fields, and the mapper simply ignores the extras.
+The `version` field is not discarded: `nonpublic:1` does not mean "not an API field" — several fields
+the API routinely returns carry it too (`MAC Address`, `Interface`, `L2 MTU`). Native records are
+generally a superset of API fields, and the mapper ignores the extras it doesn't need.
 
-### 14.2 `multilinestring` is a string, not a list
+### 14.2 `multilinestring` is a scalar string, not a list
 
-`EncodeField` rejected anything whose `.jg` UI type started with `multi…` as an unencodable list.
-But webfig says:
+`types.multilinestring = inherit(types.string)` in webfig — it differs from `types.string` only in
+**view** (a textarea instead of a one-line input). Of every `multi*`-prefixed `.jg` UI type, this is the
+only scalar one; the rest (`multinumber`, `multinumberrange`, `multiipaddr`, `multistring`, …) inherit
+`types.multi` and are genuine lists. `WinboxFieldResolver.IsUnsupportedListType` treats any
+`multi*`-prefixed UI type as an unencodable list except when `IsScalarDespiteMultiPrefix` recognizes
+`multilinestring` — without that carve-out, a field like `/system/note`'s `note` cannot be written at
+all.
 
-```js
-types.multilinestring = inherit(types.string);   // differs only in VIEW (textarea instead of input)
-```
+### 14.3 A list field's element type is declared under `c`, not `values`
 
-Of all the `multi*` types, this is the only scalar one — the others (`multinumber`,
-`multinumberrange`, `multiipaddr`, `multistring`, …) inherit `types.multi`. Because of the shared
-prefix, `note` on `/system/note` couldn't be written at all.
-
-### 14.3 A list's element type is carried in `c`, not `values`
-
-`ExtractRefHandler` only read `node["values"]`, so `RefHandler` ended up empty for a list of
-references:
+A dropdown reference (`enm`) normally declares its target table under `values`, but a **list** field
+declares its element type as an unnamed child instead of carrying `values` itself:
 
 ```js
 {name:'Topics',type:'multinumber',id:'U4',c:[{type:'enm',values:{type:'dynamic',path:[ 3,3 ]}}]}
 ```
 
-so `topics` on `/log` decoded as the raw `"[9,3]"` instead of `"script,error"`.
+`WinboxJgCatalog.ExtractRefHandler` reads `values` first and falls back to the field's `c` (children)
+when `values` is absent, so a list like `/log`'s `topics` decodes as `"script,error"` instead of the raw
+handle `"[9,3]"`.
 
 ---
 
-## 15. `DataAvailable` over UDP lied and cost 5 s per command (P2.43, 2026-08-01)
+## 15. `DataAvailable` over the MAC layer means "a datagram arrived", not "a frame is ready"
 
-`WinboxCliMac` was an order of magnitude slower than `WinboxCli` (a full run took 1 h 22 m vs.
-8 min), and this had been written off as "MAC channel latency". **It isn't.** Measured on 7.23.2
-with the `WinboxCliLatencyProbeTest` probe, which breaks a single command down by the
-`wbxcli.mepty` wire-trace channel (shared by both transports, so they're directly comparable):
+`DataAvailable` gating (§3) is safe over TCP because `NetworkStream.DataAvailable` means "bytes of a
+frame are here". Over UDP, `_udp.Available > 0` only means "some datagram arrived" — most traffic on
+that socket is ACKs, PINGs, and retransmissions, none of which is the frame a caller is waiting for. A
+caller that treats a false-positive `DataAvailable` as license to block on `Receive(5000)` pays the
+**entire** frame timeout once per false positive:
 
-| span | WinboxCli | WinboxCliMac (before) | WinboxCliMac (after) |
+| span | WinboxCli (TCP) | WinboxCliMac before the fix | WinboxCliMac after the fix |
 |---|---|---|---|
-| send → first byte | 25 ms | **25 ms** | 25 ms |
-| first byte → prompt | 25 ms | 1 ms | 0 ms |
-| prompt → return | 166 ms | **5012 ms** | 164 ms |
-| total / command | 216 ms | **5039 ms** | 193 ms |
-| open | 1142 ms | **6053 ms** | 1053 ms |
+| send → first byte | 25 ms | 25 ms | 25 ms |
+| prompt → return | 166 ms | 5012 ms | 164 ms |
+| total per command | 216 ms | 5039 ms | 193 ms |
 
-The first byte arrived **just as fast as over TCP**. The entire loss sat right after the prompt and
-matched `WinboxCliClient.FrameTimeoutMs` = 5000 ms exactly.
+The first byte arrives just as fast as over TCP; the entire loss sits right after the prompt and matches
+the 5000 ms frame timeout exactly — a duplicate ACK or retransmission satisfies `DataAvailable`, the
+read then blocks for the full timeout waiting for a frame that was never coming on that poll.
 
-**Cause.** Chapter 3 above says every terminal read is gated by `DataAvailable` and only then does
-`Receive(5000)` run — that timeout is only allowed to bound a frame that's **already arriving**.
-Over TCP that holds, because `NetworkStream.DataAvailable` means "there are bytes of a frame here".
-Over UDP, `_udp.Available > 0` only means "some datagram arrived", and the vast majority of traffic
-on that socket is ACKs, PINGs, and router retransmissions. Captured timeline of a single command:
+`MacLayerTransport.RecvAvailable(handler)` is the polling counterpart to `RecvUntil`: it drains
+everything already sitting on the socket and returns immediately, sharing `ReceiveOne`'s body so
+ACK/PING/duplicate handling is identical on both paths. `WinboxMacM2Session.DataAvailable` is built on
+it and answers "is a complete M2 frame ready", not "did a datagram arrive"; a finished frame is held in
+`_pendingFrame` for the next `RecvFrame` call to hand out. The getter therefore does perform I/O,
+deliberately — it is a poll operation on the channel, used only by the single-threaded terminal loop in
+`WinboxCliClient`. The native transport's reader loop services the socket continuously instead, which is
+why a channel that streams unsolicited frames (mepty) must never be handed a
+`WinboxM2Multiplexer` — `IWinboxM2Channel.SupportsReaderLoop` guards exactly that.
 
-```
-34.8 ms  prompt seen (bytes=254)
-34.8 ms  Recv 310B type=0x01 counter=3021   ← duplicate, AckData discards it
-34.8 ms  Recv 310B type=0x01 counter=3021   ← second duplicate
-…        RecvUntil rides out to the deadline
-5033 ms  settled -> return @5024ms
-```
+A property a caller treats as permission to block must actually be true. MAC-Telnet never had the same
+defect, because it drives a background pump over a blocking socket instead of `DataAvailable` gating.
 
-`RecvUntil`'s contract is "wait up to the timeout, until the handler says enough" — correct for a
-caller that's willing to block, but a catastrophe for a **poller**: every false-positive
-`DataAvailable` cost the entire frame timeout. This hit once per command, and again once on
-`DrainSync(250)` after login, which is exactly the "a skipped test costs 6 s" measurement from
-P2.50.
+---
 
-**Fix.** `MacLayerTransport.RecvAvailable(handler)` is the polling counterpart to `RecvUntil`: it
-processes everything already sitting on the socket and returns immediately (sharing the
-`ReceiveOne` body, so ACK/PING/duplicates are handled identically on both paths).
-`WinboxMacM2Session.DataAvailable` is built on it and now answers **"is a complete M2 frame
-ready"**, not "did a datagram arrive"; a finished frame is held in `_pendingFrame` and the next
-`RecvFrame` call hands it out. So the getter does perform I/O — deliberately: it's a poll operation
-on the channel, and only the single-threaded terminal loop in `WinboxCliClient` reads it (the
-native transport runs a reader loop, and `SupportsStaleDrain = false` forbids it from polling).
+## 16. A stuck MAC-layer session shows total silence, not a rejection
 
-**Lesson:** a property that a caller treats as permission to block must actually be true.
-MAC-Telnet doesn't have the same defect — it has a background pump with a blocking socket, not
-`DataAvailable` gating.
+A MAC-layer command can time out (`nothing was received within 30000 ms`) with the router's MAC layer
+simply not acknowledging anything at all — no ACK, no PING, no retransmission of a still-unacknowledged
+packet — even though the router's own accounting has no record of the session ending (no logout, no
+error in `/log`). This is distinct from a slow command: the retransmit budget on the head-of-queue
+packet is spent (`RETRANSMIT #n end=… highestAck=…`, where `highestAck` sits exactly at that command's
+starting offset).
 
-## 16. The router silently drops a session and we don't find out for 30 s (P2.54, 2026-08-01)
+`IWinboxM2Channel.SendAbandoned` surfaces `MacLayerTransport.LastSendAbandoned` — "the head of the
+unacknowledged queue was never taken by the router" — up into the CLI engine. Over TCP it is always
+`false` (TCP has nothing to leave unacknowledged; a dead connection there shows up as FIN/RST).
+`WinboxCliClient.ReadCommandResponseSync` throws `TikConnectionSessionClosedException` instead of
+riding out the full 30 s when nothing has arrived **and** the router never took the bytes; it only does
+this while the console has produced **no** output at all (`sb.Length == 0`) — once any output exists the
+command provably arrived and could have run, so claiming otherwise would be a lie the caller has no way
+to verify. `WinboxCliMacConnection` hangs a reopen plus `RouterLoginRetry` login off this exception,
+mirroring `MacTelnetConnection`, except it does not reconnect inside Safe Mode (that is exactly what
+Safe Mode protects against) or once any line has already been delivered to the caller (a restart would
+duplicate it).
 
-After the P2.43 fix, `winboxclimac` still had three red tests: `SearchByName_Interface_WillWork`,
-`Create_IpAddress_With_LowLevel_API`, `ListRadiusServersWillNotFail` — always
-`nothing was received within 30000 ms`, always ~30.1 s, unchanged across three full runs before and
-after the fix. It's the same trio P2.32 recorded as this transport's "wedge signature".
+The value of this signal is entirely in telling "dead session" apart from "slow command" — it hinges on
+the missing acknowledgment rather than on silence, since silence alone would misfire on any legitimately
+long-running command. See §17 and §18 for what causes a MAC-layer session to be abandoned like this in
+practice.
 
-**What the trace showed.** The mechanism is identical across all three: the datagram carrying the
-command goes out, the router **never acknowledges it**, and ignores eight byte-identical
-retransmissions — `RETRANSMIT #8 end=15639 highestAck=15475`, where `highestAck` is exactly the
-starting offset of that command. And critically: **the router sends nothing at all for the full
-30 s** — no ACK, no PING, no retransmission. So this isn't "the router is rejecting our input", as
-this family of symptoms had been read up to now.
+---
 
-> Warning, corrected in §17: this used to say "the router no longer has that session". That
-> **overstated the case** — the router's own log records nothing at all at the moment of the
-> wedge, no logout, no error. The precise claim the data supports is: *its MAC layer stops
-> acknowledging our bytes*, while its own accounting has no record of any session ending. What
-> P2.54 adds doesn't depend on that claim — recovery hinges on the missing acknowledgment, not on
-> an explanation of why it's missing.
+## 17. A Safe Mode rollback on a sibling MAC session kills an idle WinBox-over-MAC session
 
-**What we did about it now.** Not the cause — we still don't know it (suspicion: in the seconds
-before each wedge the router re-sends frames we already acknowledged, so our packets stopped
-reaching it before the command was even sent; and all three are immediately preceded by a test
-that opened and closed a second connection). We did what's doable without knowing the cause and
-what's worth doing on its own merits:
+Holding a `WinboxCliMac` connection while, on a **different** connection, a Safe Mode session ends in a
+rollback kills the held session — reproduced 5 times out of 5
+(`Probe_SafeModeRollbackOnASibling_KillsTheHeldSession`). The rollback lands roughly 2 s after the
+sibling closes, because RouterOS keeps the Safe Mode owner alive until its connection-tracking timeout
+expires rather than until the socket closes, and §16 then recovers the held session via reopen + retry.
 
-* **`IWinboxM2Channel.SendAbandoned`** surfaces `MacLayerTransport.LastSendAbandoned` up into the
-  CLI engine. Over TCP it's always `false` — TCP has nothing to leave unacknowledged; a dead
-  connection there shows up as FIN/RST.
-* **`WinboxCliClient.ReadCommandResponseSync`** consults it and, when "nothing arrived **and** the
-  router never took our bytes", throws `TikConnectionSessionClosedException` instead of riding out
-  the full 30 s.
-  The `sb.Length == 0` condition matters: once the console has produced any output at all, the
-  command **provably** arrived and could have run — claiming "it didn't run" at that point would
-  be a lie the caller has no way to verify.
-* **`WinboxCliMacConnection`** hangs reopen + retry off this, following `MacTelnetConnection`
-  exactly (same carrier, same problem): a new connection plus a new EC-SRP5 login via
-  `RouterLoginRetry`, with two exceptions — not inside Safe Mode (dropping the session is exactly
-  what Safe Mode protects against), and not once any line has already been delivered to the caller
-  (restarting would deliver those same lines twice).
+`MacTelnet` and `WinboxCli` (TCP) do **not** exhibit this: both service their socket continuously
+between commands (MAC-Telnet via a receive pump since it was first written; WinBox-over-MAC only since
+§18 added `StartIdleServicing`). Before that fix, `WinboxCliMac` was the only one of the three left
+unattended between commands, which is why it alone lost the session — the difference was never in what
+the router does, only in what the client does between commands.
 
-Telling "dead session" apart from "slow command" is the entire value of this signal — which is why
-the fast path hinges on the missing acknowledgment, not on silence. If it hinged on silence, every
-legitimately long-running command would fail.
+**Consequence for library consumers:** holding a `WinboxCliMac` connection while running Safe Mode to
+completion (including a rollback) on another connection loses that first connection; recovery costs
+roughly the time for a reopen + login. The test suite's own `SafeModeTest.OnCleanup` disposes its shared
+connection rather than relying on the transport's own recovery, because that test already polls until
+the rollback lands — by which time the shared connection other tests reuse has already been affected.
 
-**Lesson (same as P2.39, just one layer over):** the message "nothing was received within N ms"
-describes our read, not what the other side did. When the carrier can say more, someone has to ask
-it.
+See [Settled questions](#settled-questions--do-not-re-investigate) below for the mechanisms ruled out
+before this cause was found.
 
-## 17. Why the router drops a MAC session — six hypotheses ruled out (P2.55, 2026-08-01)
+---
 
-The P2.54 wedge survives but goes unexplained. Three traced full runs bounded it sharply: **out of
-27 opened sessions, exactly three are dropped, always in the same three tests**
-(`Create_IpAddress_With_LowLevel_API`, `ListRadiusServersWillNotFail`,
-`SearchByName_Interface_WillWork`). It's deterministic, not background noise that a retry merely
-papers over.
+## 18. A MAC-layer session must be serviced between commands, not only while a command is in flight
 
-What made this possible: `MacLayerTransport` now logs `SESSION OPEN key= local= srcMac=`, and
-**every traced line carries `key=`**. The `wbxmac.udp` channel is shared across all MAC sessions, so
-a trace captured while several are alive interleaves them — and the question "what did *this*
-session do" simply couldn't be asked before. Without this, an earlier measurement of the gap since
-the last received message was off by two orders of magnitude.
+The RouterOS terminal is not purely request/reply: the router can write into it on its own (a log event
+landing on the console, a Safe Mode rollback notice), and at the MAC layer every such write must be
+acknowledged or the router keeps retransmitting it and eventually stops servicing the session at all.
+`WinboxCliClient` only touched the channel while a command was running, so an idle session (no command
+in flight for tens of seconds) left the router's unsolicited writes unacknowledged.
 
-| hypothesis | verdict |
-|---|---|
-| collision of the 16-bit session key or the local port | **no** — across 27 sessions, no key or port ever repeated. The key is also drawn randomly on every open, so a collision would move around between runs; it doesn't. |
-| our own flood | **an effect, not a cause** — before a wedge, ~24 packets / 2.4 kB pile up behind the unacknowledged head, because the pull loop fires 8×/s regardless of anything. But this only starts **after** the command that went unanswered. |
-| closing a sibling session | **no** — `Probe_SiblingSessionTeardown`, 20 cycles (WinBox-MAC, MAC-Telnet, an API sibling), zero wedges. This was the prime suspect. |
-| traffic volume / a boundary in the byte stream | **no** — `Probe_LongLivedSession` ran 400 commands and 101,099 outbound bytes on a single session without a hiccup, past two of the three offsets where the suite dies. |
-| idle logout (like MAC-Telnet) | ~~**no** — per-session trace shows the session receiving packets right up to the start of the test. It lives and dies only on the **first command** of that test.~~ **This line was wrong, see §18.** The trace timestamp records when we *picked up* the socket, not when the packet arrived — an unserviced session therefore shows no gap at all, because its entire backlog dumps out at once on the next read. |
-| the router's log echoing into the terminal (P2.47 family) | **no** — the entire run has exactly one such echo, which could at most cover one of the three. |
-| that specific command | **no** — all three pass in isolation in 3 s with no drop. |
-| the immediately preceding test | **no** — all three pairs (predecessor + victim) pass in 2–5 s with no drop |
-| a session-count limit / eviction on the router | **no** — the wedge hits after 2, 14, and 22 opened sessions, and never more than 1–2 are alive at once |
+`IWinboxM2Channel.StartIdleServicing()`, called once after login, fixes this: over TCP it is a no-op
+(the kernel acknowledges the byte stream); over the MAC layer it starts a background thread that, every
+200 ms, takes the receive lock via a non-blocking `TryEnter` and drains whatever is on the socket. A
+read holds the same lock for the entire duration of assembling a frame, so the pump can never grab a
+packet mid-frame. The pump only acknowledges and answers `PING` — it never initiates anything on its
+own, which matters: client-originated idle traffic would itself trigger the same asynchronous
+router-side effects (Safe Mode rollback, log delivery) that the pump exists to service, and could
+shorten the session's life instead of extending it.
 
-**View from the router (newly added).** `/log` across all three windows: **at the moment of the
-wedge the router logs nothing at all** — no `logged out`, no error. The nearest logout is 4 s
-*after* one wedge and 4 s *before* another, both unrelated connections. Our session stays logged in
-per the router's own accounting, while its MAC layer has stopped acknowledging our bytes. That's a
-mismatch between two of the router's own layers, not a session termination — which is why the
-phrasing "the router no longer has that session" in §16 was corrected.
+`WinboxNativeMac` never had this problem: its reader loop (`WinboxM2Multiplexer`, §12) services the
+socket continuously as a side effect of always having a reader running.
 
-Side observation from the same log, still unexplained: the 27 sessions our trace opened correspond
-to 47 `via winbox` logins from our MAC — some paired within the same second, some standalone.
-Uneven, so it isn't systematic double-logging; worth finding out what causes the pairs.
+Measured effect on the Safe Mode rollback case from §17:
 
-**Cause of one of the three: a Safe Mode rollback kills a concurrent WinBox-over-MAC session.**
-Reproduced 5/5 via `Probe_SafeModeRollbackOnASibling`:
-
-| held session | carrier | upper layer | response | |
-|---|---|---|---|---|
-| `WinboxCliMac` | MAC / UDP 20561 | WinBox M2 | ~4.3 s | **wedge 5/5** |
-| `MacTelnet` | MAC / UDP 20561 | plain telnet | ~0.15 s | fine 0/2 |
-| `WinboxCli` | TCP 8291 | WinBox M2 | ~0.37 s | fine 0/2 |
-
-The rollback lands each time after ~2.15 s, independent of who holds the second session.
-
-> Warning: this section originally said "it's a property of the MAC carrier, not the CLI engine"
-> (drawn from a single TCP contrast; `MacTelnet` was only measured afterward — and survives), then
-> "so it's exclusively their combination, i.e. the router's `mac-winbox` service". **Both wrong, and
-> the second just as hastily as the first:** ruling out two layers doesn't mean the culprit is on the
-> router. The difference between `MacTelnet` and `WinboxCliMac` wasn't in what the router does, but
-> in what **we** do — `MacTelnetUdpClient` has had a receive pump from the start; WinBox-over-MAC
-> didn't. See §18; with a pump the reproduction rate is 0/2. Lesson: "neither A nor B" is still only
-> about A and B, and says nothing about C.
-
-> Warning: **the rollback is asynchronous**, and that's the whole trick. RouterOS keeps the Safe Mode
-> owner alive even after the connection dies, until the connection-tracking timeout, so the rollback
-> lands **~2 s later** — which is exactly why `SafeModeTest` polls for it for up to 30 s. Query the
-> held session right after closing the sibling, and you're asking at the wrong moment and get a
-> healthy 223/224 ms. That's precisely how the claim "Safe Mode isn't the cause" made it into these
-> notes twice. **It was.** And it also explains why the victim is always the first test of the class
-> **following** the one that triggered it: the rollback lands only after that triggering class has
-> already finished.
-
-The path here ran through noticing that `ConcurrentCommandsTest` and `SafeModeTest` are the only two
-classes with `ReuseConnectionAcrossTests => false`. They run on their own connection, so they never
-show up in per-session analysis among the "users" of a shared session — even though they're the ones
-that break it — which is why I initially ruled them out as a predecessor. All three wedges sit right
-on a test-class boundary.
-
-**What this means for library consumers:** whoever holds a WinBox-CLI-MAC connection while, on
-another connection, running Safe Mode that ends in a rollback, loses that first connection. P2.54
-recovers from it, but it costs ~4.5 s.
-
-**Fix in the suite:** `SafeModeTest.OnCleanup() => DisposeSharedConnection()`. Waiting longer, or
-sleeping, doesn't help — that test already polls until the rollback lands, so by the time it
-finishes it's already too late; the shared session dies in the meantime and nothing touches it again
-before the test ends. It has to be declared dead, not waited on. This isn't papering over a library
-bug (the transport recovers on its own), just removing the suite's silent reliance on that recovery.
-Measured impact: full run 3 → 2 dropped sessions, reproduction rate from 1 drop / 10 s to 0 / 7 s.
-
-**Where this stands:** two wedges remain (`Create_IpAddress_With_LowLevel_API`,
-`ListRadiusServersWillNotFail`), neither involving Safe Mode, and the router has no record of them.
-But there's now a new class of mechanism worth testing: what else does RouterOS do asynchronously
-that only reaches that session later. → **resolved in §18.**
-
-**Side finding worth fixing regardless of the wedge:** we have no **send window** at all. When the
-head of the queue is unacknowledged, the pull loop keeps piling 8 packets/s on top of it, pumping
-2.4 kB into a hole in the stream that the router has no way to accept. Retransmission runs every
-400 ms and correctly resends only the head — but nothing stops the rest of the queue from growing.
-
-**Lesson:** a ruled-out hypothesis is a result too, as long as it's recorded along with what
-disproved it. Five of these six sounded plausible, and four of them had already once appeared in
-these notes as the likely cause.
-
-## 18. Nobody serviced the socket between commands (P2.55 completion, 2026-08-02)
-
-The two remaining wedges from §17 share one property that the three traced runs missed, because
-nobody had asked about it: **they're each preceded by the single longest idle stretch on that
-session in the whole run.**
-
-| session | idle before the command | outcome |
+| | before `StartIdleServicing` | after |
 |---|---|---|
-| `1eba` | **19.7 s** | wedge (`Create_IpAddress_With_LowLevel_API`) |
-| `ff1c` | **56.1 s** | wedge (`ListRadiusServersWillNotFail`) |
-| `ef45` | 3.6 s | fine |
+| Safe Mode rollback on a sibling (`WinboxCliMac`) | wedge, every time, ~4.3 s recovery | ~0.34 s, no wedge |
 
-Those are every gap ≥ 3 s in the entire 340-test run. Two gaps, two wedges.
+> **Measurement trap:** a trace timestamp records when a session's socket was *read*, not when a packet
+> arrived. An unserviced session shows **no gap** in its own trace, because its entire backlog dumps out
+> at once on the next read — the same `counter=…` value can arrive ten times in a row at that moment,
+> which is the router having retransmitted one unacknowledged packet the whole time. Reading "no gap in
+> the trace" as "the router kept talking to us" gets this backwards.
 
-**Why §17 ruled this out.** Because of the claim "the session receives packets right up to the start
-of the test, gap 0.0 s" — but the trace timestamp is the moment we *picked up* the socket, not when
-the packet arrived. A session nobody reads for twenty seconds therefore shows no gap in the trace at
-all: the entire backlog dumps out at once on the next read. This is visible literally in the trace —
-at the moment the victim test starts, **the same `counter=37405` arrives ten times in a row**,
-meaning the router had been retransmitting one unacknowledged packet the whole time.
+A session left idle for the ~30 s RouterOS uses as its own idle-logout threshold for a MAC console still
+loses the session — that is the router's own contract (confirmed symmetrically: `MacTelnet`, which has
+had the pump from the start, wedges at 30 s the same way) — and is handled by the reopen + retry from
+§16, not by servicing.
 
-**Cause.** The RouterOS terminal isn't request/reply: the router writes into it on its own (a log
-event, a Safe Mode rollback), and at the MAC layer every such write must be acknowledged, or the
-router keeps retransmitting it and eventually stops servicing the session. But `WinboxCliClient`
-only touches the channel **while a command is running** — nobody picks up the socket between
-commands.
+---
 
-This was actually already written down in the repo. `MacTelnetUdpClient` has carried this sentence
-in its class comment since it was created ("drops the session when that output is left
-unacknowledged"), and that's exactly why it has a **receive pump**. WinBox over MAC didn't. This
-also explains the difference §17 attributed to the router: `MacTelnet` survives a Safe Mode
-rollback because its pump acknowledges it; `WinboxCliMac` doesn't, because nothing is watching. The
-difference was on our side. `WinboxNativeMac` doesn't suffer from this for the same reason — it runs
-through the `ReceiveNextFrame` reader loop, which services the socket continuously.
+## 19. The MAC layer throttles only speculative pulls, never the caller's own command
 
-**Fix:** `IWinboxM2Channel.StartIdleServicing()`, called once after login. Over TCP it's a no-op (the
-kernel acknowledges the byte stream); over MAC it starts a thread that, every 200 ms, takes
-`_rxGate` via `TryEnter(0)` and drains whatever is on the socket. A read holds the same lock for the
-entire duration of assembling a frame, so the pump can never grab a packet mid-frame. The pump
-**only acknowledges and answers PING, it never initiates anything on its own** — four ways of
-concocting idle traffic have been measured against MAC-Telnet, and all four shortened a session's
-life.
+ACK at the MAC layer is cumulative, so once the head of the unacknowledged queue stops being
+acknowledged, the router cannot process anything sent behind it — every further packet is wasted
+traffic that also buries the one packet that actually needs to get through. Left unthrottled, the
+unacknowledged queue grows without bound while the head sits unacknowledged (observed as high as 23
+packets deep against an idle session); `RetransmitIfUnacked` correctly resends only the head and
+`MaxUnackedTracked` bounds the queue, but nothing throttled new sends on their own.
 
-**Measured:**
+`MacLayerTransport.LastSendStalled` (surfaced as `IWinboxM2Channel.SendStalled`, always `false` over
+TCP where the kernel owns the window) is true once the head of the queue has been retransmitted **at
+least once** — i.e. stuck for at least `MinRetransmitIntervalMs` — and the terminal loop gates only its
+**speculative** idle pulls on it. A user's actual command still goes out regardless, since dropping it
+would mean silently dropping the caller's own request. With the gate in place the unacknowledged queue
+stays at depth 2 instead of growing unbounded, without changing recovery time.
 
-| | before | after |
-|---|---|---|
-| Safe Mode rollback on a sibling (`WinboxCliMac`) | wedge 5/5, ~4.3 s | **0/2, ~0.34 s** |
-| dropped sessions per full run | 3 → 2 (§17) | **1** |
-| idle 20 s → command | ok | ok |
-| idle 30 s / 45 s → command | wedge | **wedge** (see below) |
+Two properties this rests on:
 
-The remaining wedge in a full run is the one with 35.9 s idle, and it's a **different mechanism**:
-the router logs out an idle MAC console after ~30 s, and it says so itself. The idle ladder confirms
-this symmetrically — `MacTelnet`, which has had the pump from the start, wedges at 30 s in exactly
-the same way. This can't be, and shouldn't be, papered over from the client side; the reopen+retry
-from P2.54 handles it. Two different causes, two different fixes:
+- **one retransmission, not zero** — ordinary in-flight traffic is acknowledged within a few
+  milliseconds, so normal traffic must never trip the signal (or throttling would leak into streaming of
+  large outputs, which relies on pulling);
+- **the throttle releases itself** the moment the ACK arrives, and the pull schedule doesn't advance
+  while it's active, so the very next pull goes out immediately — otherwise one lost datagram would
+  silence the terminal for the rest of the session.
 
-* **an unacknowledged write from the router** → our bug, fixed by the pump
-* **~30 s idle logout** → the router's own contract, handled by reconnecting
+This is a softer, earlier signal than `SendAbandoned` (§16): that one means "the session is gone" and
+sits at the very end of the budget; this one means "the stream is stuck but may still recover" and
+governs what the client is allowed to **send**, not what it is allowed to report.
 
-**Lesson:** "measured, unconfirmed" and "unmeasured" look the same in a hypothesis table, but they're
-not the same thing. That idle-logout line was disproved by a measurement of something other than
-what I thought it measured — and it sat there marked resolved for nine hours as a result.
+---
 
-## 19. The MAC layer has no send window (P2.56, 2026-08-02)
+## Settled questions — do not re-investigate
 
-A side finding from P2.55, fixed separately because it isn't related to the wedge's cause — it just
-made it needlessly more expensive.
-
-When the router doesn't acknowledge the head of the queue, `WinboxCliClient` keeps **pumping empty
-pulls** into it regardless (8/s, `PullIntervalMs = 120`). ACK at the MAC layer is cumulative, so
-**the router can't process anything behind the unacknowledged packet** — everything else is traffic
-sent for nothing, and it buries the one packet that actually needs to get through.
-`RetransmitIfUnacked` correctly resends only the head, and `MaxUnackedTracked = 256` bounds memory
-use, but **nothing throttled the sender**.
-
-Measured with the same probe (`Probe_IdleSession_HowLongBeforeItWedges`, 45 s idle, queue depth read
-from `queued=` in the RETRANSMIT lines):
-
-| | before | after |
-|---|---|---|
-| max. depth of the unacknowledged queue | **23 packets** (1→2→4→7→10→14→17→20→23) | **2** |
-| recovery time | unchanged | unchanged |
-
-**Fix:** `MacLayerTransport.LastSendStalled` = the head of the queue is unacknowledged and **has
-already been retransmitted at least once** (i.e. the stream has been stuck for at least
-`MinRetransmitIntervalMs`), surfaced through `IWinboxM2Channel.SendStalled` (`false` over TCP — there
-the window is handled by the kernel). The terminal loop only gates **speculative pulls** on it; a
-user's actual command still goes out, since dropping it would mean dropping the caller's own
-request.
-
-Two things this rests on:
-
-* **one retransmission, not zero** — a packet in normal flight is acknowledged within a few ms, so
-  ordinary traffic must never trip the signal (otherwise the throttling would leak into streaming of
-  large outputs, which relies on pulling),
-* **the throttling ends on its own** once the ACK arrives, and `lastPullMs` doesn't advance while
-  it's active, so the very next pull goes out immediately. Otherwise a single lost datagram would
-  silence the terminal for the rest of the session — a wedge introduced by the wedge fix.
-
-The difference from `SendAbandoned` (§16): that one says "the session is gone" and sits at the very
-end of the budget; this one says "the stream is stuck but may still recover" and governs what we're
-allowed to **send**, not what we're allowed to report.
+- **The transient login refusal (§13) is not our EC-SRP5 arithmetic.** 4000 client↔server round-trips
+  offline show zero divergences (`EcSrp5RoundTripTests`), and replaying the identical client key
+  (`WinboxHandshakeLoopProbeTest.Probe_WinboxHandshake_SameKeyRetry`) after a refusal is accepted 9
+  times out of 9 — the exact bytes the router just refused get accepted moments later. The only thing
+  that changes between attempts is the router's own ephemeral key.
+- **It is not a leading-zero byte in the client's ephemeral key.** Forcing that case deliberately
+  succeeds 4 times out of 5 — the first observed sample was coincidence, not a pattern.
+- **It is not rate-limiting or attempt frequency.** Login attempts at 0 ms, 250 ms and 1000 ms spacing
+  show no trend in refusal rate.
+- **It is not frame desync.** The refusal frame is a well-formed chunk with tag `0x06`; its 33-byte
+  length matches the refusal text exactly, with nothing overflowed or missing.
+- **It is not specific to WinBox's own transport.** The API transport shows zero refusals across 400
+  fresh logins (one further `via api` log line could not be attributed to any test client and is
+  excluded rather than counted as a fifth refusal) — the phenomenon follows the EC-SRP5 handshake
+  itself (§13.2), not the WinBox framing around it.
+- **A collision of the MAC-layer session key or local UDP port does not cause the §16 wedge.** Across
+  27 traced sessions, no key or port ever repeated (the key is drawn randomly on every open).
+- **The client's own retransmit flood is an effect of the §16 wedge, not its cause.** Packets do pile up
+  behind an unacknowledged head once a command goes unanswered, but only *after* that command already
+  went unanswered.
+- **Closing a sibling session does not, by itself, cause the §16 wedge.**
+  (`Probe_SiblingSessionTeardown_DoesNotKillTheHeldSession`, 20 cycles across WinBox-MAC, MAC-Telnet, and
+  an API sibling: zero wedges.) A **Safe Mode rollback** on a sibling does — see §17 — which is a
+  narrower claim than "any sibling teardown."
+- **Traffic volume or a boundary in the byte stream does not cause the §16 wedge.** A single session ran
+  400 commands and 101,099 outbound bytes without a hiccup, past two of the offsets where the wedge
+  otherwise occurs.
+- **The router's own log echoing into the terminal does not explain the §16 wedge.** Across a full
+  traced run there is exactly one such echo, which could account for at most one of several observed
+  wedges.
+- **A session-count limit or eviction on the router does not explain the §16 wedge.** It occurs after as
+  few as 2 and as many as 22 sessions opened in the same run, with never more than 1–2 alive
+  concurrently.
+- **An idle MAC console being logged out by the router after ~30 s is real (§18), but it is not what
+  caused the two wedges investigated in §16/§17.** Both of those followed an idle gap under 60 s on a
+  session nobody was reading; once idle servicing (§18) covers that gap, only the genuine ~30 s
+  router-side idle-logout remains, and that is handled by reconnecting, not by servicing.
+- **A previous session holding a local port, or two MAC sessions contending for one, cannot happen.**
+  Every session binds an **ephemeral** local port (`Bind(new IPEndPoint(nic.LocalIp, 0))` with
+  `ReuseAddress`); 20561 is the *router's* port, never the client's.

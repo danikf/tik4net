@@ -68,19 +68,19 @@ Native does **not** report it (its wire form is a numeric M2 message, not a stri
 transport for raw access over that channel).
 
 `AsyncCommands` (the `Execute*Async` surface) and `CancelInFlight` (a token that stops a command
-already on the wire and still leaves the connection usable) were rolled out per transport: REST
-first, then the CLI family, then the binary API, then WinBox native (P2.8). Note what
-`CancelInFlight` does **not** promise everywhere: that the router stops working. On REST it does not
-— aborting the HTTP request frees the caller while RouterOS runs the command to the end (§12.1).
+already on the wire and still leaves the connection usable) are declared by every in-tree transport.
+Note what `CancelInFlight` does **not** promise everywhere: that the router stops working. On REST
+it does not — aborting the HTTP request frees the caller while RouterOS runs the command to the end
+(§12.1).
 
 On the **binary API** it does, and that is the difference between a cancel and an abandon: the
 client sends `/cancel tag=N`, the router answers the cancelled command with `!trap interrupted` +
 `!done`, both are consumed, and the connection is left framed and immediately usable. This is the
 one transport where cancelling is an operation the protocol defines rather than a decision to stop
 listening. It rests on `Tagging`: an async command is therefore always tagged, whatever
-`SendTagWithSyncCommand` says, because `/cancel` addresses a tag. Since P2.3 the API also has one
-reader per connection dispatching each sentence to the tag that asked for it, so an async command
-holds no thread of its own.
+`SendTagWithSyncCommand` says, because `/cancel` addresses a tag. The API has one reader per
+connection dispatching each sentence to the tag that asked for it, so an async command holds no
+thread of its own.
 
 The CLI family declares `AsyncCommands` **without** `CancelInFlight`, and that gap is intrinsic
 rather than scheduled: a RouterOS terminal answers with an unframed byte stream — no sentence
@@ -106,8 +106,8 @@ handed to whichever command asked next. Same guarantee as REST, for the same rea
 
 Field **encoding and decoding** can themselves issue a `getall`, to translate a referenced record
 between its name and its numeric id — a `list=lan` on a write, an interface id rendered back as
-`ether1` on a read. Those lookups used to run synchronously on the awaiting thread; they no longer
-do, and no round trip on an awaited command is made from a blocked thread.
+`ether1` on a read. Those round trips are hoisted out of the awaited command and run off the
+awaiting thread first, so no round trip on an awaited command is made from a blocked thread.
 
 The encoder and the decoder are still synchronous — `WinboxFieldResolver.EncodeField` takes a plain
 `Func` and `DecodeRecord` returns a dictionary — because making them `async` would have rippled
@@ -123,10 +123,10 @@ it will need rather than re-deriving it:
 - **decode** runs the decoder in a collecting mode that notes which referenced tables a row would make
   it read, fetches those, and then decodes for real.
 
-Asking the decoder is not a stylistic preference: predicting the tables from the `.jg` field map
-instead fetched tables the decode never consults, and since the id → name map is cached for the
-connection's lifetime, one such fetch renders every record added afterwards as a bare numeric id.
-Printing `/interface/list`, whose own rows reference interface lists, was enough to poison it.
+Asking the decoder which tables it needs is not a stylistic preference: predicting them from the
+`.jg` field map instead can fetch tables the decode never consults — and because the id → name map
+is cached for the connection's lifetime, one stray fetch renders every record added afterwards as a
+bare numeric id instead of a name.
 
 The blocking lookups remain as the fallback and still serve the synchronous monitor round, which
 drives its own loop.
@@ -198,7 +198,7 @@ IEnumerable<TikInstanceDescriptor> routers = MndpHelper.Discover(stopWhenFirstFo
 
 | Capability | Status |
 |---|---|
-| GET (print) / POST (add) / PATCH (set) / DELETE (remove) | ✅ |
+| GET (print) / PUT (add) / PATCH or POST (set) / DELETE (remove) | ✅ |
 | HTTP Basic auth | ✅ |
 | HTTPS (SSL variant) | ✅ |
 | `System.Text.Json` serialization (BCL, no extra dependency) | ✅ |
@@ -207,14 +207,21 @@ IEnumerable<TikInstanceDescriptor> routers = MndpHelper.Discover(stopWhenFirstFo
 | `Execute*Async` with `CancellationToken` | ✅ native (`HttpClient`), cancellable mid-request |
 | Streaming (Torch, monitor-traffic follow) | ❌ not supported — the response arrives in one lump |
 | SafeMode | ❌ not supported |
-| `/unset` → default value | ⚠️ `PATCH {field:null}` sets an empty string, not the default |
+| `/unset` | ✅ `POST /rest/<path>/unset` with `{".id", "value-name"}` — the router's own spelling, same as the binary API |
+
+`add` is `PUT` to the path itself; `set` is `PATCH {id}` for a normal record but `POST <path>/set`
+for a singleton (no `.id` to address); a bare action verb (`/tool/wol`, `/ip/ipsec/key/rsa
+generate-key`, …) is `POST <path>/<verb>`. `unset` is the dedicated `POST .../unset` endpoint,
+which clears a field regardless of its type — RouterOS validates a value against the field's own
+type before accepting it, and `null` is no exception.
 
 ### Key classes
 
 ```
-tik4net/Rest/RestConnection.cs        — ITikConnection + ITikConnectionCapabilities
-tik4net/Rest/RestCommand.cs           — ITikCommand
+tik4net/Rest/RestConnection.cs        — ITikConnection + ITikConnectionCapabilities; HTTP-status/body -> trap-kind classification
+tik4net/Connection/TikGenericCommand.cs — ITikCommand (shared by REST, the CLI family and WinBox native)
 tik4net/Rest/RestRequestBuilder.cs    — mapping of API path → HTTP verb/URL/JSON
+tik4net/TikTrapClassifier.cs          — message-text -> TikTrapKind, shared with the API and CLI transports
 tik4net/TikConnectionSetup.cs         — CreateRestConnection() / CreateRestSslConnection()
 ```
 
@@ -338,7 +345,7 @@ inside it like a regular CLI transport (same parsing as Telnet/MAC-Telnet). Both
 | TCP transport (port 8291) | ✅ (WinboxCli) |
 | MAC/UDP transport (port 20561, `client_type=0x0f90`) | ✅ (WinboxCliMac) |
 | Transport-agnostic mepty engine (`IWinboxM2Channel`) | ✅ |
-| SESSION_ID > 255 as u32 | ✅ (root-cause fix vs. the original PoC) |
+| SESSION_ID encoded as u32 (values are not limited to 255) | ✅ (both transports) |
 | Shared crypto layer `tik4net/Crypto/` | ✅ |
 
 ### Key classes
@@ -389,33 +396,59 @@ tik4net/WinboxNative/WinboxNativeConnection.cs       — ITikConnection : ITikCo
 tik4net/WinboxNativeMac/WinboxNativeMacConnection.cs — ITikConnection : ITikConnectionCapabilities (MAC)
 ```
 
-See `Docs/winbox-native-m2-protocol.md` for the handler/command model and streaming monitor
-protocol, and `Docs/jg-catalog-format.md` for the `.jg` catalog format itself.
+See [winbox-native-m2-protocol.md](winbox-native-m2-protocol.md) for the handler/command model and
+streaming monitor protocol, and [jg-catalog-format.md](jg-catalog-format.md) for the `.jg` catalog
+format itself.
 
-### Path coverage vs. the binary API (measured 2026-08-15, RouterOS 7.23.2)
+### Path coverage vs. the binary API
 
-`WinboxNativePathMapAuditTest` (integration, `[Ignore]`d — run it by hand) reads every O/R-mapper
-entity path over the binary API and over WinBox-native and compares row counts and field names.
-Result: **every path the API reaches is reachable natively** except `/routing/bgp/advertisements`,
-which WinBox exposes as an action on the BGP session window rather than as a table.
+`WinboxNativePathMapAuditTest` (integration, `[Ignore]`d — run it by hand from Test Explorer, or
+`--filter AuditPathMapAgainstApi`, after touching the alias table, the `.jg` harvest, or on a new
+RouterOS version) reads every O/R-mapper entity path over the binary API and over WinBox-native and
+compares row counts and field names. **Every path the API reaches is reachable natively** except
+`/routing/bgp/advertisements`, which WinBox exposes as an action on the BGP session window
+(`dump-adv`) rather than as a table — there is nothing to `getall`.
 
-What the audit does NOT yet agree on is the FIELD vocabulary of some of those tables. These are
-decode/encode-layer gaps, not path-map gaps, and they are the next piece of work:
+A handful of paths reach the right window but still disagree with the API on field vocabulary —
+decode-layer gaps, not path-map gaps. The audit's own `KnownFieldGaps` table is the source of truth;
+as of the last run (RouterOS 7.23.2) it lists:
 
-| Class | Symptom | Examples |
-|---|---|---|
-| enum / set / sentinel decode | the raw wire form reaches the caller instead of the API value | `/ip/proxy` port `[8080]`, `/ip/ssh` ciphers `[0]`, `/ip/ipsec/proposal` pfs-group `2`, `/system/logging/action` syslog-severity `4294967295`, `/ip/proxy/access` method `''` |
-| kind-scoped parameters | the API prefixes a parameter with the record's kind, WinBox labels it inside that kind's pane | `/queue/type` `pcq-rate`, `/system/logging/action` `memory-lines` / `disk-file-name` |
-| API-only fields | the field exists in RouterOS but in no WinBox window, so a write that includes it cannot be sent | `/routing/ospf/*` `use-dn`, `/interface/wifi/security` `ft-preserve-vlanid` |
-| action-window field collision | a `doit` window's arguments share the handler's field map with the record window, and the record's (read-only) field wins — the action's arguments are dropped | `/ip/ipsec/key/rsa` generate-key produced a nameless 1024-bit key instead of the requested name/2048 |
+| Path | Gap |
+|---|---|
+| `/ip/route` | native lists routes the API's `print` filters out; distance/scope/vrf not decoded |
+| `/queue/type` | kind-scoped parameters — the API prefixes each by kind (`pcq-rate`), WinBox labels them inside that kind's own pane. ⚠️ needs re-verification: the deck-pane fix shipped a verified read-spelling table naming this path as one of its two ground-truth cases, but this audit entry was not re-run afterward |
+| `/system/logging/action` | same shape — `memory-lines`/`disk-file-name` vs. the pane's own labels. Same re-verification caveat as `/queue/type` |
+| `/interface/wireless/sniffer` | handler `[88,9]` returns sniffer statistics; the API returns settings |
+| `/system/health` | board-gated singleton with no hardware sensors on CHR; `state`/`state-after-reboot` are API-only fields with no WinBox equivalent |
 
-The last one is the same shape as the interface-subtype fix already made (fields belong to a WINDOW,
-not to its handler); the fix is to scope a `doit`/`action` window's fields the same way.
+Two further limits are outside the field-vocabulary class above, and only one of them is the
+router's. `add` of an interface SUBTYPE is refused by the router itself
+(`0xFE0006 'unsupported device type'`) — a real protocol limit, and the suite skips only where the
+router actually refuses (`TestBase.SkipIfWinboxNativeCannot`), never on an assumption. List/array
+field writes (`multinumber`, `multitristatearray`, `multi`) are declined by
+`WinboxFieldResolver.EncodeField` with a loud `WinboxFieldResolutionException` rather than a
+silently wrong-typed scalar — **this is our encoder's gap, not a protocol one**: the M2 wire format
+already carries array types for writes (`multinumberrange` uses `M2Message.U32ArraySys`), so
+per-element reference resolution for `multinumber`/`multitristatearray`/`multi` is unimplemented
+rather than impossible. Treat it as needing an encoder, not as a WinBox limitation.
 
-Two limits below are the router's or the protocol's, not ours, and the suite skips only where they
-are actually refused (`TestBase.SkipIfWinboxNativeCannot`): `add` of an interface SUBTYPE is refused
-by the router itself (`0xFE0006 'unsupported device type'`), and list/array field writes
-(`multinumber`, `multitristatearray`, `multi`) are not yet encodable over M2.
+---
+
+## Settled questions — do not re-investigate
+
+- **`/ip/proxy` port, `/ip/ssh` ciphers, `/ip/ipsec/proposal` pfs-group, `/system/logging/action`
+  syslog-severity, `/ip/proxy/access` method over WinBox native.** Not a decode gap. Fixed by
+  following the full `enumfilter`/`defenum`/`pair` wrapper chain to a field's static enum map,
+  decoding a literal (non-reference) `multinumber` per element, and treating only the M2 "flag down"
+  / catalog-declared sentinel as unset rather than any field printing empty.
+- **`/ip/ipsec/key/rsa` generate-key producing a nameless 1024-bit key over WinBox native.** Not a
+  live defect — fixed by attributing an action window's fields to the action, not just its handler.
+- **Deck-pane field writes being silently dropped on a label collision (e.g. `fq-codel`'s five
+  fields losing to `codel`'s under the same labels).** Not a live defect — a pane field is now filed
+  under both `<kind>-<label>` and its plain label. What is still open is *read spelling*: only
+  `/queue/type` and `/system/logging/action` have a verified ground-truth table (see the gaps table
+  above), so any other deck window may still report a pane field under the derived name rather than
+  the API's.
 
 ---
 
@@ -438,9 +471,11 @@ by the router itself (`0xFE0006 'unsupported device type'`), and list/array fiel
 | Encryption | ❌ / ✅ TLS | ❌ / ✅ HTTPS | ❌ | ✅ SSH | ❌ | ✅ AES | ✅ AES | ✅ AES | ✅ AES |
 | NuGet package | tik4net | tik4net | tik4net | **tik4net.ssh** | tik4net | tik4net | tik4net | tik4net | tik4net |
 
-This table mirrors `tik4net.unittests/ConnectionCapabilityMatrixTests.cs` and `README.md`'s
-transport table — `EveryTransportDeclaresTheDocumentedCapabilities` fails the build if a
-transport's declared flags drift from what's written here.
+This table mirrors the `Expected` flag sets pinned in
+`tik4net.unittests/ConnectionCapabilityMatrixTests.cs` and `README.md`'s transport table.
+`EveryTransportDeclaresTheDocumentedCapabilities` fails the build the moment a transport's declared
+flags drift from that pinned set, so a change here that isn't also made in the test (and vice versa)
+is the signal that one of the three has gone stale.
 
 ---
 

@@ -1,6 +1,6 @@
 # tik4net architecture (4.0)
 
-A map of the codebase for contributors. For *usage* documentation see the [wiki](https://github.com/danikf/tik4net/wiki); for agent-facing working rules see [CLAUDE.md](CLAUDE.md).
+A map of the codebase for contributors. For *usage* documentation see the [wiki](https://github.com/danikf/tik4net/wiki); for agent-facing working rules see [AGENTS.md](AGENTS.md).
 
 ## Layer cake
 
@@ -42,7 +42,7 @@ a package ID that does not exist on nuget.org.
 
 Non-shipping: `tik4net.console`, `tik4net.coreconsole`, `tik4net.examples`, `tik4net.torch`,
 `Tools/tik4net.entitygenerator`, `Tools/tik4net.entityWikiImporter` (several are still legacy
-non-SDK csproj — see plan item P5.1).
+non-SDK csproj).
 
 ## Layer 1 — `tik4net` core
 
@@ -65,7 +65,12 @@ Response sentences: `ITikReSentence` (`!re`), `ITikDoneSentence` (`!done`),
 Transports differ in what they can physically do, so features are gated by
 `TikConnectionCapability` flags (`tik4net/Rest/TikConnectionCapability.cs`):
 
-`Crud`, `Listen`, `Streaming`, `RawSentences`, `Tagging`, `SafeMode`, `RawCommand`.
+`Crud`, `Listen`, `Streaming`, `RawSentences`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`,
+`CancelInFlight`.
+
+The per-transport matrix — which transport declares which flag, and what the emulated and
+protocol-native variants of a flag mean — is in [README.md](README.md#connection-types). Read it there
+rather than restating it; it is the one place kept in sync with the enum.
 
 A connection declares its set via `ITikConnectionCapabilities.Capabilities`. Consumers check
 `connection.Supports(cap)`; feature entry points call `connection.Require(cap, "feature")`, which
@@ -181,8 +186,9 @@ Two coexist:
 - `TikConnectionSetup` — newer and preferred. Holds `Port`, `ConnectTimeout`,
   `AllowInvalidCertificate`, and exposes `Create<Transport>Connection[Async]()` per transport.
 
-They are not yet unified, and `TikConnectionSetup` options are not honored by every transport
-(see plan findings F1/F2/F18). Don't assume a setting applies everywhere — check the transport.
+They are not yet unified, and `TikConnectionSetup` options are not honored by every transport. Don't
+assume a setting applies everywhere — check the transport, and check *what* the value is applied to,
+not merely that it is read.
 
 ## Layer 2 — `tik4net.objects`
 
@@ -247,9 +253,7 @@ MSTest, **net48 only**, ~410 test methods, nearly all requiring a live router. N
 - Transport selection: `*.runsettings` files (one per transport) set `tik.connectionType`;
   falls back to the `connectionType` app setting. The suite is meant to be run once per transport.
 - `TestBase` caches one connection per run (`ReuseConnectionAcrossTests`) and self-heals it on
-  failure. Every transport reuses; only lifecycle-sensitive classes (`SafeModeTest`) opt out. The
-  `WinboxNativeMac` exclusion was retired in P2.42 once its lossy-UDP ACK symptom stopped
-  reproducing.
+  failure. Every transport reuses it; only lifecycle-sensitive classes (`SafeModeTest`) opt out.
 - Capability-gated tests call `EnsureCapability` and report **Inconclusive** rather than failing on
   transports that can't do the thing.
 ### CI

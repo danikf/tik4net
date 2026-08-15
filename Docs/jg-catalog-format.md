@@ -41,17 +41,17 @@ GET http://<router>/webfig/roteros.jg
 - ⇒ **version-matched catalog** on demand, purely over HTTP. Downloaded the full 7.21.4 into `7.21.4-http/`.
 - Note: the HTTPS variant on port 443 (`/webfig/`) should work the same way for SSL-only routers.
 
-## ⭐⭐ Dynamically fetching via WinBox M2 / mproxy (port 8291) — VERIFIED 2026-06-07
+## Fetching dynamically via WinBox M2 / mproxy (port 8291)
 
-**Preferred path** — a single port for everything (auth+data), works even when the www service
-is disabled. The earlier "`.jg` doesn't work via mproxy" was WRONG — two causes, both fixed:
+**Preferred path** — a single port for everything (auth and data), and it works even when the `www`
+service is disabled. Two details decide whether it works at all:
 
-1. **Wrong file name.** The file on disk is `<name>.jg.gz` (gzip-compressed), not `<name>.jg`.
+1. **The file on disk is `<name>.jg.gz`** (gzip-compressed), not `<name>.jg`.
    mproxy `[2,2] cmd=7 open "roteros.jg.gz"` → multi-chunk `cmd=4` read → client-side gunzip.
-2. **File handle >255 treated as u8.** mproxy open returns a session handle that can exceed 255
-   (same as mepty SESSION_ID 265, chapter G). `M2Message.SessionIdField` encoded it as u8
-   → truncation → the read targeted the wrong session → empty response (even for `list`!).
-   **Fix:** `SessionIdField` auto-switch u8(≤255)/u32 (same as the production `tik4net/Winbox/M2Message`).
+2. **The file handle can exceed 255 and must not be encoded as u8.** mproxy `open` returns a session
+   handle that can exceed 255, as mepty session ids do. Encoding it as u8 truncates it, so the read
+   targets the wrong session and the response comes back empty — including for `list`.
+   `M2Message.SessionIdField` therefore auto-switches between u8 (≤255) and u32.
 
 Verified by `WinboxJgFetchTest.Winbox_FetchJgGz_ViaMproxy_Works`: `roteros.jg.gz` 109706 B →
 gunzip 918451 B JS literal, **byte-identical to the HTTP variant**. Saved into `via-mproxy/`.

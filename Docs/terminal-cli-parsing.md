@@ -1,7 +1,7 @@
 # Terminal output → tik4net entities: design
 
-> Local file, not tracked in git. Last updated: 2026-05-26 (added Telnet, async/semaphore strategy).
-> Builds on [`4x-package-architecture.md`](4x-package-architecture.md).
+> Design behind the CLI transports' output parsing. Companion to the live-verified behaviour in
+> [`findings-cli.md`](findings-cli.md).
 
 ---
 

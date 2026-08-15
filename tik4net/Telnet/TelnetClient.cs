@@ -86,7 +86,7 @@ namespace tik4net.Telnet
             // RouterOS performs a VT100 cursor-probe / redraw right after login and emits the shell
             // prompt a *second* time. LoginAsync returns on the first prompt; if we don't consume the
             // residual redraw it leaks into the first command's read and is mistaken for that command's
-            // completion → empty output. Drain until the stream goes quiet. (See winbox-terminal-findings.md §3.)
+            // completion → empty output. Drain until the stream goes quiet. (See Docs/findings-winbox-terminal.md §3.)
             await DrainAsync(250, ct).ConfigureAwait(false);
         }
 

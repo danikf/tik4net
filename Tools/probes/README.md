@@ -1,8 +1,51 @@
-# Probe scripts
+# Probe and harness scripts
 
-Two standalone diagnostic scripts used while developing and debugging tik4net's transports. Neither
-is part of the shipped library; both are here because the Claude Code skills in `.claude/skills/`
-reference them.
+Standalone diagnostic and test-harness scripts used while developing and debugging tik4net's
+transports. None is part of the shipped library; they live here so that the skills in
+`.claude/skills/` can reference a script instead of restating a command, and so that the commands stay
+runnable by hand.
+
+None of them takes router credentials as a baked-in value: coordinates come from
+`tik4net.integrationtests/App.config` or from an explicit argument.
+
+| Script | Purpose |
+|---|---|
+| [`run-integration-tests.ps1`](#run-integration-testsps1) | Run the integration suite: one transport, a smoke subset, or the full matrix |
+| [`parse-trx.ps1`](#parse-trxps1) | Summarise TRX results — counts, failures, and the named skips |
+| [`telnet-cli-probe.ps1`](#telnet-cli-probeps1) | Raw RouterOS Telnet client, for CLI ground truth without the library |
+| [`jg_analyze.py`](#jg_analyzepy) | Parse and report on WinBox `.jg` catalogs |
+
+## `run-integration-tests.ps1`
+
+Runs `tik4net.integrationtests` against a live router. It resolves the repository root from its own
+location, so it works from any working directory, and it always writes TRX so that skips remain
+inspectable afterwards.
+
+```powershell
+Tools/probes/run-integration-tests.ps1 -Transport api          # one transport, full suite
+Tools/probes/run-integration-tests.ps1 -Smoke                  # smoke subset, every transport
+Tools/probes/run-integration-tests.ps1                         # full matrix
+Tools/probes/run-integration-tests.ps1 -Transport telnet -WireTrace auto
+```
+
+The default transport order runs the API-based transports before the CLI ones, because CLI transports
+are the ones that leave orphans on the router and an orphan changes the error a later transport sees.
+
+`-WireTrace` sets `TIK4NET_WIRETRACE` for the run; test boundaries are written into the trace, so a
+failure can be located without correlating timestamps.
+
+## `parse-trx.ps1`
+
+```powershell
+Tools/probes/parse-trx.ps1 -ShowFailures -ShowSkips
+Tools/probes/parse-trx.ps1 -Pattern 'results_winboxcli.trx' -FailedTestFilter
+```
+
+MSTest records `Assert.Inconclusive` in a TRX as `notExecuted`, and neither the console summary nor
+`-v q` names the skipped tests. That matters for intermittent bugs: two runs that both report zero
+failures can still differ, and a changed skip count is often the only observation available.
+
+`-FailedTestFilter` emits a ready-made `--filter` expression for re-running only the failures.
 
 ## `telnet-cli-probe.ps1`
 

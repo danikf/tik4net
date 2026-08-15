@@ -9,16 +9,29 @@ This is **not** end-user documentation — that lives in the
 [wiki](https://github.com/tik4net/tik4net/wiki). Roadmaps, phase plans and work logs are not kept
 here either; they are the author's local working notes.
 
+These documents are written in the **present tense**: they describe what the router does now.
+
+Narrative about the past lives in two places, and only these two:
+
+- [`HISTORY.md`](HISTORY.md) — **the index, and where to start.** It carries the transferable
+  *lessons* — the reasoning failures worth recognising again — plus incidents and pinned measurements.
+- `<doc>-history.md` — the full end-to-end account for one document's subject, named after it so the
+  pair sits together. Reached from `HISTORY.md` or from the document itself.
+
+Each fact lives in exactly **one** history file, in the subject area where it belongs; the others
+cross-link rather than restate it. When a wrong diagnosis spans two subjects, it goes in the one whose
+code was actually wrong.
+
 ## Transport findings
 
 | Document | Covers |
 |---|---|
-| [`findings-cli.md`](findings-cli.md) | RouterOS terminal/PTY layer: `print as-value`, `:put` framing, `detail`, `print stats`, VT100 negotiation, where-quoting, and why a settled prompt is not proof the router is answering *your* command (P2.47) |
+| [`findings-cli.md`](findings-cli.md) | RouterOS terminal/PTY layer: `print as-value`, `:put` framing, `detail`, `print stats`, VT100 negotiation, where-quoting, and why a settled prompt is not proof the router is answering *your* command |
 | [`terminal-cli-parsing.md`](terminal-cli-parsing.md) | Parsing the CLI's as-value output into records |
 | [`findings-rest-api.md`](findings-rest-api.md) | REST endpoint shapes, verb mapping, error responses, and why the router's own `listen` cannot be used (§12) |
-| [`findings-mactelnet.md`](findings-mactelnet.md) | MAC-Telnet session behaviour, the shared MAC layer's cumulative ACK / retransmission rules, and the login the router refuses *after* reporting the handshake successful (P2.49) |
+| [`findings-mactelnet.md`](findings-mactelnet.md) | MAC-Telnet session behaviour, the shared MAC layer's cumulative ACK / retransmission rules, and the login the router refuses *after* reporting the handshake successful |
 | [`mactelnet-protocol.md`](mactelnet-protocol.md) | MAC-Telnet wire protocol: framing, the counter/ACK rule, control packets |
-| [`findings-mepty-byte-ack.md`](findings-mepty-byte-ack.md) | WinBox `mepty` counter is a cumulative **byte** ACK, not a message counter — a wrong value caps a session at ~8 KB |
+| [`findings-mepty-byte-ack.md`](findings-mepty-byte-ack.md) | WinBox `mepty` counter is a cumulative **byte** ACK, not a message counter — a wrong value caps a session at ~8 KB ([history](findings-mepty-byte-ack-history.md)) |
 | [`findings-winbox.md`](findings-winbox.md) | WinBox transport/session layer: EC-SRP5 login, stream cipher, M2 framing, error codes — incl. §13, the router refusing ~1 % of *valid* logins |
 | [`findings-winbox-terminal.md`](findings-winbox-terminal.md) | WinBox CLI (terminal-over-M2) behaviour |
 
@@ -36,7 +49,19 @@ here either; they are the author's local working notes.
 | Document | Covers |
 |---|---|
 | [`protocol-coverage.md`](protocol-coverage.md) | Which capabilities each transport actually supports, and where the gaps are |
-| [`findings-router-throughput-ceiling.md`](findings-router-throughput-ceiling.md) | Sustained load hits an **aggregate** ceiling — ~1 ms round trips clamp to ~20 ms after a shared burst budget, on every transport and across all connections at once (P2.46) |
+| [`findings-router-throughput-ceiling.md`](findings-router-throughput-ceiling.md) | Sustained load hits an **aggregate** ceiling — ~1 ms round trips clamp to ~20 ms after a shared burst budget, on every transport and across all connections at once |
 
-Related tooling: [`../Tools/probes/`](../Tools/probes/README.md) holds the standalone Telnet probe
-and the `.jg` analyzer used to produce much of the above.
+## History
+
+| Document | Covers |
+|---|---|
+| [`HISTORY.md`](HISTORY.md) | **Start here.** The transferable lessons, incidents, and measurements pinned to a moment |
+| [`findings-cli-history.md`](findings-cli-history.md) | CLI / PTY transports |
+| [`findings-winbox-history.md`](findings-winbox-history.md) | WinBox transport and session layer |
+| [`findings-rest-api-history.md`](findings-rest-api-history.md) | REST transport |
+| [`winbox-native-m2-protocol-history.md`](winbox-native-m2-protocol-history.md) | WinBox native M2 protocol and field vocabulary |
+| [`winbox-m2-multiplexing-design-history.md`](winbox-m2-multiplexing-design-history.md) | M2 channel and request/reply correlation |
+| [`findings-mepty-byte-ack-history.md`](findings-mepty-byte-ack-history.md) | WinBox CLI `mepty` byte-acknowledgement |
+
+Related tooling: [`../Tools/probes/`](../Tools/probes/README.md) holds the standalone Telnet probe, the
+`.jg` analyzer used to produce much of the above, and the integration-test harness scripts.

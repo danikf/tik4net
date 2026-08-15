@@ -486,7 +486,7 @@ namespace tik4net.MacTelnet
         // RouterOS refuses a MAC-Telnet login with this exact line, on its own, AFTER the EC-SRP5 exchange
         // has ended in CTRL_END_AUTH. Matched narrowly rather than through RouterOsCliLogin.IsLoginFailure,
         // which also matches "login failure" — the wording of the router's own log lines, which the shipped
-        // logging rules echo onto any console at any moment, including this one (see findings-cli.md §5).
+        // logging rules echo onto any console at any moment, including this one (see findings-cli.md §11).
         private static bool IsLoginRefusal(string stripped)
             => !string.IsNullOrEmpty(stripped)
             && stripped.IndexOf("Login failed", StringComparison.OrdinalIgnoreCase) >= 0;

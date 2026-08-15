@@ -1,20 +1,24 @@
 # WinBox native M2 — protocol reference
 
-Durable protocol findings for the `WinboxNative` transport, extracted from the reverse-engineering
-work log. Everything here was verified against a live RouterOS 7.21.4 router and/or read out of the
-webfig client, and the C# implementation (`tik4net/Winbox/`, `tik4net/WinboxNative/`) cites these
-sections by number — the original numbering is preserved for that reason.
+Durable protocol facts for the `WinboxNative` transport, verified against a live RouterOS router
+and/or read out of the webfig client. The C# implementation (`tik4net/Winbox/`,
+`tik4net/WinboxNative/`) cites these sections by number, so the section numbers below are stable —
+do not renumber a heading without checking who cites it.
 
 Companion documents: [`jg-catalog-format.md`](jg-catalog-format.md) for the `.jg` catalog encoding,
 [`findings-winbox.md`](findings-winbox.md) for the transport/session layer, and
-[`winbox-m2-multiplexing-design.md`](winbox-m2-multiplexing-design.md) for the channel model.
+[`winbox-m2-multiplexing-design.md`](winbox-m2-multiplexing-design.md) for the channel model. Dated
+incidents and superseded diagnoses from this area live in [`HISTORY.md`](HISTORY.md).
+
+> Superseded diagnoses, incidents and pinned measurements for this area are in
+> [`winbox-native-m2-protocol-history.md`](winbox-native-m2-protocol-history.md); this document describes current behaviour only.
 
 ---
 
-## 0. Key discovery (2026-06-07): `.jg` = JS object literal
+## 0. `.jg` files are plain-text JS object literals
 
-`.jg` files are **NOT** binary or gzip — they are **plain-text JavaScript object literals**
-(pseudo-JSON), 100% printable ASCII. Example (`advtool.jg`):
+`.jg` files are **not** binary or gzip on the wire once decompressed — they are **plain-text
+JavaScript object literals** (pseudo-JSON), 100% printable ASCII. Example (`advtool.jg`):
 
 ```js
 [{name:'IP Scan',title:'IP Scan',group:'Tools',c:[{title:'IP Scan',type:'query',
@@ -23,7 +27,7 @@ Companion documents: [`jg-catalog-format.md`](jg-catalog-format.md) for the `.jg
   {name:'MAC Address',type:'macaddr',id:'r2',opt:1,width:120}, ... ]}]}]
 ```
 
-### `.jg` → M2 protocol mapping (essential)
+### `.jg` → M2 protocol mapping
 
 | `.jg` construct | M2 meaning |
 |---|---|
@@ -38,28 +42,18 @@ Companion documents: [`jg-catalog-format.md`](jg-catalog-format.md) for the `.jg
 | `id:'U3d'` | field **key=0x3d**, **type=u32-array** (uppercase `U`) |
 | `type:'map'/'query'/'item'/'doit'/'action'` | window kind → implies default commands (list/get/set/add/remove) |
 
-### Prefix → TLV type (hypothesis, to be verified in Phase 2)
+Uppercase letter = array variant of the same type. The hex suffix reads as a hexadecimal number
+(`fe0010` → 0xFE0010), covering both the system namespace (`0xFExxxx`) and the user namespace.
 
-| prefix | meaning | TLV type (from memory ref_mikrotik_api) |
-|---|---|---|
-| `u` | u32 | 0x08 (or 0x09 u8 depending on size) |
-| `s` | string | 0x21 |
-| `b` | bool | 0x00/0x01 (bool sys) |
-| `r` | raw (mac 6B) | 0x31 |
-| `m` | addr (ip/ip6) | raw |
-| `a` | ip6addr | raw 16B |
-| `U` (uppercase) | u32 array | 0x88 |
-| `S` (uppercase) | string array | 0xA0 |
-| `x`/`q` | u64? | to be verified |
-
-> Uppercase letter = array variant of the same type. The hex suffix reads as a hexadecimal
-> number (`fe0010` → 0xFE0010), covering both the system namespace (`0xFExxxx`) and the user namespace.
+The `.jg` prefix letter only tells you the field's *shape* (scalar vs. array, roughly which
+family). The exact TLV type byte on the wire is derived from `ftype` and size flags, not from the
+prefix letter — see §23.2 for the authoritative table.
 
 ---
 
-## 6. Phase 3 empirical results (live router 7.21.4, 2026-06-07)
+## 6. System field keys and error codes
 
-### Authoritative field constants (tenable/routeros `common/winbox_message.cpp`)
+Authoritative field constants, transcribed from tenable/routeros `common/winbox_message.cpp`:
 
 | name | key | | error code | meaning |
 |---|---|---|---|---|
@@ -72,51 +66,22 @@ Companion documents: [`jg-catalog-format.md`](jg-catalog-format.md) for the `.jg
 | `k_error_string` | `0xFF0009` | | | |
 | `k_session_id` = **`.id`** | `0xFE0001` | | | |
 
-Builtin commands `0xFE0000–0xFE0016` are **system-level** (`0xFE0001`=cmdGetPolicies),
-NOT object CRUD → CRUD is per-handler small numbers.
-
-### Probe results on handler `[20,0]` (/interface)
-
-- **`cmd=3` (no id) = getall-ids** ✅ → returns user key `0x000001` = u32[] of all .ids
-  (live: 47 ids: `[1,3,10,11,...,77]`). **Native read works.**
-- `cmd=3 + .id` → ignores the id, always returns the full id-list.
-- `cmd=2 + .id` → empty ACK with no error (probably **set**, a no-op with no fields).
-- `cmd=2` without id → `0xFE0004` obj_nonexistant (set requires an id).
-- `cmd=1,4,5,6,7,8 (with and without .id)` → `0xFE0009` k_not_permitted (the commands exist, but are gated/missing an argument).
-- Sweep `0x00–0x28` with id as both `.id` and `u1`: **none returns the full record** (Name `0x10006`).
-
-### Open question: how to get the full record (fields)?
-
-The "getall-ids → get-one-by-id" model doesn't work this way. Hypotheses (for Phase 3b):
-1. **Streaming**: `cmd=3` with `reply_expected=false` → the handler streams rows (each = 1 frame).
-2. **Column subscription**: the request carries a list of requested field-keys (related to `.jg` `refreshfilter`).
-3. **get-one** is a command outside 0x00–0x28, or the id belongs to a different field.
-References to investigate: tenable/routeros `bytheway/src/main.cpp`, the "Make It Rain" article,
-subixonfire/winbox-terminal-protocol (auth+session infra).
-
+Builtin commands `0xFE0000–0xFE0016` are **system-level** (`0xFE0001`=cmdGetPolicies), and — as
+§10 establishes from the webfig source — a large subset of them double as the generic CRUD verbs
+(getall, get-one, set, add, remove, …), not a separate "system-only" range.
 
 ---
 
-## 10. ✅✅ BREAKTHROUGH (2026-06-09): native CRUD solved from webfig master.js
+## 10. Native CRUD command catalog (from webfig `master.js`)
 
-**Source of truth = `_notes/WinboxMessage/webfig/master-d53cd8ec58cb.js`** (the only non-crypto
-webfig script, the M2 protocol implemented in JS over HTTP `/jsproxy`). Functions `msg2buffer`/`buffer2msg`
-(serialization), `ObjectMap.getall/fetch/setObject` (CRUD), `subscribe` (push model).
-Black-box probing was a dead end — webfig handed over the complete command catalog directly.
+**Source of truth = the webfig client script** `master-<hash>.js`, served by the router at
+`/webfig/` (the hash changes per RouterOS build, so fetch it from the router under test rather than
+reusing a saved filename; the `winbox-native-dev` skill has the routes). It is the only non-crypto
+webfig script, and it implements the M2 protocol in JS over HTTP `/jsproxy`. Functions
+`msg2buffer`/`buffer2msg` (serialization), `ObjectMap.getall/fetch/setObject` (CRUD), `subscribe`
+(push model) are the relevant entry points.
 
-### Three mistakes from earlier attempts (ALL fixed)
-1. **Wrong command.** getall = **`0xfe0004`** (webfig default `getallcmd`), NOT a small number.
-   `cmd=3` on `[20,0]` returns the TYPE registry, not instances. Earlier agents had labeled
-   `0xfe0000–0xfe0016` as "system-level, not CRUD" — that was WRONG. Those numbers ARE CRUD
-   (generic defaults, which is why `.jg` doesn't list them for `type:'map'`).
-2. **Missing flag field.** getall requires **`ufe000c`** (key `0xFE000C`, u32) =
-   `0x10000005` (`| refetchonopen | refreshfilter`). Without it the handler returns no rows.
-3. **Records are a MESSAGE-ARRAY** under key **`0xFE0002`** (webfig `Mfe0002`, wire type
-   **0xA8**). The old parser had no case for 0xA8 and `SkipTypeBytes` defaulted to 0 → it stopped →
-   rows NEVER showed up. Fixed: message (0x28/9/A) + message-array (0xA8/9/A)
-   in `M2Message.ParseAllFields` + `ParseRecords` + `SkipTypeBytes`.
-
-### Complete command catalog (uff0007, from webfig)
+### Complete command catalog (`uff0007`, from webfig)
 | cmd | constant | meaning | request fields | reply |
 |---|---|---|---|---|
 | `0xfe0004` | getallcmd | **list all** | `ufe000c`=flags, `ufe0018`=maxobjs, paging `ufe0003` **and/or** `mfe0015` (echoed back as received) | `Mfe0002` records, `ufe0019` count, `ufe0003` and/or `mfe0015` cont. token |
@@ -131,81 +96,56 @@ Black-box probing was a dead end — webfig handed over the complete command cat
 | `0xfe0012` | — | **subscribe** (push) | path in `Uff0001` | async push key `Uff0002`=path |
 | `0xfe0013` | — | unsubscribe | | |
 
+`.jg` doesn't list these commands for a `type:'map'` window because they are the **generic
+defaults** — the numbers only show up in `.jg` when a window overrides one of them.
+
 ### Key system fields (writeId: 3B key LE + 1B type in the top byte)
 - `Uff0001` (u32[]) = **SYS_TO** = path `[20,0]`. **Uppercase U = array!**
 - `uff0007` (u32) = **SYS_CMD**.  `Sff001c` = trace (webfig, can be omitted).
 - `Uff0002` (u32[]) = SYS_FROM (in a push notification = which subscription).
 - `uff0008` = error code, `sff0009` = error string.
-- `ufe0001` = **.id** (record handle).  `ufe000c` = getall/get **flags**.
+- `ufe0001` = **.id** (record handle).  `ufe000c` = getall/get **flags** (getall requires
+  `0x10000005` = `refetchonopen | refreshfilter` — without it the handler returns no rows).
 - `ufe0018` = maxobjs.  `ufe0003` = getall continuation token.  `ufe0019` = count.
-- `Mfe0002` = **records** (message-array).  `ufe0005` = next-id (ordered).
+- `Mfe0002` = **records** (message-array, wire type `0xA8`).  `ufe0005` = next-id (ordered).
 - `ufe0013` = removed flag.  `mfe001d` = default config (`setDefaultConf` cmd `0xfe0004`+`ufe000c=0x20000000`).
 
 ### Field-key convention (from `.jg` id + webfig)
 - **comment = `sfe0009`** = string key **`0xFE0009`** (webfig `types.comment.get/put`). Confirmed live.
 - Name = `s10006` (0x10006).  .id = `ufe0001` (0xFE0001).  type = `u10001`.
 - Type-byte = `(ftype<<3)|sizeFlags`; ftype 5=message, 21=message[]; flags short=0x01 long=0x02;
-  length/count: short=1B, normal=2B, long=4B (webfig `readLen`).
+  length/count: short=1B, normal=2B, long=4B (webfig `readLen`). Full ftype table: §23.2.
 
 ### Wire-format detail (from `msg2buffer`)
 - An M2 message = `'M2'` + fields. A sub-message (message/message-array element) ALSO carries an `'M2'` prefix.
 - Field header (4B): `[key_lo][key_mid][key_hi][typeByte]` — 24-bit LE key, type+flags in the top byte.
 - message-array (0xA8): `[2B count][ (2B elemLen + M2-submsg) × count ]`.
 
-### Edit = "modify everything, save" (confirmed)
+### Edit = "modify everything, save"
 webfig's `setObject` sends the ENTIRE object (`update(req,obj._exportObj||obj)`) + cmd `0xfe0003` +
 `ufe0001`=.id. In practice, sending .id plus only the changed fields is enough (verified live: setting only `sfe0009`).
 
-### Live verification (router 7.21.4, `WinboxNativeGetallTest.cs`, 3/3 ✅)
+### Live verification (router 7.21.4, `WinboxNativeGetallTest.cs`)
 - `Native_GetAllInterfaces` — `[20,0]` getall → names **match the API** (`CollectionAssert`).
 - `Native_GetAllIpAddresses` — `[20,1]` getall → 1 record (generic across tables).
 - `Native_SetAndRestoreEther1Comment` — get-one ether1 (.id=2, `sfe0009`="My comment" = API),
-  set `sfe0009`="native-m2-ok" → API confirms the change → restore → API confirms. **status=0.**
-
-### Next step (W5 — production resolver)
-Catalog-driven `Resolve(path, op) → (handler, cmd, fields)` from `.jg` (W4 fetch done) +
-`NativeGetAll/GetOne/SetRecord` in `WinboxM2Client`. add/remove/move per the table above.
-Promote into `tik4net/Winbox/` (`WinboxNativeM2Session`) — the infrastructure (auth, AES, M2) already exists.
+  set `sfe0009`="native-m2-ok" → API confirms the change → restore → API confirms. `status=0`.
 
 ---
 
-## 20. CHAPTER: Full streaming monitor for WinboxNative (started 2026-06-13)
+## 20. Streaming monitors are client-side polling, not a server push
 
-### Goal
-Native support for **continuous/streamed monitoring** — `.jg` windows of `type:'query'` with
-`autorefresh` + `startcmd`/`pollcmd`/`cancelcmd`, where instead of a single getall the router
-**repeatedly pushes updated rows** (torch, ip-scan, netwatch, ethernet monitor with a live rate,
-traffic-monitor…). Today the native transport only supports **once-shot** (getall + filter, §18) —
-live values (rate, auto-negotiation) are missing from a plain getall.
+A `.jg` window of `type:'query'` (torch, ip-scan, ping, traceroute, profile) or `type:'action'`
+with a `pollcmd` (bandwidth-test, cable-test, ping actions) drives **continuous/streamed
+monitoring**: instead of one getall, the caller repeatedly asks the router for the next batch of
+rows. Ground truth is webfig `master.js` (`ObjectQuery`, `ObjectAction`, `ObjectMap.getall`): the
+**client re-polls on a timer** over the normal synchronous request/reply channel — the router never
+pushes a monitor row unsolicited. No async server-push reader or dispatch on subscription-id is
+needed; a worker thread doing start → poll → cancel over the existing M2 session is sufficient.
+(`subscribe`/`0xFE0012`, described in §10, is a real but separate mechanism for config-table
+change push — not used for monitor windows.)
 
-### What's already in place (building blocks)
-- `WinboxM2Protocol.Command`: `Subscribe=0xFE0012`, `Unsubscribe=0xFE0013` + the monitor triple
-  `0xFE000F/10/11` (startcmd/pollcmd/cancelcmd — see the §17 note). The constants already exist.
-- The `.jg` parser already reads `type:'query'`, harvesting the window path into `_derivedPaths`
-  (query is in `WindowTypes`). Missing: harvesting the `startcmd/pollcmd/cancelcmd` numbers and the
-  `request:[…]` fields.
-- The M2 session can send a request and read a frame; the subscribe push model is described in §10
-  (cmd `0xFE0012`, async push under key `Uff0002`=path).
-
-### Open questions (to investigate from webfig master.js + .jg)
-1. **Two models**: (a) CRUD `subscribe 0xFE0012` (config-table push, autorefresh windows like firewall),
-   (b) per-handler `startcmd/pollcmd/cancelcmd` (tool windows like torch/ip-scan from `advtool.jg`).
-   Determine which window uses which — `.jg` carries this (`startcmd:N` present ⇒ model b).
-2. How does tik4net's API expose this? There is `ExecuteAsync`(callback) + `LoadAsync<T>` in the O/R mapper
-   (binary API streaming, see `TikCommandTest.ExecuteAsync_OnDoneCallback_Called`). The native transport
-   must fulfil `TikConnectionCapability.Listen` / `Streaming`, or remain unsupported.
-3. Read thread: the M2 channel is currently request/reply. A push model means async frames arriving
-   unrequested → needs a reader loop + dispatch on request-id/subscription-id.
-
-### ✅ RE DONE (2026-06-13) — KEY DISCOVERY: streaming = CLIENT POLLING, not server push
-
-Ground-truth from webfig `master.js` (`ObjectQuery`, `ObjectAction`, `ObjectMap.getall`) + `.jg` query/action
-windows. **The earlier §9 hypothesis ("the router pushes rows asynchronously, autorefresh:1000") was WRONG.**
-Reality: webfig **repeatedly requests rows itself** (a timer every `autorefresh` ms) over normal
-request/reply on the same channel. No async server-push reader is needed — the existing synchronous
-M2 session is sufficient; the monitor just re-posts requests from a worker thread.
-
-#### `.jg` window → cmd triple (all SYS_CMD `uff0007` on `Uff0001`=path)
+### `.jg` window → cmd triple (all SYS_CMD `uff0007` on `Uff0001`=path)
 | `.jg` field | meaning | example |
 |---|---|---|
 | `startcmd:N` | starts the monitor → reply carries **`ufe0001`=id** (session handle) | Torch [45,5] `startcmd:1`, IP Scan [101,1] `startcmd:1` |
@@ -219,7 +159,7 @@ The system-level monitor triple (windows without their own numbers): `0xFE000F`=
 `0xFE0011`=cancel. Sentinel `0xFFFFFFFF` = "no cmd" (`startcmd==0xffffffff && autorefresh==null`
 ⇒ the window is actually just a one-shot getall, not a stream).
 
-#### Model A — `ObjectQuery` (`type:'query'`: torch, ip-scan, ping, traceroute, profile)
+### Model A — `ObjectQuery` (`type:'query'`: torch, ip-scan, ping, traceroute, profile)
 1. **start**: `post({…request, Uff0001=path, uff0007=startcmd})` → reply `ufe0001` = **id**.
 2. **poll loop**: `map.getall(id)` = `post({Uff0001=path, uff0007=getallcmd||0xfe0004, ufe000c=0x10000005,
    ufe0018=maxobjs, ufe0001=id})`. Rows in `rep.Mfe0002` (same decoding as an ordinary getall!), keyed by
@@ -228,21 +168,20 @@ The system-level monitor triple (windows without their own numbers): `0xFE000F`=
    timer waits `autorefresh` ms → next pass.
 3. **stop**: `post({Uff0001=path, uff0007=cancelcmd, ufe0001=id})`.
 
-#### Model B — `ObjectAction` (`type:'action'` + `pollcmd`: bandwidth-test, cable-test, ping actions)
+### Model B — `ObjectAction` (`type:'action'` + `pollcmd`: bandwidth-test, cable-test, ping actions)
 1. **start**: `post({…request, Uff0001=path, uff0007=startcmd})` → reply `ufe0001`=id, `started=true`.
 2. **fetch (poll)**: `post({Uff0001=path, uff0007=pollcmd, ufe0001=id})` → reply = **a single status record**
    (`update(rep)`, not a row map). Timer `autorefresh` → next fetch.
 3. **stop**: `post({Uff0001=path, uff0007=cancelcmd, ufe0001=id})`.
+
 Difference A↔B: A returns a **row map** (Mfe0002) per pass; B returns **one status** per poll.
 
-#### Shared stop conditions
+### Shared stop conditions
 - **`bfe000b`** (key `0xFE000B`, bool) = "**finished/done**" → ends the stream (the router signals completion,
   e.g. traceroute reached its target). webfig: `if(rep.bfe000b){this.stop();return;}`.
-- The caller unsubscribes (unlisten) → cancel. An error (other than the 0xFE0004 terminator) → stop.
+- The caller unsubscribes (unlisten) → cancel. An error (other than the `0xFE0004` terminator) → stop.
 
-#### Implication for the implementation (a simplification!)
-We do NOT need an async push reader or dispatch on subscription-id. A **worker thread** with a poll loop
-over the existing request/reply M2 session is enough:
+### Implementation model
 ```
 id = Post(startcmd, requestFields).ufe0001
 while (!cancelled):
@@ -255,87 +194,65 @@ while (!cancelled):
 Post(cancelcmd, id)
 ```
 This maps 1:1 onto tik4net's `ExecuteAsync(onReply, onError, onDone)` + `CancelAndJoin()` and the
-`TikConnectionCapability.Listen` capability. `subscribe 0xFE0012` (config-table change push) is a SEPARATE
-mechanism — not used for monitor windows, and out of scope for now.
+`TikConnectionCapability.Listen` capability.
 
-### ✅ LIVE PoC DONE (2026-06-13) — start→poll→cancel verified against the router
-Test `WinboxNativeM2Test.Native_MonitorCycle_Profile` ([Ignore] PoC, run via `--filter`).
-Target = the Profile window **[49]** (CPU profiler — no dependency on traffic, works on any router):
-- **start** = `0xFE000F` + request `u1=0xFFFFFFFD` ("total") → reply status 0, **id in `.id` (0xFE0001) =
-  `0xFFFFFFFD`** (Profile echoes the CPU selector as the id; note: u32 > int.MaxValue → must be carried as uint,
-  re-encoded via `SessionIdFieldU32`).
-- **poll** = `0xFE0004` (default getall) + `.id` + flags `0x10000005` → rows under `Mfe0002` (1–2 CPU
-  profile records/pass), repeated every 1000 ms.
-- **cancel** = `0xFE0011` + `.id` → status 0.
-Output: `monitor cycle OK: 4 total rows across 3 passes`. **The hypothesis was 100% confirmed live** —
-streaming IS client-polling over the request/reply channel, no push. This removes the previously assumed
-blocker (an async reader).
-
-### Implementation proposal (next step)
-1. **Catalog**: harvest `startcmd/pollcmd/getallcmd/cancelcmd/autorefresh` and `request:[…]` fields from
-   `WinboxJgCatalog` `type:'query'/'action'` windows → a new `WinboxMonitorSpec` structure keyed by derived path
-   (`/tool/torch`, `/tool/ip-scan`, …). Same principle as `_actionsByHandler` (§17).
-2. **Operations**: `WinboxNativeM2Operations.StartMonitor(handler, startcmd, requestFields) → id`,
-   `PollMonitor(handler, cmd, id, token) → (rows, nextToken, done)`, `CancelMonitor(handler, cancelcmd, id)`.
-3. **Connection**: implement an async path in `WinboxNativeConnection` (`RunAsync`/base equivalent) —
-   a worker thread with a poll loop, callbacks via the existing `ITikCommand.ExecuteAsync`. Set
-   `Supports(Listen)=true`.
-4. **Capability + tests**: `EthernetMonitorForEth1` (live rate), a torch test across transports
-   (`EnsureCapability(Listen)` skips on CLI transports). Wiki: update the "Capability" section.
-
-### ✅ DONE (2026-06-14) — streaming monitor + listen + async list, suite 0 fail
-Full `winboxnative` suite: **163 pass / 0 fail / 81 skip** (all uncommitted, 4.x).
-
-**Architecture** (following feedback "RunMonitor in the base class breaks the abstraction + the ID must be uint"):
-- opt-in `ITikMonitorTransport` (`TikMonitorHandle.cs`) — NOT in the neutral `TikCommandConnectionBase`.
-  `TikGenericCommand.ExecuteAsync` routes through `is ITikMonitorTransport` (otherwise `NotSupported`).
-  `WinboxNativeConnection` implements it (`Capabilities = Crud | Listen`); CLI does not.
-- Monitor id is **uint** everywhere (Profile echoes 0xFFFFFFFD > int.MaxValue). `M2Message.SessionIdField(uint)`.
-- `ExecuteAsync` normalizes a multiline command (`?type=ether\n?#|`) into Filter fields — previously only the sync path did this.
-
-**Dispatch by verb** in `RunMonitorAsync`:
-- `listen` → **poll+diff** (`ListenLoop`): getall every 1s, diff by `.id` using a signature over **config
-  fields only** (`RowSignature` skips ro:1 counters — `ReadOnlyFieldNames` from `.jg`), a deleted `.id` becomes a
-  synthetic `.dead=true` record (O/R `LoadListenAsync` → onDeleted). webfig does the same thing (it polls config tables).
+### Runtime architecture
+`RunMonitorAsync` dispatches by verb:
+- `listen` → **poll+diff** (`ListenLoop`): getall every 1s, diff by `.id` using a signature over
+  **config fields only** (`RowSignature` skips ro:1 counters — `ReadOnlyFieldNames` from `.jg`), a
+  deleted `.id` becomes a synthetic `.dead=true` record (O/R `LoadListenAsync` → onDeleted). webfig
+  does the same thing (it polls config tables).
 - `print`/`getall` → **async list** (`AsyncListOnce`): runs `RunPrint` off-thread, emits rows, done.
 - otherwise → **streaming monitor** (`MonitorLoop`): the spec comes from `WinboxJgCatalog.GetMonitorByHandler`,
-  start/poll/cancel via `WinboxNativeM2Operations.{Start,Poll,Cancel}Monitor`. Request fields are encoded
-  **in the worker** (not synchronously) → a resolve failure (e.g. a nonexistent interface) goes async through
-  `onError` like the API does, rather than throwing synchronously.
-- **Close/Cancel during a monitor is graceful** (`MonitorStopping` = CancelRequested || !IsOpened → swallows the error).
+  start/poll/cancel via `WinboxNativeM2Operations.{Start,Poll,Cancel}Monitor` (poll is
+  `PollMonitorRound`, one request/reply round per call — see §21 for why a pass is not bounded by a
+  fixed round count). Request fields are encoded **in the worker** (not synchronously) → a resolve
+  failure (e.g. a nonexistent interface) goes async through `onError` like the API does, rather than
+  throwing synchronously.
+- **Close/Cancel during a monitor is graceful**: `MonitorStopping` (`CancelRequested || !IsOpened`) swallows the error.
 
-**Native query-stack filters**: `RunPrint` evaluates the `?#|`/`?#&`/`?#!` postfix stack + `?<`/`?>` (not a naive AND).
+Monitor id is **uint** everywhere — a session handle can exceed `int.MaxValue` (Profile echoes
+`0xFFFFFFFD`) — carried via `M2Message.SessionIdField(uint)`. Monitor support is opt-in
+(`ITikMonitorTransport`, `tik4net/Connection/TikMonitorHandle.cs`) rather than living in the
+neutral `TikCommandConnectionBase`; `TikGenericCommand.ExecuteAsync` routes through
+`is ITikMonitorTransport` and reports `NotSupported` otherwise. `WinboxNativeConnection` implements
+it (`Capabilities = Crud | Listen`); the CLI transports do not.
 
-**Shipped field aliases** (a new subsystem, `WinboxFieldResolver`, analogous to `WinboxHandlerMap.ShippedAlias`):
-`ApiToJg`/`JgToApi`/`KeyToApi`/`KeyUiType`, keyed by apiPath. Only stable text/keys — types still come live from `.jg`.
+`RunPrint` evaluates the native query-stack filters — the `?#|`/`?#&`/`?#!` postfix stack plus
+`?<`/`?>` — rather than a naive AND.
+
+**Field aliases**: `WinboxFieldResolver` (`ApiToJg`/`JgToApi`/`KeyToApi`/`KeyUiType`, keyed by
+apiPath) ships stable text/key aliases the same way `WinboxHandlerMap.ShippedAlias` ships path
+aliases. Only stable text/keys are shipped — types still come live from `.jg`.
 
 **Ping** (`/ping`→[22], query, start `0xFE000F`/cancel `0xFE0011`/poll `0xFE0004`):
 - aliases: address→`ping-to`, count→`packet-count`, size→`packet-size`, min/avg/max-rtt; the reply's
   **host = key 0x1** (u32 ipaddr, unnamed in `.jg` → resolved via `KeyToApi`+`KeyUiType`).
-- **`addr` composite** (master.js `types.addr`): a nested message (`M2Message.MessageSys`, wire `0x29`) under 0x16,
-  with IPv4 as a u32 on sub-key **0xFEFF20**. Request fields go through even for ro:1 (`allowReadOnly`).
+- the address rides as the `addr` composite described in §23.1 (nested message under key `0x16`,
+  IPv4 on sub-key `0xFEFF20`). Request fields go through even for `ro:1` (`allowReadOnly`).
 
-**Interface `type` label**: `.jg` type is a number (0x10001); the API string ("ether"/"loopback") lives in the
-record at **0x1001E** (verified live + cross-checked against the API). `/interface` alias: 0x1001E→`type`,
-0x10001→`type-id`. **No registry/hardcoding.**
+**Interface `type` label**: `.jg` type is a number (`0x10001`); the API string ("ether"/"loopback")
+lives in the record at **`0x1001E`** (verified live + cross-checked against the API). `/interface`
+alias: `0x1001E`→`type`, `0x10001`→`type-id`.
 
-**Note**: there are two `M2Message` classes — the library one (which has `MessageSys`) vs.
-`tik4net.tests/Protocols/_Shared/M2Message.cs` (which does not).
-New files: `TikMonitorHandle.cs`, `WinboxMonitorSpec.cs`.
+**Two `M2Message` classes exist** in the solution: the library one
+(`tik4net/Winbox/M2Message.cs`, which has `MessageSys`) and a separate one in the integration test
+project (`tik4net.integrationtests/Protocols/_Shared/M2Message.cs`, which does not) — don't confuse
+them when tracing.
 
 ---
 
-## 21. ✅ A query window is ONE long getall pass, not a paged snapshot (P2.45, 2026-07-31)
+## 21. A query-window poll returns one record and blocks until the next exists
 
 A `type:'query'` window **has no `pollcmd`** (verified across the entire catalog: 18 plugins / 805
-windows — *no* query window carries a pollcmd, only `action` windows have one). So a poll is just an
-ordinary `getall` on the monitor id, and its reply has a shape §20 didn't describe:
+windows — no query window carries a pollcmd, only `action` windows have one). So a poll is just an
+ordinary `getall` on the monitor id, and its reply shape is:
 
 > The router replies with **one record plus a continuation token** (`ufe0003`), and requesting the
 > next continuation **BLOCKS until another record exists**. The final reply carries `bfe000b`
 > (Finished) and no further token.
 
-Measured live on 7.23.2, `/ping` = handler `[22]`, `count=30`:
+Measured live, `/ping` = handler `[22]`, `count=30`:
 
 ```
 REQ  cmd=0xFE000F (start)  0x16={0xFEFF20=127.0.0.1}  0x11=30      → reply ufe0001=2  (monitor id)
@@ -345,21 +262,20 @@ REQ  cmd=0xFE0004          ufe0001=2 ufe000c=flags ufe0003=1      → …+1000 m
 count=3: the third reply carries bfe000b=True and no further token → end
 ```
 
-**Our defect (P2.45):** `PollMonitor` ran under a 4s / 256-round budget, because it had been written for
-a paged snapshot. On a 30-second ping the budget expired mid-pass, **the continuation cursor was
-discarded**, and the next poll sent a `getall` without a token — to which the router responds with
-`uff0008=0xFE0004` (ObjectNonexistent = "no more rows"). From that point the monitor went silent: no
-error, no onDone, 5 rows and done. Rows also arrived **in a 4-second batch**, not continuously.
+`PollMonitorRound` therefore does a single request/reply round; the pass itself is driven by
+`MonitorLoop`, which owns the cancel handle and the emit. `continuation != null` ⇒ go straight to
+the next round (no sleep), `Finished` ⇒ done, end of pass without `Finished` ⇒ wait `autorefresh`
+and start a new pass (that's the model for snapshot windows like Torch/Scan). There is no time or
+round cap on a pass — a pass ends only on what the router says, or on cancel. The gate is held
+**per round**, not per pass, so a 30-second monitor doesn't block CRUD.
 
-**Fix:** `PollMonitorRound` does a single request/reply round; the pass itself is driven by `MonitorLoop`,
-which owns the cancel handle and the emit. `continuation != null` ⇒ go straight to the next round (no
-sleep), `Finished` ⇒ done, end of pass without `Finished` ⇒ wait `autorefresh` and start a new pass
-(that's the model for snapshot windows like Torch/Scan). There is no time or round cap — a pass ends
-only on what the router says, or on cancel. The gate is held **per round**, not per pass, so a
-30-second monitor doesn't block CRUD.
+A fixed round or time budget on the poll loop reproduces a specific silent failure: on a long pass
+the budget expires before the router does, the continuation cursor is discarded, and the next poll
+sends a token-less `getall` — to which the router replies `uff0008=0xFE0004` (ObjectNonexistent,
+its normal "no more rows" signal). The monitor then ends quietly with a handful of rows and no
+error, indistinguishable from a short command that finished on its own.
 
-**Watch out for two shapes of query window** — both are `type:'query'` and only distinguishable at
-runtime:
+**Two shapes of query window** — both are `type:'query'` and only distinguishable at runtime:
 - **stream** (ping, traceroute, profile): the pass runs for a long time, ending in `Finished`.
 - **snapshot** (torch, scan, ip-scan): the pass completes immediately, `Finished` never arrives, and it
   repeats every `autorefresh`.
@@ -369,24 +285,15 @@ deliberately not tracked for them (webfig's `ObjectAction` doesn't either).
 
 ---
 
-## 22. ✅ A monitor window has no rows outside the monitor cycle (P2.51, 2026-08-01)
+## 22. A monitor window has rows only during a monitor cycle, not from a plain getall
 
-`RunPrintCore` only knew how to handle a monitor window asynchronously. A synchronous read (`ExecuteList` /
-`LoadList`) fell through to a generic `getall` on the monitor's handler — and the router replies **with
-no records**:
+A monitor window (`.jg` `type:'query'`, or `action`+`pollcmd`) **is not a table**: its rows only
+come into existence once a client runs the start → poll → cancel cycle. A synchronous read
+therefore cannot be answered with an ordinary getall on the window's handler — the router replies
+with no records and no error, which reads as an empty result rather than a wrong request.
+`RunMonitorWindowSync` runs the cycle on the calling thread and returns whatever it produced:
 
-```
-/ping =address=127.0.0.1 =count=2  (WinboxNative, before the fix)
-  >> M2 0xFF0001=u32[]:[22] 0xFE000C=u32:268435463        (getall on handler [22])
-  << M2 (no 0xFE0002 records)
-  → caller sees "OK (no data returned)"                    ← silent failure
-```
-
-A monitor window (`.jg` `type:'query'`, or `action`+`pollcmd`) **is not a table**: its rows only come
-into existence once the client runs the cycle. `RunMonitorWindowSync` therefore does start → poll →
-cancel on the calling thread and returns whatever the cycle produced:
-
-- **until the router sets Finished** — for a self-terminating command (`ping count=N`),
+- **until the router sets Finished** — for a self-terminating command (`ping count=N`, see §23.4),
 - **or until the first pass ends** — for a continuous window, whose pass *is* a single snapshot.
 
 This is the same rule CLI transports get from the `once`/`count=1` modifier, and it matches what the
@@ -397,26 +304,11 @@ the API and in the terminal. A WinBox window has no such input — "a single rea
 client — and attempting to encode it results in a `WinboxFieldResolutionException` on a field the
 caller never meant as data (`IsMonitorSnapshotModifier`).
 
-### What still doesn't work as a result (measured, not glossed over)
-
-Nothing from the original list — chapter 23 below resolved all three points. Only this remains:
-`/ping` without `count` (and `/tool/torch` via `ExecuteList`) run until something stops them; a
-synchronous read is therefore bounded by `ReceiveTimeout` and ends in a
+**Known limitation:** `/ping` without `count` (and `/tool/torch` via `ExecuteList`) run until
+something stops them; a synchronous read is bounded by `ReceiveTimeout` and ends in a
 `TikConnectionReceiveTimeoutException` instead of holding the thread forever.
 
-## 23. ✅ `addr` is not a string, and IPv6 is its own ftype (P2.52 + P2.53, 2026-08-01)
-
-Three symptoms recorded in chapter 22 as three separate gaps actually shared **two root causes**, both
-in the codec, not in the router. The diagnosis started by reading the **requests** instead of the
-responses:
-
-```
-/ping address=127.0.0.1    >> 0x16=msg:{0xFEFF20=16777343}         ← works
-/ping address=example.com  >> 0x16=str:example.com                  ← router: "no address was specified"
-/ping address=2001:db8::1  >> 0x16=str:2001:db8::1                  ← same
-```
-
-So the router wasn't reporting anything wrong: **it was answering our malformed query.**
+## 23. `addr` is a compound field, and IPv6 rides as its own ftype
 
 ### 23.1 `addr` is a compound — each address shape has its own sub-key
 
@@ -432,11 +324,12 @@ So the router wasn't reporting anything wrong: **it was answering our malformed 
 | `/len` | `0xFEFF25` | u32 | `/` |
 | `%iface` / `@vrf` | `0xFEFF22` / `0xFEFF23` | u32 (id from the dropdown) | `i` / `v` |
 
-Before P2.53 the codec only handled IPv4 and, for anything else, **fell back to a bare string on the
-field's own key**. The router doesn't read that shape — it behaves as if the field never arrived. So
-pinging a hostname or an IPv6 address was silently broken. `%iface`/`@vrf` are now rejected loudly
-(we can't yet tell a name apart from a dropdown selection) — dropping the qualifier would mean
-addressing something else entirely.
+Sending anything other than IPv4 as a bare string on the field's own key is silently ignored by the
+router — the field behaves as if it never arrived, which surfaces as a router complaint about the
+*value* ("no address was specified") rather than about the shape of the request. `%iface`/`@vrf` are
+rejected loudly by the codec (`WinboxFieldResolutionException`) rather than guessed — there is
+currently no way to tell a DNS name apart from a dropdown selection, and dropping the qualifier
+would address something else entirely.
 
 ### 23.2 The IPv6 field is `FT_ADDR6` (type byte `0x18`), not `raw`
 
@@ -451,22 +344,18 @@ The ftype table from `master*.js` (`msg2buffer`), where the type byte = `ftype <
 Sending IPv6 as `raw` puts a length byte where the address's first byte belongs, so the router ignores
 the field.
 
-**A second, worse consequence:** the *parser* didn't know `0x18` either. An unknown type fell into
-`default: return 0`, so the value got misread as the next key+type and **the rest of the message
-scrambled into nonsense keys** — silently. This was exactly the "empty `0x1=[{}]`" seen with
-traceroute: a hop is `union{ip6addr a1 allowipv4, string s2}` inside a `multi`, and the parser skipped
-its 16 bytes as zero. After adding `0x18` (and the missing `0x80/0x90/0x98/0xB0` cases), traceroute
-returns `address=127.0.0.1` with no change to the resolver at all.
-
-> Lesson for the whole table: **every ftype must have a case in `SkipTypeBytes`**, even when there's no
-> decoder for it. A missing case isn't "unsupported type" — it's a silent scramble of everything that
-> follows, the same trap the `0xA0 str_array` case demonstrated earlier.
+**Every ftype must have a case in `SkipTypeBytes`, even when there's no decoder for it.** A missing
+case is not "unsupported type" — the parser falls into `default: return 0`, so the value's bytes get
+misread as the next key+type and the rest of the message scrambles into nonsense keys, silently. An
+empty-looking `0x1=[{}]` on traceroute was exactly this: a hop is `union{ip6addr a1 allowipv4,
+string s2}` inside a `multi`, and the parser was skipping its 16 bytes as zero. The same trap applies
+to the `0xA0` string-array type and to any future ftype the table doesn't yet cover.
 
 ### 23.3 `/interface/monitor-traffic` is live fields on the interface list window, not a monitor window
 
-Across the entire catalog (18 plugins, `jg_analyze.py`) **there is no monitor window for traffic at
-all**. WinBox shows throughput as live columns on the interface list, which a normal `getall` with the
-stats bit returns directly:
+Across the entire catalog (18 plugins) there is no monitor window for traffic at all. WinBox shows
+throughput as live columns on the interface list, which a normal `getall` with the stats bit
+returns directly:
 
 | API name | key | `.jg` label | ftype |
 |---|---|---|---|
@@ -477,10 +366,8 @@ stats bit returns directly:
 | `rx-byte` | `0x100FC` | `Rx Bytes` | bigbytes |
 | `rx-packet` | `0x100FE` | `Rx Packets` | bigdecimal |
 
-**And there was a second, separate bug here:** the label normalizer had `'Rx' → rx-byte`, so the API
-name `rx-byte` ended up getting the **rate**. On ether1, native returned `rx-byte=5536` while the API
-reported `rx-byte=76024833` for the same record — right name, wrong value, off by five orders of
-magnitude. Because of this, the entire traffic block is now mapped **by key**
+Two different `.jg` labels ("Rx" the live rate, "Rx Bytes" the counter) collide under a label-based
+lookup, so the entire traffic block is mapped **by key**
 (`ShippedFieldAliases["/interface"].KeyToApi`), and the alias set is inherited by subpaths
 (`/interface/ethernet`, `/interface/monitor-traffic`) that read the same handler.
 
@@ -494,11 +381,7 @@ table each second: the first pass = 1 hop. So for self-terminating commands
 (`TikMonitorVerbs.SelfTerminating`), a synchronous read keeps polling until the router says Finished —
 20 rows in 5.2 s, the same shape as over the API — bounded by `ReceiveTimeout`.
 
-## 24. ✅ A `range:1` network field stores start+end, and an `opt` field needs its flag (P2.33, 2026-08-02)
-
-Filed as "native rewrites an IP field into CIDR, so `192.0.2.74` reads back as `192.0.2.74/32`". The
-value was wrong in a different way (`192.0.2.74/6`), the cause was in the **catalog parser** rather
-than the codec, and the same root cause was corrupting **writes** far more seriously than reads.
+## 24. A `range:1` network field stores start+end, and an `opt` field needs its flag
 
 ### 24.1 The sibling key is the range END, not a netmask
 
@@ -525,49 +408,46 @@ is a bare host (never `/32`), an aligned power-of-two block is CIDR, anything el
 is `WinboxFieldResolver.FormatV4Range` / `TryParseV4Range`, and matching it exactly is what makes the
 record read identically over native and over every other transport.
 
-### 24.2 The flag was lost in the opt/not flattening, not in the codec
+### 24.2 The catalog must copy `range` when it flattens `opt`/`not`
 
-`WinboxJgCatalog.AddOptionField` — which drills through `opt`/`not` wrappers to the value leaf — read
-`ro`, `maskid`, `allow` and the enum map, but **not `range`**. So `IsRange` was false for exactly the
-fields WinBox makes optional, i.e. all of them here, and the end address went through the netmask
-path: `MaskToPrefix` counts set bits, and 192.0.2.74 as a "netmask" has six of them — hence `/6`.
-
-The lesson generalises past this field: the catalog has **two** places that build a field, and any
-attribute the wrapped path forgets is silently absent only for wrapped fields.
+`WinboxJgCatalog.AddOptionField` — which drills through `opt`/`not` wrappers to the value leaf —
+copies `ro`, `maskid`, `allow` and the enum map from the wrapped field, and must also copy `range`.
+Without it `IsRange` is false and the end address goes through the netmask path instead
+(`MaskToPrefix`, which counts set bits) — silently producing the wrong prefix for any wrapped range
+field, since the catalog has two places that build a field and any attribute the wrapped path
+forgets is absent only for wrapped fields, not for unwrapped ones.
 
 ### 24.3 An `opt` field is ignored unless its flag is sent — and cleared by the same flag
 
-`EncodeField` emitted the `opt`/`not` bools *after* the typed switch, but `network`, `ipaddr`,
-`macaddr` and `addr` all `return` from inside it. So those fields went out **without** the opt flag,
-and the router **discarded them**: `/ip/firewall/filter/add src-address=203.0.113.5` over native
-created a rule with no `src-address` at all — one that matches every source address. Verified live
-before and after; the flags are now emitted once, before the switch.
+`EncodeField` must emit the `opt`/`not` bools **before** the typed switch, not after: `network`,
+`ipaddr`, `macaddr` and `addr` all `return` from inside the switch, so a flag emitted afterward never
+goes out. Without the flag the router discards the field entirely — `/ip/firewall/filter/add
+src-address=203.0.113.5` sent without the `opt` bool creates a rule with no `src-address` at all,
+one that matches every source address, and the write reports success.
 
 The same bool clears the field: an empty value emits `opt=false`. It has to travel **alongside** the
 cleared value rather than replacing it — a string field is cleared by writing it empty, and sending
 only the flag makes `unset` report a success that changed nothing. For a typed field whose branch
 sends nothing for an empty value, that bool is the whole write, and without it a mapper-level `unset`
-of an optional field produced an empty M2 message that `unset` refused as naming no field.
+of an optional field produces an empty M2 message that `unset` refuses as naming no field.
 
 **Coverage:** `VerbMatrixTest.CrossTransport_AddressValues_MatchTheBinaryApi` compares all three forms
-against the binary API on whatever transport is under test (verified RED pre-fix); the rendering rule
-and the flattening are pinned router-free by `WinboxAddressRangeTests` and `WinboxJgFieldFlagTests`.
+against the binary API on whatever transport is under test; the rendering rule and the flattening are
+pinned router-free by `WinboxAddressRangeTests` and `WinboxJgFieldFlagTests`.
 
 ---
 
-## 25. ✅ An action window's arguments are not the record window's columns (A1, 2026-08-15)
+## 25. An action's arguments are attributed to the action, not just its handler
 
-`/ip/ipsec/key/rsa/generate-key name=X key-size=2048` over native produced an **unnamed 1024-bit
-key** and reported success. Two independent causes, both silent.
+### 25.1 An action invocation must send the caller's fields
 
-### 25.1 The dispatcher sent no arguments at all
+`DispatchActionVerb` invokes the `.jg` SYS_CMD with the caller's fields, not `fields: null`. An
+argument-less request is not a no-op: the router applies its own defaults for every field the caller
+didn't send. On the wire (7.23.2), a `generate-key name=X key-size=2048` request that reached the
+router without arguments got back a reply row carrying `0x1=1024` — the router's default key size —
+while still reporting success.
 
-`DispatchActionVerb` invoked the `.jg` SYS_CMD with `fields: null`. The router takes an argument-less
-`generate-key` at face value and applies its own defaults, so every parameter the caller passed was
-dropped before the request was built. Confirmed on the wire (7.23.2): the reply row carries
-`0x1=1024` — the router's default key size — for a request that asked for 2048.
-
-### 25.2 The arguments share the handler's field map with the list's columns
+### 25.2 An action's arguments are resolved against the action, not the handler's record map
 
 `secure.jg` declares the IPsec 'Keys' window `[85,5]` as a record list **and** three global `doit`s
 on the same handler:
@@ -582,32 +462,29 @@ on the same handler:
      values:{type:'static',map:{1024:'1024',2048:'2048',4096:'4096'}}}]}]}
 ```
 
-Both are labelled 'Key Size'. Merged into one per-handler map the **first label wins**, so the
-read-only column won — and `EncodeField` drops read-only fields, which means that even once 25.1 was
-fixed the argument still encoded to zero bytes. Same defect shape as the interface subtypes (§ the
-`[20,0]` windows that disagree about 'Remote Address'), one level further in.
+Both are labelled 'Key Size'. A handler-wide field map keyed by label can only keep one of them —
+first label wins — so a read-only column shadows a writable argument sharing its name, and because
+`EncodeField` drops read-only fields, the argument encodes to nothing even once 25.1 is fixed.
 
-So an action's fields are now attributed to the **action** as well as to its handler
+An action's fields are therefore attributed to the **action** as well as to its handler
 (`WinboxJgCatalog.GetActionFields`), and an invocation resolves against handler → window → action,
-the action having the last word (`WinboxFieldResolver`, `MakeActionResolver`). The handler map keeps
-exactly the content it had — that map is what a `getall` row decodes against, where the column really
-is the right answer, and it is also the only map a standalone action window (Wake on LAN `[82]`, whose
-handler backs no list) ever had.
+the action having the last word (`WinboxFieldResolver`, `WinboxNativeConnection.MakeActionResolver`).
+The handler map keeps exactly the content it had — that map is what a `getall` row decodes against,
+where the column really is the right answer, and it is also the only map a standalone action window
+(Wake on LAN `[82]`, whose handler backs no list) ever had.
 
 **Coverage:** `IpsecKeyTest.GenerateAndDeleteIpsecKeyWillNotFail` asserts the name and the 2048-bit
-size on whatever transport is under test (verified RED pre-fix on `winboxnative`: the router created
-a 1024-bit key); the catalog scoping and the encode are pinned router-free by
+size on whatever transport is under test; the catalog scoping and the encode are pinned router-free by
 `WinboxJgActionFieldTests`.
 
 ---
 
-## 26. ✅ Enum maps hide under wrappers, and "not set" is not a value (A2, 2026-08-15)
+## 26. Enum maps can nest under wrappers, and "not set" is an absent field
 
-Six live failures on `winboxnative`/`winboxnativemac`, all the same shape: the caller was handed the raw
-wire form where every other transport reports a RouterOS value. Each rule below was settled by asking the
-router (7.23.2 API) what it prints for the same record, not by reading webfig alone.
+Each rule below was settled by asking the router what it prints for the same record, not by reading
+webfig alone:
 
-| path | field | native said | the API says |
+| path | field | native (wire form) | the API says |
 |---|---|---|---|
 | `/ip/proxy` | `port` | `[8080]` | `8080` |
 | `/ip/ssh` | `ciphers` | `[0]` | `auto` |
@@ -627,25 +504,25 @@ nests them. An IPsec proposal's PFS group is `enumfilter → defenum → static`
     map:{1:'modp768 (1)',2:'modp1024 (2)',5:'modp1536 (5)',…}}}}}
 ```
 
-Reading only the top level left the field with **no map at all**, in both directions: the value decoded
-as the bare number and `pfs-group=modp1024` could not be encoded either. The chain is now followed, and
-the `defenum`'s own `defid`/`defname` joins the map as a member. The runtime-computed wrappers
-(`queryenum`, `offsetenum`, `slotenum`, `remapenum`) are deliberately **not** followed — their members
-come from a live query or from another field's value, so there is no static map to read.
+Reading only the top level leaves the field with no map at all, in both directions: the value
+decodes as the bare number and `pfs-group=modp1024` cannot be encoded either. The chain must be
+followed all the way down, and the `defenum`'s own `defid`/`defname` joins the map as a member. The
+runtime-computed wrappers (`queryenum`, `offsetenum`, `slotenum`, `remapenum`) are deliberately
+**not** followed — their members come from a live query or from another field's value, so there is
+no static map to read.
 
 The labels also spell the numeric value out: WinBox shows `modp1024 (2)` where the API says `modp1024`.
 The suffix is stripped only when the number in it IS the key, so a label that genuinely ends in a
-parenthesised number is left alone. Twelve labels in the whole 7.23.2 catalog carry it, all DH groups.
+parenthesised number is left alone. Twelve labels in the 7.23.2 catalog carry it, all DH groups.
 
 ### 26.2 A `multinumber` list of literals
 
 `{name:'Port',type:'multinumber',id:'U2',c:[{type:'number'}]}` and
 `{name:'Ciphers',type:'multinumber',id:'Ub',c:[{type:'enm',values:{type:'static',map:{0:'Auto',…}}}]}`
-are u32 arrays whose elements are a plain number and a static enum. Only the *reference* flavour of
-this shape was decoded (the log's `topics`), so both fell through to the wire text `[8080]` / `[0]`.
-They now render one element per value, comma-joined, each through the element's map when it has one.
-An element the map does not name stays numeric rather than being dropped — a shorter list would read
-as "the router has fewer of these".
+are u32 arrays whose elements are a plain number and a static enum, decoded independently of the
+*reference* flavour of the same shape (the log's `topics`). Each renders one element per value,
+comma-joined, each through the element's map when it has one. An element the map does not name stays
+numeric rather than being dropped — a shorter list would read as "the router has fewer of these".
 
 ### 26.3 "Not set" is an absent field, not an empty one
 
@@ -654,9 +531,7 @@ the row**:
 
 - an **`opt`-wrapped** field whose flag bool is `false`. Verified live: a `/ip/proxy/access` rule
   created with only `dst-host` and `action` comes back over the API with no `method`, `src-address`,
-  `dst-port` or `path`, while the M2 record carries all of those keys with the flags down. Decoding
-  them produced `method=''`, which the O/R mapper then failed to convert — the exception was real, but
-  the field should never have been in the record.
+  `dst-port` or `path`, while the M2 record carries all of those keys with the flags down.
 - the **u32 unset marker** `0xFFFFFFFF` on a field that declares it as its `def`
   (`{name:'Syslog Severity',type:'number',id:'ue',def:4294967295,max:7,…}` — its real domain is 0–7).
 
@@ -666,13 +541,11 @@ Only the marker is treated this way, never "the value equals its default": an IP
 that number on the wire.
 
 **Coverage:** `IpProxyTest`, `IpSshTest`, `IpsecProposalTest` and `SystemLoggingActionTest` on whatever
-transport is under test (all RED pre-fix on `winboxnative`); the four rules are pinned router-free by
-`WinboxEnumAndUnsetDecodeTests`, of which nine fail against the old catalog and two are regression
-guards for the values that must NOT be dropped.
+transport is under test; the four rules are pinned router-free by `WinboxEnumAndUnsetDecodeTests`.
 
 ---
 
-## 27. ✅ A `deck` pane is a KIND of record, and the API names it (A3, 2026-08-15)
+## 27. A `deck` pane is a kind of record; RouterOS flattens every kind into one record
 
 WinBox shows one window per table and hides the settings that do not apply to the record you selected, in a
 `type:'deck'` whose panes are chosen by another field (`selon`). RouterOS has no panes: it puts every
@@ -687,50 +560,59 @@ kind's parameters in one flat record and tells them apart by **prefixing the kin
   {vals:[ 9 ],c:[{name:'Limit',id:'u321'},{name:'Interval',id:'u322'},…]}]}    // fq codel
 ```
 
-### 27.1 Two panes, one label, one lost field
+### 27.1 A pane field is filed under both its plain label and its kind-prefixed label
 
-The catalog is keyed by label, first-wins — so codel's `Limit` kept the name and fq-codel's was **dropped
-from the map entirely**, as were disk's `Stop on Full` (memory's `b4` took it) and every later pane's
-repeat. Those fields could not be written at all, and a read reported the survivor under a name RouterOS
-does not use (`stop-on-full`, `rate`).
+A catalog keyed by label alone can only keep one pane's field under a shared label — the first one
+registered. Every later pane's same-named field (codel's and fq-codel's `Limit`, disk's and memory's
+`Stop on Full`, …) would then be unreachable, for reading and for writing.
 
-A pane field is now filed under **both** its plain label and `<kind>-<label>`, the kind coming live from the
-selector's own enum map. The prefix is not doubled when the label already carries it: WinBox writes
-'Remote Port' inside the remote pane and 'PFIFO Queue Size' inside the pfifo one, where the API says
-`remote-port` and `pfifo-limit`. Writes therefore work for every pane, everywhere in the catalog, with no
-shipped data at all.
+A pane field is therefore filed under **both** its plain label and `<kind>-<label>`, the kind coming
+live from the selector's own enum map. The prefix is not doubled when the label already carries it:
+WinBox writes 'Remote Port' inside the remote pane and 'PFIFO Queue Size' inside the pfifo one, where
+the API says `remote-port` and `pfifo-limit`. Writes work for every pane, everywhere in the catalog,
+with no shipped data at all.
 
-### 27.2 Which spelling a READ reports is not derivable
+### 27.2 Which spelling a READ reports is a per-path table, not derivable from the catalog
 
 `/queue/type` prefixes every pane without exception (`pcq-rate`, `red-burst`, `codel-limit`,
 `fq-codel-limit`), but `/system/logging/action` prefixes memory, disk and email and leaves the remote, echo
 and script panes alone — the API calls those `src-address`, `syslog-facility`, `remember`, `script`. Both
 lists were read off the router with tab completion (`/queue/type add ?`,
-`/system/logging/action add ?`), and nothing in the `.jg` distinguishes the two cases.
+`/system/logging/action add ?`); nothing in the `.jg` distinguishes the two cases.
 
 So the reported spelling is a shipped per-path table (`WinboxFieldResolver.PanePrefixedPaths`), defaulting
-to "leave the name alone". That matters: the 7.23.2 catalog has ~70 deck windows and we have ground truth
-for two, so an unlisted path decodes exactly as it always has. The leaves whose text the API spells
-differently ride in the existing per-path alias set — `pcq-limit` ↔ WinBox 'Queue Size', `red-avg-packet` ↔
+to "leave the name alone". An unlisted path decodes exactly as it always has — the 7.23.2 catalog has
+~70 deck windows and ground truth exists for two. The leaves whose text the API spells differently ride
+in the existing per-path alias set — `pcq-limit` ↔ WinBox 'Queue Size', `red-avg-packet` ↔
 'Avg. Packet Size', `remember` ↔ the echo pane's 'Save'.
 
 An alias is only shipped when the NAME **and** the VALUE match what the router prints. The remote pane's
 'Timestamp Format' looks like the API's `syslog-time-format` and is deliberately left unaliased: the API
 reports that field only when the log format is BSD syslog (`on:'timestamp'`, a condition this catalog does
-not model) and spells the value `bsd-syslog` where the window's enum says `BSD`. Aliasing it handed the
+not model) and spells the value `bsd-syslog` where the window's enum says `BSD`. Aliasing it would hand the
 mapper a field the API had not reported, carrying a value it could not convert.
 
-### 27.3 A record only has the fields of its own kind
+### 27.3 A record only carries the fields of its own kind
 
 The router sends **every** pane's keys on every row — a memory logging action's M2 record carries both
 'Stop on Full' bools — while the API reports only the live pane's. A field whose pane does not cover the
-record's selector value is now dropped, which is also what makes `/ip/ipsec/identity` read correctly: its
+record's selector value is dropped, which is also what makes `/ip/ipsec/identity` read correctly: its
 'My ID' pane covers fqdn/user-fqdn/key-id, so on an `auto` identity neither pane applies and the API's
-`my-id=auto` is what the mapper's default produces — where before it received `my-id=''` and threw. A
-record that does not carry the selector at all keeps every pane: without the kind there is no honest way to
-say which one is live.
+`my-id=auto` is what the mapper's default produces. A record that does not carry the selector at all keeps
+every pane: without the kind there is no honest way to say which one is live.
 
-**Coverage:** the new `QueueTypeTest` (four methods, RED on `winboxnative` before this — including
-"Missing field 'name'", since the window labels it 'Type Name'), plus `SystemLoggingActionTest` and
-`IpsecIdentityTest`; the pane rules are pinned router-free by `WinboxDeckPaneTests`, of which ten fail
-against the old catalog and two guard what must NOT change.
+**Coverage:** `QueueTypeTest` (four methods — including a window labelled 'Type Name' whose API field is
+`name`), plus `SystemLoggingActionTest` and `IpsecIdentityTest`; the pane rules are pinned router-free by
+`WinboxDeckPaneTests`.
+
+---
+
+## Settled questions — do not re-investigate
+
+- **Black-box M2 probing without the webfig source is not the way to recover the CRUD command
+  catalog.** Sweeping command numbers against a live handler produces a plausible but wrong model
+  (§10) — the webfig client (`master*.js`) hands over the complete command catalog directly and is
+  the source of truth for every wire encoding.
+- **Streaming monitors are not server push.** RouterOS never sends a monitor row unsolicited; the
+  client re-polls on a timer over the ordinary request/reply channel (§20). No async reader or
+  dispatch on subscription-id is needed for `type:'query'`/`type:'action'` windows.

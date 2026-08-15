@@ -38,18 +38,29 @@ source for handler numbers + field keys/types. Format reference: `Docs/jg-catalo
   board gating (a menu can have several windows for the same path, one per board class — see Gotchas).
 
 **Where the `.jg` lives**
-- Library runtime cache (what `WinboxNativeConnection` actually parses): `%TEMP%/tik4net/<jgVersion>/*.jg`
-  (e.g. `3.42rc1`). Delete to force a re-fetch.
-- Version-matched testbed copies for grepping offline: `../_notes/WinboxMessage/7.21.4-http/*.jg`,
-  `7.17rc3-…/`, `6.45…/` — maintainer-local, outside the repo (MikroTik's files, not redistributed).
-  If absent, dump them from a router with `WinboxDumpCatalogTest` or fetch them from webfig.
+
+The catalog is MikroTik's file, version-volatile and not redistributed with this repository — so there
+is no fixed path to it. Obtain it one of these ways, in order of preference:
+
+- **Library runtime cache** — what `WinboxNativeConnection` actually parses, under
+  `%TEMP%/tik4net/<jgVersion>/*.jg`. The version subdirectory is the catalog's own version, not the
+  RouterOS version; list the directory to find it rather than assuming. Delete a version directory to
+  force a re-fetch.
+- **Dump one from a live router** with `WinboxDumpCatalogTest` in the integration test project.
+- **Fetch from webfig** over plain HTTP: `GET /webfig/<name>.jg` with `Accept-Encoding: gzip`
+  (without it the router answers HTTP 406).
+
+Keep offline copies outside the repository, one directory per version, and re-dump after a RouterOS
+upgrade rather than trusting an old copy.
 
 **Explore it**
 ```bash
-JG="$TEMP/tik4net/3.42rc1"          # or ../_notes/WinboxMessage/7.21.4-http
+# Point JG at whichever catalog directory you obtained above, e.g.:
+JG=$(ls -d "$TEMP"/tik4net/*/ | head -1)
 # find a window's handler + its fields:
 python - <<'PY'
-s=open(f"{__import__('os').environ['JG']}/roteros.jg",encoding='utf-8',errors='replace').read()
+import os
+s=open(os.path.join(os.environ['JG'],'roteros.jg'),encoding='utf-8',errors='replace').read()
 i=s.find("path:[ 16,13 ]"); print(s[i:i+900])   # bridge-vlan window + fields
 PY
 # quick grep for a field/label or a handler:
@@ -64,13 +75,18 @@ python Tools/probes/jg_analyze.py diff <dirA> <dirB>          # cross-version dr
 ```
 
 ### 2. webfig `master*.js` — the authoritative wire encoding for a UI type
-`../_notes/WinboxMessage/webfig/master-d53cd8ec58cb.js` is the webfig client. Every `type:'<x>'` has a
-`types.<x>.get/put/fromstr/tostr` that defines EXACTLY how the value rides on the wire. Read these
-before implementing any new field type.
+The webfig client itself. Every `type:'<x>'` has a `types.<x>.get/put/fromstr/tostr` that defines
+EXACTLY how the value rides on the wire. Read these before implementing any new field type.
+
+The file is served by the router at `/webfig/master-<hash>.js`; the hash changes per RouterOS build, so
+fetch it from the router under test rather than reusing a saved filename. Keep any offline copy outside
+the repository — it is MikroTik's file.
+
 ```bash
-JS=../_notes/WinboxMessage/webfig/master-d53cd8ec58cb.js
+JS=<path to the master-*.js fetched from the router>
 python - <<'PY'
-s=open("../_notes/WinboxMessage/webfig/master-d53cd8ec58cb.js",encoding='utf-8',errors='replace').read()
+import os
+s=open(os.environ['JS'],encoding='utf-8',errors='replace').read()
 for name in ['types.multinumberrange.put','types.numberrange.fromstr','types.addr','types.set.tostr']:
     i=s.find(name+'=function');  print('###',name); print(s[i:i+300] if i>=0 else 'NOT FOUND'); print()
 PY
@@ -162,8 +178,8 @@ only the **stable text** (apiPath↔menu-label aliases, apiName↔label) is ship
   reads NotImplemented, check whether another window for the same label fits this board.
 - **opt/not-wrapped scalars need their flag bool.** A field wrapped `opt→[not→]value` (e.g. firewall
   `protocol`) is IGNORED by the router unless you also send the `opt` present-flag bool (and `not` for a
-  leading `!`). `EncodeField` now emits these on the enum-static-map and generic scalar paths; the `set`
-  and multinumberrange paths emit their own. Symptom of forgetting: `'ports can be specified if proto is
+  leading `!`). `EncodeField` emits these on the enum-static-map and generic scalar paths; the `set` and
+  multinumberrange paths emit their own. Symptom of forgetting: `'ports can be specified if proto is
   tcp,udp,…'` and similar "X requires Y" traps.
 - **List/range fields = flat `u32[]`.** `multinumberrange`/`numberrangelist` (vlan-ids, dst-port, dscp,
   pcp) ride as `[lo0,hi0,lo1,hi1,…]` (a bare `n` → `[n,n]`). `multinumber` interface-ref lists

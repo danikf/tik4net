@@ -12,7 +12,7 @@ namespace tik4net.Cli
     /// position (<c>ESC[row;colR</c>). If the client never answers — or always answers <c>1;1</c> —
     /// RouterOS assumes a 1×1 terminal and either repeats the probe indefinitely or fails to emit
     /// output (manifesting as <c>\r\r\r\r] &gt; </c> with no data). Tracking the cursor here lets us
-    /// answer truthfully so negotiation completes and output flows. (See winbox-terminal-findings.md §3.)
+    /// answer truthfully so negotiation completes and output flows. (See Docs/findings-winbox-terminal.md §3.)
     /// </summary>
     internal sealed class Vt100State
     {

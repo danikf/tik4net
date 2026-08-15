@@ -14,7 +14,7 @@ using System.Linq;
 
 namespace tik4net.integrationtests
 {
-    // Measured 2026-08-14 on 7.23.2 (see Docs/findings-cli.md §18.3):
+    // Measured 2026-08-14 on 7.23.2 (see Docs/findings-cli.md §5):
     //   admin/'' (no password)      correct → OPENED, identity CHR, /user/print 2 rows
     //   admin/wrong (no password)   WRONG   → OPENED, identity CHR, /user/print 2 rows  ← no check at all
     //   test/test (has a password)  correct → OPENED, identity CHR, /user/print 2 rows

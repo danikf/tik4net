@@ -5,12 +5,12 @@ description: >
   full 11-transport integration suite can run against it. Use this skill whenever the test router was
   restored / reinstalled / reset / netinstalled / recreated in HyperV, when the user says the router is
   "fresh", "clean", "back to defaults" or that they had to reset the password, when packages need to be
-  (re)installed ("doinstalovat packages", "full package set"), when API-SSL/REST-SSL suddenly fail with
+  (re)installed ("full package set", "doinstalovat packages"), when API-SSL/REST-SSL suddenly fail with
   no certificate, when NTP/timezone need setting, when the router's IP / MAC / identity no longer match
   App.config, when you need an MNDP scan to work out which MikroTik on the segment is the test box, or
   when asked to check that the RouterOS version we promise to test against in README/wiki still matches
   the live router. Covers: MNDP discovery + coordinate reconciliation, package set, NTP + timezone, all
-  services, self-signed certs for api-ssl/www-ssl, the test/test fallback admin account, an 11-transport
+  services, self-signed certs for api-ssl/www-ssl, a fallback recovery account, an 11-transport
   smoke matrix, and the docs/version reconciliation.
 ---
 
@@ -20,8 +20,14 @@ Brings a **freshly restored CHR** back to the state the integration suite assume
 every step ends in a live verification, not just a "command accepted".
 
 > **Router coordinates are read from `tik4net.integrationtests/App.config`** — that file is the single
-> source of truth (`host`, `user`, `pass`, `routerMac`). Never hardcode an IP or MAC in this skill or
-> in a command; read the current values from `App.config` at the start of the run.
+> source of truth (`host`, `user`, `pass`, `routerMac`). Never hardcode an IP, MAC or credential in
+> this skill or in a command; read the current values from `App.config` at the start of the run and
+> keep them in shell variables for the session:
+>
+> ```bash
+> # from tik4net.integrationtests/App.config
+> ROUTER_HOST=…   ROUTER_USER=…   ROUTER_PASS=…   ROUTER_MAC=…
+> ```
 
 All router calls go through the **tik4net MCP** (`mikrotik_call`) — see the `mikrotik` skill. Using our
 own library to provision the router is deliberate: it smoke-tests the transports as a side effect.
@@ -34,8 +40,8 @@ own library to provision the router is deliberate: it smoke-tests the transports
 the identity can all have changed, and there is usually **more than one** MikroTik reachable (the
 developer's own home router shares the segment). Never guess which one is the test box.
 
-MNDP is a broadcast listen — no credentials, no IP needed. The MCP server does **not** expose it yet
-(tracked as **P5.5** in the improvement plan), so drive the library directly against the built DLL:
+MNDP is a broadcast listen — no credentials, no IP needed. The MCP server does not expose it, so drive
+the library directly against the built DLL:
 
 ```powershell
 Add-Type -Path "tik4net\bin\Debug\netstandard2.0\tik4net.dll"   # build first if missing
@@ -111,8 +117,12 @@ curl -s -o "$SP/all_packages-x86-$V.zip" "https://download.mikrotik.com/routeros
 
 Extract (PowerShell `Expand-Archive -Force`), then upload every `.npk`:
 
+Upload with the credentials read from `App.config` — never hardcode them:
+
 ```bash
-for f in "$SP"/pkg/*.npk; do curl -sS --ftp-pasv -u "admin:" -T "$f" "ftp://<host>/$(basename "$f")"; done
+for f in "$SP"/pkg/*.npk; do
+  curl -sS --ftp-pasv -u "$ROUTER_USER:$ROUTER_PASS" -T "$f" "ftp://$ROUTER_HOST/$(basename "$f")"
+done
 ```
 
 Verify the uploads landed with the right byte counts (`/file/print =.proplist=name,size`), **then**:
@@ -138,13 +148,17 @@ mismatch or truncated upload).
 
 Tests compare router time against the dev box; a drifting clock produces confusing failures.
 
+Use the **dev box's own timezone** and an NTP pool near it — the point is that router and dev box agree,
+so a locale baked into this document would be wrong for anyone else. Read the host timezone
+(`Get-TimeZone` on Windows) or ask the user, then:
+
 ```
-mikrotik_call /system/clock/set      =time-zone-name=Europe/Prague  =time-zone-autodetect=no
-mikrotik_call /system/ntp/client/set =enabled=yes =mode=unicast =servers=cz.pool.ntp.org,europe.pool.ntp.org
+mikrotik_call /system/clock/set      =time-zone-name=<IANA zone>  =time-zone-autodetect=no
+mikrotik_call /system/ntp/client/set =enabled=yes =mode=unicast =servers=<pool>,<fallback pool>
 ```
 
 Verify `/system/ntp/client/print` reaches **`status=synchronized`** (it reports `waiting` for a few
-seconds first) and that `/system/clock/print` shows `Europe/Prague` with the right `gmt-offset`.
+seconds first) and that `/system/clock/print` shows the intended zone with the right `gmt-offset`.
 
 ---
 
@@ -205,34 +219,35 @@ was really signed, not just created). Self-signed is fine — `App.config` sets
 
 ---
 
-## Step 5 — Second admin account: `test` / `test`
+## Step 5 — Second full-privilege account (recovery escape hatch)
 
-Create a second full-privilege account so `admin` is not the only way in:
+Create a second `full`-group account so the account in `App.config` is not the only way in.
+
+**Ask the user for the username and password to use — do not invent one, and do not write the chosen
+credentials into any file in this repository.** This repository is public.
 
 ```
-mikrotik_call /user/add  =name=test =password=test =group=full =comment=tik4net-test-fallback
+mikrotik_call /user/add  =name=<user> =password=<password> =group=full =comment=tik4net-recovery
 ```
 
-Verify it exists **and actually authenticates** — a user that was created but can't log in is worse than
-no user, because it will be trusted in an emergency:
+Verify it exists **and actually authenticates** — an account that was created but cannot log in is
+worse than none, because it will be trusted in an emergency:
 
 ```
 mikrotik_call /user/print =.proplist=name,group,disabled
-mikrotik_call /system/identity/print   username=test  password=test    ← must succeed
+mikrotik_call /system/identity/print   username=<user>  password=<password>    ← must succeed
 ```
 
-> **Why this matters.** The P2.13c incident (see
-> [`Docs/findings-mepty-byte-ack.md`](../../../Docs/findings-mepty-byte-ack.md))
-> wedged the lab router by feeding a desynced terminal into RouterOS's `new password>` nag, silently
-> changing the `admin` password. There was **no second account**, so recovery needed an out-of-band
-> config reset and the whole investigation stalled. `test`/`test` is that missing escape hatch.
+> **Why this matters.** A desynchronised terminal once fed RouterOS's `new password>` nag and silently
+> changed the primary account's password. With no second account, recovery needed an out-of-band
+> configuration reset and the investigation stalled. See [`Docs/HISTORY.md`](../../../Docs/HISTORY.md).
 
-A non-empty password on `test` also has a second benefit: it never triggers the change-password nag, so
-it is the safer account to use when probing the CLI/mepty layer.
+Give this account a **non-empty** password: an empty one triggers the change-password nag, so a
+non-empty password makes it the safer identity to use when probing the CLI/mepty layer.
 
-⚠️ **Lab router only.** `test`/`test` on a `full` group is deliberately trivial and must never reach a
-device that is routable from anywhere untrusted. The suite itself keeps using `admin`/empty from
-`App.config` — leave those settings alone; this account is a fallback, not the test identity.
+⚠️ **Lab router only.** A full-privilege recovery account must never exist on a device routable from
+anywhere untrusted. The suite itself keeps using the credentials in `App.config` — leave those alone;
+this is a fallback, not the test identity.
 
 ---
 
@@ -259,13 +274,15 @@ Api  ApiSsl  Rest  RestSsl  Telnet  MacTelnet  WinboxCli  WinboxCliMac  WinboxNa
 
 The claim lives in **two** places, and they must agree with the live router:
 
-```bash
-grep -n "Tested and debugged against" README.md
-grep -n "Tested and debugged against" ../tik4net.wiki/Home.md
-```
+- [`README.md`](../../../README.md) — "Tested and debugged against **RouterOS x.y.z** (latest stable)."
+- The wiki's `Home.md` intro paragraph — the same sentence.
 
-- [`README.md`](../../../README.md) line ~4 — "Tested and debugged against **RouterOS x.y.z** (latest stable)."
-- [`tik4net.wiki/Home.md`](../../../../tik4net.wiki/Home.md) intro paragraph — same sentence.
+The wiki is a **separate git clone kept outside this repository**; ask the user for its local path if
+you do not have it. Search both for the sentence:
+
+```bash
+grep -rn "Tested and debugged against" README.md "$WIKI_PATH"
+```
 
 Compare with the live version from step 0. **If they differ, ask the user before editing** — bumping the
 promise is a claim about what has actually been tested, so it is their call, and it may need to wait
@@ -283,8 +300,8 @@ Then:
 - **Do not bulk-update** the `7.x.y` mentions scattered through source XML docs and `Docs/`
   (`CliCommandBuilder.cs`, `M2Message.cs`, `BgpTest.cs`, …). Those are dated *"verified live against"*
   probe records — historical facts, still true of the version they name.
-- The wiki is a separate git clone (`../tik4net.wiki`, see the wiki-location memory) — its commit is
-  separate from the repo commit.
+- The wiki is a separate git clone kept outside this repository — its commit is separate from the repo
+  commit.
 
 ---
 
@@ -297,9 +314,8 @@ findings doc is in flight:
   baseline drift on the first full run; a newly red test may be a router behaviour change, not a
   regression. (Per `CLAUDE.md`: never *just report* a pre-existing failure — fix it, or write up the
   diagnosis and hand it to the maintainer as scheduled work.)
-- **Offline `.jg` dumps** in `../_notes/WinboxMessage/<ver>-http/` (maintainer-local, outside the
-  repo — may not exist in your checkout) are version-matched copies. Re-dump
-  before trusting them for `winbox-native-dev` work.
+- **Offline `.jg` dumps** are version-matched copies kept outside the repository. Re-dump before
+  trusting them for `winbox-native-dev` work — that skill has the acquisition routes.
 - **`user-manager` reinstalls the `um5files/*.html|css|js` tree**, which is what makes `/file/print`
   return `contents` full of `;` and `=` — the known CLI as-value shredding behind
   `ListFilesWillNotFail`. Expected, and useful to have reproducible.
@@ -315,7 +331,7 @@ findings doc is in flight:
 |---|---|---|
 | 0 | Router **confirmed by the user** from the MNDP list; `host` + `routerMac` + `routerIdentity` reconciled in `App.config` | MNDP scan + `AskUserQuestion` + `/interface/print` |
 | 1 | 12 packages, live version, enabled; no leftover `.npk` | `/system/package/print`, `/file/print` |
-| 2 | NTP `synchronized`; timezone `Europe/Prague` | `/system/ntp/client/print`, `/system/clock/print` |
+| 2 | NTP `synchronized`; timezone matches the dev box | `/system/ntp/client/print`, `/system/clock/print` |
 | 3 | All services enabled, none `invalid` | `/ip/service/print` |
 | 4 | CA + server cert signed (`akid`==CA `skid`), bound to api-ssl & www-ssl | `/certificate/print` |
 | 5 | `test`/`test` admin account exists **and logs in** | `/user/print` + a call authenticated as `test` |

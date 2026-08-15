@@ -1,7 +1,8 @@
 # MACTelnet — Protocol and Implementation Notes
 
-> Local file, not in git. Last updated: 2026-05-26 (added MAC Winbox comparison, Winbox catalog, PoC proposal).
-> Result of web research + source code analysis.
+> Wire-protocol reference for the MAC layer, from published research and source analysis. For how the
+> transport behaves in practice — ACK rules, reliability, login refusals — see
+> [findings-mactelnet.md](findings-mactelnet.md).
 
 ---
 
@@ -59,8 +60,8 @@ Offset  Length Description
 | 255 | `END` | Session termination |
 
 **`END` is not a courtesy — it is the only way to close a session.** UDP has no FIN — if the client
-just closes the socket, the router never finds out and **keeps the login alive**. Measured on 7.23.2
-(P2.35, 2026-07-28): six WinBox-native-over-MAC connections opened and closed without `END` left six
+just closes the socket, the router never finds out and **keeps the login alive**. Measured on 7.23.2:
+six WinBox-native-over-MAC connections opened and closed without `END` left six
 `winbox` rows in `/user/active`, which were still there after 15 s and only disappeared after roughly
 a minute and a half; the TCP sibling (`WinboxNative`) left none, because there the router gets told
 via FIN. Every MAC-layer transport therefore must send `END` on close —

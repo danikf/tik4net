@@ -43,8 +43,8 @@ Three traps the script exists to handle. Hitting any of them looks like "my chan
 3. **NuGet caches by id+version.** Reinstalling 4.0.0 can restore the *cached* 4.0.0 rather than the
    one just packed. The script removes `<global-packages>/tik4net.mcp/<version>` first.
 
-Verified 2026-07-26: with a marker added to `Program.cs`, one run of the script changed the
-installed `tik4net.mcp.dll` hash — a same-version reinstall does deliver new code.
+A same-version reinstall through the script does deliver new code (see
+[`Docs/HISTORY.md`](../../../Docs/HISTORY.md) for the verification).
 
 ## Never run the server from bin
 
@@ -54,10 +54,9 @@ installed `tik4net.mcp.dll` hash — a same-version reinstall does deliver new c
 { "mcpServers": { "tik4net-mcp": { "command": "tik4net-mcp", "type": "stdio" } } }
 ```
 
-**Not** `dotnet run --project Tools/tik4net.mcp/…`. That was the old configuration and it is what
-made `dotnet build tik4net.sln` fail — the project is part of the solution, so the running server
-locked the output the build had to overwrite. The installed tool lives outside the repo and cannot
-collide with a build.
+**Not** `dotnet run --project Tools/tik4net.mcp/…`. A server started that way locks the build output,
+because the project is part of the solution — so `dotnet build tik4net.sln` fails. The installed tool
+lives outside the repo and cannot collide with a build.
 
 ## Checking what is actually running
 

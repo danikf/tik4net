@@ -305,8 +305,9 @@ field, so nothing spurious is sent on add.** When in doubt, set `DefaultValue` t
   `///` so users who know the GUI can find the property. To discover the mapping:
   - Run the same print over the `WinboxNative` transport with `includeRawTrace: true` and compare the
     `.jg`-mapped names (see the `mikrotik` skill's "WinboxNative RAW TRACE" section), **or**
-  - Inspect the shipped catalogs under `../_notes/WinboxMessage/<version>/*.jg` (the `.jg` field catalogs the
-    resolver uses — `tik4net/Winbox/WinboxJgCatalog.cs`).
+  - Inspect a `.jg` catalog directly — the field catalogs the resolver reads
+    (`tik4net/Winbox/WinboxJgCatalog.cs`). The `winbox-native-dev` skill has the locations and the
+    analyzer.
   - Example doc line: `/// keepalive-timeout — WinBox: "Keepalive Timeout"`.
   GUI labels fold to API names by replacing space/underscore with `-` and dropping abbreviation dots
   (`WinboxFieldResolver`), so only call out labels that genuinely differ beyond that folding.
@@ -430,8 +431,13 @@ use the helper that matches the reason:
 | `EnsureCommandAvailable("/ip/...")`     | the API path/package isn't on this router |
 | `EnsureCapability(TikConnectionCapability.Listen, "…")` | the active transport lacks a capability (Listen/Streaming/Tagging/… ⇒ non-API transports) |
 | `EnsureMinRouterOsVersion(7, "…")` / `EnsureMaxRouterOsVersion(7, "…")` | RouterOS major version is out of range |
-| `SkipOnNonApi("…")`                     | running over a non-binary-API transport (CLI family + WinBox) |
 | `SkipOnWinboxNativeUnmappedPath("/ip/...")` | path isn't in the WinBox `.jg` catalog (native M2 can't reach it) |
+| `catch when (IsWinboxNativeUnsupported(ex))` | a **specific** M2 error came back — the narrowest guard, use it in preference to the others |
+
+There is deliberately **no** transport-name skip such as "skip unless binary API". Gates like that mask
+unrelated bugs and outlive the limitation they were written for; bind the guard to the capability or to
+the router's actual refusal instead. `IsNonApiTransport()` exists only for branching an **assertion**,
+never as a skip gate. See the `mikrotik-tests` skill for the full guard set.
 
 Don't hand-roll transport checks; these emit a clear skip reason in Test Explorer. A plain CRUD entity
 usually needs only `EnsureCommandAvailable`. Add capability/version guards only when the specific test
@@ -501,7 +507,7 @@ namespace tik4net.Objects.<Domain>
   extension + ToString), `Log.cs` (read-only singleton-ish).
 - MCP/router access: `mikrotik` skill (`mikrotik_call`) and `mikrotik_cli_complete` (Tab-completion /
   field+menu enumeration, backed by `tik4net/Cli/ITikCliCompletion.cs`); WinBox names: `mikrotik` skill
-  RAW-TRACE section + `../_notes/WinboxMessage/*.jg`.
+  RAW-TRACE section, or a `.jg` catalog via the `winbox-native-dev` skill.
 - Tests: `mikrotik-tests` skill; `tik4net.integrationtests/TestBase.cs` (guards), `tik4net.integrationtests/Interface/Bridge/InterfaceBridgeTest.cs` (List/Add shape).
 </content>
 </invoke>

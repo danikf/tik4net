@@ -1,16 +1,8 @@
 # Sustained load hits an aggregate throughput ceiling, and every connection pays
 
-Measured 2026-08-02 against the lab CHR (RouterOS 7.23.2, virtualized) while chasing P2.46, which
-was filed as "WinBox native over TCP intermittently stalls under concurrent commands" and attributed
-to the P2.1 multiplexer. It is not the multiplexer, and it is not WinBox-specific — the binary API
-and the MAC carrier reproduce it on the same router.
-
-> **Correction, same day.** The first version of this document concluded the condition was
-> *per-session state on the router*. It is not. That rested on one badly designed measurement — a
-> "fresh connection is fast while the aged one is slow" comparison in which the fresh connection did
-> only 24 requests, nowhere near the ~200 needed to trip the knee, and did them while the aged
-> connection was paused. It could not have come out any other way. The controlled version below says
-> the opposite.
+Measured against the lab CHR (RouterOS 7.23.2, virtualized). The ceiling is a property of the
+**router**, not of any one transport or of our multiplexer: the binary API and the MAC carrier
+reproduce it on the same box, and it is not WinBox-specific.
 
 ## What happens
 
@@ -76,8 +68,8 @@ every reply queued behind it in the byte stream. Worst observed: three requests 
 at the 30 s per-request deadline.
 
 The MAC carrier acknowledges each message independently, so the same clamp shows up there as a
-smooth 10× slowdown with no cliff and no timeout. That asymmetry is what made the original P2.46
-note record the MAC transport as unaffected.
+smooth 10× slowdown with no cliff and no timeout. That asymmetry makes the MAC transport look
+unaffected unless it is measured against a request count rather than a wall-clock deadline.
 
 ## What this means for tik4net
 

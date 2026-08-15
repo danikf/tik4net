@@ -156,6 +156,14 @@ Examples:
   torchCmd.Cancel();
 ```
   
+# Contributing
+
+* [ARCHITECTURE.md](ARCHITECTURE.md) — how the codebase is laid out: the transport family, the capability model, the O/R mapper internals, and where the risky code lives. **Read this before any non-trivial change.**
+* [AGENTS.md](AGENTS.md) — working rules and the documentation map. Written for AI coding agents, but it is the shortest accurate description of how this project is worked on, so it is worth reading either way.
+* [Docs/](Docs/README.md) — protocol ground truth: what the router actually does on the wire, established by live probing. [Docs/HISTORY.md](Docs/HISTORY.md) holds the project's superseded diagnoses and dated incidents.
+* Each project directory has its own `README.md` describing what it is and what belongs in it.
+* Tests: [tik4net.unittests](tik4net.unittests/README.md) runs in CI on every pull request; [tik4net.integrationtests](tik4net.integrationtests/README.md) needs a live router. If a test does not need hardware, it belongs in the former.
+
 # Looking for help
 * **I am looking for collaborators.** If you are interested in helping maintain this project, please reach out — open an issue or contact me directly.
 * Looking for betatesters

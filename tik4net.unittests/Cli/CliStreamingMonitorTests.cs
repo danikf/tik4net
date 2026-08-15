@@ -14,7 +14,7 @@ namespace tik4net.unittests.Cli
     /// </summary>
     /// <remarks>
     /// The table samples below are verbatim from a live 7.23.2 over Telnet — including the column offsets,
-    /// which are the whole point of the parser. See <c>Docs/findings-cli.md</c> §15.
+    /// which are the whole point of the parser. See <c>Docs/findings-cli.md</c> §9.
     /// </remarks>
     [TestClass]
     public class CliStreamingMonitorTests

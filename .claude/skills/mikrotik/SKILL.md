@@ -206,7 +206,7 @@ accepted there too and is the safe, explicit choice for any no-result action reg
 
 ## Debugging a transport protocol
 
-The point of multi-transport support is to **odladit / compare a transport against the API baseline**.
+The point of multi-transport support is to **debug a transport by comparing it against the API baseline**.
 
 - Run the **same** `command` over two transports and diff the JSON. The API result is the source of
   truth; a CLI/Winbox transport should round-trip to the same records.

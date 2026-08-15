@@ -1,21 +1,54 @@
-# WinBox M2 multiplexing — design
+# WinBox M2 multiplexing — request/response correlation and channel model
 
-*Follows `P2.1-async-contract-design.md` (D5a). Written 2026-07-21 against `master` @ `5eeb42c`.
-Status: **proposal**. Prerequisite: the WinBoxNative async query-path conversion (D5a) must land first —
-there is nothing to multiplex while every call is a blocking lockstep exchange.*
+How native WinBox M2 operations (`WinboxNativeConnection`) get several requests in flight on one
+connection instead of serializing on a single lock, and why that is safe on a reverse-engineered
+protocol with no formal spec. Complements the live protocol findings in
+[findings-winbox.md §12](findings-winbox.md) (correlation, crypto, pagination) and the MAC-layer
+half of this same work in [findings-mactelnet.md §9.2](findings-mactelnet.md) (the retransmit
+queue that makes concurrent sends safe over UDP).
+
+> **Principle:** every native M2 reply echoes the request's id (`0xFF0006`), and the frame crypto
+> is stateless per frame, so replies may be completed **out of order** and matched to their own
+> caller instead of "whoever asked next". A single reader loop owns the channel's read side and
+> dispatches by that id. The mepty/CLI terminal path (`WinboxCliClient`) never gets a multiplexer:
+> it streams unsolicited, id-less frames, and handing those to id dispatch would silently drop all
+> terminal output.
+
+> Superseded diagnoses, incidents and pinned measurements for this area are in
+> [`winbox-m2-multiplexing-design-history.md`](winbox-m2-multiplexing-design-history.md); this document describes current behaviour only.
 
 ---
 
-## 1. Verified ground truth
+## Architecture
 
-Three facts decide whether this is possible at all. All three were checked, not assumed.
-Full traces and the disambiguation trap are recorded in
-[`findings-winbox.md` §12](../connections/findings-winbox.md).
+```
+tik4net/Winbox/
+├── IWinboxM2Channel.cs          channel abstraction shared by native M2 and the mepty terminal
+├── WinboxM2Session.cs           TCP channel (port 8291): chunked frames, EC-SRP5/legacy-MD5, AES
+├── WinboxMacM2Session.cs        MAC-layer channel (UDP 20561): built on MacLayerTransport
+├── WinboxM2Multiplexer.cs       reader loop + id-keyed dispatch — native M2 only
+├── WinboxNativeM2Operations.cs  getall/get-one/set/add/monitor, multiplexed or lockstep
+└── M2Message.cs                 wire codec, incl. ParseSysReqId (0xFF0006)
 
-### 1.1 The router echoes the request id ✅
+tik4net/WinboxNative/WinboxNativeConnection.cs   owns Open → InitAfterAuth → StartMultiplexer
+tik4net/WinboxCli/WinboxCliClient.cs             mepty terminal — reads the channel directly, no multiplexer
+```
 
-Live trace against RouterOS 7.21.4 (`/ip/address/print` over WinboxNative — three M2 exchanges in one
-session, because interface/VRF references are resolved with follow-up `getall`s):
+`WinboxM2Session` and `WinboxMacM2Session` both implement `IWinboxM2Channel` and are shared by two
+consumers with incompatible read models: `WinboxNativeM2Operations` (every reply carries
+`0xFF0006`) and `WinboxCliClient` (unsolicited terminal-output frames with no request id at all).
+A connection is always exclusively one or the other — `WinboxNativeConnection` and the CLI
+connections each construct their own channel and never share one — so the multiplexer's exclusive
+ownership of the read side is uncontested. `IWinboxM2Channel.SupportsReaderLoop` is the guard: a
+channel that streams unsolicited frames must never be given a multiplexer.
+
+---
+
+## 1. Correlation: dispatch by request id, nothing else
+
+A live trace (RouterOS 7.21.4, `/ip/address/print` over native M2 — three exchanges in one session,
+because the address record's interface and VRF references trigger follow-up `getall`s) shows the
+request id echoed exactly and a second field that only looks like a correlation key:
 
 | Exchange | handler (`0xFF0001` To) | request `0xFF0006` | response `0xFF0006` | response `0xFF0003` |
 |---|---|---|---|---|
@@ -23,267 +56,231 @@ session, because interface/VRF references are resolved with follow-up `getall`s)
 | vrf getall | `[20,101]` | 3 | **3** | 2 |
 | interface getall | `[20,0]` | 4 | **4** | 2 |
 
-`0xFF0006` (`WinboxM2Protocol.SysKey.RequestId`) tracks the request exactly → **it is the correlation key.**
+`0xFF0006` (`WinboxM2Protocol.SysKey.RequestId`) tracks the request exactly and is the sole
+correlation key. `0xFF0003` is undefined in `WinboxM2Protocol` and stays constant across the whole
+session while the request id keeps advancing — it is not a correlation field, and a single-exchange
+trace is a trap here: in a one-exchange sample it happens to equal the request id. See
+[findings-winbox.md §12.1–12.2](findings-winbox.md) for the full trace and the trap.
 
-`0xFF0003` is undefined in `WinboxM2Protocol` and stays constant while the request id varies, so it is *not*
-a correlation field (it looks like a session / reply-channel id). Do not dispatch on it — a single-sample
-observation would have suggested otherwise, since in a one-exchange trace it happens to equal the request id.
+`0xFF0001`/`0xFF0002` (To/From) swap between request and response, so the handler is a secondary
+signal, but not a unique one: two concurrent calls to the same handler are indistinguishable by it.
+Dispatch is by request id only.
 
-`0xFF0001`/`0xFF0002` (To/From) swap between request and response, so the handler is a *secondary* signal,
-but it is not unique — two concurrent calls to the same handler are indistinguishable by it. Request id only.
+## 2. The crypto is stateless per frame, so out-of-order completion is safe
 
-### 1.2 The crypto is per-frame stateless ✅
+Despite the name, [`WinboxStreamCrypto`](../tik4net/Crypto/WinboxStreamCrypto.cs) is not a running
+stream cipher. `Encrypt` emits `[enc_len 2B BE][IV 16B][ciphertext]` with a fresh random IV per
+frame, and `Decrypt` derives everything it needs from that one frame plus the fixed post-handshake
+keys. There is no cross-frame cipher state, no counter, no replay window — frames may be decrypted
+independently and completed in any order relative to when they were sent. The one remaining
+ordering constraint is framing itself: a chunked frame is a sequence of chunks, so reads must stay
+serialized (one reader) and writes must not interleave (one write lock covering the write only, not
+the round trip). See [findings-winbox.md §12.3](findings-winbox.md).
 
-Despite the name, [`WinboxStreamCrypto`](tik4net/Crypto/WinboxStreamCrypto.cs) is **not** a running stream
-cipher. `Encrypt` emits `[enc_len 2B BE][IV 16B][ciphertext]` with a **fresh random IV per frame**, and
-`Decrypt` derives everything it needs from that one frame plus the fixed post-handshake keys. There is no
-cross-frame cipher state, no counter, no replay window.
+## 3. One request → exactly one reply frame; pagination is a new request, not a continuation frame
 
-**Consequence: frames may be decrypted independently and completed out of order.** Had this been a stateful
-stream cipher, multiplexing would have been impossible without a redesign — this was the real risk and it
-came back clean.
+`0xFE0019` (`WinboxM2Protocol.RecordKey.Count`) is a total object count, informational only — never
+read for flow control on either side. A registration completes on the first frame carrying the
+matching `0xFF0006`; there is no "more frames follow" signal to also wait for. A `getall` that pages
+issues a fresh request with a new id on every page, carrying back whichever continuation token the
+previous reply supplied (`RecordKey.Continuation`/`ufe0003`, or the message-array form
+`RecordKey.ContinuationRaw`/`mfe0015`) — so the registration model is unaffected by pagination: each
+page is its own request/reply pair. See [findings-winbox.md §12.7](findings-winbox.md).
 
-### 1.3 There are no unsolicited inbound frames today ✅
+## 4. The reader loop and the write lock
 
-Monitors are **polling loops**, not subscriptions: `MonitorLoop`
-([WinboxNativeConnection.cs:654](tik4net/WinboxNative/WinboxNativeConnection.cs:654)) does
-`StartMonitor` → repeat{`PollMonitor`, sleep autorefresh} → `CancelMonitor`, each step a normal
-request/response under `_cmdLock`. So every inbound frame today is a reply to a request we sent.
-
-The design must still handle an unmatched frame (§4.4) — but it is a robustness path, not the normal case.
-
----
-
-## 2. What multiplexing actually buys — and what it does not
-
-Worth stating honestly, because the headline benefit is *not* the obvious one.
-
-**It does not speed up a single logical operation.** The three exchanges in §1.1 are sequential and
-*dependent*: the interface `getall` happens because the address record referenced `ether1`. No amount of
-multiplexing parallelizes a chain where each request's existence depends on the previous reply.
-
-**What it does buy:**
-
-1. **Monitors stop blocking CRUD and each other.** Today every poll takes `_cmdLock`
-   ([:679](tik4net/WinboxNative/WinboxNativeConnection.cs:679)), as does every CRUD call
-   ([:238](tik4net/WinboxNative/WinboxNativeConnection.cs:238), [:433](tik4net/WinboxNative/WinboxNativeConnection.cs:433), …).
-   With two monitors plus interactive CRUD, everything queues behind one semaphore, and a slow CRUD call
-   delays monitor rows past their autorefresh interval.
-2. **It removes a correctness hack.** `SupportsStaleDrain` / `DrainSocket`
-   ([WinboxM2Session.cs:260](tik4net/Winbox/WinboxM2Session.cs:260)) exists *only* because lockstep
-   `SendRecvRaw` reads "the next frame" rather than "my frame": after a timed-out request, the late reply
-   would be mis-delivered to the following caller. With id dispatch, a late reply is matched to its (dead)
-   registration and dropped — deterministically, instead of being drained on a best-effort timer.
-3. **It unlocks `CancelInFlight`** for WinBoxNative (P2.1 §3), moving it out of the CLI family's permanent
-   ❌ tier.
-
-Benefit 2 is the one that justifies the risk: it converts a papered-over desync into a structural guarantee.
-
----
-
-## 3. Design
-
-### 3.0 Correction: the reader loop does NOT go into `WinboxM2Session`
-
-The table at the end of this section originally said "`WinboxM2Session` → reader loop + `_pending` registry".
-**That is wrong and would break the WinBox-CLI transports.**
-
-`WinboxM2Session` (and `WinboxMacM2Session`) is shared by *two* consumers with incompatible read models:
-
-| consumer | read model |
-|---|---|
-| `WinboxNativeM2Operations` | request/response, every reply carries `0xFF0006` |
-| `WinboxCliClient` (mepty terminal) | **streaming**: polls `DataAvailable` and calls `Receive()` for *unsolicited* terminal-output frames that carry no request id at all ([WinboxCliClient.cs:178](tik4net/WinboxCli/WinboxCliClient.cs:178), :199, :243, :293, :328) |
-
-A reader loop installed in the session would consume the terminal frames and hand them to
-`OnUnmatchedFrame` — i.e. silently swallow all CLI output. §12.5 of findings-winbox.md ("no unsolicited
-frames") is true **of the native M2 path only**; the terminal is exactly the exception, and reading that
-statement as a property of the session class is what produced the wrong placement.
-
-**Multiplexing is a native-M2 concern, so it belongs in a layer above the channel:** a new internal
-`WinboxM2Multiplexer` wrapping an `IWinboxM2Channel`, owning the read side, used only by
-`WinboxNativeM2Operations`. `WinboxCliClient` keeps using the channel directly, exactly as today —
-**zero change to the CLI transports**, which is also a meaningful risk reduction on reverse-engineered code.
-
-This works because a given connection is either CLI or native, never both: `WinboxNativeConnection` and the
-CLI connections construct their own channel and never share one, so the multiplexer's exclusive ownership of
-the read side is uncontested.
-
-### 3.1 Reader loop
-
-Structurally identical to the API reader loop (P2.1 §4) over different framing — one reader, many waiters:
+[`WinboxM2Multiplexer`](../tik4net/Winbox/WinboxM2Multiplexer.cs) wraps one `IWinboxM2Channel` and
+owns its read side for the lifetime of the connection:
 
 ```
-_readerTask = Task.Run(ReaderLoopAsync)      // started after Authenticate(), stopped on Close/EOF
+_readerThread = new Thread(ReaderLoop) { IsBackground = true }   // one per connection, started eagerly
 
-ReaderLoopAsync:
-    while (open):
-        byte[] m2 = await _channel.ReceiveAsync()      // one decoded M2 message
-        int? reqId = M2Message.ParseSysReqId(m2)       // NEW parser, key 0xFF0006
-        if (reqId is int id && _pending.TryRemove(id, out var reg))
-            reg.Complete(m2)
-        else
-            OnUnmatchedFrame(m2)                       // §4.4
-    on EOF/exception → fault ALL pending registrations
+ReaderLoop (blocking, dedicated thread — not a pool thread):
+    while not disposed:
+        m2 = channel.ReceiveNextFrame()          // blocks with no per-read deadline
+        if m2 == null: break                     // channel closed
+        id = M2Message.ParseSysReqId(m2)
+        if id has a pending registration: complete it with m2
+        else: OnUnmatchedFrame(m2)                // late reply or id-less frame — drop it
+    on exit → fault every still-pending registration
 
-SendReceiveAsync(build, ct):
-    id  = NextReqId()                                  // Interlocked, §4.1
-    reg = _pending.Register(id)                        // BEFORE the write — §4.3
-    await _writeLock.WaitAsync(ct); try { await _channel.SendAsync(build(id)); } finally { release }
-    return await reg.Task.WithCancellation(ct)
+SendReceiveAsync(request, timeoutMs, ct):
+    id = ParseSysReqId(request)                   // caller built it via NextReqIdField()
+    register id in _pending BEFORE sending          // §6
+    lock (_writeLock) { channel.Send(request) }    // held only for the write, not the round trip
+    race the registration's task against Task.Delay(timeoutMs, ct)
+    on timeout/cancellation: drop the registration, the reply (if it ever comes) is unmatched
 ```
 
-`_cmdLock` disappears from the request path. It is replaced by `_writeLock` — which is held only for the
-duration of the *write*, not for the round-trip. That is the entire performance story.
+The reader loop is a dedicated background `Thread` performing blocking synchronous I/O — not a
+`Task`-based loop over an async channel. `IWinboxM2Channel` has no `SendAsync`/`ReceiveAsync`;
+`WinboxTcpTransport` has no async send/receive members either. `Send` is a single synchronous
+socket write of a handful of bytes and neither channel offers an async form to await instead, so
+`SendReceiveAsync`'s asynchrony comes entirely from awaiting the `TaskCompletionSource` the reader
+loop completes, not from the I/O underneath it. `SendReceive` (the synchronous entry point used by
+`WinboxNativeM2Operations`'s sync API) blocks on `SendReceiveAsync` rather than duplicating the
+logic.
 
-### New/changed pieces
+The connection-wide lock this replaces (`_cmdLock` in `WinboxNativeConnection`) disappears from the
+request path on a multiplexed connection: `EnterCommand`/`EnterCommandAsync` become no-ops once
+`_mux` is set, because the reader loop's id dispatch already makes concurrent operations safe, and
+serializing them would give back exactly the throughput multiplexing exists to gain. `_cmdLock`
+stays the real semaphore only for a channel that never gets a multiplexer (`SupportsReaderLoop ==
+false`).
 
-| Piece | Change |
-|---|---|
-| `M2Message` | add `ParseSysReqId(byte[])` — reads `0xFF0006`; returns `null` when absent |
-| `IWinboxM2Channel` | add `SendAsync`/`ReceiveAsync`; **keep** `Send`/`Receive`/`SendReceive` for the auth path (§4.2) and for `WinboxCliClient`, which is not multiplexed (§3.0) |
-| `WinboxM2Multiplexer` | **NEW** (§3.0) — reader loop + `_pending` registry over an `IWinboxM2Channel` |
-| `WinboxM2Session` | async frame primitives only; **no** reader loop, no registry |
-| `WinboxMacM2Session` | same, with the MAC caveats in §4.5 |
-| `WinboxNativeConnection` | drop `_cmdLock` from CRUD + monitor paths |
-| `WinboxTcpTransport` | async `ReadExact`/`Send*` (already in flight as the D5a conversion) |
+## 5. Request id: one byte, allocated by the multiplexer once it owns dispatch
 
----
+The request id is one byte on the wire, so the counter wraps at 256.
+`WinboxM2Multiplexer.NextReqId()` allocates it with `Interlocked.Increment` masked to 8 bits and
+skips `0`, which stays reserved for "no id" — `M2Message.ParseSysReqId` reports absence as `null`,
+so a frame can never be mistaken for a reply to request `0`. `SendReceiveAsync` refuses to reuse an
+id that is still pending (`_pending.TryAdd` failing is treated as a bug and throws): with at most
+256 ids in flight, a collision means a registration is leaking, not legitimate concurrency — in
+practice the outstanding count stays in the single digits.
 
-## 4. Constraints and edge cases
+`WinboxM2Session` and `WinboxMacM2Session` each also carry their own `NextReqIdField()`, a plain
+`Interlocked.Increment` with no zero-skip and no collision guard. That version is only ever used
+during the lockstep window before a multiplexer exists (connect, authentication, the `.jg` catalog
+fetch) — `WinboxNativeM2Operations.NextReqIdField()` switches to the multiplexer's allocator as soon
+as `UseMultiplexer` installs one, and every native operation after that point gets its id from
+there.
 
-### 4.1 The request id is one byte
+## 6. Register before writing, always
 
-`NextReqIdField()` is `U8Sys(RequestId, (byte)(++_reqId))`
-([WinboxM2Session.cs:102](tik4net/Winbox/WinboxM2Session.cs:102)) — it **wraps at 256**, and `++_reqId` on a
-plain `int` field is not thread-safe once concurrent senders exist.
+The registration must exist in `_pending` before the request bytes go out, or a fast reply can reach
+the reader loop before the sender has registered — and be dropped as unmatched. This is why
+`SendReceiveAsync` registers first and only then takes the write lock.
 
-- Use `Interlocked.Increment` and mask to 8 bits.
-- **Refuse to reuse an id that is still pending.** With ≤256 outstanding requests a collision means a
-  genuine leak, so: if the next id is already in `_pending`, that is a bug — throw rather than silently
-  overwrite a registration and mis-deliver a reply. In practice outstanding count is <10.
-- Id `0` is currently never used (counter is pre-incremented). Keep it reserved so "no id" stays
-  unambiguous.
-
-### 4.2 The auth handshake stays lockstep
+## 7. Auth and one-time init stay lockstep; the multiplexer starts last
 
 `EcSrp5Auth`/`LegacyMd5Auth` are timing-sensitive reverse-engineered sequences with raw
-`_transport.ReadExact(2)` reads outside the M2 message framing
-([WinboxM2Session.cs:195-199](tik4net/Winbox/WinboxM2Session.cs:195)), plus a `Thread.Sleep(200)` +
-`DrainSocket` step ([:229](tik4net/Winbox/WinboxM2Session.cs:229)).
+`WinboxTcpTransport.ReadExact` reads outside normal message framing, plus (on the legacy MD5 path) a
+`Thread.Sleep(200)` + drain step around the challenge setup. They run once, on the socket directly,
+before any multiplexer exists — cost is irrelevant and this is the most fragile code in the file, so
+it is left untouched.
 
-**The reader loop starts only after authentication completes.** Auth keeps using the existing synchronous
-lockstep path, untouched. This is the same call made in P2.1 D5a and for the same reason: it runs once, its
-cost is irrelevant, and it is the most fragile code in the file.
+`WinboxNativeConnection.InitAfterAuth` runs authentication, the router version probe and the `.jg`
+catalog fetch on that same lockstep path, and only then calls `StartMultiplexer` — deliberately the
+last step, because all of the init sequences read the channel directly and would race a live reader
+loop. Immediately before constructing the multiplexer, `WinboxNativeM2Operations.DrainBufferedFrames`
+discards anything still buffered from the lockstep phase: a leftover frame is not merely noise here,
+because the multiplexer restarts request ids from 1, so a stale frame carrying (say) id 3 could be
+delivered to a *new* request that later gets id 3. That converts a merely shifted reply into a silent
+wrong-reply, which is the harder failure to notice.
 
-### 4.2a Per-operation timeouts move off the socket — and this subsumes a known smell
+## 8. Timeouts are per-request, not per-socket
 
-Today every read sets the socket receive timeout, reads, and restores it
-(`WinboxM2Session.Receive`/`RecvAndDecrypt`/`SendRecvRaw`, [:91](tik4net/Winbox/WinboxM2Session.cs:91),
-[:114](tik4net/Winbox/WinboxM2Session.cs:114), [:127](tik4net/Winbox/WinboxM2Session.cs:127)). **A single
-reader loop cannot do that** — there is no longer a per-call read to wrap. Timeouts move to the
-registration: each pending request gets its own deadline (`CancellationTokenSource`), and the socket keeps
-one connection-level receive timeout.
+`IWinboxM2Channel.ReceiveNextFrame()` carries no timeout: a per-read socket deadline could fire
+between two chunks of one frame and desynchronize the stream permanently, so on TCP the reader loop
+switches the socket to an infinite receive timeout the first time it runs, and on the MAC channel
+each `ReceiveNextFrame` call polls in bounded slices purely so disposal and the retransmit timer
+keep running — neither carries a deadline of its own. Deadlines belong entirely to the per-request
+registration: `SendReceiveAsync` races the reply against `Task.Delay(timeoutMs, …)`.
 
-This structurally resolves the item P1.8 deliberately left alone: `InitAfterAuth` passes `ConnectTimeout` as
-the per-operation timeout for `WinboxNativeM2Operations`
-([WinboxNativeConnection.cs:201](tik4net/WinboxNative/WinboxNativeConnection.cs:201)), so every native
-command is bounded by the *connect* timeout rather than `ReceiveTimeout`. Once timeouts are per-registration,
-that plumbing is rewritten anyway and the right value (`ReceiveTimeout`) falls out naturally.
+`InitAfterAuth` passes `ReceiveTimeout` (not `ConnectTimeout`) into `WinboxNativeM2Operations`, so
+every native command is now bounded by the value that actually governs a stalled-but-connected
+router. A timeout here usually means the router went quiet, not that a reply was lost: sustained
+load — from any connection, the ceiling is aggregate — clamps round trips from roughly 1 ms to
+roughly 20 ms, arriving on TCP as a batch of replies after a stretch of silence (see
+[findings-router-throughput-ceiling.md](findings-router-throughput-ceiling.md)).
 
-**Do not fix it separately first** — it would be churn on code this change rewrites.
+## 9. Unmatched frames
 
-### 4.3 Register before writing, always
+A frame with no `0xFF0006`, or one whose id has no pending registration (a late reply after a
+timeout or a cancellation): reported via `OnUnmatchedFrame` and dropped. Never thrown — a late reply
+to a cancelled request is expected (§10) and must not take the connection down.
 
-The registration must exist before the bytes go out, or a fast reply can arrive at the reader loop before
-the sender has registered — and be dropped as unmatched. This is the classic race in this pattern and the
-reason the sketch in §3 registers outside the write lock.
+## 10. Cancellation
 
-### 4.4 Unmatched frames
+`WinboxNativeConnection` declares `TikConnectionCapability.CancelInFlight`, which means two
+different things depending on what is being cancelled. A **streaming window** (torch, ping, scan,
+traceroute, bandwidth-test, …) is closed with the window's own `cancelcmd` — the same command WinBox
+itself sends when its window closes — which is a genuine router-side cancel; every streaming window
+in the `.jg` catalog declares one. An **ordinary round trip** (`getall`/`set`/`add`) has no cancel
+verb at all, so cancelling it only abandons the local registration and frees the caller while the
+router finishes the work regardless. That is safe specifically because dispatch is by request id: the
+late reply, when it arrives, is identified and discarded (§9) rather than handed to whichever caller
+asks next — a guarantee id dispatch gives for free and lockstep read-the-next-frame could not.
 
-A frame with no `0xFF0006`, or one whose id has no pending registration (late reply after a timeout/cancel).
-Policy: **log via `TransportDiagnostic` and drop.** Do not throw — a late reply to a cancelled request is
-expected once `CancelInFlight` exists, and it must not take the connection down.
+## 11. The MAC transport: same channel interface, a different write-side constraint
 
-### 4.5 The MAC transport is not the same problem — **done in P2.42 (2026-07-30)**
+`WinboxMacM2Session` reuses `MacLayerTransport` (framing, ACK/PING, EC-SRP5, AES/HMAC key
+derivation) and carries each M2 message as one encrypted blob inside `PKT_DATA` payloads instead of
+the TCP chunk wrapper. `SupportsReaderLoop` is `true` here too — every write already goes through
+`MacLayerTransport.SendGate`, so a background reader adds no writer the gate does not already cover,
+and the retransmit buffer is a queue rather than a single slot (oldest resent first, cumulative ACKs
+retiring everything they cover), which is what makes more than one request in flight survivable when
+the MAC counter is a cumulative byte offset. The full rationale — including why the obvious candidate
+obstacle, "ACK/PING sends interleaving with a background reader", is not the real one — is in
+[findings-mactelnet.md §9.2](findings-mactelnet.md#92-unacknowledged-packets-are-a-queue-not-a-single-slot).
 
-`WinboxMacM2Session` runs M2 over UDP 20561 with its own sequencing/ACK layer, and already declares
-`SupportsStaleDrain = false` because `_udp.Available` reflects ACK/PING/retransmit noise rather than real
-frames ([IWinboxM2Channel.cs:24-30](tik4net/Winbox/IWinboxM2Channel.cs:24)). Per the MAC-Telnet memory the
-ACK accounting is `counter + payloadLen` and is easy to get subtly wrong.
+What is specific to the M2 channel wrapper: `WinboxMacM2Session.ReceiveNextFrame` does a one-time
+handover on its first call, clearing the chunk-reassembly buffer left over from the lockstep init
+phase — the MAC-layer counterpart of the TCP channel's one-time switch to an infinite socket
+timeout (§8). Only that thread has read anything by that point, so nothing live is discarded.
+`SupportsStaleDrain` is `false` on this channel: on UDP, `DataAvailable` reflects ACK/PING/retransmit
+control traffic far more often than a real frame, so a stale-frame drain would thrash on noise
+instead of discarding one stale `DATA` frame — the connection's `DrainBufferedFrames` cannot do this
+job either, since what needs clearing is the partial reassembly state underneath a frame, not a
+whole buffered frame.
 
-**Original recommendation: multiplex the TCP session first and ship it; treat the MAC variant as a separate
-follow-up** with its own live verification. Same interface, materially different failure modes. That
-follow-up is P2.42, and the "materially different failure modes" turned out to be one specific thing —
-**not** the ACK/PING sends this section worried about:
+## 12. What multiplexing does not touch
 
-- **The write side was already safe.** Every send (`Send`, `SendAck`, `SendPong`, `RetransmitIfUnacked`) goes
-  through `MacLayerTransport.SendGate`, which MAC-Telnet needed anyway for its background receive pump. A
-  reader loop adds no new writer that the gate does not already cover.
-- **The real blocker was the retransmit buffer, one level below.** `MacLayerTransport` held exactly one
-  outstanding DATA packet (`_lastDataPacket`), which is sufficient only while every caller is lockstep. The
-  MAC counter is a *cumulative byte offset*, so with two requests in flight and the first one lost, the
-  router can acknowledge neither — and the packet that must be resent is precisely the one a single slot has
-  already overwritten. Not a slow round trip: a permanent stall. P2.42 replaced it with a queue of unacked
-  packets, retransmitting the **oldest** (the hole, by construction) and retiring everything a cumulative ACK
-  covers. With one request in flight the behaviour is unchanged.
-- **Handover.** The MAC channel does the reader-loop handover inside its first `ReceiveNextFrame` — clearing
-  the chunk-reassembly buffer, the way the TCP channel switches its socket to an infinite timeout there. The
-  connection's `DrainBufferedFrames` cannot do it: that path is driven by `DataAvailable`, which on UDP counts
-  control noise, which is exactly why `SupportsStaleDrain` is false.
+Wire encodings, the `.jg` catalog/resolver, `WinboxRecordCodec`, `EcSrp5`, `WinboxStreamCrypto`.
+This is message *routing* only — a diff that touches an encoder has left the intended scope.
 
-Deterministic coverage for the queue rules lives in `tik4net.unittests/MacTelnet/MacLayerRetransmitTests.cs`
-(loopback UDP, no router) — the lab router does not drop packets on demand, so a hole in the stream, a partial
-ACK and an exhausted retransmit budget cannot be produced live at all.
+## 13. Test coverage
 
-### 4.6 What must not change
+There is no loopback fake for the live router beyond what the tests build themselves:
+`tik4net.unittests/Winbox/FakeWinboxServer.cs` is a TCP double that speaks the WinBox EC-SRP5
+handshake (and its legacy-MD5 fallback, triggered the same way a real old router triggers it —
+answering the hello with a non-`0x06` frame tag) without RouterOS on the other end.
 
-Wire encodings, `.jg` catalog/resolver, `WinboxRecordCodec`, `EcSrp5`, `WinboxStreamCrypto`. This change is
-message *routing* only. If a diff touches an encoder, it has left the intended scope.
+- `WinboxM2SessionProtocolTests` pins the lockstep session framing, both auth paths, and
+  `M2Message.ParseSysReqId`.
+- `WinboxM2MultiplexerTests` covers the multiplexer directly: concurrent requests answered out of
+  order each reach their own caller; an id-less frame is dropped and reported rather than delivered
+  as a reply; an unanswered request times out and releases its registration for reuse; closing the
+  channel faults every pending registration instead of letting each time out independently; the
+  one-byte id counter skips `0` across the 256-wraparound; and the awaitable surface — a
+  pre-cancelled token writes nothing, cancelling an in-flight request frees the caller while its late
+  reply is reported unmatched rather than delivered to the next caller, two awaited callers each get
+  their own reply, and one caller's short deadline does not affect another's.
+- `WinboxM2PaginationTests` covers `getall` continuation, including the message-array continuation
+  form (`RecordKey.ContinuationRaw`/`mfe0015`) alongside the plain one (`RecordKey.Continuation`).
+- `tik4net.unittests/MacTelnet/MacLayerRetransmitTests.cs` covers the MAC-layer retransmit queue
+  over loopback UDP — see [findings-mactelnet.md §11](findings-mactelnet.md).
+
+Live verification for a change here: a full pass of the `winboxnative` and `winboxnativemac`
+`.runsettings` files, plus the smoke subset (`ConnectionTest`, `SystemClockTest`,
+`InterfaceListTest`, `IpRouteTest`) across the other transports — see the `mikrotik-tests` skill.
 
 ---
 
-## 5. Testing
+## Settled questions — do not re-investigate
 
-The honest problem: **there is no loopback fake for WinBox**, unlike the API's `FakeRouterServer` (P1.7).
-Multiplexing is exactly the kind of change that deterministic tests catch and live-router smoke tests do not.
-
-Recommended, in order:
-
-1. ~~**Build a `FakeWinboxServer`**~~ **✅ DONE 2026-07-21** — `tik4net.unittests/Winbox/FakeWinboxServer.cs`
-   + 7 `WinboxM2SessionProtocolTests`. Cheaper than the "fixed post-handshake key pair" this section
-   originally proposed: answering the EC-SRP5 hello with a non-`0x06` frame tag triggers the client's own
-   fallback to **legacy MD5**, which is scriptable with no crypto and no production test seam — and covers
-   the auth fallback path, which had zero tests. Also added `M2Message.ParseSysReqId` (§3's new parser).
-   *Gap:* the legacy path is unencrypted, so the AES frame path is still uncovered; add an injected-key
-   mode when a test needs it.
-2. Deterministic tests over it:
-   - two concurrent requests, replies returned **out of order** → each caller gets its own reply
-   - reply with an unknown id → dropped, connection survives
-   - reply missing `0xFF0006` → dropped, connection survives
-   - EOF mid-flight → all pending registrations fault, no hang
-   - id wraparound across 256 requests
-   - concurrent monitor poll + CRUD → no interleaved chunk sequences on the wire (assert server-side)
-3. **Live verification** per CLAUDE.md: full `winboxnative.runsettings` pass, plus the smoke subset
-   (`ConnectionTest`, `SystemClockTest`, `InterfaceListTest`, `IpRouteTest`).
-
-Step 1 is a real cost and it may be worth splitting into its own change that lands *before* the multiplexing
-work — reviewing a protocol refactor and a new test harness in one diff serves neither.
-
----
-
-## 6. Open questions
-
-1. **`FakeWinboxServer` first, or live-only?** Leaning **first**, per §5 — CLAUDE.md marks `WinboxNative*/`
-   as change-only-with-live-verification precisely because it has no deterministic coverage, and this change
-   makes that gap more expensive, not less.
-2. ~~**Does `0xFE0019` mean "more frames follow"?**~~ **RESOLVED (2026-07-21): no.** It is the total
-   object count (`objCount`), informational only — see findings-winbox.md §12.7. The completion rule in
-   §3 stands unchanged: **one request → exactly one reply frame**, registration completes on the first
-   frame carrying the matching `0xFF0006`. Pagination is *not* multi-frame — a continuation is a new
-   request with a new id (§3.1a).
-3. **Should `CancelInFlight` ship with this, or after?** M2 has no observed cancel verb for an arbitrary
-   in-flight request (monitors have `CancelMonitor`, which is a different thing). Without one, "cancel"
-   can only mean abandoning the registration locally — which is safe here (unlike a PTY) precisely because
-   id dispatch means the late reply is identifiable and droppable. Leaning: **ship multiplexing, then
-   evaluate cancel separately.**
+- **Does `0xFE0019` mean "more frames follow"?** No. It is the total object count (`objCount`),
+  informational only on both the client and the router's own webfig client — never read for flow
+  control. The completion rule is unconditional: one request → exactly one reply frame, matched by
+  `0xFF0006`. See [findings-winbox.md §12.7](findings-winbox.md).
+- **Is `0xFF0003` a correlation or session field?** No. It stays constant for the whole session while
+  the request id advances, and it never appears in the router's own webfig client at all. Dispatch
+  exclusively on `0xFF0006`. See [findings-winbox.md §12.2](findings-winbox.md).
+- **Does the crypto need to change to support multiplexing?** No. `WinboxStreamCrypto` is stateless
+  per frame (fresh IV, no cross-frame counter) — this was the one finding that could have made
+  multiplexing impossible without a redesign, and it came back clean. See
+  [findings-winbox.md §12.3](findings-winbox.md).
+- **Does the reader loop belong inside `WinboxM2Session`/`WinboxMacM2Session`?** No. Those classes
+  are shared with the mepty terminal (`WinboxCliClient`), which reads unsolicited, id-less frames
+  directly off the channel; a reader loop installed at that layer would consume terminal output and
+  hand it to the unmatched-frame path, silently dropping every CLI reply. The multiplexer sits one
+  layer above, wrapping the channel, and only `WinboxNativeM2Operations` is ever given one.
+- **Does the MAC transport need its own single-outstanding-packet redesign beyond a queue?** No. The
+  write side needed no change (`MacLayerTransport.SendGate` already covered it); the fix was
+  replacing the single-slot retransmit buffer with a queue that resends the oldest unacknowledged
+  packet, because the MAC counter is a cumulative byte offset and a lost first-of-two packets is
+  exactly what one slot cannot resend. See
+  [findings-mactelnet.md §9.2](findings-mactelnet.md#92-unacknowledged-packets-are-a-queue-not-a-single-slot).
+- **Should `CancelInFlight` ship separately from multiplexing?** No. It shipped with it: id dispatch
+  is what makes abandoning a local registration safe (the late reply is identified and dropped, never
+  misdelivered), so there was no reason to wait. See §10.

@@ -1,215 +1,178 @@
-# Findings — MikroTik RouterOS CLI (Command Line Interface)
+# CLI/PTY transports (Telnet, SSH, MAC-Telnet, WinBox terminal) — RouterOS ground truth
 
-**Source:** https://help.mikrotik.com/docs/spaces/ROS/pages/328134/Command+Line+Interface
-**Date:** 2026-05-31
-**Retrieval status:** Official documentation processed by a research agent (Sonnet). 📄 marks material from the documentation.
-**✅ LIVE-VERIFIED 2026-05-31** during the implementation of Chapter C (Telnet) against the test CHR router (ROS 7.x).
-Some of the original assumptions turned out to be INACCURATE — see **section 10 (live-verified findings)**,
-which takes precedence over the earlier 📄 claims. Probe tool: [`telnet-cli-probe.ps1`](telnet-cli-probe.ps1).
+How RouterOS's terminal actually behaves, and how the CLI-family transports are built on top of it.
+Complements the design document [terminal-cli-parsing.md](terminal-cli-parsing.md) (the
+`CliConnectionBase`/`CliOutputParser`/`VtStripper` architecture), the MAC-layer specifics in
+[findings-mactelnet.md](findings-mactelnet.md), and the WinBox `mepty` terminal's byte-ack protocol in
+[findings-mepty-byte-ack.md](findings-mepty-byte-ack.md). Probe tool:
+[`telnet-cli-probe.ps1`](../Tools/probes/telnet-cli-probe.ps1).
 
-> Purpose: groundwork for the CLI-based transports (Telnet/SSH/MACTelnet) — translating `ITikCommand`
-> into a CLI string and parsing the output. This **complements** the existing design document
-> [terminal-cli-parsing.md](../terminal-cli-parsing.md) (which holds the full implementation architecture
-> for `CliConnectionBase`/`CliOutputParser`/`VtStripper`); this file only adds **new/confirming findings
-> from the official docs**.
+> **Section numbers are stable.** The C# implementation and other `Docs/` files cite this document by
+> section number (grep for `findings-cli.md §` under `tik4net/`, `tik4net.integrationtests/`,
+> `tik4net.unittests/` and `Docs/` to see every citation). Do not renumber a heading without checking,
+> and updating, everyone who cites it.
 
----
+> **Principle:** Telnet, SSH, MAC-Telnet, WinBox-CLI and WinBox-CLI-MAC are one transport family, not
+> five. All five drive `ITikConnection` the same way: `ITikCommand` is turned into a RouterOS CLI
+> string (`:put [/path print … as-value]` for reads, a bare command line for writes), sent over a raw
+> VT100 terminal, and the reply is stripped of ANSI/echo/prompt and parsed back into records. No binary
+> `!re` sentences anywhere in this family — `.id` comes from `as-value`/JSON output, not from the API.
 
-## 1. Best format for parsing: `print as-value`
+> Superseded diagnoses, incidents and pinned measurements for this area are in
+> [`findings-cli-history.md`](findings-cli-history.md); this document describes current behaviour only.
 
-📄 `print as-value` is **machine-readable** output, one line per record, fields as `key=value`
-separated by `;` **with no spaces**. Both field names and boolean values (`yes`/`no`) are
-**byte-for-byte identical to the API protocol** → the `tik4net.entities` mapper works unchanged
-(see [terminal-cli-parsing.md](../terminal-cli-parsing.md)).
+## Architecture
 
 ```
-/ip/address/print as-value
-→ .id=*1;address=192.168.1.1/24;interface=ether1;comment=;dynamic=no;disabled=no
+tik4net/Cli/                 shared by every PTY transport
+├── CliConnectionBase.cs       ITikConnection over a CLI text channel — print/add/set/monitor dispatch
+├── CliCommandBuilder.cs       ITikCommand → RouterOS CLI text (quoting, print modifiers, :serialize)
+├── CliOutputParser.cs         as-value text → TikRecordSentence (plus the torch table parser)
+├── CliJsonParser.cs           :serialize to=json output → TikRecordSentence
+├── CliOutputHelper.cs         echo/prompt trimming, echo alignment, router log-line detection
+├── CliErrorParser.cs          CLI output text → Tik*Exception
+├── CliTableParser.cs          interactive (non as-value) table output, by column offset
+├── CliLineStreamer.cs         carves completed lines out of a growing read buffer
+├── CliMonitorVerbs.cs         per-verb snapshot modifiers for monitor commands
+├── CliSafeModeParser.cs       Safe Mode prompt/response parsing
+├── RouterOsCliLogin.cs        shared login sequence and prompt detection
+├── Vt100State.cs / VtStripper.cs   VT100 cursor-probe negotiation and ANSI stripping
+└── CliReadTimeout.cs           receive-deadline exception with the last-seen screen text attached
+
+tik4net/Telnet/                TelnetClient.cs, TelnetConnection.cs, TelnetNegotiator.cs
+tik4net/MacTelnet/              MacTelnetUdpClient.cs, MacTelnetConnection.cs — see findings-mactelnet.md
+tik4net/WinboxCli/               WinboxCliClient.cs, WinboxCliConnection.cs — the mepty terminal
+tik4net/WinboxCliMac/            WinboxCliMacConnection.cs — mepty over the MAC layer
+tik4net.ssh/                    SshConnection.cs, SshShellClient.cs, Tik4NetSsh.cs
 ```
 
-Additional `print` modifiers:
-| Modifier | Purpose |
-|---|---|
-| `as-value` | machine `key=value;…` output (**primary format for parsing**) |
-| `without-paging` | disables paging (`-- [Q quit...]`) — **required on PTY transports** (Telnet/MACTelnet) |
-| `detail` | human-readable detail; comment shown as a `;;;` prefix (NOT for parsing) |
-| `terse` | a more machine-friendly line-based output (alternative) |
-| `count-only` | record count only |
-| `where <cond>` | filter (equivalent of the API `?name=value`) |
+Each transport owns only its byte I/O and login handshake; `RouterOsCliLogin`, the `Cli/` parsers and
+`CliCommandBuilder` are shared, so a RouterOS behaviour fixed once is fixed on all five transports.
 
 ---
 
-## 2. ⚠️ Critical caveat — semicolon `;` inside list-type fields
+## 1. Output format: `print as-value`, `:put`, `detail`, `stats`, and free-text fields
 
-📄 Some fields use `;` as an **internal** list separator → in `print as-value` they look like
-additional fields, and a **naive split-on-`;` parser will break on them**. Specifically reported for:
-- `route-count` (and similar statistical aggregates),
-- wireless `ranges=` (a list of frequency ranges),
-- BGP statistics.
+### `print as-value` only materialises inside `:put [ … ]`
 
-**Workaround (RouterOS 7.x):** `:serialize to=dsv delimiter="#"` — re-serializes with a different
-separator:
-```
-:put [:serialize to=dsv delimiter="#" [/ip route print as-value]]
-```
-→ records/fields separated by `#` instead of `;`, so embedded `;` no longer matters.
+A bare `/interface print as-value` typed into a PTY returns **nothing** — just the command echo and
+the next prompt. `as-value` only appears in a **script context**, so every read is wrapped:
 
-**Impact on the plan:** `CliOutputParser` (Chapter B) should optionally support `:serialize`/`delimiter`
-for entities with risky fields, or an escape-aware parser. For ordinary entities (interface, address,
-firewall) a naive split-on-`;` is sufficient. → Update item 1 of "Open questions" in
-[terminal-cli-parsing.md](../terminal-cli-parsing.md).
-
----
-
-## 3. Transport: SSH exec vs PTY (Telnet/MACTelnet)
-
-📄 **SSH exec (no PTY) is the cleanest transport for parsing:**
-- no banner, no prompt, no ANSI escape codes,
-- separate stderr and an available **exit code** → robust error detection,
-- **BUT: the MikroTik SSH server does not support PTY for the exec channel** → every `RunCommand()`
-  must be **one complete command** (no interactive session, no multi-line stateful sequences).
-
-📄 **PTY transports (Telnet, MACTelnet):**
-- output contains ANSI escape sequences → requires a `VtStripper` (already designed in
-  terminal-cli-parsing.md),
-- `print without-paging` is required on **every** `print` (otherwise paging blocks),
-- output = command echo + data + new prompt → echo and prompt must be stripped (handled by
-  `VtStripper.RemovePromptAndEcho`).
-
----
-
-## 4. Telnet/PTY: login and prompt sequence
-
-📄 Expect patterns for Telnet auth (watch case and the trailing space):
-- `"Login: "` (capital L) → send username
-- `"Password: "` (capital P) → send password
-- `"] > "` → shell prompt (end of prompt; detect via **`EndsWith("] > ")`**, not the whole prompt —
-  the identity can contain arbitrary characters)
-
-📄 **Login modifier `admin+ct80w`** (appended to the username): disables ANSI colors (`c`), sets a
-fixed width of `80` (`t80`), `w` = no wrap → **considerably simplifies `VtStripper`** (fewer escape
-sequences, stable width). General form: `<user>+<flags>`. Recommended for Telnet/MACTelnet PTY
-sessions.
-
-📄 RouterOS may show a "change password" nag after login → send Ctrl-C (`0x03`) to skip it (matches
-the WinBox terminal findings).
-
----
-
-## 5. Comments and other parsing details
-
-📄 Comment:
-- `print as-value` → inline `comment=<text>` (parses like any other field),
-- `print detail` (human) → `;;;` prefix on its own line (NOT for parsing — that's the WinBox
-  terminal trap).
-
-📄 Quoting/escaping: values with spaces/special characters are enclosed in `"..."`;
-`;` separates commands on a line; `#` introduces a comment; `\` is a line continuation;
-`[ ... ]` is command substitution.
-
----
-
-## 6. Add / scalar via CLI (confirms terminal-cli-parsing.md)
-
-📄 `:put [/ip/address/add address=10.0.0.1/24 interface=ether1]` → returns the **`.id`** of the new
-record (e.g. `*3`), equivalent to the API's `=ret=*3`. Without the `:put [...]` wrapper, `add`
-returns nothing/an index, not `*N`.
-→ The mapper's `Save` (reading the new `.id`) must use the `:put [...]` form.
-
-📄 Scalar: `:put [/system/identity/get name]` or `/path get .id=*N value-name=x` → a single value.
-
----
-
-## 7. Monitor / streaming via CLI
-
-📄 Continuous commands (`/interface/monitor`, `/tool/torch`, `/tool/ping`) produce ongoing output in
-a PTY → use `once` for a one-shot read (`/interface ethernet monitor ether1 once`).
-There is **no** reliable Streaming/`/listen` equivalent over CLI (see the capability gaps in
-terminal-cli-parsing.md).
-
----
-
-## 8. Open questions / to verify during implementation
-
-1. `:serialize to=dsv delimiter="#"` — exact behavior and availability across ROS 7.x; how to parse
-   the output (record vs. field separator). Verify against entities with `;`-bearing fields (route,
-   wireless, BGP).
-2. `admin+ct80w` — verify the modifiers work on both Telnet and MACTelnet and actually suppress
-   colors/wrap.
-3. SSH no-PTY: verify that `print as-value` via `RunCommand` returns clean output without needing
-   `without-paging`.
-4. Exact CLI error texts for mapping onto `Tik*Exception` (partially covered in
-   terminal-cli-parsing.md §"Error detection").
-5. Exact `once` form for the various monitor commands.
-
----
-
-## 9. Impact on the plan (Chapters B/C/F)
-
-- Confirms the choice of `print as-value` as the parsing format and `CliConnectionBase` with
-  `SemaphoreSlim` (terminal-cli-parsing.md).
-- **New:** add handling in `CliOutputParser` for `;`-in-values via `:serialize`/escaping (risky
-  entities).
-- **New:** Telnet/MACTelnet PTY sessions should use `<user>+ct80w` + `print without-paging` +
-  Ctrl-C on the password nag.
-- **New:** SSH `RunCommand` = always one complete command (no-PTY) — fits the
-  `ExecuteCliCommandCoreAsync` model.
-- Carry these findings into Chapters B (CLI layer), C (Telnet), F (SSH) once they're up.
-
----
-
-## 10. ✅ Live-verified findings (Chapter C, Telnet, 2026-05-31)
-
-The first live deployment of the CLI layer over Telnet revealed a number of things the documentation
-either omitted or stated inaccurately. **This section takes precedence** over the earlier 📄 claims.
-Detailed context: [`C-telnet-implementation-plan.md`](C-telnet-implementation-plan.md)
-(section "Implementation results").
-
-### 10.1 `print as-value` in an interactive terminal prints NOTHING ⚠️ CRITICAL
-A bare `/interface print as-value` typed into a PTY (telnet) returns **nothing** (just echo + prompt).
-`as-value` only materializes in a **script context**. It must be wrapped in `:put [ … ]`:
 ```
 :put [/interface print detail as-value where name=ether1]
 ```
-The output of `:put` is **a single line**, records chained together with `;`, where the **boundary of
-a new record is `.id=`** (a singleton with no `.id` is a single record). In other words, this is NOT
-one-line-per-record, as section 1 stated!
-→ `CliOutputParser` therefore splits records on `.id`.
 
-### 10.2 `detail` is required for the full field set
-`:put [/path print as-value]` only returns **summary columns** (e.g. `/interface` omits
-`default-name`, `mtu`, `rx-byte`…). Getting the full set (parity with the API) requires
-`print detail as-value`. The O/R mapper controls this via `IncludeDetails` → the builder translates
-it to `print detail`.
+The output of `:put` is **one line**, with every record's fields chained together by `;`; the
+**boundary between records is `.id=`** (a singleton with no `.id` is a single record). This is not
+one-line-per-record — `CliOutputParser.ParseAsValue` splits records at `.id` boundaries, not at line
+breaks.
 
-### 10.3 `print stats` — live counters (✅ RESOLVED via `IncludeCliStats`, 2026-06-01)
-`:put [/path print detail as-value]` does **NOT** include runtime counters (`bytes`/`packets`,
-`rx-byte`…). Counters only appear in `print stats as-value`, which is a **different column mode** —
-it returns counters + `.id` + a handful of identity fields, but **not** the config fields.
-`detail stats` together behaves roughly like `stats` alone (config-only fields disappear). **No
-single modifier gives both config and counters** → this requires **two queries plus a merge by
-`.id`**.
+### `detail` is required for the full field set
 
-**Solution (commit `a72431c`):** a CLI-only metadata flag **`IncludeCliStats`** (on
-`FirewallFilter/Mangle/Nat`, `Interface`, `QueueSimple/Tree`). The mapper adds a marker
-`.cli-stats` (`TikSpecialProperties.CliStats`); when `CliConnectionBase.RunPrint` sees the marker it
-issues `print detail` (config) plus `print stats` (counters) and merges records by `.id`. API/REST
-**ignore** the marker (they get counters from `detail` already; the marker never reaches the wire) —
-see `IsSpecialParam` in ApiCommand/RestRequestBuilder. Details:
-[`cli-print-stats-design.md`](cli-print-stats-design.md).
+`:put [/path print as-value]` alone returns only **summary columns** — e.g. `/interface` omits
+`default-name`, `mtu`, `rx-byte`. The full field set (parity with the binary API) requires
+`print detail as-value`. The O/R mapper's `IncludeDetails` metadata flag controls this; the builder
+translates it into the `detail` modifier.
 
-### 10.4 `where` values with special characters MUST be quoted
-`where address=192.168.1.1/24` (unquoted) **matches nothing** — in a `where` expression context,
-`/` (and `:`) are interpreted as operators. It must be `where address="192.168.1.1/24"`. The safe
-unquoted character set is `[A-Za-z0-9._-]`. `*N` (id) values must NOT be quoted (`where .id=*1`
-works). → `QuoteForWhere`.
-Note: `name=value` for `add`/`set` does NOT need `/` quoting (it isn't an expression context).
+### `print stats` — counters need a second query
 
-### 10.4b Inside quotes, `$` and `\` are special — a written value gets silently rewritten (P2.38)
-The RouterOS console has no single-quote form at all (`:put 'a$b'` → `syntax error` at the `'`), so
-double quotes are the only form — and inside them, **variable substitution** and **escape sequences**
-both apply. Measured on 7.23.2 (probe `Tools/probes/telnet-cli-probe.ps1`), writing to
-`/system script`:
+`print detail as-value` does **not** include runtime counters (`bytes`/`packets`, `rx-byte`, …).
+Counters only appear in `print stats as-value`, a different column mode that returns counters plus
+`.id` and a handful of identity fields — but not the config fields. Combining `detail stats` behaves
+like `stats` alone (the config fields disappear). No single modifier returns both, so entities that
+need both issue **two queries and merge by `.id`**.
+
+The O/R mapper controls this with the entity metadata flag `IncludeCliStats` (currently set on
+`Interface`, `FirewallFilter`/`Mangle`/`Nat`/`Raw`, `QueueSimple`/`Tree`), which
+`TikConnectionExtensions` renders as the CLI-only marker parameter `.cli-stats`
+(`TikSpecialProperties.CliStats`). `CliConnectionBase.RunPrint` sees the marker, runs
+`CliCommandBuilder.BuildPrint` (config) and `CliCommandBuilder.BuildPrintStats` (counters), and merges
+the two record sets by `.id` — config fields win on a key collision, and a missing stats side falls
+back to config-only rather than dropping the record. The binary API and REST transports **ignore** the
+marker (`IsSpecialParam` in `ApiCommand`/`RestRequestBuilder`) — they already get counters from
+`detail`, and the marker never reaches the wire.
+
+### `as-value` has no escaping — free-text fields go through `:serialize to=json`
+
+`as-value` joins records with `;`, fields with `;` and `=`, and has **no escape mechanism whatsoever**.
+Two distinct symptoms follow from that:
+
+- **List-type fields already use `;` internally.** A multi-value field is rendered with `;` **between
+  its own elements** — the same character used between fields — e.g.
+  `key-usage=key-cert-sign;crl-sign;name=mikrotik-CA`. `CliOutputParser.ParseOrderedFields` handles this
+  by treating an element with no `=` as a continuation of the previous field's value (joined with `,`,
+  the API's own multi-value separator), splitting only on the **last** `;` before an `=`.
+- **A value that itself contains `;`, `=` or a newline is indistinguishable from further fields and
+  records.** A file body, a script source or free-form text corrupts the parse outright — newlines
+  inside the value become field separators and get silently re-joined as multi-value elements.
+
+For fields marked `IsFreeText` on the O/R mapper side (currently `SystemScript.Source`,
+`File.Contents`, `SystemScheduler.OnEvent`, `SystemNote.Note`), the entity carries the CLI-only marker
+`.cli-json` (`TikSpecialProperties.CliJson`), which switches the read to
+`:put [:serialize to=json [ /path print … as-value ]]`, parsed by `CliJsonParser` instead of
+`CliOutputParser`. JSON is escaped, so the read is exact. `CliJsonParser` converts JSON back to the
+string wire form the binary API would have produced (`true`/`false` as text, array elements joined with
+`,`, an integral-valued float rendered without its fractional part — RouterOS serialises some integer
+fields as e.g. `2048.000000`) and **throws** rather than degrading on anything it cannot map (a nested
+object, an array of arrays) — a wrong value that parses is worse than a loud failure.
+
+`:serialize` requires **RouterOS 7.13+**. Support is detected per connection from what the router
+actually answers, not from a parsed version string: `CliConnectionBase` tries the JSON form once, and
+only a router that *refuses* it while support is still unknown falls back to plain `as-value` for the
+rest of that connection (and the fallback is only trusted once the plain form actually succeeds — an
+unrelated failure of both forms concludes nothing). A pre-7.13 router therefore degrades silently to
+the same `;`-splitting behaviour as any other field; there is no error raised for it, so a free-text
+field on such a router should be assumed to parse incorrectly.
+
+### `/tool/torch`: a different snapshot mechanism entirely
+
+Torch's `as-value` form (with either `once` or `duration`) prints **nothing**, and it rejects the
+`once` snapshot modifier other monitors use (`bad parameter once (line 1 column 40)`). Torch is
+instead driven by two torch-specific parameters: an explicit `proplist` (RouterOS's default columns
+omit `tx-packets`/`rx-packets`) and `freeze-frame-interval=N`, which makes torch append a new,
+terminated `Columns:`/data block every `N` seconds instead of redrawing the previous one in place —
+turning the display into discrete, parseable snapshots. `duration` must be at least
+`2×freeze-frame-interval`, or zero frames are flushed before the command self-terminates.
+`CliOutputParser.ParseTorchFrame` reads the field **order** back from each frame's own `Columns:`
+declaration rather than assuming it matches the requested `proplist` order, because RouterOS reorders
+the columns to its own canonical order regardless of what was requested; only the last complete frame
+is parsed. `CliMonitorVerbs.Kind.FreezeFrame` routes torch to this dedicated builder/parser pair instead
+of the `once`/`as-value` path every other monitor uses.
+
+### Print modifiers
+
+| Modifier | Purpose |
+|---|---|
+| `as-value` | machine `key=value;…` output — only materialises inside `:put [ … ]` |
+| `without-paging` | disables paging (`-- [Q quit...]`) — injected automatically on every `print` on a PTY transport |
+| `detail` | full field set (see above); human-readable form shows the comment as a `;;;`-prefixed line, which is not the `as-value` form and is not used for parsing |
+| `terse` | a more machine-friendly line-based alternative to `as-value` |
+| `count-only` | record count only |
+| `where <cond>` | filter, equivalent to the API's `?name=value` — see quoting rules in §2 |
+
+### Comments
+
+The comment field parses like any other field in `as-value` output (`comment=<text>`); the `;;;`-prefixed
+form only appears in human-readable `print detail` and is never used for parsing.
+
+---
+
+## 2. Quoting and escaping — `where` clauses and `name=value` arguments
+
+### `where` values with special characters must be quoted
+
+`where address=192.168.1.1/24` (unquoted) **matches nothing** — in a `where` expression context, `/`
+and `:` are interpreted as operators. It must be `where address="192.168.1.1/24"`. The safe unquoted
+character set is `[A-Za-z0-9._-]` (`CliCommandBuilder.QuoteForWhere`); anything outside it is
+double-quoted. `*N` (an `.id`) must **not** be quoted — `where .id=*1` works unquoted. Note:
+`name=value` parameters for `add`/`set` do **not** need this quoting — they are not an expression
+context, so `/` and `:` are ordinary characters there.
+
+### Inside double quotes, `$` and `\` are live — an unescaped value is silently rewritten
+
+RouterOS has no single-quote string form at all (`:put 'a$b'` → `syntax error` at the `'`), so double
+quotes are the only quoting mechanism — and inside them, **variable substitution** (`$name`) and
+**backslash escapes** both apply. Measured on 7.23.2, writing to `/system script`:
 
 | Sent | Router stores | Note |
 |---|---|---|
@@ -225,186 +188,38 @@ both apply. Measured on 7.23.2 (probe `Tools/probes/telnet-cli-probe.ps1`), writ
 Full escape set (MikroTik docs, verified for `\$ \\ \" \t \n \_ \41`): `\"` `\\` `\n` `\r` `\t` `\$`
 `\_` `\a` `\b` `\f` `\v` `\<hex>`.
 
-Consequences for `QuoteIfNeeded`: a value containing `$` or `\` **must** be quoted (leaving it
-unquoted is a hard error), and inside the quotes **both** must be escaped (an unescaped one causes
-silent corruption). Escape in the order `\` → `"` → `$`, otherwise the backslash pass would double
-what the dollar pass added. An actual newline is NOT rewritten to `\n` (the router accepts a literal
-line break inside open quotes; `\n` would also be indistinguishable from a value that genuinely
-contains `\`+`n`) — CR/LF are only in the trigger set because unquoted they would terminate the
-command line.
+`CliCommandBuilder.QuoteIfNeeded`/`QuoteForWhere` therefore both quote any value containing `$`, `\`,
+whitespace, `;`, `#` or `"`, and escape inside the quotes in the order `\` → `"` → `$` (escaping the
+backslash first, or the pass that escapes `$` would double what the backslash pass already added). An
+actual newline inside a quoted value is left as a real character rather than rewritten to `\n` — RouterOS
+accepts a literal line break inside an open quote (that is how a multi-line script source round-trips),
+and rewriting it would be indistinguishable from a value that genuinely contains a backslash followed by
+`n`. CR/LF are still in the trigger set for the opposite reason: **unquoted**, they would terminate the
+command line and the remainder would be executed as a separate command.
 
-This is the **write**-side mirror of P2.17: there, a value got corrupted on read; here the router
-rewrites it before storing it — the add succeeds, the `.id` comes back, nothing complains, and it's
-the router's own stored copy that's damaged, so every other transport agrees on the wrong value too.
-
-### 10.5 VT100 cursor-probe negotiation is MANDATORY
-Without responses to RouterOS's cursor probe (`ESC[6n` → cursor report `ESC[row;colR`), the router
-treats the terminal as 1×1 and **does not render the command's output** (typically just
-`…\r\n\r\r\r\r] > ` with no data). The cursor position must be tracked and answered (`Vt100State` in
-`tik4net/Cli`). A **large width** must be advertised (not 80), otherwise RouterOS wraps long
-as-value lines and inserts `\r\n` into the data → breaking parsing.
-Note: RouterOS measures the width with the probe `ESC[9999C ESC[6n`, so the reported column is
-`min(Vt100State.Width, ~10000)` — `Width` must be **≥ 10000** (otherwise the client truncates its own
-answer). For MAC-Telnet see [findings-mactelnet.md](findings-mactelnet.md) §1–2 (also critical: the
-**ACK = counter + payloadLen** semantics).
-
-### 10.6 Change-password nag = `new password>` (NOT "change password")
-A router with a default/empty password shows `new password>` after login (and
-`repeat new password>`). Decline with **Ctrl-C (0x03)**. Detected via the substring `password>`.
-(`RouterOsCliLogin`.)
-
-### 10.7 .NET Framework's `NetworkStream.ReadAsync` respects neither timeout nor CancellationToken
-A pending read with no data blocks **forever** (`ReadTimeout` only applies to synchronous `Read`;
-the CancellationToken is only checked before the read starts). Reading must instead poll
-`stream.DataAvailable` with `Task.Delay` and track the deadline manually.
-
-### 10.8 Prompt detection: redraw and "settle"
-The RouterOS prompt redraws itself (`\r\r\r\r] > `) even BEFORE a command's output → a naive
-"ends with `] >`" check matches prematurely. Solution: after login, **drain** the leftover redraw;
-read a command's output until "prompt, then settled" (prompt at the end followed by ~120 ms of
-silence). Compare the prompt suffix as `TrimEnd().EndsWith("] >")` (without the trailing space).
-
-### 10.9 CLI error text → exception mapping (verified)
-| CLI text | Mapping |
-|---|---|
-| `no such item`, `expected item id (line N column M)` | `TikNoSuchItemException` |
-| `no such command`, `bad command name …`, `expected end of command`, `syntax error (line …)` | `TikNoSuchCommandException` |
-| `already have such …`, `item with such name already …` | `TikAlreadyHaveSuchItemException` |
-| `failure:` / `error:` / other error stream | `TikCommandTrapException` |
-
-Note: `remove`/`set` with a nonexistent/invalid `.id` (`[find .id=…]` empty) → `expected item id`.
-
-### 10.10 Scalar: `get value-name=.id` is invalid
-`:put [/path get .id=*N value-name=.id]` → `get .id=` is a syntax error, and `value-name=.id` →
-"input does not match any value of value-name". **Scalars must be read via `print`**, selecting the
-value from the row (this also works for `.id`). Do not use `get value-name=…` for `.id`.
-
-### 10.11 Action commands with no per-row output (`script run`) — ✅ supported
-`/system/script/run` via the terminal **does run the script**
-(`/system script run [find .id=*N]`), but it does not return per-row `!re` output the way the binary
-API does (it's a fire-and-forget action). `CliConnectionBase.RunPrint` therefore routes the `run`
-verb as an action and returns an **empty** result set. The `RunScript_Issue53` test is
-transport-aware (`TestBase.IsCliTransport()`): on CLI it only checks that the run did not fail, on
-API/REST it checks the `!re` row count. (commit `eb5e687`)
-
-### 10.12 Monitor commands: `numbers=` + `once`
-`/interface/ethernet/monitor` requires `numbers=<iface> once` before `as-value`:
-`:put [/interface ethernet monitor numbers=ether1 once as-value]`. The builder passes the `numbers`
-NameValue param and the `once` flag (a continuous monitor/torch would otherwise block in a PTY —
-see section 7).
+A value read back that was written unescaped is corrupted **at the router**, not in transit — the add
+succeeds, the `.id` comes back, nothing complains, and every other transport agrees on the same wrong
+stored value.
 
 ---
 
-## 11. ✅ Live-verified findings (Chapter F, SSH, 2026-06-15)
+## 3. An empty value is not an empty token
 
-SSH is **NOT** "exec without PTY" (as section 3 implied) but an **interactive PTY ShellStream** —
-over the exec channel, RouterOS doesn't print `as-value` output any better than Telnet does, so it
-uses the same PTY/CLI stack as Telnet. The shared `RouterOsCliLogin`/`Vt100State`/`CliOutputHelper`
-work unchanged; SSH only adds ~280 LOC of transport (`tik4net.ssh`, a separate package because of the
-`Renci.SshNet` dependency).
-
-### 11.1 Auth is handled by SSH.NET — no Login:/Password: prompts
-After `SshClient.Connect()`, the prompt is simply pulled in via
-**`RouterOsCliLogin.ResolveToPromptAsync`** (nag→prompt, extracted from `LoginAsync`) plus a drain of
-the post-login redraw. The username flag `+c` is accepted over SSH; it falls back to the plain
-username on `SshAuthenticationException`.
-
-### 11.2 Raw PTY modes
-`CreateShellStream(..., terminalModes)` with
-`ECHO/ICANON/ISIG/IEXTEN/IXON/IXOFF/ICRNL/INLCR/OPOST = 0` — RouterOS wants raw keystrokes (it has
-its own VT100 editor). The RouterOS SSH server largely ignores these modes anyway.
-
-### 11.3 ⚠️ Ctrl+D = SSH EOF → closes the channel (Safe Mode unroll)
-The discard key **Ctrl+D (0x04)** is conventionally SSH EOF; the RouterOS SSH server **closes the
-channel** on it (`ShellStream` disposed) regardless of the raw modes. Telnet doesn't have this issue
-(a bare byte → console → undo). **Solution:** SSH unroll goes through the **scriptable
-`/safe-mode/unroll`** (RouterOS 7.18+) — a normal command, the channel stays alive, in place.
-Fallback (older versions, `TikNoSuchCommandException`): Ctrl+D as rollback-by-disconnect (+ `Close`).
-Take/Release (**Ctrl+X**) work fine in place over SSH.
-
-### 11.4 `ShellStream.DataAvailable` polling
-Same pattern as Telnet's `NetworkStream` (poll + `Task.Delay`, deadline from `ReceiveTimeout`) — no
-hang, echo/prompt trimming (`CliOutputHelper.CleanOutput`) holds up even under the raw modes.
-**Result: SSH suite 172/1→0/77, SafeMode 3/3.**
-
-## 12. ✅ WinboxCli/MacCli: mepty is a PULL protocol — large output stalls (P2.13)
-
-**Status: FIXED 2026-07-23** (`WinboxCliClient.SendPull`). A high-risk RE area; verified live with
-raw-byte instrumentation (temporary, removed — see P2.15 for promotion into the MCP).
-
-### Symptom
-A full solo `winboxcli` run: **35 deterministic failures** (not latency, not contamination from
-parallel runs, not a counter-semantics issue — all disproven live). The failures were timeouts
-(multiples of 30s), not slow responses. In isolation they pass; failure only starts appearing after
-enough commands on a **shared** connection.
-
-### Root cause (raw-byte trace)
-The mepty `Data` command (`0x0A0067`) does TWO things: it **sends keystrokes AND pulls output**.
-RouterOS replies to a single `Data` with **one batch** of whatever output is pending. A response
-larger than a batch (on the order of a few hundred bytes — e.g. `print detail as-value` across
-several records) only gets delivered if the client **keeps pulling**. Our client sent one `Data` per
-command and then just passively read → large output never arrived.
-
-Key detail: after a large response, RouterOS sends the **echo** of the next command, but no output —
-and from the following command onward it **stops echoing entirely**
-(`DataAvailable=False` for 30 s, `bufLen=0`) — the terminal is stuck for the rest of the session.
-That downstream emptiness is exactly what the skill logged as "gotcha A" (add returns empty) and
-"gotcha B" (second print empty). **One bug, not two.** (My earlier running diagnosis of an "off by
-one" was ALSO wrong — only fixed by the raw-byte trace.)
-
-```
-SEND :put [… datapath print as-value]     → RETURN len=526 ✓ (large response)
-SEND :put [… datapath print detail …]     → echo (228 B) → DataAvailable=False 30 s → timeout
-SEND :put [… datapath print as-value]     → bufLen=0 (not even echo) → timeout
-…                                          every further command comes back empty
-```
-
-### Fix
-`WinboxCliClient.SendPull()` — an empty `Data` frame (no `Input` key, monotonic counter; same shape
-as `SendTerminalReady`). `ReadCommandResponseSync` now pulls whenever the buffer is empty AND the
-completion prompt hasn't arrived yet (`prompted==false`). Once the prompt arrives the output is
-complete → just settle, no further pulling (otherwise it would churn needlessly). Verified: `print
-detail` went from a 30s stall to a full 620 B result. `WinboxCliClient` is shared, so this also fixes
-`winboxclimac`.
-
-### Open / to refine
-- `ReadUntilQuietSync` (Tab completion) does NOT pull — completion output is small, but if it ever
-  exceeds a batch it would stall the same way. Candidate for the same pull, if/when it shows up.
-- Cadence: pulls every ~`PollSleepMs` (20 ms) while waiting. Works; further optimization (pull only
-  after N ms of silence) is cosmetic, not a correctness issue.
-- The exact "batch" size was never measured (not needed for the fix). If it's a record/byte count,
-  it could be tracked down in the webfig mepty JS — but pull-until-prompt is robust without knowing
-  the threshold.
-
-### Impact on already-shipped work
-Unblocks `TestBase.SaveTracked`'s orphan sweep on this transport (it previously read over the same
-broken connection). After the fix, reads work → the sweep also finds id-less orphans.
-
-## 13. ✅ An empty value is not an empty token (P2.44, 2026-07-30)
-
-Live-verified on RouterOS 7.23.2 over telnet. Applies to **all CLI transports** (shared
-`CliCommandBuilder`).
-
-### 13.1 `name=` mid-line is a syntax error
+### `name=` mid-line is a syntax error
 
 ```
 /system note set note= show-at-login=yes
   → expected end of command (line 1 column 37)     ← column 37 = start of `show-at-login`
 /system script add name=X source=":put 1" comment=
-  → *1                                             ← passes at END of line
+  → *1                                              ← passes at END of line
 ```
 
-So a bare `name=` doesn't pass an empty string — the parser consumes nothing for it and stumbles on
-the next token. The correct form is the two-character literal `name=""`, which works in both
-positions.
+A bare `name=` doesn't pass an empty string — the parser consumes nothing for it and stumbles on the
+next token; it only survives when it happens to be the last thing on the line. `QuoteIfNeeded`/
+`QuoteForWhere` therefore always render an empty value as the two-character literal `name=""`, which
+works in both positions.
 
-Why this went unnoticed for so long: the suite never stored an empty string. It only surfaced on the
-`/system/note` round-trip test, which restores the original value at the end — and that value was
-empty. The failure also left residue on the router (the restore didn't happen), so **subsequent runs
-passed** — they were restoring an already non-empty text. Exactly the kind of bug that erases its own
-trace.
-
-### 13.2 `where name` and `where name=""` are opposite queries
+### `where name` and `where name=""` are opposite queries
 
 Two `/system/script` entries, one with the comment `hello`, the other without:
 
@@ -414,53 +229,270 @@ Two `/system/script` entries, one with the comment `hello`, the other without:
 API  ?comment=                                          → nothing
 ```
 
-`where <field>` is a test for "is set" (truthiness), while the API's `?field=` means "equals empty".
-The builder used to send a bare `name` for both, so filtering on an empty value returned exactly the
-complementary set. It's now distinguished by whether the parameter's value is `null` (→ bare `name`,
-API `?name`) or an empty string (→ `name=""`, API `?name=`).
+`where <field>` (bare name, no `=`) tests "is set" (truthiness); the API's `?field=` means "equals
+empty". `CliCommandBuilder` distinguishes these by whether the parameter's value is `null` (→ bare
+`name`) or an empty string (→ `name=""`).
 
-## 14. ✅ The router writes into a live terminal on its own (P2.47, 2026-07-31)
+---
 
-RouterOS ships by default with a `/system/logging` rule `topics=critical action=echo`, and `echo`
-does not mean "to the local console" — it means **into every open terminal session**. A line nobody
-asked for can therefore land in a session at any time:
+## 4. Login sequence: prompts, the change-password nag, and refusal detection
+
+`RouterOsCliLogin` (`tik4net/Cli/RouterOsCliLogin.cs`) owns the RouterOS-specific login/prompt state
+machine for every PTY transport; each transport supplies only the raw byte I/O.
+
+### Prompt and login sequence
+
+- `Login:` prompt — matched case-insensitively on the substring `ogin:` (`IsLoginPrompt`) — send the
+  user name, with `+c` appended (`RouterOsCliLogin.TerminalLoginFlags`) on transports that perform the
+  interactive exchange. `+c` disables ANSI colour; **terminal width is deliberately not pinned** to a
+  fixed value such as `80` — the transport instead answers RouterOS's VT100 cursor-probe negotiation
+  (§6) advertising a wide terminal, because a narrow one makes RouterOS wrap long `:put` as-value
+  records and insert `\r\n` into the data.
+- `Password:` prompt — matched on the substring `assword:` (`IsPasswordPrompt`) — send the password.
+- Shell prompt — `[user@identity] > ` (identity is arbitrary) — detected as
+  `TrimEnd().EndsWith("] >")`(`RouterOsCliLogin.EndsWithPromptSuffix`), i.e. the suffix only, not the
+  whole prompt. Safe Mode replaces the `>` with a `<SAFE>` token; both `] <SAFE>` and the older
+  `] <SAFE> >` form are matched.
+- Change-password nag — a router with a default/empty password shows `new password>` (and
+  `repeat new password>`), detected by the substring `password>` (`IsChangePasswordNag`, deliberately
+  **not** matched by `IsPasswordPrompt`, which requires a trailing colon). Answered with **Ctrl-C
+  (0x03)**, up to three rounds, then a loud failure. RouterOS repaints the nag, so a single read can
+  carry `new password>` twice.
+
+### A refusal is detected positionally, not by wording
+
+RouterOS answers a wrong password (7.23.2) with:
 
 ```
-21:18:05.412 telnet.sock RECV | <CR>23:17:46 echo: system,error,critical login failure for user
-                                admin from 192.168.4.31 via api<ESC>[K<CR><LF><CR><ESC>[9999B[admin@CHR] >
+\r\nLogin failed, incorrect username or password\r\n\r\nLogin:
 ```
 
-Measured on a wire trace of an entire (green) telnet suite run. Properties worth knowing:
+A phrase list alone cannot be trusted across RouterOS versions and languages — an unmatched phrase does
+not throw, it silently waits out the full receive deadline. The authoritative signal is **positional**:
+after a refusal, RouterOS *restarts the login dialogue*, so a fresh `Login:` prompt arriving **after
+credentials have already been sent** means rejected, in any wording, on any version.
+`RouterOsCliLogin.ResolveToPromptAsync` takes `loginPromptMeansFailure`, set only by the interactive
+login path (`LoginAsync`) — a transport that authenticates below the terminal (SSH, WinBox `mepty`)
+never sends credentials over the terminal itself, so a `Login:` string reaching it there is not evidence
+of a refusal. `IsLoginFailure`'s phrase list (`"login failed"`, `"incorrect username"`,
+`"login failure"`, `"incorrect login"`, `"invalid user name"`, `"bad password"`, `"access denied"`) is
+kept as a fast path and a better exception message; it is not load-bearing — with the list emptied the
+transcript tests still pass on the positional signal alone.
 
-- **It is not a login banner.** It arrived on a long-established session, between two tests, with no
-  IAC negotiation nearby. (The banner also prints recent log lines, so it's easy to confuse the two
-  when scanning a trace — filter by whether `<FF><FD>` negotiation is nearby.)
-- **The router buffers it.** The timestamp in the line was ~19 s older than the moment of delivery,
-  so cause and effect are not adjacent in time.
-- **It only arrives on a session that is currently idle.** An attempt to force it during a 20s read
-  (`/system script run` with `:delay 20s`) delivered nothing; in the actual incident the session was
-  idle between commands.
-- **A redrawn prompt follows the injected line** (`<ESC>[9999B[admin@CHR] > `), so a read that is in
-  progress will still see the prompt at the end.
-- **It can be triggered** by a failed login from a second session — `login failure` is `critical`.
-  The log entry appears for both telnet and API (`/log/print ?message=login failure...` confirms
-  it); delivery into a different session, though, depends on that session being idle, so it isn't a
-  reliable injector.
+### What each assumption costs when it is wrong
 
-If the line arrives **between commands**, `DrainAsync` swallows it and nothing happens — which is
-also what occurred above. It becomes dangerous when it arrives **after** the drain, i.e. right at the
-start of the response to the next command: in `CliOutputHelper.CleanOutput`, the header skip-loop
-then stops (the log line isn't blank, isn't the prompt, and isn't a command fragment), and **the echo
-of the command after it leaks into the data**. On a read, the echo attaches itself before the first
-record; on a silently-successful write, it produces non-empty "output" that the positional rule from
-P2.12 reads as a router rejection. Fixed by having the header also skip the log line — the
-line-joining loop was already discarding it later, so nothing new is lost.
+There is no error channel on a terminal: every login decision below is a guess about wording and
+layout that differ by RouterOS version and by router state, and a wrong guess does not fail loudly —
+it runs to the receive deadline and returns something plausible, late.
 
-## 15. ✅ `:put [… as-value]` prints nothing until the command finishes (P2.50, 2026-07-31)
+| Assumption | Where | Cost if wrong |
+|---|---|---|
+| Login prompt contains `ogin:` | `IsLoginPrompt` | Credentials typed into a screen that isn't asking for them |
+| Password prompt contains `assword:` | `IsPasswordPrompt` | Same |
+| Nag contains `password>` | `IsChangePasswordNag` | Ctrl-C never sent → login stalls to the deadline; worse, bytes meant for the shell can land in the new-password field |
+| Prompt ends `] >` / `] <SAFE>` | `EndsWithPromptSuffix` | Every command runs to the full receive deadline, though results are still correct |
+| Refusal wording | `IsLoginFailure` | Superseded by the positional signal above — a full receive deadline per rejected login was the cost before it existed |
+| `+c` login flag accepted | `TerminalLoginFlags` | SSH falls back to the bare user name on `SshAuthenticationException`; Telnet has no such fallback |
 
-Streaming over CLI **is a property of the command's shape, not of the read loop**. `:put` receives an
-already-complete array, so the router doesn't send a single byte until the command finishes.
-Measured on 7.23.2 (telnet, timestamps are from when the command was sent):
+### Prompt redraw and settling
+
+RouterOS repaints the prompt (`\r\r\r\r] > `) even **before** a command's own output, so a naive
+"ends with the prompt" check can match prematurely. A read is only complete once the prompt is present
+**and** the stream has been silent for a settle window afterwards (`SettleMs` — 120 ms on Telnet, 150 ms
+on MAC-Telnet and the WinBox terminal); any further output resets the window. See §7 for the additional
+requirement that the settled prompt also follow this command's own echo.
+
+---
+
+## 5. SSH is a PTY shell, not exec
+
+SSH is **not** "exec without PTY". Over the exec channel RouterOS doesn't produce `as-value` output any
+better than Telnet does, so the SSH transport (`tik4net.ssh/`) opens an interactive
+`ShellStream` PTY and drives the same shared `RouterOsCliLogin`/`Vt100State`/`CliOutputHelper` stack as
+every other CLI transport — SSH only adds the transport layer (~280 LOC), split into a separate package
+(`tik4net.ssh`) to isolate the `Renci.SshNet` dependency.
+
+- **Auth has no `Login:`/`Password:` prompts.** `SshClient.Connect()` performs authentication;
+  `SshShellClient.SettleAfterConnectAsync` then calls `RouterOsCliLogin.ResolveToPromptAsync` directly
+  (skipping the credential exchange) to dismiss the nag and settle to a usable prompt. The `+c`
+  terminal-flag suffix is tried on the login name first; a `SshAuthenticationException` triggers one
+  retry with the plain user name.
+- **Raw PTY terminal modes.** `CreateShellStream` sets
+  `ECHO/ICANON/ISIG/IEXTEN/IXON/IXOFF/ICRNL/INLCR/OPOST = 0` — RouterOS runs its own line editor and
+  expects raw keystrokes; without this, control keys sent for Safe Mode would be eaten by the SSH
+  server's own line discipline before reaching RouterOS.
+- **Ctrl+D is SSH EOF and closes the channel.** The Safe Mode discard key **Ctrl+D (0x04)** is the SSH
+  EOF convention; RouterOS's SSH server closes the channel on it regardless of the raw terminal modes
+  (Telnet has no such convention — a bare byte there just reaches the console). Safe Mode unroll
+  therefore goes through the scriptable `/safe-mode/unroll` (RouterOS 7.18+), a normal command that
+  keeps the channel alive; older routers fall back to Ctrl+D as rollback-by-disconnect
+  (`SshConnection.SafeModeUnrollByControlKey`). Take/Release (Ctrl+X) work fine in place over SSH.
+- **`ShellStream.DataAvailable` polling**, same pattern as `NetworkStream` on Telnet (see §7) — a
+  blocking read on .NET Framework respects neither `ReadTimeout` nor `CancellationToken` once pending
+  with no data, so both transports poll instead.
+
+### SSH accepts a wrong password for a password-less account — and that is the router, not a bug here
+
+`admin` with an **empty** password authenticates over SSH with method `none`:
+
+```
+ssh -o PreferredAuthentications=none admin@<host> "/system/identity/print"   →   name: CHR
+```
+
+The server grants a full session without ever checking a password, so a wrong password is accepted too
+— measured per account (7.23.2), each row below ran `/system/identity/print` **and** `/user/print` and
+got real data back:
+
+| account | password given | result |
+|---|---|---|
+| password-less | correct (empty) | OPENED |
+| password-less | **wrong** | **OPENED** |
+| password-protected | correct | OPENED |
+| password-protected | **wrong** | **REFUSED — `Permission denied (password)`** |
+
+Telnet and WinBox-CLI, which have no `none` method, reject the same credentials. So SSH *is* an access
+control for an account that has a password; an account without one has no check at all, and this is
+RouterOS policy — not something a client can detect or refuse. `LoginFailureTest` reports Inconclusive
+for SSH while `App.config` points at a password-less account, rather than pretending to cover it; point
+it at a password-protected account to exercise SSH refusal.
+
+---
+
+## 6. VT100 cursor-probe negotiation is mandatory
+
+Without responses to RouterOS's cursor probe (`ESC[6n` → cursor report `ESC[row;colR`), the router
+treats the terminal as 1×1 and renders no command output — typically just `…\r\n\r\r\r\r] > ` with
+nothing else. `Vt100State` tracks cursor position and answers every probe. The width advertised must
+be **large** (not 80): RouterOS measures width with `ESC[9999C ESC[6n`, so the reported column is
+`min(Vt100State.Width, ~10000)` — `Width` must be at least 10000, or the client truncates its own
+answer, RouterOS measures a narrow terminal, and long `as-value` lines get wrapped with `\r\n` inserted
+into the data. For the MAC-Telnet framing of the same negotiation (and the ACK-offset requirement it
+depends on) see [findings-mactelnet.md](findings-mactelnet.md) §2.
+
+---
+
+## 7. Reading a response: settle, redraw, and echo alignment
+
+Every PTY read here terminates the same way: wait until the accumulated, ANSI-stripped text ends at a
+shell prompt that has then stayed silent for the settle window (§4). That test only asks whether **a**
+command has finished — never whether **this** one has, because a response can arrive after the read
+that asked for it has already returned:
+
+- the read returns as soon as a settled prompt is seen;
+- the next command's pre-send drain is gated on `DataAvailable` at one instant;
+- so a tail that arrives after both is still sitting in the socket when the next command is sent.
+
+That tail then lands ahead of the next command's own echo, and two independent layers can be fooled by
+it: the read loop sees a settled prompt and returns before the router has said a word about the command
+it was asked to run, and `CliOutputHelper.CleanOutput`'s head-trim loop sees leftover output that is not
+blank, not a prompt and not a fragment of the sent command, and treats it as the first genuine data line.
+Neither failure is detectable from the result alone — a read gets the wrong row, a silent-on-success
+write gets non-empty "output" that the positional error rule (§10) reads as a rejection, and an `add`
+can hand back an `.id` that was never created here, which only fails one call later, in the read-back,
+with `no such item`.
+
+**The fix: the command's own echo is the anchor.** RouterOS echoes the command before it answers it, so
+the response carries its own identity.
+
+- A settled prompt only terminates a read **once this command's echo is visible on screen**
+  (`CliOutputHelper.ContainsEcho`).
+- Content in front of the echo that is genuinely foreign — not blank, not a repainted prompt, not an
+  asynchronous router log line (§11), not a partial echo — is dropped by `SkipForeignResidue`, and
+  logged to the wire trace on channel `cli.align`.
+
+Matching is on whitespace-squashed, lower-cased text (the line editor repaints the echo, it does not
+replay the bytes) and only on a leading 40-character slice (the tail of a long `add` may be wrapped or
+repainted separately). The **first** match wins: a stored record that happens to quote the command back
+(a script `source`, say) can only appear after the echo that introduced it, so a false match later in
+the output is harmless.
+
+Prompt-line detection is anchored on the leading `[` of `[user@identity]`, not on a bare
+`EndsWith("] >")`/`Contains("] >")` test — a *data* line can legitimately end that way too (a stored
+script source such as `source=:put [$x] >`), and an anchor-free test would delete it as if it were the
+prompt (`CliOutputHelper.IsPromptLine`/`IsPromptPrefixed`).
+
+A PTY transport can echo a command **more than once** — a character-echo on its own line, then a
+line-editor repaint as `<prompt> <command>` — and a multi-line command (e.g. a script `source`
+containing `\n`) is echoed across several lines; `CleanOutput` strips every leading echo/blank line, not
+just the first, using the same foreign-content test. The trailing prompt is stripped the same way in
+reverse — RouterOS can repaint it more than once with blank lines between, so all trailing prompt lines
+are removed, not just the last.
+
+Measured over full traced suite runs on all five CLI transports, the "no echo found" trace note fired
+zero times: at the moment each read actually returned, its own echo was already present. Requiring it
+therefore changes nothing on a healthy session, and only a response that never arrives at all reaches
+the receive deadline, where the read throws `CliReadTimeout`. What it does **not** catch: two identical
+commands issued back to back (the poll-and-diff `listen` emulation does this) — the previous response's
+echo satisfies the gate just as well as the real one, so a splice there is invisible and can only show up
+as a duplicated row.
+
+---
+
+## 8. Add, scalar reads, and action commands
+
+- **`add`**: `:put [/ip/address/add address=10.0.0.1/24 interface=ether1]` returns the new record's
+  **`.id`** (e.g. `*3`), the CLI equivalent of the API's `=ret=*3`. Without the `:put [...]` wrapper,
+  `add` returns nothing useful, not `*N`.
+- **Scalars must be read via `print`, not `get`.** `:put [/path get .id=*N value-name=.id]` is invalid:
+  `get .id=` is a syntax error, and `value-name=.id` answers "input does not match any value of
+  value-name". `.id` and every other scalar are read by selecting the value out of a `print` row instead.
+- **Action commands with no per-row output** (`/system/script/run` and similar): the command runs, but
+  RouterOS does not return the per-row `!re` output the binary API produces — it is fire-and-forget over
+  a terminal. `CliConnectionBase` routes such verbs (`IsActionVerb`) to a non-query path and returns an
+  empty result set; calling `ExecuteList()`/`ExecuteScalar()` on one over a CLI transport **throws
+  `NotSupportedException`**, directing the caller to `ExecuteNonQuery()` instead
+  (`ActionVerbOnReadPath`). `RunScript_Issue53_WillNotFail` (`tik4net.integrationtests/TikCommandTest.cs`)
+  asserts exactly this split via `TestBase.IsNonApiTransport()` (true for every CLI transport and native
+  WinBox M2 as well — both go through the structured-command model rather than the binary-API sentence
+  protocol): `ExecuteList` must throw, `ExecuteNonQuery` must succeed, and the API/REST branch still
+  checks the `!re` row count. A small number of verbs (`wol`) are the mirror case — read through a
+  *read* method because the binary API returns an empty row for them, even though they act rather than
+  query (`CliConnectionBase.IsEmptyRowAction`).
+
+---
+
+## 9. Monitor and streaming commands
+
+### `once` (and its per-verb exceptions)
+
+Continuous commands (`/interface/monitor-traffic`, `/tool/profile`, `/system/resource/monitor`, …)
+normally repaint the screen until interrupted, which a request/response CLI transport cannot consume.
+`CliMonitorVerbs` appends a per-verb snapshot modifier so the command takes one reading and returns to
+the prompt: `once` is the default, but `ping` and `traceroute` have no `once` form and take `count=1`
+instead (traceroute confirmed live: `:put […count=1 once as-value]` → `bad parameter once (line 1
+column 54)`; the same command without `once` returns its hop rows), and `profile` takes `duration=1`
+(it rejects `once` with "expected end of command"). `torch` is the outlier described in §1 — it never
+reaches this modifier at all.
+
+### Monitor commands reached through a read method must keep their own inputs
+
+`/ping`, `/tool/traceroute`, `/interface/monitor-traffic` and `/interface/ethernet/monitor` are called
+through a **read** method (`ExecuteList`/`LoadList`) — they return rows — but their parameters are the
+command's own **inputs** (`address=`, `interface=`), not a print filter. `CliConnectionBase.RunPrint`
+recognises these verbs (`CliMonitorVerbs.IsSyncMonitorVerb`) and routes them through
+`CliCommandBuilder.BuildMonitorSnapshot(..., includeFilters: true)` instead of the ordinary print path,
+which otherwise understands only print modifiers and a `where` clause and would silently drop every
+input (`/ping =address=127.0.0.1` sent as `:put [/ping as-value]` fails with `failure: resolve failed`).
+`includeFilters` is needed because by the time a descriptor reaches this point,
+`TikGenericCommand.ResolveParamsForRead` has already rewritten the caller's parameters into Filter form,
+and a monitor has no query semantics of its own for that rewrite to mean anything else. The async
+monitor path (`RunMonitorAsync`) never had this gap — it always built through
+`BuildMonitorSnapshot`.
+
+### A monitor's success is recognised by producing a record, not by phrase
+
+No phrase classifier in `CliErrorParser` catches every rejection text a monitor can produce (e.g.
+"input does not match any value of interface"). Instead, `ParseMonitorSnapshot` treats a **successful**
+snapshot as always emitting at least one `.id=…` record, and a rejected one as printing only its
+complaint — so output with zero records is the router's refusal, regardless of wording. Empty output on
+its own is *not* an error: torch's `as-value` form legitimately prints nothing, which is exactly why it
+is excluded from this path (§1).
+
+### `:put […as-value]` prints nothing until the command finishes
+
+Streaming is a property of the command's own shape, not of the read loop: `:put` receives an
+already-complete array as its argument, so RouterOS sends nothing until the whole command has finished.
+Measured on 7.23.2 (telnet):
 
 ```
 :put [/ping address=127.0.0.1 count=5 as-value]
@@ -469,7 +501,7 @@ Measured on 7.23.2 (telnet, timestamps are from when the command was sent):
   +  4066 ms     24 B  prompt
 ```
 
-The bare interactive form of the same command streams:
+against the bare interactive form of the same command, which streams:
 
 ```
 /ping address=127.0.0.1 count=5
@@ -481,258 +513,158 @@ The bare interactive form of the same command streams:
   +  4003 ms    148 B  seq=4 + summary sent=/received=/min-rtt=…
 ```
 
-This holds across the whole CLI family (telnet, ssh, winboxcli, winboxclimac, mactelnet) — it's
-router behavior, not transport behavior. `LoadAsync<ToolPing>(count=20)` over CLI therefore used to
-return **0 rows for 20 s and then all 20 at once**; both the API and the two native transports stream
-the same command row by row.
+This holds across the whole CLI family — it is router behaviour, not transport behaviour. Self-terminating
+monitors (`ping`, `traceroute`; `CliMonitorVerbs.Kind.Once`) are therefore sent in their **bare**
+interactive form (`CliCommandBuilder.BuildInteractiveMonitor`) and read line by line: every CLI read loop
+calls `CliLineStreamer.Feed(stripped)` at the point where the stripped text is already computed for
+prompt detection anyway. The prompt remains the sole terminator of the read — streaming only changes
+*when the caller learns about* individual rows, not when the read itself completes. Continuous monitors
+(`monitor-traffic`, `profile`, …) are unaffected: they are polled with a `once` snapshot every
+`MonitorPollIntervalMs` (500 ms), so rows already arrive that way.
 
-**What was done about it.** Self-terminating monitors (`ping`, `traceroute` —
-`CliMonitorVerbs.Kind.Once`) are now sent in bare form (`CliCommandBuilder.BuildInteractiveMonitor`)
-and read line by line: every CLI read loop calls `CliLineStreamer.Feed(stripped)` at the point where
-`stripped` is already computed for prompt detection anyway. The prompt remains the sole terminator of
-the read — streaming doesn't change *when* the read finishes, only when the caller learns about
-individual rows. Continuous monitors (`monitor-traffic`, `profile`, …) are unchanged: they're polled
-with a `once` snapshot every 500 ms, so rows already flow that way.
+`CliLineStreamer` counts **delivered lines**, not a character offset into the buffer — `VtStripper`
+re-runs over the whole accumulated text on every pass, and a chunk boundary that falls mid-escape-sequence
+shortens the text on a later pass, which would make a character pointer drift and deliver shifted data.
 
-### Columns are read by offset, not by whitespace splitting
+### The interactive table is read by column offset, not whitespace splitting
 
-An empty column stays empty and the ones after it print in their own positions. A timeout row only
-carries SEQ, HOST and STATUS:
+An empty column stays empty and the columns after it keep their own positions — splitting on whitespace
+instead would shift a later field into an earlier one's slot on any row with a missing value:
 
 ```
   SEQ HOST                                     SIZE TTL TIME       STATUS
     0 127.0.0.1                                  56  64 107us
-    1 192.168.4.99                                                 timeout
+    1 203.0.113.99                                                 timeout
 ```
 
-Splitting on whitespace would turn the second row into `[1, 192.168.4.99, timeout]`, landing
-`timeout` in `size`. Measured offsets: header `SEQ[3..5] HOST[7..10] SIZE[48..51] TTL[53..55]
-TIME[57..60] STATUS[68..73]`, values `0[4] 127.0.0.1[6..14] 56[49..50] 64[53..54] 107us[56..60]
-timeout[67..73]`. Note that a value can start **one character to the left** of its header
-(`107us` at 56 under `TIME` at 57) — the router reserves one padding character before the column —
-and a left-aligned value can overflow far past its own header (`192.168.4.99` under `HOST`). A
-column therefore spans from one character before its own header to one character before the next
-header; that's the one rule that places both row shapes correctly (`CliTableParser`).
+Measured offsets: header `SEQ[3..5] HOST[7..10] SIZE[48..51] TTL[53..55] TIME[57..60] STATUS[68..73]`,
+values `0[4] 127.0.0.1[6..14] 56[49..50] 64[53..54] 107us[56..60] timeout[67..73]`. A value can start
+**one character to the left** of its own header (`107us` at 56 under `TIME` at 57 — the router reserves
+one padding character before the column), and a left-aligned value can overflow far past its header
+(`203.0.113.99` under `HOST`). A column therefore spans from one character before its own header to one
+character before the next header — the one rule `CliTableParser` uses that places both row shapes
+correctly. Field names are the header text, lowercased, which happen to match the binary API's field
+names exactly (`seq`, `host`, `size`, `ttl`, `time`, `status`) — this table form is actually more
+faithful than `as-value`, which renders the same `time` field as `00:00:00.000060` instead of `60us`.
+The trailing summary row (`sent=…/received=…/min-rtt=…`) is discarded, since it describes the whole
+table rather than one row, and arrives after the last record.
 
-**Field names = the header, lowercased**, which happen to match the binary API's field names
-exactly (`seq`, `host`, `size`, `ttl`, `time`, `status`). This form is actually more faithful than
-as-value: the API reports `time=60us` the same way the table does, whereas `as-value` prints the
-same field as `00:00:00.000060`. The summary row (`sent=…/received=…/min-rtt=…`) is discarded — it's
-a summary of the table, not a row of it, and it arrives after the last record, so it can't be
-attached to rows the way the API does it.
-
-### Why offsets can't be tracked by position in the buffer
-
-`VtStripper.StripAnsi` runs over the **entire** accumulated text on every pass. When a chunk boundary
-falls in the middle of an escape sequence, one pass leaves it alone (it's incomplete) and the next
-pass strips it — shortening the text *before* the current position. A pointer into the string would
-therefore drift and deliver shifted data. `CliLineStreamer` therefore counts **delivered lines**, not
-characters.
+The interactive `traceroute` table starts with a `#` column — the terminal's own row-sequence number,
+with no equivalent in the binary API (which returns `.id` in its place). `CliTableParser` keeps the
+column for offset purposes only and never emits it as a value.
 
 ---
 
-## 16. ✅ Monitor via the READ method lost all its parameters (P2.51, 2026-08-01)
+## 10. CLI error text → exception mapping
 
-**Context.** `/ping`, `/tool/traceroute`, `/interface/monitor-traffic` and
-`/interface/ethernet/monitor` are invoked via a **read** method (`ExecuteList` / `LoadList`) — they
-return rows, so consumers use them correctly. But `CliConnectionBase.RunPrint` sent them into
-`CliCommandBuilder.BuildPrint`, which only knows about print modifiers and the `where` clause. The
-command's own inputs were **vanishing without a trace**.
+RouterOS has no structural error channel over a terminal — output and errors are the same text — so
+error classification is necessarily by pattern, shared with the API and REST transports through one
+`TikTrapClassifier` so the four outcome exception types cannot drift per transport:
 
-Measured on 7.23.2 over Telnet:
+| CLI text (also matched from API/REST dialects) | Exception |
+|---|---|
+| `no such item`, `expected item id` (e.g. `[find .id=…]` resolves to nothing), `missing or invalid resource identifier` | `TikNoSuchItemException` |
+| `no such command`, `bad command name`, `expected end of command`, `no such directory`, `syntax error` | `TikNoSuchCommandException` |
+| `already have … such …`, `item with such name already …` | `TikAlreadyHaveSuchItemException` |
+| `failure:` / `error:` prefix, or any unrecognised non-empty text on a verb classified below | `TikCommandTrapException` |
 
-```
-/ping =address=127.0.0.1 =count=2
-  >> :put [/ping as-value]
-  << failure: resolve failed
-
-/interface/monitor-traffic =interface=ether1
-  >> :put [/interface monitor-traffic once as-value]
-  << input does not match any value of interface
-  → caller received "OK (no data returned)"          ← silent failure (P2.12 class)
-```
-
-The async path never had this bug — it builds via `BuildMonitorSnapshot`, which does emit the
-inputs.
-
-**Fix.** `RunPrint` now routes monitor verbs (`CliMonitorVerbs.IsSyncMonitorVerb`) to
-`BuildMonitorSnapshot(..., includeFilters: true)`. `includeFilters` is needed because
-`TikGenericCommand.ResolveParamsForRead` rewrites the caller's parameters into Filter form before the
-transport ever sees them; a monitor has no query semantics of its own, so Filter can only mean this
-rewrite here. Same reason and same switch as `/tool/wol` (`BuildNonQuery`).
-
-### `traceroute` rejects `once`
-
-The default snapshot modifier is `once`, and traceroute **won't accept it**:
-
-```
-:put [/tool traceroute address=127.0.0.1 count=1 once as-value]
-  << bad parameter once (line 1 column 54)
-:put [/tool traceroute address=127.0.0.1 count=1 as-value]
-  << .id=*1;address=127.0.0.1;avg=0;best=0;last=0;loss=0;sent=1;status=;std-dev=0;worst=0
-```
-
-`CliMonitorVerbs.Modifiers` therefore maps `traceroute` → `count=1` (same as ping). Before P2.51,
-every CLI traceroute that reached the modifier got rejected by the router. The same applies to
-`torch` — `bad parameter once (line 1 column 40)`, and its `as-value` form additionally prints
-nothing at all — which is why it is **not** in the list of synchronous monitor verbs.
-
-### A silent failure is recognized by position, not by phrase
-
-The phrase `input does not match any value of interface` isn't caught by any classifier in
-`CliErrorParser`. But a monitor exists to print something: a successful snapshot always emits at
-least one `.id=…` record, a failed one only prints its complaint. `ParseMonitorSnapshot` therefore
-treats **output with no record** as a rejection — no phrase list, no verb whitelist needed. Empty
-output isn't itself an error (torch legitimately prints nothing). For the streamed form (P2.50), the
-**table header** plays the same role: the router prints it before the first measurement, so text that
-never produced a header is a rejection.
-
-### `#` in the table is not a field
-
-The interactive traceroute table starts with a `#` column — the terminal's row sequence number. The
-binary API returns `.id` in its place and has no `#` field at all, so `CliTableParser` keeps that
-column for offset purposes but never emits it as a value.
-
-### It had no coverage anywhere
-
-All the synchronous monitor tests had `EnsureCapability(TikConnectionCapability.Streaming)`, which is
-reported **only by the binary API** — so on ten of the eleven transports they were Inconclusive, and
-the entire synchronous monitor path had no coverage at all. Yet `ToolPing.Execute` is a plain
-`LoadList` and doesn't need `Streaming`. See `[[feedback_silent_failures_are_invisible]]`.
-
-## 17. ✅ A prompt is not proof the router is answering *you* (P2.47, 2026-08-02)
-
-Every PTY read here ends the same way: wait until the accumulated text ends at a shell prompt, then
-wait `SettleMs` (120 ms) more to be sure nothing follows. That test asks whether **a** command has
-finished, never whether **this** one has — and the two come apart, because a response can arrive
-after the read that asked for it has already returned:
-
-- the read returns as soon as the prompt has been quiet for 120 ms;
-- the next command's pre-send drain is gated on `DataAvailable` **at one instant**;
-- so a tail that arrives after both is still in the socket when the next command goes out.
-
-That tail then lands ahead of the next command's echo, and both layers accept it:
-
-| layer | what it saw | what it did |
-|---|---|---|
-| read loop | the leftover **prompt** settles for 120 ms | returns before the router has said a word |
-| `CleanOutput` | leftover **output** is not blank, not a prompt, not a command fragment | stops the head-trim there and calls it the first data line |
-
-Neither is detectable from the result. A read gets the wrong row; a silent-on-success write gets
-non-empty "output" that P2.12's positional rule reads as a rejection; and an `add` gets back an
-`.id` that was never created here — which fails one call later, in the read-back, with `no such
-item`, pointing at everything except the cause.
-
-### The echo is the anchor
-
-The router echoes the command before it answers it, so the response carries its own identity. Both
-layers now use it (`CliOutputHelper.ContainsEcho` / `SkipForeignResidue`):
-
-- a settled prompt terminates a read **only once this command's echo is on screen**;
-- content in front of the echo that is genuinely foreign — not blank, not a repainted prompt, not an
-  asynchronous log line (§14), not a partial echo — is dropped, and noted to the wire trace on
-  channel `cli.align`.
-
-Matching is on whitespace-squashed text (the line editor repaints the echo, it does not replay the
-bytes) and only on a leading 40-character slice, since the tail of a long `add` may be wrapped or
-repainted separately. The **first** match wins, which is what makes a false match harmless: a record
-that quotes the command back — a stored script `source`, say — can only appear after the echo that
-introduced it.
-
-### Why the gate is free
-
-Measured over full traced suite runs on all five CLI transports, `echo-missing` fired **0 times**:
-at the moment each read returned, its own echo was already present. So requiring it changes nothing
-on a healthy session — and where the echo is merely late, waiting for it turns a wrong answer into a
-correct one rather than into a failure. Only a response that never arrives now reaches the receive
-deadline, where the read already throws (`CliReadTimeout`).
-
-### What it does not fix
-
-Two identical commands in a row — the poll-and-diff Listen emulation issues those — cannot be told
-apart this way: the previous response's echo satisfies the gate just as well as our own. The splice
-is then invisible to both layers, and shows up (if at all) as a duplicated row rather than a wrong
-one.
+Verbs RouterOS answers with **no output at all** on success (`set`, `remove`, `enable`, `disable`,
+`move`, `unset`, `comment` — `CliErrorParser.IsSilentOnSuccessVerb`) get an extra, purely positional
+rule: any surviving text after echo/prompt trimming is an error, regardless of how it is worded, because
+there is nothing else it could be. This runs last, after the classified kinds above, and is why
+`remove`/`set` against a nonexistent `.id` produces `expected item id` → `TikNoSuchItemException` rather
+than a generic trap.
 
 ---
 
-## 18. ✅ What the CLI login assumes about a RouterOS version, and how much of it is checked (P2.24)
+## 11. The router can write into a live session on its own
 
-The session bring-up shared by all five CLI transports (`RouterOsCliLogin`) reads a screen and decides
-what state the router is in. Every decision is a guess about **wording and layout**, both of which
-differ by version *and* by router state — and a guess that is wrong here does **not** fail. There is no
-error channel on a terminal: an unrecognised screen simply never satisfies the predicate, so the read
-runs to the receive deadline and the caller gets something plausible, late. That is the same shape as
-the safe-mode prompt (P2.31, 30 s per command with the tests green) and the refusal wording below.
-
-### 18.1 The assumptions, and what each one costs when it is wrong
-
-| Assumption | Where | Evidence | Cost if wrong |
-|---|---|---|---|
-| Login prompt contains `ogin:` | `IsLoginPrompt` | 7.23.2 | Credentials typed into a screen that is not asking for them |
-| Password prompt contains `assword:` | `IsPasswordPrompt` | 7.23.2 | Same |
-| Nag contains `password>` | `IsChangePasswordNag` | 7.23.2 | Ctrl-C never sent → login ends at the deadline; worse, **bytes meant for the shell land in the new-password field** (P2.13c) |
-| Prompt ends `] >` / `] <SAFE>` | `EndsWithPromptSuffix` | 7.23.2 (+ one historical form) | 30 s per command, results still "correct" (P2.31) |
-| Refusal wording | `IsLoginFailure` | see 18.2 | Full receive deadline per rejected login |
-| `+c` login flag accepted | `TerminalLoginFlags` | 7.23.2, all CLI transports | SSH falls back to the bare name; Telnet would fail the login |
-
-### 18.2 The refusal wording did not match, and could not have told us
-
-RouterOS 7.23.2 answers a wrong password with:
+RouterOS ships by default with a `/system/logging` rule `topics=critical action=echo`, and `echo` means
+**into every open terminal session**, not "to the local console". A line nobody asked for can land in a
+session at any time:
 
 ```
-\r\nLogin failed, incorrect username or password\r\n\r\nLogin:
+21:18:05.412 telnet.sock RECV | <CR>23:17:46 echo: system,error,critical login failure for user
+                                admin from 203.0.113.31 via api<ESC>[K<CR><LF><CR><ESC>[9999B[admin@CHR] >
 ```
 
-None of the five phrases `IsLoginFailure` carried matched it. Measured 2026-08-14 with the same
-credentials on the same router: **binary API 127 ms, Telnet 30 193 ms** — the CLI login waited out the
-whole receive deadline and then threw a login exception quoting the very text it had failed to
-recognise. The suite never noticed because the only bad-credentials test
-(`ConnectionTest.OpenConnectionWithInvalidCredential_WillFailWithProperException`) is hardcoded to the
-binary API, so it runs eleven times against one transport.
+Properties worth knowing:
 
-**Fix — the signal is positional, not lexical.** After a refusal RouterOS *restarts the login
-dialogue*, so a `Login:` prompt arriving **after credentials have been sent** means rejected, in any
-language and on any version. `ResolveToPromptAsync` takes `loginPromptMeansFailure`, set only by the
-interactive login (a transport that authenticated below the terminal never sends credentials, so a
-`Login:` string reaching it is not evidence of anything). Telnet now reports in **1 258 ms**. The
-phrase list is kept as a fast path and a better message, and is *not* load-bearing: with it emptied,
-the transcript tests still pass.
+- **It is not a login banner** — it can arrive on a long-established session with no IAC negotiation
+  nearby (the banner also prints recent log lines, so the two are easy to confuse when scanning a
+  trace — filter on whether negotiation bytes are nearby).
+- **The router buffers it**: the timestamp inside the line can be many seconds older than the moment of
+  delivery, so cause and effect are not adjacent in a trace.
+- **It arrives only on a session that is currently idle** between commands.
+- **A redrawn prompt follows it**, so a read already in progress still sees a prompt at the end.
+- It can be triggered by a failed login on a **different** session (`login failure` is `critical`), but
+  delivery depends on the target session being idle, so it is not a reliable way to provoke one on
+  demand.
 
-### 18.3 SSH accepts a wrong password for a password-less account — and that is the router
+`CliOutputHelper.IsRouterLogLine` recognises such a line by its leading wall-clock timestamp (an
+optional `mmm/dd ` date prefix, then `hh:mm:ss `) — no as-value record and no RouterOS diagnostic ever
+starts that way. If the line arrives between commands, the pre-send drain simply swallows it. It only
+matters when it arrives **inside** a response: `CleanOutput`'s echo/head-trim loop and
+`SkipForeignResidue` (§7) both skip a recognised log line explicitly rather than treating it as the
+first real content, and the record-join loop discards it from the data as well — otherwise it either
+shreds an `as-value` parse (a log line has no `=`, so it gets absorbed as a bogus field) or is read as
+the router rejecting a silent-on-success write (§10).
 
-`admin` with an **empty** password authenticates over SSH with method `none`:
+---
 
-```
-ssh -o PreferredAuthentications=none admin@<host> "/system/identity/print"   →   name: CHR
-```
+## 12. WinBox terminal (`mepty`): a pull protocol
 
-The server grants the shell without ever checking a password, so a wrong one is accepted. Telnet and
-WinBox-CLI, which have no such method, reject the same credentials.
+The WinBox terminal's `mepty` `Data` command (`0x0A0067`) does two things at once: it sends keystrokes
+**and** pulls whatever output RouterOS currently has pending, one batch at a time. Sending a `Data`
+frame and then only reading passively means output larger than one batch (on the order of a few hundred
+bytes) never arrives — the session appears to wedge after enough output has accumulated.
+`WinboxCliClient.SendPull()` sends an empty `Data` frame (no `Input` key) to keep pulling whenever the
+read buffer is empty and the completion prompt hasn't been seen yet; once the prompt has arrived the
+read stops pulling and just settles. This is shared by `WinboxCliMacConnection`, so it applies to that
+transport too.
 
-**Measured per account** (`SshAuthProbeTest`, 7.23.2, 2026-08-14) — and what is granted is a full
-session, not a bare shell: each OPENED row below ran `/system/identity/print` **and** `/user/print`
-and got real data back.
+This pull mechanism is only half of the `mepty` protocol; the other half — the frame's `Counter` field
+being a cumulative **byte acknowledgement**, not a message count, and what happens when it is wrong — is
+in [findings-mepty-byte-ack.md](findings-mepty-byte-ack.md).
 
-| account | password given | result |
-|---|---|---|
-| `admin` (no password) | correct (empty) | OPENED — identity `CHR`, `/user/print` 2 rows |
-| `admin` (no password) | **wrong** | **OPENED — identity `CHR`, `/user/print` 2 rows** |
-| `test` (has a password) | correct | OPENED — identity `CHR`, `/user/print` 2 rows |
-| `test` (has a password) | **wrong** | **REFUSED — `Permission denied (password)`** |
+---
 
-So SSH *is* an access control — for an account that has a password. An account without one has no
-check at all, and the password a client sends is never examined. This is RouterOS policy, not
-something a client can detect or refuse: `LoginFailureTest` reports Inconclusive for SSH while
-`App.config` points at a password-less user, rather than pretending to cover it. Point it at a
-password-protected account to cover SSH properly.
+## 13. Tests
 
-### 18.4 The transcripts are now data
+- `tik4net.unittests/Cli/RouterOsTranscripts.cs` holds RouterOS 7.23.2 byte streams captured off the
+  wire (banner, the nag — which the router repaints, so one read carries `new password>` twice —
+  prompt, refusal); `tik4net.unittests/Cli/FakeRouterTerminal.cs` replays them into the real login state
+  machine, exercised by `tik4net.unittests/Cli/CliLoginTranscriptTests.cs`. A new RouterOS version is a
+  new block in that file, not another live campaign. Two of the transcript tests exist specifically
+  because the failure mode is silence: one asserts nothing but Ctrl-C is ever sent while the nag is on
+  screen, and one refuses a login whose wording nobody here has seen
+  (`Authentisierung fehlgeschlagen`) to prove the positional signal (§4) carries it alone.
+- `tik4net.unittests/Cli/CliStreamingMonitorTests.cs` covers `CliLineStreamer` and `CliTableParser`
+  against table samples captured verbatim from a live 7.23.2 run over Telnet (§9).
+- `tik4net.integrationtests/Protocols/Tests/SshAuthProbeTest.cs` covers the password-less-account
+  behaviour in §5.
+- `tik4net.integrationtests/LoginFailureTest.cs` (`ConnectionTest.OpenConnectionWithInvalidCredential_WillFailWithProperException`)
+  covers login refusal; it reports Inconclusive on SSH when `App.config` points at a password-less
+  account (§5).
+- `tik4net.integrationtests/TikCommandTest.cs` (`RunScript_Issue53_WillNotFail`) covers the
+  action-command split in §8.
 
-`tik4net.unittests/Cli/RouterOsTranscripts.cs` holds the 7.23.2 byte streams captured off the wire
-(banner, nag — which the router **repaints**, so one read carries `new password>` twice — prompt,
-refusal), and `FakeRouterTerminal` replays them into the real state machine. A second RouterOS version
-is a new block in that file, not another live campaign. Two of the tests exist specifically because
-the failure mode is silence: one asserts nothing but Ctrl-C is ever sent while the nag is on screen,
-and one refuses a login whose wording nobody here has seen (`Authentisierung fehlgeschlagen`) to prove
-the positional signal carries it alone.
+---
+
+## Settled questions — do not re-investigate
+
+- **SSH as "exec, no PTY" is not how this transport works, and never will be.** RouterOS's exec channel
+  does not produce usable `as-value` output; the interactive `ShellStream` PTY (§5) is not a workaround
+  for a missing feature, it is the only channel that works, and the whole shared CLI/PTY stack depends
+  on it.
+- **A wrong password succeeding over SSH against a password-less account is not a bug in this client.**
+  It is the RouterOS SSH server's own `none`-method behaviour (§5); there is nothing to detect or refuse
+  from the client side, and `LoginFailureTest`'s Inconclusive report for that configuration is correct,
+  not a gap to close in code.
+- **The `mepty` "hang after ~N commands" symptom is not a command-count limit, a pull-cadence issue, or
+  cursor-probe drift.** It is the byte-acknowledgement rule in
+  [findings-mepty-byte-ack.md](findings-mepty-byte-ack.md); the pull mechanism in §12 is necessary but
+  was never sufficient on its own.
+- **`torch`'s `as-value` form printing nothing is not a missing mapping to add.** It has no working
+  one-shot `as-value` form on any RouterOS version tested; the freeze-frame mechanism in §1 is the
+  supported path, not a stopgap for one.

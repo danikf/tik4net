@@ -55,7 +55,7 @@ see only `\r\r\r\r] >` with no data, VT100 negotiation failed (see §VT100 below
 ## RouterOS CLI quirks — ground truth (verified live, ROS 7.x)
 
 These are the things that make terminal CLI different from the binary API. Canonical reference with
-full context: `Docs/findings-cli.md` §10.
+full context: `Docs/findings-cli.md`.
 
 - **`print as-value` prints NOTHING to an interactive terminal.** It only materialises in script
   context — wrap it: `:put [/path print as-value]`. The `:put` output is ONE line, records joined by

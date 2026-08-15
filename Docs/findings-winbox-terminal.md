@@ -1,12 +1,14 @@
-# Winbox M2 terminal — PoC findings (mepty, comment, MAC layer)
+# WinBox M2 terminal — mepty session behaviour
 
-> Local file, not in git. Last updated: 2026-05-27.
-> Builds on [`project_winbox_m2_poc.md`](../memory/project_winbox_m2_poc.md) and
-> [`mactelnet-protocol.md`](mactelnet-protocol.md).
+How the WinBox terminal channel behaves: the mepty session lifecycle, VT100 negotiation, and how
+RouterOS renders and accepts a comment over the CLI.
+
+> Section numbers are cited from the C# source — do not renumber a heading without checking who cites
+> it. Builds on [`mactelnet-protocol.md`](mactelnet-protocol.md).
 >
-> Source files:
-> - `tik4net.tests/WinboxM2CatalogTest.cs` — Winbox TCP PoC (7/7 tests pass)
-> - `tik4net.tests/MacLayerTest.cs` — MAC-layer PoC (0/5 tests pass, see section 5)
+> The protocol proof-of-concept tests these findings came from now live in
+> [`tik4net.integrationtests/Protocols/`](../tik4net.integrationtests/README.md) — `Clients/` for the
+> low-level WinBox and MAC-Telnet clients, `Tests/` for the test classes.
 
 ---
 
@@ -189,82 +191,30 @@ just swap the TCP `NetworkStream` for a UDP+MAC transport layer.
 
 ---
 
-## 5. Status of the MAC-layer tests (`MacLayerTest.cs`)
+## 5. The MAC layer works; its early failure was host-side
 
-### Current status: 0 / 5 tests passing
+The MAC-layer transports (`MacTelnet`, `WinboxCliMac`, `WinboxNativeMac`) are shipped and exercised by
+the integration suite. During the initial proof of concept they could not reach the router at all, and
+the hypotheses recorded at the time — a CHR limitation, a source-port rule, CHR treating port 20561
+differently from MNDP's 5678, Windows Firewall — were **all wrong**.
 
-All tests fail on a `RecvUntil` timeout — the router doesn't respond to the UDP
-packets at all.
+**The actual cause is host-side NIC selection:** the SESSIONSTART broadcast leaves via the wrong
+adapter. MNDP keeps working throughout, which is what makes this misleading — it is also broadcast, but
+is answered over a different path. `MacLayerTransport.BaseConnect` now selects the NIC explicitly.
 
-### What has been verified
+See [findings-mactelnet.md](findings-mactelnet.md) for the transport's actual behaviour, including the
+ACK rule, the reliability queue and the login-refusal handling.
 
-| Test | Result |
-|---|---|
-| API access to the router (port 8728) | ✅ works |
-| MNDP discovery (UDP broadcast 5678) | ✅ works |
-| Winbox TCP PoC (port 8291) | ✅ works, 7/7 tests |
-| MAC Telnet unicast (unicast to the router's IP:20561) | ❌ NO packets received |
-| MAC Telnet broadcast (<subnet-broadcast>:20561, srcPort=20561) | ❌ only our own packets seen looping back |
-| MAC Telnet broadcast (<subnet-broadcast>:20561, srcPort=random 52774) | ❌ NO packets received |
+### RouterOS 7.x has no `disabled` on `/tool/mac-server`
 
-### Router configuration state (verified via API)
+Access is controlled solely by `allowed-interface-list`:
 
 ```
-/tool mac-server:         allowed-interface-list=all
-/tool mac-server mac-winbox: allowed-interface-list=all
+/tool mac-server set allowed-interface-list=all
+/tool mac-server mac-winbox set allowed-interface-list=all
 ```
 
-RouterOS 7.x **has no `disabled` property** on `/tool mac-server` — it's controlled
-solely via `allowed-interface-list`. The original code using `disabled=no` failed
-with `unknown parameter disabled`.
-
-### Winbox application on the test PC
-
-While diagnosing this, we captured Winbox.exe (running on the test PC, port 61126,
-ct=0x900F) **actively transmitting** to the router's MAC (<router-MAC>) over UDP
-20561. This confirms the network layer for MAC protocols is **not globally blocked**.
-
-### Possible causes of the failure
-
-1. **CHR limitation**: the CloudHostedRouter (a Hyper-V VM) may not respond to MAC
-   Telnet at all. The Hyper-V virtual switch might not forward UDP broadcast to the
-   correct interface, or the CHR RouterOS image may not fully support MAC Telnet.
-
-2. **Source port**: the MAC Telnet spec says the router may ignore packets from ports
-   other than 20561. Tested both srcPort=20561 and srcPort=random — both failed.
-
-3. **Broadcast vs. unicast**: the router responds to MNDP broadcast (5678) but not to
-   MAC Telnet broadcast (20561). RouterOS CHR may behave differently for port 20561.
-
-4. **Windows Firewall**: may be blocking inbound UDP from the router to the test PC.
-   The Winbox application is exempted from the firewall; our `UdpClient` test may not
-   be.
-
-### RouterOS 7.x — known `mac-server` issue
-
-RouterOS 7.x has no `disabled` property on `/tool/mac-server`:
-
-```
-# RouterOS 6.x (works):
-/tool mac-server set disabled=no
-
-# RouterOS 7.x (throws "unknown parameter disabled"):
-/tool mac-server set allowed-interface-list=all  ← correct way
-```
-
-The same applies to `/tool/mac-server/mac-winbox/set`.
-
-### Recommended next steps
-
-1. Test against a physical RouterBoard (not CHR) — determine whether the problem is
-   CHR-specific.
-2. Capture network traffic with Wireshark on the test PC — verify whether the router
-   sends any UDP response at all (to diagnose the Windows Firewall theory).
-3. Try a `UdpClient` bound to `0.0.0.0:20561` with `SO_REUSEADDR` — some MAC Telnet
-   implementations require this.
-4. Check whether the CHR image's MAC server is functional at all
-   (`/tool/mac-server/sessions/print` would show an active session if the router had
-   accepted a SESSIONSTART packet).
+`disabled=no` fails with `unknown parameter disabled` on RouterOS 7.x.
 
 ---
 
@@ -306,20 +256,14 @@ cmd.AddParameterAndValues("allowed-interface-list", "all");
 
 ---
 
-## 7. PoC test status overview
+## 7. Settled questions — do not re-investigate
 
-| Test class | Tests | Status | Notes |
-|---|---|---|---|
-| `WinboxM2CatalogTest` | 7 | ✅ 7/7 | Winbox TCP, mepty, set/get comment |
-| `MacLayerTest` | 5 | ❌ 0/5 | Router does not respond on UDP 20561 |
-
-Winbox TCP tests (`WinboxM2CatalogTest`):
-
-| Test | Description |
-|---|---|
-| `WinboxM2_IpLayer_TcpPort8291_*` | TCP handshake smoke test |
-| `WinboxM2_ReadListCatalog_*` | reads the plugin catalog via mproxy [2,2] |
-| `WinboxM2_ParseCatalog_*` | parses the `list` file |
-| `WinboxM2_GetSystemInfo_*` | system info via handler [13,4] |
-| `WinboxM2_ListInterfaces_*` | `/interface print` via mepty [76] |
-| `WinboxM2_SetAndVerify_InterfaceEther1Comment` | set+verify+restore comment on ether1 |
+- **Does CHR support the MAC-layer protocols?** Yes. All three MAC transports run against the CHR test
+  router. The early "CHR may not respond to MAC-Telnet at all" theory is disproved.
+- **Does the client's UDP source port have to be 20561?** No. 20561 is the *router's* port; the client
+  binds an ephemeral local port. Both fixed and random source ports were tried during the PoC and
+  neither was the problem.
+- **Is Windows Firewall blocking the router's replies?** No. This was tested by observing WinBox itself
+  transmitting to the router over UDP 20561 from the same host, which proved the path was not blocked.
+- **Do TCP and MAC need different M2 handling above the transport?** No — see §4. The M2 layer is
+  identical; only the carrier below it differs.
