@@ -203,7 +203,11 @@ namespace tik4net.unittests.Api
 
                 Assert.IsTrue(cancelSeen.Wait(5000), "The router was never asked to cancel.");
                 Assert.AreEqual("/cancel", cancelSentence[0]);
-                Assert.IsTrue(cancelSentence.Any(w => w == $"={TikSpecialProperties.Tag}={streamTag}"),
+                // `=tag=N`, not `=.tag=N`: the tag being cancelled is an ARGUMENT of /cancel, not this
+                // sentence's own tag. RouterOS 7.23.2 was measured to accept both, so this assertion is not
+                // about what the router tolerates — it pins the spelling to the one ApiCommand.CancelInternal
+                // has used since 3.x, so the two cancel paths cannot drift apart.
+                Assert.IsTrue(cancelSentence.Any(w => w == $"=tag={streamTag}"),
                     $"/cancel must name the running command's tag; sent: {string.Join(" ", cancelSentence)}");
 
                 var rows = await connection.CreateCommand("/system/identity/print").ExecuteListAsync();

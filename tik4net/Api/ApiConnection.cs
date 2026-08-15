@@ -692,21 +692,36 @@ namespace tik4net.Api
         }
 
         private static readonly Regex tagRegex = new Regex($"^\\{TikSpecialProperties.Tag}=(?<TAG>.+)$"); // .tag=1234
+
+        /// <summary>
+        /// Finds the <c>.tag</c> a caller put in the command, or <c>null</c> when there is none.
+        /// </summary>
+        /// <remarks>
+        /// Two spellings reach here, differing by one character and by route: the connection writes its own
+        /// tag as the bare row <c>.tag=N</c>, while a caller supplying it as a command parameter produces
+        /// <c>=.tag=N</c>. Only the first used to be recognised, and the consequence was invisible rather
+        /// than loud — the command went out correctly tagged, the router answered it correctly, and the
+        /// client waited on the untagged queue until <see cref="ReceiveTimeout"/> elapsed for an answer that
+        /// had already arrived. Measured before the fix at a full timeout per such command
+        /// (<c>ApiCallerSuppliedTagTests</c>).
+        /// </remarks>
+        private static string FindTag(IEnumerable<string> commandRows)
+        {
+            foreach (var row in commandRows)
+            {
+                if (row == null) continue;
+                var match = tagRegex.Match(row.StartsWith("=", StringComparison.Ordinal) ? row.Substring(1) : row);
+                if (match.Success)
+                    return match.Groups["TAG"].Value;
+            }
+            return null;
+        }
         public IEnumerable<ITikSentence> CallCommandSync(params string[] commandRows)
         {
             EnsureOpened();
 
             //read .tag from commandRows - if present
-            var tagOrEmptyString = string.Empty;            
-            foreach(var row in commandRows)
-            {
-                var match = tagRegex.Match(row);
-                if (match.Success)
-                {
-                    tagOrEmptyString = match.Groups["TAG"].Value;
-                    break;
-                }
-            }
+            var tagOrEmptyString = FindTag(commandRows) ?? string.Empty;
 
             if (_sendTagWithSyncCommand && string.IsNullOrEmpty(tagOrEmptyString))
             {
@@ -748,15 +763,7 @@ namespace tik4net.Api
             EnsureOpened();
             cancellationToken.ThrowIfCancellationRequested();   // level 0: nothing is written
 
-            // Both spellings are accepted: the connection writes the tag row as `.tag=N`, while a caller who
-            // supplies it as a command parameter produces `=.tag=N`. Missing the second would make us add a
-            // second tag and then wait on the one the router does not answer with.
-            string tag = null;
-            foreach (var row in commandRows)
-            {
-                var match = tagRegex.Match(row.StartsWith("=", StringComparison.Ordinal) ? row.Substring(1) : row);
-                if (match.Success) { tag = match.Groups["TAG"].Value; break; }
-            }
+            string tag = FindTag(commandRows);
             if (string.IsNullOrEmpty(tag))
             {
                 tag = TagSequence.Next().ToString();
@@ -810,12 +817,18 @@ namespace tik4net.Api
         // Asks the router to abandon a running command. Sent on its own tag so its own !done cannot be
         // mistaken for the cancelled command's; failures are swallowed because the caller is already
         // cancelling and a cancel that could not be delivered still ends with the command's own !done.
+        //
+        // The target tag goes as `=tag=N`, NOT `=.tag=N`: it is an argument of /cancel, not this sentence's
+        // own tag. That is the spelling ApiCommand.CancelInternal has used since 3.x. Both were measured on
+        // 7.23.2 (a cancelled 5-count ping returns in 684 ms either way, against ~5 s uncancelled), so the
+        // router accepts both — this one is kept because it is the one with years of evidence behind it and
+        // because two cancel paths spelling the same thing differently is how a difference becomes a bug.
         private async System.Threading.Tasks.Task SendCancelAsync(string tag)
         {
             try
             {
                 await WriteCommandAsync(
-                    new[] { "/cancel", $"={TikSpecialProperties.Tag}={tag}",
+                    new[] { "/cancel", $"=tag={tag}",
                             $"{TikSpecialProperties.Tag}={TagSequence.Next()}" },
                     System.Threading.CancellationToken.None).ConfigureAwait(false);
             }
