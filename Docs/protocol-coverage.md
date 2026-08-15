@@ -104,14 +104,32 @@ frees the caller and drops the registration while the router finishes; that is s
 reader loop dispatches by request id, so the late reply is identified and discarded instead of being
 handed to whichever command asked next. Same guarantee as REST, for the same reason.
 
-One residue is worth naming rather than leaving to be discovered: field **encoding and decoding** can
-themselves issue a `getall` to translate a referenced record between its name and its numeric id
-(`WinboxIdResolver`, and the codec's per-handler reference-name cache). Those calls are synchronous
-and block the awaiting thread for one round trip on a cache miss. It is bounded — the codec memoizes
-per handler for the connection's lifetime, and the resolver only runs when a caller names a
-referenced record instead of giving its `.id` — but "async all the way" is not yet literally true on
-this transport. Making it so means turning `WinboxFieldResolver.EncodeField`'s `resolveRef` delegate
-async, and with it the whole encoder.
+Field **encoding and decoding** can themselves issue a `getall`, to translate a referenced record
+between its name and its numeric id — a `list=lan` on a write, an interface id rendered back as
+`ether1` on a read. Those lookups used to run synchronously on the awaiting thread; they no longer
+do, and no round trip on an awaited command is made from a blocked thread.
+
+The encoder and the decoder are still synchronous — `WinboxFieldResolver.EncodeField` takes a plain
+`Func` and `DecodeRecord` returns a dictionary — because making them `async` would have rippled
+through ~1000 lines of reverse-engineered encoder with no deterministic coverage. Instead the round
+trips are **hoisted out and awaited first**, and both prefetches ask the synchronous code itself what
+it will need rather than re-deriving it:
+
+- **encode** runs the encoder twice. The first pass answers every reference lookup with a placeholder
+  and records the question; its bytes are discarded. The recorded lookups are resolved in one awaited
+  batch — one `getall` per distinct table, so several references to the same table cost one round trip
+  rather than one each — and the second pass encodes against the answers. A command that references
+  nothing (the common case) collects nothing and keeps the first pass, at exactly the previous cost.
+- **decode** runs the decoder in a collecting mode that notes which referenced tables a row would make
+  it read, fetches those, and then decodes for real.
+
+Asking the decoder is not a stylistic preference: predicting the tables from the `.jg` field map
+instead fetched tables the decode never consults, and since the id → name map is cached for the
+connection's lifetime, one such fetch renders every record added afterwards as a bare numeric id.
+Printing `/interface/list`, whose own rows reference interface lists, was enough to poison it.
+
+The blocking lookups remain as the fallback and still serve the synchronous monitor round, which
+drives its own loop.
 
 ---
 

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using tik4net.Diagnostics;
 
 namespace tik4net.Winbox
@@ -22,6 +24,10 @@ namespace tik4net.Winbox
         private readonly Dictionary<string, Dictionary<int, string>> _refNameCache =
             new Dictionary<string, Dictionary<int, string>>(StringComparer.Ordinal);
 
+        // Guards the cache: a multiplexed connection can decode two commands' rows at once, and
+        // PrimeReferencesAsync writes from the awaited path while a synchronous decode may be reading.
+        private readonly object _refNameCacheLock = new object();
+
         private static readonly Dictionary<string, int> EmptyOverrides = new Dictionary<string, int>();
 
         internal WinboxRecordCodec(WinboxNativeM2Operations ops, WinboxJgCatalog catalog)
@@ -38,6 +44,15 @@ namespace tik4net.Winbox
         internal Dictionary<string, string> DecodeRecord(
             Dictionary<int, Tuple<string, object>> rec, IReadOnlyDictionary<int, string> keyToName,
             IReadOnlyDictionary<int, WinboxJgField> keyToField)
+            => DecodeRecord(rec, keyToName, keyToField, null);
+
+        // The decode proper. collectRefTables != null puts it in COLLECTING mode: reference names are not
+        // looked up, the tables they would have needed are noted instead, and the fields it returns are
+        // thrown away. See PrimeReferencesAsync — that mode is how the awaited path learns what to fetch.
+        private Dictionary<string, string> DecodeRecord(
+            Dictionary<int, Tuple<string, object>> rec, IReadOnlyDictionary<int, string> keyToName,
+            IReadOnlyDictionary<int, WinboxJgField> keyToField,
+            Dictionary<string, int[]> collectRefTables)
         {
             // Keys consumed by an owning field, not emitted on their own: a network field's netmask sibling,
             // and the opt/not flag bools of an optional/invertible field (its value rides on the leaf key).
@@ -65,7 +80,7 @@ namespace tik4net.Winbox
 
                 WinboxJgField jf = null;
                 keyToField?.TryGetValue(kv.Key, out jf);
-                fields[apiName] = FormatTyped(jf, kv.Value.Item1, kv.Value.Item2, rec);
+                fields[apiName] = FormatTyped(jf, kv.Value.Item1, kv.Value.Item2, rec, collectRefTables);
             }
             return fields;
         }
@@ -75,7 +90,7 @@ namespace tik4net.Winbox
         // from raw bytes, static enums back to their string label, dynamic enum references back to the
         // referenced record's name. Falls back to the wire-type formatter.
         private string FormatTyped(WinboxJgField jf, string wireType, object value,
-            Dictionary<int, Tuple<string, object>> rec)
+            Dictionary<int, Tuple<string, object>> rec, Dictionary<string, int[]> collectRefTables)
         {
             if (jf != null && value != null)
             {
@@ -145,13 +160,13 @@ namespace tik4net.Winbox
                 // referenced table cannot be read, exactly as the scalar case does.
                 if (jf.RefHandler != null && IsMultiNumberList(jf.UiType))
                 {
-                    string joined = ResolveRefNameList(jf.RefHandler, value);
+                    string joined = ResolveRefNameList(jf.RefHandler, value, collectRefTables);
                     if (joined != null) return joined;
                 }
                 // dynamic enum reference: render the referenced object's name (e.g. interface id → "ether1").
                 if (jf.RefHandler != null)
                 {
-                    string name = ResolveRefName(jf.RefHandler, value);
+                    string name = ResolveRefName(jf.RefHandler, value, collectRefTables);
                     if (name != null) return name;
                 }
                 // static enum: map the numeric value back to its API string label.
@@ -176,13 +191,14 @@ namespace tik4net.Winbox
         // Resolve a u32[] of referenced ids (rendered by M2Message as "[a,b,…]") to comma-joined names.
         // Returns null when nothing resolved, so the caller can fall back to the raw text rather than
         // hand back an empty string that reads like "no topics".
-        private string ResolveRefNameList(int[] refHandler, object value)
+        private string ResolveRefNameList(int[] refHandler, object value,
+            Dictionary<string, int[]> collectRefTables)
         {
             var names = new List<string>();
             foreach (System.Text.RegularExpressions.Match m in
                      System.Text.RegularExpressions.Regex.Matches(value?.ToString() ?? "", @"-?\d+"))
             {
-                string n = ResolveRefName(refHandler, m.Value);
+                string n = ResolveRefName(refHandler, m.Value, collectRefTables);
                 if (n == null) return null;   // table unreadable / id unknown — keep the raw form
                 names.Add(n);
             }
@@ -190,7 +206,7 @@ namespace tik4net.Winbox
         }
 
         // Resolve a dynamic-enum reference value (the referenced record's numeric id) back to its name.
-        private string ResolveRefName(int[] refHandler, object idValue)
+        private string ResolveRefName(int[] refHandler, object idValue, Dictionary<string, int[]> collectRefTables)
         {
             if (!WinboxFieldResolver.TryToInt64(idValue, out long idl))
             {
@@ -200,43 +216,158 @@ namespace tik4net.Winbox
             int id = unchecked((int)idl);
 
             string key = string.Join(",", refHandler);
-            if (!_refNameCache.TryGetValue(key, out var map))
+            var map = CachedRefNames(key);
+            if (collectRefTables != null)
             {
-                map = new Dictionary<int, string>();
-                var refResolver = new WinboxFieldResolver(null, refHandler, _catalog, EmptyOverrides);
-                var k2n = refResolver.BuildKeyToApiName();
-                int nameKey = -1, idKey = WinboxM2Protocol.RecordKey.Id;
-                foreach (var kv in k2n) if (kv.Value == "name") { nameKey = kv.Key; break; }
-                bool readable = true;
-                try
-                {
-                    foreach (var r in _ops.GetAll(refHandler))
-                        if (r.TryGetValue(idKey, out var idt) && idt.Item2 != null
-                            && nameKey >= 0 && r.TryGetValue(nameKey, out var nt) && nt.Item2 != null)
-                        {
-                            // A row whose id is not numeric is left out of the map, so the value it would have
-                            // named stays raw rather than picking up a neighbour's name; traced because the map
-                            // is cached and the omission would otherwise be permanent and invisible.
-                            if (WinboxFieldResolver.TryToInt64(idt.Item2, out long rowId))
-                                map[unchecked((int)rowId)] = nt.Item2.ToString();
-                            else TraceNonNumeric("reference table id", idt.Item2);
-                        }
-                }
+                // Collecting pass: note the table down (unless it is cached already) and answer nothing. This
+                // is the ONLY place that decides a reference needs its table read, so the awaited prefetch and
+                // the decode cannot disagree about which tables those are.
+                if (map == null) collectRefTables[key] = refHandler;
+                return null;
+            }
+            if (map == null)
+            {
+                // Blocking: reached when the awaited path did not prime this table — a synchronous monitor
+                // round, or a value whose table was still uncached when the collecting pass ran.
+                try { map = BuildRefNameMap(refHandler, _ops.GetAll(refHandler)); }
                 catch (Exception ex)
                 {
                     // The lookup falls back to the numeric id, which reads as a plausible value rather than
                     // as an error — so a single transient getall failure must not be memoized. Leaving the
                     // empty map in the cache turned one hiccup into "every reference on this handler is
                     // numeric for the rest of the connection"; retry on the next value instead.
-                    readable = false;
-                    if (TikWireTrace.Enabled)
-                        TikWireTrace.Emit("wbx.codec", TikWireDir.Note,
-                            "reference table [" + key + "] unreadable, values stay numeric: " + ex.Message);
+                    TraceUnreadableRefTable(key, ex);
+                    return null;
                 }
-                if (!readable) return null;
-                _refNameCache[key] = map;
+                StoreRefNames(key, map);
             }
             return map.TryGetValue(id, out var n) ? n : null;
+        }
+
+        /// <summary>
+        /// Reads, in one awaited pass, every referenced table the given records will actually need, so the
+        /// synchronous decode that follows finds each answer in memory instead of blocking on a getall.
+        /// </summary>
+        /// <remarks>
+        /// Which tables those are is decided by running the decoder itself in collecting mode, not by a second
+        /// reading of the <c>.jg</c>: a handler routinely declares reference fields whose rows resolve no name
+        /// at all — an empty list, a non-numeric value, a UI type that renders before the reference is ever
+        /// consulted. Predicting from the field map instead fetched such a table anyway and, because the cache
+        /// lives as long as the connection, froze it: a record added later then rendered as its bare numeric id
+        /// (caught by <c>AddInterfaceListMemberWillNotFail</c> — printing <c>/interface/list</c>, whose own rows
+        /// reference interface lists, poisoned the map for every later read).
+        /// <para>A table that cannot be read is left uncached exactly as the blocking path leaves it, so a
+        /// transient failure is retried rather than memoized.</para>
+        /// </remarks>
+        internal async Task PrimeReferencesAsync(
+            IEnumerable<Dictionary<int, Tuple<string, object>>> records,
+            IReadOnlyDictionary<int, string> keyToName, IReadOnlyDictionary<int, WinboxJgField> keyToField,
+            CancellationToken cancellationToken)
+        {
+            if (records == null || keyToName == null || keyToField == null) return;
+
+            // Cheap exits before the collecting decode: nothing on this handler references anything, or every
+            // table it could reference is cached already. Both are the steady state, and neither needs a pass.
+            bool anyUncached = false;
+            foreach (var jf in keyToField.Values)
+                if (jf?.RefHandler != null && CachedRefNames(string.Join(",", jf.RefHandler)) == null)
+                { anyUncached = true; break; }
+            if (!anyUncached) return;
+
+            var wanted = new Dictionary<string, int[]>(StringComparer.Ordinal);
+            foreach (var rec in records)
+                DecodeRecord(rec, keyToName, keyToField, wanted);   // result discarded; only the questions matter
+
+            foreach (var kv in wanted)
+            {
+                Dictionary<int, string> map;
+                try
+                {
+                    map = BuildRefNameMap(kv.Value,
+                        await _ops.GetAllAsync(kv.Value, cancellationToken).ConfigureAwait(false));
+                }
+                catch (Exception ex)
+                {
+                    TraceUnreadableRefTable(kv.Key, ex);
+                    continue;   // not memoized — the decode that follows falls back to the blocking lookup
+                }
+                StoreRefNames(kv.Key, map);
+            }
+        }
+
+        // Build the id → name map of a referenced table from its rows. One place, so the blocking lookup and
+        // the awaited prime cannot end up with differently-populated caches.
+        private Dictionary<int, string> BuildRefNameMap(
+            int[] refHandler, IEnumerable<Dictionary<int, Tuple<string, object>>> rows)
+        {
+            var refResolver = new WinboxFieldResolver(null, refHandler, _catalog, EmptyOverrides);
+            var map = new Dictionary<int, string>();
+            int nameKey = NameKeyOf(refResolver.BuildKeyToApiName());
+            foreach (var r in rows)
+                if (TryReadIdAndName(r, nameKey, out int rowId, out string rowName))
+                    map[rowId] = rowName;
+            return map;
+        }
+
+        /// <summary>
+        /// The M2 key of a table's <c>name</c> field, or -1 when it has none.
+        /// </summary>
+        internal static int NameKeyOf(IReadOnlyDictionary<int, string> keyToApiName)
+        {
+            if (keyToApiName != null)
+                foreach (var kv in keyToApiName)
+                    if (kv.Value == "name") return kv.Key;
+            return -1;
+        }
+
+        /// <summary>
+        /// Reads a row's numeric record id and its <c>name</c>, the two fields every name ↔ id translation
+        /// needs. Returns <c>false</c> when the row carries neither, or an id that is not a number.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately NOT a <c>DecodeRecord</c> — a name and an id need no typed decoding, and running
+        /// the full decoder to read them drags in the referenced-table lookups of every OTHER field on the row.
+        /// The id lookup then paid round trips for reference tables it never used, and — because the caller
+        /// stops at the first matching row — fetched a different set of them depending on where in the table
+        /// the match happened to fall, which is not something a lookup's cost should depend on.
+        /// <para>A row whose id is not numeric is skipped rather than guessed at, so the value it would have
+        /// named stays raw instead of picking up a neighbour's name; traced, because a cached map makes such an
+        /// omission permanent and invisible.</para>
+        /// </remarks>
+        internal static bool TryReadIdAndName(
+            Dictionary<int, Tuple<string, object>> row, int nameKey, out int id, out string name)
+        {
+            id = 0;
+            name = null;
+            if (nameKey < 0 || row == null) return false;
+            if (!row.TryGetValue(WinboxM2Protocol.RecordKey.Id, out var idt) || idt.Item2 == null) return false;
+            if (!row.TryGetValue(nameKey, out var nt) || nt.Item2 == null) return false;
+            if (!WinboxFieldResolver.TryToInt64(idt.Item2, out long rowId))
+            {
+                TraceNonNumeric("reference table id", idt.Item2);
+                return false;
+            }
+            id = unchecked((int)rowId);
+            name = nt.Item2.ToString();
+            return true;
+        }
+
+        private Dictionary<int, string> CachedRefNames(string key)
+        {
+            lock (_refNameCacheLock)
+                return _refNameCache.TryGetValue(key, out var map) ? map : null;
+        }
+
+        private void StoreRefNames(string key, Dictionary<int, string> map)
+        {
+            lock (_refNameCacheLock) _refNameCache[key] = map;
+        }
+
+        private static void TraceUnreadableRefTable(string key, Exception ex)
+        {
+            if (TikWireTrace.Enabled)
+                TikWireTrace.Emit("wbx.codec", TikWireDir.Note,
+                    "reference table [" + key + "] unreadable, values stay numeric: " + ex.Message);
         }
 
         // RouterOS .id is the "*HEX" handle form. The M2 record id is a numeric u8/u32.
