@@ -179,22 +179,19 @@ namespace tik4net.integrationtests
             ["/ip/cloud"]                             = "sentinel 0 (ddns-update-interval=none)",
             ["/ip/dhcp-client"]                       = "undecoded list (add-default-route), interval (expires-after)",
             ["/ip/dhcp-server/config"]                 = "interval (interim-update)",
-            ["/ip/dns"]                               = "raw-u32 IP list (dynamic-servers), interval (cache-max-ttl)",
+            ["/ip/dns"]                               = "interval (cache-max-ttl)",
             ["/ip/hotspot/profile"]                    = "http-proxy is an ipaddr with the port on a sibling key; the API prints one 'addr:port'",
-            ["/ip/hotspot/user/profile"]               = "empty list renders '[]' (address-list)",
             ["/ip/ipsec/profile"]                      = "set order (dh-group), interval (dpd-interval)",
             ["/ip/neighbor"]                          = "raw MAC (mac-address); system-caps reads a value the API leaves empty",
             ["/ip/traffic-flow"]                       = "sentinel 0xFFFFFFFF (interfaces=all)",
             ["/ppp/aaa"]                              = "interval (interim-update)",
-            ["/ppp/profile"]                          = "empty list renders '[]' (address-list)",
             ["/routing/table"]                        = "fib reads the flag's own bool where the API prints it empty",
             ["/snmp/community"]                       = "IPv6 any-address renders '::' where the API prints '::/0'",
             ["/system/clock"]                         = "date/epoch (date), gmt-offset in seconds",
             ["/system/ntp/client"]                     = "signed values (freq-drift, system-offset) decoded as unsigned u32",
-            ["/system/ntp/server"]                     = "enabled reads the wrong key (native says true where the API says false); empty list '[]'",
+            ["/system/ntp/server"]                     = "enabled reads the wrong key (native says true where the API says false)",
             ["/system/watchdog"]                       = "sentinel 0.0.0.0 (watch-address=none), interval in ms (ping-start-after-boot)",
-            ["/tool/romon"]                           = "raw MAC (id), empty list '[]' (secrets)",
-            ["/tool/romon/port"]                       = "empty list '[]' (secrets)",
+            ["/tool/romon"]                           = "raw MAC (id)",
         };
 
         /// <summary>
@@ -240,6 +237,7 @@ namespace tik4net.integrationtests
             string reportPath = Path.Combine(dumpDir, "winbox-native-path-audit.txt");
 
             var report = new List<string>();
+            var staleGaps = new List<string>();
             int unmapped = 0, mismatched = 0, agreed = 0, apiRefused = 0, known = 0, valueMismatched = 0;
 
             using (var api = Open(TikConnectionType.Api))
@@ -309,6 +307,10 @@ namespace tik4net.integrationtests
                     {
                         agreed++;
                         report.Add($"OK         {path}\trows={a.RowCount}\tshared fields={shared}/{a.FieldNames.Count}");
+                        // A tally that only ever grows stops meaning anything (the lesson A12's enum list was
+                        // built on). A path that now agrees must leave the table in the same change, or the
+                        // remaining reasons stop describing what is actually still broken.
+                        if (KnownValueGaps.ContainsKey(path)) staleGaps.Add(path);
                     }
                     else if (KnownValueGaps.TryGetValue(path, out string valueWhy))
                     {
@@ -337,6 +339,9 @@ namespace tik4net.integrationtests
             Assert.AreEqual(0, mismatched, "paths where WinBox-native disagrees with the API — see the report");
             Assert.AreEqual(0, valueMismatched,
                 "paths that read the right window but decode a value the API spells differently — see the report");
+            Assert.AreEqual(0, staleGaps.Count,
+                "these now agree with the API and must be removed from KnownValueGaps: "
+                + string.Join(", ", staleGaps));
         }
     }
 }

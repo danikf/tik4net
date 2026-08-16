@@ -525,6 +525,37 @@ are u32 arrays whose elements are a plain number and a static enum, decoded inde
 comma-joined, each through the element's map when it has one. An element the map does not name stays
 numeric rather than being dropped — a shorter list would read as "the router has fewer of these".
 
+### 26.2b The list family is one family, and the ELEMENT decides how it reads
+
+`multinumber` is not a special case, it is the one member of the family that had a decoder. `master*.js`
+says so outright:
+
+```js
+types.multiipaddr = types.multiip6addr = types.multistring = types.multiraw
+    = inherit(types.multinumber);              // which inherits types.multi
+types.multi.tostr = function(attrs,val){ … ftype(attrs.c[0]).tostr(attrs.c[0], v) … }
+```
+
+So the list's own type name says nothing about how an element reads — the unnamed element child
+(`c:[{type:'ipaddr'}]`) does, and `types.multi.tostr` hands every element to that type's own `tostr`.
+Three consequences, each measured against the API on 7.23.2:
+
+| path | field | native was | the API says |
+|---|---|---|---|
+| `/ppp/profile`, `/ip/hotspot/user/profile` | `address-list` | `[]` | *(empty)* |
+| `/tool/romon`, `/tool/romon/port` | `secrets` | `[]` | *(empty)* |
+| `/system/ntp/server` | `broadcast-addresses` | `[]` | *(empty)* |
+| `/ip/dns` | `dynamic-servers` | `17082560,3445500682,…` | `192.168.4.1,10.43.94.205,…` |
+
+The last one is a plain `multi` whose child is `addr`, so each element is a compound submessage and
+renders through `types.addr.tostr` — the generic "first member of the submessage" fallback gave the raw
+u32 instead.
+
+One thing the family does **not** share: a `multistring` element's `values:{type:'dynamic',path:[…]}` is
+the dropdown's SOURCE, not its wire form. The element already carries text, so it must not go through
+the id→name reference resolution that a `multinumber` of ids (the log's `topics`) needs. `multibits` is
+also excluded — it inherits `types.multi` directly and is a bitmask, not a list.
+
 ### 26.3 "Not set" is an absent field, not an empty one
 
 Three ways the router says a field is not set, and in all of them the API answers by leaving the field

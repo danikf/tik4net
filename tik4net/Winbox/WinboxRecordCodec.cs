@@ -243,6 +243,13 @@ namespace tik4net.Winbox
                 // caller verbatim as "[8080]"/"[0]"; the API prints one value per element, comma-joined.
                 if (IsMultiNumberList(jf.UiType))
                     return FormatNumberList(value, jf.EnumMap);
+                // Every OTHER member of the webfig list family. types.multistring/multiipaddr/multiip6addr/
+                // multiraw all `inherit(types.multinumber)`, and types.multi.tostr renders each element
+                // through the ELEMENT's own type — so the list's own name says nothing about how an element
+                // reads, and none of these had a case at all: an empty one reached the caller as the literal
+                // "[]" where the API prints nothing, and /ip/dns dynamic-servers as raw u32s.
+                if (IsMultiList(jf.UiType))
+                    return FormatMultiList(jf, value);
                 // dynamic enum reference: render the referenced object's name (e.g. interface id → "ether1").
                 if (jf.RefHandler != null)
                 {
@@ -273,6 +280,75 @@ namespace tik4net.Winbox
         // before this point.
         private static bool IsMultiNumberList(string uiType)
             => string.Equals(uiType, "multinumber", StringComparison.OrdinalIgnoreCase);
+
+        // The rest of the webfig list family, taken from the inheritance chain in master*.js:
+        //   types.multiipaddr = types.multiip6addr = types.multistring = types.multiraw
+        //       = inherit(types.multinumber) = inherit(types.multi)
+        // plus the plain `multi` whose elements are nested messages. Deliberately NOT multibits (a bitmask
+        // that inherits types.multi directly), nor multinumberrange/numberrangelist/multitristatearray,
+        // which have their own shapes and are formatted before this point.
+        private static bool IsMultiList(string uiType)
+        {
+            if (uiType == null) return false;
+            switch (uiType.ToLowerInvariant())
+            {
+                case "multi":
+                case "multistring":
+                case "multiraw":
+                case "multiipaddr":
+                case "multiip6addr":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// Renders a webfig list field the way <c>types.multi.tostr</c> does — every element through the
+        /// ELEMENT type's own <c>tostr</c>, comma-joined — with the empty list rendering empty.
+        /// </summary>
+        /// <remarks>
+        /// Verified against the API on 7.23.2: a <c>/ppp/profile</c> with no address list prints
+        /// <c>address-list=</c> (we sent the literal <c>[]</c>), <c>/tool/romon</c> the same for
+        /// <c>secrets</c>, and <c>/ip/dns</c> prints <c>dynamic-servers=192.168.4.1,10.43.94.205,…</c> where
+        /// the elements are <c>addr</c> compounds we were rendering as their raw u32
+        /// (<c>17082560,3445500682,…</c>).
+        /// </remarks>
+        private string FormatMultiList(WinboxJgField jf, object value)
+        {
+            // A message array (webfig `multi`): each element is a submessage of the element's own type.
+            if (value is List<Dictionary<int, Tuple<string, object>>> msgs)
+                return string.Join(",", msgs.Select(m =>
+                    string.Equals(jf.ElementUiType, "addr", StringComparison.OrdinalIgnoreCase)
+                        ? FormatAddr(m)
+                        : FormatNestedMessage(m)));
+
+            // A scalar array, which M2Message renders as the text "[a,b,…]" (and "[]" when empty).
+            var elements = SplitListElements(value);
+            if (elements.Count == 0) return "";
+            return string.Join(",", elements.Select(e => FormatListElement(jf.ElementUiType, e)));
+        }
+
+        // One element of a scalar list, by the element's .jg type. An ipaddr element rides as the same u32 a
+        // scalar ipaddr does; a string/raw/secret element is already its own text.
+        private static string FormatListElement(string elementUiType, string element)
+        {
+            if (string.Equals(elementUiType, "ipaddr", StringComparison.OrdinalIgnoreCase)
+                && uint.TryParse(element, out uint u))
+                return WinboxFieldResolver.IpFromU32(u);
+            return element;
+        }
+
+        // "[a,b,c]" → [a,b,c]; "[]" → empty. The brackets are M2Message's rendering of an array, not part of
+        // any element, and an element is never itself comma-bearing on the wire.
+        private static List<string> SplitListElements(object value)
+        {
+            string s = value?.ToString() ?? "";
+            if (s.Length >= 2 && s[0] == '[' && s[s.Length - 1] == ']')
+                s = s.Substring(1, s.Length - 2);
+            if (s.Length == 0) return new List<string>();
+            return s.Split(',').Select(p => p.Trim()).ToList();
+        }
 
         // The one list type whose elements carry their own negation flag, so it rides on TWO keys.
         private static bool IsTriStateList(string uiType)

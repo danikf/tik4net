@@ -90,6 +90,14 @@ namespace tik4net.Winbox
         internal int OffKey { get; }
 
         /// <summary>
+        /// For a LIST field, the <c>type</c> of its unnamed element child (<c>c:[{type:'ipaddr'},…]</c>) —
+        /// <c>null</c> when the field has no child. webfig renders a list by handing each element to this
+        /// type's own <c>tostr</c> (<c>types.multi.tostr</c>), so it is what decides whether a u32 element is
+        /// a number, an IP or an enum member.
+        /// </summary>
+        internal string ElementUiType { get; }
+
+        /// <summary>
         /// The <c>.jg</c> <c>def</c> value, when the field declares one. Only interesting for the u32
         /// <b>unset marker</b> <c>0xFFFFFFFF</c>: a field declaring <c>def:4294967295</c> (e.g. a logging
         /// action's <c>Syslog Severity</c>, whose real domain is 0–7) carries that value when it is NOT SET,
@@ -182,8 +190,9 @@ namespace tik4net.Winbox
             int[] refHandler = null, int optKey = 0, int notKey = 0, bool isRange = false,
             string allow = null, long? def = null,
             string paneKind = null, int paneSelectorKey = 0, int[] paneValues = null, int offKey = 0,
-            bool isOptional = false)
+            bool isOptional = false, string elementUiType = null)
         {
+            ElementUiType = elementUiType;
             IsOptional = isOptional;
             OffKey = offKey;
             PaneKind = paneKind;

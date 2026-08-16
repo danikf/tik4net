@@ -255,5 +255,68 @@ namespace tik4net.unittests.Winbox
 
             Assert.AreEqual("9", decoded["trust-store"]);
         }
+
+        // ── the rest of the list family renders like the list family ──────────
+
+        // ppp.jg PPP Profile 'Address List' (multistring, its child a string with a dropdown source),
+        // roteros.jg RoMON 'Secrets' (multistring of secrets) and DNS 'Dynamic Servers' (a plain `multi`
+        // whose elements are addr compounds). None of the three had a case before: an empty one reached the
+        // caller as the literal "[]" and dynamic-servers as the raw u32 behind each addr.
+        private const string ListFamilyWindow =
+            "[{name:'PPP Profile',type:'map',path:[ 70,1 ],c:[" +
+            "{name:'Address List',type:'multistring',id:'S1e',c:[{type:'string',sorted:1," +
+              "values:{type:'dynamic',path:[ 20,34 ]}}]}," +
+            "{name:'Broadcast Addresses',type:'multiipaddr',id:'Ua',c:[{type:'ipaddr'}]}," +
+            "{name:'Dynamic Servers',type:'multi',id:'Mb',ro:1,c:[{type:'addr',allow:'46v'}]}]}]";
+
+        [TestMethod]
+        public void AnEmptyListIsEmpty()
+        {
+            var decoded = Decode(Parse(ListFamilyWindow), new[] { 70, 1 },
+                Rec((0x1E, "str[]", "[]"), (0xA, "u32[]", "[]")));
+
+            Assert.AreEqual("", decoded["address-list"], "the API prints address-list= for a profile with none");
+            Assert.AreEqual("", decoded["broadcast-addresses"]);
+        }
+
+        [TestMethod]
+        public void AMultistringKeepsItsElementsAsText()
+        {
+            // The element's `values:{type:'dynamic'}` is the dropdown's SOURCE, not the wire form — a
+            // multistring already carries text, so it must not be run through reference resolution the way
+            // the log's topics (a multinumber of ids) is.
+            var decoded = Decode(Parse(ListFamilyWindow), new[] { 70, 1 },
+                Rec((0x1E, "str[]", "[allowed,blocked]")));
+
+            Assert.AreEqual("allowed,blocked", decoded["address-list"]);
+        }
+
+        [TestMethod]
+        public void AMultiipaddrElementIsUnpackedLikeAScalarIp()
+        {
+            // 17082560 == 0x0104A8C0, whose bytes ARE the quad in order — the same wire form a scalar ipaddr
+            // uses, and the number the live audit captured for /ip/dns's first dynamic server.
+            var decoded = Decode(Parse(ListFamilyWindow), new[] { 70, 1 },
+                Rec((0xA, "u32[]", "[17082560]")));
+
+            Assert.AreEqual("192.168.4.1", decoded["broadcast-addresses"]);
+        }
+
+        [TestMethod]
+        public void AMultiOfAddrCompoundsRendersEachAddress()
+        {
+            // types.multi.tostr hands each element to the CHILD's tostr — here types.addr.tostr, which reads
+            // the compound by sub-key. Rendering the submessage generically gave the raw u32 instead
+            // (/ip/dns dynamic-servers read '17082560,3445500682' where the API says the addresses).
+            var elements = new List<Dictionary<int, Tuple<string, object>>>
+            {
+                new Dictionary<int, Tuple<string, object>> { [0xFEFF20] = Tuple.Create("u32", (object)17082560u) },
+                new Dictionary<int, Tuple<string, object>> { [0xFEFF20] = Tuple.Create("u32", (object)33859776u) },
+            };
+            var decoded = Decode(Parse(ListFamilyWindow), new[] { 70, 1 },
+                Rec((0xB, "msg[]", elements)));
+
+            Assert.AreEqual("192.168.4.1,192.168.4.2", decoded["dynamic-servers"]);
+        }
     }
 }
