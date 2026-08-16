@@ -24,7 +24,7 @@
     <VersionSuffix Condition=" '$(BUILD_BUILDNUMBER)' != '' ">CI-$(BUILD_BUILDNUMBER)</VersionSuffix>
     <VersionSuffix Condition=" '$(PREVIEW_NUMBER)' != '' ">pre-$(PREVIEW_NUMBER)</VersionSuffix>
     <Authors>Daniel Frantik</Authors>
-    <Copyright>Copyright (C) Daniel Frantik 2024</Copyright>
+    <Copyright>Copyright (C) Daniel Frantik 2026</Copyright>
     <Description>Manage MikroTik RouterOS devices from .NET. Includes both the low-level ADO.NET-like API and the high-level O/R mapper with 169 ready-made entities, over 12 transports: binary API, API-SSL, REST, Telnet, SSH, MAC-Telnet and WinBox (CLI and native-M2, over IP or MAC layer). The O/R mapper was previously distributed separately as tik4net.objects / tik4net.entities; since 4.0 it is part of this package.</Description>
     <PackageTags>Mikrotik RouterOS Library API CSharp .NET Manage ORM Entities WinBox MacTelnet</PackageTags>
     <PackageProjectUrl>https://github.com/danikf/tik4net</PackageProjectUrl>

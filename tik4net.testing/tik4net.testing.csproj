@@ -12,7 +12,7 @@
     <VersionSuffix Condition=" '$(BUILD_BUILDNUMBER)' != '' ">CI-$(BUILD_BUILDNUMBER)</VersionSuffix>
     <VersionSuffix Condition=" '$(PREVIEW_NUMBER)' != '' ">pre-$(PREVIEW_NUMBER)</VersionSuffix>
     <Authors>Daniel Frantik</Authors>
-    <Copyright>Copyright (C) Daniel Frantik 2024</Copyright>
+    <Copyright>Copyright (C) Daniel Frantik 2026</Copyright>
     <Description>Testing support for tik4net — provides TikFakeConnection for unit testing without a live MikroTik router.</Description>
     <PackageTags>Mikrotik Testing Fake Mock CSharp .NET</PackageTags>
     <PackageProjectUrl>https://github.com/danikf/tik4net</PackageProjectUrl>

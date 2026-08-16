@@ -15,7 +15,7 @@
     <AssemblyVersion>$(VersionPrefix).0</AssemblyVersion>
     <FileVersion>$(VersionPrefix).0</FileVersion>
     <Authors>Daniel Frantik</Authors>
-    <Copyright>Copyright (C) Daniel Frantik 2024</Copyright>
+    <Copyright>Copyright (C) Daniel Frantik 2026</Copyright>
     <Description>MCP (Model Context Protocol) server exposing MikroTik routers via tik4net. mikrotik_call runs any RouterOS command over every tik4net transport (API/REST/Telnet/MAC-Telnet/WinBox CLI/WinBox native) with an optional per-transport raw protocol trace; mikrotik_cli_complete enumerates a menu's writable fields via RouterOS Tab-completion; mikrotik_discover finds routers on the local segment via MNDP, without host or credentials.</Description>
     <PackageTags>Mikrotik MCP ModelContextProtocol AI Claude RouterOS API CLI WinBox</PackageTags>
     <PackageProjectUrl>https://github.com/danikf/tik4net/wiki/MCP-server</PackageProjectUrl>

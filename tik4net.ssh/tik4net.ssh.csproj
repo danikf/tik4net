@@ -12,7 +12,7 @@
     <VersionSuffix Condition=" '$(BUILD_BUILDNUMBER)' != '' ">CI-$(BUILD_BUILDNUMBER)</VersionSuffix>
     <VersionSuffix Condition=" '$(PREVIEW_NUMBER)' != '' ">pre-$(PREVIEW_NUMBER)</VersionSuffix>
     <Authors>Daniel Frantik</Authors>
-    <Copyright>Copyright (C) Daniel Frantik 2024</Copyright>
+    <Copyright>Copyright (C) Daniel Frantik 2026</Copyright>
     <Description>SSH (TCP 22) connection transport for tik4net. Drives the MikroTik RouterOS CLI over an SSH PTY shell (full CRUD, Listen and Safe Mode). Kept as a separate package because of its Renci.SshNet dependency.</Description>
     <PackageTags>Mikrotik Library API CSharp .NET Manage SSH</PackageTags>
     <PackageProjectUrl>https://github.com/danikf/tik4net</PackageProjectUrl>

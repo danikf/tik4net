@@ -17,7 +17,7 @@
     <VersionSuffix Condition=" '$(BUILD_BUILDNUMBER)' != '' ">CI-$(BUILD_BUILDNUMBER)</VersionSuffix>
     <VersionSuffix Condition=" '$(PREVIEW_NUMBER)' != '' ">pre-$(PREVIEW_NUMBER)</VersionSuffix>
     <Authors>Daniel Frantik</Authors>
-    <Copyright>Copyright (C) Daniel Frantik 2024</Copyright>
+    <Copyright>Copyright (C) Daniel Frantik 2026</Copyright>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
