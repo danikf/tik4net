@@ -680,11 +680,32 @@ namespace tik4net.Objects
         /// </example>
         /// <typeparam name="TEntity">Saved entitie type.</typeparam>
         /// <param name="connection">Tik connection used to save.</param>
-        /// <param name="modifiedList">List with modifications.</param>
+        /// <param name="modifiedList">List with modifications. Its ORDER is applied when the entity is ordered — see remarks.</param>
         /// <param name="unmodifiedList">Original (cloned) unmodified list.</param>
+        /// <remarks>
+        /// <para>
+        /// On an <b>ordered</b> entity (<see cref="TikEntityAttribute.IsOrdered"/> — firewall filter, mangle,
+        /// NAT…) the router's rows are left in the order of <paramref name="modifiedList"/>, by issuing the
+        /// <c>/move</c> commands the difference needs. Reordering the list is therefore a change like any
+        /// other: moving a rule without touching a field still rewrites the chain. On an unordered entity no
+        /// move is issued and the list order means nothing.
+        /// </para>
+        /// <para>
+        /// This matters because a rule in the wrong position is a rule that does the wrong thing while every
+        /// field on it reads correct — and because the router <b>appends</b> a created row, so a new entity
+        /// placed in the middle of <paramref name="modifiedList"/> owes its position entirely to the follow-up
+        /// move.
+        /// </para>
+        /// <para>
+        /// Both lists are enumerated more than once and are materialized internally; the entities in
+        /// <paramref name="modifiedList"/> are the same instances throughout, which is what lets a newly
+        /// created row be moved by the <c>.id</c> that <see cref="Save"/> just wrote onto it.
+        /// </para>
+        /// </remarks>
         /// <seealso cref="TikEntityObjectsExtensions.CloneEntity"/>
         /// <seealso cref="TikEntityObjectsExtensions.CloneEntityList"/>
         /// <seealso cref="Save"/>
+        /// <seealso cref="Move"/>
         public static void SaveListDifferences<TEntity>(this ITikConnection connection, IEnumerable<TEntity> modifiedList, IEnumerable<TEntity> unmodifiedList)
             where TEntity : new()
         {
@@ -692,6 +713,14 @@ namespace tik4net.Objects
             EnsureNotReadonlyEntity(metadata);
             EnsureHasIdProperty(metadata);
             var idProperty = metadata.IdProperty;
+
+            // Materialized once: the ordering pass below walks the modified list a second time, and it has to
+            // be the same instances in the same order — Save assigns the new .id to the entity it was given,
+            // and a re-enumerated lazy sequence would hand back fresh instances without one.
+            var modifiedItems = modifiedList.ToList();
+            var unmodifiedItems = unmodifiedList.ToList();
+            modifiedList = modifiedItems;
+            unmodifiedList = unmodifiedItems;
 
             var entitiesToCreate = modifiedList.Where(entity => string.IsNullOrEmpty(idProperty.GetEntityValue(entity))).ToList(); // new items in modifiedList
 
@@ -702,16 +731,27 @@ namespace tik4net.Objects
                 //.Where(entity => !string.IsNullOrEmpty(idProperty.GetEntityValue(entity))) - entity in unmodified list has id (is loaded from miktrotik)
                 .ToDictionary(entity => idProperty.GetEntityValue(entity)); //all entities from unmodified list with ids
 
+            // The router's order as it stands, kept current through the delete/create below so the ordering
+            // pass can tell what still has to move. Only tracked for an ordered menu — on an unordered one
+            // there is no order to keep and /move is not a legal command.
+            var currentOrder = metadata.IsOrdered
+                ? new TikOrderTracker(unmodifiedItems.Select(entity => idProperty.GetEntityValue(entity)))
+                : null;
+
             //DELETE
             foreach (string entityId in unmodifiedEntities.Keys.Where(id => !modifiedEntities.ContainsKey(id))) //missing in modified -> deleted
             {
                 Delete(connection, unmodifiedEntities[entityId]);
+                if (currentOrder != null)
+                    currentOrder.Remove(entityId);
             }
 
             //CREATE
             foreach (TEntity entity in entitiesToCreate)
             {
                 Save(connection, entity);
+                if (currentOrder != null)
+                    currentOrder.Append(idProperty.GetEntityValue(entity)); //Save wrote the new .id back onto the entity; the router appended it
             }
 
             //UPDATE
@@ -726,7 +766,34 @@ namespace tik4net.Objects
                 }
             }
 
-            //TODO support for order!
+            //ORDER
+            if (currentOrder != null)
+            {
+                // Last to first, each row moved in front of the one already placed — the same walk
+                // TikListMerge does, over the same TikOrderTracker. Taken in this direction the anchor is
+                // always a row whose final position is settled, so one pass is enough.
+                TEntity anchor = default(TEntity);
+                bool hasAnchor = false;   //not "anchor != null": TEntity is only constrained to new(), so a struct would read as non-null
+                for (int i = modifiedItems.Count - 1; i >= 0; i--)
+                {
+                    TEntity entity = modifiedItems[i];
+                    string movedKey = idProperty.GetEntityValue(entity);
+
+                    if (hasAnchor)
+                    {
+                        string anchorKey = idProperty.GetEntityValue(anchor);
+                        int movedIdx, anchorIdx;
+                        if (currentOrder.NeedsMove(movedKey, anchorKey, out movedIdx, out anchorIdx))
+                        {
+                            Move(connection, entity, anchor);
+                            currentOrder.ApplyMove(movedKey, anchorKey);
+                        }
+                    }
+
+                    anchor = entity;
+                    hasAnchor = true;
+                }
+            }
         }
         #endregion
 

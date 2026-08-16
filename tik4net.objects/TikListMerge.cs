@@ -273,11 +273,9 @@ namespace tik4net.Objects
             Dictionary<string, TEntity> originalDict = _original.ToDictionaryEx(_keyExtractor);
 
             // Keys in the order the router currently holds them, kept up to date as this merge deletes, inserts
-            // and moves. Deciding whether a move is needed requires the CURRENT order, not the original one:
-            // every move already applied changes who sits next to whom, so a check against the starting indexes
-            // skips moves that are still needed and leaves the list scrambled (it did — a three-way reorder of a
-            // mangle section applied 3 of the 7 moves it needed and produced an order matching neither input).
-            List<string> currentOrder = _original.Select(_keyExtractor).ToList();
+            // and moves. Shared with SaveListDifferences, which reorders the same way — see TikOrderTracker for
+            // why the check has to be against the current order rather than the starting one.
+            var currentOrder = new TikOrderTracker(_original.Select(_keyExtractor));
 
             //Delete
             foreach (var originalEntityPair in originalDict.Reverse()) //delete from end to begining of the list (just for better show in WinBox)
@@ -331,7 +329,7 @@ namespace tik4net.Objects
                             LogDml(MergeOperation.Insert, default(TEntity), expectedEntityPair.Value);
                             _connection.Save(expectedEntityPair.Value, mergedFieldNames.Concat(insertedFieldNames));
                         }
-                        currentOrder.Add(expectedEntityPair.Key); //the router appends new items - the move below puts it in place
+                        currentOrder.Append(expectedEntityPair.Key); //the router appends new items - the move below puts it in place
                         insertCnt++;
                     }
                     resultEntity = expectedEntityPair.Value;
@@ -344,11 +342,10 @@ namespace tik4net.Objects
                     {
                         string movedKey = _keyExtractor(resultEntity);
                         string anchorKey = _keyExtractor(result[0]);
-                        int movedIdx = currentOrder.IndexOf(movedKey);
-                        int anchorIdx = currentOrder.IndexOf(anchorKey);
+                        int movedIdx, anchorIdx;
 
                         // only if is in different position (is not immediately before result[0] right now)
-                        if (movedIdx < 0 || anchorIdx < 0 || movedIdx != anchorIdx - 1)
+                        if (currentOrder.NeedsMove(movedKey, anchorKey, out movedIdx, out anchorIdx))
                         {
                             if (!simulateOnly)
                             {
@@ -357,11 +354,7 @@ namespace tik4net.Objects
                             }
                             moveCnt++;
 
-                            if (movedIdx >= 0)
-                                currentOrder.RemoveAt(movedIdx);
-                            anchorIdx = currentOrder.IndexOf(anchorKey);
-                            if (anchorIdx >= 0)
-                                currentOrder.Insert(anchorIdx, movedKey);
+                            currentOrder.ApplyMove(movedKey, anchorKey);
                         }
                     }
                 }
