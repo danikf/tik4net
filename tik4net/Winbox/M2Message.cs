@@ -217,10 +217,19 @@ namespace tik4net.Winbox
             var sb = new StringBuilder();
             sb.Append("M2[").Append(m2.Length).Append("B]");
             foreach (var kv in ParseAllFields(m2))
-                sb.Append(' ').Append("0x").Append(kv.Key.ToString("X")).Append('=')
+                sb.Append(' ').Append(RenderTraceKey(kv.Key)).Append('=')
                   .Append(kv.Value.Item1).Append(':').Append(RenderTraceValue(kv.Value.Item2));
             return sb.ToString();
         }
+
+        // A key the parser had to qualify (two fields, one key — see ParseAllFields) would otherwise print as
+        // 0x2000012, which is not a key the router ever sent. Render the wire key with the qualifier as a
+        // suffix, so a trace can be matched against the .jg id ('u12'/'U12') by eye.
+        private static string RenderTraceKey(int key)
+            => WinboxM2Protocol.TypedKey.IsQualified(key)
+                ? "0x" + WinboxM2Protocol.TypedKey.WireKeyOf(key).ToString("X")
+                    + ((key & WinboxM2Protocol.TypedKey.Array) != 0 ? "~arr" : "~sca")
+                : "0x" + key.ToString("X");
 
         // Compact renderer for a decoded M2 value: nested record dicts → {0xKEY=…,…}, record arrays →
         // [{…},{…}], scalars → ToString(). Depth-capped to keep trace lines bounded.
@@ -239,7 +248,7 @@ namespace tik4net.Winbox
                     {
                         if (!first) sb.Append(',');
                         first = false;
-                        sb.Append("0x").Append(kv.Key.ToString("X")).Append('=')
+                        sb.Append(RenderTraceKey(kv.Key)).Append('=')
                           .Append(RenderTraceValue(kv.Value.Item2, depth + 1));
                     }
                     return sb.Append('}').ToString();
@@ -429,7 +438,23 @@ namespace tik4net.Winbox
                         continue;
                 }
                 if (!result.ContainsKey(fullKey))
+                {
                     result[fullKey] = Tuple.Create(typeName, val);
+                }
+                else if (WinboxM2Protocol.TypedKey.IsArrayType(result[fullKey].Item1)
+                         != WinboxM2Protocol.TypedKey.IsArrayType(typeName))
+                {
+                    // ONE record, ONE key, TWO fields. The .jg declares both — /ip/dhcp-client's window has
+                    // 'Add Default Route' as u12 (a scalar enum) and 'DHCP Options' as U12 (a u32[]) — and the
+                    // router sends both, so first-wins here silently dropped whichever came second: the
+                    // add-default-route the API prints was never in the record the decoder saw. The array and
+                    // the scalar are told apart by nothing but the TLV type, so the loser is filed under its
+                    // arrayness-qualified key and the resolver looks it up there (WinboxFieldResolver's typed
+                    // registrations). A duplicate of the SAME arrayness is still first-wins — that is the .jg's
+                    // own 'freq'/'CPU Frequency' kind of alias, two names for one value.
+                    result[WinboxM2Protocol.TypedKey.Qualify(fullKey, WinboxM2Protocol.TypedKey.IsArrayType(typeName))]
+                        = Tuple.Create(typeName, val);
+                }
             }
             return result;
         }

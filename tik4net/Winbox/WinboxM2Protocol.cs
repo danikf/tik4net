@@ -127,6 +127,40 @@ namespace tik4net.Winbox
         }
 
         /// <summary>
+        /// A field key ON THE WIRE is 24 bits — <c>(namespace &lt;&lt; 16) | (keyHigh &lt;&lt; 8) | keyLow</c> — so the
+        /// three bytes above it are free for the parser's own use. <see cref="TypedKey"/> uses them to tell
+        /// apart two fields that share one key.
+        /// </summary>
+        internal static class TypedKey
+        {
+            /// <summary>The 24 bits a key actually occupies on the wire.</summary>
+            internal const int WireMask = 0x00FFFFFF;
+
+            /// <summary>Marks a key qualified as carrying an ARRAY wire type (<c>u32[]</c>, <c>str[]</c>, …).</summary>
+            internal const int Array = 0x01000000;
+
+            /// <summary>Marks a key qualified as carrying a SCALAR wire type.</summary>
+            internal const int Scalar = 0x02000000;
+
+            /// <summary>The wire key of a possibly-qualified dictionary key.</summary>
+            internal static int WireKeyOf(int key) => key & WireMask;
+
+            /// <summary>True when <paramref name="key"/> carries one of the qualifiers above.</summary>
+            internal static bool IsQualified(int key) => (key & ~WireMask) != 0;
+
+            /// <summary><paramref name="wireKey"/> qualified by whether its value is an array.</summary>
+            internal static int Qualify(int wireKey, bool isArray)
+                => (wireKey & WireMask) | (isArray ? Array : Scalar);
+
+            /// <summary>
+            /// True when <paramref name="wireTypeName"/> — a <see cref="M2Message.ParseAllFields"/> type name
+            /// (<c>u32</c>, <c>u32[]</c>, <c>msg[]</c>, …) or a <c>.jg</c> wire type — names an array.
+            /// </summary>
+            internal static bool IsArrayType(string wireTypeName)
+                => wireTypeName != null && wireTypeName.EndsWith("[]", System.StringComparison.Ordinal);
+        }
+
+        /// <summary>
         /// Base getall flags <c>refetchonopen | refreshfilter</c> carried in <see cref="RecordKey.Flags"/>
         /// (<c>ufe000c</c>). Without this the handler returns no rows. webfig: <c>req.ufe000c = 0x10000005</c>.
         /// </summary>

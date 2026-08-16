@@ -109,6 +109,12 @@ Without `allow`, `addr` cannot be encoded at all; the catalog therefore carries 
 Histogram (7.17, 9 files): u×4773, b×2442, s×1437, U×334, q×287, r×241, Q×141,
 M×134, a×133, m×105, S×57, R×8, A×6. **No other type codes appear** → the table is complete.
 
+⚠️ **The key does not identify the field on its own — the prefix's CASE is part of it.** A window may
+declare both `u12` and `U12`, one scalar and one array on key `0x12`, and the router sends both in the
+same record: `/ip/dhcp-client` has 'Add Default Route' at `u12` and 'DHCP Options' at `U12`. A parser
+keyed on the numeric key alone drops one of them silently. See
+[winbox-native-m2-protocol.md §30](winbox-native-m2-protocol.md).
+
 ### Key namespace
 
 - **User namespace** (`0x00xxxx`): per-object fields (`0x10006` Name, `0x10064` MTU…).

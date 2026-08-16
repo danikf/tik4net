@@ -939,6 +939,114 @@ opposite fixes:
 Raising the deadline would only move the number at which it fails; paging the caller (`maxObjs` with the
 cursor) is the real fix if a table this size has to be read on a busy channel.
 
+## 30. One M2 key can carry two fields, and a list element can be a compound
+
+Six decode rules, each read off `master*.js` or measured against the router's own API, that between them
+closed the last of the value-level disagreements the path-map audit was carrying. Audit after:
+`OK=148 KNOWN-GAP=7 MISMATCH=0 VALUE-DIFF=0 UNMAPPED=0`.
+
+### One key, two fields — told apart by the wire type
+
+`/ip/dhcp-client`'s window declares **`u12`** ('Add Default Route', a scalar enum) and **`U12`** ('DHCP
+Options', a `multinumber` of references into `[43,5]`). Same M2 key `0x12`; only the TLV type separates them.
+
+The router really does send both. A duplicate-tolerant TLV dump of one getall reply on 7.23.2:
+
+```
+0x12  u32[]  [4294967286,4294967285]      ← DHCP Options: the built-in hostname/clientid rows
+0x12  u8     1                            ← Add Default Route: 'yes'
+```
+
+`M2Message.ParseAllFields` keys a record by its M2 key and was first-wins, so the second of the two was
+dropped **at parse time** — `add-default-route` never reached the decoder at all, and `dhcp-options` inherited
+its name. A duplicate whose ARRAYNESS differs from the one already stored is now filed under an
+arrayness-qualified key (`WinboxM2Protocol.TypedKey`: bit 24 for an array, bit 25 for a scalar, above the
+24-bit wire key space), and `WinboxFieldResolver` registers both spellings for exactly the keys two `.jg`
+fields contest. Decode asks for the qualified key first and falls back to the plain one, so a window with no
+such collision — nearly all of them — builds the map it always built, and the answer does not depend on which
+of the two the router happens to send first. A duplicate of the SAME arrayness is still first-wins: that is
+the catalog's own aliasing (`/system/resource` has 'freq' and 'CPU Frequency' at `u5`).
+
+A sweep of the 7.23.2 catalog finds this shape in a handful of windows; the rest are cross-WINDOW collisions,
+which the window scoping of §28 already resolves.
+
+### A name belongs to the most specific window that claims it
+
+`NTP Client` and `NTP Server` are two `type:'item'` windows on the SAME handler `[47,1]`, and each has an
+'Enabled' — `b4` and `b6`. The singleton record carries both. Window scoping named `0x6` correctly for
+`/system/ntp/server`, but the HANDLER map still named `0x4` 'enabled' too, and `DecodeRecord` takes the first
+name it can use — so the answer depended on the record's field order, and `/system/ntp/server` reported
+`enabled=true` where the API says `false`. `BuildKeyToApiName` is now first-wins on the NAME as well as on the
+key; because it enumerates action → window → handler, the specific window wins.
+
+### A list element can be a `union` or a `tuple`
+
+`types.multi.tostr` renders each element through the ELEMENT type's own `tostr`, and two element types are
+compounds whose parts live under keys of their own:
+
+| Path | Field | `.jg` element | API |
+|---|---|---|---|
+| `/snmp/community` | `addresses` | `union{network u8/u9, network6 a16/u17}` | `::/0` |
+| `/certificate` | `subject-alt-name` | `tuple sep:':' {enm u7f, union{ip6addr a7e, ipaddr u7d, string}}` | `IP:192.168.4.236` |
+
+Both were falling through to the generic nested-message dump, which returns the first member and drops
+everything else — `::` for the first, the bare `3959728320` for the second. `WinboxJgField.ElementParts` now
+carries the parts, and the codec renders them webfig's way: `types.union.get` with `single:1` takes the first
+member the element actually carries, `types.tuple.tostr` joins the parts with the declared `sep` and
+contributes no separator for a part that renders empty.
+
+The mask sibling means different things on the two network families, which is why they cannot share a
+formatter: `types.network.tostr` runs a NETMASK through `len2netmask`, while `types.network6.tostr` is
+`addr + '/' + (val[1]||0)` — the prefix LENGTH itself, and a bare address at 128.
+
+### `multibits` is a `set` under another name
+
+```js
+types.multibits.get = function(attrs,obj){ var val=obj[attrs.id]; …
+    for(var i=0;i<32;++i){ if(val&(1<<i)) a.push({0:i}); } return a; };
+```
+
+It has an `EnumMap`, so it was falling through to the SCALAR enum branch and reading the whole bitmask as one
+member: `/ip/neighbor`'s `system-caps` of `0` — no bits, which the API prints as nothing — came back as
+`other`, the member the map happens to hold at index 0. It now decodes exactly like `set`.
+
+### A `postfix` is a unit the API puts in the value
+
+webfig does not put `postfix` in `tostr`; the view paints it beside the input box. RouterOS's API has no such
+split. `/ip/ipsec/profile`'s `dpd-interval` is an `enm` (`def:8`, `postfix:'s'`) whose only enum member is
+`disable-dpd` at 0 and whose `c:[{type:'number'}]` child renders everything else — so 8 read as a bare `8`
+where the API prints `8s`. A value that falls through the enum map on a `postfix:'s'` field is now rendered as
+a duration. Only `'s'` is acted on: `'min'`, `'PPM'`, `'ms'` and the rest are units the API spells the same way
+WinBox does, and appending them would invent text the router never prints.
+
+### Two boxes, one API field: `address:port`
+
+`/ip/hotspot/profile` has 'HTTP Proxy' (`u83`) beside 'HTTP Proxy Port' (`u84`) exactly as it has 'SMTP Server'
+(`u87`) beside nothing — and the API prints `http-proxy=0.0.0.0:0` against `smtp-server=0.0.0.0`. Nothing in
+the `.jg` says the two boxes are one field, so the pairing is shipped per path
+(`WinboxFieldResolver.AddrPortPairs`). The port key rides in the synthetic field's `MaskKey` — the same
+"my value needs a sibling" slot a `network`'s netmask uses — and is consumed, so it does not also surface as a
+field the API never reports.
+
+### What is left, and why it is not decode work
+
+Three paths still disagree on a value, and on two of them the API is the side that knows less:
+
+- **`/routing/table` `fib`** — a valueless presence flag over the API (`fib=`), which the mapper can only read
+  as `false`. Native reads the router's own bool and says `true`. Making native match would be discarding a
+  correct answer to reproduce a lossy one.
+- **`/system/ntp/client` `system-offset`** — a whole-millisecond `integer` on the wire where the API reports
+  fractions (`-23` vs `-23.622`), and it drifts constantly. `freq-drift`, which the wire carries as a
+  `fixedpoint`, agrees exactly.
+- **`/interface/ethernet` `auto-negotiation`** — WinBox's field is the LINK's live state
+  (`not-available` on a CHR's virtual NIC), the API's is the SETTING (`true`). Two fields, one label.
+
+And four are window- or semantics-level rather than value-level, recorded in the audit's own tables:
+`/ip/route` (native lists routes the API's `print` filters out), `/interface/wireless/sniffer` (handler
+`[88,9]` answers with statistics where the API answers with settings), `/system/health` (board-gated; `state`
+and `state-after-reboot` are API-only), and `/routing/bgp/advertisements` (WinBox exposes it as the session
+window's `dump-adv` action, not a table).
+
 ## Settled questions — do not re-investigate
 
 - **Black-box M2 probing without the webfig source is not the way to recover the CRUD command

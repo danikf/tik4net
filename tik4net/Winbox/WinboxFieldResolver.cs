@@ -198,12 +198,21 @@ namespace tik4net.Winbox
             public readonly IReadOnlyDictionary<string, string> JgToApi; // .jg label → API field name (decode)
             public readonly IReadOnlyDictionary<int, string> KeyToApi;   // M2 key → API name, for .jg-unnamed fields
             public readonly IReadOnlyDictionary<int, string> KeyUiType;  // M2 key → UI type (e.g. ipaddr), for decode formatting
+
+            /// <summary>
+            /// Address field label → PORT field label, for the fields RouterOS prints as one
+            /// <c>address:port</c> where WinBox has two boxes. See <see cref="AddrPortUiType"/>.
+            /// </summary>
+            public readonly IReadOnlyDictionary<string, string> AddrPortPairs;
+
             public FieldAliasSet(IReadOnlyDictionary<string, string> apiToJg, IReadOnlyDictionary<string, string> jgToApi,
-                IReadOnlyDictionary<int, string> keyToApi = null, IReadOnlyDictionary<int, string> keyUiType = null)
+                IReadOnlyDictionary<int, string> keyToApi = null, IReadOnlyDictionary<int, string> keyUiType = null,
+                IReadOnlyDictionary<string, string> addrPortPairs = null)
             {
                 ApiToJg = apiToJg; JgToApi = jgToApi;
                 KeyToApi = keyToApi ?? new Dictionary<int, string>();
                 KeyUiType = keyUiType ?? new Dictionary<int, string>();
+                AddrPortPairs = addrPortPairs;
             }
         }
 
@@ -331,11 +340,14 @@ namespace tik4net.Winbox
                 // with the units written into the label.
                 //
                 // NOT aliased, deliberately, and for the reason given at /system/logging/action: the value
-                // form has to match too. 'Interim Update' (u8f) is an interval the codec renders as a bare
-                // number where the API prints "0s"; 'HTTP Proxy' (u83) is an ipaddr with the port on a
-                // sibling key (u84) where the API prints one "0.0.0.0:0". Naming either would hand the mapper
-                // a value it cannot convert.
+                // form has to match too. 'Interim Update' (u8f) is the API's radius-interim-update, but the
+                // API prints it only on a profile with use-radius=yes, and this router's one profile has it
+                // off — so the NAME can be matched and the VALUE cannot, which is not enough to ship on.
+                //
+                // 'HTTP Proxy' (u83) IS handled, by addrPortPairs below rather than by a name alias: the
+                // label already normalizes to the API's http-proxy, and what differed was the value.
                 ["/ip/hotspot/profile"] = new FieldAliasSet(
+                    addrPortPairs: Ci(("http-proxy", "http-proxy-port")),
                     apiToJg: Ci(("radius-accounting", "accounting"),
                                ("radius-default-domain", "default-domain"),
                                ("radius-location-id", "location-id"),
@@ -427,6 +439,39 @@ namespace tik4net.Winbox
         // ── key → apiName (decode records) ─────────────────────────────────────
 
         /// <summary>
+        /// The M2 keys that TWO fields in force for this path claim with different <b>arrayness</b> — a
+        /// scalar and a list sharing one key. Empty for all but a handful of windows.
+        /// </summary>
+        /// <remarks>
+        /// <para>Inverting key → name is first-wins, and where two windows disagree the window overlay decides
+        /// (A4). Neither helps here, because these two fields are in the SAME window: <c>/ip/dhcp-client</c>
+        /// declares 'Add Default Route' as <c>u12</c> and 'DHCP Options' as <c>U12</c>. Only the wire type
+        /// separates them, and the router does send both — see <c>M2Message.ParseAllFields</c>, which files the
+        /// second under the qualified key these registrations answer at.</para>
+        /// <para>Scoped to the CONTESTED keys rather than applied to every field, so a window with no such
+        /// collision — which is nearly all of them — builds exactly the map it built before.</para>
+        /// </remarks>
+        private HashSet<int> ContestedKeys()
+        {
+            var arrayness = new Dictionary<int, bool>();
+            var contested = new HashSet<int>();
+            foreach (var kv in JgFieldsSpecificFirst())
+            {
+                bool isArray = WinboxM2Protocol.TypedKey.IsArrayType(kv.Value.WireType);
+                if (arrayness.TryGetValue(kv.Value.Key, out bool seen))
+                {
+                    if (seen != isArray) contested.Add(kv.Value.Key);
+                }
+                else arrayness[kv.Value.Key] = isArray;
+            }
+            return contested;
+        }
+
+        // A field's key qualified by the arrayness of its .jg wire type ('U12' → array, 'u12' → scalar).
+        private static int TypedKeyOf(WinboxJgField f)
+            => WinboxM2Protocol.TypedKey.Qualify(f.Key, WinboxM2Protocol.TypedKey.IsArrayType(f.WireType));
+
+        /// <summary>
         /// Builds the <c>key → apiName</c> map for this handler by inverting the seed table, the
         /// <c>.jg</c> catalog fields, and the session overrides (overrides and seeds win over the catalog).
         /// </summary>
@@ -436,8 +481,23 @@ namespace tik4net.Winbox
             // catalog (.jg) → name/disabled fallback. First-wins also resolves the .jg's own duplicate-key
             // fields (e.g. /system/resource has both 'freq' and 'CPU Frequency' at u5) deterministically.
             var map = new Dictionary<int, string>();
-            void Put(int key, string apiName) { if (!map.ContainsKey(key)) map[key] = apiName; }
+            // First-wins on the KEY, and — because the enumeration is most-specific-first — first-wins on the
+            // NAME too. The second guard is what makes the window overlay reach the decode: two windows share
+            // handler [47,1], 'Enabled' is b4 on NTP Client and b6 on NTP Server, and the singleton record
+            // carries BOTH. Naming each key separately left two keys called 'enabled' and let the RECORD's
+            // field order pick between them — /system/ntp/server read the client's flag and reported true
+            // where the API says false. A name belongs to the most specific window that claims it.
+            var claimed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            void Put(int key, string apiName)
+            {
+                if (map.ContainsKey(key)) return;
+                // A qualified registration is the SAME field as its plain one (see ContestedKeys), so it must
+                // not be the thing that claims the name away from it.
+                if (!WinboxM2Protocol.TypedKey.IsQualified(key) && !claimed.Add(apiName)) return;
+                map[key] = apiName;
+            }
 
+            var contested = ContestedKeys();
             foreach (var kv in _overrides) Put(kv.Value, kv.Key);
             // Shipped numeric key→apiName aliases for fields the .jg leaves unnamed (e.g. ping reply 'host' @0x1).
             var aliasSet = Aliases;
@@ -446,6 +506,11 @@ namespace tik4net.Winbox
             foreach (var kv in SystemSeed) Put(kv.Value, kv.Key);
             foreach (var kv in JgFieldsSpecificFirst())
             {
+                // A key two fields of DIFFERENT arrayness both claim also gets an arrayness-qualified
+                // registration, which is the only thing that can tell them apart on the wire.
+                if (contested.Contains(kv.Value.Key)
+                    && string.Equals(kv.Key, RegisteredNameToReport(kv.Value), StringComparison.OrdinalIgnoreCase))
+                    Put(TypedKeyOf(kv.Value), AliasToApi(kv.Key));
                 // A pane field is registered TWICE (plain + kind-prefixed), and only the spelling this
                 // path actually reports may contribute a name — otherwise both spellings would claim the
                 // field's key, and on a path that does NOT prefix, the second pane's field (which owns no
@@ -468,10 +533,18 @@ namespace tik4net.Winbox
         internal IReadOnlyDictionary<int, WinboxJgField> BuildKeyToField()
         {
             var map = new Dictionary<int, WinboxJgField>();
+            var contested = ContestedKeys();
             // Most specific first, for the same reason BuildKeyToApiName does it: a key claimed by two
             // windows on one handler must be typed by the window this path addresses.
             foreach (var kv in JgFieldsSpecificFirst())
+            {
+                if (contested.Contains(kv.Value.Key))
+                {
+                    int typed = TypedKeyOf(kv.Value);
+                    if (!map.ContainsKey(typed)) map[typed] = kv.Value;
+                }
                 if (!map.ContainsKey(kv.Value.Key)) map[kv.Value.Key] = kv.Value;
+            }
             // Synthesize typed fields for shipped key aliases the .jg leaves unnamed (collide on empty apiName),
             // so decode formats them correctly (e.g. ping reply 'host' @0x1 as an ipaddr u32).
             var aliasSet = Aliases;
@@ -482,7 +555,36 @@ namespace tik4net.Winbox
                         aliasSet.KeyToApi.TryGetValue(kv.Key, out var nm);
                         map[kv.Key] = new WinboxJgField(nm ?? "", kv.Key, "u32", true, null, kv.Value);
                     }
+            ApplyAddrPortPairs(map, aliasSet);
             return map;
+        }
+
+        /// <summary>
+        /// The synthetic UI type of an address field RouterOS prints joined to a PORT that WinBox keeps in a
+        /// field of its own. The port key rides in <see cref="WinboxJgField.MaskKey"/> — the same
+        /// "my value needs a sibling" slot a <c>network</c>'s netmask uses — and the codec consumes it so the
+        /// port does not also surface as a field the API never reports.
+        /// </summary>
+        /// <remarks>
+        /// Shipped per path rather than derived, because nothing in the <c>.jg</c> says the two boxes are one
+        /// API field: <c>/ip/hotspot/profile</c> has 'HTTP Proxy' (<c>u83</c>) beside 'HTTP Proxy Port'
+        /// (<c>u84</c>) exactly as it has 'SMTP Server' (<c>u87</c>) beside nothing, and the API prints
+        /// <c>http-proxy=0.0.0.0:0</c> against <c>smtp-server=0.0.0.0</c>.
+        /// </remarks>
+        internal const string AddrPortUiType = "addrport";
+
+        private void ApplyAddrPortPairs(Dictionary<int, WinboxJgField> map, FieldAliasSet aliasSet)
+        {
+            if (aliasSet?.AddrPortPairs == null) return;
+            var jg = JgFields;
+            if (jg == null) return;
+            foreach (var pair in aliasSet.AddrPortPairs)
+            {
+                if (!jg.TryGetValue(pair.Key, out var addr) || !jg.TryGetValue(pair.Value, out var port))
+                    continue;
+                map[addr.Key] = new WinboxJgField(addr.ApiName, addr.Key, addr.WireType, addr.ReadOnly,
+                    uiType: AddrPortUiType, maskKey: port.Key);
+            }
         }
 
         // ── apiName → key (forward; for writes / filters) ──────────────────────

@@ -187,6 +187,26 @@ only the **stable text** (apiPath↔menu-label aliases, apiName↔label) is ship
   literal number — and an element matching none of the three **throws** (`WinboxFieldValueException`): a
   dropped element sends a shorter list the router accepts without complaint. Everything else with an array
   wire type still throws `WinboxFieldResolutionException`. New list types: implement, don't send a string.
+- **One WINDOW, one key, two fields.** The `.jg` id prefix's CASE is part of the identity: `/ip/dhcp-client`
+  declares `u12` ('Add Default Route', scalar enum) *and* `U12` ('DHCP Options', a `multinumber`) on key
+  `0x12`, and the router sends BOTH in one record. `M2Message.ParseAllFields` files a duplicate of differing
+  arrayness under an arrayness-qualified key (`WinboxM2Protocol.TypedKey`) and the resolver registers both
+  spellings; decode asks qualified-first. Symptom before the fix: one of the two fields simply absent, the
+  other wearing its name. Before blaming a decoder, dump the frame with a **duplicate-tolerant** TLV walk —
+  the ordinary parse cannot show you the field it dropped.
+- **A NAME can collide even when the keys do not.** Two windows on handler `[47,1]` each have an 'Enabled'
+  (`b4` client, `b6` server) and the singleton carries both. Window scoping names the right key, but the
+  handler map still names the other one too, and the decode takes the first name it can use — so the RECORD's
+  field order decides. `BuildKeyToApiName` is first-wins on the name as well as the key.
+- **A list element can be a compound.** `types.multi.tostr` renders each element through the ELEMENT's type,
+  and that type may be a `union` (first member present wins — `types.union.get` with `single:1`) or a `tuple`
+  (parts joined by its `sep`, empty parts contributing no separator). `WinboxJgField.ElementParts` carries
+  them. A `network` part's sibling is a NETMASK; a `network6` part's is the PREFIX LENGTH itself.
+- **`multibits` is a `set`, not an `enm`** — a bitmask over the map's INDICES. It has an `EnumMap`, so it
+  falls through to the scalar-enum branch unless handled: a value of 0 then reads as the member at index 0
+  instead of as the empty set.
+- **`postfix` is a unit the API puts in the value.** webfig paints it beside the input box and leaves `tostr`
+  bare; RouterOS prints `8s`. Only `'s'` is acted on.
 - **One handler, several windows, each numbering its fields from 1.** `[28,0]` is the UPnP settings
   singleton (`b1` 'Enabled') AND the UPnP interface list (`u1` 'Interface'). Fields are filed per WINDOW as
   well as per handler, and the resolver reads action → window → handler; a key→name inversion of the

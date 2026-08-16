@@ -76,6 +76,9 @@ namespace tik4net.Winbox
                 foreach (var f in keyToField.Values)
                 {
                     if (f.UiType == "network" && f.MaskKey != 0) consumedKeys.Add(f.MaskKey);
+                    // The port half of an address:port field is not a field of its own to the API.
+                    if (f.UiType == WinboxFieldResolver.AddrPortUiType && f.MaskKey != 0)
+                        consumedKeys.Add(f.MaskKey);
                     if (f.OptKey != 0) consumedKeys.Add(f.OptKey);
                     if (f.NotKey != 0) consumedKeys.Add(f.NotKey);
                 }
@@ -83,8 +86,16 @@ namespace tik4net.Winbox
             var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var kv in rec)
             {
-                if (consumedKeys.Contains(kv.Key)) continue;
-                if (!keyToName.TryGetValue(kv.Key, out var apiName)) continue;
+                // A record may carry one key TWICE — a scalar and a list (see M2Message.ParseAllFields) — so
+                // ask the arrayness-qualified registration first and fall back to the plain one. The fallback
+                // is the normal path: a window with no such collision registers no qualified key, and a router
+                // that sends a field with the arrayness the .jg did NOT predict still decodes as it always did.
+                int wireKey = WinboxM2Protocol.TypedKey.WireKeyOf(kv.Key);
+                int typedKey = WinboxM2Protocol.TypedKey.Qualify(
+                    wireKey, WinboxM2Protocol.TypedKey.IsArrayType(kv.Value.Item1));
+                if (consumedKeys.Contains(wireKey)) continue;
+                if (!keyToName.TryGetValue(typedKey, out var apiName)
+                    && !keyToName.TryGetValue(wireKey, out apiName)) continue;
                 if (fields.ContainsKey(apiName)) continue;
 
                 if (apiName == TikSpecialProperties.Id)
@@ -94,7 +105,8 @@ namespace tik4net.Winbox
                 }
 
                 WinboxJgField jf = null;
-                keyToField?.TryGetValue(kv.Key, out jf);
+                if (keyToField != null && !keyToField.TryGetValue(typedKey, out jf))
+                    keyToField.TryGetValue(wireKey, out jf);
                 if (IsUnsetField(jf, kv.Value.Item2, rec)) continue;
                 fields[apiName] = FormatTyped(jf, kv.Value.Item1, kv.Value.Item2, rec, collectRefTables);
             }
@@ -184,6 +196,15 @@ namespace tik4net.Winbox
                             return addr + "/" + WinboxFieldResolver.MaskToPrefix(mt.Item2);
                         }
                         return addr;
+                    }
+                    case WinboxFieldResolver.AddrPortUiType:
+                    {
+                        // Two WinBox boxes, one API field (see WinboxFieldResolver.AddrPortUiType). The port
+                        // rides on MaskKey and is consumed in DecodeRecord, so it appears only here.
+                        string addr = WinboxFieldResolver.IpFromU32(value);
+                        long port = jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var pt)
+                                    && WinboxFieldResolver.TryToInt64(pt.Item2, out long p) ? p : 0;
+                        return addr + ":" + port.ToString(CultureInfo.InvariantCulture);
                     }
                     case "integer":
                     {
@@ -316,6 +337,13 @@ namespace tik4net.Winbox
                             && nt.Item2 is bool nb && nb;
                         return negated ? "!" + list : list;
                     }
+                    // A `multibits` is a `set` under another name: types.multibits.get is
+                    // `for(i=0..31) if(val&(1<<i)) push(i)` over the same bit-indexed map, and only its
+                    // EDITOR differs (a list of checkboxes rather than one field). It has an EnumMap, so it
+                    // was falling through to the SCALAR enum branch and reading the whole bitmask as one
+                    // member: /ip/neighbor's system-caps of 0 — no bits, which the API prints as nothing —
+                    // came back as 'other', the member the map happens to hold at index 0.
+                    case "multibits":
                     case "set":
                     {
                         // Bitmask flag set → comma-joined labels (.jg map key = bit index). The opt/not flag
@@ -390,6 +418,11 @@ namespace tik4net.Winbox
                     if (WinboxFieldResolver.TryToInt64(value, out long ev))
                     {
                         if (jf.EnumMap.TryGetValue(unchecked((int)ev), out var label)) return label;
+                        // The map missed, so the value is a plain number — and a `postfix:'s'` says what
+                        // KIND of number. webfig renders it bare and paints the unit next to the box; the
+                        // API prints a duration. /ip/ipsec/profile dpd-interval, whose only member is
+                        // 'disable-dpd' at 0, read as 8 where the API says 8s.
+                        if (IsSecondsPostfix(jf.Postfix)) return FormatDuration(ev, jf.Scale);
                         // A number the map has no member for. On an opt field that means "not set" and the
                         // field never reaches here (IsUnsetField drops it); here it means the .jg and the
                         // router disagree about the domain, which webfig itself calls 'unknown'. Fall through
@@ -472,6 +505,11 @@ namespace tik4net.Winbox
             return false;
         }
 
+        // The only postfix acted on. 'min', 'MHz', '%' and the rest are units the API spells the same way
+        // WinBox does (a bare number), so appending them would invent text the router never prints.
+        private static bool IsSecondsPostfix(string postfix)
+            => string.Equals(postfix, "s", StringComparison.Ordinal);
+
         private static bool IsMultiNumberList(string uiType)
             => string.Equals(uiType, "multinumber", StringComparison.OrdinalIgnoreCase);
 
@@ -513,14 +551,85 @@ namespace tik4net.Winbox
             // A message array (webfig `multi`): each element is a submessage of the element's own type.
             if (value is List<Dictionary<int, Tuple<string, object>>> msgs)
                 return string.Join(",", msgs.Select(m =>
-                    string.Equals(jf.ElementUiType, "addr", StringComparison.OrdinalIgnoreCase)
-                        ? FormatAddr(m)
-                        : FormatNestedMessage(m)));
+                    jf.ElementParts != null
+                        ? FormatCompoundElement(jf, m)
+                        : string.Equals(jf.ElementUiType, "addr", StringComparison.OrdinalIgnoreCase)
+                            ? FormatAddr(m)
+                            : FormatNestedMessage(m)));
 
             // A scalar array, which M2Message renders as the text "[a,b,…]" (and "[]" when empty).
             var elements = SplitListElements(value);
             if (elements.Count == 0) return "";
             return string.Join(",", elements.Select(e => FormatListElement(jf.ElementUiType, e)));
+        }
+
+        /// <summary>
+        /// One element of a list whose element is a <c>tuple</c> or a <c>union</c>: each part rendered
+        /// through its own type and joined by the tuple's separator, exactly as <c>types.tuple.tostr</c>
+        /// does — including its rule that a part rendering EMPTY contributes no separator.
+        /// </summary>
+        /// <remarks>
+        /// A <c>network</c> part's sibling holds a NETMASK and a <c>network6</c> part's holds the PREFIX
+        /// LENGTH itself (<c>types.network6.tostr</c>: <c>addr + '/' + (val[1]||0)</c>, and a bare address at
+        /// 128) — which is why the two cannot share one formatter. Both live shapes on 7.23.2:
+        /// <c>/snmp/community</c>'s one row is the IPv6 any-address (<c>a16</c> = 16 zero bytes,
+        /// <c>u17 = 0</c>) which the API prints <c>::/0</c>, and <c>/certificate</c>'s subject-alt-name is
+        /// <c>{u7f = 1, u7d = 3959728320}</c> which it prints <c>IP:192.168.4.236</c>.
+        /// </remarks>
+        private string FormatCompoundElement(WinboxJgField jf, Dictionary<int, Tuple<string, object>> element)
+        {
+            var rendered = new List<string>();
+            foreach (var part in jf.ElementParts)
+            {
+                string s = FormatElementPart(part, element);
+                if (!string.IsNullOrEmpty(s)) rendered.Add(s);
+            }
+            // Nothing addressable in the element — webfig's union.get returns [def,null] here. Fall back to
+            // the generic dump rather than inventing a value.
+            if (rendered.Count == 0) return FormatNestedMessage(element);
+            return string.Join(jf.ElementSeparator ?? "", rendered);
+        }
+
+        private string FormatElementPart(WinboxJgElementPart part, Dictionary<int, Tuple<string, object>> element)
+        {
+            if (part.Alternatives != null)
+            {
+                foreach (var alt in part.Alternatives)
+                {
+                    string s = FormatElementPart(alt, element);
+                    if (!string.IsNullOrEmpty(s)) return s;
+                }
+                return "";
+            }
+            if (!element.TryGetValue(part.Key, out var v) || v?.Item2 == null) return "";
+            object mask = part.MaskKey != 0 && element.TryGetValue(part.MaskKey, out var mt) ? mt?.Item2 : null;
+            // A part with a static map is an enum wherever it sits — the API prints the word, not the index.
+            if (part.EnumMap != null && WinboxFieldResolver.TryToInt64(v.Item2, out long ev)
+                && part.EnumMap.TryGetValue(unchecked((int)ev), out var label))
+                return label;
+            switch ((part.UiType ?? "").ToLowerInvariant())
+            {
+                case "network":
+                    return WinboxFieldResolver.IpFromU32(v.Item2)
+                         + (mask != null ? "/" + WinboxFieldResolver.MaskToPrefix(mask) : "");
+                case "network6":
+                {
+                    string addr = v.Item2 is byte[] b6 ? WinboxFieldResolver.IpV6FromBytes(b6) : "::";
+                    if (mask == null) return addr;
+                    long len = WinboxFieldResolver.TryToInt64(mask, out long n) ? n : 0;
+                    return len == 128 ? addr : addr + "/" + len.ToString(CultureInfo.InvariantCulture);
+                }
+                case "ipaddr":
+                    return WinboxFieldResolver.IpFromU32(v.Item2);
+                case "ip6addr":
+                    return v.Item2 is byte[] b ? WinboxFieldResolver.IpV6FromBytes(b) : v.Item2.ToString();
+                case "macaddr":
+                    return WinboxFieldResolver.MacFromBytes(v.Item2);
+                case "addr":
+                    return v.Item2 is Dictionary<int, Tuple<string, object>> a ? FormatAddr(a) : v.Item2.ToString();
+                default:
+                    return v.Item2.ToString();
+            }
         }
 
         // One element of a scalar list, by the element's .jg type. An ipaddr element rides as the same u32 a
@@ -799,7 +908,9 @@ namespace tik4net.Winbox
         {
             if (keyToApiName != null)
                 foreach (var kv in keyToApiName)
-                    if (kv.Value == "name") return kv.Key;
+                    // Only a WIRE key can be looked up in a record: an arrayness-qualified registration
+                    // (WinboxM2Protocol.TypedKey) is the resolver's own bookkeeping and matches nothing.
+                    if (kv.Value == "name" && !WinboxM2Protocol.TypedKey.IsQualified(kv.Key)) return kv.Key;
             return -1;
         }
 

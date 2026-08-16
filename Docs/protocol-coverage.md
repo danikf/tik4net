@@ -419,25 +419,27 @@ as of the last run (RouterOS 7.23.2) it lists:
 | `/interface/wireless/sniffer` | handler `[88,9]` returns sniffer statistics; the API returns settings |
 | `/system/health` | board-gated singleton with no hardware sensors on CHR; `state`/`state-after-reboot` are API-only fields with no WinBox equivalent |
 
-### Value-rendering gaps
+### Value-rendering differences
 
-The audit compares VALUES as well as names (rows paired by `.id`, volatile fields excluded), and the
-first run that did so found **26 paths** whose window and field names are right while a value's
-rendering is not. They are six missing decoders, not 26 defects; `KnownValueGaps` records every path
-with its class named, so a NEW disagreement on one of them still fails the run.
+The audit compares VALUES as well as names (rows paired by `.id`, volatile fields excluded). The first
+run that did so found 26 paths whose window and field names were right while a value's rendering was
+not; they were a handful of missing decoders rather than 26 defects, and **all of them are now
+closed** — `interval`/duration (including the `.jg` `scale`), raw MAC, the zero-spelled-as-a-word
+sentinels, the empty list, set order, date/epoch, the `age` uptime clock, one M2 key carrying two
+fields, a list element that is a `union` or a `tuple`, the `multibits` bitmask, an `enm`'s unit
+`postfix`, and the address:port pair. See `Docs/winbox-native-m2-protocol.md` §26–§30.
 
-| Class | What arrives | Paths |
+Three value differences remain, and on two of them the binary API is the side that knows less. They
+are recorded in the audit's `KnownValueGaps` with the reason named, so a NEW disagreement on one of
+them still fails the run.
+
+| Path | Field | Difference |
 |---|---|---|
-| `interval` | raw seconds (or ms) where the API prints `0s` / `5m` / `1w` | 7 |
-| raw MAC | undelimited hex on windows that do not type the 6-byte field `macaddr` | 4 |
-| sentinel | `0` / `0xFFFFFFFF` where the API prints `disabled`, `unlimited`, `none`, `all`, `passthrough` | 6 |
-| empty list | `[]` where the API prints nothing | 5 |
-| set order | a bitmask decodes by ascending bit index; RouterOS prints its own order | 3 |
-| date/epoch | a unix stamp where the API prints a date | 2 |
+| `/routing/table` | `fib` | a valueless presence flag over the API (`fib=`), which the mapper can only read as `false`; native reads the router's own bool and reports the real state |
+| `/system/ntp/client` | `system-offset` | whole milliseconds on the wire, fractions over the API (`-23` vs `-23.622`), and it drifts constantly; `freq-drift` agrees exactly |
+| `/interface/ethernet` | `auto-negotiation` | WinBox's field is the LINK's live state (`not-available` on a CHR's virtual NIC), the API's is the SETTING (`true`) — two fields, one label |
 
-Three one-offs sit outside those classes and want their own look: `/system/ntp/server` `enabled`
-reads **true where the API says false**, `/routing/table` `fib` reads the flag's own bool where the
-API prints it empty, and `/system/ntp/client`'s signed values are decoded as unsigned u32.
+Last run on RouterOS 7.23.2: `OK=148 KNOWN-GAP=7 MISMATCH=0 VALUE-DIFF=0 UNMAPPED=0`.
 
 ### Two further limits, only one of them the router's
 

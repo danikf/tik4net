@@ -26,11 +26,16 @@
         /// entries are installed into the kernel forwarding plane. The built-in "main" table
         /// always has fib set. Default: false (not a FIB table).
         ///
-        /// RouterOS quirk: the router stores this as a valueless presence-flag. On read-back
-        /// it returns <c>fib=</c> (empty string) rather than <c>fib=yes</c>, so the mapper
-        /// always deserializes it as <c>false</c>. Setting Fib=true and calling Save() sends
-        /// <c>=fib=yes</c> which the router accepts correctly — the write path works, the
-        /// read-back does not reflect the true state via this property.
+        /// RouterOS quirk: the router stores this as a valueless presence-flag. Over the binary
+        /// API — and so over REST and the CLI transports, which report what it reports — a read
+        /// returns <c>fib=</c> (empty string) rather than <c>fib=yes</c>, so the mapper
+        /// deserializes it as <c>false</c> whatever the true state is. Setting Fib=true and
+        /// calling Save() sends <c>=fib=yes</c>, which the router accepts correctly: the write
+        /// path works, the read-back does not.
+        ///
+        /// The exception is <c>WinboxNative</c>, which reads the router's own bool and therefore
+        /// reports the real state. This is the one field where the two disagree BECAUSE the API is
+        /// the less informative side; see Docs/winbox-native-m2-protocol.md §30.
         /// </summary>
         [TikProperty("fib", DefaultValue = "no")]
         public bool? Fib { get; set; }

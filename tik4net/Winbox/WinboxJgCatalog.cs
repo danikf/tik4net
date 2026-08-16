@@ -930,7 +930,8 @@ namespace tik4net.Winbox
                             ty, maskKey, refHandler, optKey: optKey, isRange: isRange, allow: allow,
                             def: ExtractDef(dict), pane: pane, offKey: offKey,
                             isOptional: IsOptionalAttr(dict), elementUiType: ElementUiTypeOf(dict),
-                            scale: ScaleOf(dict));
+                            scale: ScaleOf(dict), elementParts: ElementPartsOf(dict),
+                            postfix: PostfixOf(dict), elementSeparator: ElementSeparatorOf(dict));
                     }
                 }
 
@@ -1046,13 +1047,15 @@ namespace tik4net.Winbox
             IReadOnlyDictionary<int, string> enumMap, string uiType, int maskKey, int[] refHandler,
             int optKey = 0, int notKey = 0, bool isRange = false, string allow = null, long? def = null,
             PaneContext pane = null, int offKey = 0, bool isOptional = false, string elementUiType = null,
-            int scale = 1)
+            int scale = 1, IReadOnlyList<WinboxJgElementPart> elementParts = null, string postfix = null,
+            string elementSeparator = null)
         {
             string apiName = WinboxFieldResolver.NormalizeLabel(label);
             if (string.IsNullOrEmpty(apiName)) return;
             var field = new WinboxJgField(apiName, key, wireType, ro, enumMap, uiType, maskKey,
                 refHandler, optKey, notKey, isRange, allow, def,
-                pane?.Kind, pane?.SelectorKey ?? 0, pane?.Values, offKey, isOptional, elementUiType, scale);
+                pane?.Kind, pane?.SelectorKey ?? 0, pane?.Values, offKey, isOptional, elementUiType, scale,
+                elementParts, postfix, elementSeparator);
             Put(handlerKey, apiName, field);
             // A pane field is ALSO filed under the kind-prefixed name the API uses for it (memory-lines,
             // pcq-rate). Both registrations are needed: the plain one keeps every name that resolved before
@@ -1093,11 +1096,78 @@ namespace tik4net.Winbox
         private static int ScaleOf(Dictionary<string, object> dict)
             => dict.TryGetValue("scale", out var sv) && sv is int si && si > 0 ? si : 1;
 
+        // The .jg `postfix` — the unit a numeric field's value is expressed in (see WinboxJgField.Postfix).
+        private static string PostfixOf(Dictionary<string, object> dict)
+            => dict.TryGetValue("postfix", out var pv) ? pv as string : null;
+
         // The `type` of a list field's unnamed element child — what webfig renders each element through.
         private static string ElementUiTypeOf(Dictionary<string, object> dict)
         {
             var child = FirstChildDict(dict);
             return child != null && child.TryGetValue("type", out var tv) ? tv as string : null;
+        }
+
+        /// <summary>
+        /// The parts of a list element that is a <c>type:'union'</c> or a <c>type:'tuple'</c>, in <c>.jg</c>
+        /// order. <c>null</c> when the element is neither (a list of plain scalars is described by
+        /// <see cref="WinboxJgField.ElementUiType"/> alone).
+        /// </summary>
+        /// <remarks>
+        /// A NAMED union field takes its FIRST usable member (<c>AddUnionField</c>): tik4net has one key per
+        /// API field name, and the API answers with the IPv4 family. Inside a LIST that shortcut is not
+        /// available — every element chooses its own member, and <c>/snmp/community</c>'s single row is
+        /// IPv6 — so every alternative is carried and the element picks among them at decode time.
+        /// </remarks>
+        private static IReadOnlyList<WinboxJgElementPart> ElementPartsOf(Dictionary<string, object> dict)
+        {
+            var child = FirstChildDict(dict);
+            string childType = child != null && child.TryGetValue("type", out var tv) ? tv as string : null;
+            if (childType == "tuple")
+            {
+                if (!(child.TryGetValue("c", out var cv) && cv is List<object> parts)) return null;
+                var result = new List<WinboxJgElementPart>();
+                foreach (var p in parts)
+                    if (p is Dictionary<string, object> pd && PartOf(pd) is WinboxJgElementPart part)
+                        result.Add(part);
+                return result.Count > 0 ? result : null;
+            }
+            if (childType == "union")
+            {
+                var part = PartOf(child);
+                return part != null ? new List<WinboxJgElementPart> { part } : null;
+            }
+            return null;
+        }
+
+        // One part of a tuple/union element: a union node becomes a part carrying its alternatives, anything
+        // with an id becomes a value leaf, anything else is not addressable and is dropped.
+        private static WinboxJgElementPart PartOf(Dictionary<string, object> node)
+        {
+            string ty = node.TryGetValue("type", out var tv) ? tv as string : null;
+            if (ty == "union")
+            {
+                if (!(node.TryGetValue("c", out var cv) && cv is List<object> members)) return null;
+                var alts = new List<WinboxJgElementPart>();
+                foreach (var m in members)
+                    if (m is Dictionary<string, object> md && PartOf(md) is WinboxJgElementPart leaf)
+                        alts.Add(leaf);
+                return alts.Count > 0 ? new WinboxJgElementPart(0, "union", 0, alts) : null;
+            }
+            if (!(node.TryGetValue("id", out var idv) && idv is string ids)) return null;
+            var dec = DecodeId(ids);
+            if (dec == null) return null;
+            return new WinboxJgElementPart(dec.Value.key, ty, DecodedKeyOf(node, "maskid"),
+                enumMap: ExtractEnumMap(node));
+        }
+
+        // The `sep` of a tuple element (webfig's types.tuple.tostr default is '/'), or null when the element
+        // is not a tuple.
+        private static string ElementSeparatorOf(Dictionary<string, object> dict)
+        {
+            var child = FirstChildDict(dict);
+            if (child == null || !(child.TryGetValue("type", out var tv) && (tv as string) == "tuple"))
+                return null;
+            return child.TryGetValue("sep", out var sv) && sv is string s ? s : "/";
         }
 
         // The M2 key held by a sibling-key attribute of a field node ('maskid', 'optid', 'oid'), or 0.
@@ -1163,7 +1233,8 @@ namespace tik4net.Winbox
                     if (optKey == 0) optKey = DecodedKeyOf(cur, "optid");
                     AddField(handlerKey, label, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(cur),
                         ty, maskKey, refHandler, optKey, notKey, isRange, allow, ExtractDef(cur), pane,
-                        DecodedKeyOf(cur, "oid"), IsOptionalAttr(cur), ElementUiTypeOf(cur), ScaleOf(cur));
+                        DecodedKeyOf(cur, "oid"), IsOptionalAttr(cur), ElementUiTypeOf(cur), ScaleOf(cur),
+                        ElementPartsOf(cur), PostfixOf(cur), ElementSeparatorOf(cur));
                 }
                 return;
             }
@@ -1208,7 +1279,9 @@ namespace tik4net.Winbox
                 uiType, maskKey, ExtractRefHandler(child), isRange: isRange, allow: allow,
                 def: ExtractDef(child), pane: pane,
                 isOptional: IsOptionalAttr(union) || IsOptionalAttr(child),
-                elementUiType: ElementUiTypeOf(child), scale: ScaleOf(child));
+                elementUiType: ElementUiTypeOf(child), scale: ScaleOf(child),
+                elementParts: ElementPartsOf(child), postfix: PostfixOf(child),
+                elementSeparator: ElementSeparatorOf(child));
         }
 
         // Registers a per-record action verb (doit/action label → SYS_CMD) under its owning handler and

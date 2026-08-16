@@ -153,36 +153,32 @@ namespace tik4net.integrationtests
         /// NEW disagreement on the same path cannot hide behind it.
         /// </summary>
         /// <remarks>
-        /// <para>Every entry below was measured on 7.23.2 the first time this audit compared values at all,
-        /// and they are all the SAME handful of missing decoders rather than 26 separate defects — see the
-        /// class names in the reasons. They are recorded per path so that a path picking up a NEW
-        /// disagreement still fails: the reason names which fields are excused.</para>
-        /// <para>The classes, in rough order of how many paths each costs:</para>
+        /// <para>Every entry below was measured on 7.23.2 and is recorded per path so that a path picking up
+        /// a NEW disagreement still fails: the reason names which fields are excused.</para>
+        /// <para>What is left is no longer a list of missing decoders — every decode class the first
+        /// value-comparing run turned up (interval/duration, raw MAC, zero-spelled-as-a-word sentinels, the
+        /// empty list, set order, date/epoch, the <c>age</c> uptime clock, the wire-type key collision, the
+        /// union/tuple element, the <c>multibits</c> bitmask, an <c>enm</c>'s <c>postfix</c>, and the
+        /// address:port pair) has been closed. These three are differences of a different kind, and two of
+        /// them are the API being the LESS informative side:</para>
         /// <list type="bullet">
-        /// <item><b>interval/duration</b> — the <c>interval</c> UI type has no decoder, so a duration reaches
-        /// the caller as raw seconds (or milliseconds) where the API prints <c>0s</c>, <c>5m</c>, <c>1w</c>.</item>
-        /// <item><b>raw MAC</b> — a 6-byte field whose window does not type it <c>macaddr</c> renders as
-        /// undelimited hex.</item>
-        /// <item><b>sentinel</b> — <c>0</c> and <c>0xFFFFFFFF</c> that the API prints as a WORD
-        /// (<c>disabled</c>, <c>unlimited</c>, <c>none</c>, <c>all</c>, <c>passthrough</c>).</item>
-        /// <item><b>empty list</b> — an empty array renders <c>[]</c> where the API prints nothing.</item>
-        /// <item><b>set order</b> — a bitmask set decodes by ascending bit index; RouterOS prints its own
-        /// order (<c>pap,chap,mschap1,mschap2</c>).</item>
-        /// <item><b>date/epoch</b> — a <c>time</c>/<c>date</c> field reaches the caller as a unix stamp.</item>
+        /// <item><b>the API prints less than it knows</b> — <c>/routing/table</c>'s <c>fib</c> is a valueless
+        /// presence flag over the API (<c>fib=</c>), which the mapper can only read as <c>false</c>; native
+        /// reads the router's own bool and says <c>true</c>. Documented on <c>RoutingTable.Fib</c>.</item>
+        /// <item><b>precision</b> — <c>/system/ntp/client</c>'s <c>system-offset</c> is a whole-millisecond
+        /// <c>integer</c> on the wire where the API reports fractions (and it drifts constantly).
+        /// <c>freq-drift</c>, which the wire carries as a <c>fixedpoint</c>, agrees exactly.</item>
+        /// <item><b>a different question</b> — <c>/interface/ethernet</c>'s <c>auto-negotiation</c> is the
+        /// LINK's live state in WinBox (<c>not-available</c> on a CHR's virtual NIC) and the SETTING over the
+        /// API (<c>true</c>). Two fields, one label; see <see cref="KnownFieldGaps"/> for the same shape at
+        /// window granularity.</item>
         /// </list>
         /// </remarks>
         private static readonly Dictionary<string, string> KnownValueGaps = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["/certificate"]                          = "subject-alt-name is a tuple (type enm + ':' + a union whose FIRST member is ip6addr, while the value rides on the ipaddr key)",
             ["/interface/ethernet"]                   = "auto-negotiation reads the link's live state, not the setting",
-            ["/ip/dhcp-client"]                       = "undecoded list (add-default-route)",
-            ["/ip/hotspot/profile"]                    = "http-proxy is an ipaddr with the port on a sibling key; the API prints one 'addr:port'",
-            ["/ip/ipsec/profile"]                      = "dpd-interval is an enm with postfix 's', not an interval",
-            ["/ip/neighbor"]                          = "system-caps reads a value the API leaves empty",
-            ["/routing/table"]                        = "fib reads the flag's own bool where the API prints it empty",
-            ["/snmp/community"]                       = "IPv6 any-address renders '::' where the API prints '::/0'",
+            ["/routing/table"]                        = "fib is a valueless presence flag over the API ('fib='), so the API is the side that loses the value; native reads the router's own bool",
             ["/system/ntp/client"]                     = "system-offset is a whole-millisecond `integer` on the wire where the API reports fractions — an information difference, not a decode gap (and it drifts constantly). freq-drift agrees.",
-            ["/system/ntp/server"]                     = "enabled reads the wrong key (native says true where the API says false)",
         };
 
         /// <summary>

@@ -3,6 +3,37 @@ using System.Collections.Generic;
 namespace tik4net.Winbox
 {
     /// <summary>
+    /// One PART of a <c>.jg</c> list element: either a value leaf (the key it rides under, its UI-semantic
+    /// type and, for a <c>network</c>/<c>network6</c>, the sibling key carrying the mask or prefix length),
+    /// or a <c>type:'union'</c> — one logical value with a per-family key, of which the element carries
+    /// exactly one. See <see cref="WinboxJgField.ElementParts"/>.
+    /// </summary>
+    internal sealed class WinboxJgElementPart
+    {
+        internal int Key { get; }
+        internal string UiType { get; }
+        internal int MaskKey { get; }
+
+        /// <summary>
+        /// For a <c>union</c> part, its members in <c>.jg</c> order; the element is rendered through the
+        /// FIRST of them it actually carries, which is what webfig's <c>types.union.get</c> with
+        /// <c>single:1</c> does. <c>null</c> for a value leaf.
+        /// </summary>
+        internal IReadOnlyList<WinboxJgElementPart> Alternatives { get; }
+
+        /// <summary>The part's own static enum map, when it is an <c>enm</c> — a certificate's
+        /// subject-alt-name type is <c>{1:'IP',2:'DNS',3:'Email'}</c> and the API prints the WORD.</summary>
+        internal IReadOnlyDictionary<int, string> EnumMap { get; }
+
+        internal WinboxJgElementPart(int key, string uiType, int maskKey,
+            IReadOnlyList<WinboxJgElementPart> alternatives = null,
+            IReadOnlyDictionary<int, string> enumMap = null)
+        {
+            Key = key; UiType = uiType; MaskKey = maskKey; Alternatives = alternatives; EnumMap = enumMap;
+        }
+    }
+
+    /// <summary>
     /// One field of a WinBox <c>.jg</c> catalog window: the numeric M2 key, its wire type, read-only flag,
     /// and the UI-semantic type that drives typed value encoding. Produced by <see cref="WinboxJgCatalog"/>
     /// and consumed by the field resolver to translate between API field names and M2 keys/values.
@@ -98,12 +129,53 @@ namespace tik4net.Winbox
         internal int Scale { get; }
 
         /// <summary>
+        /// The <c>.jg</c> <c>postfix</c> — the UNIT a numeric field is expressed in (<c>'s'</c>,
+        /// <c>'min'</c>, …). <c>null</c> when the field declares none.
+        /// </summary>
+        /// <remarks>
+        /// webfig does NOT put it in <c>tostr</c>: the view appends it beside the input box, so a
+        /// <c>postfix</c> field's <c>tostr</c> is the bare number. RouterOS's API has no such split — it
+        /// prints a duration as a duration — so <c>/ip/ipsec/profile</c>'s <c>dpd-interval</c> (an
+        /// <c>enm</c>, <c>def:8</c>, <c>postfix:'s'</c>, whose only enum member is <c>disable-dpd</c> at 0)
+        /// reads <c>8s</c> over the API and read a bare <c>8</c> here. Only <c>'s'</c> is acted on, and only
+        /// when the value falls through the enum map — the postfix says what the NUMBER means, which is
+        /// nothing to a value the map has already named.
+        /// </remarks>
+        internal string Postfix { get; }
+
+        /// <summary>
         /// For a LIST field, the <c>type</c> of its unnamed element child (<c>c:[{type:'ipaddr'},…]</c>) —
         /// <c>null</c> when the field has no child. webfig renders a list by handing each element to this
         /// type's own <c>tostr</c> (<c>types.multi.tostr</c>), so it is what decides whether a u32 element is
         /// a number, an IP or an enum member.
         /// </summary>
         internal string ElementUiType { get; }
+
+        /// <summary>
+        /// For a LIST whose element is a <c>type:'union'</c> or a <c>type:'tuple'</c>, the element's parts in
+        /// <c>.jg</c> order. <c>null</c> for every other field — including a list of plain scalars, which
+        /// <see cref="ElementUiType"/> already describes.
+        /// </summary>
+        /// <remarks>
+        /// <para><see cref="ElementUiType"/> answers "union" or "tuple", which says nothing about how an
+        /// element reads. Both shapes are live on 7.23.2 and both were reaching the caller as raw numbers:
+        /// <c>/snmp/community</c>'s <c>Addresses</c> is a <c>multi</c> of <c>union{network u8/u9,
+        /// network6 a16/u17}</c> (the generic nested-message fallback returned <c>::</c> where the API prints
+        /// <c>::/0</c>), and <c>/certificate</c>'s <c>Subject Alt. Name</c> is a <c>multi</c> of
+        /// <c>tuple{enm u7f, union{ip6addr a7e, ipaddr u7d, string}}</c> joined by <c>':'</c> — which read as
+        /// the bare u32 <c>3959728320</c> where the API prints <c>IP:192.168.4.236</c>.</para>
+        /// <para>The two are one shape because <c>types.tuple.tostr</c> renders each child through its own
+        /// type and joins them with <see cref="ElementSeparator"/>, dropping the parts that render empty —
+        /// so a union is simply a tuple of one part with alternatives.</para>
+        /// </remarks>
+        internal IReadOnlyList<WinboxJgElementPart> ElementParts { get; }
+
+        /// <summary>
+        /// The <c>.jg</c> <c>sep</c> of a <c>tuple</c> element — what joins its parts (<c>':'</c> on a
+        /// certificate's subject-alt-name). webfig's default is <c>'/'</c>; <c>null</c> when the element is
+        /// not a tuple.
+        /// </summary>
+        internal string ElementSeparator { get; }
 
         /// <summary>
         /// The <c>.jg</c> <c>def</c> value, when the field declares one. Only interesting for the u32
@@ -198,8 +270,13 @@ namespace tik4net.Winbox
             int[] refHandler = null, int optKey = 0, int notKey = 0, bool isRange = false,
             string allow = null, long? def = null,
             string paneKind = null, int paneSelectorKey = 0, int[] paneValues = null, int offKey = 0,
-            bool isOptional = false, string elementUiType = null, int scale = 1)
+            bool isOptional = false, string elementUiType = null, int scale = 1,
+            IReadOnlyList<WinboxJgElementPart> elementParts = null, string postfix = null,
+            string elementSeparator = null)
         {
+            ElementSeparator = elementSeparator;
+            Postfix = postfix;
+            ElementParts = elementParts;
             Scale = scale < 1 ? 1 : scale;
             ElementUiType = elementUiType;
             IsOptional = isOptional;
