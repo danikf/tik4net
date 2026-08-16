@@ -28,9 +28,6 @@ jobs:
         with:
           dotnet-version: '8.x'
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
-
       - name: Resolve version
         id: ver
         shell: pwsh
@@ -83,48 +80,6 @@ jobs:
           /p:Version=${{ steps.ver.outputs.VERSION }}
           /p:AssemblyVersion=${{ steps.ver.outputs.ASM_VERSION }}.0
           /p:FileVersion=${{ steps.ver.outputs.ASM_VERSION }}.0
-
-      - name: Restore Tools (NuGet packages for old-style projects)
-        run: nuget restore Tools\tik4net.entityWikiImporter\tik4net.entityWikiImporter.csproj
-
-      - name: Build tik4net.entitygenerator
-        run: >
-          msbuild Tools\tik4net.entitygenerator\tik4net.entitygenerator.csproj
-          /p:Configuration=Release
-          /t:Rebuild
-          /verbosity:minimal
-
-      - name: Build tik4net.entityWikiImporter
-        run: >
-          msbuild Tools\tik4net.entityWikiImporter\tik4net.entityWikiImporter.csproj
-          /p:Configuration=Release
-          /t:Rebuild
-          /verbosity:minimal
-
-      - name: Assemble Tools zip
-        id: tools_zip
-        shell: pwsh
-        run: |
-          $version = '${{ steps.ver.outputs.VERSION }}'
-          $zipName = "tik4net-tools-$version.zip"
-          $tmp = "tools-staging"
-          New-Item -ItemType Directory -Path $tmp -Force | Out-Null
-
-          $gen = "Tools\tik4net.entitygenerator\bin\Release"
-          Copy-Item "$gen\tik4net.entitygenerator.exe"        $tmp
-          Copy-Item "$gen\tik4net.entitygenerator.exe.config" $tmp
-          Copy-Item "$gen\tik4net.dll"                        $tmp
-          Copy-Item "$gen\tik4net.objects.dll"                $tmp -ErrorAction SilentlyContinue
-          Copy-Item "Tools\tik4net.entitygenerator\Info.txt"  "$tmp\entitygenerator.Info.txt"
-
-          $wiki = "Tools\tik4net.entityWikiImporter\bin\Release"
-          Copy-Item "$wiki\tik4net.entityWikiImporter.exe"        $tmp
-          Copy-Item "$wiki\tik4net.entityWikiImporter.exe.config" $tmp
-          Copy-Item "$wiki\HtmlAgilityPack.dll"                   $tmp -ErrorAction SilentlyContinue
-          Copy-Item "Tools\tik4net.entityWikiImporter\Info.txt"   "$tmp\entityWikiImporter.Info.txt"
-
-          Compress-Archive -Path "$tmp\*" -DestinationPath $zipName
-          Write-Output "ZIP_NAME=$zipName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: List build artifacts
         shell: pwsh
@@ -198,11 +153,6 @@ jobs:
             | `tik4net.testing` | `dotnet add package tik4net.testing --version ${{ steps.ver.outputs.VERSION }}` |
             | `tik4net.mcp` *(dev/debug helper tool)* | `dotnet tool install -g tik4net.mcp --version ${{ steps.ver.outputs.VERSION }}` |
 
-            ### Tools (in zip asset)
-            - `tik4net.entitygenerator.exe` — generate entity code from a live router
-            - `tik4net.entityWikiImporter.exe` — generate entity code from MikroTik wiki
-
             ---
           files: |
             Build/*.nupkg
-            ${{ steps.tools_zip.outputs.ZIP_NAME }}

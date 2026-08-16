@@ -41,8 +41,7 @@ Consequently `tik4net.ssh` and `tik4net.testing` reference their compile-time pr
 a package ID that does not exist on nuget.org.
 
 Non-shipping: `tik4net.console`, `tik4net.coreconsole`, `tik4net.examples`, `tik4net.torch`,
-`tik4net.benchmarks`, `Tools/tik4net.entitygenerator`, `Tools/tik4net.entityWikiImporter` (several
-are still legacy non-SDK csproj).
+`tik4net.benchmarks` (several are still legacy non-SDK csproj).
 
 ## Layer 1 — `tik4net` core
 
@@ -233,8 +232,9 @@ These conventions are **enforced in CI**, not just documented: `EntityStructureC
 nullability rules) run over every `[TikEntity]` on every push. A new entity that breaks one fails the build
 rather than the first person to load that menu.
 
-The `entity-generator` skill (backed by `Tools/tik4net.entitygenerator`) scaffolds these from a
-live router.
+The `entity-generator` skill scaffolds these from a live router. It replaced two WinForms
+generators (`tik4net.entitygenerator`, `tik4net.entityWikiImporter`), deleted in 4.0 — the skill reads
+the router over every transport, not just the plain API, and applies the conventions above.
 
 ## Tests
 

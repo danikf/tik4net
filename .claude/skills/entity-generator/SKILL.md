@@ -5,9 +5,9 @@ description: >
   [TikEntity]/[TikProperty], correctly typed, R/O vs R/W resolved, documented (including WinBox-native
   GUI names), with Execute/connection-extension methods and a ToString override where appropriate. Use
   whenever the user wants to add/create/scaffold an entity for a `/some/api/path`, port a MikroTik menu
-  into tik4net.objects, or update an existing entity from the wiki or a live router. Reproduces the logic
-  of the old WinForms tools (tik4net.entitygenerator + tik4net.entityWikiImporter) as a guided, MCP-driven
-  workflow.
+  into tik4net.objects, or update an existing entity from the wiki or a live router. This is the
+  maintained replacement for the two WinForms generators deleted in 4.0 — it reads the router over every
+  transport, not just the plain API.
 ---
 
 # tik4net entity code generator
@@ -17,14 +17,13 @@ Goal: produce a finished, idiomatic entity class under `tik4net.objects/` for a 
 they did, but with better sources (live router via MCP **and** the wiki) and you finish the code (the old
 tools always produced a draft that a human had to clean up).
 
-The division of labour it inherits from those tools still holds: **the router is the source of truth for
+The division of labour those tools established still holds: **the router is the source of truth for
 what fields exist and their live values; the documentation is the source of truth for types, defaults,
 the read-only split and descriptions.** Use both and reconcile.
 
-Their exact heuristics are documented in their own READMEs —
-[`Tools/tik4net.entitygenerator/`](../../../Tools/tik4net.entitygenerator/README.md) (router/value
-inference) and [`Tools/tik4net.entityWikiImporter/`](../../../Tools/tik4net.entityWikiImporter/README.md)
-(wiki table parsing) — read those only if you need to reproduce a specific rule.
+The tools themselves are gone (deleted in 4.0, after this skill replaced them). Everything they knew that
+is still worth knowing is in this file; if you need to see how they did something, `git log` them under
+`Tools/tik4net.entitygenerator/` and `Tools/tik4net.entityWikiImporter/`.
 
 ## When to use / inputs
 
@@ -439,8 +438,6 @@ namespace tik4net.Objects.<Domain>
 
 - Conventions: wiki `High-level-API-custom-entities`, `High-level-API-tools`.
 - Attributes: `tik4net.objects/TikEntityAttribute.cs`, `TikPropertyAttribute.cs`, `TikEnumAttribute.cs`.
-- Legacy generators: `Tools/tik4net.entitygenerator/` (router/value heuristics),
-  `Tools/tik4net.entityWikiImporter/` (wiki HTML parsing).
 - Good entity exemplars: `Interface/InterfaceVlan.cs` (enums, R/O, defaults),
   `Ip/Firewall/FirewallFilter.cs` (ordered, big enum), `Tool/ToolPing.cs` (action entity + Execute +
   extension + ToString), `Log.cs` (read-only singleton-ish).
