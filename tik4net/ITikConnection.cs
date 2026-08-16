@@ -406,6 +406,10 @@ namespace tik4net
         /// <seealso cref="ITikDoneSentence"/>
         /// <seealso cref="ITikTrapSentence"/>
         /// <seealso cref="ITikCommand.ExecuteAsync"/>
+        [Obsolete("Hands back a Thread, which no caller can await, cancel or observe a failure on. Use "
+                + "ITikCommand.ExecuteAsync for the callback form, or the Task-based Execute*Async extension "
+                + "methods (TikConnectionCapability.AsyncCommands) to await a command. Scheduled for removal "
+                + "in 5.0.")]
         Thread CallCommandAsync(IEnumerable<string> commandRows, string tag, Action<ITikSentence> oneResponseCallback);
     }
 }

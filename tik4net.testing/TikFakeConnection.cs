@@ -376,6 +376,10 @@ namespace tik4net.Testing
         /// Async variant — runs the fake sentences on a background thread, calling
         /// <paramref name="oneResponseCallback"/> for each sentence until the thread is cancelled.
         /// </summary>
+        [Obsolete("Hands back a Thread, which no caller can await, cancel or observe a failure on. Use "
+                + "ITikCommand.ExecuteAsync for the callback form, or the Task-based Execute*Async extension "
+                + "methods (TikConnectionCapability.AsyncCommands) to await a command. Scheduled for removal "
+                + "in 5.0.")]
         public Thread CallCommandAsync(IEnumerable<string> commandRows, string tag, Action<ITikSentence> oneResponseCallback)
         {
             var rows = commandRows.ToArray();
