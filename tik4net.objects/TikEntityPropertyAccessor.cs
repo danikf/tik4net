@@ -89,6 +89,14 @@ namespace tik4net.Objects
         private readonly Action<object, object> _setter;
 
         /// <summary>
+        /// The wire-value ↔ member tables of <see cref="ValueType"/>, or null when the property is not an
+        /// enum. Held per accessor rather than looked up per conversion — the shared cache behind
+        /// <see cref="TikEnumMetadata.Get"/> is what makes it one table per enum type, this field is what
+        /// makes reaching it free.
+        /// </summary>
+        private readonly TikEnumMetadata _enumMetadata;
+
+        /// <summary>
         /// True when this accessor reads and writes the property through a compiled delegate rather than
         /// through <see cref="PropertyInfo"/>. False means the platform refused to bind one and the accessor
         /// fell back to reflection — correct, but ~an order of magnitude slower per field per row.
@@ -121,6 +129,9 @@ namespace tik4net.Objects
             PropertyType = propertyInfo.PropertyType;
             ValueType = Nullable.GetUnderlyingType(PropertyType) ?? PropertyType;
             IsNullable = ValueType != PropertyType;
+            // Before DefaultValue below, which formats the CLR default through ConvertToString.
+            if (ValueType.GetTypeInfo().IsEnum)
+                _enumMetadata = TikEnumMetadata.Get(ValueType);
 
             //From TikPropertyAttribute attribute
             var propertyAttribute = propertyInfo.GetCustomAttribute<TikPropertyAttribute>(true);
@@ -245,28 +256,16 @@ namespace tik4net.Objects
                     return string.Equals(strValue, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(strValue, "yes", StringComparison.OrdinalIgnoreCase);
                 else if (ValueType.GetTypeInfo().IsEnum)
                 {
-                    if (ValueType.GetCustomAttribute<FlagsAttribute>() != null && strValue.Contains(','))
+                    if (_enumMetadata.IsFlags && strValue.Contains(','))
                     {
                         long result = 0;
                         foreach (string part in strValue.Split(','))
-                        {
-                            string trimmed = part.Trim();
-                            string name = Enum.GetNames(ValueType).FirstOrDefault(en =>
-                                string.Equals(ValueType.GetRuntimeField(en).GetCustomAttribute<TikEnumAttribute>(false)?.Value,
-                                    trimmed, StringComparison.OrdinalIgnoreCase));
-                            if (name == null)
-                                throw new FormatException(string.Format("Unknown flags enum value '{0}' for type {1}.", trimmed, ValueType.Name));
-                            result |= Convert.ToInt64(Enum.Parse(ValueType, name, true));
-                        }
+                            result |= _enumMetadata.ParseNumeric(part.Trim());
                         return Enum.ToObject(ValueType, result);
                     }
                     else
                     {
-                        return Enum.GetNames(ValueType)
-                            .Where(en => string.Equals(ValueType.GetRuntimeField(en).GetCustomAttribute<TikEnumAttribute>(false)?.Value,
-                                strValue, StringComparison.OrdinalIgnoreCase))
-                            .Select(en => Enum.Parse(ValueType, en, true))
-                            .Single();
+                        return _enumMetadata.Parse(strValue);
                     }
                 }
                                    //else if (ValueType == typeof(Ipv4Address))
@@ -311,29 +310,10 @@ namespace tik4net.Objects
                 return ((bool)propValue) ? "yes" : "no"; //TODO add attribute definition for support true/false
             else if (ValueType.GetTypeInfo().IsEnum)
             {
-                if (ValueType.GetCustomAttribute<FlagsAttribute>() != null)
-                {
-                    long intValue = Convert.ToInt64(propValue);
-                    if (intValue == 0)
-                    {
-                        string zeroName = Enum.GetNames(ValueType)
-                            .FirstOrDefault(en => Convert.ToInt64(Enum.Parse(ValueType, en)) == 0);
-                        return zeroName != null
-                            ? ValueType.GetRuntimeField(zeroName).GetCustomAttribute<TikEnumAttribute>(false)?.Value ?? ""
-                            : "";
-                    }
-                    return string.Join(",", Enum.GetNames(ValueType)
-                        .Where(en => {
-                            long v = Convert.ToInt64(Enum.Parse(ValueType, en));
-                            return v != 0 && (intValue & v) == v;
-                        })
-                        .Select(en => ValueType.GetRuntimeField(en).GetCustomAttribute<TikEnumAttribute>(false)?.Value)
-                        .Where(v => v != null));
-                }
+                if (_enumMetadata.IsFlags)
+                    return _enumMetadata.FormatFlags(propValue);
                 else
-                {
-                    return ValueType.GetRuntimeField(propValue.ToString()).GetCustomAttribute<TikEnumAttribute>(false).Value;
-                }
+                    return _enumMetadata.Format(propValue);
             }
             //else if (ValueType == typeof(Ipv4Address))
             //    return ((Ipv4Address)propValue).Address;

@@ -29,6 +29,7 @@ namespace tik4net.Benchmarks
 
         private TikFakeConnection _connection;
         private List<FirewallFilter> _entities;
+        private List<Dictionary<string, string>> _rows;
         private TikEntityMetadata _metadata;
 
         /// <summary>
@@ -66,10 +67,12 @@ namespace tik4net.Benchmarks
                 .ToDictionary(p => p.FieldName, p => p.Value);
 
             var sentences = new List<ITikSentence>(RowCount + 1);
+            _rows = new List<Dictionary<string, string>>(RowCount);
             for (int i = 0; i < RowCount; i++)
             {
                 var row = new Dictionary<string, string>(words);
                 row[TikSpecialProperties.Id] = "*" + i.ToString("X");
+                _rows.Add(row);
                 sentences.Add(new TikFakeReSentence(row));
             }
             sentences.Add(new TikFakeDoneSentence());
@@ -85,6 +88,37 @@ namespace tik4net.Benchmarks
         [Benchmark(Description = "LoadAll<FirewallFilter> — 1000 rows")]
         public int LoadAll_1000Rows()
             => _connection.LoadAll<FirewallFilter>().Count();
+
+        /// <summary>
+        /// The same 1000 rows written into entities with the surrounding machinery removed — no command, no
+        /// sentence iteration, no list.
+        /// <para>
+        /// It mirrors <c>CreateObject</c> exactly, including converting a property the row does NOT carry
+        /// from its <c>DefaultValue</c>: skipping those would make this a subset of a load rather than its
+        /// mapper half, and on an entity with enum defaults that difference is most of the cost being
+        /// measured. Because it mirrors it, <see cref="LoadAll_1000Rows"/> minus this one is the part of a
+        /// load that is NOT the mapper — unchanged by any work in this track, and therefore usable as a
+        /// control when comparing two builds on a machine whose speed drifts between runs.
+        /// </para>
+        /// </summary>
+        [Benchmark(Description = "SetEntityValue — 1000 rows × all properties")]
+        public int Materialize_1000Rows()
+        {
+            int count = 0;
+            foreach (var row in _rows)
+            {
+                var entity = new FirewallFilter();
+                foreach (var property in _metadata.Properties)
+                {
+                    string value;
+                    if (!row.TryGetValue(property.FieldName, out value))
+                        value = property.DefaultValue;
+                    property.SetEntityValue(entity, value);
+                }
+                count++;
+            }
+            return count;
+        }
 
         /// <summary>
         /// Write path: every mapped property of 1000 entities read back out, which is what <c>Save</c>,
