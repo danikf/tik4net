@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
@@ -54,8 +55,36 @@ namespace tik4net.unittests.Objects
             public string UnsetOnDefault { get; set; }
         }
 
+        /// <summary>
+        /// The same shapes made nullable — what B4 adds. A nullable property has a state no non-nullable one
+        /// has: "the caller said nothing", which is distinct from every value it can hold.
+        /// </summary>
+        [TikEntity("/test/nullable-entity")]
+        internal class NullableEntity
+        {
+            [TikProperty(".id", IsReadOnly = true)]
+            public string Id { get; private set; }
+
+            /// <summary>A field the router turns on unless told otherwise — the A10 shape.</summary>
+            [TikProperty("defaults-on", DefaultValue = "yes")]
+            public bool? DefaultsOn { get; set; }
+
+            [TikProperty("no-declared-default")]
+            public bool? NoDeclaredDefault { get; set; }
+
+            [TikProperty("optional-port", DefaultValue = "8291")]
+            public int? OptionalPort { get; set; }
+
+            [TikProperty("optional-unset", UnsetOnDefault = true, DefaultValue = "yes")]
+            public bool? OptionalUnset { get; set; }
+        }
+
         private static TikEntityPropertyAccessor Accessor(string propertyName)
             => TikEntityMetadataCache.GetMetadata<SampleEntity>()
+                .Properties.Single(p => p.PropertyName == propertyName);
+
+        private static TikEntityPropertyAccessor NullableAccessor(string propertyName)
+            => TikEntityMetadataCache.GetMetadata<NullableEntity>()
                 .Properties.Single(p => p.PropertyName == propertyName);
 
         // ── What DefaultValue is, when nobody declared one ──────────────────────
@@ -143,6 +172,165 @@ namespace tik4net.unittests.Objects
                 Assert.AreEqual(property.HasDefaultValue(untouched), property.HasDefaultValue(assigned),
                     property.PropertyName + " must answer the same either way — there is no notion of "
                     + "'assigned' today, which is what B4 introduces");
+        }
+
+        // ── What a nullable property adds (B4) ──────────────────────────────────
+
+        [TestMethod]
+        public void ANullablePropertyWithNoDeclaredDefaultHasNoDefaultAtAll()
+        {
+            // Not "no", which is what the CLR default of the underlying type would give — that would put the
+            // conflation straight back.
+            Assert.IsNull(NullableAccessor("NoDeclaredDefault").DefaultValue);
+        }
+
+        [TestMethod]
+        public void AnUnassignedNullablePropertyReadsBackAsNullRatherThanAsItsDefault()
+        {
+            var fresh = new NullableEntity();
+
+            Assert.IsNull(NullableAccessor("DefaultsOn").GetEntityValue(fresh));
+            Assert.IsNull(NullableAccessor("OptionalPort").GetEntityValue(fresh));
+            Assert.IsTrue(NullableAccessor("DefaultsOn").HasDefaultValue(fresh),
+                "nothing to say still counts as 'no need to send it'");
+        }
+
+        [TestMethod]
+        public void AnAssignedNullablePropertySerializesLikeItsUnderlyingType()
+        {
+            var entity = new NullableEntity { DefaultsOn = false, OptionalPort = 8291 };
+
+            Assert.AreEqual("no", NullableAccessor("DefaultsOn").GetEntityValue(entity));
+            Assert.AreEqual("8291", NullableAccessor("OptionalPort").GetEntityValue(entity));
+
+            entity.DefaultsOn = true;
+            Assert.AreEqual("yes", NullableAccessor("DefaultsOn").GetEntityValue(entity));
+        }
+
+        [TestMethod]
+        public void ANullablePropertyTellsAnExplicitFalseApartFromSilence()
+        {
+            // A10, resolved. On a non-nullable bool these two are the same state (asserted above), which is
+            // why no DefaultValue could ever be right for it.
+            var untouched = new NullableEntity();
+            var explicitlyOff = new NullableEntity { DefaultsOn = false };
+            var explicitlyOn = new NullableEntity { DefaultsOn = true };
+
+            var accessor = NullableAccessor("DefaultsOn");
+
+            Assert.IsTrue(accessor.HasDefaultValue(untouched), "silence: leave it out, let the router choose");
+            Assert.IsFalse(accessor.HasDefaultValue(explicitlyOff), "an explicit false must reach the router");
+            Assert.IsTrue(accessor.HasDefaultValue(explicitlyOn),
+                "asking for what the router would do anyway need not be sent");
+        }
+
+        [TestMethod]
+        public void DeserializingANullablePropertyKeepsAnAbsentFieldAbsent()
+        {
+            var entity = new NullableEntity();
+            var accessor = NullableAccessor("DefaultsOn");
+
+            accessor.SetEntityValue(entity, null);
+            Assert.IsNull(entity.DefaultsOn, "the router did not report the field");
+
+            accessor.SetEntityValue(entity, "yes");
+            Assert.AreEqual(true, entity.DefaultsOn);
+
+            accessor.SetEntityValue(entity, "no");
+            Assert.AreEqual(false, entity.DefaultsOn);
+        }
+
+        // ── …and what that means on the wire ────────────────────────────────────
+
+        [TestMethod]
+        public void ACreateLeavesOutAnUnassignedNullableAndSendsAnExplicitOne()
+        {
+            var conn = new tik4net.Testing.TikFakeConnection()
+                .WithScalarResponse(rows => rows.First() == "/test/nullable-entity/add", "*1");
+
+            conn.Save(new NullableEntity { DefaultsOn = false });
+
+            string sent = string.Join(" ", conn.SentCommands.Single());
+            StringAssert.Contains(sent, "=defaults-on=no", "an explicitly assigned false has to reach the router");
+            Assert.IsFalse(sent.Contains("no-declared-default"), "an unassigned nullable is not mentioned at all");
+            Assert.IsFalse(sent.Contains("optional-port"), "nor is an unassigned int?");
+        }
+
+        [TestMethod]
+        public void AnUpdateSaysNothingAboutAFieldTheCallerSaidNothingAbout()
+        {
+            // The destructive alternative would be to read null as "unset it" — deleting whatever the router
+            // holds on the strength of silence, including for every field a partial load never populated.
+            var conn = new tik4net.Testing.TikFakeConnection()
+                .WithNonQuery(rows => rows.First() == "/test/nullable-entity/set")
+                .WithNonQuery(rows => rows.First() == "/test/nullable-entity/unset");
+
+            var entity = new NullableEntity { DefaultsOn = true };
+            typeof(NullableEntity).GetProperty("Id").SetValue(entity, "*1");
+
+            conn.Save(entity, usedFieldsFilter: new[] { "defaults-on", "no-declared-default", "optional-port" });
+
+            string sent = string.Join(" | ", conn.SentCommands.Select(rows => string.Join(" ", rows)));
+            StringAssert.Contains(sent, "=defaults-on=yes");
+            Assert.IsFalse(sent.Contains("no-declared-default"), "silence is not an instruction");
+            Assert.IsFalse(sent.Contains("unset"), "and it is certainly not an unset");
+        }
+
+        [TestMethod]
+        public void ClearingALoadedFieldToNullUnsetsItOnTheRouter()
+        {
+            // The other half of null's meaning, and the reason the snapshot is consulted: a field that was
+            // loaded WITH a value and is now null was cleared by the caller, and clearing is an instruction.
+            var conn = new tik4net.Testing.TikFakeConnection()
+                .WithResponse(rows => rows.First() == "/test/nullable-entity/print",
+                    new ITikSentence[]
+                    {
+                        new tik4net.Testing.TikFakeReSentence(new Dictionary<string, string>
+                        {
+                            { ".id", "*1" }, { "defaults-on", "no" }, { "optional-port", "8291" },
+                        }),
+                        new tik4net.Testing.TikFakeDoneSentence(),
+                    })
+                .WithNonQuery(rows => rows.First() == "/test/nullable-entity/set")
+                .WithNonQuery(rows => rows.First() == "/test/nullable-entity/unset");
+
+            var loaded = conn.LoadAll<NullableEntity>().Single();
+            Assert.AreEqual(false, loaded.DefaultsOn, "precondition: it came back with a value");
+
+            loaded.DefaultsOn = null;
+            conn.Save(loaded);
+
+            string sent = string.Join(" | ", conn.SentCommands.Select(rows => string.Join(" ", rows)));
+            StringAssert.Contains(sent, "/test/nullable-entity/unset");
+            StringAssert.Contains(sent, "=value-name=defaults-on");
+            Assert.IsFalse(sent.Contains("=defaults-on="), "cleared, so it must not also be set");
+        }
+
+        [TestMethod]
+        public void AFieldThatWasNullWhenLoadedAndIsStillNullIsNotUnset()
+        {
+            // A partial load leaves fields null that the router never reported. Re-saving must not read that
+            // as an instruction to clear them.
+            var conn = new tik4net.Testing.TikFakeConnection()
+                .WithResponse(rows => rows.First() == "/test/nullable-entity/print",
+                    new ITikSentence[]
+                    {
+                        new tik4net.Testing.TikFakeReSentence(new Dictionary<string, string>
+                        {
+                            { ".id", "*1" }, { "defaults-on", "no" },
+                        }),
+                        new tik4net.Testing.TikFakeDoneSentence(),
+                    })
+                .WithNonQuery(rows => rows.First() == "/test/nullable-entity/set")
+                .WithNonQuery(rows => rows.First() == "/test/nullable-entity/unset");
+
+            var loaded = conn.LoadAll<NullableEntity>().Single();
+            loaded.DefaultsOn = true;   // one real change, so the save is not skipped outright
+            conn.Save(loaded);
+
+            string sent = string.Join(" | ", conn.SentCommands.Select(rows => string.Join(" ", rows)));
+            Assert.IsFalse(sent.Contains("optional-port"),
+                "the router never reported it, so nothing is known about it — and nothing is said about it");
         }
 
         // ── Round trip ──────────────────────────────────────────────────────────

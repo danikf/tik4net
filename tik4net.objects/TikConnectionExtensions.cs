@@ -494,6 +494,42 @@ namespace tik4net.Objects
 
         internal static void EnsureNotReadonly(TikEntityMetadata metadata) => EnsureNotReadonlyEntity(metadata);
 
+        /// <summary>
+        /// The nullable fields this entity was <b>loaded with a value</b> and now holds <c>null</c> for —
+        /// i.e. the caller cleared them, and an update should <c>/unset</c> them on the router.
+        /// </summary>
+        /// <remarks>
+        /// The snapshot is what makes this answerable, and it is the only thing that does. Null on its own is
+        /// ambiguous: on an entity that was never loaded it means "nothing was said", and treating that as a
+        /// clearing would delete router state on the strength of silence — including every field a partial
+        /// <c>.proplist</c> load never populated. Against a snapshot the two separate cleanly, so a clearing
+        /// is recognised only where there is evidence of something to clear. An untracked entity yields
+        /// nothing here, which leaves those fields skipped as before.
+        /// </remarks>
+        internal static ISet<string> ResolveClearedFields<TEntity>(ITikConnection connection, TEntity entity,
+            TikEntityMetadata metadata)
+        {
+            var cleared = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            var snapshot = TikChangeTracker.For(connection).GetSnapshot(entity);
+            if (snapshot == null)
+                return cleared;
+
+            foreach (var property in metadata.Properties)
+            {
+                if (property.IsReadOnly || !property.IsNullable)
+                    continue;
+                if (property.GetEntityValue(entity) != null)
+                    continue;
+                if (!snapshot.IsTracked(property.FieldName))
+                    continue;   // never loaded, so nothing is known to have been cleared
+                if (snapshot.TryGetValue(property.FieldName, out string previous) && previous != null)
+                    cleared.Add(property.FieldName);
+            }
+
+            return cleared;
+        }
+
         internal static string ResolveSaveId<TEntity>(TEntity entity, TikEntityMetadata metadata)
         {
             if (metadata.IsSingleton)
@@ -522,7 +558,12 @@ namespace tik4net.Objects
                 // (e.g. an enum whose mandatory selection is also its zero/default member).
                 if (!property.HasDefaultValue(entity) || property.IsMandatory)
                 {
-                    createCmd.AddParameter(property.FieldName, property.GetEntityValue(entity));
+                    string value = property.GetEntityValue(entity);
+                    // A mandatory field the caller left null is the one case where the two conditions
+                    // disagree: there is nothing to send, and sending the word without a value would be
+                    // worse than letting the router say what it requires.
+                    if (value != null)
+                        createCmd.AddParameter(property.FieldName, value);
                 }
             }
 
@@ -583,6 +624,7 @@ namespace tik4net.Objects
         {
             ITikCommand setCmd = connection.CreateCommand(metadata.EntityPath + "/set", TikCommandParameterFormat.NameValue);
             List<string> fieldsToUnset = new List<string>();
+            var clearedFields = ResolveClearedFields(connection, entity, metadata);
 
             foreach (var property in metadata.Properties
                 .Where(pm => !pm.IsReadOnly)
@@ -590,8 +632,17 @@ namespace tik4net.Objects
             {
                 if (property.HasDefaultValue(entity) && property.UnsetOnDefault)
                     fieldsToUnset.Add(property.FieldName);
+                else if (clearedFields.Contains(property.FieldName))
+                    fieldsToUnset.Add(property.FieldName);   // loaded with a value, set to null → unset
                 else
-                    setCmd.AddParameter(property.FieldName, property.GetEntityValue(entity)); //full update (all values)
+                {
+                    string value = property.GetEntityValue(entity);
+                    // Null that is NOT a clearing: the caller never said anything about this field (only a
+                    // nullable property can say that). Sending it would put the word on the wire with no
+                    // value, and unsetting it would destroy what the router holds on the strength of silence.
+                    if (value != null)
+                        setCmd.AddParameter(property.FieldName, value); //full update (all values)
+                }
             }
 
             // this should also work (see http://forum.mikrotik.com/viewtopic.php?t=28821 )

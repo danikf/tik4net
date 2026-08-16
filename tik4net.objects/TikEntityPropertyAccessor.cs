@@ -27,6 +27,23 @@ namespace tik4net.Objects
         public Type PropertyType { get; private set; }
 
         /// <summary>
+        /// The type actually converted to and from the wire: <see cref="PropertyType"/>, or the type inside it
+        /// when the property is a <see cref="Nullable{T}"/>.
+        /// </summary>
+        public Type ValueType { get; private set; }
+
+        /// <summary>
+        /// True when the property can hold <c>null</c> as a value distinct from any of its values — i.e. it is
+        /// a <see cref="Nullable{T}"/>.
+        /// </summary>
+        /// <remarks>
+        /// This is the difference that lets the mapper tell "the caller said nothing about this field" from
+        /// "the caller asked for the value that happens to be the default". On a non-nullable property the two
+        /// are the same state, so one of them is always misread — see <c>MapperValueSemanticsTests</c>.
+        /// </remarks>
+        public bool IsNullable { get; private set; }
+
+        /// <summary>
         /// Name of the field in mikrotik router.
         /// </summary>
         /// <seealso cref="TikPropertyAttribute.FieldName"/>
@@ -82,6 +99,8 @@ namespace tik4net.Objects
             //From property code
             PropertyName = propertyInfo.Name;
             PropertyType = propertyInfo.PropertyType;
+            ValueType = Nullable.GetUnderlyingType(PropertyType) ?? PropertyType;
+            IsNullable = ValueType != PropertyType;
 
             //From TikPropertyAttribute attribute
             var propertyAttribute = propertyInfo.GetCustomAttribute<TikPropertyAttribute>(true);
@@ -94,13 +113,15 @@ namespace tik4net.Objects
             IsMandatory = propertyAttribute.IsMandatory;
             if (propertyAttribute.DefaultValue != null)
                 DefaultValue = propertyAttribute.DefaultValue;
+            else if (IsNullable)
+                // A nullable property that declares no default HAS no default: its unset state is null, and
+                // null is already "do not send". Computing one from the underlying type (which would give a
+                // bool? the value "no") would put back exactly the conflation nullability removes.
+                DefaultValue = null;
+            else if (PropertyType.GetTypeInfo().IsValueType)
+                DefaultValue = ConvertToString(Activator.CreateInstance(PropertyType)); //default value of value type. for example: (default)int
             else
-            {
-                if (PropertyType.GetTypeInfo().IsValueType)
-                    DefaultValue = ConvertToString(Activator.CreateInstance(PropertyType)); //default value of value type. for example: (default)int
-                else
-                    DefaultValue = "";
-            }
+                DefaultValue = "";
             UnsetOnDefault = propertyAttribute.UnsetOnDefault;
             IsFreeText = propertyAttribute.IsFreeText;
         }
@@ -118,53 +139,59 @@ namespace tik4net.Objects
         {
             try
             {
-                //convert to property real type            
-                if (PropertyType == typeof(string))
+                // A nullable property is the only one that can carry "the router did not report this field"
+                // as itself. Everything else has to fall through and be parsed, including the empty string —
+                // a valueless presence flag reads back as false, and that is existing behaviour, not this.
+                if (IsNullable && strValue == null)
+                    return null;
+
+                //convert to property real type
+                if (ValueType == typeof(string))
                     return strValue;
-                else if (PropertyType == typeof(TimeSpan))
+                else if (ValueType == typeof(TimeSpan))
                     return TikTimeHelper.FromTikTimeToTimeSpan(strValue);
-                else if (PropertyType == typeof(int))
+                else if (ValueType == typeof(int))
                     return int.Parse(strValue);
-                else if (PropertyType == typeof(long))
+                else if (ValueType == typeof(long))
                     return long.Parse(strValue);
-                else if (PropertyType == typeof(byte))
+                else if (ValueType == typeof(byte))
                     return byte.Parse(strValue);
-                else if (PropertyType == typeof(bool))
+                else if (ValueType == typeof(bool))
                     return string.Equals(strValue, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(strValue, "yes", StringComparison.OrdinalIgnoreCase);
-                else if (PropertyType.GetTypeInfo().IsEnum)
+                else if (ValueType.GetTypeInfo().IsEnum)
                 {
-                    if (PropertyType.GetCustomAttribute<FlagsAttribute>() != null && strValue.Contains(','))
+                    if (ValueType.GetCustomAttribute<FlagsAttribute>() != null && strValue.Contains(','))
                     {
                         long result = 0;
                         foreach (string part in strValue.Split(','))
                         {
                             string trimmed = part.Trim();
-                            string name = Enum.GetNames(PropertyType).FirstOrDefault(en =>
-                                string.Equals(PropertyType.GetRuntimeField(en).GetCustomAttribute<TikEnumAttribute>(false)?.Value,
+                            string name = Enum.GetNames(ValueType).FirstOrDefault(en =>
+                                string.Equals(ValueType.GetRuntimeField(en).GetCustomAttribute<TikEnumAttribute>(false)?.Value,
                                     trimmed, StringComparison.OrdinalIgnoreCase));
                             if (name == null)
-                                throw new FormatException(string.Format("Unknown flags enum value '{0}' for type {1}.", trimmed, PropertyType.Name));
-                            result |= Convert.ToInt64(Enum.Parse(PropertyType, name, true));
+                                throw new FormatException(string.Format("Unknown flags enum value '{0}' for type {1}.", trimmed, ValueType.Name));
+                            result |= Convert.ToInt64(Enum.Parse(ValueType, name, true));
                         }
-                        return Enum.ToObject(PropertyType, result);
+                        return Enum.ToObject(ValueType, result);
                     }
                     else
                     {
-                        return Enum.GetNames(PropertyType)
-                            .Where(en => string.Equals(PropertyType.GetRuntimeField(en).GetCustomAttribute<TikEnumAttribute>(false)?.Value,
+                        return Enum.GetNames(ValueType)
+                            .Where(en => string.Equals(ValueType.GetRuntimeField(en).GetCustomAttribute<TikEnumAttribute>(false)?.Value,
                                 strValue, StringComparison.OrdinalIgnoreCase))
-                            .Select(en => Enum.Parse(PropertyType, en, true))
+                            .Select(en => Enum.Parse(ValueType, en, true))
                             .Single();
                     }
                 }
-                                   //else if (PropertyType == typeof(Ipv4Address))
+                                   //else if (ValueType == typeof(Ipv4Address))
                                    //    return new Ipv4Address(strValue);
-                                   //else if (PropertyType == typeof(Ipv4AddressWithSubnet))
+                                   //else if (ValueType == typeof(Ipv4AddressWithSubnet))
                                    //    return new Ipv4AddressWithSubnet(strValue);
-                                   //else if (PropertyType == typeof(MacAddress))
+                                   //else if (ValueType == typeof(MacAddress))
                                    //    return new MacAddress(strValue);
                 else
-                    throw new NotImplementedException(string.Format("Property type {0} not supported.", PropertyType));
+                    throw new NotImplementedException(string.Format("Property type {0} not supported.", ValueType));
             }
             catch(NotImplementedException)
             {
@@ -172,60 +199,65 @@ namespace tik4net.Objects
             }
             catch(Exception ex)
             {
-                throw new FormatException(string.Format("Value '{0}' for property '{1}({2})' is not in expected format '{3}'.", strValue, PropertyName, FieldName, PropertyType), ex);
+                throw new FormatException(string.Format("Value '{0}' for property '{1}({2})' is not in expected format '{3}'.", strValue, PropertyName, FieldName, ValueType), ex);
             }
         }
 
         private string ConvertToString(object propValue)
         {
+            // Null reaches here only from a nullable property that was never assigned. It has no wire form —
+            // the point is that nothing is sent — so it stays null all the way out to the caller.
+            if (propValue == null)
+                return null;
+
             if (propValue is string)
                 return (string)propValue;
 
             //convert to string used in mikrotik            
-            if (PropertyType == typeof(string))
+            if (ValueType == typeof(string))
                 return propValue.ToString();
-            else if (PropertyType == typeof(TimeSpan))
+            else if (ValueType == typeof(TimeSpan))
                 return TikTimeHelper.ToTikTime((int)((TimeSpan)propValue).TotalSeconds);
-            else if (PropertyType == typeof(int))
+            else if (ValueType == typeof(int))
                 return ((int)propValue).ToString();
-            else if (PropertyType == typeof(long))
+            else if (ValueType == typeof(long))
                 return ((long)propValue).ToString();
-            else if (PropertyType == typeof(bool))
+            else if (ValueType == typeof(bool))
                 return ((bool)propValue) ? "yes" : "no"; //TODO add attribute definition for support true/false
-            else if (PropertyType.GetTypeInfo().IsEnum)
+            else if (ValueType.GetTypeInfo().IsEnum)
             {
-                if (PropertyType.GetCustomAttribute<FlagsAttribute>() != null)
+                if (ValueType.GetCustomAttribute<FlagsAttribute>() != null)
                 {
                     long intValue = Convert.ToInt64(propValue);
                     if (intValue == 0)
                     {
-                        string zeroName = Enum.GetNames(PropertyType)
-                            .FirstOrDefault(en => Convert.ToInt64(Enum.Parse(PropertyType, en)) == 0);
+                        string zeroName = Enum.GetNames(ValueType)
+                            .FirstOrDefault(en => Convert.ToInt64(Enum.Parse(ValueType, en)) == 0);
                         return zeroName != null
-                            ? PropertyType.GetRuntimeField(zeroName).GetCustomAttribute<TikEnumAttribute>(false)?.Value ?? ""
+                            ? ValueType.GetRuntimeField(zeroName).GetCustomAttribute<TikEnumAttribute>(false)?.Value ?? ""
                             : "";
                     }
-                    return string.Join(",", Enum.GetNames(PropertyType)
+                    return string.Join(",", Enum.GetNames(ValueType)
                         .Where(en => {
-                            long v = Convert.ToInt64(Enum.Parse(PropertyType, en));
+                            long v = Convert.ToInt64(Enum.Parse(ValueType, en));
                             return v != 0 && (intValue & v) == v;
                         })
-                        .Select(en => PropertyType.GetRuntimeField(en).GetCustomAttribute<TikEnumAttribute>(false)?.Value)
+                        .Select(en => ValueType.GetRuntimeField(en).GetCustomAttribute<TikEnumAttribute>(false)?.Value)
                         .Where(v => v != null));
                 }
                 else
                 {
-                    return PropertyType.GetRuntimeField(propValue.ToString()).GetCustomAttribute<TikEnumAttribute>(false).Value;
+                    return ValueType.GetRuntimeField(propValue.ToString()).GetCustomAttribute<TikEnumAttribute>(false).Value;
                 }
             }
-            //else if (PropertyType == typeof(Ipv4Address))
+            //else if (ValueType == typeof(Ipv4Address))
             //    return ((Ipv4Address)propValue).Address;
-            //else if (PropertyType == typeof(Ipv4AddressWithSubnet))
+            //else if (ValueType == typeof(Ipv4AddressWithSubnet))
             //    return ((Ipv4AddressWithSubnet)propValue).Address;
-            //else if (PropertyType == typeof(MacAddress))
+            //else if (ValueType == typeof(MacAddress))
             //    return ((MacAddress)propValue).Address;
             else
-                throw new NotImplementedException(string.Format("Property type {0} not supported.", PropertyType));
+                throw new NotImplementedException(string.Format("Property type {0} not supported.", ValueType));
         }
 
         /// <summary>
@@ -258,8 +290,14 @@ namespace tik4net.Objects
         public string GetEntityValue(object entity)
         {
             object propValue = PropertyInfo.GetValue(entity);
-            if (propValue == null)
-                propValue = DefaultValue;   
+
+            // A null NULLABLE property means "nothing was said about this field", and that has to survive to
+            // the caller as null so the save path can leave the field out. A null reference property keeps the
+            // old substitution: a string has no unset state to distinguish, and turning its null into null
+            // here would change what every existing entity sends.
+            if (propValue == null && !IsNullable)
+                propValue = DefaultValue;
+
             return ConvertToString(propValue);
         }
     }
