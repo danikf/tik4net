@@ -33,7 +33,7 @@ namespace tik4net.Objects.Wireguard
         /// disabled: Whether peer will be used.
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// Specifies the local network interface that the peer is associated with

@@ -37,7 +37,7 @@ namespace tik4net.Objects.Interface.Wireless
         ///  yes - Use authentication procedure that is specified in the  security-profile of the interface.
         /// </summary>
         [TikProperty("authentication", DefaultValue = "yes")]
-        public bool Authentication { get; set; }
+        public bool? Authentication { get; set; }
 
         /// <summary>
         /// client-tx-limit
@@ -59,7 +59,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// disabled: 
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// forwarding
@@ -68,7 +68,7 @@ namespace tik4net.Objects.Interface.Wireless
         ///  yes - Client can send frames to other stations on the same access point.
         /// </summary>
         [TikProperty("forwarding", DefaultValue = "yes")]
-        public bool Forwarding { get; set; }
+        public bool? Forwarding { get; set; }
 
         /// <summary>
         /// interface: Rules with interface=all are used for all wireless interfaces. To make rule that applies only to one wireless interface, specify that interface as a value of this property.

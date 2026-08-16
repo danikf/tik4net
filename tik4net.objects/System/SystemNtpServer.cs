@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,19 +18,19 @@ namespace tik4net.Objects.System
     {
         /// <summary>enabled — activates the NTP server. Default: no.</summary>
         [TikProperty("enabled", DefaultValue = "no")]
-        public bool Enabled { get; set; }
+        public bool? Enabled { get; set; }
 
         /// <summary>broadcast — when yes, the NTP server sends broadcast NTP packets on all interfaces. Default: no.</summary>
         [TikProperty("broadcast", DefaultValue = "no")]
-        public bool Broadcast { get; set; }
+        public bool? Broadcast { get; set; }
 
         /// <summary>multicast — when yes, the NTP server joins the NTP multicast group and serves multicast clients. Default: no.</summary>
         [TikProperty("multicast", DefaultValue = "no")]
-        public bool Multicast { get; set; }
+        public bool? Multicast { get; set; }
 
         /// <summary>manycast — when yes, the NTP server responds to manycast client requests. Default: no.</summary>
         [TikProperty("manycast", DefaultValue = "no")]
-        public bool Manycast { get; set; }
+        public bool? Manycast { get; set; }
 
         /// <summary>broadcast-addresses — comma-separated list of broadcast addresses used when broadcast=yes. Empty uses the interface broadcast address.</summary>
         [TikProperty("broadcast-addresses", DefaultValue = "")]
@@ -42,7 +42,7 @@ namespace tik4net.Objects.System
 
         /// <summary>use-local-clock — when yes, the router uses its own RTC as the NTP reference even without an upstream sync. Default: no.</summary>
         [TikProperty("use-local-clock", DefaultValue = "no")]
-        public bool UseLocalClock { get; set; }
+        public bool? UseLocalClock { get; set; }
 
         /// <summary>local-clock-stratum — NTP stratum value advertised when use-local-clock=yes. Real default: 5; 0 is CLR sentinel (omitted on add).</summary>
         // Range 0–15; DefaultValue="0" so CLR default 0 is omitted on add (router applies 5).

@@ -63,7 +63,7 @@ namespace tik4net.Objects.Ip
         /// Row disabled property.
         /// </summary>
         [TikProperty("disabled")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// Row dynamic property.

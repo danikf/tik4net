@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -81,7 +81,7 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// Default: false
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>Returns a human-readable description of this export target.</summary>
         public override string ToString() => string.Format("{0}:{1} (v{2})", DstAddress, Port, Version);

@@ -1,4 +1,4 @@
-namespace tik4net.Objects.Routing.Ospf
+﻿namespace tik4net.Objects.Routing.Ospf
 {
     /// <summary>
     /// /routing/ospf/area
@@ -73,7 +73,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// Default: false
         /// </summary>
         [TikProperty("no-summaries", DefaultValue = "no")]
-        public bool NoSummaries { get; set; }
+        public bool? NoSummaries { get; set; }
 
         /// <summary>
         /// default-cost — cost of the default route injected by the ABR into a stub or NSSA area.
@@ -97,7 +97,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// Default: false
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>comment — optional free-text annotation.</summary>
         [TikProperty("comment")]

@@ -1,4 +1,4 @@
-namespace tik4net.Objects.Routing
+﻿namespace tik4net.Objects.Routing
 {
     /// <summary>
     /// /routing/table
@@ -33,14 +33,14 @@ namespace tik4net.Objects.Routing
         /// read-back does not reflect the true state via this property.
         /// </summary>
         [TikProperty("fib", DefaultValue = "no")]
-        public bool Fib { get; set; }
+        public bool? Fib { get; set; }
 
         /// <summary>
         /// disabled — when true the routing table is administratively disabled.
         /// Default: false
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>comment — optional free-text annotation.</summary>
         [TikProperty("comment")]

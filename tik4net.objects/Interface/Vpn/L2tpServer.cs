@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -104,7 +104,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("allow-fast-path", DefaultValue = "no")]
-        public bool AllowFastPath { get; set; }
+        public bool? AllowFastPath { get; set; }
 
         /// <summary>
         /// authentication — comma-separated list of authentication protocols the server accepts.
@@ -134,7 +134,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("enabled", DefaultValue = "no")]
-        public bool Enabled { get; set; }
+        public bool? Enabled { get; set; }
 
         /// <summary>
         /// ipsec-secret — pre-shared key used for IPSec encryption when <see cref="UseIpsec"/> is enabled.
@@ -216,7 +216,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("one-session-per-host", DefaultValue = "no")]
-        public bool OneSessionPerHost { get; set; }
+        public bool? OneSessionPerHost { get; set; }
 
         /// <summary>
         /// use-ipsec — controls IPSec encapsulation for L2TP tunnels.

@@ -39,7 +39,7 @@ namespace tik4net.Objects.Interface.Ethernet
         /// full-duplex: Whether transmission of data occurs in two directions simultaneously
         /// </summary>
         [TikProperty("full-duplex")]
-        public bool FullDuplex { get; set; }
+        public bool? FullDuplex { get; set; }
 
         /// <summary>
         /// rate: Actual data rate of the connection.
@@ -73,19 +73,19 @@ namespace tik4net.Objects.Interface.Ethernet
         /// sfp-module-present: Whether SFP module is in cage
         /// </summary>
         [TikProperty("sfp-module-present")]
-        public bool SfpModulePresent { get; set; }
+        public bool? SfpModulePresent { get; set; }
 
         /// <summary>
         /// sfp-rx-lose: 
         /// </summary>
         [TikProperty("sfp-rx-lose")]
-        public bool SfpRxLose { get; set; }
+        public bool? SfpRxLose { get; set; }
 
         /// <summary>
         /// sfp-tx-fault: 
         /// </summary>
         [TikProperty("sfp-tx-fault")]
-        public bool SfpTxFault { get; set; }
+        public bool? SfpTxFault { get; set; }
 
         /// <summary>
         /// sfp-connector-type: 

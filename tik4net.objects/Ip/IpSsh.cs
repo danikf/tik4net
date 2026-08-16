@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,7 +15,7 @@ namespace tik4net.Objects.Ip
     {
         /// <summary>strong-crypto — enables stronger encryption algorithms and larger DH prime groups.</summary>
         [TikProperty("strong-crypto", DefaultValue = "no")]
-        public bool StrongCrypto { get; set; }
+        public bool? StrongCrypto { get; set; }
 
         /// <summary>ciphers — SSH cipher suite selection. Default: auto (lets RouterOS pick the best available).
         /// <seealso cref="SshCiphers"/></summary>

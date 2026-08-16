@@ -36,7 +36,7 @@ namespace tik4net.Objects.Interface
         ///  Note2: Gigabit link cannot work with auto-negotiation disabled.
         /// </summary>
         [TikProperty("auto-negotiation", DefaultValue = "yes")]
-        public bool AutoNegotiation { get; set; }
+        public bool? AutoNegotiation { get; set; }
 
         /// <summary>
         /// bandwidth: Sets max rx/tx bandwidth in kbps that will be handled by an interface. TX limit is supported on all Atheros  switch-chip ports. RX limit is supported only on AR8327 switch-chip ports.
@@ -60,7 +60,7 @@ namespace tik4net.Objects.Interface
         /// disable-running-check: Disable running check. If this value is set to 'no', the router automatically detects whether the NIC is connected with a device in the network or not. Default value is 'yes' because older NICs do not support it. (only applicable to x86)
         /// </summary>
         [TikProperty("disable-running-check", DefaultValue = "yes")]
-        public bool DisableRunningCheck { get; set; }
+        public bool? DisableRunningCheck { get; set; }
 
         /// <summary>
         /// Options for Yes-No properties.
@@ -103,7 +103,7 @@ namespace tik4net.Objects.Interface
         /// full-duplex: Defines whether the transmission of data appears in two directions simultaneously
         /// </summary>
         [TikProperty("full-duplex", DefaultValue = "yes")]
-        public bool FullDuplex { get; set; }
+        public bool? FullDuplex { get; set; }
 
         /// <summary>
         /// l2mtu: Layer2 Maximum transmission unit.  Read more&gt;&gt; 
@@ -129,7 +129,7 @@ namespace tik4net.Objects.Interface
         /// mdix-enable: Whether the MDI/X auto cross over cable correction feature is enabled for the port (Hardware specific, e.g. ether1 on RB500 can be set to yes/no. Fixed to 'yes' on other hardware.)
         /// </summary>
         [TikProperty("mdix-enable", DefaultValue = "yes")]
-        public bool MdixEnable { get; set; }
+        public bool? MdixEnable { get; set; }
 
         /// <summary>
         /// mtu: Layer3 Maximum transmission unit
@@ -409,6 +409,6 @@ namespace tik4net.Objects.Interface
         /// disabled: Whether interface is disabled
         /// </summary>
         [TikProperty("disabled", DefaultValue = "yes")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
     }
 }

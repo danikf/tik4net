@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -88,11 +88,11 @@ namespace tik4net.Objects.Tool
 
         /// <summary>ignore-initial-up — when yes, skip up-script on the first Unknown→Up transition. Default: no.</summary>
         [TikProperty("ignore-initial-up", DefaultValue = "no")]
-        public bool IgnoreInitialUp { get; set; }
+        public bool? IgnoreInitialUp { get; set; }
 
         /// <summary>ignore-initial-down — when yes, skip down-script on the first Unknown→Down transition. Default: no.</summary>
         [TikProperty("ignore-initial-down", DefaultValue = "no")]
-        public bool IgnoreInitialDown { get; set; }
+        public bool? IgnoreInitialDown { get; set; }
 
         /// <summary>src-address — source IP address to use for probes.</summary>
         [TikProperty("src-address")]
@@ -100,7 +100,7 @@ namespace tik4net.Objects.Tool
 
         /// <summary>disabled — when true the entry is disabled and probes are not sent.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>comment — free-form comment.</summary>
         [TikProperty("comment")]
@@ -126,15 +126,15 @@ namespace tik4net.Objects.Tool
 
         /// <summary>accept-icmp-time-exceeded — accept ICMP Type 11 "Time Exceeded" as a valid response (type=icmp). Default: no.</summary>
         [TikProperty("accept-icmp-time-exceeded", DefaultValue = "no")]
-        public bool AcceptIcmpTimeExceeded { get; set; }
+        public bool? AcceptIcmpTimeExceeded { get; set; }
 
         /// <summary>early-failure-detection — stop the probe cycle early when a failure is already confirmed (type=icmp). Default: no.</summary>
         [TikProperty("early-failure-detection", DefaultValue = "no")]
-        public bool EarlyFailureDetection { get; set; }
+        public bool? EarlyFailureDetection { get; set; }
 
         /// <summary>early-success-detection — stop the probe cycle early when success is already confirmed (type=icmp). Default: no.</summary>
         [TikProperty("early-success-detection", DefaultValue = "no")]
-        public bool EarlySuccessDetection { get; set; }
+        public bool? EarlySuccessDetection { get; set; }
 
         /// <summary>thr-max — maximum RTT threshold; probe fails when any packet exceeds this (type=icmp). Default: 1s.</summary>
         [TikProperty("thr-max", DefaultValue = "1s")]
@@ -186,7 +186,7 @@ namespace tik4net.Objects.Tool
 
         /// <summary>check-certificate — when yes, validate the server certificate's trust chain (type=https-get). Default: no.</summary>
         [TikProperty("check-certificate", DefaultValue = "no")]
-        public bool CheckCertificate { get; set; }
+        public bool? CheckCertificate { get; set; }
 
         // ── DNS-specific (type=dns) ──────────────────────────────────────────────
 

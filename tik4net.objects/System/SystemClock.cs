@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -41,7 +41,7 @@ namespace tik4net.Objects.System
         /// WinBox: "Time Zone Autodetect"
         /// </summary>
         [TikProperty("time-zone-autodetect", DefaultValue = "yes")]
-        public bool TimeZoneAutodetect { get; set; }
+        public bool? TimeZoneAutodetect { get; set; }
 
         /// <summary>
         /// gmt-offset — current value of the GMT offset used by the system, after applying the base

@@ -1,4 +1,4 @@
-namespace tik4net.Objects.Ip
+﻿namespace tik4net.Objects.Ip
 {
     /// <summary>
     /// Access to the data provided by
@@ -69,7 +69,7 @@ namespace tik4net.Objects.Ip
         /// Gets or sets a value indicating whether this route is currently disabled.
         /// </summary>
         [TikProperty("disabled")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// Gets the BGP autonomuous system path as comma-separated list.

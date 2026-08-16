@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -117,7 +117,7 @@ namespace tik4net.Objects.Certificate
         /// WinBox: "Trusted"
         /// </summary>
         [TikProperty("trusted")]
-        public bool Trusted { get; set; }
+        public bool? Trusted { get; set; }
 
         /// <summary>
         /// trust-store — Comma-separated list of services that are permitted to use this certificate

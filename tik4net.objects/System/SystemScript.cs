@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -57,7 +57,7 @@ namespace tik4net.Objects.System
         // so DefaultValue="false" would never match and the field would be force-sent on every add/set
         // (which also makes the native WinBox M2 transport fail: it cannot resolve this field to an M2 key).
         [TikProperty("dont-require-permissions", DefaultValue = "no")]
-        public bool DontRequirePermissions { get; set; }
+        public bool? DontRequirePermissions { get; set; }
 
         /// <summary>
         /// comment — descriptive comment for the script.

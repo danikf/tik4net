@@ -1,4 +1,4 @@
-namespace tik4net.Objects.Interface.Wifi
+﻿namespace tik4net.Objects.Interface.Wifi
 {
     /// <summary>
     /// /interface/wifi
@@ -229,7 +229,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Disable Running Check"
         /// </summary>
         [TikProperty("disable-running-check", DefaultValue = "no")]
-        public bool DisableRunningCheck { get; set; }
+        public bool? DisableRunningCheck { get; set; }
 
         /// <summary>
         /// disabled — when true the interface is administratively disabled.
@@ -237,7 +237,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Disabled"
         /// </summary>
         [TikProperty("disabled")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// comment — short free-text description.

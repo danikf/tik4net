@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -75,7 +75,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no.
         /// </summary>
         [TikProperty("local-forwarding", DefaultValue = "no")]
-        public bool LocalForwarding { get; set; }
+        public bool? LocalForwarding { get; set; }
 
         /// <summary>
         /// client-to-client-forwarding — when true, wireless clients connected to the same
@@ -83,7 +83,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no.
         /// </summary>
         [TikProperty("client-to-client-forwarding", DefaultValue = "no")]
-        public bool ClientToClientForwarding { get; set; }
+        public bool? ClientToClientForwarding { get; set; }
 
         // ── Bridge membership ─────────────────────────────────────────────────
 

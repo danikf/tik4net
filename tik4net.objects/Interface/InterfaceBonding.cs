@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -188,7 +188,7 @@ namespace tik4net.Objects.Interface
 
         /// <summary>disabled — Whether the interface is disabled.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>comment — Short description of the interface.</summary>
         [TikProperty("comment")]

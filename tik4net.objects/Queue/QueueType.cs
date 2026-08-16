@@ -39,7 +39,7 @@ namespace tik4net.Objects.Queue
         /// default
         /// </summary>
         [TikProperty("default")]
-        public bool Default { get; set; }
+        public bool? Default { get; set; }
 
         /// <summary>
         /// sfq-perturb

@@ -267,7 +267,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// fragment: Matches fragmented packets. First (starting) fragment does not count. If connection tracking is enabled there will be no fragments as system automatically assembles every packet
         /// </summary>
         [TikProperty("fragment", UnsetOnDefault = true)]
-        public bool Fragment { get; set; }
+        public bool? Fragment { get; set; }
 
         /// <summary>
         /// hotspot: 
@@ -506,7 +506,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// Row disabled property.
         /// </summary>
         [TikProperty("disabled")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// Row dynamic property.

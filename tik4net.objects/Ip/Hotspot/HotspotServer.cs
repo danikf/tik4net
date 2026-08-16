@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -51,7 +51,7 @@ namespace tik4net.Objects.Ip.Hotspot
 
         /// <summary>disabled — when yes, the server is inactive.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>Human-readable server summary.</summary>
         public override string ToString() => string.Format("{0} ({1})", Name, Interface);

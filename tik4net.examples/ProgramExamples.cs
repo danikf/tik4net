@@ -145,7 +145,9 @@ namespace tik4net.examples
                 connection.CreateParameter("list", listName));
             foreach (FirewallAddressList addressList in addressLists)
             {
-                Console.WriteLine("{0}{1}: {2} {3} ({4})", addressList.Disabled ? "X" : " ", addressList.Dynamic ? "D" : " ", addressList.Address, addressList.List, addressList.Comment);
+                // A writable flag is bool? — it reads back null when the router did not report it, which is
+                // a third state the display has to have an answer for.
+                Console.WriteLine("{0}{1}: {2} {3} ({4})", addressList.Disabled == true ? "X" : " ", addressList.Dynamic ? "D" : " ", addressList.Address, addressList.List, addressList.Comment);
             }
         }
 

@@ -1,4 +1,4 @@
-namespace tik4net.Objects.Routing
+﻿namespace tik4net.Objects.Routing
 {
     /// <summary>
     /// /routing/rule
@@ -87,7 +87,7 @@ namespace tik4net.Objects.Routing
         /// Default: false
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>comment — optional free-text annotation.</summary>
         [TikProperty("comment")]

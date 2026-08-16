@@ -1,4 +1,4 @@
-namespace tik4net.Objects.Ip.Ipsec
+﻿namespace tik4net.Objects.Ip.Ipsec
 {
     /// <summary>
     /// /ip/ipsec/peer
@@ -79,7 +79,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: yes
         /// </summary>
         [TikProperty("send-initial-contact", DefaultValue = "yes")]
-        public bool SendInitialContact { get; set; }
+        public bool? SendInitialContact { get; set; }
 
         /// <summary>
         /// passive — when true the router acts only as a responder and waits for the remote
@@ -87,7 +87,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: no
         /// </summary>
         [TikProperty("passive", DefaultValue = "no")]
-        public bool Passive { get; set; }
+        public bool? Passive { get; set; }
 
         /// <summary>
         /// ppk-secret — Post-quantum Preshared Key secret (IKEv2 RFC 8784). Leave empty
@@ -101,7 +101,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: no
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// comment — short description of the peer entry.

@@ -27,7 +27,9 @@ namespace tik4net.integrationtests
             EnsureCommandAvailable("/system/note");
             var original = Connection.LoadSingle<SystemNote>();
             string originalText = original.Note;
-            bool originalShowAtLogin = original.ShowAtLogin;
+            // bool? since B4: writable flags carry "the router said nothing" as a state of their own. The
+            // round trip is about a value the router DID report, so the test wants the value.
+            bool originalShowAtLogin = original.ShowAtLogin ?? false;
             string tempText = "tik4net test note " + Guid.NewGuid().ToString("N").Substring(0, 8);
 
             try

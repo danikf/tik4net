@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -23,11 +23,11 @@ namespace tik4net.Objects.Tool.Graphing
 
         /// <summary>store-on-disk — when yes, collected resource data is saved to the router's disk. Default: no.</summary>
         [TikProperty("store-on-disk", DefaultValue = "no")]
-        public bool StoreOnDisk { get; set; }
+        public bool? StoreOnDisk { get; set; }
 
         /// <summary>disabled — when true the graphing entry is disabled. Default: no.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>comment — free-form comment.</summary>
         [TikProperty("comment")]

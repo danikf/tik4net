@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -194,7 +194,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Disabled"
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// comment — short free-text description of this provisioning rule.

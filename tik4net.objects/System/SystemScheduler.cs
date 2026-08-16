@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -83,7 +83,7 @@ namespace tik4net.Objects.System
         /// disabled — whether the scheduled task is disabled.
         /// </summary>
         [TikProperty("disabled")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// comment.

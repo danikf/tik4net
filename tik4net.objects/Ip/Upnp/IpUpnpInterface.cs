@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -32,7 +32,7 @@ namespace tik4net.Objects.Ip.Upnp
 
         /// <summary>disabled — when yes, the entry is inactive.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>Human-readable entry summary.</summary>
         public override string ToString() => string.Format("{0} ({1})", Interface, Type);

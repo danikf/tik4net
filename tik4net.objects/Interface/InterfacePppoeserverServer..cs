@@ -66,7 +66,7 @@ namespace tik4net.Objects.Interface
         /// one-session-per-host - Allow only one session per host (determined by MAC address). If a host tries to establish a new session, the old one will be closed.
         /// </summary>
         [TikProperty("one-session-per-host")]
-        public bool OneSessionPerHost { get; set; }
+        public bool? OneSessionPerHost { get; set; }
 
         /// <summary>
         /// max-sessions - Maximum number of clients that the AC can serve. '0' = no limitations.
@@ -96,7 +96,7 @@ namespace tik4net.Objects.Interface
         /// disabled
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
     }
 
 }

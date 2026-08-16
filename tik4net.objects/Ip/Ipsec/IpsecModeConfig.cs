@@ -1,4 +1,4 @@
-namespace tik4net.Objects.Ip.Ipsec
+﻿namespace tik4net.Objects.Ip.Ipsec
 {
     /// <summary>
     /// /ip/ipsec/mode-config
@@ -39,7 +39,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: no
         /// </summary>
         [TikProperty("responder", DefaultValue = "no")]
-        public bool Responder { get; set; }
+        public bool? Responder { get; set; }
 
         // --- Responder-side (server) fields ---
 
@@ -80,7 +80,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Applicable when responder=yes.
         /// </summary>
         [TikProperty("system-dns")]
-        public bool SystemDns { get; set; }
+        public bool? SystemDns { get; set; }
 
         /// <summary>
         /// static-dns — manually specified DNS server IP address(es) (comma-separated) sent to the

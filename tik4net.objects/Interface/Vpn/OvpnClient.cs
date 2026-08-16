@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -70,14 +70,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: yes (disabled on creation).
         /// </summary>
         [TikProperty("disabled", DefaultValue = "yes")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// add-default-route — whether to add the OVPN remote address as a default route.
         /// Default: no
         /// </summary>
         [TikProperty("add-default-route", DefaultValue = "no")]
-        public bool AddDefaultRoute { get; set; }
+        public bool? AddDefaultRoute { get; set; }
 
         /// <summary>
         /// auth — permitted HMAC authentication algorithm(s).
@@ -107,7 +107,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no (undocumented; present in RouterOS tab-completion).
         /// </summary>
         [TikProperty("disconnect-notify", DefaultValue = "no")]
-        public bool DisconnectNotify { get; set; }
+        public bool? DisconnectNotify { get; set; }
 
         /// <summary>
         /// mac-address — MAC address assigned to the virtual interface; auto-generated if not specified.
@@ -165,7 +165,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("route-nopull", DefaultValue = "no")]
-        public bool RouteNopull { get; set; }
+        public bool? RouteNopull { get; set; }
 
         /// <summary>
         /// tls-version — permitted TLS protocol version(s).
@@ -180,7 +180,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("use-peer-dns", DefaultValue = "no")]
-        public bool UsePeerDns { get; set; }
+        public bool? UsePeerDns { get; set; }
 
         /// <summary>
         /// user — username used for authentication.
@@ -194,7 +194,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("verify-server-certificate", DefaultValue = "no")]
-        public bool VerifyServerCertificate { get; set; }
+        public bool? VerifyServerCertificate { get; set; }
 
         /// <summary>comment — optional description of the client interface entry.</summary>
         [TikProperty("comment")]

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -52,7 +52,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: yes (disabled on creation).
         /// </summary>
         [TikProperty("disabled", DefaultValue = "yes")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// user — username for PPP authentication.
@@ -101,7 +101,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("verify-server-certificate", DefaultValue = "no")]
-        public bool VerifyServerCertificate { get; set; }
+        public bool? VerifyServerCertificate { get; set; }
 
         /// <summary>
         /// verify-server-address-from-certificate — when <c>true</c> the server address is verified
@@ -109,7 +109,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: yes
         /// </summary>
         [TikProperty("verify-server-address-from-certificate", DefaultValue = "yes")]
-        public bool VerifyServerAddressFromCertificate { get; set; }
+        public bool? VerifyServerAddressFromCertificate { get; set; }
 
         /// <summary>
         /// tls-version — permitted TLS protocol version(s).
@@ -163,7 +163,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("add-default-route", DefaultValue = "no")]
-        public bool AddDefaultRoute { get; set; }
+        public bool? AddDefaultRoute { get; set; }
 
         /// <summary>
         /// default-route-distance — administrative distance for the auto-created default route
@@ -178,7 +178,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("dial-on-demand", DefaultValue = "no")]
-        public bool DialOnDemand { get; set; }
+        public bool? DialOnDemand { get; set; }
 
         /// <summary>
         /// max-mtu — maximum transmission unit for the tunnel interface, in bytes.
@@ -209,7 +209,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("add-sni", DefaultValue = "no")]
-        public bool AddSni { get; set; }
+        public bool? AddSni { get; set; }
 
         /// <summary>comment — optional description of the client interface entry.</summary>
         [TikProperty("comment")]

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -41,7 +41,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: yes (disabled on creation).
         /// </summary>
         [TikProperty("disabled", DefaultValue = "yes")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// user — username sent during authentication.
@@ -75,7 +75,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("add-default-route", DefaultValue = "no")]
-        public bool AddDefaultRoute { get; set; }
+        public bool? AddDefaultRoute { get; set; }
 
         /// <summary>
         /// default-route-distance — administrative distance applied to the auto-created default route
@@ -90,7 +90,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("dial-on-demand", DefaultValue = "no")]
-        public bool DialOnDemand { get; set; }
+        public bool? DialOnDemand { get; set; }
 
         /// <summary>
         /// keepalive-timeout — tunnel keepalive timeout in seconds; if the remote end does not respond
@@ -130,7 +130,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("use-peer-dns", DefaultValue = "no")]
-        public bool UsePeerDns { get; set; }
+        public bool? UsePeerDns { get; set; }
 
         /// <summary>comment — optional free-text description of this PPTP client interface.</summary>
         [TikProperty("comment")]

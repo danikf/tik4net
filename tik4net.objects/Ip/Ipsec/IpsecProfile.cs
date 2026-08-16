@@ -1,4 +1,4 @@
-namespace tik4net.Objects.Ip.Ipsec
+﻿namespace tik4net.Objects.Ip.Ipsec
 {
     /// <summary>
     /// /ip/ipsec/profile
@@ -109,7 +109,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: yes
         /// </summary>
         [TikProperty("nat-traversal", DefaultValue = "yes")]
-        public bool NatTraversal { get; set; }
+        public bool? NatTraversal { get; set; }
 
         /// <summary>
         /// dpd-interval — Dead Peer Detection (DPD) probe interval.
@@ -151,7 +151,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: no
         /// </summary>
         [TikProperty("ppk", DefaultValue = "no")]
-        public bool Ppk { get; set; }
+        public bool? Ppk { get; set; }
 
         // NOTE: /ip/ipsec/profile has no "comment" field on RouterOS (confirmed via
         // add-completion), so no Comment property is exposed here.

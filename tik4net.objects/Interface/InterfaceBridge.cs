@@ -75,7 +75,7 @@ namespace tik4net.Objects.Interface
         /// auto-mac: Automatically select the smallest MAC address of bridge ports as a bridge MAC address
         /// </summary>
         [TikProperty("auto-mac", DefaultValue = "yes")]
-        public bool AutoMac { get; set; }
+        public bool? AutoMac { get; set; }
 
         /// <summary>
         /// forward-delay: Time which is spent during the initialization phase of the bridge interface (i.e., after router startup or enabling the interface) in listening/learning state before the bridge will start functioning normally

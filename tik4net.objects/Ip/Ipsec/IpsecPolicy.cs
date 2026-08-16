@@ -1,4 +1,4 @@
-namespace tik4net.Objects.Ip.Ipsec
+﻿namespace tik4net.Objects.Ip.Ipsec
 {
     /// <summary>
     /// /ip/ipsec/policy
@@ -125,7 +125,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: no
         /// </summary>
         [TikProperty("tunnel", DefaultValue = "no")]
-        public bool Tunnel { get; set; }
+        public bool? Tunnel { get; set; }
 
         /// <summary>
         /// peer — name of the /ip/ipsec/peer entry this policy applies to.
@@ -147,7 +147,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: no
         /// </summary>
         [TikProperty("template", DefaultValue = "no")]
-        public bool Template { get; set; }
+        public bool? Template { get; set; }
 
         /// <summary>
         /// group — name of the policy group this template belongs to.
@@ -176,7 +176,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: no
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// comment — short description of the policy entry.

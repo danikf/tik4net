@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -175,7 +175,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// fragment: Matches fragmented packets (not the first fragment).
         /// </summary>
         [TikProperty("fragment", UnsetOnDefault = true)]
-        public bool Fragment { get; set; }
+        public bool? Fragment { get; set; }
 
         /// <summary>
         /// hotspot: Matches packets in a HotSpot scenario by the specified attribute.
@@ -247,7 +247,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// log: Whether to log matched packets (shorthand flag; use action=log for full log action).
         /// </summary>
         [TikProperty("log", DefaultValue = "no")]
-        public bool Log { get; set; }
+        public bool? Log { get; set; }
 
         /// <summary>
         /// log-prefix: Adds specified text at the beginning of every log message. Applicable if action=log or log=yes.
@@ -404,7 +404,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// disabled: Whether the rule is disabled.
         /// </summary>
         [TikProperty("disabled")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// dynamic: Whether the rule was added dynamically (read-only).

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -55,7 +55,7 @@ namespace tik4net.Objects.System
         /// disabled — when true the rule is inactive and no messages are forwarded.
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// invalid — read-only flag set by RouterOS when the rule references a non-existent

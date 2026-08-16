@@ -177,7 +177,7 @@ namespace tik4net.Objects.Queue
         /// disabled
         /// </summary>
         [TikProperty("disabled")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// dst

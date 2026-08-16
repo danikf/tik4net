@@ -121,6 +121,6 @@ namespace tik4net.Objects.Interface.Bridge
         /// passthrough
         /// </summary>
         [TikProperty("passthrough", DefaultValue = "yes")]
-        public bool Passthrough { get; set; }
+        public bool? Passthrough { get; set; }
     }
 }

@@ -1,4 +1,4 @@
-namespace tik4net.Objects.Routing.Bgp
+﻿namespace tik4net.Objects.Routing.Bgp
 {
     /// <summary>
     /// BGP connection (peer) configuration as provided by /routing/bgp/connection (RouterOS 7+).
@@ -26,6 +26,6 @@ namespace tik4net.Objects.Routing.Bgp
         public string Templates { get; set; }
 
         [TikProperty("disabled")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
     }
 }

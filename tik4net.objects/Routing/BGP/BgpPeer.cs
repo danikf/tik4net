@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace tik4net.Objects.Routing.Bgp
 {
@@ -51,13 +51,13 @@ namespace tik4net.Objects.Routing.Bgp
         /// Gets or sets a value indicating whether this is a multi-hop peer.
         /// </summary>
         [TikProperty("multihop")]
-        public bool Multihop { get; set; }
+        public bool? Multihop { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether to reflect the route.
         /// </summary>
         [TikProperty("route-reflect")]
-        public bool RouteReflect { get; set; }
+        public bool? RouteReflect { get; set; }
 
         /// <summary>
         /// Gets or sets the hold-time of this peer.
@@ -87,25 +87,25 @@ namespace tik4net.Objects.Routing.Bgp
         /// Gets or sets a value indicating whether to remove autonomuous system having private AS numbers.
         /// </summary>
         [TikProperty("remove-private-as")]
-        public bool RemovePrivateAs { get; set; }
+        public bool? RemovePrivateAs { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether to override the autonomuous system numbers.
         /// </summary>
         [TikProperty("as-override")]
-        public bool AsOverride { get; set; }
+        public bool? AsOverride { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether to this peer as passive.
         /// </summary>
         [TikProperty("passive")]
-        public bool Passive { get; set; }
+        public bool? Passive { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether to use Bidirectional Forwarding Detection with this peer.
         /// </summary>
         [TikProperty("use-bfd")]
-        public bool UseBfd { get; set; }
+        public bool? UseBfd { get; set; }
 
         /// <summary>
         /// Gets or sets the peer's remote ID (usually some IP address).
@@ -201,6 +201,6 @@ namespace tik4net.Objects.Routing.Bgp
         /// Gets a value indicating whether this peer is disabled.
         /// </summary>
         [TikProperty("disabled")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
     }
 }

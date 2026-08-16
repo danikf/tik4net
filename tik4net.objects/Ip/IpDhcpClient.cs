@@ -75,7 +75,7 @@ namespace tik4net.Objects.Ip
         /// disabled: 
         /// </summary>
         [TikProperty("disabled")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// host-name: Host name of the client sent to a DHCP server. If not specified, client's system identity will be used.
@@ -93,13 +93,13 @@ namespace tik4net.Objects.Ip
         /// use-peer-dns: Whether to accept the  DNS settings advertised by  DHCP Server. (Will override the settings put in the /ip dns submenu.
         /// </summary>
         [TikProperty("use-peer-dns", DefaultValue = "yes")]
-        public bool UsePeerDns { get; set; }
+        public bool? UsePeerDns { get; set; }
 
         /// <summary>
         /// use-peer-ntp: Whether to accept the  NTP settings advertised by  DHCP Server. (Will override the settings put in the /system ntp client submenu)
         /// </summary>
         [TikProperty("use-peer-ntp", DefaultValue = "yes")]
-        public bool UsePeerNtp { get; set; }
+        public bool? UsePeerNtp { get; set; }
 
         /// <summary>
         /// address: IP address and netmask, which is assigned to DHCP Client from the Server

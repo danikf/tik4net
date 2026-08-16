@@ -51,7 +51,7 @@ namespace tik4net.Objects.Interface
         /// fast-path
         /// </summary>
         [TikProperty("fast-path")]
-        public bool FastPath { get; set; }
+        public bool? FastPath { get; set; }
 
         /// <summary>
         /// rx-byte
@@ -111,7 +111,7 @@ namespace tik4net.Objects.Interface
         /// disabled
         /// </summary>
         [TikProperty("disabled")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// comment

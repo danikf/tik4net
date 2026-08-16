@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -47,7 +47,7 @@ namespace tik4net.Objects.Ip.Hotspot
 
         /// <summary>disabled — when yes, the rule is inactive.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>comment — free-form annotation.</summary>
         [TikProperty("comment", DefaultValue = "")]

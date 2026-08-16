@@ -16,7 +16,7 @@ namespace tik4net.Objects.Ppp
         /// accounting: Enable RADIUS accounting
         /// </summary>
         [TikProperty("accounting", DefaultValue = "yes")]
-        public bool Accounting { get; set; }
+        public bool? Accounting { get; set; }
 
         /// <summary>
         /// interim-update: Interim-Update time interval
@@ -28,6 +28,6 @@ namespace tik4net.Objects.Ppp
         /// use-radius: Enable user authentication via RADIUS. If entry in local secret database is not found, then client will be authenticated via RADIUS.
         /// </summary>
         [TikProperty("use-radius", DefaultValue = "no")]
-        public bool UseRadius { get; set; }
+        public bool? UseRadius { get; set; }
     }
 }

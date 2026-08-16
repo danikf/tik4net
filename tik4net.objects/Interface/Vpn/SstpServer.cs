@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -75,7 +75,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("enabled", DefaultValue = "no")]
-        public bool Enabled { get; set; }
+        public bool? Enabled { get; set; }
 
         /// <summary>
         /// keepalive-timeout — inactivity timeout in seconds before a client is considered disconnected.
@@ -140,7 +140,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("verify-client-certificate", DefaultValue = "no")]
-        public bool VerifyClientCertificate { get; set; }
+        public bool? VerifyClientCertificate { get; set; }
 
         /// <summary>Human-readable summary of the SSTP server configuration.</summary>
         public override string ToString() => string.Format("sstp-server enabled={0} port={1} tls-version={2} pfs={3}", Enabled, Port, TlsVersion, Pfs);

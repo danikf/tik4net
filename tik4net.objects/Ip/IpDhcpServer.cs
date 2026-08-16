@@ -82,7 +82,7 @@ namespace tik4net.Objects.Ip
         /// add-arp: Whether to add dynamic ARP entry.  If set to no either  ARP mode should be enabled on that interface or static  ARP entries should be administratively defined in /ip arp submenu.
         /// </summary>
         [TikProperty("add-arp", DefaultValue = "no")]
-        public bool AddArp { get; set; }
+        public bool? AddArp { get; set; }
 
         /// <summary>
         /// address-pool:  IP pool, from which to take IP addresses for the clients. If set to static-only, then only the clients that have a static lease (added in  lease submenu) will be allowed.
@@ -94,7 +94,7 @@ namespace tik4net.Objects.Ip
         /// always-broadcast: Always send replies as broadcasts.
         /// </summary>
         [TikProperty("always-broadcast", DefaultValue = "no")]
-        public bool AlwaysBroadcast { get; set; }                                    
+        public bool? AlwaysBroadcast { get; set; }                                    
 
         /// <summary>
         /// authoritative
@@ -172,13 +172,13 @@ namespace tik4net.Objects.Ip
         /// use-radius: Whether to use RADIUS server for dynamic leases
         /// </summary>
         [TikProperty("use-radius", DefaultValue = "no")]
-        public bool UseRadius { get; set; }
+        public bool? UseRadius { get; set; }
 
         /// <summary>
         /// disabled: Whether DHCP server is disabled or not
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// ctor

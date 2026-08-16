@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,7 +15,7 @@ namespace tik4net.Objects.Snmp
     {
         /// <summary>enabled — whether the SNMP service is active.</summary>
         [TikProperty("enabled", DefaultValue = "no")]
-        public bool Enabled { get; set; }
+        public bool? Enabled { get; set; }
 
         /// <summary>contact — administrative contact information (free-form string).</summary>
         [TikProperty("contact", DefaultValue = "")]

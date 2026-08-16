@@ -60,6 +60,6 @@ namespace tik4net.Objects.Ip.Dns
         /// disabled: 
         /// </summary>
         [TikProperty("disabled")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
     }
 }

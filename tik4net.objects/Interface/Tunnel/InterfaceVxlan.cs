@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -136,11 +136,11 @@ namespace tik4net.Objects.Interface.Tunnel
 
         /// <summary>learning — Dynamically learn MAC addresses and remote VTEP IPs. Default: yes.</summary>
         [TikProperty("learning", DefaultValue = "yes")]
-        public bool Learning { get; set; }
+        public bool? Learning { get; set; }
 
         /// <summary>checksum — Calculate UDP checksum in outer packets. Default: no.</summary>
         [TikProperty("checksum", DefaultValue = "no")]
-        public bool Checksum { get; set; }
+        public bool? Checksum { get; set; }
 
         public enum RemCsumType
         {
@@ -161,11 +161,11 @@ namespace tik4net.Objects.Interface.Tunnel
 
         /// <summary>hw — Enable hardware offloading on compatible devices. Default: yes.</summary>
         [TikProperty("hw", DefaultValue = "yes")]
-        public bool Hw { get; set; }
+        public bool? Hw { get; set; }
 
         /// <summary>allow-fast-path — Allow FastPath processing. Default: yes.</summary>
         [TikProperty("allow-fast-path", DefaultValue = "yes")]
-        public bool AllowFastPath { get; set; }
+        public bool? AllowFastPath { get; set; }
 
         /// <summary>bridge — Bridge interface to add this VXLAN interface as a slave port.</summary>
         [TikProperty("bridge", DefaultValue = "")]
@@ -185,7 +185,7 @@ namespace tik4net.Objects.Interface.Tunnel
 
         /// <summary>disabled — Whether the interface is disabled.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>comment — Short description of the interface.</summary>
         [TikProperty("comment")]

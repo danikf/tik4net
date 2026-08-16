@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -124,7 +124,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no.
         /// </summary>
         [TikProperty("eap-radius-accounting", DefaultValue = "no")]
-        public bool EapRadiusAccounting { get; set; }
+        public bool? EapRadiusAccounting { get; set; }
 
         // ── TLS / certificates ────────────────────────────────────────────────
 
@@ -153,7 +153,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no.
         /// </summary>
         [TikProperty("disable-pmkid", DefaultValue = "no")]
-        public bool DisablePmkid { get; set; }
+        public bool? DisablePmkid { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
 

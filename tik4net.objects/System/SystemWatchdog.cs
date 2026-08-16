@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -19,7 +19,7 @@ namespace tik4net.Objects.System
     {
         /// <summary>watchdog-timer — enables the hardware watchdog timer (reboots when OS hangs). Default: yes.</summary>
         [TikProperty("watchdog-timer", DefaultValue = "yes")]
-        public bool WatchdogTimer { get; set; }
+        public bool? WatchdogTimer { get; set; }
 
         /// <summary>watch-address — IP address to ping; router reboots if this address becomes unreachable for longer than ping-timeout. Set to "none" to disable. Default: none.</summary>
         [TikProperty("watch-address", DefaultValue = "none")]
@@ -35,11 +35,11 @@ namespace tik4net.Objects.System
 
         /// <summary>automatic-supout — when yes, a support output file (supout.rif) is automatically created after an unexpected reboot. Default: yes.</summary>
         [TikProperty("automatic-supout", DefaultValue = "yes")]
-        public bool AutomaticSupout { get; set; }
+        public bool? AutomaticSupout { get; set; }
 
         /// <summary>auto-send-supout — when yes, the supout file is automatically e-mailed after an unexpected reboot (requires send-email-* fields). Default: no.</summary>
         [TikProperty("auto-send-supout", DefaultValue = "no")]
-        public bool AutoSendSupout { get; set; }
+        public bool? AutoSendSupout { get; set; }
 
         /// <summary>send-email-from — sender e-mail address used when auto-send-supout=yes.</summary>
         [TikProperty("send-email-from", DefaultValue = "")]

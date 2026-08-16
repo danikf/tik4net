@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -155,7 +155,7 @@ namespace tik4net.Objects.CapsMan
         /// unnecessarily — the router applies its own default of yes.
         /// </summary>
         [TikProperty("save-selected", DefaultValue = "no")]
-        public bool SaveSelected { get; set; }
+        public bool? SaveSelected { get; set; }
 
         // ── DFS ───────────────────────────────────────────────────────────────
 
@@ -165,7 +165,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no (include DFS channels).
         /// </summary>
         [TikProperty("skip-dfs-channels", DefaultValue = "no")]
-        public bool SkipDfsChannels { get; set; }
+        public bool? SkipDfsChannels { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
 

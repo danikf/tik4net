@@ -1,4 +1,4 @@
-namespace tik4net.Objects.Routing.Ospf
+﻿namespace tik4net.Objects.Routing.Ospf
 {
     /// <summary>
     /// /routing/ospf/interface-template
@@ -159,14 +159,14 @@ namespace tik4net.Objects.Routing.Ospf
         /// Default: false (no)
         /// </summary>
         [TikProperty("passive", DefaultValue = "no")]
-        public bool Passive { get; set; }
+        public bool? Passive { get; set; }
 
         /// <summary>
         /// use-bfd — enable Bidirectional Forwarding Detection (BFD) for faster neighbour failure detection.
         /// Default: false (no)
         /// </summary>
         [TikProperty("use-bfd", DefaultValue = "no")]
-        public bool UseBfd { get; set; }
+        public bool? UseBfd { get; set; }
 
         /// <summary>
         /// prefix-list — name of an IP prefix list used to filter networks redistributed into OSPF via this template.
@@ -192,7 +192,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// Default: false (no)
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>comment — optional free-text annotation.</summary>
         [TikProperty("comment")]

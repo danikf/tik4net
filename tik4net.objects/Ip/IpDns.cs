@@ -16,7 +16,7 @@ namespace tik4net.Objects.Ip
         /// specifies whether to allow network requests
         /// </summary>
         [TikProperty("allow-remote-requests", DefaultValue = "no")]
-        public bool AllowRemoteRequests { get; set; }
+        public bool? AllowRemoteRequests { get; set; }
 
         /// <summary>
         /// cache-max-ttl

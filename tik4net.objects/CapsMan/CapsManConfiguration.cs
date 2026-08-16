@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -132,7 +132,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no (SSID visible).
         /// </summary>
         [TikProperty("hide-ssid", DefaultValue = "no")]
-        public bool HideSsid { get; set; }
+        public bool? HideSsid { get; set; }
 
         // ── Sub-profile references ────────────────────────────────────────────
         // These string fields hold the name of a shared sub-profile (from the respective
@@ -211,14 +211,14 @@ namespace tik4net.Objects.CapsMan
         /// Default: no.
         /// </summary>
         [TikProperty("channel.save-selected", DefaultValue = "no")]
-        public bool ChannelSaveSelected { get; set; }
+        public bool? ChannelSaveSelected { get; set; }
 
         /// <summary>
         /// channel.skip-dfs-channels — exclude DFS channels from automatic frequency selection.
         /// Default: no.
         /// </summary>
         [TikProperty("channel.skip-dfs-channels", DefaultValue = "no")]
-        public bool ChannelSkipDfsChannels { get; set; }
+        public bool? ChannelSkipDfsChannels { get; set; }
 
         /// <summary>
         /// channel.secondary-frequency — secondary frequency for 80+80 MHz operation in MHz;
@@ -236,7 +236,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no.
         /// </summary>
         [TikProperty("datapath.local-forwarding", DefaultValue = "no")]
-        public bool DatapathLocalForwarding { get; set; }
+        public bool? DatapathLocalForwarding { get; set; }
 
         /// <summary>
         /// datapath.bridge — bridge interface to which the virtual wireless interface will be added
@@ -264,7 +264,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no.
         /// </summary>
         [TikProperty("datapath.client-to-client-forwarding", DefaultValue = "no")]
-        public bool DatapathClientToClientForwarding { get; set; }
+        public bool? DatapathClientToClientForwarding { get; set; }
 
         /// <summary>
         /// datapath.vlan-mode — VLAN tagging type: use-service-tag (802.1ad) or use-tag (802.1q).

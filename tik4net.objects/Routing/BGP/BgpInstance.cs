@@ -1,4 +1,4 @@
-namespace tik4net.Objects.Routing.Bgp
+﻿namespace tik4net.Objects.Routing.Bgp
 {
     /// <summary>
     /// The BGP instance as provided by
@@ -35,54 +35,54 @@ namespace tik4net.Objects.Routing.Bgp
         /// Gets or sets a value indicating whether to redistribute connected routes.
         /// </summary>
         [TikProperty("redistribute-connected")]
-        public bool RedistributeConnected { get; set; }
+        public bool? RedistributeConnected { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether to redistribute redistribute static routes.
         /// </summary>
         [TikProperty("redistribute-static")]
-        public bool RedistributeStatic { get; set; }
+        public bool? RedistributeStatic { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether to redistribute redistribute routes received via RIP. 
         /// </summary>
         [TikProperty("redistribute-rip")]
-        public bool RedistributeRip { get; set; }
+        public bool? RedistributeRip { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether to redistribute redistribute routes received via OSPF.
         /// </summary>
         [TikProperty("redistribute-ospf")]
-        public bool RedistributeOspf { get; set; }
+        public bool? RedistributeOspf { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether to redistribute redistribute routes received via other BGP instances.
         /// </summary>
         [TikProperty("redistribute-other-bgp")]
-        public bool RedistributeOtherBgp { get; set; }
+        public bool? RedistributeOtherBgp { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether to do client-to-client reflection.
         /// </summary>
         [TikProperty("client-to-client-reflection")]
-        public bool ClientToClientReflection { get; set; }
+        public bool? ClientToClientReflection { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether to ignore the autonomuous system path length.
         /// </summary>
         [TikProperty("ignore-as-path-len")]
-        public bool IgnoreAsPathLen { get; set; }
+        public bool? IgnoreAsPathLen { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether this is the default instance.
         /// </summary>
         [TikProperty("default")]
-        public bool Default { get; set; }
+        public bool? Default { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether this instance is disabled.
         /// </summary>
         [TikProperty("disabled")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
     }
 }

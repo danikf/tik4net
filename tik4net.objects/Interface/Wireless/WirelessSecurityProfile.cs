@@ -70,7 +70,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// management-protection
         /// </summary>
         [TikProperty("management-protection")]
-        public bool ManagementProtection { get; set; }
+        public bool? ManagementProtection { get; set; }
 
         /// <summary>
         /// management-protection-key

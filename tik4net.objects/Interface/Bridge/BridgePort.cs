@@ -69,7 +69,7 @@ namespace tik4net.Objects.Interface.Bridge
         /// auto-isolate: Prevents STP blocking port from erroneously moving into a forwarding state if no BPDU's are received on the bridge.
         /// </summary>
         [TikProperty("auto-isolate", DefaultValue = "no")]
-        public bool AutoIsolate { get; set; }
+        public bool? AutoIsolate { get; set; }
 
         /// <summary>
         /// ctor

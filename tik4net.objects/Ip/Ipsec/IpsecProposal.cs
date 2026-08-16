@@ -1,4 +1,4 @@
-namespace tik4net.Objects.Ip.Ipsec
+﻿namespace tik4net.Objects.Ip.Ipsec
 {
     /// <summary>
     /// /ip/ipsec/proposal
@@ -92,7 +92,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: no
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// comment — short description of the proposal entry.

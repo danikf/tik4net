@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,7 +18,7 @@ namespace tik4net.Objects.Ip.Proxy
     {
         /// <summary>enabled — enables or disables the web proxy service.</summary>
         [TikProperty("enabled", DefaultValue = "no")]
-        public bool Enabled { get; set; }
+        public bool? Enabled { get; set; }
 
         /// <summary>port — TCP port the proxy listens on. Default: 8080.</summary>
         [TikProperty("port", DefaultValue = "8080")]
@@ -30,7 +30,7 @@ namespace tik4net.Objects.Ip.Proxy
 
         /// <summary>anonymous — when yes, does not pass client IP via X-Forwarded-For header.</summary>
         [TikProperty("anonymous", DefaultValue = "no")]
-        public bool Anonymous { get; set; }
+        public bool? Anonymous { get; set; }
 
         /// <summary>parent-proxy — IP address of the upstream (parent) proxy server. Default: 0.0.0.0 (none).</summary>
         [TikProperty("parent-proxy", DefaultValue = "0.0.0.0")]
@@ -54,7 +54,7 @@ namespace tik4net.Objects.Ip.Proxy
 
         /// <summary>cache-on-disk — enables storing cached objects on disk.</summary>
         [TikProperty("cache-on-disk", DefaultValue = "no")]
-        public bool CacheOnDisk { get; set; }
+        public bool? CacheOnDisk { get; set; }
 
         /// <summary>cache-path — directory path where disk cache is stored. Default: web-proxy.</summary>
         [TikProperty("cache-path", DefaultValue = "web-proxy")]
@@ -74,11 +74,11 @@ namespace tik4net.Objects.Ip.Proxy
 
         /// <summary>serialize-connections — enforces sequential client processing over persistent connections.</summary>
         [TikProperty("serialize-connections", DefaultValue = "no")]
-        public bool SerializeConnections { get; set; }
+        public bool? SerializeConnections { get; set; }
 
         /// <summary>always-from-cache — when yes, ignores client refresh (no-cache) requests if content is considered fresh.</summary>
         [TikProperty("always-from-cache", DefaultValue = "no")]
-        public bool AlwaysFromCache { get; set; }
+        public bool? AlwaysFromCache { get; set; }
 
         /// <summary>cache-hit-dscp — DSCP value automatically applied to cache-hit packets. Range: 0..63. Default: 4.</summary>
         [TikProperty("cache-hit-dscp", DefaultValue = "4")]

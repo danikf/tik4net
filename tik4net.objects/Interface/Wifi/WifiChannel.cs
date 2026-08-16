@@ -1,4 +1,4 @@
-namespace tik4net.Objects.Interface.Wifi
+﻿namespace tik4net.Objects.Interface.Wifi
 {
     /// <summary>
     /// /interface/wifi/channel
@@ -105,7 +105,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Deprioritize UNII 3/4"
         /// </summary>
         [TikProperty("deprioritize-unii-3-4", DefaultValue = "no")]
-        public bool DeprioritizeUnii34 { get; set; }
+        public bool? DeprioritizeUnii34 { get; set; }
 
         /// <summary>
         /// preamble-puncturing — enables 802.11be preamble puncturing, which allows the AP to
@@ -114,7 +114,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Preamble Puncturing"
         /// </summary>
         [TikProperty("preamble-puncturing", DefaultValue = "no")]
-        public bool PreamblePuncturing { get; set; }
+        public bool? PreamblePuncturing { get; set; }
 
         // ── Periodic channel rescanning ───────────────────────────────────────
 
@@ -144,7 +144,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Disabled"
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// comment — short free-text description.

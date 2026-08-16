@@ -16,7 +16,7 @@
         /// add-mac-cookie: Allows to add mac cookie for users. Read more&gt;&gt;
         /// </summary>
         [TikProperty("add-mac-cookie", DefaultValue = "yes")]
-        public bool AddMacCookie { get; set; }
+        public bool? AddMacCookie { get; set; }
 
         /// <summary>
         /// address-list: Name of the address list in which users IP address will be added. Useful to mark traffic per user groups for queue tree configurations.
@@ -34,7 +34,7 @@
         /// advertise: Enable forced advertisement popups. After certain interval specific web-page is being displayed for HotSpot users. Advertisement page might be blocked by browsers popup blockers.
         /// </summary>
         [TikProperty("advertise", DefaultValue = "no")]
-        public bool Advertise { get; set; }
+        public bool? Advertise { get; set; }
 
         /// <summary>
         /// advertise-interval: Set of intervals between advertisement popups. After the list is done, the last value is used for all further advertisements, 10 minutes
@@ -166,6 +166,6 @@
         /// transparent-proxy: Use transparent HTTP proxy for the authorized users of this profile
         /// </summary>
         [TikProperty("transparent-proxy", DefaultValue = "yes")]
-        public bool TransparentProxy { get; set; }
+        public bool? TransparentProxy { get; set; }
     }
 }

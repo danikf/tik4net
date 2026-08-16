@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace tik4net.Objects.Routing.Bgp
 {
@@ -26,12 +26,12 @@ namespace tik4net.Objects.Routing.Bgp
         /// Gets or sets a value indicating whether to synchronize this network.
         /// </summary>
         [TikProperty("synchronize")]
-        public bool Synchronize { get; set; }
+        public bool? Synchronize { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether this network is disabled.
         /// </summary>
         [TikProperty("disabled")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
     }
 }

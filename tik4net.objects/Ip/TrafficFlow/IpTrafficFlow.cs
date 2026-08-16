@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -19,7 +19,7 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// Default: no
         /// </summary>
         [TikProperty("enabled", DefaultValue = "no")]
-        public bool Enabled { get; set; }
+        public bool? Enabled { get; set; }
 
         /// <summary>
         /// interfaces — names of interfaces used to gather traffic-flow statistics.
@@ -59,7 +59,7 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// Default: no
         /// </summary>
         [TikProperty("packet-sampling", DefaultValue = "no")]
-        public bool PacketSampling { get; set; }
+        public bool? PacketSampling { get; set; }
 
         /// <summary>
         /// sampling-interval — count of consecutive packets included (sampled) per sampling cycle.

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,23 +17,23 @@ namespace tik4net.Objects.Ip
 
         /// <summary>ip-forward — enables packet forwarding between interfaces. Default: yes.</summary>
         [TikProperty("ip-forward", DefaultValue = "yes")]
-        public bool IpForward { get; set; }
+        public bool? IpForward { get; set; }
 
         /// <summary>send-redirects — whether to send ICMP redirect messages. Default: yes.</summary>
         [TikProperty("send-redirects", DefaultValue = "yes")]
-        public bool SendRedirects { get; set; }
+        public bool? SendRedirects { get; set; }
 
         /// <summary>accept-redirects — whether to accept ICMP redirect messages. Default: no.</summary>
         [TikProperty("accept-redirects", DefaultValue = "no")]
-        public bool AcceptRedirects { get; set; }
+        public bool? AcceptRedirects { get; set; }
 
         /// <summary>accept-source-route — whether to accept packets with the SRR option. Default: no.</summary>
         [TikProperty("accept-source-route", DefaultValue = "no")]
-        public bool AcceptSourceRoute { get; set; }
+        public bool? AcceptSourceRoute { get; set; }
 
         /// <summary>secure-redirects — restrict ICMP redirects to recognised gateways only. Default: yes.</summary>
         [TikProperty("secure-redirects", DefaultValue = "yes")]
-        public bool SecureRedirects { get; set; }
+        public bool? SecureRedirects { get; set; }
 
         /// <summary>rp-filter — reverse-path filter mode for source address validation.
         /// <seealso cref="RpFilterMode"/></summary>
@@ -42,11 +42,11 @@ namespace tik4net.Objects.Ip
 
         /// <summary>allow-fast-path — enables Fast Path processing (automatically disabled when route-cache is off). Default: yes.</summary>
         [TikProperty("allow-fast-path", DefaultValue = "yes")]
-        public bool AllowFastPath { get; set; }
+        public bool? AllowFastPath { get; set; }
 
         /// <summary>tcp-syncookies — enables SYN-cookie protection against SYN-flood attacks. Default: no.</summary>
         [TikProperty("tcp-syncookies", DefaultValue = "no")]
-        public bool TcpSyncookies { get; set; }
+        public bool? TcpSyncookies { get; set; }
 
         /// <summary>tcp-timestamps — TCP timestamp behaviour.
         /// <seealso cref="TcpTimestampsMode"/></summary>
@@ -71,7 +71,7 @@ namespace tik4net.Objects.Ip
 
         /// <summary>icmp-errors-use-inbound-interface-address — when yes, ICMP error replies use the primary address of the receiving interface as source. Default: no.</summary>
         [TikProperty("icmp-errors-use-inbound-interface-address", DefaultValue = "no")]
-        public bool IcmpErrorsUseInboundInterfaceAddress { get; set; }
+        public bool? IcmpErrorsUseInboundInterfaceAddress { get; set; }
 
         /// <summary>ipv4-multipath-hash-policy — hash algorithm used for ECMP route selection.
         /// <seealso cref="MultipathHashPolicy"/></summary>

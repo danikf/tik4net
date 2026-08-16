@@ -33,6 +33,6 @@ namespace tik4net.Objects.Ip.Firewall
         /// disabled
         /// </summary>
         [TikProperty("disabled")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
     }
 }

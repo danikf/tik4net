@@ -1,4 +1,4 @@
-namespace tik4net.Objects.Interface.Wifi
+﻿namespace tik4net.Objects.Interface.Wifi
 {
     /// <summary>
     /// /interface/wifi/configuration
@@ -294,7 +294,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Hide SSID"
         /// </summary>
         [TikProperty("hide-ssid", DefaultValue = "no")]
-        public bool HideSsid { get; set; }
+        public bool? HideSsid { get; set; }
 
         /// <summary>
         /// max-clients — maximum number of simultaneously associated stations (1..1000).
@@ -310,7 +310,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Station Roaming"
         /// </summary>
         [TikProperty("station-roaming", DefaultValue = "no")]
-        public bool StationRoaming { get; set; }
+        public bool? StationRoaming { get; set; }
 
         // ── Environment / regulatory settings ────────────────────────────────
 
@@ -379,7 +379,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Disabled"
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// comment — short free-text description.

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -36,7 +36,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no.
         /// </summary>
         [TikProperty("enabled", DefaultValue = "no")]
-        public bool Enabled { get; set; }
+        public bool? Enabled { get; set; }
 
         /// <summary>
         /// certificate — name of the device certificate used for DTLS-secured CAP connections,
@@ -60,7 +60,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no.
         /// </summary>
         [TikProperty("require-peer-certificate", DefaultValue = "no")]
-        public bool RequirePeerCertificate { get; set; }
+        public bool? RequirePeerCertificate { get; set; }
 
         /// <summary>
         /// package-path — folder path on this router from which RouterOS upgrade packages

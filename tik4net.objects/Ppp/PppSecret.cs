@@ -34,7 +34,7 @@ namespace tik4net.Objects.Ppp
         /// disabled: Whether secret will be used.
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// limit-bytes-in: Maximal amount of bytes for a session that client can upload.

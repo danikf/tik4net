@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -179,13 +179,13 @@ namespace tik4net.Objects.CapsMan
         /// no CAP is connected. Default: no.
         /// </summary>
         [TikProperty("disable-running-check", DefaultValue = "no")]
-        public bool DisableRunningCheck { get; set; }
+        public bool? DisableRunningCheck { get; set; }
 
         /// <summary>
         /// disabled — whether the interface is administratively disabled (X flag).
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// comment — short free-text description of this interface entry.

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,11 +17,11 @@ namespace tik4net.Objects.Tool
     {
         /// <summary>enabled — activates the bandwidth test server. Default: yes.</summary>
         [TikProperty("enabled", DefaultValue = "yes")]
-        public bool Enabled { get; set; }
+        public bool? Enabled { get; set; }
 
         /// <summary>authenticate — when yes, only clients with matching credentials are accepted. Default: yes.</summary>
         [TikProperty("authenticate", DefaultValue = "yes")]
-        public bool Authenticate { get; set; }
+        public bool? Authenticate { get; set; }
 
         /// <summary>allocate-udp-ports-from — first UDP port in the range allocated for UDP test sessions. Real default: 2000; set to 0 to omit on add.</summary>
         // Range 1000–65535; DefaultValue="0" so CLR default 0 is omitted on add (router applies 2000).

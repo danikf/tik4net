@@ -65,7 +65,7 @@ namespace tik4net.Objects.Ip
         /// disabled: 
         /// </summary>
         [TikProperty("disabled")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// comment: Short description of the client

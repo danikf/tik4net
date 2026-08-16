@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -105,14 +105,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: yes (disabled by default on a fresh router)
         /// </summary>
         [TikProperty("disabled", DefaultValue = "yes")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// enable-tun-ipv6 — permits IPv6 IP tunneling over the server interface.
         /// Default: no
         /// </summary>
         [TikProperty("enable-tun-ipv6", DefaultValue = "no")]
-        public bool EnableTunIpv6 { get; set; }
+        public bool? EnableTunIpv6 { get; set; }
 
         /// <summary>
         /// ipv6-prefix-len — prefix length for IPv6 addresses generated on server-side tun interfaces.
@@ -212,7 +212,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("require-client-certificate", DefaultValue = "no")]
-        public bool RequireClientCertificate { get; set; }
+        public bool? RequireClientCertificate { get; set; }
 
         /// <summary>
         /// tls-version — permitted TLS protocol version(s).

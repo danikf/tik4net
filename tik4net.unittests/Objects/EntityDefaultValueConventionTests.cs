@@ -90,6 +90,25 @@ namespace tik4net.unittests.Objects
         };
 
         [TestMethod]
+        public void AWritableBoolIsNullable()
+        {
+            // The convention B4 settled: a writable flag has three states on the router — yes, no, and "you
+            // did not say" — and only bool? can hold all three. A plain bool cannot express the last one, so
+            // whichever value it holds, one of the three is misread, and no DefaultValue can rescue it (A10
+            // measured both ways round). Read-only properties are exempt: nothing is ever sent from them.
+            var offenders = Properties()
+                .Where(x => x.Property.PropertyType == typeof(bool))
+                .Where(x => !x.Attribute.IsReadOnly && x.Property.SetMethod != null && x.Property.SetMethod.IsPublic)
+                .Select(x => $"{x.Entity.Name}.{x.Property.Name} ('{x.Attribute.FieldName}')")
+                .OrderBy(s => s)
+                .ToList();
+
+            Assert.AreEqual(0, offenders.Count,
+                "a writable bool must be declared bool? so 'unset' is distinguishable from 'false':"
+                + Environment.NewLine + string.Join(Environment.NewLine, offenders));
+        }
+
+        [TestMethod]
         public void AnEnumPropertyDeclaresTheWireFormOfItsZeroMemberAsItsDefault()
         {
             // Same rule, and the reason /ip/dhcp-client add-default-route legitimately says "yes": its enum's

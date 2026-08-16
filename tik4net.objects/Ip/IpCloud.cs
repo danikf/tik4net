@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -24,7 +24,7 @@ namespace tik4net.Objects.Ip
 
         /// <summary>update-time — synchronises the device clock with the cloud server when no NTP/SNTP client is enabled.</summary>
         [TikProperty("update-time", DefaultValue = "yes")]
-        public bool UpdateTime { get; set; }
+        public bool? UpdateTime { get; set; }
 
         // --- Read-only properties ---
 

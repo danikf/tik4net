@@ -33,7 +33,7 @@ namespace tik4net.Objects.Interface
         /// disabled: Whether peer will be used.
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// mtu: Layer3 Maximum transmission unit

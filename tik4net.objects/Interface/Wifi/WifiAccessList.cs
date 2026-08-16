@@ -1,4 +1,4 @@
-namespace tik4net.Objects.Interface.Wifi
+﻿namespace tik4net.Objects.Interface.Wifi
 {
     /// <summary>
     /// /interface/wifi/access-list
@@ -177,7 +177,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "RADIUS Accounting"
         /// </summary>
         [TikProperty("radius-accounting", DefaultValue = "no")]
-        public bool RadiusAccounting { get; set; }
+        public bool? RadiusAccounting { get; set; }
 
         /// <summary>
         /// client-isolation — prevent matched clients from communicating with each
@@ -186,7 +186,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Client Isolation"
         /// </summary>
         [TikProperty("client-isolation", DefaultValue = "no")]
-        public bool ClientIsolation { get; set; }
+        public bool? ClientIsolation { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
 
@@ -196,7 +196,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Disabled"
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// comment — short free-text description of this access-list rule.

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -37,7 +37,7 @@ namespace tik4net.Objects.Interface
 
         /// <summary>allow-roaming — Allow the modem to use a roaming data connection. Default: no.</summary>
         [TikProperty("allow-roaming", DefaultValue = "no")]
-        public bool AllowRoaming { get; set; }
+        public bool? AllowRoaming { get; set; }
 
         /// <summary>band — LTE frequency bands to use (comma-separated band numbers, e.g. "3,7,20"). Empty means all bands.</summary>
         [TikProperty("band", DefaultValue = "")]
@@ -95,7 +95,7 @@ namespace tik4net.Objects.Interface
 
         /// <summary>sms-read — Whether to read incoming SMS messages. Default: no.</summary>
         [TikProperty("sms-read", DefaultValue = "no")]
-        public bool SmsRead { get; set; }
+        public bool? SmsRead { get; set; }
 
         /// <summary>running — Whether the LTE interface is connected and running (read-only).</summary>
         [TikProperty("running", IsReadOnly = true)]
@@ -103,7 +103,7 @@ namespace tik4net.Objects.Interface
 
         /// <summary>disabled — Whether the interface is disabled.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>comment — Short description of the interface.</summary>
         [TikProperty("comment")]

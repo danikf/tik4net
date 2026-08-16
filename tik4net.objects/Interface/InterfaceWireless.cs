@@ -33,7 +33,7 @@ namespace tik4net.Objects.Interface
         /// allow-sharedkey: Allow WEP Shared Key cilents to connect. Note that no authentication is done for these clients (WEP Shared keys are not compared to anything) - they are just accepted at once (if access list allows that)
         /// </summary>
         [TikProperty("allow-sharedkey", DefaultValue = "no")]
-        public bool AllowSharedkey { get; set; }
+        public bool? AllowSharedkey { get; set; }
 
         /// <summary>
         /// antenna-gain: Antenna gain in dBi, used to calculate maximum transmit power according to country regulations.
@@ -127,7 +127,7 @@ namespace tik4net.Objects.Interface
         /// compression: Setting this property to yes will allow use of the hardware compression. Wireless interface must have support for hardware compression. Connections with devices that do not use compression will still work.
         /// </summary>
         [TikProperty("compression", DefaultValue = "no")]
-        public bool Compression { get; set; }
+        public bool? Compression { get; set; }
 
         /// <summary>
         /// country: Limits available bands, frequencies and maximum transmit power for each frequency. Also specifies default value of scan-list. Value no_country_set is an FCC compliant set of channels.
@@ -148,7 +148,7 @@ namespace tik4net.Objects.Interface
         /// default-authentication: For AP mode, this is the value of authentication for clients that do not match any entry in the  access-list. For station mode, this is the value of connect for APs that do not match any entry in the  connect-list
         /// </summary>
         [TikProperty("default-authentication", DefaultValue = "yes")]
-        public bool DefaultAuthentication { get; set; }
+        public bool? DefaultAuthentication { get; set; }
 
         /// <summary>
         /// default-client-tx-limit: This is the value of client-tx-limit for clients that do not match any entry in the  access-list. 0 means no limit
@@ -162,7 +162,7 @@ namespace tik4net.Objects.Interface
         /// default-forwarding: This is the value of forwarding for clients that do not match any entry in the  access-list
         /// </summary>
         [TikProperty("default-forwarding", DefaultValue = "yes")]
-        public bool DefaultForwarding { get; set; }
+        public bool? DefaultForwarding { get; set; }
 
         /// <summary>
         /// dfs-mode
@@ -181,13 +181,13 @@ namespace tik4net.Objects.Interface
         /// disable-running-check: When set to yes interface will always have running flag.  If value is set to no', the router determines whether the card is up and running - for AP one or more clients have to be registered to it, for station, it should be connected to an AP.
         /// </summary>
         [TikProperty("disable-running-check", DefaultValue = "no")]
-        public bool DisableRunningCheck { get; set; }
+        public bool? DisableRunningCheck { get; set; }
 
         /// <summary>
         /// disabled: Whether interface is disabled
         /// </summary>
         [TikProperty("disabled", DefaultValue = "yes")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// disconnect-timeout
@@ -258,7 +258,7 @@ namespace tik4net.Objects.Interface
         /// This property has effect only in AP mode. Setting it to yes can remove this network from the list of wireless networks that are shown by some client software. Changing this setting does not improve security of the wireless network, because SSID is included in other frames sent by the AP.
         /// </summary>
         [TikProperty("hide-ssid", DefaultValue = "no")]
-        public bool HideSsid { get; set; }
+        public bool? HideSsid { get; set; }
 
         /// <summary>
         /// ht-ampdu-priorities: Frame priorities for which AMPDU sending (aggregating frames and sending using block acknowledgement) should get negotiated and used. Using AMPDUs will increase throughput, but may increase latency therefore may not be desirable for real-time traffic (voice, video). Due to this, by default AMPDUs are enabled only for best-effort traffic.
@@ -846,7 +846,7 @@ namespace tik4net.Objects.Interface
         /// wds-ignore-ssid: By default, WDS link between two APs can be created only when they work on the same frequency and have the same SSID value. If this property is set to yes, then SSID of the remote AP will not be checked. This property has no effect on connections from clients in station-wds mode. It also does not work if wds-mode is static-mesh or dynamic-mesh.
         /// </summary>
         [TikProperty("wds-ignore-ssid", DefaultValue = "no")]
-        public bool WdsIgnoreSsid { get; set; }
+        public bool? WdsIgnoreSsid { get; set; }
 
         /// <summary>
         /// wds-mode

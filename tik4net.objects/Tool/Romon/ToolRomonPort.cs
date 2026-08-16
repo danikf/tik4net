@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -25,7 +25,7 @@ namespace tik4net.Objects.Tool.Romon
 
         /// <summary>forbid — when yes, RoMON traffic is blocked on this interface. Default: no.</summary>
         [TikProperty("forbid", DefaultValue = "no")]
-        public bool Forbid { get; set; }
+        public bool? Forbid { get; set; }
 
         /// <summary>cost — RoMON link cost for this interface (lower = preferred). Real default: 100; set to 0 to let the router use its default on add.</summary>
         // Router default is 100; DefaultValue="0" sentinel ensures 0 (CLR default) is omitted on add
@@ -39,7 +39,7 @@ namespace tik4net.Objects.Tool.Romon
 
         /// <summary>disabled — when true this port entry is disabled. Default: no.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>comment — free-form comment.</summary>
         [TikProperty("comment")]

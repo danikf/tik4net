@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -55,15 +55,15 @@ namespace tik4net.Objects.Ip.Hotspot
 
         /// <summary>install-hotspot-queue — create a simple queue to limit overall HotSpot throughput when enabled.</summary>
         [TikProperty("install-hotspot-queue", DefaultValue = "no")]
-        public bool InstallHotspotQueue { get; set; }
+        public bool? InstallHotspotQueue { get; set; }
 
         /// <summary>split-user-domain — when yes, the domain part is stripped from the username before RADIUS lookup.</summary>
         [TikProperty("split-user-domain", DefaultValue = "no")]
-        public bool SplitUserDomain { get; set; }
+        public bool? SplitUserDomain { get; set; }
 
         /// <summary>use-radius — when yes, user authentication is delegated to RADIUS instead of the local user database.</summary>
         [TikProperty("use-radius", DefaultValue = "no")]
-        public bool UseRadius { get; set; }
+        public bool? UseRadius { get; set; }
 
         /// <summary>ssl-certificate — certificate name for HTTPS login page (from /certificate).</summary>
         [TikProperty("ssl-certificate", DefaultValue = "none")]
@@ -77,7 +77,7 @@ namespace tik4net.Objects.Ip.Hotspot
 
         /// <summary>radius-accounting — send RADIUS accounting packets.</summary>
         [TikProperty("radius-accounting", DefaultValue = "yes")]
-        public bool RadiusAccounting { get; set; }
+        public bool? RadiusAccounting { get; set; }
 
         /// <summary>radius-interim-update — interval for sending RADIUS accounting interim-update packets. Default: 0s (disabled).</summary>
         [TikProperty("radius-interim-update", DefaultValue = "0s")]

@@ -96,7 +96,7 @@
         /// disabled: 
         /// </summary>
         [TikProperty("disabled")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// bytes-in: 

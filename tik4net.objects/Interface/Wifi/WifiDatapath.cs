@@ -1,4 +1,4 @@
-namespace tik4net.Objects.Interface.Wifi
+﻿namespace tik4net.Objects.Interface.Wifi
 {
     /// <summary>
     /// /interface/wifi/datapath
@@ -80,7 +80,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Client Isolation"
         /// </summary>
         [TikProperty("client-isolation", DefaultValue = "no")]
-        public bool ClientIsolation { get; set; }
+        public bool? ClientIsolation { get; set; }
 
         // ── Interface / VLAN ──────────────────────────────────────────────────
 
@@ -130,7 +130,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Disabled"
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// comment — short free-text description.

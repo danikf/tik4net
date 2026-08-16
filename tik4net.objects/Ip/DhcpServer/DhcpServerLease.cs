@@ -44,13 +44,13 @@ namespace tik4net.Objects.Ip.DhcpServer
         /// always-broadcast: Send all replies as broadcasts
         /// </summary>
         [TikProperty("always-broadcast")]
-        public bool AlwaysBroadcast { get; set; }
+        public bool? AlwaysBroadcast { get; set; }
 
         /// <summary>
         /// block-access: Block access for this client
         /// </summary>
         [TikProperty("block-access", DefaultValue = "no")]
-        public bool BlockAccess { get; set; }
+        public bool? BlockAccess { get; set; }
 
         /// <summary>
         /// client-id: If specified, must match DHCP 'client identifier' option of the request
@@ -174,7 +174,7 @@ namespace tik4net.Objects.Ip.DhcpServer
         /// disabled: 
         /// </summary>
         [TikProperty("disabled")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// comment: Short description of the client

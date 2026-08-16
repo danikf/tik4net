@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,7 +15,7 @@ namespace tik4net.Objects.Ip
     {
         /// <summary>enabled — enables or disables the SOCKS proxy server.</summary>
         [TikProperty("enabled", DefaultValue = "no")]
-        public bool Enabled { get; set; }
+        public bool? Enabled { get; set; }
 
         /// <summary>port — TCP port on which the SOCKS server listens. Default: 1080.</summary>
         [TikProperty("port", DefaultValue = "1080")]

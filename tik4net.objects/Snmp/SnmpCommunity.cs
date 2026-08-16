@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -85,7 +85,7 @@ namespace tik4net.Objects.Snmp
         /// WinBox: "Read Access"
         /// </summary>
         [TikProperty("read-access", DefaultValue = "yes")]
-        public bool ReadAccess { get; set; }
+        public bool? ReadAccess { get; set; }
 
         /// <summary>
         /// write-access — allow SNMP SET (configuration write) from this community.
@@ -93,7 +93,7 @@ namespace tik4net.Objects.Snmp
         /// WinBox: "Write Access"
         /// </summary>
         [TikProperty("write-access", DefaultValue = "no")]
-        public bool WriteAccess { get; set; }
+        public bool? WriteAccess { get; set; }
 
         /// <summary>
         /// authentication-protocol — hash algorithm used for SNMPv3 authentication.
@@ -140,7 +140,7 @@ namespace tik4net.Objects.Snmp
         /// against incoming SNMP requests.
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>comment — free-text annotation</summary>
         [TikProperty("comment")]

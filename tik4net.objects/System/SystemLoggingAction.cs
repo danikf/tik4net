@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -163,7 +163,7 @@ namespace tik4net.Objects.System
         /// memory-stop-on-full — stop logging when the memory buffer is full (memory target only).
         /// </summary>
         [TikProperty("memory-stop-on-full", DefaultValue = "no")]
-        public bool MemoryStopOnFull { get; set; }
+        public bool? MemoryStopOnFull { get; set; }
 
         // ── disk target ───────────────────────────────────────────────────────
 
@@ -189,7 +189,7 @@ namespace tik4net.Objects.System
         /// disk-stop-on-full — stop logging when all disk files are full (disk target only).
         /// </summary>
         [TikProperty("disk-stop-on-full", DefaultValue = "no")]
-        public bool DiskStopOnFull { get; set; }
+        public bool? DiskStopOnFull { get; set; }
 
         // ── echo target ───────────────────────────────────────────────────────
 
@@ -197,7 +197,7 @@ namespace tik4net.Objects.System
         /// remember — keep unread console messages highlighted until viewed (echo target only).
         /// </summary>
         [TikProperty("remember")]
-        public bool Remember { get; set; }
+        public bool? Remember { get; set; }
 
         // ── remote target ─────────────────────────────────────────────────────
 
@@ -282,7 +282,7 @@ namespace tik4net.Objects.System
         /// email-start-tls — use STARTTLS when connecting to the SMTP relay (email target only).
         /// </summary>
         [TikProperty("email-start-tls", DefaultValue = "no")]
-        public bool EmailStartTls { get; set; }
+        public bool? EmailStartTls { get; set; }
 
         // ── read-only / meta ──────────────────────────────────────────────────
 

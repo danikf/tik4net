@@ -1,4 +1,4 @@
-namespace tik4net.Objects.Routing.Ospf
+﻿namespace tik4net.Objects.Routing.Ospf
 {
     /// <summary>
     /// /routing/ospf/instance
@@ -147,14 +147,14 @@ namespace tik4net.Objects.Routing.Ospf
         /// <c>use-dn</c> and it has no M2 key to be written on.</para>
         /// </summary>
         [TikProperty("use-dn", DefaultValue = "no")]
-        public bool UseDn { get; set; }
+        public bool? UseDn { get; set; }
 
         /// <summary>
         /// disabled — when true the OSPF instance is administratively disabled.
         /// Default: false
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>comment — optional free-text annotation.</summary>
         [TikProperty("comment")]

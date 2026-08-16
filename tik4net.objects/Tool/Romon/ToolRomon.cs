@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,7 +18,7 @@ namespace tik4net.Objects.Tool.Romon
     {
         /// <summary>enabled — activates the RoMON agent on this router. Default: no.</summary>
         [TikProperty("enabled", DefaultValue = "no")]
-        public bool Enabled { get; set; }
+        public bool? Enabled { get; set; }
 
         /// <summary>id — RoMON identifier (MAC address format). When set to 00:00:00:00:00:00 the router's own MAC is used. Default: 00:00:00:00:00:00.</summary>
         [TikProperty("id", DefaultValue = "00:00:00:00:00:00")]

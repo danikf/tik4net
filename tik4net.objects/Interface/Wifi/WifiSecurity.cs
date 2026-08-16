@@ -1,4 +1,4 @@
-namespace tik4net.Objects.Interface.Wifi
+﻿namespace tik4net.Objects.Interface.Wifi
 {
     /// <summary>
     /// /interface/wifi/security
@@ -230,7 +230,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Disable PMKID"
         /// </summary>
         [TikProperty("disable-pmkid", DefaultValue = "no")]
-        public bool DisablePmkid { get; set; }
+        public bool? DisablePmkid { get; set; }
 
         // ── SAE (WPA3-PSK) settings ───────────────────────────────────────────
 
@@ -326,7 +326,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "EAP Accounting"
         /// </summary>
         [TikProperty("eap-accounting", DefaultValue = "no")]
-        public bool EapAccounting { get; set; }
+        public bool? EapAccounting { get; set; }
 
         // ── 802.11r Fast BSS Transition (FT) ─────────────────────────────────
 
@@ -336,7 +336,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "FT"
         /// </summary>
         [TikProperty("ft", DefaultValue = "no")]
-        public bool Ft { get; set; }
+        public bool? Ft { get; set; }
 
         /// <summary>
         /// ft-over-ds — enable FT over the Distribution System (DS) rather than the air.
@@ -344,7 +344,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "FT Over DS"
         /// </summary>
         [TikProperty("ft-over-ds", DefaultValue = "no")]
-        public bool FtOverDs { get; set; }
+        public bool? FtOverDs { get; set; }
 
         /// <summary>
         /// ft-mobility-domain — 802.11r mobility domain identifier (0..65535).
@@ -385,7 +385,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "FT Preserve VLAN ID"
         /// </summary>
         [TikProperty("ft-preserve-vlanid", DefaultValue = "yes")]
-        public bool FtPreserveVlanid { get; set; }
+        public bool? FtPreserveVlanid { get; set; }
 
         // ── OWE ───────────────────────────────────────────────────────────────
 
@@ -434,7 +434,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Disabled"
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// comment — short free-text description.

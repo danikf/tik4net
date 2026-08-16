@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -89,7 +89,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: yes (disabled on creation).
         /// </summary>
         [TikProperty("disabled", DefaultValue = "yes")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// user — username sent during authentication.
@@ -123,7 +123,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("add-default-route", DefaultValue = "no")]
-        public bool AddDefaultRoute { get; set; }
+        public bool? AddDefaultRoute { get; set; }
 
         /// <summary>
         /// default-route-distance — distance (administrative distance) applied to the auto-created
@@ -138,7 +138,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("dial-on-demand", DefaultValue = "no")]
-        public bool DialOnDemand { get; set; }
+        public bool? DialOnDemand { get; set; }
 
         /// <summary>
         /// keepalive-timeout — tunnel keepalive timeout in seconds; if the remote end does not respond
@@ -177,7 +177,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("use-ipsec", DefaultValue = "no")]
-        public bool UseIpsec { get; set; }
+        public bool? UseIpsec { get; set; }
 
         /// <summary>
         /// ipsec-secret — pre-shared key used when <see cref="UseIpsec"/> is enabled.
@@ -191,7 +191,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("allow-fast-path", DefaultValue = "no")]
-        public bool AllowFastPath { get; set; }
+        public bool? AllowFastPath { get; set; }
 
         /// <summary>
         /// use-peer-dns — whether to use DNS servers advertised by the remote peer.
@@ -207,7 +207,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("random-source-port", DefaultValue = "no")]
-        public bool RandomSourcePort { get; set; }
+        public bool? RandomSourcePort { get; set; }
 
         /// <summary>
         /// src-address — source IP address bound for outgoing L2TP packets; leave empty to use the

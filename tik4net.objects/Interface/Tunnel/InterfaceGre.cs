@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -53,11 +53,11 @@ namespace tik4net.Objects.Interface.Tunnel
 
         /// <summary>clamp-tcp-mss — Adjust MSS for TCP SYN packets when they would exceed tunnel MTU. Default: yes.</summary>
         [TikProperty("clamp-tcp-mss", DefaultValue = "yes")]
-        public bool ClampTcpMss { get; set; }
+        public bool? ClampTcpMss { get; set; }
 
         /// <summary>allow-fast-path — Allow FastPath processing. Must be disabled when using IPsec. Default: yes.</summary>
         [TikProperty("allow-fast-path", DefaultValue = "yes")]
-        public bool AllowFastPath { get; set; }
+        public bool? AllowFastPath { get; set; }
 
         /// <summary>ipsec-secret — Pre-shared key for dynamic IPsec peer at the remote address.</summary>
         [TikProperty("ipsec-secret", DefaultValue = "")]
@@ -69,7 +69,7 @@ namespace tik4net.Objects.Interface.Tunnel
 
         /// <summary>disabled — Whether the interface is disabled.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>comment — Short description of the tunnel.</summary>
         [TikProperty("comment")]

@@ -141,7 +141,7 @@ namespace tik4net.Objects.Interface
         /// use-service-tag
         /// </summary>
         [TikProperty("use-service-tag")]
-        public bool UseServiceTag { get; set; }
+        public bool? UseServiceTag { get; set; }
 
         /// <summary>
         /// running
@@ -153,7 +153,7 @@ namespace tik4net.Objects.Interface
         /// disabled
         /// </summary>
         [TikProperty("disabled")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// comment

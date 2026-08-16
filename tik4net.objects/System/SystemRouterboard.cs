@@ -1,4 +1,4 @@
-namespace tik4net.Objects.System
+﻿namespace tik4net.Objects.System
 {
 	/// <summary>
     /// Gets the infor provided by
@@ -11,7 +11,7 @@ namespace tik4net.Objects.System
 		/// Gets a value indicating whether this hardware is a RouterBoard.
 		/// </summary>
 		[TikProperty("routerboard")]
-		public bool Routerboard { get; set; }
+		public bool? Routerboard { get; set; }
 
 		/// <summary>
 		/// Gets the name of the board. 

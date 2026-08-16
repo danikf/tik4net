@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -84,7 +84,7 @@ namespace tik4net.Objects.System
 
         /// <summary>disabled — when true this LED entry is disabled. Default: no.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>Returns a human-readable summary of this LED entry.</summary>
         public override string ToString() => string.Format("leds: {0} type={1} iface={2}", Leds, Type, Interface);

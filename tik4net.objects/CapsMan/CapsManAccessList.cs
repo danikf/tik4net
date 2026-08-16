@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -197,7 +197,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "RADIUS Accounting"
         /// </summary>
         [TikProperty("radius-accounting", DefaultValue = "no")]
-        public bool RadiusAccounting { get; set; }
+        public bool? RadiusAccounting { get; set; }
 
         /// <summary>
         /// client-to-client-forwarding — allow matched wireless clients to communicate
@@ -206,7 +206,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Client To Client Forwarding"
         /// </summary>
         [TikProperty("client-to-client-forwarding", DefaultValue = "no")]
-        public bool ClientToClientForwarding { get; set; }
+        public bool? ClientToClientForwarding { get; set; }
 
         /// <summary>
         /// ap-tx-limit — maximum TX data rate (bytes/s) from the AP toward matched clients.
@@ -235,7 +235,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Disabled"
         /// </summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>
         /// comment — short free-text description of this access-list rule.

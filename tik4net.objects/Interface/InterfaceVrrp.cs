@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -49,7 +49,7 @@ namespace tik4net.Objects.Interface
 
         /// <summary>preemption-mode — Whether a higher-priority backup immediately takes over master role.</summary>
         [TikProperty("preemption-mode", DefaultValue = "yes")]
-        public bool PreemptionMode { get; set; }
+        public bool? PreemptionMode { get; set; }
 
         public enum AuthenticationMode
         {
@@ -126,7 +126,7 @@ namespace tik4net.Objects.Interface
 
         /// <summary>sync-connection-tracking — Synchronizes connection tracking entries from master to backup.</summary>
         [TikProperty("sync-connection-tracking", DefaultValue = "no")]
-        public bool SyncConnectionTracking { get; set; }
+        public bool? SyncConnectionTracking { get; set; }
 
         public enum ConnectionTrackingModeType
         {
@@ -159,7 +159,7 @@ namespace tik4net.Objects.Interface
 
         /// <summary>disabled — Whether the interface is disabled.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool Disabled { get; set; }
+        public bool? Disabled { get; set; }
 
         /// <summary>comment — Short description of the interface.</summary>
         [TikProperty("comment")]

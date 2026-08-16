@@ -1,4 +1,4 @@
-namespace tik4net.Objects.User
+﻿namespace tik4net.Objects.User
 {
 	/// <summary>
 	/// Access to a user setting.
@@ -34,7 +34,7 @@ namespace tik4net.Objects.User
 		/// Gets or sets a value indicating whether the user is disabled. 
 		/// </summary>
 		[TikProperty("disabled")]
-		public bool Disabled { get; set; }
+		public bool? Disabled { get; set; }
 
 		/// <summary>
 		/// Gets or sets a comment associated with the user. 
