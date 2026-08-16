@@ -154,7 +154,7 @@ Project skills live in `.claude/skills/`. Invoke them by name rather than recons
 | `winbox-native-dev` | Structured-M2 transport work: `.jg` catalog, wire encodings, field mapping |
 | `entity-generator` | Scaffold O/R mapper entities |
 | `chr-test-router-init` | Re-provision the CHR test router after a restore/reset |
-| `tik4net-mcp-install` | (Re)install the MCP server as a global tool after changing it |
+| `tik4net-mcp-install` | Refresh the MCP server after changing it — the in-repo dev launcher, or the global tool |
 
 `Docs/` holds transport ground truth established by live probing; source XML docs cite these files by
 name. Read the relevant one before changing a transport, and update it when live behaviour contradicts

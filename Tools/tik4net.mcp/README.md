@@ -15,11 +15,53 @@ tools:
 dotnet tool install -g tik4net.mcp
 ```
 
-This puts `tik4net-mcp` on your PATH (requires the .NET 8 runtime).
+This puts `tik4net-mcp` on your PATH (requires the .NET 8 runtime). Point your MCP client at that
+command over stdio:
 
-### Install from source
+```jsonc
+{
+  "mcpServers": {
+    "tik4net-mcp": {
+      "command": "tik4net-mcp",
+      "type": "stdio"
+    }
+  }
+}
+```
 
-Working in this repository, or want a build that is newer than the published package:
+That is the right setup for *using* the server. Developing it is a different story, below.
+
+## Working on the server (or on tik4net itself)
+
+A server process holds a lock on the binary it runs. Run it straight from `bin/` and
+`dotnet build tik4net.sln` fails; run it from the installed global tool and reinstalling fails
+instead — including when the lock belongs to a *different* client session you did not want to
+disturb. Neither is a good edit loop.
+
+So in this repository the checked-in [`.mcp.json`](../../.mcp.json) starts the server through
+[`run-dev.ps1`](run-dev.ps1), which copies `bin/<Configuration>/net8.0` into a throw-away directory
+under `%TEMP%` and runs it from there. Nothing inside the repository or the tool store is ever
+locked, and the loop becomes:
+
+```
+dotnet build tik4net.sln          # never blocked, however many clients are connected
+```
+
+then reconnect that one MCP server in your client. No uninstall, no NuGet cache purge, no stopping
+anyone else's server; each session keeps running its own staged copy until it reconnects.
+
+The script does not build — an MCP client cannot report a build failure, it would just get a server
+that never starts — so it always runs the output of your last build, and says which one on stderr.
+It stages `Debug` by default (what a plain `dotnet build` produces); override with
+`-Configuration Release` or `$env:TIK4NET_MCP_CONFIGURATION`. Staged copies older than two days are
+deleted on the next launch, skipping any that a server is still using.
+
+It is a PowerShell script, so on Linux/macOS use the installed-tool configuration shown above and
+reinstall after each change.
+
+### Installing from source
+
+For a fresh machine, or to use this build outside the repository:
 
 ```
 powershell -NoProfile -ExecutionPolicy Bypass -File Tools/tik4net.mcp/install-tool.ps1
@@ -33,25 +75,9 @@ non-interactively.
 
 Restart your MCP client afterwards; it will not reconnect to the replaced server on its own.
 
-> **Do not point your MCP client at `dotnet run --project Tools/tik4net.mcp/…`.** The running server
-> holds a lock on its own `bin/` output, and `dotnet build tik4net.sln` — which includes this project
-> — then fails. Installing as a tool puts the binary outside the repository, where it can't collide
-> with a build.
-
-## Configure your MCP client
-
-Point the client at the installed command over stdio. For example, an `.mcp.json`:
-
-```jsonc
-{
-  "mcpServers": {
-    "tik4net-mcp": {
-      "command": "tik4net-mcp",
-      "type": "stdio"
-    }
-  }
-}
-```
+> **Do not point your MCP client at `dotnet run --project Tools/tik4net.mcp/…`.** That server holds
+> a lock on its own `bin/` output, and `dotnet build tik4net.sln` — which includes this project —
+> then fails. Use `run-dev.ps1` (staged copy) or the installed tool (outside the repository).
 
 ## The `mikrotik_call` tool
 

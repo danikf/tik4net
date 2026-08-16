@@ -1,7 +1,16 @@
 {
   "mcpServers": {
     "tik4net-mcp": {
-      "command": "tik4net-mcp",
+      "command": "powershell",
+      "args": [
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "Tools/tik4net.mcp/run-dev.ps1"
+      ],
       "type": "stdio"
     }
   }
