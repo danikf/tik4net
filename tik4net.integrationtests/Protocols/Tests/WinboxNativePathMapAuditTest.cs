@@ -169,7 +169,7 @@ namespace tik4net.integrationtests
         /// </remarks>
         private static readonly Dictionary<string, string> KnownValueGaps = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["/certificate"]                          = "date/epoch (invalid-before/after), age=uptime-clock timestamp (expires-after), raw-u32 IP (subject-alt-name)",
+            ["/certificate"]                          = "age=uptime-clock timestamp (expires-after); subject-alt-name is a tuple (type enm + ':' + a union whose FIRST member is ip6addr, while the value rides on the ipaddr key)",
             ["/interface/ethernet"]                   = "auto-negotiation reads the link's live state, not the setting",
             ["/interface/l2tp-server/server"]          = "set order (authentication)",
             ["/interface/pptp-server/server"]          = "set order (authentication)",
@@ -180,7 +180,6 @@ namespace tik4net.integrationtests
             ["/ip/neighbor"]                          = "system-caps reads a value the API leaves empty",
             ["/routing/table"]                        = "fib reads the flag's own bool where the API prints it empty",
             ["/snmp/community"]                       = "IPv6 any-address renders '::' where the API prints '::/0'",
-            ["/system/clock"]                         = "date/epoch (date), gmt-offset in seconds",
             ["/system/ntp/client"]                     = "signed values (freq-drift, system-offset) decoded as unsigned u32",
             ["/system/ntp/server"]                     = "enabled reads the wrong key (native says true where the API says false)",
         };

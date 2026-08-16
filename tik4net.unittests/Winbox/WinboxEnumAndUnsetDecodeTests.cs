@@ -409,6 +409,42 @@ namespace tik4net.unittests.Winbox
             Assert.AreEqual("local", map[0]);
         }
 
+        // ── epochs and offsets ────────────────────────────────────────────────
+
+        private const string ClockWindow =
+            "[{name:'Clock',type:'item',path:[ 24,1 ],c:[" +
+            "{name:'Invalid Before',type:'dateandtime',id:'u88',opt:1,ro:1}," +
+            "{name:'Date',type:'clockdate',id:'u1f'}," +
+            "{name:'GMT Offset',type:'timezone',id:'u1b',ro:1}]}]";
+
+        [TestMethod]
+        public void ADateAndTimeIsUnixEpochSecondsInUtc()
+        {
+            // Not a guess: webfig's date2string is `new Date(val*1000).toISOString()`, i.e. UTC with no local
+            // shift, and the live values match the API to the second — a certificate's 1784975092 IS
+            // '2026-07-25 10:24:52'.
+            var catalog = Parse(ClockWindow);
+
+            Assert.AreEqual("2026-07-25 10:24:52",
+                Decode(catalog, new[] { 24, 1 }, Rec((0x88, "u32", 1784975092u)))["invalid-before"]);
+            Assert.AreEqual("2026-08-16",
+                Decode(catalog, new[] { 24, 1 }, Rec((0x1F, "u32", 1786838400u)))["date"],
+                "a clockdate is the same epoch printed as a date alone");
+        }
+
+        [TestMethod]
+        public void AGmtOffsetIsSecondsRenderedAsHoursAndMinutes()
+        {
+            var catalog = Parse(ClockWindow);
+
+            Assert.AreEqual("+02:00",
+                Decode(catalog, new[] { 24, 1 }, Rec((0x1B, "u32", 7200u)))["gmt-offset"]);
+            // A negative offset arrives wrapped, the wire being unsigned; -04:30 is the Newfoundland-shaped
+            // case that catches a sign-only implementation.
+            Assert.AreEqual("-04:30",
+                Decode(catalog, new[] { 24, 1 }, Rec((0x1B, "u32", unchecked((uint)(-16200))))) ["gmt-offset"]);
+        }
+
         // ── a zero RouterOS spells as a word ──────────────────────────────────
 
         // ppp.jg L2TP Server (MRRU declares min:1500 with def:0, so 0 is outside its own domain) and

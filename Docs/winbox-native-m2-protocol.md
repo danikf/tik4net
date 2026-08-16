@@ -638,6 +638,33 @@ print of the row the wire carries as `0.0.0.0`. The table is keyed by FIELD NAME
 means the same thing on all four PPP server menus — and is gated on the field being `opt` and the value
 being exactly zero, so a real count is never rewritten.
 
+### 26.2f Epochs and offsets — and why the set ORDER is not fixable the same way
+
+`dateandtime` and `clockdate` are Unix epoch seconds in **UTC**, not local time: webfig's `date2string` is
+`new Date(val*1000).toISOString().substring(0,10)`, and the live values agree with the API to the second
+(a certificate's `1784975092` **is** `2026-07-25 10:24:52`). `clockdate` is the same value printed as a
+date alone. `timezone` is a signed second offset rendered `±HH:MM` — the wire carries it unsigned, so a
+negative offset arrives wrapped and must be unwrapped before the sign is taken.
+
+**The `set` ORDER is a different matter, and it is deliberately still open.** A bitmask decodes here by
+ascending bit index, and RouterOS prints its own order. It is tempting to conclude "the API prints
+descending", because both mismatching fields read exactly reversed:
+
+| field | `.jg` bit map | the API prints |
+|---|---|---|
+| `authentication` (3 PPP server menus) | 1 mschap2, 2 mschap1, 3 chap, 4 pap | `pap,chap,mschap1,mschap2` |
+| `dh-group` (`/ip/ipsec/profile`) | ascending groups | `modp2048,modp1024` |
+
+That rule is **wrong**, and the router says so. A firewall rule created with
+`connection-state=related,established` prints back as `established,related` — bits 1 and 2 of
+`{0:'invalid',1:'established',2:'related',3:'new',8:'untracked'}`, i.e. **ascending**. So the print order
+is per-field and RouterOS-internal. Nor does tab completion supply it: `set authentication=` completes to
+`chap mschap1 mschap2 pap`, which is alphabetical and matches neither the wire order nor the print order.
+
+With no derivable source, the alternative would be a hand-written per-field order table with nothing to
+verify it against — so the three paths stay in `KnownValueGaps` with this recorded, rather than shipping a
+rule that would newly break every set field that already agrees.
+
 ### 26.3 "Not set" is an absent field, not an empty one
 
 Three ways the router says a field is not set, and in all of them the API answers by leaving the field

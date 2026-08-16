@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -27,6 +28,9 @@ namespace tik4net.Winbox
         // Guards the cache: a multiplexed connection can decode two commands' rows at once, and
         // PrimeReferencesAsync writes from the awaited path while a synchronous decode may be reading.
         private readonly object _refNameCacheLock = new object();
+
+        // The Unix epoch, the origin every dateandtime/clockdate value on the wire counts from.
+        private static readonly DateTime Epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         private static readonly Dictionary<string, int> EmptyOverrides = new Dictionary<string, int>();
 
@@ -169,6 +173,39 @@ namespace tik4net.Winbox
                             return addr + "/" + WinboxFieldResolver.MaskToPrefix(mt.Item2);
                         }
                         return addr;
+                    }
+                    case "dateandtime":
+                    case "clockdate":
+                    {
+                        // Unix epoch seconds. webfig's date2string is
+                        // `new Date(val*1000).toISOString().substring(0,10)` — UTC, no local shift — and the
+                        // values confirm it exactly: a certificate's 1784975092 is the API's
+                        // '2026-07-25 10:24:52' to the second. clockdate is the same value printed as a date
+                        // alone (/system/clock 'Date'). Both read as raw second counts before this.
+                        if (!WinboxFieldResolver.TryToInt64(value, out long epoch))
+                        {
+                            TraceNonNumeric(jf.UiType, value);
+                            break;
+                        }
+                        var when = Epoch.AddSeconds(epoch);
+                        return string.Equals(jf.UiType, "clockdate", StringComparison.OrdinalIgnoreCase)
+                            ? when.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+                            : when.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+                    }
+                    case "timezone":
+                    {
+                        // types.timezone.tostr → timezone2string: a signed SECOND offset rendered ±HH:MM.
+                        // /system/clock gmt-offset read as the bare 7200.
+                        if (!WinboxFieldResolver.TryToInt64(value, out long offset))
+                        {
+                            TraceNonNumeric("timezone", value);
+                            break;
+                        }
+                        // The wire carries it as an unsigned u32, so a negative offset arrives wrapped.
+                        if (offset > int.MaxValue) offset -= 4294967296L;
+                        char sign = offset < 0 ? '-' : '+';
+                        long minutes = Math.Abs(offset) / 60;
+                        return $"{sign}{minutes / 60:00}:{minutes % 60:00}";
                     }
                     case "interval":
                     {
