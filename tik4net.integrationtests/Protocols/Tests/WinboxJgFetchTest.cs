@@ -180,8 +180,26 @@ namespace tik4net.integrationtests
                 Assert.IsTrue(files.All(f => Path.GetFileName(f).Contains("-")),
                     "plugins are cached under their version-stamped 'unique' name");
                 Assert.IsTrue(lastRead > 0, "the catalog must resolve /interface by the last connect");
-                Assert.IsTrue(elapsed.Last() * 2 < elapsed.Max(),
-                    $"a warm cache should open far faster than a cold one ({string.Join("/", elapsed)} ms)");
+
+                // The warm-cache speed-up, measured only between connects that were actually SERVED. The
+                // earlier assertions are all on the end state because mproxy legitimately refuses `list` on
+                // a connect (P2.20/P2.40) and that connect then ends on seeds; this one used to compare the
+                // last connect against elapsed.Max() regardless, so a run where the first three were refused
+                // and the FOURTH did the cold fetch failed for having no warm connect to be faster than —
+                // measured live 31353/35051/34768/39120 ms with handlers 0/0/0/1361. There is no warm
+                // measurement to make in that shape, so make none.
+                int firstServed = handlerCounts.FindIndex(h => h > 0);
+                if (firstServed >= 0 && firstServed < elapsed.Count - 1)
+                {
+                    Assert.IsTrue(elapsed.Last() * 2 < elapsed[firstServed],
+                        "a warm cache should open far faster than the cold connect that filled it " +
+                        $"({string.Join("/", elapsed)} ms, handlers {string.Join("/", handlerCounts)})");
+                }
+                else
+                {
+                    Console.WriteLine("no warm connect to measure: the catalog only arrived on the last of " +
+                        $"{elapsed.Count} connects (handlers {string.Join("/", handlerCounts)})");
+                }
             }
             finally
             {

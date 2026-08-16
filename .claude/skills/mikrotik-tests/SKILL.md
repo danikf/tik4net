@@ -78,6 +78,15 @@ the CLI parsers) or for release preparation.
 CLI ones, and `winboxcli` before `winboxclimac`, because CLI transports are the ones that leave orphans
 and an orphan changes the error a later transport sees.
 
+**`--filter` cannot run an `[Ignore]`d test.** MSTest applies `[Ignore]` before the filter, so naming the
+test still reports it `Přeskočeno`/skipped and the run passes — a green result that measured nothing.
+Comment the attribute out, run, then put it back. The audit and dump tests are the ones this bites:
+
+| Test | What it does |
+|---|---|
+| `WinboxNativePathMapAuditTest.AuditPathMapAgainstApi` | per API path, native vs. API row count, field-name set, and the VALUES of shared fields on rows paired by `.id`. Run it after touching the alias tables, the `.jg` harvest, a codec, or on a new RouterOS version — a normal suite run cannot catch a path answering with the wrong window or the wrong value. Reports `OK=… KNOWN-GAP=… MISMATCH=… VALUE-DIFF=… UNMAPPED=…`; compare that tally against the previous commit's. A known gap belongs in `KnownFieldGaps`/`KnownValueGaps` **with the reason named**, so a new disagreement on the same path still fails. |
+| `WinboxDumpCatalogTest` | dumps the live `.jg` catalog next to the other catalog dumps |
+
 ## Reading results
 
 ```bash
@@ -181,8 +190,12 @@ diagnoses that turned out wrong — is in [`Docs/HISTORY.md`](../../../Docs/HIST
   or another transport. Verify a path really is absent before adding the guard — see the feature-parity
   rule in [AGENTS.md](../../../AGENTS.md).
 - **Bridge creation over native** (`add type=bridge`) is not supported and answers `0xFE0006`.
-- **Interface-reference list fields** (`tagged`/`untagged`, i.e. `multinumber`) are not yet encoded; the
-  resolver throws `WinboxFieldResolutionException` rather than dropping them silently.
+- **The remaining array shapes** (`multitristatearray`, `string[]`, …) are not yet encoded; the resolver
+  throws `WinboxFieldResolutionException` rather than dropping them silently. `multinumber` (`tagged`/
+  `untagged`, `topics`) and `multinumberrange` (`vlan-ids`, `dst-port`) do encode.
+- **A field no WinBox window exposes has no M2 key** and is refused by name — `/routing/ospf/instance`
+  `use-dn` is the worked example. Check the `.jg` before assuming it is ours: `ft-preserve-vlanid` and
+  `radius-accounting` looked API-only and were label gaps.
 - **A `bool` entity `DefaultValue` must be the wire form `"no"`/`"yes"`**, never `"false"`/`"true"`.
   The mapper emits `yes`/`no` and compares that against `DefaultValue`, so a wrong default never
   matches, the field is sent on every add, and native then has no M2 key for it. This surfaces as a

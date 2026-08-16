@@ -607,6 +607,90 @@ every pane: without the kind there is no honest way to say which one is live.
 
 ---
 
+## 28. A window owns its field numbering, and a list field is written whole
+
+Two rules that finish the write path for the fields RouterOS has and the catalog could not name or encode.
+
+### 28.1 Two windows on one handler number their fields from scratch
+
+A handler is not a table — it is a *menu entry point*, and several windows may hang off it. `[28,0]` is
+both the UPnP settings singleton (`b1` 'Enabled', `b2` 'Allow To Disable External Interface') and the UPnP
+interface list (`u1` 'Interface', `u2` 'Type'); `[96,1]` is the web-proxy settings item and its connections
+list. Each window numbers its fields from 1, so the same key means different things depending on which
+window you are addressing.
+
+Merged into one per-handler map, both names are present — nothing overwrites anything, because
+`enabled` and `interface` are different entries — but the map cannot be **inverted**. Asked "what is key
+1?", it answers with whichever window the catalog parsed first, and `/ip/upnp/interfaces` read back rows
+carrying `enabled` and no `interface` at all (the O/R mapper: "Missing field 'interface'").
+
+Every window's fields are therefore also filed under the window itself, and the resolver consults
+**action → window → handler**, most specific first, for both directions:
+
+| Direction | Rule |
+|---|---|
+| name → field (writes) | the window's entry overwrites the handler's |
+| key → name, key → type (reads) | the window's entry is enumerated first and wins |
+
+The per-handler map keeps byte-for-byte the first-wins content it always had, so a path reached by a raw
+`PathOverride` — which derives no window — resolves exactly as before. Interface subtype windows are the
+one kind deliberately excluded from their handler's map: they disagree about keys under identical labels
+('Remote Address' is `0x7E1` on EoIP and `0x7E5` on GRE), so merging them into `[20,0]` would hand every
+subtype but the first-parsed one a key belonging to another interface kind (§ the subtype harvest).
+
+### 28.2 A `multinumber` list is one u32[] write, element by element
+
+`types.multinumber` stores a flat `u32[]` in the order given, and its ELEMENTS are exactly what the scalar
+encoders already handle: a dynamic dropdown (bridge-vlan `tagged`/`untagged` → interface ids), a static
+enum (a log rule's `topics`), or a plain number (`/ip/proxy` `port`). The decode side had read all three
+since the reference-list work; the encode side refused the whole family loudly. It now encodes each element
+by the same three rules, in the same order, which is what makes the round trip agree.
+
+An element that matches none of the three is an **error**, never a dropped element — a shorter list is one
+the router accepts without complaint, so `tagged=ether1,typo` would tag `ether1` alone and report success.
+The remaining array shapes (`multinetwork`, `multistring`, `multi`, …) still refuse loudly rather than
+sending a wrong-typed scalar.
+
+### 28.3 A list carries its present-flag on the node, and a tri-state list rides on two keys
+
+Two attributes of a `.jg` list node that nothing read, both of which decide whether the write lands at all.
+
+**`optid`** is the present-flag, and webfig writes it from the list's LENGTH
+(`types.multi.put`: `obj[attrs.optid] = val.length>0`). It is the same thing an enclosing `opt` wrapper's
+bool is, spelled on the node instead — so it feeds the same `OptKey`, and the encoder that already emits
+that flag needs no new case. 21 firewall/bridge match lists carry it (`dst-port`, `protocol`, `vlan-id`,
+`ttl`, …); without it those writes reached the router with the option down and were ignored, silently.
+
+**`oid`** is the second half of a `multitristatearray` — today only `/system/logging` `topics`.
+`types.multitristatearray.put` splits ONE API list into two arrays by each element's negation flag: the
+plain members go to `id`, the negated ones to `oid`. So `topics=info,!debug` is
+`{U1:[info], U2:[debug]}`, and the API's leading `!` is a different **key**, not a value prefix — which is
+what distinguishes it from the `not` flag on a scalar. Both arrays are always sent, empty included, since
+that is the only way to clear the other half.
+
+Measured on 7.23.2 before the fix, `/system/logging` read back `topics = [1]` where the API prints `info`,
+and `/system/logging add` was refused outright.
+
+### 28.4 A field WinBox does not have cannot be written, and that is the honest answer
+
+Not every gap is ours. `/routing/ospf/instance` `use-dn` is a real API field (`/routing/ospf/instance add ?`
+lists it) that appears in no WinBox window, so it has no M2 key and native refuses it by name. Verified the
+other way round before accepting that: `ft-preserve-vlanid` and `radius-accounting` *looked* API-only and
+were not — WinBox calls them 'FT Preserve VLAN ID' (one hyphen apart) and plain 'Accounting' (the RADIUS tab
+drops the prefix the API spells out), and both are now aliased.
+
+What made `use-dn` surface at all is a separate defect in the O/R mapper, not in this transport: a
+non-nullable `bool` whose `DefaultValue` is `"yes"` never equals its own CLR default, so the mapper sends
+`use-dn=no` on **every** add — over every transport — whether or not the caller touched it. `/routing/bgp/advertisements`
+is the third shape: WinBox exposes it as the BGP session window's `dump-adv` action, not as a table, so it
+stays unmapped by design (the path-map audit records it as NO-WINDOW).
+
+**Coverage:** `IpUpnpTest`, `WifiSecurityTest`, `HotspotServerTest`, `OspfAreaTest`/`OspfInstanceTest`/
+`OspfInterfaceTemplateTest`, `SystemLoggingTest` and `BridgeVlanTest`; the window-scope and list-write
+rules are pinned router-free by `WinboxWindowScopeAndListWriteTests`.
+
+---
+
 ## Settled questions — do not re-investigate
 
 - **Black-box M2 probing without the webfig source is not the way to recover the CRUD command

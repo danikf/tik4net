@@ -204,6 +204,21 @@ namespace tik4net.Winbox
                         return negated ? "!" + joined : joined;
                     }
                 }
+                // A list whose elements may each be negated (webfig 'multitristatearray', today only
+                // /system/logging 'topics'): the plain members ride in this key and the negated ones in the
+                // OffKey sibling, and the API prints them as one comma-joined list with a '!' on the negated
+                // ones. Without this the field reached the caller as the raw handle list "[1]".
+                if (jf.OffKey != 0 && IsTriStateList(jf.UiType))
+                {
+                    string on = FormatListElements(jf, value, collectRefTables);
+                    rec.TryGetValue(jf.OffKey, out var offT);
+                    string off = FormatListElements(jf, offT?.Item2, collectRefTables);
+                    var parts = new List<string>();
+                    if (!string.IsNullOrEmpty(on)) parts.Add(on);
+                    if (!string.IsNullOrEmpty(off))
+                        parts.AddRange(off.Split(',').Select(t => "!" + t));
+                    if (parts.Count > 0) return string.Join(",", parts);
+                }
                 // A LIST of dynamic-enum references (webfig 'multinumber' whose element type is an enm): the
                 // value is a u32[] of referenced ids, which the API renders as their comma-joined names —
                 // e.g. the log's topics u32[9,3] → "script,error". Falls back to the raw text when the
@@ -242,6 +257,24 @@ namespace tik4net.Winbox
         // before this point.
         private static bool IsMultiNumberList(string uiType)
             => string.Equals(uiType, "multinumber", StringComparison.OrdinalIgnoreCase);
+
+        // The one list type whose elements carry their own negation flag, so it rides on TWO keys.
+        private static bool IsTriStateList(string uiType)
+            => string.Equals(uiType, "multitristatearray", StringComparison.OrdinalIgnoreCase);
+
+        // One half of a tri-state list, rendered by the same rules a multinumber element is: a reference
+        // resolves to the referenced record's name, a static map to its label, anything else to the number.
+        private string FormatListElements(WinboxJgField jf, object value,
+            Dictionary<string, int[]> collectRefTables)
+        {
+            if (value == null) return "";
+            if (jf.RefHandler != null)
+            {
+                string joined = ResolveRefNameList(jf.RefHandler, value, collectRefTables);
+                if (joined != null) return joined;
+            }
+            return FormatNumberList(value, jf.EnumMap);
+        }
 
         // Resolve a u32[] of referenced ids (rendered by M2Message as "[a,b,…]") to comma-joined names.
         // Returns null when nothing resolved, so the caller can fall back to the raw text rather than

@@ -61,6 +61,7 @@ namespace tik4net.integrationtests
                 {
                     Bridge = bridgeName,
                     VlanIds = "3999",
+                    Tagged = TestConstants.Interface,
                     Comment = marker,
                 };
                 SaveTracked(vlan);
@@ -70,19 +71,21 @@ namespace tik4net.integrationtests
                 Assert.AreEqual(marker, loaded.Comment);
                 Assert.AreEqual(bridgeName, loaded.Bridge);
 
-                // vlan-ids is a VLAN-id list/range. The native WinBox M2 path now encodes it as the webfig
-                // multinumberrange u32[] ([lo,hi,…]; "3999" → [3999,3999]) and decodes it back, so it
-                // round-trips on every transport (verified live RouterOS 7.21.4). (Other bridge-vlan list
-                // fields — tagged/untagged interface lists — are still unencoded over native and the field
-                // resolver now throws loudly rather than dropping them silently.)
+                // The two list shapes this table carries, both of which the native WinBox M2 path has to
+                // encode as a webfig u32[] rather than as a string the router would drop.
+                //
+                // vlan-ids is a multinumberrange: [lo,hi,…], so "3999" rides as [3999,3999].
+                // tagged is a multinumber of interface REFERENCES: one element per interface, each the
+                // referenced record's numeric id, decoded back to its name.
                 Assert.AreEqual("3999", loaded.VlanIds);
+                Assert.AreEqual(TestConstants.Interface, loaded.Tagged);
             }
             catch (Exception ex) when (IsWinboxNativeUnsupported(ex))
             {
                 // Safety net for native WinBox: creating the throwaway bridge above (interface add
                 // type=bridge) is a separate native gap ('unsupported device type') that only triggers when
                 // the router has no existing bridge to reuse; also covers any future bridge-vlan native
-                // regression. The vlan-ids round-trip itself is fixed and asserted above.
+                // regression. The vlan-ids and tagged round-trips themselves are fixed and asserted above.
                 Assert.Inconclusive("/interface/bridge/vlan over native WinBox M2: " + ex.Message);
             }
             finally

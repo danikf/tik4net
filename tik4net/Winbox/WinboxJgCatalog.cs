@@ -54,6 +54,20 @@ namespace tik4net.Winbox
         private readonly Dictionary<string, bool> _singletonPaths =
             new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
+        // Window field maps are keyed by WindowKey(derivedPath); these two remember what a window key MEANS.
+        //
+        // _windowHandlerKey: window key → the handler key that window reads. An action declared inside a window
+        // is still keyed by its HANDLER (GetActionFields is asked by handler), so the walk needs the way back.
+        //
+        // _handlerBackedWindows: the windows whose fields also belong in their handler's own map. That is every
+        // ordinary window — the handler map stays exactly what it was, and the window map becomes an overlay on
+        // top. It is NOT the interface subtype windows: those disagree about keys under identical labels
+        // ('Remote Address' is 0x7E1 on EoIP and 0x7E5 on GRE), so merging them into [20,0] would hand every
+        // subtype but the first-parsed one a key belonging to another interface kind.
+        private readonly Dictionary<string, string> _windowHandlerKey =
+            new Dictionary<string, string>(StringComparer.Ordinal);
+        private readonly HashSet<string> _handlerBackedWindows = new HashSet<string>(StringComparer.Ordinal);
+
         // Handlers that appear behind an action window (type:'doit'/'action') and, separately, behind a
         // record-listing window (map/query/item). A handler in the first set but NOT the second is a
         // standalone action — invoking it is the only thing it can do, there are no records to read.
@@ -136,6 +150,14 @@ namespace tik4net.Winbox
 
         private static bool IsActionKey(string key) => key != null && key.StartsWith("act:", StringComparison.Ordinal);
 
+        private static bool IsWindowKey(string key) => key != null && key.StartsWith("win:", StringComparison.Ordinal);
+
+        // The handler a walk owner ultimately reads: identity for a handler key, the owning handler for a
+        // window key. Actions are keyed by handler even when declared inside a window, because that is how
+        // GetActionFields asks for them.
+        private string HandlerOfOwner(string owner)
+            => IsWindowKey(owner) && _windowHandlerKey.TryGetValue(owner, out var h) ? h : owner;
+
         // "act:85,5|generate-key" → "85,5"
         private static string HandlerOfActionKey(string actionKey)
         {
@@ -162,11 +184,18 @@ namespace tik4net.Winbox
                 ? map : null;
 
         /// <summary>
-        /// The field map declared by one specific window (an interface subtype: EoIP Tunnel, L2TP Client, …),
-        /// or <c>null</c> when the window declares none. These fields OVERLAY
-        /// <see cref="GetHandlerFields"/>: the subtype adds its own fields to the generic interface window's,
-        /// and where a label appears in both, the subtype's key is the right one.
+        /// The field map declared by one specific window, or <c>null</c> when the window declares none. These
+        /// fields OVERLAY <see cref="GetHandlerFields"/>: where a label — or a KEY — appears in both, the
+        /// window's answer is the right one for a caller addressing that window.
         /// </summary>
+        /// <remarks>
+        /// Two shapes need it. An interface subtype (EoIP Tunnel, L2TP Client, …) adds its own fields to the
+        /// generic <c>[20,0]</c> window's and disagrees with its siblings about their keys. And two unrelated
+        /// windows routinely share one handler while numbering their fields from scratch: <c>[28,0]</c> is both
+        /// the UPnP settings singleton (<c>b1</c> 'Enabled') and the UPnP interface list (<c>u1</c>
+        /// 'Interface'), so the merged per-handler map answers "enabled" for key 1 and an interface row read
+        /// back without the <c>interface</c> field at all.
+        /// </remarks>
         internal IReadOnlyDictionary<string, WinboxJgField> GetWindowFields(string derivedPath)
         {
             return derivedPath != null && _byHandler.TryGetValue(WindowKey(derivedPath), out var map) ? map : null;
@@ -289,9 +318,13 @@ namespace tik4net.Winbox
         internal bool HasDynamicFields(int[] handler) =>
             handler != null && _dynamicHandlers.Contains(HandlerKey(handler));
 
-        /// <summary>Number of M2 handlers this catalog knows fields for. <c>0</c> means the <c>.jg</c> load
-        /// produced nothing and every lookup will fall back to the seed table — see
-        /// <see cref="WinboxNative.WinboxNativeConnection.CatalogHandlerCount"/> for why that matters.</summary>
+        /// <summary>Number of field maps this catalog holds. <c>0</c> means the <c>.jg</c> load produced
+        /// nothing and every lookup will fall back to the seed table — see
+        /// <see cref="WinboxNative.WinboxNativeConnection.CatalogHandlerCount"/> for why that matters.
+        /// <para>It counts every map, not only the per-handler ones: a window and an action each keep a map
+        /// of their own alongside their handler's, so the number is larger than the handler count and is a
+        /// LOAD indicator, not an inventory. Compare it against zero, never against a remembered figure.</para>
+        /// </summary>
         internal int HandlerCount => _byHandler.Count;
 
         // ── Loading ────────────────────────────────────────────────────────────
@@ -765,6 +798,16 @@ namespace tik4net.Winbox
                         if (ty == "item" || ty == "map" || ty == "query")
                             _singletonPaths[apiPath] = ty == "item";
                     }
+                    // Attribute this window's fields to the window as well as to its handler, so a caller
+                    // addressing the window is answered by the window's own vocabulary. Windows sharing a
+                    // handler number their fields from scratch and collide — see GetWindowFields.
+                    if (apiPath != null)
+                    {
+                        string wk = WindowKey(apiPath);
+                        _windowHandlerKey[wk] = owner;
+                        _handlerBackedWindows.Add(wk);
+                        owner = wk;
+                    }
                     if (ty == "item") _singletonHandlers.Add(HandlerKey(handlerInts));
                     // Track record-listing vs action-only windows separately so a handler that has BOTH (e.g.
                     // [20,125] = 'SMS Message' map + 'Send SMS' doit) is never mistaken for action-only.
@@ -837,6 +880,9 @@ namespace tik4net.Winbox
                         // handler at all, and were simply lost — every subtype `add` failed with "cannot
                         // resolve API field 'remote-address'".)
                         owner = WindowKey(apiPath);
+                        // Known to read the generic interface handler, but deliberately NOT handler-backed:
+                        // see _handlerBackedWindows.
+                        _windowHandlerKey[owner] = HandlerKey(_genericIfaceHandler);
                     }
                 }
 
@@ -872,9 +918,17 @@ namespace tik4net.Winbox
                         int[] refHandler = ExtractRefHandler(dict);
                         bool isRange = dict.TryGetValue("range", out var rgv) && rgv is int rgi && rgi != 0;
                         string allow = dict.TryGetValue("allow", out var alv) ? alv as string : null;
+                        // A list field carries its own present-flag on the node (`optid`) rather than in an
+                        // enclosing opt wrapper, and webfig writes it from the list's LENGTH
+                        // (types.multi.put: obj[optid] = val.length>0). Same meaning as OptKey, same
+                        // encoder — without it the 21 firewall/bridge match lists (dst-port, protocol,
+                        // vlan-id, …) reach the router with the option down and are ignored.
+                        int optKey = DecodedKeyOf(dict, "optid");
+                        // The negated half of a multitristatearray (see WinboxJgField.OffKey).
+                        int offKey = DecodedKeyOf(dict, "oid");
                         AddField(owner, nodeName, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(dict),
-                            ty, maskKey, refHandler, isRange: isRange, allow: allow, def: ExtractDef(dict),
-                            pane: pane);
+                            ty, maskKey, refHandler, optKey: optKey, isRange: isRange, allow: allow,
+                            def: ExtractDef(dict), pane: pane, offKey: offKey);
                     }
                 }
 
@@ -884,12 +938,15 @@ namespace tik4net.Winbox
                 if (owner != null && (ty == "doit" || ty == "action") && !dict.ContainsKey("id")
                     && dict.TryGetValue("cmd", out var cmdv) && cmdv is int cmdN && !string.IsNullOrEmpty(nodeName))
                 {
-                    string actionLabel = AddAction(owner, nodeName, cmdN);
+                    // Actions are looked up BY HANDLER (GetActionFields/GetHandlerActions), so an action
+                    // declared inside a window is still keyed by the handler that window reads.
+                    string actionOwner = HandlerOfOwner(owner);
+                    string actionLabel = AddAction(actionOwner, nodeName, cmdN);
                     // Descend into the action's ARGUMENTS under a key of their own. They keep going into the
                     // handler's map as well (AddField writes both, so nothing that resolved before stops
                     // resolving), but the action's own map is what the caller invoking it resolves against —
                     // otherwise an argument sharing a label with a record column loses to it. See GetActionFields.
-                    if (actionLabel != null) owner = ActionKey(owner, actionLabel);
+                    if (actionLabel != null) owner = ActionKey(actionOwner, actionLabel);
                 }
 
                 // Descend. A structural menu node (has children, no field id, has a name) extends the
@@ -986,13 +1043,13 @@ namespace tik4net.Winbox
         private void AddField(string handlerKey, string label, int key, string wireType, bool ro,
             IReadOnlyDictionary<int, string> enumMap, string uiType, int maskKey, int[] refHandler,
             int optKey = 0, int notKey = 0, bool isRange = false, string allow = null, long? def = null,
-            PaneContext pane = null)
+            PaneContext pane = null, int offKey = 0)
         {
             string apiName = WinboxFieldResolver.NormalizeLabel(label);
             if (string.IsNullOrEmpty(apiName)) return;
             var field = new WinboxJgField(apiName, key, wireType, ro, enumMap, uiType, maskKey,
                 refHandler, optKey, notKey, isRange, allow, def,
-                pane?.Kind, pane?.SelectorKey ?? 0, pane?.Values);
+                pane?.Kind, pane?.SelectorKey ?? 0, pane?.Values, offKey);
             Put(handlerKey, apiName, field);
             // A pane field is ALSO filed under the kind-prefixed name the API uses for it (memory-lines,
             // pcq-rate). Both registrations are needed: the plain one keeps every name that resolved before
@@ -1009,7 +1066,25 @@ namespace tik4net.Winbox
             // second, so the handler map keeps exactly the first-wins content it had before actions were
             // scoped: the record window's column still wins there.
             if (IsActionKey(handlerKey)) Put(HandlerOfActionKey(handlerKey), apiName, field);
+            // The same rule one level out: an ordinary window's field is also its handler's, written second so
+            // the per-handler map keeps byte-for-byte the first-wins content it had before windows were scoped.
+            // (Interface subtype windows are excluded — they are not in _handlerBackedWindows.)
+            else if (IsWindowKey(handlerKey) && _handlerBackedWindows.Contains(handlerKey)
+                     && _windowHandlerKey.TryGetValue(handlerKey, out var ownerHandler))
+            {
+                Put(ownerHandler, apiName, field);
+                if (pane != null)
+                {
+                    string prefixedH = WinboxFieldResolver.PrefixWithKind(pane.Kind, apiName);
+                    if (prefixedH != apiName) Put(ownerHandler, prefixedH, field);
+                }
+            }
         }
+
+        // The M2 key held by a sibling-key attribute of a field node ('maskid', 'optid', 'oid'), or 0.
+        private static int DecodedKeyOf(Dictionary<string, object> node, string attribute)
+            => node.TryGetValue(attribute, out var v) && v is string s && DecodeId(s) is var d && d != null
+                ? d.Value.key : 0;
 
         private void Put(string mapKey, string apiName, WinboxJgField field)
         {
@@ -1065,8 +1140,11 @@ namespace tik4net.Winbox
                     // as a netmask (see P2.33 / Docs/winbox-native-m2-protocol.md §24).
                     bool isRange = cur.TryGetValue("range", out var rgv) && rgv is int rgi && rgi != 0;
                     string allow = cur.TryGetValue("allow", out var alv) ? alv as string : null;
+                    // The wrapper's own opt flag wins; a leaf 'optid' fills in when there is no wrapper flag.
+                    if (optKey == 0) optKey = DecodedKeyOf(cur, "optid");
                     AddField(handlerKey, label, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(cur),
-                        ty, maskKey, refHandler, optKey, notKey, isRange, allow, ExtractDef(cur), pane);
+                        ty, maskKey, refHandler, optKey, notKey, isRange, allow, ExtractDef(cur), pane,
+                        DecodedKeyOf(cur, "oid"));
                 }
                 return;
             }

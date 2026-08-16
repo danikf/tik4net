@@ -8,9 +8,14 @@
 // skips and a test that reads plausible rows passes.
 //
 // So this compares, per API path, what the binary API returns against what WinBox-native returns:
-// row count and the set of field names. It is [Ignore]d — run it by hand from Test Explorer (or
-// --filter AuditPathMapAgainstApi) after touching the alias table, the .jg harvest, or on a new RouterOS
-// version. It writes a full report next to the other catalog dumps (App.config catalogDumpDir).
+// row count, the set of field names, and — on rows paired by .id — the VALUES of the fields both report.
+// The values matter as much as the names: /system/logging read `topics` as the raw handle list "[1]" where
+// the API says "info", and an audit that only counted field names called the path OK for a release. Run it after touching the alias tables, the .jg harvest, or on a
+// new RouterOS version. It writes a full report next to the other catalog dumps (App.config catalogDumpDir).
+//
+// It is [Ignore]d, and --filter will NOT run it: MSTest applies [Ignore] before the filter, so naming the
+// test reports it skipped and the run passes green having measured nothing. Comment the attribute out, run,
+// then put it back — or run it from Test Explorer.
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
@@ -84,21 +89,146 @@ namespace tik4net.integrationtests
             return conn;
         }
 
-        // (rowCount, field names, error) for one path on one transport.
-        private static Tuple<int, HashSet<string>, string> Read(ITikConnection conn, string path)
+        /// <summary>What one path read as, on one transport.</summary>
+        private sealed class Reading
         {
+            public int RowCount = -1;
+            public HashSet<string> FieldNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            /// <summary>row <c>.id</c> → field → value, for the value comparison. Rows without an
+            /// <c>.id</c> (a singleton) are keyed by their ordinal.</summary>
+            public Dictionary<string, Dictionary<string, string>> Rows =
+                new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+            public string Error;
+        }
+
+        private static Reading Read(ITikConnection conn, string path)
+        {
+            var r = new Reading();
             try
             {
                 var rows = conn.CreateCommand(path + "/print").ExecuteList().ToList();
-                var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var row in rows)
-                    foreach (var w in row.Words)
-                        names.Add(w.Key);
-                return Tuple.Create<int, HashSet<string>, string>(rows.Count, names, null);
+                r.RowCount = rows.Count;
+                for (int i = 0; i < rows.Count; i++)
+                {
+                    var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var w in rows[i].Words)
+                    {
+                        r.FieldNames.Add(w.Key);
+                        fields[w.Key] = w.Value;
+                    }
+                    string key = fields.TryGetValue(".id", out var id) && !string.IsNullOrEmpty(id)
+                        ? id : "#" + i;
+                    r.Rows[key] = fields;
+                }
+                return r;
             }
-            catch (TikPathNotMappedException ex) { return Tuple.Create(-1, new HashSet<string>(), "UNMAPPED: " + ex.Message); }
-            catch (Exception ex) { return Tuple.Create(-1, new HashSet<string>(), ex.GetType().Name + ": " + ex.Message); }
+            catch (TikPathNotMappedException ex) { r.Error = "UNMAPPED: " + ex.Message; return r; }
+            catch (Exception ex) { r.Error = ex.GetType().Name + ": " + ex.Message; return r; }
         }
+
+        // Fields whose value legitimately differs between two reads taken seconds apart — counters, rates,
+        // clocks, and the live status a monitor-ish window computes. Matched as substrings of the field
+        // name, so 'rx-byte'/'tx-byte'/'fp-rx-byte' are all covered by "byte".
+        private static readonly string[] VolatileFieldParts =
+        {
+            "byte", "packet", "bits-per-second", "rate", "count", "error", "drop", "uptime", "time",
+            "age", "last-", "active", "current", "usage", "free", "used", "load", "temperature", "voltage",
+            "signal", "noise", "cpu", "memory", "sent", "received", "requests", "hits", "misses", "status",
+        };
+
+        private static bool IsVolatile(string field)
+        {
+            foreach (string part in VolatileFieldParts)
+                if (field.IndexOf(part, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// Paths whose values are known to differ for a reason already diagnosed — same rule as
+        /// <see cref="KnownFieldGaps"/>, one level deeper. Keep each entry's reason specific enough that a
+        /// NEW disagreement on the same path cannot hide behind it.
+        /// </summary>
+        /// <remarks>
+        /// <para>Every entry below was measured on 7.23.2 the first time this audit compared values at all,
+        /// and they are all the SAME handful of missing decoders rather than 26 separate defects — see the
+        /// class names in the reasons. They are recorded per path so that a path picking up a NEW
+        /// disagreement still fails: the reason names which fields are excused.</para>
+        /// <para>The classes, in rough order of how many paths each costs:</para>
+        /// <list type="bullet">
+        /// <item><b>interval/duration</b> — the <c>interval</c> UI type has no decoder, so a duration reaches
+        /// the caller as raw seconds (or milliseconds) where the API prints <c>0s</c>, <c>5m</c>, <c>1w</c>.</item>
+        /// <item><b>raw MAC</b> — a 6-byte field whose window does not type it <c>macaddr</c> renders as
+        /// undelimited hex.</item>
+        /// <item><b>sentinel</b> — <c>0</c> and <c>0xFFFFFFFF</c> that the API prints as a WORD
+        /// (<c>disabled</c>, <c>unlimited</c>, <c>none</c>, <c>all</c>, <c>passthrough</c>).</item>
+        /// <item><b>empty list</b> — an empty array renders <c>[]</c> where the API prints nothing.</item>
+        /// <item><b>set order</b> — a bitmask set decodes by ascending bit index; RouterOS prints its own
+        /// order (<c>pap,chap,mschap1,mschap2</c>).</item>
+        /// <item><b>date/epoch</b> — a <c>time</c>/<c>date</c> field reaches the caller as a unix stamp.</item>
+        /// </list>
+        /// </remarks>
+        private static readonly Dictionary<string, string> KnownValueGaps = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["/certificate"]                          = "date/epoch (invalid-before/after), interval (expires-after), raw-u32 IP (subject-alt-name)",
+            ["/interface/ethernet"]                   = "raw MAC (mac-address); auto-negotiation reads the link's live state, not the setting",
+            ["/interface/l2tp-server/server"]          = "sentinel 0 (mrru=disabled, max-sessions=unlimited), set order (authentication)",
+            ["/interface/pptp-server/server"]          = "sentinel 0 (mrru=disabled), set order (authentication)",
+            ["/interface/sstp-server/server"]          = "sentinel 0 (mrru=disabled), set order (authentication)",
+            ["/interface/wireless/security-profiles"]  = "sentinel 0xFFFFFFFF (eap-methods=passthrough), interval (interim-update, group-key-update)",
+            ["/ip/arp"]                               = "raw MAC (mac-address)",
+            ["/ip/cloud"]                             = "sentinel 0 (ddns-update-interval=none)",
+            ["/ip/dhcp-client"]                       = "undecoded list (add-default-route), interval (expires-after)",
+            ["/ip/dhcp-server/config"]                 = "interval (interim-update)",
+            ["/ip/dns"]                               = "raw-u32 IP list (dynamic-servers), interval (cache-max-ttl)",
+            ["/ip/hotspot/profile"]                    = "http-proxy is an ipaddr with the port on a sibling key; the API prints one 'addr:port'",
+            ["/ip/hotspot/user/profile"]               = "empty list renders '[]' (address-list)",
+            ["/ip/ipsec/profile"]                      = "set order (dh-group), interval (dpd-interval)",
+            ["/ip/neighbor"]                          = "raw MAC (mac-address); system-caps reads a value the API leaves empty",
+            ["/ip/traffic-flow"]                       = "sentinel 0xFFFFFFFF (interfaces=all)",
+            ["/ppp/aaa"]                              = "interval (interim-update)",
+            ["/ppp/profile"]                          = "empty list renders '[]' (address-list)",
+            ["/routing/table"]                        = "fib reads the flag's own bool where the API prints it empty",
+            ["/snmp/community"]                       = "IPv6 any-address renders '::' where the API prints '::/0'",
+            ["/system/clock"]                         = "date/epoch (date), gmt-offset in seconds",
+            ["/system/ntp/client"]                     = "signed values (freq-drift, system-offset) decoded as unsigned u32",
+            ["/system/ntp/server"]                     = "enabled reads the wrong key (native says true where the API says false); empty list '[]'",
+            ["/system/watchdog"]                       = "sentinel 0.0.0.0 (watch-address=none), interval in ms (ping-start-after-boot)",
+            ["/tool/romon"]                           = "raw MAC (id), empty list '[]' (secrets)",
+            ["/tool/romon/port"]                       = "empty list '[]' (secrets)",
+        };
+
+        /// <summary>
+        /// Per shared, non-volatile field: the values the two transports gave for the same row, when they
+        /// disagree. One entry per FIELD (not per row), naming a sample, so a wide table reports the field
+        /// once rather than once per record.
+        /// </summary>
+        /// <remarks>
+        /// Only rows both transports returned under the same <c>.id</c> are compared. A row native returned
+        /// and the API did not is a ROW-count disagreement, already reported above; pairing by ordinal
+        /// instead would line up unrelated records and invent differences.
+        /// </remarks>
+        private static List<string> CompareValues(Reading api, Reading native)
+        {
+            var diffs = new List<string>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var kv in api.Rows)
+            {
+                if (!native.Rows.TryGetValue(kv.Key, out var nativeRow)) continue;
+                foreach (var f in kv.Value)
+                {
+                    if (f.Key == ".id" || IsVolatile(f.Key)) continue;
+                    if (!nativeRow.TryGetValue(f.Key, out string nativeValue)) continue;
+                    if (string.Equals(f.Value ?? "", nativeValue ?? "", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!seen.Add(f.Key)) continue;
+                    diffs.Add($"{f.Key}: api='{Trim(f.Value)}' native='{Trim(nativeValue)}'");
+                }
+            }
+            return diffs;
+        }
+
+        private static string Trim(string v)
+            => v == null ? "" : (v.Length > 40 ? v.Substring(0, 37) + "..." : v);
 
         [Ignore]
         [TestMethod]
@@ -110,7 +240,7 @@ namespace tik4net.integrationtests
             string reportPath = Path.Combine(dumpDir, "winbox-native-path-audit.txt");
 
             var report = new List<string>();
-            int unmapped = 0, mismatched = 0, agreed = 0, apiRefused = 0, known = 0;
+            int unmapped = 0, mismatched = 0, agreed = 0, apiRefused = 0, known = 0, valueMismatched = 0;
 
             using (var api = Open(TikConnectionType.Api))
             using (var native = Open(TikConnectionType.WinboxNative))
@@ -120,50 +250,78 @@ namespace tik4net.integrationtests
                     var a = Read(api, path);
                     var n = Read(native, path);
 
-                    if (a.Item3 != null)
+                    if (a.Error != null)
                     {
                         // The router itself refuses it (package not installed, path gone in this version) —
                         // nothing for the native map to be measured against.
                         apiRefused++;
-                        report.Add($"ROUTER-N/A  {path}\tapi: {a.Item3}");
+                        report.Add($"ROUTER-N/A  {path}\tapi: {a.Error}");
                         continue;
                     }
-                    if (n.Item3 != null)
+                    if (n.Error != null)
                     {
-                        if (n.Item3.StartsWith("UNMAPPED") && NoWinboxWindow.TryGetValue(path, out string reason))
+                        if (n.Error.StartsWith("UNMAPPED") && NoWinboxWindow.TryGetValue(path, out string reason))
                         {
                             known++;
                             report.Add($"NO-WINDOW  {path}\t{reason}");
                             continue;
                         }
-                        if (n.Item3.StartsWith("UNMAPPED")) unmapped++; else mismatched++;
-                        report.Add($"{(n.Item3.StartsWith("UNMAPPED") ? "UNMAPPED   " : "NATIVE-ERR ")}{path}"
-                                   + $"\tapi rows={a.Item1}\t{n.Item3}");
+                        if (n.Error.StartsWith("UNMAPPED")) unmapped++; else mismatched++;
+                        report.Add($"{(n.Error.StartsWith("UNMAPPED") ? "UNMAPPED   " : "NATIVE-ERR ")}{path}"
+                                   + $"\tapi rows={a.RowCount}\t{n.Error}");
                         continue;
                     }
 
                     // Field names are the strongest cheap signal that both transports read the SAME window:
                     // a wrong handler answers with a different vocabulary long before the row count matches.
-                    var onlyApi = a.Item2.Where(f => !n.Item2.Contains(f)).OrderBy(f => f).ToList();
-                    var shared = a.Item2.Count(f => n.Item2.Contains(f));
-                    bool rowsAgree = a.Item1 == n.Item1;
-                    bool fieldsAgree = a.Item2.Count == 0 || shared * 2 >= a.Item2.Count;
+                    var onlyApi = a.FieldNames.Where(f => !n.FieldNames.Contains(f)).OrderBy(f => f).ToList();
+                    var shared = a.FieldNames.Count(f => n.FieldNames.Contains(f));
+                    bool rowsAgree = a.RowCount == n.RowCount;
+                    bool fieldsAgree = a.FieldNames.Count == 0 || shared * 2 >= a.FieldNames.Count;
 
-                    if (rowsAgree && fieldsAgree) { agreed++; report.Add($"OK         {path}\trows={a.Item1}\tshared fields={shared}/{a.Item2.Count}"); }
-                    else if (KnownFieldGaps.TryGetValue(path, out string why))
+                    if (!rowsAgree || !fieldsAgree)
+                    {
+                        if (KnownFieldGaps.TryGetValue(path, out string why))
+                        {
+                            known++;
+                            report.Add($"KNOWN-GAP  {path}\tapi rows={a.RowCount} native rows={n.RowCount}"
+                                       + $"\tshared fields={shared}/{a.FieldNames.Count}\t{why}");
+                        }
+                        else
+                        {
+                            mismatched++;
+                            var onlyNative = n.FieldNames.Where(f => !a.FieldNames.Contains(f)).OrderBy(f => f).ToList();
+                            report.Add($"MISMATCH   {path}\tapi rows={a.RowCount} native rows={n.RowCount}"
+                                       + $"\tshared fields={shared}/{a.FieldNames.Count}"
+                                       + (onlyApi.Count > 0 ? "\tapi-only: " + string.Join(",", onlyApi.Take(12)) : "")
+                                       + (onlyNative.Count > 0 ? "\tnative-only: " + string.Join(",", onlyNative.Take(12)) : ""));
+                        }
+                        continue;
+                    }
+
+                    // The right window, spelled right — which says nothing yet about what it SAYS. A field
+                    // can carry a value RouterOS would never print and still count as shared above:
+                    // /system/logging read `topics` as the raw handle list "[1]" where the API says "info",
+                    // and this audit called the path OK for a release. So compare the values too, on rows
+                    // paired by .id, over the fields both transports report.
+                    var valueDiffs = CompareValues(a, n);
+                    if (valueDiffs.Count == 0)
+                    {
+                        agreed++;
+                        report.Add($"OK         {path}\trows={a.RowCount}\tshared fields={shared}/{a.FieldNames.Count}");
+                    }
+                    else if (KnownValueGaps.TryGetValue(path, out string valueWhy))
                     {
                         known++;
-                        report.Add($"KNOWN-GAP  {path}\tapi rows={a.Item1} native rows={n.Item1}"
-                                   + $"\tshared fields={shared}/{a.Item2.Count}\t{why}");
+                        report.Add($"KNOWN-GAP  {path}\trows={a.RowCount}\tvalues differ: "
+                                   + string.Join("; ", valueDiffs.Take(6)) + $"\t{valueWhy}");
                     }
                     else
                     {
-                        mismatched++;
-                        var onlyNative = n.Item2.Where(f => !a.Item2.Contains(f)).OrderBy(f => f).ToList();
-                        report.Add($"MISMATCH   {path}\tapi rows={a.Item1} native rows={n.Item1}"
-                                   + $"\tshared fields={shared}/{a.Item2.Count}"
-                                   + (onlyApi.Count > 0 ? "\tapi-only: " + string.Join(",", onlyApi.Take(12)) : "")
-                                   + (onlyNative.Count > 0 ? "\tnative-only: " + string.Join(",", onlyNative.Take(12)) : ""));
+                        valueMismatched++;
+                        report.Add($"VALUE-DIFF {path}\trows={a.RowCount}\t"
+                                   + string.Join("; ", valueDiffs.Take(8))
+                                   + (valueDiffs.Count > 8 ? $" (+{valueDiffs.Count - 8} more)" : ""));
                     }
                 }
             }
@@ -171,11 +329,14 @@ namespace tik4net.integrationtests
             File.WriteAllLines(reportPath, report);
             foreach (string line in report) Console.WriteLine(line);
             Console.WriteLine();
-            Console.WriteLine($"OK={agreed}  KNOWN-GAP={known}  MISMATCH={mismatched}  UNMAPPED={unmapped}  ROUTER-N/A={apiRefused}");
+            Console.WriteLine($"OK={agreed}  KNOWN-GAP={known}  MISMATCH={mismatched}  VALUE-DIFF={valueMismatched}"
+                              + $"  UNMAPPED={unmapped}  ROUTER-N/A={apiRefused}");
             Console.WriteLine($"report: {reportPath}");
 
             Assert.AreEqual(0, unmapped, "paths the WinBox-native transport cannot address but the API can — see the report");
             Assert.AreEqual(0, mismatched, "paths where WinBox-native disagrees with the API — see the report");
+            Assert.AreEqual(0, valueMismatched,
+                "paths that read the right window but decode a value the API spells differently — see the report");
         }
     }
 }

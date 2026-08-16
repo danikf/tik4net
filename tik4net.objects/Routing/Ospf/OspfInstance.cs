@@ -139,9 +139,14 @@ namespace tik4net.Objects.Routing.Ospf
 
         /// <summary>
         /// use-dn — when true, sets the DN (Down) bit on VPN LSAs to prevent routing loops in
-        /// MPLS/BGP VPN scenarios. Default: yes (true).
+        /// MPLS/BGP VPN scenarios.
+        /// <para>The router leaves this unset: a freshly added instance prints no <c>use-dn</c> at all on
+        /// 7.23.2, and the field only appears once it has been written. The declared default is therefore the
+        /// wire form of this property's own unset state, so an instance created without touching it does not
+        /// carry the field — which is also what lets WinBox native add one, since no WinBox window exposes
+        /// <c>use-dn</c> and it has no M2 key to be written on.</para>
         /// </summary>
-        [TikProperty("use-dn", DefaultValue = "yes")]
+        [TikProperty("use-dn", DefaultValue = "no")]
         public bool UseDn { get; set; }
 
         /// <summary>

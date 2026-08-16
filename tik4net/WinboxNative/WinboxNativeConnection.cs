@@ -80,8 +80,11 @@ namespace tik4net.WinboxNative
         /// answers most commands — but it runs on the built-in seed table, where singleton windows, dynamic
         /// (counter) fields and streaming monitors are all unknown. That returns <i>wrong values</i> rather
         /// than errors: firewall <c>bytes</c>/<c>packets</c> come back as 0 because the getall stats bit was
-        /// never set. A healthy 7.23.2 CHR reports several hundred handlers, so treat <c>0</c> — or a count
+        /// never set. A healthy 7.23.2 CHR reports well over a thousand, so treat <c>0</c> — or a count
         /// far below a previous connection's — as a degraded connection worth reopening.
+        /// <para>The figure counts every field map the catalog holds, windows and actions included, not one
+        /// per M2 handler. Use it to tell a loaded catalog from an empty one and to compare two connections
+        /// of the SAME build; a catalog change can move the absolute number without anything degrading.</para>
         /// </remarks>
         public int CatalogHandlerCount => _catalog.HandlerCount;
 

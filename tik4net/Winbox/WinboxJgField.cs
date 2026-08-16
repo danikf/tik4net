@@ -77,6 +77,19 @@ namespace tik4net.Winbox
         internal int NotKey { get; }
 
         /// <summary>
+        /// For a <c>type:'multitristatearray'</c> field — a list whose elements may each be negated, today only
+        /// <c>/system/logging</c>'s <c>topics</c> — the SECOND array key (the <c>.jg</c> <c>oid</c>) carrying the
+        /// negated members, while <see cref="Key"/> carries the plain ones. <c>0</c> for every other field.
+        /// </summary>
+        /// <remarks>
+        /// webfig <c>types.multitristatearray.put</c> splits one list into two arrays by the element's negation
+        /// flag and writes both; <c>.get</c> reads both back and tags each element. So <c>topics=info,!debug</c>
+        /// is <c>{id:[info], oid:[debug]}</c> on the wire — the API's leading '!' is a different KEY, not a
+        /// value prefix, which is what distinguishes this from the <see cref="NotKey"/> flag on a scalar.
+        /// </remarks>
+        internal int OffKey { get; }
+
+        /// <summary>
         /// The <c>.jg</c> <c>def</c> value, when the field declares one. Only interesting for the u32
         /// <b>unset marker</b> <c>0xFFFFFFFF</c>: a field declaring <c>def:4294967295</c> (e.g. a logging
         /// action's <c>Syslog Severity</c>, whose real domain is 0–7) carries that value when it is NOT SET,
@@ -139,8 +152,9 @@ namespace tik4net.Winbox
             IReadOnlyDictionary<int, string> enumMap = null, string uiType = null, int maskKey = 0,
             int[] refHandler = null, int optKey = 0, int notKey = 0, bool isRange = false,
             string allow = null, long? def = null,
-            string paneKind = null, int paneSelectorKey = 0, int[] paneValues = null)
+            string paneKind = null, int paneSelectorKey = 0, int[] paneValues = null, int offKey = 0)
         {
+            OffKey = offKey;
             PaneKind = paneKind;
             PaneSelectorKey = paneSelectorKey;
             PaneValues = paneValues;

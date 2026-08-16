@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -78,6 +78,31 @@ namespace tik4net.Winbox
                     foreach (var kv in _actionFields) merged[kv.Key] = kv.Value;  // the action wins over both
                 return _fields = merged;
             }
+        }
+
+        /// <summary>
+        /// The same three maps, but enumerated MOST SPECIFIC FIRST (action → window → handler) for the
+        /// consumers that resolve by KEY rather than by name.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="JgFields"/> answers "what is this name?" and so lets the specific map overwrite the
+        /// general one. Key → name is the other direction and is first-wins, which the merged dictionary
+        /// cannot express: two windows on one handler give key 1 two names ('Enabled' on the UPnP settings
+        /// singleton, 'Interface' on the UPnP interface list) under DIFFERENT dictionary entries, so nothing
+        /// overwrites anything and the handler's answer — whichever window the catalog parsed first — wins for
+        /// both. Enumerating the window's own fields first is what makes an interface row decode as
+        /// <c>interface</c> and not as <c>enabled</c>.
+        /// </remarks>
+        private IEnumerable<KeyValuePair<string, WinboxJgField>> JgFieldsSpecificFirst()
+        {
+            if (_actionFields != null)
+                foreach (var kv in _actionFields) yield return kv;
+            var windowFields = _catalog?.GetWindowFields(_windowKey);
+            if (windowFields != null)
+                foreach (var kv in windowFields) yield return kv;
+            var handlerFields = _catalog?.GetHandlerFields(_handler);
+            if (handlerFields != null)
+                foreach (var kv in handlerFields) yield return kv;
         }
 
         // ── Protocol-constant seeds (stable, hardcoded) ────────────────────────
@@ -292,6 +317,38 @@ namespace tik4net.Winbox
                     apiToJg: Ci(("allow-disable-external-interface", "allow-to-disable-external-interface")),
                     jgToApi: Ci(("allow-to-disable-external-interface", "allow-disable-external-interface"))),
 
+                // /interface/wifi/security: WinBox writes the label with the ID spelled out — 'FT Preserve
+                // VLAN ID' normalizes to ft-preserve-vlan-id, where the API says ft-preserve-vlanid. Same
+                // field (wave2 b2023), one hyphen apart, so an add carrying it could not resolve a key at all.
+                ["/interface/wifi/security"] = new FieldAliasSet(
+                    apiToJg: Ci(("ft-preserve-vlanid", "ft-preserve-vlan-id")),
+                    jgToApi: Ci(("ft-preserve-vlan-id", "ft-preserve-vlanid"))),
+
+                // /ip/hotspot/profile: the RADIUS tab drops the 'radius-' prefix the API spells out — the
+                // checkbox is just 'Accounting' (b8e, def:1, on:'radius') where the API says
+                // radius-accounting, as does `/ip/hotspot/profile add ?` on 7.23.2. Without the alias an add
+                // carrying the field could not resolve a key at all. 'Rate Limit (rx/tx)' is the same shape
+                // with the units written into the label.
+                //
+                // NOT aliased, deliberately, and for the reason given at /system/logging/action: the value
+                // form has to match too. 'Interim Update' (u8f) is an interval the codec renders as a bare
+                // number where the API prints "0s"; 'HTTP Proxy' (u83) is an ipaddr with the port on a
+                // sibling key (u84) where the API prints one "0.0.0.0:0". Naming either would hand the mapper
+                // a value it cannot convert.
+                ["/ip/hotspot/profile"] = new FieldAliasSet(
+                    apiToJg: Ci(("radius-accounting", "accounting"),
+                               ("radius-default-domain", "default-domain"),
+                               ("radius-location-id", "location-id"),
+                               ("radius-location-name", "location-name"),
+                               ("radius-mac-format", "mac-format"),
+                               ("rate-limit", "rate-limit-(rx/tx)")),
+                    jgToApi: Ci(("accounting", "radius-accounting"),
+                               ("default-domain", "radius-default-domain"),
+                               ("location-id", "radius-location-id"),
+                               ("location-name", "radius-location-name"),
+                               ("mac-format", "radius-mac-format"),
+                               ("rate-limit-(rx/tx)", "rate-limit"))),
+
                 // /interface: the .jg 'type' field is the numeric type id (key 0x10001), but RouterOS API exposes
                 // 'type' as the type *name* string — which the record also carries at key 0x1001E (e.g. "ether",
                 // "loopback"). Map the string key to 'type' and rename the numeric one so they don't collide.
@@ -387,20 +444,18 @@ namespace tik4net.Winbox
             if (aliasSet != null)
                 foreach (var kv in aliasSet.KeyToApi) Put(kv.Key, kv.Value);
             foreach (var kv in SystemSeed) Put(kv.Value, kv.Key);
-            var jg = JgFields;
-            if (jg != null)
-                foreach (var kv in jg)
-                {
-                    // A pane field is registered TWICE (plain + kind-prefixed), and only the spelling this
-                    // path actually reports may contribute a name — otherwise both spellings would claim the
-                    // field's key, and on a path that does NOT prefix, the second pane's field (which owns no
-                    // plain registration, its label having been taken by the first pane) would start
-                    // answering under the first pane's name. Skipping the other registration keeps such a
-                    // field out of the decode exactly as it was before panes were harvested.
-                    if (!string.Equals(kv.Key, RegisteredNameToReport(kv.Value), StringComparison.OrdinalIgnoreCase))
-                        continue;
-                    Put(kv.Value.Key, AliasToApi(kv.Key));
-                }
+            foreach (var kv in JgFieldsSpecificFirst())
+            {
+                // A pane field is registered TWICE (plain + kind-prefixed), and only the spelling this
+                // path actually reports may contribute a name — otherwise both spellings would claim the
+                // field's key, and on a path that does NOT prefix, the second pane's field (which owns no
+                // plain registration, its label having been taken by the first pane) would start
+                // answering under the first pane's name. Skipping the other registration keeps such a
+                // field out of the decode exactly as it was before panes were harvested.
+                if (!string.Equals(kv.Key, RegisteredNameToReport(kv.Value), StringComparison.OrdinalIgnoreCase))
+                    continue;
+                Put(kv.Value.Key, AliasToApi(kv.Key));
+            }
             foreach (var kv in FallbackSeed) Put(kv.Value, kv.Key);
 
             return map;
@@ -413,10 +468,10 @@ namespace tik4net.Winbox
         internal IReadOnlyDictionary<int, WinboxJgField> BuildKeyToField()
         {
             var map = new Dictionary<int, WinboxJgField>();
-            var jg = JgFields;
-            if (jg != null)
-                foreach (var f in jg.Values)
-                    if (!map.ContainsKey(f.Key)) map[f.Key] = f;
+            // Most specific first, for the same reason BuildKeyToApiName does it: a key claimed by two
+            // windows on one handler must be typed by the window this path addresses.
+            foreach (var kv in JgFieldsSpecificFirst())
+                if (!map.ContainsKey(kv.Value.Key)) map[kv.Value.Key] = kv.Value;
             // Synthesize typed fields for shipped key aliases the .jg leaves unnamed (collide on empty apiName),
             // so decode formats them correctly (e.g. ping reply 'host' @0x1 as an ipaddr u32).
             var aliasSet = Aliases;
@@ -656,6 +711,51 @@ namespace tik4net.Winbox
                     result.Add(M2Message.U32ArraySys(key, nums.ToArray()));
                     return result;
                 }
+                case "multinumber":
+                {
+                    // A list whose ELEMENTS are what the scalar encoders handle one at a time: bridge-vlan
+                    // 'tagged'/'untagged' (interface references), the log rule's 'topics' (a static enum),
+                    // /ip/proxy 'port' (plain numbers). webfig types.multinumber stores them as a flat u32[]
+                    // in the order given, so the whole field is one array write — and encoding each element
+                    // by the same three rules the decode reads them back with (reference → static map →
+                    // literal) is what makes the round trip agree.
+                    if (value.Length == 0) return result;
+                    var items = new List<int>();
+                    foreach (var tok in value.Split(','))
+                    {
+                        string t = tok.Trim();
+                        if (t.Length == 0) continue;
+                        items.Add(EncodeListElement(jg, t, apiName, resolveRef));
+                    }
+                    if (items.Count == 0) return result;
+                    result.Add(M2Message.U32ArraySys(key, items.ToArray()));
+                    return result;
+                }
+                case "multitristatearray":
+                {
+                    // A list whose elements may each be negated — /system/logging 'topics', where the API
+                    // writes "info,!debug". webfig types.multitristatearray.put splits the one list into TWO
+                    // arrays by that flag and writes both keys, so the '!' is a different KEY here, not a
+                    // value prefix (contrast the NotKey flag on a scalar). Both arrays are always sent,
+                    // including as empty, because that is the only way to CLEAR the other half.
+                    if (jg.OffKey == 0) break;   // no second key: not the shape webfig describes — refuse below
+                    if (value.Length == 0) return result;
+                    var on = new List<int>();
+                    var off = new List<int>();
+                    foreach (var tok in value.Split(','))
+                    {
+                        string t = tok.Trim();
+                        if (t.Length == 0) continue;
+                        bool negated = t.StartsWith("!");
+                        if (negated) t = t.Substring(1).Trim();
+                        if (t.Length == 0) continue;
+                        (negated ? off : on).Add(EncodeListElement(jg, t, apiName, resolveRef));
+                    }
+                    if (on.Count == 0 && off.Count == 0) return result;
+                    result.Add(M2Message.U32ArraySys(key, on.ToArray()));
+                    result.Add(M2Message.U32ArraySys(jg.OffKey, off.ToArray()));
+                    return result;
+                }
             }
 
             // (opt/not flags for the generic encoders below were emitted before the switch, together with every
@@ -756,10 +856,39 @@ namespace tik4net.Winbox
             return nums;
         }
 
+        /// <summary>
+        /// Encodes ONE element of a <c>multinumber</c> list to its u32, by the same three rules the decode
+        /// reads an element back with: a dynamic dropdown resolves to the referenced record's id, a static
+        /// map to its numeric member, and anything else must already be a number.
+        /// </summary>
+        /// <remarks>
+        /// An element that matches none of the three is an error, never a dropped element. Dropping one sends
+        /// a SHORTER list the router accepts without complaint, so "tagged=ether1,typo" would quietly tag
+        /// ether1 alone and report success — the list equivalent of the silent scalar drop the <c>enm</c> case
+        /// refuses for the same reason.
+        /// </remarks>
+        private int EncodeListElement(WinboxJgField jg, string token, string apiName,
+            Func<int[], string, int?> resolveRef)
+        {
+            if (jg.RefHandler != null && resolveRef != null && !long.TryParse(token, out _))
+            {
+                int? id = resolveRef(jg.RefHandler, token);
+                if (id.HasValue) return id.Value;
+            }
+            if (jg.EnumMap != null)
+                foreach (var kv in jg.EnumMap)
+                    if (string.Equals(kv.Value, token, StringComparison.OrdinalIgnoreCase))
+                        return kv.Key;
+            if (long.TryParse(token, out long literal)) return unchecked((int)literal);
+
+            throw new WinboxFieldValueException(
+                $"input does not match any value of {apiName} (element '{token}')");
+        }
+
         // True for a list/array field that EncodeField has no specific encoder for (so it would otherwise be
         // silently mis-sent as a scalar string). Array wire types end in "[]"; 'multi…' UI types are the
-        // WinBox multi-value controls (multinumber interface lists, etc.). multinumberrange is handled before
-        // this check, so it never reaches here.
+        // WinBox multi-value controls (multitristatearray, …). multinumberrange, numberrangelist and
+        // multinumber are handled before this check, so they never reach here.
         private static bool IsUnsupportedListType(string wireType, string uiType)
             => (wireType != null && wireType.EndsWith("[]", StringComparison.Ordinal))
                || (uiType != null && uiType.StartsWith("multi", StringComparison.OrdinalIgnoreCase)

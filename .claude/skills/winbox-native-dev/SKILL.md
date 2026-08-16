@@ -181,10 +181,17 @@ only the **stable text** (apiPath↔menu-label aliases, apiName↔label) is ship
   leading `!`). `EncodeField` emits these on the enum-static-map and generic scalar paths; the `set` and
   multinumberrange paths emit their own. Symptom of forgetting: `'ports can be specified if proto is
   tcp,udp,…'` and similar "X requires Y" traps.
-- **List/range fields = flat `u32[]`.** `multinumberrange`/`numberrangelist` (vlan-ids, dst-port, dscp,
-  pcp) ride as `[lo0,hi0,lo1,hi1,…]` (a bare `n` → `[n,n]`). `multinumber` interface-ref lists
-  (tagged/untagged) are NOT yet encoded → the resolver **throws loud** (`WinboxFieldResolutionException`)
-  rather than dropping. New list types: implement, don't silently send a string.
+- **List fields = flat `u32[]`.** `multinumberrange`/`numberrangelist` (vlan-ids, dst-port, dscp, pcp) ride
+  as `[lo0,hi0,lo1,hi1,…]` (a bare `n` → `[n,n]`). `multinumber` (tagged/untagged, topics, proxy ports) is
+  one element per slot, each encoded by the SCALAR rules in order — dropdown reference → static enum map →
+  literal number — and an element matching none of the three **throws** (`WinboxFieldValueException`): a
+  dropped element sends a shorter list the router accepts without complaint. Everything else with an array
+  wire type still throws `WinboxFieldResolutionException`. New list types: implement, don't send a string.
+- **One handler, several windows, each numbering its fields from 1.** `[28,0]` is the UPnP settings
+  singleton (`b1` 'Enabled') AND the UPnP interface list (`u1` 'Interface'). Fields are filed per WINDOW as
+  well as per handler, and the resolver reads action → window → handler; a key→name inversion of the
+  handler map alone answers with whichever window parsed first. Symptom: a row missing a field entirely
+  ("Missing field 'interface'") while a sibling field of the other window appears in its place.
 - **Read command per window kind:** singleton (`item`) = `GetSingleton` (`0xFE000D`); list (`map`) =
   `GetAll` (`0xFE0004`) + `Flags 0x10000005` (+ stats bit when `HasDynamicFields`). Wrong one → 0xFE0002/3/4.
 - **`.id`/SESSION_ID is u8 for ≤255, u32 above** — `M2Message.SessionIdField` auto-switches; a handle can

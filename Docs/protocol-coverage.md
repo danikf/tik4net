@@ -416,21 +416,40 @@ as of the last run (RouterOS 7.23.2) it lists:
 | Path | Gap |
 |---|---|
 | `/ip/route` | native lists routes the API's `print` filters out; distance/scope/vrf not decoded |
-| `/queue/type` | kind-scoped parameters — the API prefixes each by kind (`pcq-rate`), WinBox labels them inside that kind's own pane. ⚠️ needs re-verification: the deck-pane fix shipped a verified read-spelling table naming this path as one of its two ground-truth cases, but this audit entry was not re-run afterward |
-| `/system/logging/action` | same shape — `memory-lines`/`disk-file-name` vs. the pane's own labels. Same re-verification caveat as `/queue/type` |
 | `/interface/wireless/sniffer` | handler `[88,9]` returns sniffer statistics; the API returns settings |
 | `/system/health` | board-gated singleton with no hardware sensors on CHR; `state`/`state-after-reboot` are API-only fields with no WinBox equivalent |
 
-Two further limits are outside the field-vocabulary class above, and only one of them is the
-router's. `add` of an interface SUBTYPE is refused by the router itself
-(`0xFE0006 'unsupported device type'`) — a real protocol limit, and the suite skips only where the
-router actually refuses (`TestBase.SkipIfWinboxNativeCannot`), never on an assumption. List/array
-field writes (`multinumber`, `multitristatearray`, `multi`) are declined by
-`WinboxFieldResolver.EncodeField` with a loud `WinboxFieldResolutionException` rather than a
+### Value-rendering gaps
+
+The audit compares VALUES as well as names (rows paired by `.id`, volatile fields excluded), and the
+first run that did so found **26 paths** whose window and field names are right while a value's
+rendering is not. They are six missing decoders, not 26 defects; `KnownValueGaps` records every path
+with its class named, so a NEW disagreement on one of them still fails the run.
+
+| Class | What arrives | Paths |
+|---|---|---|
+| `interval` | raw seconds (or ms) where the API prints `0s` / `5m` / `1w` | 7 |
+| raw MAC | undelimited hex on windows that do not type the 6-byte field `macaddr` | 4 |
+| sentinel | `0` / `0xFFFFFFFF` where the API prints `disabled`, `unlimited`, `none`, `all`, `passthrough` | 6 |
+| empty list | `[]` where the API prints nothing | 5 |
+| set order | a bitmask decodes by ascending bit index; RouterOS prints its own order | 3 |
+| date/epoch | a unix stamp where the API prints a date | 2 |
+
+Three one-offs sit outside those classes and want their own look: `/system/ntp/server` `enabled`
+reads **true where the API says false**, `/routing/table` `fib` reads the flag's own bool where the
+API prints it empty, and `/system/ntp/client`'s signed values are decoded as unsigned u32.
+
+### Two further limits, only one of them the router's
+
+`add` of an interface SUBTYPE is refused by the router itself (`0xFE0006 'unsupported device type'`)
+— a real protocol limit, and the suite skips only where the router actually refuses
+(`TestBase.SkipIfWinboxNativeCannot`), never on an assumption.
+
+The remaining array shapes (`multinetwork`, `multimacnetwork`, `multistring`, `multi`) are declined
+by `WinboxFieldResolver.EncodeField` with a loud `WinboxFieldResolutionException` rather than a
 silently wrong-typed scalar — **this is our encoder's gap, not a protocol one**: the M2 wire format
-already carries array types for writes (`multinumberrange` uses `M2Message.U32ArraySys`), so
-per-element reference resolution for `multinumber`/`multitristatearray`/`multi` is unimplemented
-rather than impossible. Treat it as needing an encoder, not as a WinBox limitation.
+already carries array types for writes. `multinumberrange`, `numberrangelist`, `multinumber` and
+`multitristatearray` all encode; the rest is unimplemented rather than impossible.
 
 ---
 
@@ -445,10 +464,15 @@ rather than impossible. Treat it as needing an encoder, not as a WinBox limitati
   live defect — fixed by attributing an action window's fields to the action, not just its handler.
 - **Deck-pane field writes being silently dropped on a label collision (e.g. `fq-codel`'s five
   fields losing to `codel`'s under the same labels).** Not a live defect — a pane field is now filed
-  under both `<kind>-<label>` and its plain label. What is still open is *read spelling*: only
-  `/queue/type` and `/system/logging/action` have a verified ground-truth table (see the gaps table
-  above), so any other deck window may still report a pane field under the derived name rather than
-  the API's.
+  under both `<kind>-<label>` and its plain label, and `/queue/type` and `/system/logging/action`
+  both agree with the API in the audit. What is still open is *read spelling* on the OTHER deck
+  windows: only those two have a verified ground-truth table, so any other one may still report a
+  pane field under the derived name rather than the API's.
+- **`/ip/upnp/interfaces` reading rows with no `interface` field ("Missing field 'interface'").** Not
+  a live defect — two windows share handler `[28,0]` and each numbers its fields from 1, so the
+  per-handler map could not be inverted. Window-scoped field maps fixed it.
+- **`/system/logging` `topics` reading as `[1]`, and its `add` being refused.** Not a live defect —
+  `multitristatearray` now encodes and decodes; the `!` is a second KEY, not a value prefix.
 
 ---
 
