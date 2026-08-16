@@ -63,6 +63,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.unittests", "tik4ne
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.package", "tik4net.package\tik4net.package.csproj", "{14CBE93F-BBFA-41EF-A5A8-CB3D01B2A2C5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tik4net.benchmarks", "tik4net.benchmarks\tik4net.benchmarks.csproj", "{8A8F4472-45D6-4636-8FCB-C436D92AA8DB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -217,6 +219,18 @@ Global
 		{14CBE93F-BBFA-41EF-A5A8-CB3D01B2A2C5}.Release|x86.Build.0 = Release|Any CPU
 		{14CBE93F-BBFA-41EF-A5A8-CB3D01B2A2C5}.Release|x64.ActiveCfg = Release|Any CPU
 		{14CBE93F-BBFA-41EF-A5A8-CB3D01B2A2C5}.Release|x64.Build.0 = Release|Any CPU
+		{8A8F4472-45D6-4636-8FCB-C436D92AA8DB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8A8F4472-45D6-4636-8FCB-C436D92AA8DB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8A8F4472-45D6-4636-8FCB-C436D92AA8DB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8A8F4472-45D6-4636-8FCB-C436D92AA8DB}.Debug|x86.Build.0 = Debug|Any CPU
+		{8A8F4472-45D6-4636-8FCB-C436D92AA8DB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8A8F4472-45D6-4636-8FCB-C436D92AA8DB}.Debug|x64.Build.0 = Debug|Any CPU
+		{8A8F4472-45D6-4636-8FCB-C436D92AA8DB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8A8F4472-45D6-4636-8FCB-C436D92AA8DB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8A8F4472-45D6-4636-8FCB-C436D92AA8DB}.Release|x86.ActiveCfg = Release|Any CPU
+		{8A8F4472-45D6-4636-8FCB-C436D92AA8DB}.Release|x86.Build.0 = Release|Any CPU
+		{8A8F4472-45D6-4636-8FCB-C436D92AA8DB}.Release|x64.ActiveCfg = Release|Any CPU
+		{8A8F4472-45D6-4636-8FCB-C436D92AA8DB}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

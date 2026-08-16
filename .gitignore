@@ -206,3 +206,6 @@ FakesAssemblies/
 # Python bytecode (probe scripts)
 __pycache__/
 *.pyc
+
+# BenchmarkDotNet output (reports and the generated per-benchmark projects)
+BenchmarkDotNet.Artifacts/

@@ -85,6 +85,24 @@ namespace tik4net.Objects
 
         private PropertyInfo PropertyInfo { get; set; }
 
+        private readonly Func<object, object> _getter;
+        private readonly Action<object, object> _setter;
+
+        /// <summary>
+        /// True when this accessor reads and writes the property through a compiled delegate rather than
+        /// through <see cref="PropertyInfo"/>. False means the platform refused to bind one and the accessor
+        /// fell back to reflection — correct, but ~an order of magnitude slower per field per row.
+        /// </summary>
+        /// <remarks>
+        /// Exposed for <c>CompiledAccessorTests</c>: the fallback is silent by design (a load must not fail
+        /// because a delegate could not be bound), so without this the test suite could not tell whether the
+        /// fast path is being taken at all.
+        /// </remarks>
+        internal bool UsesCompiledAccessors
+        {
+            get { return _getter != null && (_setter != null || PropertyInfo.SetMethod == null); }
+        }
+
         /// <summary>
         /// .ctor
         /// </summary>
@@ -95,6 +113,8 @@ namespace tik4net.Objects
             _owner = owner;
 
             PropertyInfo = propertyInfo;
+            _getter = BuildGetter(propertyInfo);
+            _setter = BuildSetter(propertyInfo);
 
             //From property code
             PropertyName = propertyInfo.Name;
@@ -133,6 +153,71 @@ namespace tik4net.Objects
         public override string ToString()
         {
             return PropertyName + "(" + FieldName + ")";
+        }
+
+        // ── Compiled accessors ─────────────────────────────────────────────────
+        //
+        // The mapper reads or writes EVERY mapped property of EVERY row, so PropertyInfo.GetValue/SetValue —
+        // which re-resolves the accessor method and validates the argument on each call — is the mapper's
+        // dominant cost on a bulk load. The delegate is bound once, here, and the metadata that owns this
+        // accessor is itself cached per entity type (TikEntityMetadataCache), so the binding happens once per
+        // property per process.
+        //
+        // Bound with MethodInfo.CreateDelegate rather than an expression tree, which is what the plan
+        // suggested: a compiled lambda is emitted into an anonymous assembly and cannot call a NON-PUBLIC
+        // accessor, and read-only entity properties are declared `{ get; private set; }` throughout — .id
+        // among them, on every entity that has one. Reflection-based delegate creation has no such limit.
+        //
+        // Every failure falls back to PropertyInfo. Delegate binding needs a runtime that permits it, and a
+        // load that threw on a platform which does not (AOT, a restricted host) would be a far worse outcome
+        // than a slow one. UsesCompiledAccessors is how a test tells the two apart.
+
+        private static Func<object, object> BuildGetter(PropertyInfo propertyInfo)
+        {
+            MethodInfo getMethod = propertyInfo.GetMethod;
+            if (getMethod == null || getMethod.IsStatic || propertyInfo.GetIndexParameters().Length > 0)
+                return null;
+
+            return (Func<object, object>)BindAccessor("MakeGetter", getMethod, propertyInfo);
+        }
+
+        private static Action<object, object> BuildSetter(PropertyInfo propertyInfo)
+        {
+            MethodInfo setMethod = propertyInfo.SetMethod;
+            if (setMethod == null || setMethod.IsStatic || propertyInfo.GetIndexParameters().Length > 0)
+                return null;
+
+            return (Action<object, object>)BindAccessor("MakeSetter", setMethod, propertyInfo);
+        }
+
+        private static object BindAccessor(string factoryName, MethodInfo accessor, PropertyInfo propertyInfo)
+        {
+            try
+            {
+                return typeof(TikEntityPropertyAccessor).GetTypeInfo()
+                    .GetDeclaredMethod(factoryName)
+                    .MakeGenericMethod(accessor.DeclaringType, propertyInfo.PropertyType)
+                    .Invoke(null, new object[] { accessor });
+            }
+            catch (Exception)
+            {
+                // Includes the TargetInvocationException wrapping whatever CreateDelegate refused, and the
+                // MakeGenericMethod failure for a value-type declaring type (whose accessor takes a ref
+                // receiver and cannot be bound to Func<TEntity,TValue> at all).
+                return null;
+            }
+        }
+
+        private static Func<object, object> MakeGetter<TEntity, TValue>(MethodInfo getMethod)
+        {
+            var typed = (Func<TEntity, TValue>)getMethod.CreateDelegate(typeof(Func<TEntity, TValue>));
+            return entity => typed((TEntity)entity);
+        }
+
+        private static Action<object, object> MakeSetter<TEntity, TValue>(MethodInfo setMethod)
+        {
+            var typed = (Action<TEntity, TValue>)setMethod.CreateDelegate(typeof(Action<TEntity, TValue>));
+            return (entity, value) => typed((TEntity)entity, (TValue)value);
         }
 
         private object ConvertFromString(string strValue)
@@ -279,7 +364,12 @@ namespace tik4net.Objects
         /// <param name="propValue">New property value.</param>
         public void SetEntityValue(object entity, string propValue)
         {
-            PropertyInfo.SetValue(entity, ConvertFromString(propValue)); //NOTE: works even if setter is private
+            object value = ConvertFromString(propValue);
+
+            if (_setter != null)
+                _setter(entity, value); //NOTE: works even if setter is private
+            else
+                PropertyInfo.SetValue(entity, value);
         }
 
         /// <summary>
@@ -289,7 +379,7 @@ namespace tik4net.Objects
         /// <returns>Property value from giuven entity</returns>
         public string GetEntityValue(object entity)
         {
-            object propValue = PropertyInfo.GetValue(entity);
+            object propValue = _getter != null ? _getter(entity) : PropertyInfo.GetValue(entity);
 
             // A null NULLABLE property means "nothing was said about this field", and that has to survive to
             // the caller as null so the save path can leave the field out. A null reference property keeps the

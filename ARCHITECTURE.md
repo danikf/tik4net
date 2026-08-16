@@ -41,8 +41,8 @@ Consequently `tik4net.ssh` and `tik4net.testing` reference their compile-time pr
 a package ID that does not exist on nuget.org.
 
 Non-shipping: `tik4net.console`, `tik4net.coreconsole`, `tik4net.examples`, `tik4net.torch`,
-`Tools/tik4net.entitygenerator`, `Tools/tik4net.entityWikiImporter` (several are still legacy
-non-SDK csproj).
+`tik4net.benchmarks`, `Tools/tik4net.entitygenerator`, `Tools/tik4net.entityWikiImporter` (several
+are still legacy non-SDK csproj).
 
 ## Layer 1 — `tik4net` core
 
@@ -256,6 +256,14 @@ MSTest, **net48 only**, ~410 test methods, nearly all requiring a live router. N
   failure. Every transport reuses it; only lifecycle-sensitive classes (`SafeModeTest`) opt out.
 - Capability-gated tests call `EnsureCapability` and report **Inconclusive** rather than failing on
   transports that can't do the thing.
+
+### `tik4net.benchmarks/` — the mapper's per-row cost
+
+BenchmarkDotNet, net8.0, no router and no CI. It exists so a performance claim about the O/R mapper is
+a measurement with a matched baseline rather than an argument — run it before the change as well as
+after. `MapperBenchmarks` is what a caller pays (a 1000-row `LoadAll`, and serialization back out);
+`AccessorBenchmarks` is where that cost sits, per property shape. See its
+[README](tik4net.benchmarks/README.md), which carries the current numbers.
 ### CI
 
 `.github/workflows/build.yml` — Windows builds the full solution (including the net48 projects),
