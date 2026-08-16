@@ -17,7 +17,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// <summary>
         /// .id: primary key of row
         /// </summary>
-        [TikProperty(".id", IsReadOnly = true)]
+        [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
         public string Id { get; private set; }
 
         /// <summary>

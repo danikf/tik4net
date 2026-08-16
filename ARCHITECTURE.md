@@ -223,9 +223,15 @@ Helpers: `TikEntityObjectsExtensions` (`Clone<T>`, `EntityDescription`, `EntityD
 
 1. Class in `tik4net.objects/<Domain>/` (`Ip/`, `Interface/`, `System/`, `Tool/`, …).
 2. `[TikEntity("/<api/path>")]` + `[TikProperty]` per field.
-3. `Id` is always `[TikProperty(".id", IsReadOnly = true, IsMandatory = true)]`.
+3. `Id` is always `[TikProperty(".id", IsReadOnly = true, IsMandatory = true)]` — except on a
+   `IsSingleton` entity, whose menu returns no `.id` at all.
 4. Bool fields ("yes"/"false") convert automatically; enum members need `TikEnumAttribute` when
    the wire value isn't just the lowercased member name.
+
+These conventions are **enforced in CI**, not just documented: `EntityStructureConventionTests` (shape —
+`.id`, paths, enums, read-only counters) and `EntityDefaultValueConventionTests` (the `DefaultValue` /
+nullability rules) run over every `[TikEntity]` on every push. A new entity that breaks one fails the build
+rather than the first person to load that menu.
 
 The `entity-generator` skill (backed by `Tools/tik4net.entitygenerator`) scaffolds these from a
 live router.

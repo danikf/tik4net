@@ -28,8 +28,14 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// entity path in API notation (e.q. /system/resource)
+        /// entity path in API notation (e.q. /system/resource), always absolute.
         /// </summary>
+        /// <remarks>
+        /// The leading slash is added when the entity declares the path without one — 42 of the shipped
+        /// entities do. Every transport already tolerates it (each normalizes on its way to the wire), but
+        /// anything that COMPARES the path has to remember to, and one that forgets gets a silent miss
+        /// rather than an error. Normalizing here means the mapper hands out one spelling.
+        /// </remarks>
         /// <seealso cref="TikEntityAttribute.EntityPath"/>
         public string EntityPath { get; private set; }
 
@@ -124,7 +130,9 @@ namespace tik4net.Objects
 
             _entityType = entityType;
 
-            EntityPath = entityAttribute.EntityPath;
+            EntityPath = string.IsNullOrEmpty(entityAttribute.EntityPath) || entityAttribute.EntityPath.StartsWith("/", StringComparison.Ordinal)
+                ? entityAttribute.EntityPath
+                : "/" + entityAttribute.EntityPath;
             LoadCommand = entityAttribute.LoadCommand;
             LoadDefaultParameneterFormat = entityAttribute.LoadDefaultParameneterFormat;
             IsReadOnly = entityAttribute.IsReadOnly;

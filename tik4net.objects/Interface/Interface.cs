@@ -120,16 +120,18 @@ namespace tik4net.Objects.Interface
         public string Comment { get; set; }
 
         /// <summary>
-        /// Link last down time. (since 6.43 version)
+        /// Link last down time. (since 6.43 version) Read-only: it is a measurement, and
+        /// <c>/interface set</c> does not accept it (verified by tab completion on RouterOS 7.23).
         /// </summary>
-        [TikProperty("last-link-down-time")]
-        public string LastLinkDownTime { get; set; }
+        [TikProperty("last-link-down-time", IsReadOnly = true)]
+        public string LastLinkDownTime { get; private set; }
 
         /// <summary>
-        /// Link last up time (since 6.43 version)
+        /// Link last up time (since 6.43 version) Read-only: it is a measurement, and
+        /// <c>/interface set</c> does not accept it (verified by tab completion on RouterOS 7.23).
         /// </summary>
-        [TikProperty("last-link-up-time")]
-        public string LastLinkUpTime { get; set; }
+        [TikProperty("last-link-up-time", IsReadOnly = true)]
+        public string LastLinkUpTime { get; private set; }
     }
 
 }
