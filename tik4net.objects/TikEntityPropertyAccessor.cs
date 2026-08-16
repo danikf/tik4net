@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -95,6 +96,22 @@ namespace tik4net.Objects
         /// makes reaching it free.
         /// </summary>
         private readonly TikEnumMetadata _enumMetadata;
+
+        private ITikTypeConverter _converter;
+
+        /// <summary>
+        /// The <see cref="ITikTypeConverter"/> handling <see cref="ValueType"/>, or null when none does.
+        /// </summary>
+        /// <remarks>
+        /// Resolved on the first conversion rather than in the ctor, and only for a type no built-in
+        /// claimed — so a converter registered after the entity was first used still takes effect instead of
+        /// being silently ignored, and a built-in type never pays for the lookup. The assignment is
+        /// idempotent, so the missing lock costs at most a repeated scan.
+        /// </remarks>
+        private ITikTypeConverter ResolveConverter()
+        {
+            return _converter ?? (_converter = TikTypeConverters.Resolve(ValueType));
+        }
 
         /// <summary>
         /// True when this accessor reads and writes the property through a compiled delegate rather than
@@ -252,6 +269,14 @@ namespace tik4net.Objects
                     return long.Parse(strValue);
                 else if (ValueType == typeof(byte))
                     return byte.Parse(strValue);
+                else if (ValueType == typeof(uint))
+                    return uint.Parse(strValue, CultureInfo.InvariantCulture);
+                else if (ValueType == typeof(ulong))
+                    return ulong.Parse(strValue, CultureInfo.InvariantCulture);
+                else if (ValueType == typeof(DateTime))
+                    return TikDateTimeHelper.FromTikDateTime(strValue);
+                else if (ValueType == typeof(MacAddress))
+                    return new MacAddress(strValue);
                 else if (ValueType == typeof(bool))
                     return string.Equals(strValue, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(strValue, "yes", StringComparison.OrdinalIgnoreCase);
                 else if (ValueType.GetTypeInfo().IsEnum)
@@ -268,14 +293,14 @@ namespace tik4net.Objects
                         return _enumMetadata.Parse(strValue);
                     }
                 }
-                                   //else if (ValueType == typeof(Ipv4Address))
-                                   //    return new Ipv4Address(strValue);
-                                   //else if (ValueType == typeof(Ipv4AddressWithSubnet))
-                                   //    return new Ipv4AddressWithSubnet(strValue);
-                                   //else if (ValueType == typeof(MacAddress))
-                                   //    return new MacAddress(strValue);
                 else
-                    throw new NotImplementedException(string.Format("Property type {0} not supported.", ValueType));
+                {
+                    var converter = ResolveConverter();
+                    if (converter != null)
+                        return converter.ConvertFromString(strValue, ValueType);
+
+                    throw new NotImplementedException(string.Format("Property type {0} not supported. Register an ITikTypeConverter for it via TikTypeConverters.Register.", ValueType));
+                }
             }
             catch(NotImplementedException)
             {
@@ -306,6 +331,14 @@ namespace tik4net.Objects
                 return ((int)propValue).ToString();
             else if (ValueType == typeof(long))
                 return ((long)propValue).ToString();
+            else if (ValueType == typeof(uint))
+                return ((uint)propValue).ToString(CultureInfo.InvariantCulture);
+            else if (ValueType == typeof(ulong))
+                return ((ulong)propValue).ToString(CultureInfo.InvariantCulture);
+            else if (ValueType == typeof(DateTime))
+                return TikDateTimeHelper.ToTikDateTime((DateTime)propValue);
+            else if (ValueType == typeof(MacAddress))
+                return ((MacAddress)propValue).Address;
             else if (ValueType == typeof(bool))
                 return ((bool)propValue) ? "yes" : "no"; //TODO add attribute definition for support true/false
             else if (ValueType.GetTypeInfo().IsEnum)
@@ -315,14 +348,14 @@ namespace tik4net.Objects
                 else
                     return _enumMetadata.Format(propValue);
             }
-            //else if (ValueType == typeof(Ipv4Address))
-            //    return ((Ipv4Address)propValue).Address;
-            //else if (ValueType == typeof(Ipv4AddressWithSubnet))
-            //    return ((Ipv4AddressWithSubnet)propValue).Address;
-            //else if (ValueType == typeof(MacAddress))
-            //    return ((MacAddress)propValue).Address;
             else
-                throw new NotImplementedException(string.Format("Property type {0} not supported.", ValueType));
+            {
+                var converter = ResolveConverter();
+                if (converter != null)
+                    return converter.ConvertToString(propValue, ValueType);
+
+                throw new NotImplementedException(string.Format("Property type {0} not supported. Register an ITikTypeConverter for it via TikTypeConverters.Register.", ValueType));
+            }
         }
 
         /// <summary>
