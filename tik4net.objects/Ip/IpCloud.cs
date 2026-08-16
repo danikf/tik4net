@@ -16,7 +16,7 @@ namespace tik4net.Objects.Ip
         /// <summary>ddns-enabled — enables DDNS; if <c>auto</c>, activates only when Back To Home is enabled.</summary>
         /// <seealso cref="DdnsEnabledMode"/>
         [TikProperty("ddns-enabled", DefaultValue = "auto")]
-        public DdnsEnabledMode DdnsEnabled { get; set; }
+        public DdnsEnabledMode? DdnsEnabled { get; set; }
 
         /// <summary>ddns-update-interval — sets the interval for DDNS connection attempts; <c>none</c> lets the router check the IP internally.</summary>
         [TikProperty("ddns-update-interval", DefaultValue = "none")]

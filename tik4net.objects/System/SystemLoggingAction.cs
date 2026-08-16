@@ -245,7 +245,7 @@ namespace tik4net.Objects.System
         /// <seealso cref="SyslogFacilityType"/>
         /// </summary>
         [TikProperty("syslog-facility", DefaultValue = "daemon")]
-        public SyslogFacilityType SyslogFacility { get; set; }
+        public SyslogFacilityType? SyslogFacility { get; set; }
 
         /// <summary>
         /// syslog-severity — RFC 3164 severity level override; <c>auto</c> maps RouterOS topic severity

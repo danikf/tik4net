@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -19,13 +19,13 @@ namespace tik4net.unittests.Objects
     /// spelling wrong and the comparison can never succeed, so the field goes out on every create and set.
     /// </para>
     /// <para>
-    /// <b>The bigger half of this rule is waiting on B4</b>, deliberately. A non-nullable <c>bool</c> is
-    /// <c>false</c> when untouched, so strictly it would have to declare <c>"no"</c> — but sweeping the 56
-    /// properties that declare the router's default instead was tried (A10) and reverted: it makes an
-    /// explicitly assigned <c>false</c> indistinguishable from untouched, so the field is dropped and the
-    /// router applies <c>yes</c>. <c>FirewallMangleMergeTest</c> caught it as rules that would not survive
-    /// their own round trip. Once <c>bool?</c> can carry "unset" separately from <c>false</c>, the router's
-    /// default is exactly what belongs here and this test tightens to say so.
+    /// The rule the three tests enforce is one rule seen from three sides: <b>whatever an untouched property
+    /// holds must be something the router is content to receive — or must not be sent at all.</b> A
+    /// non-nullable <c>bool</c> cannot satisfy that (A10 measured both ways round: declaring the router's
+    /// default sends the opposite on every create, declaring the CLR default silently drops an explicitly
+    /// assigned <c>false</c>), which is why a writable flag is <c>bool?</c>. An enum can satisfy it either
+    /// way — by ordering its zero member to the router's default, or by going nullable — so the enum test
+    /// accepts both.
     /// </para>
     /// </remarks>
     [TestClass]
@@ -62,33 +62,6 @@ namespace tik4net.unittests.Objects
                 + "spelling." + Environment.NewLine + string.Join(Environment.NewLine, offenders));
         }
 
-        /// <summary>
-        /// The 13 enum properties that carry the same defect the bool sweep fixed, each created with its
-        /// zero member's value instead of the router's default. Listed rather than fixed because the fix is
-        /// not the same one: for an enum, the alternative to changing the attribute is to <b>reorder the
-        /// enum</b> so the router's default becomes the zero member — which additionally makes an untouched
-        /// entity read as what the router will do, something a non-nullable <c>bool</c> can never manage.
-        /// Two of these look like the reordering case on sight (a certificate created with <c>md5</c>/1024
-        /// rather than <c>sha256</c>/2048), so the choice is per property and belongs to its own item, not
-        /// to a sweep. Named here so a <b>new</b> one still fails this test.
-        /// </summary>
-        private static readonly HashSet<string> KnownEnumDefaultGaps = new HashSet<string>
-        {
-            "Certificate.DigestAlgorithm",          // md5 vs. the router's sha256 — reorder, do not relabel
-            "Certificate.KeySize",                  // 1024 vs. 2048 — same
-            "InterfaceBridge.Arp",
-            "InterfaceBridge.ProtocolMode",
-            "InterfacePppoeClient.AddDefaultRoute", // declares "false"/"true"; RouterOS spells these yes/no
-            "InterfacePppoeClient.DialOnDemand",
-            "InterfacePppoeClient.UsePeerDns",
-            "InterfaceVlan.Arp",
-            "IpCloud.DdnsEnabled",
-            "IpsecPolicy.Action",
-            "IpsecProposal.PfsGroup",
-            "Radius.RequireMessageAuth",
-            "SystemLoggingAction.SyslogFacility",
-        };
-
         [TestMethod]
         public void AWritableBoolIsNullable()
         {
@@ -109,42 +82,40 @@ namespace tik4net.unittests.Objects
         }
 
         [TestMethod]
-        public void AnEnumPropertyDeclaresTheWireFormOfItsZeroMemberAsItsDefault()
+        public void AnEnumPropertyEitherDefaultsToItsZeroMemberOrIsNullable()
         {
-            // Same rule, and the reason /ip/dhcp-client add-default-route legitimately says "yes": its enum's
-            // default member IS Yes. Checking it here keeps that from looking like an oversight later.
+            // An untouched non-nullable enum property IS its zero member, so if that member is not what the
+            // router would have chosen, the mapper sends it on every /add and the row is created with the
+            // wrong value — a certificate with md5/1024 rather than sha256/2048 (A12). There are two correct
+            // shapes and this accepts either: make the router's default the zero member, or make the property
+            // nullable so "untouched" is a state of its own and nothing is sent at all.
+            //
+            // Which shape to reach for is decided by the enum, not by taste. SyslogFacilityType's member ORDER
+            // is the syslog facility numbering and KeySizeType's is ascending key sizes; renumbering those to
+            // move a default to the front would trade one wrong for another, so those went nullable.
+            // /ip/dhcp-client add-default-route is the opposite case — its enum's zero member genuinely IS the
+            // router's default, so it needs nothing.
             var offenders = new List<string>();
-            var fixedSinceListed = new List<string>();
 
-            foreach (var x in Properties().Where(p => p.Property.PropertyType.IsEnum))
+            foreach (var x in Properties())
             {
-                if (x.Attribute.DefaultValue == null)
+                var valueType = Nullable.GetUnderlyingType(x.Property.PropertyType) ?? x.Property.PropertyType;
+                if (!valueType.IsEnum || x.Attribute.DefaultValue == null)
                     continue;
+                if (valueType != x.Property.PropertyType)
+                    continue;   // nullable: untouched is null, so the zero member never reaches the router
 
-                string expected = WireNameOfDefaultMember(x.Property.PropertyType);
-                if (expected == null)
-                    continue;
-
-                string key = $"{x.Entity.Name}.{x.Property.Name}";
-                bool disagrees = x.Attribute.DefaultValue != expected;
-
-                if (disagrees && !KnownEnumDefaultGaps.Contains(key))
-                    offenders.Add($"{key} ('{x.Attribute.FieldName}') declares DefaultValue = "
-                                + $"\"{x.Attribute.DefaultValue}\", but the enum's default member serializes "
-                                + $"to \"{expected}\"");
-                else if (!disagrees && KnownEnumDefaultGaps.Contains(key))
-                    fixedSinceListed.Add(key);
+                string expected = WireNameOfDefaultMember(valueType);
+                if (expected != null && x.Attribute.DefaultValue != expected)
+                    offenders.Add($"{x.Entity.Name}.{x.Property.Name} ('{x.Attribute.FieldName}') declares "
+                                + $"DefaultValue = \"{x.Attribute.DefaultValue}\", but an untouched property "
+                                + $"is the zero member, which serializes to \"{expected}\"");
             }
 
             Assert.AreEqual(0, offenders.Count,
-                "An enum property is its zero member when untouched, so that member's wire value is what "
-                + "DefaultValue has to be." + Environment.NewLine + string.Join(Environment.NewLine, offenders));
-
-            // A tally that only ever grows stops meaning anything. If one of the 13 was fixed, it leaves the
-            // list in the same change.
-            Assert.AreEqual(0, fixedSinceListed.Count,
-                "these now satisfy the rule and must be removed from KnownEnumDefaultGaps: "
-                + string.Join(", ", fixedSinceListed));
+                "Each of these is created with the wrong value on every /add. Either reorder the enum so the "
+                + "router's default is its zero member, or declare the property nullable:"
+                + Environment.NewLine + string.Join(Environment.NewLine, offenders));
         }
 
         // The wire value of the member an untouched property holds — the one whose numeric value is 0.

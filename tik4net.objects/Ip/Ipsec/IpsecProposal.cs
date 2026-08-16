@@ -85,7 +85,7 @@
         /// <seealso cref="PfsGroupType"/>
         /// </summary>
         [TikProperty("pfs-group", DefaultValue = "modp1024")]
-        public PfsGroupType PfsGroup { get; set; }
+        public PfsGroupType? PfsGroup { get; set; }
 
         /// <summary>
         /// disabled — when true this proposal entry is not offered during IKE negotiation.

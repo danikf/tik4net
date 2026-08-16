@@ -41,7 +41,7 @@ namespace tik4net.Objects.Certificate
         /// </summary>
         /// <seealso cref="KeySizeType"/>
         [TikProperty("key-size", DefaultValue = "2048")]
-        public KeySizeType KeySize { get; set; }
+        public KeySizeType? KeySize { get; set; }
 
         /// <summary>
         /// days-valid — Number of days the certificate remains valid after signing.
@@ -66,7 +66,7 @@ namespace tik4net.Objects.Certificate
         /// </summary>
         /// <seealso cref="DigestAlgorithmType"/>
         [TikProperty("digest-algorithm", DefaultValue = "sha256")]
-        public DigestAlgorithmType DigestAlgorithm { get; set; }
+        public DigestAlgorithmType? DigestAlgorithm { get; set; }
 
         /// <summary>
         /// country — Certificate issuer country code (two-letter ISO 3166-1 alpha-2).

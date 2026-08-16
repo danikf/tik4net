@@ -69,7 +69,7 @@ namespace tik4net.Objects.Interface
         /// </summary>
         /// <seealso cref="ArpMode"/>
         [TikProperty("arp", DefaultValue = "enabled")]
-        public ArpMode Arp { get; set; }
+        public ArpMode? Arp { get; set; }
 
         /// <summary>
         /// auto-mac: Automatically select the smallest MAC address of bridge ports as a bridge MAC address
@@ -142,7 +142,7 @@ namespace tik4net.Objects.Interface
         /// </summary>
         /// <seealso cref="ProtocolModeModes"/>
         [TikProperty("protocol-mode", DefaultValue = "rstp")]
-        public ProtocolModeModes ProtocolMode { get; set; }
+        public ProtocolModeModes? ProtocolMode { get; set; }
 
         /// <summary>
         /// transmit-hold-count: The Transmit Hold Count used by the Port Transmit state machine to limit transmission rate

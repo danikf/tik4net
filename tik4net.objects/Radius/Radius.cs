@@ -154,7 +154,7 @@ namespace tik4net.Objects.Radius
         /// Default: yes-for-request-resp.
         /// </summary>
         [TikProperty("require-message-auth", DefaultValue = "yes-for-request-resp")]
-        public RequireMessageAuthType RequireMessageAuth { get; set; }
+        public RequireMessageAuthType? RequireMessageAuth { get; set; }
 
         /// <summary>
         /// disabled — whether this RADIUS server entry is disabled.

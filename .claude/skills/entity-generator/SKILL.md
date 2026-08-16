@@ -244,24 +244,32 @@ On **create** (`/add`), the mapper sends a field only when its current **wire va
 whose CLR-default wire value differs from `DefaultValue` — and the router rejects any it considers invalid /
 out-of-range. Two recurring traps (both cost a failed test run on Tier 1/2):
 
-- **Optional ranged `int`/`long` (ports, counts, periods, power):** a fresh entity has CLR-default `0`. If you
-  give it the *real* default (e.g. `DefaultValue = "1500"`), the mapper sees `0 != "1500"` and sends `0`, which
-  the router rejects (`value out of range (1..255)`). **Fix: set `DefaultValue = "0"`** so an unset field
-  (`0`) equals `DefaultValue` and is omitted on add; keep the real default in the `///` doc only.
+- **Optional ranged `int`/`long` (ports, counts, periods, power): declare it `int?`.** A fresh entity has
+  CLR-default `0`, so giving the property the *real* default (`DefaultValue = "1500"`) makes the mapper see
+  `0 != "1500"` and send `0`, which the router rejects (`value out of range (1..255)`).
   ```csharp
-  // dtim-period valid range 1..255; 0 is only a CLR "not set" sentinel.
-  // DefaultValue="0" makes the mapper skip it on add (it would otherwise send 0 and be rejected).
-  [TikProperty("dtim-period", DefaultValue = "0")] public int DtimPeriod { get; set; }
+  // dtim-period valid range 1..255; unassigned means "let the router choose".
+  [TikProperty("dtim-period", DefaultValue = "1")] public int? DtimPeriod { get; set; }
   ```
-  (Exception: if the field is genuinely `IsMandatory`, it is always sent regardless.)
-- **Enums:** a fresh entity's enum is the **first (zero) member**. Order every enum so the **router default is
-  the first member**, and set `DefaultValue` to that member's wire value. Otherwise the mapper sends the
-  zero-member's wire value on add — and if that value is invalid for the router, the add fails
-  (`input does not match any value of <field>`). Verify the router's default via `cli_complete` (`set <field>=`
-  completion or the wiki "Default:" column).
+  **Do not write `DefaultValue = "0"` instead** — that is A10's mistake one type over: it makes an
+  *explicitly assigned* `0` indistinguishable from unassigned, so it is dropped, and `0` is meaningful on
+  plenty of these fields (`max-sessions=0` means *unlimited*). Nullable is the fix; the router's default
+  stays declared. (Exception: a genuinely `IsMandatory` field is always sent regardless.)
+- **Enums:** a fresh entity's enum is the **first (zero) member**, so either order the enum so the **router
+  default is the first member** and set `DefaultValue` to that member's wire value, **or** declare the
+  property nullable and leave the order alone. Otherwise the mapper sends the zero member on add — a
+  certificate created with `md5`/1024 instead of `sha256`/2048 (A12) — and where the value is invalid for the
+  field the add fails outright (`input does not match any value of <field>`). Reach for nullable when the
+  member order carries meaning of its own (`SyslogFacilityType` IS the syslog facility numbering, `KeySizeType`
+  is ascending sizes); reordering those to move a default to the front trades one wrong for another. Verify
+  the router's default via `cli_complete` (`set <field>=` completion or the wiki "Default:" column).
 
-Both reduce to the same rule: **a freshly-constructed entity must equal its `DefaultValue` on every optional
-field, so nothing spurious is sent on add.** When in doubt, set `DefaultValue` to the CLR-default wire form.
+Both reduce to the same rule: **whatever a freshly-constructed entity holds must be something the router is
+content to receive — or must not be sent at all.** When in doubt make the property **nullable**, which buys
+the second half of that outright: unassigned is `null`, `null` is never sent, and the router applies its own
+default. Do *not* reach for "set `DefaultValue` to the CLR-default wire form" — it satisfies the rule by
+making an explicitly assigned default indistinguishable from silence, which is the defect A10 measured and
+reverted.
 
 - **Server-mandatory field despite a documented default:** some menus reject `/add` unless a field is sent
   *even though the wiki documents a default* (the router does not apply that default server-side on add). If

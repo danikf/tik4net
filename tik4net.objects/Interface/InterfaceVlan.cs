@@ -77,7 +77,7 @@ namespace tik4net.Objects.Interface
         /// </summary>
         /// <seealso cref="ArpMode"/>
         [TikProperty("arp", DefaultValue = "enabled")]
-        public ArpMode Arp { get; set; }
+        public ArpMode? Arp { get; set; }
 
         /// <summary>
         /// arp-timeout

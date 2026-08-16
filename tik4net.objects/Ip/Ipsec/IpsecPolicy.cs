@@ -101,7 +101,7 @@
         /// <seealso cref="ActionType"/>
         /// </summary>
         [TikProperty("action", DefaultValue = "encrypt")]
-        public ActionType Action { get; set; }
+        public ActionType? Action { get; set; }
 
         /// <summary>
         /// level — what to do when the required SA(s) cannot be found or established.

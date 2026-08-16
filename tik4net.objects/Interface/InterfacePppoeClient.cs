@@ -9,7 +9,7 @@
         [TikProperty("ac-name")] public string AcName { get; set; }
 
         [TikProperty("add-default-route", DefaultValue = "false")]
-        public YesNoOptions AddDefaultRoute { get; set; }
+        public YesNoOptions? AddDefaultRoute { get; set; }
 
         [TikProperty("allow", DefaultValue = "mschap2,mschap1,chap,pap")]
         public string Allow { get; set; }
@@ -18,7 +18,7 @@
         public byte DefaultRouteDistance { get; set; }
 
         [TikProperty("dial-on-demand", DefaultValue = "false")]
-        public YesNoOptions DialOnDemand { get; set; }
+        public YesNoOptions? DialOnDemand { get; set; }
 
         [TikProperty("interface")] 
         public string Interface { get; set; }
@@ -48,7 +48,7 @@
         public string ServiceName { get; set; }
 
         [TikProperty("use-peer-dns", DefaultValue = "false")]
-        public YesNoOptions UsePeerDns { get; set; }
+        public YesNoOptions? UsePeerDns { get; set; }
 
         [TikProperty("user")] 
         public string User { get; set; }
