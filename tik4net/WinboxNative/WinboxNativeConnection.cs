@@ -232,9 +232,14 @@ namespace tik4net.WinboxNative
             // IWinboxM2Channel.Open is synchronous down through WinboxTcpTransport and the crypto, and that
             // is reverse-engineered code with no deterministic coverage. So this holds a thread-pool thread
             // for the duration of the open, which is what D5 says not to do; it is called out here rather
-            // than left to be discovered, and tracked as its own item (P2.5). It does at least keep its
-            // promise to the CALLER — control returns immediately — unlike a hook that would claim async
-            // and then block the caller.
+            // than left to be discovered. It does at least keep its promise to the CALLER — control returns
+            // immediately — unlike a hook that would claim async and then block the caller.
+            //
+            // A6 settled it: this stays. AsyncCommands is a claim about COMMANDS, and an open is once per
+            // connection; buying it back means an awaitable form of the EC-SRP5 handshake, i.e. rewriting
+            // the one part of this transport that has no deterministic coverage, for a thread held once.
+            // MAC-Telnet and WinBox CLI open the same way and for the same reason; the capability's own
+            // documentation says opening is excluded rather than leaving each site to explain itself.
             return Task.Run(() => Open(host, port, user, password));
         }
 

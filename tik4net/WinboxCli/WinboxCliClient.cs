@@ -13,12 +13,25 @@ namespace tik4net.WinboxCli
     /// <summary>
     /// WinBox CLI terminal client. On top of any <see cref="IWinboxM2Channel"/> (TCP 8291 or MAC-layer
     /// UDP 20561) it opens the mepty (terminal PTY) handler and drives a persistent RouterOS CLI
-    /// session — the encrypted-transport equivalent of <c>MacTelnetUdpClient</c>. All terminal I/O is
-    /// synchronous, wrapped in <see cref="Task.Run(Action)"/> so callers stay async.
+    /// session — the encrypted-transport equivalent of <c>MacTelnetUdpClient</c>.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Transport-agnostic: the injected channel decides whether M2 messages travel over TCP or the MAC
     /// layer, so this same engine backs both <c>WinboxCliConnection</c> and <c>WinboxCliMacConnection</c>.
+    /// </para>
+    /// <para>
+    /// <b>How the command path is asynchronous</b> (A6). The read loops below never wait on the network:
+    /// they receive a frame only once <see cref="IWinboxM2Channel.DataAvailable"/> says one is arriving,
+    /// and otherwise wait out a short poll interval. That gate is not a convenience — a receive deadline
+    /// firing part-way through an encrypted frame leaves the stream unrecoverably desynchronized, which is
+    /// why this transport polls a readiness flag rather than awaiting a socket read with a deadline on it.
+    /// What A6 changed is that the interval is now <see cref="Task.Delay(int)"/> and not
+    /// <see cref="Thread.Sleep(int)"/>, so a command waiting thirty seconds for the router occupies a
+    /// thread for the frame decodes alone and not for the waiting — which is the property
+    /// <see cref="TikConnectionCapability.AsyncCommands"/> makes a claim about. The wire cadence is
+    /// untouched: same interval, same pull rhythm.
+    /// </para>
     /// </remarks>
     internal sealed class WinboxCliClient : IDisposable
     {
@@ -73,9 +86,19 @@ namespace tik4net.WinboxCli
 
         // ── Login ─────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Opens the channel, authenticates, takes a mepty terminal and waits out the RouterOS startup
+        /// exchange.
+        /// </summary>
+        /// <remarks>
+        /// The one <see cref="Task.Run(Action)"/> left on this transport, deliberately (A6): the channel's
+        /// <c>Open</c> is a synchronous EC-SRP5 handshake down through the crypto, and the prompt wait that
+        /// follows it runs before there is a command path to speak of. Open happens once per connection and
+        /// is not what <see cref="TikConnectionCapability.AsyncCommands"/> is a claim about.
+        /// </remarks>
         internal Task LoginAsync(string host, int port, string user, string pass, CancellationToken ct)
         {
-            return Task.Run(() =>
+            return Task.Run(async () =>
             {
                 _session.Open(host, port, user, pass, _loginTimeoutMs, _receiveTimeoutMs);
 
@@ -89,7 +112,7 @@ namespace tik4net.WinboxCli
                 SendTerminalReady(_sessionId);
 
                 WaitForPromptSync();
-                DrainSync(250);
+                await DrainAsync(250).ConfigureAwait(false);
 
                 // From here the terminal is idle between commands, and a RouterOS terminal is written to
                 // unprompted. On a carrier that expects each write to be acknowledged, leaving it unread is
@@ -109,38 +132,35 @@ namespace tik4net.WinboxCli
         /// completed output line to <paramref name="onLine"/> while the command is still running — the
         /// streaming driver registered by the WinBox-CLI connections (P2.50).
         /// </summary>
-        internal Task<string> SendCommandAndReadAsync(string command, Action<string> onLine, CancellationToken ct)
+        internal async Task<string> SendCommandAndReadAsync(string command, Action<string> onLine, CancellationToken ct)
         {
-            return Task.Run(() =>
-            {
-                // Discard any residual frames still buffered from the PREVIOUS command before issuing
-                // this one. A late prompt-repaint or VT100 probe-answer that arrives after the prior
-                // read returned would otherwise be consumed first here and either mistaken for this
-                // command's completion (an early, empty result) or desync a frame boundary (a full
-                // receive-timeout hang). Gated on DataAvailable so the normal, clean path pays nothing;
-                // the login drains for the same reason after the initial prompt.
-                if (_session.DataAvailable)
-                    DrainSync(SettleMs);
+            ct.ThrowIfCancellationRequested();
 
-                string cmd = CliOutputHelper.InjectWithoutPaging(command);
-                SendInput(_encoding.GetBytes(cmd + "\r"));
-                string raw = ReadCommandResponseSync(cmd, onLine);
-                return CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), cmd);
-            }, ct);
+            // Discard any residual frames still buffered from the PREVIOUS command before issuing
+            // this one. A late prompt-repaint or VT100 probe-answer that arrives after the prior
+            // read returned would otherwise be consumed first here and either mistaken for this
+            // command's completion (an early, empty result) or desync a frame boundary (a full
+            // receive-timeout hang). Gated on DataAvailable so the normal, clean path pays nothing;
+            // the login drains for the same reason after the initial prompt.
+            if (_session.DataAvailable)
+                await DrainAsync(SettleMs).ConfigureAwait(false);
+
+            string cmd = CliOutputHelper.InjectWithoutPaging(command);
+            SendInput(_encoding.GetBytes(cmd + "\r"));
+            string raw = await ReadCommandResponseAsync(cmd, onLine).ConfigureAwait(false);
+            return CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), cmd);
         }
 
         /// <summary>
         /// Sends raw bytes (a control key such as Ctrl+X — no carriage return, no paging injection) and
         /// returns the ANSI-stripped response read up to the next stable shell prompt. Used for Safe Mode.
         /// </summary>
-        internal Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
+        internal async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
         {
-            return Task.Run(() =>
-            {
-                SendInput(raw);
-                // null → tolerant; a control key need not be answered with a prompt.
-                return VtStripper.StripAnsi(ReadCommandResponseSync(null));
-            }, ct);
+            ct.ThrowIfCancellationRequested();
+            SendInput(raw);
+            // null → tolerant; a control key need not be answered with a prompt.
+            return VtStripper.StripAnsi(await ReadCommandResponseAsync(null).ConfigureAwait(false));
         }
 
         /// <summary>
@@ -149,13 +169,11 @@ namespace tik4net.WinboxCli
         /// shell prompt (RouterOS redraws the prompt with the echoed stem), so it must be read on a settle
         /// window rather than a prompt match. ANSI-stripped.
         /// </summary>
-        internal Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
+        internal async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
         {
-            return Task.Run(() =>
-            {
-                SendInput(raw);
-                return ReadUntilQuietSync(quietMs);
-            }, ct);
+            ct.ThrowIfCancellationRequested();
+            SendInput(raw);
+            return await ReadUntilQuietAsync(quietMs).ConfigureAwait(false);
         }
 
         // ── Close ─────────────────────────────────────────────────────────────
@@ -353,7 +371,7 @@ namespace tik4net.WinboxCli
         /// consumed while it runs (see <see cref="Cli.CliLineStreamer"/>). Does not affect when the read
         /// returns — the stable prompt plus its settle window is still the only terminator.
         /// </param>
-        private string ReadCommandResponseSync(string sentCommand, Action<string> onLine = null)
+        private async Task<string> ReadCommandResponseAsync(string sentCommand, Action<string> onLine = null)
         {
             var sb = new StringBuilder();
             var sw = Stopwatch.StartNew();
@@ -405,7 +423,7 @@ namespace tik4net.WinboxCli
                         SendPull();
                         lastPullMs = sw.ElapsedMilliseconds;
                     }
-                    Thread.Sleep(PollSleepMs);
+                    await Task.Delay(PollSleepMs).ConfigureAwait(false);
                 }
 
                 if (gotData)
@@ -472,7 +490,7 @@ namespace tik4net.WinboxCli
         /// after at least some data (or the receive deadline expires), answering VT100 probes. Returns the
         /// ANSI-stripped text. Used for Tab-completion (see <see cref="SendRawAndReadUntilQuietAsync"/>).
         /// </summary>
-        private string ReadUntilQuietSync(int quietMs)
+        private async Task<string> ReadUntilQuietAsync(int quietMs)
         {
             var sb = new StringBuilder();
             var sw = Stopwatch.StartNew();
@@ -499,7 +517,7 @@ namespace tik4net.WinboxCli
                 }
                 else
                 {
-                    Thread.Sleep(PollSleepMs);
+                    await Task.Delay(PollSleepMs).ConfigureAwait(false);
                 }
 
                 if (gotData)
@@ -512,12 +530,12 @@ namespace tik4net.WinboxCli
         }
 
         /// <summary>Consumes residual frames until the channel stays quiet for <paramref name="quietMs"/>.</summary>
-        private void DrainSync(int quietMs)
+        private async Task DrainAsync(int quietMs)
         {
             var deadline = DateTime.UtcNow.AddMilliseconds(quietMs);
             while (DateTime.UtcNow < deadline)
             {
-                if (!_session.DataAvailable) { Thread.Sleep(PollSleepMs); continue; }
+                if (!_session.DataAvailable) { await Task.Delay(PollSleepMs).ConfigureAwait(false); continue; }
                 try
                 {
                     byte[] chunk = ReceiveTerminalChunk(FrameTimeoutMs);

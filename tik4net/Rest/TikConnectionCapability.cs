@@ -56,7 +56,17 @@ namespace tik4net
         /// Transport implements the Task-based command surface (<see cref="ITikCommandAsync"/>, reached through the
         /// <c>Execute*Async</c> extension methods on <see cref="ITikCommand"/>) with a <b>real</b> async core — the
         /// I/O is awaited, not a blocking call pushed onto a thread-pool thread. tik4net never fakes this with
-        /// <c>Task.Run</c>: a transport either awaits its socket or does not report the flag.
+        /// <c>Task.Run</c>: the guarantee is that <b>a command waiting for the router occupies no thread while
+        /// it waits</b>.
+        /// <para>
+        /// How that is delivered differs by transport, and two shapes count. REST, the binary API, Telnet and
+        /// SSH await the socket itself. The terminal transports carried over WinBox or the MAC layer cannot:
+        /// a receive deadline that fires part-way through a frame leaves their stream desynchronized, so they
+        /// wait on a readiness signal instead — a background pump that owns the socket (MAC-Telnet) or a
+        /// polled data-available flag (WinBox CLI) — and await that. Either way no thread is held.
+        /// <b>Opening</b> a connection is excluded: three transports still run their handshake on a worker,
+        /// and each says so where it does it.
+        /// </para>
         /// <para>
         /// The flag says nothing about cancellation once the command is on the wire — that is
         /// <see cref="CancelInFlight"/>, and the two differ per transport.
