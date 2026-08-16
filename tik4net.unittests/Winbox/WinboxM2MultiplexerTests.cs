@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -379,6 +379,45 @@ namespace tik4net.unittests.Winbox
 
                     Assert.AreEqual(M2Message.ParseSysReqId(patientRequest), M2Message.ParseSysReqId(await patient),
                         "The patient caller must still be served after its neighbour's deadline expired.");
+                });
+        }
+        /// <summary>
+        /// A13: a timeout has to say enough to tell the two explanations apart. A silent channel and a slow
+        /// answer look identical from the waiter's side and want opposite fixes — a dead connection versus
+        /// paging or a longer deadline — so the message names what the READER has seen, not only the id it
+        /// was waiting on.
+        /// </summary>
+        [TestMethod]
+        public async Task Timeout_SaysWhetherTheChannelWasSilentOrMerelySlow()
+        {
+            // Nothing has ever arrived on this channel: the message must say so outright.
+            await WithMultiplexer(
+                server => server.ReadRawFrame(),
+                (mux, server) =>
+                {
+                    var ex = Assert.ThrowsException<TimeoutException>(
+                        () => mux.SendReceive(Request(mux.NextReqIdField()), 300));
+                    StringAssert.Contains(ex.Message, "No frame at all has arrived",
+                        "a channel that has never answered is a different diagnosis from a slow one");
+                });
+
+            // One request answered, the next abandoned: the channel is demonstrably alive, so the message
+            // must not blame it.
+            await WithMultiplexer(
+                server =>
+                {
+                    int first = M2Message.ParseSysReqId(server.ReadRawFrame()).Value;
+                    server.SendRawFrame(Reply(first));
+                    server.ReadRawFrame();          // the second one is never answered
+                },
+                (mux, server) =>
+                {
+                    mux.SendReceive(Request(mux.NextReqIdField()), TimeoutMs);
+
+                    var ex = Assert.ThrowsException<TimeoutException>(
+                        () => mux.SendReceive(Request(mux.NextReqIdField()), 300));
+                    StringAssert.Contains(ex.Message, "the channel is alive");
+                    StringAssert.Contains(ex.Message, "frame(s)");
                 });
         }
     }

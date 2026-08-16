@@ -231,8 +231,24 @@ namespace tik4net.Winbox
             var sw = Stopwatch.StartNew();
             for (int round = 0; round < 256 && sw.ElapsedMilliseconds < maxMs; round++)
             {
-                byte[] resp = await SendReceiveAsync(
-                    BuildGetAll(handler, flags, maxObjs, cont), cancellationToken).ConfigureAwait(false);
+                byte[] resp;
+                try
+                {
+                    resp = await SendReceiveAsync(
+                        BuildGetAll(handler, flags, maxObjs, cont), cancellationToken).ConfigureAwait(false);
+                }
+                catch (TimeoutException ex)
+                {
+                    // A13. The multiplexer can only name the request id and what the CHANNEL has been doing;
+                    // how much of the TABLE had already arrived lives here, in the cursor loop, and it is
+                    // what separates the two explanations. Pages already read means the read was working and
+                    // this table is simply bigger than the deadline (the fix is paging or a longer one);
+                    // nothing read at all on the first page means the request never got going.
+                    throw new TimeoutException(
+                        $"WinBox M2 getall on handler [{string.Join(",", handler)}] timed out after "
+                        + $"{sw.ElapsedMilliseconds} ms with {records.Count} row(s) from {round} completed "
+                        + $"page(s). {ex.Message}", ex);
+                }
 
                 int status = M2Message.ParseSysStatus(resp);
                 if (status != WinboxM2Protocol.Error.None && status != WinboxM2Protocol.Error.ObjectNonexistent)

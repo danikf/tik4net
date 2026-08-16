@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Threading;
@@ -42,6 +42,14 @@ namespace tik4net.Winbox
         private int _reqId;
         private volatile bool _disposed;
         private volatile Exception _fault;
+
+        // What the reader loop has seen, for the timeout message. A timeout that names only the request id
+        // cannot tell "the router is still working on this one" from "nothing has arrived on this channel at
+        // all", and those want opposite fixes — the first is paging or a longer deadline, the second is a
+        // dead channel. Written by the reader thread, read by whichever caller times out: int/long reads are
+        // atomic on every platform this targets and an approximate count is exactly what the message needs.
+        private long _framesRead;
+        private long _lastFrameTicks;
 
         /// <summary>
         /// Invoked for an inbound frame that carries no request id, or one whose id has no pending
@@ -161,7 +169,7 @@ namespace tik4net.Winbox
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         throw new TimeoutException(
-                            $"No WinBox M2 reply for request id {id} within {timeoutMs} ms.");
+                            $"No WinBox M2 reply for request id {id} within {timeoutMs} ms. {ChannelActivity()}");
                     }
                 }
 
@@ -176,6 +184,27 @@ namespace tik4net.Winbox
             }
         }
 
+        /// <summary>
+        /// What the channel has been doing, for a timeout message. A silent channel and a slow answer look
+        /// identical from the waiter's side, and they want opposite fixes.
+        /// </summary>
+        private string ChannelActivity()
+        {
+            long frames = Interlocked.Read(ref _framesRead);
+            long ticks = Interlocked.Read(ref _lastFrameTicks);
+            int waiters = _pending.Count;
+
+            if (frames == 0)
+                return $"No frame at all has arrived on this channel since it opened ({waiters} request(s) "
+                     + "waiting) — the channel is silent, not slow.";
+
+            string since = ticks == 0
+                ? "unknown"
+                : ((long)(DateTime.UtcNow - new DateTime(ticks, DateTimeKind.Utc)).TotalMilliseconds) + " ms ago";
+            return $"The channel has read {frames} frame(s), the last {since}, with {waiters} request(s) "
+                 + "waiting — so the channel is alive and this request is what is outstanding.";
+        }
+
         private void ReaderLoop()
         {
             Exception fault = null;
@@ -185,6 +214,9 @@ namespace tik4net.Winbox
                 {
                     byte[] m2 = _channel.ReceiveNextFrame();
                     if (m2 == null) break;                       // channel closed
+
+                    _framesRead++;
+                    Interlocked.Exchange(ref _lastFrameTicks, DateTime.UtcNow.Ticks);
 
                     int? id = M2Message.ParseSysReqId(m2);
                     if (id.HasValue && _pending.TryRemove(id.Value, out var tcs))

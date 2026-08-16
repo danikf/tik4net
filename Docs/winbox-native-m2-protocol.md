@@ -854,6 +854,33 @@ rules are pinned router-free by `WinboxWindowScopeAndListWriteTests`.
 
 ---
 
+## 29. A filtered read fetches the whole table — and a timeout has to say which end is quiet
+
+Native has no server-side query: `RunPrintCore` reads every row the handler has and applies the `?name=value`
+filters **in memory**. That is not a shortcut — webfig filters on the client too (`types.def.matcher`,
+`types.number.filters` build the UI's own predicates) — but it has a consequence worth stating plainly:
+`/ip/firewall/connection/print ?src-address=…` transfers the entire connection-tracking table over M2
+before a single row is discarded, where the binary API returns only the matches.
+
+That is the whole of the intermittent `TimeoutException` on `IpFirewallTest.ConnectionList_DirectCall_WillNotFail`
+(2026-08-16): the read is proportional to the table, not to the answer, so it fails as the eighth transport of
+a full matrix and passes minutes later on a rested router — which is what the shared
+[throughput ceiling](findings-router-throughput-ceiling.md) predicts and what a broken path would not. The two
+compound: a big table over a channel already at the ceiling.
+
+**A timeout must carry what the other side said**, so it now reports both halves separately, because they want
+opposite fixes:
+
+- the multiplexer says what the CHANNEL has been doing — `No frame at all has arrived on this channel since it
+  opened` (a dead connection) versus `The channel has read 412 frame(s), the last 30 ms ago, with 1 request(s)
+  waiting` (alive, and this request is simply outstanding);
+- the `getall` cursor loop adds how much of the TABLE arrived — `timed out after 30000 ms with 8400 row(s) from
+  3 completed page(s)`, which separates "this table is bigger than the deadline" from "the request never got
+  going".
+
+Raising the deadline would only move the number at which it fails; paging the caller (`maxObjs` with the
+cursor) is the real fix if a table this size has to be read on a busy channel.
+
 ## Settled questions — do not re-investigate
 
 - **Black-box M2 probing without the webfig source is not the way to recover the CRUD command
