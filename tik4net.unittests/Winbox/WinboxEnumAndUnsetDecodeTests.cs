@@ -467,6 +467,49 @@ namespace tik4net.unittests.Winbox
                 "no uptime available — the raw value, not a fabricated duration");
         }
 
+        // ── signed numbers ────────────────────────────────────────────────────
+
+        // roteros.jg NTP Client. 'integer' is SIGNED where the plain 'number' it inherits from is not
+        // (types.integer.get is num2int(val)), and 'fixedpoint' is that plus a scale.
+        private const string NtpClientWindow =
+            "[{name:'NTP Client',type:'item',path:[ 24,9 ],c:[" +
+            "{name:'Freq. Drift',type:'fixedpoint',id:'ue',opt:1,postfix:'PPM',ro:1,scale:1000}," +
+            "{name:'System Offset',type:'integer',id:'u67',opt:1,postfix:'ms',ro:1}," +
+            "{name:'Poll Interval',type:'number',id:'u5'}]}]";
+
+        [TestMethod]
+        public void ASignedIntegerIsNotReadAsAHugePositive()
+        {
+            var catalog = Parse(NtpClientWindow);
+
+            Assert.AreEqual("-20",
+                Decode(catalog, new[] { 24, 9 }, Rec((0x67, "u32", 4294967276u)))["system-offset"],
+                "num2int: v >= 0x80000000 is v - 0x100000000");
+            Assert.AreEqual("41",
+                Decode(catalog, new[] { 24, 9 }, Rec((0x67, "u32", 41u)))["system-offset"],
+                "a value below the halfway mark is untouched");
+        }
+
+        [TestMethod]
+        public void AFixedPointValueIsScaledAndKeepsItsSign()
+        {
+            // 4294925573 is -41723 thousandths, and the API prints freq-drift=-41.723 for exactly this row.
+            Assert.AreEqual("-41.723",
+                Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0xE, "u32", 4294925573u)))["freq-drift"]);
+            // fraction2string pads to the scale's digit count, so a small remainder keeps its leading zeros.
+            Assert.AreEqual("2.005",
+                Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0xE, "u32", 2005u)))["freq-drift"]);
+        }
+
+        [TestMethod]
+        public void APlainNumberIsStillUnsigned()
+        {
+            // Only the types whose own get/tostr call num2int are signed — widening it to every number would
+            // turn a legitimately large u32 negative.
+            Assert.AreEqual("4294967276",
+                Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0x5, "u32", 4294967276u)))["poll-interval"]);
+        }
+
         // ── epochs and offsets ────────────────────────────────────────────────
 
         private const string ClockWindow =

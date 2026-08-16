@@ -185,6 +185,39 @@ namespace tik4net.Winbox
                         }
                         return addr;
                     }
+                    case "integer":
+                    {
+                        // SIGNED, unlike the plain `number` it inherits from: types.integer.get is
+                        // `num2int(val)`, and num2int is `v >= 0x80000000 ? v - 0x100000000 : v`. Without it
+                        // /system/ntp/client's system-offset read as 4294967276 where the API says a small
+                        // negative — a wrong value that looks like a plausible large one.
+                        if (!WinboxFieldResolver.TryToInt64(value, out long signed))
+                        {
+                            TraceNonNumeric("integer", value);
+                            break;
+                        }
+                        return NumToInt(signed).ToString(CultureInfo.InvariantCulture);
+                    }
+                    case "fixedpoint":
+                    {
+                        // types.fixedpoint.tostr: num2int first, then floor(|v|/scale) '.' the remainder
+                        // padded to the scale's digit count (fraction2string). /system/ntp/client freq-drift
+                        // is scale:1000, so 4294925573 is -41723 thousandths = -41.723 — the API's value
+                        // exactly.
+                        if (!WinboxFieldResolver.TryToInt64(value, out long fp))
+                        {
+                            TraceNonNumeric("fixedpoint", value);
+                            break;
+                        }
+                        long v = NumToInt(fp);
+                        int scale = jf.Scale < 1 ? 1 : jf.Scale;
+                        if (scale == 1) return v.ToString(CultureInfo.InvariantCulture);
+                        string sign = v < 0 ? "-" : "";
+                        long abs = Math.Abs(v);
+                        int digits = scale.ToString(CultureInfo.InvariantCulture).Length - 1;
+                        return sign + (abs / scale).ToString(CultureInfo.InvariantCulture) + "."
+                             + (abs % scale).ToString(CultureInfo.InvariantCulture).PadLeft(digits, '0');
+                    }
                     case "age":
                     {
                         // NOT a duration, though it wears a duration's clothes. types.age.tostr:
@@ -640,6 +673,12 @@ namespace tik4net.Winbox
                 return fetched;
             }
         }
+
+        // webfig's num2int: the wire is unsigned u32, and the types that are signed reinterpret the top half
+        // as negative. A value below 0x80000000 is unaffected, which is why only the types whose own
+        // get/tostr calls num2int go through this.
+        private static long NumToInt(long v)
+            => v >= 0x80000000L && v <= 0xFFFFFFFFL ? v - 0x100000000L : v;
 
         private static void TraceUptimeUnreadable(Exception ex)
         {

@@ -181,7 +181,7 @@ namespace tik4net.integrationtests
             ["/ip/neighbor"]                          = "system-caps reads a value the API leaves empty",
             ["/routing/table"]                        = "fib reads the flag's own bool where the API prints it empty",
             ["/snmp/community"]                       = "IPv6 any-address renders '::' where the API prints '::/0'",
-            ["/system/ntp/client"]                     = "signed values (freq-drift, system-offset) decoded as unsigned u32",
+            ["/system/ntp/client"]                     = "system-offset is a whole-millisecond `integer` on the wire where the API reports fractions — an information difference, not a decode gap (and it drifts constantly). freq-drift agrees.",
             ["/system/ntp/server"]                     = "enabled reads the wrong key (native says true where the API says false)",
         };
 

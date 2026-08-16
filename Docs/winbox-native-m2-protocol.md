@@ -703,6 +703,26 @@ wrong by the router's uptime.
 `/ip/dhcp-client` `expires-after` now agrees with the API **to within one second** — the gap between the two
 reads — so it joins the counters in the audit's volatile list rather than the gap table.
 
+### 26.2h Which numbers are signed — and it is not "all of them"
+
+The wire is unsigned u32 throughout. Two UI types reinterpret the top half as negative, and webfig names
+them precisely:
+
+```js
+function num2int(v){ return v >= 0x80000000 ? v - 0x100000000 : v; }
+types.integer.get      = function(attrs,obj){ … return num2int(val); };
+types.fixedpoint.tostr = function(attrs,val){ var scale = attrs.scale||1; val = num2int(…); … };
+```
+
+So `integer` is signed and the plain `number` it inherits from is **not** — widening the rule to every
+number would turn a legitimately large u32 negative. `fixedpoint` is `integer` plus a `scale`, printed as
+`floor(|v|/scale)` `.` the remainder padded to the scale's digit count (`fraction2string`).
+
+`/system/ntp/client` `freq-drift` (`scale:1000`) read as `4294925573` and is `-41.723`, which is the API's
+value exactly. Its neighbour `system-offset` is an `integer` of whole milliseconds, so it now reads `-21`
+where the API says `-21.508`: the sign is right and the fraction is simply not on the wire — an information
+difference rather than a decode gap, on a value that drifts continuously anyway.
+
 ### 26.3 "Not set" is an absent field, not an empty one
 
 Three ways the router says a field is not set, and in all of them the API answers by leaving the field
