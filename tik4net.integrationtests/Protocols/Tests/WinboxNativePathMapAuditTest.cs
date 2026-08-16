@@ -45,11 +45,6 @@ namespace tik4net.integrationtests
             // /ip/route: the API's print hides the routes WinBox lists (6 vs 2), and the distance/scope/vrf
             // block is not decoded. Pre-existing, unrelated to the path map.
             ["/ip/route"] = "native lists routes the API's print filters out; distance/scope/vrf not decoded",
-            // The API prefixes each queue-kind parameter with its kind (pcq-rate, mq-pfifo-limit); WinBox
-            // labels them inside the kind's tab (Rate, Limit), so the names never meet.
-            ["/queue/type"] = "kind-scoped parameters: API prefixes by kind, WinBox does not",
-            // Same shape: disk-file-name/memory-lines/remote-protocol vs the window's File Name/Lines/Protocol.
-            ["/system/logging/action"] = "action-kind-scoped parameters named differently by the API",
             // The wireless sniffer singleton answers with its running counters, not its settings.
             ["/interface/wireless/sniffer"] = "handler [88,9] returns sniffer statistics, API returns settings",
             // Known and documented: /system/health on a CHR has no hardware sensors, and state/
