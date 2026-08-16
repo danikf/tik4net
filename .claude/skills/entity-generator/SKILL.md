@@ -188,12 +188,19 @@ Apply the same precedence the legacy tools use (`GeneratorHelper.DetermineFieldT
 
 Important conventions:
 - **bool on the wire**: writable `yes`/`no`, read-only `true`/`false` — the mapper handles both; just use `bool`.
-- **bool `DefaultValue` MUST be `"no"`/`"yes"`, never `"false"`/`"true"`.** The mapper's `ConvertToString(bool)`
-  always emits `yes`/`no`, and `HasDefaultValue` compares that wire form against `DefaultValue`. So a bool with
-  `DefaultValue = "false"` NEVER matches its default and is sent on every `/add` — harmless for `disabled` (router
-  accepts `disabled=no`) but it breaks fields the router rejects when inapplicable (e.g. `no-summaries` on a
-  non-stub OSPF area: `value out of range` / `not applicable`). Use `DefaultValue = "no"` for a field that defaults
-  off, `DefaultValue = "yes"` for one that defaults on. (Matches `WireguardPeer.Disabled` / `WirelessSniffer.StreamingEnabled`.)
+- **A bool `DefaultValue` is `"no"`/`"yes"`, never the C# spellings `"false"`/`"true"`.** `ConvertToString(bool)`
+  emits `yes`/`no` and `HasDefaultValue` compares *that* against `DefaultValue`, so a C# literal matches
+  nothing: the field is force-sent on every add and set, which also makes the native WinBox transport fail
+  (it then has to resolve an M2 key for a field nobody asked to write). Enforced in CI by
+  `EntityDefaultValueConventionTests`.
+- **Which default to write depends on whether the property is nullable — and today's non-nullable `bool`
+  cannot win either way.** A `bool?` distinguishes untouched from assigned, so the *router's* default
+  belongs there. A plain `bool` is `false` when untouched, so `DefaultValue = "yes"` can never match and the
+  field goes out on every `/add`, creating the row with the opposite of the router's default (56 properties
+  are in that position). Do **not** "fix" it by writing `"no"`: that was tried and reverted (A10) because it
+  makes an *explicitly assigned* `false` indistinguishable from untouched, so the field is dropped and the
+  router applies `yes` — a caller's explicit instruction silently ignored. For a NEW entity, follow the
+  entity you are copying from and note the router's default in the `///` doc; the real fix is B4's `bool?`.
 - **Valueless presence-flags** (e.g. `/routing/table fib`): some fields are toggles whose "on" state reads back
   as `field=` (**empty string**), not `field=yes`. The *write* path works (`Fib=true` → sends `=fib=yes`, router
   accepts), but the mapper's bool `ConvertFromString` treats empty string as `false`, so the *read* path always

@@ -30,8 +30,27 @@ namespace tik4net.Objects
         public bool IsReadOnly { get; set; }
 
         /// <summary>
-        /// Property default value (if is different from type default).
+        /// The property's default, written <b>the way the router spells it</b> — <c>"no"</c>/<c>"yes"</c> for a
+        /// <see cref="bool"/>, the <c>[TikEnum]</c> value for an enum, never a C# literal like <c>"False"</c>.
         /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The mapper serializes the property and compares the result against this string to decide whether
+        /// the field is worth sending on <c>/add</c>: equal means "leave it out and let the router choose".
+        /// A value the serializer can never produce — the C# spelling of a bool, say — therefore matches
+        /// nothing, and the field is sent on every create and every set.
+        /// </para>
+        /// <para>
+        /// <b>Whose default this is depends on whether the property can be null.</b> A nullable property
+        /// distinguishes "untouched" from a value, so the <i>router's</i> default belongs here. A
+        /// non-nullable one cannot: an untouched <c>bool</c> is <c>false</c>, and declaring the router's
+        /// <c>"yes"</c> makes the comparison fail forever, so the field is sent on every create and the row
+        /// gets the opposite of what the router would have chosen. 56 properties are in that position today
+        /// (see <c>EntityDefaultValueConventionTests</c>); the fix is <c>bool?</c>, not a different string,
+        /// because declaring <c>"no"</c> instead would silently drop an <i>explicitly assigned</i>
+        /// <c>false</c> — which is worse, and is what A10 measured before reverting.
+        /// </para>
+        /// </remarks>
         public string DefaultValue { get; set; }
 
         /// <summary>

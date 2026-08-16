@@ -95,7 +95,7 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// disabled
         /// </summary>
-        [TikProperty("disabled", DefaultValue = "False")]
+        [TikProperty("disabled", DefaultValue = "no")]
         public bool Disabled { get; set; }
     }
 
