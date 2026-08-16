@@ -131,7 +131,10 @@ namespace tik4net
 
         private RestConnection NewRestConnection(bool useSsl)
             => new RestConnection(useSsl, allowInvalidCert: AllowInvalidCertificate,
-                certificateValidationCallback: CertificateValidationCallback);
+                certificateValidationCallback: CertificateValidationCallback)
+            {
+                ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
+            };
 
         // ── Telnet ────────────────────────────────────────────────────────────
 

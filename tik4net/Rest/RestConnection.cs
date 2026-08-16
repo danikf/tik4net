@@ -73,6 +73,23 @@ namespace tik4net.Rest
         protected override string DiagnosticPrefix => "REST";
 
         /// <summary>
+        /// Connect timeout in milliseconds — bounds the whole <see cref="Open(string, int, string, string)"/> /
+        /// <see cref="OpenAsync(string, int, string, string)"/> probe (default 15 000 ms, matching every other
+        /// transport). Distinct from <see cref="TikCommandConnectionBase.SendTimeout"/>/<see cref="TikCommandConnectionBase.ReceiveTimeout"/>,
+        /// which bound the requests issued after the connection is up. Set it before opening — wired from
+        /// <see cref="TikConnectionSetup.ConnectTimeout"/>, which is the only way to reach it since this
+        /// class has no public constructor. A value of 0 or less means "no bound".
+        /// </summary>
+        /// <remarks>
+        /// This is one timeout over the whole probe request rather than over the TCP handshake alone:
+        /// <c>SocketsHttpHandler.ConnectTimeout</c> — the only thing that separates the two — does not exist on
+        /// <c>netstandard2.0</c>, and <c>HttpClientHandler</c> exposes nothing equivalent. The probe is a single
+        /// small <c>GET /rest/system/resource</c>, so bounding it whole is the same guarantee in practice: an
+        /// unreachable or black-holed router can no longer hold <c>Open</c> for the OS connect default.
+        /// </remarks>
+        public int ConnectTimeout { get; set; } = 15000;
+
+        /// <summary>
         /// CRUD, <see cref="TikConnectionCapability.Listen"/> (polled — see <c>RunMonitorAsync</c>),
         /// <see cref="TikConnectionCapability.AsyncCommands"/> and <see cref="TikConnectionCapability.CancelInFlight"/>.
         /// No <see cref="TikConnectionCapability.Streaming"/> and no Safe Mode.
@@ -141,10 +158,11 @@ namespace tik4net.Rest
                 // else: leave unset — HttpClientHandler performs standard OS chain/hostname validation
             }
 
-            _httpClient = new HttpClient(handler)
-            {
-                Timeout = TimeSpan.FromMilliseconds(Math.Max(SendTimeout, ReceiveTimeout))
-            };
+            // Infinite here, and bounded per request in SendHttpAsync instead: HttpClient.Timeout is one value
+            // for the client's whole lifetime, and the open probe and the commands after it are bounded by
+            // different settings (ConnectTimeout vs Send/ReceiveTimeout). Leaving it set would make the
+            // effective bound the smaller of the two, which is neither of the numbers the caller configured.
+            _httpClient = new HttpClient(handler) { Timeout = System.Threading.Timeout.InfiniteTimeSpan };
             _httpClient.DefaultRequestHeaders.Authorization =
                 AuthenticationHeaderValue.Parse(_authHeader);
 
@@ -152,7 +170,7 @@ namespace tik4net.Rest
             try
             {
                 await SendHttpAsync(new HttpRequestMessage(HttpMethod.Get, _baseUrl + "/system/resource"),
-                    CancellationToken.None).ConfigureAwait(false);
+                    ConnectTimeout, CancellationToken.None).ConfigureAwait(false);
                 // 401 = wrong credentials, already handled by SendHttpAsync → TikConnectionLoginException
                 SetOpened();
             }
@@ -161,6 +179,17 @@ namespace tik4net.Rest
                 _httpClient.Dispose();
                 _httpClient = null;
                 throw;
+            }
+            catch (TikConnectionReceiveTimeoutException ex)
+            {
+                // Reported as a connect failure: what ran out is ConnectTimeout, and the generic wrapper below
+                // would pass on the inner exception's "no response received" wording — which describes a read
+                // on an established connection, not an open that never got that far.
+                _httpClient.Dispose();
+                _httpClient = null;
+                throw new System.IO.IOException(
+                    $"REST connection to {host}:{port} timed out: the router did not answer the open probe " +
+                    $"within ConnectTimeout ({ConnectTimeout} ms).", ex);
             }
             catch (Exception ex)
             {
@@ -389,7 +418,8 @@ namespace tik4net.Rest
             var req = RestRequestBuilder.Build(commandText, parameters, kind);
             FireWriteRow(req.Method.Method + " " + req.RelativePath);
 
-            var httpResp = await SendHttpAsync(BuildHttpRequest(req), cancellationToken).ConfigureAwait(false);
+            var httpResp = await SendHttpAsync(BuildHttpRequest(req), Math.Max(SendTimeout, ReceiveTimeout),
+                cancellationToken).ConfigureAwait(false);
             var body = await httpResp.Content.ReadAsStringAsync().ConfigureAwait(false);
             FireReadRow(body);
             return (body, (int)httpResp.StatusCode);
@@ -409,21 +439,33 @@ namespace tik4net.Rest
 
         // (SendHttpSync removed in P2.5 — the open probe was its last caller, and nothing on this transport
         // needs a blocking HTTP send any more: the CRUD hooks and the open path all await SendHttpAsync.)
-        private async Task<HttpResponseMessage> SendHttpAsync(HttpRequestMessage req, CancellationToken cancellationToken)
+        //
+        // timeoutMs is passed in rather than read here because the open probe and the commands after it are
+        // bounded by different settings (ConnectTimeout vs Send/ReceiveTimeout), and HttpClient.Timeout can
+        // only express one of them. The timeout is therefore a CTS of our own, linked with the caller's token —
+        // which is also what lets the catch below say which of the two fired.
+        private async Task<HttpResponseMessage> SendHttpAsync(HttpRequestMessage req, int timeoutMs,
+            CancellationToken cancellationToken)
         {
             HttpResponseMessage response;
-            try
+            using (var timeoutCts = new CancellationTokenSource(timeoutMs > 0 ? timeoutMs : System.Threading.Timeout.Infinite))
+            using (var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token))
             {
-                response = await _httpClient.SendAsync(req, cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
-            {
-                // HttpClient reports its OWN Timeout as a cancellation too, and the two must not be conflated:
-                // a caller that cancelled expects OperationCanceledException, while a request that ran out of
-                // time is a configuration problem the caller has to be able to see (see ITikCommandAsync's
-                // remarks). The token tells them apart — nobody asked for this one.
-                int timeoutMs = Math.Max(SendTimeout, ReceiveTimeout);
-                throw new TikConnectionReceiveTimeoutException(timeoutMs, ex);
+                try
+                {
+                    // HttpCompletionOption.ResponseContentRead (the default) — the body is read inside this
+                    // call, so it is covered by the timeout and the token, and the ReadAsStringAsync the caller
+                    // does afterwards only reads the buffer these token sources are no longer needed for.
+                    response = await _httpClient.SendAsync(req, linked.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+                {
+                    // A cancellation nobody asked for is our timeout, and the two must not be conflated:
+                    // a caller that cancelled expects OperationCanceledException, while a request that ran out of
+                    // time is a configuration problem the caller has to be able to see (see ITikCommandAsync's
+                    // remarks). The token tells them apart.
+                    throw new TikConnectionReceiveTimeoutException(timeoutMs, ex);
+                }
             }
 
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
