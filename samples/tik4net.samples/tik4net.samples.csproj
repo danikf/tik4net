@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!--
+      net8.0, not the library's netstandard2.0 floor. A demo is not a compatibility surface: it should be
+      written the way a consumer would write new code today. What the library supports is settled by its
+      own TFM, not by a sample that mirrors it.
+    -->
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>tik4net.samples</AssemblyName>
+    <RootNamespace>tik4net.Samples</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\tik4net\tik4net.csproj" />
+    <ProjectReference Include="..\..\tik4net.objects\tik4net.objects.csproj" />
+  </ItemGroup>
+
+</Project>

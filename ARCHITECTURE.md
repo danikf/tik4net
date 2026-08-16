@@ -40,8 +40,9 @@ Consequently `tik4net.ssh` and `tik4net.testing` reference their compile-time pr
 `tik4net` dependency into their `.nuspec`. Without that split they would declare a dependency on
 a package ID that does not exist on nuget.org.
 
-Non-shipping: `tik4net.console`, `tik4net.coreconsole`, `tik4net.examples`, `tik4net.torch`,
-`tik4net.benchmarks` (several are still legacy non-SDK csproj).
+Non-shipping: `samples/tik4net.samples` (the demo app — `console`/`torch`/`crud` subcommands, net8.0),
+`tik4net.examples` (compile-check for the wiki snippets, net48) and `tik4net.benchmarks` (BenchmarkDotNet,
+net8.0). All SDK-style.
 
 ## Layer 1 — `tik4net` core
 
