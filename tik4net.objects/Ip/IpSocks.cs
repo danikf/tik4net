@@ -19,7 +19,7 @@ namespace tik4net.Objects.Ip
 
         /// <summary>port — TCP port on which the SOCKS server listens. Default: 1080.</summary>
         [TikProperty("port", DefaultValue = "1080")]
-        public int Port { get; set; }
+        public int? Port { get; set; }
 
         /// <summary>connection-idle-timeout — time after which idle connections are terminated. Default: 2m.</summary>
         [TikProperty("connection-idle-timeout", DefaultValue = "2m")]
@@ -27,7 +27,7 @@ namespace tik4net.Objects.Ip
 
         /// <summary>max-connections — maximum number of simultaneous connections. Range: 1..500. Default: 200.</summary>
         [TikProperty("max-connections", DefaultValue = "200")]
-        public int MaxConnections { get; set; }
+        public int? MaxConnections { get; set; }
 
         /// <summary>version — SOCKS protocol version to use (4 or 5). Default: 4.</summary>
         [TikProperty("version", DefaultValue = "4")]

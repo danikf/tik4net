@@ -15,7 +15,7 @@
         public string Allow { get; set; }
 
         [TikProperty("default-route-distance", DefaultValue = "1")]
-        public byte DefaultRouteDistance { get; set; }
+        public byte? DefaultRouteDistance { get; set; }
 
         [TikProperty("dial-on-demand", DefaultValue = "false")]
         public YesNoOptions? DialOnDemand { get; set; }
@@ -24,7 +24,7 @@
         public string Interface { get; set; }
 
         [TikProperty("keepalive-timeout", DefaultValue = "60")]
-        public int KeepaliveTimeout { get; set; }
+        public int? KeepaliveTimeout { get; set; }
 
         [TikProperty("max-mru", DefaultValue = "1460")]
         public string MaxMru { get; set; }

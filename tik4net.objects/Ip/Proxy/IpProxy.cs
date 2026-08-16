@@ -22,7 +22,7 @@ namespace tik4net.Objects.Ip.Proxy
 
         /// <summary>port — TCP port the proxy listens on. Default: 8080.</summary>
         [TikProperty("port", DefaultValue = "8080")]
-        public int Port { get; set; }
+        public int? Port { get; set; }
 
         /// <summary>src-address — source address used for outbound proxy connections. Default: 0.0.0.0 (any).</summary>
         [TikProperty("src-address", DefaultValue = "0.0.0.0")]
@@ -50,7 +50,7 @@ namespace tik4net.Objects.Ip.Proxy
 
         /// <summary>max-cache-object-size — maximum size of a single cached object in KiB. Default: 2048.</summary>
         [TikProperty("max-cache-object-size", DefaultValue = "2048")]
-        public int MaxCacheObjectSize { get; set; }
+        public int? MaxCacheObjectSize { get; set; }
 
         /// <summary>cache-on-disk — enables storing cached objects on disk.</summary>
         [TikProperty("cache-on-disk", DefaultValue = "no")]
@@ -62,11 +62,11 @@ namespace tik4net.Objects.Ip.Proxy
 
         /// <summary>max-client-connections — maximum number of concurrent client connections. Default: 600.</summary>
         [TikProperty("max-client-connections", DefaultValue = "600")]
-        public int MaxClientConnections { get; set; }
+        public int? MaxClientConnections { get; set; }
 
         /// <summary>max-server-connections — maximum number of concurrent connections to origin servers. Default: 600.</summary>
         [TikProperty("max-server-connections", DefaultValue = "600")]
-        public int MaxServerConnections { get; set; }
+        public int? MaxServerConnections { get; set; }
 
         /// <summary>max-fresh-time — maximum time a cached object is considered fresh. Default: 3d.</summary>
         [TikProperty("max-fresh-time", DefaultValue = "3d")]
@@ -82,7 +82,7 @@ namespace tik4net.Objects.Ip.Proxy
 
         /// <summary>cache-hit-dscp — DSCP value automatically applied to cache-hit packets. Range: 0..63. Default: 4.</summary>
         [TikProperty("cache-hit-dscp", DefaultValue = "4")]
-        public int CacheHitDscp { get; set; }
+        public int? CacheHitDscp { get; set; }
 
         /// <summary>Human-readable summary of proxy state.</summary>
         public override string ToString() => string.Format("enabled={0} port={1}", Enabled, Port);

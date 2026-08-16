@@ -63,7 +63,7 @@ namespace tik4net.Objects.Ip
 
         /// <summary>icmp-rate-limit — minimum millisecond spacing between ICMP responses matching the rate mask. Default: 10.</summary>
         [TikProperty("icmp-rate-limit", DefaultValue = "10")]
-        public int IcmpRateLimit { get; set; }
+        public int? IcmpRateLimit { get; set; }
 
         /// <summary>icmp-rate-mask — hex bitmask of ICMP types subject to rate limiting. Default: 0x1818.</summary>
         [TikProperty("icmp-rate-mask", DefaultValue = "0x1818")]

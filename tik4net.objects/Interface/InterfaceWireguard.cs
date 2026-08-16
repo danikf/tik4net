@@ -41,7 +41,7 @@ namespace tik4net.Objects.Interface
         /// integer [0..65536]
         /// </summary>
         [TikProperty("mtu", DefaultValue = "1420")]
-        public int /*integer [0..65536]*/ Mtu { get; set; }
+        public int? /*integer [0..65536]*/ Mtu { get; set; }
 
         /// <summary>
         /// The private key associated with the local device
@@ -53,6 +53,6 @@ namespace tik4net.Objects.Interface
         /// Interface listen port
         /// </summary>
         [TikProperty("listen-port", DefaultValue = "13231")]
-        public int ListenPort { get; set; }
+        public int? ListenPort { get; set; }
     }
 }

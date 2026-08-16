@@ -137,7 +137,7 @@ namespace tik4net.Objects.Interface
         /// integer [0..65536]
         /// </summary>
         [TikProperty("mtu", DefaultValue = "1500")]
-        public int/*integer [0..65536]*/ Mtu { get; set; }
+        public int?/*integer [0..65536]*/ Mtu { get; set; }
 
         /// <summary>
         /// name: Name of an interface

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -25,7 +25,7 @@ namespace tik4net.Objects.Tool
         /// WinBox: "Port"
         /// </summary>
         [TikProperty("port", DefaultValue = "25")]
-        public int Port { get; set; }
+        public int? Port { get; set; }
 
         /// <summary>
         /// tls — TLS encryption mode for the SMTP connection.

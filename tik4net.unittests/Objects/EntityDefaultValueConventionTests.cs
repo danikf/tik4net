@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -41,6 +42,50 @@ namespace tik4net.unittests.Objects
                 .SelectMany(t => t.GetProperties(BindingFlags.Public | BindingFlags.Instance)
                     .Select(p => (Entity: t, Property: p, Attribute: p.GetCustomAttribute<TikPropertyAttribute>()))
                     .Where(x => x.Attribute != null));
+
+
+        [TestMethod]
+        public void ANumericPropertyThatDeclaresTheRoutersDefaultIsNullable()
+        {
+            // A14, and the third face of A10's defect. The mapper compares a property's SERIALIZED value
+            // against DefaultValue and sends the field when they differ — so a fresh entity whose int is 0
+            // while DefaultValue says "8080" puts 0 on the wire, which the router mostly rejects outright
+            // ("value out of range"). The entity-generator skill used to advise DefaultValue = "0" for these;
+            // that is A10's mistake one type over, since it makes an explicitly assigned 0 indistinguishable
+            // from unassigned — and 0 is meaningful on several of them (max-sessions=0 is *unlimited*).
+            // int? is the fix: unassigned is null, null is never sent, and the router applies its own default.
+            //
+            // The comparison is against a FRESHLY CONSTRUCTED entity, not against the CLR default of the
+            // type: BridgePort's constructor assigns Priority = 0x80 and PathCost = 10, so those two already
+            // agree with what they declare and are not defects. Reading the type alone counted them as four
+            // more offenders than there are.
+            var numeric = new[] { typeof(int), typeof(long), typeof(short), typeof(byte),
+                                  typeof(uint), typeof(ulong), typeof(ushort), typeof(sbyte) };
+            var offenders = new List<string>();
+
+            foreach (var group in Properties()
+                .Where(x => numeric.Contains(x.Property.PropertyType) && x.Attribute.DefaultValue != null)
+                .GroupBy(x => x.Entity))
+            {
+                object fresh;
+                try { fresh = Activator.CreateInstance(group.Key); }
+                catch (MissingMethodException) { continue; }   // no parameterless ctor: nothing to construct
+
+                foreach (var x in group)
+                {
+                    string actual = Convert.ToString(x.Property.GetValue(fresh), CultureInfo.InvariantCulture);
+                    if (actual == x.Attribute.DefaultValue) continue;
+                    offenders.Add($"{x.Entity.Name}.{x.Property.Name} ('{x.Attribute.FieldName}') declares "
+                                + $"DefaultValue = \"{x.Attribute.DefaultValue}\" but a fresh entity holds "
+                                + $"{actual}, so {actual} is sent on every add");
+                }
+            }
+
+            Assert.AreEqual(0, offenders.Count,
+                "Make the property nullable and leave the router's default declared — do NOT change "
+                + "DefaultValue to the CLR default, which silently drops an explicitly assigned value:"
+                + Environment.NewLine + string.Join(Environment.NewLine, offenders.OrderBy(s => s)));
+        }
 
         [TestMethod]
         public void ABoolPropertyDeclaresItsDefaultInTheRoutersWireForm()

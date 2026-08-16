@@ -49,7 +49,7 @@ namespace tik4net.Objects.Certificate
         /// WinBox: "Days Valid"
         /// </summary>
         [TikProperty("days-valid", DefaultValue = "365")]
-        public int DaysValid { get; set; }
+        public int? DaysValid { get; set; }
 
         /// <summary>
         /// key-usage — Comma-separated list of certificate usage flags.

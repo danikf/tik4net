@@ -356,13 +356,13 @@ namespace tik4net.Objects.Interface
         /// integer [0..15]
         /// </summary>
         [TikProperty("hw-retries", DefaultValue = "7")]
-        public int/*integer [0..15]*/ HwRetries { get; set; }
+        public int?/*integer [0..15]*/ HwRetries { get; set; }
 
         /// <summary>
         /// l2mtu: integer [0..65536]
         /// </summary>
         [TikProperty("l2mtu", DefaultValue = "1600")]
-        public int/*integer [0..65536]*/ L2mtu { get; set; }
+        public int?/*integer [0..65536]*/ L2mtu { get; set; }
 
         /// <summary>
         /// mac-address: 
@@ -382,7 +382,7 @@ namespace tik4net.Objects.Interface
         /// integer [1..2007]
         /// </summary>
         [TikProperty("max-station-count", DefaultValue = "2007")]
-        public int/*integer [1..2007]*/ MaxStationCount { get; set; }
+        public int?/*integer [1..2007]*/ MaxStationCount { get; set; }
 
         /// <summary>
         /// Mode for <see cref="Mode"/>.
@@ -477,7 +477,7 @@ namespace tik4net.Objects.Interface
         /// mtu: [0..65536]
         /// </summary>
         [TikProperty("mtu", DefaultValue = "1500")]
-        public int/*integer [0..65536]*/ Mtu { get; set; }
+        public int?/*integer [0..65536]*/ Mtu { get; set; }
 
         /// <summary>
         /// multicast-helper
@@ -512,7 +512,7 @@ namespace tik4net.Objects.Interface
         /// integer [10..200]
         /// </summary>
         [TikProperty("nv2-cell-radius", DefaultValue = "30")]
-        public int/*integer [10..200]*/ Nv2CellRadius { get; set; }
+        public int?/*integer [10..200]*/ Nv2CellRadius { get; set; }
 
         /// <summary>
         /// nv2-noise-floor-offset: default | integer [0..20]
@@ -571,7 +571,7 @@ namespace tik4net.Objects.Interface
         /// [1..10000]
         /// </summary>
         [TikProperty("periodic-calibration-interval", DefaultValue = "60")]
-        public int/*integer [1..10000]*/ PeriodicCalibrationInterval { get; set; }
+        public int?/*integer [1..10000]*/ PeriodicCalibrationInterval { get; set; }
 
         /// <summary>
         /// Mode for <see cref="PreambleMode"/>.
@@ -731,7 +731,7 @@ namespace tik4net.Objects.Interface
         /// integer [1..10]
         /// </summary>
         [TikProperty("tdma-period-size", DefaultValue = "2")]
-        public int/*integer [1..10]*/ TdmaPeriodSize { get; set; }
+        public int?/*integer [1..10]*/ TdmaPeriodSize { get; set; }
 
         /// <summary>
         /// tdma-test-mode: integer [0..4294967295]

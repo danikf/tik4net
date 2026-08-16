@@ -56,7 +56,7 @@ namespace tik4net.Objects.Ip
         /// max-sessions — maximum number of simultaneous sessions for this service (1..1000).
         /// </summary>
         [TikProperty("max-sessions", DefaultValue = "20")]
-        public int MaxSessions { get; set; }
+        public int? MaxSessions { get; set; }
 
         /// <summary>
         /// vrf — specifies which VRF instance is used by this service.

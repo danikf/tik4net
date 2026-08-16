@@ -29,7 +29,7 @@ namespace tik4net.Objects.Ip
 
         /// <summary>host-key-size — RSA host key size in bits, applied at next key regeneration. Default: 2048.</summary>
         [TikProperty("host-key-size", DefaultValue = "2048")]
-        public int HostKeySize { get; set; }
+        public int? HostKeySize { get; set; }
 
         /// <summary>host-key-type — host key algorithm type.
         /// <seealso cref="SshHostKeyType"/></summary>

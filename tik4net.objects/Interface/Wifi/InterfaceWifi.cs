@@ -212,7 +212,7 @@
         /// WinBox: "MTU"
         /// </summary>
         [TikProperty("mtu", DefaultValue = "1500")]
-        public int Mtu { get; set; }
+        public int? Mtu { get; set; }
 
         /// <summary>
         /// l2mtu — Layer-2 maximum transmission unit in bytes. Range: 32..2290.
@@ -220,7 +220,7 @@
         /// WinBox: "L2 MTU"
         /// </summary>
         [TikProperty("l2mtu", DefaultValue = "2290")]
-        public int L2Mtu { get; set; }
+        public int? L2Mtu { get; set; }
 
         /// <summary>
         /// disable-running-check — when true, the interface is always reported as running
