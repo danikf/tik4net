@@ -169,6 +169,25 @@ namespace tik4net.Winbox
                         }
                         return addr;
                     }
+                    case "interval":
+                    {
+                        // types.interval.tostr: `enum2string(attrs.values,val) || interval2string(val,
+                        // attrs.scale||1)` — a named value wins, otherwise the number is a DURATION in
+                        // 1/scale-second units. Without this every interval reached the caller as its raw
+                        // count: /ip/dns cache-max-ttl as 604800 where the API prints 1w, and
+                        // /system/watchdog ping-start-after-boot as 30000 (scale:100) where it prints 5m.
+                        // webfig's own '1d 02:03:04' rendering is not used — our contract is the text
+                        // RouterOS's API prints for the same field.
+                        if (!WinboxFieldResolver.TryToInt64(value, out long ticks))
+                        {
+                            TraceNonNumeric("interval", value);
+                            break;
+                        }
+                        if (jf.EnumMap != null
+                            && jf.EnumMap.TryGetValue(unchecked((int)ticks), out var named))
+                            return named;
+                        return FormatDuration(ticks, jf.Scale);
+                    }
                     case "macaddr":
                         return WinboxFieldResolver.MacFromBytes(value);
                     case "ip6addr":
@@ -337,6 +356,49 @@ namespace tik4net.Winbox
                 && uint.TryParse(element, out uint u))
                 return WinboxFieldResolver.IpFromU32(u);
             return element;
+        }
+
+        /// <summary>
+        /// Renders a wire duration as the text RouterOS's own API prints for it: the non-zero units only,
+        /// largest first, concatenated without separators — <c>1w</c>, <c>5m</c>, <c>2d17h30m3s</c>,
+        /// <c>518w1d18h55m42s</c> — and <c>0s</c> when the whole thing is zero.
+        /// </summary>
+        /// <param name="ticks">The wire value.</param>
+        /// <param name="scale">Wire units per second (the <c>.jg</c> <c>scale</c>, 1 when undeclared).</param>
+        /// <remarks>
+        /// Deliberately not webfig's <c>interval2string</c>, which renders <c>1d 02:03:04</c>: that is what
+        /// the WinBox UI shows, and the API is what every other transport in this library reports. The unit
+        /// set and the omit-zeroes rule are read off the API's own output on 7.23.2 (604800 → <c>1w</c>,
+        /// 300 → <c>5m</c>, 0 → <c>0s</c>).
+        /// </remarks>
+        private static string FormatDuration(long ticks, int scale)
+        {
+            if (scale < 1) scale = 1;
+            bool negative = ticks < 0;
+            if (negative) ticks = -ticks;
+
+            long seconds = ticks / scale;
+            long remainder = ticks % scale;
+
+            var sb = new System.Text.StringBuilder();
+            if (negative) sb.Append('-');
+            long[] sizes = { 604800, 86400, 3600, 60 };
+            string[] units = { "w", "d", "h", "m" };
+            for (int i = 0; i < sizes.Length; i++)
+            {
+                long n = seconds / sizes[i];
+                if (n > 0) sb.Append(n).Append(units[i]);
+                seconds %= sizes[i];
+            }
+            if (seconds > 0) sb.Append(seconds).Append('s');
+
+            // A scaled field can carry a sub-second remainder (scale:100 counts hundredths); RouterOS spells
+            // that in milliseconds. Dropping it would report a value the router did not give us.
+            if (remainder > 0) sb.Append(remainder * 1000 / scale).Append("ms");
+
+            // Everything was zero — which is a value, and the API prints it as 0s rather than as nothing.
+            if (sb.Length == 0 || (negative && sb.Length == 1)) sb.Append("0s");
+            return sb.ToString();
         }
 
         // "[a,b,c]" → [a,b,c]; "[]" → empty. The brackets are M2Message's rendering of an array, not part of

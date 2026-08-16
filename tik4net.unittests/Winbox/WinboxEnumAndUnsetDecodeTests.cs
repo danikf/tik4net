@@ -94,7 +94,10 @@ namespace tik4net.unittests.Winbox
                 Rec((0x2, "u32", (uint)1800)));
 
             Assert.IsTrue(decoded.ContainsKey("lifetime"));
-            Assert.AreEqual("1800", decoded["lifetime"]);
+            // 30m, not 1800 — this test asserted the raw second count until the interval decoder existed,
+            // while its own sentence above already said what the API prints. The point it makes is that the
+            // field is REPORTED, not swallowed as unset; how it renders is 26.2d's business.
+            Assert.AreEqual("30m", decoded["lifetime"]);
         }
 
         // ── list fields whose elements are literals ────────────────────────────
@@ -356,6 +359,59 @@ namespace tik4net.unittests.Winbox
                 Rec((0x2, "raw", "unknown")));
 
             Assert.AreEqual("unknown", decoded["mac-address"]);
+        }
+
+        // ── an interval is a duration, and it may be scaled ────────────────────
+
+        // roteros.jg DNS Settings 'Cache Max TTL' (a plain interval), Watchdog 'Ping Start After Boot'
+        // (scale:100, so its units are hundredths of a second) and a PPP AAA 'Interim Update' carrying a
+        // named zero — the shape types.interval.tostr checks before formatting anything.
+        private const string IntervalWindow =
+            "[{name:'DNS Settings',type:'item',path:[ 22,1 ],c:[" +
+            "{name:'Cache Max TTL',type:'interval',id:'u6'}," +
+            "{name:'Ping Start After Boot',type:'interval',id:'u4',scale:100}," +
+            "{name:'Interim Update',type:'interval',id:'u3',values:{type:'static',map:[ 'disabled' ]}}]}]";
+
+        [TestMethod]
+        public void AnIntervalRendersTheApiDurationText()
+        {
+            var catalog = Parse(IntervalWindow);
+
+            Assert.AreEqual("1w", Decode(catalog, new[] { 22, 1 }, Rec((0x6, "u32", 604800u)))["cache-max-ttl"],
+                "the API prints cache-max-ttl=1w, not the second count");
+            Assert.AreEqual("5m", Decode(catalog, new[] { 22, 1 }, Rec((0x6, "u32", 300u)))["cache-max-ttl"]);
+            Assert.AreEqual("2d17h30m3s",
+                Decode(catalog, new[] { 22, 1 }, Rec((0x6, "u32", 235803u)))["cache-max-ttl"],
+                "only the non-zero units, largest first, no separators");
+        }
+
+        [TestMethod]
+        public void AZeroIntervalIsZeroSecondsNotNothing()
+        {
+            // /ppp/aaa and /ip/dhcp-server/config both print interim-update=0s. Rendering the empty string
+            // would read as "the field is not set", which is a different statement.
+            Assert.AreEqual("0s",
+                Decode(Parse(IntervalWindow), new[] { 22, 1 }, Rec((0x6, "u32", 0u)))["cache-max-ttl"]);
+        }
+
+        [TestMethod]
+        public void AScaledIntervalIsDividedFirst()
+        {
+            // /system/watchdog ping-start-after-boot declares scale:100, so 30000 wire units are 300 s and
+            // the API prints 5m. Without the scale this read as 8h20m — a plausible-looking wrong answer,
+            // which is the worst kind.
+            Assert.AreEqual("5m",
+                Decode(Parse(IntervalWindow), new[] { 22, 1 },
+                       Rec((0x4, "u32", 30000u)))["ping-start-after-boot"]);
+        }
+
+        [TestMethod]
+        public void ANamedIntervalValueWinsOverTheDuration()
+        {
+            // types.interval.tostr tries enum2string BEFORE formatting, so a field that names its zero keeps
+            // the name. This is the same precedence the sentinel rules use, not a special case.
+            Assert.AreEqual("disabled",
+                Decode(Parse(IntervalWindow), new[] { 22, 1 }, Rec((0x3, "u32", 0u)))["interim-update"]);
         }
     }
 }

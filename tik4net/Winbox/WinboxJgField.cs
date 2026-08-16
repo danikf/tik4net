@@ -90,6 +90,14 @@ namespace tik4net.Winbox
         internal int OffKey { get; }
 
         /// <summary>
+        /// The <c>.jg</c> <c>scale</c> of an <c>interval</c> field — how many wire units make one second
+        /// (<c>types.interval.tostr</c> divides by <c>attrs.scale||1</c>). <c>/system/watchdog</c>'s
+        /// 'Ping Start After Boot' declares <c>scale:100</c>, so its 30000 is 300 s, which the API prints as
+        /// <c>5m</c>. <c>1</c> when the field declares none.
+        /// </summary>
+        internal int Scale { get; }
+
+        /// <summary>
         /// For a LIST field, the <c>type</c> of its unnamed element child (<c>c:[{type:'ipaddr'},…]</c>) —
         /// <c>null</c> when the field has no child. webfig renders a list by handing each element to this
         /// type's own <c>tostr</c> (<c>types.multi.tostr</c>), so it is what decides whether a u32 element is
@@ -190,8 +198,9 @@ namespace tik4net.Winbox
             int[] refHandler = null, int optKey = 0, int notKey = 0, bool isRange = false,
             string allow = null, long? def = null,
             string paneKind = null, int paneSelectorKey = 0, int[] paneValues = null, int offKey = 0,
-            bool isOptional = false, string elementUiType = null)
+            bool isOptional = false, string elementUiType = null, int scale = 1)
         {
+            Scale = scale < 1 ? 1 : scale;
             ElementUiType = elementUiType;
             IsOptional = isOptional;
             OffKey = offKey;

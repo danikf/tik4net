@@ -568,6 +568,41 @@ defects in the audit and was one decoder.
 The regrouping keys on the value actually being hex, so a field that answers with something else
 (`not-available`) is reported as it came rather than sliced into pairs.
 
+### 26.2d An `interval` is a duration, and it may be scaled — an `age` is not a duration at all
+
+```js
+types.interval.tostr = function(attrs,val){
+    val ??= attrs.def||0;
+    return enum2string(attrs.values,val) || interval2string(val, attrs.scale||1); };
+```
+
+So an `interval` is a count of **1/`scale`-second** units, and a value the field NAMES wins before any
+formatting happens. Both halves mattered: `/system/watchdog`'s 'Ping Start After Boot' declares
+`scale:100`, so its 30000 is 300 s — read as raw seconds it would have said `8h20m`, a plausible-looking
+wrong answer rather than an obviously raw one.
+
+What we render is the **API's** duration text (`1w`, `5m`, `2d17h30m3s`, `0s` — non-zero units only,
+largest first, no separators), not webfig's `interval2string`, which produces `1d 02:03:04` for the UI.
+Zero is `0s` and not the empty string: the field has a value, and empty would read as "not set".
+
+Closed by this: `cache-max-ttl`, `interim-update` (three paths), `group-key-update`,
+`ping-start-after-boot`, and `/ip/ipsec/proposal` `lifetime` (`1800` → `30m`).
+
+**`type:'age'` is a different thing wearing the same clothes** and is NOT decoded yet:
+
+```js
+types.age.tostr = function(attrs,val){ … var uptime = getUptime();
+    if (val > 0x7fffffff) val = uptime + Math.abs(val-0xffffffff);
+    else                  val = Math.abs(val - uptime);
+    return interval2string(val,1); };
+```
+
+An `age` value is a timestamp on the router's **uptime clock**, so rendering it needs the router's
+current uptime — it is not a duration that can be formatted from the record alone. Measured before the
+JS was read and agreeing with it exactly: `/certificate` `expires-after` and `/ip/dhcp-client`
+`expires-after` both read **89828 s** higher than the API on the same audit run, while uptime at that
+moment was 89828 s. Two paths still carry this in `KnownValueGaps`.
+
 ### 26.3 "Not set" is an absent field, not an empty one
 
 Three ways the router says a field is not set, and in all of them the API answers by leaving the field
