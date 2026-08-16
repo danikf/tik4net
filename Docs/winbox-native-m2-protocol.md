@@ -646,24 +646,62 @@ being exactly zero, so a real count is never rewritten.
 date alone. `timezone` is a signed second offset rendered `±HH:MM` — the wire carries it unsigned, so a
 negative offset arrives wrapped and must be unwrapped before the sign is taken.
 
-**The `set` ORDER is a different matter, and it is deliberately still open.** A bitmask decodes here by
-ascending bit index, and RouterOS prints its own order. It is tempting to conclude "the API prints
-descending", because both mismatching fields read exactly reversed:
+**The `set` ORDER is per field, and measured.** A bitmask decodes here by ascending bit index, and
+RouterOS prints its own order — which for two fields is exactly the reverse:
 
 | field | `.jg` bit map | the API prints |
 |---|---|---|
 | `authentication` (3 PPP server menus) | 1 mschap2, 2 mschap1, 3 chap, 4 pap | `pap,chap,mschap1,mschap2` |
-| `dh-group` (`/ip/ipsec/profile`) | ascending groups | `modp2048,modp1024` |
+| `dh-group` (`/ip/ipsec/profile`) | 1 modp768, 2 modp1024, 14 modp2048, 19 ecp256, 22 x25519 | `x25519,ecp256,modp2048,modp1024,modp768` |
 
-That rule is **wrong**, and the router says so. A firewall rule created with
-`connection-state=related,established` prints back as `established,related` — bits 1 and 2 of
-`{0:'invalid',1:'established',2:'related',3:'new',8:'untracked'}`, i.e. **ascending**. So the print order
-is per-field and RouterOS-internal. Nor does tab completion supply it: `set authentication=` completes to
-`chap mschap1 mschap2 pap`, which is alphabetical and matches neither the wire order nor the print order.
+Two questions had to be answered before anything could be done about it.
 
-With no derivable source, the alternative would be a hand-written per-field order table with nothing to
-verify it against — so the three paths stay in `KnownValueGaps` with this recorded, rather than shipping a
-rule that would newly break every set field that already agrees.
+*Is the order even information the wire carries?* Yes: writing `authentication=mschap2,pap` reads back as
+`pap,mschap2`, so RouterOS **normalises** rather than echoing insertion order. Had it echoed, a bitmask
+could not have carried the order at all and nothing would have been recoverable.
+
+*Is "the API prints descending" the rule?* No, and this is the trap. A firewall rule written as
+`connection-state=new,untracked,invalid,related,established` prints back `invalid,established,related,new,untracked`
+— bits 0,1,2,3,8, strictly **ascending**, which is also webfig's own order (`types.set.tostr` loops
+`i = 0..31`). Flipping every set field would have broken every one that already agreed.
+
+Nor is the direction derivable. WinBox and RouterOS simply number these two fields in opposite directions
+(WinBox lists the strongest first, RouterOS the weakest), and nothing in the `.jg`, in `master*.js` or in tab
+completion says which — completion answers `chap mschap1 mschap2 pap`, alphabetical, matching neither.
+
+So the direction is a two-entry table measured against the router, one field at a time, and a field that is
+not listed keeps ascending. A wrong entry can only affect the field it names, and the path-map audit compares
+every one of them against the API on every run.
+
+**A side effect worth its own note.** Reaching `x25519 (31)` showed that the parenthesised suffix in a DH
+group label is the **DH group number**, which merely *coincides* with the bit key for the classic MODP groups.
+The strip used to fire only when the number equalled the key, so `x25519 (31)` at bit 22 kept its suffix and
+read as `x25519-(31)`. A sweep of the whole 7.23.2 catalog finds exactly twelve labels of this shape and every
+one is a DH group — the case the old rule protected does not exist, so the suffix is now always dropped.
+
+### 26.2g An `age` is a timestamp on the uptime clock
+
+```js
+types.age.tostr = function(attrs,val){ … var uptime = getUptime();
+    if (val > 0x7fffffff) val = uptime + Math.abs(val-0xffffffff);
+    else                  val = Math.abs(val - uptime);
+    return interval2string(val,1); };
+function getUptime(){ return getNow() + sysres.uptimediff; }
+```
+
+So an `age` is not a duration but a point on the router's uptime clock, and the duration is its distance from
+now. Measured before the JS was read and agreeing with it exactly: `/certificate` and `/ip/dhcp-client`
+`expires-after` both read **89828 s** higher than the API on one audit run, with uptime 89828 s at that moment.
+
+The uptime itself comes from where webfig gets it — `fetchBoardInfo` posts a get-singleton to handler
+**`[24,2]`** and reads **`u1`** — and is cached per connection and advanced by the local clock, which is
+`sysres.uptimediff` under another name. That is not an optimisation: an `age` appears on many rows of one
+table, and a round trip per row would make a certificate list N+1 requests. When the singleton cannot be read
+the field keeps its raw value; a duration computed from a guessed origin would look entirely plausible and be
+wrong by the router's uptime.
+
+`/ip/dhcp-client` `expires-after` now agrees with the API **to within one second** — the gap between the two
+reads — so it joins the counters in the audit's volatile list rather than the gap table.
 
 ### 26.3 "Not set" is an absent field, not an empty one
 

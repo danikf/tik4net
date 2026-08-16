@@ -63,16 +63,21 @@ namespace tik4net.unittests.Winbox
         }
 
         [TestMethod]
-        public void TheParenthesisedValueIsStrippedOnlyWhenItIsTheKey()
+        public void TheParenthesisedValueIsAlwaysStripped()
         {
-            // The strip is keyed on the number MATCHING, so a label that genuinely ends in a parenthesised
-            // number keeps it — otherwise this would quietly rewrite unrelated labels.
+            // This used to strip only when the number equalled the bit KEY, to protect a label that genuinely
+            // ends in a parenthesised number. The router disproved that: the number is the DH GROUP, which
+            // merely coincides with the bit key for the classic MODP groups, so 'x25519 (31)' sits at bit 22
+            // and kept its suffix — reading as 'x25519-(31)' where the API says 'x25519'. A sweep of the whole
+            // 7.23.2 catalog finds exactly twelve labels of this shape and every one is a DH group, so the case
+            // the old rule protected does not exist.
             var catalog = Parse("[{name:'W',type:'map',path:[ 9,9 ],c:[{name:'F',type:'enm',id:'u1'," +
-                "values:{type:'static',map:{2:'modp1024 (2)',3:'weird (7)'}}}]}]");
+                "values:{type:'static',map:{2:'modp1024 (2)',22:'x25519 (31)',3:'plain'}}}]}]");
             var map = catalog.GetHandlerFields(new[] { 9, 9 })["f"].EnumMap;
 
-            Assert.AreEqual("modp1024", map[2]);
-            Assert.AreEqual("weird-(7)", map[3], "(7) is not key 3, so it is part of the name");
+            Assert.AreEqual("modp1024", map[2], "the number here happens to be the key");
+            Assert.AreEqual("x25519", map[22], "and here it is not — the API prints x25519 either way");
+            Assert.AreEqual("plain", map[3], "a label with no such suffix is untouched");
         }
 
         [TestMethod]
@@ -407,6 +412,59 @@ namespace tik4net.unittests.Winbox
             Assert.IsNotNull(map, "the map is four wrappers down, which is not the same as absent");
             Assert.AreEqual("all", map[unchecked((int)4294967295L)]);
             Assert.AreEqual("local", map[0]);
+        }
+
+        // ── the order a set prints in ──────────────────────────────────────────
+
+        private const string SetOrderWindow =
+            "[{name:'L2TP Server',type:'item',path:[ 70,9 ],c:[" +
+            "{name:'Authentication',type:'set',id:'u6',values:{type:'static'," +
+              "map:{1:'mschap2',2:'mschap1',3:'chap',4:'pap'}}}," +
+            "{name:'DH Group',type:'set',id:'u3',values:{type:'static'," +
+              "map:{1:'modp768 (1)',2:'modp1024 (2)',14:'modp2048 (14)',19:'ecp256 (19)',22:'x25519 (31)'}}}," +
+            "{name:'Connection State',type:'set',id:'u81',values:{type:'static'," +
+              "map:{0:'invalid',1:'established',2:'related',3:'new',8:'untracked'}}}]}]";
+
+        [TestMethod]
+        public void ASetListedAsDescendingPrintsFromTheHighestBitDown()
+        {
+            // Measured, not assumed: dh-group written as modp768,modp1024,modp2048,ecp256,x25519 reads back
+            // from the API as x25519,ecp256,modp2048,modp1024,modp768 — bits 22,19,14,2,1.
+            var catalog = Parse(SetOrderWindow);
+            long allFive = (1L << 1) | (1L << 2) | (1L << 14) | (1L << 19) | (1L << 22);
+
+            Assert.AreEqual("x25519,ecp256,modp2048,modp1024,modp768",
+                Decode(catalog, new[] { 70, 9 }, Rec((0x3, "u32", (uint)allFive)))["dh-group"]);
+            Assert.AreEqual("pap,chap,mschap1,mschap2",
+                Decode(catalog, new[] { 70, 9 }, Rec((0x6, "u32", 30u)))["authentication"],
+                "bits 1..4 are mschap2..pap, and the API prints them the other way round");
+        }
+
+        [TestMethod]
+        public void AnUnlistedSetStillPrintsUpwards()
+        {
+            // The control that stops this becoming "reverse every set". connection-state written as
+            // new,untracked,invalid,related,established reads back invalid,established,related,new,untracked
+            // — bits 0,1,2,3,8, ASCENDING, which is also webfig's own order (types.set.tostr loops i=0..31).
+            long all = 1L | (1L << 1) | (1L << 2) | (1L << 3) | (1L << 8);
+
+            Assert.AreEqual("invalid,established,related,new,untracked",
+                Decode(Parse(SetOrderWindow), new[] { 70, 9 }, Rec((0x81, "u32", (uint)all)))["connection-state"]);
+        }
+
+        [TestMethod]
+        public void AnAgeIsADistanceFromTheUptimeClockAndNeedsTheRouter()
+        {
+            // An age is a timestamp on the router's uptime clock, so it cannot be rendered from the record
+            // alone. With no ops channel to ask, the honest answer is the raw value — never a duration
+            // computed from a guessed origin, which would look entirely plausible and be wrong by the
+            // router's uptime.
+            var catalog = Parse("[{name:'Certificate',type:'map',path:[ 19,1 ],c:[" +
+                "{name:'Expires After',type:'age',id:'u6c',opt:1,ro:1}]}]");
+
+            Assert.AreEqual("313530770",
+                Decode(catalog, new[] { 19, 1 }, Rec((0x6C, "u32", 313530770u)))["expires-after"],
+                "no uptime available — the raw value, not a fabricated duration");
         }
 
         // ── epochs and offsets ────────────────────────────────────────────────

@@ -132,6 +132,10 @@ namespace tik4net.integrationtests
         private static readonly string[] VolatileFieldParts =
         {
             "byte", "packet", "bits-per-second", "rate", "count", "error", "drop", "uptime", "time",
+            // 'expires-after' is a live countdown: once the age decoder landed, /ip/dhcp-client's read the
+            // same value on both transports to within ONE SECOND — the gap between the two reads, not a
+            // decode difference. It belongs with the counters rather than in the gap table.
+            "expires-after",
             "age", "last-", "active", "current", "usage", "free", "used", "load", "temperature", "voltage",
             "signal", "noise", "cpu", "memory", "sent", "received", "requests", "hits", "misses", "status",
         };
@@ -169,14 +173,11 @@ namespace tik4net.integrationtests
         /// </remarks>
         private static readonly Dictionary<string, string> KnownValueGaps = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["/certificate"]                          = "age=uptime-clock timestamp (expires-after); subject-alt-name is a tuple (type enm + ':' + a union whose FIRST member is ip6addr, while the value rides on the ipaddr key)",
+            ["/certificate"]                          = "subject-alt-name is a tuple (type enm + ':' + a union whose FIRST member is ip6addr, while the value rides on the ipaddr key)",
             ["/interface/ethernet"]                   = "auto-negotiation reads the link's live state, not the setting",
-            ["/interface/l2tp-server/server"]          = "set order (authentication)",
-            ["/interface/pptp-server/server"]          = "set order (authentication)",
-            ["/interface/sstp-server/server"]          = "set order (authentication)",
-            ["/ip/dhcp-client"]                       = "undecoded list (add-default-route), age=uptime-clock timestamp (expires-after)",
+            ["/ip/dhcp-client"]                       = "undecoded list (add-default-route)",
             ["/ip/hotspot/profile"]                    = "http-proxy is an ipaddr with the port on a sibling key; the API prints one 'addr:port'",
-            ["/ip/ipsec/profile"]                      = "set order (dh-group); dpd-interval is an enm with postfix 's', not an interval",
+            ["/ip/ipsec/profile"]                      = "dpd-interval is an enm with postfix 's', not an interval",
             ["/ip/neighbor"]                          = "system-caps reads a value the API leaves empty",
             ["/routing/table"]                        = "fib reads the flag's own bool where the API prints it empty",
             ["/snmp/community"]                       = "IPv6 any-address renders '::' where the API prints '::/0'",

@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
@@ -28,6 +29,16 @@ namespace tik4net.Winbox
         // Guards the cache: a multiplexed connection can decode two commands' rows at once, and
         // PrimeReferencesAsync writes from the awaited path while a synchronous decode may be reading.
         private readonly object _refNameCacheLock = new object();
+
+        // The router's uptime clock, the origin every `age` value counts from. Handler and key are webfig's
+        // own (fetchBoardInfo posts a get-singleton to [24,2] and reads u1).
+        private static readonly int[] BoardInfoHandler = { 24, 2 };
+        private const int BoardUptimeKey = 0x1;
+
+        private readonly object _uptimeLock = new object();
+        private long? _uptimeAtFetch;
+        private Stopwatch _sinceUptimeFetch;
+        private bool _uptimeUnreadable;
 
         // The Unix epoch, the origin every dateandtime/clockdate value on the wire counts from.
         private static readonly DateTime Epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -174,6 +185,30 @@ namespace tik4net.Winbox
                         }
                         return addr;
                     }
+                    case "age":
+                    {
+                        // NOT a duration, though it wears a duration's clothes. types.age.tostr:
+                        //     var uptime = getUptime();
+                        //     if (val > 0x7fffffff) val = uptime + Math.abs(val - 0xffffffff);
+                        //     else                  val = Math.abs(val - uptime);
+                        //     return interval2string(val, 1);
+                        // — i.e. the value is a timestamp on the router's UPTIME clock, and the duration is
+                        // its distance from now. Measured before the JS was read and agreeing with it:
+                        // /certificate and /ip/dhcp-client expires-after both read exactly one uptime higher
+                        // than the API (89828 s, with uptime 89828 s at that moment).
+                        if (!WinboxFieldResolver.TryToInt64(value, out long stamp))
+                        {
+                            TraceNonNumeric("age", value);
+                            break;
+                        }
+                        if (jf.Scale > 1) stamp /= jf.Scale;
+                        long? uptime = RouterUptimeSeconds();
+                        if (uptime == null) break;   // no uptime, no honest answer — fall through to raw text
+                        long distance = stamp > int.MaxValue
+                            ? uptime.Value + Math.Abs(stamp - 0xFFFFFFFFL)
+                            : Math.Abs(stamp - uptime.Value);
+                        return FormatDuration(distance, 1);
+                    }
                     case "dateandtime":
                     case "clockdate":
                     {
@@ -263,8 +298,11 @@ namespace tik4net.Winbox
                             TraceNonNumeric("set", value);
                             break;
                         }
-                        var labels = jf.EnumMap.Where(kv => (bits & (1L << kv.Key)) != 0)
-                            .OrderBy(kv => kv.Key).Select(kv => kv.Value);
+                        var present = jf.EnumMap.Where(kv => (bits & (1L << kv.Key)) != 0);
+                        var labels = (SetPrintedDescending.Contains(jf.ApiName ?? "")
+                                ? present.OrderByDescending(kv => kv.Key)
+                                : present.OrderBy(kv => kv.Key))
+                            .Select(kv => kv.Value);
                         string joined = string.Join(",", labels);
                         bool negated = jf.NotKey != 0 && rec.TryGetValue(jf.NotKey, out var nt)
                             && nt.Item2 is bool nb && nb;
@@ -335,6 +373,36 @@ namespace tik4net.Winbox
         // webfig list types whose ELEMENT is a reference (types.multinumber and everything inheriting it).
         // multinumberrange/numberrangelist are ranges of literal numbers, not references, and are formatted
         // before this point.
+        /// <summary>
+        /// Set fields whose API text runs from the HIGHEST <c>.jg</c> bit down. Everything else, and anything
+        /// not listed, runs upwards — which is both webfig's own order (<c>types.set.tostr</c> loops
+        /// <c>i = 0..31</c>) and RouterOS's for most fields.
+        /// </summary>
+        /// <remarks>
+        /// <para>The order is a real property of the value, not an accident of how it was written: setting
+        /// <c>authentication=mschap2,pap</c> reads back as <c>pap,mschap2</c>, so RouterOS NORMALISES rather
+        /// than preserving insertion order. That is what makes the order reproducible at all — had the API
+        /// echoed what was written, a bitmask on the wire could not have carried the information.</para>
+        /// <para>What it is not is derivable. WinBox and RouterOS simply number these two fields in opposite
+        /// directions (WinBox lists the strongest first, RouterOS the weakest), and nothing in the
+        /// <c>.jg</c>, in <c>master*.js</c> or in tab completion says which — completion answers
+        /// <c>chap mschap1 mschap2 pap</c>, alphabetical, matching neither. So the direction is measured, one
+        /// field at a time, against the router:</para>
+        /// <list type="bullet">
+        /// <item><c>dh-group</c> written as <c>modp768,modp1024,modp2048,ecp256,x25519</c> reads back
+        /// <c>x25519,ecp256,modp2048,modp1024,modp768</c> — bits 22,19,14,2,1, strictly down.</item>
+        /// <item><c>authentication</c> written as all four reads back <c>pap,chap,mschap1,mschap2</c> —
+        /// bits 4,3,2,1, strictly down.</item>
+        /// <item>The control: <c>connection-state</c> written as <c>new,untracked,invalid,related,established</c>
+        /// reads back <c>invalid,established,related,new,untracked</c> — bits 0,1,2,3,8, strictly UP. This is
+        /// why the direction cannot simply be flipped for every set field.</item>
+        /// </list>
+        /// <para>A field that is not listed keeps the ascending order it has always had, so a wrong entry can
+        /// only affect the field it names, and the path-map audit compares every one of them against the API.</para>
+        /// </remarks>
+        private static readonly HashSet<string> SetPrintedDescending =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "authentication", "dh-group" };
+
         /// <summary>
         /// Fields where RouterOS spells a zero as a WORD, and the <c>.jg</c> gives that word nowhere: the
         /// number is simply outside the field's declared domain (<c>MRRU</c> declares <c>min:1500</c> with
@@ -519,6 +587,66 @@ namespace tik4net.Winbox
                 names.Add(n);
             }
             return names.Count > 0 ? string.Join(",", names) : null;
+        }
+
+        /// <summary>
+        /// The router's uptime in seconds, read once per connection and advanced by the local clock — which
+        /// is exactly what webfig does (<c>sysres.uptimediff = uptime - getNow()</c>, then
+        /// <c>getUptime() = getNow() + uptimediff</c>). Returns <c>null</c> when it cannot be read, so an
+        /// <c>age</c> falls back to its raw text rather than to a number computed from a guessed origin.
+        /// </summary>
+        /// <remarks>
+        /// The handler and key are webfig's own: <c>fetchBoardInfo</c> posts a get-singleton to <c>[24,2]</c>
+        /// and takes <c>u1</c>. Caching it is not an optimisation but the same design decision webfig made —
+        /// an age field appears on many rows of one table, and a round trip per row would make a certificate
+        /// list N+1 requests. The drift over a session is the drift of the local clock against the router's,
+        /// which for a value printed to the second is irrelevant, and a reconnect re-reads it.
+        /// </remarks>
+        private long? RouterUptimeSeconds()
+        {
+            lock (_uptimeLock)
+            {
+                if (_uptimeAtFetch.HasValue)
+                    return _uptimeAtFetch.Value + (long)_sinceUptimeFetch.Elapsed.TotalSeconds;
+                if (_uptimeUnreadable) return null;
+            }
+
+            long fetched;
+            try
+            {
+                var board = _ops.GetSingleton(BoardInfoHandler);
+                if (board == null || !board.TryGetValue(BoardUptimeKey, out var up)
+                    || !WinboxFieldResolver.TryToInt64(up.Item2, out fetched))
+                {
+                    lock (_uptimeLock) _uptimeUnreadable = true;
+                    TraceUptimeUnreadable(null);
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Unlike a reference table this IS memoized as unreadable: every age field on the connection
+                // would otherwise retry the same singleton, and a handler that has no board info will not
+                // grow one mid-session.
+                lock (_uptimeLock) _uptimeUnreadable = true;
+                TraceUptimeUnreadable(ex);
+                return null;
+            }
+
+            lock (_uptimeLock)
+            {
+                _uptimeAtFetch = fetched;
+                _sinceUptimeFetch = Stopwatch.StartNew();
+                return fetched;
+            }
+        }
+
+        private static void TraceUptimeUnreadable(Exception ex)
+        {
+            if (!TikWireTrace.Enabled) return;
+            TikWireTrace.Emit("wbx.codec", TikWireDir.Note,
+                "the board-info singleton [24,2] gave no uptime, so every 'age' field on this connection "
+                + "keeps its raw value" + (ex == null ? "" : ": " + ex.Message));
         }
 
         // Resolve a dynamic-enum reference value (the referenced record's numeric id) back to its name.

@@ -1398,20 +1398,26 @@ namespace tik4net.Winbox
             void Put(int key, string label)
             {
                 if (map.ContainsKey(key)) return;
-                map[key] = WinboxFieldResolver.NormalizeLabel(StripValueSuffix(label, key));
+                map[key] = WinboxFieldResolver.NormalizeLabel(StripValueSuffix(label));
             }
         }
 
-        // WinBox spells out the numeric value of a DH group in the label — 'modp1024 (2)' at key 2 — while the
-        // API calls it 'modp1024'. The suffix is display decoration, and it is only treated as such when the
-        // number in it IS the key, so a label that genuinely ends in a parenthesised number is left alone.
-        private static string StripValueSuffix(string label, int key)
+        // WinBox spells the DH GROUP NUMBER out in the label — 'modp1024 (2)' — while the API calls it
+        // 'modp1024'. The suffix is display decoration and is always dropped.
+        //
+        // It used to be dropped only when the number equalled the field's bit KEY, on the theory that a label
+        // genuinely ending in a parenthesised number should survive. Two things settled that: the number is the
+        // DH group, which merely COINCIDES with the bit key for the classic MODP groups, so 'x25519 (31)' at
+        // bit 22 kept its suffix and read as 'x25519-(31)' where the API says 'x25519'; and a sweep of the whole
+        // 7.23.2 catalog finds exactly twelve labels of this shape, all of them DH groups. The case the old
+        // rule protected does not exist.
+        private static string StripValueSuffix(string label)
         {
             if (string.IsNullOrEmpty(label) || label[label.Length - 1] != ')') return label;
             int open = label.LastIndexOf('(');
             if (open <= 0 || label[open - 1] != ' ') return label;
             string inside = label.Substring(open + 1, label.Length - open - 2);
-            return (long.TryParse(inside, out long n) && n == key) ? label.Substring(0, open - 1) : label;
+            return long.TryParse(inside, out _) ? label.Substring(0, open - 1) : label;
         }
 
         // A .jg number too large for int stays a string token after parsing (JgParser.Scalar), so a `def` or
