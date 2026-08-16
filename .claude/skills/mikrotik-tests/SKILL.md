@@ -216,6 +216,7 @@ protected void EnsureMaxRouterOsVersion(int removedInMajor, string featureDescri
 protected static bool IsWinboxNativeUnsupported(Exception ex)  // catch-when: a SPECIFIC M2 error
 protected void SkipOnWinboxNativeUnmappedPath(string feature)  // verify the path really is absent
 protected void SkipOnSingleCommandTransport()                  // see below
+protected bool IsSingleCommandTransport()                      // the same list, for the inverse test
 protected bool IsNonApiTransport()                             // branching assertions ONLY, not a gate
 ```
 
@@ -226,6 +227,11 @@ plausible-sounding capability can silently disable a test everywhere it mattered
 `ConcurrentCommandsTest`: it enumerates the CLI family because **that is the assertion itself** — only
 those transports have a reason to serialize, and everything else must manage concurrent commands on one
 connection. A feature-bound variant would sweep away exactly the regression the test exists to catch.
+
+The CLI family is not simply skipped there, though: `ConcurrentCommandsTest` has a second method gated on
+`IsSingleCommandTransport()` — the same list, inverted — asserting that a transport allowed to *queue*
+commands is still safe to call from several threads. Between them, every transport runs exactly one of the
+two, so a transport that runs neither (or both) means the two lists have drifted apart.
 
 ## Other TestBase members
 

@@ -19,6 +19,58 @@ namespace tik4net
     /// }
     /// </example>
     /// </summary>
+    /// <remarks>
+    /// <b>What is safe to do concurrently on one connection.</b> The library states this rather than
+    /// leaving it to be discovered, because the answer is not the same on every transport and the failure
+    /// mode of guessing wrong is a wrong <i>answer</i> rather than an exception.
+    /// <list type="bullet">
+    /// <item>
+    /// <b>Commands may overlap</b> on the binary API, REST and native WinBox. Each of the three correlates
+    /// a reply to its caller by its own means — the API by the <c>.tag</c> word, REST because every command
+    /// is a separate HTTP request, native WinBox by the M2 request id — so several callers may have a
+    /// command in flight at once and each gets its own reply.
+    /// <b>On the binary API this needs <see cref="SendTagWithSyncCommand"/> set to <c>true</c> first</b>;
+    /// see that property.
+    /// </item>
+    /// <item>
+    /// <b>Commands queue</b> on the CLI family (Telnet, SSH, MAC-Telnet, and WinBox CLI over TCP or the MAC
+    /// layer). They drive one request/reply terminal, which cannot carry two conversations, so the
+    /// connection serializes whole commands internally. Calling from several threads is <i>safe</i> there;
+    /// it is simply not faster.
+    /// </item>
+    /// <item>
+    /// <b>An async monitor plus ordinary commands on one connection is safe everywhere, but only
+    /// dependable on the transports that multiplex.</b> Nothing corrupts on the CLI family — a polled
+    /// monitor takes the same internal turn a command does — but its worker occupies the terminal on its
+    /// own cadence, and a change you make over the <i>same</i> connection may then go unreported: measured
+    /// on Telnet and WinBox CLI (P2.14), a listen missed the change 3 times in 4, and triggering harder made
+    /// it worse rather than better. <b>Drive the change from a second connection</b> when a monitor has to
+    /// observe it, or use the binary API, where the tag makes the two independent.
+    /// </item>
+    /// <item>
+    /// <b>Opening and closing are not concurrent operations.</b> <see cref="Close"/> and
+    /// <see cref="IDisposable.Dispose"/> tear the channel down under whatever is using it; a command in
+    /// flight when that happens fails, and on the terminal transports it can fail as a truncated read
+    /// rather than as an error. Finish or cancel outstanding work first.
+    /// </item>
+    /// <item>
+    /// <b>Safe Mode is connection-wide state, not a per-command option</b> — <see cref="SafeModeTake"/> and
+    /// its siblings must not be driven from two threads, and any command issued while it is held takes part
+    /// in it.
+    /// </item>
+    /// <item>
+    /// <b>The O/R mapper follows the connection.</b> Its change tracking is per connection and safe for
+    /// distinct entities; saving <i>the same</i> entity object from two threads is not, for the ordinary
+    /// reason that two threads are then editing one object.
+    /// </item>
+    /// </list>
+    /// <para>
+    /// Threads make the client faster, not the router: a sustained burst pushes a round trip from about a
+    /// millisecond to twenty and worse, and that ceiling is aggregate — spreading the work over more
+    /// connections reaches it sooner. Pace bulk work rather than parallelizing it
+    /// (<c>Docs/findings-router-throughput-ceiling.md</c>).
+    /// </para>
+    /// </remarks>
     /// <seealso cref="ITikCommand"/>
     /// <seealso cref="TikConnectionException"/>
     /// <seealso cref="TikConnectionNotOpenException"/>
@@ -37,13 +89,38 @@ namespace tik4net
         bool IsOpened { get; }
 
         /// <summary>
-        /// Gets or sets communication encoding (how string values are converted to bytes sent to mikrotik router). Default is ASCII.
+        /// Gets or sets communication encoding (how string values are converted to bytes sent to mikrotik router).
+        /// Default is UTF-8, which is what RouterOS 7 speaks.
         /// </summary>
+        /// <remarks>
+        /// Set it to <see cref="Encoding.ASCII"/> only to talk to a RouterOS 6.x router that predates UTF-8
+        /// support. (Prior to 4.0 the binary API defaulted to ASCII while every other transport used UTF-8.)
+        /// </remarks>
         Encoding Encoding { get; set; }
 
         /// <summary>
-        /// If set to true, .tag is sent also inside of sync commands (mandatory for multi thread connection usage). Default is false.
+        /// When <c>true</c>, the <c>.tag</c> word is sent on <b>synchronous</b> binary-API commands as well —
+        /// which is what lets one API connection carry commands from several threads at once. Default is
+        /// <c>false</c>.
         /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <b>Set it before using one API connection from several threads.</b> The router echoes the tag
+        /// back, and that is the only thing tying a reply to the caller that asked for it; without it,
+        /// concurrent synchronous commands genuinely cross-deliver rows — one caller's <c>.id</c> and
+        /// <c>address</c> words arriving inside another caller's sentence — rather than failing.
+        /// </para>
+        /// <para>
+        /// It stays <c>false</c> by default through 4.x, because turning it on changes what goes on the wire
+        /// for every existing single-threaded caller; flipping it is queued with the other default changes
+        /// for 5.0. Setting it costs a tagged word per command and nothing else, so a multi-threaded
+        /// consumer should simply set it.
+        /// </para>
+        /// <para>
+        /// Binary API only. The other transports that permit concurrent commands correlate replies by their
+        /// own means (see the concurrency notes on <see cref="ITikConnection"/>) and ignore this.
+        /// </para>
+        /// </remarks>
         bool SendTagWithSyncCommand { get; set; }
 
         /// <summary>

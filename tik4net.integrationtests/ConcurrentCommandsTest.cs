@@ -95,6 +95,58 @@ namespace tik4net.integrationtests
                 + string.Join(Environment.NewLine, problems));
         }
 
+        /// <summary>
+        /// The other half of the concurrency contract (A8): the transports that are <b>allowed</b> to
+        /// serialize must still be <b>safe</b> to call from several threads.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The test above skips these transports because serializing is a legitimate answer for them. That
+        /// left the promise the documentation actually makes to a consumer — "calling from several threads is
+        /// safe there, it is simply not faster" — resting on the presence of a semaphore in the code rather
+        /// than on any measurement. A terminal carries one conversation, so a gate that failed to hold would
+        /// not raise an error: it would interleave two commands' bytes and hand each caller a plausible
+        /// answer built from the other's.
+        /// </para>
+        /// <para>Deliberately the same body as the concurrent case, and deliberately no timing assertion —
+        /// these transports are expected to be no faster for the extra threads, only correct.</para>
+        /// </remarks>
+        [TestMethod]
+        public void ConcurrentCommands_OnASerializingTransport_StillGiveEachCallerItsOwnReply()
+        {
+            if (!IsSingleCommandTransport())
+                Assert.Inconclusive("This is the serialized transports' half of the contract; "
+                    + $"'{ResolveConnectionType()}' multiplexes and is covered by the test above.");
+
+            string version = Connection.LoadSingle<SystemResource>().Version;
+            Assert.IsFalse(string.IsNullOrEmpty(version), "precondition: the router reports its version");
+
+            var problems = new ConcurrentQueue<string>();
+            var workers = new List<Task>();
+
+            for (int w = 0; w < Workers; w++)
+            {
+                int worker = w;
+                workers.Add(Task.Run(() =>
+                {
+                    for (int round = 0; round < RoundsPerWorker; round++)
+                    {
+                        try { RunOne((worker + round) % 3, version, problems); }
+                        catch (Exception ex) { problems.Enqueue($"worker {worker} round {round}: {ex.GetType().Name}: {ex.Message}"); }
+                    }
+                }));
+            }
+
+            Assert.IsTrue(Task.WaitAll(workers.ToArray(), TimeoutMs),
+                $"{Workers} queued workers did not finish within {TimeoutMs} ms — a serializing transport is "
+                + "allowed to be slow, but not to deadlock or to lose a command.");
+
+            Assert.AreEqual(0, problems.Count,
+                "queued commands returned wrong or failed results — the terminal was carrying two "
+                + "conversations at once:" + Environment.NewLine
+                + string.Join(Environment.NewLine, problems));
+        }
+
         private void RunOne(int kind, string expectedVersion, ConcurrentQueue<string> problems)
         {
             switch (kind)

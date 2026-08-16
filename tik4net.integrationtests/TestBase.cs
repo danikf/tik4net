@@ -518,12 +518,23 @@ namespace tik4net.integrationtests
         protected void SkipOnSingleCommandTransport()
         {
             var t = ResolveConnectionType();
-            if (t == TikConnectionType.Telnet || t == TikConnectionType.Ssh
-                || t == TikConnectionType.MacTelnet
-                || t == TikConnectionType.WinboxCli || t == TikConnectionType.WinboxCliMac)
+            if (IsSingleCommandTransport())
                 Assert.Inconclusive(
                     $"Transport '{t}' drives a single request/reply terminal and serializes commands by " +
                     "design — concurrent execution is not expected of it. Test skipped.");
+        }
+
+        /// <summary>
+        /// The same list as <see cref="SkipOnSingleCommandTransport"/>, for the test that covers the
+        /// serialized transports rather than skipping them: they are permitted to queue, and still have to
+        /// be safe to call from several threads (A8's concurrency contract).
+        /// </summary>
+        protected bool IsSingleCommandTransport()
+        {
+            var t = ResolveConnectionType();
+            return t == TikConnectionType.Telnet || t == TikConnectionType.Ssh
+                || t == TikConnectionType.MacTelnet
+                || t == TikConnectionType.WinboxCli || t == TikConnectionType.WinboxCliMac;
         }
 
         /// <summary>
