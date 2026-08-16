@@ -262,6 +262,12 @@ public class IpDhcpServerTest : TestBase
 }
 ```
 
+**A new O/R-mapper entity gets exactly two tests**, named after it: `List<Entity>sWillNotFail` (guard,
+then `LoadAll<T>()` is non-null) and `Add<Entity>WillNotFail` (create with a marker, reload by id,
+assert, delete in a `finally`). A **read-only or singleton** entity gets only the List test —
+`LoadSingle<T>()` for a singleton, `LoadAll<T>()` otherwise. The `entity-generator` skill scaffolds
+the entity itself; the harness is here.
+
 - Always `try/finally` cleanup — a failing test must still delete what it created.
 - Guards at the top of the test, not scattered through it.
 - Prefix created objects `t4n` + a GUID fragment so orphans are identifiable.

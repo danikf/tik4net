@@ -1,17 +1,18 @@
 ---
 name: chr-test-router-init
 description: >
-  Provision (or re-provision) the virtual CHR MikroTik test router used by tik4net development, so the
-  full 11-transport integration suite can run against it. Use this skill whenever the test router was
-  restored / reinstalled / reset / netinstalled / recreated in HyperV, when the user says the router is
-  "fresh", "clean", "back to defaults" or that they had to reset the password, when packages need to be
-  (re)installed ("full package set", "doinstalovat packages"), when API-SSL/REST-SSL suddenly fail with
-  no certificate, when NTP/timezone need setting, when the router's IP / MAC / identity no longer match
-  App.config, when you need an MNDP scan to work out which MikroTik on the segment is the test box, or
-  when asked to check that the RouterOS version we promise to test against in README/wiki still matches
-  the live router. Covers: MNDP discovery + coordinate reconciliation, package set, NTP + timezone, all
-  services, self-signed certs for api-ssl/www-ssl, a fallback recovery account, an 11-transport
-  smoke matrix, and the docs/version reconciliation.
+  Initialize or re-provision the virtual CHR MikroTik test router that the tik4net integration suite
+  runs against, bringing a bare router up to the state the suite assumes. Use when the test router was
+  reset, restored, netinstalled or recreated in HyperV; when the user says it is "fresh", "clean",
+  "back to defaults", or that they had to reset its password; when the router needs its full package
+  set, NTP and timezone, or its RouterOS services turned on; when API-SSL or REST-SSL fail because
+  there is no certificate; when the router's IP, MAC or identity no longer match App.config; when an
+  MNDP scan is needed to work out which MikroTik on the segment is the test box; or when checking that
+  the RouterOS version promised in README and the wiki still matches the live router. Covers MNDP
+  discovery and coordinate reconciliation, the package set, NTP and timezone, every service the
+  transports need, self-signed certificates for api-ssl and www-ssl, a fallback recovery account, an
+  11-transport smoke matrix, and the docs/version reconciliation. This skill sets up the ROUTER — for
+  installing the tik4net MCP server, use tik4net-mcp-install instead.
 ---
 
 # CHR test-router initialization (tik4net)

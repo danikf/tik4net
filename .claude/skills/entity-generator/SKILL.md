@@ -17,16 +17,14 @@ Goal: produce a finished, idiomatic entity class under `tik4net.objects/` for a 
 they did, but with better sources (live router via MCP **and** the wiki) and you finish the code (the old
 tools always produced a draft that a human had to clean up).
 
-Two legacy tools whose logic this skill folds in (read them if you need the exact heuristics):
-- `Tools/tik4net.entitygenerator/` — connects to a live router, runs `/path/print [detail]`, takes the
-  **union of all field names over all rows**, and infers C# types from the **values**
-  (`EntityCodeGenaratorMainForm.Generate` + `GeneratorHelper.DetermineFieldType`).
-- `Tools/tik4net.entityWikiImporter/` — parses the MikroTik wiki HTML property tables, reading field
-  name, documented type, default, and the R/O-vs-R/W split from the "Properties" vs "Read-only
-  properties" sections (`HtmlParserExtensions.ParsePropertyTable` + `DetermineFieldTypeFromDocumentation`).
+The division of labour it inherits from those tools still holds: **the router is the source of truth for
+what fields exist and their live values; the documentation is the source of truth for types, defaults,
+the read-only split and descriptions.** Use both and reconcile.
 
-The router tells you **what fields really exist and their live values**; the wiki tells you **types,
-defaults, R/O split, and human descriptions**. Use both and reconcile.
+Their exact heuristics are documented in their own READMEs —
+[`Tools/tik4net.entitygenerator/`](../../../Tools/tik4net.entitygenerator/README.md) (router/value
+inference) and [`Tools/tik4net.entityWikiImporter/`](../../../Tools/tik4net.entityWikiImporter/README.md)
+(wiki table parsing) — read those only if you need to reproduce a specific rule.
 
 ## When to use / inputs
 
@@ -352,105 +350,30 @@ short and null-safe. Skip it for entities with no natural single-line summary. E
 4. Show the user the generated class and note any fields you left as `string` that could be tightened, plus
    anything you couldn't resolve from wiki/router.
 
-## Step 10 — Add basic "List / Add WillNotFail" tests
+## Step 10 — Add the two standard tests
 
-Every new entity should get a minimal integration test so a router round-trip is exercised. Tests live in
-`tik4net.integrationtests/` (MSTest, .NET 4.8, SDK-style project — new `.cs` files are auto-included, no `.csproj`
-edit needed). One test class per entity (or per domain), named `<Entity>Test`, inheriting `TestBase`, in
-namespace `tik4net.integrationtests`.
+Every new entity gets a minimal integration test so a router round-trip is exercised. **The `mikrotik-tests`
+skill owns the test harness** — guards, cleanup, folder layout, how to run one transport or the matrix.
+Follow it rather than reconstructing any of that here. Only the entity-specific conventions live below.
 
-**Test file location mirrors the entity folder structure.** Place the test file in the subfolder of
-`tik4net.integrationtests/` that matches the entity's domain folder in `tik4net.objects/`:
+Two tests per entity, named for the entity:
 
-```
-tik4net.objects/Ip/Firewall/FirewallFilter.cs  →  tik4net.integrationtests/Ip/Firewall/IpFirewallTest.cs
-tik4net.objects/Interface/Bridge/BridgePort.cs →  tik4net.integrationtests/Interface/Bridge/InterfaceBridgeTest.cs
-tik4net.objects/System/SystemScheduler.cs      →  tik4net.integrationtests/System/SystemSchedulerTest.cs
-tik4net.objects/Ppp/PppSecret.cs               →  tik4net.integrationtests/Ppp/PppTest.cs
-```
-
-One test file per domain subfolder is fine (combine all entities from that folder into one test class rather
-than splitting to one file per entity). Core/infra tests (`ConnectionTest`, `CrudTest`, `TestBase`,
-`Protocols/`) stay at the root of `tik4net.integrationtests/`.
-
-See `tik4net.integrationtests/Interface/Bridge/InterfaceBridgeTest.cs` for the canonical shape and the `mikrotik-tests`
-skill for the full harness.
-
-Two standard tests per entity:
-
-```csharp
-using System;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using tik4net.Objects;
-using tik4net.Objects.<Domain>;
-
-namespace tik4net.integrationtests
-{
-    [TestClass]
-    public class <Entity>Test : TestBase
-    {
-        // 1) List — LoadAll must not throw and must return a (possibly empty) list.
-        [TestMethod]
-        public void List<Entity>sWillNotFail()
-        {
-            EnsureCommandAvailable("/<api/path>");          // skip (Inconclusive) if the package is absent
-            var list = Connection.LoadAll<<Entity>>();
-            Assert.IsNotNull(list);
-        }
-
-        // 2) Add — create, reload by id, assert, then delete (always clean up).
-        [TestMethod]
-        public void Add<Entity>WillNotFail()
-        {
-            EnsureCommandAvailable("/<api/path>");
-            string marker = Guid.NewGuid().ToString();
-            var entity = new <Entity> { /* mandatory fields */ Comment = marker };
-            Connection.Save(entity);
-
-            var loaded = Connection.LoadById<<Entity>>(entity.Id);
-            Assert.IsNotNull(loaded);
-            Assert.AreEqual(marker, loaded.Comment);
-
-            Connection.Delete(loaded);
-        }
-    }
-}
-```
-
-For a **read-only / singleton** entity, write only the List test (no Add/Delete) — e.g. `LoadSingle<T>()`
-for singletons, `LoadAll<T>()` otherwise.
-
-### Limiting a test to specific connection types
-
-`TestBase` runs against whatever transport the runsettings/App.config selects (the test suite is run once
-per transport). Guard a test that a transport can't satisfy so it is **skipped (Inconclusive), not failed** —
-use the helper that matches the reason:
-
-| Guard (call at top of the test) | Skips when |
+| Test | Shape |
 |---|---|
-| `EnsureCommandAvailable("/ip/...")`     | the API path/package isn't on this router |
-| `EnsureCapability(TikConnectionCapability.Listen, "…")` | the active transport lacks a capability (Listen/Streaming/Tagging/… ⇒ non-API transports) |
-| `EnsureMinRouterOsVersion(7, "…")` / `EnsureMaxRouterOsVersion(7, "…")` | RouterOS major version is out of range |
-| `SkipOnWinboxNativeUnmappedPath("/ip/...")` | path isn't in the WinBox `.jg` catalog (native M2 can't reach it) |
-| `catch when (IsWinboxNativeUnsupported(ex))` | a **specific** M2 error came back — the narrowest guard, use it in preference to the others |
+| `List<Entity>sWillNotFail` | `EnsureCommandAvailable("/api/path")`, then `LoadAll<T>()` is non-null |
+| `Add<Entity>WillNotFail` | create with a `t4n`+GUID marker, reload by id, assert, delete in a `finally` |
 
-There is deliberately **no** transport-name skip such as "skip unless binary API". Gates like that mask
-unrelated bugs and outlive the limitation they were written for; bind the guard to the capability or to
-the router's actual refusal instead. `IsNonApiTransport()` exists only for branching an **assertion**,
-never as a skip gate. See the `mikrotik-tests` skill for the full guard set.
+For a **read-only or singleton** entity write only the List test — `LoadSingle<T>()` for a singleton,
+`LoadAll<T>()` otherwise.
 
-Don't hand-roll transport checks; these emit a clear skip reason in Test Explorer. A plain CRUD entity
-usually needs only `EnsureCommandAvailable`. Add capability/version guards only when the specific test
-relies on that capability or feature.
-
-### Running them
+Guard with `EnsureCommandAvailable` first; a plain CRUD entity usually needs nothing else. Add a
+capability or version guard only when the specific test depends on that feature. There is deliberately no
+transport-name skip — see the guard table in `mikrotik-tests`.
 
 ```powershell
-dotnet test tik4net.integrationtests/tik4net.integrationtests.csproj --filter "ClassName=tik4net.integrationtests.<Entity>Test"
+Tools/probes/run-integration-tests.ps1 -Transport api -Filter "ClassName=tik4net.integrationtests.<Entity>Test"
 ```
 
-The file is auto-included (SDK-style project); just build and run the filter above (it needs the live test
-router). See `mikrotik-tests` for running across all transports.
 
 ## Output skeleton
 
