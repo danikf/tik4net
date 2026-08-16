@@ -1150,7 +1150,26 @@ namespace tik4net.Winbox
         {
             if (value is byte[] b && b.Length > 0)
                 return string.Join(":", b.Select(x => x.ToString("X2")));
-            return value?.ToString() ?? "";
+
+            // The wire form this actually arrives in. M2Message renders an FT_RAW value as unseparated
+            // uppercase hex ("00155D041F03") rather than a byte[], so every macaddr field — which is a raw
+            // on the wire — fell straight through to ToString() and reached the caller as one 12-digit run
+            // where RouterOS prints 00:15:5D:04:1F:03. /interface/ethernet, /ip/arp, /ip/neighbor and
+            // /tool/romon all read this way; the .jg types them macaddr correctly, so the .jg was never the
+            // problem.
+            string s = value?.ToString() ?? "";
+            if (s.Length >= 2 && s.Length % 2 == 0 && s.IndexOf(':') < 0 && IsHex(s))
+                return string.Join(":", Enumerable.Range(0, s.Length / 2)
+                                                  .Select(i => s.Substring(i * 2, 2).ToUpperInvariant()));
+            return s;
+        }
+
+        private static bool IsHex(string s)
+        {
+            foreach (char c in s)
+                if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')))
+                    return false;
+            return true;
         }
 
         /// <summary>

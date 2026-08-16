@@ -170,19 +170,18 @@ namespace tik4net.integrationtests
         private static readonly Dictionary<string, string> KnownValueGaps = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["/certificate"]                          = "date/epoch (invalid-before/after), interval (expires-after), raw-u32 IP (subject-alt-name)",
-            ["/interface/ethernet"]                   = "raw MAC (mac-address); auto-negotiation reads the link's live state, not the setting",
+            ["/interface/ethernet"]                   = "auto-negotiation reads the link's live state, not the setting",
             ["/interface/l2tp-server/server"]          = "sentinel 0 (mrru=disabled, max-sessions=unlimited), set order (authentication)",
             ["/interface/pptp-server/server"]          = "sentinel 0 (mrru=disabled), set order (authentication)",
             ["/interface/sstp-server/server"]          = "sentinel 0 (mrru=disabled), set order (authentication)",
             ["/interface/wireless/security-profiles"]  = "sentinel 0xFFFFFFFF (eap-methods=passthrough), interval (interim-update, group-key-update)",
-            ["/ip/arp"]                               = "raw MAC (mac-address)",
             ["/ip/cloud"]                             = "sentinel 0 (ddns-update-interval=none)",
             ["/ip/dhcp-client"]                       = "undecoded list (add-default-route), interval (expires-after)",
             ["/ip/dhcp-server/config"]                 = "interval (interim-update)",
             ["/ip/dns"]                               = "interval (cache-max-ttl)",
             ["/ip/hotspot/profile"]                    = "http-proxy is an ipaddr with the port on a sibling key; the API prints one 'addr:port'",
             ["/ip/ipsec/profile"]                      = "set order (dh-group), interval (dpd-interval)",
-            ["/ip/neighbor"]                          = "raw MAC (mac-address); system-caps reads a value the API leaves empty",
+            ["/ip/neighbor"]                          = "system-caps reads a value the API leaves empty",
             ["/ip/traffic-flow"]                       = "sentinel 0xFFFFFFFF (interfaces=all)",
             ["/ppp/aaa"]                              = "interval (interim-update)",
             ["/routing/table"]                        = "fib reads the flag's own bool where the API prints it empty",
@@ -191,7 +190,6 @@ namespace tik4net.integrationtests
             ["/system/ntp/client"]                     = "signed values (freq-drift, system-offset) decoded as unsigned u32",
             ["/system/ntp/server"]                     = "enabled reads the wrong key (native says true where the API says false)",
             ["/system/watchdog"]                       = "sentinel 0.0.0.0 (watch-address=none), interval in ms (ping-start-after-boot)",
-            ["/tool/romon"]                           = "raw MAC (id)",
         };
 
         /// <summary>
