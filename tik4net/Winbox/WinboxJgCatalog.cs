@@ -928,7 +928,8 @@ namespace tik4net.Winbox
                         int offKey = DecodedKeyOf(dict, "oid");
                         AddField(owner, nodeName, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(dict),
                             ty, maskKey, refHandler, optKey: optKey, isRange: isRange, allow: allow,
-                            def: ExtractDef(dict), pane: pane, offKey: offKey);
+                            def: ExtractDef(dict), pane: pane, offKey: offKey,
+                            isOptional: IsOptionalAttr(dict));
                     }
                 }
 
@@ -1043,13 +1044,13 @@ namespace tik4net.Winbox
         private void AddField(string handlerKey, string label, int key, string wireType, bool ro,
             IReadOnlyDictionary<int, string> enumMap, string uiType, int maskKey, int[] refHandler,
             int optKey = 0, int notKey = 0, bool isRange = false, string allow = null, long? def = null,
-            PaneContext pane = null, int offKey = 0)
+            PaneContext pane = null, int offKey = 0, bool isOptional = false)
         {
             string apiName = WinboxFieldResolver.NormalizeLabel(label);
             if (string.IsNullOrEmpty(apiName)) return;
             var field = new WinboxJgField(apiName, key, wireType, ro, enumMap, uiType, maskKey,
                 refHandler, optKey, notKey, isRange, allow, def,
-                pane?.Kind, pane?.SelectorKey ?? 0, pane?.Values, offKey);
+                pane?.Kind, pane?.SelectorKey ?? 0, pane?.Values, offKey, isOptional);
             Put(handlerKey, apiName, field);
             // A pane field is ALSO filed under the kind-prefixed name the API uses for it (memory-lines,
             // pcq-rate). Both registrations are needed: the plain one keeps every name that resolved before
@@ -1080,6 +1081,11 @@ namespace tik4net.Winbox
                 }
             }
         }
+
+        // The .jg 'opt:1' ATTRIBUTE — the field may legitimately have no value. Not to be confused with a
+        // type:'opt' WRAPPER, which is a node of its own carrying a present-flag bool (see OptKey).
+        private static bool IsOptionalAttr(Dictionary<string, object> dict)
+            => dict.TryGetValue("opt", out var ov) && ov is int oi && oi != 0;
 
         // The M2 key held by a sibling-key attribute of a field node ('maskid', 'optid', 'oid'), or 0.
         private static int DecodedKeyOf(Dictionary<string, object> node, string attribute)
@@ -1144,7 +1150,7 @@ namespace tik4net.Winbox
                     if (optKey == 0) optKey = DecodedKeyOf(cur, "optid");
                     AddField(handlerKey, label, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(cur),
                         ty, maskKey, refHandler, optKey, notKey, isRange, allow, ExtractDef(cur), pane,
-                        DecodedKeyOf(cur, "oid"));
+                        DecodedKeyOf(cur, "oid"), IsOptionalAttr(cur));
                 }
                 return;
             }

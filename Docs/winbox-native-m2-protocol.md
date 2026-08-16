@@ -491,6 +491,7 @@ webfig alone:
 | `/ip/ipsec/proposal` | `pfs-group` | `2` | `modp1024` |
 | `/system/logging/action` | `syslog-severity` | `4294967295` | *(field absent)* |
 | `/ip/proxy/access` | `method` | `''` | *(field absent)* |
+| `/certificate` (unsigned) | `digest-algorithm` | `0` | *(field absent)* |
 
 ### 26.1 The static map is not always the first thing under `values`
 
@@ -526,22 +527,44 @@ numeric rather than being dropped — a shorter list would read as "the router h
 
 ### 26.3 "Not set" is an absent field, not an empty one
 
-Two ways the router says a field is not set, and in both the API answers by leaving the field **out of
-the row**:
+Three ways the router says a field is not set, and in all of them the API answers by leaving the field
+**out of the row**:
 
 - an **`opt`-wrapped** field whose flag bool is `false`. Verified live: a `/ip/proxy/access` rule
   created with only `dst-host` and `action` comes back over the API with no `method`, `src-address`,
   `dst-port` or `path`, while the M2 record carries all of those keys with the flags down.
 - the **u32 unset marker** `0xFFFFFFFF` on a field that declares it as its `def`
   (`{name:'Syslog Severity',type:'number',id:'ue',def:4294967295,max:7,…}` — its real domain is 0–7).
+- a **static enum carrying a value its own map has no member for**, on a field with the `opt`
+  ATTRIBUTE. This is the one webfig states outright, at the end of `types.enm.tostr`:
+
+  ```js
+  let str = enum2string(attrs.values, val); if (str != null) return str;
+  …
+  if (attrs.opt) return '';        // not set
+  return 'unknown';                // the catalog and the router disagree
+  ```
+
+  So `opt` is what separates "not set" from "we have no name for this". Live on 7.23.2, an **unsigned**
+  `/certificate` row carries `Digest Algorithm` (`{type:'enm',id:'u85',opt:1,values:{type:'static',
+  map:{4:'md5',64:'sha1',672:'sha256',…}}}`) as `0`, and the API prints no `digest-algorithm` for that
+  row; a signed one carries `672` and the API prints `sha256`. Its neighbour `Key Type` is `opt:1` too
+  and carries `1` on the same row — mapped, so an ordinary value.
+
+Note that this `opt` is the **attribute**, not the `type:'opt'` **wrapper** of the first rule: an
+attribute-optional field has no flag key at all, which is why the two are carried separately
+(`WinboxJgField.IsOptional` vs `OptKey`).
 
 Only the marker is treated this way, never "the value equals its default": an IPsec proposal declares
 `def:1800` for its lifetime and the API prints `lifetime=30m` for a row carrying exactly that. And a
 `def` of `0xFFFFFFFF` that the catalog NAMES stays a value — `/ip/proxy` `max-cache-size=unlimited` is
-that number on the wire.
+that number on the wire. Symmetrically, an unmapped enum value on a field that is **not** `opt` keeps
+its raw text and is traced on `wbx.codec` rather than dropped: dropping it would hide a stale cached
+`.jg` after a RouterOS upgrade, which is the failure mode P2.25 already cost a release.
 
-**Coverage:** `IpProxyTest`, `IpSshTest`, `IpsecProposalTest` and `SystemLoggingActionTest` on whatever
-transport is under test; the four rules are pinned router-free by `WinboxEnumAndUnsetDecodeTests`.
+**Coverage:** `IpProxyTest`, `IpSshTest`, `IpsecProposalTest`, `SystemLoggingActionTest` and
+`CertificateTest` on whatever transport is under test; the rules are pinned router-free by
+`WinboxEnumAndUnsetDecodeTests`.
 
 ---
 

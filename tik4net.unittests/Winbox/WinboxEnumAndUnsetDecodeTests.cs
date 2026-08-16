@@ -204,5 +204,56 @@ namespace tik4net.unittests.Winbox
 
             Assert.AreEqual("unlimited", decoded["max-cache-size"]);
         }
+
+        // ── the fourth way of saying "not set": an opt enum outside its own map ─
+
+        // roteros.jg Certificate [19,1]. 'Digest Algorithm' carries the opt:1 ATTRIBUTE (not an opt WRAPPER —
+        // there is no flag key here) and a static map that has no member 0. 'Key Type' is the control case:
+        // opt:1 as well, but its value IS in its map. Live on 7.23.2 an UNSIGNED certificate's record carries
+        // u85=0 and u87=1, and the API prints key-type=rsa with no digest-algorithm at all.
+        private const string CertificateWindow =
+            "[{name:'Certificate',type:'map',path:[ 19,1 ],c:[" +
+            "{name:'Name',type:'string',id:'sfe0010'}," +
+            "{name:'Digest Algorithm',type:'enm',id:'u85',opt:1,values:{type:'static'," +
+              "map:{4:'md5',64:'sha1',672:'sha256',673:'sha384',674:'sha512'}}}," +
+            "{name:'Key Type',type:'enm',id:'u87',opt:1,values:{type:'static',map:{1:'RSA',2:'DSA',3:'EC'}}}," +
+            "{name:'Trust Store',type:'enm',id:'u25',values:{type:'static',map:{1:'none',2:'all'}}}]}]";
+
+        [TestMethod]
+        public void AnOptEnumOutsideItsOwnMapIsNotSet()
+        {
+            // webfig's types.enm.tostr: enum2string misses, then `if(attrs.opt) return ''`. RouterOS's API
+            // says the same thing by leaving the field out of the row — so must we, or the O/R mapper is
+            // handed a '0' it cannot convert (which is how this surfaced: a certificate created without a
+            // digest-algorithm failed to load back over native).
+            var decoded = Decode(Parse(CertificateWindow), new[] { 19, 1 },
+                Rec((0x85, "u8", (byte)0), (0x87, "u8", (byte)1), (0xFE0010, "str", "unsigned-cert")));
+
+            Assert.IsFalse(decoded.ContainsKey("digest-algorithm"),
+                "0 is not a member of this enum, and the field is opt — the API prints no digest-algorithm");
+            Assert.AreEqual("rsa", decoded["key-type"], "an opt enum whose value IS mapped is a normal value");
+        }
+
+        [TestMethod]
+        public void AMappedValueOnTheSameFieldIsStillReported()
+        {
+            // The signed certificates on the same table carry u85=672, and the API prints sha256. The rule
+            // must key on the value being outside the map, not on the field being optional.
+            var decoded = Decode(Parse(CertificateWindow), new[] { 19, 1 },
+                Rec((0x85, "u32", 672u), (0xFE0010, "str", "ca")));
+
+            Assert.AreEqual("sha256", decoded["digest-algorithm"]);
+        }
+
+        [TestMethod]
+        public void ANonOptEnumOutsideItsMapKeepsTheRawValue()
+        {
+            // Without opt, webfig renders the literal 'unknown' — it is not saying "not set", it is saying
+            // the catalog and the router disagree. Dropping the field here would hide a stale .jg after a
+            // RouterOS upgrade, so the raw text survives (and the codec traces it).
+            var decoded = Decode(Parse(CertificateWindow), new[] { 19, 1 }, Rec((0x25, "u32", 9u)));
+
+            Assert.AreEqual("9", decoded["trust-store"]);
+        }
     }
 }

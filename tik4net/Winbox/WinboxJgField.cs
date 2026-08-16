@@ -103,6 +103,35 @@ namespace tik4net.Winbox
         internal const long UnsetSentinel = 0xFFFFFFFFL;
 
         /// <summary>
+        /// The <c>.jg</c> <c>opt:1</c> ATTRIBUTE — "this field may legitimately have no value" — which is a
+        /// different thing from the <c>type:'opt'</c> WRAPPER that carries a present-flag bool in
+        /// <see cref="OptKey"/>. An attribute-optional field has no flag key: the router says "not set" by
+        /// sending a value the field's own domain does not contain.
+        /// </summary>
+        /// <remarks>
+        /// webfig's <c>types.enm.tostr</c> ends exactly on this distinction: a value with no member in the
+        /// map renders as the empty string when <c>attrs.opt</c> is set, and as the literal word
+        /// <c>unknown</c> when it is not. So <c>opt</c> is what separates "not set" from "we do not know
+        /// this value" — and RouterOS's own API takes the first branch by omitting the field.
+        /// </remarks>
+        internal bool IsOptional { get; }
+
+        /// <summary>
+        /// True when <paramref name="value"/> is a number this static enum has no member for AND the field is
+        /// <see cref="IsOptional"/> — i.e. the router is saying the field is NOT SET, exactly as webfig reads
+        /// it. Live on 7.23.2: an unsigned <c>/certificate</c> row carries <c>Digest Algorithm</c> (map
+        /// <c>{4:md5,64:sha1,672:sha256,…}</c>, <c>opt:1</c>) as <c>0</c>, and the API omits
+        /// <c>digest-algorithm</c> from that row altogether.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately NOT applied to a non-optional enum: there, an unmapped value is a <c>.jg</c>/router
+        /// disagreement worth surfacing rather than swallowing (P2.25), and webfig itself says <c>unknown</c>
+        /// instead of nothing.
+        /// </remarks>
+        internal bool IsUnmappedOptionalEnum(long value)
+            => IsOptional && EnumMap != null && !EnumMap.ContainsKey(unchecked((int)value));
+
+        /// <summary>
         /// For a field declared inside a <c>type:'deck'</c> PANE — the part of a window that WinBox shows only
         /// for one KIND of record (a logging action's memory/disk/remote settings, a queue type's
         /// pcq/red/sfq parameters) — the kind's label, normalized (<c>memory</c>, <c>fq-codel</c>).
@@ -152,8 +181,10 @@ namespace tik4net.Winbox
             IReadOnlyDictionary<int, string> enumMap = null, string uiType = null, int maskKey = 0,
             int[] refHandler = null, int optKey = 0, int notKey = 0, bool isRange = false,
             string allow = null, long? def = null,
-            string paneKind = null, int paneSelectorKey = 0, int[] paneValues = null, int offKey = 0)
+            string paneKind = null, int paneSelectorKey = 0, int[] paneValues = null, int offKey = 0,
+            bool isOptional = false)
         {
+            IsOptional = isOptional;
             OffKey = offKey;
             PaneKind = paneKind;
             PaneSelectorKey = paneSelectorKey;

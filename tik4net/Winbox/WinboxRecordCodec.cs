@@ -98,9 +98,14 @@ namespace tik4net.Winbox
         /// <c>dst-port</c> or <c>path</c> at all, while the M2 record carries their keys with the flags down.
         /// Decoding those produced <c>method=''</c>, which the O/R mapper then failed to convert to an enum —
         /// the failure was real, but the field should never have been there.</para>
-        /// <para>The other is the u32 unset marker on a field that declares it as its default
+        /// <para>The second is the u32 unset marker on a field that declares it as its default
         /// (<see cref="WinboxJgField.IsUnsetValue"/>): a logging action's <c>Syslog Severity</c> arrives as
         /// 4294967295 on a row where the API prints no <c>syslog-severity</c>.</para>
+        /// <para>The third is a static enum with <c>opt:1</c> carrying a value its map has no member for
+        /// (<see cref="WinboxJgField.IsUnmappedOptionalEnum"/>) — an unsigned certificate's
+        /// <c>digest-algorithm</c> arrives as <c>0</c> where the API prints nothing. This one is webfig's own
+        /// rule, read off <c>types.enm.tostr</c>, and it is why the <c>opt</c> ATTRIBUTE has to be carried
+        /// separately from the <c>opt</c> WRAPPER's flag key.</para>
         /// </remarks>
         private static bool IsUnsetField(WinboxJgField jf, object value,
             Dictionary<int, Tuple<string, object>> rec)
@@ -110,7 +115,12 @@ namespace tik4net.Winbox
                 && opt?.Item2 is bool present && !present)
                 return true;
             if (IsAnotherKindsField(jf, rec)) return true;
-            return jf.Def.HasValue && WinboxFieldResolver.TryToInt64(value, out long n) && jf.IsUnsetValue(n);
+            if (WinboxFieldResolver.TryToInt64(value, out long n))
+            {
+                if (jf.Def.HasValue && jf.IsUnsetValue(n)) return true;
+                if (jf.IsUnmappedOptionalEnum(n)) return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -245,6 +255,12 @@ namespace tik4net.Winbox
                     if (WinboxFieldResolver.TryToInt64(value, out long ev))
                     {
                         if (jf.EnumMap.TryGetValue(unchecked((int)ev), out var label)) return label;
+                        // A number the map has no member for. On an opt field that means "not set" and the
+                        // field never reaches here (IsUnsetField drops it); here it means the .jg and the
+                        // router disagree about the domain, which webfig itself calls 'unknown'. Fall through
+                        // to the raw text as before, but say so — a silent fall-through is how exactly this
+                        // class of mismatch survived a release (P2.25).
+                        TraceUnmappedEnum(jf, ev);
                     }
                     else TraceNonNumeric("enum", value);   // falls through to the raw text, see above
                 }
@@ -478,6 +494,17 @@ namespace tik4net.Winbox
             if (!TikWireTrace.Enabled) return;
             TikWireTrace.Emit("wbx.codec", TikWireDir.Note,
                 $"{what} value '{value}' ({value?.GetType().Name ?? "null"}) is not numeric, left as raw text");
+        }
+
+        // A numeric enum value the .jg map has no member for, on a field that is NOT opt (where it would mean
+        // "not set"). The catalog and the router disagree about this field's domain — usually a RouterOS
+        // upgrade against a stale cached .jg.
+        private static void TraceUnmappedEnum(WinboxJgField jf, long value)
+        {
+            if (!TikWireTrace.Enabled) return;
+            TikWireTrace.Emit("wbx.codec", TikWireDir.Note,
+                $"enum '{jf.ApiName}' (key 0x{jf.Key:X}) value {value} has no member in the .jg map "
+                + $"[{string.Join(",", jf.EnumMap.Keys)}], left as raw text");
         }
 
         /// <summary>
