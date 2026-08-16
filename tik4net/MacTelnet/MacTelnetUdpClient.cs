@@ -48,7 +48,10 @@ namespace tik4net.MacTelnet
         // ── Receive pump state ───────────────────────────────────────────────
         private readonly object                _rxLock   = new object();
         private readonly StringBuilder         _rx       = new StringBuilder();
-        private readonly ManualResetEventSlim  _rxSignal = new ManualResetEventSlim(false);
+        // Awaitable rather than a ManualResetEventSlim: this is what a command read spends its whole
+        // duration waiting on, and blocking on it meant every read occupied a thread-pool thread for as long
+        // as the router took to answer (P2.5 / A6). See AsyncSignal.
+        private readonly AsyncSignal           _rxSignal = new AsyncSignal();
         private Thread            _pump;
         private volatile bool     _pumpStop;
         private volatile Exception _pumpFault;
@@ -85,11 +88,21 @@ namespace tik4net.MacTelnet
 
         // ── Login ─────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Opens the session: MAC-layer connect, EC-SRP5 authentication, the VT100 startup exchange, and
+        /// then the pump that owns the socket from here on.
+        /// </summary>
+        /// <remarks>
+        /// The one place on this transport that is still a <c>Task.Run</c> façade, and deliberately so
+        /// (A6). Everything inside runs before the pump exists, so it is the only reader of the socket and
+        /// reads it with <c>SO_RCVTIMEO</c> — mixing that with <c>ReceiveAsync</c> is what made the timeout
+        /// be ignored on .NET Framework 4.8, and the EC-SRP5 handshake underneath is synchronous down
+        /// through the crypto. Open is once per connection and is not the operation the
+        /// <see cref="TikConnectionCapability.AsyncCommands"/> flag is about; the commands after it, which
+        /// are, hold no thread at all.
+        /// </remarks>
         internal Task LoginAsync(string host, string user, string pass, CancellationToken ct)
         {
-            // All socket operations are synchronous inside Task.Run so that
-            // ReceiveTimeout (SO_RCVTIMEO) is never mixed with ReceiveAsync.
-            // Mixing caused SO_RCVTIMEO to be ignored on .NET Framework 4.8.
             return Task.Run(() =>
             {
                 BaseConnect(host, CLIENT_TYPE);
@@ -110,31 +123,30 @@ namespace tik4net.MacTelnet
         /// completed output line to <paramref name="onLine"/> while the command is still running — the
         /// streaming driver registered by <see cref="MacTelnetConnection"/> (P2.50).
         /// </summary>
-        internal Task<string> SendCommandAndReadAsync(string command, Action<string> onLine, CancellationToken ct)
+        internal async Task<string> SendCommandAndReadAsync(string command, Action<string> onLine, CancellationToken ct)
         {
-            return Task.Run(() =>
-            {
-                string cmd = CliOutputHelper.InjectWithoutPaging(command);
-                ResetReadBuffer();
-                SendTerminalBytes(_encoding.GetBytes(cmd + "\r"));
-                string raw = ReadCommandResponse(cmd, onLine);
-                return CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), cmd);
-            }, ct);
+            // No Task.Run: the pump owns the socket, so nothing here blocks. The send is a UDP datagram plus
+            // its retransmit bookkeeping (MacLayerTransport.Send) and the read only waits for the pump to
+            // report progress — awaiting that holds no thread, which is the whole of A6 on this transport.
+            ct.ThrowIfCancellationRequested();
+            string cmd = CliOutputHelper.InjectWithoutPaging(command);
+            ResetReadBuffer();
+            SendTerminalBytes(_encoding.GetBytes(cmd + "\r"));
+            string raw = await ReadCommandResponseAsync(cmd, onLine).ConfigureAwait(false);
+            return CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), cmd);
         }
 
         /// <summary>
         /// Sends raw bytes (a control key such as Ctrl+X — no carriage return, no paging injection) and
         /// returns the ANSI-stripped response read up to the next stable shell prompt. Used for Safe Mode.
         /// </summary>
-        internal Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
+        internal async Task<string> SendRawAndReadAsync(byte[] raw, CancellationToken ct)
         {
-            return Task.Run(() =>
-            {
-                ResetReadBuffer();
-                SendTerminalBytes(raw);
-                // null -> tolerant; a control key need not be answered with a prompt.
-                return VtStripper.StripAnsi(ReadCommandResponse(null));
-            }, ct);
+            ct.ThrowIfCancellationRequested();
+            ResetReadBuffer();
+            SendTerminalBytes(raw);
+            // null -> tolerant; a control key need not be answered with a prompt.
+            return VtStripper.StripAnsi(await ReadCommandResponseAsync(null).ConfigureAwait(false));
         }
 
         /// <summary>
@@ -143,14 +155,12 @@ namespace tik4net.MacTelnet
         /// shell prompt (RouterOS redraws the prompt with the echoed stem), so it must be read on a settle
         /// window rather than a prompt match. ANSI-stripped.
         /// </summary>
-        internal Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
+        internal async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
         {
-            return Task.Run(() =>
-            {
-                ResetReadBuffer();
-                SendTerminalBytes(raw);
-                return ReadUntilQuiet(quietMs);
-            }, ct);
+            ct.ThrowIfCancellationRequested();
+            ResetReadBuffer();
+            SendTerminalBytes(raw);
+            return await ReadUntilQuietAsync(quietMs).ConfigureAwait(false);
         }
 
         // ── Close ─────────────────────────────────────────────────────────────
@@ -306,7 +316,7 @@ namespace tik4net.MacTelnet
         /// consumed while it runs (see <see cref="CliLineStreamer"/>). Does not affect when the read
         /// returns — the stable prompt is still the only terminator.
         /// </param>
-        private string ReadCommandResponse(string sentCommand, Action<string> onLine = null)
+        private async Task<string> ReadCommandResponseAsync(string sentCommand, Action<string> onLine = null)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
             DateTime? settleUntil = null;
@@ -344,7 +354,7 @@ namespace tik4net.MacTelnet
                         return stripped;
                 }
 
-                _rxSignal.Wait(ReadWaitMs);
+                await _rxSignal.WaitAsync(ReadWaitMs).ConfigureAwait(false);
             }
 
             string strippedSoFar = Snapshot(out _);
@@ -358,7 +368,7 @@ namespace tik4net.MacTelnet
         /// least some data (or the receive deadline expires). Returns the ANSI-stripped text.
         /// Used for Tab-completion (see <see cref="SendRawAndReadUntilQuietAsync"/>).
         /// </summary>
-        private string ReadUntilQuiet(int quietMs)
+        private async Task<string> ReadUntilQuietAsync(int quietMs)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
             DateTime lastData = DateTime.UtcNow;
@@ -378,7 +388,7 @@ namespace tik4net.MacTelnet
                 else if (lastLength > 0 && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs)
                     break;
 
-                _rxSignal.Wait(ReadWaitMs);
+                await _rxSignal.WaitAsync(ReadWaitMs).ConfigureAwait(false);
             }
 
             return Snapshot(out _);
