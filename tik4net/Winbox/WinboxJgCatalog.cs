@@ -1201,9 +1201,14 @@ namespace tik4net.Winbox
             string allow = child.TryGetValue("allow", out var alv) ? alv as string : null;
             string uiType = child.TryGetValue("type", out var tv) && tv is string ts ? ts : null;
 
+            // opt/scale/element type are read from the union node as well as the member: the union node is
+            // where 'Watch Address' carries its opt:1, and dropping it left the field looking mandatory, so
+            // the "not set" rules could not fire on it.
             AddField(handlerKey, label, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(child),
                 uiType, maskKey, ExtractRefHandler(child), isRange: isRange, allow: allow,
-                def: ExtractDef(child), pane: pane);
+                def: ExtractDef(child), pane: pane,
+                isOptional: IsOptionalAttr(union) || IsOptionalAttr(child),
+                elementUiType: ElementUiTypeOf(child), scale: ScaleOf(child));
         }
 
         // Registers a per-record action verb (doit/action label → SYS_CMD) under its owning handler and
@@ -1352,7 +1357,11 @@ namespace tik4net.Winbox
 
         private static void CollectEnumMap(object node, Dictionary<int, string> map, int depth)
         {
-            if (depth > 5) return;
+            // 10, not 5. Each wrapper costs TWO levels (the node, then the list under its `c`), and
+            // /ip/traffic-flow 'Interfaces' is enm → pair → pair → static — nine levels down from the field,
+            // so its map was cut off entirely and `interfaces=all` read as 4294967295. The guard is only
+            // there to stop a cyclic or pathological catalog, so it can afford to be generous.
+            if (depth > 10) return;
             if (node is List<object> list)
             {
                 foreach (var it in list) CollectEnumMap(it, map, depth + 1);

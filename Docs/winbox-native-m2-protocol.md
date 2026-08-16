@@ -603,6 +603,41 @@ JS was read and agreeing with it exactly: `/certificate` `expires-after` and `/i
 `expires-after` both read **89828 s** higher than the API on the same audit run, while uptime at that
 moment was 89828 s. Two paths still carry this in `KnownValueGaps`.
 
+### 26.2e Sentinels: three different reasons one number read raw
+
+The audit filed six paths under "sentinel". They were three unrelated defects and one genuine table.
+
+**A u32 enum member above `int.MaxValue` was unreachable.** `0xFFFFFFFF` is a real member on several maps
+(`passthrough` on `eap-methods`, `all` on traffic-flow `interfaces`). The catalog held it — the parser
+reads the key as a `long` and casts unchecked — but the LIST lookup parsed the wire element with
+`int.TryParse`, which `4294967295` fails, so the lookup never ran. The scalar path had always done it
+correctly; only the list path disagreed with itself.
+
+**A map four wrappers deep was cut off by the depth guard.** `/ip/traffic-flow` 'Interfaces' is
+`enm → pair → pair → static`, and each wrapper costs two levels (the node, then the list under its `c`) —
+nine levels down. The guard stopped at 5, so the field had no map at all. It is 10 now; it exists to stop
+a pathological catalog, not to bound legitimate nesting.
+
+**A `union` node's `opt` never reached the field.** `/system/watchdog` 'Watch Address' carries `opt:1` on
+the union, and `AddUnionField` read `ro`/`maskid`/`range`/`allow` from it but not `opt`, so the field
+looked mandatory and none of the "not set" rules could fire on it.
+
+**And a small table of words RouterOS spells and the `.jg` does not.** `MRRU` declares `min:1500` with
+`def:0`, so its zero is outside its own domain: there is no member to map and no sentinel `def` to
+recognise, yet the API prints `mrru=disabled`. Four fields need this, and every word is the router's own —
+three come from its tab completion, which completes each to exactly one value:
+
+```
+/interface/l2tp-server/server set mrru=          →  mrru=disabled
+/interface/l2tp-server/server set max-sessions=  →  max-sessions=unlimited
+/ip/cloud set ddns-update-interval=              →  ddns-update-interval=none
+```
+
+`watch-address` completes to nothing (it is a free-form address), so its word comes from the API's own
+print of the row the wire carries as `0.0.0.0`. The table is keyed by FIELD NAME, not by path — an `mrru`
+means the same thing on all four PPP server menus — and is gated on the field being `opt` and the value
+being exactly zero, so a real count is never rewritten.
+
 ### 26.3 "Not set" is an absent field, not an empty one
 
 Three ways the router says a field is not set, and in all of them the API answers by leaving the field

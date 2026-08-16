@@ -171,22 +171,18 @@ namespace tik4net.integrationtests
         {
             ["/certificate"]                          = "date/epoch (invalid-before/after), age=uptime-clock timestamp (expires-after), raw-u32 IP (subject-alt-name)",
             ["/interface/ethernet"]                   = "auto-negotiation reads the link's live state, not the setting",
-            ["/interface/l2tp-server/server"]          = "sentinel 0 (mrru=disabled, max-sessions=unlimited), set order (authentication)",
-            ["/interface/pptp-server/server"]          = "sentinel 0 (mrru=disabled), set order (authentication)",
-            ["/interface/sstp-server/server"]          = "sentinel 0 (mrru=disabled), set order (authentication)",
-            ["/interface/wireless/security-profiles"]  = "sentinel 0xFFFFFFFF (eap-methods=passthrough)",
-            ["/ip/cloud"]                             = "sentinel 0 (ddns-update-interval=none)",
+            ["/interface/l2tp-server/server"]          = "set order (authentication)",
+            ["/interface/pptp-server/server"]          = "set order (authentication)",
+            ["/interface/sstp-server/server"]          = "set order (authentication)",
             ["/ip/dhcp-client"]                       = "undecoded list (add-default-route), age=uptime-clock timestamp (expires-after)",
             ["/ip/hotspot/profile"]                    = "http-proxy is an ipaddr with the port on a sibling key; the API prints one 'addr:port'",
             ["/ip/ipsec/profile"]                      = "set order (dh-group); dpd-interval is an enm with postfix 's', not an interval",
             ["/ip/neighbor"]                          = "system-caps reads a value the API leaves empty",
-            ["/ip/traffic-flow"]                       = "sentinel 0xFFFFFFFF (interfaces=all)",
             ["/routing/table"]                        = "fib reads the flag's own bool where the API prints it empty",
             ["/snmp/community"]                       = "IPv6 any-address renders '::' where the API prints '::/0'",
             ["/system/clock"]                         = "date/epoch (date), gmt-offset in seconds",
             ["/system/ntp/client"]                     = "signed values (freq-drift, system-offset) decoded as unsigned u32",
             ["/system/ntp/server"]                     = "enabled reads the wrong key (native says true where the API says false)",
-            ["/system/watchdog"]                       = "sentinel 0.0.0.0 (watch-address=none)",
         };
 
         /// <summary>

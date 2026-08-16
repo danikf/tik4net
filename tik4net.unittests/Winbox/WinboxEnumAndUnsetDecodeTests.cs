@@ -361,6 +361,98 @@ namespace tik4net.unittests.Winbox
             Assert.AreEqual("unknown", decoded["mac-address"]);
         }
 
+        // ── a u32 enum member above int.MaxValue ──────────────────────────────
+
+        // wave2.jg Security Profile 'EAP Methods' and roteros.jg Traffic Flow 'Interfaces' both name
+        // 0xFFFFFFFF in their element map. The map itself held it (the parser reads the key as a long and
+        // casts unchecked); the LOOKUP parsed the wire element as an int, which 4294967295 is not, so it
+        // never ran and the number reached the caller raw.
+        private const string BigMemberWindow =
+            "[{name:'Security Profile',type:'map',path:[ 88,1 ],c:[" +
+            "{name:'EAP Methods',type:'multinumber',id:'U16',c:[{type:'enm',def:4294967295," +
+              "values:{type:'static',map:{13:'EAP-TLS',25:'PEAP',4294967295:'passthrough'}}}]}]}]";
+
+        [TestMethod]
+        public void AnEnumMemberAboveIntMaxValueIsFoundInAList()
+        {
+            var decoded = Decode(Parse(BigMemberWindow), new[] { 88, 1 },
+                Rec((0x16, "u32[]", "[4294967295]")));
+
+            Assert.AreEqual("passthrough", decoded["eap-methods"],
+                "the API prints eap-methods=passthrough for this row");
+        }
+
+        [TestMethod]
+        public void OrdinaryMembersOfTheSameListStillResolve()
+        {
+            var decoded = Decode(Parse(BigMemberWindow), new[] { 88, 1 },
+                Rec((0x16, "u32[]", "[13,25]")));
+
+            Assert.AreEqual("eap-tls,peap", decoded["eap-methods"]);
+        }
+
+        [TestMethod]
+        public void AMapNestedFourWrappersDeepIsStillFound()
+        {
+            // /ip/traffic-flow 'Interfaces' is enm → pair → pair → static, and each wrapper costs two levels
+            // (the node, then the list under its `c`) — nine down from the field. The old depth guard of 5
+            // cut it off, so the field had no map at all and `interfaces=all` read as 4294967295.
+            var catalog = Parse(
+                "[{name:'Traffic Flow Settings',type:'item',path:[ 97,1 ],c:[" +
+                "{name:'Interfaces',type:'multinumber',id:'U2',max:16,min:1,c:[{type:'enm',values:{type:'pair'," +
+                  "c:[{type:'pair',c:[{type:'static',map:{0:'local',4294967295:'all'}}," +
+                  "{type:'dynamic',path:[ 20,0 ]}]},{type:'dynamic',path:[ 20,90 ]}]}}]}]}]");
+
+            var map = catalog.GetHandlerFields(new[] { 97, 1 })["interfaces"].EnumMap;
+            Assert.IsNotNull(map, "the map is four wrappers down, which is not the same as absent");
+            Assert.AreEqual("all", map[unchecked((int)4294967295L)]);
+            Assert.AreEqual("local", map[0]);
+        }
+
+        // ── a zero RouterOS spells as a word ──────────────────────────────────
+
+        // ppp.jg L2TP Server (MRRU declares min:1500 with def:0, so 0 is outside its own domain) and
+        // roteros.jg IP Cloud / Watchdog. None of the three has a .jg member for the word.
+        private const string ZeroWordWindow =
+            "[{name:'L2TP Server',type:'item',path:[ 70,9 ],c:[" +
+            "{name:'MRRU',type:'number',id:'ua',def:0,max:16384,min:1500,opt:1}," +
+            "{name:'Max Sessions',type:'number',id:'u10',opt:1}," +
+            "{name:'Watch Address',type:'ipaddr',id:'u2',opt:1}," +
+            "{name:'Keepalive Timeout',type:'number',id:'u9',opt:1}]}]";
+
+        [TestMethod]
+        public void AZeroRouterOsSpellsAsAWordGetsTheWord()
+        {
+            var decoded = Decode(Parse(ZeroWordWindow), new[] { 70, 9 },
+                Rec((0xA, "u32", 0u), (0x10, "u32", 0u), (0x2, "u32", 0u)));
+
+            Assert.AreEqual("disabled", decoded["mrru"]);
+            Assert.AreEqual("unlimited", decoded["max-sessions"]);
+            Assert.AreEqual("none", decoded["watch-address"], "the wire carries 0.0.0.0; the API prints none");
+        }
+
+        [TestMethod]
+        public void ARealCountIsNotRewritten()
+        {
+            // The rule keys on the value being exactly zero, so a configured MRRU or session cap is reported
+            // as the number it is.
+            var decoded = Decode(Parse(ZeroWordWindow), new[] { 70, 9 },
+                Rec((0xA, "u32", 1600u), (0x10, "u32", 25u)));
+
+            Assert.AreEqual("1600", decoded["mrru"]);
+            Assert.AreEqual("25", decoded["max-sessions"]);
+        }
+
+        [TestMethod]
+        public void AZeroOnAFieldWithNoWordStaysZero()
+        {
+            // The table is the router's vocabulary for named fields, not a blanket "0 means off" rule —
+            // that would rewrite every zero counter in the tree.
+            var decoded = Decode(Parse(ZeroWordWindow), new[] { 70, 9 }, Rec((0x9, "u32", 0u)));
+
+            Assert.AreEqual("0", decoded["keepalive-timeout"]);
+        }
+
         // ── an interval is a duration, and it may be scaled ────────────────────
 
         // roteros.jg DNS Settings 'Cache Max TTL' (a plain interval), Watchdog 'Ping Start After Boot'

@@ -154,6 +154,7 @@ namespace tik4net.Winbox
         {
             if (jf != null && value != null)
             {
+                if (TryZeroWord(jf, value, out string zeroWord)) return zeroWord;
                 switch (jf.UiType)
                 {
                     case "ipaddr":
@@ -297,6 +298,42 @@ namespace tik4net.Winbox
         // webfig list types whose ELEMENT is a reference (types.multinumber and everything inheriting it).
         // multinumberrange/numberrangelist are ranges of literal numbers, not references, and are formatted
         // before this point.
+        /// <summary>
+        /// Fields where RouterOS spells a zero as a WORD, and the <c>.jg</c> gives that word nowhere: the
+        /// number is simply outside the field's declared domain (<c>MRRU</c> declares <c>min:1500</c> with
+        /// <c>def:0</c>), so there is no member to map and no sentinel <c>def</c> to recognise.
+        /// </summary>
+        /// <remarks>
+        /// <para>Every word here is the ROUTER's own, not a name chosen here. Three came from its tab
+        /// completion, which completes each of these to exactly one value and nothing else:
+        /// <c>set mrru=</c> → <c>mrru=disabled</c>, <c>set max-sessions=</c> → <c>max-sessions=unlimited</c>,
+        /// <c>set ddns-update-interval=</c> → <c>ddns-update-interval=none</c>. <c>watch-address</c> completes
+        /// to nothing (it is a free-form address), so its word comes from the API's own print of the row the
+        /// wire carries as <c>0.0.0.0</c>.</para>
+        /// <para>Keyed by FIELD NAME rather than by path on purpose: these are RouterOS-wide vocabulary, and
+        /// an <c>mrru</c> means the same thing on all four PPP server menus. Gated on
+        /// <see cref="WinboxJgField.IsOptional"/> so it cannot fire on some unrelated non-optional field
+        /// that happens to share a label, and on the value being exactly zero — a real count is untouched.</para>
+        /// </remarks>
+        private static readonly Dictionary<string, string> ZeroSpelledAsWord =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["mrru"]                  = "disabled",
+                ["max-sessions"]          = "unlimited",
+                ["ddns-update-interval"]  = "none",
+                ["watch-address"]         = "none",
+            };
+
+        private static bool TryZeroWord(WinboxJgField jf, object value, out string word)
+        {
+            word = null;
+            if (!jf.IsOptional || jf.ApiName == null) return false;
+            if (!ZeroSpelledAsWord.TryGetValue(jf.ApiName, out word)) { word = null; return false; }
+            if (WinboxFieldResolver.TryToInt64(value, out long n) && n == 0) return true;
+            word = null;
+            return false;
+        }
+
         private static bool IsMultiNumberList(string uiType)
             => string.Equals(uiType, "multinumber", StringComparison.OrdinalIgnoreCase);
 
@@ -713,8 +750,12 @@ namespace tik4net.Winbox
             foreach (System.Text.RegularExpressions.Match m in
                      System.Text.RegularExpressions.Regex.Matches(value?.ToString() ?? "", @"-?\d+"))
             {
-                if (enumMap != null && int.TryParse(m.Value, out int n)
-                    && enumMap.TryGetValue(n, out var label))
+                // long, then unchecked to int — the same two steps the SCALAR enum path takes, and the
+                // reason matters: a u32 member above int.MaxValue (0xFFFFFFFF is a real member on several
+                // maps — 'passthrough' on eap-methods, 'all' on traffic-flow interfaces) does not parse as
+                // an int at all, so the lookup never ran and the raw number reached the caller.
+                if (enumMap != null && long.TryParse(m.Value, out long n)
+                    && enumMap.TryGetValue(unchecked((int)n), out var label))
                     parts.Add(label);
                 else
                     parts.Add(m.Value);
