@@ -1,13 +1,15 @@
 # tik4net.mcp
 
 An [MCP](https://modelcontextprotocol.io) server that exposes MikroTik routers to an MCP client
-(Claude Code, Claude Desktop, …) through [tik4net](https://github.com/danikf/tik4net). It provides two
+(Claude Code, Claude Desktop, …) through [tik4net](https://github.com/danikf/tik4net). It provides three
 tools:
 - **`mikrotik_call`** — runs any RouterOS command over **every** tik4net transport, so you can inspect and
   modify a router, or debug/compare the wire protocol across transports, from an AI assistant.
 - **`mikrotik_cli_complete`** — drives RouterOS terminal **Tab-completion** to enumerate the menu tree and
   an object's settable parameters (the scriptable way to "map" a router / resolve an entity's writable
   fields). CLI terminal transports only.
+- **`mikrotik_discover`** — finds MikroTik routers on the local segment via MNDP broadcast. No host, no
+  credentials — the tool to reach for when you do not yet know the router's address or MAC.
 
 ## Install
 
@@ -155,6 +157,30 @@ names. Supported on all CLI terminal transports (Telnet, WinboxCli, MacTelnet, W
 
 // child menus + verbs under /ip
 { "host": "192.168.88.1", "username": "admin", "password": "", "input": "/ip " }
+```
+
+## The `mikrotik_discover` tool
+
+Finds MikroTik routers on the local network segment by listening for the **MNDP** broadcast (UDP 5678)
+that every RouterOS device sends. Takes **no host and no credentials** — this is the tool for when you do
+not yet know the router's address, when a rebuilt VM may have changed its IP/MAC/identity, or when several
+MikroTiks share the segment and picking the wrong one would be a coin flip.
+
+| Parameter            | Type | Description |
+|----------------------|------|-------------|
+| `timeoutSeconds`     | int  | How long to listen; default `6`, clamped to 1–60. 5–8 is plenty — devices re-broadcast every few seconds |
+| `stopWhenFirstFound` | bool | Return on the first answer. Faster, but you get whichever device broadcast first — do **not** use it when choosing between routers |
+
+Returns `{ timeoutSeconds, count, routers[] }`, each router carrying `identity`, `ipv4`, `ipv6`, `mac`,
+`version`, `platform`, `boardName`, `uptime`, `softwareId` and `interfaceName`. The `mac` is what the
+MAC-layer transports (`MacTelnet`, `WinboxCliMac`, `WinboxNativeMac`) need.
+
+> **Zero rows is ambiguous, and usually not an empty segment.** The common cause is the *host* firewall
+> dropping the inbound UDP 5678 broadcast — it fails silently and looks identical to "no routers here".
+> A router on a different subnet is invisible too: MNDP does not cross a router.
+
+```jsonc
+{ "timeoutSeconds": 6 }
 ```
 
 ## Documentation

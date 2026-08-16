@@ -16,7 +16,7 @@ tik4net is a .NET `netstandard2.0` library for communicating with MikroTik route
 > or you will get an assembly conflict. Your source code does not change.
 > See [Upgrading from 3.x to 4.0](https://github.com/danikf/tik4net/wiki/Upgrading-from-3.x-to-4.0).
 
-[Tools](https://github.com/danikf/tik4net/wiki/High-level-API-tools) — semi-automatic C# code generators for custom entities. The repo also ships an [MCP server](https://github.com/danikf/tik4net/wiki/MCP-server) exposing a `mikrotik_call` tool that lets an AI assistant run a command against a live router over any tik4net transport.
+[Tools](https://github.com/danikf/tik4net/wiki/High-level-API-tools) — semi-automatic C# code generators for custom entities. The repo also ships an [MCP server](https://github.com/danikf/tik4net/wiki/MCP-server) that lets an AI assistant run a command against a live router over any tik4net transport (`mikrotik_call`), enumerate a menu's writable fields via Tab-completion (`mikrotik_cli_complete`), and find routers on the local segment via MNDP (`mikrotik_discover`).
 
 # Features
 * Easy to use with [O/R mapper like highlevel API](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper)

@@ -303,6 +303,73 @@ public sealed class MikroTikTools
         }
     }
 
+    [McpServerTool]
+    [Description(
+        "Discover MikroTik routers on the local network segment via MNDP (MikroTik Neighbor Discovery " +
+        "Protocol) — a passive listen for the UDP 5678 broadcast every RouterOS device sends. " +
+        "NO host, credentials or IP are needed, which makes this the tool to use when you do not yet know " +
+        "the router's address, when a rebuilt VM may have changed IP/MAC/identity, or when several MikroTiks " +
+        "share the segment and picking the wrong one would be a coin flip. " +
+        "Returns a JSON object { timeoutSeconds, count, routers[] }, each router carrying identity, ipv4, " +
+        "ipv6, mac, version, platform, boardName, uptime and interfaceName — mac is what the MAC-layer " +
+        "transports (MacTelnet, WinboxCliMac, WinboxNativeMac) need. " +
+        "IMPORTANT: zero rows almost always means the HOST firewall is dropping the inbound UDP 5678 " +
+        "broadcast, not that no router is present — it fails silently and looks identical to an empty " +
+        "segment. A router on a different subnet is also invisible: MNDP does not cross a router.")]
+    public string MikrotikDiscover(
+        [Description("How long to listen, in seconds. 5-8 is plenty on a quiet segment — every device " +
+                     "re-broadcasts within a few seconds. Clamped to 1-60. Note the library's own " +
+                     "parameterless Discover() defaults to 60 s, which is far too long for interactive use.")]
+        int timeoutSeconds = 6,
+        [Description("Stop as soon as the first router answers instead of listening for the whole timeout. " +
+                     "Faster, but it returns whichever device happened to broadcast first — do NOT use it " +
+                     "when you intend to CHOOSE between the routers on the segment.")]
+        bool stopWhenFirstFound = false)
+    {
+        if (timeoutSeconds < 1) timeoutSeconds = 1;
+        if (timeoutSeconds > 60) timeoutSeconds = 60;
+
+        try
+        {
+            // iso-8859-1 is what MndpHelper's own overloads use; the MNDP strings are single-byte and a
+            // UTF-8 read mangles an identity containing a non-ASCII character.
+            var encoding = Encoding.GetEncoding("iso-8859-1");
+
+            var routers = tik4net.Mndp.MndpHelper
+                .Discover(TimeSpan.FromSeconds(timeoutSeconds), encoding, stopWhenFirstFound)
+                .Select(r => new
+                {
+                    identity = r.Identity,
+                    ipv4 = r.IPv4?.ToString(),
+                    ipv6 = string.IsNullOrEmpty(r.IPv6) ? null : r.IPv6,
+                    mac = r.Mac,
+                    version = r.Version,
+                    platform = r.Platform,
+                    boardName = r.BoardName,
+                    uptime = r.Uptime.ToString(),
+                    softwareId = r.SoftwareId,
+                    interfaceName = r.InterfaceName,
+                })
+                .OrderBy(r => r.identity, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            return JsonSerializer.Serialize(
+                new { timeoutSeconds, count = routers.Length, routers },
+                new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch (System.Net.Sockets.SocketException ex)
+        {
+            // The usual one is AddressAlreadyInUse: something else already holds UDP 5678 (WinBox's own
+            // neighbour list, MndpTray, a second copy of this server).
+            return $"ERROR (network): {ex.Message} — UDP {5678} may already be held by another "
+                 + "MNDP listener (WinBox's Neighbors tab, MndpTray), or blocked by the host firewall.";
+        }
+        catch (Exception ex)
+        {
+            return $"ERROR ({ex.GetType().Name}): {ex.Message}";
+        }
+    }
+
     // Parses MCP-format parameter rows ('=name=value' NameValue, '?name=value' Filter) into typed command
     // parameters for the ExecuteNonQuery() path — mirrors the row parsing in CallCommandSync so the two
     // execution modes accept an identical parameters format.

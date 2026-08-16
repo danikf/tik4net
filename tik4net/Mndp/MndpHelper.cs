@@ -49,6 +49,30 @@ namespace tik4net.Mndp
         }
 
         /// <summary>
+        /// Renders an MNDP address TLV (16 raw bytes for IPv6, 4 for IPv4) as an address string.
+        /// </summary>
+        /// <remarks>
+        /// TLV 15 carries the ADDRESS BYTES, not text, and it used to be read with the same
+        /// <c>encoding.GetString</c> as the neighbouring identity/version/board fields — which turned
+        /// <c>fe80::215:5dff:fe04:1f03</c> into sixteen latin-1 characters. It showed up the moment MNDP got
+        /// a tool of its own; before that nothing displayed the field. It also reached
+        /// <see cref="TikInstanceDescriptor.IpDescription"/>, which falls back to the v6 address when there
+        /// is no v4 one, so a v6-only neighbour described itself in mojibake.
+        /// </remarks>
+        /// <param name="raw">The TLV payload.</param>
+        /// <returns>The formatted address, or an empty string when the payload is not an address length.</returns>
+        internal static string FormatIpAddress(byte[] raw)
+        {
+            if (raw != null && (raw.Length == 16 || raw.Length == 4))
+            {
+                try { return new IPAddress(raw).ToString(); }
+                catch (ArgumentException) { /* fall through — not an address after all */ }
+            }
+
+            return string.Empty;
+        }
+
+        /// <summary>
         /// Discover with default 60s timeout and encoding.
         /// </summary>
         public static IEnumerable<TikInstanceDescriptor> Discover(bool stopWhenFirstFound = false)
@@ -223,7 +247,7 @@ namespace tik4net.Mndp
                     var softwareId = encoding.GetString(messageItems[11]);                                           // 11 = SoftwareId
                     var boardName = encoding.GetString(messageItems[12]);                                            // 12 = BoardName
                     var unpack = encoding.GetString(messageItems[14]);                                               // 14 = Unpack ???
-                    var IPV6 = messageItems.ContainsKey(15) ? encoding.GetString(messageItems[15]) : string.Empty;    // 15 = IPV6 (optional)
+                    var IPV6 = messageItems.ContainsKey(15) ? FormatIpAddress(messageItems[15]) : string.Empty;       // 15 = IPV6 (optional)
                     var interfaceName = encoding.GetString(messageItems[16]);                                        // 16 = InterfaceName
                     var IPV4 = messageItems.ContainsKey(17) ? new IPAddress(messageItems[17]) : IPAddress.Any;       // 17 = IPV4 (optional)    
 

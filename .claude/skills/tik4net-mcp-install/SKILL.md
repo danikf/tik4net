@@ -1,8 +1,8 @@
 ---
 name: tik4net-mcp-install
 description: >
-  Install, update or repair the tik4net.mcp MCP server (the `mikrotik_call` / `mikrotik_cli_complete`
-  tools) — either through the in-repo dev launcher or as a .NET global tool. Use when changes to
+  Install, update or repair the tik4net.mcp MCP server (the `mikrotik_call` / `mikrotik_cli_complete` /
+  `mikrotik_discover` tools) — either through the in-repo dev launcher or as a .NET global tool. Use when changes to
   Tools/tik4net.mcp/ or to tik4net itself are not showing up in the MCP tools, when the MCP server is
   missing/unavailable/failing to start, when a build fails with a locked file under
   Tools/tik4net.mcp/bin or in .dotnet\tools, when setting the server up on a fresh machine, or when
@@ -113,6 +113,6 @@ a server outliving its client is a real anomaly — check the parent still exist
 
 ## Related
 
-- `mikrotik` — using the server (`mikrotik_call`, transports, wire tracing)
+- `mikrotik` — using the server (`mikrotik_call`, `mikrotik_discover`, transports, wire tracing)
 - [`Tools/tik4net.mcp/README.md`](../../../Tools/tik4net.mcp/README.md) — tool parameters, the dev
   launcher, and the published-package install (`dotnet tool install -g tik4net.mcp`)

@@ -5,7 +5,8 @@ description: >
   any supported transport (API, REST, Telnet, MAC-Telnet, WinBox CLI/native). Use when the user wants
   to inspect router settings, list resources (addresses, routes, interfaces, firewall rules, etc.),
   change configuration, add/remove entries, run any MikroTik command, or debug/compare a transport
-  protocol.
+  protocol. Also covers finding routers on the local network by MNDP broadcast when their IP or MAC
+  is unknown ("which MikroTiks are on this segment", "what is the router's MAC").
 ---
 
 # MikroTik Router Skill
@@ -273,8 +274,28 @@ Returns `{ input, transport, tokens[], raw }`:
 Notes: include the trailing space; long names may be column-truncated by RouterOS (cross-check full names
 via `/path/print` `=detail=`); empty `tokens` means the input completed to a single unique token.
 
+## Finding a router — `mikrotik_discover`
+
+**`mikrotik_discover`** listens for the MNDP broadcast (UDP 5678) every RouterOS device sends. It takes
+**no `host` and no credentials**, so it is what to use before you have any: after a VM rebuild that may
+have moved the IP/MAC/identity, or when several MikroTiks share the segment.
+
+| Parameter | Description |
+|-----------|-------------|
+| `timeoutSeconds` | how long to listen; default `6`, clamped 1–60 (the library's own default is 60 s — too long here) |
+| `stopWhenFirstFound` | return on the first answer; **leave it off when choosing between routers**, since it returns whichever broadcast first |
+
+Returns `{ timeoutSeconds, count, routers[] }` with `identity`, `ipv4`, `ipv6`, `mac`, `version`,
+`platform`, `boardName`, `uptime`, `softwareId`, `interfaceName`. The `mac` is what the MAC-layer
+transports need.
+
+**Zero rows is ambiguous.** It usually means the *host* firewall is dropping the inbound broadcast, not
+that the segment is empty — the failure is silent and looks identical. MNDP also does not cross a router,
+so a device on another subnet never appears. Don't read an empty result as "the router is down"; confirm
+with a direct `mikrotik_call` if you have an address to try.
+
 ## Notes
 
 - Changing the tool surface (new transports/params/tools) requires the `tik4net-mcp` server to be rebuilt
-  and reloaded — if `transport` is rejected as unknown or `mikrotik_cli_complete` is missing, the running
-  server is stale.
+  and reloaded — if `transport` is rejected as unknown or `mikrotik_cli_complete` / `mikrotik_discover` is
+  missing, the running server is stale.

@@ -41,25 +41,25 @@ own library to provision the router is deliberate: it smoke-tests the transports
 the identity can all have changed, and there is usually **more than one** MikroTik reachable (the
 developer's own home router shares the segment). Never guess which one is the test box.
 
-MNDP is a broadcast listen — no credentials, no IP needed. The MCP server does not expose it, so drive
-the library directly against the built DLL:
+MNDP is a broadcast listen — no credentials, no IP needed. Use the **`mikrotik_discover`** MCP tool:
 
-```powershell
-Add-Type -Path "tik4net\bin\Debug\netstandard2.0\tik4net.dll"   # build first if missing
-$enc = [System.Text.Encoding]::GetEncoding('iso-8859-1')
-[tik4net.Mndp.MndpHelper]::Discover([TimeSpan]::FromSeconds(8), $enc, $false) |
-  Select-Object Identity, @{n='IP';e={$_.IpDescription}}, Mac, Version, BoardName | Format-Table -AutoSize
+```
+mikrotik_discover  timeoutSeconds: 6
 ```
 
-Use a short timeout — `Discover()` with no arguments defaults to **60 s**. Zero rows usually means the
-host firewall is blocking the UDP 5678 broadcast, not that the router is dead.
+Leave `stopWhenFirstFound` off: it returns whichever device broadcast first, and the whole point here is
+to CHOOSE between the routers on the segment. Zero rows usually means the host firewall is blocking the
+inbound UDP 5678 broadcast, not that the router is dead — it fails silently and looks exactly like an
+empty segment. A router on another subnet is invisible too; MNDP does not cross a router.
 
 Typical output — note that guessing here would be a coin flip:
 
-```
-Identity   IP            Mac               Version           BoardName
-home_rtr   10.0.0.1      AA:BB:CC:DD:EE:FF 7.17rc3 (testing) RB4011iGS+5HacQ2HnD
-CHR        10.0.0.2      AA:BB:CC:DD:EE:01 7.23.2 (stable)   CHR
+```json
+{ "count": 2, "routers": [
+  { "identity": "home_rtr", "ipv4": "10.0.0.1", "mac": "AA:BB:CC:DD:EE:FF",
+    "version": "7.17rc3 (testing) …", "boardName": "RB4011iGS+5HacQ2HnD" },
+  { "identity": "CHR",      "ipv4": "10.0.0.2", "mac": "AA:BB:CC:DD:EE:01",
+    "version": "7.23.2 (stable) …",  "boardName": "CHR" } ] }
 ```
 
 **Then ask the user which entry is the test router** (`AskUserQuestion`, one option per discovered
