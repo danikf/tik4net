@@ -86,15 +86,7 @@ namespace tik4net.Objects
             var command = CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
             var entities = command.LoadList<TEntity>().ToList();
 
-            var cnt = entities.Count;
-            if (cnt == 0)
-                throw new TikNoSuchItemException(command);
-            if (cnt > 1)
-                throw new TikCommandAmbiguousResultException(command, cnt);
-
-            var entity = entities[0];
-            TikChangeTracker.For(connection).TakeSnapshot(entity, metadata, GetProplistFields(command, metadata));
-            return entity;
+            return ExactlyOne(connection, command, entities, metadata);
         }
 
         /// <summary>
@@ -117,15 +109,7 @@ namespace tik4net.Objects
             var command = CreateLoadCommandWithFilter<TEntity>(connection, filterParameters);
             var entities = command.LoadList<TEntity>().ToList();
 
-            var cnt = entities.Count;
-            if (cnt == 0)
-                return default(TEntity);
-            if (cnt > 1)
-                throw new TikCommandAmbiguousResultException(command, cnt);
-
-            var entity = entities[0];
-            TikChangeTracker.For(connection).TakeSnapshot(entity, metadata, GetProplistFields(command, metadata));
-            return entity;
+            return AtMostOne(connection, command, entities, metadata);
         }
 
         /// <summary>
@@ -149,15 +133,7 @@ namespace tik4net.Objects
             var command = CreateLoadCommandWithFilter<TEntity>(connection, connection.CreateParameter(TikSpecialProperties.Id, id));
             var candidates = command.LoadList<TEntity>().ToList();
 
-            var cnt = candidates.Count;
-            if (cnt == 0)
-                throw new TikNoSuchItemException(command);
-            else if (cnt > 1)
-                throw new TikCommandAmbiguousResultException(command, cnt);
-
-            var entity = candidates[0];
-            TikChangeTracker.For(connection).TakeSnapshot(entity, metadata, GetProplistFields(command, metadata));
-            return entity;
+            return ExactlyOne(connection, command, candidates, metadata);
         }
 
         /// <summary>
@@ -181,15 +157,7 @@ namespace tik4net.Objects
             var command = CreateLoadCommandWithFilter<TEntity>(connection, connection.CreateParameter("name", name));
             var candidates = command.LoadList<TEntity>().ToList();
 
-            var cnt = candidates.Count;
-            if (cnt == 0)
-                throw new TikNoSuchItemException(command);
-            else if (cnt > 1)
-                throw new TikCommandAmbiguousResultException(command, cnt);
-
-            var entity = candidates[0];
-            TikChangeTracker.For(connection).TakeSnapshot(entity, metadata, GetProplistFields(command, metadata));
-            return entity;
+            return ExactlyOne(connection, command, candidates, metadata);
         }
 
         /// <summary>
@@ -325,6 +293,51 @@ namespace tik4net.Objects
             return command;
         }
 
+        // ── Shared between the synchronous loads above and their Task-based twins ──────────────────
+        //
+        // internal, not private: TikConnectionAsyncExtensions calls exactly these. What differs between a
+        // Load and a LoadAsync is one await — everything around it (how many rows are acceptable, which
+        // exception says so, and the change-tracker snapshot that makes a later Save able to send only what
+        // changed) has to stay identical, and the only way to be sure of that is for there to be one copy.
+
+        /// <summary>Requires exactly one row, and snapshots it for the change tracker.</summary>
+        internal static TEntity ExactlyOne<TEntity>(ITikConnection connection, ITikCommand command,
+            IList<TEntity> entities, TikEntityMetadata metadata)
+        {
+            var cnt = entities.Count;
+            if (cnt == 0)
+                throw new TikNoSuchItemException(command);
+            else if (cnt > 1)
+                throw new TikCommandAmbiguousResultException(command, cnt);
+
+            var entity = entities[0];
+            TikChangeTracker.For(connection).TakeSnapshot(entity, metadata, GetProplistFields(command, metadata));
+            return entity;
+        }
+
+        /// <summary>Allows an empty result, and snapshots the row when there is one.</summary>
+        internal static TEntity AtMostOne<TEntity>(ITikConnection connection, ITikCommand command,
+            IList<TEntity> entities, TikEntityMetadata metadata)
+        {
+            var cnt = entities.Count;
+            if (cnt == 0)
+                return default(TEntity);
+            if (cnt > 1)
+                throw new TikCommandAmbiguousResultException(command, cnt);
+
+            var entity = entities[0];
+            TikChangeTracker.For(connection).TakeSnapshot(entity, metadata, GetProplistFields(command, metadata));
+            return entity;
+        }
+
+        internal static ITikCommand CreateLoadCommand<TEntity>(ITikConnection connection,
+            params ITikCommandParameter[] parameters)
+            => CreateLoadCommandWithFilter<TEntity>(connection, parameters);
+
+        internal static void RegisterLoadedSnapshots<TEntity>(ITikConnection connection, IList<TEntity> entities,
+            TikEntityMetadata metadata, ITikCommand command)
+            => RegisterSnapshots(connection, entities, metadata, command);
+
         /// <summary>
         /// Registers snapshots for a batch of freshly loaded entities.
         /// </summary>
@@ -441,108 +454,165 @@ namespace tik4net.Objects
             IEnumerable<string> usedFieldsFilter = null,
             TikSaveMode saveMode = TikSaveMode.Default)
             where TEntity:new()
-        {            
+        {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             EnsureNotReadonlyEntity(metadata);
+            string id = ResolveSaveId(entity, metadata);
 
-            string id;
+            if (IsCreate(metadata, id))
+            {
+                var createCmd = BuildCreateCommand(connection, entity, metadata, usedFieldsFilter);
+                FinishCreate(connection, entity, metadata, createCmd.ExecuteScalar());
+                return;
+            }
+
+            if (NeedsFilterResolution(metadata, usedFieldsFilter))
+            {
+                var resolution = ResolveUpdateFilter(connection, entity, metadata, saveMode);
+                if (resolution.Kind == UpdateFilterKind.NothingChanged)
+                    return; // nothing changed — skip the API call
+                usedFieldsFilter = resolution.Kind == UpdateFilterKind.NeedsUnmodifiedEntity
+                    ? entity.GetDifferentFields(connection.LoadById<TEntity>(id))
+                    : resolution.Filter;
+            }
+
+            var update = BuildUpdateCommands(connection, entity, metadata, usedFieldsFilter, id);
+            foreach (var unsetCmd in update.UnsetCommands)
+                unsetCmd.ExecuteNonQuery();
+            if (update.SetCommand != null)
+                update.SetCommand.ExecuteNonQuery();
+            TikChangeTracker.For(connection).ResetSnapshot(entity, metadata);
+        }
+
+        // ── Save, split into the parts that decide and the parts that talk ─────────────────────────
+        //
+        // internal, not private, and split this way for one reason: SaveAsync in
+        // TikConnectionAsyncExtensions is the same decisions with awaits in place of the three calls that
+        // reach the router. Save's rules are subtle — what counts as a create, what OnlyChanges does when
+        // the entity was never loaded, which fields are unset rather than set, and that the unsets go first
+        // — and a second copy of them would be a second set of rules the moment either is touched.
+
+        internal static void EnsureNotReadonly(TikEntityMetadata metadata) => EnsureNotReadonlyEntity(metadata);
+
+        internal static string ResolveSaveId<TEntity>(TEntity entity, TikEntityMetadata metadata)
+        {
             if (metadata.IsSingleton)
-                id = null;
-            else
+                return null;
+            EnsureHasIdProperty(metadata);
+            return metadata.IdProperty.GetEntityValue(entity);
+        }
+
+        internal static bool IsCreate(TikEntityMetadata metadata, string id)
+            => !metadata.IsSingleton && string.IsNullOrEmpty(id);
+
+        internal static bool NeedsFilterResolution(TikEntityMetadata metadata, IEnumerable<string> usedFieldsFilter)
+            => !metadata.IsSingleton && usedFieldsFilter == null;
+
+        internal static ITikCommand BuildCreateCommand<TEntity>(ITikConnection connection, TEntity entity,
+            TikEntityMetadata metadata, IEnumerable<string> usedFieldsFilter)
+        {
+            ITikCommand createCmd = connection.CreateCommand(metadata.EntityPath + "/add", TikCommandParameterFormat.NameValue);
+
+            foreach (var property in metadata.Properties
+                .Where(pm => !pm.IsReadOnly)
+                .Where(pm => usedFieldsFilter == null || usedFieldsFilter.Contains(pm.FieldName, StringComparer.OrdinalIgnoreCase)))
             {
-                EnsureHasIdProperty(metadata);
-                id = metadata.IdProperty.GetEntityValue(entity);
+                // Send non-default values; always send mandatory fields, since the router
+                // requires them on /add even when their value happens to equal the default
+                // (e.g. an enum whose mandatory selection is also its zero/default member).
+                if (!property.HasDefaultValue(entity) || property.IsMandatory)
+                {
+                    createCmd.AddParameter(property.FieldName, property.GetEntityValue(entity));
+                }
             }
 
-            if (!metadata.IsSingleton && string.IsNullOrEmpty(id))
+            return createCmd;
+        }
+
+        internal static void FinishCreate<TEntity>(ITikConnection connection, TEntity entity,
+            TikEntityMetadata metadata, string id)
+        {
+            if (metadata.HasIdProperty)
+                metadata.IdProperty.SetEntityValue(entity, id); // update saved id into entity
+            TikChangeTracker.For(connection).TakeSnapshot(entity, metadata);
+        }
+
+        internal enum UpdateFilterKind
+        {
+            /// <summary>Use <c>Filter</c> as-is. <c>null</c> means "send every writable field".</summary>
+            UseFilter,
+            /// <summary>The change tracker says the entity is unmodified — do not call the router at all.</summary>
+            NothingChanged,
+            /// <summary>FullUpdate: the caller must load the unmodified entity and diff against it.</summary>
+            NeedsUnmodifiedEntity,
+        }
+
+        /// <summary>
+        /// Decides which fields an update should send. Pure except for reading the change tracker — the one
+        /// outcome that needs I/O is returned as <see cref="UpdateFilterKind.NeedsUnmodifiedEntity"/> rather
+        /// than performed here, so the caller does that load synchronously or asynchronously as it pleases.
+        /// </summary>
+        internal static (UpdateFilterKind Kind, IEnumerable<string> Filter) ResolveUpdateFilter<TEntity>(
+            ITikConnection connection, TEntity entity, TikEntityMetadata metadata, TikSaveMode saveMode)
+        {
+            var effectiveSaveMode = saveMode == TikSaveMode.Default ? TikDefaults.SaveMode : saveMode;
+            if (effectiveSaveMode != TikSaveMode.OnlyChanges)
+                return (UpdateFilterKind.NeedsUnmodifiedEntity, null); // FullUpdate: round-trip load to compute diff (3.x behavior)
+
+            var tracker = TikChangeTracker.For(connection);
+            var snapshot = tracker.GetSnapshot(entity);
+            if (snapshot == null)
             {
-                //create
-                ITikCommand createCmd = connection.CreateCommand(metadata.EntityPath + "/add", TikCommandParameterFormat.NameValue);
-
-                foreach (var property in metadata.Properties
-                    .Where(pm => !pm.IsReadOnly)
-                    .Where(pm => usedFieldsFilter == null || usedFieldsFilter.Contains(pm.FieldName, StringComparer.OrdinalIgnoreCase)))
-                {
-                    // Send non-default values; always send mandatory fields, since the router
-                    // requires them on /add even when their value happens to equal the default
-                    // (e.g. an enum whose mandatory selection is also its zero/default member).
-                    if (!property.HasDefaultValue(entity) || property.IsMandatory)
-                    {
-                        createCmd.AddParameter(property.FieldName, property.GetEntityValue(entity));
-                    }
-                }
-
-                id = createCmd.ExecuteScalar();
-                if (metadata.HasIdProperty)
-                    metadata.IdProperty.SetEntityValue(entity, id); // update saved id into entity
-                TikChangeTracker.For(connection).TakeSnapshot(entity, metadata);
+                // no snapshot → entity was not loaded via Load* → send all writable fields
+                return (UpdateFilterKind.UseFilter, null);
             }
-            else
+
+            var changes = tracker.GetChanges(entity, metadata);
+            if (changes.Count == 0)
+                return (UpdateFilterKind.NothingChanged, null);
+            return (UpdateFilterKind.UseFilter, changes.Keys);
+        }
+
+        /// <summary>
+        /// Builds the update traffic: the <c>/unset</c> commands (which must run first) and the single
+        /// <c>/set</c>, or <c>null</c> when the update turned out to carry no fields.
+        /// </summary>
+        internal static (ITikCommand SetCommand, IList<ITikCommand> UnsetCommands) BuildUpdateCommands<TEntity>(
+            ITikConnection connection, TEntity entity, TikEntityMetadata metadata,
+            IEnumerable<string> usedFieldsFilter, string id)
+        {
+            ITikCommand setCmd = connection.CreateCommand(metadata.EntityPath + "/set", TikCommandParameterFormat.NameValue);
+            List<string> fieldsToUnset = new List<string>();
+
+            foreach (var property in metadata.Properties
+                .Where(pm => !pm.IsReadOnly)
+                .Where(pm => usedFieldsFilter == null || usedFieldsFilter.Contains(pm.FieldName, StringComparer.OrdinalIgnoreCase)))
             {
-                //update (set+unset)
-                ITikCommand setCmd = connection.CreateCommand(metadata.EntityPath + "/set", TikCommandParameterFormat.NameValue);
-
-                if (!metadata.IsSingleton && usedFieldsFilter == null)
-                {
-                    var effectiveSaveMode = saveMode == TikSaveMode.Default ? TikDefaults.SaveMode : saveMode;
-                    if (effectiveSaveMode == TikSaveMode.OnlyChanges)
-                    {
-                        var tracker = TikChangeTracker.For(connection);
-                        var snapshot = tracker.GetSnapshot(entity);
-                        if (snapshot != null)
-                        {
-                            var changes = tracker.GetChanges(entity, metadata);
-                            if (changes.Count == 0)
-                                return; // nothing changed — skip the API call
-                            usedFieldsFilter = changes.Keys;
-                        }
-                        // no snapshot → entity was not loaded via Load* → fall through with
-                        // usedFieldsFilter = null, which sends all writable fields (FullUpdate)
-                    }
-                    else
-                    {
-                        // FullUpdate: round-trip load to compute diff (3.x behavior)
-                        var unmodifiedEntity = connection.LoadById<TEntity>(id);
-                        usedFieldsFilter = entity.GetDifferentFields(unmodifiedEntity);
-                    }
-                }
-
-                List<string> fieldsToUnset = new List<string>();
-
-                foreach (var property in metadata.Properties
-                    .Where(pm => !pm.IsReadOnly)
-                    .Where(pm => usedFieldsFilter == null || usedFieldsFilter.Contains(pm.FieldName, StringComparer.OrdinalIgnoreCase)))
-                {
-                    if (property.HasDefaultValue(entity) && property.UnsetOnDefault)
-                        fieldsToUnset.Add(property.FieldName);
-                    else
-                        setCmd.AddParameter(property.FieldName, property.GetEntityValue(entity)); //full update (all values)                        
-                }
-
-                if (fieldsToUnset.Count > 0)
-                {
-                    // this should also work (see http://forum.mikrotik.com/viewtopic.php?t=28821 )
-                    //ip/route/unset
-                    //=.id = *1
-                    //= value-name=routing-mark
-
-                    foreach (string fld in fieldsToUnset)
-                    {
-                        ITikCommand unsetCmd = connection.CreateCommand(metadata.EntityPath + "/unset", TikCommandParameterFormat.NameValue);
-                        unsetCmd.AddParameter(TikSpecialProperties.Id, id, TikCommandParameterFormat.NameValue);
-                        unsetCmd.AddParameter(TikSpecialProperties.UnsetValueName, fld);
-
-                        unsetCmd.ExecuteNonQuery();
-                    }
-                }
-                if (setCmd.Parameters.Any())
-                {
-                    if (!metadata.IsSingleton)
-                        setCmd.AddParameter(TikSpecialProperties.Id, id, TikCommandParameterFormat.NameValue);
-                    setCmd.ExecuteNonQuery();
-                }
-                TikChangeTracker.For(connection).ResetSnapshot(entity, metadata);
+                if (property.HasDefaultValue(entity) && property.UnsetOnDefault)
+                    fieldsToUnset.Add(property.FieldName);
+                else
+                    setCmd.AddParameter(property.FieldName, property.GetEntityValue(entity)); //full update (all values)
             }
+
+            // this should also work (see http://forum.mikrotik.com/viewtopic.php?t=28821 )
+            //ip/route/unset
+            //=.id = *1
+            //= value-name=routing-mark
+            var unsetCommands = new List<ITikCommand>();
+            foreach (string fld in fieldsToUnset)
+            {
+                ITikCommand unsetCmd = connection.CreateCommand(metadata.EntityPath + "/unset", TikCommandParameterFormat.NameValue);
+                unsetCmd.AddParameter(TikSpecialProperties.Id, id, TikCommandParameterFormat.NameValue);
+                unsetCmd.AddParameter(TikSpecialProperties.UnsetValueName, fld);
+                unsetCommands.Add(unsetCmd);
+            }
+
+            if (!setCmd.Parameters.Any())
+                return (null, unsetCommands);
+
+            if (!metadata.IsSingleton)
+                setCmd.AddParameter(TikSpecialProperties.Id, id, TikCommandParameterFormat.NameValue);
+            return (setCmd, unsetCommands);
         }
 
         /// <summary>
@@ -624,6 +694,12 @@ namespace tik4net.Objects
         /// <exception cref="TikNoSuchItemException">Invalid item (bad id/name etc.). Mikrotik API message: 'no such item'.</exception>
         public static void Delete<TEntity>(this ITikConnection connection, TEntity entity)
         {
+            BuildDeleteCommand(connection, entity).ExecuteNonQuery();
+        }
+
+        /// <summary>Shared with <c>DeleteAsync</c> — see the note on <see cref="ResolveSaveId"/>.</summary>
+        internal static ITikCommand BuildDeleteCommand<TEntity>(ITikConnection connection, TEntity entity)
+        {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             EnsureNotReadonlyEntity(metadata);
             EnsureHasIdProperty(metadata);
@@ -631,9 +707,8 @@ namespace tik4net.Objects
             if (string.IsNullOrEmpty(id))
                 throw new ArgumentException("Entity has no .id (entity is not loaded from mikrotik router)", "entity");
 
-            ITikCommand cmd = connection.CreateCommandAndParameters(metadata.EntityPath + "/remove", TikCommandParameterFormat.NameValue,
+            return connection.CreateCommandAndParameters(metadata.EntityPath + "/remove", TikCommandParameterFormat.NameValue,
                 TikSpecialProperties.Id, id);
-            cmd.ExecuteNonQuery();
         }
 
         /// <summary>

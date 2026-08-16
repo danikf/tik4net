@@ -190,6 +190,15 @@ namespace tik4net.Objects
                 });
         }
 
+        /// <summary>
+        /// Materializes one <c>!re</c> row into an entity. Internal rather than private so the Task-based
+        /// half of the mapper (<see cref="TikCommandAsyncExtensions"/>) deserializes through this same
+        /// method — an async load that materialized rows its own way would be a second mapper.
+        /// </summary>
+        internal static TEntity CreateEntity<TEntity>(ITikReSentence sentence)
+            where TEntity : new()
+            => CreateObject<TEntity>(sentence);
+
         private static TEntity CreateObject<TEntity>(ITikReSentence sentence)
             where TEntity : new()
         {
