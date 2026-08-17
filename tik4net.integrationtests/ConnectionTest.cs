@@ -15,7 +15,11 @@ namespace tik4net.integrationtests
 
         private static ITikConnection CreateOpenedConnection(TikConnectionType? connectionTypeOverride = null, string hostOverride = null, string userOverride = null, string passwordOverride = null)
         {
-            var result = ConnectionFactory.OpenConnection(connectionTypeOverride ?? DEFAULT_CONNECTION_TYPE, hostOverride ?? ConfigurationManager.AppSettings["host"], userOverride ?? ConfigurationManager.AppSettings["user"], passwordOverride ?? ConfigurationManager.AppSettings["pass"]);
+            var result = ConnectionFactory.CreateConnection(connectionTypeOverride ?? DEFAULT_CONNECTION_TYPE);
+            TestBase.ApplyLabPolicy(result);   // one of these tests opens API-SSL against a self-signed cert
+            result.Open(hostOverride ?? ConfigurationManager.AppSettings["host"],
+                userOverride ?? ConfigurationManager.AppSettings["user"],
+                passwordOverride ?? ConfigurationManager.AppSettings["pass"]);
 
             return result;
         }

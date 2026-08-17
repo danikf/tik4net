@@ -10,8 +10,7 @@ namespace tik4net
     /// It exists so <see cref="TikConnectionSetup"/> can apply its certificate options by <b>asking the
     /// connection whether they mean anything to it</b> rather than by knowing which concrete transports are
     /// TLS-capable — the failure this interface rules out is an option that is silently dropped on a
-    /// transport nobody remembered to wire it to (which is exactly what happened to
-    /// <see cref="AllowInvalidCertificate"/> on API-SSL before 4.0).
+    /// transport nobody remembered to wire it to.
     /// <para>
     /// A plain-text transport does not implement it. The plain and TLS forms of one transport are the same
     /// class here (<c>ApiConnection</c> is API or API-SSL depending on how it was created), so implementing

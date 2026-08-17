@@ -238,8 +238,10 @@ namespace tik4net.unittests.Connection
             {
                 Assert.AreEqual(fake.Supports(TikConnectionCapability.SafeMode), fake is ITikSafeModeConnection,
                     "SafeMode");
-                Assert.AreEqual(fake.Supports(TikConnectionCapability.Tagging), fake is ITikTaggedConnection,
-                    "Tagging");
+                // Cast through object: the compiler knows the fake's type and would fold the second test to
+                // a constant, which is a warning and, worse, stops it being a test.
+                Assert.AreEqual(fake.Supports(TikConnectionCapability.Tagging),
+                    (object)fake is ITikTaggedConnection, "Tagging");
             }
         }
 
@@ -298,8 +300,10 @@ namespace tik4net.unittests.Connection
                 {
                     Assert.AreEqual(15000, conn.ConnectTimeout, type + ": ConnectTimeout");
                     Assert.AreEqual(30000, conn.ReceiveTimeout, type + ": ReceiveTimeout");
+                    // Tagging is on by default since 5.0, and that default belongs to the transport rather
+                    // than to the setup — a connection from the shim carries it too.
                     if (conn is ITikTaggedConnection tagged)
-                        Assert.IsFalse(tagged.SendTagWithSyncCommand, type + ": SendTagWithSyncCommand");
+                        Assert.IsTrue(tagged.SendTagWithSyncCommand, type + ": SendTagWithSyncCommand");
                 }
             }
         }

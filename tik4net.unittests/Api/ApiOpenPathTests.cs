@@ -34,7 +34,12 @@ namespace tik4net.unittests.Api
         private const string TestPassword = "secret";
 
         /// <summary>Opens a connection against a scripted router and returns the login sentence it sent.</summary>
-        private static List<string> CaptureLoginSentence(Func<ApiConnection, string, int, Task> open)
+        /// <param name="open">How to open — the sync or the async entry point.</param>
+        /// <param name="tagged">
+        /// The connection's tagging policy. <c>true</c> is the 5.0 default, so the scripted router echoes
+        /// whatever tag it is given: a caller waiting on a tag is not answered by an untagged sentence.
+        /// </param>
+        private static List<string> CaptureLoginSentence(Func<ApiConnection, string, int, Task> open, bool tagged = true)
         {
             using var server = new FakeRouterServer();
             List<string> login = null;
@@ -43,14 +48,15 @@ namespace tik4net.unittests.Api
             {
                 server.AcceptClient();
                 login = server.ReadSentence();
-                server.WriteSentence("!done");           // 6.43+ login: one sentence, no challenge
-                server.ReadSentence();                   // /quit
-                server.WriteSentence("!fatal", "=message=session terminated on request");
+                server.WriteSentence(WithEchoedTag(login, "!done"));   // 6.43+ login: one sentence, no challenge
+                var quit = server.ReadSentence();
+                server.WriteSentence(WithEchoedTag(quit, "!fatal", "=message=session terminated on request"));
             });
 
             using (var connection = new ApiConnection(false))
             {
                 connection.ReceiveTimeout = 5000;        // keep a mis-addressed reply short, not 30 s
+                connection.SendTagWithSyncCommand = tagged;
                 open(connection, "127.0.0.1", server.Port).GetAwaiter().GetResult();
                 Assert.IsTrue(connection.IsOpened);
                 connection.Close();
@@ -59,6 +65,18 @@ namespace tik4net.unittests.Api
             Assert.IsTrue(serverTask.Wait(5000));
             return login;
         }
+
+        /// <summary>The reply words, with the request's own tag appended when it carried one.</summary>
+        private static string[] WithEchoedTag(List<string> request, params string[] replyWords)
+        {
+            string tag = request?.FirstOrDefault(
+                w => w.StartsWith(TikSpecialProperties.Tag + "=", StringComparison.Ordinal));
+            return tag == null ? replyWords : replyWords.Concat(new[] { tag }).ToArray();
+        }
+
+        /// <summary>The sentence with its tag word removed — what two tagged sentences can be compared by.</summary>
+        private static List<string> WithoutTag(List<string> sentence)
+            => sentence.Where(w => !w.StartsWith(TikSpecialProperties.Tag + "=", StringComparison.Ordinal)).ToList();
 
         [TestMethod]
         public void SyncAndAsyncOpen_SendTheSameLoginSentence()
@@ -70,31 +88,38 @@ namespace tik4net.unittests.Api
             });
             var fromAsync = CaptureLoginSentence((c, host, port) => c.OpenAsync(host, port, TestUser, TestPassword));
 
-            CollectionAssert.AreEqual(fromSync, fromAsync,
+            // Compared without the tag word: the two runs are separate connections and their tag counters
+            // are not expected to agree. Whether each is tagged AT ALL is the next test's business.
+            CollectionAssert.AreEqual(WithoutTag(fromSync), WithoutTag(fromAsync),
                 "Open and OpenAsync must be one implementation. Sync sent [" + string.Join(" ", fromSync)
                 + "], async sent [" + string.Join(" ", fromAsync) + "].");
+            Assert.AreEqual(fromSync.Count, fromAsync.Count, "one tagged and one untagged login");
         }
 
         /// <summary>
-        /// And the sentence they agree on is the untagged one. Asserted separately from the equality above:
-        /// were both paths to start tagging login, the two would still match each other while the wire form
-        /// had changed for every existing consumer.
+        /// Login follows the connection's tagging policy rather than having one of its own — so with the 5.0
+        /// default it is tagged, and turning tagging off puts the 4.x login sentence back on the wire.
+        /// Asserted separately from the equality above: were only one of the two paths to change, the pair
+        /// would still match each other while the wire form had changed.
         /// </summary>
         [TestMethod]
-        public void OpenAsync_DoesNotTagTheLogin()
+        public void TheLoginFollowsTheConnectionsTaggingPolicy()
         {
-            var login = CaptureLoginSentence((c, host, port) => c.OpenAsync(host, port, TestUser, TestPassword));
+            var tagged = CaptureLoginSentence((c, host, port) => c.OpenAsync(host, port, TestUser, TestPassword));
+            Assert.AreEqual("/login", tagged[0]);
+            Assert.IsTrue(tagged.Any(w => w.StartsWith(TikSpecialProperties.Tag + "=", StringComparison.Ordinal)),
+                "with tagging on (the default) the login carries a tag; sent: " + string.Join(" ", tagged));
 
-            Assert.AreEqual("/login", login[0]);
-            Assert.IsFalse(login.Any(w => w.Contains(TikSpecialProperties.Tag + "=")),
-                "login must stay untagged unless SendTagWithSyncCommand asks for it; sent: "
-                + string.Join(" ", login));
+            var untagged = CaptureLoginSentence(
+                (c, host, port) => c.OpenAsync(host, port, TestUser, TestPassword), tagged: false);
+            Assert.AreEqual("/login", untagged[0]);
+            Assert.IsFalse(untagged.Any(w => w.Contains(TikSpecialProperties.Tag + "=")),
+                "with tagging off the login must be untagged; sent: " + string.Join(" ", untagged));
         }
 
         /// <summary>
-        /// The connection's tagging policy still reaches the login when the caller does ask for it — so the
-        /// rule above is "follow SendTagWithSyncCommand", not "never tag", which is what the synchronous path
-        /// has always done.
+        /// The explicit form of the same rule, driven through the scripted router rather than the helper, so
+        /// the tag the router echoes is the one the client waits on.
         /// </summary>
         [TestMethod]
         public void SendTagWithSyncCommand_StillTagsTheLogin()

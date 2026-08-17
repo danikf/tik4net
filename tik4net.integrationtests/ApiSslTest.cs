@@ -20,7 +20,10 @@ namespace tik4net.integrationtests
         [TestInitialize]
         public void Init()
         {
-            _connection = ConnectionFactory.OpenConnection(TikConnectionType.ApiSsl, ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
+            _connection = ConnectionFactory.CreateConnection(TikConnectionType.ApiSsl);
+            TestBase.ApplyLabPolicy(_connection);   // the lab CHR's certificate is self-signed
+            _connection.Open(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"],
+                ConfigurationManager.AppSettings["pass"]);
         }
 
         [TestCleanup]

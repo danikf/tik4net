@@ -46,7 +46,9 @@ namespace tik4net.Api
         private bool _safeModeHeld = false;
         private bool _isSsl = false;
         private Encoding _encoding = Encoding.UTF8;
-        private bool _sendTagWithSyncCommand = false;
+        // On since 5.0: the router echoes the tag back, and that is the only thing tying a reply to the
+        // caller that asked for it. Off, two threads on one connection cross-deliver rows rather than fail.
+        private bool _sendTagWithSyncCommand = true;
         private int _sendTimeout;
         private int _receiveTimeout = 30000;
         private TcpClient _tcpConnection;
@@ -128,10 +130,10 @@ namespace tik4net.Api
 
         /// <inheritdoc/>
         /// <remarks>
-        /// Applies to API-SSL only. <c>false</c> performs standard chain/hostname validation against the OS
-        /// trust store.
+        /// Applies to API-SSL only. The default is <c>false</c> since 5.0: standard chain/hostname
+        /// validation against the OS trust store.
         /// </remarks>
-        public bool AllowInvalidCertificate { get; set; } = true;
+        public bool AllowInvalidCertificate { get; set; }
 
         /// <inheritdoc/>
         public RemoteCertificateValidationCallback CertificateValidationCallback { get; set; }

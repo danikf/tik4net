@@ -68,8 +68,10 @@ namespace tik4net.integrationtests
             Console.WriteLine($"=== Transport: {type} ===");
             try
             {
-                using (var conn = ConnectionFactory.OpenConnection(type, host, user, pass))
+                using (var conn = ConnectionFactory.CreateConnection(type))
                 {
+                    TestBase.ApplyLabPolicy(conn);   // two of the four rows are TLS against a self-signed cert
+                    conn.Open(host, user, pass);
                     Login_ListInterfaces_SetComment_Body(conn);
                 }
             }

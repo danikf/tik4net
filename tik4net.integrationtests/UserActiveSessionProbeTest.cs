@@ -109,9 +109,7 @@ namespace tik4net.integrationtests
         {
             var (host, user, pass) = Cfg();
             var conn = ConnectionFactory.CreateConnection(type);
-            string mac = ConfigurationManager.AppSettings["routerMac"];
-            if (!string.IsNullOrEmpty(mac) && conn is ITikMacLayerConnection macConn)
-                macConn.RouterMac = mac;
+            TestBase.ApplyLabPolicy(conn);   // MAC coordinates + the lab's self-signed certificate
             conn.Open(host, user, pass);
             return conn;
         }

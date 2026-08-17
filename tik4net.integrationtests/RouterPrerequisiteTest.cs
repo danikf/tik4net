@@ -101,8 +101,10 @@ namespace tik4net.integrationtests
         {
             try
             {
-                using (var conn = ConnectionFactory.OpenConnection(TikConnectionType.ApiSsl, Host, User, Pass))
+                using (var conn = ConnectionFactory.CreateConnection(TikConnectionType.ApiSsl))
                 {
+                    TestBase.ApplyLabPolicy(conn);   // the lab CHR's certificate is self-signed
+                    conn.Open(Host, User, Pass);
                     var version = conn.CreateCommand("/system/resource/print")
                                       .ExecuteSingleRow().GetResponseField("version");
                     Console.WriteLine("API-SSL connected. Version: " + version);

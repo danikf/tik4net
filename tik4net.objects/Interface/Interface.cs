@@ -30,10 +30,12 @@ namespace tik4net.Objects.Interface
         public string DefaultName { get; private set; }
 
         /// <summary>
-        /// type
+        /// type — what kind of interface this is (<c>ether</c>, <c>bridge</c>, <c>vlan</c>, …). Read-only:
+        /// an interface's kind is decided when it is created, and <c>/interface set</c> does not accept it
+        /// (verified by tab completion on RouterOS 7.23: <c>comment disabled l2mtu mtu name numbers</c>).
         /// </summary>
-        [TikProperty("type")]
-        public string Type { get; set; }
+        [TikProperty("type", IsReadOnly = true)]
+        public string Type { get; private set; }
 
         /// <summary>
         /// mtu
@@ -42,16 +44,28 @@ namespace tik4net.Objects.Interface
         public string Mtu { get; set; }
 
         /// <summary>
-        /// mac-address
+        /// l2mtu — the layer-2 MTU. One of the five arguments <c>/interface set</c> actually accepts
+        /// (<c>comment disabled l2mtu mtu name numbers</c>, RouterOS 7.23); most interface kinds report it
+        /// read-only and refuse a change, which the router answers with a trap rather than silence.
         /// </summary>
-        [TikProperty("mac-address")]
-        public string MacAddress { get; set; }
+        [TikProperty("l2mtu")]
+        public string L2Mtu { get; set; }
 
         /// <summary>
-        /// fast-path
+        /// mac-address. Read-only <b>here</b>: <c>/interface set</c> does not accept it. It is settable on
+        /// the concrete menu the interface belongs to — <see cref="InterfaceEthernet"/> has a writable
+        /// <c>mac-address</c>, and that is the entity to use for changing one.
         /// </summary>
-        [TikProperty("fast-path")]
-        public bool? FastPath { get; set; }
+        [TikProperty("mac-address", IsReadOnly = true)]
+        public string MacAddress { get; private set; }
+
+        /// <summary>
+        /// fast-path. Read-only <b>here</b>, for the same reason as <see cref="MacAddress"/>: the toggle
+        /// lives on the concrete interface menu (<c>/interface/ethernet</c> and friends), not on
+        /// <c>/interface</c>, which reports the resulting state.
+        /// </summary>
+        [TikProperty("fast-path", IsReadOnly = true)]
+        public bool? FastPath { get; private set; }
 
         /// <summary>
         /// rx-byte

@@ -20,6 +20,28 @@ namespace tik4net.unittests.Api
 
         public int Port { get; }
 
+        /// <summary>
+        /// When true (the default), the server echoes the tag of the last sentence it read onto every reply
+        /// that does not already carry one — which is what a real RouterOS does, and what makes a scripted
+        /// conversation work regardless of the client's tagging policy. Since 5.0 the client tags
+        /// synchronous commands by default, so a fake that never echoed would answer a caller waiting on a
+        /// tag with a sentence addressed to nobody, and every test would time out rather than fail.
+        /// <para>
+        /// Set it to <c>false</c> to script exactly that on purpose — an untagged or mis-addressed reply is
+        /// a case worth testing, it just has to be asked for.
+        /// </para>
+        /// </summary>
+        public bool EchoTags { get; set; } = true;
+
+        private string _lastRequestTag;
+
+        /// <summary>
+        /// The <c>.tag=…</c> word of the last sentence read, or <c>null</c> when it carried none. Needed by
+        /// the tests that write their reply word by word (<see cref="WriteWordWithFiveByteLength"/>) and so
+        /// bypass <see cref="WriteSentence"/>'s echo.
+        /// </summary>
+        public string LastRequestTag => _lastRequestTag;
+
         public FakeRouterServer()
         {
             _listener = new TcpListener(IPAddress.Loopback, 0);
@@ -56,8 +78,11 @@ namespace tik4net.unittests.Api
                 }
                 words.Add(Encoding.UTF8.GetString(buffer));
             }
+            _lastRequestTag = words.Find(w => w.StartsWith(TagPrefix, StringComparison.Ordinal));
             return words;
         }
+
+        private const string TagPrefix = TikSpecialProperties.Tag + "=";   // ".tag="
 
         private long ReadWordLength()
         {
@@ -100,6 +125,9 @@ namespace tik4net.unittests.Api
         {
             foreach (var word in words)
                 WriteWord(word);
+            if (EchoTags && _lastRequestTag != null
+                && Array.FindIndex(words, w => w.StartsWith(TagPrefix, StringComparison.Ordinal)) < 0)
+                WriteWord(_lastRequestTag);
             EndSentence();
         }
 

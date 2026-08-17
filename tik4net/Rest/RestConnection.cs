@@ -94,7 +94,7 @@ namespace tik4net.Rest
         /// API-SSL validation, so one callback set on
         /// <see cref="TikConnectionSetup.CertificateValidationCallback"/> drives both transports.
         /// </remarks>
-        public bool AllowInvalidCertificate { get; set; } = true;
+        public bool AllowInvalidCertificate { get; set; }
 
         /// <inheritdoc/>
         public RemoteCertificateValidationCallback CertificateValidationCallback { get; set; }

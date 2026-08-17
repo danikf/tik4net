@@ -11,9 +11,23 @@ namespace tik4net.unittests.Api
     public class ApiConnectionCertificateValidationTests
     {
         [TestMethod]
-        public void AllowInvalidCertificate_DefaultTrue_AcceptsEvenWithPolicyErrors()
+        public void AllowInvalidCertificate_DefaultsToFalse_RejectingOnPolicyErrors()
         {
+            // The 5.0 default (D5). A router's self-signed certificate is the common case, so this is the
+            // flip most likely to be noticed — which is the point: accepting an unverifiable certificate is
+            // now something a caller asks for rather than something they get by not asking.
             var connection = new ApiConnection(isSsl: true);
+
+            bool result = connection.ValidateServerCertificate(
+                null, null, null, SslPolicyErrors.RemoteCertificateChainErrors);
+
+            Assert.IsFalse(result);
+        }
+
+        [TestMethod]
+        public void AllowInvalidCertificate_True_AcceptsEvenWithPolicyErrors()
+        {
+            var connection = new ApiConnection(isSsl: true) { AllowInvalidCertificate = true };
 
             bool result = connection.ValidateServerCertificate(
                 null, null, null, SslPolicyErrors.RemoteCertificateChainErrors);

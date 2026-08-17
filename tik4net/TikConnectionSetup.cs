@@ -81,11 +81,16 @@ namespace tik4net
         public Encoding Encoding { get; set; } = Encoding.UTF8;
 
         /// <summary>
-        /// Applied to <see cref="ITikTaggedConnection.SendTagWithSyncCommand"/> — set it when one binary-API
-        /// connection is used from several threads. The transports that correlate replies by their own
-        /// means do not implement that interface and never see it.
+        /// Applied to <see cref="ITikTaggedConnection.SendTagWithSyncCommand"/>. The transports that
+        /// correlate replies by their own means do not implement that interface and never see it.
         /// </summary>
-        public bool SendTagWithSyncCommand { get; set; }
+        /// <remarks>
+        /// <b>The default is <c>true</c> since 5.0.</b> It costs one tagged word per command, and without it
+        /// two threads sharing one API connection cross-deliver rows — a wrong <i>answer</i> rather than an
+        /// error, which is the worst way for a default to be wrong. Set it to <c>false</c> only to keep the
+        /// wire byte-identical to 4.x.
+        /// </remarks>
+        public bool SendTagWithSyncCommand { get; set; } = true;
 
         /// <summary>
         /// Applied to <see cref="ITikConnection.DebugEnabled"/> when set. <c>null</c> (the default) leaves
@@ -112,11 +117,17 @@ namespace tik4net
         public TikCancellationMode CancellationMode { get; set; } = TikCancellationMode.Cooperative;
 
         /// <summary>
-        /// When true, self-signed / invalid SSL certificates on the router are accepted.
-        /// Default is true (matching prior behaviour). Applies to both API-SSL and REST-SSL.
-        /// Ignored when <see cref="CertificateValidationCallback"/> is set.
+        /// When true, self-signed / invalid SSL certificates on the router are accepted. Applies to both
+        /// API-SSL and REST-SSL; ignored when <see cref="CertificateValidationCallback"/> is set.
         /// </summary>
-        public bool AllowInvalidCertificate { get; set; } = true;
+        /// <remarks>
+        /// <b>The default is <c>false</c> since 5.0</b> — the certificate is validated against the OS trust
+        /// store. A RouterOS device usually presents a self-signed certificate, so a lab or an internal
+        /// deployment that has not installed a trusted one has to say so: set this to <c>true</c>, or better,
+        /// pin the router's certificate through <see cref="CertificateValidationCallback"/>. "Encrypted but
+        /// unauthenticated" is the setting that has to be asked for, not the one you get by not asking.
+        /// </remarks>
+        public bool AllowInvalidCertificate { get; set; }
 
         /// <summary>
         /// Optional custom certificate validation, applied to both API-SSL and REST-SSL. When set, it

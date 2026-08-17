@@ -255,6 +255,10 @@ namespace tik4net.unittests.Api
                 // >= 0x10000000 bytes, but the decode path (ApiConnection.ReadWordLength) is the same.
                 server.WriteWordWithFiveByteLength("!done");
                 server.WriteWordWithFiveByteLength("=ret=five-byte-length-value");
+                // The tag too, in the same encoding: writing the words by hand bypasses WriteSentence's
+                // echo, and since 5.0 the command that asked for this carries a tag to be answered on.
+                if (server.LastRequestTag != null)
+                    server.WriteWordWithFiveByteLength(server.LastRequestTag);
                 server.EndSentence();
 
                 server.ReadSentence(); // /quit

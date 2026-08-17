@@ -301,8 +301,25 @@ namespace tik4net.integrationtests
         protected ITikConnection CreateUnopenedConnection()
         {
             var conn = ConnectionFactory.CreateConnection(ResolveConnectionType());
-            ApplyRouterMac(conn);
+            ApplyLabPolicy(conn);
             return conn;
+        }
+
+        /// <summary>
+        /// The two things every connection in this suite needs before it opens: the router MAC (MAC-layer
+        /// transports) and permission to accept the lab router's certificate (TLS transports).
+        /// </summary>
+        /// <remarks>
+        /// Since 5.0 an invalid certificate is rejected by default, and the CHR under test presents a
+        /// self-signed one — so <c>apissl</c>/<c>restssl</c> only connect because this says so, out loud, in
+        /// one place. That is the intended shape of the migration: a lab opts in, it does not inherit
+        /// "encrypted but unauthenticated" from a default.
+        /// </remarks>
+        public static void ApplyLabPolicy(ITikConnection conn)
+        {
+            ApplyRouterMac(conn);
+            if (conn is ITikTlsConnection tls)
+                tls.AllowInvalidCertificate = true;
         }
 
         /// <summary>Opens a brand-new connection to the router for the resolved transport, with retry.</summary>
@@ -321,7 +338,7 @@ namespace tik4net.integrationtests
                 try
                 {
                     var conn = ConnectionFactory.CreateConnection(connType);
-                    ApplyRouterMac(conn);   // MAC-layer transports: bypass MNDP using App.config routerMac
+                    ApplyLabPolicy(conn);   // MAC coordinates + the lab's self-signed certificate
                     conn.Open(host, user, pass);
                     conn.DebugEnabled = true;
                     return conn;

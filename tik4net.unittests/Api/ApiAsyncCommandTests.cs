@@ -76,8 +76,8 @@ namespace tik4net.unittests.Api
 
         /// <summary>
         /// An async command is always tagged, even with <see cref="ApiConnection.SendTagWithSyncCommand"/>
-        /// left at its default — an untagged command cannot be cancelled, because <c>/cancel</c> addresses a
-        /// tag.
+        /// turned <b>off</b> — an untagged command cannot be cancelled, because <c>/cancel</c> addresses a
+        /// tag. The flag is on by default since 5.0, so the test turns it off to have anything to prove.
         /// </summary>
         [TestMethod]
         public async Task AsyncCommandsAreAlwaysTagged()
@@ -100,8 +100,8 @@ namespace tik4net.unittests.Api
 
             using (var connection = new ApiConnection(false))
             {
+                connection.SendTagWithSyncCommand = false;
                 connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
-                Assert.IsFalse(connection.SendTagWithSyncCommand, "precondition: tagging is off by default");
 
                 await connection.CreateCommand("/system/identity/set").ExecuteNonQueryAsync();
 
