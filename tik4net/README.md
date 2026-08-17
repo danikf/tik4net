@@ -12,7 +12,10 @@ capability model.
 
 ## What is in here
 
-- `ITikConnection` / `ITikCommand` — the ADO.NET-shaped contract every transport implements.
+- `ITikConnection` / `ITikCommand` — the ADO.NET-shaped contract every transport implements, plus
+  `ITikRawSentenceConnection`, `ITikSafeModeConnection`, `ITikTaggedConnection` and the other
+  capability-paired interfaces a transport implements only when it has the feature — see
+  [ARCHITECTURE.md](../ARCHITECTURE.md#the-contract).
 - `TikConnectionCapability` — the fail-closed feature-gating model. A connection that does not
   implement `ITikConnectionCapabilities` supports nothing.
 - Transports: `Api/` (binary sentence protocol, the reference implementation), `Rest/`, `Telnet/`,

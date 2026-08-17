@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -20,6 +20,25 @@ namespace tik4net
     /// </example>
     /// </summary>
     /// <remarks>
+    /// <b>What a connection is, and what it is not.</b> This interface is the lifecycle (open, close,
+    /// timeouts, encoding, diagnostics) and the command factory — what every transport has. The parts a
+    /// transport can reasonably lack are separate interfaces it implements when it has them, each paired
+    /// with the capability flag that answers the same question:
+    /// <list type="bullet">
+    /// <item><see cref="ITikRawSentenceConnection"/> — the low-level <c>CallCommandSync</c> dialect.</item>
+    /// <item><see cref="ITikSafeModeConnection"/> — Safe Mode bound to the session
+    /// (<see cref="TikConnectionCapability.SafeMode"/>); stateless REST has none.</item>
+    /// <item><see cref="ITikTaggedConnection"/> — per-command tagging
+    /// (<see cref="TikConnectionCapability.Tagging"/>), i.e. the binary API.</item>
+    /// <item><see cref="ITikTlsConnection"/>, <see cref="ITikMacLayerConnection"/>,
+    /// <see cref="ITikCancellationModeConnection"/> — the options that are not universal.</item>
+    /// </list>
+    /// Extension methods keep the old spellings working (<c>connection.CallCommandSync(…)</c>,
+    /// <c>connection.SafeModeTake()</c>): they cast, and throw
+    /// <see cref="TikConnectionCapabilityNotSupportedException"/> when the transport does not have the
+    /// feature — the same failure the fat interface produced at runtime, minus the obligation to
+    /// implement it.
+    /// <br/>
     /// <b>What is safe to do concurrently on one connection.</b> The library states this rather than
     /// leaving it to be discovered, because the answer is not the same on every transport and the failure
     /// mode of guessing wrong is a wrong <i>answer</i> rather than an exception.
@@ -29,8 +48,8 @@ namespace tik4net
     /// a reply to its caller by its own means — the API by the <c>.tag</c> word, REST because every command
     /// is a separate HTTP request, native WinBox by the M2 request id — so several callers may have a
     /// command in flight at once and each gets its own reply.
-    /// <b>On the binary API this needs <see cref="SendTagWithSyncCommand"/> set to <c>true</c> first</b>;
-    /// see that property.
+    /// <b>On the binary API this needs <see cref="ITikTaggedConnection.SendTagWithSyncCommand"/> set to
+    /// <c>true</c> first</b>; see that property.
     /// </item>
     /// <item>
     /// <b>Commands queue</b> on the CLI family (Telnet, SSH, MAC-Telnet, and WinBox CLI over TCP or the MAC
@@ -54,9 +73,9 @@ namespace tik4net
     /// rather than as an error. Finish or cancel outstanding work first.
     /// </item>
     /// <item>
-    /// <b>Safe Mode is connection-wide state, not a per-command option</b> — <see cref="SafeModeTake"/> and
-    /// its siblings must not be driven from two threads, and any command issued while it is held takes part
-    /// in it.
+    /// <b>Safe Mode is connection-wide state, not a per-command option</b> —
+    /// <see cref="ITikSafeModeConnection.SafeModeTake"/> and its siblings must not be driven from two
+    /// threads, and any command issued while it is held takes part in it.
     /// </item>
     /// <item>
     /// <b>The O/R mapper follows the connection.</b> Its change tracking is per connection and safe for
@@ -97,31 +116,6 @@ namespace tik4net
         /// support. (Prior to 4.0 the binary API defaulted to ASCII while every other transport used UTF-8.)
         /// </remarks>
         Encoding Encoding { get; set; }
-
-        /// <summary>
-        /// When <c>true</c>, the <c>.tag</c> word is sent on <b>synchronous</b> binary-API commands as well —
-        /// which is what lets one API connection carry commands from several threads at once. Default is
-        /// <c>false</c>.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <b>Set it before using one API connection from several threads.</b> The router echoes the tag
-        /// back, and that is the only thing tying a reply to the caller that asked for it; without it,
-        /// concurrent synchronous commands genuinely cross-deliver rows — one caller's <c>.id</c> and
-        /// <c>address</c> words arriving inside another caller's sentence — rather than failing.
-        /// </para>
-        /// <para>
-        /// It stays <c>false</c> by default through 4.x, because turning it on changes what goes on the wire
-        /// for every existing single-threaded caller; flipping it is queued with the other default changes
-        /// for 5.0. Setting it costs a tagged word per command and nothing else, so a multi-threaded
-        /// consumer should simply set it.
-        /// </para>
-        /// <para>
-        /// Binary API only. The other transports that permit concurrent commands correlate replies by their
-        /// own means (see the concurrency notes on <see cref="ITikConnection"/>) and ignore this.
-        /// </para>
-        /// </remarks>
-        bool SendTagWithSyncCommand { get; set; }
 
         /// <summary>
         ///     Gets or sets the amount of time a ITikConnection will wait for a send operation to complete successfully. In miliseconds.
@@ -243,70 +237,6 @@ namespace tik4net
         void Close();
 
         /// <summary>
-        /// Enters RouterOS <b>Safe Mode</b> on this connection (mirrors <c>/safe-mode/take</c>, the WebFig
-        /// "Safe Mode" button, or the terminal <c>Ctrl+X</c>). While safe mode is held, every configuration
-        /// change is recorded; if the owning connection drops (network failure, process crash, <see cref="Close"/>
-        /// without a preceding <see cref="SafeModeRelease"/>) RouterOS automatically <b>rolls back</b> all those
-        /// changes. Call <see cref="SafeModeRelease"/> to keep the changes, or <see cref="SafeModeUnroll"/> to
-        /// discard them immediately while staying connected.
-        /// <para>
-        /// Safe mode is bound to the underlying session, so it is only meaningful on a persistent,
-        /// session-oriented transport: binary API / API-SSL, any CLI terminal (Telnet, MAC-Telnet, WinBox CLI)
-        /// and native WinBox M2. Stateless REST throws <see cref="NotSupportedException"/>. Check
-        /// <see cref="TikConnectionCapability.SafeMode"/> via <c>connection.Supports(...)</c> if unsure.
-        /// </para>
-        /// <para>The binary-API / native-WinBox / REST paths use the scriptable <c>/safe-mode</c> mechanism
-        /// (RouterOS 7.18+); the CLI terminals use the <c>Ctrl+X</c>/<c>Ctrl+D</c> control keys, which also work
-        /// on older RouterOS.</para>
-        /// </summary>
-        /// <exception cref="NotSupportedException">The transport cannot bind safe mode to the connection.</exception>
-        /// <exception cref="TikConnectionNotOpenException">Connection is not open.</exception>
-        /// <exception cref="TikCommandException">RouterOS refused to take safe mode (e.g. already held by another session).</exception>
-        /// <seealso cref="SafeModeRelease"/>
-        /// <seealso cref="SafeModeUnroll"/>
-        /// <seealso cref="SafeModeGet"/>
-        void SafeModeTake();
-
-        /// <summary>
-        /// Commits the changes made since <see cref="SafeModeTake"/> and leaves Safe Mode (mirrors
-        /// <c>/safe-mode/release</c> or a second terminal <c>Ctrl+X</c>). After this call the changes are
-        /// permanent and a later disconnect no longer rolls them back. Closing the connection (or losing it)
-        /// <b>before</b> calling this method discards every change made since <see cref="SafeModeTake"/> — that
-        /// is the automatic rollback safe mode exists for. No-op when safe mode is not currently held.
-        /// </summary>
-        /// <exception cref="NotSupportedException">The transport cannot bind safe mode to the connection.</exception>
-        /// <exception cref="TikConnectionNotOpenException">Connection is not open.</exception>
-        /// <exception cref="TikCommandException">RouterOS reported an error releasing safe mode.</exception>
-        /// <seealso cref="SafeModeTake"/>
-        void SafeModeRelease();
-
-        /// <summary>
-        /// Discards every change made since <see cref="SafeModeTake"/> <b>now</b>, without disconnecting, and
-        /// leaves Safe Mode (mirrors <c>/safe-mode/unroll</c> or the terminal <c>Ctrl+D</c>). This is the explicit
-        /// rollback — the same revert RouterOS performs automatically on an uncommitted disconnect, but on demand
-        /// while the connection stays open and usable. No-op when safe mode is not currently held.
-        /// <para>Not available on the native WinBox transport (WebFig exposes only take/release); there, drop the
-        /// connection without releasing to roll back.</para>
-        /// </summary>
-        /// <exception cref="NotSupportedException">The transport cannot roll back safe mode in place.</exception>
-        /// <exception cref="TikConnectionNotOpenException">Connection is not open.</exception>
-        /// <exception cref="TikCommandException">RouterOS reported an error rolling back safe mode.</exception>
-        /// <seealso cref="SafeModeTake"/>
-        /// <seealso cref="SafeModeRelease"/>
-        void SafeModeUnroll();
-
-        /// <summary>
-        /// Returns whether this connection currently holds Safe Mode (mirrors the intent of
-        /// <c>/safe-mode/get</c>). The state is tracked client-side per connection: it becomes <c>true</c> after
-        /// <see cref="SafeModeTake"/> and <c>false</c> after <see cref="SafeModeRelease"/> /
-        /// <see cref="SafeModeUnroll"/>. Useful in a <c>finally</c> block to decide whether to commit or let the
-        /// disconnect roll back.
-        /// </summary>
-        /// <returns><c>true</c> when safe mode is held by this connection; otherwise <c>false</c>.</returns>
-        /// <seealso cref="SafeModeTake"/>
-        bool SafeModeGet();
-
-        /// <summary>
         /// Factory method - creates empty command specific for connection type with assiged <see cref="ITikCommand.Connection"/>.
         /// </summary>
         /// <returns>Commend with assiged <see cref="ITikCommand.Connection"/>.</returns>
@@ -376,58 +306,5 @@ namespace tik4net
         /// <returns>Created parameter with name and value.</returns>
         /// <seealso cref="ITikCommand.Parameters"/>
         ITikCommandParameter CreateParameter(string name, string value, TikCommandParameterFormat parameterFormat);
-
-        /// <summary>
-        /// Calls command to mikrotik (in connection specific format) and waits for response. Command is called without .tag. If you want to use it, just add it as usual parameter (.tag=1234) as last row.
-        /// </summary>
-        /// <param name="commandRows">Rows of one command to be send to mikrotik router (in conection specific format).</param>
-        /// <returns>List of returned sentences.</returns>
-        /// <remarks>This is extremly low-level API and should be used only if there is no other way (for example <seealso cref="ITikCommand"/>).</remarks>
-        /// <exception cref="TikConnectionNotOpenException" />
-        /// <seealso cref="ITikReSentence"/>
-        /// <seealso cref="ITikDoneSentence"/>
-        /// <seealso cref="ITikTrapSentence"/>
-        /// <seealso cref="ITikCommand.ExecuteNonQuery"/>
-        /// <seealso cref="ITikCommand.ExecuteScalar()"/>
-        /// <seealso cref="ITikCommand.ExecuteSingleRow()"/>
-        /// <seealso cref="ITikCommand.ExecuteList()"/>
-        IEnumerable<ITikSentence> CallCommandSync(params string[] commandRows);
-
-        /// <summary>
-        /// Calls command to mikrotik (in connection specific format) and waits for response. Command is called without .tag. If you want to use it, just add it as usual parameter (.tag=1234) as last row.
-        /// </summary>
-        /// <param name="commandRows">Rows of one command to be send to mikrotik router (in conection specific format).</param>
-        /// <returns>List of returned sentences.</returns>
-        /// <remarks>This is extremly low-level API and should be used only if there is no other way (for example <seealso cref="ITikCommand"/>).</remarks>
-        /// <exception cref="TikConnectionNotOpenException" />
-        /// <seealso cref="ITikReSentence"/>
-        /// <seealso cref="ITikDoneSentence"/>
-        /// <seealso cref="ITikTrapSentence"/>
-        /// <seealso cref="ITikCommand.ExecuteNonQuery"/>
-        /// <seealso cref="ITikCommand.ExecuteScalar()"/>
-        /// <seealso cref="ITikCommand.ExecuteSingleRow"/>
-        /// <seealso cref="ITikCommand.ExecuteList()"/>
-        IEnumerable<ITikSentence> CallCommandSync(IEnumerable<string> commandRows);
-
-        /// <summary>
-        /// Calls command to mikrotik (in connection specific format). Response is returned via <paramref name="oneResponseCallback"/> callback when it is read from mikrotik (for given <paramref name="tag"/>).
-        /// REMARKS: <paramref name="oneResponseCallback"/> is called from another NON-GUI thread. If you want to show response in UI, 
-        /// you should use some kind of synchronization like BeginInvoke in WinForms. You can not touch UI controls directly without it.
-        /// </summary>
-        /// <exception cref="TikConnectionNotOpenException" />
-        /// <param name="commandRows">Rows of one command to be send to mikrotik router (in conection specific format).</param>
-        /// <param name="tag">Tag that allows to perform cancel operation. Should be unique!</param>
-        /// <param name="oneResponseCallback">Callback called periodically when response sentence is read from mikrotik.</param>
-        /// <returns>Loading thread.</returns>
-        /// <remarks>This is extremly low-level API and should be used only if there is no other way (for example <see cref="ITikCommand.ExecuteAsync"/>).</remarks>
-        /// <seealso cref="ITikReSentence"/>
-        /// <seealso cref="ITikDoneSentence"/>
-        /// <seealso cref="ITikTrapSentence"/>
-        /// <seealso cref="ITikCommand.ExecuteAsync"/>
-        [Obsolete("Hands back a Thread, which no caller can await, cancel or observe a failure on. Use "
-                + "ITikCommand.ExecuteAsync for the callback form, or the Task-based Execute*Async extension "
-                + "methods (TikConnectionCapability.AsyncCommands) to await a command. Scheduled for removal "
-                + "in 5.0.")]
-        Thread CallCommandAsync(IEnumerable<string> commandRows, string tag, Action<ITikSentence> oneResponseCallback);
     }
 }

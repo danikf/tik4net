@@ -12,7 +12,8 @@ using System.Threading;
 
 namespace tik4net.Api
 {  
-    internal sealed class ApiConnection : ITikConnection, ITikConnectionCapabilities, ITikTlsConnection
+    internal sealed class ApiConnection : ITikConnection, ITikConnectionCapabilities, ITikTlsConnection,
+        ITikRawSentenceConnection, ITikSafeModeConnection, ITikTaggedConnection
     {
         ///// <summary>
         ///// Version of the login process. See https://wiki.mikrotik.com/wiki/Manual:API#Initial_login
@@ -809,9 +810,13 @@ namespace tik4net.Api
             }
         }
 
-        public Thread CallCommandAsync(IEnumerable<string> commandRows, string tag, 
+        // Internal since 5.0: it hands back a Thread nobody can await, cancel or observe a failure on, so it
+        // is no longer offered to callers (ITikCommand.ExecuteAsync and the Task-based Execute*Async
+        // extensions are). ApiCommand still drives the callback form through it — the Thread it returns is
+        // what ApiCommand.Cancel joins.
+        internal Thread CallCommandAsync(IEnumerable<string> commandRows, string tag,
             Action<ITikSentence> oneResponseCallback)
-        {            
+        {
             Guard.ArgumentNotNullOrEmptyString(tag, "tag");
             EnsureOpened();
 

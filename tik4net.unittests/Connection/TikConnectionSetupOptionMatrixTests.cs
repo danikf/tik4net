@@ -53,6 +53,13 @@ namespace tik4net.unittests.Connection
             TikConnectionType.MacTelnet, TikConnectionType.WinboxCliMac, TikConnectionType.WinboxNativeMac,
         };
 
+        private static readonly TikConnectionType[] TaggedTransports =
+        {
+            // Per-command .tag is the binary API's; the other transports that allow concurrent commands
+            // correlate replies by an HTTP request or an M2 request id and have nothing to switch on.
+            TikConnectionType.Api, TikConnectionType.ApiSsl,
+        };
+
         private static readonly TikConnectionType[] CancellationModeTransports =
         {
             // The CLI family: a terminal byte stream has no framing to resynchronize on, so what a late
@@ -98,7 +105,6 @@ namespace tik4net.unittests.Connection
                     Assert.AreEqual(11000, conn.ReceiveTimeout, type + ": ReceiveTimeout");
                     Assert.AreEqual(13000, conn.SendTimeout, type + ": SendTimeout");
                     Assert.AreSame(Encoding.ASCII, conn.Encoding, type + ": Encoding");
-                    Assert.IsTrue(conn.SendTagWithSyncCommand, type + ": SendTagWithSyncCommand");
                     Assert.IsTrue(conn.DebugEnabled, type + ": DebugEnabled");
                 }
             }
@@ -194,6 +200,61 @@ namespace tik4net.unittests.Connection
         }
 
         [TestMethod]
+        public void TheTagFlagReachesExactlyTheTaggingTransports()
+        {
+            var setup = NonDefaultSetup();
+            foreach (var type in AllTransports)
+            {
+                using (var conn = setup.CreateUnopened(type))
+                {
+                    bool expected = TaggedTransports.Contains(type);
+                    Assert.AreEqual(expected, conn is ITikTaggedConnection, type + ": ITikTaggedConnection");
+                    Assert.AreEqual(expected, conn.Supports(TikConnectionCapability.Tagging),
+                        type + ": the Tagging capability and the interface must agree");
+                    if (expected)
+                        Assert.IsTrue(((ITikTaggedConnection)conn).SendTagWithSyncCommand, type.ToString());
+                }
+            }
+        }
+
+        [TestMethod]
+        public void SafeModeIsOfferedByExactlyTheTransportsThatDeclareIt()
+        {
+            // The interface and the capability flag answer the same question, and a caller may use either.
+            foreach (var type in AllTransports)
+            {
+                using (var conn = ConnectionFactory.CreateConnection(type))
+                    Assert.AreEqual(conn.Supports(TikConnectionCapability.SafeMode),
+                        conn is ITikSafeModeConnection, type.ToString());
+            }
+        }
+
+        [TestMethod]
+        public void TheFakeConnectionsFlagsAgreeWithTheInterfacesItImplements()
+        {
+            // The same invariant as the two tests above, applied to tik4net.testing's fake — a test double
+            // whose flags and interfaces disagreed would teach callers a rule the real transports keep.
+            using (var fake = new tik4net.Testing.TikFakeConnection())
+            {
+                Assert.AreEqual(fake.Supports(TikConnectionCapability.SafeMode), fake is ITikSafeModeConnection,
+                    "SafeMode");
+                Assert.AreEqual(fake.Supports(TikConnectionCapability.Tagging), fake is ITikTaggedConnection,
+                    "Tagging");
+            }
+        }
+
+        [TestMethod]
+        public void SafeModeGetIsAnswerableEvenWhereSafeModeIsNot()
+        {
+            // A finally block asking "am I holding safe mode?" must not throw on REST on the way out.
+            using (var rest = ConnectionFactory.CreateConnection(TikConnectionType.Rest))
+            {
+                Assert.IsFalse(rest.SafeModeGet());
+                Assert.ThrowsException<TikConnectionCapabilityNotSupportedException>(() => rest.SafeModeTake());
+            }
+        }
+
+        [TestMethod]
         public void ATransportThatTakesNoCancellationModeCancelsForReal()
         {
             // The justification for leaving the option off, asserted rather than asserted-in-a-comment: a
@@ -237,7 +298,8 @@ namespace tik4net.unittests.Connection
                 {
                     Assert.AreEqual(15000, conn.ConnectTimeout, type + ": ConnectTimeout");
                     Assert.AreEqual(30000, conn.ReceiveTimeout, type + ": ReceiveTimeout");
-                    Assert.IsFalse(conn.SendTagWithSyncCommand, type + ": SendTagWithSyncCommand");
+                    if (conn is ITikTaggedConnection tagged)
+                        Assert.IsFalse(tagged.SendTagWithSyncCommand, type + ": SendTagWithSyncCommand");
                 }
             }
         }

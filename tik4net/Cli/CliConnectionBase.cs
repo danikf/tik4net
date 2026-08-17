@@ -30,7 +30,7 @@ namespace tik4net.Cli
     /// core layer only sees data lines.
     /// </summary>
     public abstract class CliConnectionBase : TikCommandConnectionBase, ITikMonitorTransport, IPollingMonitorHost,
-        ITikCliCompletion, ITikCancellationModeConnection
+        ITikCliCompletion, ITikCancellationModeConnection, ITikSafeModeConnection
     {
         /// <summary>Interval between monitor-snapshot polls (ms). Sub-second so callers see a fresh reading
         /// promptly; RouterOS GUI/webfig refresh ~1 s but a terminal snapshot is cheap.</summary>
@@ -290,7 +290,7 @@ namespace tik4net.Cli
         /// dropping the connection without a <see cref="SafeModeRelease"/> reverts every change made since. Works
         /// on any RouterOS version (no scriptable <c>/safe-mode</c> needed). No-op when already held.
         /// </summary>
-        public override void SafeModeTake()
+        public virtual void SafeModeTake()
         {
             EnsureOpened();
             if (SafeModeHeld) return;
@@ -303,7 +303,7 @@ namespace tik4net.Cli
         /// Commits the safe-mode changes and leaves Safe Mode by sending a second <c>Ctrl+X</c>; the prompt
         /// reverts to its normal form afterwards. No-op when safe mode is not held.
         /// </summary>
-        public override void SafeModeRelease()
+        public virtual void SafeModeRelease()
         {
             EnsureOpened();
             if (!SafeModeHeld) return;
@@ -323,7 +323,7 @@ namespace tik4net.Cli
         /// to the full receive deadline. The rollback itself does happen, which is why this cost 30 s per
         /// call instead of failing. The scriptable command answers normally and ends on a prompt.
         /// </remarks>
-        public override void SafeModeUnroll()
+        public virtual void SafeModeUnroll()
         {
             EnsureOpened();
             if (!SafeModeHeld) return;
@@ -343,6 +343,9 @@ namespace tik4net.Cli
 
             SafeModeUnrollByControlKey();
         }
+
+        /// <inheritdoc/>
+        public bool SafeModeGet() => SafeModeHeld;
 
         /// <summary>
         /// Leaves Safe Mode with the terminal <c>Ctrl+D</c> key — the pre-7.18 path, and the only one on a

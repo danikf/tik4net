@@ -14,7 +14,12 @@ dotnet add package tik4net.testing
 ```
 
 `TikFakeConnection` implements `ITikConnection`, so anything written against the contract — including
-the O/R mapper — works against it. Register the responses your code expects and assert on what it sent.
+the O/R mapper — works against it. It also implements `ITikRawSentenceConnection` and
+`ITikSafeModeConnection`, and declares `TikConnectionCapability.SafeMode` in its default capability
+set, so code that drives `CallCommandSync`/`SafeModeTake`/`SafeModeRelease`/`SafeModeUnroll`/`SafeModeGet`
+against it works the same as against a real transport. It does not implement `ITikTaggedConnection` —
+a fake has no wire to tag, so `SendTagWithSyncCommand` does not exist on it. Register the responses your
+code expects and assert on what it sent.
 
 See [Communication debugging & testing](https://github.com/danikf/tik4net/wiki/Communication-debugging-&-testing)
 in the wiki for usage.

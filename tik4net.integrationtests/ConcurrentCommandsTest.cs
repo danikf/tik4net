@@ -54,8 +54,10 @@ namespace tik4net.integrationtests
             // connection usage"). Without it concurrent sync commands on one API connection genuinely
             // cross-deliver rows — measured here as '.id' and 'address' words turning up in the wrong
             // caller's sentence. It is not a transport defect, it is the default this suite has to opt out
-            // of; P4.5 plans to flip it. Inert on the other transports, which correlate by their own means.
-            Connection.SendTagWithSyncCommand = true;
+            // of; P4.5 plans to flip it. The other transports correlate by their own means and do not
+            // implement ITikTaggedConnection at all, which is why this is a test rather than an assignment.
+            if (Connection is ITikTaggedConnection tagged)
+                tagged.SendTagWithSyncCommand = true;
         }
 
         [TestMethod]

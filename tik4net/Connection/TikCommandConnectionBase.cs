@@ -20,7 +20,7 @@ namespace tik4net.Connection
     ///   <item>the three CRUD hooks <see cref="RunPrint"/>, <see cref="RunAdd"/>, <see cref="RunNonQuery"/>.</item>
     /// </list>
     /// </summary>
-    public abstract class TikCommandConnectionBase : ITikConnection, ITikConnectionCapabilities
+    public abstract class TikCommandConnectionBase : ITikConnection, ITikConnectionCapabilities, ITikRawSentenceConnection
     {
         /// <summary>Serialises command execution — the underlying transports are inherently sequential.</summary>
         protected readonly SemaphoreSlim _cmdLock = new SemaphoreSlim(1, 1);
@@ -36,9 +36,6 @@ namespace tik4net.Connection
 
         /// <inheritdoc/>
         public Encoding Encoding { get; set; } = Encoding.UTF8;
-
-        /// <summary>No-op for command transports (no tag protocol).</summary>
-        public bool SendTagWithSyncCommand { get; set; }
 
         /// <inheritdoc/>
         public int SendTimeout { get; set; } = 30000;
@@ -86,31 +83,13 @@ namespace tik4net.Connection
         public abstract void Close();
 
         /// <summary>
-        /// Tracks whether this connection currently holds Safe Mode. Maintained by the transport-specific
-        /// <see cref="SafeModeTake"/>/<see cref="SafeModeRelease"/>/<see cref="SafeModeUnroll"/> overrides and
-        /// reported by <see cref="SafeModeGet"/>.
+        /// Tracks whether this connection currently holds Safe Mode. Maintained and reported by the
+        /// subclasses that implement <see cref="ITikSafeModeConnection"/> (the CLI terminals and native
+        /// WinBox M2); it lives here because the bookkeeping is identical wherever safe mode exists, while
+        /// the interface deliberately does not — REST cannot bind a rollback to a connection it does not
+        /// keep, so it implements neither the interface nor a set of methods that only throw.
         /// </summary>
         protected bool SafeModeHeld { get; set; }
-
-        private const string SafeModeUnsupported =
-            "This transport does not support Safe Mode. Use the binary API, a CLI transport " +
-            "(Telnet / MAC-Telnet / WinBox CLI) or native WinBox, which can bind safe mode to a session.";
-
-        /// <summary>
-        /// Default: safe mode is not supported. Transports that bind safe mode to a persistent session
-        /// (CLI terminals, native WinBox M2) override these.
-        /// </summary>
-        /// <inheritdoc/>
-        public virtual void SafeModeTake() => throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.SafeMode, SafeModeUnsupported);
-
-        /// <inheritdoc/>
-        public virtual void SafeModeRelease() => throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.SafeMode, SafeModeUnsupported);
-
-        /// <inheritdoc/>
-        public virtual void SafeModeUnroll() => throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.SafeMode, SafeModeUnsupported);
-
-        /// <inheritdoc/>
-        public virtual bool SafeModeGet() => SafeModeHeld;
 
         // ── Open/Close helpers for subclasses ─────────────────────────────────
 
@@ -284,21 +263,6 @@ namespace tik4net.Connection
             result.AddRange(RunPrint(descriptor));
             result.Add(new TikDoneSentenceResult());
             return result;
-        }
-
-        // ── CallCommandAsync (not supported) ──────────────────────────────────
-
-        /// <inheritdoc/>
-        [Obsolete("Hands back a Thread, which no caller can await, cancel or observe a failure on. Use "
-                + "ITikCommand.ExecuteAsync for the callback form, or the Task-based Execute*Async extension "
-                + "methods (TikConnectionCapability.AsyncCommands) to await a command. Scheduled for removal "
-                + "in 5.0.")]
-        public Thread CallCommandAsync(IEnumerable<string> commandRows, string tag, Action<ITikSentence> oneResponseCallback)
-        {
-            // Raw tagged/multiplexed async is a binary-API feature (Tagging). CLI/native do report Listen, but
-            // they emulate it via polling (ITikMonitorTransport / ExecuteAsync), not this low-level entry point.
-            throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.Tagging,
-                "This transport does not support tagged asynchronous commands (CallCommandAsync). Use the binary API.");
         }
 
         // ── IDisposable ────────────────────────────────────────────────────────

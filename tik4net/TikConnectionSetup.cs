@@ -81,9 +81,9 @@ namespace tik4net
         public Encoding Encoding { get; set; } = Encoding.UTF8;
 
         /// <summary>
-        /// Applied to <see cref="ITikConnection.SendTagWithSyncCommand"/> — set it when one binary-API
-        /// connection is used from several threads. Ignored by the transports that correlate replies by
-        /// their own means.
+        /// Applied to <see cref="ITikTaggedConnection.SendTagWithSyncCommand"/> — set it when one binary-API
+        /// connection is used from several threads. The transports that correlate replies by their own
+        /// means do not implement that interface and never see it.
         /// </summary>
         public bool SendTagWithSyncCommand { get; set; }
 
@@ -216,7 +216,6 @@ namespace tik4net
             connection.ReceiveTimeout = ToMilliseconds(ReceiveTimeout);
             connection.SendTimeout = ToMilliseconds(SendTimeout);
             connection.Encoding = Encoding;
-            connection.SendTagWithSyncCommand = SendTagWithSyncCommand;
             if (DebugEnabled.HasValue)
                 connection.DebugEnabled = DebugEnabled.Value;
 
@@ -231,6 +230,9 @@ namespace tik4net
 
             if (connection is ITikCancellationModeConnection cancellable)
                 cancellable.CancellationMode = CancellationMode;
+
+            if (connection is ITikTaggedConnection tagged)
+                tagged.SendTagWithSyncCommand = SendTagWithSyncCommand;
         }
 
         // A TimeSpan is the friendlier option type; the connections take milliseconds. Saturating rather

@@ -79,8 +79,9 @@ identified and discarded rather than handed to the next command. That weaker hal
 gives.
 
 Every transport can have its connection **reused**. Concurrent commands on one connection work on
-`Api`/`ApiSsl` (set `SendTagWithSyncCommand = true` first), `Rest`/`RestSsl` and both WinBox-native
-transports; the CLI family drives a single request/reply terminal and serializes by design.
+`Api`/`ApiSsl` (cast the connection to `ITikTaggedConnection` and set `SendTagWithSyncCommand = true`
+first), `Rest`/`RestSsl` and both WinBox-native transports; the CLI family drives a single
+request/reply terminal and serializes by design.
 
 # Binaries
 

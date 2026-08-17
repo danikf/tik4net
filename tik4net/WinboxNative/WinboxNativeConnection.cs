@@ -31,7 +31,8 @@ namespace tik4net.WinboxNative
     /// <para><see cref="ITikConnection.ConnectTimeout"/> bounds the connect handshake and then the
     /// authentication exchange, but not the <c>.jg</c> catalog load that follows them.</para>
     /// </remarks>
-    public class WinboxNativeConnection : TikCommandConnectionBase, ITikMonitorTransport, IPollingMonitorHost
+    public class WinboxNativeConnection : TikCommandConnectionBase, ITikMonitorTransport, IPollingMonitorHost,
+        ITikSafeModeConnection
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly); the MAC-layer
         // subclass constructor is internal too and calls this one.
@@ -901,7 +902,7 @@ namespace tik4net.WinboxNative
         private uint _safeModeId;
 
         /// <inheritdoc/>
-        public override void SafeModeTake()
+        public void SafeModeTake()
         {
             EnsureOpened();
             if (SafeModeHeld) return;
@@ -910,7 +911,7 @@ namespace tik4net.WinboxNative
         }
 
         /// <inheritdoc/>
-        public override void SafeModeRelease()
+        public void SafeModeRelease()
         {
             EnsureOpened();
             if (!SafeModeHeld) return;
@@ -920,11 +921,14 @@ namespace tik4net.WinboxNative
         }
 
         /// <inheritdoc/>
-        public override void SafeModeUnroll()
+        public void SafeModeUnroll()
             => throw new NotSupportedException(
                 "Native WinBox exposes only take/release for Safe Mode (no in-place unroll). " +
                 "To roll back, close the connection without calling SafeModeRelease — RouterOS reverts " +
                 "the changes automatically. For an explicit unroll use the binary API or a CLI transport.");
+
+        /// <inheritdoc/>
+        public bool SafeModeGet() => SafeModeHeld;
 
         /// <summary>
         /// Runs a streaming-monitor command (e.g. <c>/tool/torch</c>, <c>/tool/profile</c>) on a background

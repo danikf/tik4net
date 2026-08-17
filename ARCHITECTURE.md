@@ -49,9 +49,25 @@ net8.0). All SDK-style.
 ### The contract
 
 `ITikConnection` (`tik4net/ITikConnection.cs`) covers lifecycle (`Open`/`OpenAsync` ×4, `Close`,
-`Dispose`), configuration (`Encoding`, `SendTagWithSyncCommand`, timeouts), diagnostic events,
-Safe Mode (`SafeModeTake`/`Release`/`Unroll`/`Get`), command factories, and raw sentence I/O
-(`CallCommandSync`, `CallCommandAsync`).
+`Dispose`), configuration (`Encoding`, timeouts), diagnostic events, and command factories — what
+every transport has. Four things that not every transport can reasonably provide were split off it
+in 5.0, each paired with the capability flag that answers the same question:
+
+- `ITikRawSentenceConnection` (`tik4net/ITikRawSentenceConnection.cs`) — `CallCommandSync`, both
+  overloads (`RawSentences`). Every shipped transport implements it.
+- `ITikSafeModeConnection` (`tik4net/ITikSafeModeConnection.cs`) — `SafeModeTake`/`Release`/`Unroll`/`Get`
+  (`SafeMode`). ApiConnection, `CliConnectionBase` (so all five CLI transports incl. SSH) and
+  WinboxNativeConnection implement it; RestConnection does not.
+- `ITikTaggedConnection` (`tik4net/ITikTaggedConnection.cs`) — `SendTagWithSyncCommand` (`Tagging`).
+  Binary API only; the other transports never implemented it meaningfully.
+- The `[Obsolete]` `CallCommandAsync` returning a `Thread` is gone from the public API entirely.
+  `ITikCommand.ExecuteAsync` and the Task-based `Execute*Async` extensions are the replacements.
+
+`TikRawSentenceExtensions`/`TikSafeModeExtensions` keep `connection.CallCommandSync(...)` and
+`connection.SafeModeTake()` compiling on a plain `ITikConnection`: they cast and throw
+`TikConnectionCapabilityNotSupportedException` when the transport lacks the interface. There is no
+such extension for `SendTagWithSyncCommand` — callers cast (`((ITikTaggedConnection)conn)...`) or
+pattern-match (`if (conn is ITikTaggedConnection t)`).
 
 `ITikCommand` is ADO.NET-shaped: `ExecuteNonQuery`, `ExecuteScalar`, `ExecuteSingleRow`,
 `ExecuteList`, `ExecuteListWithDuration`, `ExecuteAsync`. Parameters are `ITikCommandParameter`
@@ -189,8 +205,8 @@ routed through `Create`.
 Options split into two kinds:
 
 - Universal, applied directly on `ITikConnection`: `ConnectTimeout`, `ReceiveTimeout`, `SendTimeout`,
-  `Encoding`, `SendTagWithSyncCommand`, `DebugEnabled`. (`Port` is not a property at all — it selects
-  which `Open` overload is called.)
+  `Encoding`, `DebugEnabled`. (`Port` is not a property at all — it selects which `Open` overload is
+  called.)
 - Transport-specific, applied only when the connection implements the interface that declares an
   interest in them — so a transport either receives an option or provably has no use for it, with no
   third case where a value is set and silently dropped:
@@ -198,6 +214,7 @@ Options split into two kinds:
   - `ITikMacLayerConnection` (`RouterMac`) — MAC-Telnet, WinBox CLI MAC, WinBox native MAC.
   - `ITikCancellationModeConnection` (`CancellationMode`) — the CLI family (Telnet, SSH, MAC-Telnet,
     WinBox CLI, WinBox CLI MAC).
+  - `ITikTaggedConnection` (`SendTagWithSyncCommand`) — binary API (`Api`/`ApiSsl`) only.
 
 A unit-test matrix (`tik4net.unittests/Connection/TikConnectionSetupOptionMatrixTests.cs`) enforces that
 every option reaches every transport that can honour it.

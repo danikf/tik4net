@@ -100,7 +100,7 @@ namespace tik4net.integrationtests
         {
             using (var connection = CreateOpenedConnection())
             {
-                connection.SendTagWithSyncCommand = true;
+                ((ITikTaggedConnection)connection).SendTagWithSyncCommand = true;
                 List<string> sentWords = new List<string>();
                 connection.OnWriteRow += (e, args) =>
                     {
@@ -119,7 +119,7 @@ namespace tik4net.integrationtests
         {
             using (var connection = CreateOpenedConnection())
             {
-                connection.SendTagWithSyncCommand = false;
+                ((ITikTaggedConnection)connection).SendTagWithSyncCommand = false;
                 List<string> sentWords = new List<string>();
                 connection.OnWriteRow += (e, args) =>
                 {
