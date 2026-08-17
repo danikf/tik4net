@@ -144,6 +144,24 @@ namespace tik4net
         int ReceiveTimeout { get; set; }
 
         /// <summary>
+        /// Gets or sets the amount of time <see cref="Open(string, string, string)"/> may spend reaching the
+        /// router before it fails. In milliseconds, default 15 000.
+        /// </summary>
+        /// <remarks>
+        /// <para>Must be set before the <c>Open</c> call; changing it afterwards has no effect.</para>
+        /// <para>
+        /// It bounds <b>getting connected</b> — the transport's connect handshake and the login exchange
+        /// that follows it — and nothing after that, which is what <see cref="ReceiveTimeout"/> and
+        /// <see cref="SendTimeout"/> are for. The two are deliberately separate so that an unreachable or
+        /// black-holed router fails fast without having to shorten the budget of the commands that a
+        /// reachable one answers. What exactly is inside the bound differs a little per transport (the
+        /// TCP handshake alone, the handshake plus authentication, or one whole probe request on REST);
+        /// each transport's own documentation says which.
+        /// </para>
+        /// </remarks>
+        int ConnectTimeout { get; set; }
+
+        /// <summary>
         /// Event called when row (word) from mikrotik is read by connection.
         /// </summary>
         /// <remarks>Could be used for debug/logging</remarks>

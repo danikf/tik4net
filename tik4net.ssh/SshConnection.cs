@@ -66,7 +66,9 @@ namespace tik4net.Ssh
             var client = new SshShellClient(Encoding, ReceiveTimeout);
             Func<CancellationToken, Task> login = async ct =>
             {
-                client.Connect(host, port, user, password, SendTimeout);
+                // ConnectTimeout, not SendTimeout: getting connected is what is being bounded here, and
+                // reusing the send budget for it was how this transport ignored the option entirely (D1).
+                client.Connect(host, port, user, password, ConnectTimeout);
                 await client.SettleAfterConnectAsync(ct).ConfigureAwait(false);
             };
             return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,

@@ -405,22 +405,14 @@ public sealed class MikroTikTools
         return result.ToArray();
     }
 
+    // One call rather than a per-transport switch: the setup applies routerMac only to the transports
+    // that address the router by MAC (ITikMacLayerConnection), so a transport list cannot fall behind
+    // the library's — the switch this replaced had no WinboxNativeMac case and refused it outright.
     private static ITikConnection OpenConnection(
         TikConnectionSetup setup, TikConnectionType transportType, string? routerMac)
     {
-        return transportType switch
-        {
-            TikConnectionType.Api => setup.CreateApiConnection(),
-            TikConnectionType.ApiSsl => setup.CreateApiSslConnection(),
-            TikConnectionType.Rest => setup.CreateRestConnection(),
-            TikConnectionType.RestSsl => setup.CreateRestSslConnection(),
-            TikConnectionType.Telnet => setup.CreateTelnetConnection(),
-            TikConnectionType.MacTelnet => setup.CreateMacTelnetConnection(routerMac),
-            TikConnectionType.WinboxCli => setup.CreateWinboxCliConnection(),
-            TikConnectionType.WinboxCliMac => setup.CreateWinboxCliMacConnection(routerMac),
-            TikConnectionType.WinboxNative => setup.CreateWinboxNativeConnection(),
-            _ => throw new ArgumentOutOfRangeException(nameof(transportType), transportType, "Unsupported transport."),
-        };
+        setup.RouterMac = routerMac;
+        return setup.Create(transportType);
     }
 
     // ── Router-log correlation (includeRouterLog) ────────────────────────────────

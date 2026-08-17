@@ -347,12 +347,10 @@ namespace tik4net.integrationtests
             if (string.IsNullOrEmpty(mac))
                 return;
 
-            switch (conn)
-            {
-                case tik4net.MacTelnet.MacTelnetConnection mt: mt.RouterMac = mac; break;
-                case tik4net.WinboxCliMac.WinboxCliMacConnection wm: wm.RouterMac = mac; break;
-                case tik4net.WinboxNativeMac.WinboxNativeMacConnection nm: nm.RouterMac = mac; break;
-            }
+            // One test rather than three cases: a MAC-layer transport is one that says so
+            // (ITikMacLayerConnection), so a new one is covered here the day it is added.
+            if (conn is ITikMacLayerConnection macConn)
+                macConn.RouterMac = mac;
         }
 
         /// <summary>

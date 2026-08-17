@@ -19,8 +19,12 @@ namespace tik4net.WinboxCliMac
     /// <see cref="RouterMac"/> is set. Requires
     /// <c>/tool/mac-server/mac-winbox set allowed-interface-list=all</c> on the router.
     /// <para>Supports CRUD only — Listen/Streaming/Async throw <see cref="NotSupportedException"/>.</para>
+    /// <para>
+    /// <see cref="ITikConnection.ConnectTimeout"/> bounds each wait for an EC-SRP5 handshake frame and the
+    /// wait for the RouterOS shell prompt.
+    /// </para>
     /// </remarks>
-    public sealed class WinboxCliMacConnection : CliConnectionBase
+    public sealed class WinboxCliMacConnection : CliConnectionBase, ITikMacLayerConnection
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
         internal WinboxCliMacConnection() { }
@@ -28,17 +32,8 @@ namespace tik4net.WinboxCliMac
         /// <summary>MAC-layer WinBox UDP port (informational — the transport is fixed to UDP 20561).</summary>
         public const int DefaultPort = 20561;
 
-        /// <summary>
-        /// Optional: router MAC address as <c>"AA:BB:CC:DD:EE:FF"</c> to bypass MNDP discovery
-        /// (MNDP takes up to 5 s). Set before calling <see cref="Open(string, string, string)"/>.
-        /// </summary>
+        /// <inheritdoc/>
         public string RouterMac { get; set; }
-
-        /// <summary>
-        /// Connect/login timeout in milliseconds — bounds each wait for an EC-SRP5 handshake frame and the
-        /// wait for the RouterOS shell prompt (default 15 000 ms). Separate from <see cref="tik4net.Connection.TikCommandConnectionBase.ReceiveTimeout"/>.
-        /// </summary>
-        public int ConnectTimeout { get; set; } = 15000;
 
         /// <inheritdoc/>
         protected override string TransportName => "WinBox CLI MAC";

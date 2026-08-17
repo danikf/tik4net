@@ -24,6 +24,10 @@ namespace tik4net.WinboxCli
     /// Supports all CRUD operations. Listen/Streaming/Async are not supported
     /// (capability: <see cref="TikConnectionCapability.Crud"/>).
     /// </para>
+    /// <para>
+    /// <see cref="ITikConnection.ConnectTimeout"/> bounds the TCP connect handshake, the authentication
+    /// exchange, and the wait for the RouterOS shell prompt.
+    /// </para>
     /// </remarks>
     public sealed class WinboxCliConnection : CliConnectionBase
     {
@@ -32,15 +36,6 @@ namespace tik4net.WinboxCli
 
         /// <summary>Default WinBox TCP port.</summary>
         public const int DefaultPort = 8291;
-
-        /// <summary>
-        /// Connect/login timeout in milliseconds — bounds the TCP connect handshake, the authentication
-        /// exchange, and the wait for the RouterOS shell prompt (default 15 000 ms). Kept separate from
-        /// <see cref="tik4net.Connection.TikCommandConnectionBase.ReceiveTimeout"/> (which bounds per-command reads) so a stuck
-        /// login fails fast enough for a caller's connect-retry loop to try again.
-        /// Set before calling <see cref="Open(string, string, string)"/>.
-        /// </summary>
-        public int ConnectTimeout { get; set; } = 15000;
 
         /// <inheritdoc/>
         protected override string TransportName => "WinBox CLI";

@@ -96,11 +96,15 @@ Note the asymmetry with the rule above: fail-closed capability *flags* are about
 callers at runtime; this rule is about what we assume while diagnosing. **Never use a capability flag
 to paper over an unproven gap.**
 
-### Two entry points, not yet unified
+### One entry point, and one place an option is applied
 
-`ConnectionFactory` (classic) and `TikConnectionSetup` (preferred) coexist, and `TikConnectionSetup`'s
-options are **not** honored by every transport. Verify per transport rather than trusting the property
-name, and check *what* the value is applied to, not just that it is read.
+`TikConnectionSetup` is the entry point; `ConnectionFactory` is a compatibility shim over the same
+registry that hands out connections with their own defaults and no options. **Apply options through
+`TikConnectionSetup.ApplyTo` rather than copying properties by hand** — a transport declares what it can
+honour by implementing `ITikTlsConnection` / `ITikMacLayerConnection` / `ITikCancellationModeConnection`,
+and the option matrix in `tik4net.unittests` fails when a new option or transport skips that route.
+Adding an option means adding it to the matrix in the same change, and checking *what* the value is
+applied to, not just that it is read.
 
 ### Public API changes require wiki + XML-doc updates
 

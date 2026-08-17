@@ -41,6 +41,14 @@ namespace tik4net.Rest
     /// so cancelling a long monitor frees the caller, not the router.
     /// </para>
     /// <para>
+    /// <see cref="ITikConnection.ConnectTimeout"/> bounds the whole <c>Open</c> probe here rather than the
+    /// TCP handshake alone: <c>SocketsHttpHandler.ConnectTimeout</c> — the only thing that separates the two
+    /// — does not exist on <c>netstandard2.0</c>, and <c>HttpClientHandler</c> exposes nothing equivalent.
+    /// The probe is a single small <c>GET /rest/system/resource</c>, so bounding it whole is the same
+    /// guarantee in practice: an unreachable or black-holed router can no longer hold <c>Open</c> for the OS
+    /// connect default. A value of 0 or less means "no bound".
+    /// </para>
+    /// <para>
     /// <b>Known RouterOS defect — REST logins are never released.</b> Using REST at all can leave rows in
     /// the router's <c>/user/active</c> table that never go away. This is a RouterOS bug (reported for
     /// 7.16 through 7.24rc1, several open MikroTik support tickets) and <b>no client can avoid or undo
@@ -55,7 +63,7 @@ namespace tik4net.Rest
     /// logout never is. Details and measurements in <c>Docs/findings-rest-api.md</c> §5.1.
     /// </para>
     /// </remarks>
-    public class RestConnection : TikCommandConnectionBase, ITikMonitorTransport, IPollingMonitorHost
+    public class RestConnection : TikCommandConnectionBase, ITikMonitorTransport, IPollingMonitorHost, ITikTlsConnection
     {
         // How often a listen diff / a continuous monitor re-reads the router. Same cadence as the CLI and
         // native transports, which poll the same way for the same reason.
@@ -63,31 +71,12 @@ namespace tik4net.Rest
         private const int MonitorPollIntervalMs = 1000;
 
         private readonly bool _useSsl;
-        private readonly bool _allowInvalidCert;
-        private readonly RemoteCertificateValidationCallback _certificateValidationCallback;
         private HttpClient _httpClient;
         private string _baseUrl;
         private string _authHeader;
 
         /// <inheritdoc/>
         protected override string DiagnosticPrefix => "REST";
-
-        /// <summary>
-        /// Connect timeout in milliseconds — bounds the whole <see cref="Open(string, int, string, string)"/> /
-        /// <see cref="OpenAsync(string, int, string, string)"/> probe (default 15 000 ms, matching every other
-        /// transport). Distinct from <see cref="TikCommandConnectionBase.SendTimeout"/>/<see cref="TikCommandConnectionBase.ReceiveTimeout"/>,
-        /// which bound the requests issued after the connection is up. Set it before opening — wired from
-        /// <see cref="TikConnectionSetup.ConnectTimeout"/>, which is the only way to reach it since this
-        /// class has no public constructor. A value of 0 or less means "no bound".
-        /// </summary>
-        /// <remarks>
-        /// This is one timeout over the whole probe request rather than over the TCP handshake alone:
-        /// <c>SocketsHttpHandler.ConnectTimeout</c> — the only thing that separates the two — does not exist on
-        /// <c>netstandard2.0</c>, and <c>HttpClientHandler</c> exposes nothing equivalent. The probe is a single
-        /// small <c>GET /rest/system/resource</c>, so bounding it whole is the same guarantee in practice: an
-        /// unreachable or black-holed router can no longer hold <c>Open</c> for the OS connect default.
-        /// </remarks>
-        public int ConnectTimeout { get; set; } = 15000;
 
         /// <summary>
         /// CRUD, <see cref="TikConnectionCapability.Listen"/> (polled — see <c>RunMonitorAsync</c>),
@@ -98,22 +87,24 @@ namespace tik4net.Rest
             TikConnectionCapability.Crud | TikConnectionCapability.Listen
             | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight;
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Applies to HTTPS only (<see cref="TikConnectionType.RestSsl"/>); on plain HTTP there is no
+        /// certificate to judge. Shares its delegate shape with <see cref="tik4net.Api.ApiConnection"/>'s
+        /// API-SSL validation, so one callback set on
+        /// <see cref="TikConnectionSetup.CertificateValidationCallback"/> drives both transports.
+        /// </remarks>
+        public bool AllowInvalidCertificate { get; set; } = true;
+
+        /// <inheritdoc/>
+        public RemoteCertificateValidationCallback CertificateValidationCallback { get; set; }
+
         /// <summary>Creates a REST connection.</summary>
         /// <param name="useSsl">Use HTTPS (port 443) instead of HTTP (port 80).</param>
-        /// <param name="allowInvalidCert">When <paramref name="useSsl"/>, accept self-signed/invalid certificates. Ignored when <paramref name="certificateValidationCallback"/> is set.</param>
-        /// <param name="certificateValidationCallback">
-        /// Optional custom certificate validation for HTTPS. When set, it takes full control and
-        /// <paramref name="allowInvalidCert"/> is ignored. Shares its delegate shape with
-        /// <see cref="tik4net.Api.ApiConnection"/>'s API-SSL validation, so the same callback can drive both
-        /// transports via <see cref="TikConnectionSetup.CertificateValidationCallback"/>.
-        /// </param>
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
-        internal RestConnection(bool useSsl = false, bool allowInvalidCert = true,
-            RemoteCertificateValidationCallback certificateValidationCallback = null)
+        internal RestConnection(bool useSsl = false)
         {
             _useSsl = useSsl;
-            _allowInvalidCert = allowInvalidCert;
-            _certificateValidationCallback = certificateValidationCallback;
             DebugEnabled = System.Diagnostics.Debugger.IsAttached;
         }
 
@@ -150,10 +141,11 @@ namespace tik4net.Rest
             var handler = new HttpClientHandler();
             if (_useSsl)
             {
-                if (_certificateValidationCallback != null)
+                var validate = CertificateValidationCallback;
+                if (validate != null)
                     handler.ServerCertificateCustomValidationCallback =
-                        (request, cert, chain, errors) => _certificateValidationCallback(request, cert, chain, errors);
-                else if (_allowInvalidCert)
+                        (request, cert, chain, errors) => validate(request, cert, chain, errors);
+                else if (AllowInvalidCertificate)
                     handler.ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true;
                 // else: leave unset — HttpClientHandler performs standard OS chain/hostname validation
             }

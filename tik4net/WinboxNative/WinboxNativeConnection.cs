@@ -28,6 +28,8 @@ namespace tik4net.WinboxNative
     /// <para>Streaming monitors are supported via <c>ExecuteAsync</c>/<c>LoadAsync</c> (capability
     /// <see cref="TikConnectionCapability.Listen"/>): <c>.jg</c> <c>type:'query'</c> windows such as
     /// <c>/tool/torch</c>/<c>/tool/profile</c> are polled start→poll→cancel on a background worker.</para>
+    /// <para><see cref="ITikConnection.ConnectTimeout"/> bounds the connect handshake and then the
+    /// authentication exchange, but not the <c>.jg</c> catalog load that follows them.</para>
     /// </remarks>
     public class WinboxNativeConnection : TikCommandConnectionBase, ITikMonitorTransport, IPollingMonitorHost
     {
@@ -44,15 +46,6 @@ namespace tik4net.WinboxNative
         /// of <c>new</c>-shadowing the const (which would resolve on the static reference type — see F12/R11).
         /// </summary>
         private protected virtual int DefaultPortValue => DefaultPort;
-
-        /// <summary>
-        /// Connect/login timeout in milliseconds — bounds the TCP connect handshake and then the
-        /// authentication exchange (default 15 000 ms). Kept separate from
-        /// <see cref="tik4net.Connection.TikCommandConnectionBase.ReceiveTimeout"/>, which is what the
-        /// established session uses for its reads, so an unreachable host fails fast without shortening
-        /// per-command reads. Set before calling <see cref="Open(string, string, string)"/>.
-        /// </summary>
-        public int ConnectTimeout { get; set; } = 15000;
 
         /// <summary>
         /// Directory under which the router's <c>.jg</c> menu catalogs are cached, as

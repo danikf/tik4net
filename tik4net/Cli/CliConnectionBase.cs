@@ -29,7 +29,8 @@ namespace tik4net.Cli
     /// (<see cref="VtStripper.StripAnsi"/>) and any terminal echo / prompt trimmed by the transport — the
     /// core layer only sees data lines.
     /// </summary>
-    public abstract class CliConnectionBase : TikCommandConnectionBase, ITikMonitorTransport, IPollingMonitorHost, ITikCliCompletion
+    public abstract class CliConnectionBase : TikCommandConnectionBase, ITikMonitorTransport, IPollingMonitorHost,
+        ITikCliCompletion, ITikCancellationModeConnection
     {
         /// <summary>Interval between monitor-snapshot polls (ms). Sub-second so callers see a fresh reading
         /// promptly; RouterOS GUI/webfig refresh ~1 s but a terminal snapshot is cheap.</summary>
@@ -61,14 +62,12 @@ namespace tik4net.Cli
             => TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode
              | TikConnectionCapability.RawCommand | TikConnectionCapability.AsyncCommands;
 
-        /// <summary>
-        /// What a <see cref="CancellationToken"/> cancelled <b>after</b> the command was dispatched does on
-        /// this connection. Defaults to <see cref="TikCancellationMode.Cooperative"/> — the response is
-        /// drained and the cancel reported afterwards, so the session stays consistent. Set it to
-        /// <see cref="TikCancellationMode.AbandonAndClose"/> (usually via
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Set it to <see cref="TikCancellationMode.AbandonAndClose"/> (usually via
         /// <see cref="TikConnectionSetup.CancellationMode"/>) to trade the connection for a prompt return.
         /// A token cancelled <i>before</i> dispatch always throws without writing anything, in either mode.
-        /// </summary>
+        /// </remarks>
         public TikCancellationMode CancellationMode { get; set; } = TikCancellationMode.Cooperative;
 
         // ── Transport driver — subclass contract ──────────────────────────────

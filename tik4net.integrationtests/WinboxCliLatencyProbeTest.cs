@@ -115,14 +115,8 @@ namespace tik4net.integrationtests
         {
             var conn = ConnectionFactory.CreateConnection(type);
             string mac = ConfigurationManager.AppSettings["routerMac"];
-            if (!string.IsNullOrEmpty(mac))
-            {
-                switch (conn)
-                {
-                    case tik4net.WinboxCliMac.WinboxCliMacConnection wm: wm.RouterMac = mac; break;
-                    case tik4net.WinboxNativeMac.WinboxNativeMacConnection nm: nm.RouterMac = mac; break;
-                }
-            }
+            if (!string.IsNullOrEmpty(mac) && conn is ITikMacLayerConnection macConn)
+                macConn.RouterMac = mac;
             conn.Open(ConfigurationManager.AppSettings["host"],
                       ConfigurationManager.AppSettings["user"],
                       ConfigurationManager.AppSettings["pass"] ?? "");

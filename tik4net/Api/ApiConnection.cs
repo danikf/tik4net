@@ -12,7 +12,7 @@ using System.Threading;
 
 namespace tik4net.Api
 {  
-    internal sealed class ApiConnection : ITikConnection, ITikConnectionCapabilities
+    internal sealed class ApiConnection : ITikConnection, ITikConnectionCapabilities, ITikTlsConnection
     {
         ///// <summary>
         ///// Version of the login process. See https://wiki.mikrotik.com/wiki/Manual:API#Initial_login
@@ -116,11 +116,8 @@ namespace tik4net.Api
             set { _receiveTimeout = value; }
         }
 
-        /// <summary>
-        /// Connect timeout in milliseconds — bounds the initial TCP handshake in <see cref="Open(string, int, string, string)"/>
-        /// / <see cref="OpenAsync(string, int, string, string)"/> (default 15 000 ms). Distinct from
-        /// <see cref="ReceiveTimeout"/>, which only bounds reads after the connection is up.
-        /// </summary>
+        /// <inheritdoc/>
+        /// <remarks>Bounds the initial TCP handshake (and, on API-SSL, the TLS handshake).</remarks>
         public int ConnectTimeout { get; set; } = 15000;
 
         public bool IsSsl
@@ -128,18 +125,14 @@ namespace tik4net.Api
             get { return _isSsl; }
         }
 
-        /// <summary>
-        /// When true (default, back-compat), self-signed/invalid SSL certificates on the router are
-        /// accepted without validation for API-SSL. Set to false to perform standard chain/hostname
-        /// validation against the OS trust store. Ignored when <see cref="CertificateValidationCallback"/>
-        /// is set.
-        /// </summary>
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Applies to API-SSL only. <c>false</c> performs standard chain/hostname validation against the OS
+        /// trust store.
+        /// </remarks>
         public bool AllowInvalidCertificate { get; set; } = true;
 
-        /// <summary>
-        /// Optional custom certificate validation for API-SSL. When set, it takes full control and
-        /// <see cref="AllowInvalidCertificate"/> is ignored.
-        /// </summary>
+        /// <inheritdoc/>
         public RemoteCertificateValidationCallback CertificateValidationCallback { get; set; }
 
         public ApiConnection(bool isSsl)

@@ -1,31 +1,21 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using tik4net.Api;
-using tik4net.MacTelnet;
-using tik4net.Rest;
-using tik4net.Telnet;
-using tik4net.WinboxCli;
-using tik4net.WinboxCliMac;
-using tik4net.WinboxNative;
-using tik4net.WinboxNativeMac;
+using tik4net.Connection;
 
 namespace tik4net
 {
     /// <summary>
     /// Factory to create and open mikrotik connection of given type.
     /// </summary>
-    /// <remarks>Consider using <see cref="TikConnectionSetup"/> for new code.</remarks>
+    /// <remarks>
+    /// A compatibility shim over <see cref="TikConnectionSetup"/>'s machinery, kept so existing code keeps
+    /// compiling. <b>Prefer <see cref="TikConnectionSetup"/> in new code</b>: the connections this class
+    /// hands out carry their own defaults and there is nowhere to state an option — no connect timeout, no
+    /// certificate policy, no router MAC — so each has to be set on the concrete connection object
+    /// afterwards, if it is reachable at all. Both routes create connections through the same internal
+    /// registry, so a transport is never available through one and not the other.
+    /// </remarks>
     public static class ConnectionFactory
     {
-        // Factories for connection types implemented in satellite packages (e.g. tik4net.ssh), which
-        // core cannot reference directly. Registered at startup via RegisterConnectionFactory and
-        // consulted by CreateConnection before it gives up. ConcurrentDictionary keeps registration
-        // thread-safe without locking the hot path.
-        private static readonly System.Collections.Concurrent.ConcurrentDictionary<TikConnectionType, Func<ITikConnection>> _externalFactories
-            = new System.Collections.Concurrent.ConcurrentDictionary<TikConnectionType, Func<ITikConnection>>();
-
         /// <summary>
         /// Registers a factory for a connection type whose implementation lives in a satellite package
         /// (one core cannot reference, e.g. <c>tik4net.ssh</c> with its <c>Renci.SshNet</c> dependency).
@@ -36,10 +26,7 @@ namespace tik4net
         /// <param name="connectionType">The connection type the satellite package implements.</param>
         /// <param name="factory">Creates a fresh, unopened connection instance.</param>
         public static void RegisterConnectionFactory(TikConnectionType connectionType, Func<ITikConnection> factory)
-        {
-            if (factory == null) throw new ArgumentNullException(nameof(factory));
-            _externalFactories[connectionType] = factory;
-        }
+            => TikConnectionRegistry.Register(connectionType, factory);
 
         /// <summary>
         /// Creates mikrotik Connection of given type.
@@ -48,38 +35,7 @@ namespace tik4net
         /// <returns>Instance of mikrotik Connection.</returns>
         /// <seealso cref="ITikConnection.Open(string, string, string)"/>
         public static ITikConnection CreateConnection(TikConnectionType connectionType)
-        {
-            switch (connectionType)
-            {
-                case TikConnectionType.Api:
-                    return new ApiConnection(false);
-                case TikConnectionType.ApiSsl:
-                    return new ApiConnection(true);
-                case TikConnectionType.Rest:
-                    return new RestConnection(useSsl: false);
-                case TikConnectionType.RestSsl:
-                    return new RestConnection(useSsl: true);
-                case TikConnectionType.Telnet:
-                    return new TelnetConnection();
-                case TikConnectionType.MacTelnet:
-                    return new MacTelnetConnection();
-                case TikConnectionType.WinboxCli:
-                    return new WinboxCliConnection();
-                case TikConnectionType.WinboxCliMac:
-                    return new WinboxCliMacConnection();
-                case TikConnectionType.WinboxNative:
-                    return new WinboxNativeConnection();
-                case TikConnectionType.WinboxNativeMac:
-                    return new WinboxNativeMacConnection();
-                default:
-                    if (_externalFactories.TryGetValue(connectionType, out var external))
-                        return external();
-                    throw new NotImplementedException(string.Format(
-                        "Connection type '{0}' not supported. If it is implemented in a satellite package "
-                        + "(e.g. tik4net.ssh), call ConnectionFactory.RegisterConnectionFactory(...) first.",
-                        connectionType));
-            }
-        }
+            => TikConnectionRegistry.Create(connectionType);
 
         /// <summary>
         /// Creates and opens connection to the specified mikrotik host on default port and perform the logon operation.

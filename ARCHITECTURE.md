@@ -177,18 +177,35 @@ CLI specifics live in `Cli/`: `CliCommandBuilder`, `CliOutputParser`, `CliErrorP
 `Crypto/` holds `EcSrp5` and `WinboxStreamCrypto` — reverse-engineered, high-risk, treat as
 load-bearing.
 
-### Entry points — note the duplication
+### Entry point
 
-Two coexist:
+`TikConnectionSetup` is the single entry point: one options object plus `Create(TikConnectionType)` /
+`Create(TikConnectionType, Action<ITikConnection> configure)` (and their `Async` and `CreateUnopened`
+counterparts) apply every option and open the transport named. `ApplyTo(ITikConnection)` is the piece
+that does the applying — public so the SSH satellite package can configure its own connection type the
+same way. The per-transport `Create<Transport>Connection[Async]()` methods still exist and are just
+routed through `Create`.
 
-- `ConnectionFactory` — classic. `OpenConnection(TikConnectionType, host, [port,] user, pass)`,
-  plus `RegisterConnectionFactory` (how the SSH satellite plugs itself in).
-- `TikConnectionSetup` — newer and preferred. Holds `Port`, `ConnectTimeout`,
-  `AllowInvalidCertificate`, and exposes `Create<Transport>Connection[Async]()` per transport.
+Options split into two kinds:
 
-They are not yet unified, and `TikConnectionSetup` options are not honored by every transport. Don't
-assume a setting applies everywhere — check the transport, and check *what* the value is applied to,
-not merely that it is read.
+- Universal, applied directly on `ITikConnection`: `ConnectTimeout`, `ReceiveTimeout`, `SendTimeout`,
+  `Encoding`, `SendTagWithSyncCommand`, `DebugEnabled`. (`Port` is not a property at all — it selects
+  which `Open` overload is called.)
+- Transport-specific, applied only when the connection implements the interface that declares an
+  interest in them — so a transport either receives an option or provably has no use for it, with no
+  third case where a value is set and silently dropped:
+  - `ITikTlsConnection` (`AllowInvalidCertificate`, `CertificateValidationCallback`) — API-SSL, REST-SSL.
+  - `ITikMacLayerConnection` (`RouterMac`) — MAC-Telnet, WinBox CLI MAC, WinBox native MAC.
+  - `ITikCancellationModeConnection` (`CancellationMode`) — the CLI family (Telnet, SSH, MAC-Telnet,
+    WinBox CLI, WinBox CLI MAC).
+
+A unit-test matrix (`tik4net.unittests/Connection/TikConnectionSetupOptionMatrixTests.cs`) enforces that
+every option reaches every transport that can honour it.
+
+`ConnectionFactory` remains as a thin compatibility shim over the same internal registry
+(`OpenConnection(TikConnectionType, host, [port,] user, pass)`, plus `RegisterConnectionFactory` — how
+the SSH satellite plugs itself in). Connections it returns carry transport defaults and no options —
+prefer `TikConnectionSetup` in new code.
 
 ## Layer 2 — `tik4net.objects`
 

@@ -47,6 +47,9 @@ namespace tik4net.Connection
         public int ReceiveTimeout { get; set; } = 30000;
 
         /// <inheritdoc/>
+        public int ConnectTimeout { get; set; } = 15000;
+
+        /// <inheritdoc/>
         public event EventHandler<TikConnectionCommCallbackEventArgs> OnReadRow;
 
         /// <inheritdoc/>

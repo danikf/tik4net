@@ -1,22 +1,47 @@
 using System;
 using System.Net.Security;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using tik4net.Api;
-using tik4net.MacTelnet;
-using tik4net.Rest;
-using tik4net.Telnet;
-using tik4net.WinboxCli;
-using tik4net.WinboxCliMac;
+using tik4net.Connection;
 using tik4net.WinboxNative;
 using tik4net.WinboxNativeMac;
 
 namespace tik4net
 {
     /// <summary>
-    /// Primary entry point for creating and opening MikroTik connections.
-    /// Replaces the static <see cref="ConnectionFactory"/> (which is retained for backwards compatibility).
+    /// The entry point for creating and opening MikroTik connections: one object carrying the router
+    /// coordinates and every connection option, and one <see cref="Create(TikConnectionType)"/> that applies
+    /// them and opens the transport you name.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Every option here applies on every transport it can mean anything on</b>, and that is enforced by a
+    /// unit-test matrix rather than by the property names lining up. The options that are not universal are
+    /// the ones a transport declares an interest in by implementing an interface —
+    /// <see cref="ITikTlsConnection"/> (the certificate options), <see cref="ITikMacLayerConnection"/>
+    /// (<see cref="RouterMac"/>) and <see cref="ITikCancellationModeConnection"/>
+    /// (<see cref="CancellationMode"/>) — so a transport either receives an option or provably has no use
+    /// for it. There is no third case where a value is set here and quietly dropped, which is what used to
+    /// happen (through 4.0, <see cref="AllowInvalidCertificate"/> reached REST and not API-SSL, and the SSH
+    /// satellite transport received only <see cref="CancellationMode"/>).
+    /// </para>
+    /// <para>
+    /// <see cref="ConnectionFactory"/> remains as a compatibility shim over the same machinery. It creates
+    /// connections with their <b>own defaults</b> — it has no options object — which is the reason to prefer
+    /// this class in new code.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// var setup = new TikConnectionSetup("192.168.88.1", "admin", "")
+    /// {
+    ///     ConnectTimeout = TimeSpan.FromSeconds(5),
+    ///     AllowInvalidCertificate = false,
+    /// };
+    /// using var conn = setup.Create(TikConnectionType.ApiSsl);
+    /// </code>
+    /// </example>
+    /// </remarks>
     public sealed class TikConnectionSetup
     {
         /// <summary>Router host name or IP address.</summary>
@@ -29,14 +54,59 @@ namespace tik4net
         /// <summary>Optional port override. When null the transport default is used (API=8728/8729, REST=80/443).</summary>
         public int? Port { get; set; }
 
-        /// <summary>Connect timeout. Applies to the Open call.</summary>
+        /// <summary>
+        /// How long opening the connection may take before it fails. Default 15 s.
+        /// Applied to <see cref="ITikConnection.ConnectTimeout"/> on every transport.
+        /// </summary>
         public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(15);
+
+        /// <summary>
+        /// How long one command may wait for its answer. Default 30 s. Applied to
+        /// <see cref="ITikConnection.ReceiveTimeout"/>. Bounds a command, not the connection: an idle
+        /// connection with nothing in flight is not subject to it.
+        /// </summary>
+        public TimeSpan ReceiveTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// How long a send may take before it fails. Default 30 s. Applied to
+        /// <see cref="ITikConnection.SendTimeout"/>.
+        /// </summary>
+        public TimeSpan SendTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// Wire text encoding, applied to <see cref="ITikConnection.Encoding"/>. Default UTF-8, which is
+        /// what RouterOS 7 speaks; set <see cref="System.Text.Encoding.ASCII"/> only for a RouterOS 6.x
+        /// router that predates UTF-8 support.
+        /// </summary>
+        public Encoding Encoding { get; set; } = Encoding.UTF8;
+
+        /// <summary>
+        /// Applied to <see cref="ITikConnection.SendTagWithSyncCommand"/> — set it when one binary-API
+        /// connection is used from several threads. Ignored by the transports that correlate replies by
+        /// their own means.
+        /// </summary>
+        public bool SendTagWithSyncCommand { get; set; }
+
+        /// <summary>
+        /// Applied to <see cref="ITikConnection.DebugEnabled"/> when set. <c>null</c> (the default) leaves
+        /// the transport's own default, which is "on when a debugger is attached".
+        /// </summary>
+        public bool? DebugEnabled { get; set; }
+
+        /// <summary>
+        /// Router MAC address as <c>"AA:BB:CC:DD:EE:FF"</c> for the MAC-layer transports (MAC-Telnet,
+        /// WinBox CLI over MAC, WinBox native over MAC), which is what identifies the router there.
+        /// Leave <c>null</c> to discover it by MNDP broadcast, which costs up to 5 s on every open.
+        /// Applied through <see cref="ITikMacLayerConnection"/>, so an IP transport never sees it.
+        /// </summary>
+        public string RouterMac { get; set; }
 
         /// <summary>
         /// What a <see cref="CancellationToken"/> cancelled <b>after</b> a command was dispatched may do to
         /// the connection. Applies to the CLI transports (Telnet, SSH, MAC-Telnet, WinBox CLI over TCP and
-        /// over MAC), whose terminal byte stream has no point to resynchronize on; the API and REST cancel
-        /// for real and ignore it (<see cref="TikConnectionCapability.CancelInFlight"/>). Defaults to
+        /// over MAC), whose terminal byte stream has no point to resynchronize on; the API, REST and native
+        /// WinBox cancel for real and do not implement <see cref="ITikCancellationModeConnection"/>
+        /// (<see cref="TikConnectionCapability.CancelInFlight"/>). Defaults to
         /// <see cref="TikCancellationMode.Cooperative"/> — the connection is never left desynchronized.
         /// </summary>
         public TikCancellationMode CancellationMode { get; set; } = TikCancellationMode.Cooperative;
@@ -69,127 +139,175 @@ namespace tik4net
             Password = password;
         }
 
+        // ── The general entry point ───────────────────────────────────────────
+
+        /// <summary>
+        /// Creates a connection of the given type with every option of this setup applied, and opens it.
+        /// </summary>
+        /// <param name="connectionType">Which transport to open.</param>
+        /// <exception cref="NotImplementedException">
+        /// The type lives in a satellite package that has not been registered — call
+        /// <c>tik4net.Ssh.Tik4NetSsh.Register()</c> (or the package's own equivalent) once at startup, or use
+        /// that package's <c>Create…Connection</c> extension method instead.
+        /// </exception>
+        public ITikConnection Create(TikConnectionType connectionType)
+            => Create(connectionType, null);
+
+        /// <summary>
+        /// Creates a connection of the given type with every option of this setup applied, hands it to
+        /// <paramref name="configure"/>, and opens it.
+        /// </summary>
+        /// <param name="connectionType">Which transport to open.</param>
+        /// <param name="configure">
+        /// Optional hook run <b>after</b> the options are applied and <b>before</b> the connection opens —
+        /// the place for transport-specific settings that are not options of this setup (see
+        /// <see cref="CreateWinboxNativeConnection(Action{WinboxNativeConnection})"/> for the case that
+        /// needs it).
+        /// </param>
+        public ITikConnection Create(TikConnectionType connectionType, Action<ITikConnection> configure)
+        {
+            var conn = CreateUnopened(connectionType, configure);
+            OpenSync(conn);
+            return conn;
+        }
+
+        /// <summary>Async version of <see cref="Create(TikConnectionType)"/>.</summary>
+        public Task<ITikConnection> CreateAsync(TikConnectionType connectionType, CancellationToken ct = default)
+            => CreateAsync(connectionType, null, ct);
+
+        /// <summary>Async version of <see cref="Create(TikConnectionType, Action{ITikConnection})"/>.</summary>
+        public Task<ITikConnection> CreateAsync(TikConnectionType connectionType,
+            Action<ITikConnection> configure, CancellationToken ct = default)
+            => OpenAsync(CreateUnopened(connectionType, configure), ct);
+
+        /// <summary>
+        /// Creates a connection of the given type with every option of this setup applied but <b>does not
+        /// open it</b> — for the caller who needs to touch something on the concrete connection type that is
+        /// not an option here, or to inspect what the options did.
+        /// </summary>
+        /// <param name="connectionType">Which transport to create.</param>
+        /// <param name="configure">Optional hook run after the options are applied.</param>
+        public ITikConnection CreateUnopened(TikConnectionType connectionType, Action<ITikConnection> configure = null)
+        {
+            var conn = TikConnectionRegistry.Create(connectionType);
+            ApplyTo(conn);
+            configure?.Invoke(conn);
+            return conn;
+        }
+
+        /// <summary>
+        /// Applies every option of this setup to an already-created connection. Options that only some
+        /// transports can honour are applied through the interface that declares them
+        /// (<see cref="ITikTlsConnection"/>, <see cref="ITikMacLayerConnection"/>,
+        /// <see cref="ITikCancellationModeConnection"/>), so a transport that does not implement one is
+        /// deliberately, and visibly, skipped.
+        /// </summary>
+        /// <remarks>
+        /// Public because the satellite transport packages (<c>tik4net.ssh</c>) create their own connection
+        /// types and must configure them exactly as the built-in ones are configured; doing it by hand is
+        /// how SSH ended up honouring one option out of ten.
+        /// </remarks>
+        /// <param name="connection">Connection to configure. Must not be open yet.</param>
+        public void ApplyTo(ITikConnection connection)
+        {
+            Guard.ArgumentNotNull(connection, nameof(connection));
+
+            connection.ConnectTimeout = ToMilliseconds(ConnectTimeout);
+            connection.ReceiveTimeout = ToMilliseconds(ReceiveTimeout);
+            connection.SendTimeout = ToMilliseconds(SendTimeout);
+            connection.Encoding = Encoding;
+            connection.SendTagWithSyncCommand = SendTagWithSyncCommand;
+            if (DebugEnabled.HasValue)
+                connection.DebugEnabled = DebugEnabled.Value;
+
+            if (connection is ITikTlsConnection tls)
+            {
+                tls.AllowInvalidCertificate = AllowInvalidCertificate;
+                tls.CertificateValidationCallback = CertificateValidationCallback;
+            }
+
+            if (connection is ITikMacLayerConnection mac)
+                mac.RouterMac = RouterMac;
+
+            if (connection is ITikCancellationModeConnection cancellable)
+                cancellable.CancellationMode = CancellationMode;
+        }
+
+        // A TimeSpan is the friendlier option type; the connections take milliseconds. Saturating rather
+        // than overflowing keeps "effectively no bound" (TimeSpan.MaxValue) from arriving as a negative
+        // millisecond count, which several transports would read as "no wait at all".
+        private static int ToMilliseconds(TimeSpan value)
+        {
+            double ms = value.TotalMilliseconds;
+            if (ms >= int.MaxValue) return int.MaxValue;
+            if (ms <= int.MinValue) return int.MinValue;
+            return (int)ms;
+        }
+
         // ── API ───────────────────────────────────────────────────────────────
 
         /// <summary>Creates and opens a plain MikroTik API connection (TCP 8728).</summary>
         public ITikConnection CreateApiConnection()
-        {
-            var conn = NewApiConnection(false);
-            OpenSync(conn);
-            return conn;
-        }
+            => Create(TikConnectionType.Api);
 
         /// <summary>Creates and opens a MikroTik API-SSL connection (TLS TCP 8729).</summary>
         public ITikConnection CreateApiSslConnection()
-        {
-            var conn = NewApiConnection(true);
-            OpenSync(conn);
-            return conn;
-        }
+            => Create(TikConnectionType.ApiSsl);
 
         /// <summary>Async version of <see cref="CreateApiConnection"/>.</summary>
         public Task<ITikConnection> CreateApiConnectionAsync(CancellationToken ct = default)
-            => OpenAsync(NewApiConnection(false), ct);
+            => CreateAsync(TikConnectionType.Api, ct);
 
         /// <summary>Async version of <see cref="CreateApiSslConnection"/>.</summary>
         public Task<ITikConnection> CreateApiSslConnectionAsync(CancellationToken ct = default)
-            => OpenAsync(NewApiConnection(true), ct);
-
-        private ApiConnection NewApiConnection(bool isSsl)
-            => new ApiConnection(isSsl)
-            {
-                ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
-                AllowInvalidCertificate = AllowInvalidCertificate,
-                CertificateValidationCallback = CertificateValidationCallback,
-            };
+            => CreateAsync(TikConnectionType.ApiSsl, ct);
 
         // ── REST ──────────────────────────────────────────────────────────────
 
         /// <summary>Creates and opens a REST API connection (HTTP, default port 80). Requires RouterOS 7.1+.</summary>
         public ITikConnection CreateRestConnection()
-        {
-            var conn = NewRestConnection(useSsl: false);
-            OpenSync(conn);
-            return conn;
-        }
+            => Create(TikConnectionType.Rest);
 
         /// <summary>Creates and opens a REST API SSL connection (HTTPS, default port 443). Requires RouterOS 7.1+ with www-ssl enabled.</summary>
         public ITikConnection CreateRestSslConnection()
-        {
-            var conn = NewRestConnection(useSsl: true);
-            OpenSync(conn);
-            return conn;
-        }
+            => Create(TikConnectionType.RestSsl);
 
         /// <summary>Async version of <see cref="CreateRestConnection"/>.</summary>
         public Task<ITikConnection> CreateRestConnectionAsync(CancellationToken ct = default)
-            => OpenAsync(NewRestConnection(useSsl: false), ct);
+            => CreateAsync(TikConnectionType.Rest, ct);
 
         /// <summary>Async version of <see cref="CreateRestSslConnection"/>.</summary>
         public Task<ITikConnection> CreateRestSslConnectionAsync(CancellationToken ct = default)
-            => OpenAsync(NewRestConnection(useSsl: true), ct);
-
-        private RestConnection NewRestConnection(bool useSsl)
-            => new RestConnection(useSsl, allowInvalidCert: AllowInvalidCertificate,
-                certificateValidationCallback: CertificateValidationCallback)
-            {
-                ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
-            };
+            => CreateAsync(TikConnectionType.RestSsl, ct);
 
         // ── Telnet ────────────────────────────────────────────────────────────
 
         /// <summary>Creates and opens a Telnet CLI connection (plain-text TCP port 23). Requires RouterOS telnet service enabled.</summary>
         public ITikConnection CreateTelnetConnection()
-        {
-            var conn = NewTelnetConnection();
-            OpenSync(conn);
-            return conn;
-        }
+            => Create(TikConnectionType.Telnet);
 
         /// <summary>Async version of <see cref="CreateTelnetConnection"/>.</summary>
         public Task<ITikConnection> CreateTelnetConnectionAsync(CancellationToken ct = default)
-            => OpenAsync(NewTelnetConnection(), ct);
-
-        private TelnetConnection NewTelnetConnection()
-            => new TelnetConnection
-            {
-                ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
-                CancellationMode = CancellationMode,
-            };
+            => CreateAsync(TikConnectionType.Telnet, ct);
 
         // ── MAC-Telnet ────────────────────────────────────────────────────────
 
         /// <summary>
         /// Creates and opens a MAC-Telnet CLI connection (UDP port 20561).
         /// Requires <c>/tool/mac-server set allowed-interface-list=all</c> on the router.
-        /// The router MAC address is discovered via MNDP (up to 5 s) when <paramref name="routerMac"/>
-        /// is not provided.
+        /// The router MAC address is discovered via MNDP (up to 5 s) when neither
+        /// <paramref name="routerMac"/> nor <see cref="RouterMac"/> is set.
         /// </summary>
         /// <param name="routerMac">
-        /// Optional router MAC address as <c>"AA:BB:CC:DD:EE:FF"</c> to bypass MNDP discovery.
+        /// Optional router MAC address as <c>"AA:BB:CC:DD:EE:FF"</c>, overriding <see cref="RouterMac"/>
+        /// for this connection.
         /// </param>
         public ITikConnection CreateMacTelnetConnection(string routerMac = null)
-        {
-            var conn = new MacTelnetConnection
-            {
-                RouterMac = routerMac,
-                ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
-                CancellationMode = CancellationMode,
-            };
-            OpenSync(conn);
-            return conn;
-        }
+            => Create(TikConnectionType.MacTelnet, OverrideRouterMac(routerMac));
 
         /// <summary>Async version of <see cref="CreateMacTelnetConnection"/>.</summary>
         public Task<ITikConnection> CreateMacTelnetConnectionAsync(string routerMac = null, CancellationToken ct = default)
-            => OpenAsync(
-                new MacTelnetConnection
-                {
-                    RouterMac = routerMac,
-                    ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
-                    CancellationMode = CancellationMode,
-                },
-                ct);
+            => CreateAsync(TikConnectionType.MacTelnet, OverrideRouterMac(routerMac), ct);
 
         // ── WinBox CLI ────────────────────────────────────────────────────────
 
@@ -199,25 +317,11 @@ namespace tik4net
         /// <c>winbox</c> service to be enabled on the router (enabled by default).
         /// </summary>
         public ITikConnection CreateWinboxCliConnection()
-        {
-            var conn = new WinboxCliConnection
-            {
-                ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
-                CancellationMode = CancellationMode,
-            };
-            OpenSync(conn);
-            return conn;
-        }
+            => Create(TikConnectionType.WinboxCli);
 
         /// <summary>Async version of <see cref="CreateWinboxCliConnection"/>.</summary>
         public Task<ITikConnection> CreateWinboxCliConnectionAsync(CancellationToken ct = default)
-            => OpenAsync(
-                new WinboxCliConnection
-                {
-                    ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
-                    CancellationMode = CancellationMode,
-                },
-                ct);
+            => CreateAsync(TikConnectionType.WinboxCli, ct);
 
         // ── WinBox CLI over MAC ─────────────────────────────────────────────────
 
@@ -225,34 +329,19 @@ namespace tik4net
         /// Creates and opens a WinBox CLI connection over the MAC layer (UDP port 20561). Same encrypted
         /// WinBox terminal CLI as <see cref="CreateWinboxCliConnection"/>, but works without an IP route
         /// to the router. Requires <c>/tool/mac-server/mac-winbox set allowed-interface-list=all</c>.
-        /// The router MAC address is discovered via MNDP (up to 5 s) when <paramref name="routerMac"/>
-        /// is not provided.
+        /// The router MAC address is discovered via MNDP (up to 5 s) when neither
+        /// <paramref name="routerMac"/> nor <see cref="RouterMac"/> is set.
         /// </summary>
         /// <param name="routerMac">
-        /// Optional router MAC address as <c>"AA:BB:CC:DD:EE:FF"</c> to bypass MNDP discovery.
+        /// Optional router MAC address as <c>"AA:BB:CC:DD:EE:FF"</c>, overriding <see cref="RouterMac"/>
+        /// for this connection.
         /// </param>
         public ITikConnection CreateWinboxCliMacConnection(string routerMac = null)
-        {
-            var conn = new WinboxCliMacConnection
-            {
-                RouterMac = routerMac,
-                ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
-                CancellationMode = CancellationMode,
-            };
-            OpenSync(conn);
-            return conn;
-        }
+            => Create(TikConnectionType.WinboxCliMac, OverrideRouterMac(routerMac));
 
         /// <summary>Async version of <see cref="CreateWinboxCliMacConnection"/>.</summary>
         public Task<ITikConnection> CreateWinboxCliMacConnectionAsync(string routerMac = null, CancellationToken ct = default)
-            => OpenAsync(
-                new WinboxCliMacConnection
-                {
-                    RouterMac = routerMac,
-                    ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
-                    CancellationMode = CancellationMode,
-                },
-                ct);
+            => CreateAsync(TikConnectionType.WinboxCliMac, OverrideRouterMac(routerMac), ct);
 
         // ── WinBox Native (M2) ──────────────────────────────────────────────────
 
@@ -291,26 +380,12 @@ namespace tik4net
         /// numeric <c>*Override</c> forms pin values that can move between versions.</para>
         /// </example>
         public ITikConnection CreateWinboxNativeConnection(Action<WinboxNativeConnection> configure = null)
-        {
-            var conn = NewWinboxNative(configure);
-            OpenSync(conn);
-            return conn;
-        }
+            => Create(TikConnectionType.WinboxNative, Typed(configure));
 
         /// <summary>Async version of <see cref="CreateWinboxNativeConnection"/>.</summary>
         public Task<ITikConnection> CreateWinboxNativeConnectionAsync(
             Action<WinboxNativeConnection> configure = null, CancellationToken ct = default)
-            => OpenAsync(NewWinboxNative(configure), ct);
-
-        private WinboxNativeConnection NewWinboxNative(Action<WinboxNativeConnection> configure)
-        {
-            var conn = new WinboxNativeConnection
-            {
-                ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
-            };
-            configure?.Invoke(conn);
-            return conn;
-        }
+            => CreateAsync(TikConnectionType.WinboxNative, Typed(configure), ct);
 
         // ── WinBox Native (M2) over MAC ──────────────────────────────────────────
 
@@ -320,33 +395,30 @@ namespace tik4net
         /// to the router. Requires <c>/tool/mac-server/mac-winbox set allowed-interface-list=all</c>.
         /// </summary>
         /// <param name="configure">
-        /// Optional hook to configure the connection before it opens — set
-        /// <see cref="WinboxNativeMacConnection.RouterMac"/> to bypass MNDP discovery (up to 5 s), or any
-        /// of the mappings documented on <see cref="CreateWinboxNativeConnection"/>.
+        /// Optional hook to configure the connection before it opens — any of the mappings documented on
+        /// <see cref="CreateWinboxNativeConnection"/>. The router MAC comes from <see cref="RouterMac"/>.
         /// </param>
         public ITikConnection CreateWinboxNativeMacConnection(Action<WinboxNativeMacConnection> configure = null)
-        {
-            var conn = NewWinboxNativeMac(configure);
-            OpenSync(conn);
-            return conn;
-        }
+            => Create(TikConnectionType.WinboxNativeMac, Typed(configure));
 
         /// <summary>Async version of <see cref="CreateWinboxNativeMacConnection"/>.</summary>
         public Task<ITikConnection> CreateWinboxNativeMacConnectionAsync(
             Action<WinboxNativeMacConnection> configure = null, CancellationToken ct = default)
-            => OpenAsync(NewWinboxNativeMac(configure), ct);
-
-        private WinboxNativeMacConnection NewWinboxNativeMac(Action<WinboxNativeMacConnection> configure)
-        {
-            var conn = new WinboxNativeMacConnection
-            {
-                ConnectTimeout = (int)ConnectTimeout.TotalMilliseconds,
-            };
-            configure?.Invoke(conn);
-            return conn;
-        }
+            => CreateAsync(TikConnectionType.WinboxNativeMac, Typed(configure), ct);
 
         // ── Internals ─────────────────────────────────────────────────────────
+
+        private static Action<ITikConnection> Typed<TConnection>(Action<TConnection> configure)
+            where TConnection : class, ITikConnection
+            => configure == null ? (Action<ITikConnection>)null : conn => configure((TConnection)conn);
+
+        // The per-transport routerMac argument beats the RouterMac option, and only when supplied — the
+        // option is already on the connection by the time this runs (ApplyTo), so a null argument must
+        // leave it alone rather than write the null back.
+        private static Action<ITikConnection> OverrideRouterMac(string routerMac)
+            => routerMac == null
+                ? (Action<ITikConnection>)null
+                : conn => ((ITikMacLayerConnection)conn).RouterMac = routerMac;
 
         private void OpenSync(ITikConnection conn)
         {
@@ -358,6 +430,7 @@ namespace tik4net
 
         private async Task<ITikConnection> OpenAsync(ITikConnection conn, CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
             if (Port.HasValue)
                 await conn.OpenAsync(Host, Port.Value, User, Password).ConfigureAwait(false);
             else

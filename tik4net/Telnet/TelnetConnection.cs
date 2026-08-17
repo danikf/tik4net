@@ -12,6 +12,7 @@ namespace tik4net.Telnet
     /// <remarks>
     /// Supports all CRUD operations. Listen/Streaming/Async are not supported
     /// (capability: <see cref="TikConnectionCapability.Crud"/>).
+    /// <para><see cref="ITikConnection.ConnectTimeout"/> bounds the initial TCP handshake here.</para>
     /// </remarks>
     public sealed class TelnetConnection : CliConnectionBase
     {
@@ -20,13 +21,6 @@ namespace tik4net.Telnet
 
         /// <summary>Default Telnet port.</summary>
         public const int DefaultPort = 23;
-
-        /// <summary>
-        /// Connect timeout in milliseconds — the maximum time to wait for the initial TCP handshake
-        /// (default 15 000 ms). Distinct from <see cref="tik4net.Connection.TikCommandConnectionBase.ReceiveTimeout"/>,
-        /// which only bounds reads after the connection is up.
-        /// </summary>
-        public int ConnectTimeout { get; set; } = 15000;
 
         /// <inheritdoc/>
         protected override string TransportName => "Telnet";

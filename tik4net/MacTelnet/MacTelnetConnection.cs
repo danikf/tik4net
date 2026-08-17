@@ -18,8 +18,14 @@ namespace tik4net.MacTelnet
     /// Supports all CRUD operations. Listen/Streaming/Async are not supported
     /// (capability: <see cref="TikConnectionCapability.Crud"/>).
     /// </para>
+    /// <para>
+    /// <see cref="ITikConnection.ConnectTimeout"/> covers the MNDP discovery and the EC-SRP5 handshake and
+    /// then the wait for the RouterOS shell prompt — a stuck login fails inside it rather than inside the
+    /// per-command <see cref="ITikConnection.ReceiveTimeout"/>, so a caller's connect-retry loop still gets
+    /// its second attempt.
+    /// </para>
     /// </remarks>
-    public sealed class MacTelnetConnection : CliConnectionBase
+    public sealed class MacTelnetConnection : CliConnectionBase, ITikMacLayerConnection
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
         internal MacTelnetConnection() { }
@@ -27,21 +33,8 @@ namespace tik4net.MacTelnet
         /// <summary>Default MAC-Telnet UDP port.</summary>
         public const int DefaultPort = 20561;
 
-        /// <summary>
-        /// Optional: router MAC address as <c>"AA:BB:CC:DD:EE:FF"</c> to bypass MNDP discovery.
-        /// MNDP discovery takes up to 5 seconds — set this property before calling
-        /// <see cref="Open(string, string, string)"/> to avoid that delay.
-        /// </summary>
+        /// <inheritdoc/>
         public string RouterMac { get; set; }
-
-        /// <summary>
-        /// Login timeout in milliseconds — the maximum time to wait for the RouterOS shell prompt
-        /// after authentication (default 15 000 ms). This is intentionally separate from
-        /// <see cref="tik4net.Connection.TikCommandConnectionBase.ReceiveTimeout"/> (which bounds per-command reads): a stuck
-        /// login should fail fast enough that a caller's connect-retry loop can make a second attempt.
-        /// Set before calling <see cref="Open(string, string, string)"/>.
-        /// </summary>
-        public int ConnectTimeout { get; set; } = 15000;
 
         /// <inheritdoc/>
         protected override string TransportName => "MAC-Telnet";

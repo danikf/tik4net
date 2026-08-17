@@ -254,6 +254,10 @@ namespace tik4net.Testing
         public int ReceiveTimeout { get; set; }
 
         /// <inheritdoc/>
+        /// <remarks>Accepted and ignored — the fake connection reaches no router to be slow.</remarks>
+        public int ConnectTimeout { get; set; } = 15000;
+
+        /// <inheritdoc/>
         public event EventHandler<TikConnectionCommCallbackEventArgs> OnReadRow { add { } remove { } }
 
         /// <inheritdoc/>
