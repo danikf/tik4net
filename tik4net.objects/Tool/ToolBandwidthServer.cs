@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -35,11 +35,11 @@ namespace tik4net.Objects.Tool
 
         /// <summary>allowed-addresses4 — IPv4 address or prefix from which test connections are accepted. Empty means no restriction.</summary>
         [TikProperty("allowed-addresses4", DefaultValue = "")]
-        public string/*IP/CIDR*/ AllowedAddresses4 { get; set; }
+        public string?/*IP/CIDR*/ AllowedAddresses4 { get; set; }
 
         /// <summary>allowed-addresses6 — IPv6 address or prefix from which test connections are accepted. Empty means no restriction.</summary>
         [TikProperty("allowed-addresses6", DefaultValue = "")]
-        public string/*IPv6/CIDR*/ AllowedAddresses6 { get; set; }
+        public string?/*IPv6/CIDR*/ AllowedAddresses6 { get; set; }
 
         /// <summary>Returns a human-readable summary of the bandwidth server settings.</summary>
         public override string ToString() => string.Format("bandwidth-server: enabled={0}, authenticate={1}, max-sessions={2}", Enabled, Authenticate, MaxSessions);

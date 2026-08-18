@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -37,7 +37,7 @@ namespace tik4net.Objects.CapsMan
 
         /// <summary>.id — primary key of row.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         // ── Identification ────────────────────────────────────────────────────
 
@@ -45,26 +45,26 @@ namespace tik4net.Objects.CapsMan
         /// name — unique name of this CAPsMAN interface.
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// mac-address — MAC address of the virtual wireless interface.
         /// </summary>
         [TikProperty("mac-address")]
-        public string/*MAC*/ MacAddress { get; set; }
+        public string?/*MAC*/ MacAddress { get; set; }
 
         /// <summary>
         /// radio-mac — MAC address of the physical CAP radio that bound to this interface entry.
         /// Used to match a specific CAP radio device.
         /// </summary>
         [TikProperty("radio-mac")]
-        public string/*MAC*/ RadioMac { get; set; }
+        public string?/*MAC*/ RadioMac { get; set; }
 
         /// <summary>
         /// radio-name — identifier/name reported by the CAP device for this radio.
         /// </summary>
         [TikProperty("radio-name")]
-        public string RadioName { get; set; }
+        public string? RadioName { get; set; }
 
         // ── Configuration references ──────────────────────────────────────────
 
@@ -73,37 +73,37 @@ namespace tik4net.Objects.CapsMan
         /// or "none" for a master interface itself. Default: none.
         /// </summary>
         [TikProperty("master-interface", DefaultValue = "none")]
-        public string MasterInterface { get; set; }
+        public string? MasterInterface { get; set; }
 
         /// <summary>
         /// configuration — name of the /caps-man/configuration profile to apply to this interface.
         /// </summary>
         [TikProperty("configuration")]
-        public string Configuration { get; set; }
+        public string? Configuration { get; set; }
 
         /// <summary>
         /// channel — name of the /caps-man/channel profile to apply, or empty for no channel override.
         /// </summary>
         [TikProperty("channel")]
-        public string Channel { get; set; }
+        public string? Channel { get; set; }
 
         /// <summary>
         /// datapath — name of the /caps-man/datapath profile to apply, or empty for no datapath override.
         /// </summary>
         [TikProperty("datapath")]
-        public string Datapath { get; set; }
+        public string? Datapath { get; set; }
 
         /// <summary>
         /// security — name of the /caps-man/security profile to apply, or empty for no security override.
         /// </summary>
         [TikProperty("security")]
-        public string Security { get; set; }
+        public string? Security { get; set; }
 
         /// <summary>
         /// rates — name of the /caps-man/rates profile to apply, or empty for no rates override.
         /// </summary>
         [TikProperty("rates")]
-        public string Rates { get; set; }
+        public string? Rates { get; set; }
 
         // ── Inline rates overrides (rates.*) ──────────────────────────────────
 
@@ -111,37 +111,37 @@ namespace tik4net.Objects.CapsMan
         /// rates.basic — comma-separated list of mandatory data rates (e.g. "1Mbps,2Mbps,5.5Mbps,11Mbps").
         /// </summary>
         [TikProperty("rates.basic")]
-        public string RatesBasic { get; set; }
+        public string? RatesBasic { get; set; }
 
         /// <summary>
         /// rates.supported — comma-separated list of optional advertised data rates.
         /// </summary>
         [TikProperty("rates.supported")]
-        public string RatesSupported { get; set; }
+        public string? RatesSupported { get; set; }
 
         /// <summary>
         /// rates.ht-basic-mcs — required 802.11n MCS indices (e.g. "mcs-0,mcs-1,...,mcs-7").
         /// </summary>
         [TikProperty("rates.ht-basic-mcs")]
-        public string RatesHtBasicMcs { get; set; }
+        public string? RatesHtBasicMcs { get; set; }
 
         /// <summary>
         /// rates.ht-supported-mcs — advertised 802.11n MCS indices.
         /// </summary>
         [TikProperty("rates.ht-supported-mcs")]
-        public string RatesHtSupportedMcs { get; set; }
+        public string? RatesHtSupportedMcs { get; set; }
 
         /// <summary>
         /// rates.vht-basic-mcs — required 802.11ac MCS set per spatial stream.
         /// </summary>
         [TikProperty("rates.vht-basic-mcs")]
-        public string RatesVhtBasicMcs { get; set; }
+        public string? RatesVhtBasicMcs { get; set; }
 
         /// <summary>
         /// rates.vht-supported-mcs — advertised 802.11ac MCS set per spatial stream.
         /// </summary>
         [TikProperty("rates.vht-supported-mcs")]
-        public string RatesVhtSupportedMcs { get; set; }
+        public string? RatesVhtSupportedMcs { get; set; }
 
         // ── Network parameters ────────────────────────────────────────────────
 
@@ -156,7 +156,7 @@ namespace tik4net.Objects.CapsMan
         /// arp-timeout — timeout for ARP cache entries. Default: auto.
         /// </summary>
         [TikProperty("arp-timeout", DefaultValue = "auto")]
-        public string/*time*/ ArpTimeout { get; set; }
+        public string?/*time*/ ArpTimeout { get; set; }
 
         /// <summary>
         /// mtu — IP layer maximum transmission unit in bytes.
@@ -191,7 +191,7 @@ namespace tik4net.Objects.CapsMan
         /// comment — short free-text description of this interface entry.
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         // ── Read-only status fields ───────────────────────────────────────────
         // These are set by the router when a CAP binds to this interface entry.
@@ -228,6 +228,6 @@ namespace tik4net.Objects.CapsMan
         public bool Inactive { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -68,7 +68,7 @@ namespace tik4net.Objects.Interface.Vpn
 
         /// <summary>name — server interface name identifier.</summary>
         [TikProperty("name")]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// auth — comma-separated list of authentication (HMAC) algorithms the server will accept.
@@ -76,14 +76,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: sha1,md5,sha256,sha512
         /// </summary>
         [TikProperty("auth", DefaultValue = "sha1,md5,sha256,sha512")]
-        public string Auth { get; set; }
+        public string? Auth { get; set; }
 
         /// <summary>
         /// certificate — name of the TLS certificate the server uses; <c>none</c> disables certificate-based auth.
         /// Default: none
         /// </summary>
         [TikProperty("certificate", DefaultValue = "none")]
-        public string Certificate { get; set; }
+        public string? Certificate { get; set; }
 
         /// <summary>
         /// cipher — comma-separated list of permitted data-channel encryption algorithms.
@@ -91,14 +91,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: aes128-cbc,blowfish128
         /// </summary>
         [TikProperty("cipher", DefaultValue = "aes128-cbc,blowfish128")]
-        public string Cipher { get; set; }
+        public string? Cipher { get; set; }
 
         /// <summary>
         /// default-profile — default PPP profile applied when a client connects.
         /// Default: default
         /// </summary>
         [TikProperty("default-profile", DefaultValue = "default")]
-        public string DefaultProfile { get; set; }
+        public string? DefaultProfile { get; set; }
 
         /// <summary>
         /// disabled — when <c>true</c> the OpenVPN server does not accept connections.
@@ -129,13 +129,13 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: 60
         /// </summary>
         [TikProperty("keepalive-timeout", DefaultValue = "60")]
-        public string/*integer or "disabled"*/ KeepaliveTimeout { get; set; }
+        public string?/*integer or "disabled"*/ KeepaliveTimeout { get; set; }
 
         /// <summary>
         /// mac-address — MAC address assigned to the server virtual interface (auto-generated when not set).
         /// </summary>
         [TikProperty("mac-address")]
-        public string/*MAC*/ MacAddress { get; set; }
+        public string?/*MAC*/ MacAddress { get; set; }
 
         /// <summary>
         /// max-mtu — maximum transmission unit for the tunnel interface, in bytes.
@@ -182,13 +182,13 @@ namespace tik4net.Objects.Interface.Vpn
         /// Maximum 1400 characters (approximately 37 routes).
         /// </summary>
         [TikProperty("push-routes")]
-        public string PushRoutes { get; set; }
+        public string? PushRoutes { get; set; }
 
         /// <summary>
         /// push-routes-ipv6 — comma-separated list of IPv6 routes pushed to connecting clients.
         /// </summary>
         [TikProperty("push-routes-ipv6")]
-        public string PushRoutesIpv6 { get; set; }
+        public string? PushRoutesIpv6 { get; set; }
 
         /// <summary>
         /// redirect-gateway — controls default-route redirection pushed to clients.
@@ -227,7 +227,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: :: (not set)
         /// </summary>
         [TikProperty("tun-server-ipv6", DefaultValue = "::")]
-        public string/*IPv6 prefix*/ TunServerIpv6 { get; set; }
+        public string?/*IPv6 prefix*/ TunServerIpv6 { get; set; }
 
         /// <summary>
         /// user-auth-method — challenge-response authentication protocol used for user authentication.
@@ -242,11 +242,11 @@ namespace tik4net.Objects.Interface.Vpn
         /// Leave empty to use the main routing table.
         /// </summary>
         [TikProperty("vrf")]
-        public string Vrf { get; set; }
+        public string? Vrf { get; set; }
 
         /// <summary>comment — optional description of the server configuration.</summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>Human-readable summary of the OpenVPN server configuration.</summary>
         public override string ToString() => string.Format("ovpn-server port={0} protocol={1} mode={2} disabled={3}", Port, Protocol, Mode, Disabled);

@@ -1,4 +1,4 @@
-﻿namespace tik4net.Objects.Interface.Wifi
+namespace tik4net.Objects.Interface.Wifi
 {
     /// <summary>
     /// /interface/wifi
@@ -37,7 +37,7 @@
 
         /// <summary>.id — primary key of row.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         // ── Identification ────────────────────────────────────────────────────
 
@@ -47,7 +47,7 @@
         /// WinBox: "Name"
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         // ── Hardware binding ──────────────────────────────────────────────────
 
@@ -58,7 +58,7 @@
         /// WinBox: "Radio MAC"
         /// </summary>
         [TikProperty("radio-mac")]
-        public string/*MAC*/ RadioMac { get; set; }
+        public string?/*MAC*/ RadioMac { get; set; }
 
         /// <summary>
         /// master-interface — name of the master (physical) wifi interface.  Set when creating
@@ -66,7 +66,7 @@
         /// WinBox: "Master Interface"
         /// </summary>
         [TikProperty("master-interface")]
-        public string MasterInterface { get; set; }
+        public string? MasterInterface { get; set; }
 
         // ── Profile references ────────────────────────────────────────────────
         // These fields can hold either the name of a shared profile object or "none"/"default".
@@ -79,7 +79,7 @@
         /// WinBox: "Configuration"
         /// </summary>
         [TikProperty("configuration")]
-        public string Configuration { get; set; }
+        public string? Configuration { get; set; }
 
         /// <summary>
         /// security — name of the /interface/wifi/security profile to apply.
@@ -87,7 +87,7 @@
         /// WinBox: "Security"
         /// </summary>
         [TikProperty("security")]
-        public string Security { get; set; }
+        public string? Security { get; set; }
 
         /// <summary>
         /// datapath — name of the /interface/wifi/datapath profile to apply.
@@ -95,7 +95,7 @@
         /// WinBox: "Datapath"
         /// </summary>
         [TikProperty("datapath")]
-        public string Datapath { get; set; }
+        public string? Datapath { get; set; }
 
         /// <summary>
         /// channel — name of the /interface/wifi/channel profile to apply.
@@ -103,21 +103,21 @@
         /// WinBox: "Channel"
         /// </summary>
         [TikProperty("channel")]
-        public string Channel { get; set; }
+        public string? Channel { get; set; }
 
         /// <summary>
         /// interworking — name of the /interface/wifi/interworking (Hotspot 2.0) profile.
         /// WinBox: "Interworking"
         /// </summary>
         [TikProperty("interworking")]
-        public string Interworking { get; set; }
+        public string? Interworking { get; set; }
 
         /// <summary>
         /// steering — name of the /interface/wifi/steering profile for 802.11k/v roaming hints.
         /// WinBox: "Steering"
         /// </summary>
         [TikProperty("steering")]
-        public string Steering { get; set; }
+        public string? Steering { get; set; }
 
         // ── Inline AAA overrides ──────────────────────────────────────────────
         // aaa.* are per-interface RADIUS/accounting overrides.  The whole group can also
@@ -128,7 +128,7 @@
         /// /interface/wifi aaa field which selects a named RADIUS profile.
         /// </summary>
         [TikProperty("aaa")]
-        public string Aaa { get; set; }
+        public string? Aaa { get; set; }
 
         /// <summary>
         /// aaa.called-format — format string for RADIUS Called-Station-Id attribute.
@@ -136,49 +136,49 @@
         /// WinBox: "Called Format"
         /// </summary>
         [TikProperty("aaa.called-format")]
-        public string AaaCalledFormat { get; set; }
+        public string? AaaCalledFormat { get; set; }
 
         /// <summary>
         /// aaa.calling-format — format string for RADIUS Calling-Station-Id attribute.
         /// WinBox: "Calling Format"
         /// </summary>
         [TikProperty("aaa.calling-format")]
-        public string AaaCallingFormat { get; set; }
+        public string? AaaCallingFormat { get; set; }
 
         /// <summary>
         /// aaa.interim-update — interval for RADIUS interim accounting updates; "disabled" to turn off.
         /// WinBox: "Interim Update"
         /// </summary>
         [TikProperty("aaa.interim-update")]
-        public string/*time|disabled*/ AaaInterimUpdate { get; set; }
+        public string?/*time|disabled*/ AaaInterimUpdate { get; set; }
 
         /// <summary>
         /// aaa.mac-caching — time to cache RADIUS MAC-auth results; "disabled" to skip caching.
         /// WinBox: "MAC Caching"
         /// </summary>
         [TikProperty("aaa.mac-caching")]
-        public string/*time|disabled*/ AaaMacCaching { get; set; }
+        public string?/*time|disabled*/ AaaMacCaching { get; set; }
 
         /// <summary>
         /// aaa.nas-identifier — value sent in RADIUS NAS-Identifier attribute.
         /// WinBox: "NAS Identifier"
         /// </summary>
         [TikProperty("aaa.nas-identifier")]
-        public string AaaNasIdentifier { get; set; }
+        public string? AaaNasIdentifier { get; set; }
 
         /// <summary>
         /// aaa.password-format — format of the RADIUS password field used during MAC authentication.
         /// WinBox: "Password Format"
         /// </summary>
         [TikProperty("aaa.password-format")]
-        public string AaaPasswordFormat { get; set; }
+        public string? AaaPasswordFormat { get; set; }
 
         /// <summary>
         /// aaa.username-format — format of the RADIUS User-Name attribute during MAC authentication.
         /// WinBox: "Username Format"
         /// </summary>
         [TikProperty("aaa.username-format")]
-        public string AaaUsernameFormat { get; set; }
+        public string? AaaUsernameFormat { get; set; }
 
         // ── Interface / network settings ──────────────────────────────────────
 
@@ -196,7 +196,7 @@
         /// WinBox: "ARP Timeout"
         /// </summary>
         [TikProperty("arp-timeout", DefaultValue = "auto")]
-        public string/*time|auto*/ ArpTimeout { get; set; }
+        public string?/*time|auto*/ ArpTimeout { get; set; }
 
         /// <summary>
         /// mac-address — override the interface MAC address (BSSID).
@@ -204,7 +204,7 @@
         /// WinBox: "MAC Address"
         /// </summary>
         [TikProperty("mac-address")]
-        public string/*MAC*/ MacAddress { get; set; }
+        public string?/*MAC*/ MacAddress { get; set; }
 
         /// <summary>
         /// mtu — Layer-3 maximum transmission unit in bytes. Range: 32..2290.
@@ -244,7 +244,7 @@
         /// WinBox: "Comment"
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         // ── Read-only properties ──────────────────────────────────────────────
 
@@ -252,7 +252,7 @@
         /// default-name — factory/default name of the interface (e.g. "wifi1").
         /// </summary>
         [TikProperty("default-name", IsReadOnly = true)]
-        public string DefaultName { get; private set; }
+        public string? DefaultName { get; private set; }
 
         /// <summary>
         /// running — true when the interface has an active link (unless disable-running-check is set).
@@ -282,9 +282,9 @@
         /// cap — CAPsMAN controller info if this interface is controlled by a CAPsMAN manager.
         /// </summary>
         [TikProperty("cap", IsReadOnly = true)]
-        public string Cap { get; private set; }
+        public string? Cap { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

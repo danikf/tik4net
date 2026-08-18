@@ -44,8 +44,8 @@ namespace tik4net
         /// <param name="defaultValue">Value returned when no matching record was found.</param>
         /// <param name="target">Name of the returned field, or <c>null</c> for the first non-<c>.id</c> field.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
-        public static Task<string> ExecuteScalarOrDefaultAsync(this ITikCommand command, string defaultValue = null,
-            string target = null, CancellationToken cancellationToken = default(CancellationToken))
+        public static Task<string?> ExecuteScalarOrDefaultAsync(this ITikCommand command, string? defaultValue = null,
+            string? target = null, CancellationToken cancellationToken = default(CancellationToken))
             => command.AsAsync().ExecuteScalarOrDefaultAsync(defaultValue, target, cancellationToken);
 
         /// <inheritdoc cref="ITikCommandAsync.ExecuteSingleRowAsync"/>
@@ -57,7 +57,7 @@ namespace tik4net
         /// <inheritdoc cref="ITikCommandAsync.ExecuteSingleRowOrDefaultAsync"/>
         /// <param name="command">Command to execute.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
-        public static Task<ITikReSentence> ExecuteSingleRowOrDefaultAsync(this ITikCommand command, CancellationToken cancellationToken = default(CancellationToken))
+        public static Task<ITikReSentence?> ExecuteSingleRowOrDefaultAsync(this ITikCommand command, CancellationToken cancellationToken = default(CancellationToken))
             => command.AsAsync().ExecuteSingleRowOrDefaultAsync(cancellationToken);
 
         /// <inheritdoc cref="ITikCommandAsync.ExecuteListAsync(CancellationToken)"/>

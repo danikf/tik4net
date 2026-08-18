@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -128,18 +128,18 @@ namespace tik4net.Objects.Interface.Bridge
         /// to-arp-reply-mac-address: Source MAC address to put in Ethernet frame and ARP payload, when action=arp-reply is selected
         /// </summary>
         [TikProperty("to-arp-reply-mac-address")]
-        public string/*MAC address*/ ToArpReplyMacAddress { get; set; }
+        public string?/*MAC address*/ ToArpReplyMacAddress { get; set; }
 
         /// <summary>
         /// to-dst-mac-address: Destination MAC address to put in Ethernet frames, when action=dst-nat is selected
         /// </summary>
         [TikProperty("to-dst-mac-address")]
-        public string/*MAC address*/ ToDstMacAddress { get; set; }
+        public string?/*MAC address*/ ToDstMacAddress { get; set; }
 
         /// <summary>
         /// to-src-mac-address: Source MAC address to put in Ethernet frames, when action=src-nat is selected
         /// </summary>
         [TikProperty("to-src-mac-address")]
-        public string/*MAC address*/ ToSrcMacAddress { get; set; }
+        public string?/*MAC address*/ ToSrcMacAddress { get; set; }
     }
 }

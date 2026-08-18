@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,19 +17,19 @@ namespace tik4net.Objects.Interface
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// admin-mac: Static MAC address of the bridge (takes effect if auto-mac=no)
         /// </summary>
         [TikProperty("admin-mac")]
-        public string/*MAC address*/ AdminMac { get; set; }
+        public string?/*MAC address*/ AdminMac { get; set; }
 
         /// <summary>
         /// ageing-time: How long a host's information will be kept in the bridge database
         /// </summary>
         [TikProperty("ageing-time", DefaultValue = "00:05:00")]
-        public string/*time*/ AgeingTime { get; set; }
+        public string?/*time*/ AgeingTime { get; set; }
 
         /// <summary>
         /// Address Resolution Protocol setting  
@@ -81,38 +81,38 @@ namespace tik4net.Objects.Interface
         /// forward-delay: Time which is spent during the initialization phase of the bridge interface (i.e., after router startup or enabling the interface) in listening/learning state before the bridge will start functioning normally
         /// </summary>
         [TikProperty("forward-delay", DefaultValue = "00:00:15")]
-        public string/*time*/ ForwardDelay { get; set; }
+        public string?/*time*/ ForwardDelay { get; set; }
 
         /// <summary>
         /// l2mtu: Layer2 Maximum transmission unit.  read more&#187; 
         /// </summary>
         [TikProperty("l2mtu", IsReadOnly = true)]
-        public string/*integer; read-only*/ L2mtu { get; private set; }
+        public string?/*integer; read-only*/ L2mtu { get; private set; }
 
         /// <summary>
         /// max-message-age: How long to remember Hello messages received from other bridges
         /// </summary>
         [TikProperty("max-message-age", DefaultValue = "00:00:20")]
-        public string/*time*/ MaxMessageAge { get; set; }
+        public string?/*time*/ MaxMessageAge { get; set; }
 
         /// <summary>
         /// mtu: Maximum Transmission Unit
         /// </summary>
         [TikProperty("mtu", DefaultValue = "1500")]
-        public string Mtu { get; set; }
+        public string? Mtu { get; set; }
 
         /// <summary>
         /// name: Name of the bridge interface
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string/*text*/ Name { get; set; }
+        public string?/*text*/ Name { get; set; }
 
         /// <summary>
         /// priority
         /// Spanning tree protocol priority for bridge interface. Bridge with the smallest (lowest) bridge ID becomes a Root-Bridge. Bridge ID consists of two numbers - priority and MAC address of the bridge. To compare two bridge IDs, the priority is compared first. If two bridges have equal priority, then the MAC addresses are compared.
         /// </summary>
         [TikProperty("priority", DefaultValue = "8000")]
-        public string/*integer: 0..65535 decimal format or 0x0000-0xffff hex format*/ Priority { get; set; }
+        public string?/*integer: 0..65535 decimal format or 0x0000-0xffff hex format*/ Priority { get; set; }
 
         /// <summary>
         /// protocol-mode: Select Spanning tree protocol (STP) or Rapid spanning tree protocol (RSTP) to ensure a loop-free topology for any bridged LAN. RSTP provides for faster spanning tree convergence after a topology change.

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -19,7 +19,7 @@ namespace tik4net.Objects.Interface
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// adaptive-noise-immunity: This property is only effective for cards based on Atheros chipset.
@@ -27,7 +27,7 @@ namespace tik4net.Objects.Interface
         /// ap-and-client-mode | client-mode | none
         /// </summary>
         [TikProperty("adaptive-noise-immunity", DefaultValue = "none")]
-        public string/*ap-and-client-mode | client-mode | none*/ AdaptiveNoiseImmunity { get; set; }
+        public string?/*ap-and-client-mode | client-mode | none*/ AdaptiveNoiseImmunity { get; set; }
 
         /// <summary>
         /// allow-sharedkey: Allow WEP Shared Key cilents to connect. Note that no authentication is done for these clients (WEP Shared keys are not compared to anything) - they are just accepted at once (if access list allows that)
@@ -50,7 +50,7 @@ namespace tik4net.Objects.Interface
         ///  rxa-txb - use antenna 'b' for transmitting, antenna 'a' for receiving
         /// </summary>
         [TikProperty("antenna-mode")]
-        public string/*ant-a | ant-b | rxa-txb | txa-rxb*/ AntennaMode { get; set; }
+        public string?/*ant-a | ant-b | rxa-txb | txa-rxb*/ AntennaMode { get; set; }
 
         /// <summary>
         /// area
@@ -58,28 +58,28 @@ namespace tik4net.Objects.Interface
         /// This is a proprietary extension.
         /// </summary>
         [TikProperty("area")]
-        public string Area { get; set; }
+        public string? Area { get; set; }
 
         /// <summary>
         /// arp:  Read more &gt;&gt;
         /// disabled | enabled | proxy-arp | reply-only
         /// </summary>
         [TikProperty("arp", DefaultValue = "enabled")]
-        public string/*disabled | enabled | proxy-arp | reply-only*/ Arp { get; set; }
+        public string?/*disabled | enabled | proxy-arp | reply-only*/ Arp { get; set; }
 
         /// <summary>
         /// band: Defines set of used data rates, channel frequencies and widths.
         /// 2ghz-b | 2ghz-b/g | 2ghz-b/g/n | 2ghz-onlyg | 2ghz-onlyn | 5ghz-a | 5ghz-a/n | 5ghz-onlyn | 5ghz-a/n/ac | 5ghz-only-AC
         /// </summary>
         [TikProperty("band")]
-        public string/*2ghz-b | 2ghz-b/g | 2ghz-b/g/n | 2ghz-onlyg | 2ghz-onlyn | 5ghz-a | 5ghz-a/n | 5ghz-onlyn | 5ghz-a/n/ac | 5ghz-only-AC*/ Band { get; set; }
+        public string?/*2ghz-b | 2ghz-b/g | 2ghz-b/g/n | 2ghz-onlyg | 2ghz-onlyn | 5ghz-a | 5ghz-a/n | 5ghz-onlyn | 5ghz-a/n/ac | 5ghz-only-AC*/ Band { get; set; }
 
         /// <summary>
         /// Unknown: Similar to the basic-rates-b property, but used for 5ghz, 5ghz-10mhz, 5ghz-5mhz, 5ghz-turbo, 2.4ghz-b/g, 2.4ghz-onlyg, 2ghz-10mhz, 2ghz-5mhz and 2.4ghz-g-turbo bands.
         /// 12Mbps | 18Mbps | 24Mbps | 36Mbps | 48Mbps | 54Mbps | 6Mbps | 9Mbps; Default: 6Mbps
         /// </summary>
         [TikProperty("basic-rates-a/g")]
-        public string /*basic-rates-a/g (12Mbps | 18Mbps | 24Mbps | 36Mbps | 48Mbps | 54Mbps | 6Mbps | 9Mbps; Default: 6Mbps)*/ BasicRatesAG { get; set; }
+        public string? /*basic-rates-a/g (12Mbps | 18Mbps | 24Mbps | 36Mbps | 48Mbps | 54Mbps | 6Mbps | 9Mbps; Default: 6Mbps)*/ BasicRatesAG { get; set; }
 
         /// <summary>
         /// basic-rates-b
@@ -91,7 +91,7 @@ namespace tik4net.Objects.Interface
         /// 11Mbps | 1Mbps | 2Mbps | 5.5Mbps
         /// </summary>
         [TikProperty("basic-rates-b", DefaultValue = "1Mbps")]
-        public string/*11Mbps | 1Mbps | 2Mbps | 5.5Mbps*/ BasicRatesB { get; set; }
+        public string?/*11Mbps | 1Mbps | 2Mbps | 5.5Mbps*/ BasicRatesB { get; set; }
 
         /// <summary>
         /// bridge-mode: Allows to use station-bridge mode.  Read more &gt;&gt;
@@ -99,7 +99,7 @@ namespace tik4net.Objects.Interface
         /// disabled | enabled
         /// </summary>
         [TikProperty("bridge-mode", DefaultValue = "enabled")]
-        public string/*disabled | enabled*/ BridgeMode { get; set; }
+        public string?/*disabled | enabled*/ BridgeMode { get; set; }
 
         /// <summary>
         /// burst-time: Time in microseconds which will be used to send data without stopping. Note that no other wireless cards in that network will be able to transmit data during burst-time microseconds. This setting is available only for AR5000, AR5001X, and AR5001X+ chipset based cards.
@@ -107,7 +107,7 @@ namespace tik4net.Objects.Interface
         /// integer | disabled
         /// </summary>
         [TikProperty("burst-time", DefaultValue = "disabled")]
-        public string/*integer | disabled*/ BurstTime { get; set; }
+        public string?/*integer | disabled*/ BurstTime { get; set; }
 
         /// <summary>
         /// channel-width: ht above and ht below allows to use additional 20MHz extension channel and if it should be located below or above control (main) channel. Extension channel allows 11n device to use 40MHz of spectrum in total thus increasing max throughput.
@@ -115,13 +115,13 @@ namespace tik4net.Objects.Interface
         /// 10mhz | 20/40mhz-ht-above | 20/40mhz-ht-below | 20mhz | 40mhz-turbo | 5mhz
         /// </summary>
         [TikProperty("channel-width", DefaultValue = "20mhz")]
-        public string/*10mhz | 20/40mhz-ht-above | 20/40mhz-ht-below | 20mhz | 40mhz-turbo | 5mhz*/ ChannelWidth { get; set; }
+        public string?/*10mhz | 20/40mhz-ht-above | 20/40mhz-ht-below | 20mhz | 40mhz-turbo | 5mhz*/ ChannelWidth { get; set; }
 
         /// <summary>
         /// comment: Short description of the interface
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>
         /// compression: Setting this property to yes will allow use of the hardware compression. Wireless interface must have support for hardware compression. Connections with devices that do not use compression will still work.
@@ -135,7 +135,7 @@ namespace tik4net.Objects.Interface
         /// name of the country | no_country_set
         /// </summary>
         [TikProperty("country", DefaultValue = "no_country_set")]
-        public string/*name of the country | no_country_set*/ Country { get; set; }
+        public string?/*name of the country | no_country_set*/ Country { get; set; }
 
         /// <summary>
         /// default-ap-tx-limit: This is the value of ap-tx-limit for clients that do not match any entry in the  access-list. 0 means no limit.
@@ -175,7 +175,7 @@ namespace tik4net.Objects.Interface
         /// no-radar-detect | none | radar-detec
         /// </summary>
         [TikProperty("dfs-mode", DefaultValue = "none")]
-        public string/*no-radar-detect | none | radar-detec*/ DfsMode { get; set; }
+        public string?/*no-radar-detect | none | radar-detec*/ DfsMode { get; set; }
 
         /// <summary>
         /// disable-running-check: When set to yes interface will always have running flag.  If value is set to no', the router determines whether the card is up and running - for AP one or more clients have to be registered to it, for station, it should be connected to an AP.
@@ -197,7 +197,7 @@ namespace tik4net.Objects.Interface
         /// time [0s..15s]
         /// </summary>
         [TikProperty("disconnect-timeout", DefaultValue = "3s")]
-        public string/*time [0s..15s]*/ DisconnectTimeout { get; set; }
+        public string?/*time [0s..15s]*/ DisconnectTimeout { get; set; }
 
         /// <summary>
         /// distance
@@ -207,7 +207,7 @@ namespace tik4net.Objects.Interface
         /// integer | dynamic | indoors
         /// </summary>
         [TikProperty("distance", DefaultValue = "dynamic")]
-        public string/*integer | dynamic | indoors*/ Distance { get; set; }
+        public string?/*integer | dynamic | indoors*/ Distance { get; set; }
 
         /// <summary>
         /// frame-lifetime: Discard frames that have been queued for sending longer than frame-lifetime. By default, when value of this property is 0, frames are discarded only after connection is closed.
@@ -227,7 +227,7 @@ namespace tik4net.Objects.Interface
         /// integer [0..4294967295]
         /// </summary>
         [TikProperty("frequency")]
-        public String/*integer [0..4294967295], string "auto"*/ Frequency { get; set; }
+        public String?/*integer [0..4294967295], string "auto"*/ Frequency { get; set; }
 
         /// <summary>
         /// frequency-mode
@@ -240,7 +240,7 @@ namespace tik4net.Objects.Interface
         /// manual-txpower | regulatory-domain | superchannel
         /// </summary>
         [TikProperty("frequency-mode", DefaultValue = "manual-txpower")]
-        public string/*manual-txpower | regulatory-domain | superchannel*/ FrequencyMode { get; set; }
+        public string?/*manual-txpower | regulatory-domain | superchannel*/ FrequencyMode { get; set; }
 
         /// <summary>
         /// frequency-offset: Allows to specify offset if the used wireless card operates at a different frequency than is shown in RouterOS, in case a frequency converter is used in the card. So if your card works at 4000MHz but RouterOS shows 5000MHz, set offset to 1000MHz and it will be displayed correctly. The value is in MHz and can be positive or negative.
@@ -266,7 +266,7 @@ namespace tik4net.Objects.Interface
         /// list of integer [0..7]
         /// </summary>
         [TikProperty("ht-ampdu-priorities", DefaultValue = "0")]
-        public string/*list of integer [0..7]*/ HtAmpduPriorities { get; set; }
+        public string?/*list of integer [0..7]*/ HtAmpduPriorities { get; set; }
 
         /// <summary>
         /// ht-amsdu-limit: Max AMSDU that device is allowed to prepare when negotiated. AMSDU aggregation may significantly increase throughput especially for small frames, but may increase latency in case of packet loss due to retransmission of aggregated frame. Sending and receiving AMSDUs will also increase CPU usage.
@@ -274,7 +274,7 @@ namespace tik4net.Objects.Interface
         /// integer [0..8192]
         /// </summary>
         [TikProperty("ht-amsdu-limit", DefaultValue = "8192")]
-        public string/*integer [0..8192]*/ HtAmsduLimit { get; set; }
+        public string?/*integer [0..8192]*/ HtAmsduLimit { get; set; }
 
         /// <summary>
         /// ht-amsdu-threshold: Max frame size to allow including in AMSDU.
@@ -282,7 +282,7 @@ namespace tik4net.Objects.Interface
         /// integer [0..8192]
         /// </summary>
         [TikProperty("ht-amsdu-threshold", DefaultValue = "8192")]
-        public string/*integer [0..8192]*/ HtAmsduThreshold { get; set; }
+        public string?/*integer [0..8192]*/ HtAmsduThreshold { get; set; }
 
         /// <summary>
         /// ht-basic-mcs: Modulation and Coding Schemes that every connecting client must support. Refer to 802.11n for MCS specification.
@@ -290,7 +290,7 @@ namespace tik4net.Objects.Interface
         /// list of (mcs-0 | mcs-1 | mcs-2 | mcs-3 | mcs-4 | mcs-5 | mcs-6 | mcs-7 | mcs-8 | mcs-9 | mcs-10 | mcs-11 | mcs-12 | mcs-13 | mcs-14 | mcs-15 | mcs-16 | mcs-17 | mcs-18 | mcs-19 | mcs-20 | mcs-21 | mcs-22 | mcs-23)
         /// </summary>
         [TikProperty("ht-basic-mcs", DefaultValue = "mcs-0; mcs-1; mcs-2; mcs-3; mcs-4; mcs-5; mcs-6; mcs-7")]
-        public string/*list of (mcs-0 | mcs-1 | mcs-2 | mcs-3 | mcs-4 | mcs-5 | mcs-6 | mcs-7 | mcs-8 | mcs-9 | mcs-10 | mcs-11 | mcs-12 | mcs-13 | mcs-14 | mcs-15 | mcs-16 | mcs-17 | mcs-18 | mcs-19 | mcs-20 | mcs-21 | mcs-22 | mcs-23)*/ HtBasicMcs { get; set; }
+        public string?/*list of (mcs-0 | mcs-1 | mcs-2 | mcs-3 | mcs-4 | mcs-5 | mcs-6 | mcs-7 | mcs-8 | mcs-9 | mcs-10 | mcs-11 | mcs-12 | mcs-13 | mcs-14 | mcs-15 | mcs-16 | mcs-17 | mcs-18 | mcs-19 | mcs-20 | mcs-21 | mcs-22 | mcs-23)*/ HtBasicMcs { get; set; }
 
         /// <summary>
         /// ht-guard-interval: Whether to  allow use of short guard interval (refer to 802.11n MCS specification to see how this may affect throughput). "any" will use either short or long, depending on data rate, "long" will use long.
@@ -298,7 +298,7 @@ namespace tik4net.Objects.Interface
         /// any | long
         /// </summary>
         [TikProperty("ht-guard-interval", DefaultValue = "any")]
-        public string/*any | long*/ HtGuardInterval { get; set; }
+        public string?/*any | long*/ HtGuardInterval { get; set; }
 
         /// <summary>
         /// ht-rxchains: Which antennas to use for receive.
@@ -306,7 +306,7 @@ namespace tik4net.Objects.Interface
         /// list of integer [0..2]
         /// </summary>
         [TikProperty("ht-rxchains", DefaultValue = "0")]
-        public string/*list of integer [0..2]*/ HtRxchains { get; set; }
+        public string?/*list of integer [0..2]*/ HtRxchains { get; set; }
 
         /// <summary>
         /// ht-supported-mcs: Modulation and Coding Schemes that this device advertises as supported. Refer to 802.11n for MCS specification.
@@ -314,7 +314,7 @@ namespace tik4net.Objects.Interface
         /// list of (mcs-0 | mcs-1 | mcs-2 | mcs-3 | mcs-4 | mcs-5 | mcs-6 | mcs-7 | mcs-8 | mcs-9 | mcs-10 | mcs-11 | mcs-12 | mcs-13 | mcs-14 | mcs-15 | mcs-16 | mcs-17 | mcs-18 | mcs-19 | mcs-20 | mcs-21 | mcs-22 | mcs-23)
         /// </summary>
         [TikProperty("ht-supported-mcs", DefaultValue = "")]
-        public string/*list of (mcs-0 | mcs-1 | mcs-2 | mcs-3 | mcs-4 | mcs-5 | mcs-6 | mcs-7 | mcs-8 | mcs-9 | mcs-10 | mcs-11 | mcs-12 | mcs-13 | mcs-14 | mcs-15 | mcs-16 | mcs-17 | mcs-18 | mcs-19 | mcs-20 | mcs-21 | mcs-22 | mcs-23)*/ HtSupportedMcs { get; set; }
+        public string?/*list of (mcs-0 | mcs-1 | mcs-2 | mcs-3 | mcs-4 | mcs-5 | mcs-6 | mcs-7 | mcs-8 | mcs-9 | mcs-10 | mcs-11 | mcs-12 | mcs-13 | mcs-14 | mcs-15 | mcs-16 | mcs-17 | mcs-18 | mcs-19 | mcs-20 | mcs-21 | mcs-22 | mcs-23)*/ HtSupportedMcs { get; set; }
 
         /// <summary>
         /// ht-txchains: Which antetnnas to use for transmit.
@@ -322,7 +322,7 @@ namespace tik4net.Objects.Interface
         /// list of integer [0..2]
         /// </summary>
         [TikProperty("ht-txchains", DefaultValue = "0")]
-        public string/*list of integer [0..2]*/ HtTxchains { get; set; }
+        public string?/*list of integer [0..2]*/ HtTxchains { get; set; }
 
         /// <summary>
         /// hw-fragmentation-threshold: Specifies maximum fragment size in bytes when transmitted over wireless medium. 802.11 standard packet (MSDU in 802.11 terminology) fragmentation allows packets to be fragmented before transmiting over wireless medium to increase probability of successful transmission (only fragments that did not transmit correctly are retransmitted). Note that transmission of fragmented packet is less efficient than transmitting unfragmented packet because of protocol overhead and increased resource usage at both - transmitting and receiving party.
@@ -330,7 +330,7 @@ namespace tik4net.Objects.Interface
         /// integer[256..3000] | disabled
         /// </summary>
         [TikProperty("hw-fragmentation-threshold", DefaultValue = "0")]
-        public string/*integer[256..3000] | disabled*/ HwFragmentationThreshold { get; set; }
+        public string?/*integer[256..3000] | disabled*/ HwFragmentationThreshold { get; set; }
 
         /// <summary>
         /// hw-protection-mode: Frame protection support property  read more &gt;&gt;
@@ -338,7 +338,7 @@ namespace tik4net.Objects.Interface
         /// cts-to-self | none | rts-cts
         /// </summary>
         [TikProperty("hw-protection-mode", DefaultValue = "none")]
-        public string/*cts-to-self | none | rts-cts*/ HwProtectionMode { get; set; }
+        public string?/*cts-to-self | none | rts-cts*/ HwProtectionMode { get; set; }
 
         /// <summary>
         /// hw-protection-threshold: Frame protection support property read more &gt;&gt;
@@ -368,13 +368,13 @@ namespace tik4net.Objects.Interface
         /// mac-address: 
         /// </summary>
         [TikProperty("mac-address")]
-        public string/*MAC*/ MacAddress { get; set; }
+        public string?/*MAC*/ MacAddress { get; set; }
 
         /// <summary>
         /// master-interface: Name of wireless interface that has virtual-ap capability. Virtual AP interface will only work if master interface is in ap-bridge, bridge or wds-slave mode. This property is only for virtual AP interfaces.
         /// </summary>
         [TikProperty("master-interface")]
-        public string MasterInterface { get; set; }
+        public string? MasterInterface { get; set; }
 
         /// <summary>
         /// max-station-count: Maximum number of associated clients. WDS links also count toward this limit.
@@ -487,13 +487,13 @@ namespace tik4net.Objects.Interface
         /// default - default choice that currently is set to disabled. Value can be changed in future releases.
         /// </summary>
         [TikProperty("multicast-helper", DefaultValue = "default")]
-        public string/*default | disabled | full*/ MulticastHelper { get; set; }
+        public string?/*default | disabled | full*/ MulticastHelper { get; set; }
 
         /// <summary>
         /// name: name of the interface
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// noise-floor-threshold: This property is only effective for cards based on AR5211 chipset.
@@ -501,7 +501,7 @@ namespace tik4net.Objects.Interface
         /// default | integer [-128..127]
         /// </summary>
         [TikProperty("noise-floor-threshold", DefaultValue = "default")]
-        public string/*default | integer [-128..127]*/ NoiseFloorThreshold { get; set; }
+        public string?/*default | integer [-128..127]*/ NoiseFloorThreshold { get; set; }
 
         /// <summary>
         /// nv2-cell-radius
@@ -518,13 +518,13 @@ namespace tik4net.Objects.Interface
         /// nv2-noise-floor-offset: default | integer [0..20]
         /// </summary>
         [TikProperty("nv2-noise-floor-offset", DefaultValue = "default")]
-        public string/*default | integer [0..20]*/ Nv2NoiseFloorOffset { get; set; }
+        public string?/*default | integer [0..20]*/ Nv2NoiseFloorOffset { get; set; }
 
         /// <summary>
         /// nv2-preshared-key: 
         /// </summary>
         [TikProperty("nv2-preshared-key")]
-        public string Nv2PresharedKey { get; set; }
+        public string? Nv2PresharedKey { get; set; }
 
         /// <summary>
         /// nv2-qos
@@ -533,19 +533,19 @@ namespace tik4net.Objects.Interface
         ///  default - default setting where small packets receive priority for best latency
         /// </summary>
         [TikProperty("nv2-qos", DefaultValue = "default")]
-        public string/*default | frame-priority*/ Nv2Qos { get; set; }
+        public string?/*default | frame-priority*/ Nv2Qos { get; set; }
 
         /// <summary>
         /// nv2-queue-count: 
         /// </summary>
         [TikProperty("nv2-queue-count", DefaultValue = "2")]
-        public string/*integer [2..8]*/ Nv2QueueCount { get; set; }
+        public string?/*integer [2..8]*/ Nv2QueueCount { get; set; }
 
         /// <summary>
         /// nv2-security: disabled | enabled
         /// </summary>
         [TikProperty("nv2-security", DefaultValue = "disabled")]
-        public string/*disabled | enabled*/ Nv2Security { get; set; }
+        public string?/*disabled | enabled*/ Nv2Security { get; set; }
 
         /// <summary>
         /// on-fail-retry-time: After third sending failure on the lowest data rate, wait for specified time interval before retrying.
@@ -553,7 +553,7 @@ namespace tik4net.Objects.Interface
         /// time [100ms..1s]
         /// </summary>
         [TikProperty("on-fail-retry-time", DefaultValue = "100ms")]
-        public string/*time [100ms..1s]*/ OnFailRetryTime { get; set; }
+        public string?/*time [100ms..1s]*/ OnFailRetryTime { get; set; }
 
         /// <summary>
         /// periodic-calibration
@@ -563,7 +563,7 @@ namespace tik4net.Objects.Interface
         /// default | disabled | enabled
         /// </summary>
         [TikProperty("periodic-calibration", DefaultValue = "default")]
-        public string/*default | disabled | enabled*/ PeriodicCalibration { get; set; }
+        public string?/*default | disabled | enabled*/ PeriodicCalibration { get; set; }
 
         /// <summary>
         /// periodic-calibration-interval: This property is only effective for cards based on Atheros chipset.
@@ -618,7 +618,7 @@ namespace tik4net.Objects.Interface
         /// 100mW | 200mW | 30mW
         /// </summary>
         [TikProperty("prism-cardtype")]
-        public string/*100mW | 200mW | 30mW*/ PrismCardtype { get; set; }
+        public string?/*100mW | 200mW | 30mW*/ PrismCardtype { get; set; }
 
         /// <summary>
         /// proprietary-extension
@@ -627,7 +627,7 @@ namespace tik4net.Objects.Interface
         ///  post-2.9.25 - This uses standardized way of including vendor specific information, that is compatible with newer wireless clients.
         /// </summary>
         [TikProperty("proprietary-extension", DefaultValue = "post-2.9.25")]
-        public string/*post-2.9.25 | pre-2.9.25*/ ProprietaryExtension { get; set; }
+        public string?/*post-2.9.25 | pre-2.9.25*/ ProprietaryExtension { get; set; }
 
         /// <summary>
         /// radio-name
@@ -635,7 +635,7 @@ namespace tik4net.Objects.Interface
         /// This is a proprietary extension.
         /// </summary>
         [TikProperty("radio-name", DefaultValue = "MAC address of an interface")]
-        public string RadioName { get; set; }
+        public string? RadioName { get; set; }
 
         /// <summary>
         /// rate-selection: Starting from v5.9 default value is advanced since legacy mode was inefficient.
@@ -643,7 +643,7 @@ namespace tik4net.Objects.Interface
         /// advanced | legacy
         /// </summary>
         [TikProperty("rate-selection", DefaultValue = "advanced")]
-        public string/*advanced | legacy*/ RateSelection { get; set; }
+        public string?/*advanced | legacy*/ RateSelection { get; set; }
 
         /// <summary>
         /// rate-set
@@ -652,7 +652,7 @@ namespace tik4net.Objects.Interface
         ///  configured - use values from basic-rates, supported-rates, basic-mcs, mcs.  Read more &gt;&gt;.
         /// </summary>
         [TikProperty("rate-set", DefaultValue = "default")]
-        public string/*configured | default*/ RateSet { get; set; }
+        public string?/*configured | default*/ RateSet { get; set; }
 
         /// <summary>
         /// scan-list
@@ -662,19 +662,19 @@ namespace tik4net.Objects.Interface
         /// Comma separated list of frequencies and frequency ranges | default
         /// </summary>
         [TikProperty("scan-list", DefaultValue = "default")]
-        public string/*Comma separated list of frequencies and frequency ranges | default*/ ScanList { get; set; }
+        public string?/*Comma separated list of frequencies and frequency ranges | default*/ ScanList { get; set; }
 
         /// <summary>
         /// security-profile: Name of profile from  security-profiles
         /// </summary>
         [TikProperty("security-profile", DefaultValue = "default")]
-        public string SecurityProfile { get; set; }
+        public string? SecurityProfile { get; set; }
 
         /// <summary>
         /// ssid: SSID (service set identifier) is a name that identifies wireless network.
         /// </summary>
         [TikProperty("ssid", DefaultValue = "value of system/identity")]
-        public string/*string (0..32 chars)*/ Ssid { get; set; }
+        public string?/*string (0..32 chars)*/ Ssid { get; set; }
 
         /// <summary>
         /// station-bridge-clone-mac
@@ -683,7 +683,7 @@ namespace tik4net.Objects.Interface
         /// As soon as packet with MAC address of another device needs to be transmitted, station will reconnect to AP using that address.
         /// </summary>
         [TikProperty("station-bridge-clone-mac")]
-        public string/*MAC*/ StationBridgeCloneMac { get; set; }
+        public string?/*MAC*/ StationBridgeCloneMac { get; set; }
 
         /// <summary>
         /// supported-rates-a/g: List of supported rates, used for all bands except  2ghz-b.
@@ -691,7 +691,7 @@ namespace tik4net.Objects.Interface
         /// (list of rates [12Mbps | 18Mbps | 24Mbps | 36Mbps | 48Mbps | 54Mbps | 6Mbps | 9Mbps]; Default: 6Mbps; 9Mbps; 12Mbps; 18Mbps; 24Mbps; 36Mbps; 48Mbps; 54Mbps)
         /// </summary>
         [TikProperty("supported-rates-a/g")]
-        public string /*supported-rates-a/g (list of rates [12Mbps | 18Mbps | 24Mbps | 36Mbps | 48Mbps | 54Mbps | 6Mbps | 9Mbps]; Default: 6Mbps; 9Mbps; 12Mbps; 18Mbps; 24Mbps; 36Mbps; 48Mbps; 54Mbps)*/ SupportedRatesAG { get; set; }
+        public string? /*supported-rates-a/g (list of rates [12Mbps | 18Mbps | 24Mbps | 36Mbps | 48Mbps | 54Mbps | 6Mbps | 9Mbps]; Default: 6Mbps; 9Mbps; 12Mbps; 18Mbps; 24Mbps; 36Mbps; 48Mbps; 54Mbps)*/ SupportedRatesAG { get; set; }
 
         /// <summary>
         /// supported-rates-b: List of supported rates, used for 2ghz-b, 2ghz-b/g and 2ghz-b/g/n bands. Two devices will communicate only using rates that are supported by both devices. This property has effect only when value of rate-set is configured.
@@ -699,7 +699,7 @@ namespace tik4net.Objects.Interface
         /// list of rates [11Mbps | 1Mbps | 2Mbps | 5.5Mbps]
         /// </summary>
         [TikProperty("supported-rates-b", DefaultValue = "1Mbps; 2Mbps; 5.5Mbps; 11Mbps")]
-        public string/*list of rates [11Mbps | 1Mbps | 2Mbps | 5.5Mbps]*/ SupportedRatesB { get; set; }
+        public string?/*list of rates [11Mbps | 1Mbps | 2Mbps | 5.5Mbps]*/ SupportedRatesB { get; set; }
 
         /// <summary>
         /// tdma-debug: [0..4294967295]
@@ -717,7 +717,7 @@ namespace tik4net.Objects.Interface
         /// tdma-override-rate: 12mbps | 18mbps | 24mbps | 36mbps | 48mbps | 54mbps | 6mbps | 9mbps | disabled | ht20-mcs... | ht40-mcs...
         /// </summary>
         [TikProperty("tdma-override-rate", DefaultValue = "disabled")]
-        public string/*12mbps | 18mbps | 24mbps | 36mbps | 48mbps | 54mbps | 6mbps | 9mbps | disabled | ht20-mcs... | ht40-mcs...*/ TdmaOverrideRate { get; set; }
+        public string?/*12mbps | 18mbps | 24mbps | 36mbps | 48mbps | 54mbps | 6mbps | 9mbps | disabled | ht20-mcs... | ht40-mcs...*/ TdmaOverrideRate { get; set; }
 
         /// <summary>
         /// tdma-override-size: integer [0..4294967295]
@@ -795,7 +795,7 @@ namespace tik4net.Objects.Interface
         /// This is proprietary extension.
         /// </summary>
         [TikProperty("update-stats-interval")]
-        public string UpdateStatsInterval { get; set; }
+        public string? UpdateStatsInterval { get; set; }
 
         /// <summary>
         /// vht-basic-mcs
@@ -807,7 +807,7 @@ namespace tik4net.Objects.Interface
         ///  MCS 0-9 - client must support MCS-0 to MCS-9
         /// </summary>
         [TikProperty("vht-basic-mcs", DefaultValue = "MCS 0-7")]
-        public string/*none | MCS 0-7 | MCS 0-8 | MCS 0-9*/ VhtBasicMcs { get; set; }
+        public string?/*none | MCS 0-7 | MCS 0-8 | MCS 0-9*/ VhtBasicMcs { get; set; }
 
         /// <summary>
         /// vht-supported-mcs
@@ -819,7 +819,7 @@ namespace tik4net.Objects.Interface
         ///  MCS 0-9 - devices will advertise as supported MCS-0 to MCS-9
         /// </summary>
         [TikProperty("vht-supported-mcs", DefaultValue = "MCS 0-9")]
-        public string/*none | MCS 0-7 | MCS 0-8 | MCS 0-9*/ VhtSupportedMcs { get; set; }
+        public string?/*none | MCS 0-7 | MCS 0-8 | MCS 0-9*/ VhtSupportedMcs { get; set; }
 
         /// <summary>
         /// wds-cost-range
@@ -828,19 +828,19 @@ namespace tik4net.Objects.Interface
         /// Automatic adjustment does not work for WDS links that are manually configured as a bridge port.
         /// </summary>
         [TikProperty("wds-cost-range", DefaultValue = "50-150")]
-        public string/*start [-end] integer[0..4294967295]*/ WdsCostRange { get; set; }
+        public string?/*start [-end] integer[0..4294967295]*/ WdsCostRange { get; set; }
 
         /// <summary>
         /// wds-default-bridge: When WDS link is established and status of the wds interface becomes running, it will be added as a bridge port to the bridge interface specified by this property. When WDS link is lost, wds interface is removed from the bridge. If wds interface is already included in a bridge setup when WDS link becomes active, it will not be added to bridge specified by , and will (needs editing)
         /// </summary>
         [TikProperty("wds-default-bridge", DefaultValue = "none")]
-        public string/*string | none*/ WdsDefaultBridge { get; set; }
+        public string?/*string | none*/ WdsDefaultBridge { get; set; }
 
         /// <summary>
         /// wds-default-cost: Initial bridge port cost of the WDS links.
         /// </summary>
         [TikProperty("wds-default-cost", DefaultValue = "100")]
-        public string/*integer [0..4294967295]*/ WdsDefaultCost { get; set; }
+        public string?/*integer [0..4294967295]*/ WdsDefaultCost { get; set; }
 
         /// <summary>
         /// wds-ignore-ssid: By default, WDS link between two APs can be created only when they work on the same frequency and have the same SSID value. If this property is set to yes, then SSID of the remote AP will not be checked. This property has no effect on connections from clients in station-wds mode. It also does not work if wds-mode is static-mesh or dynamic-mesh.
@@ -861,7 +861,7 @@ namespace tik4net.Objects.Interface
         /// disabled  | dynamic | dynamic-mesh | static | static-mesh
         /// </summary>
         [TikProperty("wds-mode", DefaultValue = "disabled")]
-        public string/*disabled  | dynamic | dynamic-mesh | static | static-mesh*/ WdsMode { get; set; }
+        public string?/*disabled  | dynamic | dynamic-mesh | static | static-mesh*/ WdsMode { get; set; }
 
         /// <summary>
         /// Options for <see cref="WirelessProtocol"/>.
@@ -932,6 +932,6 @@ namespace tik4net.Objects.Interface
         /// disabled | enabled | required
         /// </summary>
         [TikProperty("wmm-support", DefaultValue = "disabled")]
-        public string/*disabled | enabled | required*/ WmmSupport { get; set; }
+        public string?/*disabled | enabled | required*/ WmmSupport { get; set; }
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -85,7 +85,7 @@ namespace tik4net.Objects.CapsMan
 
         /// <summary>.id — primary key of row.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         // ── Action ────────────────────────────────────────────────────────────
 
@@ -109,7 +109,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Radio MAC"
         /// </summary>
         [TikProperty("radio-mac", DefaultValue = "00:00:00:00:00:00")]
-        public string/*MAC*/ RadioMac { get; set; }
+        public string?/*MAC*/ RadioMac { get; set; }
 
         /// <summary>
         /// hw-supported-modes — comma-separated list of wireless hardware modes the radio
@@ -119,7 +119,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Hw. Supported Modes"
         /// </summary>
         [TikProperty("hw-supported-modes", DefaultValue = "")]
-        public string HwSupportedModes { get; set; }
+        public string? HwSupportedModes { get; set; }
 
         /// <summary>
         /// identity-regexp — regular expression matched against the CAP router's system
@@ -127,7 +127,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Identity Regexp"
         /// </summary>
         [TikProperty("identity-regexp", DefaultValue = "")]
-        public string IdentityRegexp { get; set; }
+        public string? IdentityRegexp { get; set; }
 
         /// <summary>
         /// common-name-regexp — regular expression matched against the CAP certificate
@@ -135,7 +135,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Common Name Regexp"
         /// </summary>
         [TikProperty("common-name-regexp", DefaultValue = "")]
-        public string CommonNameRegexp { get; set; }
+        public string? CommonNameRegexp { get; set; }
 
         /// <summary>
         /// ip-address-ranges — comma-separated list of IP address ranges (up to 100) that
@@ -145,7 +145,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "IP Address Ranges"
         /// </summary>
         [TikProperty("ip-address-ranges", DefaultValue = "")]
-        public string IpAddressRanges { get; set; }
+        public string? IpAddressRanges { get; set; }
 
         // ── Configuration references ──────────────────────────────────────────
 
@@ -156,7 +156,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Master Configuration"
         /// </summary>
         [TikProperty("master-configuration", DefaultValue = "")]
-        public string MasterConfiguration { get; set; }
+        public string? MasterConfiguration { get; set; }
 
         /// <summary>
         /// slave-configurations — comma-separated list of /caps-man/configuration profile
@@ -165,7 +165,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Slave Configurations"
         /// </summary>
         [TikProperty("slave-configurations", DefaultValue = "")]
-        public string SlaveConfigurations { get; set; }
+        public string? SlaveConfigurations { get; set; }
 
         // ── Naming ────────────────────────────────────────────────────────────
 
@@ -184,7 +184,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Name Prefix"
         /// </summary>
         [TikProperty("name-prefix", DefaultValue = "")]
-        public string NamePrefix { get; set; }
+        public string? NamePrefix { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
 
@@ -201,7 +201,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Comment"
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>Human-readable identity — action and comment.</summary>
         public override string ToString() =>

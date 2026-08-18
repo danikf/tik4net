@@ -69,7 +69,7 @@ namespace tik4net.Objects
         /// Defaukt value of the property.
         /// </summary>
         /// <seealso cref="TikPropertyAttribute.DefaultValue"/>
-        public string DefaultValue { get; private set; }
+        public string? DefaultValue { get; private set; }
 
         /// <summary>
         /// If value should be unset during update (save modified entity) when property contains default value (set to default will be called when false).
@@ -86,8 +86,8 @@ namespace tik4net.Objects
 
         private PropertyInfo PropertyInfo { get; set; }
 
-        private readonly Func<object, object> _getter;
-        private readonly Action<object, object> _setter;
+        private readonly Func<object, object?>? _getter;
+        private readonly Action<object, object>? _setter;
 
         /// <summary>
         /// The wire-value ↔ member tables of <see cref="ValueType"/>, or null when the property is not an
@@ -95,9 +95,9 @@ namespace tik4net.Objects
         /// <see cref="TikEnumMetadata.Get"/> is what makes it one table per enum type, this field is what
         /// makes reaching it free.
         /// </summary>
-        private readonly TikEnumMetadata _enumMetadata;
+        private readonly TikEnumMetadata? _enumMetadata;
 
-        private ITikTypeConverter _converter;
+        private ITikTypeConverter? _converter;
 
         /// <summary>
         /// The <see cref="ITikTypeConverter"/> handling <see cref="ValueType"/>, or null when none does.
@@ -108,7 +108,7 @@ namespace tik4net.Objects
         /// being silently ignored, and a built-in type never pays for the lookup. The assignment is
         /// idempotent, so the missing lock costs at most a repeated scan.
         /// </remarks>
-        private ITikTypeConverter ResolveConverter()
+        private ITikTypeConverter? ResolveConverter()
         {
             return _converter ?? (_converter = TikTypeConverters.Resolve(ValueType));
         }
@@ -200,25 +200,25 @@ namespace tik4net.Objects
         // load that threw on a platform which does not (AOT, a restricted host) would be a far worse outcome
         // than a slow one. UsesCompiledAccessors is how a test tells the two apart.
 
-        private static Func<object, object> BuildGetter(PropertyInfo propertyInfo)
+        private static Func<object, object?>? BuildGetter(PropertyInfo propertyInfo)
         {
-            MethodInfo getMethod = propertyInfo.GetMethod;
+            MethodInfo? getMethod = propertyInfo.GetMethod;
             if (getMethod == null || getMethod.IsStatic || propertyInfo.GetIndexParameters().Length > 0)
                 return null;
 
-            return (Func<object, object>)BindAccessor("MakeGetter", getMethod, propertyInfo);
+            return (Func<object, object?>?)BindAccessor("MakeGetter", getMethod, propertyInfo);
         }
 
-        private static Action<object, object> BuildSetter(PropertyInfo propertyInfo)
+        private static Action<object, object>? BuildSetter(PropertyInfo propertyInfo)
         {
-            MethodInfo setMethod = propertyInfo.SetMethod;
+            MethodInfo? setMethod = propertyInfo.SetMethod;
             if (setMethod == null || setMethod.IsStatic || propertyInfo.GetIndexParameters().Length > 0)
                 return null;
 
-            return (Action<object, object>)BindAccessor("MakeSetter", setMethod, propertyInfo);
+            return (Action<object, object>?)BindAccessor("MakeSetter", setMethod, propertyInfo);
         }
 
-        private static object BindAccessor(string factoryName, MethodInfo accessor, PropertyInfo propertyInfo)
+        private static object? BindAccessor(string factoryName, MethodInfo accessor, PropertyInfo propertyInfo)
         {
             try
             {
@@ -236,7 +236,7 @@ namespace tik4net.Objects
             }
         }
 
-        private static Func<object, object> MakeGetter<TEntity, TValue>(MethodInfo getMethod)
+        private static Func<object, object?> MakeGetter<TEntity, TValue>(MethodInfo getMethod)
         {
             var typed = (Func<TEntity, TValue>)getMethod.CreateDelegate(typeof(Func<TEntity, TValue>));
             return entity => typed((TEntity)entity);
@@ -248,7 +248,7 @@ namespace tik4net.Objects
             return (entity, value) => typed((TEntity)entity, (TValue)value);
         }
 
-        private object ConvertFromString(string strValue)
+        private object? ConvertFromString(string? strValue)
         {
             try
             {
@@ -258,46 +258,52 @@ namespace tik4net.Objects
                 if (IsNullable && strValue == null)
                     return null;
 
+                // Past this point strValue is null only for a non-nullable property, which is a caller
+                // error the parse calls below already turn into a FormatException via the catch - the `!`
+                // just types that pre-existing behaviour instead of changing it.
+                string value = strValue!;
+
                 //convert to property real type
                 if (ValueType == typeof(string))
-                    return strValue;
+                    return value;
                 else if (ValueType == typeof(TimeSpan))
-                    return TikTimeHelper.FromTikTimeToTimeSpan(strValue);
+                    return TikTimeHelper.FromTikTimeToTimeSpan(value);
                 else if (ValueType == typeof(int))
-                    return int.Parse(strValue);
+                    return int.Parse(value);
                 else if (ValueType == typeof(long))
-                    return long.Parse(strValue);
+                    return long.Parse(value);
                 else if (ValueType == typeof(byte))
-                    return byte.Parse(strValue);
+                    return byte.Parse(value);
                 else if (ValueType == typeof(uint))
-                    return uint.Parse(strValue, CultureInfo.InvariantCulture);
+                    return uint.Parse(value, CultureInfo.InvariantCulture);
                 else if (ValueType == typeof(ulong))
-                    return ulong.Parse(strValue, CultureInfo.InvariantCulture);
+                    return ulong.Parse(value, CultureInfo.InvariantCulture);
                 else if (ValueType == typeof(DateTime))
-                    return TikDateTimeHelper.FromTikDateTime(strValue);
+                    return TikDateTimeHelper.FromTikDateTime(value);
                 else if (ValueType == typeof(MacAddress))
-                    return new MacAddress(strValue);
+                    return new MacAddress(value);
                 else if (ValueType == typeof(bool))
-                    return string.Equals(strValue, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(strValue, "yes", StringComparison.OrdinalIgnoreCase);
+                    return string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase);
                 else if (ValueType.GetTypeInfo().IsEnum)
                 {
-                    if (_enumMetadata.IsFlags && strValue.Contains(','))
+                    // _enumMetadata is set in the constructor exactly when ValueType is an enum (see there).
+                    if (_enumMetadata!.IsFlags && value.Contains(','))
                     {
                         long result = 0;
-                        foreach (string part in strValue.Split(','))
+                        foreach (string part in value.Split(','))
                             result |= _enumMetadata.ParseNumeric(part.Trim());
                         return Enum.ToObject(ValueType, result);
                     }
                     else
                     {
-                        return _enumMetadata.Parse(strValue);
+                        return _enumMetadata.Parse(value);
                     }
                 }
                 else
                 {
                     var converter = ResolveConverter();
                     if (converter != null)
-                        return converter.ConvertFromString(strValue, ValueType);
+                        return converter.ConvertFromString(value, ValueType);
 
                     throw new NotImplementedException(string.Format("Property type {0} not supported. Register an ITikTypeConverter for it via TikTypeConverters.Register.", ValueType));
                 }
@@ -312,7 +318,7 @@ namespace tik4net.Objects
             }
         }
 
-        private string ConvertToString(object propValue)
+        private string? ConvertToString(object? propValue)
         {
             // Null reaches here only from a nullable property that was never assigned. It has no wire form —
             // the point is that nothing is sent — so it stays null all the way out to the caller.
@@ -322,7 +328,7 @@ namespace tik4net.Objects
             if (propValue is string)
                 return (string)propValue;
 
-            //convert to string used in mikrotik            
+            //convert to string used in mikrotik
             if (ValueType == typeof(string))
                 return propValue.ToString();
             else if (ValueType == typeof(TimeSpan))
@@ -343,7 +349,8 @@ namespace tik4net.Objects
                 return ((bool)propValue) ? "yes" : "no"; //TODO add attribute definition for support true/false
             else if (ValueType.GetTypeInfo().IsEnum)
             {
-                if (_enumMetadata.IsFlags)
+                // _enumMetadata is set in the constructor exactly when ValueType is an enum (see there).
+                if (_enumMetadata!.IsFlags)
                     return _enumMetadata.FormatFlags(propValue);
                 else
                     return _enumMetadata.Format(propValue);
@@ -365,7 +372,7 @@ namespace tik4net.Objects
         /// <returns>True if accessed property od given entity contains default value.</returns>
         public bool HasDefaultValue(object entity)
         {
-            string propValue = GetEntityValue(entity);
+            string? propValue = GetEntityValue(entity);
 
             return (propValue == null) || (Convert.ToString(propValue) == DefaultValue);
         }
@@ -375,12 +382,14 @@ namespace tik4net.Objects
         /// </summary>
         /// <param name="entity">Entity to be modified.</param>
         /// <param name="propValue">New property value.</param>
-        public void SetEntityValue(object entity, string propValue)
+        public void SetEntityValue(object entity, string? propValue)
         {
-            object value = ConvertFromString(propValue);
+            object? value = ConvertFromString(propValue);
 
             if (_setter != null)
-                _setter(entity, value); //NOTE: works even if setter is private
+                _setter(entity, value!); //NOTE: works even if setter is private. `!`: the delegate's boxed
+                                          //object parameter legitimately carries null for a nullable property;
+                                          //this is unchanged runtime behaviour, just untyped for null here.
             else
                 PropertyInfo.SetValue(entity, value);
         }
@@ -390,9 +399,9 @@ namespace tik4net.Objects
         /// </summary>
         /// <param name="entity">Entity to read peroperty value from.</param>
         /// <returns>Property value from giuven entity</returns>
-        public string GetEntityValue(object entity)
+        public string? GetEntityValue(object entity)
         {
-            object propValue = _getter != null ? _getter(entity) : PropertyInfo.GetValue(entity);
+            object? propValue = _getter != null ? _getter(entity) : PropertyInfo.GetValue(entity);
 
             // A null NULLABLE property means "nothing was said about this field", and that has to survive to
             // the caller as null so the save path can leave the field out. A null reference property keeps the

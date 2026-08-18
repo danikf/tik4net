@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,14 +17,14 @@ namespace tik4net.Objects.Certificate
     {
         /// <summary>.id — primary key of the certificate row.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// name — Certificate name (unique identifier in the certificate store).
         /// WinBox: "Name"
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// common-name — Certificate Common Name (CN). Used as template field when creating a new
@@ -32,7 +32,7 @@ namespace tik4net.Objects.Certificate
         /// WinBox: "Common Name"
         /// </summary>
         [TikProperty("common-name")]
-        public string CommonName { get; set; }
+        public string? CommonName { get; set; }
 
         /// <summary>
         /// key-size — Certificate public key size in bits (or named EC curve).
@@ -57,7 +57,7 @@ namespace tik4net.Objects.Certificate
         /// WinBox: "Key Usage"
         /// </summary>
         [TikProperty("key-usage")]
-        public string KeyUsage { get; set; }
+        public string? KeyUsage { get; set; }
 
         /// <summary>
         /// digest-algorithm — Hash algorithm used for signing the certificate.
@@ -73,35 +73,35 @@ namespace tik4net.Objects.Certificate
         /// WinBox: "Country"
         /// </summary>
         [TikProperty("country")]
-        public string Country { get; set; }
+        public string? Country { get; set; }
 
         /// <summary>
         /// state — Certificate issuer state or province.
         /// WinBox: "State"
         /// </summary>
         [TikProperty("state")]
-        public string State { get; set; }
+        public string? State { get; set; }
 
         /// <summary>
         /// locality — Certificate issuer locality (city).
         /// WinBox: "Locality"
         /// </summary>
         [TikProperty("locality")]
-        public string Locality { get; set; }
+        public string? Locality { get; set; }
 
         /// <summary>
         /// organization — Certificate issuer organization name (O).
         /// WinBox: "Organization"
         /// </summary>
         [TikProperty("organization")]
-        public string Organization { get; set; }
+        public string? Organization { get; set; }
 
         /// <summary>
         /// unit — Certificate issuer organizational unit (OU).
         /// WinBox: "Unit"
         /// </summary>
         [TikProperty("unit")]
-        public string Unit { get; set; }
+        public string? Unit { get; set; }
 
         /// <summary>
         /// subject-alt-name — Certificate Subject Alternative Name (SAN).
@@ -109,7 +109,7 @@ namespace tik4net.Objects.Certificate
         /// WinBox: "Subject Alt. Name"
         /// </summary>
         [TikProperty("subject-alt-name")]
-        public string SubjectAltName { get; set; }
+        public string? SubjectAltName { get; set; }
 
         /// <summary>
         /// trusted — Whether this certificate is trusted for host certificate verification.
@@ -127,13 +127,13 @@ namespace tik4net.Objects.Certificate
         /// WinBox: "Trust Store"
         /// </summary>
         [TikProperty("trust-store", DefaultValue = "all")]
-        public string TrustStore { get; set; }
+        public string? TrustStore { get; set; }
 
         /// <summary>
         /// comment — Optional free-text comment for this certificate entry.
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         // ── Read-only fields (populated after signing / import) ──────────────────
 
@@ -142,35 +142,35 @@ namespace tik4net.Objects.Certificate
         /// WinBox: "Fingerprint"
         /// </summary>
         [TikProperty("fingerprint", IsReadOnly = true)]
-        public string Fingerprint { get; private set; }
+        public string? Fingerprint { get; private set; }
 
         /// <summary>
         /// serial-number — Certificate serial number assigned by the CA (read-only).
         /// WinBox: "Serial Number"
         /// </summary>
         [TikProperty("serial-number", IsReadOnly = true)]
-        public string SerialNumber { get; private set; }
+        public string? SerialNumber { get; private set; }
 
         /// <summary>
         /// invalid-before — Date and time before which the certificate is not yet valid (read-only).
         /// WinBox: "Invalid Before"
         /// </summary>
         [TikProperty("invalid-before", IsReadOnly = true)]
-        public string/*date*/ InvalidBefore { get; private set; }
+        public string?/*date*/ InvalidBefore { get; private set; }
 
         /// <summary>
         /// invalid-after — Date and time after which the certificate has expired (read-only).
         /// WinBox: "Invalid After"
         /// </summary>
         [TikProperty("invalid-after", IsReadOnly = true)]
-        public string/*date*/ InvalidAfter { get; private set; }
+        public string?/*date*/ InvalidAfter { get; private set; }
 
         /// <summary>
         /// expires-after — Human-readable time remaining before the certificate expires (read-only).
         /// WinBox: "Expires After"
         /// </summary>
         [TikProperty("expires-after", IsReadOnly = true)]
-        public string/*time*/ ExpiresAfter { get; private set; }
+        public string?/*time*/ ExpiresAfter { get; private set; }
 
         /// <summary>
         /// ca — Name of the CA certificate that signed this certificate (read-only, device-signed only).
@@ -178,63 +178,63 @@ namespace tik4net.Objects.Certificate
         /// WinBox: "CA"
         /// </summary>
         [TikProperty("ca", IsReadOnly = true)]
-        public string Ca { get; private set; }
+        public string? Ca { get; private set; }
 
         /// <summary>
         /// issuer — Distinguished Name of the Certificate Authority that issued this certificate (read-only).
         /// WinBox: "Issuer"
         /// </summary>
         [TikProperty("issuer", IsReadOnly = true)]
-        public string Issuer { get; private set; }
+        public string? Issuer { get; private set; }
 
         /// <summary>
         /// akid — Authority Key Identifier: identifies the CA public key used to sign this certificate (read-only).
         /// WinBox: "AKID"
         /// </summary>
         [TikProperty("akid", IsReadOnly = true)]
-        public string Akid { get; private set; }
+        public string? Akid { get; private set; }
 
         /// <summary>
         /// skid — Subject Key Identifier: identifies the public key contained in this certificate (read-only).
         /// WinBox: "SKID"
         /// </summary>
         [TikProperty("skid", IsReadOnly = true)]
-        public string Skid { get; private set; }
+        public string? Skid { get; private set; }
 
         /// <summary>
         /// key-type — Private key algorithm type, e.g. RSA or EC (read-only).
         /// WinBox: "Key Type"
         /// </summary>
         [TikProperty("key-type", IsReadOnly = true)]
-        public string KeyType { get; private set; }
+        public string? KeyType { get; private set; }
 
         /// <summary>
         /// revoked — Timestamp when the certificate was revoked (read-only, device-specific revocation).
         /// WinBox: "Revoked"
         /// </summary>
         [TikProperty("revoked", IsReadOnly = true)]
-        public string/*date*/ Revoked { get; private set; }
+        public string?/*date*/ Revoked { get; private set; }
 
         /// <summary>
         /// acme-status — Status reported by the ACME client for this certificate (read-only).
         /// WinBox: "ACME Status"
         /// </summary>
         [TikProperty("acme-status", IsReadOnly = true)]
-        public string AcmeStatus { get; private set; }
+        public string? AcmeStatus { get; private set; }
 
         /// <summary>
         /// domain-names — Domain names managed by the ACME client for this certificate (read-only).
         /// WinBox: "Domain Names"
         /// </summary>
         [TikProperty("domain-names", IsReadOnly = true)]
-        public string DomainNames { get; private set; }
+        public string? DomainNames { get; private set; }
 
         /// <summary>
         /// directory-url — ACME directory URL used to obtain this certificate (read-only).
         /// WinBox: "Directory URL"
         /// </summary>
         [TikProperty("directory-url", IsReadOnly = true)]
-        public string DirectoryUrl { get; private set; }
+        public string? DirectoryUrl { get; private set; }
 
         // ── Enums ────────────────────────────────────────────────────────────────
 
@@ -275,6 +275,6 @@ namespace tik4net.Objects.Certificate
         }
 
         /// <summary>Returns the certificate name, suitable for display and logging.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

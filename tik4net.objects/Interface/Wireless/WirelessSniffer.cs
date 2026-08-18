@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,7 +15,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// streaming-enabled: Whether to stream captured data to specified streaming server
@@ -27,7 +27,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// streaming-server: IP address of the streaming server.
         /// </summary>
         [TikProperty("streaming-server")]
-        public string StreamingServer { get; set; }
+        public string? StreamingServer { get; set; }
 
         /// <summary>
         /// multiple-channels
@@ -39,6 +39,6 @@ namespace tik4net.Objects.Interface.Wireless
         /// channel-time: Default: 200ms
         /// </summary>
         [TikProperty("channel-time", DefaultValue = "200")]
-        public string ChannelTime { get; set; }
+        public string? ChannelTime { get; set; }
     }
 }

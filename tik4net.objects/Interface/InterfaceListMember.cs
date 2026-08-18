@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,19 +16,19 @@ namespace tik4net.Objects.Interface
         /// .id — primary key of the row.
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// list — name of the interface list this membership belongs to (see <see cref="InterfaceList.Name"/>).
         /// </summary>
         [TikProperty("list", IsMandatory = true)]
-        public string List { get; set; }
+        public string? List { get; set; }
 
         /// <summary>
         /// interface — name of the interface added to the list.
         /// </summary>
         [TikProperty("interface", IsMandatory = true)]
-        public string Interface { get; set; }
+        public string? Interface { get; set; }
 
         /// <summary>
         /// dynamic — whether the membership was added dynamically and cannot be edited/removed (read-only).
@@ -46,7 +46,7 @@ namespace tik4net.Objects.Interface
         /// comment.
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <inheritdoc/>
         public override string ToString()

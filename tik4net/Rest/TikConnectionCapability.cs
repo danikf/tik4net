@@ -37,8 +37,8 @@ namespace tik4net
         Tagging      = 16,
         /// <summary>
         /// Transport can enter/commit/roll back RouterOS Safe Mode bound to this connection
-        /// (<see cref="ITikConnection.SafeModeTake"/> / <see cref="ITikConnection.SafeModeRelease"/> /
-        /// <see cref="ITikConnection.SafeModeUnroll"/> / <see cref="ITikConnection.SafeModeGet"/>).
+        /// (<see cref="ITikSafeModeConnection.SafeModeTake"/> / <see cref="ITikSafeModeConnection.SafeModeRelease"/> /
+        /// <see cref="ITikSafeModeConnection.SafeModeUnroll"/> / <see cref="ITikSafeModeConnection.SafeModeGet"/>).
         /// Requires a persistent, session-bound channel: binary API, a CLI terminal (via <c>Ctrl+X</c>, works on
         /// any RouterOS) or native WinBox M2 (RouterOS 7.18+). Stateless REST does not report it.
         /// </summary>
@@ -123,7 +123,7 @@ namespace tik4net
         /// <param name="connection">The connection to check.</param>
         /// <param name="cap">The required capability.</param>
         /// <param name="feature">Optional short feature name shown in the exception message.</param>
-        public static void Require(this ITikConnection connection, TikConnectionCapability cap, string feature = null)
+        public static void Require(this ITikConnection connection, TikConnectionCapability cap, string? feature = null)
         {
             if (!connection.Supports(cap))
                 throw new TikConnectionCapabilityNotSupportedException(cap,

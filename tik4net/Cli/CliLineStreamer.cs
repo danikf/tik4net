@@ -32,7 +32,7 @@ namespace tik4net.Cli
     /// </remarks>
     internal sealed class CliLineStreamer
     {
-        private readonly Action<string> _onLine;
+        private readonly Action<string>? _onLine;
         private int _emitted;   // number of COMPLETE lines already handed to the callback
 
         /// <summary>
@@ -40,7 +40,7 @@ namespace tik4net.Cli
         /// A <c>null</c> callback makes <see cref="Feed"/> a no-op, so a non-streaming read can share the
         /// same code path without a branch at every call site.
         /// </summary>
-        internal CliLineStreamer(Action<string> onLine)
+        internal CliLineStreamer(Action<string>? onLine)
         {
             _onLine = onLine;
         }

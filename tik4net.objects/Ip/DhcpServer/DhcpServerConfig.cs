@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -31,6 +31,6 @@ namespace tik4net.Objects.Ip
         /// </summary>
         /// <seealso cref="StoreLeasesDiskType"/>
         [TikProperty("store-leases-disk")]
-        public string StoreLeasesDisk { get; set; }
+        public string? StoreLeasesDisk { get; set; }
     }
 }

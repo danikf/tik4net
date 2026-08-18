@@ -1,4 +1,4 @@
-﻿namespace tik4net.Objects.Interface.Wifi
+namespace tik4net.Objects.Interface.Wifi
 {
     /// <summary>
     /// /interface/wifi/channel
@@ -33,7 +33,7 @@
 
         /// <summary>.id — primary key of row.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         // ── Identification ────────────────────────────────────────────────────
 
@@ -42,7 +42,7 @@
         /// WinBox: "Name"
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         // ── Radio band and frequency ──────────────────────────────────────────
 
@@ -53,7 +53,7 @@
         /// WinBox: "Band"
         /// </summary>
         [TikProperty("band", DefaultValue = "")]
-        public string Band { get; set; }
+        public string? Band { get; set; }
 
         /// <summary>
         /// frequency — comma-separated list of channel centre frequencies in MHz to be considered
@@ -63,7 +63,7 @@
         /// WinBox: "Frequency"
         /// </summary>
         [TikProperty("frequency", DefaultValue = "")]
-        public string Frequency { get; set; }
+        public string? Frequency { get; set; }
 
         /// <summary>
         /// secondary-frequency — for split-channel (80+80 MHz or 320 MHz) configurations,
@@ -72,7 +72,7 @@
         /// WinBox: "Secondary Frequency"
         /// </summary>
         [TikProperty("secondary-frequency", DefaultValue = "")]
-        public string SecondaryFrequency { get; set; }
+        public string? SecondaryFrequency { get; set; }
 
         /// <summary>
         /// width — channel width.
@@ -82,7 +82,7 @@
         /// WinBox: "Width"
         /// </summary>
         [TikProperty("width", DefaultValue = "")]
-        public string Width { get; set; }
+        public string? Width { get; set; }
 
         // ── DFS / channel selection ───────────────────────────────────────────
 
@@ -125,7 +125,7 @@
         /// WinBox: "Reselect Interval"
         /// </summary>
         [TikProperty("reselect-interval", DefaultValue = "disabled")]
-        public string/*time|disabled*/ ReselectInterval { get; set; }
+        public string?/*time|disabled*/ ReselectInterval { get; set; }
 
         /// <summary>
         /// reselect-time — wall-clock time at which a periodic channel rescan is triggered.
@@ -134,7 +134,7 @@
         /// WinBox: "Reselect Time"
         /// </summary>
         [TikProperty("reselect-time", DefaultValue = "disabled")]
-        public string/*time|disabled*/ ReselectTime { get; set; }
+        public string?/*time|disabled*/ ReselectTime { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
 
@@ -151,9 +151,9 @@
         /// WinBox: "Comment"
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

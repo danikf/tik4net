@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -24,14 +24,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: mschap1,mschap2
         /// </summary>
         [TikProperty("authentication", DefaultValue = "mschap1,mschap2")]
-        public string Authentication { get; set; }
+        public string? Authentication { get; set; }
 
         /// <summary>
         /// default-profile — PPP profile applied to new PPTP sessions.
         /// Default: default-encryption
         /// </summary>
         [TikProperty("default-profile", DefaultValue = "default-encryption")]
-        public string DefaultProfile { get; set; }
+        public string? DefaultProfile { get; set; }
 
         /// <summary>
         /// enabled — when <c>true</c> the PPTP server accepts incoming connections.
@@ -76,7 +76,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: disabled
         /// </summary>
         [TikProperty("mrru", DefaultValue = "disabled")]
-        public string/*integer or "disabled"*/ Mrru { get; set; }
+        public string?/*integer or "disabled"*/ Mrru { get; set; }
 
         /// <summary>Human-readable summary of the PPTP server configuration.</summary>
         public override string ToString() => string.Format("pptp-server enabled={0} max-mtu={1} max-mru={2} auth={3}", Enabled, MaxMtu, MaxMru, Authentication);

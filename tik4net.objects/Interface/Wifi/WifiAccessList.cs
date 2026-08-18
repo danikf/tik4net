@@ -1,4 +1,4 @@
-﻿namespace tik4net.Objects.Interface.Wifi
+namespace tik4net.Objects.Interface.Wifi
 {
     /// <summary>
     /// /interface/wifi/access-list
@@ -44,7 +44,7 @@
 
         /// <summary>.id — primary key of row.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         // ── Action ────────────────────────────────────────────────────────────
 
@@ -68,7 +68,7 @@
         /// WinBox: "MAC Address"
         /// </summary>
         [TikProperty("mac-address", DefaultValue = "00:00:00:00:00:00")]
-        public string/*MAC*/ MacAddress { get; set; }
+        public string?/*MAC*/ MacAddress { get; set; }
 
         /// <summary>
         /// mac-address-mask — bitmask applied to the client MAC before comparison
@@ -77,7 +77,7 @@
         /// WinBox: "MAC Address Mask"
         /// </summary>
         [TikProperty("mac-address-mask", DefaultValue = "FF:FF:FF:FF:FF:FF")]
-        public string/*MAC*/ MacAddressMask { get; set; }
+        public string?/*MAC*/ MacAddressMask { get; set; }
 
         // ── Interface / SSID matchers ─────────────────────────────────────────
 
@@ -87,7 +87,7 @@
         /// WinBox: "Interface"
         /// </summary>
         [TikProperty("interface", DefaultValue = "")]
-        public string Interface { get; set; }
+        public string? Interface { get; set; }
 
         /// <summary>
         /// ssid-regexp — regular expression matched against the SSID of the WiFi
@@ -95,7 +95,7 @@
         /// WinBox: "SSID Regexp"
         /// </summary>
         [TikProperty("ssid-regexp", DefaultValue = "")]
-        public string SsidRegexp { get; set; }
+        public string? SsidRegexp { get; set; }
 
         // ── Signal / time matchers ────────────────────────────────────────────
 
@@ -108,7 +108,7 @@
         /// WinBox: "Signal Range"
         /// </summary>
         [TikProperty("signal-range", DefaultValue = "-120..120")]
-        public string SignalRange { get; set; }
+        public string? SignalRange { get; set; }
 
         /// <summary>
         /// allow-signal-out-of-range — how long a connected client is tolerated
@@ -119,7 +119,7 @@
         /// WinBox: "Allow Signal Out Of Range"
         /// </summary>
         [TikProperty("allow-signal-out-of-range", DefaultValue = "always")]
-        public string/*time*/ AllowSignalOutOfRange { get; set; }
+        public string?/*time*/ AllowSignalOutOfRange { get; set; }
 
         /// <summary>
         /// time — time-of-day range during which the rule is active, in the form
@@ -129,7 +129,7 @@
         /// WinBox: "Time"
         /// </summary>
         [TikProperty("time", DefaultValue = "")]
-        public string/*time*/ Time { get; set; }
+        public string?/*time*/ Time { get; set; }
 
         /// <summary>
         /// days — comma-separated list of day abbreviations on which the rule is
@@ -138,7 +138,7 @@
         /// WinBox: "Days"
         /// </summary>
         [TikProperty("days", DefaultValue = "")]
-        public string Days { get; set; }
+        public string? Days { get; set; }
 
         // ── Per-client overrides ──────────────────────────────────────────────
 
@@ -160,7 +160,7 @@
         /// WinBox: "Passphrase"
         /// </summary>
         [TikProperty("passphrase", DefaultValue = "")]
-        public string Passphrase { get; set; }
+        public string? Passphrase { get; set; }
 
         /// <summary>
         /// multi-passphrase-group — name of the multi-passphrase group to use for
@@ -168,7 +168,7 @@
         /// WinBox: "Multi Passphrase Group"
         /// </summary>
         [TikProperty("multi-passphrase-group", DefaultValue = "")]
-        public string MultiPassphraseGroup { get; set; }
+        public string? MultiPassphraseGroup { get; set; }
 
         /// <summary>
         /// radius-accounting — whether to send RADIUS accounting messages for matched
@@ -203,7 +203,7 @@
         /// WinBox: "Comment"
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>Human-readable identity — action and comment.</summary>
         public override string ToString() =>

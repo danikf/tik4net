@@ -1,4 +1,4 @@
-﻿namespace tik4net.Objects.Ip.Ipsec
+namespace tik4net.Objects.Ip.Ipsec
 {
     /// <summary>
     /// /ip/ipsec/profile
@@ -53,13 +53,13 @@
 
         /// <summary>.id — primary key of row</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// name — profile identifier; referenced by /ip/ipsec/peer entries.
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// hash-algorithm — hashing algorithm used for IKE Phase 1 authentication.
@@ -77,7 +77,7 @@
         /// Default: "aes-128,3des"
         /// </summary>
         [TikProperty("enc-algorithm", DefaultValue = "aes-128,3des")]
-        public string EncAlgorithm { get; set; }
+        public string? EncAlgorithm { get; set; }
 
         /// <summary>
         /// dh-group — comma-separated list of Diffie-Hellman groups offered during Phase 1
@@ -87,14 +87,14 @@
         /// Default: "modp1024,modp2048"
         /// </summary>
         [TikProperty("dh-group", DefaultValue = "modp1024,modp2048")]
-        public string DhGroup { get; set; }
+        public string? DhGroup { get; set; }
 
         /// <summary>
         /// lifetime — how long the Phase 1 SA is considered valid before re-keying.
         /// Accepts RouterOS time format (e.g. "1d", "8h", "30m"). Default: "1d"
         /// </summary>
         [TikProperty("lifetime", DefaultValue = "1d")]
-        public string/*time*/ Lifetime { get; set; }
+        public string?/*time*/ Lifetime { get; set; }
 
         /// <summary>
         /// lifebytes — maximum number of bytes transferred before the Phase 1 SA is re-keyed.
@@ -119,7 +119,7 @@
         /// When not set the mapper omits the field on add and the router uses its own default.
         /// </summary>
         [TikProperty("dpd-interval")]
-        public string/*time|disable-dpd*/ DpdInterval { get; set; }
+        public string?/*time|disable-dpd*/ DpdInterval { get; set; }
 
         /// <summary>
         /// dpd-maximum-failures — number of consecutive DPD probe failures before the peer
@@ -165,6 +165,6 @@
         public bool Default { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

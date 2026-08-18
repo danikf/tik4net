@@ -41,7 +41,7 @@ namespace tik4net.Winbox
 
         private int _reqId;
         private volatile bool _disposed;
-        private volatile Exception _fault;
+        private volatile Exception? _fault;
 
         // What the reader loop has seen, for the timeout message. A timeout that names only the request id
         // cannot tell "the router is still working on this one" from "nothing has arrived on this channel at
@@ -56,7 +56,7 @@ namespace tik4net.Winbox
         /// registration (a reply that arrived after its caller timed out). Wired to the connection's trace
         /// hooks so discarded frames stay visible in diagnostics.
         /// </summary>
-        internal Action<byte[]> OnUnmatchedFrame { get; set; }
+        internal Action<byte[]>? OnUnmatchedFrame { get; set; }
 
         internal WinboxM2Multiplexer(IWinboxM2Channel channel)
         {
@@ -207,7 +207,7 @@ namespace tik4net.Winbox
 
         private void ReaderLoop()
         {
-            Exception fault = null;
+            Exception? fault = null;
             try
             {
                 while (!_disposed)

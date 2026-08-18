@@ -18,7 +18,6 @@ namespace tik4net
         /// <summary>
         /// Tag of sentence (see asynchronous commands for details).
         /// </summary>
-        /// <seealso cref="ITikConnection.CallCommandAsync(IEnumerable{string}, string, Action{ITikSentence})"/>
         /// <seealso cref="ITikCommand.ExecuteAsync"/>
         string Tag { get; }
     }

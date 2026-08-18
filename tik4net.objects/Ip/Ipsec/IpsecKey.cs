@@ -17,14 +17,14 @@ namespace tik4net.Objects.Ip.Ipsec
     {
         /// <summary>.id — primary key of row</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// name — identifier for the key; referenced from <c>/ip/ipsec/identity</c> when
         /// using RSA-based authentication methods.
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         // --- Read-only status properties ---
 
@@ -33,7 +33,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Set at generation time via <c>generate-key</c> and cannot be changed afterwards.
         /// </summary>
         [TikProperty("key-size", IsReadOnly = true)]
-        public string/*bits: 2048|4096|8192*/ KeySize { get; private set; }
+        public string?/*bits: 2048|4096|8192*/ KeySize { get; private set; }
 
         /// <summary>
         /// private-key — true when this entry holds the private key material (i.e. it was
@@ -50,7 +50,7 @@ namespace tik4net.Objects.Ip.Ipsec
         public bool Rsa { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 
     /// <summary>Connection extension methods for <see cref="IpsecKey"/>.</summary>
@@ -103,13 +103,13 @@ namespace tik4net.Objects.Ip.Ipsec
             this ITikConnection connection,
             string name,
             string fileName,
-            string passphrase = null)
+            string? passphrase = null)
         {
             var cmd = connection.CreateCommand("/ip/ipsec/key/rsa/import");
             cmd.AddParameter("name", name, TikCommandParameterFormat.NameValue);
             cmd.AddParameter("file-name", fileName, TikCommandParameterFormat.NameValue);
             if (!string.IsNullOrEmpty(passphrase))
-                cmd.AddParameter("passphrase", passphrase, TikCommandParameterFormat.NameValue);
+                cmd.AddParameter("passphrase", passphrase!, TikCommandParameterFormat.NameValue); // IsNullOrEmpty isn't NotNullWhen-annotated on netstandard2.0
             cmd.ExecuteNonQuery();
         }
     }

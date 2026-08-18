@@ -58,12 +58,12 @@ namespace tik4net.Cli
         // A header token and the character span its column occupies in the data rows below it.
         private struct Column
         {
-            internal string Name; // null for a column that occupies space but names no field (the '#' ordinal)
+            internal string? Name; // null for a column that occupies space but names no field (the '#' ordinal)
             internal int Start;   // inclusive
             internal int End;     // exclusive; int.MaxValue for the last column
         }
 
-        private List<Column> _columns;
+        private List<Column>? _columns;
 
         /// <summary>True once a header row has been seen and the column layout is known.</summary>
         internal bool HasHeader => _columns != null;
@@ -72,7 +72,7 @@ namespace tik4net.Cli
         /// Consumes one line of terminal output and returns the record it holds, or <c>null</c> when the
         /// line is not a data row (echo, header, blank, aggregate summary, prompt).
         /// </summary>
-        internal TikRecordSentence Feed(string line)
+        internal TikRecordSentence? Feed(string? line)
         {
             if (line == null)
                 return null;

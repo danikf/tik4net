@@ -4,6 +4,8 @@
     <AssemblyName>tik4net.testing</AssemblyName>
     <RootNamespace>tik4net.Testing</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
 
     <PackageId>tik4net.testing</PackageId>
     <VersionPrefix>4.0.0</VersionPrefix>

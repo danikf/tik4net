@@ -17,7 +17,7 @@ namespace tik4net.Objects.Tool.MacServer
     {
         /// <summary>allowed-interface-list — interface list whose members may reach the MAC-Telnet server. Default: all.</summary>
         [TikProperty("allowed-interface-list", DefaultValue = "all")]
-        public string AllowedInterfaceList { get; set; }
+        public string? AllowedInterfaceList { get; set; }
 
         /// <summary>Returns a human-readable summary of the MAC-Telnet server settings.</summary>
         public override string ToString() => string.Format("mac-server allowed: {0}", AllowedInterfaceList);

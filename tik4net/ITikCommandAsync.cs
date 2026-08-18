@@ -53,7 +53,7 @@ namespace tik4net
         /// <param name="defaultValue">Value returned when no matching record was found.</param>
         /// <param name="target">Name of the returned field, or <c>null</c> for the first non-<c>.id</c> field.</param>
         /// <param name="cancellationToken">Cancellation token — see the interface remarks for what it guarantees per transport.</param>
-        Task<string> ExecuteScalarOrDefaultAsync(string defaultValue = null, string target = null, CancellationToken cancellationToken = default(CancellationToken));
+        Task<string?> ExecuteScalarOrDefaultAsync(string? defaultValue = null, string? target = null, CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>Async <see cref="ITikCommand.ExecuteSingleRow"/>.</summary>
         /// <param name="cancellationToken">Cancellation token — see the interface remarks for what it guarantees per transport.</param>
@@ -61,7 +61,7 @@ namespace tik4net
 
         /// <summary>Async <see cref="ITikCommand.ExecuteSingleRowOrDefault"/>.</summary>
         /// <param name="cancellationToken">Cancellation token — see the interface remarks for what it guarantees per transport.</param>
-        Task<ITikReSentence> ExecuteSingleRowOrDefaultAsync(CancellationToken cancellationToken = default(CancellationToken));
+        Task<ITikReSentence?> ExecuteSingleRowOrDefaultAsync(CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         /// Async <see cref="ITikCommand.ExecuteList()"/>. Returns <see cref="IList{T}"/> rather than

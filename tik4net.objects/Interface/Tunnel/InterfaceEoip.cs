@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,27 +16,27 @@ namespace tik4net.Objects.Interface.Tunnel
     {
         /// <summary>.id — primary key</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>name — Tunnel interface name.</summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>mtu — Layer3 MTU. Can be "auto" or a specific integer. Default: auto.</summary>
         [TikProperty("mtu", DefaultValue = "auto")]
-        public string Mtu { get; set; }
+        public string? Mtu { get; set; }
 
         /// <summary>actual-mtu — Effective MTU after overhead (read-only).</summary>
         [TikProperty("actual-mtu", IsReadOnly = true)]
-        public string ActualMtu { get; private set; }
+        public string? ActualMtu { get; private set; }
 
         /// <summary>l2mtu — Layer2 MTU (read-only, not configurable on EoIP).</summary>
         [TikProperty("l2mtu", IsReadOnly = true)]
-        public string L2Mtu { get; private set; }
+        public string? L2Mtu { get; private set; }
 
         /// <summary>mac-address — Virtual MAC address for the EoIP interface. Use range 00:00:5E:80:00:00–00:00:5E:FF:FF:FF.</summary>
         [TikProperty("mac-address", DefaultValue = "")]
-        public string/*MAC*/ MacAddress { get; set; }
+        public string?/*MAC*/ MacAddress { get; set; }
 
         public enum ArpMode
         {
@@ -57,7 +57,7 @@ namespace tik4net.Objects.Interface.Tunnel
 
         /// <summary>arp-timeout — How long ARP entries are kept. Default: auto.</summary>
         [TikProperty("arp-timeout", DefaultValue = "auto")]
-        public string/*time*/ ArpTimeout { get; set; }
+        public string?/*time*/ ArpTimeout { get; set; }
 
         public enum LoopProtectMode
         {
@@ -76,23 +76,23 @@ namespace tik4net.Objects.Interface.Tunnel
 
         /// <summary>loop-protect-status — Current loop protection status (read-only).</summary>
         [TikProperty("loop-protect-status", IsReadOnly = true)]
-        public string LoopProtectStatus { get; private set; }
+        public string? LoopProtectStatus { get; private set; }
 
         /// <summary>loop-protect-send-interval — How often loop protection packets are sent. Default: 5s.</summary>
         [TikProperty("loop-protect-send-interval", DefaultValue = "5s")]
-        public string/*time*/ LoopProtectSendInterval { get; set; }
+        public string?/*time*/ LoopProtectSendInterval { get; set; }
 
         /// <summary>loop-protect-disable-time — How long to disable interface when loop is detected. Default: 5m.</summary>
         [TikProperty("loop-protect-disable-time", DefaultValue = "5m")]
-        public string/*time*/ LoopProtectDisableTime { get; set; }
+        public string?/*time*/ LoopProtectDisableTime { get; set; }
 
         /// <summary>local-address — Local tunnel endpoint IP address. 0.0.0.0 means use the outgoing interface address.</summary>
         [TikProperty("local-address", DefaultValue = "0.0.0.0")]
-        public string/*IP*/ LocalAddress { get; set; }
+        public string?/*IP*/ LocalAddress { get; set; }
 
         /// <summary>remote-address — Remote tunnel endpoint IP address. Required.</summary>
         [TikProperty("remote-address", IsMandatory = true)]
-        public string/*IP*/ RemoteAddress { get; set; }
+        public string?/*IP*/ RemoteAddress { get; set; }
 
         /// <summary>tunnel-id — Unique EoIP tunnel identifier (0–65535). Must match on both endpoints. Required.</summary>
         [TikProperty("tunnel-id", IsMandatory = true)]
@@ -100,15 +100,15 @@ namespace tik4net.Objects.Interface.Tunnel
 
         /// <summary>keepalive — Tunnel keepalive interval and retry count (e.g. "10s,10"). Default: 10s,10.</summary>
         [TikProperty("keepalive", DefaultValue = "10s,10")]
-        public string Keepalive { get; set; }
+        public string? Keepalive { get; set; }
 
         /// <summary>dscp — DSCP value for tunnel packets. "inherit" copies from encapsulated traffic, or 0–63.</summary>
         [TikProperty("dscp", DefaultValue = "inherit")]
-        public string Dscp { get; set; }
+        public string? Dscp { get; set; }
 
         /// <summary>dont-fragment — DF bit handling: "no" to fragment if needed; "inherit" copies from original packet.</summary>
         [TikProperty("dont-fragment", DefaultValue = "no")]
-        public string DontFragment { get; set; }
+        public string? DontFragment { get; set; }
 
         /// <summary>clamp-tcp-mss — Adjust MSS for TCP SYN packets when they would exceed tunnel MTU. Default: yes.</summary>
         [TikProperty("clamp-tcp-mss", DefaultValue = "yes")]
@@ -120,7 +120,7 @@ namespace tik4net.Objects.Interface.Tunnel
 
         /// <summary>ipsec-secret — Pre-shared key for dynamic IPsec peer at the remote address.</summary>
         [TikProperty("ipsec-secret", DefaultValue = "")]
-        public string IpsecSecret { get; set; }
+        public string? IpsecSecret { get; set; }
 
         /// <summary>running — Whether the tunnel is running (read-only).</summary>
         [TikProperty("running", IsReadOnly = true)]
@@ -132,9 +132,9 @@ namespace tik4net.Objects.Interface.Tunnel
 
         /// <summary>comment — Short description of the tunnel.</summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

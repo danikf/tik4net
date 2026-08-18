@@ -448,7 +448,9 @@ public sealed class MikroTikTools
             string? last = null;
             foreach (var s in conn.CallCommandSync(new[] { "/log/print", "=.proplist=.id" }))
                 if (s is ITikReSentence re)
-                    last = re.GetResponseFieldOrDefault(".id", last);
+                    // last is null until the first row arrives; the default is only used when a row somehow
+                    // carries no .id, in which case "keep what we had" is the intended answer.
+                    last = re.GetResponseFieldOrDefault(".id", last!);
             return last;
         }
         catch
@@ -543,7 +545,7 @@ public sealed class MikroTikTools
 
         internal int Count { get { lock (_gate) return _lines.Count; } }
 
-        public void Emit(string channel, TikWireDir dir, byte[] data, int offset, int count, string note)
+        public void Emit(string channel, TikWireDir dir, byte[]? data, int offset, int count, string? note)
         {
             if (_channels != null && !_channels.Contains(channel))
                 return;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -27,7 +27,7 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// Default: all
         /// </summary>
         [TikProperty("interfaces", DefaultValue = "all")]
-        public string Interfaces { get; set; }
+        public string? Interfaces { get; set; }
 
         /// <summary>
         /// cache-entries — number of flows that can simultaneously exist in router memory.
@@ -36,7 +36,7 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// Default: 4k
         /// </summary>
         [TikProperty("cache-entries", DefaultValue = "4k")]
-        public string/*enum: 1k|2k|4k|16k|128k|256k|1M|...*/ CacheEntries { get; set; }
+        public string?/*enum: 1k|2k|4k|16k|128k|256k|1M|...*/ CacheEntries { get; set; }
 
         /// <summary>
         /// active-flow-timeout — maximum lifespan duration for a flow (time value, e.g. "30m").
@@ -44,14 +44,14 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// Default: 30m
         /// </summary>
         [TikProperty("active-flow-timeout", DefaultValue = "30m")]
-        public string/*time*/ ActiveFlowTimeout { get; set; }
+        public string?/*time*/ ActiveFlowTimeout { get; set; }
 
         /// <summary>
         /// inactive-flow-timeout — duration to maintain an idle flow before treating it as a new
         /// flow (time value, e.g. "15s"). Default: 15s
         /// </summary>
         [TikProperty("inactive-flow-timeout", DefaultValue = "15s")]
-        public string/*time*/ InactiveFlowTimeout { get; set; }
+        public string?/*time*/ InactiveFlowTimeout { get; set; }
 
         /// <summary>
         /// packet-sampling — enable or disable packet sampling functionality (RouterOS v7+).

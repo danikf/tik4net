@@ -160,14 +160,14 @@ namespace tik4net
         /// </summary>
         /// <remarks>Could be used for debug/logging</remarks>
         /// <seealso cref="OnWriteRow"/>
-        event EventHandler<TikConnectionCommCallbackEventArgs> OnReadRow;
+        event EventHandler<TikConnectionCommCallbackEventArgs>? OnReadRow;
 
         /// <summary>
         /// Event called when row (word) to mikrotik is written  by connection.
         /// </summary>
         /// <remarks>Could be used for debug/logging</remarks>
         /// <seealso cref="OnReadRow"/>
-        event EventHandler<TikConnectionCommCallbackEventArgs> OnWriteRow;
+        event EventHandler<TikConnectionCommCallbackEventArgs>? OnWriteRow;
 
         /// <summary>
         /// Opens connection to the specified mikrotik host on default port (depends on technology) and perform the logon operation.

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,19 +15,19 @@ namespace tik4net.Objects.Ip.Firewall
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// name
         /// </summary>
         [TikProperty("name")]
-        public string Name { get; private set; }
+        public string? Name { get; private set; }
 
         /// <summary>
         /// name
         /// </summary>
         [TikProperty("ports")]
-        public string Ports { get; set; }
+        public string? Ports { get; set; }
 
         /// <summary>
         /// disabled

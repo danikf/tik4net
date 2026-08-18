@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,65 +16,65 @@ namespace tik4net.Objects.Interface
         /// name
         /// </summary>
         [TikProperty("name", IsMandatory = true, IsReadOnly = true)]
-        public string Name { get; private set; }
+        public string? Name { get; private set; }
 
         /// <summary>
         /// rx-packets-per-second
         /// </summary>
         [TikProperty("rx-packets-per-second", IsMandatory = true, IsReadOnly = true)]
-        public string RxPacketsPerSecond { get; private set; }
+        public string? RxPacketsPerSecond { get; private set; }
 
         /// <summary>
         /// rx-bits-per-second
         /// </summary>
         [TikProperty("rx-bits-per-second", IsMandatory = true, IsReadOnly = true)]
-        public string RxBitsPerSecond { get; private set; }
+        public string? RxBitsPerSecond { get; private set; }
 
         /// <summary>
         /// rx-drops-per-second
         /// REMARKS: not available in all versions
         /// </summary>
         [TikProperty("rx-drops-per-second", IsMandatory = false, IsReadOnly = true)]
-        public string RxDropsPerSecond { get; private set; }
+        public string? RxDropsPerSecond { get; private set; }
 
         /// <summary>
         /// rx-errors-per-second
         /// REMARKS: not available in all versions
         /// </summary>
         [TikProperty("rx-errors-per-second", IsMandatory = false, IsReadOnly = true)]
-        public string RxErrorsPerSecond { get; private set; }        
+        public string? RxErrorsPerSecond { get; private set; }
 
         /// <summary>
         /// tx-packets-per-second
         /// </summary>
         [TikProperty("tx-packets-per-second", IsMandatory = true, IsReadOnly = true)]
-        public string TxPacketsPerSecond { get; private set; }
+        public string? TxPacketsPerSecond { get; private set; }
 
         /// <summary>
         /// tx-bits-per-second
         /// </summary>
         [TikProperty("tx-bits-per-second", IsMandatory = true, IsReadOnly = true)]
-        public string TxBitsPerSecond { get; private set; }
+        public string? TxBitsPerSecond { get; private set; }
 
         /// <summary>
         /// tx-drops-per-second
         /// REMARKS: not available in all versions
         /// </summary>
         [TikProperty("tx-drops-per-second", IsMandatory = false, IsReadOnly = true)]
-        public string TxDropsPerSecond { get; private set; }
+        public string? TxDropsPerSecond { get; private set; }
 
         /// <summary>
         /// tx-errors-per-second
         /// REMARKS: not available in all versions
         /// </summary>
         [TikProperty("tx-errors-per-second", IsMandatory = false, IsReadOnly = true)]
-        public string TxErrorsPerSecond { get; private set; }
+        public string? TxErrorsPerSecond { get; private set; }
 
         /// <summary>
         /// tx-queue-drops-per-second
         /// </summary>
         [TikProperty("tx-queue-drops-per-second", IsMandatory = false, IsReadOnly = true)]
-        public string TxQueueDropsPerSecond { get; private set; }
+        public string? TxQueueDropsPerSecond { get; private set; }
 
         /// <summary>
         /// Gets snapshot of actual values for given <paramref name="interfaceName"/>.

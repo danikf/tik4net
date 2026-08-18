@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,19 +15,19 @@ namespace tik4net.Objects.Queue
         /// .id
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// name
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// kind
         /// </summary>
         [TikProperty("kind")]
-        public string Kind { get; set; }
+        public string? Kind { get; set; }
 
         /// <summary>
         /// pfifo-limit
@@ -99,7 +99,7 @@ namespace tik4net.Objects.Queue
         /// pcq-classifier
         /// </summary>
         [TikProperty("pcq-classifier")]
-        public string PcqClassifier { get; set; }
+        public string? PcqClassifier { get; set; }
 
         /// <summary>
         /// pcq-total-limit
@@ -123,7 +123,7 @@ namespace tik4net.Objects.Queue
         /// pcq-burst-time
         /// </summary>
         [TikProperty("pcq-burst-time")]
-        public string PcqBurstTime { get; set; }
+        public string? PcqBurstTime { get; set; }
 
         /// <summary>
         /// pcq-src-address-mask

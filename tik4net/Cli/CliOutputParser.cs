@@ -44,7 +44,7 @@ namespace tik4net.Cli
             var pairs = ParseOrderedFields(flat.ToString());
 
             var records = new List<Dictionary<string, string>>();
-            Dictionary<string, string> current = null;
+            Dictionary<string, string>? current = null;
             foreach (var kv in pairs)
             {
                 bool isId = string.Equals(kv.Key, TikSpecialProperties.Id, StringComparison.OrdinalIgnoreCase);
@@ -205,7 +205,7 @@ namespace tik4net.Cli
             string normalized = output.Replace("\r", "");
             var segments = normalized.Split(new[] { TorchFooter }, StringSplitOptions.None);
 
-            string frameSegment = null;
+            string? frameSegment = null;
             for (int i = segments.Length - 1; i >= 0; i--)
             {
                 if (segments[i].IndexOf("Columns:", StringComparison.Ordinal) >= 0)

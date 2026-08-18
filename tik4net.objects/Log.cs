@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,25 +15,25 @@ namespace tik4net.Objects
         /// Row .id property.
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// Row message property.
         /// </summary>
         [TikProperty("message", IsReadOnly = true, IsMandatory = true)]
-        public string Message { get; private set; }
+        public string? Message { get; private set; }
 
         /// <summary>
         /// Row time property.
         /// </summary>
         [TikProperty("time", IsReadOnly = true, IsMandatory = true)]
-        public string Time { get; private set; }
+        public string? Time { get; private set; }
 
         /// <summary>
         /// Row topics property.
         /// </summary>
         [TikProperty("topics", IsReadOnly = true, IsMandatory = true)]
-        public string Topics { get; private set; }
+        public string? Topics { get; private set; }
 
         #region -- static methods --
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,13 +18,13 @@ namespace tik4net.Objects.System
         /// .id — primary key of the row.
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// name — identifier for the script. Default auto-assigned as "Script[num]".
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// source — script source code content.
@@ -38,7 +38,7 @@ namespace tik4net.Objects.System
         /// </para>
         /// </summary>
         [TikProperty("source", IsFreeText = true)]
-        public string Source { get; set; }
+        public string? Source { get; set; }
 
         /// <summary>
         /// policy — comma-separated list of applicable policies this script runs under
@@ -46,7 +46,7 @@ namespace tik4net.Objects.System
         /// Kept as string because it is a multi-value bitmask. Default: ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon.
         /// </summary>
         [TikProperty("policy")]
-        public string Policy { get; set; }
+        public string? Policy { get; set; }
 
         /// <summary>
         /// dont-require-permissions — bypass the permissions check when the script executes;
@@ -63,13 +63,13 @@ namespace tik4net.Objects.System
         /// comment — descriptive comment for the script.
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>
         /// owner — user who created the script (read-only).
         /// </summary>
         [TikProperty("owner", IsReadOnly = true)]
-        public string Owner { get; private set; }
+        public string? Owner { get; private set; }
 
         /// <summary>
         /// run-count — total number of times the script has been executed (read-only).
@@ -82,7 +82,7 @@ namespace tik4net.Objects.System
         /// Only present after the script has been run at least once.
         /// </summary>
         [TikProperty("last-started", IsReadOnly = true)]
-        public string/*datetime*/ LastStarted { get; private set; }
+        public string?/*datetime*/ LastStarted { get; private set; }
 
         /// <summary>
         /// invalid — whether the script is in an invalid state (read-only, undocumented).

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -23,15 +23,15 @@ namespace tik4net.Objects.System
 
         /// <summary>watch-address — IP address to ping; router reboots if this address becomes unreachable for longer than ping-timeout. Set to "none" to disable. Default: none.</summary>
         [TikProperty("watch-address", DefaultValue = "none")]
-        public string/*IP*/ WatchAddress { get; set; }
+        public string?/*IP*/ WatchAddress { get; set; }
 
         /// <summary>ping-start-after-boot — delay after boot before the first ping watchdog check begins. Default: 5m.</summary>
         [TikProperty("ping-start-after-boot", DefaultValue = "5m")]
-        public string/*time*/ PingStartAfterBoot { get; set; }
+        public string?/*time*/ PingStartAfterBoot { get; set; }
 
         /// <summary>ping-timeout — how long the watch-address must be unreachable before the router reboots. Default: 1m.</summary>
         [TikProperty("ping-timeout", DefaultValue = "1m")]
-        public string/*time*/ PingTimeout { get; set; }
+        public string?/*time*/ PingTimeout { get; set; }
 
         /// <summary>automatic-supout — when yes, a support output file (supout.rif) is automatically created after an unexpected reboot. Default: yes.</summary>
         [TikProperty("automatic-supout", DefaultValue = "yes")]
@@ -43,15 +43,15 @@ namespace tik4net.Objects.System
 
         /// <summary>send-email-from — sender e-mail address used when auto-send-supout=yes.</summary>
         [TikProperty("send-email-from", DefaultValue = "")]
-        public string SendEmailFrom { get; set; }
+        public string? SendEmailFrom { get; set; }
 
         /// <summary>send-email-to — recipient e-mail address for the auto-sent supout. Comma-separated for multiple recipients.</summary>
         [TikProperty("send-email-to", DefaultValue = "")]
-        public string SendEmailTo { get; set; }
+        public string? SendEmailTo { get; set; }
 
         /// <summary>send-smtp-server — SMTP server address used for auto-sending the supout e-mail.</summary>
         [TikProperty("send-smtp-server", DefaultValue = "")]
-        public string SendSmtpServer { get; set; }
+        public string? SendSmtpServer { get; set; }
 
         /// <summary>Returns a human-readable summary of the watchdog settings.</summary>
         public override string ToString() => string.Format("watchdog: timer={0}, watch-address={1}, auto-supout={2}", WatchdogTimer, WatchAddress, AutomaticSupout);

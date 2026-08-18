@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -51,7 +51,7 @@ namespace tik4net.Objects.CapsMan
 
         /// <summary>.id — primary key of row.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         // ── Identification ────────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ namespace tik4net.Objects.CapsMan
         /// name — unique name for this security profile; referenced by /caps-man/configuration.
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         // ── Authentication ────────────────────────────────────────────────────
 
@@ -69,7 +69,7 @@ namespace tik4net.Objects.CapsMan
         /// Empty string means open (no authentication).
         /// </summary>
         [TikProperty("authentication-types")]
-        public string AuthenticationTypes { get; set; }
+        public string? AuthenticationTypes { get; set; }
 
         // ── Unicast encryption ────────────────────────────────────────────────
 
@@ -78,7 +78,7 @@ namespace tik4net.Objects.CapsMan
         /// Possible values: aes-ccm, tkip. Empty means no explicit override.
         /// </summary>
         [TikProperty("encryption")]
-        public string Encryption { get; set; }
+        public string? Encryption { get; set; }
 
         // ── Group (broadcast/multicast) encryption ────────────────────────────
 
@@ -98,7 +98,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: 5m.
         /// </summary>
         [TikProperty("group-key-update", DefaultValue = "5m")]
-        public string/*time*/ GroupKeyUpdate { get; set; }
+        public string?/*time*/ GroupKeyUpdate { get; set; }
 
         // ── PSK ───────────────────────────────────────────────────────────────
 
@@ -107,7 +107,7 @@ namespace tik4net.Objects.CapsMan
         /// 8–63 ASCII characters, or 64 hex digits for a raw PMK.
         /// </summary>
         [TikProperty("passphrase")]
-        public string Passphrase { get; set; }
+        public string? Passphrase { get; set; }
 
         // ── EAP ───────────────────────────────────────────────────────────────
 
@@ -117,7 +117,7 @@ namespace tik4net.Objects.CapsMan
         /// Empty means no EAP (PSK only).
         /// </summary>
         [TikProperty("eap-methods")]
-        public string EapMethods { get; set; }
+        public string? EapMethods { get; set; }
 
         /// <summary>
         /// eap-radius-accounting — when true, RADIUS accounting messages are sent for EAP-authenticated clients.
@@ -136,14 +136,14 @@ namespace tik4net.Objects.CapsMan
         /// <seealso cref="TlsModeType"/>
         /// </summary>
         [TikProperty("tls-mode")]
-        public string TlsMode { get; set; }
+        public string? TlsMode { get; set; }
 
         /// <summary>
         /// tls-certificate — name of the certificate (from /certificate) presented by the AP
         /// during EAP-TLS authentication. Use "none" to disable certificate use.
         /// </summary>
         [TikProperty("tls-certificate")]
-        public string TlsCertificate { get; set; }
+        public string? TlsCertificate { get; set; }
 
         // ── PMKID ─────────────────────────────────────────────────────────────
 
@@ -161,9 +161,9 @@ namespace tik4net.Objects.CapsMan
         /// comment — short free-text description of this security profile.
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

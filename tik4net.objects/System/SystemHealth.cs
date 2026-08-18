@@ -19,11 +19,11 @@ namespace tik4net.Objects.System
     {
         /// <summary>state — current health monitoring state (disabled/enabled). Read-only (changed by the system).</summary>
         [TikProperty("state", IsReadOnly = true)]
-        public string State { get; private set; }
+        public string? State { get; private set; }
 
         /// <summary>state-after-reboot — health monitoring state applied after the next reboot (disabled/enabled).</summary>
         [TikProperty("state-after-reboot", DefaultValue = "enabled")]
-        public string StateAfterReboot { get; set; }
+        public string? StateAfterReboot { get; set; }
 
         /// <summary>Returns a human-readable summary of the health monitoring state.</summary>
         public override string ToString() => string.Format("health: state={0}, after-reboot={1}", State, StateAfterReboot);

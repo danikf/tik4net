@@ -25,7 +25,7 @@ namespace tik4net.Cli
         /// </summary>
         internal static string InjectWithoutPaging(string command)
         {
-            if (command == null) return command;
+            if (command == null) return command!; // defensive guard only; callers never pass null (all three consumers assign the result to a non-nullable local)
             if (command.TrimStart().StartsWith(":put", StringComparison.OrdinalIgnoreCase))
                 return command;
             if (command.IndexOf(WithoutPaging, StringComparison.OrdinalIgnoreCase) >= 0)
@@ -43,7 +43,7 @@ namespace tik4net.Cli
         /// router response — the prompt can be repainted more than once, see below.
         /// Returns the data lines joined with '\n'.
         /// </summary>
-        internal static string CleanOutput(string stripped, string sentCommand)
+        internal static string CleanOutput(string stripped, string? sentCommand)
         {
             string[] lines = stripped.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
 
@@ -175,9 +175,9 @@ namespace tik4net.Cli
         /// only a response that never arrives reaches the receive deadline, where the read already
         /// throws.</para>
         /// </remarks>
-        internal static bool ContainsEcho(string strippedSoFar, string sentCommand)
+        internal static bool ContainsEcho(string strippedSoFar, string? sentCommand)
         {
-            string key = EchoKey(sentCommand);
+            string? key = EchoKey(sentCommand);
             if (key == null)
                 return true;
             return Squash(strippedSoFar).IndexOf(key, StringComparison.Ordinal) >= 0;
@@ -196,13 +196,13 @@ namespace tik4net.Cli
         /// line matches it by accident. The FIRST match wins, which is what makes a false match later in
         /// the output harmless: the real echo always precedes the output it introduces.
         /// </remarks>
-        private static int SkipForeignResidue(string[] lines, string sentCommand, int start, int end)
+        private static int SkipForeignResidue(string[] lines, string? sentCommand, int start, int end)
         {
-            string key = EchoKey(sentCommand);
+            string? key = EchoKey(sentCommand);
             if (key == null)
                 return start;   // nothing distinctive enough to anchor on (control keys, empty command)
 
-            string cmdSquashed = Squash(sentCommand);
+            string cmdSquashed = Squash(sentCommand!);   // key != null (checked above) implies EchoKey saw a non-null sentCommand
 
             int echoAt = -1;
             for (int i = start; i <= end; i++)
@@ -252,12 +252,13 @@ namespace tik4net.Cli
 
         // A leading slice of the command, squashed, long enough to be unique among a response's data lines.
         // null when there is nothing to anchor on.
-        private static string EchoKey(string sentCommand)
+        private static string? EchoKey(string? sentCommand)
         {
             if (string.IsNullOrEmpty(sentCommand))
                 return null;
 
-            int nl = sentCommand.IndexOfAny(new[] { '\r', '\n' });
+            // netstandard2.0's string.IsNullOrEmpty isn't annotated NotNullWhen, so the compiler can't narrow.
+            int nl = sentCommand!.IndexOfAny(new[] { '\r', '\n' });
             string firstLine = nl >= 0 ? sentCommand.Substring(0, nl) : sentCommand;
 
             string key = Squash(firstLine);
@@ -285,7 +286,7 @@ namespace tik4net.Cli
             return string.Empty;
         }
 
-        private static string Preview(string s)
+        private static string Preview(string? s)
         {
             s = (s ?? string.Empty).Replace("\r", "\\r").Replace("\n", "\\n").Trim();
             return s.Length > 80 ? s.Substring(0, 80) + "…" : s;

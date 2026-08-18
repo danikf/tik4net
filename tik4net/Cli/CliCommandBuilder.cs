@@ -65,7 +65,7 @@ namespace tik4net.Cli
             // Some commands (e.g. /interface/ethernet/monitor) require a 'numbers=<name>' NameValue
             // parameter to identify the target interface, and a flag-style 'once' parameter to take a
             // single snapshot instead of running continuously.  These must be passed before 'as-value'.
-            string numbersValue = FindNameValueParam(parameters, "numbers");
+            string? numbersValue = FindNameValueParam(parameters, "numbers");
             if (numbersValue != null)
             {
                 sb.Append(" numbers=");
@@ -178,7 +178,7 @@ namespace tik4net.Cli
         private static void AppendMonitorInputs(StringBuilder sb, IList<ITikCommandParameter> parameters,
             string snapshotModifier, bool includeFilters = false)
         {
-            string modName = string.IsNullOrEmpty(snapshotModifier) ? null : snapshotModifier.Split('=')[0];
+            string? modName = string.IsNullOrEmpty(snapshotModifier) ? null : snapshotModifier.Split('=')[0];
             bool modifierAlreadyPresent = false;
 
             foreach (var p in parameters)
@@ -291,7 +291,7 @@ namespace tik4net.Cli
             string cliBase = ApiPathToCli(apiPath);
             var sb = new StringBuilder(cliBase);
 
-            string idValue = FindIdParam(parameters);
+            string? idValue = FindIdParam(parameters);
             AppendFindIdentifier(sb, idValue);
 
             AppendNameValueParams(sb, parameters, skipId: true);
@@ -452,7 +452,7 @@ namespace tik4net.Cli
             // 'where comment=' does not parse. (A null never reaches here — BuildCondition emits the bare
             // field name for it, which is the CLI's "property is set" test.)
             if (string.IsNullOrEmpty(value))
-                return value == null ? null : "\"\"";
+                return value == null ? null! : "\"\""; // value is never actually null here (see comment above)
 
             bool safe = true;
             foreach (char c in value)
@@ -473,7 +473,7 @@ namespace tik4net.Cli
             string cliBase = ApiPathToCli(apiPath);
             var sb = new StringBuilder(cliBase);
 
-            string idValue = FindIdParam(parameters);
+            string? idValue = FindIdParam(parameters);
             AppendFindIdentifier(sb, idValue);
 
             // Append any remaining NameValue params (e.g. destination for move)
@@ -519,7 +519,7 @@ namespace tik4net.Cli
         /// Returns the value of a non-Filter (NameValue) parameter with the given name, or <c>null</c>
         /// if no such parameter exists.
         /// </summary>
-        private static string FindNameValueParam(IList<ITikCommandParameter> parameters, string name)
+        private static string? FindNameValueParam(IList<ITikCommandParameter> parameters, string name)
         {
             foreach (var p in parameters)
             {
@@ -540,11 +540,12 @@ namespace tik4net.Cli
         /// "expected item id" → <see cref="TikNoSuchItemException"/>, preserving error fidelity. (Confirmed
         /// live against RouterOS 7.21.4.)
         /// </summary>
-        private static void AppendFindIdentifier(StringBuilder sb, string idValue)
+        private static void AppendFindIdentifier(StringBuilder sb, string? idValue)
         {
             if (string.IsNullOrEmpty(idValue))
                 return;
-            if (idValue.StartsWith("*"))
+            // netstandard2.0's string.IsNullOrEmpty isn't annotated NotNullWhen, so the compiler can't narrow.
+            if (idValue!.StartsWith("*"))
             {
                 sb.Append(" [find .id=");
                 sb.Append(idValue);
@@ -552,7 +553,7 @@ namespace tik4net.Cli
             }
             else
             {
-                string q = QuoteIfNeeded(idValue);
+                string q = QuoteIfNeeded(idValue)!; // idValue is non-null/non-empty here (guarded above), so QuoteIfNeeded's null-input branch cannot apply
                 sb.Append(" [find .id=");
                 sb.Append(q);
                 sb.Append(" or name=");
@@ -561,7 +562,7 @@ namespace tik4net.Cli
             }
         }
 
-        private static string FindIdParam(IList<ITikCommandParameter> parameters)
+        private static string? FindIdParam(IList<ITikCommandParameter> parameters)
         {
             foreach (var p in parameters)
             {
@@ -613,7 +614,7 @@ namespace tik4net.Cli
 
         private static bool IsCliPresenceFlag(string name) => CliPresenceFlagFields.Contains(name);
 
-        private static bool IsTruthy(string value)
+        private static bool IsTruthy(string? value)
             => string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase)
             || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
 
@@ -637,7 +638,7 @@ namespace tik4net.Cli
         /// are in the trigger set for the opposite reason — *unquoted* they would end the command
         /// line and the tail would be executed as one.</para>
         /// </summary>
-        internal static string QuoteIfNeeded(string value)
+        internal static string? QuoteIfNeeded(string? value)
         {
             // An EMPTY value must be written as the two-character empty literal — a bare 'name=' is a
             // RouterOS syntax error the moment anything follows it on the line ("/system note set note=
@@ -649,7 +650,8 @@ namespace tik4net.Cli
                 return value == null ? null : "\"\"";
 
             bool needsQuote = false;
-            foreach (char c in value)
+            // netstandard2.0's string.IsNullOrEmpty isn't annotated NotNullWhen, so the compiler can't narrow.
+            foreach (char c in value!)
             {
                 if (c == ' ' || c == '\t' || c == '\r' || c == '\n'
                     || c == ';' || c == '#' || c == '"' || c == '$' || c == '\\')

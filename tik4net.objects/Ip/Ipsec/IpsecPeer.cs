@@ -1,4 +1,4 @@
-﻿namespace tik4net.Objects.Ip.Ipsec
+namespace tik4net.Objects.Ip.Ipsec
 {
     /// <summary>
     /// /ip/ipsec/peer
@@ -25,13 +25,13 @@
 
         /// <summary>.id — primary key of row</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// name — peer identifier; used to reference this entry from policies and scripts.
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// address — IP/IPv6 prefix of the remote peer. When the remote peer's address matches
@@ -39,14 +39,14 @@
         /// Default: 0.0.0.0/0 (match any remote address).
         /// </summary>
         [TikProperty("address", DefaultValue = "0.0.0.0/0")]
-        public string/*IP Prefix*/ Address { get; set; }
+        public string?/*IP Prefix*/ Address { get; set; }
 
         /// <summary>
         /// local-address — router's local IP/IPv6 address to which IKE Phase 1 is bound.
         /// Leave empty to use the address selected by the routing table.
         /// </summary>
         [TikProperty("local-address")]
-        public string/*IP*/ LocalAddress { get; set; }
+        public string?/*IP*/ LocalAddress { get; set; }
 
         /// <summary>
         /// port — UDP port used by the initiator when connecting to the remote peer.
@@ -62,7 +62,7 @@
         /// Default: "default"
         /// </summary>
         [TikProperty("profile", DefaultValue = "default")]
-        public string Profile { get; set; }
+        public string? Profile { get; set; }
 
         /// <summary>
         /// exchange-mode — IKEv1/IKEv2 Phase 1 exchange mode (RFC 2408).
@@ -94,7 +94,7 @@
         /// when PPK is not used.
         /// </summary>
         [TikProperty("ppk-secret")]
-        public string PpkSecret { get; set; }
+        public string? PpkSecret { get; set; }
 
         /// <summary>
         /// disabled — when true this peer entry is not used to match remote peers.
@@ -107,7 +107,7 @@
         /// comment — short description of the peer entry.
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         // --- Read-only properties ---
 
@@ -126,6 +126,6 @@
         public bool Responder { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

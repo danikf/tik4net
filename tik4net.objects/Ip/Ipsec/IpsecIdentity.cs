@@ -1,4 +1,4 @@
-﻿namespace tik4net.Objects.Ip.Ipsec
+namespace tik4net.Objects.Ip.Ipsec
 {
     /// <summary>
     /// /ip/ipsec/identity
@@ -88,14 +88,14 @@
 
         /// <summary>.id — primary key of row</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// peer — name of the IKE peer entry (/ip/ipsec/peer) this identity is linked to.
         /// The router requires a peer reference on add; it is treated as a mandatory field.
         /// </summary>
         [TikProperty("peer", IsMandatory = true)]
-        public string Peer { get; set; }
+        public string? Peer { get; set; }
 
         /// <summary>
         /// auth-method — authentication method used to verify the remote peer's identity.
@@ -110,7 +110,7 @@
         /// pre-shared-key-xauth. Leave empty for certificate-based methods.
         /// </summary>
         [TikProperty("secret")]
-        public string Secret { get; set; }
+        public string? Secret { get; set; }
 
         /// <summary>
         /// generate-policy — controls whether RouterOS automatically creates IPsec policies
@@ -135,7 +135,7 @@
         /// Leave empty to disable mode-config for this identity.
         /// </summary>
         [TikProperty("mode-config")]
-        public string ModeConfig { get; set; }
+        public string? ModeConfig { get; set; }
 
         /// <summary>
         /// policy-template-group — name of the policy template group used to validate traffic
@@ -143,7 +143,7 @@
         /// Default: "default"
         /// </summary>
         [TikProperty("policy-template-group", DefaultValue = "default")]
-        public string PolicyTemplateGroup { get; set; }
+        public string? PolicyTemplateGroup { get; set; }
 
         /// <summary>
         /// my-id — type and value of the local identity sent to the remote peer in IKE.
@@ -167,28 +167,28 @@
         /// or digital-signature.
         /// </summary>
         [TikProperty("certificate")]
-        public string Certificate { get; set; }
+        public string? Certificate { get; set; }
 
         /// <summary>
         /// remote-certificate — name of the certificate (from /certificate) used to authenticate
         /// the remote peer. When specified, the remote peer's certificate must match this entry.
         /// </summary>
         [TikProperty("remote-certificate")]
-        public string RemoteCertificate { get; set; }
+        public string? RemoteCertificate { get; set; }
 
         /// <summary>
         /// key — name of a local RSA private key (from /ip/ipsec/key) used when auth-method
         /// is rsa-key.
         /// </summary>
         [TikProperty("key")]
-        public string Key { get; set; }
+        public string? Key { get; set; }
 
         /// <summary>
         /// remote-key — name of the remote peer's RSA public key (from /ip/ipsec/key) used
         /// to verify the remote peer when auth-method is rsa-key.
         /// </summary>
         [TikProperty("remote-key")]
-        public string RemoteKey { get; set; }
+        public string? RemoteKey { get; set; }
 
         /// <summary>
         /// eap-methods — comma-separated list of EAP methods accepted/offered when auth-method
@@ -196,21 +196,21 @@
         /// Default: eap-tls
         /// </summary>
         [TikProperty("eap-methods")]
-        public string EapMethods { get; set; }
+        public string? EapMethods { get; set; }
 
         /// <summary>
         /// username — XAuth or EAP account name sent to the remote peer when auth-method is
         /// pre-shared-key-xauth, rsa-signature-hybrid, eap, or eap-radius.
         /// </summary>
         [TikProperty("username")]
-        public string Username { get; set; }
+        public string? Username { get; set; }
 
         /// <summary>
         /// password — XAuth or EAP credential sent to the remote peer when auth-method is
         /// pre-shared-key-xauth, rsa-signature-hybrid, eap, or eap-radius.
         /// </summary>
         [TikProperty("password")]
-        public string Password { get; set; }
+        public string? Password { get; set; }
 
         /// <summary>
         /// notrack-chain — when set, RouterOS adds /ip/firewall/raw rules to the named chain
@@ -218,7 +218,7 @@
         /// Leave empty to disable.
         /// </summary>
         [TikProperty("notrack-chain")]
-        public string NotrackChain { get; set; }
+        public string? NotrackChain { get; set; }
 
         /// <summary>
         /// disabled — when true this identity entry is not used to match remote peers.
@@ -231,7 +231,7 @@
         /// comment — short description of the identity entry.
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         // --- Read-only properties ---
 

@@ -63,7 +63,8 @@ public static class CrudSample
 
             Console.WriteLine();
             Console.WriteLine("-- reloading by id");
-            var reloaded = await connection.LoadByIdAsync<IpAddress>(created.Id);
+            // created.Id is set by the Save above — an entity that failed to save would have thrown.
+            var reloaded = await connection.LoadByIdAsync<IpAddress>(created.Id!);
             Console.WriteLine($"   comment = {reloaded.Comment}");
         }
         finally

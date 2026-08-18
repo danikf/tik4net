@@ -21,8 +21,8 @@ namespace tik4net.Ssh
         /// <summary>Silence required after a prompt before a command's response is considered complete (ms).</summary>
         private const int SettleMs = 120;
 
-        private SshClient _ssh;
-        private ShellStream _shell;
+        private SshClient _ssh = null!; // assigned in Connect, not the constructor; read only afterwards
+        private ShellStream _shell = null!; // assigned in Connect, not the constructor; read only afterwards
         private readonly Encoding _encoding;
         private readonly int _receiveTimeoutMs;
 
@@ -54,7 +54,7 @@ namespace tik4net.Ssh
             catch (SshAuthenticationException)
             {
                 // Router rejected the '+c' terminal-flag suffix on the user name — retry plain.
-                SafeDispose(ref _ssh);
+                SafeDispose(_ssh);
                 _ssh = CreateClient(host, port, user, password, connectTimeoutMs);
                 _ssh.Connect();
             }
@@ -122,7 +122,7 @@ namespace tik4net.Ssh
         /// completed output line to <paramref name="onLine"/> while the command is still running — the
         /// streaming driver registered by <see cref="SshConnection"/> (P2.50).
         /// </summary>
-        internal async Task<string> SendCommandAndReadAsync(string command, Action<string> onLine, CancellationToken ct)
+        internal async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
         {
             // Discard anything still buffered from the PREVIOUS command — see the same guard in
             // TelnetClient for the mechanism (a read returning on the prompt inside the line editor's echo
@@ -157,16 +157,16 @@ namespace tik4net.Ssh
             try { _shell?.Write("/quit\r\n"); _shell?.Flush(); } catch { /* ignore */ }
             try { _shell?.Dispose(); } catch { /* ignore */ }
             try { if (_ssh?.IsConnected == true) _ssh.Disconnect(); } catch { /* ignore */ }
-            SafeDispose(ref _ssh);
-            _shell = null;
+            SafeDispose(_ssh);
+            _ssh = null!; // cleared after Close so a disposed client is never reused
+            _shell = null!; // cleared after Close so a disposed shell is never reused
         }
 
         public void Dispose() => Close();
 
-        private static void SafeDispose(ref SshClient client)
+        private static void SafeDispose(SshClient? client)
         {
             try { client?.Dispose(); } catch { /* ignore */ }
-            client = null;
         }
 
         // ── Private read/write helpers (mirror TelnetClient, minus IAC) ────────
@@ -228,8 +228,8 @@ namespace tik4net.Ssh
         /// consumed while it runs (see <see cref="CliLineStreamer"/>). Does not affect when the read
         /// returns — the stable prompt is still the only terminator.
         /// </param>
-        private async Task<string> ReadCommandResponseAsync(CancellationToken ct, string sentCommand,
-            Action<string> onLine = null)
+        private async Task<string> ReadCommandResponseAsync(CancellationToken ct, string? sentCommand,
+            Action<string>? onLine = null)
         {
             var buffer = new byte[4096];
             var accumulated = new StringBuilder();

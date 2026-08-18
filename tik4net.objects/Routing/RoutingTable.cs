@@ -1,4 +1,4 @@
-﻿namespace tik4net.Objects.Routing
+namespace tik4net.Objects.Routing
 {
     /// <summary>
     /// /routing/table
@@ -12,14 +12,14 @@
     {
         /// <summary>.id — primary key of row</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// name — unique identifier for the routing table.
         /// Referenced by routing rules (/routing/rule) and firewall mangle rules.
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// fib — when true, the table is a FIB (Forwarding Information Base) table whose
@@ -49,7 +49,7 @@
 
         /// <summary>comment — optional free-text annotation.</summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         // --- Read-only properties ---
 
@@ -67,6 +67,6 @@
         public bool Invalid { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

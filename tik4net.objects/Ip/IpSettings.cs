@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -55,7 +55,7 @@ namespace tik4net.Objects.Ip
 
         /// <summary>arp-timeout — base reachable time for ARP cache entries across interfaces. Default: 30s.</summary>
         [TikProperty("arp-timeout", DefaultValue = "30s")]
-        public string/*time*/ ArpTimeout { get; set; }
+        public string?/*time*/ ArpTimeout { get; set; }
 
         /// <summary>max-neighbor-entries — maximum ARP/NDP neighbour table size. Defaults are RAM-dependent; 0 = not set (use router default).</summary>
         [TikProperty("max-neighbor-entries", DefaultValue = "0")]
@@ -67,7 +67,7 @@ namespace tik4net.Objects.Ip
 
         /// <summary>icmp-rate-mask — hex bitmask of ICMP types subject to rate limiting. Default: 0x1818.</summary>
         [TikProperty("icmp-rate-mask", DefaultValue = "0x1818")]
-        public string IcmpRateMask { get; set; }
+        public string? IcmpRateMask { get; set; }
 
         /// <summary>icmp-errors-use-inbound-interface-address — when yes, ICMP error replies use the primary address of the receiving interface as source. Default: no.</summary>
         [TikProperty("icmp-errors-use-inbound-interface-address", DefaultValue = "no")]

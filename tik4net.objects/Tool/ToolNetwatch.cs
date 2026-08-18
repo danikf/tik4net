@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,15 +17,15 @@ namespace tik4net.Objects.Tool
     {
         /// <summary>.id — primary key of the netwatch entry.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>name — entry name (optional label).</summary>
         [TikProperty("name")]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>host — IP address or DNS name of the host to probe.</summary>
         [TikProperty("host")]
-        public string Host { get; set; }
+        public string? Host { get; set; }
 
         /// <summary>
         /// type — probe method. Determines which type-specific fields apply.
@@ -56,33 +56,33 @@ namespace tik4net.Objects.Tool
 
         /// <summary>interval — time between successive probe attempts (e.g. "10s", "1m"). Default: 10s.</summary>
         [TikProperty("interval", DefaultValue = "10s")]
-        public string/*time*/ Interval { get; set; }
+        public string?/*time*/ Interval { get; set; }
 
         /// <summary>timeout — maximum wait time for a probe response. Default: 3s.</summary>
         [TikProperty("timeout", DefaultValue = "3s")]
-        public string/*time*/ Timeout { get; set; }
+        public string?/*time*/ Timeout { get; set; }
 
         /// <summary>start-delay — delay before the first probe after the entry is enabled. Default: 3s.</summary>
         [TikProperty("start-delay", DefaultValue = "3s")]
-        public string/*time*/ StartDelay { get; set; }
+        public string?/*time*/ StartDelay { get; set; }
 
         /// <summary>startup-delay — delay after a system restart before the first probe. Default: 5m.</summary>
         [TikProperty("startup-delay", DefaultValue = "5m")]
-        public string/*time*/ StartupDelay { get; set; }
+        public string?/*time*/ StartupDelay { get; set; }
 
         // ── Scripts ─────────────────────────────────────────────────────────────
 
         /// <summary>up-script — RouterOS script to execute when a host transitions from down to up.</summary>
         [TikProperty("up-script")]
-        public string UpScript { get; set; }
+        public string? UpScript { get; set; }
 
         /// <summary>down-script — RouterOS script to execute when a host transitions from up to down.</summary>
         [TikProperty("down-script")]
-        public string DownScript { get; set; }
+        public string? DownScript { get; set; }
 
         /// <summary>test-script — RouterOS script to execute after each probe (regardless of state).</summary>
         [TikProperty("test-script")]
-        public string TestScript { get; set; }
+        public string? TestScript { get; set; }
 
         // ── Behaviour ───────────────────────────────────────────────────────────
 
@@ -96,7 +96,7 @@ namespace tik4net.Objects.Tool
 
         /// <summary>src-address — source IP address to use for probes.</summary>
         [TikProperty("src-address")]
-        public string/*IP*/ SrcAddress { get; set; }
+        public string?/*IP*/ SrcAddress { get; set; }
 
         /// <summary>disabled — when true the entry is disabled and probes are not sent.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
@@ -104,7 +104,7 @@ namespace tik4net.Objects.Tool
 
         /// <summary>comment — free-form comment.</summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         // ── ICMP-specific (type=icmp) ────────────────────────────────────────────
 
@@ -114,7 +114,7 @@ namespace tik4net.Objects.Tool
 
         /// <summary>packet-interval — interval between individual ICMP packets within one probe cycle (type=icmp). Default: 50ms.</summary>
         [TikProperty("packet-interval", DefaultValue = "50ms")]
-        public string/*time*/ PacketInterval { get; set; }
+        public string?/*time*/ PacketInterval { get; set; }
 
         /// <summary>packet-size — IP datagram size for ICMP packets (type=icmp). Default: 54.</summary>
         [TikProperty("packet-size")] // router default 54; omitted on add when left 0
@@ -138,23 +138,23 @@ namespace tik4net.Objects.Tool
 
         /// <summary>thr-max — maximum RTT threshold; probe fails when any packet exceeds this (type=icmp). Default: 1s.</summary>
         [TikProperty("thr-max", DefaultValue = "1s")]
-        public string/*time*/ ThrMax { get; set; }
+        public string?/*time*/ ThrMax { get; set; }
 
         /// <summary>thr-avg — average RTT threshold (type=icmp). Default: 100ms.</summary>
         [TikProperty("thr-avg", DefaultValue = "100ms")]
-        public string/*time*/ ThrAvg { get; set; }
+        public string?/*time*/ ThrAvg { get; set; }
 
         /// <summary>thr-stdev — RTT standard-deviation threshold (type=icmp). Default: 250ms.</summary>
         [TikProperty("thr-stdev", DefaultValue = "250ms")]
-        public string/*time*/ ThrStdev { get; set; }
+        public string?/*time*/ ThrStdev { get; set; }
 
         /// <summary>thr-jitter — jitter threshold (type=icmp). Default: 1s.</summary>
         [TikProperty("thr-jitter", DefaultValue = "1s")]
-        public string/*time*/ ThrJitter { get; set; }
+        public string?/*time*/ ThrJitter { get; set; }
 
         /// <summary>thr-loss-percent — packet loss percentage threshold; probe fails when loss exceeds this value (type=icmp). Default: 85.</summary>
         [TikProperty("thr-loss-percent", DefaultValue = "85")]
-        public string ThrLossPercent { get; set; }
+        public string? ThrLossPercent { get; set; }
 
         /// <summary>thr-loss-count — packet loss count threshold; probe fails when lost packets exceed this value (type=icmp). Default: 4294967295.</summary>
         [TikProperty("thr-loss-count")] // router default 4294967295; omitted on add when left 0
@@ -168,21 +168,21 @@ namespace tik4net.Objects.Tool
 
         /// <summary>thr-tcp-conn-time — TCP connection time threshold range (e.g. "5ms-30ms"); probe fails when connection time is outside this range (type=tcp-conn).</summary>
         [TikProperty("thr-tcp-conn-time")]
-        public string ThrTcpConnTime { get; set; }
+        public string? ThrTcpConnTime { get; set; }
 
         // ── HTTP/HTTPS-specific (type=http-get / https-get) ──────────────────────
 
         /// <summary>http-codes — comma-separated list of HTTP status codes considered a successful response (e.g. "200,301"). Default: empty (200–299 range applies).</summary>
         [TikProperty("http-codes")]
-        public string HttpCodes { get; set; }
+        public string? HttpCodes { get; set; }
 
         /// <summary>thr-http-time — HTTP response time threshold; probe fails when response time exceeds this (type=http-get/https-get). Default: 10s.</summary>
         [TikProperty("thr-http-time", DefaultValue = "10s")]
-        public string/*time*/ ThrHttpTime { get; set; }
+        public string?/*time*/ ThrHttpTime { get; set; }
 
         /// <summary>certificate — name of a certificate to use for HTTPS verification (type=https-get).</summary>
         [TikProperty("certificate")]
-        public string Certificate { get; set; }
+        public string? Certificate { get; set; }
 
         /// <summary>check-certificate — when yes, validate the server certificate's trust chain (type=https-get). Default: no.</summary>
         [TikProperty("check-certificate", DefaultValue = "no")]
@@ -210,49 +210,49 @@ namespace tik4net.Objects.Tool
 
         /// <summary>dns-server — IP address of the DNS server to use for queries (type=dns). Defaults to the system DNS server.</summary>
         [TikProperty("dns-server")]
-        public string/*IP*/ DnsServer { get; set; }
+        public string?/*IP*/ DnsServer { get; set; }
 
         // ── Read-only status fields ──────────────────────────────────────────────
 
         /// <summary>status — current probe state: up, down, or unknown. Read-only.</summary>
         [TikProperty("status", IsReadOnly = true)]
-        public string Status { get; private set; }
+        public string? Status { get; private set; }
 
         /// <summary>since — timestamp of the last state change. Read-only.</summary>
         [TikProperty("since", IsReadOnly = true)]
-        public string/*datetime*/ Since { get; private set; }
+        public string?/*datetime*/ Since { get; private set; }
 
         /// <summary>done-tests — total number of probe attempts completed. Read-only.</summary>
         [TikProperty("done-tests", IsReadOnly = true)]
-        public string DoneTests { get; private set; }
+        public string? DoneTests { get; private set; }
 
         /// <summary>failed-tests — number of failed probe attempts. Read-only.</summary>
         [TikProperty("failed-tests", IsReadOnly = true)]
-        public string FailedTests { get; private set; }
+        public string? FailedTests { get; private set; }
 
         // ── ICMP read-only counters (present when type=icmp and at least one probe has run) ──
 
         /// <summary>sent-count — number of ICMP packets sent in the last probe cycle. Read-only.</summary>
         [TikProperty("sent-count", IsReadOnly = true)]
-        public string SentCount { get; private set; }
+        public string? SentCount { get; private set; }
 
         /// <summary>response-count — number of ICMP responses received in the last probe cycle. Read-only.</summary>
         [TikProperty("response-count", IsReadOnly = true)]
-        public string ResponseCount { get; private set; }
+        public string? ResponseCount { get; private set; }
 
         /// <summary>loss-count — number of lost ICMP packets in the last probe cycle. Read-only.</summary>
         [TikProperty("loss-count", IsReadOnly = true)]
-        public string LossCount { get; private set; }
+        public string? LossCount { get; private set; }
 
         /// <summary>loss-percent — packet loss percentage in the last probe cycle. Read-only.</summary>
         [TikProperty("loss-percent", IsReadOnly = true)]
-        public string LossPercent { get; private set; }
+        public string? LossPercent { get; private set; }
 
         // ── TCP read-only counters (present when type=tcp-conn and at least one probe has run) ──
 
         /// <summary>tcp-connect-time — measured TCP connection time in the last probe cycle. Read-only.</summary>
         [TikProperty("tcp-connect-time", IsReadOnly = true)]
-        public string/*time*/ TcpConnectTime { get; private set; }
+        public string?/*time*/ TcpConnectTime { get; private set; }
 
         /// <summary>Returns a human-readable summary of this netwatch entry.</summary>
         public override string ToString()

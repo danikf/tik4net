@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,19 +15,19 @@ namespace tik4net.Objects.Interface
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// Name of the wireguard interface
         /// </summary>
         [TikProperty("name")]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// comment: Short description of the Peer.
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>
         /// disabled: Whether peer will be used.
@@ -47,7 +47,7 @@ namespace tik4net.Objects.Interface
         /// The private key associated with the local device
         /// </summary>
         [TikProperty("private-key")]
-        public string PrivateKey { get; set; }
+        public string? PrivateKey { get; set; }
 
         /// <summary>
         /// Interface listen port

@@ -9,17 +9,18 @@ namespace tik4net.Objects.Tracking
     /// </summary>
     internal sealed class TikSnapshot
     {
-        // field-name → serialized string value (same format as TikEntityPropertyAccessor.GetEntityValue)
-        private readonly Dictionary<string, string> _values;
+        // field-name → serialized string value (same format as TikEntityPropertyAccessor.GetEntityValue);
+        // the value itself is null for a nullable property the router never reported.
+        private readonly Dictionary<string, string?> _values;
 
         // null  = full load — all entity fields are tracked
         // set   = partial .proplist load — only these fields are meaningful for diffing
-        internal readonly HashSet<string> TrackedFields;
+        internal readonly HashSet<string>? TrackedFields;
 
-        internal TikSnapshot(IEnumerable<KeyValuePair<string, string>> values,
-                              IEnumerable<string> trackedFields = null)
+        internal TikSnapshot(IEnumerable<KeyValuePair<string, string?>> values,
+                              IEnumerable<string>? trackedFields = null)
         {
-            _values = new Dictionary<string, string>(StringComparer.Ordinal);
+            _values = new Dictionary<string, string?>(StringComparer.Ordinal);
             foreach (var kv in values)
                 _values[kv.Key] = kv.Value;
 
@@ -32,7 +33,7 @@ namespace tik4net.Objects.Tracking
         internal bool IsTracked(string fieldName) =>
             TrackedFields == null || TrackedFields.Contains(fieldName);
 
-        internal bool TryGetValue(string fieldName, out string value) =>
+        internal bool TryGetValue(string fieldName, out string? value) =>
             _values.TryGetValue(fieldName, out value);
     }
 }

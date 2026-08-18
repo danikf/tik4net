@@ -7,8 +7,8 @@ namespace tik4net.Api
 {
     internal class ApiCommandParameter : ITikCommandParameter
     {
-        private string _name;
-        private string _value;
+        private string _name = null!; // set by a constructor overload or the Name setter before use
+        private string _value = null!; // set by a constructor overload or the Value setter before use
         private TikCommandParameterFormat _parameterFormat;
 
         public string Name

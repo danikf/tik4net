@@ -144,7 +144,7 @@ namespace tik4net.Connection
                     var seen = new HashSet<string>(StringComparer.Ordinal);
                     foreach (var row in rows)
                     {
-                        string rid = row.GetResponseFieldOrDefault(TikSpecialProperties.Id, null);
+                        string rid = row.GetResponseFieldOrDefault(TikSpecialProperties.Id, null!); // defaultValue is meant to accept null (interface out of scope here)
                         if (rid == null) continue;
                         seen.Add(rid);
                         string sig = RowSignature(row, volatileFields);

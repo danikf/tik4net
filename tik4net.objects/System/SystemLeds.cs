@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,7 +17,7 @@ namespace tik4net.Objects.System
     {
         /// <summary>.id — primary key of the row.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// type — LED trigger type; determines what event/state drives the LED.
@@ -71,11 +71,11 @@ namespace tik4net.Objects.System
 
         /// <summary>leds — hardware LED identifier(s) controlled by this entry (hardware-specific names, e.g. "user-led").</summary>
         [TikProperty("leds")]
-        public string Leds { get; set; }
+        public string? Leds { get; set; }
 
         /// <summary>interface — name of the interface whose state/traffic drives the LED (used with interface-* and wireless-* types).</summary>
         [TikProperty("interface")]
-        public string Interface { get; set; }
+        public string? Interface { get; set; }
 
         /// <summary>modem-signal-threshold — RSSI threshold (dBm) for the modem-signal LED type; LED is on when signal is above this value. Real default: -70; 0 is the CLR sentinel (omitted on add).</summary>
         // Range e.g. -120..0; DefaultValue="0" so CLR default 0 is omitted on add.

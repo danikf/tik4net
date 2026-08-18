@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -44,7 +44,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: none.
         /// </summary>
         [TikProperty("certificate", DefaultValue = "none")]
-        public string Certificate { get; set; }
+        public string? Certificate { get; set; }
 
         /// <summary>
         /// ca-certificate — name of the CA certificate used to validate connecting CAPs,
@@ -52,7 +52,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: none.
         /// </summary>
         [TikProperty("ca-certificate", DefaultValue = "none")]
-        public string CaCertificate { get; set; }
+        public string? CaCertificate { get; set; }
 
         /// <summary>
         /// require-peer-certificate — when true, all connecting CAPs must present a valid
@@ -69,7 +69,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: "" (empty — use built-in packages).
         /// </summary>
         [TikProperty("package-path", DefaultValue = "")]
-        public string PackagePath { get; set; }
+        public string? PackagePath { get; set; }
 
         /// <summary>
         /// upgrade-policy — determines how CAPsMAN handles RouterOS version mismatches

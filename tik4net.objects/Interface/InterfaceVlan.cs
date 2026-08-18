@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,31 +18,31 @@ namespace tik4net.Objects.Interface
         /// .id
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// name - Interface name
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// mtu - Layer3 Maximum transmission unit
         /// </summary>
         [TikProperty("mtu")]
-        public string Mtu { get; set; }
+        public string? Mtu { get; set; }
 
         /// <summary>
         /// l2mtu - Layer2 MTU. For VLANS this value is not configurable.
         /// </summary>
         [TikProperty("l2mtu", IsReadOnly = true)]
-        public string L2Mtu { get; set; }
+        public string? L2Mtu { get; set; }
 
         /// <summary>
         /// mac-address
         /// </summary>
         [TikProperty("mac-address")]
-        public string MacAddress { get; set; }
+        public string? MacAddress { get; set; }
         public enum ArpMode
         {
             /// <summary>
@@ -83,7 +83,7 @@ namespace tik4net.Objects.Interface
         /// arp-timeout
         /// </summary>
         [TikProperty("arp-timeout")]
-        public string ArpTimeout { get; set; }
+        public string? ArpTimeout { get; set; }
         public enum LoopProtectMode
         {
             /// <summary>
@@ -121,21 +121,21 @@ namespace tik4net.Objects.Interface
         /// loop-protect-send-interval
         /// </summary>
         [TikProperty("loop-protect-send-interval", DefaultValue = "00:00:05")]
-        public string/*time*/ LoopProtectSendInterval { get; set; }
+        public string?/*time*/ LoopProtectSendInterval { get; set; }
 
         /// <summary>
         /// loop-protect-disable-time
         /// </summary>
         [TikProperty("loop-protect-disable-time", DefaultValue = "00:05:00")]
-        public string/*time*/ LoopProtectDisableTime { get; set; }
+        public string?/*time*/ LoopProtectDisableTime { get; set; }
 
         [TikProperty("vlan-id", IsMandatory =true)]
-        public string vlanId { get; set; }
+        public string? vlanId { get; set; }
         /// <summary>
         /// interface
         /// </summary>
         [TikProperty("interface", IsMandatory = true)]
-        public string Interface { get; set; }
+        public string? Interface { get; set; }
 
         /// <summary>
         /// use-service-tag
@@ -159,7 +159,7 @@ namespace tik4net.Objects.Interface
         /// comment
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
     }
 

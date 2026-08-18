@@ -51,8 +51,8 @@ namespace tik4net.WinboxCli
         {
             // BuildTransport is inside the retry, not outside it: a refused handshake leaves the client
             // and its channel unusable, so a retry needs new ones (see Winbox.RouterLoginRetry).
-            Func<byte[], int, CancellationToken, Task<string>> sendRawSettle = null;
-            Func<string, Action<string>, CancellationToken, Task<string>> sendStreaming = null;
+            Func<byte[], int, CancellationToken, Task<string>>? sendRawSettle = null;
+            Func<string, Action<string>, CancellationToken, Task<string>>? sendStreaming = null;
             tik4net.Winbox.RouterLoginRetry.Run(() =>
             {
                 var (login, send, sendRaw, settle, streaming, close) = BuildTransport(host, port, user, password);
@@ -60,8 +60,9 @@ namespace tik4net.WinboxCli
                 sendRawSettle = settle;
                 sendStreaming = streaming;
             });
-            RegisterCompletionDriver(sendRawSettle);
-            RegisterStreamingDriver(sendStreaming);
+            // Run() either assigns both delegates above or throws, so they are always set here.
+            RegisterCompletionDriver(sendRawSettle!);
+            RegisterStreamingDriver(sendStreaming!);
         }
 
         /// <inheritdoc/>
@@ -71,8 +72,8 @@ namespace tik4net.WinboxCli
         /// <inheritdoc/>
         public override async Task OpenAsync(string host, int port, string user, string password)
         {
-            Func<byte[], int, CancellationToken, Task<string>> sendRawSettle = null;
-            Func<string, Action<string>, CancellationToken, Task<string>> sendStreaming = null;
+            Func<byte[], int, CancellationToken, Task<string>>? sendRawSettle = null;
+            Func<string, Action<string>, CancellationToken, Task<string>>? sendStreaming = null;
             await tik4net.Winbox.RouterLoginRetry.RunAsync(async () =>
             {
                 var (login, send, sendRaw, settle, streaming, close) = BuildTransport(host, port, user, password);
@@ -80,8 +81,9 @@ namespace tik4net.WinboxCli
                 sendRawSettle = settle;
                 sendStreaming = streaming;
             }).ConfigureAwait(false);
-            RegisterCompletionDriver(sendRawSettle);
-            RegisterStreamingDriver(sendStreaming);
+            // RunAsync() either assigns both delegates above or throws, so they are always set here.
+            RegisterCompletionDriver(sendRawSettle!);
+            RegisterStreamingDriver(sendStreaming!);
         }
 
         // Build the WinBox-CLI client (mepty terminal over the TCP M2 channel) and the delegates that drive it.

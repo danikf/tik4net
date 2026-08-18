@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -76,7 +76,7 @@ namespace tik4net.Objects.Ip
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// add-arp: Whether to add dynamic ARP entry.  If set to no either  ARP mode should be enabled on that interface or static  ARP entries should be administratively defined in /ip arp submenu.
@@ -88,7 +88,7 @@ namespace tik4net.Objects.Ip
         /// address-pool:  IP pool, from which to take IP addresses for the clients. If set to static-only, then only the clients that have a static lease (added in  lease submenu) will be allowed.
         /// </summary>
         [TikProperty("address-pool", DefaultValue = "static-only")]
-        public string/*string | static-only*/ AddressPool { get; set; }
+        public string?/*string | static-only*/ AddressPool { get; set; }
 
         /// <summary>
         /// always-broadcast: Always send replies as broadcasts.
@@ -122,13 +122,13 @@ namespace tik4net.Objects.Ip
         /// delay-threshold: If secs field in DHCP packet is smaller than delay-threshold, then this packet is ignored. If set to none - there is no threshold (all DHCP packets are processed)
         /// </summary>
         [TikProperty("delay-threshold", DefaultValue = "none")]
-        public string/*time | none*/ DelayThreshold { get; set; }
+        public string?/*time | none*/ DelayThreshold { get; set; }
 
         /// <summary>
         /// interface: Interface on which server will be running.
         /// </summary>
         [TikProperty("interface")]
-        public string Interface { get; set; }
+        public string? Interface { get; set; }
 
         /// <summary>
         /// lease-script
@@ -139,19 +139,19 @@ namespace tik4net.Objects.Ip
         ///  leaseActIP -  active IP address
         /// </summary>
         [TikProperty("lease-script")]
-        public string LeaseScript { get; set; }
+        public string? LeaseScript { get; set; }
 
         /// <summary>
         /// lease-time: The time that a client may use the assigned address. The client will try to renew this address after a half of this time and will request a new address after time limit expires.
         /// </summary>
         [TikProperty("lease-time", DefaultValue = "72h")]
-        public string/*time*/ LeaseTime { get; set; }
+        public string?/*time*/ LeaseTime { get; set; }
 
         /// <summary>
         /// name: Reference name
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// relay
@@ -160,13 +160,13 @@ namespace tik4net.Objects.Ip
         ///  255.255.255.255 - the DHCP server should be used for any incoming request from a DHCP relay except for those, which are processed by another DHCP server that exists in the /ip dhcp-server submenu.
         /// </summary>
         [TikProperty("relay", DefaultValue = "0.0.0.0")]
-        public string/*IP*/ Relay { get; set; }
+        public string?/*IP*/ Relay { get; set; }
 
         /// <summary>
         /// src-address: The address which the DHCP client must send requests to in order to renew an IP address lease. If there is only one static address on the DHCP server interface and the source-address is left as 0.0.0.0, then the static address will be used. If there are multiple addresses on the interface, an address in the same subnet as the range of given addresses should be used.
         /// </summary>
         [TikProperty("src-address", DefaultValue = "0.0.0.0")]
-        public string/*IP*/ SrcAddress { get; set; }
+        public string?/*IP*/ SrcAddress { get; set; }
 
         /// <summary>
         /// use-radius: Whether to use RADIUS server for dynamic leases

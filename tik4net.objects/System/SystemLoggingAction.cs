@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -134,14 +134,14 @@ namespace tik4net.Objects.System
 
         /// <summary>.id — primary key of the row.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// name — unique action name; for the <c>memory</c> target this is also the name of the
         /// in-memory log buffer visible in /log print.
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// target — storage destination for log entries.
@@ -171,7 +171,7 @@ namespace tik4net.Objects.System
         /// disk-file-name — base name of the log file written to disk (disk target only).
         /// </summary>
         [TikProperty("disk-file-name", DefaultValue = "log")]
-        public string DiskFileName { get; set; }
+        public string? DiskFileName { get; set; }
 
         /// <summary>
         /// disk-lines-per-file — maximum number of log lines per file before rotating (disk target only).
@@ -205,7 +205,7 @@ namespace tik4net.Objects.System
         /// remote — IP address of the remote syslog server (remote target only).
         /// </summary>
         [TikProperty("remote", DefaultValue = "0.0.0.0")]
-        public string/*IPv4*/ Remote { get; set; }
+        public string?/*IPv4*/ Remote { get; set; }
 
         /// <summary>
         /// remote-port — UDP/TCP port on the remote syslog server (remote target only).
@@ -232,13 +232,13 @@ namespace tik4net.Objects.System
         /// 0.0.0.0 means the router selects the address automatically.
         /// </summary>
         [TikProperty("src-address", DefaultValue = "0.0.0.0")]
-        public string/*IPv4*/ SrcAddress { get; set; }
+        public string?/*IPv4*/ SrcAddress { get; set; }
 
         /// <summary>
         /// vrf — VRF context used for remote syslog connections (RouterOS 7.19+).
         /// </summary>
         [TikProperty("vrf", DefaultValue = "main")]
-        public string Vrf { get; set; }
+        public string? Vrf { get; set; }
 
         /// <summary>
         /// syslog-facility — RFC 3164 facility code included in syslog messages (remote target only).
@@ -268,7 +268,7 @@ namespace tik4net.Objects.System
         /// Default is CRLF (<c>\r\n</c>).
         /// </summary>
         [TikProperty("cef-event-delimiter")]
-        public string CefEventDelimiter { get; set; }
+        public string? CefEventDelimiter { get; set; }
 
         // ── email target ──────────────────────────────────────────────────────
 
@@ -276,7 +276,7 @@ namespace tik4net.Objects.System
         /// email-to — recipient e-mail address (email target only).
         /// </summary>
         [TikProperty("email-to")]
-        public string EmailTo { get; set; }
+        public string? EmailTo { get; set; }
 
         /// <summary>
         /// email-start-tls — use STARTTLS when connecting to the SMTP relay (email target only).
@@ -295,7 +295,7 @@ namespace tik4net.Objects.System
 
         /// <summary>comment</summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <inheritdoc/>
         public override string ToString()

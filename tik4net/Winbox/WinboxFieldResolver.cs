@@ -20,7 +20,7 @@ namespace tik4net.Winbox
     internal sealed class WinboxFieldResolver
     {
         private readonly int[] _handler;
-        private readonly string _apiPath;
+        private readonly string? _apiPath;
         private readonly WinboxJgCatalog _catalog;
         // session overrides apiName → key (highest priority)
         private readonly IReadOnlyDictionary<string, int> _overrides;
@@ -30,16 +30,17 @@ namespace tik4net.Winbox
 
         // The derived menu-label path of the WINDOW this path resolves to, when it has one of its own —
         // interface subtypes (EoIP Tunnel, L2TP Client, …) share handler [20,0] but declare their own fields.
-        private readonly string _windowKey;
+        private readonly string? _windowKey;
         // The arguments of the ACTION being invoked (WinboxJgCatalog.GetActionFields), laid over everything
         // else — an action's argument and a record column of the same name are different fields on the same
         // handler. Null for every ordinary (non-action) command.
-        private readonly IReadOnlyDictionary<string, WinboxJgField> _actionFields;
-        private IReadOnlyDictionary<string, WinboxJgField> _fields;
+        private readonly IReadOnlyDictionary<string, WinboxJgField>? _actionFields;
+        // Lazily computed by the JgFields getter; null means "not yet computed", not "no fields".
+        private IReadOnlyDictionary<string, WinboxJgField>? _fields;
 
-        internal WinboxFieldResolver(string apiPath, int[] handler, WinboxJgCatalog catalog,
-            IReadOnlyDictionary<string, int> overrides, bool useGuiNames = false, string windowKey = null,
-            IReadOnlyDictionary<string, WinboxJgField> actionFields = null)
+        internal WinboxFieldResolver(string? apiPath, int[] handler, WinboxJgCatalog catalog,
+            IReadOnlyDictionary<string, int> overrides, bool useGuiNames = false, string? windowKey = null,
+            IReadOnlyDictionary<string, WinboxJgField>? actionFields = null)
         {
             _apiPath = apiPath;
             _handler = handler;
@@ -58,7 +59,7 @@ namespace tik4net.Winbox
         /// rule one level further in: 'Key Size' is a read-only column of the IPsec 'Keys' list and a writable
         /// enum argument of its 'Generate Key' doit. Computed once per resolver.
         /// </summary>
-        private IReadOnlyDictionary<string, WinboxJgField> JgFields
+        private IReadOnlyDictionary<string, WinboxJgField>? JgFields
         {
             get
             {
@@ -72,9 +73,11 @@ namespace tik4net.Winbox
                 var merged = new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase);
                 if (handlerFields != null)
                     foreach (var kv in handlerFields) merged[kv.Key] = kv.Value;
-                if (hasWindow)
+                // hasWindow/hasAction already established windowFields/_actionFields non-null; the extra
+                // null check just gives the compiler the same fact it cannot carry through the bool.
+                if (hasWindow && windowFields != null)
                     foreach (var kv in windowFields) merged[kv.Key] = kv.Value;   // the window wins
-                if (hasAction)
+                if (hasAction && _actionFields != null)
                     foreach (var kv in _actionFields) merged[kv.Key] = kv.Value;  // the action wins over both
                 return _fields = merged;
             }
@@ -135,7 +138,7 @@ namespace tik4net.Winbox
         /// 'PFIFO Queue Size' inside the pfifo one, where the API says <c>remote-port</c> and
         /// <c>pfifo-limit</c> — not <c>remote-remote-port</c>).
         /// </summary>
-        internal static string PrefixWithKind(string kind, string apiName)
+        internal static string PrefixWithKind(string? kind, string apiName)
         {
             if (string.IsNullOrEmpty(kind) || string.IsNullOrEmpty(apiName)) return apiName;
             if (apiName.Equals(kind, StringComparison.OrdinalIgnoreCase)
@@ -171,12 +174,12 @@ namespace tik4net.Winbox
             };
 
         // True when the API spells THIS path's fields of THIS pane kind with the kind prefix.
-        private bool PanePrefixed(string kind)
+        private bool PanePrefixed(string? kind)
         {
             if (string.IsNullOrEmpty(kind)) return false;
             string path = WinboxHandlerMap.Normalize(_apiPath ?? "");
             return PanePrefixedPaths.TryGetValue(path, out var kinds)
-                   && (kinds.Contains("*") || kinds.Contains(kind));
+                   && (kinds.Contains("*") || kinds.Contains(kind!)); // IsNullOrEmpty above already excluded null
         }
 
         /// <summary>
@@ -203,11 +206,11 @@ namespace tik4net.Winbox
             /// Address field label → PORT field label, for the fields RouterOS prints as one
             /// <c>address:port</c> where WinBox has two boxes. See <see cref="AddrPortUiType"/>.
             /// </summary>
-            public readonly IReadOnlyDictionary<string, string> AddrPortPairs;
+            public readonly IReadOnlyDictionary<string, string>? AddrPortPairs;
 
             public FieldAliasSet(IReadOnlyDictionary<string, string> apiToJg, IReadOnlyDictionary<string, string> jgToApi,
-                IReadOnlyDictionary<int, string> keyToApi = null, IReadOnlyDictionary<int, string> keyUiType = null,
-                IReadOnlyDictionary<string, string> addrPortPairs = null)
+                IReadOnlyDictionary<int, string>? keyToApi = null, IReadOnlyDictionary<int, string>? keyUiType = null,
+                IReadOnlyDictionary<string, string>? addrPortPairs = null)
             {
                 ApiToJg = apiToJg; JgToApi = jgToApi;
                 KeyToApi = keyToApi ?? new Dictionary<int, string>();
@@ -406,7 +409,7 @@ namespace tik4net.Winbox
         /// got the corrected traffic-field names and an <c>EthernetInterface</c> still reported a bit rate as
         /// <c>rx-byte</c>.
         /// </remarks>
-        private FieldAliasSet Aliases
+        private FieldAliasSet? Aliases
         {
             get
             {
@@ -573,7 +576,7 @@ namespace tik4net.Winbox
         /// </remarks>
         internal const string AddrPortUiType = "addrport";
 
-        private void ApplyAddrPortPairs(Dictionary<int, WinboxJgField> map, FieldAliasSet aliasSet)
+        private void ApplyAddrPortPairs(Dictionary<int, WinboxJgField> map, FieldAliasSet? aliasSet)
         {
             if (aliasSet?.AddrPortPairs == null) return;
             var jg = JgFields;
@@ -664,7 +667,7 @@ namespace tik4net.Winbox
         /// resolves a dynamic enum reference (handler, name) → numeric id. Throws
         /// <see cref="WinboxFieldResolutionException"/> when the name cannot be resolved.
         /// </summary>
-        internal List<byte[]> EncodeField(string apiName, string value, Func<int[], string, int?> resolveRef = null,
+        internal List<byte[]> EncodeField(string apiName, string value, Func<int[], string, int?>? resolveRef = null,
             bool allowReadOnly = false)
         {
             // Normalize a GUI-styled name to its canonical API name up front so both ResolveKey and the typed
@@ -679,7 +682,7 @@ namespace tik4net.Winbox
             // Look up the .jg field (wire type, ro, enum map, UI type). Seeds (.id/comment/name) have none —
             // they default to string, which is correct for comment/name. Use the aliased .jg label so a shipped
             // API alias (e.g. ping 'address' → 'ping-to') resolves to its typed field.
-            WinboxJgField jg = null;
+            WinboxJgField? jg = null;
             JgFields?.TryGetValue(AliasToJg(apiName), out jg);
 
             // Read-only fields are unsendable for CRUD writes, but a monitor's request inputs (e.g. ping
@@ -687,7 +690,7 @@ namespace tik4net.Winbox
             if (jg != null && jg.ReadOnly && !allowReadOnly) return result;
             value = value ?? "";
 
-            string uiType = jg?.UiType;
+            string? uiType = jg?.UiType;
 
             // ── opt/not container flags ──
             //
@@ -724,7 +727,9 @@ namespace tik4net.Winbox
                 {
                     // Empty → unset (send nothing).
                     if (value.Length == 0) return result;
-                    if (jg.IsRange)
+                    // jg cannot be null here: uiType only reaches this switch as jg?.UiType's value, so a
+                    // non-null "network" case implies jg itself is non-null.
+                    if (jg!.IsRange)
                     {
                         // range:1 → the maskid sibling is the range-END address, not a netmask. All three
                         // RouterOS forms are accepted ("a", "a-b", "a/len"); sending end=start for a host
@@ -769,7 +774,7 @@ namespace tik4net.Winbox
                     // the leading '!' were handled above.
                     if (value.Length == 0) return result;
                     long bits = 0;
-                    if (jg.EnumMap != null)
+                    if (jg!.EnumMap != null) // jg non-null: uiType == "set" only when jg.UiType produced it
                         foreach (var tok in value.Split(','))
                         {
                             string t = tok.Trim();
@@ -784,7 +789,8 @@ namespace tik4net.Winbox
                 case "enm":
                 {
                     // dynamic dropdown → referenced object's .id; resolve the name against that table.
-                    if (jg.RefHandler != null && resolveRef != null && value.Length > 0
+                    // jg non-null: uiType == "enm" only when jg.UiType produced it.
+                    if (jg!.RefHandler != null && resolveRef != null && value.Length > 0
                         && !long.TryParse(value, out _))
                     {
                         int? id = resolveRef(jg.RefHandler, value);
@@ -827,7 +833,8 @@ namespace tik4net.Winbox
                     {
                         string t = tok.Trim();
                         if (t.Length == 0) continue;
-                        items.Add(EncodeListElement(jg, t, apiName, resolveRef));
+                        // jg non-null: uiType == "multinumber" only when jg.UiType produced it.
+                        items.Add(EncodeListElement(jg!, t, apiName, resolveRef));
                     }
                     if (items.Count == 0) return result;
                     result.Add(M2Message.U32ArraySys(key, items.ToArray()));
@@ -840,7 +847,8 @@ namespace tik4net.Winbox
                     // arrays by that flag and writes both keys, so the '!' is a different KEY here, not a
                     // value prefix (contrast the NotKey flag on a scalar). Both arrays are always sent,
                     // including as empty, because that is the only way to CLEAR the other half.
-                    if (jg.OffKey == 0) break;   // no second key: not the shape webfig describes — refuse below
+                    // jg non-null: uiType == "multitristatearray" only when jg.UiType produced it.
+                    if (jg!.OffKey == 0) break;   // no second key: not the shape webfig describes — refuse below
                     if (value.Length == 0) return result;
                     var on = new List<int>();
                     var off = new List<int>();
@@ -924,7 +932,7 @@ namespace tik4net.Winbox
                     // A standalone IPv6 field (.jg 'a' prefix), as opposed to the '6' member of an addr
                     // compound. Same FT_ADDR6 encoding; a value that is not an address stays text so the
                     // router reports it rather than us guessing 16 bytes.
-                    byte[] v6 = PackIpV6(value.Split('/')[0]);
+                    byte[]? v6 = PackIpV6(value.Split('/')[0]);
                     if (v6 != null) result.Add(M2Message.Addr6Sys(key, v6));
                     else result.Add(M2Message.StringSys(key, value));
                     break;
@@ -970,7 +978,7 @@ namespace tik4net.Winbox
         /// refuses for the same reason.
         /// </remarks>
         private int EncodeListElement(WinboxJgField jg, string token, string apiName,
-            Func<int[], string, int?> resolveRef)
+            Func<int[], string, int?>? resolveRef)
         {
             if (jg.RefHandler != null && resolveRef != null && !long.TryParse(token, out _))
             {
@@ -991,7 +999,7 @@ namespace tik4net.Winbox
         // silently mis-sent as a scalar string). Array wire types end in "[]"; 'multi…' UI types are the
         // WinBox multi-value controls (multitristatearray, …). multinumberrange, numberrangelist and
         // multinumber are handled before this check, so they never reach here.
-        private static bool IsUnsupportedListType(string wireType, string uiType)
+        private static bool IsUnsupportedListType(string? wireType, string? uiType)
             => (wireType != null && wireType.EndsWith("[]", StringComparison.Ordinal))
                || (uiType != null && uiType.StartsWith("multi", StringComparison.OrdinalIgnoreCase)
                    && !IsScalarDespiteMultiPrefix(uiType));
@@ -1042,7 +1050,7 @@ namespace tik4net.Winbox
         /// master.js writes <c>val.sfeff26=str</c> where every other branch takes <c>l[i]</c>.
         /// </para>
         /// </remarks>
-        internal static byte[][] EncodeAddr(string value, string allow, string apiName, string apiPath)
+        internal static byte[][] EncodeAddr(string value, string? allow, string apiName, string? apiPath)
         {
             allow = allow ?? DefaultAddrAllow;
             var parts = value.Split('/', '%', '@', '&');
@@ -1057,8 +1065,8 @@ namespace tik4net.Winbox
                 sub.Add(M2Message.StringSys(AddrDnsSubKey, value));
             else if (allow.IndexOf('R') >= 0)
                 sub.Add(M2Message.StringSys(AddrRdSubKey, head));
-            else if (allow.IndexOf('m') >= 0 && TryParseMac(head, out byte[] mac))
-                sub.Add(M2Message.RawSys(AddrMacSubKey, mac));
+            else if (allow.IndexOf('m') >= 0 && TryParseMac(head, out byte[]? mac))
+                sub.Add(M2Message.RawSys(AddrMacSubKey, mac!)); // non-null: TryParseMac only returns true after setting mac
             else
                 throw new WinboxFieldValueException(
                     $"input does not match any value of {apiName}");
@@ -1088,7 +1096,7 @@ namespace tik4net.Winbox
 
         // "1:2::3" → 16 bytes big-endian, matching webfig string2ip6addr (including its trailing-IPv4 form,
         // "::ffff:1.2.3.4"). Returns null when the text is not an IPv6 address.
-        internal static byte[] PackIpV6(string s)
+        internal static byte[]? PackIpV6(string s)
         {
             if (string.IsNullOrEmpty(s) || s.IndexOf(':') < 0) return null;
             var groups = s.Split(':');
@@ -1130,7 +1138,7 @@ namespace tik4net.Winbox
         }
 
         // "AA:BB:CC:DD:EE:FF" → 6 raw bytes (webfig string2macaddr). Returns false when it is not a MAC.
-        private static bool TryParseMac(string s, out byte[] mac)
+        private static bool TryParseMac(string s, out byte[]? mac)
         {
             mac = null;
             var p = (s ?? "").Split(':');

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -46,14 +46,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: pap,chap,mschap1,mschap2
         /// </summary>
         [TikProperty("authentication", DefaultValue = "pap,chap,mschap1,mschap2")]
-        public string Authentication { get; set; }
+        public string? Authentication { get; set; }
 
         /// <summary>
         /// certificate — name of the TLS server certificate; <c>none</c> disables certificate-based auth.
         /// Default: none
         /// </summary>
         [TikProperty("certificate", DefaultValue = "none")]
-        public string Certificate { get; set; }
+        public string? Certificate { get; set; }
 
         /// <summary>
         /// ciphers — comma-separated list of permitted TLS cipher suites.
@@ -61,14 +61,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: aes256-sha,aes256-gcm-sha384
         /// </summary>
         [TikProperty("ciphers", DefaultValue = "aes256-sha,aes256-gcm-sha384")]
-        public string Ciphers { get; set; }
+        public string? Ciphers { get; set; }
 
         /// <summary>
         /// default-profile — PPP profile applied to new SSTP sessions.
         /// Default: default
         /// </summary>
         [TikProperty("default-profile", DefaultValue = "default")]
-        public string DefaultProfile { get; set; }
+        public string? DefaultProfile { get; set; }
 
         /// <summary>
         /// enabled — when <c>true</c> the SSTP server accepts incoming connections.
@@ -107,7 +107,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: disabled
         /// </summary>
         [TikProperty("mrru", DefaultValue = "disabled")]
-        public string/*integer or "disabled"*/ Mrru { get; set; }
+        public string?/*integer or "disabled"*/ Mrru { get; set; }
 
         /// <summary>
         /// pfs — controls Perfect Forward Secrecy for TLS connections.

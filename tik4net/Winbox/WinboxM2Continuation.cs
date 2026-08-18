@@ -43,7 +43,7 @@ namespace tik4net.Winbox
         /// Extracts the continuation cursor from <paramref name="reply"/>, or <c>null</c> when the reply
         /// carries neither continuation key — which is how a handler says "that was the last page".
         /// </summary>
-        internal static WinboxM2Continuation From(byte[] reply)
+        internal static WinboxM2Continuation? From(byte[] reply)
         {
             var fields = new List<byte[]>(2);
             AddIfPresent(fields, reply, WinboxM2Protocol.RecordKey.Continuation);
@@ -53,7 +53,7 @@ namespace tik4net.Winbox
 
         private static void AddIfPresent(List<byte[]> fields, byte[] reply, int key)
         {
-            byte[] raw = M2Message.ExtractRawField(reply, key);
+            byte[]? raw = M2Message.ExtractRawField(reply, key);
             if (raw != null) fields.Add(raw);
         }
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,11 +17,11 @@ namespace tik4net.Objects.Tool.Romon
     {
         /// <summary>.id — primary key of the row.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>interface — interface name this entry applies to, or "all" for a catch-all entry.</summary>
         [TikProperty("interface", IsMandatory = true, DefaultValue = "all")]
-        public string Interface { get; set; }
+        public string? Interface { get; set; }
 
         /// <summary>forbid — when yes, RoMON traffic is blocked on this interface. Default: no.</summary>
         [TikProperty("forbid", DefaultValue = "no")]
@@ -35,7 +35,7 @@ namespace tik4net.Objects.Tool.Romon
 
         /// <summary>secrets — per-interface shared secrets (overrides global RoMON secrets when set).</summary>
         [TikProperty("secrets", DefaultValue = "")]
-        public string Secrets { get; set; }
+        public string? Secrets { get; set; }
 
         /// <summary>disabled — when true this port entry is disabled. Default: no.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
@@ -43,7 +43,7 @@ namespace tik4net.Objects.Tool.Romon
 
         /// <summary>comment — free-form comment.</summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         // ── Read-only status fields ──────────────────────────────────────────────
 

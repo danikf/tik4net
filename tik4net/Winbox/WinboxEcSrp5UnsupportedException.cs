@@ -19,7 +19,7 @@ namespace tik4net.Winbox
         /// <summary>What the router did (or failed to do) that led us to conclude EC-SRP5 is unavailable.</summary>
         internal string Reason { get; }
 
-        internal WinboxEcSrp5UnsupportedException(string reason, Exception innerException = null)
+        internal WinboxEcSrp5UnsupportedException(string reason, Exception? innerException = null)
             : base("EC-SRP5 not supported by server: " + reason, innerException)
         {
             Reason = reason;

@@ -14,14 +14,14 @@ namespace tik4net.Testing
     public sealed class TikFakeCommand : ITikCommand, ITikCommandAsync
     {
         private readonly TikFakeConnection _fakeConnection;
-        private Thread _asyncThread;
-        private string _asyncTag;
+        private Thread _asyncThread = null!; // set by ExecuteAsync; IsRunning is false and CancelAndJoin no-ops until then
+        private string _asyncTag = null!; // set by ExecuteAsync, alongside _asyncThread
 
         /// <inheritdoc/>
         public ITikConnection Connection { get; set; }
 
         /// <inheritdoc/>
-        public string CommandText { get; set; }
+        public string CommandText { get; set; } = null!; // set via object initializer or CreateCommandAndParameters before use
 
         /// <inheritdoc/>
         public bool IsRunning => _asyncThread != null && _asyncThread.IsAlive;
@@ -84,7 +84,7 @@ namespace tik4net.Testing
             var done = sentences.OfType<ITikDoneSentence>().FirstOrDefault();
             if (done != null)
             {
-                string ret = done.GetResponseWordOrDefault(null);
+                string ret = done.GetResponseWordOrDefault(null!);
                 if (ret != null)
                     return ret;
             }
@@ -107,10 +107,10 @@ namespace tik4net.Testing
         }
 
         /// <inheritdoc/>
-        public string ExecuteScalarOrDefault() => ExecuteScalarOrDefault((string)null);
+        public string? ExecuteScalarOrDefault() => ExecuteScalarOrDefault((string?)null);
 
         /// <inheritdoc/>
-        public string ExecuteScalarOrDefault(string defaultValue)
+        public string? ExecuteScalarOrDefault(string? defaultValue)
         {
             var sentences = ExecuteSync();
             ThrowOnTrap(sentences);
@@ -118,7 +118,7 @@ namespace tik4net.Testing
             var done = sentences.OfType<ITikDoneSentence>().FirstOrDefault();
             if (done != null)
             {
-                string ret = done.GetResponseWordOrDefault(null);
+                string ret = done.GetResponseWordOrDefault(null!);
                 if (ret != null)
                     return ret;
             }
@@ -131,12 +131,14 @@ namespace tik4net.Testing
         }
 
         /// <inheritdoc/>
-        public string ExecuteScalarOrDefault(string defaultValue, string target)
+        public string? ExecuteScalarOrDefault(string? defaultValue, string target)
         {
             var sentences = ExecuteSync();
             ThrowOnTrap(sentences);
             return sentences.OfType<ITikReSentence>().SingleOrDefault()
-                ?.GetResponseFieldOrDefault(target, defaultValue)
+                // defaultValue may be null and the sentence API takes a non-nullable default; both branches
+                // end at the same value, which is what the OrDefault contract promises.
+                ?.GetResponseFieldOrDefault(target, defaultValue!)
                 ?? defaultValue;
         }
 
@@ -154,7 +156,7 @@ namespace tik4net.Testing
         }
 
         /// <inheritdoc/>
-        public ITikReSentence ExecuteSingleRowOrDefault()
+        public ITikReSentence? ExecuteSingleRowOrDefault()
         {
             var sentences = ExecuteSync();
             ThrowOnTrap(sentences);
@@ -190,7 +192,7 @@ namespace tik4net.Testing
         public IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string abortReason)
         {
             wasAborted = false;
-            abortReason = null;
+            abortReason = null!; // meaningful only when wasAborted is true, per the interface doc
             return ExecuteListWithDuration(durationSec);
         }
 
@@ -208,7 +210,7 @@ namespace tik4net.Testing
 
         /// <inheritdoc/>
         public Task ExecuteNonQueryAsync(CancellationToken cancellationToken = default(CancellationToken))
-            => Run(() => { ExecuteNonQuery(); return (object)null; }, cancellationToken);
+            => Run(() => { ExecuteNonQuery(); return (object?)null; }, cancellationToken);
 
         /// <inheritdoc/>
         public Task<string> ExecuteScalarAsync(CancellationToken cancellationToken = default(CancellationToken))
@@ -219,7 +221,7 @@ namespace tik4net.Testing
             => Run(() => ExecuteScalar(target), cancellationToken);
 
         /// <inheritdoc/>
-        public Task<string> ExecuteScalarOrDefaultAsync(string defaultValue = null, string target = null,
+        public Task<string?> ExecuteScalarOrDefaultAsync(string? defaultValue = null, string? target = null,
             CancellationToken cancellationToken = default(CancellationToken))
             => Run(() => target == null ? ExecuteScalarOrDefault(defaultValue) : ExecuteScalarOrDefault(defaultValue, target), cancellationToken);
 
@@ -228,7 +230,7 @@ namespace tik4net.Testing
             => Run(ExecuteSingleRow, cancellationToken);
 
         /// <inheritdoc/>
-        public Task<ITikReSentence> ExecuteSingleRowOrDefaultAsync(CancellationToken cancellationToken = default(CancellationToken))
+        public Task<ITikReSentence?> ExecuteSingleRowOrDefaultAsync(CancellationToken cancellationToken = default(CancellationToken))
             => Run(ExecuteSingleRowOrDefault, cancellationToken);
 
         /// <inheritdoc/>
@@ -269,8 +271,8 @@ namespace tik4net.Testing
         /// <inheritdoc/>
         public void ExecuteAsync(
             Action<ITikReSentence> oneResponseCallback,
-            Action<ITikTrapSentence> errorCallback = null,
-            Action onDoneCallback = null)
+            Action<ITikTrapSentence>? errorCallback = null,
+            Action? onDoneCallback = null)
         {
             _asyncTag = Guid.NewGuid().ToString();
             // CallCommandAsync is obsolete for consumers (A9) and this is the shipped alternative it points

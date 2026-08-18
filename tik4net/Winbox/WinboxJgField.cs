@@ -19,15 +19,15 @@ namespace tik4net.Winbox
         /// FIRST of them it actually carries, which is what webfig's <c>types.union.get</c> with
         /// <c>single:1</c> does. <c>null</c> for a value leaf.
         /// </summary>
-        internal IReadOnlyList<WinboxJgElementPart> Alternatives { get; }
+        internal IReadOnlyList<WinboxJgElementPart>? Alternatives { get; }
 
         /// <summary>The part's own static enum map, when it is an <c>enm</c> — a certificate's
         /// subject-alt-name type is <c>{1:'IP',2:'DNS',3:'Email'}</c> and the API prints the WORD.</summary>
-        internal IReadOnlyDictionary<int, string> EnumMap { get; }
+        internal IReadOnlyDictionary<int, string>? EnumMap { get; }
 
         internal WinboxJgElementPart(int key, string uiType, int maskKey,
-            IReadOnlyList<WinboxJgElementPart> alternatives = null,
-            IReadOnlyDictionary<int, string> enumMap = null)
+            IReadOnlyList<WinboxJgElementPart>? alternatives = null,
+            IReadOnlyDictionary<int, string>? enumMap = null)
         {
             Key = key; UiType = uiType; MaskKey = maskKey; Alternatives = alternatives; EnumMap = enumMap;
         }
@@ -56,14 +56,14 @@ namespace tik4net.Winbox
         /// For <c>type:'enm'</c> fields with a static value list (<c>values:{map:['off','on',…]}</c>),
         /// the numeric value → API-string map (index → label). <c>null</c> for non-enum fields.
         /// </summary>
-        internal IReadOnlyDictionary<int, string> EnumMap { get; }
+        internal IReadOnlyDictionary<int, string>? EnumMap { get; }
 
         /// <summary>
         /// The <c>.jg</c> UI-semantic type (<c>type:</c>): e.g. <c>ipaddr</c>, <c>network</c>, <c>macaddr</c>,
         /// <c>addr</c>, <c>enm</c>, <c>number</c>, <c>bool</c>. Drives typed wire encoding/decoding — it is
         /// more specific than <see cref="WireType"/> (an <c>ipaddr</c> rides as a u32 but must pack the IP).
         /// </summary>
-        internal string UiType { get; }
+        internal string? UiType { get; }
 
         /// <summary>
         /// For <c>type:'network'</c> fields, the separate M2 key (<c>maskid</c>) that carries the netmask
@@ -83,7 +83,7 @@ namespace tik4net.Winbox
         /// the referenced table — the value is resolved by matching a name against that table's records and
         /// sending the referenced object's <c>.id</c>. <c>null</c> for non-reference fields.
         /// </summary>
-        internal int[] RefHandler { get; }
+        internal int[]? RefHandler { get; }
 
         /// <summary>
         /// For <c>type:'addr'</c> fields, the <c>allow</c> mask that says which address FORMS the field accepts
@@ -92,7 +92,7 @@ namespace tik4net.Winbox
         /// Ping window's target). Each form rides at its OWN sub-key inside the compound, so the mask decides
         /// how a value is encoded, not merely whether it is valid. <c>null</c> for non-addr fields.
         /// </summary>
-        internal string Allow { get; }
+        internal string? Allow { get; }
 
         /// <summary>
         /// For fields wrapped in a WinBox <c>type:'opt'</c> container (an optional/toggleable field such as a
@@ -141,7 +141,7 @@ namespace tik4net.Winbox
         /// when the value falls through the enum map — the postfix says what the NUMBER means, which is
         /// nothing to a value the map has already named.
         /// </remarks>
-        internal string Postfix { get; }
+        internal string? Postfix { get; }
 
         /// <summary>
         /// For a LIST field, the <c>type</c> of its unnamed element child (<c>c:[{type:'ipaddr'},…]</c>) —
@@ -149,7 +149,7 @@ namespace tik4net.Winbox
         /// type's own <c>tostr</c> (<c>types.multi.tostr</c>), so it is what decides whether a u32 element is
         /// a number, an IP or an enum member.
         /// </summary>
-        internal string ElementUiType { get; }
+        internal string? ElementUiType { get; }
 
         /// <summary>
         /// For a LIST whose element is a <c>type:'union'</c> or a <c>type:'tuple'</c>, the element's parts in
@@ -168,14 +168,14 @@ namespace tik4net.Winbox
         /// type and joins them with <see cref="ElementSeparator"/>, dropping the parts that render empty —
         /// so a union is simply a tuple of one part with alternatives.</para>
         /// </remarks>
-        internal IReadOnlyList<WinboxJgElementPart> ElementParts { get; }
+        internal IReadOnlyList<WinboxJgElementPart>? ElementParts { get; }
 
         /// <summary>
         /// The <c>.jg</c> <c>sep</c> of a <c>tuple</c> element — what joins its parts (<c>':'</c> on a
         /// certificate's subject-alt-name). webfig's default is <c>'/'</c>; <c>null</c> when the element is
         /// not a tuple.
         /// </summary>
-        internal string ElementSeparator { get; }
+        internal string? ElementSeparator { get; }
 
         /// <summary>
         /// The <c>.jg</c> <c>def</c> value, when the field declares one. Only interesting for the u32
@@ -232,7 +232,7 @@ namespace tik4net.Winbox
         /// and codel/fq-codel repeat all five of theirs — and a per-label field map kept only the first,
         /// leaving the rest unaddressable.
         /// </remarks>
-        internal string PaneKind { get; }
+        internal string? PaneKind { get; }
 
         /// <summary>
         /// The M2 key of the field that SELECTS the pane (the deck's <c>selon</c>, e.g. a logging action's
@@ -243,7 +243,7 @@ namespace tik4net.Winbox
         internal int PaneSelectorKey { get; }
 
         /// <inheritdoc cref="PaneSelectorKey"/>
-        internal int[] PaneValues { get; }
+        internal int[]? PaneValues { get; }
 
         /// <summary>
         /// True when this field belongs to a pane that a record with selector value
@@ -266,13 +266,13 @@ namespace tik4net.Winbox
                && (EnumMap == null || !EnumMap.ContainsKey(unchecked((int)UnsetSentinel)));
 
         internal WinboxJgField(string apiName, int key, string wireType, bool readOnly,
-            IReadOnlyDictionary<int, string> enumMap = null, string uiType = null, int maskKey = 0,
-            int[] refHandler = null, int optKey = 0, int notKey = 0, bool isRange = false,
-            string allow = null, long? def = null,
-            string paneKind = null, int paneSelectorKey = 0, int[] paneValues = null, int offKey = 0,
-            bool isOptional = false, string elementUiType = null, int scale = 1,
-            IReadOnlyList<WinboxJgElementPart> elementParts = null, string postfix = null,
-            string elementSeparator = null)
+            IReadOnlyDictionary<int, string>? enumMap = null, string? uiType = null, int maskKey = 0,
+            int[]? refHandler = null, int optKey = 0, int notKey = 0, bool isRange = false,
+            string? allow = null, long? def = null,
+            string? paneKind = null, int paneSelectorKey = 0, int[]? paneValues = null, int offKey = 0,
+            bool isOptional = false, string? elementUiType = null, int scale = 1,
+            IReadOnlyList<WinboxJgElementPart>? elementParts = null, string? postfix = null,
+            string? elementSeparator = null)
         {
             ElementSeparator = elementSeparator;
             Postfix = postfix;

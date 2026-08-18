@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -65,7 +65,7 @@ namespace tik4net.Objects.CapsMan
 
         /// <summary>.id — primary key of row.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         // ── Identification ────────────────────────────────────────────────────
 
@@ -73,7 +73,7 @@ namespace tik4net.Objects.CapsMan
         /// name — unique name for this channel profile; referenced from /caps-man/configuration.
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         // ── Frequency band ────────────────────────────────────────────────────
 
@@ -86,7 +86,7 @@ namespace tik4net.Objects.CapsMan
         /// fixed router default (blank = hardware capability).
         /// </summary>
         [TikProperty("band", DefaultValue = "")]
-        public string Band { get; set; }
+        public string? Band { get; set; }
 
         // ── Frequency ─────────────────────────────────────────────────────────
 
@@ -96,7 +96,7 @@ namespace tik4net.Objects.CapsMan
         /// Valid range: 0–4294967295 per field; left as string because comma-separated lists are valid.
         /// </summary>
         [TikProperty("frequency", DefaultValue = "")]
-        public string/*MHz list*/ Frequency { get; set; }
+        public string?/*MHz list*/ Frequency { get; set; }
 
         // ── Channel width ─────────────────────────────────────────────────────
 
@@ -106,7 +106,7 @@ namespace tik4net.Objects.CapsMan
         /// Left as string because there is no fixed router default (blank = hardware decides).
         /// </summary>
         [TikProperty("control-channel-width", DefaultValue = "")]
-        public string ControlChannelWidth { get; set; }
+        public string? ControlChannelWidth { get; set; }
 
         // ── Extension channel ─────────────────────────────────────────────────
 
@@ -137,7 +137,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: disabled.
         /// </summary>
         [TikProperty("secondary-frequency", DefaultValue = "disabled")]
-        public string/*MHz or "disabled"*/ SecondaryFrequency { get; set; }
+        public string?/*MHz or "disabled"*/ SecondaryFrequency { get; set; }
 
         // ── Automatic channel re-selection ────────────────────────────────────
 
@@ -146,7 +146,7 @@ namespace tik4net.Objects.CapsMan
         /// (time value, e.g. "1h", "30m").  Empty = no automatic re-selection.
         /// </summary>
         [TikProperty("reselect-interval", DefaultValue = "")]
-        public string/*time*/ ReselectInterval { get; set; }
+        public string?/*time*/ ReselectInterval { get; set; }
 
         /// <summary>
         /// save-selected — when true, persists the automatically-selected frequency across
@@ -173,9 +173,9 @@ namespace tik4net.Objects.CapsMan
         /// comment — short free-text description of this channel profile.
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

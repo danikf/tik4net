@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,13 +15,13 @@ namespace tik4net.Objects.Interface.Wireless
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// comment
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>
         /// Mode for <see cref="Mode"/>.
@@ -64,7 +64,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// name
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// management-protection
@@ -76,51 +76,51 @@ namespace tik4net.Objects.Interface.Wireless
         /// management-protection-key
         /// </summary>
         [TikProperty("management-protection-key")]
-        public string ManagementProtectionKey { get; set; }
+        public string? ManagementProtectionKey { get; set; }
 
         /// <summary>
         /// wpa-pre-shared-key
         /// </summary>
         [TikProperty("wpa-pre-shared-key")]
-        public string WpaPreSharedKey { get; set; }
+        public string? WpaPreSharedKey { get; set; }
 
         /// <summary>
         /// wpa2-pre-shared-key
         /// </summary>
         [TikProperty("wpa2-pre-shared-key")]
-        public string Wpa2PreSharedKey { get; set; }
+        public string? Wpa2PreSharedKey { get; set; }
 
         /// <summary>
         /// authentication-types
         /// Comma seperated string
         /// </summary>
         [TikProperty("authentication-types")]
-        public string AuthenticationTypes { get; set; }
+        public string? AuthenticationTypes { get; set; }
 
         /// <summary>
         /// group-ciphers
         /// Comma seperated string
         /// </summary>
         [TikProperty("group-ciphers")]
-        public string /*tkip, aes-ccm*/GroupCiphers { get; set; }
+        public string? /*tkip, aes-ccm*/GroupCiphers { get; set; }
 
         /// <summary>
         /// unicast-ciphers
         /// Comma seperated string
         /// </summary>
         [TikProperty("unicast-ciphers")]
-        public string /*tkip, aes-ccm*/UnicastCiphers { get; set; }
+        public string? /*tkip, aes-ccm*/UnicastCiphers { get; set; }
 
         /// <summary>
         /// supplicant-identity
         /// </summary>
         [TikProperty("supplicant-identity")]
-        public string /*tkip, aes-ccm*/SupplicantIdentiy { get; set; }
+        public string? /*tkip, aes-ccm*/SupplicantIdentiy { get; set; }
 
         /// <summary>
         /// group-key-update - (time interval in the 30s..1h range; default value: 5m) : Controls how often access point updates group key. This key is used to encrypt all broadcast and multicast frames.
         /// </summary>
         [TikProperty("group-key-update")]
-        public string GroupKeyUpdate { get; set; }
+        public string? GroupKeyUpdate { get; set; }
     }
 }

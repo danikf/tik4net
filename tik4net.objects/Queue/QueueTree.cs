@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,25 +15,25 @@ namespace tik4net.Objects.Queue
         /// .id
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// Name
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// parent
         /// </summary>
         [TikProperty("parent")]
-        public string Parent { get; set; }
+        public string? Parent { get; set; }
 
         /// <summary>
         /// packet-mark
         /// </summary>
         [TikProperty("packet-mark")]
-        public string PacketMark { get; set; }
+        public string? PacketMark { get; set; }
 
         /// <summary>
         /// limit-at
@@ -45,7 +45,7 @@ namespace tik4net.Objects.Queue
         /// queue
         /// </summary>
         [TikProperty("queue")]
-        public string Queue { get; set; }
+        public string? Queue { get; set; }
 
         /// <summary>
         /// priority
@@ -75,7 +75,7 @@ namespace tik4net.Objects.Queue
         /// burst-time
         /// </summary>
         [TikProperty("burst-time")]
-        public string BurstTime { get; set; }
+        public string? BurstTime { get; set; }
 
         /// <summary>
         /// bytes
@@ -135,7 +135,7 @@ namespace tik4net.Objects.Queue
         /// comment
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
     }
 
 }

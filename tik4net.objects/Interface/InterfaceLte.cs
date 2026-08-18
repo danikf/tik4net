@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,11 +17,11 @@ namespace tik4net.Objects.Interface
     {
         /// <summary>.id — primary key</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>name — Interface name.</summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>mtu — Maximum Transmit Unit in bytes. Default: 1500. DefaultValue="0" prevents sending 0 on set.</summary>
         [TikProperty("mtu", DefaultValue = "0")]
@@ -29,11 +29,11 @@ namespace tik4net.Objects.Interface
 
         /// <summary>mac-address — MAC address of the LTE interface (read-only, assigned by modem).</summary>
         [TikProperty("mac-address", IsReadOnly = true)]
-        public string MacAddress { get; private set; }
+        public string? MacAddress { get; private set; }
 
         /// <summary>apn-profiles — APN profile(s) to use for data connection.</summary>
         [TikProperty("apn-profiles", DefaultValue = "")]
-        public string ApnProfiles { get; set; }
+        public string? ApnProfiles { get; set; }
 
         /// <summary>allow-roaming — Allow the modem to use a roaming data connection. Default: no.</summary>
         [TikProperty("allow-roaming", DefaultValue = "no")]
@@ -41,11 +41,11 @@ namespace tik4net.Objects.Interface
 
         /// <summary>band — LTE frequency bands to use (comma-separated band numbers, e.g. "3,7,20"). Empty means all bands.</summary>
         [TikProperty("band", DefaultValue = "")]
-        public string Band { get; set; }
+        public string? Band { get; set; }
 
         /// <summary>nr-band — 5G NR frequency bands to use (comma-separated). Empty means all bands.</summary>
         [TikProperty("nr-band", DefaultValue = "")]
-        public string NrBand { get; set; }
+        public string? NrBand { get; set; }
 
         public enum NetworkModeType
         {
@@ -68,15 +68,15 @@ namespace tik4net.Objects.Interface
 
         /// <summary>operator — Operator PLMN code for manual operator selection. Empty for automatic.</summary>
         [TikProperty("operator", DefaultValue = "")]
-        public string Operator { get; set; }
+        public string? Operator { get; set; }
 
         /// <summary>pin — SIM card PIN code. Leave empty if no PIN is required.</summary>
         [TikProperty("pin", DefaultValue = "")]
-        public string Pin { get; set; }
+        public string? Pin { get; set; }
 
         /// <summary>modem-init — AT command string sent to the modem at initialization.</summary>
         [TikProperty("modem-init", DefaultValue = "")]
-        public string ModemInit { get; set; }
+        public string? ModemInit { get; set; }
 
         public enum SmsProtocolType
         {
@@ -107,9 +107,9 @@ namespace tik4net.Objects.Interface
 
         /// <summary>comment — Short description of the interface.</summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

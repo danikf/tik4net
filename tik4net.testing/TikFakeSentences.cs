@@ -17,10 +17,10 @@ namespace tik4net.Testing
         public string Tag { get; }
 
         /// <summary>Creates a fake !re sentence from an explicit word dictionary.</summary>
-        public TikFakeReSentence(Dictionary<string, string> words, string tag = null)
+        public TikFakeReSentence(Dictionary<string, string> words, string? tag = null)
         {
             _words = words ?? new Dictionary<string, string>();
-            Tag = tag;
+            Tag = tag!; // ITikSentence.Tag is non-nullable; fake sentences have no tag (see summary)
         }
 
         /// <inheritdoc/>
@@ -57,17 +57,17 @@ namespace tik4net.Testing
         public string Tag { get; }
 
         /// <summary>Creates a fake !done sentence with no words (typical for non-query responses).</summary>
-        public TikFakeDoneSentence(string tag = null)
+        public TikFakeDoneSentence(string? tag = null)
         {
             _words = new Dictionary<string, string>();
-            Tag = tag;
+            Tag = tag!; // ITikSentence.Tag is non-nullable; fake sentences have no tag (see summary)
         }
 
         /// <summary>Creates a fake !done sentence with explicit words (e.g. =ret=*1 for /add).</summary>
-        public TikFakeDoneSentence(Dictionary<string, string> words, string tag = null)
+        public TikFakeDoneSentence(Dictionary<string, string> words, string? tag = null)
         {
             _words = words ?? new Dictionary<string, string>();
-            Tag = tag;
+            Tag = tag!; // ITikSentence.Tag is non-nullable; fake sentences have no tag (see summary)
         }
 
         /// <inheritdoc/>
@@ -108,12 +108,12 @@ namespace tik4net.Testing
         /// <param name="message">Error message (e.g. "no such item", "already have such item").</param>
         /// <param name="categoryCode">Optional MikroTik error category code.</param>
         /// <param name="tag">Optional tag.</param>
-        public TikFakeTrapSentence(string message, string categoryCode = null, string tag = null)
+        public TikFakeTrapSentence(string message, string? categoryCode = null, string? tag = null)
         {
             Message = message;
-            CategoryCode = categoryCode;
-            CategoryDescription = null;
-            Tag = tag;
+            CategoryCode = categoryCode!; // ITikTrapSentence.CategoryCode is non-nullable; optional here
+            CategoryDescription = null!; // ITikTrapSentence.CategoryDescription is non-nullable; never populated by the fake
+            Tag = tag!; // ITikSentence.Tag is non-nullable; fake sentences have no tag
             Words = new Dictionary<string, string> { { "message", message } };
         }
     }

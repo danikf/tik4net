@@ -9,6 +9,12 @@ and three properties on the `Interface` entity; the two that change *behaviour* 
 compiler are the certificate default and command tagging. They are first, because they are the ones
 that can surprise you at run time.
 
+If your own project builds with nullable reference types enabled, expect a third kind of change:
+tik4net now ships nullability annotations, and entity properties are nullable because the router really
+does leave fields out. Those are warnings in your build, not errors, and
+[the section below](#nullable-reference-types-are-on-and-entity-properties-say-so) says what to do
+about them.
+
 ---
 
 ## Behaviour changes — read these two
@@ -81,6 +87,48 @@ if (connection is ITikTaggedConnection tagged)
 set` accepts only `comment disabled l2mtu mtu name numbers` (RouterOS 7.23), so assigning them built a
 command the router refuses. Assign them on the concrete interface menu instead — `InterfaceEthernet`
 has a writable `MacAddress`. `Interface` gained `L2Mtu`, which `/interface set` does accept.
+
+### Nullable reference types are on, and entity properties say so
+
+`tik4net`, `tik4net.objects`, `tik4net.ssh` and `tik4net.testing` all build with `<Nullable>enable</Nullable>`
+now. This does not change what the compiler does to *your* project — nullability annotations are only
+enforced where you have opted in yourself — but if you do build with nullable enabled, you will see new
+warnings wherever code dereferences a tik4net type without checking it first.
+
+The part every consumer will notice: every mapped reference-typed property on every `[TikEntity]` class
+is now nullable. This is the truthful annotation, not a formality — a RouterOS record only carries the
+fields the router actually sent, a partial `.proplist` load populates fewer still, and the mapper builds
+entities through a parameterless constructor, so a property can be unset at the moment you read it.
+
+```csharp
+// 4.x
+public class Interface
+{
+    public string Id { get; private set; }
+    public string Name { get; set; }
+}
+
+// 5.0
+public class Interface
+{
+    public string? Id { get; private set; }
+    public string? Name { get; set; }
+}
+```
+
+If you compile with nullable enabled, this surfaces as a warning everywhere you dereference an entity
+field without checking it — that is the point, not a defect. Fix it the way you would fix any nullable
+warning: null-check, use `?.`/`??`, or the `!` operator where you know the field is always loaded (for
+example a mandatory property right after `LoadAll`). Value-typed properties (`bool?`, `long`, enums) are
+unchanged — they were never a source of `NullReferenceException` and carry no new annotation.
+
+A handful of other public members are now annotated to match what their own XML docs always said:
+`ITikCommand.ExecuteScalarOrDefault()` (all three overloads) and `ExecuteSingleRowOrDefault()`, and their
+async counterparts `ExecuteScalarOrDefaultAsync`/`ExecuteSingleRowOrDefaultAsync` on `ITikCommandAsync`,
+now return nullable — they document "returns null when not found" and always did return null.
+`ITikConnection.OnReadRow`/`OnWriteRow` are nullable events, and `TikConnectionSetup.RouterMac`,
+`TikConnectionSetup.CertificateValidationCallback`, `ITikTlsConnection.CertificateValidationCallback` and
+`ITikMacLayerConnection.RouterMac` are nullable — all four were already optional in behaviour.
 
 ### `CallCommandAsync` is gone
 

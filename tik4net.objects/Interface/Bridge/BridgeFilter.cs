@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -97,25 +97,25 @@ namespace tik4net.Objects.Interface.Bridge
         /// jump-target: If action=jump specified, then specifies the user-defined firewall chain to process the packet
         /// </summary>
         [TikProperty("jump-target")]
-        public string/*name*/ JumpTarget { get; set; }
+        public string?/*name*/ JumpTarget { get; set; }
 
         /// <summary>
         /// log-prefix: Defines the prefix to be printed before the logging information
         /// </summary>
         [TikProperty("log-prefix")]
-        public string/*text*/ LogPrefix { get; set; }
+        public string?/*text*/ LogPrefix { get; set; }
 
         /// <summary>
         /// new-packet-mark
         /// </summary>
         [TikProperty("new-packet-mark")]
-        public string NewPacketMark { get; set; }
+        public string? NewPacketMark { get; set; }
 
         /// <summary>
         /// new-priorityne
         /// </summary>
         [TikProperty("new-priority", DefaultValue = "0")]
-        public string NewPriority { get; set; }
+        public string? NewPriority { get; set; }
 
         /// <summary>
         /// passthrough

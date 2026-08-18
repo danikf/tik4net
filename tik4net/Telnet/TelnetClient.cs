@@ -18,8 +18,8 @@ namespace tik4net.Telnet
         /// <summary>Silence required after a prompt before a command's response is considered complete (ms).</summary>
         private const int SettleMs = 120;
 
-        private TcpClient _tcpClient;
-        private NetworkStream _stream;
+        private TcpClient _tcpClient = null!; // assigned by Connect(), called right after construction
+        private NetworkStream _stream = null!; // assigned by Connect(), called right after construction
         private readonly Encoding _encoding;
         private readonly int _receiveTimeoutMs;
 
@@ -107,7 +107,7 @@ namespace tik4net.Telnet
         /// streaming driver registered by <see cref="TelnetConnection"/> (P2.50). The streamed lines are the
         /// raw ANSI-stripped ones (echo and prompt included); the return value is cleaned as usual.
         /// </summary>
-        internal async Task<string> SendCommandAndReadAsync(string command, Action<string> onLine, CancellationToken ct)
+        internal async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
         {
             // Discard anything still buffered from the PREVIOUS command before issuing this one.
             // RouterOS's line editor repaints the echo as "<prompt> <command>", and the read that returns on
@@ -286,8 +286,8 @@ namespace tik4net.Telnet
         /// long-running command while it runs (see <see cref="CliLineStreamer"/>). Does not affect when the
         /// read returns — the stable prompt is still the only terminator.
         /// </param>
-        private async Task<string> ReadCommandResponseAsync(CancellationToken ct, string sentCommand,
-            Action<string> onLine = null)
+        private async Task<string> ReadCommandResponseAsync(CancellationToken ct, string? sentCommand,
+            Action<string>? onLine = null)
         {
             var buffer = new byte[4096];
             var accumulated = new StringBuilder();

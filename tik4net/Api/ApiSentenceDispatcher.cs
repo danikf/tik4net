@@ -45,7 +45,7 @@ namespace tik4net.Api
 
         // Non-null once the reader loop has ended: every present and future waiter gets this sentence
         // instead of blocking for a router that is not going to answer.
-        private ITikSentence _termination;
+        private ITikSentence? _termination;
 
         private static string KeyOf(string tag) => string.IsNullOrWhiteSpace(tag) ? UntaggedKey : tag;
 

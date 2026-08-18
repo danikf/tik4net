@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,7 +16,7 @@ namespace tik4net.Objects.Interface
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// arp
@@ -27,7 +27,7 @@ namespace tik4net.Objects.Interface
         ///  reply-only - the interface will only reply to requests originated from matching IP address/MAC address combinations which are entered as static entries in the  ARP table. No dynamic entries will be automatically stored in the ARP table. Therefore for communications to be successful, a valid static entry must already exist.
         /// </summary>
         [TikProperty("arp", DefaultValue = "enabled")]
-        public string/*disabled | enabled | proxy-arp | reply-only*/ Arp { get; set; }
+        public string?/*disabled | enabled | proxy-arp | reply-only*/ Arp { get; set; }
 
         /// <summary>
         /// auto-negotiation
@@ -42,19 +42,19 @@ namespace tik4net.Objects.Interface
         /// bandwidth: Sets max rx/tx bandwidth in kbps that will be handled by an interface. TX limit is supported on all Atheros  switch-chip ports. RX limit is supported only on AR8327 switch-chip ports.
         /// </summary>
         [TikProperty("bandwidth", DefaultValue = "unlimited/unlimited")]
-        public string/*integer/integer*/ Bandwidth { get; set; }
+        public string?/*integer/integer*/ Bandwidth { get; set; }
 
         /// <summary>
         /// cable-setting: Changes the cable length setting (only applicable to NS DP83815/6 cards)
         /// </summary>
         [TikProperty("cable-setting", DefaultValue = "default")]
-        public string/*default | short | standard*/ CableSetting { get; set; }
+        public string?/*default | short | standard*/ CableSetting { get; set; }
 
         /// <summary>
         /// comment: Descriptive name of an item
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>
         /// disable-running-check: Disable running check. If this value is set to 'no', the router automatically detects whether the NIC is connected with a device in the network or not. Default value is 'yes' because older NICs do not support it. (only applicable to x86)
@@ -117,13 +117,13 @@ namespace tik4net.Objects.Interface
         /// mac-address: Media Access Control number of an interface.
         /// </summary>
         [TikProperty("mac-address")]
-        public string/*MAC*/ MacAddress { get; set; }
+        public string?/*MAC*/ MacAddress { get; set; }
 
         /// <summary>
         /// master-port: Sets interface to be a slave of this named switch group master interface
         /// </summary>
         [TikProperty("master-port", DefaultValue = "none")]
-        public string/*name*/ MasterPort { get; set; }
+        public string?/*name*/ MasterPort { get; set; }
 
         /// <summary>
         /// mdix-enable: Whether the MDI/X auto cross over cable correction feature is enabled for the port (Hardware specific, e.g. ether1 on RB500 can be set to yes/no. Fixed to 'yes' on other hardware.)
@@ -143,13 +143,13 @@ namespace tik4net.Objects.Interface
         /// name: Name of an interface
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// orig-mac-address: 
         /// </summary>
         [TikProperty("orig-mac-address")]
-        public string/*MAC*/ OrigMacAddress { get; set; }
+        public string?/*MAC*/ OrigMacAddress { get; set; }
 
         /// <summary>
         /// poe-out: Poe Out settings.  Read more &gt;&gt;
@@ -157,19 +157,19 @@ namespace tik4net.Objects.Interface
         /// auto-on | forced-on | off
         /// </summary>
         [TikProperty("poe-out", DefaultValue = "off")]
-        public string/*auto-on | forced-on | off*/ PoeOut { get; set; }
+        public string?/*auto-on | forced-on | off*/ PoeOut { get; set; }
 
         /// <summary>
         /// poe-priority: Poe Out settings.  Read more &gt;&gt;
         /// </summary>
         [TikProperty("poe-priority")]
-        public string PoePriority { get; set; }
+        public string? PoePriority { get; set; }
 
         /// <summary>
         /// sfp-rate-select: high | low
         /// </summary>
         [TikProperty("sfp-rate-select", DefaultValue = "high")]
-        public string/*high | low*/ SfpRateSelect { get; set; }
+        public string?/*high | low*/ SfpRateSelect { get; set; }
 
         /// <summary>
         /// speed: Sets the data transmission speed of an interface. By default, this value is the maximal data rate supported by the interface
@@ -177,7 +177,7 @@ namespace tik4net.Objects.Interface
         /// 10Mbps | 10Gbps | 100Mbps | 1Gbps
         /// </summary>
         [TikProperty("speed")]
-        public string/*10Mbps | 10Gbps | 100Mbps | 1Gbps*/ Speed { get; set; }
+        public string?/*10Mbps | 10Gbps | 100Mbps | 1Gbps*/ Speed { get; set; }
 
         /// <summary>
         /// running: Whether interface is running. Note that some interface does not have running check and they are always reported as "running"
@@ -299,7 +299,7 @@ namespace tik4net.Objects.Interface
         /// switch: ID to which switch chip interface belongs to.
         /// </summary>
         [TikProperty("switch", IsReadOnly = true)]
-        public string Switch { get; private set; }
+        public string? Switch { get; private set; }
 
         /// <summary>
         /// tx-1024-1518: Total count of transmitted 1024 to 1518 byte packets

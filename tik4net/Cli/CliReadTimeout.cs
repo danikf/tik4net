@@ -45,7 +45,7 @@ namespace tik4net.Cli
                 + "prompt otherwise means the terminal is out of step with the router.";
 
             return new TikConnectionReceiveTimeoutException(timeoutMs, message,
-                received.Length == 0 ? null : received);
+                received.Length == 0 ? null! : received); // ctor's partialResponse is optional/nullable by contract (default null), just not annotated (out of scope here)
         }
 
         // Last TailChars characters with line breaks made visible, so the quoted tail stays on one line.

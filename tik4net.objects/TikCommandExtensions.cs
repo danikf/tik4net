@@ -71,7 +71,7 @@ namespace tik4net.Objects
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
         /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
         /// <exception cref="TikCommandAmbiguousResultException">More than one row returned.</exception>
-        public static TEntity LoadSingleOrDefault<TEntity>(this ITikCommand command)
+        public static TEntity? LoadSingleOrDefault<TEntity>(this ITikCommand command)
             where TEntity : new()
         {
             var candidates = LoadList<TEntity>(command);
@@ -124,9 +124,9 @@ namespace tik4net.Objects
         /// <param name="onExceptionCallback">Callback called when error occurs (!trap row is returned)</param>
         /// <param name="onDoneCallback">Callback called at the end of command run (!done row is returned). Usefull for cleanup operations at the end of command lifecycle. You can also use synchronous call <see cref="ITikCommand.CancelAndJoin()"/> from calling thread and do cleanup after it.</param>
         public static void LoadAsync<TEntity>(this ITikCommand command,
-                    Action<TEntity> onLoadItemCallback, 
-                    Action<Exception> onExceptionCallback = null,
-                    Action onDoneCallback = null)
+                    Action<TEntity> onLoadItemCallback,
+                    Action<Exception>? onExceptionCallback = null,
+                    Action? onDoneCallback = null)
                     where TEntity : new()
         {
             Guard.ArgumentNotNull(command, "command");
@@ -161,8 +161,8 @@ namespace tik4net.Objects
         /// <param name="onExceptionCallback">Called when a <c>!trap</c> is received.</param>
         public static void LoadListenAsync<TEntity>(this ITikCommand command,
             Action<TEntity> onChangeCallback,
-            Action<string> onDeletedCallback = null,
-            Action<Exception> onExceptionCallback = null)
+            Action<string>? onDeletedCallback = null,
+            Action<Exception>? onExceptionCallback = null)
             where TEntity : new()
         {
             Guard.ArgumentNotNull(command, "command");
@@ -172,11 +172,11 @@ namespace tik4net.Objects
                 reSentence =>
                 {
                     // RouterOS documents =.dead=yes but sends =.dead=true in practice — accept both
-                    var deadValue = reSentence.GetResponseFieldOrDefault(".dead", null);
+                    var deadValue = reSentence.GetResponseFieldOrDefault(".dead", null!); // defaultValue is meant to accept null (interface out of scope here)
                     if (deadValue == "yes" || deadValue == "true")
                     {
                         if (onDeletedCallback != null)
-                            onDeletedCallback(reSentence.GetResponseFieldOrDefault(TikSpecialProperties.Id, null));
+                            onDeletedCallback(reSentence.GetResponseFieldOrDefault(TikSpecialProperties.Id, null!)); // defaultValue is meant to accept null (interface out of scope here)
                     }
                     else
                     {
@@ -213,13 +213,15 @@ namespace tik4net.Objects
             return result;
         }
 
-        private static string GetValueFromSentence(ITikReSentence sentence, TikEntityPropertyAccessor property)
+        private static string? GetValueFromSentence(ITikReSentence sentence, TikEntityPropertyAccessor property)
         {
             //Read field value (or get default value)
             if (property.IsMandatory)
                 return sentence.GetResponseField(property.FieldName);
             else
-                return sentence.GetResponseFieldOrDefault(property.FieldName, property.DefaultValue);
+                // defaultValue is meant to accept null (interface out of scope here): a nullable property
+                // with no declared default has DefaultValue == null, meaning "absent field stays unset".
+                return sentence.GetResponseFieldOrDefault(property.FieldName, property.DefaultValue!);
         }
     }
 }

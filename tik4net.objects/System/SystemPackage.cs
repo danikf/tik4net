@@ -19,27 +19,27 @@ namespace tik4net.Objects.System
     {
         /// <summary>.id — primary key of the row.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>name — package name (e.g. "routeros", "wireless", "user-manager").</summary>
         [TikProperty("name", IsReadOnly = true, IsMandatory = true)]
-        public string Name { get; private set; }
+        public string? Name { get; private set; }
 
         /// <summary>version — installed package version string (e.g. "7.21.4").</summary>
         [TikProperty("version", IsReadOnly = true)]
-        public string Version { get; private set; }
+        public string? Version { get; private set; }
 
         /// <summary>build-time — date and time when this package was built. Read-only.</summary>
         [TikProperty("build-time", IsReadOnly = true)]
-        public string/*datetime*/ BuildTime { get; private set; }
+        public string?/*datetime*/ BuildTime { get; private set; }
 
         /// <summary>scheduled — action scheduled for this package at next reboot (e.g. "scheduled for uninstall"). Empty when nothing is scheduled. Read-only.</summary>
         [TikProperty("scheduled", IsReadOnly = true)]
-        public string Scheduled { get; private set; }
+        public string? Scheduled { get; private set; }
 
         /// <summary>size — installed package size in bytes. Read-only.</summary>
         [TikProperty("size", IsReadOnly = true)]
-        public string Size { get; private set; }
+        public string? Size { get; private set; }
 
         /// <summary>available — when true a newer version is available for download. Read-only.</summary>
         [TikProperty("available", IsReadOnly = true)]
@@ -62,8 +62,9 @@ namespace tik4net.Objects.System
         /// </summary>
         public static void Enable(this ITikConnection connection, SystemPackage package)
         {
+            // package.Id: IsMandatory=true, so a loaded package always carries it.
             var cmd = connection.CreateCommand("/system/package/enable",
-                connection.CreateParameter(".id", package.Id, TikCommandParameterFormat.Filter));
+                connection.CreateParameter(".id", package.Id!, TikCommandParameterFormat.Filter));
             cmd.ExecuteNonQuery();
         }
 
@@ -73,8 +74,9 @@ namespace tik4net.Objects.System
         /// </summary>
         public static void Disable(this ITikConnection connection, SystemPackage package)
         {
+            // package.Id: IsMandatory=true, so a loaded package always carries it.
             var cmd = connection.CreateCommand("/system/package/disable",
-                connection.CreateParameter(".id", package.Id, TikCommandParameterFormat.Filter));
+                connection.CreateParameter(".id", package.Id!, TikCommandParameterFormat.Filter));
             cmd.ExecuteNonQuery();
         }
     }

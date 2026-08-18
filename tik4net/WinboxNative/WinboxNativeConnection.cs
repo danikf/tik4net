@@ -87,11 +87,12 @@ namespace tik4net.WinboxNative
         private readonly Dictionary<string, Dictionary<string, int>> _fieldOverrides =
             new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
 
-        private IWinboxM2Channel _session;
-        private WinboxM2Multiplexer _mux;   // null on transports that cannot run a reader loop (MAC)
-        private WinboxNativeM2Operations _ops;
-        private WinboxRecordCodec _codec;   // M2 record → API field decoder (see WinboxRecordCodec)
-        private WinboxIdResolver _idResolver;   // friendly-name → M2 id lookup (see WinboxIdResolver)
+        // _session, _ops, _codec, _idResolver are assigned in Open (not the constructor).
+        private IWinboxM2Channel _session = null!;
+        private WinboxM2Multiplexer? _mux;   // null on transports that cannot run a reader loop (MAC)
+        private WinboxNativeM2Operations _ops = null!;
+        private WinboxRecordCodec _codec = null!;   // M2 record → API field decoder (see WinboxRecordCodec)
+        private WinboxIdResolver _idResolver = null!;   // friendly-name → M2 id lookup (see WinboxIdResolver)
         // Replaced at open time by the process-shared catalog for this router's plugin set
         // (see WinboxJgCatalog.Load); the empty default keeps pre-open access harmless.
         private WinboxJgCatalog _catalog = new WinboxJgCatalog();
@@ -189,7 +190,7 @@ namespace tik4net.WinboxNative
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
         {
-            IWinboxM2Channel session = null;
+            IWinboxM2Channel? session = null;
             // A refused handshake leaves the channel unusable, so the retry builds a fresh one rather
             // than reopening this one — see RouterLoginRetry for why a WinBox login is retried at all.
             Winbox.RouterLoginRetry.Run(() =>
@@ -210,7 +211,8 @@ namespace tik4net.WinboxNative
                     throw new TikConnectionLoginException(ex);
                 }
             });
-            InitAfterAuth(session, host);
+            // Run() either assigns session above or throws, so it is always set here.
+            InitAfterAuth(session!, host);
         }
 
         /// <inheritdoc/>
@@ -320,9 +322,9 @@ namespace tik4net.WinboxNative
         /// <summary>Scope object for <see cref="EnterCommand"/>; releases the semaphore if one was taken.</summary>
         private readonly struct CommandGate : IDisposable
         {
-            private readonly SemaphoreSlim _held;
+            private readonly SemaphoreSlim? _held;
 
-            internal CommandGate(SemaphoreSlim toAcquire)
+            internal CommandGate(SemaphoreSlim? toAcquire)
             {
                 _held = toAcquire;
                 _held?.Wait();
@@ -354,10 +356,14 @@ namespace tik4net.WinboxNative
             _mux?.Dispose();
             _mux = null;
             _session?.Dispose();
-            _session = null;
-            _ops = null;
-            _codec = null;
-            _idResolver = null;
+            // Released for GC rather than left dangling; a closed connection must be reopened before any of
+            // these are read again (every read path runs only while IsOpen), so the null! here does not
+            // claim they stay valid — it just keeps the field's declared type from forcing '?' onto every
+            // one of their many use sites elsewhere in this class.
+            _session = null!;
+            _ops = null!;
+            _codec = null!;
+            _idResolver = null!;
         }
 
         // ── Native read overrides ───────────────────────────────────────────────
@@ -405,7 +411,7 @@ namespace tik4net.WinboxNative
             EnsureNativeOpen();
 
             string apiPath = ApiPathOf(descriptor.CommandText);
-            int[] handler = _handlerMap.Resolve(apiPath);
+            int[]? handler = _handlerMap.Resolve(apiPath);
             if (handler == null)
             {
                 // A "monitor once" snapshot (e.g. /interface/ethernet/monitor numbers=ether1): the live
@@ -554,18 +560,18 @@ namespace tik4net.WinboxNative
         /// fall through. A null return rather than a <c>bool</c> + <c>out</c> because an <c>out</c> parameter
         /// cannot be written across an <c>await</c>.
         /// </returns>
-        private async Task<IList<TikRecordSentence>> TryRunMonitorAsync(
+        private async Task<IList<TikRecordSentence>?> TryRunMonitorAsync(
             TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             if (!IsSnapshotMonitorVerb(TikPath.Verb(descriptor.CommandText)))
                 return null;
 
             string parentPath = TikPath.Parent(descriptor.CommandText);
-            int[] handler = _handlerMap.Resolve(parentPath);
+            int[]? handler = _handlerMap.Resolve(parentPath);
             if (handler == null) return null;
 
             // The interface is named via 'numbers' (RouterOS monitor convention), or 'interface'/'.id'.
-            string target = FindParam(descriptor, "numbers")
+            string? target = FindParam(descriptor, "numbers")
                 ?? FindParam(descriptor, "interface")
                 ?? FindParam(descriptor, TikSpecialProperties.Id);
             if (string.IsNullOrEmpty(target)) return null;
@@ -605,7 +611,7 @@ namespace tik4net.WinboxNative
         // misuse; the non-query path dispatches the SYS_CMD via DispatchActionVerb.
         private bool IsActionVerbPath(TikCommandDescriptor descriptor)
         {
-            int[] handler = _handlerMap.Resolve(TikPath.Parent(descriptor.CommandText));
+            int[]? handler = _handlerMap.Resolve(TikPath.Parent(descriptor.CommandText));
             if (handler == null) return false;
             var actions = _catalog.GetHandlerActions(handler);
             if (actions == null) return false;
@@ -630,7 +636,7 @@ namespace tik4net.WinboxNative
             WinboxFieldResolver resolver, TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             int cmd = -1;
-            string actionLabel = null;
+            string? actionLabel = null;
             var actions = _catalog.GetHandlerActions(handler);
             if (actions != null)
                 foreach (var kv in actions)
@@ -663,7 +669,9 @@ namespace tik4net.WinboxNative
             // mirror RunActionWindow: an action's inputs are often .jg-marked read-only (they are display
             // widgets in the GUI) yet are exactly the values to send, and a caller reaching an action through
             // a read method has had its parameters rewritten to Filter format.
-            var argResolver = MakeActionResolver(apiPath, handler, actionLabel);
+            // cmd and actionLabel are always assigned together in the loop above, and cmd < 0 already
+            // returned/threw, so actionLabel is guaranteed non-null here.
+            var argResolver = MakeActionResolver(apiPath, handler, actionLabel!);
             var fields = await EncodeNameValueFieldsAsync(handler, WithoutRecordSelector(descriptor), argResolver,
                 skipId: true, cancellationToken, allowReadOnly: true, includeFilters: true).ConfigureAwait(false);
 
@@ -697,13 +705,15 @@ namespace tik4net.WinboxNative
         private async Task<IList<TikRecordSentence>> RunActionWindowAsync(
             string apiPath, int[] handler, TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
-            int cmd = _catalog.GetSoleActionCmd(handler, out string actionLabel);
+            int cmd = _catalog.GetSoleActionCmd(handler, out string? actionLabel);
             if (cmd < 0)
                 throw new NotSupportedException(
                     $"WinBox native: '{apiPath}' maps to an action window with no single action to invoke. " +
                     "Use a WinboxCli or Api connection.");
 
-            var resolver = MakeActionResolver(apiPath, handler, actionLabel);
+            // cmd and actionLabel are always assigned together; cmd >= 0 guarantees actionLabel non-null here
+            // (same contract as the RunActionAsync call site above).
+            var resolver = MakeActionResolver(apiPath, handler, actionLabel!);
             var fields = await EncodeNameValueFieldsAsync(handler, descriptor, resolver,
                 skipId: true, cancellationToken: cancellationToken, allowReadOnly: true, includeFilters: true)
                 .ConfigureAwait(false);
@@ -752,7 +762,9 @@ namespace tik4net.WinboxNative
                     var fields = await EncodeNameValueFieldsAsync(handler, descriptor, resolver, skipId: true,
                         cancellationToken).ConfigureAwait(false);
                     int newId = await _ops.AddAsync(handler, fields, cancellationToken).ConfigureAwait(false);
-                    return newId >= 0 ? "*" + ((uint)newId).ToString("X") : null;
+                    // RunAddAsync's declared return type is non-nullable, matching RunAdd's contract across
+                    // every transport, but a failed add (newId < 0) genuinely yields null here (see the report).
+                    return (newId >= 0 ? "*" + ((uint)newId).ToString("X") : null)!;
                 }
             }
             catch (WinboxM2OperationException ex) { throw TranslateM2Error(ex, descriptor.CommandText); }
@@ -771,11 +783,12 @@ namespace tik4net.WinboxNative
             // these windows are addressed — the path IS the operation.
             // (ExecuteNonQuery on such a path is legitimate too — the caller simply discards the row the read
             // path would have produced.)
-            int[] actionHandler = _handlerMap.Resolve(ApiPathOf(descriptor.CommandText));
+            int[]? actionHandler = _handlerMap.Resolve(ApiPathOf(descriptor.CommandText));
             if (_catalog.IsActionOnlyHandler(actionHandler))
             {
                 using (await EnterCommandAsync(cancellationToken).ConfigureAwait(false))
-                    await RunActionWindowAsync(ApiPathOf(descriptor.CommandText), actionHandler, descriptor, cancellationToken)
+                    // actionHandler is non-null here: IsActionOnlyHandler answers false for a null handler.
+                    await RunActionWindowAsync(ApiPathOf(descriptor.CommandText), actionHandler!, descriptor, cancellationToken)
                         .ConfigureAwait(false);
                 return;
             }
@@ -981,7 +994,7 @@ namespace tik4net.WinboxNative
                     handle => PollingMonitorEngine.SnapshotLoop(this, descriptor, 1000, handle, onRow, onError, onDone));
 
             // Otherwise a streaming-monitor window (/tool/torch, /tool/profile, …).
-            WinboxMonitorSpec spec = ResolveMonitorWindow(descriptor.CommandText, out string apiPath, out int[] handler);
+            WinboxMonitorSpec? spec = ResolveMonitorWindow(descriptor.CommandText, out string apiPath, out int[]? handler);
             if (spec == null)
             {
                 var cmd = new TikGenericCommand(this, descriptor.CommandText);
@@ -990,7 +1003,9 @@ namespace tik4net.WinboxNative
                     $"Add a PathOverride(\"{apiPath}\", new[]{{maj,min}}) to a monitor handler, or use a CLI transport.");
             }
 
-            var resolver = MakeResolver(apiPath, handler);
+            // handler is non-null here: ResolveMonitorWindow assigns it whenever it returns a spec,
+            // and the no-spec case threw above.
+            var resolver = MakeResolver(apiPath, handler!);
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
             return PollingMonitorEngine.StartWorker("winbox-native-monitor",
@@ -1007,15 +1022,15 @@ namespace tik4net.WinboxNative
         /// a command means, or the same command answers differently depending on the method used to call it —
         /// which is the class of defect P2.51 is about.
         /// </remarks>
-        private WinboxMonitorSpec ResolveMonitorWindow(string commandText, out string apiPath, out int[] handler)
+        private WinboxMonitorSpec? ResolveMonitorWindow(string commandText, out string apiPath, out int[]? handler)
         {
             apiPath = ApiPathOf(commandText);
             handler = _handlerMap.Resolve(apiPath);
-            WinboxMonitorSpec spec = _catalog.GetMonitorByHandler(handler);
+            WinboxMonitorSpec? spec = _catalog.GetMonitorByHandler(handler);
             if (spec != null) return spec;
 
             string parent = TikPath.Parent(commandText);
-            int[] ph = _handlerMap.Resolve(parent);
+            int[]? ph = _handlerMap.Resolve(parent);
             var pspec = _catalog.GetMonitorByHandler(ph);
             if (pspec == null) return null;
 
@@ -1084,11 +1099,13 @@ namespace tik4net.WinboxNative
                 bool waitForDone = TikMonitorVerbs.SelfTerminating(TikPath.Verb(descriptor.CommandText));
                 var deadline = DateTime.UtcNow.AddMilliseconds(ReceiveTimeout);
 
-                WinboxM2Continuation continuation = null;
+                WinboxM2Continuation? continuation = null;
                 while (true)
                 {
+                    // contToken's parameter type isn't annotated nullable — PollMonitorRoundAsync lives in
+                    // Winbox/, out of scope here — but null is its documented first-round value.
                     var (records, done, next) = await _ops
-                        .PollMonitorRoundAsync(spec.Handler, spec.PollCmd, id, spec.IsQuery, continuation, cancellationToken)
+                        .PollMonitorRoundAsync(spec.Handler, spec.PollCmd, id, spec.IsQuery, continuation!, cancellationToken)
                         .ConfigureAwait(false);
                     continuation = next;
 
@@ -1171,16 +1188,18 @@ namespace tik4net.WinboxNative
                 // cancel handle and the row callback live — and because a pass is unbounded in time (see
                 // PollMonitorRound). `continuation != null` means the router is still mid-pass, so the next
                 // round goes out immediately; the autorefresh sleep applies only BETWEEN passes.
-                WinboxM2Continuation continuation = null;
+                WinboxM2Continuation? continuation = null;
                 while (!handle.CancelRequested)
                 {
                     bool done;
                     List<Dictionary<int, Tuple<string, object>>> records;
                     // Gated per ROUND, not per pass: on a multiplexed connection this is a no-op, but a
                     // 30-second ping must not hold the lockstep gate for its whole duration (design §2).
+                    // contToken's parameter type isn't annotated nullable (PollMonitorRound is out of scope
+                    // here), but null is its documented first-round value.
                     using (EnterCommand())
                         (records, done, continuation) =
-                            _ops.PollMonitorRound(spec.Handler, spec.PollCmd, id, spec.IsQuery, continuation);
+                            _ops.PollMonitorRound(spec.Handler, spec.PollCmd, id, spec.IsQuery, continuation!);
 
                     // Emitted per round, so a streaming window (ping, traceroute, torch) reaches the caller
                     // as the router produces it instead of in a lump when the pass ends.
@@ -1227,7 +1246,7 @@ namespace tik4net.WinboxNative
         private HashSet<string> ReadOnlyFieldNames(string apiPath)
         {
             var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            int[] handler = _handlerMap.Resolve(apiPath);
+            int[]? handler = _handlerMap.Resolve(apiPath);
             if (handler == null) return set;
             var resolver = MakeResolver(apiPath, handler);
             var keyToName = resolver.BuildKeyToApiName();
@@ -1263,7 +1282,7 @@ namespace tik4net.WinboxNative
 
         private (int[] handler, WinboxFieldResolver resolver) ResolveHandlerAndFields(string apiPath)
         {
-            int[] handler = _handlerMap.Resolve(apiPath);
+            int[]? handler = _handlerMap.Resolve(apiPath);
             if (handler == null)
             {
                 // Surface an unmapped write path exactly as reads do, so callers get one exception type
@@ -1475,8 +1494,9 @@ namespace tik4net.WinboxNative
         // list to answer. Returns -1 (send no .id) otherwise, which is the normal case.
         private static int SingletonIdOf(TikCommandDescriptor descriptor)
         {
-            string idParam = FindParam(descriptor, TikSpecialProperties.Id);
-            if (!string.IsNullOrEmpty(idParam) && idParam.StartsWith("*")
+            string? idParam = FindParam(descriptor, TikSpecialProperties.Id);
+            // netstandard2.0's string.IsNullOrEmpty isn't annotated NotNullWhen, so the compiler can't narrow.
+            if (!string.IsNullOrEmpty(idParam) && idParam!.StartsWith("*")
                 && int.TryParse(idParam.Substring(1), System.Globalization.NumberStyles.HexNumber,
                     System.Globalization.CultureInfo.InvariantCulture, out int hexId))
                 return hexId;
@@ -1495,14 +1515,14 @@ namespace tik4net.WinboxNative
         // which this assembly does not reference, so the cref could not resolve either (CS1574).)
         private async Task<int> ResolveRecordIdAsync(int[] handler, WinboxFieldResolver resolver,
             TikCommandDescriptor descriptor, bool required, CancellationToken cancellationToken,
-            string alternateIdParam = null)
+            string? alternateIdParam = null)
         {
-            string idParam = alternateIdParam != null ? FindParam(descriptor, alternateIdParam) : null;
+            string? idParam = alternateIdParam != null ? FindParam(descriptor, alternateIdParam) : null;
             if (string.IsNullOrEmpty(idParam))
                 idParam = FindParam(descriptor, TikSpecialProperties.Id);
             if (!string.IsNullOrEmpty(idParam))
             {
-                if (idParam.StartsWith("*") &&
+                if (idParam!.StartsWith("*") &&
                     int.TryParse(idParam.Substring(1), System.Globalization.NumberStyles.HexNumber,
                         System.Globalization.CultureInfo.InvariantCulture, out int hexId))
                     return hexId;
@@ -1528,9 +1548,9 @@ namespace tik4net.WinboxNative
         private async Task<int> ResolveMoveDestAsync(int[] handler, WinboxFieldResolver resolver,
             TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
-            string dest = FindParam(descriptor, "destination") ?? FindParam(descriptor, "move-before");
+            string? dest = FindParam(descriptor, "destination") ?? FindParam(descriptor, "move-before");
             if (string.IsNullOrEmpty(dest)) return -1; // move to end
-            if (dest.StartsWith("*") &&
+            if (dest!.StartsWith("*") &&
                 int.TryParse(dest.Substring(1), System.Globalization.NumberStyles.HexNumber,
                     System.Globalization.CultureInfo.InvariantCulture, out int hexId))
                 return hexId;
@@ -1539,7 +1559,7 @@ namespace tik4net.WinboxNative
             return byName; // -1 if not found → move to end
         }
 
-        private static string FindParam(TikCommandDescriptor descriptor, string name)
+        private static string? FindParam(TikCommandDescriptor descriptor, string name)
         {
             foreach (var p in descriptor.Parameters)
                 if (p.Name == name) return p.Value;
@@ -1603,14 +1623,14 @@ namespace tik4net.WinboxNative
             // /system/health from its map window [24,29] to the board-gated singleton [24,14] — and answering
             // "that window is a list" about a handler it no longer describes turns a get-singleton into a
             // getall the router rejects (0xFE0003, measured live on 7.23.2).
-            string derivedKey = _handlerMap.ResolveDerivedKey(apiPath);
+            string? derivedKey = _handlerMap.ResolveDerivedKey(apiPath);
             if (derivedKey != null && SameHandler(_handlerMap.Resolve(apiPath), handler)
                 && _catalog.TryIsSingletonPath(derivedKey, out bool singleton))
                 return singleton;
             return _catalog.IsSingletonHandler(handler);
         }
 
-        private static bool SameHandler(int[] a, int[] b)
+        private static bool SameHandler(int[]? a, int[]? b)
         {
             if (a == null || b == null || a.Length != b.Length) return false;
             for (int i = 0; i < a.Length; i++) if (a[i] != b[i]) return false;
@@ -1626,10 +1646,14 @@ namespace tik4net.WinboxNative
         // unchanged for every other path (and when no singleton health window exists in the catalog).
         private int[] PreferSingletonHealthHandler(string apiPath, int[] handler)
         {
-            if (handler == null || _catalog.IsSingletonHandler(handler)) return handler;
+            // handler's declared type is non-nullable, but this defensive check predates nullable annotations
+            // and some resolver paths do pass a null handler through; preserved as-is (no behaviour change).
+            if (handler == null) return handler!;
+            if (_catalog.IsSingletonHandler(handler)) return handler;
             if (!string.Equals(WinboxHandlerMap.Normalize(apiPath), "/system/health", StringComparison.OrdinalIgnoreCase))
                 return handler;
-            return _catalog.FindSingletonHandlerByLeaf("health") ?? handler;
+            // handler is non-null here (the guard on the first line already returned for a null one).
+            return _catalog.FindSingletonHandlerByLeaf("health") ?? handler!;
         }
 
         // "/interface/print" → "/interface": strips ONLY a trailing read verb segment (print/getall/get),

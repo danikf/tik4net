@@ -15,32 +15,32 @@ namespace tik4net.Objects.Ip.Ipsec
     {
         /// <summary>.id — primary key of row</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// src-address — the source address of this SA.
         /// </summary>
         [TikProperty("src-address", IsReadOnly = true)]
-        public string/*IP*/ SrcAddress { get; private set; }
+        public string?/*IP*/ SrcAddress { get; private set; }
 
         /// <summary>
         /// dst-address — the destination address of this SA.
         /// </summary>
         [TikProperty("dst-address", IsReadOnly = true)]
-        public string/*IP*/ DstAddress { get; private set; }
+        public string?/*IP*/ DstAddress { get; private set; }
 
         /// <summary>
         /// spi — Security Parameter Index identification tag, uniquely identifies this SA
         /// together with the destination address and protocol.
         /// </summary>
         [TikProperty("spi", IsReadOnly = true)]
-        public string Spi { get; private set; }
+        public string? Spi { get; private set; }
 
         /// <summary>
         /// state — current state of this SA (e.g. "mature", "dying", "dead").
         /// </summary>
         [TikProperty("state", IsReadOnly = true)]
-        public string State { get; private set; }
+        public string? State { get; private set; }
 
         /// <summary>
         /// AH — true when the Authentication Header (AH) protocol is used by this SA.
@@ -59,28 +59,28 @@ namespace tik4net.Objects.Ip.Ipsec
         /// (e.g. "md5", "sha1", "sha256", "null").
         /// </summary>
         [TikProperty("auth-algorithm", IsReadOnly = true)]
-        public string AuthAlgorithm { get; private set; }
+        public string? AuthAlgorithm { get; private set; }
 
         /// <summary>
         /// auth-key — the authentication key in use by this SA (sensitive field).
         /// Only populated when the print is executed with <c>show-sensitive</c>.
         /// </summary>
         [TikProperty("auth-key", IsReadOnly = true)]
-        public string AuthKey { get; private set; }
+        public string? AuthKey { get; private set; }
 
         /// <summary>
         /// enc-algorithm — encryption algorithm negotiated for this SA
         /// (e.g. "des", "3des", "aes-cbc", "aes-gcm", "null").
         /// </summary>
         [TikProperty("enc-algorithm", IsReadOnly = true)]
-        public string EncAlgorithm { get; private set; }
+        public string? EncAlgorithm { get; private set; }
 
         /// <summary>
         /// enc-key — the encryption key in use by this SA (sensitive field).
         /// Only populated when the print is executed with <c>show-sensitive</c>.
         /// </summary>
         [TikProperty("enc-key", IsReadOnly = true)]
-        public string EncKey { get; private set; }
+        public string? EncKey { get; private set; }
 
         /// <summary>
         /// enc-key-size — length in bits of the encryption key used by this SA.
@@ -105,7 +105,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Returned as a 64-bit integer by the router; stored as string to avoid overflow.
         /// </summary>
         [TikProperty("current-bytes", IsReadOnly = true)]
-        public string CurrentBytes { get; private set; }
+        public string? CurrentBytes { get; private set; }
 
         /// <summary>
         /// add-lifetime — configured lifetime of this SA in soft/hard format
@@ -113,19 +113,19 @@ namespace tik4net.Objects.Ip.Ipsec
         /// causes the SA to be deleted.
         /// </summary>
         [TikProperty("add-lifetime", IsReadOnly = true)]
-        public string/*time/time*/ AddLifetime { get; private set; }
+        public string?/*time/time*/ AddLifetime { get; private set; }
 
         /// <summary>
         /// addtime — date and time when this SA was installed (e.g. "jan/01/1970 00:00:00").
         /// </summary>
         [TikProperty("addtime", IsReadOnly = true)]
-        public string/*datetime*/ AddTime { get; private set; }
+        public string?/*datetime*/ AddTime { get; private set; }
 
         /// <summary>
         /// expires-in — remaining time until this SA is rekeyed or expires.
         /// </summary>
         [TikProperty("expires-in", IsReadOnly = true)]
-        public string/*time*/ ExpiresIn { get; private set; }
+        public string?/*time*/ ExpiresIn { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string ToString() => string.Format("{0} -> {1} spi={2} ({3})", SrcAddress, DstAddress, Spi, State);

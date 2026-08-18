@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,7 +15,7 @@ namespace tik4net.Objects.Ip.Proxy
     {
         /// <summary>.id — primary key of the rule.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>action — what to do when the rule matches.
         /// <seealso cref="ProxyAccessAction"/></summary>
@@ -24,23 +24,23 @@ namespace tik4net.Objects.Ip.Proxy
 
         /// <summary>action-data — URL to redirect to when action=deny (wiki: "redirect-to"). Only used with deny action.</summary>
         [TikProperty("action-data", DefaultValue = "")]
-        public string ActionData { get; set; }
+        public string? ActionData { get; set; }
 
         /// <summary>src-address — source IP address or range to match (e.g. 192.168.1.0/24).</summary>
         [TikProperty("src-address", DefaultValue = "")]
-        public string SrcAddress { get; set; }
+        public string? SrcAddress { get; set; }
 
         /// <summary>dst-address — destination IP address or range of the target server.</summary>
         [TikProperty("dst-address", DefaultValue = "")]
-        public string DstAddress { get; set; }
+        public string? DstAddress { get; set; }
 
         /// <summary>dst-host — destination hostname or IP to match (e.g. *.example.com).</summary>
         [TikProperty("dst-host", DefaultValue = "")]
-        public string DstHost { get; set; }
+        public string? DstHost { get; set; }
 
         /// <summary>dst-port — destination port or port range to match (e.g. 80 or 80-90).</summary>
         [TikProperty("dst-port", DefaultValue = "")]
-        public string DstPort { get; set; }
+        public string? DstPort { get; set; }
 
         /// <summary>local-port — proxy listening port through which the request was received. 0 = not set.</summary>
         [TikProperty("local-port", DefaultValue = "0")]
@@ -53,7 +53,7 @@ namespace tik4net.Objects.Ip.Proxy
 
         /// <summary>path — requested URL path (without server name) to match (e.g. /ads/*).</summary>
         [TikProperty("path", DefaultValue = "")]
-        public string Path { get; set; }
+        public string? Path { get; set; }
 
         /// <summary>disabled — when yes, the rule is inactive.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
@@ -61,7 +61,7 @@ namespace tik4net.Objects.Ip.Proxy
 
         /// <summary>comment — free-form annotation.</summary>
         [TikProperty("comment", DefaultValue = "")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         // --- Read-only ---
 

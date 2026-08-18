@@ -22,7 +22,7 @@ namespace tik4net.WinboxNativeMac
         internal WinboxNativeMacConnection() { }
 
         /// <inheritdoc/>
-        public string RouterMac { get; set; }
+        public string? RouterMac { get; set; }
 
         /// <summary>
         /// MAC-layer WinBox UDP port (informational — <see cref="WinboxMacM2Session"/> ignores the forwarded
@@ -31,6 +31,8 @@ namespace tik4net.WinboxNativeMac
         private protected override int DefaultPortValue => 20561;
 
         /// <inheritdoc/>
-        private protected override IWinboxM2Channel CreateChannel() => new WinboxMacM2Session(RouterMac);
+        // WinboxMacM2Session's routerMac parameter isn't annotated nullable (it lives in Winbox/, out of
+        // scope here), but null is its documented meaning: discover the router via MNDP.
+        private protected override IWinboxM2Channel CreateChannel() => new WinboxMacM2Session(RouterMac!);
     }
 }

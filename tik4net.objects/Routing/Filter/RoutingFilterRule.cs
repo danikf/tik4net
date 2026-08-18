@@ -1,4 +1,4 @@
-﻿namespace tik4net.Objects.Routing.Filter
+namespace tik4net.Objects.Routing.Filter
 {
     /// <summary>
     /// /routing/filter/rule
@@ -18,7 +18,7 @@
     {
         /// <summary>.id — primary key of row</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// chain — name of the routing filter chain this rule belongs to.
@@ -26,7 +26,7 @@
         /// Chain names are arbitrary strings referenced by protocol instance filter settings.
         /// </summary>
         [TikProperty("chain", IsMandatory = true)]
-        public string Chain { get; set; }
+        public string? Chain { get; set; }
 
         /// <summary>
         /// rule — the filter rule expression in RouterOS routing filter scripting language.
@@ -36,7 +36,7 @@
         /// Example: "if (dst == 192.168.0.0/16) { set bgp-local-pref 200; accept }"
         /// </summary>
         [TikProperty("rule")]
-        public string Rule { get; set; }
+        public string? Rule { get; set; }
 
         /// <summary>
         /// disabled — when true this rule is administratively disabled and skipped during evaluation.
@@ -47,7 +47,7 @@
 
         /// <summary>comment — optional free-text annotation.</summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         // --- Read-only properties ---
 

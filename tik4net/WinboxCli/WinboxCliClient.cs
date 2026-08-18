@@ -132,7 +132,7 @@ namespace tik4net.WinboxCli
         /// completed output line to <paramref name="onLine"/> while the command is still running — the
         /// streaming driver registered by the WinBox-CLI connections (P2.50).
         /// </summary>
-        internal async Task<string> SendCommandAndReadAsync(string command, Action<string> onLine, CancellationToken ct)
+        internal async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
 
@@ -259,9 +259,9 @@ namespace tik4net.WinboxCli
         }
 
         /// <summary>Receives one frame and returns the terminal payload (user key 2), or null.</summary>
-        private byte[] ReceiveTerminalChunk(int timeoutMs)
+        private byte[]? ReceiveTerminalChunk(int timeoutMs)
         {
-            byte[] resp = _session.Receive(timeoutMs);
+            byte[]? resp = _session.Receive(timeoutMs);
             if (resp == null) return null;
 
             // Only accept output from the terminal we are actually driving. A frame from any other mepty
@@ -277,7 +277,7 @@ namespace tik4net.WinboxCli
                 return null;
             }
 
-            byte[] payload = M2Message.ParseUserBytes(resp, WinboxM2Protocol.Mepty.Key.Input);
+            byte[]? payload = M2Message.ParseUserBytes(resp, WinboxM2Protocol.Mepty.Key.Input);
 
             // Acknowledge what we consumed — every subsequent Data frame reports this total and that is what
             // lets RouterOS release the next window of output. See _ackBytes.
@@ -305,7 +305,7 @@ namespace tik4net.WinboxCli
             {
                 if (!_session.DataAvailable) { Thread.Sleep(PollSleepMs); continue; }
 
-                byte[] chunk;
+                byte[]? chunk;
                 try { chunk = ReceiveTerminalChunk(FrameTimeoutMs); }
                 catch (IOException) { break; }
                 if (chunk == null) continue;
@@ -346,10 +346,11 @@ namespace tik4net.WinboxCli
             throw new TimeoutException("WinBox: timed out waiting for shell prompt.");
         }
 
-        private static TikConnectionSessionClosedException SessionClosed(string sentCommand)
+        private static TikConnectionSessionClosedException SessionClosed(string? sentCommand)
             => new TikConnectionSessionClosedException(
                 "WinBox CLI: the router stopped acknowledging this session — it did not take the bytes of "
-                + (string.IsNullOrEmpty(sentCommand) ? "the last request" : "'" + sentCommand.Trim() + "'")
+                // netstandard2.0's string.IsNullOrEmpty isn't annotated NotNullWhen, so the compiler can't narrow.
+                + (string.IsNullOrEmpty(sentCommand) ? "the last request" : "'" + sentCommand!.Trim() + "'")
                 + ", so the command did not run. The MAC-layer carrier keeps the UDP socket open and RouterOS "
                 + "sends no error when it drops a console session, so the session goes silent rather than "
                 + "reporting anything.");
@@ -371,7 +372,7 @@ namespace tik4net.WinboxCli
         /// consumed while it runs (see <see cref="Cli.CliLineStreamer"/>). Does not affect when the read
         /// returns — the stable prompt plus its settle window is still the only terminator.
         /// </param>
-        private async Task<string> ReadCommandResponseAsync(string sentCommand, Action<string> onLine = null)
+        private async Task<string> ReadCommandResponseAsync(string? sentCommand, Action<string>? onLine = null)
         {
             var sb = new StringBuilder();
             var sw = Stopwatch.StartNew();
@@ -386,7 +387,7 @@ namespace tik4net.WinboxCli
                 bool gotData = false;
                 if (_session.DataAvailable)
                 {
-                    byte[] chunk;
+                    byte[]? chunk;
                     try { chunk = ReceiveTerminalChunk(FrameTimeoutMs); }
                     catch (IOException) { break; }
                     if (chunk != null)
@@ -502,7 +503,7 @@ namespace tik4net.WinboxCli
                 bool gotData = false;
                 if (_session.DataAvailable)
                 {
-                    byte[] chunk;
+                    byte[]? chunk;
                     try { chunk = ReceiveTerminalChunk(FrameTimeoutMs); }
                     catch (IOException) { break; }
                     if (chunk != null)
@@ -538,7 +539,7 @@ namespace tik4net.WinboxCli
                 if (!_session.DataAvailable) { await Task.Delay(PollSleepMs).ConfigureAwait(false); continue; }
                 try
                 {
-                    byte[] chunk = ReceiveTerminalChunk(FrameTimeoutMs);
+                    byte[]? chunk = ReceiveTerminalChunk(FrameTimeoutMs);
                     if (chunk != null)
                     {
                         string text = _encoding.GetString(chunk);

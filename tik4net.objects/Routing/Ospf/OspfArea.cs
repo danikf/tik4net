@@ -1,4 +1,4 @@
-﻿namespace tik4net.Objects.Routing.Ospf
+namespace tik4net.Objects.Routing.Ospf
 {
     /// <summary>
     /// /routing/ospf/area
@@ -35,13 +35,13 @@
 
         /// <summary>.id — primary key of row</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// name — unique name for this OSPF area entry.
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// instance — name of the OSPF instance this area belongs to.
@@ -49,7 +49,7 @@
         /// This field is mandatory — the router rejects add without it.
         /// </summary>
         [TikProperty("instance", IsMandatory = true)]
-        public string Instance { get; set; }
+        public string? Instance { get; set; }
 
         /// <summary>
         /// area-id — OSPF area identifier in dotted-decimal notation (e.g. "0.0.0.0" for the backbone).
@@ -57,7 +57,7 @@
         /// Default: 0.0.0.0
         /// </summary>
         [TikProperty("area-id", DefaultValue = "0.0.0.0")]
-        public string AreaId { get; set; }
+        public string? AreaId { get; set; }
 
         /// <summary>
         /// type — OSPF area type controlling which LSA types are permitted.
@@ -101,7 +101,7 @@
 
         /// <summary>comment — optional free-text annotation.</summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         // --- Read-only properties ---
 
@@ -113,6 +113,6 @@
         public bool Inactive { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

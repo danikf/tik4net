@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,37 +15,37 @@ namespace tik4net.Objects.Ip.Firewall
         /// .id
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// chain
         /// </summary>
         [TikProperty("chain")]
-        public string Chain { get; set; }
+        public string? Chain { get; set; }
 
         /// <summary>
         /// action
         /// </summary>
         [TikProperty("action")]
-        public string Action { get; set; }
+        public string? Action { get; set; }
 
         /// <summary>
         /// to-addresses
         /// </summary>
         [TikProperty("to-addresses")]
-        public string ToAddresses { get; set; }
+        public string? ToAddresses { get; set; }
 
         /// <summary>
         /// src-address
         /// </summary>
         [TikProperty("src-address")]
-        public string SrcAddress { get; set; }
+        public string? SrcAddress { get; set; }
 
         /// <summary>
         /// out-interface
         /// </summary>
         [TikProperty("out-interface")]
-        public string OutInterface { get; set; }
+        public string? OutInterface { get; set; }
 
         /// <summary>
         /// invalid
@@ -69,31 +69,31 @@ namespace tik4net.Objects.Ip.Firewall
         /// comment
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>
         /// src-address-list
         /// </summary>
         [TikProperty("src-address-list")]
-        public string SrcAddressList { get; set; }
+        public string? SrcAddressList { get; set; }
 
         /// <summary>
         /// dst-address
         /// </summary>
         [TikProperty("dst-address")]
-        public string DstAddress { get; set; }
+        public string? DstAddress { get; set; }
 
         /// <summary>
         /// in-interface
         /// </summary>
         [TikProperty("in-interface")]
-        public string InInterface { get; set; }
+        public string? InInterface { get; set; }
 
         /// <summary>
         /// protocol
         /// </summary>
         [TikProperty("protocol")]
-        public string Protocol { get; set; }
+        public string? Protocol { get; set; }
 
         /// <summary>
         /// to-ports
@@ -116,7 +116,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// </summary>
         /// <seealso cref="DstPort"/>
         [TikProperty("dst-port")]
-        public string DstPortStr { get; set; }
+        public string? DstPortStr { get; set; }
 
         /// <summary>
         /// src-port (integer [ -integer]: 0..65535; Default: )
@@ -133,6 +133,6 @@ namespace tik4net.Objects.Ip.Firewall
         /// </summary>
         /// <seealso cref="SrcPort"/>
         [TikProperty("src-port")]
-        public string SrcPortStr { get; set; }
+        public string? SrcPortStr { get; set; }
     }
 }

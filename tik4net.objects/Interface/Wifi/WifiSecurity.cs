@@ -1,4 +1,4 @@
-﻿namespace tik4net.Objects.Interface.Wifi
+namespace tik4net.Objects.Interface.Wifi
 {
     /// <summary>
     /// /interface/wifi/security
@@ -120,7 +120,7 @@
 
         /// <summary>.id — primary key of row.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         // ── Identification ────────────────────────────────────────────────────
 
@@ -129,7 +129,7 @@
         /// WinBox: "Name"
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         // ── Authentication ────────────────────────────────────────────────────
 
@@ -141,7 +141,7 @@
         /// WinBox: "Authentication Types"
         /// </summary>
         [TikProperty("authentication-types")]
-        public string AuthenticationTypes { get; set; }
+        public string? AuthenticationTypes { get; set; }
 
         /// <summary>
         /// passphrase — PSK passphrase for WPA2-PSK / WPA3-PSK authentication.
@@ -149,7 +149,7 @@
         /// WinBox: "Passphrase"
         /// </summary>
         [TikProperty("passphrase")]
-        public string Passphrase { get; set; }
+        public string? Passphrase { get; set; }
 
         // ── WPS ───────────────────────────────────────────────────────────────
 
@@ -171,7 +171,7 @@
         /// WinBox: "Encryption"
         /// </summary>
         [TikProperty("encryption", DefaultValue = "ccmp")]
-        public string Encryption { get; set; }
+        public string? Encryption { get; set; }
 
         /// <summary>
         /// group-encryption — cipher used for multicast/broadcast traffic.
@@ -188,7 +188,7 @@
         /// WinBox: "Group Key Update"
         /// </summary>
         [TikProperty("group-key-update", DefaultValue = "24h")]
-        public string/*time*/ GroupKeyUpdate { get; set; }
+        public string?/*time*/ GroupKeyUpdate { get; set; }
 
         // ── Management frame protection (802.11w) ─────────────────────────────
 
@@ -268,7 +268,7 @@
         /// WinBox: "DH Groups"
         /// </summary>
         [TikProperty("dh-groups")]
-        public string DhGroups { get; set; }
+        public string? DhGroups { get; set; }
 
         // ── EAP settings ──────────────────────────────────────────────────────
 
@@ -279,7 +279,7 @@
         /// WinBox: "EAP Methods"
         /// </summary>
         [TikProperty("eap-methods")]
-        public string EapMethods { get; set; }
+        public string? EapMethods { get; set; }
 
         /// <summary>
         /// eap-certificate-mode — how the TLS certificate is handled during EAP authentication.
@@ -295,14 +295,14 @@
         /// WinBox: "EAP Username"
         /// </summary>
         [TikProperty("eap-username")]
-        public string EapUsername { get; set; }
+        public string? EapUsername { get; set; }
 
         /// <summary>
         /// eap-password — password used for PEAP/TTLS EAP authentication.
         /// WinBox: "EAP Password"
         /// </summary>
         [TikProperty("eap-password")]
-        public string EapPassword { get; set; }
+        public string? EapPassword { get; set; }
 
         /// <summary>
         /// eap-anonymous-identity — outer/anonymous identity sent in EAP identity response
@@ -310,7 +310,7 @@
         /// WinBox: "EAP Anonymous Identity"
         /// </summary>
         [TikProperty("eap-anonymous-identity")]
-        public string EapAnonymousIdentity { get; set; }
+        public string? EapAnonymousIdentity { get; set; }
 
         /// <summary>
         /// eap-tls-certificate — name of the client certificate from the system certificate
@@ -318,7 +318,7 @@
         /// WinBox: "EAP TLS Certificate"
         /// </summary>
         [TikProperty("eap-tls-certificate")]
-        public string EapTlsCertificate { get; set; }
+        public string? EapTlsCertificate { get; set; }
 
         /// <summary>
         /// eap-accounting — when true, send RADIUS accounting data for EAP-authenticated peers.
@@ -360,7 +360,7 @@
         /// WinBox: "FT NAS Identifier"
         /// </summary>
         [TikProperty("ft-nas-identifier")]
-        public string FtNasIdentifier { get; set; }
+        public string? FtNasIdentifier { get; set; }
 
         /// <summary>
         /// ft-r0-key-lifetime — lifetime of the PMK-R0 encryption key (up to ~7 days).
@@ -368,7 +368,7 @@
         /// WinBox: "FT R0 Key Lifetime"
         /// </summary>
         [TikProperty("ft-r0-key-lifetime", DefaultValue = "600000s")]
-        public string/*time*/ FtR0KeyLifetime { get; set; }
+        public string?/*time*/ FtR0KeyLifetime { get; set; }
 
         /// <summary>
         /// ft-reassociation-deadline — time window (0..70s) within which a client must
@@ -395,7 +395,7 @@
         /// WinBox: "OWE Transition Interface"
         /// </summary>
         [TikProperty("owe-transition-interface")]
-        public string OweTransitionInterface { get; set; }
+        public string? OweTransitionInterface { get; set; }
 
         // ── Connection control ────────────────────────────────────────────────
 
@@ -406,7 +406,7 @@
         /// WinBox: "Connect Group"
         /// </summary>
         [TikProperty("connect-group", DefaultValue = "default")]
-        public string ConnectGroup { get; set; }
+        public string? ConnectGroup { get; set; }
 
         /// <summary>
         /// connect-priority — space-separated accept-priority and hold-priority values that
@@ -414,7 +414,7 @@
         /// WinBox: "Connect Priority"
         /// </summary>
         [TikProperty("connect-priority")]
-        public string ConnectPriority { get; set; }
+        public string? ConnectPriority { get; set; }
 
         // ── Multi-passphrase ──────────────────────────────────────────────────
 
@@ -424,7 +424,7 @@
         /// WinBox: "Multi-Passphrase Group"
         /// </summary>
         [TikProperty("multi-passphrase-group")]
-        public string MultiPassphraseGroup { get; set; }
+        public string? MultiPassphraseGroup { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
 
@@ -441,9 +441,9 @@
         /// WinBox: "Comment"
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

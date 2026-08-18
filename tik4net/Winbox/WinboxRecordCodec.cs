@@ -37,7 +37,9 @@ namespace tik4net.Winbox
 
         private readonly object _uptimeLock = new object();
         private long? _uptimeAtFetch;
-        private Stopwatch _sinceUptimeFetch;
+        // Set together with _uptimeAtFetch in RouterUptimeSeconds; only read there, guarded by
+        // _uptimeAtFetch.HasValue, so it is never read before that first assignment.
+        private Stopwatch _sinceUptimeFetch = null!;
         private bool _uptimeUnreadable;
 
         // The Unix epoch, the origin every dateandtime/clockdate value on the wire counts from.
@@ -67,7 +69,7 @@ namespace tik4net.Winbox
         private Dictionary<string, string> DecodeRecord(
             Dictionary<int, Tuple<string, object>> rec, IReadOnlyDictionary<int, string> keyToName,
             IReadOnlyDictionary<int, WinboxJgField> keyToField,
-            Dictionary<string, int[]> collectRefTables)
+            Dictionary<string, int[]>? collectRefTables)
         {
             // Keys consumed by an owning field, not emitted on their own: a network field's netmask sibling,
             // and the opt/not flag bools of an optional/invertible field (its value rides on the leaf key).
@@ -104,7 +106,7 @@ namespace tik4net.Winbox
                     continue;
                 }
 
-                WinboxJgField jf = null;
+                WinboxJgField? jf = null;
                 if (keyToField != null && !keyToField.TryGetValue(typedKey, out jf))
                     keyToField.TryGetValue(wireKey, out jf);
                 if (IsUnsetField(jf, kv.Value.Item2, rec)) continue;
@@ -134,7 +136,7 @@ namespace tik4net.Winbox
         /// rule, read off <c>types.enm.tostr</c>, and it is why the <c>opt</c> ATTRIBUTE has to be carried
         /// separately from the <c>opt</c> WRAPPER's flag key.</para>
         /// </remarks>
-        private static bool IsUnsetField(WinboxJgField jf, object value,
+        private static bool IsUnsetField(WinboxJgField? jf, object value,
             Dictionary<int, Tuple<string, object>> rec)
         {
             if (jf == null) return false;
@@ -176,12 +178,13 @@ namespace tik4net.Winbox
         // a network field renders "addr/prefixlen" (pulling the netmask from its maskid sibling key), MACs
         // from raw bytes, static enums back to their string label, dynamic enum references back to the
         // referenced record's name. Falls back to the wire-type formatter.
-        private string FormatTyped(WinboxJgField jf, string wireType, object value,
-            Dictionary<int, Tuple<string, object>> rec, Dictionary<string, int[]> collectRefTables)
+        private string FormatTyped(WinboxJgField? jf, string wireType, object value,
+            Dictionary<int, Tuple<string, object>> rec, Dictionary<string, int[]>? collectRefTables)
         {
             if (jf != null && value != null)
             {
-                if (TryZeroWord(jf, value, out string zeroWord)) return zeroWord;
+                // TryZeroWord only returns true when it found a word (non-null by construction).
+                if (TryZeroWord(jf, value, out string? zeroWord)) return zeroWord!;
                 switch (jf.UiType)
                 {
                     case "ipaddr":
@@ -391,7 +394,7 @@ namespace tik4net.Winbox
                 // referenced table cannot be read, exactly as the scalar case does.
                 if (jf.RefHandler != null && IsMultiNumberList(jf.UiType))
                 {
-                    string joined = ResolveRefNameList(jf.RefHandler, value, collectRefTables);
+                    string? joined = ResolveRefNameList(jf.RefHandler, value, collectRefTables);
                     if (joined != null) return joined;
                 }
                 // The same list shape with LITERAL elements — a number (/ip/proxy 'Port' u32[8080] → "8080")
@@ -409,7 +412,7 @@ namespace tik4net.Winbox
                 // dynamic enum reference: render the referenced object's name (e.g. interface id → "ether1").
                 if (jf.RefHandler != null)
                 {
-                    string name = ResolveRefName(jf.RefHandler, value, collectRefTables);
+                    string? name = ResolveRefName(jf.RefHandler, value, collectRefTables);
                     if (name != null) return name;
                 }
                 // static enum: map the numeric value back to its API string label.
@@ -495,7 +498,7 @@ namespace tik4net.Winbox
                 ["watch-address"]         = "none",
             };
 
-        private static bool TryZeroWord(WinboxJgField jf, object value, out string word)
+        private static bool TryZeroWord(WinboxJgField jf, object value, out string? word)
         {
             word = null;
             if (!jf.IsOptional || jf.ApiName == null) return false;
@@ -507,10 +510,10 @@ namespace tik4net.Winbox
 
         // The only postfix acted on. 'min', 'MHz', '%' and the rest are units the API spells the same way
         // WinBox does (a bare number), so appending them would invent text the router never prints.
-        private static bool IsSecondsPostfix(string postfix)
+        private static bool IsSecondsPostfix(string? postfix)
             => string.Equals(postfix, "s", StringComparison.Ordinal);
 
-        private static bool IsMultiNumberList(string uiType)
+        private static bool IsMultiNumberList(string? uiType)
             => string.Equals(uiType, "multinumber", StringComparison.OrdinalIgnoreCase);
 
         // The rest of the webfig list family, taken from the inheritance chain in master*.js:
@@ -519,7 +522,7 @@ namespace tik4net.Winbox
         // plus the plain `multi` whose elements are nested messages. Deliberately NOT multibits (a bitmask
         // that inherits types.multi directly), nor multinumberrange/numberrangelist/multitristatearray,
         // which have their own shapes and are formatted before this point.
-        private static bool IsMultiList(string uiType)
+        private static bool IsMultiList(string? uiType)
         {
             if (uiType == null) return false;
             switch (uiType.ToLowerInvariant())
@@ -579,7 +582,8 @@ namespace tik4net.Winbox
         private string FormatCompoundElement(WinboxJgField jf, Dictionary<int, Tuple<string, object>> element)
         {
             var rendered = new List<string>();
-            foreach (var part in jf.ElementParts)
+            // Only called when jf.ElementParts != null (see FormatMultiList's caller check).
+            foreach (var part in jf.ElementParts!)
             {
                 string s = FormatElementPart(part, element);
                 if (!string.IsNullOrEmpty(s)) rendered.Add(s);
@@ -602,7 +606,7 @@ namespace tik4net.Winbox
                 return "";
             }
             if (!element.TryGetValue(part.Key, out var v) || v?.Item2 == null) return "";
-            object mask = part.MaskKey != 0 && element.TryGetValue(part.MaskKey, out var mt) ? mt?.Item2 : null;
+            object? mask = part.MaskKey != 0 && element.TryGetValue(part.MaskKey, out var mt) ? mt?.Item2 : null;
             // A part with a static map is an enum wherever it sits — the API prints the word, not the index.
             if (part.EnumMap != null && WinboxFieldResolver.TryToInt64(v.Item2, out long ev)
                 && part.EnumMap.TryGetValue(unchecked((int)ev), out var label))
@@ -634,7 +638,7 @@ namespace tik4net.Winbox
 
         // One element of a scalar list, by the element's .jg type. An ipaddr element rides as the same u32 a
         // scalar ipaddr does; a string/raw/secret element is already its own text.
-        private static string FormatListElement(string elementUiType, string element)
+        private static string FormatListElement(string? elementUiType, string element)
         {
             if (string.Equals(elementUiType, "ipaddr", StringComparison.OrdinalIgnoreCase)
                 && uint.TryParse(element, out uint u))
@@ -697,18 +701,18 @@ namespace tik4net.Winbox
         }
 
         // The one list type whose elements carry their own negation flag, so it rides on TWO keys.
-        private static bool IsTriStateList(string uiType)
+        private static bool IsTriStateList(string? uiType)
             => string.Equals(uiType, "multitristatearray", StringComparison.OrdinalIgnoreCase);
 
         // One half of a tri-state list, rendered by the same rules a multinumber element is: a reference
         // resolves to the referenced record's name, a static map to its label, anything else to the number.
-        private string FormatListElements(WinboxJgField jf, object value,
-            Dictionary<string, int[]> collectRefTables)
+        private string FormatListElements(WinboxJgField jf, object? value,
+            Dictionary<string, int[]>? collectRefTables)
         {
             if (value == null) return "";
             if (jf.RefHandler != null)
             {
-                string joined = ResolveRefNameList(jf.RefHandler, value, collectRefTables);
+                string? joined = ResolveRefNameList(jf.RefHandler, value, collectRefTables);
                 if (joined != null) return joined;
             }
             return FormatNumberList(value, jf.EnumMap);
@@ -717,14 +721,14 @@ namespace tik4net.Winbox
         // Resolve a u32[] of referenced ids (rendered by M2Message as "[a,b,…]") to comma-joined names.
         // Returns null when nothing resolved, so the caller can fall back to the raw text rather than
         // hand back an empty string that reads like "no topics".
-        private string ResolveRefNameList(int[] refHandler, object value,
-            Dictionary<string, int[]> collectRefTables)
+        private string? ResolveRefNameList(int[] refHandler, object? value,
+            Dictionary<string, int[]>? collectRefTables)
         {
             var names = new List<string>();
             foreach (System.Text.RegularExpressions.Match m in
                      System.Text.RegularExpressions.Regex.Matches(value?.ToString() ?? "", @"-?\d+"))
             {
-                string n = ResolveRefName(refHandler, m.Value, collectRefTables);
+                string? n = ResolveRefName(refHandler, m.Value, collectRefTables);
                 if (n == null) return null;   // table unreadable / id unknown — keep the raw form
                 names.Add(n);
             }
@@ -789,7 +793,7 @@ namespace tik4net.Winbox
         private static long NumToInt(long v)
             => v >= 0x80000000L && v <= 0xFFFFFFFFL ? v - 0x100000000L : v;
 
-        private static void TraceUptimeUnreadable(Exception ex)
+        private static void TraceUptimeUnreadable(Exception? ex)
         {
             if (!TikWireTrace.Enabled) return;
             TikWireTrace.Emit("wbx.codec", TikWireDir.Note,
@@ -798,7 +802,7 @@ namespace tik4net.Winbox
         }
 
         // Resolve a dynamic-enum reference value (the referenced record's numeric id) back to its name.
-        private string ResolveRefName(int[] refHandler, object idValue, Dictionary<string, int[]> collectRefTables)
+        private string? ResolveRefName(int[] refHandler, object idValue, Dictionary<string, int[]>? collectRefTables)
         {
             if (!WinboxFieldResolver.TryToInt64(idValue, out long idl))
             {
@@ -896,8 +900,9 @@ namespace tik4net.Winbox
             var map = new Dictionary<int, string>();
             int nameKey = NameKeyOf(refResolver.BuildKeyToApiName());
             foreach (var r in rows)
-                if (TryReadIdAndName(r, nameKey, out int rowId, out string rowName))
-                    map[rowId] = rowName;
+                // TryReadIdAndName only returns true after successfully assigning a non-null name.
+                if (TryReadIdAndName(r, nameKey, out int rowId, out string? rowName))
+                    map[rowId] = rowName!;
             return map;
         }
 
@@ -929,7 +934,7 @@ namespace tik4net.Winbox
         /// omission permanent and invisible.</para>
         /// </remarks>
         internal static bool TryReadIdAndName(
-            Dictionary<int, Tuple<string, object>> row, int nameKey, out int id, out string name)
+            Dictionary<int, Tuple<string, object>> row, int nameKey, out int id, out string? name)
         {
             id = 0;
             name = null;
@@ -946,7 +951,7 @@ namespace tik4net.Winbox
             return true;
         }
 
-        private Dictionary<int, string> CachedRefNames(string key)
+        private Dictionary<int, string>? CachedRefNames(string key)
         {
             lock (_refNameCacheLock)
                 return _refNameCache.TryGetValue(key, out var map) ? map : null;
@@ -992,9 +997,10 @@ namespace tik4net.Winbox
         private static void TraceUnmappedEnum(WinboxJgField jf, long value)
         {
             if (!TikWireTrace.Enabled) return;
+            // Only called from the "static enum" branch, entered when jf.EnumMap != null.
             TikWireTrace.Emit("wbx.codec", TikWireDir.Note,
                 $"enum '{jf.ApiName}' (key 0x{jf.Key:X}) value {value} has no member in the .jg map "
-                + $"[{string.Join(",", jf.EnumMap.Keys)}], left as raw text");
+                + $"[{string.Join(",", jf.EnumMap!.Keys)}], left as raw text");
         }
 
         /// <summary>
@@ -1004,10 +1010,10 @@ namespace tik4net.Winbox
         /// </summary>
         private static string FormatAddr(Dictionary<int, Tuple<string, object>> addr)
         {
-            object Get(int subKey) =>
+            object? Get(int subKey) =>
                 addr.TryGetValue(subKey, out var t) ? t?.Item2 : null;
 
-            string text = null;
+            string? text = null;
             if (Get(WinboxFieldResolver.AddrV6SubKey) is byte[] v6) text = WinboxFieldResolver.IpV6FromBytes(v6);
             else if (Get(WinboxFieldResolver.AddrV4SubKey) is object v4) text = WinboxFieldResolver.IpFromU32(v4);
             else if (Get(WinboxFieldResolver.AddrDnsSubKey) is object dns) text = dns.ToString();
@@ -1018,7 +1024,7 @@ namespace tik4net.Winbox
             return text;
         }
 
-        private static string FormatValue(string wireType, object value)
+        private static string FormatValue(string wireType, object? value)
         {
             if (value == null) return "";
             if (wireType == "bool") return (value is bool b && b) ? "true" : "false";
@@ -1059,7 +1065,7 @@ namespace tik4net.Winbox
         // comma-joined API form: each element through the element's static enum map when it has one, else the
         // number itself. An element the map does not name stays numeric rather than being dropped — a shorter
         // list would read as "the router has fewer of these", which is the P2.25 defect class.
-        private static string FormatNumberList(object value, IReadOnlyDictionary<int, string> enumMap)
+        private static string FormatNumberList(object? value, IReadOnlyDictionary<int, string>? enumMap)
         {
             var parts = new List<string>();
             foreach (System.Text.RegularExpressions.Match m in

@@ -33,7 +33,7 @@ namespace tik4net.WinboxCliMac
         public const int DefaultPort = 20561;
 
         /// <inheritdoc/>
-        public string RouterMac { get; set; }
+        public string? RouterMac { get; set; }
 
         /// <inheritdoc/>
         protected override string TransportName => "WinBox CLI MAC";
@@ -59,8 +59,8 @@ namespace tik4net.WinboxCliMac
         {
             // BuildTransport is inside the retry, not outside it: a refused handshake leaves the client
             // and its channel unusable, so a retry needs new ones (see Winbox.RouterLoginRetry).
-            Func<byte[], int, CancellationToken, Task<string>> sendRawSettle = null;
-            Func<string, Action<string>, CancellationToken, Task<string>> sendStreaming = null;
+            Func<byte[], int, CancellationToken, Task<string>>? sendRawSettle = null;
+            Func<string, Action<string>, CancellationToken, Task<string>>? sendStreaming = null;
             tik4net.Winbox.RouterLoginRetry.Run(() =>
             {
                 var (login, send, sendRaw, settle, streaming, close) = BuildTransport(host, port, user, password);
@@ -68,8 +68,9 @@ namespace tik4net.WinboxCliMac
                 sendRawSettle = settle;
                 sendStreaming = streaming;
             });
-            RegisterCompletionDriver(sendRawSettle);
-            RegisterStreamingDriver(sendStreaming);
+            // Run() either assigns both delegates above or throws, so they are always set here.
+            RegisterCompletionDriver(sendRawSettle!);
+            RegisterStreamingDriver(sendStreaming!);
         }
 
         /// <inheritdoc/>
@@ -79,8 +80,8 @@ namespace tik4net.WinboxCliMac
         /// <inheritdoc/>
         public override async Task OpenAsync(string host, int port, string user, string password)
         {
-            Func<byte[], int, CancellationToken, Task<string>> sendRawSettle = null;
-            Func<string, Action<string>, CancellationToken, Task<string>> sendStreaming = null;
+            Func<byte[], int, CancellationToken, Task<string>>? sendRawSettle = null;
+            Func<string, Action<string>, CancellationToken, Task<string>>? sendStreaming = null;
             await tik4net.Winbox.RouterLoginRetry.RunAsync(async () =>
             {
                 var (login, send, sendRaw, settle, streaming, close) = BuildTransport(host, port, user, password);
@@ -88,20 +89,23 @@ namespace tik4net.WinboxCliMac
                 sendRawSettle = settle;
                 sendStreaming = streaming;
             }).ConfigureAwait(false);
-            RegisterCompletionDriver(sendRawSettle);
-            RegisterStreamingDriver(sendStreaming);
+            // RunAsync() either assigns both delegates above or throws, so they are always set here.
+            RegisterCompletionDriver(sendRawSettle!);
+            RegisterStreamingDriver(sendStreaming!);
         }
 
         // Build the WinBox-CLI client over the MAC-layer M2 channel and the delegates that drive it.
         private (Func<CancellationToken, Task>, Func<string, CancellationToken, Task<string>>,
             Func<byte[], CancellationToken, Task<string>>, Func<byte[], int, CancellationToken, Task<string>>,
-            Func<string, Action<string>, CancellationToken, Task<string>>, Action)
+            Func<string, Action<string>?, CancellationToken, Task<string>>, Action)
             BuildTransport(string host, int port, string user, string password)
         {
             // The client is held in a variable rather than captured once, because a session the router has
             // dropped cannot be revived — reconnecting means a whole new client, socket and EC-SRP5 login,
             // and every delegate below must then be talking to the new one.
-            var client = new WinboxCliClient(new WinboxMacM2Session(RouterMac), Encoding, ReceiveTimeout, ConnectTimeout);
+            // WinboxMacM2Session's routerMac parameter isn't annotated nullable (it lives in Winbox/, out of
+            // scope here), but null is its documented meaning: discover the router via MNDP.
+            var client = new WinboxCliClient(new WinboxMacM2Session(RouterMac!), Encoding, ReceiveTimeout, ConnectTimeout);
             Func<CancellationToken, Task> login = ct => client.LoginAsync(host, port, user, password, ct);
             Action close = () => { client.TryCloseSession(); client.Dispose(); };
 
@@ -120,7 +124,8 @@ namespace tik4net.WinboxCliMac
                 try { client.Dispose(); } catch { /* the old session is gone anyway */ }
                 await RouterLoginRetry.RunAsync(async () =>
                 {
-                    client = new WinboxCliClient(new WinboxMacM2Session(RouterMac), Encoding, ReceiveTimeout, ConnectTimeout);
+                    // See the comment on the first WinboxMacM2Session construction above.
+                    client = new WinboxCliClient(new WinboxMacM2Session(RouterMac!), Encoding, ReceiveTimeout, ConnectTimeout);
                     await client.LoginAsync(host, port, user, password, ct).ConfigureAwait(false);
                 }).ConfigureAwait(false);
             };
@@ -128,10 +133,10 @@ namespace tik4net.WinboxCliMac
             // A retry re-runs the command from the start, so it is only safe while NOTHING has been handed to
             // the caller yet. Once a row has been emitted, re-running would deliver the same rows twice — a
             // silently wrong stream — so the close is reported instead. Same rule as MacTelnetConnection.
-            Func<string, Action<string>, CancellationToken, Task<string>> send = async (cmd, onLine, ct) =>
+            Func<string, Action<string>?, CancellationToken, Task<string>> send = async (cmd, onLine, ct) =>
             {
                 bool anyLineDelivered = false;
-                Action<string> track = onLine == null ? null : new Action<string>(line => { anyLineDelivered = true; onLine(line); });
+                Action<string>? track = onLine == null ? null : new Action<string>(line => { anyLineDelivered = true; onLine(line); });
                 try
                 {
                     return await client.SendCommandAndReadAsync(cmd, track, ct).ConfigureAwait(false);

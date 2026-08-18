@@ -32,7 +32,7 @@ namespace tik4net.Connection
     internal sealed class TikMonitorHandle
     {
         private volatile bool _cancelRequested;
-        private Thread _thread;
+        private Thread _thread = null!; // assigned by AttachThread() right after the transport starts the worker
 
         /// <summary>True once the caller has asked the worker loop to stop; the loop checks it each pass.</summary>
         internal bool CancelRequested => _cancelRequested;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -22,11 +22,11 @@ namespace tik4net.Objects.Tool.Romon
 
         /// <summary>id — RoMON identifier (MAC address format). When set to 00:00:00:00:00:00 the router's own MAC is used. Default: 00:00:00:00:00:00.</summary>
         [TikProperty("id", DefaultValue = "00:00:00:00:00:00")]
-        public string/*MAC*/ Id { get; set; }
+        public string?/*MAC*/ Id { get; set; }
 
         /// <summary>secrets — comma-separated list of shared secrets used to authenticate RoMON peers. Empty string disables authentication.</summary>
         [TikProperty("secrets", DefaultValue = "")]
-        public string Secrets { get; set; }
+        public string? Secrets { get; set; }
 
         /// <summary>Returns a human-readable summary of RoMON settings.</summary>
         public override string ToString() => string.Format("romon: enabled={0}, id={1}", Enabled, Id);

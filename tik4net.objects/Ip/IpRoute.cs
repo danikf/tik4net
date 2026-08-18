@@ -1,4 +1,4 @@
-﻿namespace tik4net.Objects.Ip
+namespace tik4net.Objects.Ip
 {
     /// <summary>
     /// Access to the data provided by
@@ -15,25 +15,25 @@
         /// .id: 
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// Gets or sets the destination address of the route.
         /// </summary>
         [TikProperty("dst-address")]
-        public string DstAddress { get; set; }
+        public string? DstAddress { get; set; }
 
         /// <summary>
         /// Gets or sets the gateway IP address of the route.
         /// </summary>
         [TikProperty("gateway")]
-        public string Gateway { get; set; }
+        public string? Gateway { get; set; }
 
         /// <summary>
         /// Gets the gateway status of this route.
         /// </summary>
         [TikProperty("gateway-status", IsReadOnly = true)]
-        public string GatewayStatus { get; private set; }
+        public string? GatewayStatus { get; private set; }
 
         /// <summary>
         /// Gets or sets the distance of this route in hops. 
@@ -75,25 +75,25 @@
         /// Gets the BGP autonomuous system path as comma-separated list.
         /// </summary>
         [TikProperty("bgp-as-path", IsReadOnly = true)]
-        public string BgpAsPath { get; private set; }
+        public string? BgpAsPath { get; private set; }
 
         /// <summary>
         /// Gets the BGP origin that provided this route.
         /// </summary>
         [TikProperty("bgp-origin", IsReadOnly = true)]
-        public string BgpOrigin { get; private set; }
+        public string? BgpOrigin { get; private set; }
 
         /// <summary>
         /// Gets the BGP communities of this route.
         /// </summary>
         [TikProperty("bgp-communities", IsReadOnly = true)]
-        public string BgpCommunities { get; private set; }
+        public string? BgpCommunities { get; private set; }
 
         /// <summary>
         /// Gets the info from which peer (peer name as defined for the routing protocol) this route has been received.
         /// </summary>
         [TikProperty("received-from", IsReadOnly = true)]
-        public string ReceivedFrom { get; private set; }
+        public string? ReceivedFrom { get; private set; }
 
         /// <summary>
         /// Gets a value indicating whether this route is a dynamic route.
@@ -115,7 +115,7 @@
         /// Gets the preferred source address of this route.
         /// </summary>
         [TikProperty("pref-src", IsReadOnly = true)]
-        public string PrefSrc { get; private set; }
+        public string? PrefSrc { get; private set; }
 
         /// <summary>
         /// Gets a value indicating whether this route is currently connected.

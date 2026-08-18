@@ -24,7 +24,7 @@ namespace tik4net.Winbox
         {
             if (payload != null && payload.Length == confirmationLength) return;
 
-            string text = AsPrintableText(payload);
+            string? text = AsPrintableText(payload);
             if (text != null) throw new TikConnectionLoginRefusedException("WinBox", text);
 
             throw new InvalidOperationException(
@@ -33,7 +33,7 @@ namespace tik4net.Winbox
         }
 
         /// <summary>The payload as text, or <c>null</c> if any byte is outside printable ASCII.</summary>
-        internal static string AsPrintableText(byte[] payload)
+        internal static string? AsPrintableText(byte[]? payload)
         {
             if (payload == null || payload.Length == 0) return null;
             foreach (byte b in payload)

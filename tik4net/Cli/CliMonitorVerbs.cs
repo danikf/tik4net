@@ -78,7 +78,7 @@ namespace tik4net.Cli
             // Self-terminating commands (ping, traceroute) run ONCE, emit their rows and complete — exactly
             // like the binary API's async ping (one execution → N rows → !done). Re-polling them would
             // multiply the row count. Which verbs those are is transport-neutral, so the list is shared.
-            if (TikMonitorVerbs.SelfTerminating(verb)) return Kind.Once;
+            if (TikMonitorVerbs.SelfTerminating(verb!)) return Kind.Once; // verb is non-null here; the compiler loses that fact across the && on the line above
             return Kind.Poll;
         }
 

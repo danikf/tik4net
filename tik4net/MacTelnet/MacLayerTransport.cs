@@ -60,11 +60,12 @@ namespace tik4net.MacTelnet
         protected const byte CTRL_END_AUTH    = 9;
 
         // ── Transport state ──────────────────────────────────────────────────────
-        protected UdpClient  _udp;
-        protected IPEndPoint _routerEp;           // subnet broadcast — used for SESSIONSTART
-        protected IPEndPoint _routerUnicastEp;    // known unicast IP:20561 — used for DATA/ACK
-        protected byte[]     _localMac;
-        protected byte[]     _routerMac;
+        // All five are assigned in BaseConnect (not the constructor) — subclasses must call it before use.
+        protected UdpClient  _udp = null!;
+        protected IPEndPoint _routerEp = null!;           // subnet broadcast — used for SESSIONSTART
+        protected IPEndPoint _routerUnicastEp = null!;    // known unicast IP:20561 — used for DATA/ACK
+        protected byte[]     _localMac = null!;
+        protected byte[]     _routerMac = null!;
         protected ushort     _sessionKey;
         protected ushort     _clientType;
         protected uint       _outCounter;         // cumulative DATA payload bytes sent
@@ -121,7 +122,8 @@ namespace tik4net.MacTelnet
         protected readonly object SendGate = new object();
 
         // ── AES / HMAC stream keys (derived after EC-SRP5, used by WinBox MAC) ──
-        protected byte[] _sendAesKey, _receiveAesKey, _sendHmacKey, _receiveHmacKey;
+        // Assigned in FinishAuth (post-construction, post-BaseConnect), not the constructor.
+        protected byte[] _sendAesKey = null!, _receiveAesKey = null!, _sendHmacKey = null!, _receiveHmacKey = null!;
 
         // ── Optional router MAC override ──────────────────────────────────────────
 
@@ -129,7 +131,7 @@ namespace tik4net.MacTelnet
         /// Optional: router MAC address as "AA:BB:CC:DD:EE:FF" to bypass MNDP discovery
         /// (MNDP takes up to 5 s). Set before calling <see cref="BaseConnect"/>.
         /// </summary>
-        protected string RouterMacOverride { get; set; }
+        protected string? RouterMacOverride { get; set; }
 
         /// <summary>
         /// Wire-trace channel id for this transport. MAC-Telnet and WinBox-MAC share this base and both
@@ -413,9 +415,9 @@ namespace tik4net.MacTelnet
         /// </summary>
         private struct LocalNic
         {
-            public byte[] Mac;
-            public IPAddress LocalIp;
-            public IPAddress Broadcast;
+            public byte[]? Mac;
+            public IPAddress? LocalIp;
+            public IPAddress? Broadcast;
         }
 
         private static LocalNic SelectLocalNic(string host)
@@ -511,7 +513,7 @@ namespace tik4net.MacTelnet
                 BuildCtrl(CTRL_BEGINAUTH, new byte[0])
                 .Concat(BuildCtrl(CTRL_PASSSALT, psd)).ToArray());
 
-            byte[] xWB = null; int parityB = 0; byte[] salt = null;
+            byte[]? xWB = null; int parityB = 0; byte[]? salt = null;
             RecvUntil(10000, (type, payload, counter) =>
             {
                 if (type == PKT_ACK) { NoteAck(counter); return false; }
@@ -534,7 +536,9 @@ namespace tik4net.MacTelnet
             });
             if (xWB == null) throw new InvalidOperationException("No server PASSSALT received (auth failed)");
 
-            FinishAuth(user, pass, privA, xWA, xWB, parityB, salt);
+            // salt is always assigned together with xWB in the CTRL_PASSSALT branch above, so it is
+            // non-null here too even though the compiler cannot see that relationship.
+            FinishAuth(user, pass, privA, xWA, xWB, parityB, salt!);
         }
 
         // Shared EC-SRP5 completion: compute shared secret, send CTRL_PASSWORD, wait for END_AUTH.
@@ -631,13 +635,13 @@ namespace tik4net.MacTelnet
 
         // ── Send / Receive ───────────────────────────────────────────────────────
 
-        protected void Send(byte type, byte[] payload)
+        protected void Send(byte type, byte[]? payload)
         {
             lock (SendGate)
                 SendCore(type, payload);
         }
 
-        private void SendCore(byte type, byte[] payload)
+        private void SendCore(byte type, byte[]? payload)
         {
             uint counter = (type == PKT_DATA) ? _outCounter : 0u;
             byte[] pkt = new byte[22 + (payload?.Length ?? 0)];
@@ -804,7 +808,9 @@ namespace tik4net.MacTelnet
                     payload, 0, payload?.Length ?? 0,
                     "type=0x" + type.ToString("x2") + " counter=" + counter + TraceTag);
 
-            return handler(type, payload, counter);
+            // payload is a non-nullable tuple element of ParsePacket's result; nullable state analysis loses
+            // that through the Nullable<ValueTuple> deconstruction above, but it is never actually null here.
+            return handler(type, payload!, counter);
         }
 
         // Parses a raw UDP datagram. Returns null if too short.
@@ -865,7 +871,7 @@ namespace tik4net.MacTelnet
 
         private static byte[] GetLocalMac(string host)
         {
-            IPAddress target = null;
+            IPAddress? target = null;
             try { target = IPAddress.Parse(host); } catch { }
 
             // Prefer NIC on same subnet as the router (avoids Hyper-V/VPN virtual adapters).
@@ -913,12 +919,13 @@ namespace tik4net.MacTelnet
             // RouterMacOverride is a MAC string "AA:BB:CC:DD:EE:FF" — parse directly (no MNDP).
             if (!string.IsNullOrEmpty(RouterMacOverride))
             {
-                try { return RouterMacOverride.Split(':').Select(s => Convert.ToByte(s, 16)).ToArray(); }
+                // netstandard2.0's string.IsNullOrEmpty isn't annotated NotNullWhen, so the compiler can't narrow.
+                try { return RouterMacOverride!.Split(':').Select(s => Convert.ToByte(s, 16)).ToArray(); }
                 catch { /* malformed — fall through to MNDP */ }
             }
 
             // MNDP discovery via the public core helper (waits up to 5 s).
-            byte[] found = MndpHelper.FindMacByHost(host);
+            byte[]? found = MndpHelper.FindMacByHost(host);
             if (found != null) return found;
 
             throw new InvalidOperationException(

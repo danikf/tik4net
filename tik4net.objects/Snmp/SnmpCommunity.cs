@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -54,14 +54,14 @@ namespace tik4net.Objects.Snmp
 
         /// <summary>.id — primary key of row</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// name — community string identifier sent by the SNMP manager.
         /// This is the "username" equivalent for SNMPv1/v2c.
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// addresses — IP/IPv6 address prefix(es) that are permitted to query
@@ -69,7 +69,7 @@ namespace tik4net.Objects.Snmp
         /// WinBox: "Addresses"
         /// </summary>
         [TikProperty("addresses", DefaultValue = "::/0")]
-        public string Addresses { get; set; }
+        public string? Addresses { get; set; }
 
         /// <summary>
         /// security — SNMPv3 security level (noAuthNoPriv / authNoPriv / authPriv).
@@ -110,7 +110,7 @@ namespace tik4net.Objects.Snmp
         /// or <see cref="SecurityLevel.Private"/>.
         /// </summary>
         [TikProperty("authentication-password", DefaultValue = "")]
-        public string AuthenticationPassword { get; set; }
+        public string? AuthenticationPassword { get; set; }
 
         /// <summary>
         /// encryption-protocol — cipher used for SNMPv3 privacy/encryption.
@@ -126,7 +126,7 @@ namespace tik4net.Objects.Snmp
         /// Only used when <see cref="Security"/> == <see cref="SecurityLevel.Private"/>.
         /// </summary>
         [TikProperty("encryption-password", DefaultValue = "")]
-        public string EncryptionPassword { get; set; }
+        public string? EncryptionPassword { get; set; }
 
         /// <summary>
         /// default — marks this community as the factory default ("public") entry.
@@ -144,9 +144,9 @@ namespace tik4net.Objects.Snmp
 
         /// <summary>comment — free-text annotation</summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

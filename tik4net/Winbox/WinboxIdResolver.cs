@@ -125,7 +125,7 @@ namespace tik4net.Winbox
         {
             int nameKey = WinboxRecordCodec.NameKeyOf(keyToName);
             foreach (var rec in records)
-                if (WinboxRecordCodec.TryReadIdAndName(rec, nameKey, out int id, out string rowName)
+                if (WinboxRecordCodec.TryReadIdAndName(rec, nameKey, out int id, out string? rowName)
                     && string.Equals(rowName, name, StringComparison.Ordinal))
                     return id;
             return -1;

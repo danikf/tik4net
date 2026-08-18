@@ -47,10 +47,10 @@ namespace tik4net.Connection
         public int ConnectTimeout { get; set; } = 15000;
 
         /// <inheritdoc/>
-        public event EventHandler<TikConnectionCommCallbackEventArgs> OnReadRow;
+        public event EventHandler<TikConnectionCommCallbackEventArgs>? OnReadRow;
 
         /// <inheritdoc/>
-        public event EventHandler<TikConnectionCommCallbackEventArgs> OnWriteRow;
+        public event EventHandler<TikConnectionCommCallbackEventArgs>? OnWriteRow;
 
         /// <summary>
         /// Optional callback for low-level transport diagnostics (raw packets, protocol events).
@@ -58,7 +58,7 @@ namespace tik4net.Connection
         /// The string format is transport-specific (e.g. "[pkt] type=1 paylen=42").
         /// Set to <c>null</c> (default) to disable.
         /// </summary>
-        public Action<string> TransportDiagnostic { get; set; }
+        public Action<string>? TransportDiagnostic { get; set; }
 
         // ── Capabilities ──────────────────────────────────────────────────────
 

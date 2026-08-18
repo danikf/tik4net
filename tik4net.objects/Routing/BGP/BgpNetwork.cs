@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace tik4net.Objects.Routing.Bgp
 {
@@ -14,13 +14,13 @@ namespace tik4net.Objects.Routing.Bgp
         /// .id: 
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// Gets or sets the BGP advirtised network in CIDR format (e.g. 44.224.10.64/29).
         /// </summary>
         [TikProperty("network")]
-        public string Network { get; set; }
+        public string? Network { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether to synchronize this network.

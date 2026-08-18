@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,7 +15,7 @@ namespace tik4net.Objects.Interface.Ethernet
         /// name
         /// </summary>
         [TikProperty("name", IsMandatory = true, IsReadOnly = true)]
-        public string Name { get; private set; }
+        public string? Name { get; private set; }
 
         /// <summary>
         /// auto-negotiation
@@ -24,7 +24,7 @@ namespace tik4net.Objects.Interface.Ethernet
         ///  incomplete - negotiation failed or not yet completed
         /// </summary>
         [TikProperty("auto-negotiation")]
-        public string/*done | incomplete*/ AutoNegotiation { get; set; }
+        public string?/*done | incomplete*/ AutoNegotiation { get; set; }
 
         /// <summary>
         /// default-cable-settings
@@ -33,7 +33,7 @@ namespace tik4net.Objects.Interface.Ethernet
         ///  standard - support standard cables
         /// </summary>
         [TikProperty("default-cable-settings")]
-        public string/*short | standard*/ DefaultCableSettings { get; set; }
+        public string?/*short | standard*/ DefaultCableSettings { get; set; }
 
         /// <summary>
         /// full-duplex: Whether transmission of data occurs in two directions simultaneously
@@ -45,7 +45,7 @@ namespace tik4net.Objects.Interface.Ethernet
         /// rate: Actual data rate of the connection.
         /// </summary>
         [TikProperty("rate")]
-        public string/*10Mbps | 100Mbps | 1Gbps*/ Rate { get; set; }
+        public string?/*10Mbps | 100Mbps | 1Gbps*/ Rate { get; set; }
 
         /// <summary>
         /// status
@@ -55,19 +55,19 @@ namespace tik4net.Objects.Interface.Ethernet
         ///  unknown - the connection is not recognized (if the card does not report connection status)
         /// </summary>
         [TikProperty("status")]
-        public string/*link-ok | no-link | unknown*/ Status { get; set; }
+        public string?/*link-ok | no-link | unknown*/ Status { get; set; }
 
         /// <summary>
         /// tx-flow-control: Whether TX flow control is used
         /// </summary>
         [TikProperty("tx-flow-control")]
-        public string TxFlowControl { get; set; }
+        public string? TxFlowControl { get; set; }
 
         /// <summary>
         /// rx-flow-control: Whether RX flow control is used
         /// </summary>
         [TikProperty("rx-flow-control")]
-        public string RxFlowControl { get; set; }
+        public string? RxFlowControl { get; set; }
 
         /// <summary>
         /// sfp-module-present: Whether SFP module is in cage
@@ -91,49 +91,49 @@ namespace tik4net.Objects.Interface.Ethernet
         /// sfp-connector-type: 
         /// </summary>
         [TikProperty("sfp-connector-type")]
-        public string SfpConnectorType { get; set; }
+        public string? SfpConnectorType { get; set; }
 
         /// <summary>
         /// sfp-link-length-copper: Detected link length when copper SFP module is used
         /// </summary>
         [TikProperty("sfp-link-length-copper")]
-        public string SfpLinkLengthCopper { get; set; }
+        public string? SfpLinkLengthCopper { get; set; }
 
         /// <summary>
         /// sfp-vendor-name: Vendor of the SFP module
         /// </summary>
         [TikProperty("sfp-vendor-name")]
-        public string SfpVendorName { get; set; }
+        public string? SfpVendorName { get; set; }
 
         /// <summary>
         /// sfp-vendor-part-number: SFP module part number
         /// </summary>
         [TikProperty("sfp-vendor-part-number")]
-        public string SfpVendorPartNumber { get; set; }
+        public string? SfpVendorPartNumber { get; set; }
 
         /// <summary>
         /// sfp-vendor-revision: SFP module revision number
         /// </summary>
         [TikProperty("sfp-vendor-revision")]
-        public string SfpVendorRevision { get; set; }
+        public string? SfpVendorRevision { get; set; }
 
         /// <summary>
         /// sfp-vendor-serial: SFP module serial number
         /// </summary>
         [TikProperty("sfp-vendor-serial")]
-        public string SfpVendorSerial { get; set; }
+        public string? SfpVendorSerial { get; set; }
 
         /// <summary>
         /// sfp-manufacturing-date: SFP module manufacturing date
         /// </summary>
         [TikProperty("sfp-manufacturing-date")]
-        public string SfpManufacturingDate { get; set; }
+        public string? SfpManufacturingDate { get; set; }
 
         /// <summary>
         /// eeprom: EEPROM of an SFP module
         /// </summary>
         [TikProperty("eeprom")]
-        public string Eeprom { get; set; }
+        public string? Eeprom { get; set; }
 
         /// <summary>
         /// Gets snapshot of actual values for given <paramref name="interfaceName"/>.

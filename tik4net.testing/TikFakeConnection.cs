@@ -104,8 +104,10 @@ namespace tik4net.Testing
                     var sentences = new List<ITikSentence>();
                     foreach (var entity in entityFactory())
                     {
+                        // entity comes from the caller's factory for TEntity : new() — always a real
+                        // instance here, but the unconstrained generic parameter reads as possibly-null.
                         var words = metadata.Properties
-                            .ToDictionary(p => p.FieldName, p => p.GetEntityValue(entity) ?? "");
+                            .ToDictionary(p => p.FieldName, p => p.GetEntityValue(entity!) ?? "");
                         sentences.Add(new TikFakeReSentence(words));
                     }
                     sentences.Add(new TikFakeDoneSentence());
@@ -159,7 +161,7 @@ namespace tik4net.Testing
         public TikFakeConnection WithTrap(
             Func<IEnumerable<string>, bool> predicate,
             string message,
-            string categoryCode = null)
+            string? categoryCode = null)
         {
             return WithResponse(predicate, _ => new ITikSentence[]
             {
@@ -266,10 +268,10 @@ namespace tik4net.Testing
         public int ConnectTimeout { get; set; } = 15000;
 
         /// <inheritdoc/>
-        public event EventHandler<TikConnectionCommCallbackEventArgs> OnReadRow { add { } remove { } }
+        public event EventHandler<TikConnectionCommCallbackEventArgs>? OnReadRow { add { } remove { } }
 
         /// <inheritdoc/>
-        public event EventHandler<TikConnectionCommCallbackEventArgs> OnWriteRow { add { } remove { } }
+        public event EventHandler<TikConnectionCommCallbackEventArgs>? OnWriteRow { add { } remove { } }
 
         /// <summary>No-op — fake connection is always "open".</summary>
         public void Open(string host, string user, string password) { }

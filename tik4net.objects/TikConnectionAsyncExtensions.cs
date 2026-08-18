@@ -116,7 +116,7 @@ namespace tik4net.Objects
         /// <param name="filterParameters">Optional list of filter parameters (interpreted as connected with AND).</param>
         /// <returns>The single loaded entity, or the type default when nothing matched.</returns>
         /// <exception cref="TikCommandAmbiguousResultException">More than one row returned.</exception>
-        public static async Task<TEntity> LoadSingleOrDefaultAsync<TEntity>(this ITikConnection connection,
+        public static async Task<TEntity?> LoadSingleOrDefaultAsync<TEntity>(this ITikConnection connection,
             CancellationToken cancellationToken = default(CancellationToken),
             params ITikCommandParameter[] filterParameters)
             where TEntity : new()
@@ -194,7 +194,7 @@ namespace tik4net.Objects
         /// <param name="saveMode">Controls which fields are sent — see <see cref="TikSaveMode"/>.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         public static async Task SaveAsync<TEntity>(this ITikConnection connection, TEntity entity,
-            IEnumerable<string> usedFieldsFilter = null,
+            IEnumerable<string>? usedFieldsFilter = null,
             TikSaveMode saveMode = TikSaveMode.Default,
             CancellationToken cancellationToken = default(CancellationToken))
             where TEntity : new()
@@ -203,7 +203,7 @@ namespace tik4net.Objects
 
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             TikConnectionExtensions.EnsureNotReadonly(metadata);
-            string id = TikConnectionExtensions.ResolveSaveId(entity, metadata);
+            string? id = TikConnectionExtensions.ResolveSaveId(entity, metadata);
 
             if (TikConnectionExtensions.IsCreate(metadata, id))
             {
@@ -220,7 +220,8 @@ namespace tik4net.Objects
                     return; // nothing changed — skip the API call
                 if (resolution.Kind == TikConnectionExtensions.UpdateFilterKind.NeedsUnmodifiedEntity)
                 {
-                    var unmodifiedEntity = await connection.LoadByIdAsync<TEntity>(id, cancellationToken).ConfigureAwait(false);
+                    // id: non-null here, same reasoning as the sync Save (see its note).
+                    var unmodifiedEntity = await connection.LoadByIdAsync<TEntity>(id!, cancellationToken).ConfigureAwait(false);
                     usedFieldsFilter = entity.GetDifferentFields(unmodifiedEntity);
                 }
                 else

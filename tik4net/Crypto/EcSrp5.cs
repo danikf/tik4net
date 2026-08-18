@@ -54,7 +54,7 @@ namespace tik4net.Crypto
                 + MONT_A * BigInteger.ModPow(xMont, 2, P) % P
                 + xMont) % P;
             BigInteger xW = (xMont + A_SHIFT) % P;
-            BigInteger[] ys = ModSqrt(ySq);
+            BigInteger[]? ys = ModSqrt(ySq);
             if (ys == null) return ECPoint.Infinity;
             BigInteger y0 = ys[0], y1 = ys[1];
             BigInteger y = (parity == 0)
@@ -130,7 +130,7 @@ namespace tik4net.Crypto
         }
 
         // Tonelli-Shanks modular square root; returns [r, P-r] or null if not QR
-        internal static BigInteger[] ModSqrt(BigInteger a)
+        internal static BigInteger[]? ModSqrt(BigInteger a)
         {
             a = ((a % P) + P) % P;
             if (a == 0) return new[] { BigInteger.Zero, BigInteger.Zero };
@@ -179,7 +179,10 @@ namespace tik4net.Crypto
 
         internal static BigInteger BEToBI(byte[] be)
         {
-            byte[] le = be.Reverse().Concat(new byte[] { 0 }).ToArray();
+            // Enumerable.Reverse spelled out, not be.Reverse(): under a modern LangVersion an array converts
+            // to Span, and MemoryExtensions.Reverse reverses IN PLACE and returns void. Here that is a
+            // compile error; on a call whose result is discarded it would silently corrupt the input.
+            byte[] le = Enumerable.Reverse(be).Concat(new byte[] { 0 }).ToArray();
             return new BigInteger(le);
         }
 
@@ -188,7 +191,7 @@ namespace tik4net.Crypto
             byte[] le = n.ToByteArray();
             if (le.Length > 32 && le[le.Length - 1] == 0)
                 le = le.Take(le.Length - 1).ToArray();
-            byte[] be = le.Reverse().ToArray();
+            byte[] be = Enumerable.Reverse(le).ToArray();   // see BEToBI: not le.Reverse()
             if (be.Length >= 32) return be.Take(32).ToArray();
             byte[] padded = new byte[32];
             Buffer.BlockCopy(be, 0, padded, 32 - be.Length, be.Length);

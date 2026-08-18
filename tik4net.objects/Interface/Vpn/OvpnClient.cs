@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -49,7 +49,7 @@ namespace tik4net.Objects.Interface.Vpn
 
         /// <summary>.id — primary key of row.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         // ---- Writable properties ----
 
@@ -57,13 +57,13 @@ namespace tik4net.Objects.Interface.Vpn
         /// name — unique interface name identifier (mandatory).
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// connect-to — remote IP or IPv6 address of the OpenVPN server to connect to.
         /// </summary>
         [TikProperty("connect-to")]
-        public string/*IP|IPv6*/ ConnectTo { get; set; }
+        public string?/*IP|IPv6*/ ConnectTo { get; set; }
 
         /// <summary>
         /// disabled — when <c>true</c> the interface will not initiate connections.
@@ -85,14 +85,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: sha1
         /// </summary>
         [TikProperty("auth", DefaultValue = "sha1")]
-        public string Auth { get; set; }
+        public string? Auth { get; set; }
 
         /// <summary>
         /// certificate — name of the client TLS certificate; <c>none</c> disables certificate-based auth.
         /// Default: none
         /// </summary>
         [TikProperty("certificate", DefaultValue = "none")]
-        public string Certificate { get; set; }
+        public string? Certificate { get; set; }
 
         /// <summary>
         /// cipher — data-channel encryption algorithm.
@@ -100,7 +100,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: blowfish128
         /// </summary>
         [TikProperty("cipher", DefaultValue = "blowfish128")]
-        public string Cipher { get; set; }
+        public string? Cipher { get; set; }
 
         /// <summary>
         /// disconnect-notify — send an explicit disconnect notification to the server on tunnel teardown.
@@ -113,7 +113,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// mac-address — MAC address assigned to the virtual interface; auto-generated if not specified.
         /// </summary>
         [TikProperty("mac-address")]
-        public string/*MAC*/ MacAddress { get; set; }
+        public string?/*MAC*/ MacAddress { get; set; }
 
         /// <summary>
         /// max-mtu — maximum transmission unit for the tunnel interface, in bytes.
@@ -135,7 +135,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// password — password used for user authentication. Maximum 1000 characters.
         /// </summary>
         [TikProperty("password")]
-        public string Password { get; set; }
+        public string? Password { get; set; }
 
         /// <summary>
         /// port — TCP/UDP port of the remote OpenVPN server.
@@ -150,7 +150,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: default
         /// </summary>
         [TikProperty("profile", DefaultValue = "default")]
-        public string Profile { get; set; }
+        public string? Profile { get; set; }
 
         /// <summary>
         /// protocol — transport protocol to use when connecting.
@@ -186,7 +186,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// user — username used for authentication.
         /// </summary>
         [TikProperty("user")]
-        public string User { get; set; }
+        public string? User { get; set; }
 
         /// <summary>
         /// verify-server-certificate — when <c>true</c> the client validates the server certificate
@@ -198,7 +198,7 @@ namespace tik4net.Objects.Interface.Vpn
 
         /// <summary>comment — optional description of the client interface entry.</summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         // ---- Read-only properties ----
 

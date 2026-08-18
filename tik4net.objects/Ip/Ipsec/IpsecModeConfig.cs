@@ -1,4 +1,4 @@
-﻿namespace tik4net.Objects.Ip.Ipsec
+namespace tik4net.Objects.Ip.Ipsec
 {
     /// <summary>
     /// /ip/ipsec/mode-config
@@ -24,13 +24,13 @@
 
         /// <summary>.id — primary key of row</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// name — identifier for this mode-config entry; referenced from /ip/ipsec/peer.
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// responder — when true this entry acts as a responder (server) and assigns addresses/DNS
@@ -48,7 +48,7 @@
         /// initiators. Applicable when responder=yes.
         /// </summary>
         [TikProperty("address-pool")]
-        public string AddressPool { get; set; }
+        public string? AddressPool { get; set; }
 
         /// <summary>
         /// address-prefix-length — prefix length (subnet mask) of the address assigned from the
@@ -65,14 +65,14 @@
         /// Applicable when responder=yes.
         /// </summary>
         [TikProperty("split-include")]
-        public string SplitInclude { get; set; }
+        public string? SplitInclude { get; set; }
 
         /// <summary>
         /// split-dns — list of DNS domain suffixes that the initiator should resolve using the
         /// VPN-assigned DNS servers rather than its local resolver. Applicable when responder=yes.
         /// </summary>
         [TikProperty("split-dns")]
-        public string SplitDns { get; set; }
+        public string? SplitDns { get; set; }
 
         /// <summary>
         /// system-dns — when true, the router sends its own /ip/dns server addresses to the
@@ -88,7 +88,7 @@
         /// Applicable when responder=yes.
         /// </summary>
         [TikProperty("static-dns")]
-        public string/*IP list*/ StaticDns { get; set; }
+        public string?/*IP list*/ StaticDns { get; set; }
 
         // --- Initiator-side (client) fields ---
 
@@ -98,7 +98,7 @@
         /// exchange. Applicable when responder=no.
         /// </summary>
         [TikProperty("address")]
-        public string/*IP*/ Address { get; set; }
+        public string?/*IP*/ Address { get; set; }
 
         /// <summary>
         /// src-address-list — name of an address list (/ip/firewall/address-list) for which
@@ -106,7 +106,7 @@
         /// routed over the VPN tunnel. Applicable when responder=no.
         /// </summary>
         [TikProperty("src-address-list")]
-        public string SrcAddressList { get; set; }
+        public string? SrcAddressList { get; set; }
 
         /// <summary>
         /// use-responder-dns — controls whether DNS servers received from the responder during
@@ -128,7 +128,7 @@
         /// the specified mark are processed by this mode-config entry.
         /// </summary>
         [TikProperty("connection-mark")]
-        public string ConnectionMark { get; set; }
+        public string? ConnectionMark { get; set; }
 
         // NOTE: /ip/ipsec/mode-config has no "comment" field on RouterOS (confirmed via
         // add-completion and print), so no Comment property is exposed here.
@@ -142,6 +142,6 @@
         public bool Default { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

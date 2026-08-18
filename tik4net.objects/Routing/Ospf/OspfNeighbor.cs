@@ -35,37 +35,37 @@ namespace tik4net.Objects.Routing.Ospf
 
         /// <summary>.id — primary key of row</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// instance — name of the OSPF instance this neighbor belongs to.
         /// </summary>
         [TikProperty("instance", IsReadOnly = true)]
-        public string Instance { get; private set; }
+        public string? Instance { get; private set; }
 
         /// <summary>
         /// area — OSPF area this neighbor was discovered in.
         /// </summary>
         [TikProperty("area", IsReadOnly = true)]
-        public string Area { get; private set; }
+        public string? Area { get; private set; }
 
         /// <summary>
         /// interface — local router interface through which this neighbor is reachable.
         /// </summary>
         [TikProperty("interface", IsReadOnly = true)]
-        public string Interface { get; private set; }
+        public string? Interface { get; private set; }
 
         /// <summary>
         /// address — IP address of the neighbor's interface (next-hop address).
         /// </summary>
         [TikProperty("address", IsReadOnly = true)]
-        public string/*IP*/ Address { get; private set; }
+        public string?/*IP*/ Address { get; private set; }
 
         /// <summary>
         /// router-id — OSPF router identifier of the neighbor (dotted-decimal IPv4 notation).
         /// </summary>
         [TikProperty("router-id", IsReadOnly = true)]
-        public string/*IP*/ RouterId { get; private set; }
+        public string?/*IP*/ RouterId { get; private set; }
 
         /// <summary>
         /// state — current OSPF FSM state of the neighbor relationship.
@@ -91,13 +91,13 @@ namespace tik4net.Objects.Routing.Ospf
         /// dr — IP address of the Designated Router on the shared segment, as reported by this neighbor.
         /// </summary>
         [TikProperty("dr", IsReadOnly = true)]
-        public string/*IP*/ Dr { get; private set; }
+        public string?/*IP*/ Dr { get; private set; }
 
         /// <summary>
         /// bdr — IP address of the Backup Designated Router on the shared segment.
         /// </summary>
         [TikProperty("bdr", IsReadOnly = true)]
-        public string/*IP*/ Bdr { get; private set; }
+        public string?/*IP*/ Bdr { get; private set; }
 
         /// <summary>
         /// ls-retransmits — number of LSAs in the retransmission queue waiting for acknowledgment.
@@ -121,13 +121,13 @@ namespace tik4net.Objects.Routing.Ospf
         /// adjacency — uptime of the full adjacency (available only when state=Full).
         /// </summary>
         [TikProperty("adjacency", IsReadOnly = true)]
-        public string/*time*/ Adjacency { get; private set; }
+        public string?/*time*/ Adjacency { get; private set; }
 
         /// <summary>
         /// timeout — time remaining until this neighbor is declared dead (dead-interval countdown).
         /// </summary>
         [TikProperty("timeout", IsReadOnly = true)]
-        public string/*time*/ Timeout { get; private set; }
+        public string?/*time*/ Timeout { get; private set; }
 
         /// <summary>
         /// dynamic — true when this neighbor entry was created dynamically by the OSPF process
@@ -146,7 +146,7 @@ namespace tik4net.Objects.Routing.Ospf
         /// comment — optional annotation (set via /routing/ospf/neighbor set comment=...).
         /// </summary>
         [TikProperty("comment", IsReadOnly = true)]
-        public string Comment { get; private set; }
+        public string? Comment { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string ToString() => string.Format("{0} ({1}) [{2}]", RouterId, Address, State);

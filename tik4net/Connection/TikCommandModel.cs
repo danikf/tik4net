@@ -70,9 +70,9 @@ namespace tik4net.Connection
     /// </summary>
     internal class TikDoneSentenceResult : ITikDoneSentence
     {
-        private readonly string _ret;
+        private readonly string? _ret;
 
-        internal TikDoneSentenceResult(string ret = null)
+        internal TikDoneSentenceResult(string? ret = null)
         {
             _ret = ret;
         }
@@ -116,11 +116,11 @@ namespace tik4net.Connection
         /// <inheritdoc/>
         public string CategoryDescription { get; }
 
-        internal TikTrapSentenceResult(string message, string categoryCode = null, string categoryDescription = null)
+        internal TikTrapSentenceResult(string message, string? categoryCode = null, string? categoryDescription = null)
         {
             Message = message;
-            CategoryCode = categoryCode;
-            CategoryDescription = categoryDescription;
+            CategoryCode = categoryCode!; // ITikTrapSentence.CategoryCode is declared non-nullable (out of scope); most traps genuinely have none
+            CategoryDescription = categoryDescription!; // same as above, for CategoryDescription
         }
 
         /// <summary>

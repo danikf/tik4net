@@ -42,7 +42,9 @@ namespace tik4net.Objects
             //copy all "field" properties
             foreach(var property in metadata.Properties)
             {
-                property.SetEntityValue(result, property.GetEntityValue(entity));
+                // entity: TEntity is unconstrained (only `new()`), so its nullability is oblivious to the
+                // compiler; the loop never receives a null instance in practice.
+                property.SetEntityValue(result, property.GetEntityValue(entity!));
             }
 
             return result;                      
@@ -79,8 +81,10 @@ namespace tik4net.Objects
             {
                 if (!skipIdCompare || property.FieldName != TikSpecialProperties.Id)
                 {
-                    string prop1 = property.GetEntityValue(entity1);
-                    string prop2 = property.GetEntityValue(entity2);
+                    // entity1/entity2: TEntity is unconstrained, so the compiler treats it as possibly null;
+                    // the caller passes an actual instance.
+                    string? prop1 = property.GetEntityValue(entity1!);
+                    string? prop2 = property.GetEntityValue(entity2!);
 
                     if (!string.Equals(prop1, prop2))
                         yield return property.FieldName;
@@ -100,8 +104,9 @@ namespace tik4net.Objects
             if (!metadata.HasIdProperty)
                 throw new InvalidOperationException(string.Format("Can not compare ids of entity which doesn't contains property for '{0}' field.", TikSpecialProperties.Id));
 
-            string id1 = metadata.IdProperty.GetEntityValue(entity1);
-            string id2 = metadata.IdProperty.GetEntityValue(entity2);
+            // IdProperty is non-null here: HasIdProperty was just checked above.
+            string? id1 = metadata.IdProperty!.GetEntityValue(entity1!);
+            string? id2 = metadata.IdProperty!.GetEntityValue(entity2!);
 
             return string.Equals(id1, id2);
         }
@@ -120,7 +125,7 @@ namespace tik4net.Objects
 
             foreach (var property in metadata.Properties)
             {
-                sb.AppendLine(string.Format("  {0}={1}", property.FieldName, property.GetEntityValue(entity)));
+                sb.AppendLine(string.Format("  {0}={1}", property.FieldName, property.GetEntityValue(entity!)));
             }
 
             return sb.ToString();

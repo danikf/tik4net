@@ -17,6 +17,6 @@ namespace tik4net
         /// broadcast, which costs up to 5 seconds on every open. Must be set before the connection is
         /// opened.
         /// </summary>
-        string RouterMac { get; set; }
+        string? RouterMac { get; set; }
     }
 }

@@ -34,7 +34,7 @@ namespace tik4net.MacTelnet
         public const int DefaultPort = 20561;
 
         /// <inheritdoc/>
-        public string RouterMac { get; set; }
+        public string? RouterMac { get; set; }
 
         /// <inheritdoc/>
         protected override string TransportName => "MAC-Telnet";
@@ -60,8 +60,8 @@ namespace tik4net.MacTelnet
             // BuildTransport is inside the retry, not outside it: a refused login ends with the router
             // tearing the session down, so a retry needs a new client and a new session key — see
             // Winbox.RouterLoginRetry for why a login refusal is retried at all.
-            Func<byte[], int, CancellationToken, Task<string>> sendRawSettle = null;
-            Func<string, Action<string>, CancellationToken, Task<string>> sendStreaming = null;
+            Func<byte[], int, CancellationToken, Task<string>>? sendRawSettle = null;
+            Func<string, Action<string>, CancellationToken, Task<string>>? sendStreaming = null;
             Winbox.RouterLoginRetry.Run(() =>
             {
                 var (login, send, sendRaw, settle, streaming, close) = BuildTransport(host, port, user, password);
@@ -69,8 +69,9 @@ namespace tik4net.MacTelnet
                 sendRawSettle = settle;
                 sendStreaming = streaming;
             });
-            RegisterCompletionDriver(sendRawSettle);
-            RegisterStreamingDriver(sendStreaming);
+            // Run() either assigns both delegates above or throws, so they are always set here.
+            RegisterCompletionDriver(sendRawSettle!);
+            RegisterStreamingDriver(sendStreaming!);
         }
 
         /// <inheritdoc/>
@@ -80,8 +81,8 @@ namespace tik4net.MacTelnet
         /// <inheritdoc/>
         public override async Task OpenAsync(string host, int port, string user, string password)
         {
-            Func<byte[], int, CancellationToken, Task<string>> sendRawSettle = null;
-            Func<string, Action<string>, CancellationToken, Task<string>> sendStreaming = null;
+            Func<byte[], int, CancellationToken, Task<string>>? sendRawSettle = null;
+            Func<string, Action<string>, CancellationToken, Task<string>>? sendStreaming = null;
             await Winbox.RouterLoginRetry.RunAsync(async () =>
             {
                 var (login, send, sendRaw, settle, streaming, close) = BuildTransport(host, port, user, password);
@@ -89,8 +90,9 @@ namespace tik4net.MacTelnet
                 sendRawSettle = settle;
                 sendStreaming = streaming;
             }).ConfigureAwait(false);
-            RegisterCompletionDriver(sendRawSettle);
-            RegisterStreamingDriver(sendStreaming);
+            // RunAsync() either assigns both delegates above or throws, so they are always set here.
+            RegisterCompletionDriver(sendRawSettle!);
+            RegisterStreamingDriver(sendStreaming!);
         }
 
         // Build the MAC-Telnet client and the delegates that drive it. The port parameter is ignored —

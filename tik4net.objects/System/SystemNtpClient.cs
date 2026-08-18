@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -32,13 +32,13 @@ namespace tik4net.Objects.System
         /// ROS 7 unified field (replaces ROS 6 primary-ntp / secondary-ntp).
         /// </summary>
         [TikProperty("servers")]
-        public string Servers { get; set; }
+        public string? Servers { get; set; }
 
         /// <summary>
         /// vrf — Virtual Routing and Forwarding instance used for NTP traffic. Default: main.
         /// </summary>
         [TikProperty("vrf", DefaultValue = "main")]
-        public string Vrf { get; set; }
+        public string? Vrf { get; set; }
 
         // --- Read-only status fields ---
 
@@ -46,31 +46,31 @@ namespace tik4net.Objects.System
         /// freq-drift — fractional frequency drift per unit time (ppm), read-only.
         /// </summary>
         [TikProperty("freq-drift", IsReadOnly = true)]
-        public string FreqDrift { get; private set; }
+        public string? FreqDrift { get; private set; }
 
         /// <summary>
         /// status — current NTP client synchronization state, read-only.
         /// </summary>
         [TikProperty("status", IsReadOnly = true)]
-        public string Status { get; private set; }
+        public string? Status { get; private set; }
 
         /// <summary>
         /// synced-server — IP address of the NTP server the client is currently synchronized to, read-only.
         /// </summary>
         [TikProperty("synced-server", IsReadOnly = true)]
-        public string SyncedServer { get; private set; }
+        public string? SyncedServer { get; private set; }
 
         /// <summary>
         /// synced-stratum — stratum level of the currently synced NTP server (1 = primary reference), read-only.
         /// </summary>
         [TikProperty("synced-stratum", IsReadOnly = true)]
-        public string SyncedStratum { get; private set; }
+        public string? SyncedStratum { get; private set; }
 
         /// <summary>
         /// system-offset — offset of the NTP server clock relative to the local clock (milliseconds), read-only.
         /// </summary>
         [TikProperty("system-offset", IsReadOnly = true)]
-        public string SystemOffset { get; private set; }
+        public string? SystemOffset { get; private set; }
 
         /// <summary>
         /// Human-readable summary of the NTP client state.

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -23,28 +23,28 @@ namespace tik4net.Objects.Ip
         /// specifies maximum time-to-live for cache records. In other words, cache records will expire unconditionally after cache-max-ttl time. Shorter TTL received from DNS servers are respected
         /// </summary>
         [TikProperty("cache-max-ttl", DefaultValue = "1w")]
-        public string/*time*/ CacheMaxTtl { get; set; }
+        public string?/*time*/ CacheMaxTtl { get; set; }
 
         /// <summary>
         /// cache-size
         /// specifies the size of DNS cache in KiB
         /// </summary>
         [TikProperty("cache-size", DefaultValue = "2M")]
-        public string/*integer: 512..10240*/ CacheSize { get; set; }
+        public string?/*integer: 512..10240*/ CacheSize { get; set; }
 
         /// <summary>
         /// cache-used
         /// displays the current cache size in KiB
         /// </summary>
         [TikProperty("cache-used", IsReadOnly = true)]
-        public string/*read-only: integer*/ CacheUsed { get; private set; }
+        public string?/*read-only: integer*/ CacheUsed { get; private set; }
 
         /// <summary>
         /// servers
         /// comma seperated list of DNS server IP addresses
         /// </summary>
         [TikProperty("servers", DefaultValue = "0.0.0.0")]
-        public string/*IPv4/IPv6 address list*/ Servers { get; set; }
+        public string?/*IPv4/IPv6 address list*/ Servers { get; set; }
     }
 
 }

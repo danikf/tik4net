@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -21,13 +21,13 @@ namespace tik4net.Objects.System
         /// version
         /// </summary>
         [TikProperty("version", IsReadOnly = true)]
-        public string Version { get; private set; }
+        public string? Version { get; private set; }
 
         /// <summary>
         /// build-time
         /// </summary>
         [TikProperty("build-time", IsReadOnly = true)]
-        public string BuildTime { get; private set; }
+        public string? BuildTime { get; private set; }
 
         /// <summary>
         /// free-memory
@@ -45,7 +45,7 @@ namespace tik4net.Objects.System
         /// cpu
         /// </summary>
         [TikProperty("cpu", IsReadOnly = true)]
-        public string Cpu { get; private set; }
+        public string? Cpu { get; private set; }
 
         /// <summary>
         /// cpu-count
@@ -93,19 +93,19 @@ namespace tik4net.Objects.System
         /// architecture-name
         /// </summary>
         [TikProperty("architecture-name", IsReadOnly = true)]
-        public string ArchitectureName { get; private set; }
+        public string? ArchitectureName { get; private set; }
 
         /// <summary>
         /// board-name
         /// </summary>
         [TikProperty("board-name", IsReadOnly = true)]
-        public string BoardName { get; private set; }
+        public string? BoardName { get; private set; }
 
         /// <summary>
         /// platform
         /// </summary>
         [TikProperty("platform", IsReadOnly = true)]
-        public string Platform { get; private set; }
+        public string? Platform { get; private set; }
     }
 
 }

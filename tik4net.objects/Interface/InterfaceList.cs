@@ -17,25 +17,25 @@ namespace tik4net.Objects.Interface
         /// .id — primary key of the row.
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// name — name of the interface list.
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// include — comma-separated list of other interface lists whose members are included in this list.
         /// </summary>
         [TikProperty("include")]
-        public string Include { get; set; }
+        public string? Include { get; set; }
 
         /// <summary>
         /// exclude — comma-separated list of other interface lists whose members are excluded from this list.
         /// </summary>
         [TikProperty("exclude")]
-        public string Exclude { get; set; }
+        public string? Exclude { get; set; }
 
         /// <summary>
         /// builtin — whether this is a built-in list (all/none/dynamic/static) that cannot be removed (read-only).
@@ -53,10 +53,10 @@ namespace tik4net.Objects.Interface
         /// comment.
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <inheritdoc/>
-        public override string ToString()
+        public override string? ToString()
         {
             return Name;
         }

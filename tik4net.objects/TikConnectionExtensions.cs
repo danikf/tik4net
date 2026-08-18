@@ -102,7 +102,7 @@ namespace tik4net.Objects
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
         /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
         /// <exception cref="TikCommandAmbiguousResultException">More than one row returned.</exception>
-        public static TEntity LoadSingleOrDefault<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filterParameters)
+        public static TEntity? LoadSingleOrDefault<TEntity>(this ITikConnection connection, params ITikCommandParameter[] filterParameters)
             where TEntity : new()
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
@@ -227,7 +227,7 @@ namespace tik4net.Objects
         /// <returns><see cref="ITikCommand"/> which is already running the async load operation. You can cancel the running operation by <see cref="ITikCommand.Cancel"/> method call.</returns>
         /// <seealso cref="TikCommandExtensions.LoadAsync{TEntity}(ITikCommand, Action{TEntity}, Action{Exception}, Action)"/>
         public static ITikCommand LoadAsync<TEntity>(this ITikConnection connection,
-            Action<TEntity> onLoadItemCallback, Action<Exception> onExceptionCallback = null,
+            Action<TEntity> onLoadItemCallback, Action<Exception>? onExceptionCallback = null,
             params ITikCommandParameter[] parameters)
             where TEntity : new()
         {
@@ -266,8 +266,8 @@ namespace tik4net.Objects
         /// <seealso cref="TikCommandExtensions.LoadListenAsync{TEntity}(ITikCommand, Action{TEntity}, Action{string}, Action{Exception})"/>
         public static ITikCommand LoadListenAsync<TEntity>(this ITikConnection connection,
             Action<TEntity> onChangeCallback,
-            Action<string> onDeletedCallback = null,
-            Action<Exception> onExceptionCallback = null,
+            Action<string>? onDeletedCallback = null,
+            Action<Exception>? onExceptionCallback = null,
             params ITikCommandParameter[] parameters)
             where TEntity : new()
         {
@@ -316,7 +316,7 @@ namespace tik4net.Objects
         }
 
         /// <summary>Allows an empty result, and snapshots the row when there is one.</summary>
-        internal static TEntity AtMostOne<TEntity>(ITikConnection connection, ITikCommand command,
+        internal static TEntity? AtMostOne<TEntity>(ITikConnection connection, ITikCommand command,
             IList<TEntity> entities, TikEntityMetadata metadata)
         {
             var cnt = entities.Count;
@@ -354,7 +354,7 @@ namespace tik4net.Objects
         /// Returns the set of field names that were sent as <c>.proplist</c> in the command,
         /// or <c>null</c> when the load was a full load (no proplist, or proplist covers all fields).
         /// </summary>
-        private static IEnumerable<string> GetProplistFields(ITikCommand command, TikEntityMetadata metadata)
+        private static IEnumerable<string>? GetProplistFields(ITikCommand command, TikEntityMetadata metadata)
         {
             var proplistParam = command.Parameters
                 .FirstOrDefault(p => p.Name == TikSpecialProperties.Proplist);
@@ -451,13 +451,13 @@ namespace tik4net.Objects
         /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
         /// <exception cref="TikNoSuchItemException">Invalid item (bad id/name etc.). Mikrotik API message: 'no such item'.</exception>
         public static void Save<TEntity>(this ITikConnection connection, TEntity entity,
-            IEnumerable<string> usedFieldsFilter = null,
+            IEnumerable<string>? usedFieldsFilter = null,
             TikSaveMode saveMode = TikSaveMode.Default)
             where TEntity:new()
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             EnsureNotReadonlyEntity(metadata);
-            string id = ResolveSaveId(entity, metadata);
+            string? id = ResolveSaveId(entity, metadata);
 
             if (IsCreate(metadata, id))
             {
@@ -471,8 +471,10 @@ namespace tik4net.Objects
                 var resolution = ResolveUpdateFilter(connection, entity, metadata, saveMode);
                 if (resolution.Kind == UpdateFilterKind.NothingChanged)
                     return; // nothing changed — skip the API call
+                // id: non-null here. This branch is unreachable for a singleton (NeedsFilterResolution is
+                // false for those), and IsCreate above already ruled out the non-singleton "empty id" case.
                 usedFieldsFilter = resolution.Kind == UpdateFilterKind.NeedsUnmodifiedEntity
-                    ? entity.GetDifferentFields(connection.LoadById<TEntity>(id))
+                    ? entity.GetDifferentFields(connection.LoadById<TEntity>(id!))
                     : resolution.Filter;
             }
 
@@ -511,7 +513,7 @@ namespace tik4net.Objects
         {
             var cleared = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            var snapshot = TikChangeTracker.For(connection).GetSnapshot(entity);
+            var snapshot = TikChangeTracker.For(connection).GetSnapshot(entity!);
             if (snapshot == null)
                 return cleared;
 
@@ -519,33 +521,35 @@ namespace tik4net.Objects
             {
                 if (property.IsReadOnly || !property.IsNullable)
                     continue;
-                if (property.GetEntityValue(entity) != null)
+                if (property.GetEntityValue(entity!) != null)
                     continue;
                 if (!snapshot.IsTracked(property.FieldName))
                     continue;   // never loaded, so nothing is known to have been cleared
-                if (snapshot.TryGetValue(property.FieldName, out string previous) && previous != null)
+                if (snapshot.TryGetValue(property.FieldName, out string? previous) && previous != null)
                     cleared.Add(property.FieldName);
             }
 
             return cleared;
         }
 
-        internal static string ResolveSaveId<TEntity>(TEntity entity, TikEntityMetadata metadata)
+        internal static string? ResolveSaveId<TEntity>(TEntity entity, TikEntityMetadata metadata)
         {
             if (metadata.IsSingleton)
                 return null;
             EnsureHasIdProperty(metadata);
-            return metadata.IdProperty.GetEntityValue(entity);
+            // IdProperty is non-null here: EnsureHasIdProperty just verified it. The .id value itself can
+            // legitimately be null/empty for a never-loaded entity — that null is IsCreate's create signal.
+            return metadata.IdProperty!.GetEntityValue(entity!);
         }
 
-        internal static bool IsCreate(TikEntityMetadata metadata, string id)
+        internal static bool IsCreate(TikEntityMetadata metadata, string? id)
             => !metadata.IsSingleton && string.IsNullOrEmpty(id);
 
-        internal static bool NeedsFilterResolution(TikEntityMetadata metadata, IEnumerable<string> usedFieldsFilter)
+        internal static bool NeedsFilterResolution(TikEntityMetadata metadata, IEnumerable<string>? usedFieldsFilter)
             => !metadata.IsSingleton && usedFieldsFilter == null;
 
         internal static ITikCommand BuildCreateCommand<TEntity>(ITikConnection connection, TEntity entity,
-            TikEntityMetadata metadata, IEnumerable<string> usedFieldsFilter)
+            TikEntityMetadata metadata, IEnumerable<string>? usedFieldsFilter)
         {
             ITikCommand createCmd = connection.CreateCommand(metadata.EntityPath + "/add", TikCommandParameterFormat.NameValue);
 
@@ -556,9 +560,9 @@ namespace tik4net.Objects
                 // Send non-default values; always send mandatory fields, since the router
                 // requires them on /add even when their value happens to equal the default
                 // (e.g. an enum whose mandatory selection is also its zero/default member).
-                if (!property.HasDefaultValue(entity) || property.IsMandatory)
+                if (!property.HasDefaultValue(entity!) || property.IsMandatory)
                 {
-                    string value = property.GetEntityValue(entity);
+                    string? value = property.GetEntityValue(entity!);
                     // A mandatory field the caller left null is the one case where the two conditions
                     // disagree: there is nothing to send, and sending the word without a value would be
                     // worse than letting the router say what it requires.
@@ -571,10 +575,10 @@ namespace tik4net.Objects
         }
 
         internal static void FinishCreate<TEntity>(ITikConnection connection, TEntity entity,
-            TikEntityMetadata metadata, string id)
+            TikEntityMetadata metadata, string? id)
         {
             if (metadata.HasIdProperty)
-                metadata.IdProperty.SetEntityValue(entity, id); // update saved id into entity
+                metadata.IdProperty!.SetEntityValue(entity!, id); // update saved id into entity
             TikChangeTracker.For(connection).TakeSnapshot(entity, metadata);
         }
 
@@ -593,7 +597,7 @@ namespace tik4net.Objects
         /// outcome that needs I/O is returned as <see cref="UpdateFilterKind.NeedsUnmodifiedEntity"/> rather
         /// than performed here, so the caller does that load synchronously or asynchronously as it pleases.
         /// </summary>
-        internal static (UpdateFilterKind Kind, IEnumerable<string> Filter) ResolveUpdateFilter<TEntity>(
+        internal static (UpdateFilterKind Kind, IEnumerable<string>? Filter) ResolveUpdateFilter<TEntity>(
             ITikConnection connection, TEntity entity, TikEntityMetadata metadata, TikSaveMode saveMode)
         {
             var effectiveSaveMode = saveMode == TikSaveMode.Default ? TikDefaults.SaveMode : saveMode;
@@ -601,7 +605,7 @@ namespace tik4net.Objects
                 return (UpdateFilterKind.NeedsUnmodifiedEntity, null); // FullUpdate: round-trip load to compute diff (3.x behavior)
 
             var tracker = TikChangeTracker.For(connection);
-            var snapshot = tracker.GetSnapshot(entity);
+            var snapshot = tracker.GetSnapshot(entity!);
             if (snapshot == null)
             {
                 // no snapshot → entity was not loaded via Load* → send all writable fields
@@ -618,9 +622,9 @@ namespace tik4net.Objects
         /// Builds the update traffic: the <c>/unset</c> commands (which must run first) and the single
         /// <c>/set</c>, or <c>null</c> when the update turned out to carry no fields.
         /// </summary>
-        internal static (ITikCommand SetCommand, IList<ITikCommand> UnsetCommands) BuildUpdateCommands<TEntity>(
+        internal static (ITikCommand? SetCommand, IList<ITikCommand> UnsetCommands) BuildUpdateCommands<TEntity>(
             ITikConnection connection, TEntity entity, TikEntityMetadata metadata,
-            IEnumerable<string> usedFieldsFilter, string id)
+            IEnumerable<string>? usedFieldsFilter, string? id)
         {
             ITikCommand setCmd = connection.CreateCommand(metadata.EntityPath + "/set", TikCommandParameterFormat.NameValue);
             List<string> fieldsToUnset = new List<string>();
@@ -630,13 +634,13 @@ namespace tik4net.Objects
                 .Where(pm => !pm.IsReadOnly)
                 .Where(pm => usedFieldsFilter == null || usedFieldsFilter.Contains(pm.FieldName, StringComparer.OrdinalIgnoreCase)))
             {
-                if (property.HasDefaultValue(entity) && property.UnsetOnDefault)
+                if (property.HasDefaultValue(entity!) && property.UnsetOnDefault)
                     fieldsToUnset.Add(property.FieldName);
                 else if (clearedFields.Contains(property.FieldName))
                     fieldsToUnset.Add(property.FieldName);   // loaded with a value, set to null → unset
                 else
                 {
-                    string value = property.GetEntityValue(entity);
+                    string? value = property.GetEntityValue(entity!);
                     // Null that is NOT a clearing: the caller never said anything about this field (only a
                     // nullable property can say that). Sending it would put the word on the wire with no
                     // value, and unsetting it would destroy what the router holds on the strength of silence.
@@ -653,7 +657,9 @@ namespace tik4net.Objects
             foreach (string fld in fieldsToUnset)
             {
                 ITikCommand unsetCmd = connection.CreateCommand(metadata.EntityPath + "/unset", TikCommandParameterFormat.NameValue);
-                unsetCmd.AddParameter(TikSpecialProperties.Id, id, TikCommandParameterFormat.NameValue);
+                // id: null only for a singleton, and BuildUpdateCommands is only reached past Save's IsCreate
+                // check, which already requires a non-empty id for every non-singleton entity.
+                unsetCmd.AddParameter(TikSpecialProperties.Id, id!, TikCommandParameterFormat.NameValue);
                 unsetCmd.AddParameter(TikSpecialProperties.UnsetValueName, fld);
                 unsetCommands.Add(unsetCmd);
             }
@@ -662,7 +668,7 @@ namespace tik4net.Objects
                 return (null, unsetCommands);
 
             if (!metadata.IsSingleton)
-                setCmd.AddParameter(TikSpecialProperties.Id, id, TikCommandParameterFormat.NameValue);
+                setCmd.AddParameter(TikSpecialProperties.Id, id!, TikCommandParameterFormat.NameValue); // non-null: see the note above
             return (setCmd, unsetCommands);
         }
 
@@ -712,7 +718,7 @@ namespace tik4net.Objects
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             EnsureNotReadonlyEntity(metadata);
             EnsureHasIdProperty(metadata);
-            var idProperty = metadata.IdProperty;
+            var idProperty = metadata.IdProperty!; // non-null: EnsureHasIdProperty just verified it
 
             // Materialized once: the ordering pass below walks the modified list a second time, and it has to
             // be the same instances in the same order — Save assigns the new .id to the entity it was given,
@@ -722,20 +728,23 @@ namespace tik4net.Objects
             modifiedList = modifiedItems;
             unmodifiedList = unmodifiedItems;
 
-            var entitiesToCreate = modifiedList.Where(entity => string.IsNullOrEmpty(idProperty.GetEntityValue(entity))).ToList(); // new items in modifiedList
+            // entity: TEntity is only constrained to new(), so the compiler treats it as possibly null;
+            // every entity here is an actual instance from modifiedList/unmodifiedList. The .id read itself
+            // (GetEntityValue's result) is non-null by construction of the Where/dictionary-key filters below.
+            var entitiesToCreate = modifiedList.Where(entity => string.IsNullOrEmpty(idProperty.GetEntityValue(entity!))).ToList(); // new items in modifiedList
 
             Dictionary<string, TEntity> modifiedEntities = modifiedList
-                .Where(entity => !string.IsNullOrEmpty(idProperty.GetEntityValue(entity)))
-                .ToDictionary(entity => idProperty.GetEntityValue(entity)); //all entities from modified list with ids
+                .Where(entity => !string.IsNullOrEmpty(idProperty.GetEntityValue(entity!)))
+                .ToDictionary(entity => idProperty.GetEntityValue(entity!)!); //all entities from modified list with ids
             Dictionary<string, TEntity> unmodifiedEntities = unmodifiedList
                 //.Where(entity => !string.IsNullOrEmpty(idProperty.GetEntityValue(entity))) - entity in unmodified list has id (is loaded from miktrotik)
-                .ToDictionary(entity => idProperty.GetEntityValue(entity)); //all entities from unmodified list with ids
+                .ToDictionary(entity => idProperty.GetEntityValue(entity!)!); //all entities from unmodified list with ids
 
             // The router's order as it stands, kept current through the delete/create below so the ordering
             // pass can tell what still has to move. Only tracked for an ordered menu — on an unordered one
             // there is no order to keep and /move is not a legal command.
             var currentOrder = metadata.IsOrdered
-                ? new TikOrderTracker(unmodifiedItems.Select(entity => idProperty.GetEntityValue(entity)))
+                ? new TikOrderTracker(unmodifiedItems.Select(entity => idProperty.GetEntityValue(entity!)!))
                 : null;
 
             //DELETE
@@ -751,7 +760,7 @@ namespace tik4net.Objects
             {
                 Save(connection, entity);
                 if (currentOrder != null)
-                    currentOrder.Append(idProperty.GetEntityValue(entity)); //Save wrote the new .id back onto the entity; the router appended it
+                    currentOrder.Append(idProperty.GetEntityValue(entity!)!); //Save wrote the new .id back onto the entity; the router appended it
             }
 
             //UPDATE
@@ -772,16 +781,16 @@ namespace tik4net.Objects
                 // Last to first, each row moved in front of the one already placed — the same walk
                 // TikListMerge does, over the same TikOrderTracker. Taken in this direction the anchor is
                 // always a row whose final position is settled, so one pass is enough.
-                TEntity anchor = default(TEntity);
+                TEntity? anchor = default(TEntity);
                 bool hasAnchor = false;   //not "anchor != null": TEntity is only constrained to new(), so a struct would read as non-null
                 for (int i = modifiedItems.Count - 1; i >= 0; i--)
                 {
                     TEntity entity = modifiedItems[i];
-                    string movedKey = idProperty.GetEntityValue(entity);
+                    string movedKey = idProperty.GetEntityValue(entity!)!;
 
                     if (hasAnchor)
                     {
-                        string anchorKey = idProperty.GetEntityValue(anchor);
+                        string anchorKey = idProperty.GetEntityValue(anchor!)!; // hasAnchor guards anchor being a real, loaded entity
                         int movedIdx, anchorIdx;
                         if (currentOrder.NeedsMove(movedKey, anchorKey, out movedIdx, out anchorIdx))
                         {
@@ -821,12 +830,16 @@ namespace tik4net.Objects
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             EnsureNotReadonlyEntity(metadata);
             EnsureHasIdProperty(metadata);
-            string id = metadata.IdProperty.GetEntityValue(entity);
+            // IdProperty is non-null: EnsureHasIdProperty just verified it. The .id value itself can
+            // legitimately be null/empty for a never-loaded entity — that is exactly what is checked next.
+            string? id = metadata.IdProperty!.GetEntityValue(entity!);
             if (string.IsNullOrEmpty(id))
                 throw new ArgumentException("Entity has no .id (entity is not loaded from mikrotik router)", "entity");
 
+            // `!`: string.IsNullOrEmpty isn't NotNullWhen-annotated on netstandard2.0, so the compiler can't
+            // narrow through the throw above even though it guarantees id is non-empty here.
             return connection.CreateCommandAndParameters(metadata.EntityPath + "/remove", TikCommandParameterFormat.NameValue,
-                TikSpecialProperties.Id, id);
+                TikSpecialProperties.Id, id!);
         }
 
         /// <summary>
@@ -872,14 +885,17 @@ namespace tik4net.Objects
             EnsureSupportsOrdering(metadata);
             EnsureHasIdProperty(metadata);
 
-            string idToMove = metadata.IdProperty.GetEntityValue(entityToMove);
-            string idToMoveBefore = entityToMoveBefore != null ? metadata.IdProperty.GetEntityValue(entityToMoveBefore) : null;
+            // IdProperty is non-null: EnsureHasIdProperty just verified it. idToMove/idToMoveBefore are not
+            // guarded against an unloaded entity here (unlike BuildDeleteCommand) — see the caller contract;
+            // `!` types the existing behaviour rather than adding a new check.
+            string idToMove = metadata.IdProperty!.GetEntityValue(entityToMove!)!;
+            string? idToMoveBefore = entityToMoveBefore != null ? metadata.IdProperty!.GetEntityValue(entityToMoveBefore) : null;
 
             ITikCommand cmd = connection.CreateCommandAndParameters(metadata.EntityPath + "/move", TikCommandParameterFormat.NameValue,
                 "numbers", idToMove);
 
             if (entityToMoveBefore != null)
-                cmd.AddParameter("destination", idToMoveBefore);
+                cmd.AddParameter("destination", idToMoveBefore!);
 
             cmd.ExecuteNonQuery();
         }

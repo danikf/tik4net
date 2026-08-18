@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace tik4net.Objects.Routing.Bgp
 {
@@ -15,25 +15,25 @@ namespace tik4net.Objects.Routing.Bgp
         /// .id: 
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// Gets or sets the name of the peer.
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// Gets or sets the BGP instance that this peer belongs to.
         /// </summary>
         [TikProperty("instance")]
-        public string Instance { get; set; }
+        public string? Instance { get; set; }
 
         /// <summary>
         /// Gets or sets the remote IP address of the peer.
         /// </summary>
         [TikProperty("remote-address")]
-        public string RemoteAddress { get; set; }
+        public string? RemoteAddress { get; set; }
 
         /// <summary>
         /// Gets or sets the the remote peer's autonomuous system number.
@@ -45,7 +45,7 @@ namespace tik4net.Objects.Routing.Bgp
         /// Gets or sets the next-hop choice (default, force-self, propagate).
         /// </summary>
         [TikProperty("nexthop-choice")]
-        public string NexthopChoice { get; set; }
+        public string? NexthopChoice { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether this is a multi-hop peer.
@@ -63,25 +63,25 @@ namespace tik4net.Objects.Routing.Bgp
         /// Gets or sets the hold-time of this peer.
         /// </summary>
         [TikProperty("hold-time")]
-        public string HoldTime { get; set; }
+        public string? HoldTime { get; set; }
 
         /// <summary>
         /// Gets or sets the time-to-live setting of this peer.
         /// </summary>
         [TikProperty("ttl")]
-        public string Ttl { get; set; }
+        public string? Ttl { get; set; }
 
         /// <summary>
         /// Gets or sets a comma-separated list of address families (ip, ipv6, l2vpn, vpn4, l2vpn-cisco) that are routed to/by this peer.
         /// </summary>
         [TikProperty("address-families")]
-        public string AddressFamilies { get; set; }
+        public string? AddressFamilies { get; set; }
 
         /// <summary>
         /// Gets or sets the value whether default originate (never, if-installed, always).
         /// </summary>
         [TikProperty("default-originate")]
-        public string DefaultOriginate { get; set; }
+        public string? DefaultOriginate { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether to remove autonomuous system having private AS numbers.
@@ -111,19 +111,19 @@ namespace tik4net.Objects.Routing.Bgp
         /// Gets or sets the peer's remote ID (usually some IP address).
         /// </summary>
         [TikProperty("remote-id")]
-        public string RemoteId { get; set; }
+        public string? RemoteId { get; set; }
 
         /// <summary>
         /// Gets or sets the local IP address that is used to communicate to this peer.
         /// </summary>
         [TikProperty("local-address", IsReadOnly = true)]
-        public string LocalAddress { get; private set; }
+        public string? LocalAddress { get; private set; }
 
         /// <summary>
         /// Gets the uptime of the link to this peer.
         /// </summary>
         [TikProperty("uptime", IsReadOnly = true)]
-        public string Uptime { get; private set; }
+        public string? Uptime { get; private set; }
 
         /// <summary>
         /// Gets the number of prefixes advertised by this peer.
@@ -159,19 +159,19 @@ namespace tik4net.Objects.Routing.Bgp
         /// remote-hold-time: 
         /// </summary>
         [TikProperty("remote-hold-time", IsReadOnly = true)]
-        public string RemoteHoldTime { get; private set; }
+        public string? RemoteHoldTime { get; private set; }
 
         /// <summary>
         /// Gets the actually used hold-time of the link to this peer.
         /// </summary>
         [TikProperty("used-hold-time", IsReadOnly = true)]
-        public string UsedHoldTime { get; private set; }
+        public string? UsedHoldTime { get; private set; }
 
         /// <summary>
         /// Gets the actually used keepalive-time of the link to this peer.
         /// </summary>
         [TikProperty("used-keepalive-time", IsReadOnly = true)]
-        public string UsedKeepaliveTime { get; private set; }
+        public string? UsedKeepaliveTime { get; private set; }
 
         /// <summary>
         /// Gets a value indicating whether this peer has the refresh capability.
@@ -189,7 +189,7 @@ namespace tik4net.Objects.Routing.Bgp
         /// Gets the state of the link to this peer.
         /// </summary>
         [TikProperty("state", IsReadOnly = true)]
-        public string State { get; private set; }
+        public string? State { get; private set; }
 
         /// <summary>
         /// Gets a value indicating whether the link to this peer is currently established.

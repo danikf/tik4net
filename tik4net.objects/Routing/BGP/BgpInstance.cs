@@ -1,4 +1,4 @@
-﻿namespace tik4net.Objects.Routing.Bgp
+namespace tik4net.Objects.Routing.Bgp
 {
     /// <summary>
     /// The BGP instance as provided by
@@ -11,13 +11,13 @@
         /// .id: 
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// Gets or sets the name of this BGP instance.
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// Gets or sets the autonomuous system that this instance belongs to.
@@ -29,7 +29,7 @@
         /// Gets or sets the ID of the router.
         /// </summary>
         [TikProperty("router-id")]
-        public string RouterId { get; set; }
+        public string? RouterId { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether to redistribute connected routes.

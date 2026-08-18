@@ -1,4 +1,4 @@
-﻿namespace tik4net.Objects.Ip.Ipsec
+namespace tik4net.Objects.Ip.Ipsec
 {
     /// <summary>
     /// /ip/ipsec/policy
@@ -51,7 +51,7 @@
 
         /// <summary>.id — primary key of row</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         // ── Writable properties ──────────────────────────────────────────────────
 
@@ -61,7 +61,7 @@
         /// Default: 0.0.0.0/32
         /// </summary>
         [TikProperty("src-address", DefaultValue = "0.0.0.0/32")]
-        public string/*IP Prefix*/ SrcAddress { get; set; }
+        public string?/*IP Prefix*/ SrcAddress { get; set; }
 
         /// <summary>
         /// src-port — source port (0–65535) or "any" to match all ports.
@@ -69,7 +69,7 @@
         /// Default: any
         /// </summary>
         [TikProperty("src-port", DefaultValue = "any")]
-        public string SrcPort { get; set; }
+        public string? SrcPort { get; set; }
 
         /// <summary>
         /// dst-address — destination IP/IPv6 prefix matched against the packet destination address.
@@ -77,7 +77,7 @@
         /// Default: 0.0.0.0/32
         /// </summary>
         [TikProperty("dst-address", DefaultValue = "0.0.0.0/32")]
-        public string/*IP Prefix*/ DstAddress { get; set; }
+        public string?/*IP Prefix*/ DstAddress { get; set; }
 
         /// <summary>
         /// dst-port — destination port (0–65535) or "any" to match all ports.
@@ -85,7 +85,7 @@
         /// Default: any
         /// </summary>
         [TikProperty("dst-port", DefaultValue = "any")]
-        public string DstPort { get; set; }
+        public string? DstPort { get; set; }
 
         /// <summary>
         /// protocol — IP protocol number or well-known name to match.
@@ -93,7 +93,7 @@
         /// Default: all
         /// </summary>
         [TikProperty("protocol", DefaultValue = "all")]
-        public string Protocol { get; set; }
+        public string? Protocol { get; set; }
 
         /// <summary>
         /// action — what to do with the packet matched by this policy.
@@ -132,14 +132,14 @@
         /// Leave empty for template policies matched by group.
         /// </summary>
         [TikProperty("peer")]
-        public string Peer { get; set; }
+        public string? Peer { get; set; }
 
         /// <summary>
         /// proposal — name of the /ip/ipsec/proposal template used when negotiating SAs.
         /// Default: default
         /// </summary>
         [TikProperty("proposal", DefaultValue = "default")]
-        public string Proposal { get; set; }
+        public string? Proposal { get; set; }
 
         /// <summary>
         /// template — when true, this entry is a template policy assigned to a policy group;
@@ -155,21 +155,21 @@
         /// Default: default
         /// </summary>
         [TikProperty("group", DefaultValue = "default")]
-        public string Group { get; set; }
+        public string? Group { get; set; }
 
         /// <summary>
         /// sa-src-address — local IP address used as the IPsec SA source (tunnel local endpoint).
         /// Leave empty to use the address selected by routing. Writable at add/set time.
         /// </summary>
         [TikProperty("sa-src-address")]
-        public string/*IP*/ SaSrcAddress { get; set; }
+        public string?/*IP*/ SaSrcAddress { get; set; }
 
         /// <summary>
         /// sa-dst-address — remote IP address used as the IPsec SA destination (tunnel remote endpoint).
         /// Writable at add/set time; specifies the peer tunnel address for manual SAs.
         /// </summary>
         [TikProperty("sa-dst-address")]
-        public string/*IP*/ SaDstAddress { get; set; }
+        public string?/*IP*/ SaDstAddress { get; set; }
 
         /// <summary>
         /// disabled — when true, this policy entry is ignored during packet matching.
@@ -182,7 +182,7 @@
         /// comment — short description of the policy entry.
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         // ── Read-only properties ─────────────────────────────────────────────────
 
@@ -215,13 +215,13 @@
         /// ph2-state — indicates progress of Phase 2 (IPsec SA) key establishment for this policy.
         /// </summary>
         [TikProperty("ph2-state", IsReadOnly = true)]
-        public string Ph2State { get; private set; }
+        public string? Ph2State { get; private set; }
 
         /// <summary>
         /// ph2-count — number of active Phase 2 SA sessions associated with this policy.
         /// </summary>
         [TikProperty("ph2-count", IsReadOnly = true)]
-        public string Ph2Count { get; private set; }
+        public string? Ph2Count { get; private set; }
 
         // ── Human-readable identity ──────────────────────────────────────────────
 

@@ -4,6 +4,8 @@
     <AssemblyName>tik4net.objects</AssemblyName>
     <RootNamespace>tik4net.Objects</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
 
     <!--
       Packed as part of the `tik4net` NuGet package produced by tik4net.package.

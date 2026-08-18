@@ -88,7 +88,7 @@ namespace tik4net.Winbox
         // searched rather than the outermost type tested.
         private static bool IsTransientRefusal(Exception ex) => Refusal(ex) != null;
 
-        private static TikConnectionLoginRefusedException Refusal(Exception ex)
+        private static TikConnectionLoginRefusedException? Refusal(Exception ex)
         {
             for (Exception e = ex; e != null; e = e.InnerException)
             {

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -112,7 +112,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: mschap1,mschap2
         /// </summary>
         [TikProperty("authentication", DefaultValue = "mschap1,mschap2")]
-        public string Authentication { get; set; }
+        public string? Authentication { get; set; }
 
         /// <summary>
         /// caller-id-type — how connected clients are identified when multiple share the same source IP.
@@ -127,7 +127,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: default-encryption
         /// </summary>
         [TikProperty("default-profile", DefaultValue = "default-encryption")]
-        public string DefaultProfile { get; set; }
+        public string? DefaultProfile { get; set; }
 
         /// <summary>
         /// enabled — when <c>true</c> the L2TP server accepts incoming connections.
@@ -141,7 +141,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Leave empty to disable PSK-based IPSec.
         /// </summary>
         [TikProperty("ipsec-secret")]
-        public string IpsecSecret { get; set; }
+        public string? IpsecSecret { get; set; }
 
         /// <summary>
         /// keepalive-timeout — inactivity timeout in seconds before a client is considered disconnected.
@@ -155,7 +155,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// l2tpv3-circuit-id — virtual circuit identifier sent in L2TPv3 control channel AVPs.
         /// </summary>
         [TikProperty("l2tpv3-circuit-id")]
-        public string L2tpv3CircuitId { get; set; }
+        public string? L2tpv3CircuitId { get; set; }
 
         /// <summary>
         /// l2tpv3-cookie-length — session cookie size for L2TPv3 pseudowires.
@@ -177,7 +177,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// l2tpv3-ether-interface-list — interface list whose members are bridged via L2TPv3 Ethernet pseudowires.
         /// </summary>
         [TikProperty("l2tpv3-ether-interface-list")]
-        public string L2tpv3EtherInterfaceList { get; set; }
+        public string? L2tpv3EtherInterfaceList { get; set; }
 
         /// <summary>
         /// max-mru — maximum receive unit for L2TP tunnel interfaces in bytes.
@@ -201,7 +201,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: unlimited
         /// </summary>
         [TikProperty("max-sessions", DefaultValue = "unlimited")]
-        public string/*integer or "unlimited"*/ MaxSessions { get; set; }
+        public string?/*integer or "unlimited"*/ MaxSessions { get; set; }
 
         /// <summary>
         /// mrru — maximum reconstructed receive unit across multi-link PPP tunnel links, in bytes.
@@ -209,7 +209,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: disabled
         /// </summary>
         [TikProperty("mrru", DefaultValue = "disabled")]
-        public string/*integer or "disabled"*/ Mrru { get; set; }
+        public string?/*integer or "disabled"*/ Mrru { get; set; }
 
         /// <summary>
         /// one-session-per-host — when <c>true</c>, each remote host is limited to a single active L2TP session.

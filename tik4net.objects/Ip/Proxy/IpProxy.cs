@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -26,7 +26,7 @@ namespace tik4net.Objects.Ip.Proxy
 
         /// <summary>src-address — source address used for outbound proxy connections. Default: 0.0.0.0 (any).</summary>
         [TikProperty("src-address", DefaultValue = "0.0.0.0")]
-        public string/*IP*/ SrcAddress { get; set; }
+        public string?/*IP*/ SrcAddress { get; set; }
 
         /// <summary>anonymous — when yes, does not pass client IP via X-Forwarded-For header.</summary>
         [TikProperty("anonymous", DefaultValue = "no")]
@@ -34,7 +34,7 @@ namespace tik4net.Objects.Ip.Proxy
 
         /// <summary>parent-proxy — IP address of the upstream (parent) proxy server. Default: 0.0.0.0 (none).</summary>
         [TikProperty("parent-proxy", DefaultValue = "0.0.0.0")]
-        public string/*IP*/ ParentProxy { get; set; }
+        public string?/*IP*/ ParentProxy { get; set; }
 
         /// <summary>parent-proxy-port — port number of the upstream proxy. Default: 0 (none).</summary>
         [TikProperty("parent-proxy-port", DefaultValue = "0")]
@@ -42,11 +42,11 @@ namespace tik4net.Objects.Ip.Proxy
 
         /// <summary>cache-administrator — e-mail address of the proxy administrator, shown on error pages. Default: webmaster.</summary>
         [TikProperty("cache-administrator", DefaultValue = "webmaster")]
-        public string CacheAdministrator { get; set; }
+        public string? CacheAdministrator { get; set; }
 
         /// <summary>max-cache-size — total cache size limit in KiB; accepts "none", "unlimited", or a number. Default: unlimited.</summary>
         [TikProperty("max-cache-size", DefaultValue = "unlimited")]
-        public string MaxCacheSize { get; set; }
+        public string? MaxCacheSize { get; set; }
 
         /// <summary>max-cache-object-size — maximum size of a single cached object in KiB. Default: 2048.</summary>
         [TikProperty("max-cache-object-size", DefaultValue = "2048")]
@@ -58,7 +58,7 @@ namespace tik4net.Objects.Ip.Proxy
 
         /// <summary>cache-path — directory path where disk cache is stored. Default: web-proxy.</summary>
         [TikProperty("cache-path", DefaultValue = "web-proxy")]
-        public string CachePath { get; set; }
+        public string? CachePath { get; set; }
 
         /// <summary>max-client-connections — maximum number of concurrent client connections. Default: 600.</summary>
         [TikProperty("max-client-connections", DefaultValue = "600")]
@@ -70,7 +70,7 @@ namespace tik4net.Objects.Ip.Proxy
 
         /// <summary>max-fresh-time — maximum time a cached object is considered fresh. Default: 3d.</summary>
         [TikProperty("max-fresh-time", DefaultValue = "3d")]
-        public string/*time*/ MaxFreshTime { get; set; }
+        public string?/*time*/ MaxFreshTime { get; set; }
 
         /// <summary>serialize-connections — enforces sequential client processing over persistent connections.</summary>
         [TikProperty("serialize-connections", DefaultValue = "no")]

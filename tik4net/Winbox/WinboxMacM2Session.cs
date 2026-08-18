@@ -103,7 +103,7 @@ namespace tik4net.Winbox
         // Set by DataAvailable when its drain completes a frame, handed straight out by the next RecvFrame.
         // Without it the poll would have to either discard the frame it just assembled or leave it in a
         // state the blocking path cannot tell from a partial one.
-        private byte[] _pendingFrame;
+        private byte[]? _pendingFrame;
 
         // MAC/UDP: a stale-frame drain loop would thrash on control noise instead of discarding one stale
         // DATA frame. Disable it here — the request-id correlation guard in WinboxNativeM2Operations still
@@ -148,7 +148,7 @@ namespace tik4net.Winbox
             SendHandshakeFrame(payload);
 
             // Challenge frame: [len=49][0x06][32B xWB][1B parityB][16B salt] — same as WinBox TCP.
-            byte[] challenge = RecvHandshakeFrame(timeoutMs);
+            byte[]? challenge = RecvHandshakeFrame(timeoutMs);
             if (challenge == null || challenge.Length != 49)
                 throw new InvalidOperationException(
                     $"MAC-WinBox: bad challenge ({(challenge == null ? "none" : challenge.Length + "B")})");
@@ -175,7 +175,7 @@ namespace tik4net.Winbox
             // Establish what actually arrived before reading anything into it. Folding "no frame" into
             // the digest comparison made a lost or late UDP reply indistinguishable from a rejected
             // password — and over the MAC layer a lost reply is by far the likelier of the two (P2.41).
-            byte[] serverCc = RecvHandshakeFrame(timeoutMs);
+            byte[]? serverCc = RecvHandshakeFrame(timeoutMs);
             if (serverCc == null)
                 throw new InvalidOperationException(
                     $"MAC-WinBox: no server confirmation within {timeoutMs} ms. The handshake did not " +
@@ -196,12 +196,12 @@ namespace tik4net.Winbox
             => Send(PKT_DATA, ChunkWrap(payload, 0x06));
 
         // Reads one chunked handshake frame ([len][0x06]…) reassembled from MAC DATA packets.
-        private byte[] RecvHandshakeFrame(int timeoutMs) => RecvFrame(timeoutMs);
+        private byte[]? RecvHandshakeFrame(int timeoutMs) => RecvFrame(timeoutMs);
 
         // Receives the next DATA packet payload (acking, ponging; skipping control packets), or null on timeout.
-        private byte[] RecvDataPayload(int timeoutMs)
+        private byte[]? RecvDataPayload(int timeoutMs)
         {
-            byte[] result = null;
+            byte[]? result = null;
             try
             {
                 RecvUntil(timeoutMs, (type, payload, counter) =>
@@ -268,19 +268,21 @@ namespace tik4net.Winbox
 
             while (!_closed)
             {
-                byte[] frame;
+                byte[]? frame;
                 try
                 {
                     frame = RecvFrame(ReaderPollSliceMs);
                 }
-                catch (ObjectDisposedException) { return null; }   // socket closed under us — normal shutdown
-                catch (System.Net.Sockets.SocketException) { return null; }
+                // The interface documents null as "channel closed"; its return type predates nullable
+                // annotations, so the contract is expressed here rather than in the signature.
+                catch (ObjectDisposedException) { return null!; }   // socket closed under us — normal shutdown
+                catch (System.Net.Sockets.SocketException) { return null!; }
 
                 // A slice that expires is not an error and must not surface as one: partial chunks stay in
                 // the receive buffer and the next slice resumes reassembly where this one stopped.
                 if (frame == null) continue;
 
-                try { return WinboxStreamCrypto.Decrypt(frame, _receiveAesKey); }
+                try { return WinboxStreamCrypto.Decrypt(frame, _receiveAesKey)!; } // undecryptable handled below, not by a null result
                 catch (Exception ex)
                 {
                     // Not a clean M2 frame — drop it and keep reading, as Receive does. Traced because a
@@ -292,7 +294,7 @@ namespace tik4net.Winbox
                             $"undecryptable {frame.Length}B frame dropped: {ex.GetType().Name}: {ex.Message}");
                 }
             }
-            return null;
+            return null!;
         }
 
         // ── Idle servicing ────────────────────────────────────────────────────
@@ -302,7 +304,7 @@ namespace tik4net.Winbox
         // costing one non-blocking syscall per tick.
         private const int IdlePumpIntervalMs = 200;
 
-        private Thread _idlePump;
+        private Thread? _idlePump;
         private volatile bool _idlePumpStop;
 
         /// <inheritdoc/>
@@ -384,17 +386,19 @@ namespace tik4net.Winbox
 
         public byte[] Receive(int timeoutMs)
         {
-            byte[] frame = RecvFrame(timeoutMs);
-            if (frame == null) return null;
-            try { return WinboxStreamCrypto.Decrypt(frame, _receiveAesKey); }
-            catch { return null; }   // not a clean M2 frame
+            // The interface documents null as "timeout / non-data frame"; its return type predates
+            // nullable annotations, so the contract is expressed here rather than in the signature.
+            byte[]? frame = RecvFrame(timeoutMs);
+            if (frame == null) return null!;
+            try { return WinboxStreamCrypto.Decrypt(frame, _receiveAesKey)!; }
+            catch { return null!; }   // not a clean M2 frame
         }
 
         // ── Chunk framing (same wire format as WinboxTcpTransport, carried in DATA payloads) ──
 
         // Reassembles one complete chunked frame ([chunkLen][tag][data], chunkLen=0xFF = continuation),
         // reading further DATA packets as needed. Returns the concatenated chunk data, or null on timeout.
-        private byte[] RecvFrame(int timeoutMs)
+        private byte[]? RecvFrame(int timeoutMs)
         {
             // Held for the whole read, not per packet: a frame is reassembled across several DATA packets,
             // and letting the idle pump take a packet out of the middle of one would lose the boundary. The
@@ -409,13 +413,13 @@ namespace tik4net.Winbox
                     return ready;
                 }
 
-                byte[] frame = TryExtractFrame();
+                byte[]? frame = TryExtractFrame();
                 var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
                 while (frame == null)
                 {
                     int remaining = (int)(deadline - DateTime.UtcNow).TotalMilliseconds;
                     if (remaining <= 0) return null;
-                    byte[] data = RecvDataPayload(remaining);
+                    byte[]? data = RecvDataPayload(remaining);
                     if (data == null) return null;
                     _rxBuf.AddRange(data);
                     frame = TryExtractFrame();
@@ -426,7 +430,7 @@ namespace tik4net.Winbox
 
         // Tries to pull one complete frame out of _rxBuf. Returns null (and leaves the buffer intact) if
         // the buffer does not yet hold a full frame.
-        private byte[] TryExtractFrame()
+        private byte[]? TryExtractFrame()
         {
             int pos = 0;
             var frame = new List<byte>();

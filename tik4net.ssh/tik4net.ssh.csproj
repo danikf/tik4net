@@ -4,6 +4,8 @@
     <AssemblyName>tik4net.ssh</AssemblyName>
     <RootNamespace>tik4net.Ssh</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
 
     <PackageId>tik4net.ssh</PackageId>
     <VersionPrefix>4.0.0</VersionPrefix>

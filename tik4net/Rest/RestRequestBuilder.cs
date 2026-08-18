@@ -64,9 +64,9 @@ namespace tik4net.Rest
         {
             public HttpMethod Method { get; }
             public string RelativePath { get; }   // e.g. /rest/ip/address
-            public string JsonBody { get; }       // null for GET/DELETE
+            public string? JsonBody { get; }      // null for GET/DELETE
 
-            internal RestRequest(HttpMethod method, string relativePath, string jsonBody = null)
+            internal RestRequest(HttpMethod method, string relativePath, string? jsonBody = null)
             {
                 Method = method;
                 RelativePath = relativePath;
@@ -188,7 +188,8 @@ namespace tik4net.Rest
                     return new RestRequest(HttpMethod.Get, restBase);
 
                 // GET /rest/path?.proplist=a,b,c
-                string query = "?.proplist=" + Uri.EscapeDataString(proplist.Value);
+                // Non-null: hasProplist (checked above) is proplist != null.
+                string query = "?.proplist=" + Uri.EscapeDataString(proplist!.Value);
                 return new RestRequest(HttpMethod.Get, restBase + query);
             }
 
@@ -226,7 +227,7 @@ namespace tik4net.Rest
 
         private static RestRequest BuildSet(string restBase, IList<ITikCommandParameter> parameters)
         {
-            string id = GetIdFromParams(parameters);
+            string? id = GetIdFromParams(parameters);
 
             var body = BuildNameValueBody(parameters, exclude: TikSpecialProperties.Id);
 
@@ -249,7 +250,7 @@ namespace tik4net.Rest
 
         private static RestRequest BuildRemove(string restBase, IList<ITikCommandParameter> parameters)
         {
-            string id = GetIdFromParams(parameters);
+            string? id = GetIdFromParams(parameters);
             if (string.IsNullOrEmpty(id))
                 throw new InvalidOperationException("REST remove requires .id parameter.");
 
@@ -258,11 +259,11 @@ namespace tik4net.Rest
 
         private static RestRequest BuildUnset(string restBase, IList<ITikCommandParameter> parameters)
         {
-            string id = GetIdFromParams(parameters);
+            string? id = GetIdFromParams(parameters);
             if (string.IsNullOrEmpty(id))
                 throw new InvalidOperationException("REST unset requires .id parameter.");
 
-            string fieldName = parameters
+            string? fieldName = parameters
                 .FirstOrDefault(p => string.Equals(p.Name, TikSpecialProperties.UnsetValueName, StringComparison.OrdinalIgnoreCase))
                 ?.Value;
 
@@ -289,7 +290,7 @@ namespace tik4net.Rest
         private static RestRequest BuildGenericPost(string url, IList<ITikCommandParameter> parameters)
         {
             var body = BuildNameValueBody(parameters, exclude: null, includeFilters: true);
-            string json = body.Count > 0 ? SerialiseBody(body) : null;
+            string? json = body.Count > 0 ? SerialiseBody(body) : null;
             return new RestRequest(HttpMethod.Post, url, json);
         }
 
@@ -331,7 +332,7 @@ namespace tik4net.Rest
             return name;
         }
 
-        private static string GetIdFromParams(IList<ITikCommandParameter> parameters)
+        private static string? GetIdFromParams(IList<ITikCommandParameter> parameters)
         {
             return parameters
                 .FirstOrDefault(p => string.Equals(NormaliseParamName(p.Name), TikSpecialProperties.Id, StringComparison.OrdinalIgnoreCase))
@@ -342,7 +343,7 @@ namespace tik4net.Rest
         /// Builds the JSON body dict from NameValue parameters, excluding special ones.
         /// </summary>
         private static Dictionary<string, string> BuildNameValueBody(IList<ITikCommandParameter> parameters,
-            string exclude, bool includeFilters = false)
+            string? exclude, bool includeFilters = false)
         {
             var body = new Dictionary<string, string>();
             foreach (var p in parameters)

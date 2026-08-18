@@ -32,7 +32,10 @@ namespace tik4net.Winbox
         private const int ConfirmationLength = 32;
 
         private readonly WinboxTcpTransport _transport = new WinboxTcpTransport();
-        private byte[] _sendAesKey, _sendHmacKey, _receiveAesKey, _receiveHmacKey;
+        // Set together by DeriveStreamKeys in EcSrp5Auth. Only read on the encrypted path (IsEncrypted /
+        // _encrypted true), which is set true in the same method right after these are derived; the legacy
+        // MD5 path never sets _encrypted and never reads these.
+        private byte[] _sendAesKey = null!, _sendHmacKey = null!, _receiveAesKey = null!, _receiveHmacKey = null!;
         private bool _encrypted;
         private int _reqId;
         private bool _readerLoopTimeoutSet;
@@ -171,14 +174,16 @@ namespace tik4net.Winbox
 
             try
             {
+                // The interface documents null as "channel closed"; its return type predates nullable
+                // annotations, so the contract is expressed here rather than in the signature.
                 if (_encrypted)
-                    return WinboxStreamCrypto.Decrypt(_transport.RecvChunked(EncryptedTag), _receiveAesKey);
+                    return WinboxStreamCrypto.Decrypt(_transport.RecvChunked(EncryptedTag), _receiveAesKey)!;
 
                 byte[] assembled = _transport.RecvChunked(RawTag);
                 return assembled.Length >= 2 ? assembled.Skip(2).ToArray() : assembled;
             }
-            catch (IOException)          { return null; }   // socket closed under us — normal shutdown
-            catch (ObjectDisposedException) { return null; }
+            catch (IOException)          { return null!; }   // socket closed under us — normal shutdown
+            catch (ObjectDisposedException) { return null!; }
         }
 
         // ── Encrypted / raw frame primitives ──────────────────────────────────
@@ -196,7 +201,9 @@ namespace tik4net.Winbox
             try
             {
                 byte[] assembled = _transport.RecvChunked(EncryptedTag);
-                return WinboxStreamCrypto.Decrypt(assembled, _receiveAesKey);
+                // Decrypt is nullable (undecryptable frame); this method's own signature predates nullable
+                // annotations, and its documented contract already includes "may answer with garbage/null".
+                return WinboxStreamCrypto.Decrypt(assembled, _receiveAesKey)!;
             }
             finally { _transport.SetReceiveTimeout(old); }
         }
@@ -343,7 +350,7 @@ namespace tik4net.Winbox
                 M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.LegacyAuth.GetSalt),
                 M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(), M2Message.SessionIdField(sessionId));
             byte[] saltResp = SendRecvRaw(saltMsg, 5000);
-            byte[] salt = M2Message.ParseRawUser(saltResp, WinboxM2Protocol.LegacyAuth.Key.Salt);
+            byte[]? salt = M2Message.ParseRawUser(saltResp, WinboxM2Protocol.LegacyAuth.Key.Salt);
             if (salt == null)
                 throw new InvalidOperationException("No salt in challenge response");
 

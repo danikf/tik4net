@@ -14,8 +14,9 @@ namespace tik4net.Winbox
     /// </summary>
     internal sealed class WinboxTcpTransport : IDisposable
     {
-        private TcpClient     _tcp;
-        private NetworkStream _ns;
+        // Assigned in Connect(), not the constructor - the type is only usable after Connect() succeeds.
+        private TcpClient     _tcp = null!;
+        private NetworkStream _ns = null!;
 
         public NetworkStream Stream => _ns;
         public TcpClient     Client  => _tcp;

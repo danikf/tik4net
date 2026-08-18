@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,23 +17,23 @@ namespace tik4net.Objects.Interface
     {
         /// <summary>.id — primary key</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>name — Name of the VRRP interface.</summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>mtu — Layer3 MTU size (read-only, derived from parent interface).</summary>
         [TikProperty("mtu", IsReadOnly = true)]
-        public string Mtu { get; private set; }
+        public string? Mtu { get; private set; }
 
         /// <summary>mac-address — Virtual MAC address auto-generated from vrid (read-only).</summary>
         [TikProperty("mac-address", IsReadOnly = true)]
-        public string MacAddress { get; private set; }
+        public string? MacAddress { get; private set; }
 
         /// <summary>interface — Physical interface on which VRRP runs. Required.</summary>
         [TikProperty("interface", IsMandatory = true)]
-        public string Interface { get; set; }
+        public string? Interface { get; set; }
 
         /// <summary>vrid — Virtual Router Identifier (1–255). Default: 1. DefaultValue="0" prevents sending 0 on add.</summary>
         [TikProperty("vrid", DefaultValue = "0")]
@@ -45,7 +45,7 @@ namespace tik4net.Objects.Interface
 
         /// <summary>interval — How often the VRRP master sends advertisement packets. Default: 1s.</summary>
         [TikProperty("interval", DefaultValue = "1s")]
-        public string/*time*/ Interval { get; set; }
+        public string?/*time*/ Interval { get; set; }
 
         /// <summary>preemption-mode — Whether a higher-priority backup immediately takes over master role.</summary>
         [TikProperty("preemption-mode", DefaultValue = "yes")]
@@ -68,7 +68,7 @@ namespace tik4net.Objects.Interface
 
         /// <summary>password — Password used for VRRP packet authentication.</summary>
         [TikProperty("password", DefaultValue = "")]
-        public string Password { get; set; }
+        public string? Password { get; set; }
 
         public enum ArpMode
         {
@@ -89,7 +89,7 @@ namespace tik4net.Objects.Interface
 
         /// <summary>arp-timeout — How long ARP entries are kept. Default: auto.</summary>
         [TikProperty("arp-timeout", DefaultValue = "auto")]
-        public string/*time*/ ArpTimeout { get; set; }
+        public string?/*time*/ ArpTimeout { get; set; }
 
         /// <summary>version — VRRP protocol version (2 or 3). Default: 3. DefaultValue="0" prevents sending 0 on add.</summary>
         [TikProperty("version", DefaultValue = "0")]
@@ -110,19 +110,19 @@ namespace tik4net.Objects.Interface
 
         /// <summary>on-backup — Script executed when transitioning to backup state.</summary>
         [TikProperty("on-backup", DefaultValue = "")]
-        public string OnBackup { get; set; }
+        public string? OnBackup { get; set; }
 
         /// <summary>on-master — Script executed when becoming master.</summary>
         [TikProperty("on-master", DefaultValue = "")]
-        public string OnMaster { get; set; }
+        public string? OnMaster { get; set; }
 
         /// <summary>on-fail — Script executed during failure.</summary>
         [TikProperty("on-fail", DefaultValue = "")]
-        public string OnFail { get; set; }
+        public string? OnFail { get; set; }
 
         /// <summary>group-authority — VRRP interface that acts as group authority, controlling this instance's state.</summary>
         [TikProperty("group-authority", DefaultValue = "")]
-        public string GroupAuthority { get; set; }
+        public string? GroupAuthority { get; set; }
 
         /// <summary>sync-connection-tracking — Synchronizes connection tracking entries from master to backup.</summary>
         [TikProperty("sync-connection-tracking", DefaultValue = "no")]
@@ -147,7 +147,7 @@ namespace tik4net.Objects.Interface
 
         /// <summary>remote-address — Peer router IP address for connection tracking synchronization.</summary>
         [TikProperty("remote-address", DefaultValue = "")]
-        public string/*IP*/ RemoteAddress { get; set; }
+        public string?/*IP*/ RemoteAddress { get; set; }
 
         /// <summary>invalid — Whether the VRRP configuration is invalid (read-only).</summary>
         [TikProperty("invalid", IsReadOnly = true)]
@@ -163,9 +163,9 @@ namespace tik4net.Objects.Interface
 
         /// <summary>comment — Short description of the interface.</summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

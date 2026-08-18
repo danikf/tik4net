@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -24,7 +24,7 @@ namespace tik4net.Objects.System
         /// </para>
         /// </summary>
         [TikProperty("note", DefaultValue = "", IsFreeText = true)]
-        public string Note { get; set; }
+        public string? Note { get; set; }
 
         /// <summary>show-at-login — when yes, the note is shown to users who log in via WinBox or the API. Default: yes.</summary>
         [TikProperty("show-at-login", DefaultValue = "yes")]

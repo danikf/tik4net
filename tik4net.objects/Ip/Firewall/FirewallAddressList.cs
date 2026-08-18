@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,19 +15,19 @@ namespace tik4net.Objects.Ip.Firewall
         /// .id
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// address
         /// </summary>
         [TikProperty("address", IsMandatory = true)]
-        public string Address { get; set; }
+        public string? Address { get; set; }
 
         /// <summary>
         /// comment
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>
         /// disabled
@@ -45,12 +45,12 @@ namespace tik4net.Objects.Ip.Firewall
         /// timeout  (00:00:00)
         /// </summary>
         [TikProperty("timeout", DefaultValue = "00:00:00")]
-        public string Timeout { get; set; }
+        public string? Timeout { get; set; }
 
         /// <summary>
         /// list
         /// </summary>
         [TikProperty("list", IsMandatory = true)]
-        public string List { get; set; }
+        public string? List { get; set; }
     }
 }

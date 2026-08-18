@@ -32,6 +32,6 @@ namespace tik4net
         /// <see cref="AllowInvalidCertificate"/> is ignored — the place for certificate pinning or for
         /// trusting a private CA. Must be set before the connection is opened.
         /// </summary>
-        RemoteCertificateValidationCallback CertificateValidationCallback { get; set; }
+        RemoteCertificateValidationCallback? CertificateValidationCallback { get; set; }
     }
 }

@@ -71,9 +71,11 @@ namespace tik4net.Rest
         private const int MonitorPollIntervalMs = 1000;
 
         private readonly bool _useSsl;
-        private HttpClient _httpClient;
-        private string _baseUrl;
-        private string _authHeader;
+        // _baseUrl/_authHeader: assigned in OpenInternalAsync (Open/OpenAsync), not the constructor — nothing
+        // reads them before Open. _httpClient is genuinely nullable: Close() and a failed Open reset it to null.
+        private HttpClient? _httpClient;
+        private string _baseUrl = null!;
+        private string _authHeader = null!;
 
         /// <inheritdoc/>
         protected override string DiagnosticPrefix => "REST";
@@ -97,7 +99,7 @@ namespace tik4net.Rest
         public bool AllowInvalidCertificate { get; set; }
 
         /// <inheritdoc/>
-        public RemoteCertificateValidationCallback CertificateValidationCallback { get; set; }
+        public RemoteCertificateValidationCallback? CertificateValidationCallback { get; set; }
 
         /// <summary>Creates a REST connection.</summary>
         /// <param name="useSsl">Use HTTPS (port 443) instead of HTTP (port 80).</param>
@@ -226,9 +228,11 @@ namespace tik4net.Rest
         internal override async Task<string> RunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             var single = await ExecuteRequestSingleAsync(descriptor.CommandText, descriptor.Parameters, cancellationToken).ConfigureAwait(false);
-            string id = null;
+            string? id = null;
             single?.TryGetResponseField(TikSpecialProperties.Id, out id);
-            return id;
+            // RunAddAsync's declared return type is non-nullable, matching RunAdd's contract across every
+            // transport, but a response with no .id field genuinely yields null here (see the report).
+            return id!;
         }
 
         /// <inheritdoc/>
@@ -279,7 +283,9 @@ namespace tik4net.Rest
                 string listPath = TikPath.Parent(descriptor.CommandText);
                 var printDescriptor = new TikCommandDescriptor(listPath + "/print", descriptor.Parameters);
                 return PollingMonitorEngine.StartWorker("rest-listen",
-                    h => PollingMonitorEngine.ListenLoop(this, printDescriptor, null, ListenPollIntervalMs, h, onRow, onError, onDone));
+                    // volatileFields is documented as nullable ("null compares all fields") but its parameter
+                    // type isn't annotated — ListenLoop lives in Connection/, out of scope here.
+                    h => PollingMonitorEngine.ListenLoop(this, printDescriptor, null!, ListenPollIntervalMs, h, onRow, onError, onDone));
             }
 
             if (verb == "print" || verb == "getall")
@@ -383,7 +389,7 @@ namespace tik4net.Rest
             return ParseResponseList(body);
         }
 
-        private async Task<TikRecordSentence> ExecuteRequestSingleAsync(string commandText,
+        private async Task<TikRecordSentence?> ExecuteRequestSingleAsync(string commandText,
             IList<ITikCommandParameter> parameters, CancellationToken cancellationToken)
         {
             var (body, statusCode) = await SendAndReadAsync(commandText, parameters,
@@ -448,7 +454,9 @@ namespace tik4net.Rest
                     // HttpCompletionOption.ResponseContentRead (the default) — the body is read inside this
                     // call, so it is covered by the timeout and the token, and the ReadAsStringAsync the caller
                     // does afterwards only reads the buffer these token sources are no longer needed for.
-                    response = await _httpClient.SendAsync(req, linked.Token).ConfigureAwait(false);
+                    // Non-null here: the open probe calls this right after assigning _httpClient, and every
+                    // other caller goes through EnsureOpened(), which is only true once that assignment happened.
+                    response = await _httpClient!.SendAsync(req, linked.Token).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
                 {
@@ -474,8 +482,8 @@ namespace tik4net.Rest
                 return;
 
             // Try to parse REST error body
-            string message = null;
-            string detail = null;
+            string? message = null;
+            string? detail = null;
             // Falling back to the raw body is honest here — the caller still gets an error carrying whatever
             // the router said, nothing is invented — but the catch is narrowed to the parse itself so a bug in
             // this method cannot hide inside it (P2.25), and a body we could not read is traced.
@@ -559,7 +567,7 @@ namespace tik4net.Rest
             return new List<TikRecordSentence>();
         }
 
-        private static TikRecordSentence ParseSingleObject(string body)
+        private static TikRecordSentence? ParseSingleObject(string body)
         {
             using (var doc = JsonDocument.Parse(body))
             {

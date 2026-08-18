@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -21,7 +21,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// ap-tx-limit: Limit rate of data transmission to this client. Value 0 means no limit. Value is in bits per second.
@@ -53,7 +53,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// comment: Short description of an entry
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>
         /// disabled: 
@@ -74,37 +74,37 @@ namespace tik4net.Objects.Interface.Wireless
         /// interface: Rules with interface=all are used for all wireless interfaces. To make rule that applies only to one wireless interface, specify that interface as a value of this property.
         /// </summary>
         [TikProperty("interface", DefaultValue = "all")]
-        public string/*string | all*/ Interface { get; set; }
+        public string?/*string | all*/ Interface { get; set; }
 
         /// <summary>
         /// mac-address: Rule matches client with the specified MAC address. Value 00:00:00:00:00:00 matches always.
         /// </summary>
         [TikProperty("mac-address", DefaultValue = "00:00:00:00:00:00")]
-        public string/*MAC*/ MacAddress { get; set; }
+        public string?/*MAC*/ MacAddress { get; set; }
 
         /// <summary>
         /// management-protection-key: 
         /// </summary>
         [TikProperty("management-protection-key", DefaultValue = "")]
-        public string ManagementProtectionKey { get; set; }
+        public string? ManagementProtectionKey { get; set; }
 
         /// <summary>
         /// private-algo: Only for WEP modes.
         /// </summary>
         [TikProperty("private-algo", DefaultValue = "none")]
-        public string/*104bit-wep | 40bit-wep | aes-ccm | none | tkip*/ PrivateAlgo { get; set; }
+        public string?/*104bit-wep | 40bit-wep | aes-ccm | none | tkip*/ PrivateAlgo { get; set; }
 
         /// <summary>
         /// private-key: Only for WEP modes.
         /// </summary>
         [TikProperty("private-key", DefaultValue = "")]
-        public string PrivateKey { get; set; }
+        public string? PrivateKey { get; set; }
 
         /// <summary>
         /// private-pre-shared-key: Used in WPA PSK mode.
         /// </summary>
         [TikProperty("private-pre-shared-key", DefaultValue = "")]
-        public string PrivatePreSharedKey { get; set; }
+        public string? PrivatePreSharedKey { get; set; }
 
         /// <summary>
         /// signal-range
@@ -112,7 +112,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// If signal strength of the station will go out of the range that is specified in the rule, access point will disconnect that station.
         /// </summary>
         [TikProperty("signal-range", DefaultValue = "-120..120")]
-        public string/*NUM..NUM - both NUM are numbers in the range -120..120*/ SignalRange { get; set; }
+        public string?/*NUM..NUM - both NUM are numbers in the range -120..120*/ SignalRange { get; set; }
 
         /// <summary>
         /// time
@@ -122,7 +122,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// Rule will match only during specified days of the week.
         /// </summary>
         [TikProperty("time")]
-        public string/*TIME-TIME,sun,mon,tue,wed,thu,fri,sat - TIME is time interval 0..86400 seconds; all day names are optional; value can be unset*/ Time { get; set; }
+        public string?/*TIME-TIME,sun,mon,tue,wed,thu,fri,sat - TIME is time interval 0..86400 seconds; all day names are optional; value can be unset*/ Time { get; set; }
 
         /// <summary>
         /// ctor

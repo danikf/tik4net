@@ -98,7 +98,7 @@ namespace tik4net.Objects
         /// <summary>
         /// The .id property of the entity or null (if no property is decorated by <see cref="TikPropertyAttribute.FieldName"/> = .id).
         /// </summary>
-        public TikEntityPropertyAccessor IdProperty
+        public TikEntityPropertyAccessor? IdProperty
         {
             get
             {

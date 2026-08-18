@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -34,11 +34,11 @@ namespace tik4net.Objects.System
 
         /// <summary>broadcast-addresses — comma-separated list of broadcast addresses used when broadcast=yes. Empty uses the interface broadcast address.</summary>
         [TikProperty("broadcast-addresses", DefaultValue = "")]
-        public string BroadcastAddresses { get; set; }
+        public string? BroadcastAddresses { get; set; }
 
         /// <summary>vrf — Virtual Routing and Forwarding instance for NTP server traffic. Default: main.</summary>
         [TikProperty("vrf", DefaultValue = "main")]
-        public string Vrf { get; set; }
+        public string? Vrf { get; set; }
 
         /// <summary>use-local-clock — when yes, the router uses its own RTC as the NTP reference even without an upstream sync. Default: no.</summary>
         [TikProperty("use-local-clock", DefaultValue = "no")]
@@ -51,7 +51,7 @@ namespace tik4net.Objects.System
 
         /// <summary>auth-key — NTP authentication key name. Default: none (no authentication).</summary>
         [TikProperty("auth-key", DefaultValue = "none")]
-        public string AuthKey { get; set; }
+        public string? AuthKey { get; set; }
 
         /// <summary>Returns a human-readable summary of the NTP server settings.</summary>
         public override string ToString() => string.Format("ntp/server: enabled={0}, bcast={1}, mcast={2}", Enabled, Broadcast, Multicast);

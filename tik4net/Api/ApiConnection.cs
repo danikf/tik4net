@@ -51,16 +51,16 @@ namespace tik4net.Api
         private bool _sendTagWithSyncCommand = true;
         private int _sendTimeout;
         private int _receiveTimeout = 30000;
-        private TcpClient _tcpConnection;
-        private /*NetworkStream*/System.IO.Stream _tcpConnectionStream;
+        private TcpClient _tcpConnection = null!; // assigned by Open()/OpenAsync(), called right after construction
+        private /*NetworkStream*/System.IO.Stream _tcpConnectionStream = null!; // assigned by Open()/OpenAsync()
 
         // One reader owns the socket for the connection's whole life; callers wait on their tag (P2.3).
         private readonly ApiSentenceDispatcher _dispatcher = new ApiSentenceDispatcher();
-        private System.Threading.Tasks.Task _readerTask;
+        private System.Threading.Tasks.Task? _readerTask;
         private volatile bool _readerStopRequested;
 
-        public event EventHandler<TikConnectionCommCallbackEventArgs> OnReadRow;
-        public event EventHandler<TikConnectionCommCallbackEventArgs> OnWriteRow;
+        public event EventHandler<TikConnectionCommCallbackEventArgs>? OnReadRow;
+        public event EventHandler<TikConnectionCommCallbackEventArgs>? OnWriteRow;
 
         public bool DebugEnabled { get; set; }
 
@@ -136,7 +136,7 @@ namespace tik4net.Api
         public bool AllowInvalidCertificate { get; set; }
 
         /// <inheritdoc/>
-        public RemoteCertificateValidationCallback CertificateValidationCallback { get; set; }
+        public RemoteCertificateValidationCallback? CertificateValidationCallback { get; set; }
 
         public ApiConnection(bool isSsl)
         {
@@ -334,7 +334,8 @@ namespace tik4net.Api
                 if (!string.IsNullOrEmpty(responseHashOrNull))
                 {
                     //login connection
-                    string hashedPass = ApiConnectionHelper.EncodePassword(password, responseHashOrNull);
+                    // non-null inside the IsNullOrEmpty guard; netstandard2.0's BCL cannot tell the compiler so
+                    string hashedPass = ApiConnectionHelper.EncodePassword(password, responseHashOrNull!);
                     ApiCommand loginCommand2 = new ApiCommand(this, "/login", TikCommandParameterFormat.NameValue,
                         new ApiCommandParameter("name", user), new ApiCommandParameter("response", hashedPass));
                     await loginCommand2.LoginNonQueryAsync().ConfigureAwait(false);
@@ -629,10 +630,10 @@ namespace tik4net.Api
         {
             // NOTE: !trap is always followed by !done (keep reading). !fatal closes the connection immediately — no !done follows.
             // NOTE: yield return/break cannot be inside catch blocks in C# iterators — use a flag instead.
-            ITikSentence sentence = null;
+            ITikSentence sentence = null!; // always reassigned by GetOne() before being read below; the catch path below yield-breaks instead
             do
             {
-                TikEofException eofException = null;
+                TikEofException? eofException = null;
                 try
                 {
                     sentence = GetOne(tag);
@@ -668,7 +669,7 @@ namespace tik4net.Api
         /// had already arrived. Measured before the fix at a full timeout per such command
         /// (<c>ApiCallerSuppliedTagTests</c>).
         /// </remarks>
-        private static string FindTag(IEnumerable<string> commandRows)
+        private static string? FindTag(IEnumerable<string> commandRows)
         {
             foreach (var row in commandRows)
             {
@@ -751,7 +752,7 @@ namespace tik4net.Api
             // the read loop looks equivalent and is not: a command that has gone quiet — precisely the case
             // a caller cancels — leaves the loop parked in the wait, so the router is never asked to stop
             // and the cancel only takes effect at the receive timeout, if at all.
-            System.Threading.Tasks.Task cancelTask = null;
+            System.Threading.Tasks.Task? cancelTask = null;
             using (cancellationToken.Register(() => cancelTask = SendCancelAsync(tag)))
             {
                 while (true)

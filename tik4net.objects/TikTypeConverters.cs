@@ -83,7 +83,7 @@ namespace tik4net.Objects
         /// </summary>
         /// <param name="type">The property type, already unwrapped from <see cref="Nullable{T}"/>.</param>
         /// <returns>The first registered converter whose <see cref="ITikTypeConverter.CanConvert"/> returns true.</returns>
-        public static ITikTypeConverter Resolve(Type type)
+        public static ITikTypeConverter? Resolve(Type type)
         {
             var converters = _converters;   //one read: Register may swap the array under us
             for (int i = 0; i < converters.Length; i++)

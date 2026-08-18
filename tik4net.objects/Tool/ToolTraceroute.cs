@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,7 +18,7 @@ namespace tik4net.Objects.Tool
         /// address
         /// </summary>
         [TikProperty("address", IsReadOnly = true)]
-        public string Address { get; private set; }
+        public string? Address { get; private set; }
 
         /// <summary>
         /// loss
@@ -36,31 +36,31 @@ namespace tik4net.Objects.Tool
         /// last
         /// </summary>
         [TikProperty("last", IsReadOnly = true)]
-        public string Last { get; private set; }
+        public string? Last { get; private set; }
 
         /// <summary>
         /// status
         /// </summary>
         [TikProperty("status", IsReadOnly = true)]
-        public string Status { get; private set; }
+        public string? Status { get; private set; }
 
         /// <summary>
         /// avg
         /// </summary>
         [TikProperty("avg", IsReadOnly = true, IsMandatory = false)]
-        public string Avg { get; private set; }
+        public string? Avg { get; private set; }
 
         /// <summary>
         /// best
         /// </summary>
         [TikProperty("best", IsReadOnly = true, IsMandatory = false)]
-        public string Best { get; private set; }
+        public string? Best { get; private set; }
 
         /// <summary>
         /// worst
         /// </summary>
         [TikProperty("worst", IsReadOnly = true, IsMandatory = false)]
-        public string Worst { get; private set; }
+        public string? Worst { get; private set; }
 
         /// <summary>
         /// Traceroutes given <see paramref="address"/>.

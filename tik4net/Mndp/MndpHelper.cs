@@ -30,7 +30,7 @@ namespace tik4net.Mndp
         /// Returns the MAC as a 6-byte array, or <c>null</c> if not found within <paramref name="timeout"/>
         /// (default 5 s).
         /// </summary>
-        public static byte[] FindMacByHost(string host, TimeSpan? timeout = null)
+        public static byte[]? FindMacByHost(string host, TimeSpan? timeout = null)
         {
             var effectiveTimeout = timeout ?? TimeSpan.FromSeconds(5);
             var encoding = Encoding.GetEncoding("iso-8859-1");
@@ -61,7 +61,7 @@ namespace tik4net.Mndp
         /// </remarks>
         /// <param name="raw">The TLV payload.</param>
         /// <returns>The formatted address, or an empty string when the payload is not an address length.</returns>
-        internal static string FormatIpAddress(byte[] raw)
+        internal static string FormatIpAddress(byte[]? raw)
         {
             if (raw != null && (raw.Length == 16 || raw.Length == 4))
             {

@@ -94,7 +94,7 @@ namespace tik4net
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
         /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
         /// <exception cref="TikAlreadyHaveSuchItemException">Duplicit item (duplicit id/name etc.). Mikrotik API message: 'already have such item'.</exception>
-        string ExecuteScalarOrDefault();
+        string? ExecuteScalarOrDefault();
 
         /// <summary>
         /// Executes given <see cref="CommandText"/> on router and returns one value (=ret parameter) or single value in single !re row, which is returned as result. If value is not found, than returns <paramref name="defaultValue"/>.
@@ -106,7 +106,7 @@ namespace tik4net
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
         /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
         /// <exception cref="TikAlreadyHaveSuchItemException">Duplicit item (duplicit id/name etc.). Mikrotik API message: 'already have such item'.</exception>
-        string ExecuteScalarOrDefault(string defaultValue);
+        string? ExecuteScalarOrDefault(string? defaultValue);
 
         /// <summary>
         /// Executes given <see cref="CommandText"/> on router and returns one value (=ret parameter) or single value in single !re row, which is returned as result. If value is not found, than returns <paramref name="defaultValue"/>.
@@ -121,7 +121,7 @@ namespace tik4net
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
         /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
         /// <exception cref="TikAlreadyHaveSuchItemException">Duplicit item (duplicit id/name etc.). Mikrotik API message: 'already have such item'.</exception>
-        string ExecuteScalarOrDefault(string defaultValue, string target);
+        string? ExecuteScalarOrDefault(string? defaultValue, string target);
 
         /// <summary>
         /// Executes given <see cref="CommandText"/> on router and ensures that operation returns exactly one row (1x !re and 1x !done) as result.        
@@ -147,7 +147,7 @@ namespace tik4net
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
         /// <exception cref="TikNoSuchCommandException">Invalid mikrotik command (syntax error). Mikrotik API message: 'no such command'</exception>
         /// <exception cref="TikCommandAmbiguousResultException">More than one row returned.</exception>
-        ITikReSentence ExecuteSingleRowOrDefault();
+        ITikReSentence? ExecuteSingleRowOrDefault();
 
         /// <summary>
         /// Executes given <see cref="CommandText"/> on router and returns all result sentences (all !re sentences) as result.
@@ -232,7 +232,7 @@ namespace tik4net
         /// <param name="onDoneCallback">Callback called at the end of command run (when command is successfully finished - !done is returned). Usefull for cleanup operations at the end of command lifecycle. You can also use synchronous call <see cref="CancelAndJoin()"/> from calling thread and do cleanup after it.</param>
         /// <seealso cref="Cancel"/>
         /// <seealso cref="ITikReSentence"/>
-        void ExecuteAsync(Action<ITikReSentence> oneResponseCallback, Action<ITikTrapSentence> errorCallback=null, Action onDoneCallback = null);        
+        void ExecuteAsync(Action<ITikReSentence> oneResponseCallback, Action<ITikTrapSentence>? errorCallback = null, Action? onDoneCallback = null);
 
         /// <summary>
         /// Adds new instance of parameter to <see cref="Parameters"/> list. Type of parameter is resolved from parameter name or from command type.

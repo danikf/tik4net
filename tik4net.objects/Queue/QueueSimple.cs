@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,73 +15,73 @@ namespace tik4net.Objects.Queue
         /// .id
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// name
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// target
         /// </summary>
         [TikProperty("target")]
-        public string Target { get; set; }
+        public string? Target { get; set; }
 
         /// <summary>
         /// parent
         /// </summary>
         [TikProperty("parent")]
-        public string Parent { get; set; }
+        public string? Parent { get; set; }
 
         /// <summary>
         /// priority
         /// </summary>
         [TikProperty("priority")]
-        public string Priority { get; set; }
+        public string? Priority { get; set; }
 
         /// <summary>
         /// queue
         /// </summary>
         [TikProperty("queue")]
-        public string Queue { get; set; }
+        public string? Queue { get; set; }
 
         /// <summary>
         /// limit-at
         /// </summary>
         [TikProperty("limit-at")]
-        public string LimitAt { get; set; }
+        public string? LimitAt { get; set; }
 
         /// <summary>
         /// max-limit
         /// </summary>
         [TikProperty("max-limit")]
-        public string MaxLimit { get; set; }
+        public string? MaxLimit { get; set; }
 
         /// <summary>
         /// burst-limit
         /// </summary>
         [TikProperty("burst-limit")]
-        public string BurstLimit { get; set; }
+        public string? BurstLimit { get; set; }
 
         /// <summary>
         /// burst-threshold
         /// </summary>
         [TikProperty("burst-threshold")]
-        public string BurstThreshold { get; set; }
+        public string? BurstThreshold { get; set; }
 
         /// <summary>
         /// burst-time
         /// </summary>
         [TikProperty("burst-time")]
-        public string BurstTime { get; set; }
+        public string? BurstTime { get; set; }
 
         /// <summary>
         /// bytes
         /// </summary>
         [TikProperty("bytes", IsReadOnly = true)]
-        public string Bytes { get; private set; }
+        public string? Bytes { get; private set; }
 
         /// <summary>
         /// total-bytes
@@ -93,7 +93,7 @@ namespace tik4net.Objects.Queue
         /// packets
         /// </summary>
         [TikProperty("packets", IsReadOnly = true)]
-        public string Packets { get; private set; }
+        public string? Packets { get; private set; }
 
         /// <summary>
         /// total-packets
@@ -105,7 +105,7 @@ namespace tik4net.Objects.Queue
         /// dropped
         /// </summary>
         [TikProperty("dropped", IsReadOnly = true)]
-        public string Dropped { get; private set; }
+        public string? Dropped { get; private set; }
 
         /// <summary>
         /// total-dropped
@@ -117,7 +117,7 @@ namespace tik4net.Objects.Queue
         /// rate
         /// </summary>
         [TikProperty("rate", IsReadOnly = true)]
-        public string Rate { get; private set; }
+        public string? Rate { get; private set; }
 
         /// <summary>
         /// total-rate
@@ -129,7 +129,7 @@ namespace tik4net.Objects.Queue
         /// packet-rate
         /// </summary>
         [TikProperty("packet-rate", IsReadOnly = true)]
-        public string PacketRate { get; private set; }
+        public string? PacketRate { get; private set; }
 
         /// <summary>
         /// total-packet-rate
@@ -141,7 +141,7 @@ namespace tik4net.Objects.Queue
         /// queued-packets
         /// </summary>
         [TikProperty("queued-packets", IsReadOnly = true)]
-        public string QueuedPackets { get; private set; }
+        public string? QueuedPackets { get; private set; }
 
         /// <summary>
         /// total-queued-packets
@@ -153,7 +153,7 @@ namespace tik4net.Objects.Queue
         /// queued-bytes
         /// </summary>
         [TikProperty("queued-bytes", IsReadOnly = true)]
-        public string QueuedBytes { get; private set; }
+        public string? QueuedBytes { get; private set; }
 
         /// <summary>
         /// total-queued-bytes
@@ -183,7 +183,7 @@ namespace tik4net.Objects.Queue
         /// dst
         /// </summary>
         [TikProperty("dst")]
-        public string Dst { get; set; }
+        public string? Dst { get; set; }
 
         /// <summary>
         /// total-max-limit
@@ -195,12 +195,12 @@ namespace tik4net.Objects.Queue
         /// total-queue
         /// </summary>
         [TikProperty("total-queue")]
-        public string TotalQueue { get; set; }
+        public string? TotalQueue { get; set; }
 
         /// <summary>
         /// comment
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
     }
 }

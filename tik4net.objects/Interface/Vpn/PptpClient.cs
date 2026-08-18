@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -20,7 +20,7 @@ namespace tik4net.Objects.Interface.Vpn
 
         /// <summary>.id — primary key of row.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         // ---- Writable properties ----
 
@@ -28,13 +28,13 @@ namespace tik4net.Objects.Interface.Vpn
         /// name — unique interface name (mandatory).
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// connect-to — IP address of the remote PPTP server to connect to.
         /// </summary>
         [TikProperty("connect-to")]
-        public string/*IP*/ ConnectTo { get; set; }
+        public string?/*IP*/ ConnectTo { get; set; }
 
         /// <summary>
         /// disabled — when <c>true</c> the interface will not initiate connections.
@@ -47,20 +47,20 @@ namespace tik4net.Objects.Interface.Vpn
         /// user — username sent during authentication.
         /// </summary>
         [TikProperty("user")]
-        public string User { get; set; }
+        public string? User { get; set; }
 
         /// <summary>
         /// password — password sent during authentication.
         /// </summary>
         [TikProperty("password")]
-        public string Password { get; set; }
+        public string? Password { get; set; }
 
         /// <summary>
         /// profile — PPP profile applied when the tunnel is established.
         /// Default: default-encryption
         /// </summary>
         [TikProperty("profile", DefaultValue = "default-encryption")]
-        public string Profile { get; set; }
+        public string? Profile { get; set; }
 
         /// <summary>
         /// allow — comma-separated list of permitted authentication methods (pap, chap, mschap1, mschap2).
@@ -68,7 +68,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Note: the router stores and returns this as a comma-joined string.
         /// </summary>
         [TikProperty("allow", DefaultValue = "pap,chap,mschap1,mschap2")]
-        public string Allow { get; set; }
+        public string? Allow { get; set; }
 
         /// <summary>
         /// add-default-route — whether to add the PPTP remote address as a default route.
@@ -123,7 +123,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: disabled
         /// </summary>
         [TikProperty("mrru", DefaultValue = "disabled")]
-        public string Mrru { get; set; }
+        public string? Mrru { get; set; }
 
         /// <summary>
         /// use-peer-dns — whether to use DNS servers advertised by the remote peer.
@@ -134,7 +134,7 @@ namespace tik4net.Objects.Interface.Vpn
 
         /// <summary>comment — optional free-text description of this PPTP client interface.</summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         // ---- Read-only properties ----
 

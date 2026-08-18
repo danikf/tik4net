@@ -18,12 +18,12 @@ namespace tik4net.Objects.Tool
         /// <param name="connection">Open connection to use.</param>
         /// <param name="macAddress">MAC of the waked up device</param>
         /// <param name="iface">Optional: interface to use</param>
-        public static void ExecuteWol(this ITikConnection connection, MacAddress macAddress, string iface=null)
+        public static void ExecuteWol(this ITikConnection connection, MacAddress macAddress, string? iface=null)
         {
             Guard.ArgumentNotNull(connection, "connection");
             var command = connection.CreateCommandAndParameters("/tool/wol", TikCommandParameterFormat.NameValue, "mac", macAddress.Address);
             if (!string.IsNullOrEmpty(iface))
-                command.AddParameterAndValues("interface", iface);
+                command.AddParameterAndValues("interface", iface!); // IsNullOrEmpty isn't NotNullWhen-annotated on netstandard2.0
 
             // "At most one row", because the transports genuinely disagree here (all verified live):
             //   binary API  → "!re" with no words, then "!done"  ⇒ one empty row
@@ -40,7 +40,7 @@ namespace tik4net.Objects.Tool
         /// <param name="connection">Open connection to use.</param>
         /// <param name="macAddress">MAC of the waked up device in format FF:FF:FF:FF:FF:FF</param>
         /// <param name="iface">Optional: interface to use</param>
-        public static void ExecuteWol(this ITikConnection connection, string macAddress, string iface = null)
+        public static void ExecuteWol(this ITikConnection connection, string macAddress, string? iface = null)
         {
             var mac = new MacAddress(macAddress);
 

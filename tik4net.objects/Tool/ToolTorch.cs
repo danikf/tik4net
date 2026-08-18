@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,31 +15,31 @@ namespace tik4net.Objects.Tool
         /// src-address
         /// </summary>
         [TikProperty("src-address", IsReadOnly = true)]
-        public string SrcAddress { get; private set; }
+        public string? SrcAddress { get; private set; }
 
         /// <summary>
         /// dst-address
         /// </summary>
         [TikProperty("dst-address", IsReadOnly = true)]
-        public string DstAddress { get; private set; }
+        public string? DstAddress { get; private set; }
 
         /// <summary>
         /// ip-protocol
         /// </summary>
         [TikProperty("ip-protocol", IsReadOnly = true)]
-        public string IpProtocol { get; private set; }
+        public string? IpProtocol { get; private set; }
 
         /// <summary>
         /// src-port
         /// </summary>
         [TikProperty("src-port", IsReadOnly = true)]
-        public string SrcPort { get; private set; }
+        public string? SrcPort { get; private set; }
 
         /// <summary>
         /// dst-port
         /// </summary>
         [TikProperty("dst-port", IsReadOnly = true)]
-        public string DstPort { get; private set; }
+        public string? DstPort { get; private set; }
 
         /// <summary>
         /// tx
@@ -72,9 +72,9 @@ namespace tik4net.Objects.Tool
         [TikProperty(".section", IsReadOnly = true)]
         public long SectionNr { get; private set; }
 
-        private static string FormatAddress(string ip, string port)
+        private static string FormatAddress(string? ip, string? port)
         {
-            return (ip + ":" + port).PadRight(21);
+            return (ip + ":" + port).PadRight(21); // string concatenation is null-safe (treats null as "")
         }
 
         /// <summary>

@@ -1,4 +1,4 @@
-﻿namespace tik4net.Objects.Routing.Ospf
+namespace tik4net.Objects.Routing.Ospf
 {
     /// <summary>
     /// /routing/ospf/instance
@@ -33,14 +33,14 @@
 
         /// <summary>.id — primary key of row</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// name — unique identifier for this OSPF instance.
         /// Referenced by /routing/ospf/area entries via the "instance" field.
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// version — OSPF protocol version to use.
@@ -57,21 +57,21 @@
         /// Default: main (auto-selected from the routing table).
         /// </summary>
         [TikProperty("router-id", DefaultValue = "main")]
-        public string RouterId { get; set; }
+        public string? RouterId { get; set; }
 
         /// <summary>
         /// vrf — VRF (Virtual Routing and Forwarding) instance this OSPF instance is bound to.
         /// Default: main
         /// </summary>
         [TikProperty("vrf", DefaultValue = "main")]
-        public string Vrf { get; set; }
+        public string? Vrf { get; set; }
 
         /// <summary>
         /// routing-table — the routing table in which OSPF-learned routes are installed.
         /// Accepts a routing-table name (e.g. "main"). When unset, defaults to the VRF table.
         /// </summary>
         [TikProperty("routing-table")]
-        public string RoutingTable { get; set; }
+        public string? RoutingTable { get; set; }
 
         /// <summary>
         /// originate-default — controls origination of a default route (0.0.0.0/0) into the OSPF domain.
@@ -88,54 +88,54 @@
         /// Example: "connected,static"
         /// </summary>
         [TikProperty("redistribute")]
-        public string Redistribute { get; set; }
+        public string? Redistribute { get; set; }
 
         /// <summary>
         /// domain-id — BGP/MPLS VPN domain identifier attached to OSPF LSAs when the instance
         /// is used in a VPN context. Expressed as an extended-community value (e.g. "1.0.0.0:0").
         /// </summary>
         [TikProperty("domain-id")]
-        public string DomainId { get; set; }
+        public string? DomainId { get; set; }
 
         /// <summary>
         /// domain-tag — OSPF domain tag value used in VPN route exchange to prevent routing loops.
         /// Numeric string (e.g. "100").
         /// </summary>
         [TikProperty("domain-tag")]
-        public string DomainTag { get; set; }
+        public string? DomainTag { get; set; }
 
         /// <summary>
         /// in-filter-chain — routing filter chain applied to routes received (imported) via OSPF
         /// before they are installed in the routing table.
         /// </summary>
         [TikProperty("in-filter-chain")]
-        public string InFilterChain { get; set; }
+        public string? InFilterChain { get; set; }
 
         /// <summary>
         /// out-filter-chain — routing filter chain applied to routes being redistributed out into OSPF.
         /// </summary>
         [TikProperty("out-filter-chain")]
-        public string OutFilterChain { get; set; }
+        public string? OutFilterChain { get; set; }
 
         /// <summary>
         /// out-filter-select — routing filter chain used to select which routes are eligible for
         /// redistribution into OSPF (applied before out-filter-chain).
         /// </summary>
         [TikProperty("out-filter-select")]
-        public string OutFilterSelect { get; set; }
+        public string? OutFilterSelect { get; set; }
 
         /// <summary>
         /// mpls-te-area — OSPF area used for MPLS Traffic Engineering extensions (opaque LSAs).
         /// Specify the area identifier (e.g. "backbone" or "0.0.0.0").
         /// </summary>
         [TikProperty("mpls-te-area")]
-        public string MplsTeArea { get; set; }
+        public string? MplsTeArea { get; set; }
 
         /// <summary>
         /// mpls-te-address — router address advertised in MPLS-TE LSAs. Typically an IPv4 loopback address.
         /// </summary>
         [TikProperty("mpls-te-address")]
-        public string MplsTeAddress { get; set; }
+        public string? MplsTeAddress { get; set; }
 
         /// <summary>
         /// use-dn — when true, sets the DN (Down) bit on VPN LSAs to prevent routing loops in
@@ -158,7 +158,7 @@
 
         /// <summary>comment — optional free-text annotation.</summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         // --- Read-only properties ---
 
@@ -170,6 +170,6 @@
         public bool Inactive { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

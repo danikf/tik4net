@@ -16,14 +16,14 @@ namespace tik4net.Objects.Ip.Firewall
     {
         /// <summary>.id — primary key of row</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// name — unique name for this layer 7 protocol definition.
         /// WinBox: "Name"
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// regexp — POSIX extended regular expression matched against the first 10 packets
@@ -31,15 +31,15 @@ namespace tik4net.Objects.Ip.Firewall
         /// WinBox: "Regexp"
         /// </summary>
         [TikProperty("regexp")]
-        public string Regexp { get; set; }
+        public string? Regexp { get; set; }
 
         /// <summary>
         /// comment — free-form descriptive text for this entry.
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

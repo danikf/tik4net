@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -50,13 +50,13 @@ namespace tik4net
         /// Code of the error.
         /// </summary>
         /// <seealso cref="ITikTrapSentence.CategoryCode"/>
-        public string Code { get; private set; }
+        public string? Code { get; private set; }
 
         /// <summary>
         /// Code description of the error.
         /// </summary>
         /// <seealso cref="ITikTrapSentence.CategoryDescription"/>
-        public string CodeDescription { get; private set; }
+        public string? CodeDescription { get; private set; }
 
         /// <summary>
         /// .ctor <see cref="Code"/> and <see cref="CodeDescription"/> are set from <paramref name="trapSentence"/>.

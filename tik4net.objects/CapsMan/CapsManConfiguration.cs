@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -101,7 +101,7 @@ namespace tik4net.Objects.CapsMan
 
         /// <summary>.id — primary key of row.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         // ── Identification ────────────────────────────────────────────────────
 
@@ -109,7 +109,7 @@ namespace tik4net.Objects.CapsMan
         /// name — unique name for this configuration profile.
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         // ── Network identity ──────────────────────────────────────────────────
 
@@ -117,7 +117,7 @@ namespace tik4net.Objects.CapsMan
         /// ssid — the wireless network name (ESSID) broadcast in beacon frames (0–32 characters).
         /// </summary>
         [TikProperty("ssid")]
-        public string Ssid { get; set; }
+        public string? Ssid { get; set; }
 
         /// <summary>
         /// mode — operational mode. Only "ap" (access point) is currently supported by legacy CAPsMAN.
@@ -144,26 +144,26 @@ namespace tik4net.Objects.CapsMan
         /// channel — name of the /caps-man/channel profile to apply, or empty for inline channel settings.
         /// </summary>
         [TikProperty("channel")]
-        public string Channel { get; set; }
+        public string? Channel { get; set; }
 
         /// <summary>
         /// datapath — name of the /caps-man/datapath profile to apply, or empty for inline datapath settings.
         /// </summary>
         [TikProperty("datapath")]
-        public string Datapath { get; set; }
+        public string? Datapath { get; set; }
 
         /// <summary>
         /// security — name of the /caps-man/security profile to apply, or empty for inline security settings.
         /// Default: none (open network).
         /// </summary>
         [TikProperty("security")]
-        public string Security { get; set; }
+        public string? Security { get; set; }
 
         /// <summary>
         /// rates — name of the /caps-man/rates profile to apply, or empty for inline rate settings.
         /// </summary>
         [TikProperty("rates")]
-        public string Rates { get; set; }
+        public string? Rates { get; set; }
 
         // ── Inline channel overrides (channel.*) ──────────────────────────────
 
@@ -172,7 +172,7 @@ namespace tik4net.Objects.CapsMan
         /// Common values: 2ghz-b/g/n, 5ghz-a/n, 5ghz-a/n/ac.
         /// </summary>
         [TikProperty("channel.band")]
-        public string ChannelBand { get; set; }
+        public string? ChannelBand { get; set; }
 
         /// <summary>
         /// channel.frequency — operating frequency in MHz; empty enables automatic channel selection.
@@ -185,13 +185,13 @@ namespace tik4net.Objects.CapsMan
         /// channel.width — channel width in MHz (e.g. 20, 40).
         /// </summary>
         [TikProperty("channel.width")]
-        public string ChannelWidth { get; set; }
+        public string? ChannelWidth { get; set; }
 
         /// <summary>
         /// channel.extension-channel — secondary channel position for 40 MHz: Ce=above, eC=below, disabled, etc.
         /// </summary>
         [TikProperty("channel.extension-channel")]
-        public string ChannelExtensionChannel { get; set; }
+        public string? ChannelExtensionChannel { get; set; }
 
         /// <summary>
         /// channel.tx-power — transmit power override in dBm.
@@ -204,7 +204,7 @@ namespace tik4net.Objects.CapsMan
         /// channel.reselect-interval — interval for automatic frequency re-optimisation (time value, e.g. "1h").
         /// </summary>
         [TikProperty("channel.reselect-interval")]
-        public string/*time*/ ChannelReselectInterval { get; set; }
+        public string?/*time*/ ChannelReselectInterval { get; set; }
 
         /// <summary>
         /// channel.save-selected — persist the auto-selected frequency across CAP reconnections.
@@ -243,7 +243,7 @@ namespace tik4net.Objects.CapsMan
         /// as a port automatically.
         /// </summary>
         [TikProperty("datapath.bridge")]
-        public string DatapathBridge { get; set; }
+        public string? DatapathBridge { get; set; }
 
         /// <summary>
         /// datapath.bridge-cost — spanning tree port cost for the bridge port.
@@ -270,7 +270,7 @@ namespace tik4net.Objects.CapsMan
         /// datapath.vlan-mode — VLAN tagging type: use-service-tag (802.1ad) or use-tag (802.1q).
         /// </summary>
         [TikProperty("datapath.vlan-mode")]
-        public string DatapathVlanMode { get; set; }
+        public string? DatapathVlanMode { get; set; }
 
         /// <summary>
         /// datapath.vlan-id — VLAN identifier for tagged traffic (1–4095).
@@ -300,53 +300,53 @@ namespace tik4net.Objects.CapsMan
         /// Values: wpa-psk, wpa2-psk, wpa-eap, wpa2-eap. Empty = open (no authentication).
         /// </summary>
         [TikProperty("security.authentication-types")]
-        public string SecurityAuthenticationTypes { get; set; }
+        public string? SecurityAuthenticationTypes { get; set; }
 
         /// <summary>
         /// security.encryption — unicast frame cipher algorithm (aes-ccm or tkip).
         /// </summary>
         [TikProperty("security.encryption")]
-        public string SecurityEncryption { get; set; }
+        public string? SecurityEncryption { get; set; }
 
         /// <summary>
         /// security.group-encryption — broadcast/multicast frame cipher; clients must support this cipher.
         /// Default: aes-ccm.
         /// </summary>
         [TikProperty("security.group-encryption", DefaultValue = "aes-ccm")]
-        public string SecurityGroupEncryption { get; set; }
+        public string? SecurityGroupEncryption { get; set; }
 
         /// <summary>
         /// security.group-key-update — interval for rotating the group cipher key (30s–1h).
         /// Default: 5m.
         /// </summary>
         [TikProperty("security.group-key-update", DefaultValue = "5m")]
-        public string/*time*/ SecurityGroupKeyUpdate { get; set; }
+        public string?/*time*/ SecurityGroupKeyUpdate { get; set; }
 
         /// <summary>
         /// security.passphrase — WPA/WPA2 pre-shared key (PSK).
         /// </summary>
         [TikProperty("security.passphrase")]
-        public string SecurityPassphrase { get; set; }
+        public string? SecurityPassphrase { get; set; }
 
         /// <summary>
         /// security.eap-methods — EAP authentication method(s): eap-tls or passthrough (RADIUS relay).
         /// </summary>
         [TikProperty("security.eap-methods")]
-        public string SecurityEapMethods { get; set; }
+        public string? SecurityEapMethods { get; set; }
 
         /// <summary>
         /// security.tls-certificate — name of the certificate used for EAP-TLS server authentication.
         /// Use "none" to disable certificate-based auth.
         /// </summary>
         [TikProperty("security.tls-certificate")]
-        public string SecurityTlsCertificate { get; set; }
+        public string? SecurityTlsCertificate { get; set; }
 
         /// <summary>
         /// security.tls-mode — client certificate validation behaviour for EAP-TLS.
         /// Values: verify-certificate, dont-verify-certificate, no-certificates, verify-certificate-with-crl.
         /// </summary>
         [TikProperty("security.tls-mode")]
-        public string SecurityTlsMode { get; set; }
+        public string? SecurityTlsMode { get; set; }
 
         // ── Inline rates overrides (rates.*) ──────────────────────────────────
 
@@ -355,14 +355,14 @@ namespace tik4net.Objects.CapsMan
         /// (e.g. "1Mbps,2Mbps,5.5Mbps,11Mbps").
         /// </summary>
         [TikProperty("rates.basic")]
-        public string RatesBasic { get; set; }
+        public string? RatesBasic { get; set; }
 
         /// <summary>
         /// rates.supported — comma-separated list of optional advertised data rates
         /// (e.g. "6Mbps,9Mbps,12Mbps,18Mbps,24Mbps,36Mbps,48Mbps,54Mbps").
         /// </summary>
         [TikProperty("rates.supported")]
-        public string RatesSupported { get; set; }
+        public string? RatesSupported { get; set; }
 
         /// <summary>
         /// rates.ht-basic-mcs — comma-separated list of required 802.11n MCS indices
@@ -370,28 +370,28 @@ namespace tik4net.Objects.CapsMan
         /// Default: mcs-0 through mcs-7.
         /// </summary>
         [TikProperty("rates.ht-basic-mcs")]
-        public string RatesHtBasicMcs { get; set; }
+        public string? RatesHtBasicMcs { get; set; }
 
         /// <summary>
         /// rates.ht-supported-mcs — comma-separated list of advertised 802.11n MCS indices.
         /// Default: mcs-0 through mcs-23.
         /// </summary>
         [TikProperty("rates.ht-supported-mcs")]
-        public string RatesHtSupportedMcs { get; set; }
+        public string? RatesHtSupportedMcs { get; set; }
 
         /// <summary>
         /// rates.vht-basic-mcs — required 802.11ac MCS set per spatial stream
         /// (none, MCS 0-7, MCS 0-8, MCS 0-9). Default: none.
         /// </summary>
         [TikProperty("rates.vht-basic-mcs")]
-        public string RatesVhtBasicMcs { get; set; }
+        public string? RatesVhtBasicMcs { get; set; }
 
         /// <summary>
         /// rates.vht-supported-mcs — advertised 802.11ac MCS set per spatial stream
         /// (none, MCS 0-7, MCS 0-8, MCS 0-9). Default: none.
         /// </summary>
         [TikProperty("rates.vht-supported-mcs")]
-        public string RatesVhtSupportedMcs { get; set; }
+        public string? RatesVhtSupportedMcs { get; set; }
 
         // ── Radio / PHY ───────────────────────────────────────────────────────
 
@@ -400,14 +400,14 @@ namespace tik4net.Objects.CapsMan
         /// Default: all available chains.
         /// </summary>
         [TikProperty("rx-chains")]
-        public string/*chain-list*/ RxChains { get; set; }
+        public string?/*chain-list*/ RxChains { get; set; }
 
         /// <summary>
         /// tx-chains — transmit antenna chain indices to use (e.g. "0" or "0,1,2,3").
         /// Default: all available chains.
         /// </summary>
         [TikProperty("tx-chains")]
-        public string/*chain-list*/ TxChains { get; set; }
+        public string?/*chain-list*/ TxChains { get; set; }
 
         /// <summary>
         /// guard-interval — guard interval preference for 802.11n transmissions.
@@ -445,7 +445,7 @@ namespace tik4net.Objects.CapsMan
         /// load-balancing-group — tag to group overlapping CAP interfaces for load balancing.
         /// </summary>
         [TikProperty("load-balancing-group")]
-        public string LoadBalancingGroup { get; set; }
+        public string? LoadBalancingGroup { get; set; }
 
         /// <summary>
         /// keepalive-frames — client presence verification via keepalive frames.
@@ -463,7 +463,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: no_country_set.
         /// </summary>
         [TikProperty("country", DefaultValue = "no_country_set")]
-        public string Country { get; set; }
+        public string? Country { get; set; }
 
         /// <summary>
         /// installation — deployment environment that affects regulatory channel/power limits.
@@ -478,7 +478,7 @@ namespace tik4net.Objects.CapsMan
         /// Leave empty for default behaviour.
         /// </summary>
         [TikProperty("distance")]
-        public string Distance { get; set; }
+        public string? Distance { get; set; }
 
         // ── Frame / timing parameters ─────────────────────────────────────────
 
@@ -487,14 +487,14 @@ namespace tik4net.Objects.CapsMan
         /// Empty = no limit.
         /// </summary>
         [TikProperty("frame-lifetime")]
-        public string/*time*/ FrameLifetime { get; set; }
+        public string?/*time*/ FrameLifetime { get; set; }
 
         /// <summary>
         /// disconnect-timeout — how long to wait after the last keepalive failure before
         /// de-authenticating the client (time value, e.g. "3s").
         /// </summary>
         [TikProperty("disconnect-timeout")]
-        public string/*time*/ DisconnectTimeout { get; set; }
+        public string?/*time*/ DisconnectTimeout { get; set; }
 
         // ── Multicast ─────────────────────────────────────────────────────────
 
@@ -512,9 +512,9 @@ namespace tik4net.Objects.CapsMan
         /// comment — short free-text description of this configuration profile.
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

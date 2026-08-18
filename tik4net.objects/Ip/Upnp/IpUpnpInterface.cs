@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,11 +15,11 @@ namespace tik4net.Objects.Ip.Upnp
     {
         /// <summary>.id — primary key of the entry.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>interface — name of the interface to assign. Must be an existing interface.</summary>
         [TikProperty("interface", IsMandatory = true)]
-        public string Interface { get; set; }
+        public string? Interface { get; set; }
 
         /// <summary>type — role of this interface in the UPnP topology.
         /// <seealso cref="UpnpInterfaceType"/></summary>
@@ -28,7 +28,7 @@ namespace tik4net.Objects.Ip.Upnp
 
         /// <summary>forced-ip — specific public IP to advertise when the external interface has multiple addresses. Leave empty to use the primary address.</summary>
         [TikProperty("forced-ip", DefaultValue = "")]
-        public string/*IP*/ ForcedIp { get; set; }
+        public string?/*IP*/ ForcedIp { get; set; }
 
         /// <summary>disabled — when yes, the entry is inactive.</summary>
         [TikProperty("disabled", DefaultValue = "no")]

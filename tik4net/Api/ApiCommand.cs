@@ -12,10 +12,10 @@ namespace tik4net.Api
     {
         private volatile bool _isRuning;
         private volatile int _asynchronouslyRunningTag;
-        private volatile Thread _asyncLoadingThread;
+        private volatile Thread? _asyncLoadingThread; // only set while an ExecuteAsync-family command is running; null otherwise
         private readonly List<ITikCommandParameter> _parameters = new List<ITikCommandParameter>();
-        private ApiConnection _connection;
-        private string _commandText;
+        private ApiConnection _connection = null!; // set via Connection property before EnsureConnectionSet() is called
+        private string _commandText = null!; // set via CommandText property before EnsureCommandTextSet() is called
         private TikCommandParameterFormat _defaultParameterFormat;      
 
         public ITikConnection Connection
@@ -254,7 +254,7 @@ namespace tik4net.Api
         {
             foreach (ApiSentence responseSentence in responseSentences)
             {
-                ApiTrapSentence trapSentence = responseSentence as ApiTrapSentence;
+                ApiTrapSentence? trapSentence = responseSentence as ApiTrapSentence;
                 if (trapSentence != null)
                 { //detect well known error responses and convert them to special exceptions
                     switch (TikTrapClassifier.Classify(trapSentence.Message))
@@ -269,7 +269,7 @@ namespace tik4net.Api
                             throw new TikCommandTrapException(this, trapSentence);
                     }
                 }
-                ApiFatalSentence fatalSentence = responseSentence as ApiFatalSentence;
+                ApiFatalSentence? fatalSentence = responseSentence as ApiFatalSentence;
                 if (fatalSentence != null)
                     throw new TikCommandFatalException(this, fatalSentence.Message);
             }
@@ -277,7 +277,7 @@ namespace tik4net.Api
 
         private ApiDoneSentence EnsureDoneResponse(ApiSentence responseSentence)
         {
-            ApiDoneSentence doneSentence = responseSentence as ApiDoneSentence;
+            ApiDoneSentence? doneSentence = responseSentence as ApiDoneSentence;
             if (doneSentence == null)
                 throw new TikCommandUnexpectedResponseException("!done sentence expected as result.", this, responseSentence);
 
@@ -288,7 +288,7 @@ namespace tik4net.Api
         {
             foreach (ApiSentence responseSentence in responseSentences)
             {
-                ApiReSentence reSentence = responseSentence as ApiReSentence;
+                ApiReSentence? reSentence = responseSentence as ApiReSentence;
                 if (reSentence == null)
                     throw new TikCommandUnexpectedResponseException("!re sentence expected as result.", this, responseSentence);
             }
@@ -314,30 +314,34 @@ namespace tik4net.Api
 
         public string ExecuteScalar()
         {
-            return ExecuteScalarInternal(null, false);
+            // allowReturnDefault:false - ExecuteScalarInternal either returns a real value or throws, never null.
+            return ExecuteScalarInternal(null, false)!;
         }
 
         public string ExecuteScalar(string target)
         {
-            return ExecuteScalarInternal(target, false);
+            // allowReturnDefault:false - ExecuteScalarInternal either returns a real value or throws, never null.
+            return ExecuteScalarInternal(target, false)!;
         }
 
-        public string ExecuteScalarOrDefault()
+        public string? ExecuteScalarOrDefault()
         {
+            // Returns null (or the caller's defaultValue, which may be null) when nothing matched —
+            // the interface says so and now types it that way.
             return ExecuteScalarInternal(null, true, null);
         }
 
-        public string ExecuteScalarOrDefault(string defaultValue)
+        public string? ExecuteScalarOrDefault(string? defaultValue)
         {
             return ExecuteScalarInternal(null, true, defaultValue);
         }
 
-        public string ExecuteScalarOrDefault(string defaultValue, string target)
+        public string? ExecuteScalarOrDefault(string? defaultValue, string target)
         {
             return ExecuteScalarInternal(target, true, defaultValue);
         }
 
-        private string ExecuteScalarInternal(string target, bool allowReturnDefault, string defaultValue = null)
+        private string? ExecuteScalarInternal(string? target, bool allowReturnDefault, string? defaultValue = null)
         {
             EnsureConnectionSet();
             EnsureNotRunning();
@@ -374,7 +378,7 @@ namespace tik4net.Api
             EnsureDoneResponse(responseSentence);
         }
 
-        private string InterpretScalar(IEnumerable<ApiSentence> response, bool allowReturnDefault, string defaultValue)
+        private string? InterpretScalar(IEnumerable<ApiSentence> response, bool allowReturnDefault, string? defaultValue)
         {
             {
                 ThrowPossibleResponseError(response.ToArray());
@@ -443,21 +447,22 @@ namespace tik4net.Api
 
         Task ITikCommandAsync.ExecuteNonQueryAsync(CancellationToken cancellationToken)
             => RunAsync(TikCommandParameterFormat.NameValue, null,
-                r => { InterpretNonQuery(r.ToArray()); return (object)null; }, cancellationToken);
+                r => { InterpretNonQuery(r.ToArray()); return (object?)null; }, cancellationToken);
 
-        Task<string> ITikCommandAsync.ExecuteScalarAsync(CancellationToken cancellationToken)
-            => ExecuteScalarInternalAsync(null, allowReturnDefault: false, defaultValue: null, cancellationToken);
+        async Task<string> ITikCommandAsync.ExecuteScalarAsync(CancellationToken cancellationToken)
+            // never null: the helper throws when nothing matched (allowReturnDefault: false)
+            => (await ExecuteScalarInternalAsync(null, allowReturnDefault: false, defaultValue: null, cancellationToken).ConfigureAwait(false))!;
 
-        Task<string> ITikCommandAsync.ExecuteScalarAsync(string target, CancellationToken cancellationToken)
-            => ExecuteScalarInternalAsync(target, allowReturnDefault: false, defaultValue: null, cancellationToken);
+        async Task<string> ITikCommandAsync.ExecuteScalarAsync(string target, CancellationToken cancellationToken)
+            => (await ExecuteScalarInternalAsync(target, allowReturnDefault: false, defaultValue: null, cancellationToken).ConfigureAwait(false))!;
 
-        Task<string> ITikCommandAsync.ExecuteScalarOrDefaultAsync(string defaultValue, string target, CancellationToken cancellationToken)
+        Task<string?> ITikCommandAsync.ExecuteScalarOrDefaultAsync(string? defaultValue, string? target, CancellationToken cancellationToken)
             => ExecuteScalarInternalAsync(target, allowReturnDefault: true, defaultValue, cancellationToken);
 
         Task<ITikReSentence> ITikCommandAsync.ExecuteSingleRowAsync(CancellationToken cancellationToken)
             => RunAsync(TikCommandParameterFormat.Filter, null, InterpretSingleRow, cancellationToken);
 
-        async Task<ITikReSentence> ITikCommandAsync.ExecuteSingleRowOrDefaultAsync(CancellationToken cancellationToken)
+        async Task<ITikReSentence?> ITikCommandAsync.ExecuteSingleRowOrDefaultAsync(CancellationToken cancellationToken)
         {
             var rows = await RunAsync(TikCommandParameterFormat.Filter, null, InterpretList, cancellationToken)
                 .ConfigureAwait(false);
@@ -475,12 +480,13 @@ namespace tik4net.Api
             return RunAsync(TikCommandParameterFormat.Filter, ProplistParameters(proplistFields), InterpretList, cancellationToken);
         }
 
-        private Task<string> ExecuteScalarInternalAsync(string target, bool allowReturnDefault, string defaultValue,
+        private Task<string?> ExecuteScalarInternalAsync(string? target, bool allowReturnDefault, string? defaultValue,
             CancellationToken cancellationToken, bool forceTag = true)
         {
             var targetParameter = target != null
                 ? new ITikCommandParameter[] { new ApiCommandParameter(TikSpecialProperties.Proplist, target, TikCommandParameterFormat.NameValue) }
                 : new ITikCommandParameter[] { };
+            // InterpretScalar genuinely returns null when allowReturnDefault is set and defaultValue is null.
             return RunAsync(TikCommandParameterFormat.NameValue, targetParameter,
                 r => InterpretScalar(r, allowReturnDefault, defaultValue), cancellationToken, forceTag);
         }
@@ -494,13 +500,13 @@ namespace tik4net.Api
         // must not change: it is not cancellable, and pre-6.43 routers speak a different login protocol that
         // no test in this repo can reach.
 
-        internal Task<string> LoginScalarOrDefaultAsync()
+        internal Task<string?> LoginScalarOrDefaultAsync()
             => ExecuteScalarInternalAsync(null, allowReturnDefault: true, defaultValue: null,
                 CancellationToken.None, forceTag: false);
 
         internal Task LoginNonQueryAsync()
             => RunAsync(TikCommandParameterFormat.NameValue, null,
-                r => { InterpretNonQuery(r.ToArray()); return (object)null; },
+                r => { InterpretNonQuery(r.ToArray()); return (object?)null; },
                 CancellationToken.None, forceTag: false);
 
         private ITikCommandParameter[] ProplistParameters(string[] proplist)
@@ -511,7 +517,7 @@ namespace tik4net.Api
         // The one place the async surface talks to the connection: build the sentence, await the answer,
         // hand it to the shared interpreter. _isRuning is set and cleared here exactly as the sync methods
         // do it, so the two surfaces share the "one command at a time per ITikCommand" rule too.
-        private async Task<T> RunAsync<T>(TikCommandParameterFormat format, ITikCommandParameter[] extraParameters,
+        private async Task<T> RunAsync<T>(TikCommandParameterFormat format, ITikCommandParameter[]? extraParameters,
             Func<IEnumerable<ApiSentence>, T> interpret, CancellationToken cancellationToken, bool forceTag = true)
         {
             EnsureConnectionSet();
@@ -572,7 +578,7 @@ namespace tik4net.Api
             return ExecuteListInternal(proplist);
         }
 
-        private IEnumerable<ITikReSentence> ExecuteListInternal(params string[] proplist)
+        private IEnumerable<ITikReSentence> ExecuteListInternal(params string[]? proplist)
         {
             EnsureConnectionSet();
             EnsureNotRunning();
@@ -591,8 +597,8 @@ namespace tik4net.Api
         }
 
         public void ExecuteAsync(Action<ITikReSentence> oneResponseCallback,
-            Action<ITikTrapSentence> errorCallback = null,
-            Action onDoneCallback = null)
+            Action<ITikTrapSentence>? errorCallback = null,
+            Action? onDoneCallback = null)
         {
             ExecuteAsyncCore(oneResponseCallback, errorCallback, onDoneCallback, null);
         }
@@ -615,9 +621,9 @@ namespace tik4net.Api
         /// </para>
         /// </remarks>
         private void ExecuteAsyncCore(Action<ITikReSentence> oneResponseCallback,
-            Action<ITikTrapSentence> errorCallback,
-            Action onDoneCallback,
-            Action<ITikSentence> onTerminalCallback)
+            Action<ITikTrapSentence>? errorCallback,
+            Action? onDoneCallback,
+            Action<ITikSentence>? onTerminalCallback)
         {
             EnsureConnectionSet();
             EnsureNotRunning();
@@ -633,7 +639,7 @@ namespace tik4net.Api
                 _asyncLoadingThread = _connection.CallCommandAsync(commandRows, tag.ToString(),
                                         response =>
                                         {
-                                            ApiReSentence reResponse = response as ApiReSentence;
+                                            ApiReSentence? reResponse = response as ApiReSentence;
                                             if (reResponse != null)
                                             {
                                                 if (oneResponseCallback != null)
@@ -641,7 +647,7 @@ namespace tik4net.Api
                                             }
                                             else
                                             {
-                                                ApiTrapSentence trapResponse = response as ApiTrapSentence;
+                                                ApiTrapSentence? trapResponse = response as ApiTrapSentence;
                                                 if (trapResponse != null)
                                                 {
                                                     if (trapResponse.CategoryCode == "2" && trapResponse.Message == "interrupted")
@@ -717,14 +723,14 @@ namespace tik4net.Api
 
         public IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string abortReason)
         {
-            ITikTrapSentence asyncTrap = null;
-            string fatalMessage = null;
+            ITikTrapSentence? asyncTrap = null;
+            string? fatalMessage = null;
             bool doneReceived = false;
             List<ITikReSentence> result = new List<ITikReSentence>();
             object resultLock = new object();
             ManualResetEventSlim finished = new ManualResetEventSlim(false);
             wasAborted = false;
-            abortReason = null;
+            abortReason = null!; // meaningful only when wasAborted is true, per the interface doc
 
             //Async execute, responses are stored in result list
             ExecuteAsyncCore(
@@ -747,7 +753,7 @@ namespace tik4net.Api
                 },
                 onTerminalCallback: sentence =>
                 {
-                    ApiFatalSentence fatal = sentence as ApiFatalSentence;
+                    ApiFatalSentence? fatal = sentence as ApiFatalSentence;
                     if (fatal != null)
                         fatalMessage = string.IsNullOrEmpty(fatal.Message) ? "Connection has been closed" : fatal.Message;
                     finished.Set();
@@ -784,8 +790,8 @@ namespace tik4net.Api
 
         public IEnumerable<ITikReSentence> ExecuteListUntilDone(int? timeoutSec = null)
         {
-            ITikTrapSentence asyncTrap = null;
-            string fatalMessage = null;
+            ITikTrapSentence? asyncTrap = null;
+            string? fatalMessage = null;
             List<ITikReSentence> result = new List<ITikReSentence>();
             object resultLock = new object();
             ManualResetEventSlim finished = new ManualResetEventSlim(false);
@@ -807,7 +813,7 @@ namespace tik4net.Api
                 onDoneCallback: null,
                 onTerminalCallback: sentence =>
                 {
-                    ApiFatalSentence fatal = sentence as ApiFatalSentence;
+                    ApiFatalSentence? fatal = sentence as ApiFatalSentence;
                     if (fatal != null)
                         fatalMessage = string.IsNullOrEmpty(fatal.Message)
                             ? "Connection has been closed."
@@ -850,7 +856,7 @@ namespace tik4net.Api
                 // Capture the thread reference BEFORE ExecuteNonQuery — the async thread may set
                 // _asyncLoadingThread to null when it processes its own !done, which can race with
                 // the /cancel response arriving and leaving _asyncLoadingThread null before we read it.
-                Thread loadingThread = _asyncLoadingThread;
+                Thread? loadingThread = _asyncLoadingThread;
 
                 ApiCommand cancellCommand = new ApiCommand(_connection, "/cancel",
                     new ApiCommandParameter("tag", _asynchronouslyRunningTag.ToString(), TikCommandParameterFormat.NameValue), // tag we are cancelling: REMARKS: =tag=1234 and not =.tag=1234

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,7 +18,7 @@ namespace tik4net.Objects.System
         /// .id — primary key of the row.
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// topics — comma-separated list of log topics to match, e.g. <c>info</c>, <c>error</c>,
@@ -27,7 +27,7 @@ namespace tik4net.Objects.System
         /// can vary by RouterOS version.
         /// </summary>
         [TikProperty("topics", IsMandatory = true)]
-        public string Topics { get; set; }
+        public string? Topics { get; set; }
 
         /// <summary>
         /// action — name of the logging action (from /system/logging/action) that receives
@@ -35,21 +35,21 @@ namespace tik4net.Objects.System
         /// <c>disk</c>, <c>echo</c>, <c>remote</c>.
         /// </summary>
         [TikProperty("action", IsMandatory = true)]
-        public string Action { get; set; }
+        public string? Action { get; set; }
 
         /// <summary>
         /// prefix — text prepended to every log message that matches this rule.
         /// Empty string means no prefix.
         /// </summary>
         [TikProperty("prefix", DefaultValue = "")]
-        public string Prefix { get; set; }
+        public string? Prefix { get; set; }
 
         /// <summary>
         /// regex — optional POSIX regular expression; only messages whose text matches
         /// this pattern are forwarded. Empty string disables filtering by regex.
         /// </summary>
         [TikProperty("regex", DefaultValue = "")]
-        public string Regex { get; set; }
+        public string? Regex { get; set; }
 
         /// <summary>
         /// disabled — when true the rule is inactive and no messages are forwarded.

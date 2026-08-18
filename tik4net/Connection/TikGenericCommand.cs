@@ -14,11 +14,11 @@ namespace tik4net.Connection
     internal class TikGenericCommand : ITikCommand, ITikRawCommand, ITikCommandAsync
     {
         private readonly List<ITikCommandParameter> _parameters = new List<ITikCommandParameter>();
-        private TikCommandConnectionBase _connection;
-        private string _commandText;
+        private TikCommandConnectionBase _connection = null!; // set via Connection property before EnsureConnectionSet() is called
+        private string _commandText = null!; // set via CommandText property before EnsureCommandTextSet() is called
         private TikCommandParameterFormat _defaultParameterFormat;
         private volatile bool _isRunning;
-        private TikMonitorHandle _monitorHandle;
+        private TikMonitorHandle? _monitorHandle; // only set once ExecuteAsync has been called; see Cancel/CancelAndJoin's null-conditional use
 
         // ── Raw pass-through (ITikRawCommand) ──────────────────────────────────
         // Set by the CreateRawCommand factory. When IsRaw, CommandText is sent verbatim through the
@@ -140,30 +140,34 @@ namespace tik4net.Connection
 
         public string ExecuteScalar()
         {
-            return ExecuteScalarInternal(null, throwIfMissing: true, defaultValue: null);
+            // throwIfMissing:true - ExecuteScalarInternal either returns a real value or throws, never null.
+            return ExecuteScalarInternal(null, throwIfMissing: true, defaultValue: null)!;
         }
 
         public string ExecuteScalar(string target)
         {
-            return ExecuteScalarInternal(target, throwIfMissing: true, defaultValue: null);
+            // throwIfMissing:true - ExecuteScalarInternal either returns a real value or throws, never null.
+            return ExecuteScalarInternal(target, throwIfMissing: true, defaultValue: null)!;
         }
 
-        public string ExecuteScalarOrDefault()
+        public string? ExecuteScalarOrDefault()
         {
+            // Returns null (or the caller's defaultValue, which may be null) when nothing matched —
+            // the interface says so and now types it that way.
             return ExecuteScalarInternal(null, throwIfMissing: false, defaultValue: null);
         }
 
-        public string ExecuteScalarOrDefault(string defaultValue)
+        public string? ExecuteScalarOrDefault(string? defaultValue)
         {
             return ExecuteScalarInternal(null, throwIfMissing: false, defaultValue: defaultValue);
         }
 
-        public string ExecuteScalarOrDefault(string defaultValue, string target)
+        public string? ExecuteScalarOrDefault(string? defaultValue, string target)
         {
             return ExecuteScalarInternal(target, throwIfMissing: false, defaultValue: defaultValue);
         }
 
-        private string ExecuteScalarInternal(string target, bool throwIfMissing, string defaultValue)
+        private string? ExecuteScalarInternal(string? target, bool throwIfMissing, string? defaultValue)
         {
             EnsureConnectionSet();
             EnsureCommandTextSet();
@@ -211,7 +215,7 @@ namespace tik4net.Connection
         /// Raw scalar: the cleaned response text as-is (e.g. /export, /system routerboard print). No verb
         /// detection or row extraction — raw has no record model.
         /// </summary>
-        private string ScalarFromRawText(string rawText, bool throwIfMissing, string defaultValue)
+        private string? ScalarFromRawText(string rawText, bool throwIfMissing, string? defaultValue)
         {
             if (!string.IsNullOrEmpty(rawText))
                 return rawText;
@@ -229,7 +233,7 @@ namespace tik4net.Connection
         }
 
         /// <summary>Scalar of an <c>add</c>: the new record's <c>.id</c> (<c>:put [/path add k=v …]</c>).</summary>
-        private string ScalarFromAddedId(string newId, bool throwIfMissing, string defaultValue)
+        private string? ScalarFromAddedId(string newId, bool throwIfMissing, string? defaultValue)
         {
             if (newId != null)
                 return newId;
@@ -251,7 +255,7 @@ namespace tik4net.Connection
         /// rejects <c>get .id=*N</c> ("syntax error") and <c>value-name=.id</c> ("input does not match any value
         /// of value-name"), while <c>:put [/path print as-value where .id=*N]</c> works for every field.
         /// </summary>
-        private string ScalarFromRows(IList<TikRecordSentence> rows, string verb, string target, bool throwIfMissing, string defaultValue)
+        private string? ScalarFromRows(IList<TikRecordSentence> rows, string verb, string? target, bool throwIfMissing, string? defaultValue)
         {
             if (rows.Count == 0)
             {
@@ -282,7 +286,7 @@ namespace tik4net.Connection
         }
 
         /// <summary>Single-row result interpretation, shared by the sync and Task-based paths.</summary>
-        private ITikReSentence SingleRowFromRows(IList<TikRecordSentence> rows, bool throwIfMissing)
+        private ITikReSentence? SingleRowFromRows(IList<TikRecordSentence> rows, bool throwIfMissing)
         {
             if (rows.Count == 0)
             {
@@ -295,11 +299,15 @@ namespace tik4net.Connection
             return rows[0];
         }
 
-        public ITikReSentence ExecuteSingleRow() => ExecuteSingleRowInternal(throwIfMissing: true);
+        // ExecuteSingleRow's throwIfMissing:true never lets SingleRowFromRows return null.
+        public ITikReSentence ExecuteSingleRow() => ExecuteSingleRowInternal(throwIfMissing: true)!;
 
-        public ITikReSentence ExecuteSingleRowOrDefault() => ExecuteSingleRowInternal(throwIfMissing: false);
+        // ITikCommand.ExecuteSingleRowOrDefault() declares a non-nullable return, but the XML doc says it
+        // returns null when nothing matched. The `!` matches the (non-nullable) interface signature, not
+        // actual runtime behaviour - same tradeoff as ExecuteScalarOrDefault() above.
+        public ITikReSentence ExecuteSingleRowOrDefault() => ExecuteSingleRowInternal(throwIfMissing: false)!;
 
-        private ITikReSentence ExecuteSingleRowInternal(bool throwIfMissing)
+        private ITikReSentence? ExecuteSingleRowInternal(bool throwIfMissing)
         {
             EnsureConnectionSet();
             EnsureCommandTextSet();
@@ -324,7 +332,7 @@ namespace tik4net.Connection
             return ExecuteListInternal(proplistFields);
         }
 
-        private IEnumerable<ITikReSentence> ExecuteListInternal(string[] proplist)
+        private IEnumerable<ITikReSentence> ExecuteListInternal(string[]? proplist)
         {
             EnsureConnectionSet();
             EnsureCommandTextSet();
@@ -386,19 +394,21 @@ namespace tik4net.Connection
         Task ITikCommandAsync.ExecuteNonQueryAsync(CancellationToken cancellationToken)
             => ExecuteNonQueryInternalAsync(cancellationToken);
 
-        Task<string> ITikCommandAsync.ExecuteScalarAsync(CancellationToken cancellationToken)
-            => ExecuteScalarInternalAsync(null, throwIfMissing: true, defaultValue: null, cancellationToken: cancellationToken);
+        async Task<string> ITikCommandAsync.ExecuteScalarAsync(CancellationToken cancellationToken)
+            // never null: the helper throws when nothing matched (throwIfMissing: true)
+            => (await ExecuteScalarInternalAsync(null, throwIfMissing: true, defaultValue: null, cancellationToken: cancellationToken).ConfigureAwait(false))!;
 
-        Task<string> ITikCommandAsync.ExecuteScalarAsync(string target, CancellationToken cancellationToken)
-            => ExecuteScalarInternalAsync(target, throwIfMissing: true, defaultValue: null, cancellationToken: cancellationToken);
+        async Task<string> ITikCommandAsync.ExecuteScalarAsync(string target, CancellationToken cancellationToken)
+            => (await ExecuteScalarInternalAsync(target, throwIfMissing: true, defaultValue: null, cancellationToken: cancellationToken).ConfigureAwait(false))!;
 
-        Task<string> ITikCommandAsync.ExecuteScalarOrDefaultAsync(string defaultValue, string target, CancellationToken cancellationToken)
+        Task<string?> ITikCommandAsync.ExecuteScalarOrDefaultAsync(string? defaultValue, string? target, CancellationToken cancellationToken)
             => ExecuteScalarInternalAsync(target, throwIfMissing: false, defaultValue: defaultValue, cancellationToken: cancellationToken);
 
-        Task<ITikReSentence> ITikCommandAsync.ExecuteSingleRowAsync(CancellationToken cancellationToken)
-            => ExecuteSingleRowInternalAsync(throwIfMissing: true, cancellationToken: cancellationToken);
+        async Task<ITikReSentence> ITikCommandAsync.ExecuteSingleRowAsync(CancellationToken cancellationToken)
+            // never null: the helper throws when no row came back (throwIfMissing: true)
+            => (await ExecuteSingleRowInternalAsync(throwIfMissing: true, cancellationToken: cancellationToken).ConfigureAwait(false))!;
 
-        Task<ITikReSentence> ITikCommandAsync.ExecuteSingleRowOrDefaultAsync(CancellationToken cancellationToken)
+        Task<ITikReSentence?> ITikCommandAsync.ExecuteSingleRowOrDefaultAsync(CancellationToken cancellationToken)
             => ExecuteSingleRowInternalAsync(throwIfMissing: false, cancellationToken: cancellationToken);
 
         Task<IList<ITikReSentence>> ITikCommandAsync.ExecuteListAsync(CancellationToken cancellationToken)
@@ -434,7 +444,10 @@ namespace tik4net.Connection
             }
         }
 
-        private async Task<string> ExecuteScalarInternalAsync(string target, bool throwIfMissing, string defaultValue,
+        // Task<string> here is ITikCommandAsync's declared (non-nullable) return type, but throwIfMissing:false
+        // callers genuinely complete with a null defaultValue - see ExecuteScalarOrDefault()'s note above. The
+        // `!` on every branch below matches the interface signature, not actual runtime behaviour.
+        private async Task<string?> ExecuteScalarInternalAsync(string? target, bool throwIfMissing, string? defaultValue,
             CancellationToken cancellationToken)
         {
             EnsureConnectionSet();
@@ -446,7 +459,7 @@ namespace tik4net.Connection
                 if (_isRaw)
                 {
                     string rawText = await _connection.RunRawTextAsync(BuildRawDescriptor(), cancellationToken).ConfigureAwait(false);
-                    return ScalarFromRawText(rawText, throwIfMissing, defaultValue);
+                    return ScalarFromRawText(rawText, throwIfMissing, defaultValue)!;
                 }
 
                 var (normalCmd, normalParams) = NormalizeMultilineCommand(_commandText, _parameters);
@@ -455,7 +468,7 @@ namespace tik4net.Connection
                 if (verb == "add")
                 {
                     string newId = await _connection.RunAddAsync(BuildCommand(normalCmd, normalParams), cancellationToken).ConfigureAwait(false);
-                    return ScalarFromAddedId(newId, throwIfMissing, defaultValue);
+                    return ScalarFromAddedId(newId, throwIfMissing, defaultValue)!;
                 }
 
                 var readCmd = BuildCommand(normalCmd, ResolveParamsForRead(normalParams));
@@ -468,9 +481,9 @@ namespace tik4net.Connection
                 {
                     if (throwIfMissing)
                         throw;
-                    return defaultValue;
+                    return defaultValue!;
                 }
-                return ScalarFromRows(rows, verb, target, throwIfMissing, defaultValue);
+                return ScalarFromRows(rows, verb, target, throwIfMissing, defaultValue)!;
             }
             finally
             {
@@ -478,7 +491,9 @@ namespace tik4net.Connection
             }
         }
 
-        private async Task<ITikReSentence> ExecuteSingleRowInternalAsync(bool throwIfMissing, CancellationToken cancellationToken)
+        // Task<ITikReSentence> here is ITikCommandAsync's declared (non-nullable) return type, but
+        // throwIfMissing:false genuinely completes with null - see ExecuteSingleRowOrDefault()'s note above.
+        private async Task<ITikReSentence?> ExecuteSingleRowInternalAsync(bool throwIfMissing, CancellationToken cancellationToken)
         {
             EnsureConnectionSet();
             EnsureCommandTextSet();
@@ -487,7 +502,7 @@ namespace tik4net.Connection
             try
             {
                 var rows = await _connection.RunPrintAsync(BuildReadDescriptor(), cancellationToken).ConfigureAwait(false);
-                return SingleRowFromRows(rows, throwIfMissing);
+                return SingleRowFromRows(rows, throwIfMissing)!;
             }
             finally
             {
@@ -533,8 +548,8 @@ namespace tik4net.Connection
         }
 
         public void ExecuteAsync(Action<ITikReSentence> oneResponseCallback,
-            Action<ITikTrapSentence> errorCallback = null,
-            Action onDoneCallback = null)
+            Action<ITikTrapSentence>? errorCallback = null,
+            Action? onDoneCallback = null)
         {
             // Streaming monitors are an opt-in transport capability (ITikMonitorTransport): native WinBox M2
             // implements it, the CLI transports do not. Only those that cannot do it throw NotSupported.
@@ -621,7 +636,7 @@ namespace tik4net.Connection
             return new TikCommandDescriptor(commandText, parameters);
         }
 
-        private static string FindIdParam(IList<ITikCommandParameter> parameters)
+        private static string? FindIdParam(IList<ITikCommandParameter> parameters)
         {
             foreach (var p in parameters)
             {

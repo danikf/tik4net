@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,12 +15,12 @@ namespace tik4net.Objects.Ip
         /// accessible-via-web: whether the snapshot is available via web
         /// </summary>
         [TikProperty("accessible-via-web", DefaultValue = "no")]
-        public string AccessibleViaWeb { get; set; }
+        public string? AccessibleViaWeb { get; set; }
 
         /// <summary>
         /// address: IP address range that is allowed to access the snapshot
         /// </summary>
         [TikProperty("address", DefaultValue = "0.0.0.0/0")]
-        public string Address { get; set; }
+        public string? Address { get; set; }
     }
 }

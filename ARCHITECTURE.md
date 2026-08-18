@@ -261,6 +261,12 @@ Helpers: `TikEntityObjectsExtensions` (`Clone<T>`, `EntityDescription`, `EntityD
    `IsSingleton` entity, whose menu returns no `.id` at all.
 4. Bool fields ("yes"/"false") convert automatically; enum members need `TikEnumAttribute` when
    the wire value isn't just the lowercased member name.
+5. Every mapped reference-typed property (`string`) is declared nullable — `public string? Name { get;
+   set; }`. The solution builds with `<Nullable>enable</Nullable>`, and this is the truthful
+   annotation: a RouterOS record only carries the fields the router sent, a partial `.proplist` load
+   populates fewer still, and the mapper constructs entities through a parameterless constructor.
+   Value-typed properties (`bool?`, `long`, enums) are unchanged by this — see the `DefaultValue` rules
+   above for when those need `?`.
 
 These conventions are **enforced in CI**, not just documented: `EntityStructureConventionTests` (shape —
 `.id`, paths, enums, read-only counters) and `EntityDefaultValueConventionTests` (the `DefaultValue` /
@@ -316,6 +322,10 @@ NuGet outputs. Warnings are errors in CI only; `.editorconfig` keeps the missing
 
 - `Crypto/`, `WinboxNative*/`, `MacTelnet/` are reverse-engineered protocol implementations with
   no deterministic test coverage. Change them only with live-router verification.
+- Inside `Crypto/`, `someArray.Reverse()` binds to `MemoryExtensions.Reverse` (a `Span` extension that
+  reverses in place and returns `void`) rather than `Enumerable.Reverse`, under the solution's current
+  `LangVersion`. `EcSrp5.cs` and `WinboxStreamCrypto.cs` spell it out as `Enumerable.Reverse(x)` for this
+  reason — a discarded return value there would corrupt a buffer silently instead of failing to compile.
 - `ApiConnection`'s reader/tag multiplexing is the most subtle code in the repo and is likewise
   only exercised against real hardware.
 - `TikChangeTracker` and the `Save` default-vs-unset rules encode non-obvious semantics; a

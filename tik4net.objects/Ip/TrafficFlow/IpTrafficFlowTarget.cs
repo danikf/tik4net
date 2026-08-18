@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -30,21 +30,21 @@ namespace tik4net.Objects.Ip.TrafficFlow
 
         /// <summary>.id — primary key of row.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// dst-address — IP address of the host which receives Traffic-Flow statistic packets
         /// from the router.
         /// </summary>
         [TikProperty("dst-address", IsMandatory = true)]
-        public string/*IPv4*/ DstAddress { get; set; }
+        public string?/*IPv4*/ DstAddress { get; set; }
 
         /// <summary>
         /// src-address — IP address used as the source when sending Traffic-Flow statistics.
         /// Default: 0.0.0.0 (router picks the outgoing interface address automatically).
         /// </summary>
         [TikProperty("src-address", DefaultValue = "0.0.0.0")]
-        public string/*IPv4*/ SrcAddress { get; set; }
+        public string?/*IPv4*/ SrcAddress { get; set; }
 
         /// <summary>
         /// port — UDP port of the receiving host.
@@ -74,7 +74,7 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// Default: 30m
         /// </summary>
         [TikProperty("v9-template-timeout", DefaultValue = "30m")]
-        public string/*time*/ V9TemplateTimeout { get; set; }
+        public string?/*time*/ V9TemplateTimeout { get; set; }
 
         /// <summary>
         /// disabled — whether this export target is administratively disabled.

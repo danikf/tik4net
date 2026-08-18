@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,14 +16,14 @@ namespace tik4net.Objects.Ip
     {
         /// <summary>.id — primary key of the row.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// name — service identifier (e.g. ftp, ssh, telnet, www, www-ssl, api, api-ssl, winbox).
         /// Read-only; the set of services is defined by the router.
         /// </summary>
         [TikProperty("name", IsReadOnly = true, IsMandatory = true)]
-        public string Name { get; private set; }
+        public string? Name { get; private set; }
 
         /// <summary>
         /// port — the TCP/UDP port the service listens on (1..65535).
@@ -37,13 +37,13 @@ namespace tik4net.Objects.Ip
         /// WinBox: "Available From"
         /// </summary>
         [TikProperty("address", DefaultValue = "")]
-        public string Address { get; set; }
+        public string? Address { get; set; }
 
         /// <summary>
         /// certificate — name of the certificate used by this service (relevant for www-ssl and api-ssl).
         /// </summary>
         [TikProperty("certificate", DefaultValue = "")]
-        public string Certificate { get; set; }
+        public string? Certificate { get; set; }
 
         /// <summary>
         /// tls-version — specifies which TLS versions to allow for this service.
@@ -62,7 +62,7 @@ namespace tik4net.Objects.Ip
         /// vrf — specifies which VRF instance is used by this service.
         /// </summary>
         [TikProperty("vrf", DefaultValue = "main")]
-        public string Vrf { get; set; }
+        public string? Vrf { get; set; }
 
         /// <summary>
         /// disabled — whether the service is disabled.
@@ -74,7 +74,7 @@ namespace tik4net.Objects.Ip
         /// proto — transport protocol used by the service (tcp or udp). Read-only.
         /// </summary>
         [TikProperty("proto", IsReadOnly = true)]
-        public string Proto { get; private set; }
+        public string? Proto { get; private set; }
 
         /// <summary>
         /// dynamic — whether this is a dynamically created connection entry (not a base service row). Read-only.
@@ -92,13 +92,13 @@ namespace tik4net.Objects.Ip
         /// local — router local address for an active connection (present on dynamic connection rows only). Read-only.
         /// </summary>
         [TikProperty("local", IsReadOnly = true)]
-        public string Local { get; private set; }
+        public string? Local { get; private set; }
 
         /// <summary>
         /// remote — remote address of the active connection (present on dynamic connection rows only). Read-only.
         /// </summary>
         [TikProperty("remote", IsReadOnly = true)]
-        public string Remote { get; private set; }
+        public string? Remote { get; private set; }
 
         /// <summary>
         /// connection — true when the row represents an active connection rather than a service definition. Read-only.

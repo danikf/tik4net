@@ -52,9 +52,9 @@ namespace tik4net.MacTelnet
         // duration waiting on, and blocking on it meant every read occupied a thread-pool thread for as long
         // as the router took to answer (P2.5 / A6). See AsyncSignal.
         private readonly AsyncSignal           _rxSignal = new AsyncSignal();
-        private Thread            _pump;
+        private Thread?           _pump;
         private volatile bool     _pumpStop;
-        private volatile Exception _pumpFault;
+        private volatile Exception? _pumpFault;
 
         // ── Why there is no keepalive here ────────────────────────────────────
         //
@@ -78,7 +78,7 @@ namespace tik4net.MacTelnet
         // left idle past the router's window is gone, and that is the router's contract, not a defect we
         // can paper over from here - it has to be handled by reconnecting, not by inventing traffic.
 
-        internal MacTelnetUdpClient(Encoding encoding, int receiveTimeoutMs, int loginTimeoutMs, string routerMac)
+        internal MacTelnetUdpClient(Encoding encoding, int receiveTimeoutMs, int loginTimeoutMs, string? routerMac)
         {
             _encoding         = encoding ?? Encoding.UTF8;
             _receiveTimeoutMs = receiveTimeoutMs;
@@ -123,7 +123,7 @@ namespace tik4net.MacTelnet
         /// completed output line to <paramref name="onLine"/> while the command is still running — the
         /// streaming driver registered by <see cref="MacTelnetConnection"/> (P2.50).
         /// </summary>
-        internal async Task<string> SendCommandAndReadAsync(string command, Action<string> onLine, CancellationToken ct)
+        internal async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
         {
             // No Task.Run: the pump owns the socket, so nothing here blocks. The send is a UDP datagram plus
             // its retransmit bookkeeping (MacLayerTransport.Send) and the read only waits for the pump to
@@ -281,10 +281,11 @@ namespace tik4net.MacTelnet
             _rxSignal.Reset();
         }
 
-        private static TikConnectionSessionClosedException SessionClosed(string sentCommand)
+        private static TikConnectionSessionClosedException SessionClosed(string? sentCommand)
             => new TikConnectionSessionClosedException(
                 "MAC-Telnet: the router stopped acknowledging this session — it did not take the bytes of "
-                + (string.IsNullOrEmpty(sentCommand) ? "the last request" : "'" + sentCommand.Trim() + "'")
+                // netstandard2.0's string.IsNullOrEmpty isn't annotated NotNullWhen, so the compiler can't narrow.
+                + (string.IsNullOrEmpty(sentCommand) ? "the last request" : "'" + sentCommand!.Trim() + "'")
                 + ", so the command did not run. RouterOS logs an idle MAC-Telnet console out after about "
                 + "30 s (its own log records it as a normal logout), and the UDP socket stays open, so the "
                 + "session goes silent rather than reporting an error.");
@@ -316,7 +317,7 @@ namespace tik4net.MacTelnet
         /// consumed while it runs (see <see cref="CliLineStreamer"/>). Does not affect when the read
         /// returns — the stable prompt is still the only terminator.
         /// </param>
-        private async Task<string> ReadCommandResponseAsync(string sentCommand, Action<string> onLine = null)
+        private async Task<string> ReadCommandResponseAsync(string? sentCommand, Action<string>? onLine = null)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
             DateTime? settleUntil = null;

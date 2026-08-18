@@ -1,4 +1,4 @@
-﻿namespace tik4net.Objects.Ip.Ipsec
+namespace tik4net.Objects.Ip.Ipsec
 {
     /// <summary>
     /// /ip/ipsec/proposal
@@ -42,13 +42,13 @@
 
         /// <summary>.id — primary key of row</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// name — proposal identifier; used to reference this entry from policies.
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// auth-algorithms — comma-separated list of allowed authentication (integrity) algorithms
@@ -57,7 +57,7 @@
         /// Default: sha1
         /// </summary>
         [TikProperty("auth-algorithms", DefaultValue = "sha1")]
-        public string AuthAlgorithms { get; set; }
+        public string? AuthAlgorithms { get; set; }
 
         /// <summary>
         /// enc-algorithms — comma-separated list of allowed encryption algorithms and key lengths
@@ -68,7 +68,7 @@
         /// Default: aes-256-cbc,aes-192-cbc,aes-128-cbc
         /// </summary>
         [TikProperty("enc-algorithms", DefaultValue = "aes-256-cbc,aes-192-cbc,aes-128-cbc")]
-        public string EncAlgorithms { get; set; }
+        public string? EncAlgorithms { get; set; }
 
         /// <summary>
         /// lifetime — how long (time string, e.g. "30m") to use the SA before it must be
@@ -76,7 +76,7 @@
         /// Default: 30m
         /// </summary>
         [TikProperty("lifetime", DefaultValue = "30m")]
-        public string/*time*/ Lifetime { get; set; }
+        public string?/*time*/ Lifetime { get; set; }
 
         /// <summary>
         /// pfs-group — Diffie-Hellman group used for Perfect Forward Secrecy in Phase 2.
@@ -98,7 +98,7 @@
         /// comment — short description of the proposal entry.
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         // --- Read-only properties ---
 
@@ -110,6 +110,6 @@
         public bool Default { get; private set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

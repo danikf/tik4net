@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,7 +18,7 @@ namespace tik4net.Objects.Tool
         /// WinBox: "Server"
         /// </summary>
         [TikProperty("server", DefaultValue = "0.0.0.0")]
-        public string Server { get; set; }
+        public string? Server { get; set; }
 
         /// <summary>
         /// port — SMTP server's TCP port number [0..65535].
@@ -50,28 +50,28 @@ namespace tik4net.Objects.Tool
         /// WinBox: "From"
         /// </summary>
         [TikProperty("from", DefaultValue = "<>")]
-        public string From { get; set; }
+        public string? From { get; set; }
 
         /// <summary>
         /// user — Username for SMTP server authentication.
         /// WinBox: "User"
         /// </summary>
         [TikProperty("user", DefaultValue = "")]
-        public string User { get; set; }
+        public string? User { get; set; }
 
         /// <summary>
         /// password — Password for SMTP server authentication (sensitive).
         /// WinBox: "Password"
         /// </summary>
         [TikProperty("password", DefaultValue = "")]
-        public string Password { get; set; }
+        public string? Password { get; set; }
 
         /// <summary>
         /// vrf — VRF instance on which outgoing SMTP connections are created.
         /// WinBox: "VRF"
         /// </summary>
         [TikProperty("vrf", DefaultValue = "main")]
-        public string Vrf { get; set; }
+        public string? Vrf { get; set; }
 
         /// <summary>TLS encryption mode for <see cref="ToolEmail"/>.</summary>
         public enum EmailTls

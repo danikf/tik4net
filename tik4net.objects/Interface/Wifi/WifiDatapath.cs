@@ -1,4 +1,4 @@
-﻿namespace tik4net.Objects.Interface.Wifi
+namespace tik4net.Objects.Interface.Wifi
 {
     /// <summary>
     /// /interface/wifi/datapath
@@ -31,7 +31,7 @@
 
         /// <summary>.id — primary key of row.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         // ── Identification ────────────────────────────────────────────────────
 
@@ -40,7 +40,7 @@
         /// WinBox: "Name"
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         // ── Bridge settings ───────────────────────────────────────────────────
 
@@ -51,7 +51,7 @@
         /// WinBox: "Bridge"
         /// </summary>
         [TikProperty("bridge")]
-        public string Bridge { get; set; }
+        public string? Bridge { get; set; }
 
         /// <summary>
         /// bridge-cost — STP path cost assigned when adding the interface as a bridge port (1..65535).
@@ -69,7 +69,7 @@
         /// WinBox: "Bridge Horizon"
         /// </summary>
         [TikProperty("bridge-horizon", DefaultValue = "none")]
-        public string/*integer|none*/ BridgeHorizon { get; set; }
+        public string?/*integer|none*/ BridgeHorizon { get; set; }
 
         // ── Client settings ───────────────────────────────────────────────────
 
@@ -89,7 +89,7 @@
         /// WinBox: "Interface List"
         /// </summary>
         [TikProperty("interface-list")]
-        public string InterfaceList { get; set; }
+        public string? InterfaceList { get; set; }
 
         /// <summary>
         /// vlan-id — default VLAN ID (1..4095) to assign to clients connecting to this AP,
@@ -98,7 +98,7 @@
         /// WinBox: "VLAN ID"
         /// </summary>
         [TikProperty("vlan-id", DefaultValue = "none")]
-        public string/*1..4095|none*/ VlanId { get; set; }
+        public string?/*1..4095|none*/ VlanId { get; set; }
 
         // ── OpenFlow ──────────────────────────────────────────────────────────
 
@@ -108,7 +108,7 @@
         /// WinBox: "OpenFlow Switch"
         /// </summary>
         [TikProperty("openflow-switch")]
-        public string OpenflowSwitch { get; set; }
+        public string? OpenflowSwitch { get; set; }
 
         // ── CAPsMAN ───────────────────────────────────────────────────────────
 
@@ -137,9 +137,9 @@
         /// WinBox: "Comment"
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

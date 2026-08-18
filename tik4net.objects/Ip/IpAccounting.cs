@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,13 +17,13 @@ namespace tik4net.Objects.Ip
         /// account-local-traffic: whether to account the traffic to/from the router itself
         /// </summary>
         [TikProperty("account-local-traffic", DefaultValue = "no")]
-        public string AccountLocalTraffic { get; set; }
+        public string? AccountLocalTraffic { get; set; }
 
         /// <summary>
         /// enabled: whether local IP traffic accounting is enabled
         /// </summary>
         [TikProperty("enabled", DefaultValue = "no")]
-        public string Enabled { get; set; }
+        public string? Enabled { get; set; }
 
         /// <summary>
         /// threshold: maximum number of IP pairs in the accounting table (maximal value is 8192)

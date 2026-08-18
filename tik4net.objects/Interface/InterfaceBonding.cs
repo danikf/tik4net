@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,11 +16,11 @@ namespace tik4net.Objects.Interface
     {
         /// <summary>.id — primary key</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>name — Name of the bonding interface.</summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>mtu — Maximum Transmit Unit in bytes. Real default: 1500. DefaultValue="0" prevents sending 0 on add.</summary>
         [TikProperty("mtu", DefaultValue = "0")]
@@ -28,11 +28,11 @@ namespace tik4net.Objects.Interface
 
         /// <summary>mac-address — MAC address of the bonding interface (assigned from slaves).</summary>
         [TikProperty("mac-address", IsReadOnly = true)]
-        public string MacAddress { get; private set; }
+        public string? MacAddress { get; private set; }
 
         /// <summary>slaves — Ethernet-like interfaces to include in the bond (comma-separated). At least one required.</summary>
         [TikProperty("slaves", IsMandatory = true)]
-        public string Slaves { get; set; }
+        public string? Slaves { get; set; }
 
         public enum BondingMode
         {
@@ -59,7 +59,7 @@ namespace tik4net.Objects.Interface
 
         /// <summary>primary — Controls primary interface for active-backup, balance-tlb and balance-alb modes.</summary>
         [TikProperty("primary", DefaultValue = "none")]
-        public string Primary { get; set; }
+        public string? Primary { get; set; }
 
         public enum LinkMonitoringMode
         {
@@ -78,15 +78,15 @@ namespace tik4net.Objects.Interface
 
         /// <summary>mii-interval — How often to monitor link failures when link-monitoring=mii. Real default: 100ms.</summary>
         [TikProperty("mii-interval", DefaultValue = "100ms")]
-        public string/*time*/ MiiInterval { get; set; }
+        public string?/*time*/ MiiInterval { get; set; }
 
         /// <summary>arp-interval — How often to monitor ARP requests when link-monitoring=arp. Real default: 100ms.</summary>
         [TikProperty("arp-interval", DefaultValue = "100ms")]
-        public string/*time*/ ArpInterval { get; set; }
+        public string?/*time*/ ArpInterval { get; set; }
 
         /// <summary>arp-ip-targets — IP addresses monitored when link-monitoring=arp (comma-separated).</summary>
         [TikProperty("arp-ip-targets", DefaultValue = "")]
-        public string ArpIpTargets { get; set; }
+        public string? ArpIpTargets { get; set; }
 
         public enum ArpMode
         {
@@ -107,15 +107,15 @@ namespace tik4net.Objects.Interface
 
         /// <summary>arp-timeout — How long to keep ARP entries. Real default: auto.</summary>
         [TikProperty("arp-timeout", DefaultValue = "auto")]
-        public string/*time*/ ArpTimeout { get; set; }
+        public string?/*time*/ ArpTimeout { get; set; }
 
         /// <summary>down-delay — Time to disable interface after link failure is detected. Default: 0ms.</summary>
         [TikProperty("down-delay", DefaultValue = "0ms")]
-        public string/*time*/ DownDelay { get; set; }
+        public string?/*time*/ DownDelay { get; set; }
 
         /// <summary>up-delay — Time to disable interface after a link is brought up. Default: 0ms.</summary>
         [TikProperty("up-delay", DefaultValue = "0ms")]
-        public string/*time*/ UpDelay { get; set; }
+        public string?/*time*/ UpDelay { get; set; }
 
         /// <summary>min-links — Minimum number of active slave links required for bonding to be active. Default: 0 (disabled).</summary>
         [TikProperty("min-links", DefaultValue = "0")]
@@ -123,7 +123,7 @@ namespace tik4net.Objects.Interface
 
         /// <summary>forced-mac-address — Static MAC address to use for the bond interface instead of deriving from slaves.</summary>
         [TikProperty("forced-mac-address", DefaultValue = "")]
-        public string/*MAC*/ ForcedMacAddress { get; set; }
+        public string?/*MAC*/ ForcedMacAddress { get; set; }
 
         public enum LacpRateMode
         {
@@ -153,7 +153,7 @@ namespace tik4net.Objects.Interface
 
         /// <summary>lacp-system-id — MAC address to use as the LACP system ID (overrides the default).</summary>
         [TikProperty("lacp-system-id", DefaultValue = "")]
-        public string/*MAC*/ LacpSystemId { get; set; }
+        public string?/*MAC*/ LacpSystemId { get; set; }
 
         /// <summary>lacp-system-priority — LACP system priority (1–65535). Real default: 65535. DefaultValue="0" prevents sending 0 on add.</summary>
         [TikProperty("lacp-system-priority", DefaultValue = "0")]
@@ -192,9 +192,9 @@ namespace tik4net.Objects.Interface
 
         /// <summary>comment — Short description of the interface.</summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

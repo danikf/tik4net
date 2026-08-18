@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,7 +15,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// assured: "assured" flag indicates that this connection is assured and that it will not be erased if maximum possible tracked connection count is reached.
@@ -27,19 +27,19 @@ namespace tik4net.Objects.Ip.Firewall
         /// connection-mark: connection mark set by  mangle rule.
         /// </summary>
         [TikProperty("connection-mark", IsReadOnly = true)]
-        public string ConnectionMark { get; private set; }
+        public string? ConnectionMark { get; private set; }
 
         /// <summary>
         /// connection-type: Type of connection, property is empty if connection tracking is unable to determine predefined connection type.
         /// </summary>
         [TikProperty("connection-type", IsReadOnly = true)]
-        public string ConnectionType { get; private set; }
+        public string? ConnectionType { get; private set; }
 
         /// <summary>
         /// dst-address: Destination address and port (if protocol is port based).
         /// </summary>
         [TikProperty("dst-address", IsReadOnly = true)]
-        public string DstAddress { get; private set; }
+        public string? DstAddress { get; private set; }
 
         /// <summary>
         /// gre-key: 
@@ -51,25 +51,25 @@ namespace tik4net.Objects.Ip.Firewall
         /// gre-version: 
         /// </summary>
         [TikProperty("gre-version", IsReadOnly = true)]
-        public string GreVersion { get; private set; }
+        public string? GreVersion { get; private set; }
 
         /// <summary>
         /// icmp-code: 
         /// </summary>
         [TikProperty("icmp-code", IsReadOnly = true)]
-        public string IcmpCode { get; private set; }
+        public string? IcmpCode { get; private set; }
 
         /// <summary>
         /// icmp-id: 
         /// </summary>
         [TikProperty("icmp-id", IsReadOnly = true)]
-        public string IcmpId { get; private set; }
+        public string? IcmpId { get; private set; }
 
         /// <summary>
         /// icmp-type: 
         /// </summary>
         [TikProperty("icmp-type", IsReadOnly = true)]
-        public string IcmpType { get; private set; }
+        public string? IcmpType { get; private set; }
 
         /// <summary>
         /// p2p: Shows if connection is identified as p2p by firewall p2p matcher.
@@ -81,25 +81,25 @@ namespace tik4net.Objects.Ip.Firewall
         /// protocol: IP protocol type
         /// </summary>
         [TikProperty("protocol", IsReadOnly = true)]
-        public string Protocol { get; private set; }
+        public string? Protocol { get; private set; }
 
         /// <summary>
         /// reply-dst-address: Destination address (and port) expected of return packets. Usually the same as "src-address:port"
         /// </summary>
         [TikProperty("reply-dst-address", IsReadOnly = true)]
-        public string ReplyDstAddress { get; private set; }
+        public string? ReplyDstAddress { get; private set; }
 
         /// <summary>
         /// reply-src-address: Source address (and port) expected of return packets. Usually the same as "dst-address:port"
         /// </summary>
         [TikProperty("reply-src-address", IsReadOnly = true)]
-        public string ReplySrcAddress { get; private set; }
+        public string? ReplySrcAddress { get; private set; }
 
         /// <summary>
         /// src-address: Source address and port (if protocol is port based).
         /// </summary>
         [TikProperty("src-address", IsReadOnly = true)]
-        public string SrcAddress { get; private set; }
+        public string? SrcAddress { get; private set; }
 
         /// <summary>
         /// tcp-state
@@ -111,12 +111,12 @@ namespace tik4net.Objects.Ip.Firewall
         ///  "syn-received"
         /// </summary>
         [TikProperty("tcp-state", IsReadOnly = true)]
-        public string TcpState { get; private set; }
+        public string? TcpState { get; private set; }
 
         /// <summary>
         /// timeout: Time after connection will be removed from connection list.
         /// </summary>
         [TikProperty("timeout", IsReadOnly = true)]
-        public string Timeout { get; private set; }
+        public string? Timeout { get; private set; }
     }
 }

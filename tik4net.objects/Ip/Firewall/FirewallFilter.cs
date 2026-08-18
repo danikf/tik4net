@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -128,7 +128,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// action: Action to take if packet is matched by the rule: 
@@ -150,27 +150,27 @@ namespace tik4net.Objects.Ip.Firewall
         /// address-list: Name of the address list to be used. Applicable if action is add-dst-to-address-list or add-src-to-address-list 
         /// </summary>
         [TikProperty("address-list")]
-        public string AddressList { get; set; }
+        public string? AddressList { get; set; }
 
         /// <summary>
         /// address-list-timeout: Time interval after which the address will be removed from the address list specified by address-list parameter. Used in conjunction with add-dst-to-address-list or add-src-to-address-list actions
         /// Value of 00:00:00 will leave the address in the address list forever
         /// </summary>
         [TikProperty("address-list-timeout", DefaultValue = "00:00:00")]
-        public string/*time*/ AddressListTimeout { get; set; }
+        public string?/*time*/ AddressListTimeout { get; set; }
 
         /// <summary>
         /// chain: Specifies to which chain rule will be added. If the input does not match the name of an already defined chain, a new chain will be created. 
         /// </summary>
         /// <seealso cref="ChainType"/>
         [TikProperty("chain")]
-        public string/*name*/ Chain { get; set; }
+        public string?/*name*/ Chain { get; set; }
 
         /// <summary>
         /// comment: Descriptive comment for the rule.
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>
         /// connection-bytes: Matches packets only if a given amount of bytes has been transfered through the particular connection. 0 - means infinity, for example connection-bytes=2000000-0 means that the rule matches if more than 2MB has been transfered through the relevant connection 
@@ -188,7 +188,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// connection-mark: Matches packets marked via mangle facility with particular connection mark. If no-mark is set, rule will match any unmarked connection.
         /// </summary>
         [TikProperty("connection-mark", UnsetOnDefault = true)]
-        public string ConnectionMark { get; set; }
+        public string? ConnectionMark { get; set; }
 
         /// <summary>
         /// connection-rate: Connection Rate is a firewall matcher that allow to capture traffic based on present speed of the connection.  Read more &gt;&gt;
@@ -210,13 +210,13 @@ namespace tik4net.Objects.Ip.Firewall
         /// connection-type: Matches packets from related connections based on information from their connection tracking helpers. A relevant connection helper must be enabled under  /ip firewall service-port
         /// </summary>
         [TikProperty("connection-type", UnsetOnDefault = true)]
-        public string ConnectionType { get; set; }
+        public string? ConnectionType { get; set; }
 
         /// <summary>
         /// content: Match packets that contain specified text
         /// </summary>
         [TikProperty("content", UnsetOnDefault = true)]
-        public string Content { get; set; }
+        public string? Content { get; set; }
 
         /// <summary>
         /// dscp: Matches DSCP IP header field.
@@ -228,13 +228,13 @@ namespace tik4net.Objects.Ip.Firewall
         /// dst-address: Matches packets which destination is equal to specified IP or falls into specified IP range.
         /// </summary>
         [TikProperty("dst-address", UnsetOnDefault = true)]
-        public string DstAddress { get; set; }
+        public string? DstAddress { get; set; }
 
         /// <summary>
         /// dst-address-list: Matches destination address of a packet against user-defined address list
         /// </summary>
         [TikProperty("dst-address-list", UnsetOnDefault = true)]
-        public string/*name*/ DstAddressList { get; set; }
+        public string?/*name*/ DstAddressList { get; set; }
 
         /// <summary>
         /// dst-address-type: Matches destination address type:
@@ -244,7 +244,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// multicast - packet is forwarded to defined group of devices
         /// </summary>
         [TikProperty("dst-address-type", UnsetOnDefault = true)]
-        public string DstAddressType { get; set; }
+        public string? DstAddressType { get; set; }
 
         /// <summary>
         /// dst-limit: Matches packets until a given rate is exceeded. Rate is defined as packets per time interval. As opposed to the limit matcher, every flow has it's own limit. Flow is defined by mode parameter. Parameters are written in following format: count[/time],burst,mode[/expire].
@@ -255,13 +255,13 @@ namespace tik4net.Objects.Ip.Firewall
         /// expire - specifies interval after which flow with no packets will be allowed to be deleted(optional)
         /// </summary>
         [TikProperty("dst-limit", UnsetOnDefault = true)]
-        public string DstLimit { get; set; }
+        public string? DstLimit { get; set; }
 
         /// <summary>
         /// dst-port: List of destination port numbers or port number ranges
         /// </summary>
         [TikProperty("dst-port", UnsetOnDefault = true)]
-        public string DstPort { get; set; }
+        public string? DstPort { get; set; }
 
         /// <summary>
         /// fragment: Matches fragmented packets. First (starting) fragment does not count. If connection tracking is enabled there will be no fragments as system automatically assembles every packet
@@ -273,25 +273,25 @@ namespace tik4net.Objects.Ip.Firewall
         /// hotspot: 
         /// </summary>
         [TikProperty("hotspot", UnsetOnDefault = true)]
-        public string Hotspot { get; set; }
+        public string? Hotspot { get; set; }
 
         /// <summary>
         /// icmp-options: Matches ICMP type:code fileds
         /// </summary>
         [TikProperty("icmp-options", UnsetOnDefault = true)]
-        public string IcmpOptions { get; set; }
+        public string? IcmpOptions { get; set; }
 
         /// <summary>
         /// in-bridge-port: Actual interface the packet has entered the router, if incoming interface is bridge. Works only if use-ip-firewall is enabled in bridge settings.
         /// </summary>
         [TikProperty("in-bridge-port", UnsetOnDefault = true)]
-        public string/*name*/ InBridgePort { get; set; }
+        public string?/*name*/ InBridgePort { get; set; }
 
         /// <summary>
         /// in-interface: Interface the packet has entered the router
         /// </summary>
         [TikProperty("in-interface", UnsetOnDefault = true)]
-        public string/*name*/ InInterface { get; set; }
+        public string?/*name*/ InInterface { get; set; }
 
         /// <summary>
         /// ingress-priority: Matches ingress priority of the packet. Priority may be derived from VLAN, WMM or MPLS EXP bit.  Read more&gt;&gt;
@@ -324,19 +324,19 @@ namespace tik4net.Objects.Ip.Firewall
         /// timestamp - match packets with timestamp
         /// </summary>
         [TikProperty("ipv4-options", UnsetOnDefault = true)]
-        public string Ipv4Options { get; set; }
+        public string? Ipv4Options { get; set; }
 
         /// <summary>
         /// jump-target: Name of the target chain to jump to. Applicable only if action=jump
         /// </summary>
         [TikProperty("jump-target")]
-        public string/*name*/ JumpTarget { get; set; }
+        public string?/*name*/ JumpTarget { get; set; }
 
         /// <summary>
         /// layer7-protocol: Layer7 filter name defined in  layer7 protocol menu.
         /// </summary>
         [TikProperty("layer7-protocol", UnsetOnDefault = true)]
-        public string/*name*/ Layer7Protocol { get; set; }
+        public string?/*name*/ Layer7Protocol { get; set; }
 
         /// <summary>
         /// limit: Matches packets at a limited rate. Rule using this matcher will match until this limit is reached. Parameters are written in following format: count[/time],burst.
@@ -345,67 +345,67 @@ namespace tik4net.Objects.Ip.Firewall
         /// burst - initial number of packets to match: this number gets recharged by one every time/count, up to this number
         /// </summary>
         [TikProperty("limit", UnsetOnDefault = true)]
-        public string Limit { get; set; }
+        public string? Limit { get; set; }
 
         /// <summary>
         /// log-prefix: Adds specified text at the beginning of every log message. Applicable if action=log
         /// </summary>
         [TikProperty("log-prefix")]
-        public string LogPrefix { get; set; }
+        public string? LogPrefix { get; set; }
 
         /// <summary>
         /// nth: Matches every nth packet.  Read more &gt;&gt;
         /// </summary>
         [TikProperty("nth", UnsetOnDefault = true)]
-        public string Nth { get; set; }
+        public string? Nth { get; set; }
 
         /// <summary>
         /// out-bridge-port: Actual interface the packet is leaving the router, if outgoing interface is bridge. Works only if use-ip-firewall is enabled in bridge settings.
         /// </summary>
         [TikProperty("out-bridge-port", UnsetOnDefault = true)]
-        public string/*name*/ OutBridgePort { get; set; }
+        public string?/*name*/ OutBridgePort { get; set; }
 
         /// <summary>
         /// out-interface: Interface the packet is leaving the router
         /// </summary>
         [TikProperty("out-interface", UnsetOnDefault = true)]
-        public string OutInterface { get; set; }
+        public string? OutInterface { get; set; }
 
         /// <summary>
         /// p2p: Matches packets from various peer-to-peer (P2P) protocols. Does not work on encrypted p2p packets.
         /// </summary>
         [TikProperty("p2p", UnsetOnDefault = true)]
-        public string P2p { get; set; }
+        public string? P2p { get; set; }
 
         /// <summary>
         /// packet-mark: Matches packets marked via mangle facility with particular packet mark. If no-mark is set, rule will match any unmarked packet.
         /// </summary>
         [TikProperty("packet-mark", UnsetOnDefault = true)]
-        public string PacketMark { get; set; }
+        public string? PacketMark { get; set; }
 
         /// <summary>
         /// packet-size: Matches packets of specified size or size range in bytes.
         /// </summary>
         [TikProperty("packet-size", UnsetOnDefault = true)]
-        public string PacketSize { get; set; }
+        public string? PacketSize { get; set; }
 
         /// <summary>
         /// per-connection-classifier: PCC matcher allows to divide traffic into equal streams with ability to keep packets with specific set of options in one particular stream.  Read more &gt;&gt;
         /// </summary>
         [TikProperty("per-connection-classifier", UnsetOnDefault = true)]
-        public string PerConnectionClassifier { get; set; }
+        public string? PerConnectionClassifier { get; set; }
 
         /// <summary>
         /// port: Matches if any (source or destination) port matches the specified list of ports or port ranges. Applicable only if protocol is TCP or UDP
         /// </summary>
         [TikProperty("port", UnsetOnDefault = true)]
-        public string Port { get; set; }
+        public string? Port { get; set; }
 
         /// <summary>
         /// protocol: Matches particular IP protocol specified by protocol name or number
         /// </summary>
         [TikProperty("protocol", UnsetOnDefault = true)]
-        public string Protocol { get; set; }
+        public string? Protocol { get; set; }
 
         /// <summary>
         /// psd: Attempts to detect TCP and UDP scans. Parameters are in following format WeightThreshold, DelayThreshold, LopPortWeight, HighPortWeight
@@ -415,37 +415,37 @@ namespace tik4net.Objects.Ip.Firewall
         /// HighPortWeight - weight of the packet with non-priviliged destination port
         /// </summary>
         [TikProperty("psd", UnsetOnDefault = true)]
-        public string Psd { get; set; }
+        public string? Psd { get; set; }
 
         /// <summary>
         /// random: Matches packets randomly with given probability.
         /// </summary>
         [TikProperty("random", UnsetOnDefault = true)]
-        public string Random { get; set; }
+        public string? Random { get; set; }
 
         /// <summary>
         /// reject-with: Specifies error to be sent back if packet is rejected. Applicable if action=reject
         /// </summary>
         [TikProperty("reject-with")]
-        public string RejectWith { get; set; }
+        public string? RejectWith { get; set; }
 
         /// <summary>
         /// routing-mark: Matches packets marked by mangle facility with particular routing mark
         /// </summary>
         [TikProperty("routing-mark", UnsetOnDefault = true)]
-        public string RoutingMark { get; set; }
+        public string? RoutingMark { get; set; }
 
         /// <summary>
         /// src-address: Matches packets which source is equal to specified IP or falls into specified IP range.
         /// </summary>
         [TikProperty("src-address", UnsetOnDefault = true)]
-        public string SrcAddress { get; set; }
+        public string? SrcAddress { get; set; }
 
         /// <summary>
         /// src-address-list: Matches source address of a packet against user-defined  address list
         /// </summary>
         [TikProperty("src-address-list", UnsetOnDefault = true)]
-        public string/*name*/ SrcAddressList { get; set; }
+        public string?/*name*/ SrcAddressList { get; set; }
 
         /// <summary>
         /// src-address-type: 
@@ -456,19 +456,19 @@ namespace tik4net.Objects.Ip.Firewall
         /// multicast - packet is forwarded to defined group of devices
         /// </summary>
         [TikProperty("src-address-type", UnsetOnDefault = true)]
-        public string SrcAddressType { get; set; }
+        public string? SrcAddressType { get; set; }
 
         /// <summary>
         /// src-port: List of source ports and ranges of source ports. Applicable only if protocol is TCP or UDP.
         /// </summary>
         [TikProperty("src-port", UnsetOnDefault = true)]
-        public string SrcPort { get; set; }
+        public string? SrcPort { get; set; }
 
         /// <summary>
         /// src-mac-address: Matches source MAC address of the packet
         /// </summary>
         [TikProperty("src-mac-address", UnsetOnDefault = true)]
-        public string SrcMacAddress { get; set; }
+        public string? SrcMacAddress { get; set; }
 
         /// <summary>
         /// tcp-flags: Matches specified TCP flags
@@ -482,25 +482,25 @@ namespace tik4net.Objects.Ip.Firewall
         /// urg - urgent data
         /// </summary>
         [TikProperty("tcp-flags", UnsetOnDefault = true)]
-        public string TcpFlags { get; set; }
+        public string? TcpFlags { get; set; }
 
         /// <summary>
         /// tcp-mss: Matches TCP MSS value of an IP packet
         /// </summary>
         [TikProperty("tcp-mss", UnsetOnDefault = true)]
-        public string TcpMss { get; set; }
+        public string? TcpMss { get; set; }
 
         /// <summary>
         /// time: Allows to create filter based on the packets' arrival time and date or, for locally generated packets, departure time and date
         /// </summary>
         [TikProperty("time", UnsetOnDefault = true)]
-        public string Time { get; set; }
+        public string? Time { get; set; }
 
         /// <summary>
         /// ttl: Matches packets TTL value
         /// </summary>
         [TikProperty("ttl", UnsetOnDefault = true)]
-        public string Ttl { get; set; }
+        public string? Ttl { get; set; }
 
         /// <summary>
         /// Row disabled property.

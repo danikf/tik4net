@@ -77,9 +77,9 @@ namespace tik4net.Cli
         // keeps the leaf's concrete client type (and any internal transport interface) out of this public
         // base's signatures — no public-API leak (a protected member cannot expose an internal type, CS0057)
         // — while still centralising the open/close/guard boilerplate the five CLI transports used to repeat.
-        private Func<string, CancellationToken, Task<string>> _send;
-        private Func<byte[], CancellationToken, Task<string>> _sendRaw;
-        private Action _close;
+        private Func<string, CancellationToken, Task<string>>? _send;
+        private Func<byte[], CancellationToken, Task<string>>? _sendRaw;
+        private Action? _close;
 
         /// <summary>Short transport name shown in the "connection is not open" diagnostic (e.g. "Telnet").</summary>
         protected abstract string TransportName { get; }
@@ -213,7 +213,7 @@ namespace tik4net.Cli
         // running", returning the same cleaned output the normal driver returns when it finally ends. A leaf
         // transport registers this in Open if its read loop can hand out lines mid-command; a transport that
         // does not is not broken, it just falls back to the one-shot as-value monitor (see SnapshotOnce).
-        private Func<string, Action<string>, CancellationToken, Task<string>> _sendStreaming;
+        private Func<string, Action<string>, CancellationToken, Task<string>>? _sendStreaming;
 
         /// <summary>
         /// Registers the driver that enables incremental (line-at-a-time) reads on this transport. Leaf
@@ -373,7 +373,7 @@ namespace tik4net.Cli
         // redraws the prompt with the echoed stem — so it must be read on a settle window, not a prompt match.
         // A leaf transport registers this in Open only if it supports completion (currently Telnet); when it
         // is null, CompleteCli reports the transport does not support completion (fail-closed).
-        private Func<byte[], int, CancellationToken, Task<string>> _sendRawSettle;
+        private Func<byte[], int, CancellationToken, Task<string>>? _sendRawSettle;
 
         /// <summary>
         /// Registers the settle-read driver that enables <see cref="ITikCliCompletion"/> on this transport.
@@ -539,7 +539,7 @@ namespace tik4net.Cli
             var statsById = new Dictionary<string, TikRecordSentence>(StringComparer.OrdinalIgnoreCase);
             foreach (var sr in statsRecords)
             {
-                string id = sr.GetResponseFieldOrDefault(TikSpecialProperties.Id, null);
+                string id = sr.GetResponseFieldOrDefault(TikSpecialProperties.Id, null!); // defaultValue is meant to accept null (interface out of scope here)
                 if (id != null)
                     statsById[id] = sr;
             }
@@ -554,7 +554,7 @@ namespace tik4net.Cli
             var merged = new List<TikRecordSentence>(configRecords.Count);
             foreach (var cfg in configRecords)
             {
-                string id = cfg.GetResponseFieldOrDefault(TikSpecialProperties.Id, null);
+                string id = cfg.GetResponseFieldOrDefault(TikSpecialProperties.Id, null!); // defaultValue is meant to accept null (interface out of scope here)
                 if (id == null || !statsById.TryGetValue(id, out TikRecordSentence sr))
                 {
                     // No matching stats record — keep config as-is.
@@ -700,7 +700,10 @@ namespace tik4net.Cli
             string cliText = CliCommandBuilder.BuildAdd(descriptor.CommandText, descriptor.Parameters);
             string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false);
             CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
-            return ExtractAddId(output);
+            // ExtractAddId can return null when the cleaned output is entirely whitespace after a
+            // successful add - RunAddAsync's declared Task<string> is non-nullable, so this `!` matches the
+            // base class contract rather than a proven-non-null value. See report: a real latent null path.
+            return ExtractAddId(output)!;
         }
 
         /// <summary>
@@ -711,12 +714,12 @@ namespace tik4net.Cli
         /// with the real id on the LAST non-empty line. Prefer the last line that looks like an id
         /// (<c>*</c> + hex); otherwise fall back to the last non-empty line.
         /// </summary>
-        private static string ExtractAddId(string output)
+        private static string? ExtractAddId(string output)
         {
             if (string.IsNullOrWhiteSpace(output))
                 return null;
             var lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            string lastNonEmpty = null;
+            string? lastNonEmpty = null;
             for (int i = lines.Length - 1; i >= 0; i--)
             {
                 string t = lines[i].Trim();
@@ -850,7 +853,7 @@ namespace tik4net.Cli
                 string listPath = TikPath.Parent(descriptor.CommandText);
                 var printDescriptor = new TikCommandDescriptor(listPath + "/print", descriptor.Parameters);
                 return PollingMonitorEngine.StartWorker("cli-listen",
-                    h => PollingMonitorEngine.ListenLoop(this, printDescriptor, null, ListenPollIntervalMs, h, onRow, onError, onDone));
+                    h => PollingMonitorEngine.ListenLoop(this, printDescriptor, null!, ListenPollIntervalMs, h, onRow, onError, onDone)); // volatileFields: none for CLI listen (out-of-scope signature is non-nullable)
             }
 
             if (verb == "print" || verb == "getall")
@@ -949,7 +952,7 @@ namespace tik4net.Cli
                         line =>
                         {
                             if (handle.CancelRequested) return;
-                            TikRecordSentence row = table.Feed(line);
+                            TikRecordSentence? row = table.Feed(line);
                             if (row != null) onRow?.Invoke(row);
                         });
                     // Checked after the fact rather than per line: an error ends the command, so it is in the

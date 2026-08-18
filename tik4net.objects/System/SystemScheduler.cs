@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,32 +16,32 @@ namespace tik4net.Objects.System
         /// .id — primary key of the row.
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// name — identifier for the scheduled task.
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// interval — time between executions. <c>0s</c> means execute only at <see cref="StartTime"/>.
         /// </summary>
         [TikProperty("interval", DefaultValue = "0s")]
-        public string/*time*/ Interval { get; set; }
+        public string?/*time*/ Interval { get; set; }
 
         /// <summary>
         /// start-date — date when the script first executes.
         /// </summary>
         [TikProperty("start-date")]
-        public string/*date*/ StartDate { get; set; }
+        public string?/*date*/ StartDate { get; set; }
 
         /// <summary>
         /// start-time — time of initial script execution. The special value <c>startup</c>
         /// runs the script a few seconds after the system boots.
         /// </summary>
         [TikProperty("start-time")]
-        public string/*time*/ StartTime { get; set; }
+        public string?/*time*/ StartTime { get; set; }
 
         /// <summary>
         /// on-event — script source to run, or the name of a script from /system/script.
@@ -52,20 +52,20 @@ namespace tik4net.Objects.System
         /// </para>
         /// </summary>
         [TikProperty("on-event", IsFreeText = true)]
-        public string OnEvent { get; set; }
+        public string? OnEvent { get; set; }
 
         /// <summary>
         /// policy — comma-separated list of user policies this script runs under
         /// (e.g. <c>read,write,policy,test</c>). Combination of flags, kept as string.
         /// </summary>
         [TikProperty("policy")]
-        public string Policy { get; set; }
+        public string? Policy { get; set; }
 
         /// <summary>
         /// owner — user that owns/created the scheduled task (read-only).
         /// </summary>
         [TikProperty("owner", IsReadOnly = true)]
-        public string Owner { get; private set; }
+        public string? Owner { get; private set; }
 
         /// <summary>
         /// run-count — counter tracking how many times the script has executed (read-only).
@@ -77,7 +77,7 @@ namespace tik4net.Objects.System
         /// next-run — when the script is scheduled to run next (read-only).
         /// </summary>
         [TikProperty("next-run", IsReadOnly = true)]
-        public string NextRun { get; private set; }
+        public string? NextRun { get; private set; }
 
         /// <summary>
         /// disabled — whether the scheduled task is disabled.
@@ -89,7 +89,7 @@ namespace tik4net.Objects.System
         /// comment.
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <inheritdoc/>
         public override string ToString()

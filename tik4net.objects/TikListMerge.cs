@@ -39,10 +39,14 @@ namespace tik4net.Objects
         private readonly IEnumerable<TEntity> _expected;
         private readonly IEnumerable<TEntity> _original;
         private readonly TikEntityMetadata _metadata;
-        private Func<TEntity, string> _keyExtractor;
-        private Action<MergeOperation, TEntity, TEntity> _dmlLogCallback; //<MergeOperation, oldEntity, newEntity>
-        private Action<TEntity, int, int> _moveLogCallback; //<Entity, oldIndex, newIndex>
-        private Func<MergeOperation, TEntity, TEntity, bool> _filterCallback = (operation, oldE, newE) => true; //default filter - process all
+        // Required fluent setup: SaveInternal dereferences this unconditionally, so it must be set via
+        // WithKey before Save/Simulate is called - nullable here only because the compiler cannot see that
+        // ordering; there is no runtime guard against calling Save without WithKey first.
+        private Func<TEntity, string>? _keyExtractor;
+        private Action<MergeOperation, TEntity?, TEntity?>? _dmlLogCallback; //<MergeOperation, oldEntity, newEntity>
+        private Action<TEntity, int, int>? _moveLogCallback; //<Entity, oldIndex, newIndex>
+        // oldEntity/newEntity are null for the side that doesn't exist: Insert has no oldEntity, Delete has no newEntity.
+        private Func<MergeOperation, TEntity?, TEntity?, bool> _filterCallback = (operation, oldE, newE) => true; //default filter - process all
         private readonly List<MemberExpression> _fields = new List<MemberExpression>();
         private readonly List<MemberExpression> _justForInsertFields = new List<MemberExpression>();
 
@@ -56,7 +60,7 @@ namespace tik4net.Objects
 
         private static MemberExpression EnsureBodyIsMemberExpression<TProperty>(Expression<Func<TEntity, TProperty>> fieldExpression)
         {
-            MemberExpression memberExpression = fieldExpression.Body as MemberExpression;
+            MemberExpression? memberExpression = fieldExpression.Body as MemberExpression;
 
             if (memberExpression == null)
                 throw new ArgumentException("Given expression must be MemberExpression.", "fieldExpression");
@@ -89,7 +93,7 @@ namespace tik4net.Objects
         /// </summary>
         /// <param name="dmlLogCallback">log callback called on each DML operation - {operation, oldValue, newValue}</param>
         /// <returns>this (fluent like API)</returns>
-        public TikListMerge<TEntity> WithDmlLogCallback(Action<MergeOperation, TEntity, TEntity> dmlLogCallback)
+        public TikListMerge<TEntity> WithDmlLogCallback(Action<MergeOperation, TEntity?, TEntity?> dmlLogCallback)
         {
             _dmlLogCallback = dmlLogCallback;
 
@@ -139,7 +143,7 @@ namespace tik4net.Objects
         /// </summary>
         /// <param name="filterCallback">log callback called on each DML operation - {operation, oldValue, newValue}. Operation will be performed only if true is returned. Otherwise DML operation will be skipped.</param>
         /// <returns>this (fluent like API)</returns>
-        public TikListMerge<TEntity> WithOperationFilter(Func<MergeOperation, TEntity, TEntity, bool> filterCallback)
+        public TikListMerge<TEntity> WithOperationFilter(Func<MergeOperation, TEntity?, TEntity?, bool> filterCallback)
         {
             _filterCallback = filterCallback;
 
@@ -190,7 +194,7 @@ namespace tik4net.Objects
         }
 
 
-        private void LogDml(MergeOperation operation, TEntity oldEntity, TEntity newEntity)
+        private void LogDml(MergeOperation operation, TEntity? oldEntity, TEntity? newEntity)
         {
             if (_dmlLogCallback != null)
                 _dmlLogCallback(operation, oldEntity, newEntity);
@@ -269,13 +273,14 @@ namespace tik4net.Objects
 
             //TODO ensure all fields set                
             List<TEntity> result = new List<TEntity>();
-            Dictionary<string, TEntity> expectedDict = _expected.ToDictionaryEx(_keyExtractor);
-            Dictionary<string, TEntity> originalDict = _original.ToDictionaryEx(_keyExtractor);
+            // _keyExtractor!: required fluent setup - see the field's declaration comment.
+            Dictionary<string, TEntity> expectedDict = _expected.ToDictionaryEx(_keyExtractor!);
+            Dictionary<string, TEntity> originalDict = _original.ToDictionaryEx(_keyExtractor!);
 
             // Keys in the order the router currently holds them, kept up to date as this merge deletes, inserts
             // and moves. Shared with SaveListDifferences, which reorders the same way — see TikOrderTracker for
             // why the check has to be against the current order rather than the starting one.
-            var currentOrder = new TikOrderTracker(_original.Select(_keyExtractor));
+            var currentOrder = new TikOrderTracker(_original.Select(_keyExtractor!));
 
             //Delete
             foreach (var originalEntityPair in originalDict.Reverse()) //delete from end to begining of the list (just for better show in WinBox)
@@ -340,8 +345,8 @@ namespace tik4net.Objects
                 {
                     if (result.Count > 0) // last one in the list (first taken) should be just added/leavedOnPosition and the next should be moved before the one which was added immediatelly before <=> result[0]
                     {
-                        string movedKey = _keyExtractor(resultEntity);
-                        string anchorKey = _keyExtractor(result[0]);
+                        string movedKey = _keyExtractor!(resultEntity);
+                        string anchorKey = _keyExtractor!(result[0]);
                         int movedIdx, anchorIdx;
 
                         // only if is in different position (is not immediately before result[0] right now)

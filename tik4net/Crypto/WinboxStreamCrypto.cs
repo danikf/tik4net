@@ -88,13 +88,15 @@ namespace tik4net.Crypto
             }
 
             // Wire: [enc_len 2B BE][IV 16B][ciphertext]
-            return BitConverter.GetBytes((ushort)ciphertext.Length).Reverse().ToArray()
+            // Enumerable.Reverse spelled out: an array-to-Span conversion would otherwise pick
+            // MemoryExtensions.Reverse, which reverses in place and returns void (see EcSrp5.BEToBI).
+            return Enumerable.Reverse(BitConverter.GetBytes((ushort)ciphertext.Length)).ToArray()
                 .Concat(iv).Concat(ciphertext).ToArray();
         }
 
         // Decrypt [enc_len 2B BE][IV 16B][ciphertext], strip padding + HMAC, return plaintext.
         // Returns null on error (wrong key, padding fault, etc.)
-        internal static byte[] Decrypt(byte[] assembled, byte[] aesKey)
+        internal static byte[]? Decrypt(byte[]? assembled, byte[] aesKey)
         {
             if (assembled == null || assembled.Length < 18) return null;
             byte[] iv         = assembled.Skip(2).Take(16).ToArray();

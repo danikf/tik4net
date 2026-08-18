@@ -104,7 +104,7 @@ namespace tik4net
         /// Leave <c>null</c> to discover it by MNDP broadcast, which costs up to 5 s on every open.
         /// Applied through <see cref="ITikMacLayerConnection"/>, so an IP transport never sees it.
         /// </summary>
-        public string RouterMac { get; set; }
+        public string? RouterMac { get; set; }
 
         /// <summary>
         /// What a <see cref="CancellationToken"/> cancelled <b>after</b> a command was dispatched may do to
@@ -134,7 +134,7 @@ namespace tik4net
         /// takes full control over accept/reject and <see cref="AllowInvalidCertificate"/> is ignored.
         /// Useful for certificate pinning or trusting a private CA.
         /// </summary>
-        public RemoteCertificateValidationCallback CertificateValidationCallback { get; set; }
+        public RemoteCertificateValidationCallback? CertificateValidationCallback { get; set; }
 
         /// <summary>Creates a connection setup for the given router host and credentials.</summary>
         /// <param name="host">Router host name or IP address.</param>
@@ -175,7 +175,7 @@ namespace tik4net
         /// <see cref="CreateWinboxNativeConnection(Action{WinboxNativeConnection})"/> for the case that
         /// needs it).
         /// </param>
-        public ITikConnection Create(TikConnectionType connectionType, Action<ITikConnection> configure)
+        public ITikConnection Create(TikConnectionType connectionType, Action<ITikConnection>? configure)
         {
             var conn = CreateUnopened(connectionType, configure);
             OpenSync(conn);
@@ -188,7 +188,7 @@ namespace tik4net
 
         /// <summary>Async version of <see cref="Create(TikConnectionType, Action{ITikConnection})"/>.</summary>
         public Task<ITikConnection> CreateAsync(TikConnectionType connectionType,
-            Action<ITikConnection> configure, CancellationToken ct = default)
+            Action<ITikConnection>? configure, CancellationToken ct = default)
             => OpenAsync(CreateUnopened(connectionType, configure), ct);
 
         /// <summary>
@@ -198,7 +198,7 @@ namespace tik4net
         /// </summary>
         /// <param name="connectionType">Which transport to create.</param>
         /// <param name="configure">Optional hook run after the options are applied.</param>
-        public ITikConnection CreateUnopened(TikConnectionType connectionType, Action<ITikConnection> configure = null)
+        public ITikConnection CreateUnopened(TikConnectionType connectionType, Action<ITikConnection>? configure = null)
         {
             var conn = TikConnectionRegistry.Create(connectionType);
             ApplyTo(conn);
@@ -315,11 +315,11 @@ namespace tik4net
         /// Optional router MAC address as <c>"AA:BB:CC:DD:EE:FF"</c>, overriding <see cref="RouterMac"/>
         /// for this connection.
         /// </param>
-        public ITikConnection CreateMacTelnetConnection(string routerMac = null)
+        public ITikConnection CreateMacTelnetConnection(string? routerMac = null)
             => Create(TikConnectionType.MacTelnet, OverrideRouterMac(routerMac));
 
         /// <summary>Async version of <see cref="CreateMacTelnetConnection"/>.</summary>
-        public Task<ITikConnection> CreateMacTelnetConnectionAsync(string routerMac = null, CancellationToken ct = default)
+        public Task<ITikConnection> CreateMacTelnetConnectionAsync(string? routerMac = null, CancellationToken ct = default)
             => CreateAsync(TikConnectionType.MacTelnet, OverrideRouterMac(routerMac), ct);
 
         // ── WinBox CLI ────────────────────────────────────────────────────────
@@ -349,11 +349,11 @@ namespace tik4net
         /// Optional router MAC address as <c>"AA:BB:CC:DD:EE:FF"</c>, overriding <see cref="RouterMac"/>
         /// for this connection.
         /// </param>
-        public ITikConnection CreateWinboxCliMacConnection(string routerMac = null)
+        public ITikConnection CreateWinboxCliMacConnection(string? routerMac = null)
             => Create(TikConnectionType.WinboxCliMac, OverrideRouterMac(routerMac));
 
         /// <summary>Async version of <see cref="CreateWinboxCliMacConnection"/>.</summary>
-        public Task<ITikConnection> CreateWinboxCliMacConnectionAsync(string routerMac = null, CancellationToken ct = default)
+        public Task<ITikConnection> CreateWinboxCliMacConnectionAsync(string? routerMac = null, CancellationToken ct = default)
             => CreateAsync(TikConnectionType.WinboxCliMac, OverrideRouterMac(routerMac), ct);
 
         // ── WinBox Native (M2) ──────────────────────────────────────────────────
@@ -392,12 +392,12 @@ namespace tik4net
         /// text is pinned; the handler number is read live from the router's <c>.jg</c> catalog), whereas the
         /// numeric <c>*Override</c> forms pin values that can move between versions.</para>
         /// </example>
-        public ITikConnection CreateWinboxNativeConnection(Action<WinboxNativeConnection> configure = null)
+        public ITikConnection CreateWinboxNativeConnection(Action<WinboxNativeConnection>? configure = null)
             => Create(TikConnectionType.WinboxNative, Typed(configure));
 
         /// <summary>Async version of <see cref="CreateWinboxNativeConnection"/>.</summary>
         public Task<ITikConnection> CreateWinboxNativeConnectionAsync(
-            Action<WinboxNativeConnection> configure = null, CancellationToken ct = default)
+            Action<WinboxNativeConnection>? configure = null, CancellationToken ct = default)
             => CreateAsync(TikConnectionType.WinboxNative, Typed(configure), ct);
 
         // ── WinBox Native (M2) over MAC ──────────────────────────────────────────
@@ -411,26 +411,26 @@ namespace tik4net
         /// Optional hook to configure the connection before it opens — any of the mappings documented on
         /// <see cref="CreateWinboxNativeConnection"/>. The router MAC comes from <see cref="RouterMac"/>.
         /// </param>
-        public ITikConnection CreateWinboxNativeMacConnection(Action<WinboxNativeMacConnection> configure = null)
+        public ITikConnection CreateWinboxNativeMacConnection(Action<WinboxNativeMacConnection>? configure = null)
             => Create(TikConnectionType.WinboxNativeMac, Typed(configure));
 
         /// <summary>Async version of <see cref="CreateWinboxNativeMacConnection"/>.</summary>
         public Task<ITikConnection> CreateWinboxNativeMacConnectionAsync(
-            Action<WinboxNativeMacConnection> configure = null, CancellationToken ct = default)
+            Action<WinboxNativeMacConnection>? configure = null, CancellationToken ct = default)
             => CreateAsync(TikConnectionType.WinboxNativeMac, Typed(configure), ct);
 
         // ── Internals ─────────────────────────────────────────────────────────
 
-        private static Action<ITikConnection> Typed<TConnection>(Action<TConnection> configure)
+        private static Action<ITikConnection>? Typed<TConnection>(Action<TConnection>? configure)
             where TConnection : class, ITikConnection
-            => configure == null ? (Action<ITikConnection>)null : conn => configure((TConnection)conn);
+            => configure == null ? (Action<ITikConnection>?)null : conn => configure((TConnection)conn);
 
         // The per-transport routerMac argument beats the RouterMac option, and only when supplied — the
         // option is already on the connection by the time this runs (ApplyTo), so a null argument must
         // leave it alone rather than write the null back.
-        private static Action<ITikConnection> OverrideRouterMac(string routerMac)
+        private static Action<ITikConnection>? OverrideRouterMac(string? routerMac)
             => routerMac == null
-                ? (Action<ITikConnection>)null
+                ? (Action<ITikConnection>?)null
                 : conn => ((ITikMacLayerConnection)conn).RouterMac = routerMac;
 
         private void OpenSync(ITikConnection conn)

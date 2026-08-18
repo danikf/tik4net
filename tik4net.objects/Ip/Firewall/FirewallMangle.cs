@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -130,13 +130,13 @@ namespace tik4net.Objects.Ip.Firewall
         /// .id
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// chain
         /// </summary>
         [TikProperty("chain")]
-        public string Chain { get; set; }
+        public string? Chain { get; set; }
 
         /// <summary>
         /// action
@@ -148,7 +148,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// new-priorityne
         /// </summary>
         [TikProperty("new-priority", DefaultValue = "0")]
-        public string NewPriority { get; set; }
+        public string? NewPriority { get; set; }
 
         /// <summary>
         /// passthrough
@@ -160,7 +160,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// src-address-list
         /// </summary>
         [TikProperty("src-address-list", UnsetOnDefault = true)]
-        public string SrcAddressList { get; set; }
+        public string? SrcAddressList { get; set; }
 
         /// <summary>
         /// invalid
@@ -184,55 +184,55 @@ namespace tik4net.Objects.Ip.Firewall
         /// new-packet-mark
         /// </summary>
         [TikProperty("new-packet-mark")]
-        public string NewPacketMark { get; set; }
+        public string? NewPacketMark { get; set; }
 
         /// <summary>
         /// comment
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>
         /// dst-address-list
         /// </summary>
         [TikProperty("dst-address-list", UnsetOnDefault = true)]
-        public string DstAddressList { get; set; }
+        public string? DstAddressList { get; set; }
 
         /// <summary>
         /// protocol
         /// </summary>
         [TikProperty("protocol", UnsetOnDefault = true)]
-        public string Protocol { get; set; }
+        public string? Protocol { get; set; }
 
         /// <summary>
         /// src-address
         /// </summary>
         [TikProperty("src-address", UnsetOnDefault = true)]
-        public string SrcAddress { get; set; }
+        public string? SrcAddress { get; set; }
 
         /// <summary>
         /// dst-address
         /// </summary>
         [TikProperty("dst-address", UnsetOnDefault = true)]
-        public string DstAddress { get; set; }
+        public string? DstAddress { get; set; }
 
         /// <summary>
         /// jump-target
         /// </summary>
         [TikProperty("jump-target")]
-        public string JumpTarget { get; set; }
+        public string? JumpTarget { get; set; }
         
         /// <summary>
         /// address-list
         /// </summary>
         [TikProperty("address-list")]
-        public string AddressList { get; set; }
+        public string? AddressList { get; set; }
 
         /// <summary>
         /// address-list-timeout
         /// </summary>
         [TikProperty("address-list-timeout", DefaultValue = "00:00:00")]
-        public string AddressListTimeout { get; set; }
+        public string? AddressListTimeout { get; set; }
 
         /// <summary>
         /// ToString override.

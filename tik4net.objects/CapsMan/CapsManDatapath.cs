@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -56,7 +56,7 @@ namespace tik4net.Objects.CapsMan
 
         /// <summary>.id — primary key of row.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         // ── Identification ────────────────────────────────────────────────────
 
@@ -64,7 +64,7 @@ namespace tik4net.Objects.CapsMan
         /// name — unique name for this datapath profile.
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         // ── Forwarding mode ───────────────────────────────────────────────────
 
@@ -92,7 +92,7 @@ namespace tik4net.Objects.CapsMan
         /// added as a bridge port.  Leave empty to skip automatic bridge-port assignment.
         /// </summary>
         [TikProperty("bridge")]
-        public string Bridge { get; set; }
+        public string? Bridge { get; set; }
 
         /// <summary>
         /// bridge-cost — spanning-tree port cost assigned to the bridge port.
@@ -156,13 +156,13 @@ namespace tik4net.Objects.CapsMan
         /// interface-list — assigns the virtual wireless interface to the named interface list.
         /// </summary>
         [TikProperty("interface-list")]
-        public string InterfaceList { get; set; }
+        public string? InterfaceList { get; set; }
 
         /// <summary>
         /// openflow-switch — name of the OpenFlow switch to which the virtual interface is assigned.
         /// </summary>
         [TikProperty("openflow-switch")]
-        public string OpenflowSwitch { get; set; }
+        public string? OpenflowSwitch { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
 
@@ -170,9 +170,9 @@ namespace tik4net.Objects.CapsMan
         /// comment — short free-text description of this datapath profile.
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
-        public override string ToString() => Name;
+        public override string? ToString() => Name;
     }
 }

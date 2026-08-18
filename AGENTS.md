@@ -43,6 +43,12 @@ on a nonexistent ID.
 **Warnings are errors in CI**, with no exclusions. The solution is warning-clean and must stay that way.
 CI (`.github/workflows/build.yml`) builds on Windows and Linux, runs the unit tests, and validates `dotnet pack`.
 
+**Nullable reference types are on** (`<Nullable>enable</Nullable>`, `<LangVersion>latest</LangVersion>`)
+in all four shipping projects — `tik4net`, `tik4net.objects`, `tik4net.ssh`, `tik4net.testing`. Every
+mapped reference-typed `[TikEntity]` property is `string?` by convention (see
+[Adding an entity](#adding-an-entity) below); write new code nullable-clean rather than adding `#nullable
+disable`.
+
 ## Tests
 
 Two projects, split by whether they need hardware.
@@ -123,6 +129,11 @@ the original author (prefer `gh pr merge`; otherwise add a `Co-Authored-By` trai
 reader/tag multiplexing are reverse-engineered or subtle, and have no deterministic test coverage.
 Change them only with live-router verification.
 
+Inside `Crypto/`, watch for `someArray.Reverse()`: under the current `LangVersion` it binds to
+`MemoryExtensions.Reverse`, a `Span` extension that reverses **in place and returns void**, not
+`Enumerable.Reverse`. Spell it out as `Enumerable.Reverse(x)`. A call whose result is discarded compiles
+either way but silently corrupts the buffer with the wrong one.
+
 `TikChangeTracker` and the `Save` default-vs-unset rules encode deliberate, non-obvious semantics — a
 tidy-up there changes observable behaviour.
 
@@ -130,7 +141,8 @@ tidy-up there changes observable behaviour.
 
 Prefer the **`entity-generator` skill** over hand-writing — it scaffolds from a live router and applies
 the documented conventions. The conventions themselves are in
-[ARCHITECTURE.md](ARCHITECTURE.md#adding-an-entity).
+[ARCHITECTURE.md](ARCHITECTURE.md#adding-an-entity), including the nullable-reference-type convention:
+every mapped reference-typed property (`string`) is declared `string?`.
 
 ### Secrets and local paths
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -31,7 +31,7 @@ namespace tik4net.Objects.Interface.Vpn
 
         /// <summary>.id — primary key of row.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         // ---- Writable properties ----
 
@@ -39,13 +39,13 @@ namespace tik4net.Objects.Interface.Vpn
         /// name — unique interface name identifier (mandatory).
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// connect-to — remote IP or IPv6 address of the SSTP server to connect to.
         /// </summary>
         [TikProperty("connect-to")]
-        public string/*IP|IPv6*/ ConnectTo { get; set; }
+        public string?/*IP|IPv6*/ ConnectTo { get; set; }
 
         /// <summary>
         /// disabled — when <c>true</c> the interface will not initiate connections.
@@ -58,13 +58,13 @@ namespace tik4net.Objects.Interface.Vpn
         /// user — username for PPP authentication.
         /// </summary>
         [TikProperty("user")]
-        public string User { get; set; }
+        public string? User { get; set; }
 
         /// <summary>
         /// password — password for PPP authentication.
         /// </summary>
         [TikProperty("password")]
-        public string Password { get; set; }
+        public string? Password { get; set; }
 
         /// <summary>
         /// port — TCP port of the remote SSTP server.
@@ -79,7 +79,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: default
         /// </summary>
         [TikProperty("profile", DefaultValue = "default")]
-        public string Profile { get; set; }
+        public string? Profile { get; set; }
 
         /// <summary>
         /// authentication — comma-separated list of permitted PPP authentication protocols.
@@ -87,14 +87,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: pap,chap,mschap1,mschap2
         /// </summary>
         [TikProperty("authentication", DefaultValue = "pap,chap,mschap1,mschap2")]
-        public string Authentication { get; set; }
+        public string? Authentication { get; set; }
 
         /// <summary>
         /// certificate — name of the client TLS certificate; <c>none</c> disables certificate-based auth.
         /// Default: none
         /// </summary>
         [TikProperty("certificate", DefaultValue = "none")]
-        public string Certificate { get; set; }
+        public string? Certificate { get; set; }
 
         /// <summary>
         /// verify-server-certificate — when <c>true</c> the client validates the server TLS certificate.
@@ -125,7 +125,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: aes256-sha
         /// </summary>
         [TikProperty("ciphers", DefaultValue = "aes256-sha")]
-        public string Ciphers { get; set; }
+        public string? Ciphers { get; set; }
 
         /// <summary>
         /// pfs — Perfect Forward Secrecy mode.
@@ -133,14 +133,14 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: no
         /// </summary>
         [TikProperty("pfs", DefaultValue = "no")]
-        public string Pfs { get; set; }
+        public string? Pfs { get; set; }
 
         /// <summary>
         /// http-proxy — address of an HTTP proxy to use for the SSTP connection (e.g. <c>192.168.1.1</c>).
         /// Leave empty for a direct connection.
         /// </summary>
         [TikProperty("http-proxy")]
-        public string/*IP|IPv6*/ HttpProxy { get; set; }
+        public string?/*IP|IPv6*/ HttpProxy { get; set; }
 
         /// <summary>
         /// proxy-port — port of the HTTP proxy specified by <see cref="HttpProxy"/>.
@@ -202,7 +202,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// Default: disabled
         /// </summary>
         [TikProperty("mrru", DefaultValue = "disabled")]
-        public string Mrru { get; set; }
+        public string? Mrru { get; set; }
 
         /// <summary>
         /// add-sni — when <c>true</c> the client sends the Server Name Indication TLS extension.
@@ -213,7 +213,7 @@ namespace tik4net.Objects.Interface.Vpn
 
         /// <summary>comment — optional description of the client interface entry.</summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         // ---- Read-only properties ----
 

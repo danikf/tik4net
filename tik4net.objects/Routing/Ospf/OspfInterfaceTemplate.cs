@@ -1,4 +1,4 @@
-﻿namespace tik4net.Objects.Routing.Ospf
+namespace tik4net.Objects.Routing.Ospf
 {
     /// <summary>
     /// /routing/ospf/interface-template
@@ -49,7 +49,7 @@
 
         /// <summary>.id — primary key of row</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// area — name of the OSPF area this template is assigned to.
@@ -57,21 +57,21 @@
         /// This field is mandatory — the router rejects add without it.
         /// </summary>
         [TikProperty("area", IsMandatory = true)]
-        public string Area { get; set; }
+        public string? Area { get; set; }
 
         /// <summary>
         /// interfaces — comma-separated list of interface names this template applies to.
         /// Mutually exclusive with networks. Leave empty to match all interfaces in the area.
         /// </summary>
         [TikProperty("interfaces")]
-        public string Interfaces { get; set; }
+        public string? Interfaces { get; set; }
 
         /// <summary>
         /// networks — IP network (prefix) this template applies to.
         /// Mutually exclusive with interfaces.
         /// </summary>
         [TikProperty("networks")]
-        public string Networks { get; set; }
+        public string? Networks { get; set; }
 
         /// <summary>
         /// type — OSPF network type for matched interfaces. Controls DR/BDR election and neighbour discovery.
@@ -103,27 +103,27 @@
         /// Default: 10s
         /// </summary>
         [TikProperty("hello-interval", DefaultValue = "10s")]
-        public string/*time*/ HelloInterval { get; set; }
+        public string?/*time*/ HelloInterval { get; set; }
 
         /// <summary>
         /// dead-interval — time after which a silent neighbour is declared dead. Typically 4× hello-interval.
         /// Must match all neighbours on the segment. Default: 40s
         /// </summary>
         [TikProperty("dead-interval", DefaultValue = "40s")]
-        public string/*time*/ DeadInterval { get; set; }
+        public string?/*time*/ DeadInterval { get; set; }
 
         /// <summary>
         /// retransmit-interval — time between LSA retransmissions to a neighbour. Default: 5s
         /// </summary>
         [TikProperty("retransmit-interval", DefaultValue = "5s")]
-        public string/*time*/ RetransmitInterval { get; set; }
+        public string?/*time*/ RetransmitInterval { get; set; }
 
         /// <summary>
         /// transmit-delay — estimated time to transmit an LSA; added to the age of LSAs before flooding.
         /// Default: 1s
         /// </summary>
         [TikProperty("transmit-delay", DefaultValue = "1s")]
-        public string/*time*/ TransmitDelay { get; set; }
+        public string?/*time*/ TransmitDelay { get; set; }
 
         /// <summary>
         /// instance-id — OSPF instance ID used in OSPFv3 to separate multiple instances on the same link.
@@ -138,7 +138,7 @@
         /// </summary>
         /// <seealso cref="OspfAuthType"/>
         [TikProperty("auth")]
-        public string Auth { get; set; }
+        public string? Auth { get; set; }
 
         /// <summary>
         /// auth-id — key ID used with cryptographic authentication (md5/sha*). Range 1..255.
@@ -151,7 +151,7 @@
         /// auth-key — authentication key/password string for OSPF packet authentication.
         /// </summary>
         [TikProperty("auth-key")]
-        public string AuthKey { get; set; }
+        public string? AuthKey { get; set; }
 
         /// <summary>
         /// passive — when true the interface is passive: OSPF adjacencies are not formed, but the
@@ -172,20 +172,20 @@
         /// prefix-list — name of an IP prefix list used to filter networks redistributed into OSPF via this template.
         /// </summary>
         [TikProperty("prefix-list")]
-        public string PrefixList { get; set; }
+        public string? PrefixList { get; set; }
 
         /// <summary>
         /// vlink-neighbor-id — router-id of the virtual link neighbour. Used when type=virtual-link.
         /// </summary>
         [TikProperty("vlink-neighbor-id")]
-        public string/*IP*/ VlinkNeighborId { get; set; }
+        public string?/*IP*/ VlinkNeighborId { get; set; }
 
         /// <summary>
         /// vlink-transit-area — name of the transit area through which the virtual link passes.
         /// Used when type=virtual-link.
         /// </summary>
         [TikProperty("vlink-transit-area")]
-        public string VlinkTransitArea { get; set; }
+        public string? VlinkTransitArea { get; set; }
 
         /// <summary>
         /// disabled — when true this template entry is administratively disabled.
@@ -196,7 +196,7 @@
 
         /// <summary>comment — optional free-text annotation.</summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         // --- Read-only properties ---
 

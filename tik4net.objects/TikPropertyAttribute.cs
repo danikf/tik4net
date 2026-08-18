@@ -51,7 +51,7 @@ namespace tik4net.Objects
         /// <c>false</c> — which is worse, and is what A10 measured before reverting.
         /// </para>
         /// </remarks>
-        public string DefaultValue { get; set; }
+        public string? DefaultValue { get; set; }
 
         /// <summary>
         /// If unset command should be called when saving modified object and marked property contains <see cref="DefaultValue"/> or null (set to default value will be used when false).

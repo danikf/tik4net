@@ -338,14 +338,18 @@ namespace tik4net.Winbox
                 int kl = m2[pos], kh = m2[pos + 1], ns = m2[pos + 2], type = m2[pos + 3];
                 int fullKey = (ns << 16) | (kh << 8) | kl;
                 pos += 4;
-                object val = null;
+                // The dictionary value type is object (not object?) across every consumer of ParseAllFields,
+                // several of which are out of this file's scope. When a field's declared length runs past the
+                // end of a truncated frame, the branches below leave val at this placeholder instead of a real
+                // decoded value; the suppression documents that rather than widening the shared contract.
+                object val = null!;
                 string typeName = "?";
                 switch (type)
                 {
                     case 0x00: typeName = "bool"; val = false; break;
                     case 0x01: typeName = "bool"; val = true; break;
                     case 0x09:
-                        typeName = "u8"; val = pos < m2.Length ? (object)m2[pos] : null; pos += 1; break;
+                        typeName = "u8"; val = pos < m2.Length ? (object)m2[pos] : null!; pos += 1; break;
                     case 0x08:
                         typeName = "u32";
                         if (pos + 4 <= m2.Length) { val = BitConverter.ToUInt32(m2, pos); pos += 4; }
@@ -506,7 +510,7 @@ namespace tik4net.Winbox
         /// <see cref="WinboxM2Protocol.RecordKey.ContinuationRaw"/> is an opaque cursor of an unknown shape,
         /// and decoding it only to re-encode it would be a guess at that shape — copying the bytes is not.
         /// </remarks>
-        internal static byte[] ExtractRawField(byte[] m2, int fullKey)
+        internal static byte[]? ExtractRawField(byte[] m2, int fullKey)
         {
             if (m2 == null || m2.Length < 2 || m2[0] != 'M' || m2[1] != '2') return null;
             int pos = 2;
@@ -530,7 +534,7 @@ namespace tik4net.Winbox
         }
 
         // Parses the bytes of a user-namespace field; handles raw_s/raw_l and string_s/string_l.
-        internal static byte[] ParseUserBytes(byte[] m2, int keyId)
+        internal static byte[]? ParseUserBytes(byte[] m2, int keyId)
         {
             if (m2 == null || m2.Length < 4) return null;
             int pos = 2;
@@ -558,7 +562,7 @@ namespace tik4net.Winbox
             return null;
         }
 
-        internal static byte[] ParseRawUser(byte[] m2, int keyId)
+        internal static byte[]? ParseRawUser(byte[] m2, int keyId)
         {
             if (m2 == null || m2.Length < 2) return null;
             int pos = 2;

@@ -29,7 +29,7 @@ namespace tik4net.Winbox
     {
         private readonly IWinboxM2Channel _channel;
         private readonly int _timeoutMs;
-        private WinboxM2Multiplexer _mux;
+        private WinboxM2Multiplexer? _mux;
 
         internal WinboxNativeM2Operations(IWinboxM2Channel channel, int timeoutMs = 5000)
         {
@@ -86,10 +86,10 @@ namespace tik4net.Winbox
         /// <c>OnWriteRow</c>/<c>OnReadRow</c> events so the native transport participates in the same
         /// diagnostics as the API/CLI transports.
         /// </summary>
-        internal Action<byte[]> OnRequest { get; set; }
+        internal Action<byte[]>? OnRequest { get; set; }
 
         /// <inheritdoc cref="OnRequest"/>
-        internal Action<byte[]> OnResponse { get; set; }
+        internal Action<byte[]>? OnResponse { get; set; }
 
         // Single send/receive seam — fires the trace hooks around the channel round-trip so every M2
         // operation (read and write) is observable without duplicating the hook at each call site.
@@ -227,7 +227,7 @@ namespace tik4net.Winbox
             int flags = WinboxM2Protocol.GetAllFlags, int maxObjs = 0, int maxMs = 8000)
         {
             var records = new List<Dictionary<int, Tuple<string, object>>>();
-            WinboxM2Continuation cont = null; // cursor carried back verbatim on the next request
+            WinboxM2Continuation? cont = null; // cursor carried back verbatim on the next request
             var sw = Stopwatch.StartNew();
             for (int round = 0; round < 256 && sw.ElapsedMilliseconds < maxMs; round++)
             {
@@ -254,8 +254,10 @@ namespace tik4net.Winbox
                 if (status != WinboxM2Protocol.Error.None && status != WinboxM2Protocol.Error.ObjectNonexistent)
                 {
                     var ef = M2Message.ParseAllFields(resp);
-                    string errStr = ef.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es) ? es.Item2?.ToString() : null;
-                    throw new WinboxM2OperationException(status, errStr, "getall", handler);
+                    string? errStr = ef.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es) ? es.Item2?.ToString() : null;
+                    // WinboxM2OperationException.ErrorText is documented as "may be null" even though its
+                    // constructor parameter predates nullable annotations.
+                    throw new WinboxM2OperationException(status, errStr!, "getall", handler);
                 }
 
                 records.AddRange(M2Message.ParseRecords(resp, WinboxM2Protocol.RecordKey.Records));
@@ -268,7 +270,7 @@ namespace tik4net.Winbox
             return records;
         }
 
-        private byte[] BuildGetAll(int[] handler, int flags, int maxObjs, WinboxM2Continuation cont)
+        private byte[] BuildGetAll(int[] handler, int flags, int maxObjs, WinboxM2Continuation? cont)
         {
             var head = new List<byte[]>
             {
@@ -288,7 +290,7 @@ namespace tik4net.Winbox
         /// (<see cref="WinboxM2Protocol.SysInfo.Handler"/> cmd=<see cref="WinboxM2Protocol.SysInfo.Command"/>),
         /// e.g. "7.21.4". Returns <c>null</c> when the field is absent.
         /// </summary>
-        internal string GetRouterVersion()
+        internal string? GetRouterVersion()
         {
             byte[] msg = M2Message.BuildM2(
                 M2Message.SysToArr(WinboxM2Protocol.SysInfo.Handler), M2Message.SysFrom(),
@@ -358,8 +360,10 @@ namespace tik4net.Winbox
             if (status != WinboxM2Protocol.Error.None && status != WinboxM2Protocol.Error.ObjectNonexistent)
             {
                 var ef = M2Message.ParseAllFields(resp);
-                string errStr = ef.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es) ? es.Item2?.ToString() : null;
-                throw new WinboxM2OperationException(status, errStr, "get-singleton", handler);
+                string? errStr = ef.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es) ? es.Item2?.ToString() : null;
+                // WinboxM2OperationException.ErrorText is documented as "may be null" even though its
+                // constructor parameter predates nullable annotations.
+                throw new WinboxM2OperationException(status, errStr!, "get-singleton", handler);
             }
             return InterpretRecord(resp);
         }
@@ -513,7 +517,7 @@ namespace tik4net.Winbox
         /// non-zero router status.
         /// </summary>
         internal Dictionary<int, Tuple<string, object>> InvokeAction(int[] handler, int cmd, int id,
-            IList<byte[]> fields = null)
+            IList<byte[]>? fields = null)
             => InterpretAction(SendReceive(BuildAction(handler, cmd, id, fields)), handler);
 
         /// <inheritdoc cref="InvokeAction"/>
@@ -523,7 +527,7 @@ namespace tik4net.Winbox
                 await SendReceiveAsync(BuildAction(handler, cmd, id, fields), cancellationToken).ConfigureAwait(false),
                 handler);
 
-        private byte[] BuildAction(int[] handler, int cmd, int id, IList<byte[]> fields)
+        private byte[] BuildAction(int[] handler, int cmd, int id, IList<byte[]>? fields)
         {
             var head = new List<byte[]>
             {
@@ -652,22 +656,22 @@ namespace tik4net.Winbox
         /// which is what makes a long monitor coexist with CRUD on other threads.
         /// </para>
         /// </remarks>
-        internal (List<Dictionary<int, Tuple<string, object>>> records, bool done, WinboxM2Continuation continuation) PollMonitorRound(
-            int[] handler, int pollCmd, uint? id, bool isQuery, WinboxM2Continuation contToken,
+        internal (List<Dictionary<int, Tuple<string, object>>> records, bool done, WinboxM2Continuation? continuation) PollMonitorRound(
+            int[] handler, int pollCmd, uint? id, bool isQuery, WinboxM2Continuation? contToken,
             int flags = WinboxM2Protocol.GetAllFlags)
             => InterpretMonitorRound(
                 SendReceive(BuildMonitorRound(handler, pollCmd, id, isQuery, contToken, flags)), handler, isQuery);
 
         /// <inheritdoc cref="PollMonitorRound"/>
-        internal async Task<(List<Dictionary<int, Tuple<string, object>>> records, bool done, WinboxM2Continuation continuation)> PollMonitorRoundAsync(
-            int[] handler, int pollCmd, uint? id, bool isQuery, WinboxM2Continuation contToken,
+        internal async Task<(List<Dictionary<int, Tuple<string, object>>> records, bool done, WinboxM2Continuation? continuation)> PollMonitorRoundAsync(
+            int[] handler, int pollCmd, uint? id, bool isQuery, WinboxM2Continuation? contToken,
             CancellationToken cancellationToken, int flags = WinboxM2Protocol.GetAllFlags)
             => InterpretMonitorRound(
                 await SendReceiveAsync(BuildMonitorRound(handler, pollCmd, id, isQuery, contToken, flags), cancellationToken).ConfigureAwait(false),
                 handler, isQuery);
 
         private byte[] BuildMonitorRound(int[] handler, int pollCmd, uint? id, bool isQuery,
-            WinboxM2Continuation contToken, int flags)
+            WinboxM2Continuation? contToken, int flags)
         {
             var head = new List<byte[]>
             {
@@ -681,15 +685,17 @@ namespace tik4net.Winbox
             return M2Message.BuildM2(head.ToArray());
         }
 
-        private static (List<Dictionary<int, Tuple<string, object>>> records, bool done, WinboxM2Continuation continuation) InterpretMonitorRound(
+        private static (List<Dictionary<int, Tuple<string, object>>> records, bool done, WinboxM2Continuation? continuation) InterpretMonitorRound(
             byte[] resp, int[] handler, bool isQuery)
         {
             int status = M2Message.ParseSysStatus(resp);
             if (status != WinboxM2Protocol.Error.None && status != WinboxM2Protocol.Error.ObjectNonexistent)
             {
                 var ef = M2Message.ParseAllFields(resp);
-                string errStr = ef.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es) ? es.Item2?.ToString() : null;
-                throw new WinboxM2OperationException(status, errStr, "monitor-poll", handler);
+                string? errStr = ef.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es) ? es.Item2?.ToString() : null;
+                // WinboxM2OperationException.ErrorText is documented as "may be null" even though its
+                // constructor parameter predates nullable annotations.
+                throw new WinboxM2OperationException(status, errStr!, "monitor-poll", handler);
             }
 
             var fields = M2Message.ParseAllFields(resp);
@@ -703,7 +709,7 @@ namespace tik4net.Winbox
             // Pagination is a getall concept: only a query window continues a pass. A poll-action's reply is
             // one status record and webfig's ObjectAction never continues it — following a token there would
             // spin the round trip instead of waiting out the autorefresh interval.
-            WinboxM2Continuation continuation =
+            WinboxM2Continuation? continuation =
                 isQuery && status != WinboxM2Protocol.Error.ObjectNonexistent
                     ? WinboxM2Continuation.From(resp)
                     : null;
@@ -733,9 +739,11 @@ namespace tik4net.Winbox
             int status = M2Message.ParseSysStatus(resp);
             if (status == WinboxM2Protocol.Error.None) return;
             var fields = M2Message.ParseAllFields(resp);
-            string errStr = fields.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es)
+            string? errStr = fields.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es)
                 ? es.Item2?.ToString() : null;
-            throw new WinboxM2OperationException(status, errStr, op, handler);
+            // WinboxM2OperationException.ErrorText is documented as "may be null" even though its
+            // constructor parameter predates nullable annotations.
+            throw new WinboxM2OperationException(status, errStr!, op, handler);
         }
     }
 }

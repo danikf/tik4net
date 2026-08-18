@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,7 +15,7 @@ namespace tik4net.Objects.Ip
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// bytes: total number of bytes, matched by this entry
@@ -27,13 +27,13 @@ namespace tik4net.Objects.Ip
         /// dst-address: destination IP address
         /// </summary>
         [TikProperty("dst-address", IsReadOnly = true)]
-        public string DstAddress { get; private set; }
+        public string? DstAddress { get; private set; }
 
         /// <summary>
         /// dst-user: recipient's name (if applicable)
         /// </summary>
         [TikProperty("dst-user", IsReadOnly = true)]
-        public string DstUser { get; private set; }
+        public string? DstUser { get; private set; }
 
         /// <summary>
         /// packets: total number of packets, matched by this entry
@@ -45,13 +45,13 @@ namespace tik4net.Objects.Ip
         /// src-address: source IP address
         /// </summary>
         [TikProperty("src-address", IsReadOnly = true)]
-        public string SrcAddress { get; private set; }
+        public string? SrcAddress { get; private set; }
 
         /// <summary>
         /// src-user: sender's name (if aplicable)
         /// </summary>
         [TikProperty("src-user", IsReadOnly = true)]
-        public string SrcUser { get; private set; }
+        public string? SrcUser { get; private set; }
 
         /// <summary>
         /// Take new snapshot

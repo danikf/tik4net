@@ -67,7 +67,7 @@ namespace tik4net.Cli
             {
                 throw new TikSentenceException(
                     "The router's ':serialize to=json' output is not valid JSON: " + ex.Message
-                        + " Response was: " + Excerpt(output), null);
+                        + " Response was: " + Excerpt(output), null!); // ctor's sentence param is optional/nullable by contract (out of scope here)
             }
 
             using (doc)
@@ -81,7 +81,7 @@ namespace tik4net.Cli
                             if (element.ValueKind != JsonValueKind.Object)
                                 throw new TikSentenceException(
                                     "Expected a JSON object per record, got " + element.ValueKind
-                                        + ". Response was: " + Excerpt(output), null);
+                                        + ". Response was: " + Excerpt(output), null!); // see comment above
                             result.Add(ReadRecord(element));
                         }
                         break;
@@ -91,7 +91,7 @@ namespace tik4net.Cli
                     default:
                         throw new TikSentenceException(
                             "Expected a JSON array or object, got " + root.ValueKind
-                                + ". Response was: " + Excerpt(output), null);
+                                + ". Response was: " + Excerpt(output), null!); // see comment above
                 }
             }
 
@@ -111,7 +111,7 @@ namespace tik4net.Cli
             switch (value.ValueKind)
             {
                 case JsonValueKind.String:
-                    return value.GetString();
+                    return value.GetString()!; // ValueKind.String guarantees a non-null string here
                 case JsonValueKind.True:
                     return "true";
                 case JsonValueKind.False:
@@ -127,7 +127,7 @@ namespace tik4net.Cli
                     // than handing the caller raw JSON text that looks like a value (P2.25).
                     throw new TikSentenceException(
                         "Field '" + fieldName + "' holds an unsupported JSON " + value.ValueKind
-                            + " value: " + Excerpt(value.GetRawText()), null);
+                            + " value: " + Excerpt(value.GetRawText()), null!); // see comment above
             }
         }
 
@@ -140,7 +140,7 @@ namespace tik4net.Cli
                     throw new TikSentenceException(
                         "Field '" + fieldName + "' holds a nested " + element.ValueKind
                             + ", which has no equivalent in the binary API's flat multi-value form: "
-                            + Excerpt(array.GetRawText()), null);
+                            + Excerpt(array.GetRawText()), null!); // see comment above
 
                 if (sb.Length > 0)
                     sb.Append(',');

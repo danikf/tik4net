@@ -41,7 +41,7 @@ namespace tik4net.Diagnostics
         /// <c>"ssh.pty"</c>, <c>"api.word"</c>). For <see cref="TikWireDir.Note"/> events <paramref name="data"/> is
         /// <c>null</c> and only <paramref name="note"/> carries meaning.
         /// </summary>
-        void Emit(string channel, TikWireDir dir, byte[] data, int offset, int count, string note);
+        void Emit(string channel, TikWireDir dir, byte[]? data, int offset, int count, string? note);
     }
 
     /// <summary>
@@ -57,7 +57,7 @@ namespace tik4net.Diagnostics
     /// </remarks>
     public static class TikWireTrace
     {
-        private static volatile ITikWireTraceSink _sink;   // null = disabled (the hot path)
+        private static volatile ITikWireTraceSink? _sink;   // null = disabled (the hot path)
 
         /// <summary>True while a sink is installed. Emit sites may check this to skip building a note string.</summary>
         public static bool Enabled => _sink != null;
@@ -79,7 +79,7 @@ namespace tik4net.Diagnostics
         }
 
         // Payload event. off/len bound the region of data to render; the buffer is not retained.
-        internal static void Emit(string channel, TikWireDir dir, byte[] data, int offset, int count, string note = null)
+        internal static void Emit(string channel, TikWireDir dir, byte[]? data, int offset, int count, string? note = null)
             => _sink?.Emit(channel, dir, data, offset, count, note);
 
         // Note-only event (no payload).
@@ -92,7 +92,7 @@ namespace tik4net.Diagnostics
         /// <c>&lt;LF&gt;</c> (0x0A), <c>&lt;TAB&gt;</c> (0x09), <c>&lt;NUL&gt;</c> (0x00), else
         /// <c>&lt;XX&gt;</c> in hex — so every channel reads identically (the form used to diagnose P2.13).
         /// </summary>
-        public static string Escape(byte[] data, int offset, int count)
+        public static string Escape(byte[]? data, int offset, int count)
         {
             if (data == null || count <= 0) return string.Empty;
             var sb = new StringBuilder(count + count / 4);
@@ -119,14 +119,14 @@ namespace tik4net.Diagnostics
         }
 
         /// <summary>Convenience overload rendering the whole array.</summary>
-        public static string Escape(byte[] data) => Escape(data, 0, data?.Length ?? 0);
+        public static string Escape(byte[]? data) => Escape(data, 0, data?.Length ?? 0);
 
         private sealed class Restorer : IDisposable
         {
-            private ITikWireTraceSink _previous;
+            private ITikWireTraceSink? _previous;
             private int _disposed;
 
-            internal Restorer(ITikWireTraceSink previous) => _previous = previous;
+            internal Restorer(ITikWireTraceSink? previous) => _previous = previous;
 
             public void Dispose()
             {

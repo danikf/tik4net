@@ -352,8 +352,8 @@ namespace tik4net.Winbox
             ["/tool/wol"]                    = "/tools/wol/wake-on-lan",
         };
 
-        private IReadOnlyDictionary<string, int[]> _derivedPaths;
-        private IReadOnlyDictionary<string, Tuple<int, int>> _subtypeFilters;
+        private IReadOnlyDictionary<string, int[]>? _derivedPaths;
+        private IReadOnlyDictionary<string, Tuple<int, int>>? _subtypeFilters;
         private readonly Dictionary<string, int[]> _overrides = new Dictionary<string, int[]>(StringComparer.OrdinalIgnoreCase);
         // Session text alias apiPath → menu-label path; same role as ShippedAlias, resolved just before it.
         private readonly Dictionary<string, string> _aliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -397,7 +397,7 @@ namespace tik4net.Winbox
             string key = Normalize(apiPath);
             if (_overrides.ContainsKey(key)) return false;
 
-            string derivedKey = (_derivedPaths != null && _derivedPaths.ContainsKey(key)) ? key
+            string? derivedKey = (_derivedPaths != null && _derivedPaths.ContainsKey(key)) ? key
                 : _aliases.TryGetValue(key, out var sessionMenuPath) ? sessionMenuPath
                 : (ShippedAlias.TryGetValue(key, out var menuPath) ? menuPath : null);
             if (derivedKey != null && _subtypeFilters.TryGetValue(derivedKey, out var f))
@@ -413,7 +413,7 @@ namespace tik4net.Winbox
         /// handler override or not at all. Lets a caller ask the catalog about the specific WINDOW behind a
         /// path — e.g. whether it is a singleton — rather than about its handler, which several windows share.
         /// </summary>
-        internal string ResolveDerivedKey(string apiPath)
+        internal string? ResolveDerivedKey(string apiPath)
         {
             string key = Normalize(apiPath);
             if (_overrides.ContainsKey(key)) return null;
@@ -453,7 +453,7 @@ namespace tik4net.Winbox
         /// Resolves an API path to its handler array, or <c>null</c> when no session override, direct
         /// .jg-derived entry, or shipped alias matches.
         /// </summary>
-        internal int[] Resolve(string apiPath)
+        internal int[]? Resolve(string apiPath)
         {
             string key = Normalize(apiPath);
             if (TryResolve(key, out var handler)) return handler;
@@ -472,7 +472,7 @@ namespace tik4net.Winbox
 
         // Single resolution attempt for an already-normalized path key: session override → direct .jg-derived
         // entry → shipped apiPath→menu-label alias against the same derived map. False when none match.
-        private bool TryResolve(string key, out int[] handler)
+        private bool TryResolve(string key, out int[]? handler)
         {
             if (_overrides.TryGetValue(key, out handler)) return true;
             if (_derivedPaths != null)

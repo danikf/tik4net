@@ -46,18 +46,20 @@ namespace tik4net.Objects.Tracking
         /// Pass a set of field names when loading with a partial <c>.proplist</c>.
         /// </param>
         public void TakeSnapshot<TEntity>(TEntity entity, TikEntityMetadata metadata,
-                                          IEnumerable<string> trackedFields = null)
+                                          IEnumerable<string>? trackedFields = null)
         {
+            // entity: TEntity is unconstrained here, so the compiler treats it as possibly null; callers
+            // always pass an actual loaded instance.
             var values = metadata.Properties
                 .Where(p => trackedFields == null || trackedFields.Contains(p.FieldName))
-                .Select(p => new KeyValuePair<string, string>(p.FieldName, p.GetEntityValue(entity)));
+                .Select(p => new KeyValuePair<string, string?>(p.FieldName, p.GetEntityValue(entity!)));
 
             var snapshot = new TikSnapshot(values, trackedFields);
 
             lock (_lock)
             {
-                _snapshots.Remove(entity);
-                _snapshots.Add(entity, snapshot);
+                _snapshots.Remove(entity!);
+                _snapshots.Add(entity!, snapshot);
             }
         }
 
@@ -67,12 +69,12 @@ namespace tik4net.Objects.Tracking
         /// </summary>
         public void ResetSnapshot<TEntity>(TEntity entity, TikEntityMetadata metadata)
         {
-            var existing = GetSnapshot(entity);
+            var existing = GetSnapshot(entity!);
             TakeSnapshot(entity, metadata, existing?.TrackedFields);
         }
 
         /// <summary>Returns the snapshot for <paramref name="entity"/>, or <c>null</c> if not tracked.</summary>
-        internal TikSnapshot GetSnapshot(object entity)
+        internal TikSnapshot? GetSnapshot(object entity)
             => _snapshots.TryGetValue(entity, out var s) ? s : null;
 
         /// <summary>Removes the entity from tracking. The next Save will use FullUpdate behavior.</summary>
@@ -92,27 +94,27 @@ namespace tik4net.Objects.Tracking
         /// Only fields that are tracked (present in the snapshot) are included.
         /// Returns an empty dictionary when no snapshot exists or when nothing changed.
         /// </summary>
-        public IReadOnlyDictionary<string, (string Old, string New)> GetChanges<TEntity>(
+        public IReadOnlyDictionary<string, (string? Old, string? New)> GetChanges<TEntity>(
             TEntity entity, TikEntityMetadata metadata)
         {
-            var snapshot = GetSnapshot(entity);
+            var snapshot = GetSnapshot(entity!);
             if (snapshot == null)
                 return _emptyChanges;
 
-            var result = new Dictionary<string, (string, string)>();
+            var result = new Dictionary<string, (string?, string?)>();
             foreach (var prop in metadata.Properties)
             {
                 if (prop.IsReadOnly || !snapshot.IsTracked(prop.FieldName))
                     continue;
 
-                string current = prop.GetEntityValue(entity);
-                if (snapshot.TryGetValue(prop.FieldName, out string old) && old != current)
+                string? current = prop.GetEntityValue(entity!);
+                if (snapshot.TryGetValue(prop.FieldName, out string? old) && old != current)
                     result[prop.FieldName] = (old, current);
             }
             return result;
         }
 
-        private static readonly IReadOnlyDictionary<string, (string, string)> _emptyChanges
-            = new Dictionary<string, (string, string)>();
+        private static readonly IReadOnlyDictionary<string, (string?, string?)> _emptyChanges
+            = new Dictionary<string, (string?, string?)>();
     }
 }

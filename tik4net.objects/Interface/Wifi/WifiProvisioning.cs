@@ -1,4 +1,4 @@
-﻿namespace tik4net.Objects.Interface.Wifi
+namespace tik4net.Objects.Interface.Wifi
 {
     /// <summary>
     /// /interface/wifi/provisioning
@@ -54,7 +54,7 @@
 
         /// <summary>.id — primary key of row.</summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         // ── Action ────────────────────────────────────────────────────────────
 
@@ -78,7 +78,7 @@
         /// WinBox: "Radio MAC"
         /// </summary>
         [TikProperty("radio-mac", DefaultValue = "")]
-        public string/*MAC*/ RadioMac { get; set; }
+        public string?/*MAC*/ RadioMac { get; set; }
 
         /// <summary>
         /// identity-regexp — regular expression matched against the CAP router's system
@@ -86,7 +86,7 @@
         /// WinBox: "Identity Regexp"
         /// </summary>
         [TikProperty("identity-regexp", DefaultValue = "")]
-        public string IdentityRegexp { get; set; }
+        public string? IdentityRegexp { get; set; }
 
         /// <summary>
         /// common-name-regexp — regular expression matched against the CAP certificate
@@ -94,7 +94,7 @@
         /// WinBox: "Common Name Regexp"
         /// </summary>
         [TikProperty("common-name-regexp", DefaultValue = "")]
-        public string CommonNameRegexp { get; set; }
+        public string? CommonNameRegexp { get; set; }
 
         /// <summary>
         /// supported-bands — one or more comma-separated frequency bands the radio must
@@ -105,7 +105,7 @@
         /// WinBox: "Supported Bands"
         /// </summary>
         [TikProperty("supported-bands", DefaultValue = "")]
-        public string SupportedBands { get; set; }
+        public string? SupportedBands { get; set; }
 
         /// <summary>
         /// address-ranges — comma-separated list of IP address ranges (in
@@ -116,7 +116,7 @@
         /// WinBox: "Address Ranges"
         /// </summary>
         [TikProperty("address-ranges", DefaultValue = "")]
-        public string AddressRanges { get; set; }
+        public string? AddressRanges { get; set; }
 
         // ── Configuration references ──────────────────────────────────────────
 
@@ -128,7 +128,7 @@
         /// WinBox: "Master Configuration"
         /// </summary>
         [TikProperty("master-configuration", DefaultValue = "")]
-        public string MasterConfiguration { get; set; }
+        public string? MasterConfiguration { get; set; }
 
         /// <summary>
         /// slave-configurations — comma-separated list of /interface/wifi/configuration
@@ -137,7 +137,7 @@
         /// WinBox: "Slave Configurations"
         /// </summary>
         [TikProperty("slave-configurations", DefaultValue = "")]
-        public string SlaveConfigurations { get; set; }
+        public string? SlaveConfigurations { get; set; }
 
         // ── Naming ────────────────────────────────────────────────────────────
 
@@ -150,7 +150,7 @@
         /// WinBox: "Name Format"
         /// </summary>
         [TikProperty("name-format", DefaultValue = "")]
-        public string NameFormat { get; set; }
+        public string? NameFormat { get; set; }
 
         /// <summary>
         /// slave-name-format — base string used to build slave interface names.
@@ -160,7 +160,7 @@
         /// WinBox: "Slave Name Format"
         /// </summary>
         [TikProperty("slave-name-format", DefaultValue = "")]
-        public string SlaveNameFormat { get; set; }
+        public string? SlaveNameFormat { get; set; }
 
         // ── Administrative ────────────────────────────────────────────────────
 
@@ -177,7 +177,7 @@
         /// WinBox: "Comment"
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>Human-readable identity — action and comment.</summary>
         public override string ToString() =>

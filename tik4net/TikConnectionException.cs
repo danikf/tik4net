@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -33,8 +33,8 @@ namespace tik4net
         /// Initializes a new instance of the <see cref="TikConnectionException"/> class.
         /// </summary>
         /// <param name="message">The message.</param>
-        /// <param name="innerException">The inner exception.</param>
-        protected TikConnectionException(string message, Exception innerException)
+        /// <param name="innerException">The inner exception, if any.</param>
+        protected TikConnectionException(string message, Exception? innerException)
             : base(message, innerException)
         {
         }
@@ -175,7 +175,7 @@ namespace tik4net
         /// <param name="partialResponse">The incomplete text received before the timeout, if any.</param>
         /// <param name="innerException">The underlying exception, if any.</param>
         public TikConnectionReceiveTimeoutException(int timeoutMilliseconds, string message,
-                                                    string partialResponse = null, Exception innerException = null)
+                                                    string? partialResponse = null, Exception? innerException = null)
             : base(message, innerException)
         {
             TimeoutMilliseconds = timeoutMilliseconds;
@@ -189,7 +189,7 @@ namespace tik4net
         /// short one, so a half-read table silently became "the table". Kept on the exception so a caller
         /// that wants the partial data can still reach it — deliberately, rather than by suppressing the error.
         /// </summary>
-        public string PartialResponse { get; }
+        public string? PartialResponse { get; }
     }
 
     /// <summary>
@@ -214,7 +214,7 @@ namespace tik4net
         /// </summary>
         /// <param name="message">Diagnostic message naming the transport and what the router did.</param>
         /// <param name="innerException">The underlying failure, if any.</param>
-        public TikConnectionSessionClosedException(string message, Exception innerException = null)
+        public TikConnectionSessionClosedException(string message, Exception? innerException = null)
             : base(message, innerException)
         {
         }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -23,14 +23,14 @@ namespace tik4net.Objects.Ip.Dns
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// address
         /// IP address to resolve domain name with
         /// </summary>
         [TikProperty("address")]
-        public string/*IP address*/ Address { get; set; }
+        public string?/*IP address*/ Address { get; set; }
 
         /// <summary>
         /// name
@@ -38,7 +38,7 @@ namespace tik4net.Objects.Ip.Dns
         /// REMARKS: either <see cref="Name"/> of <see cref="Regexp"/> must be filled.
         /// </summary>
         [TikProperty("name", IsMandatory = false)]
-        public string/*text*/ Name { get; set; }
+        public string?/*text*/ Name { get; set; }
 
         /// <summary>
         /// name
@@ -47,14 +47,14 @@ namespace tik4net.Objects.Ip.Dns
         /// REMARKS: supported by 6.38 and higher. In Lower version true/false is used as value to determine <see cref="Name"/> format.
         /// </summary>
         [TikProperty("regexp", IsMandatory = false)]
-        public string Regexp { get; set; }
+        public string? Regexp { get; set; }
 
         /// <summary>
         /// ttl
         /// time-to-live of the DNS record
         /// </summary>
         [TikProperty("ttl")]
-        public string/*time*/ Ttl { get; set; }
+        public string?/*time*/ Ttl { get; set; }
 
         /// <summary>
         /// disabled: 

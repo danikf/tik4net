@@ -37,7 +37,9 @@ namespace tik4net.Objects
         private readonly HashSet<string> _ambiguousWire;
         private readonly Dictionary<long, string> _wireByNumeric;
         private readonly KeyValuePair<long, string>[] _flagMembers;
-        private readonly string _zeroMemberWire;
+        // Set only when the enum actually has a zero member (with or without a [TikEnum] attribute);
+        // FormatFlags's `?? ""` covers an enum that has none.
+        private readonly string? _zeroMemberWire;
 
         /// <summary>True when the enum is decorated with <see cref="FlagsAttribute"/>.</summary>
         public bool IsFlags { get; private set; }
@@ -80,7 +82,7 @@ namespace tik4net.Objects
 
             foreach (string name in Enum.GetNames(enumType))
             {
-                string wire = enumType.GetRuntimeField(name).GetCustomAttribute<TikEnumAttribute>(false)?.Value;
+                string? wire = enumType.GetRuntimeField(name).GetCustomAttribute<TikEnumAttribute>(false)?.Value;
                 object value = Enum.Parse(enumType, name, true);
                 long numeric = Convert.ToInt64(value);
 

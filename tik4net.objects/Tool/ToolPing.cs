@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -31,55 +31,55 @@ namespace tik4net.Objects.Tool
         /// Pinged host.
         /// </summary>
         [TikProperty("host", IsReadOnly = true)]
-        public string Host { get; private set; }
+        public string? Host { get; private set; }
 
         /// <summary>
         /// Time to live parameter adjustment
         /// </summary>
         [TikProperty("ttl", IsReadOnly = true)]
-        public string TimeToLife { get; private set; }
+        public string? TimeToLife { get; private set; }
 
         /// <summary>
         /// The ping time.
         /// </summary>
         [TikProperty("time", IsReadOnly = true)]
-        public string Time { get; private set; }
+        public string? Time { get; private set; }
 
         /// <summary>
         /// sent
         /// </summary>
         [TikProperty("sent", IsReadOnly = true)]
-        public string Sent { get; private set; }
+        public string? Sent { get; private set; }
 
         /// <summary>
         /// received
         /// </summary>
         [TikProperty("received", IsReadOnly = true)]
-        public string Received { get; private set; }
+        public string? Received { get; private set; }
 
         /// <summary>
         /// packet-loss
         /// </summary>
         [TikProperty("packet-loss", IsReadOnly = true)]
-        public string PacketLoss { get; private set; }
+        public string? PacketLoss { get; private set; }
 
         /// <summary>
         /// min-rtt
         /// </summary>
         [TikProperty("min-rtt", IsReadOnly = true)]
-        public string MinRtt { get; private set; }
+        public string? MinRtt { get; private set; }
 
         /// <summary>
         /// avg-rtt
         /// </summary>
         [TikProperty("avg-rtt", IsReadOnly = true)]
-        public string AvgRtt { get; private set; }
+        public string? AvgRtt { get; private set; }
 
         /// <summary>
         /// max-rtt
         /// </summary>
         [TikProperty("max-rtt", IsReadOnly = true)]
-        public string MaxRtt { get; private set; }
+        public string? MaxRtt { get; private set; }
         //        <=seq=0
         //<=host=172.16.100.1
         //<=size=56
@@ -102,7 +102,9 @@ namespace tik4net.Objects.Tool
         /// </summary>
         public override string ToString()
         {
-            return string.Format("{0} ....... {1}", Host, TikTimeHelper.FromTikTimeToSeconds(Time));
+            // Time!: Time is not IsMandatory, so a row without it (e.g. a timeout) leaves it null - this
+            // was already an unguarded NRE risk before nullable annotations; not fixed here (annotation only).
+            return string.Format("{0} ....... {1}", Host, TikTimeHelper.FromTikTimeToSeconds(Time!));
         }
 
         /// <summary>

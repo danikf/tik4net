@@ -69,7 +69,7 @@ namespace tik4net.Objects
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>The single loaded entity, or the type default when nothing was returned.</returns>
         /// <exception cref="TikCommandAmbiguousResultException">More than one row returned.</exception>
-        public static async Task<TEntity> LoadSingleOrDefaultAsync<TEntity>(this ITikCommand command,
+        public static async Task<TEntity?> LoadSingleOrDefaultAsync<TEntity>(this ITikCommand command,
             CancellationToken cancellationToken = default(CancellationToken))
             where TEntity : new()
         {

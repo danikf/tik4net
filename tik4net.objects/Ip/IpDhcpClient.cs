@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -43,7 +43,7 @@ namespace tik4net.Objects.Ip
         /// .id: primary key of row
         /// </summary>
         [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
-        public string Id { get; private set; }
+        public string? Id { get; private set; }
 
         /// <summary>
         /// add-default-route: Whether to install default route in routing table received from dhcp server. By default RouterOS client complies to RFC and ignores option 3 if classless option 121 is received. To force client not to ignore option 3 set special-classless. This parameter is available in v6rc12+
@@ -57,19 +57,19 @@ namespace tik4net.Objects.Ip
         /// client-id: Corresponds to the settings suggested by the network administrator or ISP. If not specified, client's MAC address will be sent
         /// </summary>
         [TikProperty("client-id")]
-        public string ClientId { get; set; }
+        public string? ClientId { get; set; }
 
         /// <summary>
         /// comment: Short description of the client
         /// </summary>
         [TikProperty("comment")]
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         /// <summary>
         /// default-route-distance: Distance of default route. Applicable if add-default-route is set to yes.
         /// </summary>
         [TikProperty("default-route-distance")]
-        public string DefaultRouteDistance { get; set; }
+        public string? DefaultRouteDistance { get; set; }
 
         /// <summary>
         /// disabled: 
@@ -81,13 +81,13 @@ namespace tik4net.Objects.Ip
         /// host-name: Host name of the client sent to a DHCP server. If not specified, client's system identity will be used.
         /// </summary>
         [TikProperty("host-name")]
-        public string HostName { get; set; }
+        public string? HostName { get; set; }
 
         /// <summary>
         /// interface: Interface on which DHCP client will be running.
         /// </summary>
         [TikProperty("interface")]
-        public string Interface { get; set; }
+        public string? Interface { get; set; }
 
         /// <summary>
         /// use-peer-dns: Whether to accept the  DNS settings advertised by  DHCP Server. (Will override the settings put in the /ip dns submenu.
@@ -105,25 +105,25 @@ namespace tik4net.Objects.Ip
         /// address: IP address and netmask, which is assigned to DHCP Client from the Server
         /// </summary>
         [TikProperty("address", IsReadOnly = true)]
-        public string Address { get; private set; }
+        public string? Address { get; private set; }
 
         /// <summary>
         /// dhcp-server: IP address of the DHCP server.
         /// </summary>
         [TikProperty("dhcp-server", IsReadOnly = true)]
-        public string DhcpServer { get; private set; }
+        public string? DhcpServer { get; private set; }
 
         /// <summary>
         /// expires-after: Time when the lease expires (specified by the DHCP server).
         /// </summary>
         [TikProperty("expires-after", IsReadOnly = true)]
-        public string ExpiresAfter { get; private set; }
+        public string? ExpiresAfter { get; private set; }
 
         /// <summary>
         /// gateway: IP address of the gateway which is assigned by DHCP server
         /// </summary>
         [TikProperty("gateway", IsReadOnly = true)]
-        public string Gateway { get; private set; }
+        public string? Gateway { get; private set; }
 
         /// <summary>
         /// invalid: Shows whether configuration is invalid.
@@ -135,37 +135,37 @@ namespace tik4net.Objects.Ip
         /// netmask: 
         /// </summary>
         [TikProperty("netmask", IsReadOnly = true)]
-        public string Netmask { get; private set; }
+        public string? Netmask { get; private set; }
 
         /// <summary>
         /// primary-dns: IP address of the primary DNS server, assigned by the DHCP server
         /// </summary>
         [TikProperty("primary-dns", IsReadOnly = true)]
-        public string PrimaryDns { get; private set; }
+        public string? PrimaryDns { get; private set; }
 
         /// <summary>
         /// primary-ntp: IP address of the primary NTP server, assigned by the DHCP server
         /// </summary>
         [TikProperty("primary-ntp", IsReadOnly = true)]
-        public string PrimaryNtp { get; private set; }
+        public string? PrimaryNtp { get; private set; }
 
         /// <summary>
         /// secondary-dns: IP address of the secondary DNS server, assigned by the DHCP server
         /// </summary>
         [TikProperty("secondary-dns", IsReadOnly = true)]
-        public string SecondaryDns { get; private set; }
+        public string? SecondaryDns { get; private set; }
 
         /// <summary>
         /// secondary-ntp: IP address of the secondary NTP server, assigned by the DHCP server
         /// </summary>
         [TikProperty("secondary-ntp", IsReadOnly = true)]
-        public string SecondaryNtp { get; private set; }
+        public string? SecondaryNtp { get; private set; }
 
         /// <summary>
         /// status: Shows the status of DHCP Client
         /// </summary>
         [TikProperty("status", IsReadOnly = true)]
-        public string Status { get; private set; }
+        public string? Status { get; private set; }
 
         /// <summary>
         /// ctor
@@ -182,8 +182,9 @@ namespace tik4net.Objects.Ip
         /// </summary>
         public void Release(ITikConnection connection)
         {
-            connection.CreateCommandAndParameters("ip/dhcp-client/release", 
-                TikSpecialProperties.Id, Id).ExecuteNonQuery();
+            // Id: IsMandatory=true, so a loaded entity always carries it.
+            connection.CreateCommandAndParameters("ip/dhcp-client/release",
+                TikSpecialProperties.Id, Id!).ExecuteNonQuery();
         }
 
         /// <summary>
@@ -191,8 +192,9 @@ namespace tik4net.Objects.Ip
         /// </summary>
         public void Renew(ITikConnection connection)
         {
+            // Id: IsMandatory=true, so a loaded entity always carries it.
             connection.CreateCommandAndParameters("ip/dhcp-client/renew",
-                TikSpecialProperties.Id, Id).ExecuteNonQuery();
+                TikSpecialProperties.Id, Id!).ExecuteNonQuery();
         }
     }
 }
