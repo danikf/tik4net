@@ -172,6 +172,50 @@ none). It no longer has `SendTagWithSyncCommand` — it has no wire to put a tag
 
 ## New in 5.0, nothing to migrate
 
+### The packages now multi-target `net8.0` too
+
+`tik4net`, `tik4net.ssh` and `tik4net.testing` build for `netstandard2.0;net8.0` and every `.nupkg` carries
+both `lib/netstandard2.0/` and `lib/net8.0/`. This is **not a breaking change for anyone** — `netstandard2.0`
+is not going away, so .NET Framework, Xamarin and Unity consumers keep working exactly as before. A consumer
+on .NET 8+ now gets the `net8.0` assembly automatically, which trims dependencies: on that TFM the packages
+have **no runtime dependencies at all** (`System.Text.Json` is referenced only on the `netstandard2.0` leg,
+where net8.0's shared framework already carries it).
+
+### Streaming reads as `IAsyncEnumerable<ITikReSentence>` — net8.0 only
+
+`ITikStreamingCommand.ExecuteListWithDurationAsync` / `ExecuteListUntilDoneAsync`, and the
+`TikCommandStreamingExtensions` that reach them from a plain `ITikCommand`, are the async counterparts of
+`ExecuteListWithDuration` / `ExecuteListUntilDone` — same `Streaming` capability (binary API only), same end
+conditions, but rows reach the caller **as the router sends them** instead of being collected into a list
+that is handed over once the read ends:
+
+```csharp
+using tik4net;   // TikCommandStreamingExtensions
+
+var torch = connection.CreateCommand("/tool/torch",
+    connection.CreateParameter("interface", "ether1"),
+    connection.CreateParameter("duration", "10"));
+
+await foreach (var row in torch.ExecuteListWithDurationAsync(10, cancellationToken))
+{
+    Console.WriteLine(row.GetResponseField("tx"));
+}
+```
+
+A router `!trap`/`!fatal` is thrown out of the enumeration as `TikCommandAbortException` after whatever rows
+already arrived. This surface only exists on the `net8.0` build — reaching `IAsyncEnumerable<T>` from
+`netstandard2.0` would mean every consumer, including ones who will never call it, taking a dependency on
+`Microsoft.Bcl.AsyncInterfaces`. Nothing about the existing synchronous `ExecuteListWithDuration` /
+`ExecuteListUntilDone` changes.
+
+### The binary API's word reader rents its buffers
+
+`ApiConnection`'s word reader now rents its scratch buffer from `ArrayPool<byte>.Shared` instead of
+allocating a new `byte[]` per word. Not observable from outside the library — this is a lower-allocation
+implementation of the same read, not a behaviour change.
+
+---
+
 `TikConnectionSetup` is the single entry point and carries every connection option, including ones that
 had no home before — `ReceiveTimeout`, `SendTimeout`, `Encoding`, `DebugEnabled` and `RouterMac`:
 

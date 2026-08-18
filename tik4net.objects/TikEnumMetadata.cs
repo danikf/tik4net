@@ -50,8 +50,7 @@ namespace tik4net.Objects
         /// </summary>
         public static TikEnumMetadata Get(Type enumType)
         {
-            TikEnumMetadata result;
-            if (_cache.TryGetValue(enumType, out result))
+            if (_cache.TryGetValue(enumType, out var result))
                 return result;
 
             lock (_lockObj)
@@ -66,7 +65,7 @@ namespace tik4net.Objects
                     _cache = updated;
                 }
             }
-            return result;
+            return result!; // set either by the fast-path TryGetValue above or inside the lock
         }
 
         private TikEnumMetadata(Type enumType)
@@ -82,7 +81,7 @@ namespace tik4net.Objects
 
             foreach (string name in Enum.GetNames(enumType))
             {
-                string? wire = enumType.GetRuntimeField(name).GetCustomAttribute<TikEnumAttribute>(false)?.Value;
+                string? wire = enumType.GetRuntimeField(name)!.GetCustomAttribute<TikEnumAttribute>(false)?.Value; // name comes from Enum.GetNames(enumType), so the field always exists
                 object value = Enum.Parse(enumType, name, true);
                 long numeric = Convert.ToInt64(value);
 
@@ -122,8 +121,7 @@ namespace tik4net.Objects
         /// </summary>
         public object Parse(string wireValue)
         {
-            object result;
-            if (wireValue != null && !_ambiguousWire.Contains(wireValue) && _valueByWire.TryGetValue(wireValue, out result))
+            if (wireValue != null && !_ambiguousWire.Contains(wireValue) && _valueByWire.TryGetValue(wireValue, out var result))
                 return result;
 
             throw new FormatException(string.Format("Unknown value '{0}' for enum type {1}.", wireValue, _enumType.Name));
@@ -142,8 +140,7 @@ namespace tik4net.Objects
         /// <summary>Formats one member as its wire value.</summary>
         public string Format(object value)
         {
-            string wire;
-            if (_wireByNumeric.TryGetValue(Convert.ToInt64(value), out wire))
+            if (_wireByNumeric.TryGetValue(Convert.ToInt64(value), out var wire))
                 return wire;
 
             throw new FormatException(string.Format("Value '{0}' is not a mapped member of enum type {1}.", value, _enumType.Name));

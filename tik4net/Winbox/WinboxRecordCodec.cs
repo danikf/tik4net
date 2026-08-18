@@ -321,7 +321,7 @@ namespace tik4net.Winbox
                     case "macaddr":
                         return WinboxFieldResolver.MacFromBytes(value);
                     case "ip6addr":
-                        return value is byte[] v6 ? WinboxFieldResolver.IpV6FromBytes(v6) : value.ToString();
+                        return value is byte[] v6 ? WinboxFieldResolver.IpV6FromBytes(v6) : value.ToString()!; // value != null (checked above)
                     case "addr":
                         // The compound webfig 'addr' object, read back the way types.addr.tostr renders it:
                         // by SUB-KEY, not by position. The generic nested-message fallback returns the
@@ -626,13 +626,13 @@ namespace tik4net.Winbox
                 case "ipaddr":
                     return WinboxFieldResolver.IpFromU32(v.Item2);
                 case "ip6addr":
-                    return v.Item2 is byte[] b ? WinboxFieldResolver.IpV6FromBytes(b) : v.Item2.ToString();
+                    return v.Item2 is byte[] b ? WinboxFieldResolver.IpV6FromBytes(b) : v.Item2.ToString()!; // v.Item2 != null (checked above)
                 case "macaddr":
                     return WinboxFieldResolver.MacFromBytes(v.Item2);
                 case "addr":
-                    return v.Item2 is Dictionary<int, Tuple<string, object>> a ? FormatAddr(a) : v.Item2.ToString();
+                    return v.Item2 is Dictionary<int, Tuple<string, object>> a ? FormatAddr(a) : v.Item2.ToString()!; // v.Item2 != null (checked above)
                 default:
-                    return v.Item2.ToString();
+                    return v.Item2.ToString()!; // v.Item2 != null (checked above)
             }
         }
 
@@ -978,7 +978,7 @@ namespace tik4net.Winbox
             // Handing back the raw text produces an .id that is not a RouterOS handle at all, so every
             // later set/remove addressed by it will fail — noisily, but a long way from here. Trace it.
             TraceNonNumeric(".id", value);
-            return value.ToString();
+            return value.ToString()!; // value != null (checked above)
         }
 
         // One place for "the router sent something this decode step cannot read as a number". None of the
@@ -1034,7 +1034,7 @@ namespace tik4net.Winbox
             if (value is Dictionary<int, Tuple<string, object>> one) return FormatNestedMessage(one);
             if (value is List<Dictionary<int, Tuple<string, object>>> many)
                 return string.Join(",", many.Select(FormatNestedMessage));
-            return value.ToString();
+            return value.ToString()!; // value != null (checked above)
         }
 
         /// <summary>

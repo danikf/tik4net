@@ -25,15 +25,20 @@ ITikConnection / ITikCommand  — transport-neutral contract + capability model
 
 | Package | Project | TFM | Notes |
 |---|---|---|---|
-| `tik4net` | `tik4net/` + `tik4net.objects/`, packed by `tik4net.package/` | `netstandard2.0` | Core **and** O/R mapper — two assemblies, one package. Only runtime dep: `System.Text.Json` |
-| `tik4net.ssh` | `tik4net.ssh/` | `netstandard2.0` | Satellite — isolates the `Renci.SshNet` dependency |
-| `tik4net.testing` | `tik4net.testing/` | `netstandard2.0` | `TikFakeConnection` for router-free consumer tests |
+| `tik4net` | `tik4net/` + `tik4net.objects/`, packed by `tik4net.package/` | `netstandard2.0;net8.0` | Core **and** O/R mapper — two assemblies, one package. Runtime dep on the `netstandard2.0` leg only: `System.Text.Json` (net8.0 has it in the shared framework, so that leg has no dependencies at all) |
+| `tik4net.ssh` | `tik4net.ssh/` | `netstandard2.0;net8.0` | Satellite — isolates the `Renci.SshNet` dependency |
+| `tik4net.testing` | `tik4net.testing/` | `netstandard2.0;net8.0` | `TikFakeConnection` for router-free consumer tests |
 | `tik4net.mcp` | `Tools/tik4net.mcp/` | .NET tool | Dev/debug MCP helper, not a user-facing library |
 
 `tik4net/` and `tik4net.objects/` are both `IsPackable=false` — they build assemblies, but the
 `tik4net` package itself is produced by `tik4net.package/`, a project that compiles nothing and
-only collects the two DLLs (plus their XML docs) into `lib/netstandard2.0/`. It exists because
-`tik4net.objects` references `tik4net`, so `tik4net` cannot reference it back to pack it.
+only collects the two DLLs (plus their XML docs) into `lib/<tfm>/` for each target framework. It
+exists because `tik4net.objects` references `tik4net`, so `tik4net` cannot reference it back to pack it.
+
+`netstandard2.0` is not being phased out — Unity/Xamarin/.NET Framework reach is a stated goal (see the
+README) — so multi-targeting only *adds* the `net8.0` leg. The `net8.0` build is also where the
+`net8.0`-only async streaming API lives (`ITikStreamingCommand`, `IAsyncEnumerable<ITikReSentence>`) — see
+the `tik4net` core section below.
 
 Consequently `tik4net.ssh` and `tik4net.testing` reference their compile-time projects with
 `PrivateAssets="all"` and additionally reference `tik4net.package`, which is what puts the real
@@ -72,6 +77,15 @@ pattern-match (`if (conn is ITikTaggedConnection t)`).
 `ITikCommand` is ADO.NET-shaped: `ExecuteNonQuery`, `ExecuteScalar`, `ExecuteSingleRow`,
 `ExecuteList`, `ExecuteListWithDuration`, `ExecuteAsync`. Parameters are `ITikCommandParameter`
 with a `TikCommandParameterFormat` of `Filter` (`?name=value`) or `NameValue` (`=name=value`).
+
+On `net8.0`, `ITikStreamingCommand` (`tik4net/ITikStreamingCommand.cs`) adds
+`ExecuteListWithDurationAsync`/`ExecuteListUntilDoneAsync` returning `IAsyncEnumerable<ITikReSentence>` —
+rows reach the caller as the router sends them, rather than in a list handed over once the read ends.
+Reached from a plain `ITikCommand` via `TikCommandStreamingExtensions`, which checks `Streaming` first.
+Implemented by `ApiCommand` only, the same transport that implements the synchronous
+`ExecuteListWithDuration`/`ExecuteListUntilDone`. It is compiled only under `NET8_0_OR_GREATER` — on
+`netstandard2.0`, `IAsyncEnumerable<T>` would mean every consumer taking a dependency on
+`Microsoft.Bcl.AsyncInterfaces`, including the ones who never call it.
 
 Response sentences: `ITikReSentence` (`!re`), `ITikDoneSentence` (`!done`),
 `ITikTrapSentence` (`!trap`), `ITikFatalSentence` (`!fatal`).

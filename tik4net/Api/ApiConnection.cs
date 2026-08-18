@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -352,7 +352,7 @@ namespace tik4net.Api
             }
         }
 
-        internal bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
+        internal bool ValidateServerCertificate(object sender, X509Certificate? certificate, X509Chain? chain, SslPolicyErrors sslPolicyErrors)
         {
             if (CertificateValidationCallback != null)
                 return CertificateValidationCallback(sender, certificate, chain, sslPolicyErrors);
@@ -439,20 +439,33 @@ namespace tik4net.Api
                 }
                 else
                 {
-                    byte[] buffer = new byte[(int)wordLength];
-                    int totalRead = 0;
-                    while (totalRead < (int)wordLength)
+                    // Rented, not allocated: every word of every row of every read used to leave a byte[]
+                    // behind, and a 1000-row load is tens of thousands of them. The buffer never escapes
+                    // this block - the string is materialized before it goes back to the pool.
+                    int length = (int)wordLength;
+                    byte[] buffer = System.Buffers.ArrayPool<byte>.Shared.Rent(length);
+                    try
                     {
-                        int n = _tcpConnectionStream.Read(buffer, totalRead, (int)wordLength - totalRead);
-                        if (n == 0)
-                            throw new IOException("Connection closed while reading word body.");
-                        totalRead += n;
-                    }
-                    result = Encoding.GetString(buffer, 0, (int)wordLength);
+                        int totalRead = 0;
+                        while (totalRead < length)
+                        {
+                            int n = _tcpConnectionStream.Read(buffer, totalRead, length - totalRead);
+                            if (n == 0)
+                                throw new IOException("Connection closed while reading word body.");
+                            totalRead += n;
+                        }
+                        result = Encoding.GetString(buffer, 0, length);
 
-                    if (Diagnostics.TikWireTrace.Enabled)
-                        Diagnostics.TikWireTrace.Emit("api.word", Diagnostics.TikWireDir.Recv,
-                            buffer, 0, buffer.Length, "len=" + wordLength);
+                        if (Diagnostics.TikWireTrace.Enabled)
+                            Diagnostics.TikWireTrace.Emit("api.word", Diagnostics.TikWireDir.Recv,
+                                buffer, 0, length, "len=" + wordLength);
+                    }
+                    finally
+                    {
+                        // A rented buffer is only as long as ITS OWN length, which is >= what was asked for -
+                        // hence `length` above rather than buffer.Length at every use.
+                        System.Buffers.ArrayPool<byte>.Shared.Return(buffer);
+                    }
                 }
             } while (skipEmptyRow && string.IsNullOrWhiteSpace(result));
 

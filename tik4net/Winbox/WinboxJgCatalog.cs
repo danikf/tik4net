@@ -439,7 +439,7 @@ namespace tik4net.Winbox
                 // produce a disk write per connection.
                 if (File.Exists(path) && string.Equals(File.ReadAllText(path, Encoding.UTF8), text, StringComparison.Ordinal))
                     return;
-                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!); // path is a file path from Path.Combine, always has a directory component
                 File.WriteAllText(path, text, new UTF8Encoding(false));
             }
             catch { /* remembering is best-effort — never fail an open over it */ }
@@ -450,8 +450,7 @@ namespace tik4net.Winbox
             if (string.IsNullOrEmpty(routerKey)) return null;
             lock (LastGoodListsLock)
             {
-                List<PluginEntry> inProcess;
-                if (LastGoodLists.TryGetValue(routerKey, out inProcess)) return inProcess;
+                if (LastGoodLists.TryGetValue(routerKey, out var inProcess)) return inProcess;
             }
 
             string? path = ListCachePath(cacheDir, routerKey);
@@ -555,8 +554,7 @@ namespace tik4net.Winbox
                                                  .OrderBy(u => u, StringComparer.Ordinal).ToArray());
             lock (SharedCatalogsLock)
             {
-                WinboxJgCatalog cached;
-                if (SharedCatalogs.TryGetValue(key, out cached)) return cached;
+                if (SharedCatalogs.TryGetValue(key, out var cached)) return cached;
             }
 
             var catalog = new WinboxJgCatalog();
@@ -622,7 +620,7 @@ namespace tik4net.Winbox
             {
                 try
                 {
-                    Directory.CreateDirectory(Path.GetDirectoryName(path));
+                    Directory.CreateDirectory(Path.GetDirectoryName(path)!); // path is a file path from Path.Combine, always has a directory component
                     File.WriteAllText(path, text, new UTF8Encoding(false));
                 }
                 catch { /* cache write is best-effort */ }

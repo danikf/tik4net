@@ -79,7 +79,7 @@ jobs:
           path: '**/TestResults/*.trx'
           if-no-files-found: ignore
 
-  # The packable projects must stay netstandard2.0-clean and produce valid packages.
+  # The three packages must build and carry both target frameworks.
   pack:
     name: Pack (validation only)
     runs-on: ubuntu-latest
@@ -92,9 +92,23 @@ jobs:
         with:
           dotnet-version: '8.x'
 
+      # tik4net.package is what produces the `tik4net` package (tik4net/ and tik4net.objects/ are
+      # IsPackable=false and pack nothing) - packing those two validated nothing at all.
       - name: Pack
         run: |
-          dotnet pack tik4net/tik4net.csproj --configuration Release --output ./Build
-          dotnet pack tik4net.objects/tik4net.objects.csproj --configuration Release --output ./Build
+          dotnet pack tik4net.package/tik4net.package.csproj --configuration Release --output ./Build
           dotnet pack tik4net.ssh/tik4net.ssh.csproj --configuration Release --output ./Build
           dotnet pack tik4net.testing/tik4net.testing.csproj --configuration Release --output ./Build
+
+      # A multi-targeted package that silently lost one of its TFMs still packs, installs, and then fails
+      # for whichever half of the users is on the framework that went missing.
+      - name: Verify both target frameworks are in every package
+        run: |
+          set -e
+          for pkg in ./Build/*.nupkg; do
+            echo "== $pkg"
+            files=$(unzip -Z1 "$pkg")
+            for tfm in netstandard2.0 net8.0; do
+              echo "$files" | grep -q "^lib/$tfm/" || { echo "MISSING lib/$tfm in $pkg"; exit 1; }
+            done
+          done

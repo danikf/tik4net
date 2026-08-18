@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,6 +9,9 @@ using System.Threading.Tasks;
 namespace tik4net.Api
 {
     internal class ApiCommand: ITikCommand, ITikCommandAsync
+#if NET8_0_OR_GREATER
+        , ITikStreamingCommand
+#endif
     {
         private volatile bool _isRuning;
         private volatile int _asynchronouslyRunningTag;
@@ -557,10 +560,10 @@ namespace tik4net.Api
             }
         }
 
-        public ITikReSentence ExecuteSingleRowOrDefault()
+        public ITikReSentence? ExecuteSingleRowOrDefault()
         {
             var sentences = ExecuteList();
-            
+
             if (sentences.Count() > 1)
                 throw new TikCommandAmbiguousResultException(this);
             return sentences.SingleOrDefault();
@@ -949,5 +952,101 @@ namespace tik4net.Api
 
             return parameters;
         }
+
+#if NET8_0_OR_GREATER
+        // ── Streaming reads as IAsyncEnumerable (P2.4's deferred half, D4) ────
+        //
+        // The synchronous ExecuteListWithDuration/ExecuteListUntilDone above collect rows into a List and
+        // hand it over once the read has ended, so a caller watching /tool/torch learns nothing until the
+        // window closes. The rows were always arriving one at a time — they were being accumulated, not
+        // waited for — so the async form needs no new protocol work: the same callbacks write into a
+        // Channel, and the caller reads it as it fills.
+        //
+        // Ending is unchanged and deliberately shared with the synchronous methods: the requested duration
+        // (which cancels the command on the router), the command's own !done, a !trap, or a !fatal. A trap or
+        // fatal is thrown out of the enumeration as TikCommandAbortException, matching what
+        // ExecuteListWithDuration(int) does with the same event - a caller must not read a truncated stream
+        // as a complete one.
+
+        /// <inheritdoc/>
+        public IAsyncEnumerable<ITikReSentence> ExecuteListWithDurationAsync(int durationSec,
+            CancellationToken cancellationToken = default)
+            => StreamAsync(TimeSpan.FromSeconds(Math.Max(0, durationSec)), cancelOnEnd: true, cancellationToken);
+
+        /// <inheritdoc/>
+        public IAsyncEnumerable<ITikReSentence> ExecuteListUntilDoneAsync(int? timeoutSec = null,
+            CancellationToken cancellationToken = default)
+            => StreamAsync(timeoutSec.HasValue ? TimeSpan.FromSeconds(Math.Max(0, timeoutSec.Value)) : (TimeSpan?)null,
+                cancelOnEnd: false, cancellationToken);
+
+        private async IAsyncEnumerable<ITikReSentence> StreamAsync(TimeSpan? limit, bool cancelOnEnd,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            var channel = System.Threading.Channels.Channel.CreateUnbounded<ITikReSentence>(
+                new System.Threading.Channels.UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
+
+            ITikTrapSentence? asyncTrap = null;
+            string? fatalMessage = null;
+            bool doneReceived = false;
+
+            ExecuteAsyncCore(
+                reSentence => channel.Writer.TryWrite(reSentence),
+                error => { asyncTrap = error; channel.Writer.TryComplete(); },
+                onDoneCallback: () => { doneReceived = true; },
+                onTerminalCallback: _ =>
+                {
+                    // The !fatal case carries the reader loop's reason (P2.14); !done needs nothing but the
+                    // completion. Reading the field the callbacks set is safe here: the pump thread has
+                    // already run them by the time it reaches this one.
+                    channel.Writer.TryComplete();
+                });
+
+            // A deadline is a second way to end the read, not a poll: the channel completes either when the
+            // command does or when this fires, whichever happens first.
+            using var deadline = limit.HasValue
+                ? new CancellationTokenSource(limit.Value)
+                : new CancellationTokenSource();
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token, cancellationToken);
+
+            try
+            {
+                while (true)
+                {
+                    ITikReSentence row;
+                    try
+                    {
+                        row = await channel.Reader.ReadAsync(linked.Token).ConfigureAwait(false);
+                    }
+                    catch (System.Threading.Channels.ChannelClosedException)
+                    {
+                        break;      // the command ended - !done, !trap or !fatal
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;      // the duration elapsed, or the caller cancelled
+                    }
+                    yield return row;
+                }
+            }
+            finally
+            {
+                if (_isRuning && (cancelOnEnd || linked.IsCancellationRequested))
+                    CancelInternal(true, -1);
+                _isRuning = false;
+            }
+
+            // Whatever ended the stream is reported after the rows the caller already received, so a
+            // truncated read cannot be mistaken for a complete one.
+            if (asyncTrap != null)
+                throw new TikCommandAbortException(this, asyncTrap.Message);
+            if (fatalMessage != null)
+                throw new TikCommandAbortException(this, fatalMessage);
+            if (cancellationToken.IsCancellationRequested)
+                cancellationToken.ThrowIfCancellationRequested();
+            if (!doneReceived && !cancelOnEnd && limit.HasValue && deadline.IsCancellationRequested)
+                throw new TikCommandAbortException(this, "Timeout");
+        }
+#endif
+
     }
 }

@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFrameworks>netstandard2.0;net8.0</TargetFrameworks>
     <AssemblyName>tik4net.ssh</AssemblyName>
     <RootNamespace>tik4net.Ssh</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>

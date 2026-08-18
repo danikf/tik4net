@@ -155,7 +155,7 @@ namespace tik4net.Objects
             foreach (var field in _fields)
             {
                 PropertyInfo propInfo = ((PropertyInfo)field.Member);
-                object sourceValue = propInfo.GetValue(source);
+                object? sourceValue = propInfo.GetValue(source);
                 propInfo.SetValue(destination, sourceValue);
             }
         }
@@ -166,8 +166,8 @@ namespace tik4net.Objects
             {
                 PropertyInfo propInfo = ((PropertyInfo)field.Member);
 
-                object val1 = propInfo.GetValue(entity1);
-                object val2 = propInfo.GetValue(entity2);
+                object? val1 = propInfo.GetValue(entity1);
+                object? val2 = propInfo.GetValue(entity2);
 
                 if (Convert.ToString(val1) != Convert.ToString(val2))
                     return false;
@@ -180,7 +180,7 @@ namespace tik4net.Objects
             foreach(var field in _fields)
             {
                 var attr = ((PropertyInfo)field.Member).GetCustomAttribute<TikPropertyAttribute>(true);
-                yield return attr.FieldName;
+                yield return attr!.FieldName; // _fields only ever holds members carrying this attribute
             }
         }
 
@@ -189,7 +189,7 @@ namespace tik4net.Objects
             foreach (var field in _justForInsertFields)
             {
                 var attr = ((PropertyInfo)field.Member).GetCustomAttribute<TikPropertyAttribute>(true);
-                yield return attr.FieldName;
+                yield return attr!.FieldName; // _justForInsertFields only ever holds members carrying this attribute
             }
         }
 
@@ -305,9 +305,8 @@ namespace tik4net.Objects
             var insertedFieldNames = ResolveJustForInsertFieldNames().ToArray();
             foreach (var expectedEntityPair in expectedDict.Reverse()) //from last to first ( <= move is indexed as moveBeforeEntity)
             {
-                TEntity originalEntity;
                 TEntity resultEntity;
-                if (originalDict.TryGetValue(expectedEntityPair.Key, out originalEntity))
+                if (originalDict.TryGetValue(expectedEntityPair.Key, out var originalEntity))
                 { //Update //present in both expected and original => update or NOOP
                   //copy .id from original to expected & save
                     if (!EntityFieldEquals(originalEntity, expectedEntityPair.Value)) //modified

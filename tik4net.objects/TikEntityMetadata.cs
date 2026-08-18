@@ -124,7 +124,7 @@ namespace tik4net.Objects
         /// <remarks>Slow operation.</remarks>
         public TikEntityMetadata(Type entityType)
         {
-            TikEntityAttribute entityAttribute = (TikEntityAttribute)entityType.GetTypeInfo().GetCustomAttributes(true).FirstOrDefault(a => a is TikEntityAttribute);
+            TikEntityAttribute? entityAttribute = (TikEntityAttribute?)entityType.GetTypeInfo().GetCustomAttributes(true).FirstOrDefault(a => a is TikEntityAttribute);
             if (entityAttribute == null)
                 throw new ArgumentException("Entity class must be decorated by TikEntityAttribute attribute.");
 
@@ -151,8 +151,7 @@ namespace tik4net.Objects
 
         private TikEntityPropertyAccessor GetPropertyDescriptor(string fieldName) 
         {
-            TikEntityPropertyAccessor result;
-            if (_properties.TryGetValue(fieldName, out result))
+            if (_properties.TryGetValue(fieldName, out var result))
                 return result;
             else
                 throw new KeyNotFoundException(string.Format("Property for field '{0}' not found in '{1}' class.", fieldName, _entityType));

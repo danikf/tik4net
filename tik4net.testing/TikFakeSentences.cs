@@ -29,18 +29,22 @@ namespace tik4net.Testing
         /// <inheritdoc/>
         public string GetResponseField(string fieldName)
         {
-            if (_words.TryGetValue(fieldName, out string value))
+            if (_words.TryGetValue(fieldName, out string? value))
                 return value;
             throw new TikSentenceException($"Field '{fieldName}' not found in fake !re sentence.", this);
         }
 
         /// <inheritdoc/>
         public bool TryGetResponseField(string fieldName, out string fieldValue)
-            => _words.TryGetValue(fieldName, out fieldValue);
+        {
+            bool found = _words.TryGetValue(fieldName, out var v);
+            fieldValue = v!; // null only when found is false; interface contract leaves the out value unspecified in that case
+            return found;
+        }
 
         /// <inheritdoc/>
         public string GetResponseFieldOrDefault(string fieldName, string defaultValue)
-            => _words.TryGetValue(fieldName, out string value) ? value : defaultValue;
+            => _words.TryGetValue(fieldName, out string? value) ? value : defaultValue;
     }
 
     /// <summary>
@@ -73,14 +77,14 @@ namespace tik4net.Testing
         /// <inheritdoc/>
         public string GetResponseWord()
         {
-            if (_words.TryGetValue(TikSpecialProperties.Ret, out string value))
+            if (_words.TryGetValue(TikSpecialProperties.Ret, out string? value))
                 return value;
             throw new TikSentenceException("No '=ret=' word in fake !done sentence.", this);
         }
 
         /// <inheritdoc/>
         public string GetResponseWordOrDefault(string defaultValue)
-            => _words.TryGetValue(TikSpecialProperties.Ret, out string value) ? value : defaultValue;
+            => _words.TryGetValue(TikSpecialProperties.Ret, out string? value) ? value : defaultValue;
     }
 
     /// <summary>

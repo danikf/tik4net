@@ -269,7 +269,7 @@ namespace tik4net.Winbox
                     // wire trace hides exactly the bytes the trace exists to show.
                     return BitConverter.ToString(bytes).Replace("-", "");
                 default:
-                    return value.ToString();
+                    return value.ToString()!; // 'case null' above already excluded null
             }
         }
 

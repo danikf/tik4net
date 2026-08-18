@@ -26,7 +26,7 @@ namespace tik4net.Objects
         public static TikEntityMetadata GetMetadata<TEntity>()
         {
             Type key = typeof(TEntity);
-            TikEntityMetadata result;
+            TikEntityMetadata? result;
 
             if (!_cache.TryGetValue(key, out result))
             {
@@ -40,7 +40,7 @@ namespace tik4net.Objects
                     }
                 }
             }
-            return result;
+            return result!; // every branch above sets result before this point
         }        
     }
 }

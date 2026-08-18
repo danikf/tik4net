@@ -223,8 +223,8 @@ namespace tik4net.Objects
             try
             {
                 return typeof(TikEntityPropertyAccessor).GetTypeInfo()
-                    .GetDeclaredMethod(factoryName)
-                    .MakeGenericMethod(accessor.DeclaringType, propertyInfo.PropertyType)
+                    .GetDeclaredMethod(factoryName)! // factoryName always names one of this class's own static methods
+                    .MakeGenericMethod(accessor.DeclaringType!, propertyInfo.PropertyType) // a real property's accessor always has a declaring type
                     .Invoke(null, new object[] { accessor });
             }
             catch (Exception)

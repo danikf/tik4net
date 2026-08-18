@@ -90,7 +90,7 @@ namespace tik4net.Winbox
 
         private static TikConnectionLoginRefusedException? Refusal(Exception ex)
         {
-            for (Exception e = ex; e != null; e = e.InnerException)
+            for (Exception? e = ex; e != null; e = e.InnerException)
             {
                 if (e is TikConnectionLoginRefusedException refusal) return refusal;
                 if (e is AggregateException aggregate)

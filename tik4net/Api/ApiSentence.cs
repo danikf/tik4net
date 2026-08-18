@@ -64,7 +64,9 @@ namespace tik4net.Api
             //        return true;
             //    }
             //}
-            return _words.TryGetValue(wordName, out value);
+            bool found = _words.TryGetValue(wordName, out var v);
+            value = v!; // null only when found is false; callers check the return value before using 'value'
+            return found;
         }
 
         protected string GetWordValueOrDefault(string wordName, string defaultValue)

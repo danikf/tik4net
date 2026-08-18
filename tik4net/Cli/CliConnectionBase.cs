@@ -555,7 +555,7 @@ namespace tik4net.Cli
             foreach (var cfg in configRecords)
             {
                 string id = cfg.GetResponseFieldOrDefault(TikSpecialProperties.Id, null!); // defaultValue is meant to accept null (interface out of scope here)
-                if (id == null || !statsById.TryGetValue(id, out TikRecordSentence sr))
+                if (id == null || !statsById.TryGetValue(id, out TikRecordSentence? sr))
                 {
                     // No matching stats record — keep config as-is.
                     merged.Add(cfg);

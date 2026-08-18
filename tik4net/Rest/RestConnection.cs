@@ -42,11 +42,14 @@ namespace tik4net.Rest
     /// </para>
     /// <para>
     /// <see cref="ITikConnection.ConnectTimeout"/> bounds the whole <c>Open</c> probe here rather than the
-    /// TCP handshake alone: <c>SocketsHttpHandler.ConnectTimeout</c> — the only thing that separates the two
-    /// — does not exist on <c>netstandard2.0</c>, and <c>HttpClientHandler</c> exposes nothing equivalent.
-    /// The probe is a single small <c>GET /rest/system/resource</c>, so bounding it whole is the same
-    /// guarantee in practice: an unreachable or black-holed router can no longer hold <c>Open</c> for the OS
-    /// connect default. A value of 0 or less means "no bound".
+    /// TCP handshake alone, on both target frameworks. <c>SocketsHttpHandler.ConnectTimeout</c> — the only
+    /// thing that separates the two — does not exist on <c>netstandard2.0</c>, and <c>HttpClientHandler</c>
+    /// exposes nothing equivalent; it does exist on <c>net8.0</c>, and this transport deliberately does not
+    /// branch on the target framework, because one bound that means the same thing everywhere is worth more
+    /// than a slightly tighter one on half the builds. The probe is a single small
+    /// <c>GET /rest/system/resource</c>, so bounding it whole is the same guarantee in practice: an
+    /// unreachable or black-holed router can no longer hold <c>Open</c> for the OS connect default.
+    /// A value of 0 or less means "no bound".
     /// </para>
     /// <para>
     /// <b>Known RouterOS defect — REST logins are never released.</b> Using REST at all can leave rows in

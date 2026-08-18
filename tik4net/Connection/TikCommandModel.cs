@@ -62,7 +62,11 @@ namespace tik4net.Connection
 
         /// <inheritdoc/>
         public bool TryGetResponseField(string fieldName, out string fieldValue)
-            => _fields.TryGetValue(fieldName, out fieldValue);
+        {
+            bool found = _fields.TryGetValue(fieldName, out var v);
+            fieldValue = v!; // null only when found is false; interface contract leaves the out value unspecified in that case
+            return found;
+        }
     }
 
     /// <summary>
