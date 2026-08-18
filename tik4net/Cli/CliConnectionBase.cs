@@ -371,8 +371,8 @@ namespace tik4net.Cli
         // for N ms" (settle), returning the ANSI-stripped reaction. Unlike the command/control-key drivers
         // (which read up to the next shell prompt), the Tab listing does NOT end in a bare prompt — RouterOS
         // redraws the prompt with the echoed stem — so it must be read on a settle window, not a prompt match.
-        // A leaf transport registers this in Open only if it supports completion (currently Telnet); when it
-        // is null, CompleteCli reports the transport does not support completion (fail-closed).
+        // A leaf transport registers this in Open only if it supports completion (all CLI transports do);
+        // when it is null, CompleteCli reports the transport does not support completion (fail-closed).
         private Func<byte[], int, CancellationToken, Task<string>>? _sendRawSettle;
 
         /// <summary>

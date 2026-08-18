@@ -148,6 +148,62 @@ namespace tik4net.Ssh
             return await ReadCommandResponseAsync(ct, null).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Sends raw bytes (e.g. <c>&lt;stem&gt;&lt;Tab&gt;</c> for completion) and reads the reaction until the
+        /// stream goes <b>quiet</b> for <paramref name="quietMs"/> — used for Tab-completion, whose listing
+        /// does not end in a shell prompt (RouterOS redraws the prompt with the echoed stem), so a
+        /// prompt-terminated read would block until the receive deadline. ANSI-stripped; not echo/prompt
+        /// trimmed (the completion parser removes those). Bounded by the receive deadline.
+        /// </summary>
+        internal async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
+        {
+            await SendBytesAsync(raw, ct).ConfigureAwait(false);
+            return await ReadUntilQuietAsync(quietMs, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Reads (answering VT100 probes) until no new bytes arrive for <paramref name="quietMs"/> after at
+        /// least some data, the shell closes, or the receive deadline expires. Returns the ANSI-stripped
+        /// accumulated text. Unlike <see cref="DrainAsync"/> the text is kept, not discarded.
+        /// </summary>
+        private async Task<string> ReadUntilQuietAsync(int quietMs, CancellationToken ct)
+        {
+            var buffer = new byte[4096];
+            var accumulated = new StringBuilder();
+            var deadline = DateTime.UtcNow.AddMilliseconds(_receiveTimeoutMs);
+            DateTime lastData = DateTime.UtcNow;
+
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                bool gotData = false;
+                bool closed = false;
+                while (_shell.DataAvailable)
+                {
+                    int n = _shell.Read(buffer, 0, buffer.Length);
+                    if (n <= 0) { closed = true; break; }
+                    accumulated.Append(await ProcessChunkAsync(buffer, n, ct).ConfigureAwait(false));
+                    gotData = true;
+                }
+
+                if (gotData)
+                    lastData = DateTime.UtcNow;
+
+                string stripped = VtStripper.StripAnsi(accumulated.ToString());
+
+                // Settled: some data arrived and the shell has been silent for the quiet window.
+                if (!gotData && accumulated.Length > 0
+                    && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs)
+                    return stripped;
+
+                if (closed || DateTime.UtcNow >= deadline)
+                    return stripped;
+
+                await Task.Delay(15, ct).ConfigureAwait(false);
+            }
+        }
+
         // ── Close / Dispose ───────────────────────────────────────────────────
 
         internal void Close()

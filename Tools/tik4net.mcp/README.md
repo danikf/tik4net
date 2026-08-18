@@ -89,9 +89,9 @@ Restart your MCP client afterwards; it will not reconnect to the replaced server
 | `username`        | string   | Login user |
 | `password`        | string   | Login password (may be empty) |
 | `command`         | string   | API command path, e.g. `/ip/address/print`, `/system/resource/print` |
-| `transport`       | string   | Transport (default `Api`): `Api`, `ApiSsl`, `Rest`, `RestSsl`, `Telnet`, `MacTelnet`, `WinboxCli`, `WinboxCliMac`, `WinboxNative` |
+| `transport`       | string   | Transport (default `Api`): `Api`, `ApiSsl`, `Rest`, `RestSsl`, `Telnet`, `Ssh`, `MacTelnet`, `WinboxCli`, `WinboxCliMac`, `WinboxNative`, `WinboxNativeMac` |
 | `port`            | int      | TCP/UDP port; `0` = transport default |
-| `routerMac`       | string   | Router MAC — only `MacTelnet` / `WinboxCliMac` (else MNDP discovery) |
+| `routerMac`       | string   | Router MAC — only the MAC-layer transports `MacTelnet` / `WinboxCliMac` / `WinboxNativeMac` (else MNDP discovery) |
 | `traceLevel`      | string   | `off` (default), `words` (raw words/CLI lines), or `bytes` (words **plus** a byte/frame-level wire trace: pre-ANSI terminal bytes, mepty `PULL`/prompt/settle notes, M2 frame chunks, socket I/O) |
 | `traceChannels`   | string[] | `bytes` only: keep just these channels (`wbxcli.mepty`, `wbxtcp.frame`, `telnet.sock`, `mactelnet.udp`, `api.word`); omit = all |
 | `includeRawTrace` | bool     | Back-compat alias for `traceLevel='words'` |
@@ -140,7 +140,7 @@ menu tree or resolve an object's writable fields from a live router.
 | `username`  | string | Login user |
 | `password`  | string | Login password (may be empty) |
 | `input`     | string | Partial CLI line, **exactly as typed before Tab** — include the trailing space to list the next word |
-| `transport` | string | CLI terminal transport (default `Telnet`): `Telnet`, `WinboxCli`, `MacTelnet`, `WinboxCliMac`. `Api`/`Rest`/`WinboxNative` are rejected |
+| `transport` | string | CLI terminal transport (default `Telnet`): `Telnet`, `Ssh`, `WinboxCli`, `MacTelnet`, `WinboxCliMac`. `Api`/`Rest`/`WinboxNative*` are rejected |
 | `port`      | int    | TCP/UDP port; `0` = transport default |
 | `routerMac` | string | Router MAC — only `MacTelnet` / `WinboxCliMac` |
 
@@ -148,7 +148,7 @@ Returns `{ input, transport, tokens[], raw }`. After a **menu path** (`/interfac
 menus + verbs; after **`add `/`set `** (`/interface/vlan add `) they are the **settable parameter names** —
 the writable field set for that object. `tokens` is empty when the input completes to a single unique token.
 Long names may be column-truncated by RouterOS — use `mikrotik_call` `… /print` with `=detail=` for full
-names. Supported on all CLI terminal transports (Telnet, WinboxCli, MacTelnet, WinboxCliMac).
+names. Supported on all CLI terminal transports (Telnet, Ssh, WinboxCli, MacTelnet, WinboxCliMac).
 
 ```jsonc
 // settable parameters of /interface/vlan (the entity's writable fields)

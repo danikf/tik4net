@@ -3,7 +3,7 @@ name: mikrotik-cli-probe
 description: >
   Probe what a MikroTik router actually returns over the Telnet/PTY command line (TCP 23), and apply
   the hard-won knowledge of RouterOS CLI quirks. Use when debugging tik4net CLI-based connections
-  (Telnet, and the future SSH-PTY / MAC-Telnet transports), when terminal output comes back empty or
+  (Telnet, SSH-PTY, MAC-Telnet and the WinBox CLI transports), when terminal output comes back empty or
   garbled, when a `print as-value` / `:put` command behaves unexpectedly, when parsing as-value output,
   or whenever you need ground truth for "what does the router send back over telnet for command X"
   independently of the tik4net library. This is about the raw CLI/terminal layer — for normal
@@ -88,5 +88,5 @@ full context: `Docs/findings-cli.md`.
 2. Compare against what the tik4net CLI layer builds/parses (`tik4net/Cli/CliCommandBuilder.cs`,
    `CliOutputParser.cs`) or against the binary API result via the `mikrotik` skill.
 3. Apply the quirks above to explain the difference and fix the builder/parser/transport.
-4. When adding SSH-PTY or MAC-Telnet, the same CLI layer and the same quirks apply — reuse
-   `tik4net/Cli/` (`RouterOsCliLogin`, `Vt100State`).
+4. Every CLI transport (Telnet, SSH-PTY, MAC-Telnet, WinBox CLI) shares that layer and the same quirks —
+   `tik4net/Cli/` (`RouterOsCliLogin`, `Vt100State`); a new one reuses it rather than re-deriving it.

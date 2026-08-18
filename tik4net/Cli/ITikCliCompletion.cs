@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace tik4net.Cli
 {
     /// <summary>
-    /// Terminal Tab-completion probe, implemented by the PTY/CLI transports (Telnet, MAC-Telnet,
+    /// Terminal Tab-completion probe, implemented by the PTY/CLI transports (Telnet, SSH, MAC-Telnet,
     /// WinBox CLI, WinBox CLI-MAC). Drives RouterOS's interactive completion to enumerate, for a given
     /// partial command line, what the router would offer next:
     /// <list type="bullet">

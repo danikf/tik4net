@@ -18,10 +18,12 @@ public sealed class MikroTikTools
         TikConnectionType.Rest,
         TikConnectionType.RestSsl,
         TikConnectionType.Telnet,
+        TikConnectionType.Ssh,
         TikConnectionType.MacTelnet,
         TikConnectionType.WinboxCli,
         TikConnectionType.WinboxCliMac,
         TikConnectionType.WinboxNative,
+        TikConnectionType.WinboxNativeMac,
     };
 
     [McpServerTool]
@@ -50,14 +52,15 @@ public sealed class MikroTikTools
         [Description("Password for authentication")] string password,
         [Description("API command path, e.g. /ip/address/print or /system/resource/print or /ip/address/add")] string command,
         [Description("Transport to use (case-insensitive): Api (default, TCP 8728), ApiSsl (TCP 8729), " +
-                     "Rest (HTTP 80), RestSsl (HTTPS 443), Telnet (TCP 23), MacTelnet (UDP 20561), " +
+                     "Rest (HTTP 80), RestSsl (HTTPS 443), Telnet (TCP 23), Ssh (TCP 22), MacTelnet (UDP 20561), " +
                      "WinboxCli (TCP 8291, encrypted terminal), WinboxCliMac (UDP 20561, encrypted terminal over MAC), " +
-                     "WinboxNative (TCP 8291, structured M2). " +
+                     "WinboxNative (TCP 8291, structured M2), WinboxNativeMac (UDP 20561, structured M2 over MAC). " +
                      "All transports accept the same command/parameters format. " +
                      "Telnet/MacTelnet/Winbox* do not support Listen/Streaming.")]
         string transport = "Api",
         [Description("TCP/UDP port. 0 = use the transport default")] int port = 0,
-        [Description("Router MAC address 'AA:BB:CC:DD:EE:FF' — only for MacTelnet / WinboxCliMac. " +
+        [Description("Router MAC address 'AA:BB:CC:DD:EE:FF' — only for the MAC-layer transports " +
+                     "(MacTelnet / WinboxCliMac / WinboxNativeMac). " +
                      "When omitted the router MAC is discovered via MNDP (up to 5 s).")]
         string? routerMac = null,
         [Description("Back-compat alias for traceLevel='words': when true, also return the raw words exchanged " +
@@ -228,6 +231,7 @@ public sealed class MikroTikTools
     private static readonly TikConnectionType[] CompletionTransports =
     {
         TikConnectionType.Telnet,
+        TikConnectionType.Ssh,
         TikConnectionType.WinboxCli,
         TikConnectionType.MacTelnet,
         TikConnectionType.WinboxCliMac,
@@ -245,7 +249,7 @@ public sealed class MikroTikTools
         "(print only shows fields that have a value on some current row; completion shows them all). " +
         "Returns a JSON object { input, transport, tokens[], raw }. tokens is empty when the input completes to a " +
         "single unique token (RouterOS completes it inline). Only CLI terminal transports support this " +
-        "(Telnet, WinboxCli, MacTelnet, WinboxCliMac) — not Api/Rest/WinboxNative.")]
+        "(Telnet, Ssh, WinboxCli, MacTelnet, WinboxCliMac) — not Api/Rest/WinboxNative*.")]
     public string MikrotikCliComplete(
         [Description("IP address or hostname of the MikroTik router")] string host,
         [Description("Username for authentication")] string username,
@@ -255,12 +259,12 @@ public sealed class MikroTikTools
                      "Examples: '/interface ' (child menus+verbs), '/ip/firewall/filter add ' (settable params), " +
                      "'/system/resource ' (the singleton's verbs/fields).")]
         string input,
-        [Description("CLI transport to use (default Telnet): Telnet (TCP 23), WinboxCli (TCP 8291), " +
-                     "MacTelnet (UDP 20561), WinboxCliMac (UDP 20561). Api/Rest/WinboxNative are rejected — " +
+        [Description("CLI transport to use (default Telnet): Telnet (TCP 23), Ssh (TCP 22), WinboxCli (TCP 8291), " +
+                     "MacTelnet (UDP 20561), WinboxCliMac (UDP 20561). Api/Rest/WinboxNative* are rejected — " +
                      "they have no terminal to complete on.")]
         string transport = "Telnet",
         [Description("TCP/UDP port. 0 = use the transport default")] int port = 0,
-        [Description("Router MAC 'AA:BB:CC:DD:EE:FF' — only for MacTelnet / WinboxCliMac (else MNDP discovery).")]
+        [Description("Router MAC 'AA:BB:CC:DD:EE:FF' — only for the MAC-layer transports (else MNDP discovery).")]
         string? routerMac = null)
     {
         if (!Enum.TryParse<TikConnectionType>(transport, ignoreCase: true, out var transportType)

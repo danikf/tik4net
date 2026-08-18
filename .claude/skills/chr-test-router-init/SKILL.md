@@ -257,7 +257,7 @@ this is a fallback, not the test identity.
 Prove the box, not one transport. `/system/clock/print` over each:
 
 ```
-Api  ApiSsl  Rest  RestSsl  Telnet  MacTelnet  WinboxCli  WinboxCliMac  WinboxNative
+Api  ApiSsl  Rest  RestSsl  Telnet  Ssh  MacTelnet  WinboxCli  WinboxCliMac  WinboxNative  WinboxNativeMac
 ```
 
 - MAC transports need `routerMac=<mac>`.
@@ -265,7 +265,8 @@ Api  ApiSsl  Rest  RestSsl  Telnet  MacTelnet  WinboxCli  WinboxCliMac  WinboxNa
   `/ip/address/print` instead. Reaching that error still proves auth + M2 worked.
 - A `WinboxNative` success also confirms the **`.jg` catalog re-fetch** succeeded on the new RouterOS
   version — the most likely thing to break after a version bump.
-- `Ssh` is not exposed by the MCP server (satellite package) — cover it via the integration suite.
+- `Ssh` goes through the MCP server too (the satellite package is bundled into it), so the whole matrix
+  runs from here.
 
 ---
 

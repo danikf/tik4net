@@ -16,7 +16,8 @@ namespace tik4net.Ssh
     /// Supports CRUD, polled Listen and Safe Mode (capabilities inherited from <see cref="CliConnectionBase"/>:
     /// <see cref="TikConnectionCapability.Crud"/> | <see cref="TikConnectionCapability.Listen"/> |
     /// <see cref="TikConnectionCapability.SafeMode"/>). Streaming (<c>ExecuteListWithDuration</c>) is not
-    /// supported — use the binary API for that. Requires the <c>ssh</c> service enabled on the router.
+    /// supported — use the binary API for that. Terminal Tab-completion (<see cref="ITikCliCompletion"/>)
+    /// is supported, like on the other CLI transports. Requires the <c>ssh</c> service enabled on the router.
     /// </remarks>
     public sealed class SshConnection : CliConnectionBase
     {
@@ -38,8 +39,9 @@ namespace tik4net.Ssh
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
         {
-            var (login, send, sendRaw, sendStreaming, close) = BuildTransport(host, port, user, password);
+            var (login, send, sendRaw, sendRawSettle, sendStreaming, close) = BuildTransport(host, port, user, password);
             OpenWith(login, send, sendRaw, close);
+            RegisterCompletionDriver(sendRawSettle);
             RegisterStreamingDriver(sendStreaming);
         }
 
@@ -50,16 +52,18 @@ namespace tik4net.Ssh
         /// <inheritdoc/>
         public override Task OpenAsync(string host, int port, string user, string password)
         {
-            var (login, send, sendRaw, sendStreaming, close) = BuildTransport(host, port, user, password);
+            var (login, send, sendRaw, sendRawSettle, sendStreaming, close) = BuildTransport(host, port, user, password);
             var opened = OpenWithAsync(login, send, sendRaw, close);
+            RegisterCompletionDriver(sendRawSettle);
             RegisterStreamingDriver(sendStreaming);
             return opened;
         }
 
         // Build the SSH PTY-shell client (Renci.SshNet) and the delegates that drive it (connect+settle,
-        // send, send-raw, send-streaming for incremental monitor reads, close).
+        // send, send-raw, send-raw-settle for Tab-completion, send-streaming for incremental monitor reads,
+        // close).
         private (Func<CancellationToken, Task>, Func<string, CancellationToken, Task<string>>,
-            Func<byte[], CancellationToken, Task<string>>,
+            Func<byte[], CancellationToken, Task<string>>, Func<byte[], int, CancellationToken, Task<string>>,
             Func<string, Action<string>, CancellationToken, Task<string>>, Action)
             BuildTransport(string host, int port, string user, string password)
         {
@@ -72,7 +76,7 @@ namespace tik4net.Ssh
                 await client.SettleAfterConnectAsync(ct).ConfigureAwait(false);
             };
             return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,
-                client.SendCommandAndReadAsync, client.Close);
+                client.SendRawAndReadUntilQuietAsync, client.SendCommandAndReadAsync, client.Close);
         }
 
         // ── Safe Mode ───────────────────────────────────────────────────────────

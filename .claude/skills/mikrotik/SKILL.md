@@ -2,8 +2,9 @@
 name: mikrotik
 description: >
   Connect to a MikroTik router via the tik4net MCP server and query or modify its configuration over
-  any supported transport (API, REST, Telnet, MAC-Telnet, WinBox CLI/native). Use when the user wants
-  to inspect router settings, list resources (addresses, routes, interfaces, firewall rules, etc.),
+  any supported transport (API, REST, Telnet, SSH, MAC-Telnet, WinBox CLI/native, and their MAC-layer
+  variants). Use when the user wants to inspect router settings, list resources (addresses, routes,
+  interfaces, firewall rules, etc.),
   change configuration, add/remove entries, run any MikroTik command, or debug/compare a transport
   protocol. Also covers finding routers on the local network by MNDP broadcast when their IP or MAC
   is unknown ("which MikroTiks are on this segment", "what is the router's MAC").
@@ -54,10 +55,12 @@ rather than guessing.
 | `Rest`         | HTTP REST                    | 80           | `www` service, RouterOS 7.1+ | |
 | `RestSsl`      | HTTPS REST                   | 443          | `www-ssl` service + cert, 7.1+ | |
 | `Telnet`       | plain CLI                    | 23           | `/ip/service set telnet disabled=no` | CRUD via CLI |
+| `Ssh`          | CLI over an SSH PTY shell    | 22           | `/ip/service set ssh disabled=no` | satellite package `tik4net.ssh` |
 | `MacTelnet`    | CLI over MAC layer (UDP)     | 20561        | `/tool/mac-server set allowed-interface-list=all` | no IP route needed; `routerMac` or MNDP |
 | `WinboxCli`    | encrypted terminal CLI       | 8291         | winbox service (default) | EC-SRP5 + AES |
 | `WinboxCliMac` | encrypted CLI over MAC (UDP) | 20561        | `/tool/mac-server/mac-winbox set allowed-interface-list=all` | `routerMac` or MNDP |
 | `WinboxNative` | structured M2 (no terminal)  | 8291         | winbox service (default) | maps API fields ↔ WinBox keys via `.jg` |
+| `WinboxNativeMac` | structured M2 over MAC (UDP) | 20561     | `/tool/mac-server/mac-winbox set allowed-interface-list=all` | as `WinboxNative`; `routerMac` or MNDP |
 
 > Only `Api` / `ApiSsl` support Listen/Streaming (async `torch`-style). All CLI/REST/Winbox transports
 > are request/response only.
@@ -263,7 +266,7 @@ a router or resolve an entity's writable fields. CLI terminal transports only (d
 |-------------|-------------|
 | `host` / `username` / `password` | as above |
 | `input`     | partial CLI line, **exactly as typed before Tab** — include the trailing space to list the next word |
-| `transport` | `Telnet` (default), `WinboxCli`, `MacTelnet`, `WinboxCliMac` (not `Api`/`Rest`/`WinboxNative`) |
+| `transport` | `Telnet` (default), `Ssh`, `WinboxCli`, `MacTelnet`, `WinboxCliMac` (not `Api`/`Rest`/`WinboxNative*`) |
 | `port` / `routerMac` | as above (MAC only for MacTelnet/WinboxCliMac) |
 
 Returns `{ input, transport, tokens[], raw }`:
