@@ -6,7 +6,7 @@ namespace tik4net
     /// (<see cref="TikConnectionCapability.Tagging"/>).
     /// </summary>
     /// <remarks>
-    /// Split off <see cref="ITikConnection"/> in 5.0. The other transports that permit concurrent commands
+    /// Split off <see cref="ITikConnection"/> in 4.0. The other transports that permit concurrent commands
     /// correlate replies by their own means (a separate HTTP request, an M2 request id), so the setting
     /// decided nothing there and every one of them implemented it as a property that did nothing.
     /// </remarks>

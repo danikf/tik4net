@@ -56,7 +56,7 @@ net8.0). All SDK-style.
 `ITikConnection` (`tik4net/ITikConnection.cs`) covers lifecycle (`Open`/`OpenAsync` ×4, `Close`,
 `Dispose`), configuration (`Encoding`, timeouts), diagnostic events, and command factories — what
 every transport has. Four things that not every transport can reasonably provide were split off it
-in 5.0, each paired with the capability flag that answers the same question:
+in 4.0, each paired with the capability flag that answers the same question:
 
 - `ITikRawSentenceConnection` (`tik4net/ITikRawSentenceConnection.cs`) — `CallCommandSync`, both
   overloads (`RawSentences`). Every shipped transport implements it.
@@ -111,8 +111,7 @@ throws `TikConnectionCapabilityNotSupportedException`.
 
 ### Transports
 
-`TikConnectionType` (`tik4net/TikConnectionType.cs`) — 12 live values (two `Api_v2` entries are
-`[Obsolete(error: true)]`):
+`TikConnectionType` (`tik4net/TikConnectionType.cs`) — 11 values, one per transport:
 
 | Type | Transport | Folder | Notes |
 |---|---|---|---|

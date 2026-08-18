@@ -46,7 +46,7 @@ namespace tik4net.Api
         private bool _safeModeHeld = false;
         private bool _isSsl = false;
         private Encoding _encoding = Encoding.UTF8;
-        // On since 5.0: the router echoes the tag back, and that is the only thing tying a reply to the
+        // On since 4.0: the router echoes the tag back, and that is the only thing tying a reply to the
         // caller that asked for it. Off, two threads on one connection cross-deliver rows rather than fail.
         private bool _sendTagWithSyncCommand = true;
         private int _sendTimeout;
@@ -130,7 +130,7 @@ namespace tik4net.Api
 
         /// <inheritdoc/>
         /// <remarks>
-        /// Applies to API-SSL only. The default is <c>false</c> since 5.0: standard chain/hostname
+        /// Applies to API-SSL only. The default is <c>false</c> since 4.0: standard chain/hostname
         /// validation against the OS trust store.
         /// </remarks>
         public bool AllowInvalidCertificate { get; set; }
@@ -826,7 +826,7 @@ namespace tik4net.Api
             }
         }
 
-        // Internal since 5.0: it hands back a Thread nobody can await, cancel or observe a failure on, so it
+        // Internal since 4.0: it hands back a Thread nobody can await, cancel or observe a failure on, so it
         // is no longer offered to callers (ITikCommand.ExecuteAsync and the Task-based Execute*Async
         // extensions are). ApiCommand still drives the callback form through it — the Thread it returns is
         // what ApiCommand.Cancel joins.

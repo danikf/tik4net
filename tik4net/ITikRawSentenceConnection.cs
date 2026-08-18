@@ -8,7 +8,7 @@ namespace tik4net
     /// O/R mapper.
     /// </summary>
     /// <remarks>
-    /// Split off <see cref="ITikConnection"/> in 5.0. It is the one part of the old connection surface
+    /// Split off <see cref="ITikConnection"/> in 4.0. It is the one part of the old connection surface
     /// that a transport can reasonably not have — a custom transport, or a test double, has a command
     /// factory and a lifecycle long before it has a sentence dialect — and requiring every implementor
     /// to provide it is what made the interface hard to implement.

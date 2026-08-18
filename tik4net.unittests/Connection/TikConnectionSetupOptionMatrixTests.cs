@@ -16,8 +16,8 @@ namespace tik4net.unittests.Connection
     /// <remarks>
     /// Nothing here opens a connection, so no router is involved and the whole file runs in CI. What it
     /// cannot see is whether a transport then <i>uses</i> the value it was handed; that is the integration
-    /// suite's job. What it does catch is the failure that actually happened repeatedly through 4.x — an
-    /// option added to the setup and wired to some transports, silently doing nothing on the rest.
+    /// suite's job. What it does catch is the failure that actually happened repeatedly during the 4.0
+    /// work — an option added to the setup and wired to some transports, silently doing nothing on the rest.
     /// </remarks>
     [TestClass]
     public class TikConnectionSetupOptionMatrixTests
@@ -300,7 +300,7 @@ namespace tik4net.unittests.Connection
                 {
                     Assert.AreEqual(15000, conn.ConnectTimeout, type + ": ConnectTimeout");
                     Assert.AreEqual(30000, conn.ReceiveTimeout, type + ": ReceiveTimeout");
-                    // Tagging is on by default since 5.0, and that default belongs to the transport rather
+                    // Tagging is on by default since 4.0, and that default belongs to the transport rather
                     // than to the setup — a connection from the shim carries it too.
                     if (conn is ITikTaggedConnection tagged)
                         Assert.IsTrue(tagged.SendTagWithSyncCommand, type + ": SendTagWithSyncCommand");
@@ -333,8 +333,7 @@ namespace tik4net.unittests.Connection
         {
             // Otherwise a transport added to the enum is simply absent from every test above, and the
             // matrix stays green while covering less than it claims.
-            var obsolete = new HashSet<string> { "Api_v2", "ApiSsl_v2" };   // [Obsolete(error:true)] since 4.0
-            var declared = Enum.GetNames(typeof(TikConnectionType)).Where(n => !obsolete.Contains(n));
+            var declared = Enum.GetNames(typeof(TikConnectionType));
             var covered = AllTransports.Select(t => t.ToString()).ToList();
 
             CollectionAssert.AreEquivalent(declared.ToList(), covered);

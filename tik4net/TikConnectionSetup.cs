@@ -85,10 +85,10 @@ namespace tik4net
         /// correlate replies by their own means do not implement that interface and never see it.
         /// </summary>
         /// <remarks>
-        /// <b>The default is <c>true</c> since 5.0.</b> It costs one tagged word per command, and without it
+        /// <b>The default is <c>true</c> since 4.0.</b> It costs one tagged word per command, and without it
         /// two threads sharing one API connection cross-deliver rows — a wrong <i>answer</i> rather than an
         /// error, which is the worst way for a default to be wrong. Set it to <c>false</c> only to keep the
-        /// wire byte-identical to 4.x.
+        /// wire byte-identical to 3.x.
         /// </remarks>
         public bool SendTagWithSyncCommand { get; set; } = true;
 
@@ -121,7 +121,7 @@ namespace tik4net
         /// API-SSL and REST-SSL; ignored when <see cref="CertificateValidationCallback"/> is set.
         /// </summary>
         /// <remarks>
-        /// <b>The default is <c>false</c> since 5.0</b> — the certificate is validated against the OS trust
+        /// <b>The default is <c>false</c> since 4.0</b> — the certificate is validated against the OS trust
         /// store. A RouterOS device usually presents a self-signed certificate, so a lab or an internal
         /// deployment that has not installed a trusted one has to say so: set this to <c>true</c>, or better,
         /// pin the router's certificate through <see cref="CertificateValidationCallback"/>. "Encrypted but

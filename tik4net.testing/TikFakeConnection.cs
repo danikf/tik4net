@@ -233,7 +233,7 @@ namespace tik4net.Testing
         /// (<see cref="TikConnectionCapability.RawCommand"/>) would only move the failure later.
         /// </para>
         /// <para>
-        /// <see cref="TikConnectionCapability.SafeMode"/> joined the default set in 5.0, when safe mode
+        /// <see cref="TikConnectionCapability.SafeMode"/> joined the default set in 4.0, when safe mode
         /// became <see cref="ITikSafeModeConnection"/>: this fake implements that interface, and a
         /// connection whose flags disagreed with the interfaces it implements would answer the same
         /// question two ways. Clear the flag to test the branch where a transport has no safe mode.
@@ -254,7 +254,7 @@ namespace tik4net.Testing
         /// <inheritdoc/>
         public Encoding Encoding { get; set; } = Encoding.ASCII;
 
-        // No SendTagWithSyncCommand: tagging is ITikTaggedConnection since 5.0 and this fake has no wire to
+        // No SendTagWithSyncCommand: tagging is ITikTaggedConnection since 4.0 and this fake has no wire to
         // put a tag on, so it neither implements the interface nor declares TikConnectionCapability.Tagging.
 
         /// <inheritdoc/>
@@ -387,7 +387,7 @@ namespace tik4net.Testing
         }
 
         // Async variant — runs the fake sentences on a background thread, calling oneResponseCallback for
-        // each sentence until the thread is cancelled. Internal since 5.0, mirroring the real connections:
+        // each sentence until the thread is cancelled. Internal since 4.0, mirroring the real connections:
         // the Thread-returning entry point left ITikConnection, and TikFakeCommand (same assembly) is the
         // only caller left, driving ITikCommand.ExecuteAsync exactly as ApiCommand does.
         internal Thread CallCommandAsync(IEnumerable<string> commandRows, string tag, Action<ITikSentence> oneResponseCallback)

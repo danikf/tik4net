@@ -101,13 +101,11 @@ namespace tik4net.unittests
         /// added to <see cref="Expected"/> — and therefore to the docs — rather than slipping in unlisted.
         /// </summary>
         [TestMethod]
-        public void EveryNonObsoleteConnectionTypeIsCovered()
+        public void EveryConnectionTypeIsCovered()
         {
             var missing = Enum.GetValues(typeof(TikConnectionType))
                 .Cast<TikConnectionType>()
                 .Where(t => !Expected.ContainsKey(t))
-                .Where(t => typeof(TikConnectionType).GetField(t.ToString())
-                                .GetCustomAttributes(typeof(ObsoleteAttribute), false).Length == 0)
                 // Lives in the tik4net.ssh satellite package — see the class remarks.
                 .Where(t => t != TikConnectionType.Ssh)
                 .ToList();

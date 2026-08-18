@@ -310,7 +310,7 @@ namespace tik4net.integrationtests
         /// transports) and permission to accept the lab router's certificate (TLS transports).
         /// </summary>
         /// <remarks>
-        /// Since 5.0 an invalid certificate is rejected by default, and the CHR under test presents a
+        /// Since 4.0 an invalid certificate is rejected by default, and the CHR under test presents a
         /// self-signed one — so <c>apissl</c>/<c>restssl</c> only connect because this says so, out loud, in
         /// one place. That is the intended shape of the migration: a lab opts in, it does not inherit
         /// "encrypted but unauthenticated" from a default.

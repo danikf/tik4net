@@ -39,7 +39,6 @@
 That is 11 `TikConnectionType` values (`Api`, `ApiSsl`, `Rest`, `RestSsl`, `Ssh`, `Telnet`,
 `MacTelnet`, `WinboxCli`, `WinboxCliMac`, `WinboxNative`, `WinboxNativeMac`) plus MNDP as a
 standalone discovery helper — matching the "12 transports" figure in the top-level `CLAUDE.md`.
-`Api_v2`/`ApiSsl_v2` are `[Obsolete]` aliases for `Api`/`ApiSsl` and are not separate transports.
 
 ---
 

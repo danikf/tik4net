@@ -23,7 +23,7 @@ namespace tik4net.unittests.Api
         /// <summary>
         /// When true (the default), the server echoes the tag of the last sentence it read onto every reply
         /// that does not already carry one — which is what a real RouterOS does, and what makes a scripted
-        /// conversation work regardless of the client's tagging policy. Since 5.0 the client tags
+        /// conversation work regardless of the client's tagging policy. Since 4.0 the client tags
         /// synchronous commands by default, so a fake that never echoed would answer a caller waiting on a
         /// tag with a sentence addressed to nobody, and every test would time out rather than fail.
         /// <para>

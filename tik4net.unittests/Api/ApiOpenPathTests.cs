@@ -36,7 +36,7 @@ namespace tik4net.unittests.Api
         /// <summary>Opens a connection against a scripted router and returns the login sentence it sent.</summary>
         /// <param name="open">How to open — the sync or the async entry point.</param>
         /// <param name="tagged">
-        /// The connection's tagging policy. <c>true</c> is the 5.0 default, so the scripted router echoes
+        /// The connection's tagging policy. <c>true</c> is the 4.0 default, so the scripted router echoes
         /// whatever tag it is given: a caller waiting on a tag is not answered by an untagged sentence.
         /// </param>
         private static List<string> CaptureLoginSentence(Func<ApiConnection, string, int, Task> open, bool tagged = true)
@@ -97,8 +97,8 @@ namespace tik4net.unittests.Api
         }
 
         /// <summary>
-        /// Login follows the connection's tagging policy rather than having one of its own — so with the 5.0
-        /// default it is tagged, and turning tagging off puts the 4.x login sentence back on the wire.
+        /// Login follows the connection's tagging policy rather than having one of its own — so with the 4.0
+        /// default it is tagged, and turning tagging off puts the 3.x login sentence back on the wire.
         /// Asserted separately from the equality above: were only one of the two paths to change, the pair
         /// would still match each other while the wire form had changed.
         /// </summary>

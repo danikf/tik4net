@@ -13,7 +13,7 @@ namespace tik4net.unittests.Api
         [TestMethod]
         public void AllowInvalidCertificate_DefaultsToFalse_RejectingOnPolicyErrors()
         {
-            // The 5.0 default (D5). A router's self-signed certificate is the common case, so this is the
+            // The 4.0 default (D5). A router's self-signed certificate is the common case, so this is the
             // flip most likely to be noticed — which is the point: accepting an unverifiable certificate is
             // now something a caller asks for rather than something they get by not asking.
             var connection = new ApiConnection(isSsl: true);
