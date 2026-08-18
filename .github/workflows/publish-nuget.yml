@@ -130,20 +130,37 @@ jobs:
             | `Ssh` *(satellite)* | TCP | 22 | requires `tik4net.ssh` NuGet |
 
             **Other additions:**
+            - **Multi-targeting `netstandard2.0;net8.0`** — netstandard2.0 keeps the Unity / Xamarin / .NET Framework reach; the net8.0 leg carries the modern surface
+            - **Async everywhere** — async CRUD on the O/R mapper, an async surface on every transport, and a cancel that actually cancels
+            - **Streaming reads as `IAsyncEnumerable<ITikReSentence>`** (net8.0) — `await foreach` over a live monitor
             - **Change tracking** — the O/R mapper tracks which properties changed; `Save<T>()` sends only the diff
-            - **Safe Mode** — `TakeSafeMode()` / `ReleaseSafeMode()` across all transports; auto-rollback on disconnect
-            - **Streaming monitors** — `ExecuteAsync` / `LoadListenAsync` for live data (WinBox Native; `listen` poll+diff on other transports)
-            - **`TikConnectionSetup`** — unified connection builder with all transport-specific options
+            - **Safe Mode** — `SafeModeTake()` / `SafeModeRelease()` / `SafeModeUnroll()` across all transports; auto-rollback on disconnect
+            - **`TikConnectionSetup`** — the single entry point; every option is applied in one place, and a transport declares what it can honour by implementing `ITikTlsConnection` / `ITikMacLayerConnection` / `ITikCancellationModeConnection`
             - **Connection capability model** — `connection.Supports(TikConnectionCapability.Listen)` etc.
-            - **Raw command pass-through** — `ExecuteRaw` for commands not covered by the O/R mapper
+            - **Raw command pass-through** — `connection.CreateRawCommand(raw)` for commands outside the O/R mapper
             - **WinBox GUI-name addressing** — address entities by their WinBox display name on `WinboxNative`
+            - **`tik4net.mcp`** — drive any command over any transport from an AI assistant
 
             ### Breaking changes (from 3.6)
 
-            - **The O/R mapper is now inside the `tik4net` package** — it used to ship as `tik4net.objects` (3.x), then `tik4net.entities` (4.0 alphas). **Remove any `PackageReference` to those** or you get an assembly conflict. No source changes: namespaces and assembly names are unchanged. See [Upgrading from 3.x to 4.0](https://github.com/danikf/tik4net/wiki/Upgrading-from-3.x-to-4.0)
-            - **Exception hierarchy unified** — `TikCommandException` subtypes restructured; review `catch` blocks that catch specific exception types
-            - **SSH is now a satellite package** — add `tik4net.ssh` and call `Tik4NetSsh.Register()` at startup (the old `TikConnectionType.Ssh` stub is still in the enum but now routes to the satellite)
-            - **`TikConnectionType.Api_v2` / `ApiSsl_v2`** — already `[Obsolete(error)]` in 3.6, unchanged in 4.0; remove any remaining usages
+            Full guide, with before/after code: **[Upgrading from 3.x to 4.0](https://github.com/danikf/tik4net/wiki/Upgrading-from-3.x-to-4.0)**
+
+            These change what a working 3.x program does **without stopping the compiler** — read them first:
+
+            - **An invalid TLS certificate is now rejected** — `AllowInvalidCertificate` defaults to `false` (was `true`). RouterOS normally presents a *self-signed* certificate, so an API-SSL / REST-SSL connection that opened in 3.x can now fail. Ask for it explicitly, or pin the certificate with `CertificateValidationCallback`
+            - **Synchronous commands are tagged** — `SendTagWithSyncCommand` defaults to `true` (was `false`). This is what makes one connection usable from several threads. If you script a fake RouterOS in your tests, echo the tag back
+            - **`ExecuteScalar` on a command that returns nothing** throws the new `TikCommandEmptyResponseException`, not `TikNoSuchItemException` — after a write, an empty answer means success
+            - **`Save` diffs against the local snapshot** instead of a `LoadById` round-trip. `TikDefaults.SaveMode = TikSaveMode.FullUpdate` restores the 3.x behaviour
+
+            And these stop the compiler:
+
+            - **The O/R mapper is now inside the `tik4net` package** — it used to ship as `tik4net.objects` (3.x), then `tik4net.entities` (4.0.0-alpha). **Remove any `PackageReference` to those** or you get an assembly conflict. No source changes: namespaces and assembly names are unchanged
+            - **`ITikConnection` is lifecycle and command factory only** — `CallCommandSync` moved to `ITikRawSentenceConnection`, Safe Mode to `ITikSafeModeConnection`, `SendTagWithSyncCommand` to `ITikTaggedConnection` (extension methods keep the call sites compiling). The `Thread`-returning `CallCommandAsync` is removed
+            - **Nullable reference types are on** — every mapped reference-typed entity property is `string?`; every writable `bool` is `bool?`, as are numeric and enum properties carrying a router default, because `null` means "the router decides"
+            - **Exception hierarchy unified** — `TikCommandException` subtypes restructured; review `catch` blocks on specific subtypes
+            - **SSH is a satellite package** — add `tik4net.ssh` and call `Tik4NetSsh.Register()` at startup
+            - **`TikConnectionType.Api_v2` / `ApiSsl_v2` are gone** — they were `[Obsolete(error)]` in 3.6
+            - **Three `Interface` properties are read-only** (`Type`, `MacAddress`, `FastPath`) — `/interface set` does not accept them; `L2Mtu` was added, which it does
 
             ### NuGet packages
             | Package | Install |
