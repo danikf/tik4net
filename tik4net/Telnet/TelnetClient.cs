@@ -104,7 +104,7 @@ namespace tik4net.Telnet
         /// <summary>
         /// As <see cref="SendCommandAndReadAsync(string,CancellationToken)"/>, but also reports each
         /// completed output line to <paramref name="onLine"/> while the command is still running — the
-        /// streaming driver registered by <see cref="TelnetConnection"/> (P2.50). The streamed lines are the
+        /// streaming driver registered by <see cref="TelnetConnection"/>. The streamed lines are the
         /// raw ANSI-stripped ones (echo and prompt included); the return value is cleaned as usual.
         /// </summary>
         internal async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
@@ -272,7 +272,7 @@ namespace tik4net.Telnet
         /// settle window, so only the final, stable prompt terminates the read. Bounded by the receive deadline.
         /// <para>And the prompt only counts once the command's own echo is on screen
         /// (<see cref="CliOutputHelper.ContainsEcho"/>) — otherwise a prompt left behind by the PREVIOUS
-        /// response ends this read before the router has said anything (P2.47).</para>
+        /// response ends this read before the router has said anything.</para>
         /// </summary>
         /// <param name="ct">Cancellation token.</param>
         /// <param name="sentCommand">

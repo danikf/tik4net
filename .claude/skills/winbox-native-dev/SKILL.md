@@ -191,8 +191,8 @@ only the **stable text** (apiPath↔menu-label aliases, apiName↔label) is ship
   declares `u12` ('Add Default Route', scalar enum) *and* `U12` ('DHCP Options', a `multinumber`) on key
   `0x12`, and the router sends BOTH in one record. `M2Message.ParseAllFields` files a duplicate of differing
   arrayness under an arrayness-qualified key (`WinboxM2Protocol.TypedKey`) and the resolver registers both
-  spellings; decode asks qualified-first. Symptom before the fix: one of the two fields simply absent, the
-  other wearing its name. Before blaming a decoder, dump the frame with a **duplicate-tolerant** TLV walk —
+  spellings; decode asks qualified-first. Symptom when this goes wrong: one of the two fields simply
+  absent, the other wearing its name. Before blaming a decoder, dump the frame with a **duplicate-tolerant** TLV walk —
   the ordinary parse cannot show you the field it dropped.
 - **A NAME can collide even when the keys do not.** Two windows on handler `[47,1]` each have an 'Enabled'
   (`b4` client, `b6` server) and the singleton carries both. Window scoping names the right key, but the
@@ -229,7 +229,7 @@ only the **stable text** (apiPath↔menu-label aliases, apiName↔label) is ship
 ## Verify like the rest of the suite
 Run the native tests (`tik4net.integrationtests/`, transport via `winboxnative.runsettings`) and the `mikrotik-tests`
 skill. A full WinboxNative pass is the regression net for any shared encode/decode change (the throw-loud
-guard will surface previously-silent drops as failures — that's the point). Always delete temporary probe
+guard will surface silent drops as failures — that's the point). Always delete temporary probe
 test classes when done.
 
 ## References

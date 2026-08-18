@@ -21,16 +21,15 @@ namespace tik4net.WinboxCli
     /// layer, so this same engine backs both <c>WinboxCliConnection</c> and <c>WinboxCliMacConnection</c>.
     /// </para>
     /// <para>
-    /// <b>How the command path is asynchronous</b> (A6). The read loops below never wait on the network:
+    /// <b>How the command path is asynchronous.</b> The read loops below never wait on the network:
     /// they receive a frame only once <see cref="IWinboxM2Channel.DataAvailable"/> says one is arriving,
     /// and otherwise wait out a short poll interval. That gate is not a convenience — a receive deadline
     /// firing part-way through an encrypted frame leaves the stream unrecoverably desynchronized, which is
     /// why this transport polls a readiness flag rather than awaiting a socket read with a deadline on it.
-    /// What A6 changed is that the interval is now <see cref="Task.Delay(int)"/> and not
-    /// <see cref="Thread.Sleep(int)"/>, so a command waiting thirty seconds for the router occupies a
-    /// thread for the frame decodes alone and not for the waiting — which is the property
-    /// <see cref="TikConnectionCapability.AsyncCommands"/> makes a claim about. The wire cadence is
-    /// untouched: same interval, same pull rhythm.
+    /// The interval is a <see cref="Task.Delay(int)"/> and not a <see cref="Thread.Sleep(int)"/>, so a
+    /// command waiting thirty seconds for the router occupies a thread for the frame decodes alone and not
+    /// for the waiting — which is the property <see cref="TikConnectionCapability.AsyncCommands"/> makes a
+    /// claim about.
     /// </para>
     /// </remarks>
     internal sealed class WinboxCliClient : IDisposable
@@ -62,7 +61,7 @@ namespace tik4net.WinboxCli
         /// <summary>
         /// Running total of terminal-output bytes received on this session — the value RouterOS expects in the
         /// mepty <see cref="WinboxM2Protocol.Mepty.Key.Counter"/> field, which is a cumulative
-        /// <b>byte acknowledgement</b>, not a message counter (P2.13c). mepty will not let unacknowledged
+        /// <b>byte acknowledgement</b>, not a message counter. mepty will not let unacknowledged
         /// output exceed a ~8 KB window: send a value that does not track the bytes actually consumed and the
         /// terminal delivers roughly that much and then goes permanently silent, mid-command. That is the whole
         /// of the "large output hangs" / "the session degrades after N commands" family of symptoms — the
@@ -91,7 +90,7 @@ namespace tik4net.WinboxCli
         /// exchange.
         /// </summary>
         /// <remarks>
-        /// The one <see cref="Task.Run(Action)"/> left on this transport, deliberately (A6): the channel's
+        /// The one <see cref="Task.Run(Action)"/> on this transport, deliberately: the channel's
         /// <c>Open</c> is a synchronous EC-SRP5 handshake down through the crypto, and the prompt wait that
         /// follows it runs before there is a command path to speak of. Open happens once per connection and
         /// is not what <see cref="TikConnectionCapability.AsyncCommands"/> is a claim about.
@@ -130,7 +129,7 @@ namespace tik4net.WinboxCli
         /// <summary>
         /// As <see cref="SendCommandAndReadAsync(string,CancellationToken)"/>, but also reports each
         /// completed output line to <paramref name="onLine"/> while the command is still running — the
-        /// streaming driver registered by the WinBox-CLI connections (P2.50).
+        /// streaming driver registered by the WinBox-CLI connections.
         /// </summary>
         internal async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
         {
@@ -360,7 +359,7 @@ namespace tik4net.WinboxCli
         /// before returning (the line-editor repaints the prompt, so a single prompt sighting is not
         /// proof the output is complete) — and to have been preceded by the command's own echo
         /// (<see cref="Cli.CliOutputHelper.ContainsEcho"/>), so that a prompt left behind by the PREVIOUS
-        /// response cannot end this read before the router has said anything (P2.47).
+        /// response cannot end this read before the router has said anything.
         /// </summary>
         /// <param name="sentCommand">
         /// The command being answered. When non-null, reaching the deadline without a prompt throws

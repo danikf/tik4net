@@ -446,8 +446,8 @@ namespace tik4net.Winbox
         /// scalar and a list sharing one key. Empty for all but a handful of windows.
         /// </summary>
         /// <remarks>
-        /// <para>Inverting key → name is first-wins, and where two windows disagree the window overlay decides
-        /// (A4). Neither helps here, because these two fields are in the SAME window: <c>/ip/dhcp-client</c>
+        /// <para>Inverting key → name is first-wins, and where two windows disagree the window overlay
+        /// decides. Neither helps here, because these two fields are in the SAME window: <c>/ip/dhcp-client</c>
         /// declares 'Add Default Route' as <c>u12</c> and 'DHCP Options' as <c>U12</c>. Only the wire type
         /// separates them, and the router does send both — see <c>M2Message.ParseAllFields</c>, which files the
         /// second under the qualified key these registrations answer at.</para>
@@ -1038,11 +1038,11 @@ namespace tik4net.Winbox
         /// </summary>
         /// <remarks>
         /// <para>
-        /// Only the IPv4 branch existed before P2.53, and anything else fell back to a bare string at the
-        /// FIELD key. The router does not read that shape: it answers as though the field had never been sent
-        /// — <c>/ping address=example.com</c> came back "no address was specified" for a host the binary API
-        /// pings fine, and so did every IPv6 target. So the missing branches were not a missing feature but a
-        /// silent wrong-request bug, which the "no address was specified" row then made look like a router
+        /// Every branch has to be encoded, not just IPv4. A value that falls back to a bare string at the
+        /// FIELD key is a shape the router does not read: it answers as though the field had never been sent,
+        /// so <c>/ping address=example.com</c> comes back "no address was specified" for a host the binary API
+        /// pings fine, and so does every IPv6 target. A missing branch is therefore not a missing feature but
+        /// a silent wrong-request bug, and the "no address was specified" row makes it look like a router
         /// error (see Docs/winbox-native-m2-protocol.md §23).
         /// </para>
         /// <para>
@@ -1201,8 +1201,8 @@ namespace tik4net.Winbox
         /// the <c>ip6addr</c> node (<c>types.ip6addr.tostr</c>), which sits on nested union members the catalog
         /// does not model — and the fields that carry v4-mapped values are exactly the ones declaring it (the
         /// traceroute hop). The binary API calls such a hop <c>127.0.0.1</c>, so rendering
-        /// <c>::ffff:127.0.0.1</c> would make the same record read differently per transport, which is the
-        /// defect class P2.33 is about. An IPv4-COMPATIBLE address (<c>::a.b.c.d</c>) keeps webfig's form.
+        /// <c>::ffff:127.0.0.1</c> would make the same record read differently per transport, which is exactly
+        /// the divergence this codec exists to prevent. An IPv4-COMPATIBLE address (<c>::a.b.c.d</c>) keeps webfig's form.
         /// </remarks>
         internal static string IpV6FromBytes(byte[] b)
         {
@@ -1285,7 +1285,7 @@ namespace tik4net.Winbox
         /// <summary>
         /// Reads an M2 value as a 64-bit integer, reporting failure instead of substituting one. Every numeric
         /// read on the decode path goes through this so the "not a number" case is a decision the caller has to
-        /// take, not a value it silently inherits (P2.25).
+        /// take, not a value it silently inherits.
         /// </summary>
         internal static bool TryToInt64(object value, out long result)
         {

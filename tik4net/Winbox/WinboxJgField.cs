@@ -213,7 +213,7 @@ namespace tik4net.Winbox
         /// </summary>
         /// <remarks>
         /// Deliberately NOT applied to a non-optional enum: there, an unmapped value is a <c>.jg</c>/router
-        /// disagreement worth surfacing rather than swallowing (P2.25), and webfig itself says <c>unknown</c>
+        /// disagreement worth surfacing rather than swallowing, and webfig itself says <c>unknown</c>
         /// instead of nothing.
         /// </remarks>
         internal bool IsUnmappedOptionalEnum(long value)

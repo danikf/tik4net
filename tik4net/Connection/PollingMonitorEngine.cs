@@ -98,7 +98,7 @@ namespace tik4net.Connection
         /// </summary>
         /// <remarks>
         /// The point of routing such a path here is that the synchronous and the asynchronous read then take
-        /// the SAME snapshot, so they cannot disagree about what the command means (P2.52).
+        /// the SAME snapshot, so they cannot disagree about what the command means.
         /// </remarks>
         public static void SnapshotLoop(IPollingMonitorHost host, TikCommandDescriptor descriptor, int intervalMs,
             TikMonitorHandle handle, Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)

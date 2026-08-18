@@ -7,12 +7,12 @@ namespace tik4net.Winbox
     /// the router gave no sign of understanding the EC-SRP5 opening frame.
     /// </summary>
     /// <remarks>
-    /// It exists to replace a substring test. The fallback used to be selected by
-    /// <c>catch (Exception ex) when (ex.Message.IndexOf("EC-SRP5") &gt;= 0)</c>, which decides control
-    /// flow from the wording of a message and so silently reclassifies any future message that happens
-    /// to name the algorithm. <see cref="Reason"/> carries the evidence, because the fallback path
+    /// It exists so the fallback is not selected by a substring test. Deciding it with
+    /// <c>catch (Exception ex) when (ex.Message.IndexOf("EC-SRP5") &gt;= 0)</c> takes control flow from the
+    /// wording of a message, and so silently reclassifies any future message that happens to name the
+    /// algorithm. <see cref="Reason"/> carries the evidence, because the fallback path
     /// discards it otherwise: when legacy auth then fails too, the user sees "wrong username or
-    /// password" for what was really a lost EC-SRP5 exchange (P2.41).
+    /// password" for what was really a lost EC-SRP5 exchange.
     /// </remarks>
     internal sealed class WinboxEcSrp5UnsupportedException : Exception
     {

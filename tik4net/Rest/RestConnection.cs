@@ -48,7 +48,7 @@ namespace tik4net.Rest
     /// branch on the target framework, because one bound that means the same thing everywhere is worth more
     /// than a slightly tighter one on half the builds. The probe is a single small
     /// <c>GET /rest/system/resource</c>, so bounding it whole is the same guarantee in practice: an
-    /// unreachable or black-holed router can no longer hold <c>Open</c> for the OS connect default.
+    /// unreachable or black-holed router cannot hold <c>Open</c> for the OS connect default.
     /// A value of 0 or less means "no bound".
     /// </para>
     /// <para>
@@ -323,7 +323,7 @@ namespace tik4net.Rest
         /// Runs a self-terminating monitor once and emits its rows. Deliberately not
         /// <see cref="PollingMonitorEngine.AsyncListOnce"/>: that one strips Filter-format parameters and
         /// evaluates them as a client-side query, and a monitor's parameters are its INPUTS, not a filter over
-        /// a table — the distinction P2.51 is about.
+        /// a table.
         /// </summary>
         private void MonitorOnce(TikCommandDescriptor descriptor, TikMonitorHandle handle,
             Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)

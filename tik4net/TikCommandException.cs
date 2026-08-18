@@ -268,8 +268,8 @@ namespace tik4net
     /// <see cref="ITikCommand.ExecuteScalarOrDefault()"/> when a value is optional.
     /// </para>
     /// <para>
-    /// This case used to be reported as <see cref="TikNoSuchItemException"/> ("no such item"), which was a
-    /// fabricated router error: the item existed and the command had in fact succeeded.
+    /// Distinct from <see cref="TikNoSuchItemException"/> ("no such item"): nothing is missing here. The
+    /// item exists and the command succeeded — it simply had no value to return.
     /// </para>
     /// </summary>
     public class TikCommandEmptyResponseException : TikCommandException

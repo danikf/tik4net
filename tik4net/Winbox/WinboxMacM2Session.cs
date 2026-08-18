@@ -54,12 +54,12 @@ namespace tik4net.Winbox
         /// noted, PINGs ponged, duplicates re-ACKed and real payload buffered for reassembly.
         /// </summary>
         /// <remarks>
-        /// The raw <c>_udp.Available &gt; 0</c> this used to be was a false positive on most polls, because
-        /// the great majority of packets on this socket are control traffic. That mattered far more than it
-        /// looks: <c>WinboxCliClient</c> uses this property to gate a <em>blocking</em> read, so every
-        /// "available" that turned out to be an ACK or a router retransmit cost that read's whole frame
-        /// timeout — <b>5 s, measured, per command and again per connection open</b> (P2.43). The property
-        /// has to be honest precisely because its consumer treats it as permission to block.
+        /// A raw <c>_udp.Available &gt; 0</c> would be a false positive on most polls, because the great
+        /// majority of packets on this socket are control traffic. That matters far more than it looks:
+        /// <c>WinboxCliClient</c> uses this property to gate a <em>blocking</em> read, so every "available"
+        /// that turns out to be an ACK or a router retransmit costs that read's whole frame timeout —
+        /// <b>5 s, measured, per command and again per connection open</b>. The property has to be honest
+        /// precisely because its consumer treats it as permission to block.
         /// <para>Doing I/O in a getter is deliberate and safe here: this is the channel's poll operation,
         /// and only the single-threaded terminal loops in <c>WinboxCliClient</c> ever read it. The native
         /// transport runs a reader loop instead (<see cref="ReceiveNextFrame"/>) and never polls — which is
@@ -224,12 +224,11 @@ namespace tik4net.Winbox
 
         /// <inheritdoc/>
         /// <remarks>
-        /// <c>true</c> since P2.42. It was <c>false</c> because <see cref="MacLayerTransport"/> sends
-        /// ACK/PONG from inside its receive path, so a background reader would have the transport writing
-        /// from two threads (design §4.5). Both halves of that are now covered: every write already went
-        /// through <c>SendGate</c>, and the outbound retransmit state — which really did assume one packet
-        /// in flight — became a queue in the same change, because the MAC counter is a cumulative byte
-        /// offset and a lost first packet of two is exactly what a single-slot buffer cannot resend.
+        /// <c>true</c>, and it rests on two things. <see cref="MacLayerTransport"/> sends ACK/PONG from
+        /// inside its receive path, so a background reader has the transport writing from two threads
+        /// (design §4.5): every write goes through <c>SendGate</c>, which makes that safe. And the outbound
+        /// retransmit state is a QUEUE rather than a single slot — the MAC counter is a cumulative byte
+        /// offset, and a lost first packet of two is exactly what a single-slot buffer cannot resend.
         /// </remarks>
         public bool SupportsReaderLoop => true;
 
@@ -313,7 +312,7 @@ namespace tik4net.Winbox
         /// flight. Between two commands nobody receives, so anything RouterOS writes to the console on its
         /// own initiative goes unacknowledged, the router retransmits it, and when it runs out of patience it
         /// stops serving the session altogether — silently, with nothing in <c>/log</c>.
-        /// <para>Measured in a suite run (P2.55): the only two idle stretches on a live session in a whole
+        /// <para>Measured in a suite run: the only two idle stretches on a live session in a whole
         /// 340-test run, 19.7 s and 56.1 s, were the only two sessions that died. The mechanism was already
         /// written down for the sibling transport — see the class remarks on <c>MacTelnetUdpClient</c> —
         /// where the pump has existed from the start for exactly this reason.</para>
@@ -479,13 +478,12 @@ namespace tik4net.Winbox
         /// </summary>
         /// <remarks>
         /// Closing a UDP socket signals nothing: there is no FIN, so a router that is not told keeps the
-        /// login open until its own timeout. Measured on 7.23.2 (P2.35): six WinBox-native-over-MAC
+        /// login open until its own timeout. Measured on 7.23.2: six WinBox-native-over-MAC
         /// connections opened and disposed left six <c>winbox</c> rows in <c>/user/active</c> that were
         /// still there 15 s later and only expired after roughly a minute and a half — while the TCP
-        /// sibling left none, because there the FIN does the telling. It mattered most while
-        /// <c>WinboxNativeMac</c> was excluded from test-connection reuse — one connection per test meant a
-        /// run held a rolling ~90 s worth of dead sessions on the router — and still matters for any caller
-        /// that opens short-lived connections. The exclusion itself was retired in P2.42.
+        /// sibling left none, because there the FIN does the telling. This matters to any caller that opens
+        /// short-lived connections: one connection per operation leaves the router holding a rolling ~90 s
+        /// worth of dead sessions.
         /// <para>Best-effort by design: this runs on the disposal path, where a channel that never
         /// finished connecting has no MACs or socket to send with, and a router that has already dropped
         /// the session has nothing to hear it.</para>

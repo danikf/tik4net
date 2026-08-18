@@ -1044,11 +1044,11 @@ namespace tik4net.Winbox
         /// <remarks>
         /// This is what webfig itself does, not a guess: <c>types.multi.tostr</c> walks the array and renders
         /// each element through its single child type, and <c>types.union.get</c> with <c>single:1</c> returns
-        /// the first child that is present. Without it the value fell through to <c>object.ToString()</c> and
-        /// a caller was handed the literal text
+        /// the first child that is present. Without it the value falls through to <c>object.ToString()</c> and
+        /// the caller is handed the literal text
         /// <c>System.Collections.Generic.List`1[System.Collections.Generic.Dictionary`2[…]]</c> as if it were
-        /// the field's value — a nested field on any handler could do this, not just traceroute (found while
-        /// fixing P2.51). An element the router sent empty renders empty, which is the honest answer.
+        /// the field's value — which a nested field on any handler can do, not just traceroute. An element the
+        /// router sent empty renders empty, which is the honest answer.
         /// </remarks>
         private static string FormatNestedMessage(Dictionary<int, Tuple<string, object>> msg)
         {

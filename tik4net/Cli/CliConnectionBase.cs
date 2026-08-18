@@ -317,11 +317,11 @@ namespace tik4net.Cli
         /// terminal <c>Ctrl+D</c> on older versions. No-op when safe mode is not held.
         /// </summary>
         /// <remarks>
-        /// The control key used to be the only path, and it is the slow one: measured on 7.23.2 over Telnet,
+        /// The control key is the slow path: measured on 7.23.2 over Telnet,
         /// <c>Ctrl+D</c> is answered with nothing but a cursor save/restore (<c>&lt;CR&gt;&lt;ESC&gt;7&lt;ESC&gt;8</c>)
         /// — no confirmation line and no repainted prompt — so the read has nothing to terminate on and runs
-        /// to the full receive deadline. The rollback itself does happen, which is why this cost 30 s per
-        /// call instead of failing. The scriptable command answers normally and ends on a prompt.
+        /// to the full receive deadline. The rollback itself does happen, which is why that path costs 30 s
+        /// per call instead of failing. The scriptable command answers normally and ends on a prompt.
         /// </remarks>
         public virtual void SafeModeUnroll()
         {
@@ -606,13 +606,13 @@ namespace tik4net.Cli
         /// router's refusal rather than as an empty result.
         /// </summary>
         /// <remarks>
-        /// The positional rule of P2.12, narrowed to monitors: a monitor exists to produce output, so a
+        /// The positional rule, narrowed to monitors: a monitor exists to produce output, so a
         /// snapshot that SUCCEEDS always prints at least one <c>.id=…</c> record, and a snapshot that fails
         /// prints its complaint and nothing else. Measured on 7.23.2:
         /// <c>:put [/interface monitor-traffic interface=kjdshfkjdhf once as-value]</c> answers
         /// <c>input does not match any value of interface</c> — a phrase no classifier in
         /// <see cref="CliErrorParser"/> matches, so the call returned "no rows" and the O/R layer reported
-        /// success for a command the router had rejected (P2.51). Unlike
+        /// success for a command the router had rejected. Unlike
         /// <see cref="CliErrorParser.IsSilentOnSuccessVerb"/> this needs no phrase list and no verb whitelist:
         /// output-with-no-record is the signal.
         /// <para>
@@ -634,7 +634,7 @@ namespace tik4net.Cli
         /// <c>null</c> = not established yet, <c>true</c> = a JSON read has succeeded, <c>false</c> = the
         /// router refused one and the plain form worked. Detected from what the router actually answers
         /// rather than from a parsed version string — a prompt/version assumption we cannot see failing is
-        /// exactly what cost 30 s a command in P2.31.
+        /// exactly the kind that costs 30 s a command with nothing going red.
         /// </summary>
         private bool? _serializeSupported;
 
@@ -643,7 +643,7 @@ namespace tik4net.Cli
         /// not already refused <c>:serialize</c>.
         /// <para>
         /// The fallback is deliberately driven by evidence rather than by phrase-matching the refusal (the
-        /// wording differs by RouterOS version, and guessing it is how P2.12 shipped): if the wrapped form
+        /// wording differs by RouterOS version, so a phrase list silently stops matching): if the wrapped form
         /// is rejected while support is still unknown, the plain form is run, and only its SUCCESS
         /// downgrades this connection. When both fail, the plain form's error is what the caller sees —
         /// i.e. exactly today's behaviour — and nothing is concluded about <c>:serialize</c>. Once support
@@ -932,7 +932,7 @@ namespace tik4net.Cli
         /// The rows are streamed as the router produces them where the transport can do that. The command
         /// shape is what decides this, not the read loop: <c>:put [/ping … as-value]</c> hands <c>:put</c> an
         /// already-complete array, so RouterOS prints nothing at all until the ping has finished — measured
-        /// on 7.23.2, a <c>count=20</c> ping delivered 0 rows for 20 s and then all 20 at once (P2.50). The
+        /// on 7.23.2, a <c>count=20</c> ping delivered 0 rows for 20 s and then all 20 at once. The
         /// bare interactive form of the same command emits its header at +58 ms and a row every ~1000 ms, so
         /// that is what a streaming transport sends, reading it back with <see cref="CliTableParser"/>.
         /// A transport with no streaming driver keeps the as-value one-shot: later, but not wrong.

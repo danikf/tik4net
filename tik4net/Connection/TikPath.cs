@@ -2,9 +2,8 @@ namespace tik4net.Connection
 {
     /// <summary>
     /// Small helpers for slicing RouterOS command paths (<c>/interface/ethernet/print</c>) into their verb
-    /// and parent segments. Consolidates the per-transport copies that used to live as <c>GetVerb</c>,
-    /// <c>VerbOf</c>, <c>StripVerb</c> and <c>StripLastSegment</c> (R8) so the leading/trailing-slash and
-    /// empty-path edge cases are handled in exactly one place.
+    /// and parent segments. The single home for that slicing — rather than a copy per transport — so the
+    /// leading/trailing-slash and empty-path edge cases are handled in exactly one place.
     /// </summary>
     internal static class TikPath
     {

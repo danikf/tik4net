@@ -20,7 +20,7 @@ namespace tik4net.Connection
     /// </para>
     /// <para>
     /// The list is deliberately explicit rather than "anything that is not <c>print</c>": the two shapes
-    /// disagree about what a parameter MEANS, and guessing wrong is silent in both directions (P2.51).
+    /// disagree about what a parameter MEANS, and guessing wrong is silent in both directions.
     /// Transports may narrow it — a CLI connection excludes <c>torch</c>, which has no working one-shot
     /// terminal form — but none may widen it.
     /// </para>
@@ -66,7 +66,7 @@ namespace tik4net.Connection
         /// address reports one hop in the first second and adds another every second after — whereas a
         /// continuous monitor never ends, so its answer can only be one reading. Getting this wrong is quiet:
         /// the native transport returned traceroute's FIRST hop and stopped, which is a plausible-looking
-        /// answer to a caller who cannot see that four more hops were coming (P2.52).
+        /// answer to a caller who cannot see that four more hops were coming.
         /// </remarks>
         public static bool SelfTerminating(string verb) => verb != null && SelfTerminatingVerbs.Contains(verb);
 

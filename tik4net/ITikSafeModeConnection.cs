@@ -7,8 +7,8 @@ namespace tik4net
     /// recorded, and if the connection drops without a release, RouterOS <b>rolls them all back</b>.
     /// </summary>
     /// <remarks>
-    /// Split off <see cref="ITikConnection"/> in 4.0, because safe mode needs a persistent, session-bound
-    /// channel and stateless REST has none — the rollback has nothing to be bound to. A transport that
+    /// Separate from <see cref="ITikConnection"/> because safe mode needs a persistent, session-bound
+    /// channel and stateless REST has none — the rollback would have nothing to be bound to. A transport that
     /// implements this interface also declares <see cref="TikConnectionCapability.SafeMode"/>, so
     /// <c>connection.Supports(TikConnectionCapability.SafeMode)</c> and
     /// <c>connection is ITikSafeModeConnection</c> answer the same question.

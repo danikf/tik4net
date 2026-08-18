@@ -641,15 +641,14 @@ namespace tik4net.Winbox
         /// <remarks>
         /// <para>
         /// This deliberately runs ONE request/reply and lets the caller drive the pass — see
-        /// <c>WinboxNativeConnection.MonitorLoop</c>. It used to loop internally under a 4-second /
-        /// 256-round budget, which was wrong for the shape a <c>type:'query'</c> window actually has: the
-        /// router answers a getall on such a window with ONE record plus a continuation token, and BLOCKS the
-        /// next continuation until the next record exists. A 30-second ping is therefore a single pass of 30
-        /// round trips a second apart, not a page-able snapshot. The budget cut that pass off after 5 records
-        /// and threw the cursor away; the next poll started a fresh getall, which the router answered
-        /// <c>ObjectNonexistent</c> ("no more rows") from then on — the monitor went silent with no error and
-        /// no completion (P2.45). Measured on 7.23.2: with <c>count=3</c> the third reply carries
-        /// <c>Finished</c> and the stream ends cleanly; with <c>count=30</c> it never got that far.
+        /// <c>WinboxNativeConnection.MonitorLoop</c>. Looping internally under a time or round budget does
+        /// not fit the shape a <c>type:'query'</c> window actually has: the router answers a getall on such a
+        /// window with ONE record plus a continuation token, and BLOCKS the next continuation until the next
+        /// record exists. A 30-second ping is therefore a single pass of 30 round trips a second apart, not a
+        /// page-able snapshot. A budget that cuts the pass off throws the cursor away, and the next poll
+        /// starts a fresh getall that the router answers <c>ObjectNonexistent</c> ("no more rows") from then
+        /// on — leaving the monitor silent with no error and no completion. Measured on 7.23.2: with
+        /// <c>count=3</c> the third reply carries <c>Finished</c> and the stream ends cleanly.
         /// </para>
         /// <para>
         /// Keeping the round here also keeps the connection's command gate per round rather than per pass,

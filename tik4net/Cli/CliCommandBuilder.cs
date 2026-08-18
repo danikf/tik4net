@@ -135,7 +135,7 @@ namespace tik4net.Cli
         /// Set on the READ path (<c>ExecuteList</c>/<c>LoadList</c> of <c>/ping</c>, <c>/tool/traceroute</c>, …),
         /// where <c>TikGenericCommand.ResolveParamsForRead</c> has already rewritten the caller's Default-format
         /// parameters to Filter format. A monitor has no query semantics, so a Filter parameter here can only be
-        /// that rewrite — dropping it is how a ping went out as <c>:put [/ping as-value]</c> (P2.51). Same
+        /// that rewrite — dropping it is how a ping went out as <c>:put [/ping as-value]</c>. Same
         /// reasoning, and the same flag name, as <see cref="BuildNonQuery"/> uses for <c>/tool/wol</c>.
         /// </param>
         internal static string BuildMonitorSnapshot(string apiPath, IList<ITikCommandParameter> parameters,
@@ -155,7 +155,7 @@ namespace tik4net.Cli
         /// </summary>
         /// <remarks>
         /// The wrapper is what costs the streaming: <c>:put</c> is handed a completed array, so the router
-        /// prints nothing until the command has finished. Measured on 7.23.2 (P2.50), a <c>count=5</c> ping
+        /// prints nothing until the command has finished. Measured on 7.23.2, a <c>count=5</c> ping
         /// wrapped in <c>:put [… as-value]</c> emitted its first byte of data at +4019 ms and all five rows
         /// at once; the same ping unwrapped emitted the header at +58 ms and then a row every ~1000 ms.
         /// <para>

@@ -132,7 +132,7 @@ namespace tik4net.Connection
         /// itself cannot cross the callback (the contract is a trap sentence), so this is the only copy of the
         /// reason that survives — and <c>ex.Message</c> alone loses the half that says WHOSE fault it was: a
         /// router trap, a socket error and a <c>NullReferenceException</c> in our own decoder all reach the
-        /// caller as an unattributed sentence (P2.25, the same defect fixed in <c>ApiConnection</c>'s synthetic
+        /// caller as an unattributed sentence (the same defect fixed in <c>ApiConnection</c>'s synthetic
         /// <c>!fatal</c>). Exceptions that already carry the router's own wording keep it verbatim; anything
         /// else is prefixed with its type and carries its inner exception.
         /// </summary>

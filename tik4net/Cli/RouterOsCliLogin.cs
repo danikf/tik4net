@@ -40,12 +40,12 @@ namespace tik4net.Cli
         /// (<c>[admin@MikroTik] &lt;SAFE&gt; &gt;</c>).
         /// </summary>
         /// <remarks>
-        /// This was for a long time the <i>only</i> form we matched, and RouterOS 7.23.2 does not emit it:
-        /// the real prompt is <c>"[admin@CHR] &lt;SAFE&gt; "</c>. Nothing detected the mismatch because a
-        /// prompt that is never recognised does not fail — every command inside safe mode simply ran to the
-        /// full receive deadline and returned whatever had accumulated, so the tests passed while taking 30 s
-        /// per command. Both spellings are kept rather than swapped, because the evidence base for either is
-        /// one router on one version (P2.24) and matching a prompt shape we no longer see costs nothing.
+        /// RouterOS 7.23.2 does not emit this form — its prompt is <c>"[admin@CHR] &lt;SAFE&gt; "</c>. A
+        /// prompt that is never recognised does not fail loudly: every command inside safe mode runs to the
+        /// full receive deadline and returns whatever accumulated, so a mismatch costs 30 s per command with
+        /// nothing going red. Both spellings are therefore matched rather than one being chosen, because the
+        /// evidence base for either is one router on one version, and matching a prompt shape current
+        /// RouterOS does not emit costs nothing.
         /// </remarks>
         public const string SafePromptSuffixWithArrow = "] <SAFE> >";
 
@@ -129,15 +129,15 @@ namespace tik4net.Cli
         /// whatever the wording.
         /// </summary>
         /// <remarks>
-        /// The list is what the phrase table cost when it was the only signal: RouterOS 7.23.2 answers a wrong
-        /// password with <c>"Login failed, incorrect username or password"</c>, which matched <b>none</b> of
-        /// the five phrases here and was measured (P2.24) at <b>30 193 ms</b> to report on Telnet against
-        /// 127 ms on the binary API — the full receive deadline, then a login exception carrying the very text
-        /// we had failed to recognise. It could not have failed any other way: an unmatched phrase does not
-        /// throw, it waits. The older phrases are kept because the evidence base for each is one router on one
-        /// version and matching a wording we no longer see costs nothing.
+        /// The list on its own is not enough, and cannot be: an unmatched phrase does not throw, it waits.
+        /// RouterOS 7.23.2 answers a wrong password with <c>"Login failed, incorrect username or password"</c>,
+        /// which matches <b>none</b> of the five phrases here; with the phrase table as the only signal that
+        /// was measured at <b>30 193 ms</b> to report on Telnet against 127 ms on the binary API — the full
+        /// receive deadline, then a login exception carrying the very text that went unrecognised. The older
+        /// phrases are kept because the evidence base for each is one router on one version, and matching a
+        /// wording current RouterOS does not emit costs nothing.
         /// <para>
-        /// Measured by mutation (P2.24): with this list emptied and only the positional signal left, the
+        /// Measured by mutation: with this list emptied and only the positional signal left, the
         /// transcript tests still pass — the phrases are a fast path and a better exception message, not the
         /// contract. A temptation to extend the list is a sign that something has come to rely on it.
         /// </para>
@@ -219,7 +219,7 @@ namespace tik4net.Cli
         /// <remarks>
         /// The positional signal exists because the lexical one cannot be trusted across versions: it is the
         /// router's own dialogue state rather than its choice of words, so it holds on a RouterOS whose
-        /// refusal text nobody here has ever seen (P2.24).
+        /// refusal text nobody here has ever seen.
         /// </remarks>
         /// <exception cref="TikConnectionLoginException">Credentials rejected, or the shell prompt was never reached.</exception>
         public static async Task ResolveToPromptAsync(

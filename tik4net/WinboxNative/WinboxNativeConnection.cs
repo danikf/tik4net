@@ -279,7 +279,7 @@ namespace tik4net.WinboxNative
         /// Deliberately the <b>last</b> step of <see cref="InitAfterAuth"/>: authentication, the router
         /// version probe and the <c>.jg</c> catalog fetch all read the channel directly and would race the
         /// reader loop. Those run once, so leaving them lockstep costs nothing (design §4.2).
-        /// <para>Both native transports multiplex — the MAC one since P2.42. A channel that cannot yield its
+        /// <para>Both native transports multiplex. A channel that cannot yield its
         /// read side (<see cref="IWinboxM2Channel.SupportsReaderLoop"/>) would keep the lockstep path and its
         /// stale-frame drain instead.</para>
         /// </remarks>
@@ -891,7 +891,7 @@ namespace tik4net.WinboxNative
         /// </summary>
         /// <remarks>
         /// <para><see cref="TikConnectionCapability.AsyncCommands"/>: the M2 reader loop dispatches replies by
-        /// request id, so an awaiting command holds a registration rather than a thread (P2.8).</para>
+        /// request id, so an awaiting command holds a registration rather than a thread.</para>
         /// <para><see cref="TikConnectionCapability.CancelInFlight"/> means two different things here, and the
         /// stronger one is why it is declared. A <b>streaming window</b> — torch, ping, scan, traceroute,
         /// bandwidth-test — is closed with the window's own <c>cancelcmd</c>, which is what WinBox sends when
@@ -1020,7 +1020,7 @@ namespace tik4net.WinboxNative
         /// <remarks>
         /// Shared by the async and the synchronous monitor paths deliberately: they must agree on WHICH window
         /// a command means, or the same command answers differently depending on the method used to call it —
-        /// which is the class of defect P2.51 is about.
+        /// a defect nothing in the result can reveal.
         /// </remarks>
         private WinboxMonitorSpec? ResolveMonitorWindow(string commandText, out string apiPath, out int[]? handler)
         {
@@ -1048,7 +1048,7 @@ namespace tik4net.WinboxNative
         /// Before this existed, a synchronous <c>/ping</c> over native fell through to the generic getall on the
         /// monitor handler, which the router answers with no records at all — so <c>ToolPing.Execute</c>
         /// returned an empty list and the caller was told the ping had succeeded with nothing to report
-        /// (P2.51). A monitor window is not a table: its rows only exist while a monitor cycle is running.
+        ///. A monitor window is not a table: its rows only exist while a monitor cycle is running.
         /// </para>
         /// <para>
         /// "To completion" means: until the router sets Finished (a self-terminating command — <c>ping

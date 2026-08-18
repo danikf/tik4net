@@ -102,8 +102,8 @@ DrainEncryptedFrames(600);  // 600 ms — must be enough for the last push frame
 int sessionId = OpenTerminalSession(password);
 ```
 
-**Why 600 ms?** At 300 ms the drain was too short and occasionally a push frame
-arrived a fraction of a second late. 600 ms turned out to be reliable.
+**Why 600 ms?** A push frame can arrive a fraction of a second after the ones before
+it; 300 ms misses it, 600 ms is reliable.
 
 ### Phase 1: VT100 negotiation
 

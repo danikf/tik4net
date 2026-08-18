@@ -317,9 +317,9 @@ namespace tik4net.Api
 
         /// <summary>
         /// The RouterOS login exchange — one sentence on 6.43+, two on the pre-6.43 challenge/response
-        /// protocol. Awaited rather than blocking: it is the reason <c>OpenAsync</c> was not actually
-        /// asynchronous before P2.5, since the connect was awaited and then the handshake — the part that
-        /// costs the round trips — ran synchronously on the caller's thread.
+        /// protocol. Awaited rather than blocking: the handshake is the part that costs the round trips, so
+        /// running it synchronously on the caller's thread would leave <c>OpenAsync</c> asynchronous in name
+        /// only.
         /// </summary>
         private async System.Threading.Tasks.Task Login_v3Async(string user, string password)
         {
@@ -676,11 +676,10 @@ namespace tik4net.Api
         /// <remarks>
         /// Two spellings reach here, differing by one character and by route: the connection writes its own
         /// tag as the bare row <c>.tag=N</c>, while a caller supplying it as a command parameter produces
-        /// <c>=.tag=N</c>. Only the first used to be recognised, and the consequence was invisible rather
-        /// than loud — the command went out correctly tagged, the router answered it correctly, and the
-        /// client waited on the untagged queue until <see cref="ReceiveTimeout"/> elapsed for an answer that
-        /// had already arrived. Measured before the fix at a full timeout per such command
-        /// (<c>ApiCallerSuppliedTagTests</c>).
+        /// <c>=.tag=N</c>. Both have to be recognised, and missing one is invisible rather than loud: the
+        /// command goes out correctly tagged, the router answers it correctly, and the client waits on the
+        /// untagged queue until <see cref="ReceiveTimeout"/> elapses for an answer that has already arrived —
+        /// a full timeout per such command (<c>ApiCallerSuppliedTagTests</c>).
         /// </remarks>
         private static string? FindTag(IEnumerable<string> commandRows)
         {
@@ -719,7 +718,7 @@ namespace tik4net.Api
 
         /// <summary>
         /// Task-based sibling of <see cref="CallCommandSync(string[])"/>: writes the command and awaits its
-        /// sentences without holding a thread (D9).
+        /// sentences without holding a thread.
         /// </summary>
         /// <remarks>
         /// <para>

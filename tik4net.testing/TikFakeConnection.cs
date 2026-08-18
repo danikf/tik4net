@@ -233,8 +233,8 @@ namespace tik4net.Testing
         /// (<see cref="TikConnectionCapability.RawCommand"/>) would only move the failure later.
         /// </para>
         /// <para>
-        /// <see cref="TikConnectionCapability.SafeMode"/> joined the default set in 4.0, when safe mode
-        /// became <see cref="ITikSafeModeConnection"/>: this fake implements that interface, and a
+        /// <see cref="TikConnectionCapability.SafeMode"/> is in the default set because this fake implements
+        /// <see cref="ITikSafeModeConnection"/>, and a
         /// connection whose flags disagreed with the interfaces it implements would answer the same
         /// question two ways. Clear the flag to test the branch where a transport has no safe mode.
         /// </para>

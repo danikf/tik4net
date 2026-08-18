@@ -8,10 +8,10 @@ namespace tik4net
     /// O/R mapper.
     /// </summary>
     /// <remarks>
-    /// Split off <see cref="ITikConnection"/> in 4.0. It is the one part of the old connection surface
-    /// that a transport can reasonably not have — a custom transport, or a test double, has a command
-    /// factory and a lifecycle long before it has a sentence dialect — and requiring every implementor
-    /// to provide it is what made the interface hard to implement.
+    /// Separate from <see cref="ITikConnection"/> because it is the part of the connection surface a
+    /// transport can reasonably not have — a custom transport, or a test double, has a command factory and
+    /// a lifecycle long before it has a sentence dialect, and requiring every implementor to provide one
+    /// would make the connection interface hard to implement.
     /// <para>
     /// Every transport tik4net ships does implement it, and the sentence dialect differs: the binary API
     /// returns the router's own <c>!re</c>/<c>!done</c>/<c>!trap</c> words, while the command transports

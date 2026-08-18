@@ -47,7 +47,7 @@ namespace tik4net.Diagnostics
     /// <summary>
     /// Process-wide ambient sink for byte/frame-level wire tracing. No-op (a single null check) unless a
     /// sink is installed via <see cref="Capture"/>, so the emit points can stay permanently in the
-    /// transports at negligible cost. See the P2.15 design note in the architecture improvement plan.
+    /// transports at negligible cost.
     /// </summary>
     /// <remarks>
     /// The sink is a process-wide <c>volatile</c> field, deliberately not an <see cref="AsyncLocal{T}"/>:
@@ -90,7 +90,7 @@ namespace tik4net.Diagnostics
         /// Renders a byte span in the single canonical trace form: printable ASCII verbatim, and every
         /// other byte as a caret/escape token — <c>&lt;ESC&gt;</c> (0x1B), <c>&lt;CR&gt;</c> (0x0D),
         /// <c>&lt;LF&gt;</c> (0x0A), <c>&lt;TAB&gt;</c> (0x09), <c>&lt;NUL&gt;</c> (0x00), else
-        /// <c>&lt;XX&gt;</c> in hex — so every channel reads identically (the form used to diagnose P2.13).
+        /// <c>&lt;XX&gt;</c> in hex — so every channel reads identically.
         /// </summary>
         public static string Escape(byte[]? data, int offset, int count)
         {

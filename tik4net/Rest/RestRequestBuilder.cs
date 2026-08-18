@@ -19,7 +19,7 @@ namespace tik4net.Rest
         /// looking at the text alone — <c>/log/error</c> and <c>/ip/address</c> are the same shape — so the
         /// caller has to say whether it expects rows back. Without it every unrecognised trailing segment
         /// became part of the path with an implicit <c>print</c>, which is how <c>/log/error</c> went out as
-        /// <c>GET /rest/log/error</c> and came back <c>400 no such command</c> (P2.48).
+        /// <c>GET /rest/log/error</c> and came back <c>400 no such command</c>.
         /// </summary>
         internal enum RestCallKind
         {

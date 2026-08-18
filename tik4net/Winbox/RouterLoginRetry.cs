@@ -8,7 +8,7 @@ namespace tik4net.Winbox
     /// Rides out a <see cref="TikConnectionLoginRefusedException"/> by opening again from scratch.
     /// </summary>
     /// <remarks>
-    /// Measured on RouterOS 7.23.2 (P2.41): roughly one WinBox login in one to two hundred is refused
+    /// Measured on RouterOS 7.23.2: roughly one WinBox login in one to two hundred is refused
     /// with <c>"invalid user name or password (6)"</c> although the credentials are correct, and the
     /// identical request succeeds on the next attempt — every rejection recovered on the first retry,
     /// and replaying the same client key was accepted nine times out of nine. Left alone that is one
@@ -17,7 +17,7 @@ namespace tik4net.Winbox
     /// confirmation digest all mean something else and are left to propagate untouched.</para>
     /// <para>It is not a WinBox mechanism despite living here: MAC-Telnet carries the same EC-SRP5
     /// handshake and is refused the same way, only reporting it as terminal text rather than as an M2
-    /// error (P2.49). One router behaviour, one exception type, one retry.</para>
+    /// error. One router behaviour, one exception type, one retry.</para>
     /// <para><b>Credentials that really are wrong get retried too</b> — the router says exactly the same
     /// thing either way, so nothing in the answer can separate them and only persistence can. The cost
     /// is bounded and deliberate: a genuine failure takes <see cref="MaxAttempts"/> attempts and about

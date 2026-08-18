@@ -17,13 +17,12 @@ namespace tik4net.Objects
     /// <c>[Flags]</c> path once per comma-separated part.
     /// </para>
     /// <para>
-    /// The tables reproduce the old lookups exactly rather than tidying them up, including the parts that
-    /// throw: an unknown wire value and an ambiguous one (two members declaring the same
-    /// <see cref="TikEnumAttribute.Value"/>, which <c>Single()</c> used to reject) both still throw, and the
-    /// caller still turns that into the same <see cref="FormatException"/>. The one deliberate difference is
-    /// formatting a value that is not a defined member — a caller's <c>(SomeEnum)99</c> — which used to
-    /// raise <see cref="ArgumentNullException"/> (a null <c>FieldInfo</c> handed to the
-    /// <c>GetCustomAttribute</c> extension method) and now says which value and which type.
+    /// The tables reproduce the reflection lookups exactly rather than tidying them up, including the parts
+    /// that throw: an unknown wire value and an ambiguous one (two members declaring the same
+    /// <see cref="TikEnumAttribute.Value"/>) both throw, and the caller turns that into the same
+    /// <see cref="FormatException"/>. The one deliberate difference is formatting a value that is not a
+    /// defined member — a caller's <c>(SomeEnum)99</c> — which names the offending value and its type
+    /// instead of raising <see cref="ArgumentNullException"/> from a null <c>FieldInfo</c>.
     /// </para>
     /// </remarks>
     internal sealed class TikEnumMetadata

@@ -184,10 +184,10 @@ namespace tik4net
 
         /// <summary>
         /// The incomplete response received before the timeout, or <c>null</c> when nothing arrived (or the
-        /// transport does not capture it). Exposed because on the CLI transports this text used to be
-        /// <i>returned to the caller as a successful result</i>: a truncated read is indistinguishable from a
-        /// short one, so a half-read table silently became "the table". Kept on the exception so a caller
-        /// that wants the partial data can still reach it — deliberately, rather than by suppressing the error.
+        /// transport does not capture it). Exposed here rather than <i>returned as a successful result</i>: a
+        /// truncated read is indistinguishable from a short one, so handing this text back would let a
+        /// half-read table silently become "the table". Kept on the exception so a caller that wants the
+        /// partial data can still reach it — deliberately, rather than by suppressing the error.
         /// </summary>
         public string? PartialResponse { get; }
     }

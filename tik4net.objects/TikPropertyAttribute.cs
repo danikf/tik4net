@@ -48,7 +48,7 @@ namespace tik4net.Objects
         /// gets the opposite of what the router would have chosen. 56 properties are in that position today
         /// (see <c>EntityDefaultValueConventionTests</c>); the fix is <c>bool?</c>, not a different string,
         /// because declaring <c>"no"</c> instead would silently drop an <i>explicitly assigned</i>
-        /// <c>false</c> — which is worse, and is what A10 measured before reverting.
+        /// <c>false</c>, which is worse: a two-state type cannot carry the protocol's three states.
         /// </para>
         /// </remarks>
         public string? DefaultValue { get; set; }

@@ -252,7 +252,7 @@ namespace tik4net.MacTelnet
         /// <remarks>
         /// Under <see cref="SendGate"/> because it mutates the same outbound state the send path owns. It is
         /// called from the receive side, which on a multiplexed channel is a different thread from the one
-        /// sending (P2.42); before that the two could not overlap and the lock was unnecessary.
+        /// sending.
         /// </remarks>
         protected void NoteAck(uint counter)
         {
@@ -302,7 +302,7 @@ namespace tik4net.MacTelnet
         /// ACK of a session — which arrives while the packet behind it is still in flight — fired a resend
         /// of a packet a few milliseconds old. Measured across five traced suite runs: <em>every</em>
         /// MAC-layer session spent one of its eight retransmissions that way, on a packet that was
-        /// acknowledged moments later (P2.49).
+        /// acknowledged moments later.
         /// </para>
         /// </summary>
         /// <returns><c>true</c> if a retransmission was sent.</returns>
@@ -339,13 +339,13 @@ namespace tik4net.MacTelnet
         /// <summary>
         /// Session marker appended to every traced line. The wire-trace channel is per transport, not per
         /// connection, so a trace taken while several MAC sessions are alive interleaves them and cannot be
-        /// asked what ONE session was doing — which is exactly the question a wedge poses (P2.55).
+        /// asked what ONE session was doing — which is exactly the question a wedge poses.
         /// </summary>
         /// <remarks>
         /// It must be on <em>every</em> line, including the receive paths that do their own parsing. Leaving
         /// it off there does not merely lose detail, it produces confident nonsense: replaying a green suite
         /// run through a per-session reconstruction, the untagged inbound lines were attributed to whichever
-        /// session opened last and yielded 311 stream holes that never happened (P2.49).
+        /// session opened last and yielded 311 stream holes that never happened.
         /// </remarks>
         protected string TraceTag => " key=" + _sessionKey.ToString("x4");
 
@@ -370,7 +370,7 @@ namespace tik4net.MacTelnet
         /// router ever taking it. The MAC layer acknowledges the byte stream, so this is the one signal
         /// that says the router did <em>not</em> take our bytes — as opposed to taking them and being slow
         /// to answer. That distinction is what makes a retry safe: an unacknowledged command cannot have
-        /// reached the console, so it cannot have half-executed (P2.39).
+        /// reached the console, so it cannot have half-executed.
         /// </summary>
         protected bool LastSendAbandoned
         {
@@ -393,7 +393,7 @@ namespace tik4net.MacTelnet
         /// DATA behind a packet the router is not acknowledging. Because the ACK is cumulative the router
         /// cannot take any of it either, so every packet added past the hole is bytes on the wire that
         /// provably cannot be processed — a WinBox-CLI-MAC terminal piled up ~2.4 KB in 24 packets that way
-        /// before the retransmit budget ran out (P2.56). One retransmission rather than none is deliberate:
+        /// before the retransmit budget ran out. One retransmission rather than none is deliberate:
         /// a packet still in normal flight is acknowledged in milliseconds, so an ordinary send must never
         /// trip this.
         /// </remarks>
@@ -593,7 +593,7 @@ namespace tik4net.MacTelnet
         /// first ACK arrives (<c>_haveAck</c>), which is the very thing SESSIONSTART is waiting for. It is
         /// also the one packet sent to <em>broadcast</em>. Before this, a single lost SESSIONSTART cost the
         /// full authentication timeout with no retry at all; the previous code waited a blind 80 ms and sent
-        /// the auth request into a session the router might never have created (P2.49).
+        /// the auth request into a session the router might never have created.
         /// <para>
         /// Measured on 7.23.2 across five traced suite runs: 76 of 76 SESSIONSTARTs were acknowledged, all
         /// of them before the old blind sleep was over — so on a healthy link this waits less, not more.
@@ -765,7 +765,7 @@ namespace tik4net.MacTelnet
         /// anything useful has arrived rather than to wait for it. The distinction matters because most of
         /// what arrives on this socket is control traffic — ACK, PING and the router's retransmits — which
         /// <see cref="RecvUntil"/> handles and then keeps waiting on, correctly for a caller that is
-        /// waiting, but at the cost of the caller's whole timeout for one that is polling (P2.43).
+        /// waiting, but at the cost of the caller's whole timeout for one that is polling.
         /// <para>Control handling is identical either way: the handler sees the same packets, so ACKs are
         /// noted, PINGs are ponged and duplicates re-ACKed regardless of which loop consumed them.</para>
         /// </remarks>

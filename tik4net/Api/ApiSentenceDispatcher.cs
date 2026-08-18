@@ -5,7 +5,7 @@ namespace tik4net.Api
 {
     /// <summary>
     /// Routes sentences read by <c>ApiConnection</c>'s single reader loop to the caller waiting for their
-    /// tag, and releases every waiter at once when the connection ends (P2.3).
+    /// tag, and releases every waiter at once when the connection ends.
     /// </summary>
     /// <remarks>
     /// <para>

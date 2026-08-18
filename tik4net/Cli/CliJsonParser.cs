@@ -16,15 +16,13 @@ namespace tik4net.Cli
     /// no escaping at all. Records are joined with <c>;</c>, fields with <c>;</c> and <c>=</c>, and a value
     /// that itself contains those characters — a file body (<c>/file contents</c>), a script source — is
     /// therefore indistinguishable from further fields and records. JSON is escaped, so the same read is
-    /// exact (P2.17).
+    /// exact.
     /// <br/>
     /// Measured on 7.23.2, reading <c>/file</c> over telnet WITHOUT this path: the record count survives
     /// (records still split at <c>.id=</c>), but every body is corrupted — <c>CliOutputParser</c> turns the
     /// newlines inside <c>contents</c> into field separators and then re-joins the pieces as multi-value
-    /// elements, so an XML file comes back with its line breaks replaced by commas. The often-quoted
-    /// "27 rows over the API, 1 over the CLI" is the OLDER symptom: back then the same read was also being
-    /// truncated, and P2.13c/P2.32 fixed that half. What was left is quieter and worse — a full-looking
-    /// result set of wrong values.</para>
+    /// elements, so an XML file comes back with its line breaks replaced by commas. The result set looks
+    /// full and is quietly wrong, which is worse than a short read: nothing about it invites suspicion.</para>
     ///
     /// <para>Values are converted to the string wire form the binary API would have produced, so both
     /// parsers feed the O/R mapper identically:
@@ -39,8 +37,8 @@ namespace tik4net.Cli
     ///     <c>int</c>/<c>long</c> conversion on a value the API reports as a plain integer.</description></item>
     /// </list>
     /// Anything that cannot be mapped — a nested object, an array of arrays — <b>throws</b> rather than
-    /// degrading to a plausible-looking string: a wrong value that parses is far worse than a loud failure
-    /// (P2.25).</para>
+    /// degrading to a plausible-looking string: a wrong value that parses is far worse than a loud
+    /// failure.</para>
     /// </summary>
     internal static class CliJsonParser
     {

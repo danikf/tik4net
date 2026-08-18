@@ -673,11 +673,11 @@ So the direction is a two-entry table measured against the router, one field at 
 not listed keeps ascending. A wrong entry can only affect the field it names, and the path-map audit compares
 every one of them against the API on every run.
 
-**A side effect worth its own note.** Reaching `x25519 (31)` showed that the parenthesised suffix in a DH
-group label is the **DH group number**, which merely *coincides* with the bit key for the classic MODP groups.
-The strip used to fire only when the number equalled the key, so `x25519 (31)` at bit 22 kept its suffix and
-read as `x25519-(31)`. A sweep of the whole 7.23.2 catalog finds exactly twelve labels of this shape and every
-one is a DH group — the case the old rule protected does not exist, so the suffix is now always dropped.
+**A side effect worth its own note.** The parenthesised suffix in a DH group label is the **DH group
+number**, which merely *coincides* with the bit key for the classic MODP groups. The suffix is therefore
+always dropped, never only when the number equals the key: `x25519 (31)` sits at bit 22, and a
+key-equality rule would leave it reading as `x25519-(31)`. A sweep of the whole 7.23.2 catalog finds
+exactly twelve labels of this shape and every one is a DH group, so no narrower rule is needed.
 
 ### 26.2g An `age` is a timestamp on the uptime clock
 
@@ -758,7 +758,7 @@ Only the marker is treated this way, never "the value equals its default": an IP
 `def` of `0xFFFFFFFF` that the catalog NAMES stays a value — `/ip/proxy` `max-cache-size=unlimited` is
 that number on the wire. Symmetrically, an unmapped enum value on a field that is **not** `opt` keeps
 its raw text and is traced on `wbx.codec` rather than dropped: dropping it would hide a stale cached
-`.jg` after a RouterOS upgrade, which is the failure mode P2.25 already cost a release.
+`.jg` after a RouterOS upgrade.
 
 **Coverage:** `IpProxyTest`, `IpSshTest`, `IpsecProposalTest`, `SystemLoggingActionTest` and
 `CertificateTest` on whatever transport is under test; the rules are pinned router-free by
@@ -889,8 +889,8 @@ plain members go to `id`, the negated ones to `oid`. So `topics=info,!debug` is
 what distinguishes it from the `not` flag on a scalar. Both arrays are always sent, empty included, since
 that is the only way to clear the other half.
 
-Measured on 7.23.2 before the fix, `/system/logging` read back `topics = [1]` where the API prints `info`,
-and `/system/logging add` was refused outright.
+Get the split wrong and it shows immediately: measured on 7.23.2, `/system/logging` reads back
+`topics = [1]` where the API prints `info`, and `/system/logging add` is refused outright.
 
 ### 28.4 A field WinBox does not have cannot be written, and that is the honest answer
 

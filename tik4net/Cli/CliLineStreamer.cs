@@ -12,7 +12,7 @@ namespace tik4net.Cli
     /// Every CLI client (<c>TelnetClient</c>, <c>WinboxCliClient</c>, <c>MacTelnetUdpClient</c>, the SSH
     /// shell) reads the same way: append the chunk to an accumulator, re-run
     /// <see cref="VtStripper.StripAnsi"/> over the whole thing, then test the result for a shell prompt.
-    /// A streaming read only adds one call to <see cref="Feed"/> at that same point — see P2.50.
+    /// A streaming read only adds one call to <see cref="Feed"/> at that same point.
     /// </para>
     /// <para>
     /// <b>Why lines are counted rather than indexed.</b> The obvious implementation remembers how many

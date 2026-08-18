@@ -55,8 +55,8 @@ net8.0). All SDK-style.
 
 `ITikConnection` (`tik4net/ITikConnection.cs`) covers lifecycle (`Open`/`OpenAsync` ×4, `Close`,
 `Dispose`), configuration (`Encoding`, timeouts), diagnostic events, and command factories — what
-every transport has. Four things that not every transport can reasonably provide were split off it
-in 4.0, each paired with the capability flag that answers the same question:
+every transport has. Three things that not every transport can reasonably provide live on their own
+interfaces, each paired with the capability flag that answers the same question:
 
 - `ITikRawSentenceConnection` (`tik4net/ITikRawSentenceConnection.cs`) — `CallCommandSync`, both
   overloads (`RawSentences`). Every shipped transport implements it.
@@ -64,9 +64,10 @@ in 4.0, each paired with the capability flag that answers the same question:
   (`SafeMode`). ApiConnection, `CliConnectionBase` (so all five CLI transports incl. SSH) and
   WinboxNativeConnection implement it; RestConnection does not.
 - `ITikTaggedConnection` (`tik4net/ITikTaggedConnection.cs`) — `SendTagWithSyncCommand` (`Tagging`).
-  Binary API only; the other transports never implemented it meaningfully.
-- The `[Obsolete]` `CallCommandAsync` returning a `Thread` is gone from the public API entirely.
-  `ITikCommand.ExecuteAsync` and the Task-based `Execute*Async` extensions are the replacements.
+  Binary API only; the other transports have no meaningful implementation of it.
+
+There is no public `CallCommandAsync`: `ITikCommand.ExecuteAsync` and the Task-based `Execute*Async`
+extensions are the async surface.
 
 `TikRawSentenceExtensions`/`TikSafeModeExtensions` keep `connection.CallCommandSync(...)` and
 `connection.SafeModeTake()` compiling on a plain `ITikConnection`: they cast and throw

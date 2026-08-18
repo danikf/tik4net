@@ -77,14 +77,14 @@ namespace tik4net.Winbox
         /// </summary>
         /// <remarks>
         /// The fallback is decided on <see cref="WinboxEcSrp5UnsupportedException"/> and nothing else.
-        /// It used to be selected by testing whether the message text mentioned "EC-SRP5", which made
-        /// every future wording change a control-flow change.
+        /// Selecting it by testing whether the message text mentions "EC-SRP5" would make every future
+        /// wording change a control-flow change.
         /// <para>The probe window matters more than it looks. Silence is the only evidence a router
         /// offers for "too old to speak EC-SRP5", so a window short enough for a busy router to miss
         /// turns a slow answer into a wrong conclusion — and the wrong conclusion is expensive, because
         /// legacy auth then fails on a modern router and the failure surfaces as "wrong username or
-        /// password" (P2.41). Hence <see cref="MinEcSrp5ProbeMs"/> as a floor under the caller's
-        /// connect timeout rather than the fixed 3 s this used to wait, and hence the wrapping below:
+        /// password". Hence <see cref="MinEcSrp5ProbeMs"/> as a floor under the caller's
+        /// connect timeout rather than a fixed short wait, and hence the wrapping below:
         /// if both mechanisms fail, the report names the EC-SRP5 exchange that actually broke instead
         /// of blaming the credentials.</para>
         /// </remarks>

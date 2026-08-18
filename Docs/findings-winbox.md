@@ -437,7 +437,7 @@ that socket is ACKs, PINGs, and retransmissions, none of which is the frame a ca
 caller that treats a false-positive `DataAvailable` as license to block on `Receive(5000)` pays the
 **entire** frame timeout once per false positive:
 
-| span | WinboxCli (TCP) | WinboxCliMac before the fix | WinboxCliMac after the fix |
+| span | WinboxCli (TCP) | WinboxCliMac, gated on `_udp.Available` | WinboxCliMac, gated on a ready frame |
 |---|---|---|---|
 | send → first byte | 25 ms | 25 ms | 25 ms |
 | prompt → return | 166 ms | 5012 ms | 164 ms |

@@ -62,7 +62,7 @@ namespace tik4net
     /// dependable on the transports that multiplex.</b> Nothing corrupts on the CLI family — a polled
     /// monitor takes the same internal turn a command does — but its worker occupies the terminal on its
     /// own cadence, and a change you make over the <i>same</i> connection may then go unreported: measured
-    /// on Telnet and WinBox CLI (P2.14), a listen missed the change 3 times in 4, and triggering harder made
+    /// on Telnet and WinBox CLI, a listen missed the change 3 times in 4, and triggering harder made
     /// it worse rather than better. <b>Drive the change from a second connection</b> when a monitor has to
     /// observe it, or use the binary API, where the tag makes the two independent.
     /// </item>
@@ -113,7 +113,7 @@ namespace tik4net
         /// </summary>
         /// <remarks>
         /// Set it to <see cref="Encoding.ASCII"/> only to talk to a RouterOS 6.x router that predates UTF-8
-        /// support. (Prior to 4.0 the binary API defaulted to ASCII while every other transport used UTF-8.)
+        /// support. Every transport takes the same default.
         /// </remarks>
         Encoding Encoding { get; set; }
 
@@ -132,7 +132,7 @@ namespace tik4net
         /// This bounds <b>one command waiting for its answer</b>, not the connection's right to exist: an
         /// idle connection with no command in flight is not subject to it and stays open. On the binary API
         /// the budget is per caller and runs from dispatch, so concurrent commands do not consume each
-        /// other's (P2.3).
+        /// other's.
         /// </para>
         /// </remarks>
         int ReceiveTimeout { get; set; }

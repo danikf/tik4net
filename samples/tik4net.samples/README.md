@@ -28,9 +28,5 @@ comment and deletes it again in a `finally`. Point it at a lab device.
 library supports is settled by its own TFM, and a sample that mirrored it would just be older code. For
 the doc-snippet compile check on `net48`, see [`tik4net.examples`](../../tik4net.examples/README.md).
 
-## History
-
-This replaces three projects deleted in 4.0: `tik4net.console` (became `console`), `tik4net.torch`
-(became `torch`), and `tik4net.coreconsole` — which existed only to demonstrate that the library works on
-.NET Core, a question the `netstandard2.0` target settles on its own. Each shipped its own `App.config`
-carrying a lab router address; coordinates are arguments here instead.
+The three per-demo projects this replaces are recorded in
+[`Docs/HISTORY.md`](../../Docs/HISTORY.md#superseded-artifacts).

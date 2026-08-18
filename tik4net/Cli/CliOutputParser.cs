@@ -182,9 +182,9 @@ namespace tik4net.Cli
         /// The field ORDER is read from each frame's own <c>Columns:</c> declaration rather than assumed to
         /// match the requested <c>proplist</c> order — confirmed live that RouterOS reorders the columns to
         /// its own canonical order (<c>ip-protocol</c> first) regardless of the order requested. Because of
-        /// that reordering, a data row can no longer be recognised by "starts with an address" (an earlier
-        /// version of this parser did — it silently produced zero rows whenever a non-address field, e.g.
-        /// <c>ip-protocol</c>, sorted first). Instead: RouterOS always declares exactly as many <c>Columns:</c>
+        /// that reordering, a data row cannot be recognised by "starts with an address": a non-address field
+        /// such as <c>ip-protocol</c> sorting first would silently produce zero rows. Instead: RouterOS
+        /// always declares exactly as many <c>Columns:</c>
         /// fields as requested (see <see cref="CliCommandBuilder.TorchFields"/>'s length), and repeats that
         /// same field list, unabbreviated, as a plain space-separated header row before the data — so the
         /// header/data boundary is found by locating that repeat, not by guessing at row content.

@@ -23,7 +23,7 @@ namespace tik4net.Winbox
     ///   <item>One request maps to exactly one reply frame; <c>0xFE0019</c> is an object count, not a
     ///     "more frames follow" marker, and getall pagination issues a fresh request per page (§12.7).</item>
     /// </list>
-    /// <para><b>Scope.</b> Native M2 only, over either carrier — TCP since P2.1, the MAC layer since P2.42.
+    /// <para><b>Scope.</b> Native M2 only, over either carrier — TCP and the MAC layer alike.
     /// The mepty terminal path (<c>WinboxCliClient</c>) streams unsolicited frames that carry no request id,
     /// so it keeps reading the channel directly and must never be given a multiplexer — see design §3.0. That
     /// is what <see cref="IWinboxM2Channel.SupportsReaderLoop"/> guards.</para>
@@ -114,8 +114,8 @@ namespace tik4net.Winbox
 
         /// <summary>
         /// The awaitable form of <see cref="SendReceive"/>, and the real implementation of both — the
-        /// synchronous one blocks on this rather than the other way round (design D5: async is the primitive,
-        /// nothing is pushed onto a thread-pool thread to look asynchronous).
+        /// synchronous one blocks on this rather than the other way round: async is the primitive, and
+        /// nothing is pushed onto a thread-pool thread to look asynchronous.
         /// </summary>
         /// <param name="request"><inheritdoc cref="SendReceive" path="/param[@name='request']"/></param>
         /// <param name="timeoutMs"><inheritdoc cref="SendReceive" path="/param[@name='timeoutMs']"/></param>

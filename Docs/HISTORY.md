@@ -167,6 +167,12 @@ same phase, after `AsyncCommands` had already shipped for REST and the CLI famil
 
 # Superseded artifacts
 
+- **`tik4net.console`, `tik4net.torch`, `tik4net.coreconsole`** — three separate demo projects, replaced
+  in 4.0 by the single [`samples/tik4net.samples`](../samples/tik4net.samples/README.md) app and its
+  `console` / `torch` / `crud` subcommands. `tik4net.coreconsole` existed only to demonstrate that the
+  library works on .NET Core, a question the `netstandard2.0` target settles on its own. Each shipped its
+  own `App.config` carrying a lab router address; the sample takes coordinates as arguments instead.
+
 - **`TestResults/test-failures-report.md`** (2026-06-20) — a baseline failure catalog with categories
   A–K. The directory is git-ignored and the file no longer exists; most of its entries did not
   reproduce when re-verified, having been orphan contamination or flaky timing rather than defects.

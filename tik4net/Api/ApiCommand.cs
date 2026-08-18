@@ -613,13 +613,12 @@ namespace tik4net.Api
         /// </summary>
         /// <remarks>
         /// <para>
-        /// This is what the bounded readers below wait on (P2.4). <c>onDoneCallback</c> could not serve: it
+        /// This is what the bounded readers below wait on. <c>onDoneCallback</c> could not serve: it
         /// deliberately fires only for <c>!done</c>, so a connection that dies mid-stream would leave a waiter
-        /// asleep — which is exactly why those two methods used to poll a clock instead of waiting for the
-        /// command.
+        /// asleep. That is why the bounded readers wait on this signal and not on the callback.
         /// </para>
         /// <para>
-        /// The <c>!fatal</c> reaches here carrying the reader loop's reason (P2.14), so a waiter can report
+        /// The <c>!fatal</c> reaches here carrying the reader loop's reason, so a waiter can report
         /// what the other side said rather than a generic "connection has been closed".
         /// </para>
         /// </remarks>

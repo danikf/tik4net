@@ -157,10 +157,9 @@ namespace tik4net.Winbox
         /// with NO length prefix, unlike every other variable-width type.
         /// </summary>
         /// <remarks>
-        /// It has its own field type; an IPv6 value is NOT a <c>raw</c> field. Sending one as raw (what we did
-        /// before P2.53) puts a length byte where the router expects the first address byte, and the router
-        /// answers as though the field had never been sent — an IPv6 ping came back "no address was
-        /// specified". Read from <c>master*.js</c>: <c>case'a':writeId(FT_ADDR6,r);for(let i=0;i&lt;16;++i)
+        /// It has its own field type; an IPv6 value is NOT a <c>raw</c> field. Sending one as raw puts a
+        /// length byte where the router expects the first address byte, and the router answers as though the
+        /// field had never been sent — an IPv6 ping comes back "no address was specified". Read from <c>master*.js</c>: <c>case'a':writeId(FT_ADDR6,r);for(let i=0;i&lt;16;++i)
         /// {arr[pos++]=val[i];}</c>.
         /// </remarks>
         internal static byte[] Addr6Sys(int fullKey, byte[] addr16)

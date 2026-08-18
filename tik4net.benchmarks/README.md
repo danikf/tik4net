@@ -57,7 +57,7 @@ per 1000 conversions, before and after, each ratio taken **within** its own run:
 
 Every enum conversion used to run `Enum.GetNames` plus a `GetRuntimeField` + `GetCustomAttribute` for
 **every member on every value converted** — `Enum.GetNames` alone allocating a fresh array each time — and
-the `[Flags]` path did it once per comma-separated part. B1 had replaced the 1.0× column.
+the `[Flags]` path did it once per comma-separated part.
 
 The load did not improve as far as the mapper did because **7.7 ms of it is not the mapper**: command
 dispatch, sentence lookups, list building. Nothing in Track B reaches that, and it is now 72% of a load.

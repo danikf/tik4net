@@ -23,7 +23,7 @@ namespace tik4net.Winbox
     /// <c>unique</c> name (<c>&lt;unique&gt;.gz</c>, gzip), then cached content-addressed to
     /// <c>&lt;CatalogCachePath&gt;/plugins/&lt;unique&gt;</c>. The resolved set itself is remembered per router
     /// under <c>&lt;CatalogCachePath&gt;/lists/</c>, so a router that momentarily refuses <c>list</c> still
-    /// yields a full catalog instead of silently degrading the connection to seeds (P2.23).</para>
+    /// yields a full catalog instead of silently degrading the connection to seeds.</para>
     /// <para>The parser is a C# port of <c>Tools/probes/jg_analyze.py</c> — it walks the object tree
     /// and, for every node carrying a <c>path:[…]</c>, attributes the enclosing field <c>id:'&lt;prefix&gt;&lt;hex&gt;'</c>
     /// entries to that handler. Multiple windows may target the same handler; their fields are merged.</para>
@@ -493,7 +493,7 @@ namespace tik4net.Winbox
         /// by the cache directory, so inside a run where any earlier connection already loaded the catalog
         /// the "cold" connection is served from memory and never writes a byte to its own cache dir. That
         /// is what made <c>WinboxNative_CatalogCache_ColdThenWarm</c> pass standalone and go Inconclusive
-        /// inside a full suite — read as mproxy refusing to serve the plugin list (P2.23, P2.40), which it
+        /// inside a full suite — read as mproxy refusing to serve the plugin list, which it
         /// was not.
         /// </summary>
         internal static void ClearSharedCatalogs()

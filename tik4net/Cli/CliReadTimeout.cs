@@ -7,14 +7,14 @@ namespace tik4net.Cli
     /// deadline without ever seeing the closing shell prompt.
     /// </summary>
     /// <remarks>
-    /// <para>Every CLI transport used to <c>return</c> the partial text at this point, and the caller had no
-    /// way to tell it apart from a complete, short answer — so a half-read table silently became "the table"
-    /// and a half-read record became a parse error blamed on the parser. That is the same class of defect as
-    /// a swallowed exception: the failure existed, but nothing could observe it.</para>
-    /// <para>It is not hypothetical. It is how RouterOS's Safe Mode prompt could stop matching ours without a
-    /// single test going red — every command inside safe mode simply ran to the full 30 s deadline and
-    /// returned the (complete, as it happened) text anyway, so the suite passed while taking 4½ minutes
-    /// (P2.31).</para>
+    /// <para>Returning the partial text instead would leave the caller no way to tell it apart from a
+    /// complete, short answer: a half-read table silently becomes "the table", and a half-read record a
+    /// parse error blamed on the parser. That is the same class of defect as a swallowed exception — the
+    /// failure exists, but nothing can observe it.</para>
+    /// <para>It is not hypothetical. Should RouterOS's Safe Mode prompt stop matching ours, no test goes
+    /// red on its own: every command inside safe mode runs to the full 30 s deadline and then returns text
+    /// that happens to be complete, so the suite passes while taking 4½ minutes. Failing loudly here is
+    /// what makes that visible.</para>
     /// </remarks>
     internal static class CliReadTimeout
     {

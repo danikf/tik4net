@@ -28,7 +28,7 @@ namespace tik4net.Winbox
         /// implementation that answers true for traffic which cannot produce a frame therefore does not
         /// merely cost a wasted poll — it costs the caller a whole frame timeout. The MAC channel used to
         /// answer on any datagram, most of which are ACK/PING/retransmit control packets, and that alone
-        /// accounted for 5 s per command and per open (P2.43).
+        /// accounted for 5 s per command and per open.
         /// </remarks>
         bool DataAvailable { get; }
 
@@ -50,7 +50,7 @@ namespace tik4net.Winbox
         /// the command and is being slow", and only the former can be reported without lying about whether
         /// the command ran. Without it a dead session costs the caller a whole
         /// <see cref="ITikConnection.ReceiveTimeout"/> and then reports "nothing was received", which names
-        /// the symptom at the wrong layer (P2.54; MAC-Telnet learned the same lesson in P2.39).
+        /// the symptom at the wrong layer (MAC-Telnet guards the same thing).
         /// </remarks>
         bool SendAbandoned { get; }
 
@@ -65,7 +65,7 @@ namespace tik4net.Winbox
         /// says the session is gone, this one only says the stream is blocked and may yet recover. The MAC
         /// layer acknowledges cumulatively, so nothing sent past an unacknowledged packet can be processed
         /// until that packet lands — queueing more is bytes on the wire for nothing, and it buries the one
-        /// packet that has to get through (P2.56).
+        /// packet that has to get through.
         /// </remarks>
         bool SendStalled { get; }
 
@@ -98,8 +98,8 @@ namespace tik4net.Winbox
 
         /// <summary>
         /// True when the channel can hand its read side to a <see cref="WinboxM2Multiplexer"/> reader loop
-        /// (i.e. <see cref="ReceiveNextFrame"/> is implemented). Both the TCP and the MAC channel do; the MAC
-        /// one only since P2.42, once <c>MacLayerTransport</c> could survive sends from two threads — see
+        /// (i.e. <see cref="ReceiveNextFrame"/> is implemented). Both the TCP and the MAC channel do — the MAC
+        /// one because <c>MacLayerTransport</c> survives sends from two threads, see
         /// <c>Docs/winbox-m2-multiplexing-design.md</c> §4.5. The property stays on the interface because a
         /// channel that streams unsolicited id-less frames must never be given a multiplexer.
         /// </summary>
@@ -126,7 +126,7 @@ namespace tik4net.Winbox
         /// Safe Mode rollback), and on the MAC layer every such write has to be acknowledged or the router
         /// retransmits it and eventually drops the session — which is why <c>MacTelnetUdpClient</c> has run a
         /// receive pump since it was written. The WinBox-over-MAC channel did not, and paid for it in
-        /// sessions that died during a quiet stretch between two tests (P2.55). TCP needs none of this: the
+        /// sessions that died during a quiet stretch between two tests. TCP needs none of this: the
         /// kernel acknowledges the byte stream whether or not anyone reads it.
         /// <para><b>Acknowledging is not a keepalive</b>, and must not become one. Nothing here may speak
         /// unprompted: four ways of inventing idle traffic were measured against a MAC console and all four

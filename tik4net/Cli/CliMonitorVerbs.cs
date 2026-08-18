@@ -21,7 +21,7 @@ namespace tik4net.Cli
     ///   <item><c>traceroute</c> → <c>count=1</c>. It has no <c>once</c> either: measured on 7.23.2,
     ///         <c>:put [/tool traceroute address=127.0.0.1 count=1 once as-value]</c> answers
     ///         <c>bad parameter once (line 1 column 54)</c>, while the same command without it returns the hop
-    ///         rows (P2.51). Until then traceroute inherited <c>once</c> from the default, so every CLI
+    ///         rows. Until then traceroute inherited <c>once</c> from the default, so every CLI
     ///         traceroute the modifier reached was refused by the router.</item>
     ///   <item><c>profile</c> → <c>duration=1</c> (profile rejects <c>once</c> with "expected end of command").</item>
     /// </list>

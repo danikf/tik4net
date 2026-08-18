@@ -52,12 +52,11 @@ namespace tik4net.Mndp
         /// Renders an MNDP address TLV (16 raw bytes for IPv6, 4 for IPv4) as an address string.
         /// </summary>
         /// <remarks>
-        /// TLV 15 carries the ADDRESS BYTES, not text, and it used to be read with the same
-        /// <c>encoding.GetString</c> as the neighbouring identity/version/board fields — which turned
-        /// <c>fe80::215:5dff:fe04:1f03</c> into sixteen latin-1 characters. It showed up the moment MNDP got
-        /// a tool of its own; before that nothing displayed the field. It also reached
-        /// <see cref="TikInstanceDescriptor.IpDescription"/>, which falls back to the v6 address when there
-        /// is no v4 one, so a v6-only neighbour described itself in mojibake.
+        /// TLV 15 carries the ADDRESS BYTES, not text. Reading it with the same <c>encoding.GetString</c> as
+        /// the neighbouring identity/version/board fields turns <c>fe80::215:5dff:fe04:1f03</c> into sixteen
+        /// latin-1 characters, and the damage reaches <see cref="TikInstanceDescriptor.IpDescription"/>,
+        /// which falls back to the v6 address when there is no v4 one — so a v6-only neighbour would
+        /// describe itself in mojibake.
         /// </remarks>
         /// <param name="raw">The TLV payload.</param>
         /// <returns>The formatted address, or an empty string when the payload is not an address length.</returns>

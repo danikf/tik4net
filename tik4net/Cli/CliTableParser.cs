@@ -13,7 +13,7 @@ namespace tik4net.Cli
     /// <remarks>
     /// <para>
     /// This is the counterpart of <see cref="CliOutputParser.ParseAsValue"/> for commands that must NOT be
-    /// wrapped in <c>:put [… as-value]</c>. Measured on 7.23.2 (P2.50): the wrapped form emits
+    /// wrapped in <c>:put [… as-value]</c>. Measured on 7.23.2: the wrapped form emits
     /// <b>nothing at all</b> until the command finishes, because <c>:put</c> is handed an already-complete
     /// array — a <c>count=20</c> ping produced one 322-byte burst at +4019 ms and not a byte before it.
     /// The bare interactive form of the same command streams a row per second. So streaming is not a

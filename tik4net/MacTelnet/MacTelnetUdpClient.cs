@@ -93,8 +93,8 @@ namespace tik4net.MacTelnet
         /// then the pump that owns the socket from here on.
         /// </summary>
         /// <remarks>
-        /// The one place on this transport that is still a <c>Task.Run</c> façade, and deliberately so
-        /// (A6). Everything inside runs before the pump exists, so it is the only reader of the socket and
+        /// The one place on this transport that is a <c>Task.Run</c> façade, and deliberately so.
+        /// Everything inside runs before the pump exists, so it is the only reader of the socket and
         /// reads it with <c>SO_RCVTIMEO</c> — mixing that with <c>ReceiveAsync</c> is what made the timeout
         /// be ignored on .NET Framework 4.8, and the EC-SRP5 handshake underneath is synchronous down
         /// through the crypto. Open is once per connection and is not the operation the
@@ -121,7 +121,7 @@ namespace tik4net.MacTelnet
         /// <summary>
         /// As <see cref="SendCommandAndReadAsync(string,CancellationToken)"/>, but also reports each
         /// completed output line to <paramref name="onLine"/> while the command is still running — the
-        /// streaming driver registered by <see cref="MacTelnetConnection"/> (P2.50).
+        /// streaming driver registered by <see cref="MacTelnetConnection"/>.
         /// </summary>
         internal async Task<string> SendCommandAndReadAsync(string command, Action<string>? onLine, CancellationToken ct)
         {
@@ -190,7 +190,7 @@ namespace tik4net.MacTelnet
         /// back; measured on 7.23.2, one console-echoed log line left unacknowledged during a 15 s idle is
         /// enough for the router to stop answering the session permanently, and a plain 30 s idle does the
         /// same on its own (25 s still survives). Both are unremarkable gaps inside a test run, which is
-        /// why the wedge looked like it needed "accumulated state" to reproduce (P2.39).
+        /// why the wedge looked like it needed "accumulated state" to reproduce.
         /// </para>
         /// </summary>
         private void StartPump()
@@ -272,7 +272,7 @@ namespace tik4net.MacTelnet
         /// Discards terminal text the pump collected before this command was issued. The pump ACKs router
         /// output as it arrives (which is what keeps the session alive), but that text is not an answer to
         /// anything we asked: it typically ends in a repainted prompt, and a read that accepted it would
-        /// return it as the next command's result — the P2.28 defect, one transport over.
+        /// return it as the next command's result. Every terminal transport has to guard this.
         /// </summary>
         private void ResetReadBuffer()
         {
@@ -305,7 +305,7 @@ namespace tik4net.MacTelnet
         /// Reads a command response, requiring the prompt to be stable for
         /// <see cref="SettleMs"/> before returning — and to have been preceded by the command's own echo
         /// (<see cref="CliOutputHelper.ContainsEcho"/>), so that a prompt left behind by the PREVIOUS
-        /// response cannot end this read before the router has said anything (P2.47).
+        /// response cannot end this read before the router has said anything.
         /// </summary>
         /// <param name="sentCommand">
         /// The command being answered. When non-null, reaching the deadline without a prompt throws
