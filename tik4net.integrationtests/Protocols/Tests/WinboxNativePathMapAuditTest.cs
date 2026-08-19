@@ -171,15 +171,17 @@ namespace tik4net.integrationtests
         /// <item><b>precision</b> — <c>/system/ntp/client</c>'s <c>system-offset</c> is a whole-millisecond
         /// <c>integer</c> on the wire where the API reports fractions (and it drifts constantly).
         /// <c>freq-drift</c>, which the wire carries as a <c>fixedpoint</c>, agrees exactly.</item>
-        /// <item><b>a different question</b> — <c>/interface/ethernet</c>'s <c>auto-negotiation</c> is the
-        /// LINK's live state in WinBox (<c>not-available</c> on a CHR's virtual NIC) and the SETTING over the
-        /// API (<c>true</c>). Two fields, one label; see <see cref="KnownFieldGaps"/> for the same shape at
-        /// window granularity.</item>
+        /// <item><b>closed, G3.3</b> — <c>/interface/ethernet</c>'s <c>auto-negotiation</c> was the LINK's
+        /// live state (<c>not-available</c> on a CHR's virtual NIC) where the API reports the SETTING
+        /// (<c>true</c>). The window carries both and the .jg labels both 'Auto Negotiation'; the setting
+        /// declares <c>name:'autoneg'</c> and the status does not, so the status took the name. A field
+        /// alias pairs the setting with the API's name and the status now reads as
+        /// <c>auto-negotiation-status</c>. Measured in both directions before shipping: the write used to
+        /// land on a <c>ro:1</c> field and be silently ignored.</item>
         /// </list>
         /// </remarks>
         private static readonly Dictionary<string, string> KnownValueGaps = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["/interface/ethernet"]                   = "auto-negotiation reads the link's live state, not the setting",
             ["/routing/table"]                        = "fib is a valueless presence flag: api/rest send 'fib=' where native and the CLI send 'true'. The RAW WORDS differ for good; the mapper no longer does - RoutingTable.Fib is IsPresenceFlag (G3.1)",
             ["/system/ntp/client"]                     = "system-offset is a whole-millisecond `integer` on the wire where the API reports fractions — an information difference, not a decode gap (and it drifts constantly). freq-drift agrees.",
         };

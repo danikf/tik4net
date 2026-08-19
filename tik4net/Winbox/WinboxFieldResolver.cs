@@ -323,6 +323,22 @@ namespace tik4net.Winbox
                                ("pcq-queue-size", "pcq-limit"),
                                ("pcq-total-queue-size", "pcq-total-limit"))),
 
+                // /interface/ethernet: the window carries the auto-negotiation SETTING and the link's
+                // negotiation STATUS, and the .jg labels both of them 'Auto Negotiation'. The setting
+                // declares name:'autoneg' (b3f3, writable) and so normalizes to 'autoneg'; the status is a
+                // read-only enm on the Status tab (u44d, values incomplete/done/no negotiation/failed/
+                // restarted/disabled/not available) with no name of its own, so it took the label.
+                //
+                // The result was a read that reported auto-negotiation='not-available' on a CHR's virtual
+                // NIC where the API says 'true' — not two transports disagreeing, but us answering a
+                // different question with the API's field name. The setting is the API's
+                // 'auto-negotiation'; the status keeps a name of its own, since the API reports it only
+                // from /interface/ethernet/monitor and not on this table at all.
+                ["/interface/ethernet"] = new FieldAliasSet(
+                    apiToJg: Ci(("auto-negotiation", "autoneg")),
+                    jgToApi: Ci(("autoneg", "auto-negotiation"),
+                               ("auto-negotiation", "auto-negotiation-status"))),
+
                 // /ip/upnp: the settings singleton's second field is labelled 'Allow To Disable External
                 // Interface' in WinBox and 'allow-disable-external-interface' in the API — one stray "to".
                 // Without the alias the entity read back a field name RouterOS never uses.

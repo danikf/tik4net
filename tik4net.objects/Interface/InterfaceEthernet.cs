@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -34,6 +34,14 @@ namespace tik4net.Objects.Interface
         /// When enabled, the interface "advertises" its maximum capabilities to achieve the best connection possible.
         ///  Note1: Auto-negotiation should not be disabled on one end only, otherwise Ethernet Interfaces may not work properly. 
         ///  Note2: Gigabit link cannot work with auto-negotiation disabled.
+        /// <para>
+        /// This is the SETTING. WinBox shows a second field under the same 'Auto Negotiation' label on the
+        /// interface's Status tab — the link's live negotiation state (done / incomplete / failed / not
+        /// available) — which is a different question and is reported by the API only from
+        /// <c>/interface/ethernet/monitor</c> (<see cref="tik4net.Objects.Interface.Ethernet.EthernetMonitor.AutoNegotiation"/>).
+        /// On <c>WinboxNative</c> that second field is read under the name <c>auto-negotiation-status</c>,
+        /// so this property carries the setting on every transport.
+        /// </para>
         /// </summary>
         [TikProperty("auto-negotiation", DefaultValue = "yes")]
         public bool? AutoNegotiation { get; set; }
