@@ -268,12 +268,16 @@ namespace tik4net.Objects
                     return value;
                 else if (ValueType == typeof(TimeSpan))
                     return TikTimeHelper.FromTikTimeToTimeSpan(value);
+                // InvariantCulture on every numeric conversion, in both directions. The thread's culture
+                // has no business here: the router's wire form is invariant, and the digits being the same
+                // in every culture is not enough — a few (sv-SE, fi-FI) render minus as U+2212, which
+                // RouterOS will not parse, and which will not parse the router's own U+002D back.
                 else if (ValueType == typeof(int))
-                    return int.Parse(value);
+                    return int.Parse(value, CultureInfo.InvariantCulture);
                 else if (ValueType == typeof(long))
-                    return long.Parse(value);
+                    return long.Parse(value, CultureInfo.InvariantCulture);
                 else if (ValueType == typeof(byte))
-                    return byte.Parse(value);
+                    return byte.Parse(value, CultureInfo.InvariantCulture);
                 else if (ValueType == typeof(uint))
                     return uint.Parse(value, CultureInfo.InvariantCulture);
                 else if (ValueType == typeof(ulong))
@@ -334,9 +338,14 @@ namespace tik4net.Objects
             else if (ValueType == typeof(TimeSpan))
                 return TikTimeHelper.ToTikTime((int)((TimeSpan)propValue).TotalSeconds);
             else if (ValueType == typeof(int))
-                return ((int)propValue).ToString();
+                return ((int)propValue).ToString(CultureInfo.InvariantCulture);
             else if (ValueType == typeof(long))
-                return ((long)propValue).ToString();
+                return ((long)propValue).ToString(CultureInfo.InvariantCulture);
+            // byte parses on the way in (above) and had no branch here, so writing one fell through to the
+            // converter lookup and threw — and for a NON-nullable byte property it threw while the metadata
+            // was still being built, because DefaultValue is formatted through this method.
+            else if (ValueType == typeof(byte))
+                return ((byte)propValue).ToString(CultureInfo.InvariantCulture);
             else if (ValueType == typeof(uint))
                 return ((uint)propValue).ToString(CultureInfo.InvariantCulture);
             else if (ValueType == typeof(ulong))
