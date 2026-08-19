@@ -162,9 +162,12 @@ namespace tik4net.integrationtests
         /// address:port pair) has been closed. These three are differences of a different kind, and two of
         /// them are the API being the LESS informative side:</para>
         /// <list type="bullet">
-        /// <item><b>the API prints less than it knows</b> — <c>/routing/table</c>'s <c>fib</c> is a valueless
-        /// presence flag over the API (<c>fib=</c>), which the mapper can only read as <c>false</c>; native
-        /// reads the router's own bool and says <c>true</c>. Documented on <c>RoutingTable.Fib</c>.</item>
+        /// <item><b>the same fact spelled two ways</b> — <c>/routing/table</c>'s <c>fib</c> is a valueless
+        /// presence flag over the API and REST (<c>fib=</c>) and a spelled-out <c>true</c> over the CLI
+        /// transports and native. This audit compares raw words, so the two spellings differ here for good;
+        /// the O/R mapper does not, because <c>RoutingTable.Fib</c> is declared
+        /// <see cref="TikPropertyAttribute.IsPresenceFlag"/> and reads the empty value as <c>true</c>
+        /// (G3.1). Before that it read <c>false</c> on api/rest whatever the router said.</item>
         /// <item><b>precision</b> — <c>/system/ntp/client</c>'s <c>system-offset</c> is a whole-millisecond
         /// <c>integer</c> on the wire where the API reports fractions (and it drifts constantly).
         /// <c>freq-drift</c>, which the wire carries as a <c>fixedpoint</c>, agrees exactly.</item>
@@ -177,7 +180,7 @@ namespace tik4net.integrationtests
         private static readonly Dictionary<string, string> KnownValueGaps = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["/interface/ethernet"]                   = "auto-negotiation reads the link's live state, not the setting",
-            ["/routing/table"]                        = "fib is a valueless presence flag over the API ('fib='), so the API is the side that loses the value; native reads the router's own bool",
+            ["/routing/table"]                        = "fib is a valueless presence flag: api/rest send 'fib=' where native and the CLI send 'true'. The RAW WORDS differ for good; the mapper no longer does - RoutingTable.Fib is IsPresenceFlag (G3.1)",
             ["/system/ntp/client"]                     = "system-offset is a whole-millisecond `integer` on the wire where the API reports fractions — an information difference, not a decode gap (and it drifts constantly). freq-drift agrees.",
         };
 

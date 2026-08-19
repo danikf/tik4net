@@ -84,6 +84,12 @@ namespace tik4net.Objects
         /// <seealso cref="TikPropertyAttribute.IsFreeText"/>
         public bool IsFreeText { get; private set; }
 
+        /// <summary>
+        /// If the field is a valueless presence flag, i.e. the binary API spells "set" as an empty value.
+        /// </summary>
+        /// <seealso cref="TikPropertyAttribute.IsPresenceFlag"/>
+        public bool IsPresenceFlag { get; private set; }
+
         private PropertyInfo PropertyInfo { get; set; }
 
         private readonly Func<object, object?>? _getter;
@@ -172,6 +178,7 @@ namespace tik4net.Objects
                 DefaultValue = "";
             UnsetOnDefault = propertyAttribute.UnsetOnDefault;
             IsFreeText = propertyAttribute.IsFreeText;
+            IsPresenceFlag = propertyAttribute.IsPresenceFlag;
         }
 
         /// <summary>
@@ -287,7 +294,15 @@ namespace tik4net.Objects
                 else if (ValueType == typeof(MacAddress))
                     return new MacAddress(value);
                 else if (ValueType == typeof(bool))
+                {
+                    // A presence flag is "set" by BEING THERE: the binary API and REST send `fib=` with an
+                    // empty value and omit the word when it is clear, so the empty string is the router
+                    // saying true. Absence is handled above (null for a nullable property) and is not
+                    // turned into false here — that is the router reporting nothing, not reporting false.
+                    if (IsPresenceFlag && value.Length == 0)
+                        return true;
                     return string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase);
+                }
                 else if (ValueType.GetTypeInfo().IsEnum)
                 {
                     // _enumMetadata is set in the constructor exactly when ValueType is an enum (see there).

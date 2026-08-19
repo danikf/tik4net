@@ -32,9 +32,13 @@ namespace tik4net.integrationtests
             var loaded = Connection.LoadById<RoutingTable>(table.Id);
             Assert.IsNotNull(loaded);
             Assert.AreEqual(marker, loaded.Name);
-            // NOTE: RouterOS returns fib as an empty-string presence flag (fib=) rather than
-            // fib=yes, so the bool mapper always reads it back as false. The write path works
-            // (=fib=yes is accepted by the router), but the read path cannot be asserted here.
+            // fib is a valueless PRESENCE flag: the binary API and REST answer `fib=` (empty) for a
+            // table that has it and omit the word for one that does not, while the CLI transports and
+            // WinboxNative answer `fib=true`. The property is declared IsPresenceFlag, so all three
+            // read the same thing — before that, this read was false on api/rest whatever was written,
+            // which is why the assert used to be a comment saying so.
+            Assert.AreEqual(true, loaded.Fib,
+                "fib was written as yes; the router reports it back, valuelessly over api/rest");
 
             Connection.Delete(loaded);
         }

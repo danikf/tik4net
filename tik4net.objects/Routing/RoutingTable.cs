@@ -26,18 +26,16 @@ namespace tik4net.Objects.Routing
         /// entries are installed into the kernel forwarding plane. The built-in "main" table
         /// always has fib set. Default: false (not a FIB table).
         ///
-        /// RouterOS quirk: the router stores this as a valueless presence-flag. Over the binary
-        /// API — and so over REST and the CLI transports, which report what it reports — a read
-        /// returns <c>fib=</c> (empty string) rather than <c>fib=yes</c>, so the mapper
-        /// deserializes it as <c>false</c> whatever the true state is. Setting Fib=true and
-        /// calling Save() sends <c>=fib=yes</c>, which the router accepts correctly: the write
-        /// path works, the read-back does not.
+        /// RouterOS stores this as a valueless presence-flag: over the binary API and REST a read
+        /// returns <c>fib=</c> (the word present, the value empty) when the flag is set, and omits
+        /// the word when it is not. The property is declared <see cref="TikPropertyAttribute.IsPresenceFlag"/>,
+        /// so the empty value reads as <c>true</c> — the CLI transports and <c>WinboxNative</c> report
+        /// the same row as <c>true</c> outright, and all three now agree. A row that does not carry the
+        /// word at all leaves the property <c>null</c>: the router reported nothing.
         ///
-        /// The exception is <c>WinboxNative</c>, which reads the router's own bool and therefore
-        /// reports the real state. This is the one field where the two disagree BECAUSE the API is
-        /// the less informative side; see Docs/winbox-native-m2-protocol.md §30.
+        /// Writing is unaffected: Save() sends <c>=fib=yes</c>, which the router accepts.
         /// </summary>
-        [TikProperty("fib", DefaultValue = "no")]
+        [TikProperty("fib", DefaultValue = "no", IsPresenceFlag = true)]
         public bool? Fib { get; set; }
 
         /// <summary>

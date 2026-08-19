@@ -80,6 +80,26 @@ namespace tik4net.Objects
         public bool IsFreeText { get; set; }
 
         /// <summary>
+        /// Marks a <see cref="bool"/> field the router stores as a valueless <b>presence flag</b>: the
+        /// binary API reports it as <c>name=</c> (the word is present, the value empty) when the flag is
+        /// set, and omits the word entirely when it is not.
+        /// <para>
+        /// Without this marker the empty value parses as <c>false</c>, so such a field reads back as
+        /// <c>false</c> whatever its true state is. With it, an empty value means <b>true</b> — which is
+        /// what the router said. Absence still leaves a nullable property <c>null</c>: the router reported
+        /// nothing, and the mapper does not invent a <c>false</c>.
+        /// </para>
+        /// <para>
+        /// Only the binary API and REST use the valueless form; the CLI transports and
+        /// <c>WinboxNative</c> report the same field as <c>true</c>, which parses the same way with or
+        /// without this flag. Marking the property therefore makes every transport agree rather than
+        /// changing one of them. Writes are unaffected — <c>=name=yes</c> is what the router accepts.
+        /// </para>
+        /// <para><c>/routing/table</c>'s <c>fib</c> is the field this exists for.</para>
+        /// </summary>
+        public bool IsPresenceFlag { get; set; }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="TikPropertyAttribute"/> class.
         /// </summary>
         /// <param name="fieldName">Name of the property (on mikrotik).</param>
