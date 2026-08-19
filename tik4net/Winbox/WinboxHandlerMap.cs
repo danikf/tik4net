@@ -88,7 +88,14 @@ namespace tik4net.Winbox
             ["/interface/wireless/connect-list"]      = "/wireless/wireless/station-connect-rule",
             ["/interface/wireless/registration-table"] = "/wireless/wireless/ap-client",
             ["/interface/wireless/security-profiles"] = "/wireless/wireless/security-profile",
-            ["/interface/wireless/sniffer"]           = "/wireless/wireless/wireless-sniffer",
+            // The sniffer's two windows share handler [88,9] and only one of them is the API's table: the
+            // 'Wireless Sniffer' ACTION window is the running capture's statistics (Processed Packets,
+            // Memory Size, …, and a Start button), while `/interface/wireless/sniffer print` returns the
+            // SETTINGS — which WinBox reaches through that window's Configuration → Settings, a separate
+            // type:'item' singleton the .jg titles 'Wireless Sniffer Settings' (hide:1). Its ten fields are
+            // the API's ten. Pointed at the action window, a read answered with the statistics under the
+            // settings' names.
+            ["/interface/wireless/sniffer"]           = "/wireless/wireless/wireless-sniffer-settings",
 
             // wifiwave2 (wave2.jg) — the WinBox menu drops the "wifi-" prefix on some leaves and keeps it on
             // others, so both spellings are needed.

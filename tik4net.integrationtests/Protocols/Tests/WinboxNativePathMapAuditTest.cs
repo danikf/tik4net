@@ -50,8 +50,6 @@ namespace tik4net.integrationtests
             // /ip/route: the API's print hides the routes WinBox lists (6 vs 2), and the distance/scope/vrf
             // block is not decoded. Pre-existing, unrelated to the path map.
             ["/ip/route"] = "native lists routes the API's print filters out; distance/scope/vrf not decoded",
-            // The wireless sniffer singleton answers with its running counters, not its settings.
-            ["/interface/wireless/sniffer"] = "handler [88,9] returns sniffer statistics, API returns settings",
             // Known and documented: /system/health on a CHR has no hardware sensors, and state/
             // state-after-reboot are API-only fields with no WinBox equivalent.
             ["/system/health"] = "board-gated singleton; state/state-after-reboot are API-only",
