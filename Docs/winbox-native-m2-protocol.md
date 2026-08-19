@@ -84,7 +84,7 @@ webfig script, and it implements the M2 protocol in JS over HTTP `/jsproxy`. Fun
 ### Complete command catalog (`uff0007`, from webfig)
 | cmd | constant | meaning | request fields | reply |
 |---|---|---|---|---|
-| `0xfe0004` | getallcmd | **list all** | `ufe000c`=flags, `ufe0018`=maxobjs, paging `ufe0003` **and/or** `mfe0015` (echoed back as received) | `Mfe0002` records, `ufe0019` count, `ufe0003` and/or `mfe0015` cont. token |
+| `0xfe0004` | getallcmd | **list all** | `ufe000c`=flags, `ufe0018`=maxobjs (a cap, §29), paging `ufe0003` **and/or** `mfe0015` (echoed back as received) | `Mfe0002` records, `ufe0019` count, `ufe0003` and/or `mfe0015` cont. token |
 | `0xfe0002` | — | **get one** | `ufe0001`=.id | record (in `Mfe0002` or top-level) |
 | `0xfe0003` | setcmd(map) | **set/change** | `ufe0001`=.id + changed fields | status |
 | `0xfe0005` | — | **add** | fields (no .id) | `ufe0001`=new .id |
@@ -106,7 +106,8 @@ defaults** — the numbers only show up in `.jg` when a window overrides one of 
 - `uff0008` = error code, `sff0009` = error string.
 - `ufe0001` = **.id** (record handle).  `ufe000c` = getall/get **flags** (getall requires
   `0x10000005` = `refetchonopen | refreshfilter` — without it the handler returns no rows).
-- `ufe0018` = maxobjs.  `ufe0003` = getall continuation token.  `ufe0019` = count.
+- `ufe0018` = maxobjs — a row **cap**, not a page size; the router picks the page size and ignores
+  this for it (§29).  `ufe0003` = getall continuation token.  `ufe0019` = count.
 - `Mfe0002` = **records** (message-array, wire type `0xA8`).  `ufe0005` = next-id (ordered).
 - `ufe0013` = removed flag.  `mfe001d` = default config (`setDefaultConf` cmd `0xfe0004`+`ufe000c=0x20000000`).
 
@@ -936,8 +937,21 @@ opposite fixes:
   3 completed page(s)`, which separates "this table is bigger than the deadline" from "the request never got
   going".
 
-Raising the deadline would only move the number at which it fails; paging the caller (`maxObjs` with the
-cursor) is the real fix if a table this size has to be read on a busy channel.
+**There is no page-size knob, and `maxObjs` is not one.** `ufe0018` reads like one and the `.jg` says
+otherwise: only three windows declare `maxobjs` (routes, connections, proxy cache) and each pairs it with a
+`maxobjsmsg` — "There are too many records to show them all" — so it is a **cap the router refuses past**,
+not a page boundary. Asked directly (RouterOS 7.23.2, `/log` = handler `[3,4]`, ~1000 rows), values of
+0/10/50/200/10000 all produced the identical five pages of 208/201/209/205/177: the router picks the page
+size and ignores `ufe0018` for it. `tik4net.integrationtests/Protocols/Tests/G2MaxObjsProbeTest.cs` is the
+probe.
+
+So the read stays proportional to the table, and the only honest client-side move is to **fail rather than
+truncate**. The cursor loop is bounded by the connection's `ReceiveTimeout` for the whole read (each page
+gets what is left of it) and throws when the budget runs out, naming how many rows from how many completed
+pages are being discarded. It used to stop silently at a hidden 8-second budget and 256 rounds and return
+the pages that fit — a short list is indistinguishable from a router that has that many rows, which is the
+one outcome worse than the timeout. For a table this size on a busy channel, raise `ReceiveTimeout` or read
+it over a transport that can filter router-side.
 
 ## 30. One M2 key can carry two fields, and a list element can be a compound
 

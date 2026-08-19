@@ -118,13 +118,20 @@ namespace tik4net.Winbox
         /// its read side still has a working implementation rather than a hole; such a channel is refused the
         /// async capability by never being given a multiplexer.
         /// </remarks>
-        private Task<byte[]> SendReceiveAsync(byte[] request, CancellationToken cancellationToken)
+        /// <param name="request">The built M2 message.</param>
+        /// <param name="cancellationToken">Cancels the wait (not the router's work).</param>
+        /// <param name="timeoutMs">
+        /// Deadline for this one round trip. Defaults to the connection's <c>ReceiveTimeout</c>; the
+        /// <c>getall</c> cursor loop passes what is left of the whole read's budget instead, so a paged read
+        /// stays bounded by the timeout the caller set rather than by it multiplied by the page count.
+        /// </param>
+        private Task<byte[]> SendReceiveAsync(byte[] request, CancellationToken cancellationToken, int? timeoutMs = null)
         {
             if (_mux == null)
                 return Task.FromResult(LockstepSendReceive(request));
 
             OnRequest?.Invoke(request);
-            return AwaitReply(_mux.SendReceiveAsync(request, _timeoutMs, cancellationToken));
+            return AwaitReply(_mux.SendReceiveAsync(request, timeoutMs ?? _timeoutMs, cancellationToken));
         }
 
         private async Task<byte[]> AwaitReply(Task<byte[]> reply)
@@ -213,37 +220,60 @@ namespace tik4net.Winbox
         /// <see cref="WinboxM2Protocol.Error.ObjectNonexistent"/>.
         /// </summary>
         internal List<Dictionary<int, Tuple<string, object>>> GetAll(
-            int[] handler, int flags = WinboxM2Protocol.GetAllFlags, int maxObjs = 0, int maxMs = 8000)
-            => GetAllAsync(handler, CancellationToken.None, flags, maxObjs, maxMs).GetAwaiter().GetResult();
+            int[] handler, int flags = WinboxM2Protocol.GetAllFlags, int maxObjs = 0, int? budgetMs = null)
+            => GetAllAsync(handler, CancellationToken.None, flags, maxObjs, budgetMs).GetAwaiter().GetResult();
 
         /// <inheritdoc cref="GetAll"/>
         /// <remarks>
-        /// Pagination is a loop of round trips, so this is the single implementation and <see cref="GetAll"/>
-        /// blocks on it — the alternative, two copies of the cursor loop, is exactly the kind of duplication
-        /// that lets the sync and async paths answer the same command differently.
+        /// <para>Pagination is a loop of round trips, so this is the single implementation and
+        /// <see cref="GetAll"/> blocks on it — the alternative, two copies of the cursor loop, is exactly the
+        /// kind of duplication that lets the sync and async paths answer the same command differently.</para>
+        /// <para><b>The router chooses the page size, and there is no knob for it.</b>
+        /// <paramref name="maxObjs"/> (<c>ufe0018</c>) reads like one and is not: measured on RouterOS 7.23.2
+        /// against <c>/log</c>, values of 0, 10, 50, 200 and 10000 all produced the same five pages of
+        /// 208/201/209/205/177 rows. It is the cap webfig sends on the three windows whose <c>.jg</c> declares
+        /// <c>maxobjs</c> (routes, connections, proxy cache), paired with a <c>maxobjsmsg</c> — "there are too
+        /// many records to show them all" — so the router refuses rather than pages. See
+        /// <c>Docs/winbox-native-m2-protocol.md</c> §29.</para>
+        /// <para>What the caller does control is the <b>budget</b>: the whole paged read is bounded by
+        /// <paramref name="budgetMs"/>, defaulting to the connection's <c>ReceiveTimeout</c>, and each page is
+        /// given what is left of it. Running out throws — a native read is proportional to the TABLE, not to
+        /// the answer, so returning the pages that fit would be a short list indistinguishable from a router
+        /// that has that many rows.</para>
         /// </remarks>
         internal async Task<List<Dictionary<int, Tuple<string, object>>>> GetAllAsync(
             int[] handler, CancellationToken cancellationToken,
-            int flags = WinboxM2Protocol.GetAllFlags, int maxObjs = 0, int maxMs = 8000)
+            int flags = WinboxM2Protocol.GetAllFlags, int maxObjs = 0, int? budgetMs = null)
         {
+            int budget = budgetMs ?? _timeoutMs;
             var records = new List<Dictionary<int, Tuple<string, object>>>();
             WinboxM2Continuation? cont = null; // cursor carried back verbatim on the next request
             var sw = Stopwatch.StartNew();
-            for (int round = 0; round < 256 && sw.ElapsedMilliseconds < maxMs; round++)
+            for (int round = 0; ; round++)
             {
+                int remaining = budget - (int)sw.ElapsedMilliseconds;
+                if (remaining <= 0)
+                    throw Truncated(handler, sw, records.Count, round,
+                        $"the {budget} ms budget for the whole read ran out between pages");
+                if (round >= MaxGetAllPages)
+                    throw Truncated(handler, sw, records.Count, round,
+                        $"the cursor is still not finished after {MaxGetAllPages} pages, which means it is "
+                        + "not advancing rather than that the table is large");
+
                 byte[] resp;
                 try
                 {
                     resp = await SendReceiveAsync(
-                        BuildGetAll(handler, flags, maxObjs, cont), cancellationToken).ConfigureAwait(false);
+                        BuildGetAll(handler, flags, maxObjs, cont), cancellationToken, remaining).ConfigureAwait(false);
                 }
                 catch (TimeoutException ex)
                 {
                     // A13. The multiplexer can only name the request id and what the CHANNEL has been doing;
                     // how much of the TABLE had already arrived lives here, in the cursor loop, and it is
                     // what separates the two explanations. Pages already read means the read was working and
-                    // this table is simply bigger than the deadline (the fix is paging or a longer one);
-                    // nothing read at all on the first page means the request never got going.
+                    // this table is simply bigger than the deadline (the fix is a longer one, or filtering
+                    // router-side over another transport); nothing read at all on the first page means the
+                    // request never got going.
                     throw new TimeoutException(
                         $"WinBox M2 getall on handler [{string.Join(",", handler)}] timed out after "
                         + $"{sw.ElapsedMilliseconds} ms with {records.Count} row(s) from {round} completed "
@@ -269,6 +299,26 @@ namespace tik4net.Winbox
             }
             return records;
         }
+
+        /// <summary>
+        /// Hard stop on the cursor loop. Not a size limit — at the ~200-row pages the router serves this is
+        /// over a million rows — but a guard against a cursor that keeps coming back without finishing, which
+        /// would otherwise spin until the budget expired with a misleading "the table is large" message.
+        /// </summary>
+        private const int MaxGetAllPages = 8192;
+
+        /// <summary>
+        /// The read cannot be completed, and the pages already in hand must not be returned as if they were
+        /// the whole table: a short list is indistinguishable from a router that has that many rows, so this
+        /// says out loud what stopped it and how far it got.
+        /// </summary>
+        private static TimeoutException Truncated(int[] handler, Stopwatch sw, int rows, int pages, string why)
+            => new TimeoutException(
+                $"WinBox M2 getall on handler [{string.Join(",", handler)}] could not read the whole table: {why}. "
+                + $"{rows} row(s) from {pages} completed page(s) in {sw.ElapsedMilliseconds} ms are discarded rather "
+                + "than returned as a complete answer. A native read is proportional to the TABLE, not to the "
+                + "answer — there is no server-side filtering in M2 and the router picks the page size — so "
+                + "raise ReceiveTimeout, or read a table this size over a transport that can filter on the router.");
 
         private byte[] BuildGetAll(int[] handler, int flags, int maxObjs, WinboxM2Continuation? cont)
         {

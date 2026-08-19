@@ -232,5 +232,82 @@ namespace tik4net.unittests.Winbox
                         "4 login messages + exactly one getall: an absent cursor must end the read.");
                 });
         }
+
+        /// <summary>
+        /// G2: a read that cannot be finished must fail, not return the pages that fit. A native read is
+        /// proportional to the TABLE — the router picks the page size and <c>ufe0018</c> does not change it —
+        /// so the loop can run out of budget on a big table, and a short list is indistinguishable from a
+        /// router that has that many rows. This peer pages forever; the read must throw and the message must
+        /// say how far it got.
+        /// </summary>
+        /// <remarks>
+        /// Driven by a fake channel rather than <see cref="FakeWinboxServer"/>: a scripted peer that never
+        /// stops paging never finishes its own script either, so the harness's <c>await serverTask</c> would
+        /// wait for a thread the test has just told to give up.
+        /// </remarks>
+        [TestMethod]
+        public void GetAll_ThrowsWhenTheBudgetRunsOut_RatherThanReturningThePagesThatFit()
+        {
+            var channel = new EndlesslyPagingChannel(Handler, pageDelayMs: 100);
+            var ops = new WinboxNativeM2Operations(channel, TimeoutMs);
+
+            var ex = Assert.ThrowsException<TimeoutException>(() => ops.GetAll(Handler, budgetMs: 500));
+
+            StringAssert.Contains(ex.Message, "are discarded rather",
+                "the partial pages must be reported as discarded, not handed back as the answer");
+            StringAssert.Contains(ex.Message, "completed page(s)",
+                "the message must say how far the read got — that is what separates a big table from a "
+                + "channel that never got going");
+            Assert.IsTrue(channel.PagesServed > 1,
+                $"the peer must have been paging, not failing on the first request (served {channel.PagesServed})");
+        }
+
+        /// <summary>
+        /// A channel that answers every <c>getall</c> with one record and a fresh cursor, so the read can
+        /// never complete on its own — the shape a table larger than the budget has.
+        /// </summary>
+        private sealed class EndlesslyPagingChannel : IWinboxM2Channel
+        {
+            private readonly int[] _handler;
+            private readonly int _pageDelayMs;
+            private int _page;
+            private int _reqId;
+
+            internal EndlesslyPagingChannel(int[] handler, int pageDelayMs)
+            {
+                _handler = handler;
+                _pageDelayMs = pageDelayMs;
+            }
+
+            /// <summary>How many pages the peer got to serve before the caller gave up.</summary>
+            internal int PagesServed => _page;
+
+            public bool IsEncrypted => true;
+            public bool DataAvailable => false;
+            public bool SupportsStaleDrain => false;
+            public bool SendAbandoned => false;
+            public bool SendStalled => false;
+            public bool SupportsReaderLoop => false;   // lockstep: SendReceive is the whole channel
+
+            public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs)
+                => throw new NotSupportedException("The fake channel is handed to the operations layer already open.");
+
+            public byte[] NextReqIdField()
+                => M2Message.U8Sys(WinboxM2Protocol.SysKey.RequestId, (byte)(++_reqId & 0xFF));
+
+            public byte[] SendReceive(byte[] m2, int timeoutMs)
+            {
+                System.Threading.Thread.Sleep(_pageDelayMs);
+                int page = ++_page;
+                return Page(RequestIdOf(m2), "page" + page,
+                    M2Message.U32Sys(WinboxM2Protocol.RecordKey.Continuation, page));
+            }
+
+            public void Send(byte[] m2) => throw new NotSupportedException();
+            public byte[] Receive(int timeoutMs) => throw new NotSupportedException();
+            public byte[] ReceiveNextFrame() => throw new NotSupportedException();
+            public void StartIdleServicing() { }
+            public void Dispose() { }
+        }
     }
 }

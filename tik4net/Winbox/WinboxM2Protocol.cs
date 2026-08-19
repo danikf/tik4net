@@ -105,7 +105,12 @@ namespace tik4net.Winbox
             internal const int Flags = 0xFE000C;
             /// <summary>Removed flag — set on a record that has been deleted (push model). webfig <c>ufe0013</c>.</summary>
             internal const int Removed = 0xFE0013;
-            /// <summary>MaxObjs — getall page-size hint. webfig <c>ufe0018</c>.</summary>
+            /// <summary>
+            /// MaxObjs — getall row <b>cap</b>, webfig <c>ufe0018</c>. Not a page-size hint: the router picks
+            /// the page size and ignores this for it (measured — see <see cref="WinboxNativeM2Operations.GetAllAsync"/>).
+            /// webfig sends it only from the three <c>.jg</c> windows that declare <c>maxobjs</c> (routes,
+            /// connections, proxy cache), each paired with a <c>maxobjsmsg</c> for the refusal it produces.
+            /// </summary>
             internal const int MaxObjs = 0xFE0018;
             /// <summary>Count — total object count reported alongside getall records. webfig <c>ufe0019</c>:
             /// both usages are <c>if(rep.ufe0019!=null)me.objCount=rep.ufe0019</c>, i.e. stored and never used
