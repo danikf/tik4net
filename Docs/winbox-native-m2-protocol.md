@@ -332,6 +332,19 @@ rejected loudly by the codec (`WinboxFieldResolutionException`) rather than gues
 currently no way to tell a DNS name apart from a dropdown selection, and dropping the qualifier
 would address something else entirely.
 
+### 23.1a Reading an `addr`: `%iface` can be the whole value, and `0xFEFF1F` is only a tag
+
+A record's `addr` carries `0xFEFF1F` alongside the shape sub-keys — a numeric tag for which shape is in
+force (`1` = IPv4, `2` = IPv6, `9` = an interface and nothing else). It is not a value; the sub-keys are.
+A decoder that falls through to "render the nested message" therefore prints the tag: on 7.24 a connected
+route's gateway came back as the literal `9`.
+
+The `%iface` qualifier is not only a suffix. A field whose value is `{0xFEFF22=2, 0xFEFF1F=9}` has no
+address at all — it IS the interface, which is what RouterOS prints for a connected route
+(`gateway=ether1`). Where an address is also present the qualifier is a suffix as expected:
+`{0xFEFF22=2, 0xFEFF1F=1, 0xFEFF20=…}` is `192.168.4.236%ether1`. Either way the id names a row of the
+generic interface table `[20,0]` and resolves through the same reference cache a dynamic `enm` uses.
+
 ### 23.2 The IPv6 field is `FT_ADDR6` (type byte `0x18`), not `raw`
 
 The ftype table from `master*.js` (`msg2buffer`), where the type byte = `ftype << 3 | size-flags`:
@@ -1072,11 +1085,19 @@ Three paths still disagree on a value, and on two of them the API is the side th
 - **`/interface/ethernet` `auto-negotiation`** — WinBox's field is the LINK's live state
   (`not-available` on a CHR's virtual NIC), the API's is the SETTING (`true`). Two fields, one label.
 
-And four are window- or semantics-level rather than value-level, recorded in the audit's own tables:
-`/ip/route` (native lists routes the API's `print` filters out), `/interface/wireless/sniffer` (handler
-`[88,9]` answers with statistics where the API answers with settings), `/system/health` (board-gated; `state`
-and `state-after-reboot` are API-only), and `/routing/bgp/advertisements` (WinBox exposes it as the session
-window's `dump-adv` action, not a table).
+Two are window- or semantics-level rather than value-level, recorded in the audit's own tables:
+`/system/health` (board-gated; `state` and `state-after-reboot` are API-only) and
+`/routing/bgp/advertisements` (WinBox exposes it as the session window's `dump-adv` action, not a table).
+
+`/ip/route` and `/interface/wireless/sniffer` were on that list and are not any more (G3.4, G3.5). Both
+were the same mistake in two costumes: the path named a window that shares a handler with the one the API
+prints, so the read succeeded and answered from the wrong table. The sniffer named the running capture's
+statistics rather than its settings; `/ip/route` named the hidden `All Routes` base rather than the IPv4
+subtype over it, so it returned the IPv6 routes as well and carried only the columns the list view
+sketches. What `/ip/route` still does not read is named rather than left to be rediscovered:
+`immediate-gw` (the 'Immediate Gateway' hyperlink `u21`, an unresolved handle into `[44,16]`), `dynamic`,
+and the `dhcp`/`connect` source flags — for which native reports the same fact under one field,
+`belongs-to` (`dhcp` / `connected` / `interface`).
 
 ## Settled questions — do not re-investigate
 

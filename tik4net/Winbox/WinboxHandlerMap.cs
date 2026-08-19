@@ -148,7 +148,15 @@ namespace tik4net.Winbox
             ["/ip/address"]                  = "/ip/addresses/address",
             ["/ip/arp"]                      = "/ip/arp/arp",
             ["/ip/pool"]                     = "/ip/pool/ip-pool",
-            ["/ip/route"]                    = "/ip/routes/route",
+            // WinBox keeps ONE routes table ([44,21], the hidden 'All Routes' window) and puts an IPv4 and
+            // an IPv6 window over it, told apart by the table's own `rtype`. 'All Routes' is therefore both
+            // families at once — a read of it returned six rows on the lab CHR where the API returns two,
+            // the extras being ::1/128 and fe80::/64 — and it sketches only the columns the list shows, so
+            // distance/scope/target-scope/vrf-interface/routing-table were simply absent and the numeric
+            // 'active' came back as 4. The subtype windows carry the whole record; the row filter comes
+            // live from their `typevalue`.
+            ["/ip/route"]                    = "/ip/routes/routes",
+            ["/ipv6/route"]                  = "/ipv6/routes/routes6",
             ["/ip/service"]                  = "/ip/services/ip-service",
             ["/ip/dns"]                      = "/ip/dns/dns-settings",      // singleton
             ["/ip/dns/static"]               = "/ip/dns/dns-static-entry",

@@ -60,8 +60,9 @@ namespace tik4net.Winbox
         /// </summary>
         internal Dictionary<string, string> DecodeRecord(
             Dictionary<int, Tuple<string, object>> rec, IReadOnlyDictionary<int, string> keyToName,
-            IReadOnlyDictionary<int, WinboxJgField> keyToField)
-            => DecodeRecord(rec, keyToName, keyToField, null);
+            IReadOnlyDictionary<int, WinboxJgField> keyToField,
+            IReadOnlyDictionary<string, Tuple<string, string>>? derivedBools = null)
+            => DecodeRecord(rec, keyToName, keyToField, null, derivedBools);
 
         // The decode proper. collectRefTables != null puts it in COLLECTING mode: reference names are not
         // looked up, the tables they would have needed are noted instead, and the fields it returns are
@@ -69,7 +70,8 @@ namespace tik4net.Winbox
         private Dictionary<string, string> DecodeRecord(
             Dictionary<int, Tuple<string, object>> rec, IReadOnlyDictionary<int, string> keyToName,
             IReadOnlyDictionary<int, WinboxJgField> keyToField,
-            Dictionary<string, int[]>? collectRefTables)
+            Dictionary<string, int[]>? collectRefTables,
+            IReadOnlyDictionary<string, Tuple<string, string>>? derivedBools = null)
         {
             // Keys consumed by an owning field, not emitted on their own: a network field's netmask sibling,
             // and the opt/not flag bools of an optional/invertible field (its value rides on the leaf key).
@@ -112,6 +114,19 @@ namespace tik4net.Winbox
                 if (IsUnsetField(jf, kv.Value.Item2, rec)) continue;
                 fields[apiName] = FormatTyped(jf, kv.Value.Item1, kv.Value.Item2, rec, collectRefTables);
             }
+
+            // A bool the API reports and WinBox renders as a wider enum on the same wire field (see
+            // FieldAliasSet.DerivedBools). Added AFTER the loop because it reads a decoded field, not a key,
+            // and only when the source is actually present: a row that did not carry it gets no bool rather
+            // than a false, which would be us asserting something the router did not say.
+            if (derivedBools != null)
+                foreach (var d in derivedBools)
+                {
+                    if (fields.ContainsKey(d.Key)) continue;
+                    if (!fields.TryGetValue(d.Value.Item1, out string? src)) continue;
+                    fields[d.Key] = string.Equals(src, d.Value.Item2, StringComparison.OrdinalIgnoreCase)
+                        ? "true" : "false";
+                }
             return fields;
         }
 
@@ -327,7 +342,7 @@ namespace tik4net.Winbox
                         // by SUB-KEY, not by position. The generic nested-message fallback returns the
                         // first member, which is right only when IPv4 is the one present.
                         if (value is Dictionary<int, Tuple<string, object>> addrMsg)
-                            return FormatAddr(addrMsg);
+                            return FormatAddr(addrMsg, collectRefTables);
                         break;
                     case "multinumberrange":
                     case "numberrangelist":
@@ -408,7 +423,7 @@ namespace tik4net.Winbox
                 // reads, and none of these had a case at all: an empty one reached the caller as the literal
                 // "[]" where the API prints nothing, and /ip/dns dynamic-servers as raw u32s.
                 if (IsMultiList(jf.UiType))
-                    return FormatMultiList(jf, value);
+                    return FormatMultiList(jf, value, collectRefTables);
                 // dynamic enum reference: render the referenced object's name (e.g. interface id → "ether1").
                 if (jf.RefHandler != null)
                 {
@@ -549,15 +564,16 @@ namespace tik4net.Winbox
         /// the elements are <c>addr</c> compounds we were rendering as their raw u32
         /// (<c>17082560,3445500682,…</c>).
         /// </remarks>
-        private string FormatMultiList(WinboxJgField jf, object value)
+        private string FormatMultiList(WinboxJgField jf, object value,
+            Dictionary<string, int[]>? collectRefTables)
         {
             // A message array (webfig `multi`): each element is a submessage of the element's own type.
             if (value is List<Dictionary<int, Tuple<string, object>>> msgs)
                 return string.Join(",", msgs.Select(m =>
                     jf.ElementParts != null
-                        ? FormatCompoundElement(jf, m)
+                        ? FormatCompoundElement(jf, m, collectRefTables)
                         : string.Equals(jf.ElementUiType, "addr", StringComparison.OrdinalIgnoreCase)
-                            ? FormatAddr(m)
+                            ? FormatAddr(m, collectRefTables)
                             : FormatNestedMessage(m)));
 
             // A scalar array, which M2Message renders as the text "[a,b,…]" (and "[]" when empty).
@@ -579,13 +595,14 @@ namespace tik4net.Winbox
         /// <c>u17 = 0</c>) which the API prints <c>::/0</c>, and <c>/certificate</c>'s subject-alt-name is
         /// <c>{u7f = 1, u7d = 3959728320}</c> which it prints <c>IP:192.168.4.236</c>.
         /// </remarks>
-        private string FormatCompoundElement(WinboxJgField jf, Dictionary<int, Tuple<string, object>> element)
+        private string FormatCompoundElement(WinboxJgField jf, Dictionary<int, Tuple<string, object>> element,
+            Dictionary<string, int[]>? collectRefTables)
         {
             var rendered = new List<string>();
             // Only called when jf.ElementParts != null (see FormatMultiList's caller check).
             foreach (var part in jf.ElementParts!)
             {
-                string s = FormatElementPart(part, element);
+                string s = FormatElementPart(part, element, collectRefTables);
                 if (!string.IsNullOrEmpty(s)) rendered.Add(s);
             }
             // Nothing addressable in the element — webfig's union.get returns [def,null] here. Fall back to
@@ -594,13 +611,14 @@ namespace tik4net.Winbox
             return string.Join(jf.ElementSeparator ?? "", rendered);
         }
 
-        private string FormatElementPart(WinboxJgElementPart part, Dictionary<int, Tuple<string, object>> element)
+        private string FormatElementPart(WinboxJgElementPart part, Dictionary<int, Tuple<string, object>> element,
+            Dictionary<string, int[]>? collectRefTables)
         {
             if (part.Alternatives != null)
             {
                 foreach (var alt in part.Alternatives)
                 {
-                    string s = FormatElementPart(alt, element);
+                    string s = FormatElementPart(alt, element, collectRefTables);
                     if (!string.IsNullOrEmpty(s)) return s;
                 }
                 return "";
@@ -630,7 +648,7 @@ namespace tik4net.Winbox
                 case "macaddr":
                     return WinboxFieldResolver.MacFromBytes(v.Item2);
                 case "addr":
-                    return v.Item2 is Dictionary<int, Tuple<string, object>> a ? FormatAddr(a) : v.Item2.ToString()!; // v.Item2 != null (checked above)
+                    return v.Item2 is Dictionary<int, Tuple<string, object>> a ? FormatAddr(a, collectRefTables) : v.Item2.ToString()!; // v.Item2 != null (checked above)
                 default:
                     return v.Item2.ToString()!; // v.Item2 != null (checked above)
             }
@@ -1008,19 +1026,31 @@ namespace tik4net.Winbox
         /// RouterOS text, following <c>types.addr.tostr</c>: IPv6 wins over IPv4 when both are present, then
         /// the DNS name, then the MAC, with the <c>/prefix</c> appended.
         /// </summary>
-        private static string FormatAddr(Dictionary<int, Tuple<string, object>> addr)
+        private string FormatAddr(Dictionary<int, Tuple<string, object>> addr,
+            Dictionary<string, int[]>? collectRefTables)
         {
             object? Get(int subKey) =>
                 addr.TryGetValue(subKey, out var t) ? t?.Item2 : null;
+
+            // The '%iface' qualifier names a row of the interface table, exactly as a dynamic enum does, so
+            // it is resolved the same way. It is not only a suffix: a value whose ONLY member is the
+            // interface IS that interface — a connected route's gateway is `ether1`, with no address at all.
+            // Without this the compound fell through to FormatNestedMessage and rendered the family tag
+            // (ufeff1f=9, 'this is an interface') as the whole value, so every connected route's gateway
+            // read as the literal '9'.
+            string? iface = Get(WinboxFieldResolver.AddrIfaceSubKey) is object ifid
+                ? ResolveRefName(WinboxFieldResolver.AddrIfaceRefHandler, ifid, collectRefTables)
+                : null;
 
             string? text = null;
             if (Get(WinboxFieldResolver.AddrV6SubKey) is byte[] v6) text = WinboxFieldResolver.IpV6FromBytes(v6);
             else if (Get(WinboxFieldResolver.AddrV4SubKey) is object v4) text = WinboxFieldResolver.IpFromU32(v4);
             else if (Get(WinboxFieldResolver.AddrDnsSubKey) is object dns) text = dns.ToString();
             else if (Get(WinboxFieldResolver.AddrMacSubKey) is object mac) text = WinboxFieldResolver.MacFromBytes(mac);
-            if (text == null) return FormatNestedMessage(addr);
+            if (text == null) return iface ?? FormatNestedMessage(addr);
 
             if (Get(WinboxFieldResolver.AddrPrefixSubKey) is object plen) text += "/" + plen;
+            if (iface != null) text += "%" + iface;
             return text;
         }
 

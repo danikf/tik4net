@@ -47,9 +47,6 @@ namespace tik4net.integrationtests
         // one cannot hide among them. Measured on RouterOS 7.23.2, 2026-08-15.
         private static readonly Dictionary<string, string> KnownFieldGaps = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            // /ip/route: the API's print hides the routes WinBox lists (6 vs 2), and the distance/scope/vrf
-            // block is not decoded. Pre-existing, unrelated to the path map.
-            ["/ip/route"] = "native lists routes the API's print filters out; distance/scope/vrf not decoded",
             // Known and documented: /system/health on a CHR has no hardware sensors, and state/
             // state-after-reboot are API-only fields with no WinBox equivalent.
             ["/system/health"] = "board-gated singleton; state/state-after-reboot are API-only",

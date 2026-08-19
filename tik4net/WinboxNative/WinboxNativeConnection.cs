@@ -607,7 +607,7 @@ namespace tik4net.WinboxNative
 
             var rows = new List<TikRecordSentence>(records.Count);
             foreach (var rec in records)
-                rows.Add(new TikRecordSentence(_codec.DecodeRecord(rec, keyToName, keyToField)));
+                rows.Add(new TikRecordSentence(_codec.DecodeRecord(rec, keyToName, keyToField, resolver.DerivedBoolFields)));
 
             // Apply Filter parameters (?name=value) in-memory — RouterOS-side filtering is not used here.
             // The filters form a postfix query stack (?#| OR, ?#& AND, ?#! NOT), so they are evaluated as such
@@ -682,7 +682,7 @@ namespace tik4net.WinboxNative
             var result = new List<TikRecordSentence>();
             foreach (var rec in records)
             {
-                var decoded = _codec.DecodeRecord(rec, keyToName, keyToField);
+                var decoded = _codec.DecodeRecord(rec, keyToName, keyToField, resolver.DerivedBoolFields);
                 if (decoded.TryGetValue("name", out var nm) && string.Equals(nm, target, StringComparison.Ordinal))
                 {
                     result.Add(new TikRecordSentence(decoded));
@@ -1197,7 +1197,7 @@ namespace tik4net.WinboxNative
 
                     await _codec.PrimeReferencesAsync(records, keyToName, keyToField, cancellationToken).ConfigureAwait(false);
                     foreach (var rec in records)
-                        rows.Add(new TikRecordSentence(_codec.DecodeRecord(rec, keyToName, keyToField)));
+                        rows.Add(new TikRecordSentence(_codec.DecodeRecord(rec, keyToName, keyToField, resolver.DerivedBoolFields)));
 
                     if (done) break;                    // router set Finished: the command is over
                     if (continuation != null) continue; // mid-pass: keep reading this one
@@ -1290,7 +1290,7 @@ namespace tik4net.WinboxNative
                     // Emitted per round, so a streaming window (ping, traceroute, torch) reaches the caller
                     // as the router produces it instead of in a lump when the pass ends.
                     foreach (var rec in records)
-                        onRow?.Invoke(new TikRecordSentence(_codec.DecodeRecord(rec, keyToName, keyToField)));
+                        onRow?.Invoke(new TikRecordSentence(_codec.DecodeRecord(rec, keyToName, keyToField, resolver.DerivedBoolFields)));
 
                     if (done) break;              // router set Finished: the operation is over for good
                     if (continuation != null) continue;   // same pass, next record — no sleep

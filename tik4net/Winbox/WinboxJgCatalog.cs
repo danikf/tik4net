@@ -90,6 +90,14 @@ namespace tik4net.Winbox
         private int[]? _genericIfaceHandler;
         private int _ifaceTypeKey;
 
+        // The same shape outside the interface family: a `generic:'X'` base window that HAS a handler of its
+        // own and declares a `typeon` discriminator, so its `inherit:'X'`+`typevalue:N` children are rows of
+        // the base's table rather than tables of their own. `generic:'route'` ([44,21], typeon:'rtype') is the
+        // live case — IPv4 routes are rtype 2 and IPv6 routes rtype 3 in ONE table, so a read of /ip/route
+        // that does not filter answers with the IPv6 routes too. Keyed generic name → (handler, typeKey).
+        private readonly Dictionary<string, Tuple<int[], int>> _genericBases =
+            new Dictionary<string, Tuple<int[], int>>(StringComparer.Ordinal);
+
         // Windows that declare `generic:'<name>'` — the bases other windows extend with `inherit:'<name>'`.
         // The interface subtype tree is NOT one level deep: the PPP tunnel windows inherit a `generic:'ppp'`
         // base which itself inherits 'iface', and the wireless ones go 'iface' → 'wlan' → 'ath' → 'athhw'.
@@ -818,12 +826,20 @@ namespace tik4net.Winbox
 
                     // The base interface window (generic:'iface') anchors the subtype filtering: remember its
                     // handler and the key of the `type` discriminator field (named by `typeon`, default 'type').
-                    if (dict.TryGetValue("generic", out var genv) && genv is string gen && gen == "iface")
+                    if (dict.TryGetValue("generic", out var genv) && genv is string gen && gen.Length > 0)
                     {
-                        _genericIfaceHandler = handlerInts;
                         string typeon = dict.TryGetValue("typeon", out var tov) && tov is string tos ? tos : "type";
                         int tk = FindChildFieldKey(dict, typeon);
-                        if (tk != 0) _ifaceTypeKey = tk;
+                        if (gen == "iface")
+                        {
+                            _genericIfaceHandler = handlerInts;
+                            if (tk != 0) _ifaceTypeKey = tk;
+                        }
+                        // A base that carries BOTH a handler and a resolvable discriminator can filter its own
+                        // children; one that carries neither (the ppp/wlan mid-tree bases) is handled by the
+                        // interface-family chain below and must not overwrite an entry with a real key.
+                        if (tk != 0 && !_genericBases.ContainsKey(gen))
+                            _genericBases[gen] = Tuple.Create(handlerInts, tk);
                     }
                 }
 
@@ -883,6 +899,42 @@ namespace tik4net.Winbox
                         // Known to read the generic interface handler, but deliberately NOT handler-backed:
                         // see _handlerBackedWindows.
                         _windowHandlerKey[owner] = HandlerKey(_genericIfaceHandler);
+                    }
+                }
+
+                // The same registration for a NON-interface family whose base owns its handler and its
+                // discriminator (_genericBases). The interface branch above is left exactly as it is: its
+                // guards were written against a tree that is several levels deep and switches discriminator
+                // half-way down, and nothing here needs to disturb them.
+                //
+                // /ip/route is the case. WinBox has one routes table ([44,21], 'All Routes', typeon:'rtype')
+                // and two subtype windows over it — 'Routes' (typevalue 2, IPv4) and ipv6.jg's 'Routes6'
+                // (typevalue 3). Addressing the BASE returns both families: on the lab CHR a /ip/route read
+                // came back with six rows where the API returns two, the extras being ::1/128 and fe80::/64.
+                // roteros.jg is parsed first by design, so the base is registered before ipv6.jg inherits it.
+                if (handlerInts == null
+                    && dict.TryGetValue("inherit", out var ginhv) && ginhv is string ginh2
+                    && dict.TryGetValue("typevalue", out var gtvv) && gtvv is int gtval
+                    && !(ginh2 == "iface" || (_generics.TryGetValue(ginh2, out var gfam) && gfam.Item2))
+                    && _genericBases.TryGetValue(ginh2, out var gbase2))
+                {
+                    string gtitle = dict.TryGetValue("title", out var gttv) && gttv is string gtts && gtts.Length > 0
+                        ? gtts : nodeName;
+                    string? gApiPath = BuildPath(crumb, groupSeg, gtitle);
+                    if (gApiPath != null)
+                    {
+                        if (!_derivedPaths.ContainsKey(gApiPath))
+                        {
+                            _derivedPaths[gApiPath] = gbase2.Item1;
+                            _subtypeFilters[gApiPath] = Tuple.Create(gbase2.Item2, gtval);
+                            _singletonPaths[gApiPath] = false;   // a subtype window is always a record list
+                        }
+                        // Its fields belong to the WINDOW: the subtype declares the whole General/Status tab
+                        // the base only sketches (Distance, Scope, Target Scope, VRF Interface, Routing
+                        // Table, Immediate Gateway, Pref. Source), and the base's bare numeric 'active' is
+                        // the subtype's 'Contribution' enum.
+                        owner = WindowKey(gApiPath);
+                        _windowHandlerKey[owner] = HandlerKey(gbase2.Item1);
                     }
                 }
 

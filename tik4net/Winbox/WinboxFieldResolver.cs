@@ -209,14 +209,31 @@ namespace tik4net.Winbox
             /// </summary>
             public readonly IReadOnlyDictionary<string, string>? AddrPortPairs;
 
+            /// <summary>
+            /// API bool field → (the decoded field it is derived from, the value that means <c>true</c>).
+            /// For the case where the API reports a BOOL and WinBox reports the same wire field as an
+            /// enum with more members than the API distinguishes.
+            /// </summary>
+            /// <remarks>
+            /// <c>/ip/route</c>'s <c>active</c> is the live one: the API prints <c>active=true|false</c>,
+            /// while the route window renders u22 as 'Contribution'
+            /// (filtered/unreachable/candidate/best candidate/active) — and the base window's own
+            /// <c>numflag</c> on that key says which member the flag stands for (<c>4:['active','A']</c>).
+            /// The derived field is ADDED, not substituted: the enum keeps its own name, so native still
+            /// reports the finer answer to anyone who wants it.
+            /// </remarks>
+            public readonly IReadOnlyDictionary<string, Tuple<string, string>>? DerivedBools;
+
             public FieldAliasSet(IReadOnlyDictionary<string, string> apiToJg, IReadOnlyDictionary<string, string> jgToApi,
                 IReadOnlyDictionary<int, string>? keyToApi = null, IReadOnlyDictionary<int, string>? keyUiType = null,
-                IReadOnlyDictionary<string, string>? addrPortPairs = null)
+                IReadOnlyDictionary<string, string>? addrPortPairs = null,
+                IReadOnlyDictionary<string, Tuple<string, string>>? derivedBools = null)
             {
                 ApiToJg = apiToJg; JgToApi = jgToApi;
                 KeyToApi = keyToApi ?? new Dictionary<int, string>();
                 KeyUiType = keyUiType ?? new Dictionary<int, string>();
                 AddrPortPairs = addrPortPairs;
+                DerivedBools = derivedBools;
             }
         }
 
@@ -339,6 +356,18 @@ namespace tik4net.Winbox
                     jgToApi: Ci(("autoneg", "auto-negotiation"),
                                ("auto-negotiation", "auto-negotiation-status"))),
 
+                // /ip/route: the API's `active` bool is the route window's 'Contribution' enum — one wire
+                // field (u22), two vocabularies. The base 'All Routes' window's numflag on that key
+                // (4:['active','A']) is what says which member the API's true stands for. Derived rather
+                // than renamed, so `contribution` survives alongside it.
+                ["/ip/route"] = new FieldAliasSet(
+                    apiToJg: Ci(),
+                    jgToApi: Ci(),
+                    derivedBools: new Dictionary<string, Tuple<string, string>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["active"] = Tuple.Create("contribution", "active"),
+                    }),
+
                 // /ip/upnp: the settings singleton's second field is labelled 'Allow To Disable External
                 // Interface' in WinBox and 'allow-disable-external-interface' in the API — one stray "to".
                 // Without the alias the entity read back a field name RouterOS never uses.
@@ -449,6 +478,12 @@ namespace tik4net.Winbox
                 return null;
             }
         }
+
+        /// <summary>
+        /// The bool fields this path derives from another decoded field — see
+        /// <see cref="FieldAliasSet.DerivedBools"/>. Empty for all but a handful of paths.
+        /// </summary>
+        internal IReadOnlyDictionary<string, Tuple<string, string>>? DerivedBoolFields => Aliases?.DerivedBools;
 
         // Rewrite an API field name to its .jg label (encode/resolve direction); identity when no alias.
         private string AliasToJg(string apiName)
@@ -1193,7 +1228,12 @@ namespace tik4net.Winbox
         // is allow:'46v%Dm', a /ip/route gateway is allow:'46i', and so on.
         internal const int AddrV4SubKey     = 0xFEFF20;   // ufeff20 — IPv4, u32 octet-LSB
         internal const int AddrV6SubKey     = 0xFEFF21;   // afeff21 — IPv6, 16 raw bytes big-endian
-        private  const int AddrIfaceSubKey  = 0xFEFF22;   // ufeff22 — '%iface' suffix (dropdown id)
+        internal const int AddrIfaceSubKey  = 0xFEFF22;   // ufeff22 — '%iface' suffix (dropdown id)
+
+        /// <summary>The dropdown an <c>addr</c>'s <c>%iface</c> qualifier names — the generic interface
+        /// table, the same [20,0] every <c>type:'enm'</c> interface reference resolves against.</summary>
+        internal static readonly int[] AddrIfaceRefHandler = { 20, 0 };
+
         private  const int AddrVrfSubKey    = 0xFEFF23;   // ufeff23 — '@vrf' suffix (dropdown id)
         internal const int AddrPrefixSubKey = 0xFEFF25;   // ufeff25 — '/len' prefix length, u32
         internal const int AddrDnsSubKey    = 0xFEFF26;   // sfeff26 — DNS name, string
