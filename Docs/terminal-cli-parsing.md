@@ -74,22 +74,22 @@ the `*N` format.
 ### Set
 
 ```
-/ip address set [find .id=*1] comment=updated-comment
+/ip address set [find where .id=*1] comment=updated-comment
 ```
 Output: empty (success).
 
 ### Remove
 
 ```
-/ip address remove [find .id=*1]
+/ip address remove [find where .id=*1]
 ```
 Output: empty (success).
 
 ### Enable / Disable
 
 ```
-/ip firewall filter enable [find .id=*1]
-/ip firewall filter disable [find .id=*1]
+/ip firewall filter enable [find where .id=*1]
+/ip firewall filter disable [find where .id=*1]
 ```
 
 ### Error output (examples)
@@ -144,7 +144,7 @@ Examples:
 
 **NameValue parameters** (`Format = NameValue`, API: `=name=value`):
 - For `add`: `name=value name2=value2 ...`
-- For `set`: extract `.id` → `[find .id=*N]`, the rest as `name=value`
+- For `set`: extract `.id` → `[find where .id=*N]`, the rest as `name=value`
 - For everything else (nonquery): `name=value ...`
 - Special case: `.proplist` is ignored (`as-value` always returns every field)
 
@@ -155,11 +155,11 @@ Operation is detected from the last segment of the path:
 ```
 print   → /path print as-value [where filter1=val && filter2=val]
 add     → :put [/path add name=val name2=val2]
-set     → /path set [find .id=*N] name=val name2=val2
-remove  → /path remove [find .id=*N]
-enable  → /path enable [find .id=*N]
-disable → /path disable [find .id=*N]
-move    → /path move [find .id=*N] destination=*M
+set     → /path set [find where .id=*N] name=val name2=val2
+remove  → /path remove [find where .id=*N]
+enable  → /path enable [find where .id=*N]
+disable → /path disable [find where .id=*N]
+move    → /path move [find where .id=*N] destination=*M
 get     → /path get .id=*N value-name=name  (alias for scalar)
 ```
 
@@ -173,10 +173,10 @@ API: /ip/address/add + =address=10.0.0.1/24 + =interface=ether1
 CLI: :put [/ip address add address=10.0.0.1/24 interface=ether1]
 
 API: /ip/address/set + =.id=*1 + =comment=test
-CLI: /ip address set [find .id=*1] comment=test
+CLI: /ip address set [find where .id=*1] comment=test
 
 API: /ip/address/remove + =.id=*1
-CLI: /ip address remove [find .id=*1]
+CLI: /ip address remove [find where .id=*1]
 
 API: /system/reboot (nonquery)
 CLI: /system reboot
@@ -437,7 +437,7 @@ public static class VtStripper
 
 | Method | Implementation over CLI | Note |
 |---|---|---|
-| `ExecuteNonQuery()` | `/path verb [find .id=*N] params` | empty output = success |
+| `ExecuteNonQuery()` | `/path verb [find where .id=*N] params` | empty output = success |
 | `ExecuteList()` | `/path print as-value [where ...]` | parses the lines |
 | `ExecuteSingleRow()` | `/path print as-value [where ...]` | asserts exactly 1 line |
 | `ExecuteScalar()` | `:put [/path get .id=*N value-name=x]` | scalar output |
@@ -463,8 +463,8 @@ The entity mapper (`LoadAll<T>()`, `Save<T>()`, `Delete<T>()`, …) calls:
 | `LoadAll<IpAddress>()` | `ExecuteList()` on `/ip/address/print` | `as-value` parsing → `CliReSentence` list |
 | `LoadById<IpAddress>("*1")` | `ExecuteSingleRow()` on `/ip/address/print ?=.id=*1` | 1 `as-value` line |
 | `Save<IpAddress>(newEntity)` | `ExecuteNonQuery()` on `/ip/address/add` with params | `:put [add ...]` → new `.id` |
-| `Save<IpAddress>(existing)` | `ExecuteNonQuery()` on `/ip/address/set` with `.id` + changes | `set [find .id=*N] ...` |
-| `Delete<IpAddress>(entity)` | `ExecuteNonQuery()` on `/ip/address/remove` with `.id` | `remove [find .id=*N]` |
+| `Save<IpAddress>(existing)` | `ExecuteNonQuery()` on `/ip/address/set` with `.id` + changes | `set [find where .id=*N] ...` |
+| `Delete<IpAddress>(entity)` | `ExecuteNonQuery()` on `/ip/address/remove` with `.id` | `remove [find where .id=*N]` |
 | `LoadSingle<SystemResource>()` | `ExecuteSingleRow()` on `/system/resource/print` | 1 `as-value` line (no `.id`) |
 
 **The entities mapper has no knowledge** of CLI — it only sees `ITikReSentence` objects, populated

@@ -284,7 +284,7 @@ namespace tik4net.Cli
         // ── Set ────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Builds a <c>/path set [find .id=*N] k=v …</c> command.
+        /// Builds a <c>/path set [find where .id=*N] k=v …</c> command.
         /// </summary>
         internal static string BuildSet(string apiPath, IList<ITikCommandParameter> parameters)
         {
@@ -301,7 +301,7 @@ namespace tik4net.Cli
         // ── Remove ─────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Builds a <c>/path remove [find .id=*N]</c> command.
+        /// Builds a <c>/path remove [find where .id=*N]</c> command.
         /// </summary>
         internal static string BuildRemove(string apiPath, IList<ITikCommandParameter> parameters)
         {
@@ -311,7 +311,7 @@ namespace tik4net.Cli
         // ── Simple verbs (enable / disable / move / unset) ────────────────────
 
         /// <summary>
-        /// Builds <c>/path verb [find .id=*N] [k=v …]</c> for simple verbs.
+        /// Builds <c>/path verb [find where .id=*N] [k=v …]</c> for simple verbs.
         /// </summary>
         internal static string BuildSimpleVerb(string apiPath, string verb, IList<ITikCommandParameter> parameters)
         {
@@ -532,13 +532,18 @@ namespace tik4net.Cli
 
         /// <summary>
         /// Appends the record identifier for set/remove/enable/disable/move. A real <c>.id</c> (<c>*N</c>) uses
-        /// <c>[find .id=*N]</c>. Any other value uses <c>[find .id=X or name=X]</c> so a NAME works too
+        /// <c>[find where .id=*N]</c>. Any other value uses <c>[find where .id=X or name=X]</c> so a NAME works too
         /// (<c>.id=ether1</c> alone matches nothing — the literal <c>.id</c> is <c>*N</c> — but
         /// <c>name=ether1</c> resolves it). Names-as-id are accepted directly by the binary API/native
         /// transports; this bridges the CLI gap. The <c>or name=…</c> clause is harmless on tables without a
         /// <c>name</c> field (it simply never matches), and a bogus id (e.g. <c>-NoID-</c>) still yields
-        /// "expected item id" → <see cref="TikNoSuchItemException"/>, preserving error fidelity. (Confirmed
-        /// live against RouterOS 7.21.4.)
+        /// "expected item id" → <see cref="TikNoSuchItemException"/>, preserving error fidelity.
+        /// <para>
+        /// The explicit <c>where</c> keyword is required as of RouterOS 7.24 — a bare <c>[find .id=X]</c>
+        /// is rejected with "bad parameter .id"/"bad parameter name" even for a well-formed <c>*N</c> id,
+        /// whereas <c>[find where .id=X]</c> still works. Earlier versions (confirmed on 7.21.4) accepted
+        /// both forms, so always emitting <c>where</c> keeps compatibility across the range.
+        /// </para>
         /// </summary>
         private static void AppendFindIdentifier(StringBuilder sb, string? idValue)
         {
@@ -547,14 +552,14 @@ namespace tik4net.Cli
             // netstandard2.0's string.IsNullOrEmpty isn't annotated NotNullWhen, so the compiler can't narrow.
             if (idValue!.StartsWith("*"))
             {
-                sb.Append(" [find .id=");
+                sb.Append(" [find where .id=");
                 sb.Append(idValue);
                 sb.Append(']');
             }
             else
             {
                 string q = QuoteIfNeeded(idValue)!; // idValue is non-null/non-empty here (guarded above), so QuoteIfNeeded's null-input branch cannot apply
-                sb.Append(" [find .id=");
+                sb.Append(" [find where .id=");
                 sb.Append(q);
                 sb.Append(" or name=");
                 sb.Append(q);
