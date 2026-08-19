@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -342,10 +343,16 @@ namespace tik4net.Winbox
                 // carrying the field could not resolve a key at all. 'Rate Limit (rx/tx)' is the same shape
                 // with the units written into the label.
                 //
-                // NOT aliased, deliberately, and for the reason given at /system/logging/action: the value
-                // form has to match too. 'Interim Update' (u8f) is the API's radius-interim-update, but the
-                // API prints it only on a profile with use-radius=yes, and this router's one profile has it
-                // off — so the NAME can be matched and the VALUE cannot, which is not enough to ship on.
+                // 'Interim Update' (u8f) is the same shape and was held back until the VALUE could be
+                // measured too — the rule at /system/logging/action. The API prints the field only on a
+                // profile with use-radius=yes, so it was measured on one: with radius-interim-update=5m the
+                // API says '5m' and the .jg interval decodes to '5m'. Shipped on that.
+                //   The one value that still differs is the sentinel: at 0 the API prints 'received' where
+                // native prints '0s'. That is RouterOS's own rendering of the zero interval, not a decode
+                // gap — the .jg declares a plain interval with no values map, so webfig shows 0s too. It is
+                // recorded here rather than in the audit's KnownValueGaps because the audit cannot see the
+                // field at all: the API prints nothing radius-related on a profile with use-radius=no, which
+                // is how the test router sits, and an entry that never fires is reported as a stale gap.
                 //
                 // 'HTTP Proxy' (u83) IS handled, by addrPortPairs below rather than by a name alias: the
                 // label already normalizes to the API's http-proxy, and what differed was the value.
@@ -353,12 +360,14 @@ namespace tik4net.Winbox
                     addrPortPairs: Ci(("http-proxy", "http-proxy-port")),
                     apiToJg: Ci(("radius-accounting", "accounting"),
                                ("radius-default-domain", "default-domain"),
+                               ("radius-interim-update", "interim-update"),
                                ("radius-location-id", "location-id"),
                                ("radius-location-name", "location-name"),
                                ("radius-mac-format", "mac-format"),
                                ("rate-limit", "rate-limit-(rx/tx)")),
                     jgToApi: Ci(("accounting", "radius-accounting"),
                                ("default-domain", "radius-default-domain"),
+                               ("interim-update", "radius-interim-update"),
                                ("location-id", "radius-location-id"),
                                ("location-name", "radius-location-name"),
                                ("mac-format", "radius-mac-format"),
@@ -723,6 +732,39 @@ namespace tik4net.Winbox
             // ── typed UI encodings (more specific than the wire type) ──
             switch (uiType)
             {
+                case "interval":
+                {
+                    // The inverse of WinboxRecordCodec's interval decode, and it has to exist for the same
+                    // reason the decode does: the wire carries a COUNT of 1/scale-second units, while the API
+                    // spells the same value "5m" / "1w" / "500ms". Without this, "5m" failed long.TryParse in
+                    // the generic u32 branch and went out as the STRING "5m" — which the router accepts,
+                    // answers with status 0, and ignores, so the write silently did nothing.
+                    if (value.Length == 0) return result;
+                    // A named value wins, exactly as on the way back (e.g. 'immediately' / 'never').
+                    if (jg?.EnumMap != null)
+                    {
+                        foreach (var kv in jg.EnumMap)
+                            if (string.Equals(kv.Value, value, StringComparison.OrdinalIgnoreCase))
+                            {
+                                result.Add(EncodeU32(key, unchecked((uint)kv.Key)));
+                                return result;
+                            }
+                    }
+                    if (TryParseDuration(value, jg?.Scale ?? 1, out long ticks))
+                    {
+                        result.Add(EncodeU32(key, unchecked((uint)ticks)));
+                        return result;
+                    }
+                    // Not a duration and not a named value. Refused rather than sent as text: text on a
+                    // numeric key is the silent no-op this case exists to remove.
+                    throw new WinboxFieldResolutionException(
+                        $"WinBox native: '{value}' is not a valid interval for field '{apiName}' on "
+                        + $"'{_apiPath}'. Expected a RouterOS duration (\"5m\", \"1w2d\", \"500ms\"), a plain "
+                        + "number of seconds"
+                        + (jg?.EnumMap != null
+                            ? ", or one of: " + string.Join(", ", jg.EnumMap.Values) + "."
+                            : "."));
+                }
                 case "network":
                 {
                     // Empty → unset (send nothing).
@@ -942,6 +984,123 @@ namespace tik4net.Winbox
                     break;
             }
             return result;
+        }
+
+        /// <summary>
+        /// Parses a RouterOS duration into the <paramref name="scale"/>-per-second unit the wire carries —
+        /// the inverse of <c>WinboxRecordCodec.FormatDuration</c>, which is why the unit table and the
+        /// millisecond handling are the same ones.
+        /// </summary>
+        /// <remarks>
+        /// <para>RouterOS spells the same value three ways and accepts all of them, so all three are read
+        /// here: the unit form ("5m", "1w2d3h", "1m30s", "500ms"), the clock form ("00:05:00", "1:00:00",
+        /// optionally with a "1d " or "1w2d" prefix and a ".500" fraction), and a bare count of seconds.
+        /// The clock form is not an exotic input — it is what <c>/system/scheduler</c> prints for
+        /// <c>interval</c> and what <c>/ip/hotspot/user</c> prints for <c>limit-uptime</c>.</para>
+        /// <para>A bare number means SECONDS, which is what RouterOS means by one. It is scaled like any
+        /// other value: on a <c>scale:100</c> field the wire wants hundredths, so sending the number through
+        /// raw (what the generic u32 branch did) was already off by the scale factor.</para>
+        /// </remarks>
+        internal static bool TryParseDuration(string value, int scale, out long ticks)
+        {
+            ticks = 0;
+            if (scale < 1) scale = 1;
+            string s = value.Trim();
+            if (s.Length == 0) return false;
+
+            bool negative = s[0] == '-';
+            if (negative || s[0] == '+') s = s.Substring(1);
+            if (s.Length == 0) return false;
+
+            long milliseconds = 0;
+            int i = 0;
+            bool any = false;
+            while (i < s.Length)
+            {
+                if (s[i] == ' ') { i++; continue; }        // "1d 00:05:00" — the separator RouterOS may print
+
+                int digitsStart = i;
+                while (i < s.Length && s[i] >= '0' && s[i] <= '9') i++;
+                if (i == digitsStart) return false;                       // a unit with no number in front
+                if (!long.TryParse(s.Substring(digitsStart, i - digitsStart),
+                        NumberStyles.None, CultureInfo.InvariantCulture, out long n))
+                    return false;                                          // overflow
+
+                // A ':' means the rest is a clock group, which is a whole value rather than one component.
+                if (i < s.Length && s[i] == ':')
+                {
+                    if (!TryParseClock(n, s.Substring(i), out long clockMs)) return false;
+                    milliseconds += clockMs;
+                    any = true;
+                    break;
+                }
+
+                int unitStart = i;
+                while (i < s.Length && !(s[i] >= '0' && s[i] <= '9') && s[i] != ' ') i++;
+                string unit = s.Substring(unitStart, i - unitStart).ToLowerInvariant();
+
+                long perUnitMs;
+                switch (unit)
+                {
+                    case "w": perUnitMs = 604800000L; break;
+                    case "d": perUnitMs = 86400000L; break;
+                    case "h": perUnitMs = 3600000L; break;
+                    case "m": perUnitMs = 60000L; break;
+                    case "s": perUnitMs = 1000L; break;
+                    case "ms": perUnitMs = 1L; break;
+                    case "":
+                        // A bare number is seconds — but only as the WHOLE value. A unitless component
+                        // trailing units ("5m3") is not something RouterOS prints and not something whose
+                        // intent is knowable, so it is refused rather than read as "and 3 seconds".
+                        if (any) return false;
+                        perUnitMs = 1000L;
+                        break;
+                    default: return false;
+                }
+                milliseconds += n * perUnitMs;
+                any = true;
+            }
+            if (!any) return false;
+
+            ticks = milliseconds * scale / 1000;
+            if (negative) ticks = -ticks;
+            return true;
+        }
+
+        /// <summary>
+        /// The clock half of <see cref="TryParseDuration"/>: <paramref name="hours"/> already read, and
+        /// <paramref name="rest"/> starting at the first ':' — <c>:MM:SS</c> with an optional <c>.fff</c>.
+        /// </summary>
+        /// <remarks>
+        /// Only the three-part form is accepted. RouterOS always prints hours:minutes:seconds, and a
+        /// two-part "05:00" could as reasonably mean five minutes as five hours — a guess on a value the
+        /// caller is writing to the router, so it is refused instead.
+        /// </remarks>
+        private static bool TryParseClock(long hours, string rest, out long milliseconds)
+        {
+            milliseconds = 0;
+            string[] parts = rest.Split(':');
+            // rest starts with ':', so parts[0] is empty and the clock's minutes/seconds are parts[1..2].
+            if (parts.Length != 3 || parts[0].Length != 0) return false;
+
+            if (!long.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out long minutes))
+                return false;
+
+            string secondsPart = parts[2];
+            long fractionMs = 0;
+            int dot = secondsPart.IndexOf('.');
+            if (dot >= 0)
+            {
+                string frac = secondsPart.Substring(dot + 1).PadRight(3, '0').Substring(0, 3);
+                if (!long.TryParse(frac, NumberStyles.None, CultureInfo.InvariantCulture, out fractionMs))
+                    return false;
+                secondsPart = secondsPart.Substring(0, dot);
+            }
+            if (!long.TryParse(secondsPart, NumberStyles.None, CultureInfo.InvariantCulture, out long seconds))
+                return false;
+
+            milliseconds = ((hours * 60 + minutes) * 60 + seconds) * 1000 + fractionMs;
+            return true;
         }
 
         // Parse a RouterOS number-range list ("10,20-30,4000") into the flat [lo,hi,lo,hi,…] u32 array webfig

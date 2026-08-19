@@ -79,8 +79,13 @@ namespace tik4net.Objects.Ip.Hotspot
         [TikProperty("radius-accounting", DefaultValue = "yes")]
         public bool? RadiusAccounting { get; set; }
 
-        /// <summary>radius-interim-update — interval for sending RADIUS accounting interim-update packets. Default: 0s (disabled).</summary>
-        [TikProperty("radius-interim-update", DefaultValue = "0s")]
+        /// <summary>
+        /// radius-interim-update — interval for sending RADIUS accounting interim-update packets, e.g. "5m".
+        /// Default: <c>received</c> — RouterOS's word for the zero interval, meaning it follows whatever the
+        /// RADIUS server asked for rather than sending on a schedule. The API prints the field only on a
+        /// profile with <c>use-radius=yes</c>.
+        /// </summary>
+        [TikProperty("radius-interim-update", DefaultValue = "received")]
         public string?/*time*/ RadiusInterimUpdate { get; set; }
 
         /// <summary>radius-default-domain — domain appended to username for RADIUS lookups when no domain is specified.</summary>

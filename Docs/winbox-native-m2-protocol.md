@@ -589,6 +589,23 @@ Zero is `0s` and not the empty string: the field has a value, and empty would re
 Closed by this: `cache-max-ttl`, `interim-update` (three paths), `group-key-update`,
 `ping-start-after-boot`, and `/ip/ipsec/proposal` `lifetime` (`1800` → `30m`).
 
+**Writing one needs the inverse, and did not have it.** `WinboxFieldResolver.EncodeField` had no
+`interval` case, so a duration fell through to the generic `u32` branch, failed `long.TryParse` on "5m",
+and went out as the **string** `"5m"` on a numeric key — which the router accepts, answers with status 0,
+and ignores. A write that reported success and changed nothing, on every interval field. The encoder now
+mirrors this section: a named value first, then the duration, times `scale`.
+
+RouterOS spells a duration three ways and accepts all three, so all three are read back in: the unit form
+(`5m`, `1w2d3h`, `500ms`), the **clock form** (`00:05:00`, `1:00:00`, with an optional `1d ` prefix and a
+`.500` fraction) — which is what `/system/scheduler` prints for `interval` and `/ip/hotspot/user` for
+`limit-uptime`, so an encoder that only knew the unit form would refuse the router's own spelling — and a
+bare number, meaning seconds and scaled like anything else. Anything else raises
+`WinboxFieldResolutionException` rather than being sent as text; a two-part clock (`05:00`) is refused
+too, because five minutes and five hours are equally plausible readings of it.
+
+Measured live: `/ip/hotspot/profile` `radius-interim-update=7m` over `WinboxNative` goes out as
+`0x8F=u32:420` (was `0x8F=str:7m`) and the API reads back `7m`.
+
 **`type:'age'` is a different thing wearing the same clothes** and is NOT decoded yet:
 
 ```js
