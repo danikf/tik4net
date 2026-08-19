@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -50,6 +51,15 @@ namespace tik4net.Winbox
         // atomic on every platform this targets and an approximate count is exactly what the message needs.
         private long _framesRead;
         private long _lastFrameTicks;
+
+        /// <summary>
+        /// How often a waiting request asks the carrier whether the session is still alive
+        /// (<see cref="IWinboxM2Channel.SendAbandoned"/>). The MAC layer spends its retransmit budget in
+        /// about 3.2 s, so this resolves a dead session in roughly that time instead of a full
+        /// <see cref="ITikConnection.ReceiveTimeout"/>, while staying far too coarse to matter to a reply
+        /// that is merely late.
+        /// </summary>
+        private const int DeadSessionPollIntervalMs = 250;
 
         /// <summary>
         /// Invoked for an inbound frame that carries no request id, or one whose id has no pending
@@ -159,17 +169,47 @@ namespace tik4net.Winbox
                 // The deadline and the token are raced against the reply rather than folded into a socket
                 // timeout: the reader loop owns the read side with no per-read deadline of its own, precisely
                 // so a timeout can never fire mid-frame and desynchronize the stream (design §4.2a).
+                //
+                // The race is run in slices rather than as one Task.Delay so the carrier can be asked, while
+                // the wait is still going, whether the session is gone (G1). Waiting the whole deadline out
+                // and then reporting "no reply" would be reporting the symptom at the wrong layer: on the MAC
+                // carrier the router logs an idle session out, keeps the UDP socket open and answers nothing,
+                // and the transport has already retransmitted to exhaustion by then and knows it.
                 using (var giveUp = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
                 {
-                    var timeout = Task.Delay(timeoutMs, giveUp.Token);
-                    var finished = await Task.WhenAny(tcs.Task, timeout).ConfigureAwait(false);
-                    giveUp.Cancel();          // stop the timer whichever way this ended
-
-                    if (finished != tcs.Task)
+                    try
                     {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        throw new TimeoutException(
-                            $"No WinBox M2 reply for request id {id} within {timeoutMs} ms. {ChannelActivity()}");
+                        var elapsed = Stopwatch.StartNew();
+                        while (true)
+                        {
+                            int remaining = timeoutMs - (int)elapsed.ElapsedMilliseconds;
+                            if (remaining <= 0)
+                            {
+                                cancellationToken.ThrowIfCancellationRequested();
+                                throw new TimeoutException(
+                                    $"No WinBox M2 reply for request id {id} within {timeoutMs} ms. {ChannelActivity()}");
+                            }
+
+                            var slice = Task.Delay(Math.Min(remaining, DeadSessionPollIntervalMs), giveUp.Token);
+                            if (await Task.WhenAny(tcs.Task, slice).ConfigureAwait(false) == tcs.Task)
+                                break;
+
+                            cancellationToken.ThrowIfCancellationRequested();
+
+                            // Only asked once the reply is late, and only meaningful on a carrier that
+                            // acknowledges what it sends — WinboxM2Session answers a constant false, so this
+                            // costs TCP one property read per slice and changes nothing there.
+                            if (_channel.SendAbandoned)
+                                throw new TikConnectionSessionClosedException(
+                                    $"WinBox M2: the router stopped acknowledging this session — it did not take the "
+                                    + $"bytes of request id {id}, so the command did not run. RouterOS drops an idle "
+                                    + "MAC-layer session after about 30 s without closing the socket or reporting an "
+                                    + $"error, so the session goes silent rather than failing. {ChannelActivity()}");
+                        }
+                    }
+                    finally
+                    {
+                        giveUp.Cancel();      // stop the pending slice whichever way this ended
                     }
                 }
 

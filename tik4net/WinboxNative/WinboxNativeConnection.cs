@@ -97,6 +97,18 @@ namespace tik4net.WinboxNative
         // (see WinboxJgCatalog.Load); the empty default keeps pre-open access harmless.
         private WinboxJgCatalog _catalog = new WinboxJgCatalog();
 
+        // What Open was given, kept so a session the router dropped can be rebuilt without the caller
+        // (see ReopenAsync). The password lives no longer than the connection does and no more exposed
+        // than the MAC-Telnet transport's, which captures the same four values in its reopen closure.
+        private string _host = null!, _user = null!, _password = null!;
+        private int _port;
+
+        // Guards the rebuild, and tells a caller that arrives with a stale session from one that has to do
+        // the rebuilding: _sessionGeneration advances once per successful reopen, so two commands failing on
+        // the same dead session produce one reopen and not two.
+        private readonly SemaphoreSlim _reopenLock = new SemaphoreSlim(1, 1);
+        private int _sessionGeneration;
+
         // ── Session configuration (set before/after open) ──────────────────────
 
         /// <summary>
@@ -190,6 +202,19 @@ namespace tik4net.WinboxNative
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
         {
+            _host = host;
+            _port = port;
+            _user = user;
+            _password = password;
+            OpenChannel();
+        }
+
+        // The open proper, split out so the reopen path (see ReopenAsync) can repeat it verbatim rather
+        // than keeping a second, drifting copy of the login sequence.
+        private void OpenChannel()
+        {
+            string host = _host, user = _user, password = _password;
+            int port = _port;
             IWinboxM2Channel? session = null;
             // A refused handshake leaves the channel unusable, so the retry builds a fresh one rather
             // than reopening this one — see RouterLoginRetry for why a WinBox login is retried at all.
@@ -395,11 +420,72 @@ namespace tik4net.WinboxNative
         internal override async Task<IList<TikRecordSentence>> RunPrintAsync(
             TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
-            // Gate the M2 channel (see EnterCommand): a no-op when multiplexed, a real lock on the lockstep
-            // MAC path, where a concurrent CRUD call or monitor poll would otherwise interleave with ours.
-            // Background workers enter the gate themselves and call RunPrintCore directly (not reentrant).
-            using (await EnterCommandAsync(cancellationToken).ConfigureAwait(false))
-                return await RunPrintCoreAsync(descriptor, cancellationToken).ConfigureAwait(false);
+            int generation = _sessionGeneration;
+            try
+            {
+                // Gate the M2 channel (see EnterCommand): a no-op when multiplexed, a real lock on the lockstep
+                // MAC path, where a concurrent CRUD call or monitor poll would otherwise interleave with ours.
+                // Background workers enter the gate themselves and call RunPrintCore directly (not reentrant).
+                using (await EnterCommandAsync(cancellationToken).ConfigureAwait(false))
+                    return await RunPrintCoreAsync(descriptor, cancellationToken).ConfigureAwait(false);
+            }
+            catch (TikConnectionSessionClosedException) when (ReconnectAllowed)
+            {
+                // G1. The router dropped an idle session and said nothing; the carrier established that it
+                // never took our bytes, so nothing ran and re-running is not a second execution. Only reads
+                // come through here — RunAdd/RunNonQuery deliberately do not retry, because "the bytes were
+                // never acknowledged" is a statement about the CARRIER, and re-adding a row on the strength
+                // of it is a guess this transport must not make.
+                await ReopenAsync(generation, cancellationToken).ConfigureAwait(false);
+                using (await EnterCommandAsync(cancellationToken).ConfigureAwait(false))
+                    return await RunPrintCoreAsync(descriptor, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Whether a dropped session may be rebuilt underneath the caller. Safe Mode is the one case where it
+        /// must not be: dropping the session is precisely what rolls Safe Mode's changes back, so opening a
+        /// new one would hide the event the caller asked to be protected by — and the new session would not
+        /// hold Safe Mode either. Mirrors <c>MacTelnetConnection.ReconnectAllowed</c>.
+        /// </summary>
+        private bool ReconnectAllowed => !SafeModeHeld;
+
+        /// <summary>
+        /// Rebuilds the M2 channel after the router dropped the session (G1), unless another caller has
+        /// already done it — <paramref name="observedGeneration"/> is what the caller saw before its command
+        /// failed, so a session that has moved on since means the work is done and this returns.
+        /// </summary>
+        /// <remarks>
+        /// A running streaming monitor does not survive this, and does not have to: the monitor's own poll
+        /// traffic is what keeps the session from ever going idle, so a monitor and a dropped-idle session are
+        /// not a combination the router produces.
+        /// </remarks>
+        private async Task ReopenAsync(int observedGeneration, CancellationToken cancellationToken)
+        {
+            await _reopenLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (_sessionGeneration != observedGeneration) return;   // someone else rebuilt it already
+
+                TikWireTrace.Emit("wbx.session", TikWireDir.Note,
+                    "the router dropped this M2 session while it was idle — reopening and reissuing the read");
+
+                _mux?.Dispose();
+                _mux = null;
+                try { _session?.Dispose(); } catch { /* the old session is gone anyway */ }
+                SetClosed();
+
+                // The same login sequence Open runs, credentials included — a reopen that diverged from the
+                // open would be a second way of establishing a session, with its own bugs. It blocks this
+                // thread for the handshake, for the reason OpenAsync states: the EC-SRP5 exchange has no
+                // awaitable form, and wrapping it in a Task.Run here would only move the block elsewhere.
+                OpenChannel();
+                _sessionGeneration = observedGeneration + 1;
+            }
+            finally
+            {
+                _reopenLock.Release();
+            }
         }
 
         private IList<TikRecordSentence> RunPrintCore(TikCommandDescriptor descriptor)

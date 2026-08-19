@@ -184,6 +184,42 @@ load — from any connection, the ceiling is aggregate — clamps round trips fr
 roughly 20 ms, arriving on TCP as a batch of replies after a stretch of silence (see
 [findings-router-throughput-ceiling.md](findings-router-throughput-ceiling.md)).
 
+## 8a. A dropped session is asked about, not waited out
+
+RouterOS drops an idle MAC-layer session after about 30 s. It closes no socket and sends no error, so
+the session goes **silent**: the next `getall` is simply never answered. Waiting the deadline out and
+reporting "no reply" would name the symptom at the wrong layer — by then the carrier has known the
+answer for tens of seconds, because `MacLayerTransport` retransmitted the request to exhaustion
+(8 tries, ~3.2 s) and was never acknowledged.
+
+So `SendReceiveAsync` runs its race in 250 ms slices rather than as one `Task.Delay`, and asks
+`IWinboxM2Channel.SendAbandoned` between them. When it is set the waiter fails with
+`TikConnectionSessionClosedException` — the same type MAC-Telnet raises for the same event — instead
+of a `TimeoutException`. `WinboxM2Session` (TCP) answers a constant `false`: nothing below it
+acknowledges individual messages, so this costs TCP one property read per slice and changes nothing
+there.
+
+`WinboxNativeConnection.RunPrintAsync` catches that exception and **reopens the channel and reissues
+the read**, which is what `MacTelnetConnection` has always done for the CLI transports. Three limits
+make the retry honest rather than a guess:
+
+- **Reads only.** `RunAdd`/`RunNonQuery` do not retry. "The bytes were never acknowledged" is a
+  statement about the carrier, and re-adding a row on the strength of it is a guess this transport
+  must not make; a read is idempotent and re-running it is not a second execution.
+- **Not while Safe Mode is held.** Dropping the session is precisely what rolls Safe Mode's changes
+  back, so a silent reopen would hide the event the caller asked to be protected by — and the new
+  session would not hold Safe Mode either.
+- **Once per dead session, not once per caller.** A generation counter guarded by a semaphore means
+  two commands failing on the same session produce one reopen; the second sees the generation has
+  moved and retries on the session the first built.
+
+A running streaming monitor does not survive a reopen and does not have to: its own poll traffic is
+what keeps the session from ever going idle, so a monitor and a dropped-idle session are not a
+combination the router produces.
+
+Measured on the lab CHR (`WinboxNativeMac`, `/queue/type` — 10 rows, 60 s idle, read again):
+`TimeoutException` after 30 006 ms before, 10 rows in 3 845 ms after.
+
 ## 9. Unmatched frames
 
 A frame with no `0xFF0006`, or one whose id has no pending registration (a late reply after a
@@ -246,6 +282,10 @@ answering the hello with a non-`0x06` frame tag) without RouterOS on the other e
   pre-cancelled token writes nothing, cancelling an in-flight request frees the caller while its late
   reply is reported unmatched rather than delivered to the next caller, two awaited callers each get
   their own reply, and one caller's short deadline does not affect another's.
+- `WinboxM2DeadSessionTests` covers §8a against a fake channel — the TCP double cannot produce
+  `SendAbandoned`, since the signal only exists on a carrier that acknowledges what it sends: a
+  waiter fails as a closed session promptly when the carrier gives up, and a merely slow channel
+  still times out as a `TimeoutException`.
 - `WinboxM2PaginationTests` covers `getall` continuation, including the message-array continuation
   form (`RecordKey.ContinuationRaw`/`mfe0015`) alongside the plain one (`RecordKey.Continuation`).
 - `tik4net.unittests/MacTelnet/MacLayerRetransmitTests.cs` covers the MAC-layer retransmit queue

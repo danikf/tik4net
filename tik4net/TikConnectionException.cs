@@ -197,15 +197,18 @@ namespace tik4net
     /// so a command was never executed.
     /// </summary>
     /// <remarks>
-    /// <para>The case this exists for is the MAC-Telnet console: RouterOS logs an idle terminal session out
-    /// after roughly 30 seconds and says so in its own log (<c>user … logged out via mac-telnet</c>). It
+    /// <para>The case this exists for is an idle MAC-layer session: RouterOS logs an idle terminal session
+    /// out after roughly 30 seconds and says so in its own log (<c>user … logged out via mac-telnet</c>). It
     /// does not close the UDP socket and it sends no error, so from the client side the session simply
     /// stops answering — and before this type existed that surfaced as a full <see cref="ITikConnection.ReceiveTimeout"/>
-    /// worth of waiting followed by "nothing was received", which names the symptom and not the cause.</para>
+    /// worth of waiting followed by "nothing was received", which names the symptom and not the cause.
+    /// The same happens to a WinBox-MAC session carrying structured M2 rather than a terminal.</para>
     /// <para>It is only thrown when the router <b>never acknowledged the command's bytes</b>, which is what
-    /// makes it safe to say the command did not run: MAC-Telnet acknowledges the terminal byte stream, so an
-    /// unacknowledged command cannot have reached the console. The transport re-opens the session and retries
-    /// once by itself; this exception means that retry also failed.</para>
+    /// makes it safe to say the command did not run: the MAC layer acknowledges what it carries, so an
+    /// unacknowledged command cannot have reached the router. The transport re-opens the session and retries
+    /// once by itself; this exception means that retry also failed, or that the command was not one that may
+    /// be retried — <c>WinboxNativeMacConnection</c> re-runs a READ, never an <c>add</c>/<c>set</c>, and
+    /// nothing is re-run while Safe Mode is held (dropping the session is what rolls Safe Mode back).</para>
     /// </remarks>
     public class TikConnectionSessionClosedException : TikConnectionException
     {
