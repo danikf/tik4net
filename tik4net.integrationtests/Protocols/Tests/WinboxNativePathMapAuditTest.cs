@@ -42,32 +42,23 @@ namespace tik4net.integrationtests
             "/system/reboot", "/system/shutdown", "/system/reset-configuration", "/system/script/run",
         };
 
-        // Paths that reach the RIGHT window but whose FIELD vocabulary still differs from the API's. These
-        // are decode-layer gaps (label ↔ api-name), not path-map gaps, and each is diagnosed here so a new
-        // one cannot hide among them. Measured on RouterOS 7.23.2, 2026-08-15.
+        // Paths that reach the RIGHT window but whose FIELD vocabulary still differs from the API's — a
+        // decode-layer gap (label <-> api-name), not a path-map one. EMPTY, and meant to stay that way: an
+        // entry here excuses a whole path's field set, so anything added must be a difference the router
+        // itself imposes. The last occupant was /system/health, whose reason said state/state-after-reboot
+        // were "API-only fields with no WinBox equivalent" — the router sends both at [24,14] 0x8/0x9 and
+        // no .jg window names those keys, which is a gap in us, not in WinBox (G10). A path that agrees
+        // must leave this table in the same change; the stale check below enforces it.
         private static readonly Dictionary<string, string> KnownFieldGaps = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            // A CHR has no hardware sensors, so the board-gated half of this window is genuinely empty.
-            //
-            // The OTHER half is ours, and the reason here used to say the opposite: 'state/
-            // state-after-reboot are API-only fields with no WinBox equivalent'. The router sends both.
-            // Measured on 7.24, a getall on [24,14] answers `0x8=bool:False 0x9=bool:True` against the
-            // API's `state=disabled state-after-reboot=enabled` — we drop them because no .jg window names
-            // those two keys ('Settings' is fan control, 'System Health' is x86-gated voltages and temps),
-            // and the decoder drops unnamed keys. Closable with a KeyToApi alias, the same mechanism
-            // /ping's unnamed responder key already uses. Open as its own item, not part of G3.
-            ["/system/health"] = "board-gated singleton (no sensors on a CHR); state/state-after-reboot ARE on the wire at [24,14] 0x8/0x9 and we do not name the keys",
         };
 
-        // Paths WinBox genuinely does not expose as a readable window, verified against the router's own .jg
-        // catalog rather than assumed. These stay unmapped by design — the alternative would be pointing an
-        // alias at some other window, i.e. answering with the wrong table.
-        private static readonly Dictionary<string, string> NoWinboxWindow = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            // WinBox shows BGP advertisements through the 'Dump Advertisements' ACTION on the session window
-            // ([44,33] dump-adv), not as a table of its own — there is nothing to getall.
-            ["/routing/bgp/advertisements"] = "WinBox exposes it as the session window's dump-adv action, not a table",
-        };
+        // Paths WinBox genuinely does not expose as a readable window. The list is NOT kept here: it lives
+        // in the library (WinboxHandlerMap.NoWinboxWindow), because the transport needs it too — a path with
+        // no window raises an error saying so, instead of the "add a PathAlias" advice that fits a genuine
+        // mapping gap. One table, so the runtime error and this test cannot drift apart.
+        private static readonly IReadOnlyDictionary<string, string> NoWinboxWindow =
+            tik4net.Winbox.WinboxHandlerMap.NoWinboxWindow;
 
         private static IEnumerable<string> EntityPaths()
         {
@@ -336,6 +327,9 @@ namespace tik4net.integrationtests
                     if (valueDiffs.Count == 0)
                     {
                         agreed++;
+                        // Same rule one level up: a path listed as a FIELD gap that now agrees on rows,
+                        // names and values has no gap left to excuse.
+                        if (KnownFieldGaps.ContainsKey(path)) staleGaps.Add(path + " (KnownFieldGaps)");
                         var excused = ExceptionsFor(path);
                         report.Add($"OK         {path}\trows={a.RowCount}\tshared fields={shared}/{a.FieldNames.Count}"
                                    + (excused != null ? "\tnot compared: " + string.Join(", ", excused.Keys) : ""));
@@ -362,7 +356,7 @@ namespace tik4net.integrationtests
             Assert.AreEqual(0, valueMismatched,
                 "paths that read the right window but decode a value the API spells differently — see the report");
             Assert.AreEqual(0, staleGaps.Count,
-                "these fields now agree with the API and must be removed from ValueComparisonExceptions: "
+                "these now agree with the API and must be removed from the table naming them: "
                 + string.Join(", ", staleGaps));
         }
     }

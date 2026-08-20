@@ -1355,6 +1355,16 @@ namespace tik4net.WinboxNative
         private TikPathNotMappedException PathNotMapped(string commandText, string apiPath)
         {
             var cmd = new TikGenericCommand(this, commandText);
+
+            // A path WinBox has no window for is a different answer from a path we failed to map, and the
+            // advice is the opposite: there is no alias to add, because there is nothing to point one at.
+            // Telling the caller to write one would send them looking for a window that does not exist.
+            if (WinboxHandlerMap.NoWinboxWindow.TryGetValue(WinboxHandlerMap.Normalize(apiPath), out string why))
+                return new TikPathNotMappedException(cmd, apiPath,
+                    $"WinBox native: '{apiPath}' has no WinBox window. {why}. This is not a mapping gap — " +
+                    "the request was never sent, and no PathAlias or PathOverride can help. Use an " +
+                    "Api/REST/CLI connection for this path.");
+
             return new TikPathNotMappedException(cmd, apiPath,
                 $"WinBox native: no M2 handler mapping for path '{apiPath}'. " +
                 $"This is a gap in tik4net's WinBox path map, not a statement about the router — the request " +
@@ -1376,6 +1386,11 @@ namespace tik4net.WinboxNative
                 // refusal.
                 throw PathNotMapped(apiPath, apiPath);
             }
+            // The same board-gated swap the read path makes. Without it a write to /system/health resolved
+            // the RouterBOARD map window, which is not a singleton, so the write asked for a record .id the
+            // path has no records to supply and failed with "could not resolve record .id ''" — a read that
+            // works and a write that cannot is the split this line closes.
+            handler = PreferSingletonHealthHandler(apiPath, handler);
             var resolver = MakeResolver(apiPath, handler);
             return (handler, resolver);
         }

@@ -67,9 +67,11 @@ namespace tik4net.Winbox
                 if (_fields != null) return _fields;
                 var handlerFields = _catalog?.GetHandlerFields(_handler);
                 var windowFields = _catalog?.GetWindowFields(_windowKey);
+                var synthetic = Aliases?.SyntheticFields;
                 bool hasWindow = windowFields != null && windowFields.Count > 0;
                 bool hasAction = _actionFields != null && _actionFields.Count > 0;
-                if (!hasWindow && !hasAction) return _fields = handlerFields;
+                bool hasSynthetic = synthetic != null && synthetic.Count > 0;
+                if (!hasWindow && !hasAction && !hasSynthetic) return _fields = handlerFields;
 
                 var merged = new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase);
                 if (handlerFields != null)
@@ -80,6 +82,10 @@ namespace tik4net.Winbox
                     foreach (var kv in windowFields) merged[kv.Key] = kv.Value;   // the window wins
                 if (hasAction && _actionFields != null)
                     foreach (var kv in _actionFields) merged[kv.Key] = kv.Value;  // the action wins over both
+                // A shipped synthetic field wins over all of them: it exists precisely because the catalog
+                // does not describe the key, so there is nothing here it can be overriding by accident.
+                if (hasSynthetic && synthetic != null)
+                    foreach (var kv in synthetic) merged[kv.Key] = kv.Value;
                 return _fields = merged;
             }
         }
@@ -99,6 +105,10 @@ namespace tik4net.Winbox
         /// </remarks>
         private IEnumerable<KeyValuePair<string, WinboxJgField>> JgFieldsSpecificFirst()
         {
+            // Most specific of all: the catalog does not name these keys at all, so nothing else can.
+            var synthetic = Aliases?.SyntheticFields;
+            if (synthetic != null)
+                foreach (var kv in synthetic) yield return kv;
             if (_actionFields != null)
                 foreach (var kv in _actionFields) yield return kv;
             var windowFields = _catalog?.GetWindowFields(_windowKey);
@@ -224,16 +234,31 @@ namespace tik4net.Winbox
             /// </remarks>
             public readonly IReadOnlyDictionary<string, Tuple<string, string>>? DerivedBools;
 
+            /// <summary>
+            /// Fields the ROUTER sends but no <c>.jg</c> window names, supplied here so the resolver can
+            /// read, resolve and write them like any catalogued field. Keyed by API name.
+            /// </summary>
+            /// <remarks>
+            /// Different from <see cref="KeyToApi"/>, which only names a key for decode: a synthetic field
+            /// carries its wire type and enum map too, so it also resolves for a WRITE. Ship one only where
+            /// the router has been observed sending the key AND the pairing has been confirmed by changing
+            /// the value and watching the key move — a name guessed onto a key writes to whatever that key
+            /// really is.
+            /// </remarks>
+            public readonly IReadOnlyDictionary<string, WinboxJgField>? SyntheticFields;
+
             public FieldAliasSet(IReadOnlyDictionary<string, string> apiToJg, IReadOnlyDictionary<string, string> jgToApi,
                 IReadOnlyDictionary<int, string>? keyToApi = null, IReadOnlyDictionary<int, string>? keyUiType = null,
                 IReadOnlyDictionary<string, string>? addrPortPairs = null,
-                IReadOnlyDictionary<string, Tuple<string, string>>? derivedBools = null)
+                IReadOnlyDictionary<string, Tuple<string, string>>? derivedBools = null,
+                IReadOnlyDictionary<string, WinboxJgField>? syntheticFields = null)
             {
                 ApiToJg = apiToJg; JgToApi = jgToApi;
                 KeyToApi = keyToApi ?? new Dictionary<int, string>();
                 KeyUiType = keyUiType ?? new Dictionary<int, string>();
                 AddrPortPairs = addrPortPairs;
                 DerivedBools = derivedBools;
+                SyntheticFields = syntheticFields;
             }
         }
 
@@ -243,6 +268,13 @@ namespace tik4net.Winbox
             foreach (var (k, v) in pairs) d[k] = v;
             return d;
         }
+
+        // /system/health's two states, as RouterOS spells them.
+        private static readonly Dictionary<int, string> HealthStateMap = new Dictionary<int, string>
+        {
+            [0] = "disabled",
+            [1] = "enabled",
+        };
 
         private static readonly Dictionary<string, FieldAliasSet> ShippedFieldAliases =
             new Dictionary<string, FieldAliasSet>(StringComparer.OrdinalIgnoreCase)
@@ -366,6 +398,33 @@ namespace tik4net.Winbox
                     derivedBools: new Dictionary<string, Tuple<string, string>>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["active"] = Tuple.Create("contribution", "active"),
+                    }),
+
+                // /system/health: the router sends both of the API's fields and the catalog names neither.
+                //
+                // [24,14] hosts two .jg windows — 'Settings' (fan control) and the x86-gated 'System Health'
+                // (voltages and temperatures, plus `caps` at uf) — and nothing in either declares keys 8 or
+                // 9. A getall answers with them anyway: on the lab CHR (7.24, no hardware sensors, so the
+                // catalogued half is empty) the reply is `0x8=bool:False 0x9=bool:True` against the API's
+                // `state=disabled state-after-reboot=enabled`. The decoder drops keys nothing names, so the
+                // path read as `caps` alone and this was recorded as 'state/state-after-reboot are API-only
+                // fields with no WinBox equivalent'. They are not; we were not listening.
+                //
+                // The pairing was CONFIRMED, not inferred from one consistent sample: setting
+                // state-after-reboot=disabled over the API moved 0x9 True -> False and left 0x8 alone.
+                // 0x8 is the read-only one, which matches the router — `/system/health set` tab-completes to
+                // state-after-reboot and nothing else.
+                //
+                // Two bools the API spells as words, so they carry a two-member map rather than a bool type;
+                // the encoder writes a mapped value at the field's own wire type.
+                ["/system/health"] = new FieldAliasSet(
+                    apiToJg: Ci(),
+                    jgToApi: Ci(),
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["state"] = new WinboxJgField("state", 0x8, "bool", true, enumMap: HealthStateMap),
+                        ["state-after-reboot"] = new WinboxJgField("state-after-reboot", 0x9, "bool", false,
+                                                                   enumMap: HealthStateMap),
                     }),
 
                 // /ip/upnp: the settings singleton's second field is labelled 'Allow To Disable External
@@ -970,7 +1029,12 @@ namespace tik4net.Winbox
                 foreach (var kv in jg.EnumMap)
                     if (string.Equals(kv.Value, value, StringComparison.OrdinalIgnoreCase))
                     {
-                        result.Add(EncodeU32(key, (uint)kv.Key));
+                        // ...at the field's own wire type. A two-member map over a BOOL key is a real shape
+                        // (/system/health spells its two bools 'disabled'/'enabled'), and a u32 written to a
+                        // bool key is a request the router accepts, answers, and ignores — G4's shape.
+                        result.Add(jg.WireType == "bool"
+                            ? M2Message.BoolSys(key, kv.Key != 0)
+                            : EncodeU32(key, (uint)kv.Key));
                         return result;
                     }
             }

@@ -30,6 +30,32 @@ namespace tik4net.Winbox
     /// </remarks>
     internal sealed class WinboxHandlerMap
     {
+        /// <summary>
+        /// Paths WinBox genuinely does not expose as a readable window, with what it offers instead.
+        /// Verified against the router's own <c>.jg</c> catalog, not assumed.
+        /// </summary>
+        /// <remarks>
+        /// These are NOT gaps in the map, and the difference matters to whoever reads the error: an
+        /// unmapped path invites a <c>PathAlias</c> naming the window, and here there is no window to name.
+        /// Pointing an alias at some other window would answer with the wrong table, which is the failure
+        /// the path-map audit exists to catch (G3.4 and G3.5 were both exactly that).
+        /// <para>The audit test reads this same table, so the runtime error and the test's expectations
+        /// cannot drift apart.</para>
+        /// </remarks>
+        internal static readonly Dictionary<string, string> NoWinboxWindow =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            // WinBox reaches BGP advertisements through the session window's 'Dump Adv.' action:
+            // {title:'Dump Adv.',type:'doit',path:[44,33],cmd:9,c:[{name:'Remote Address',…},
+            //  {name:'Save To',type:'string',id:'s2c2035'}]}
+            // — a command that writes a FILE, not a table anything can getall. The API path exists and
+            // answers with rows (zero of them on a router with no BGP sessions), so there is nothing wrong
+            // with the request; WinBox simply has no UI for it.
+            ["/routing/bgp/advertisements"] =
+                "WinBox exposes it as the BGP session window's 'Dump Adv.' action, which writes a file — " +
+                "there is no window listing advertisements, so there is nothing to read over M2",
+        };
+
         // Shipped text alias: apiPath → menu-label path (a key of the live .jg-derived map). Used when the
         // WinBox menu label does not normalize to the RouterOS API leaf. Keyed on stable English text, so it
         // carries across versions; the handler number itself is still read live from the .jg. Extend via

@@ -1085,9 +1085,28 @@ Three paths still disagree on a value, and on two of them the API is the side th
 - **`/interface/ethernet` `auto-negotiation`** — WinBox's field is the LINK's live state
   (`not-available` on a CHR's virtual NIC), the API's is the SETTING (`true`). Two fields, one label.
 
-Two are window- or semantics-level rather than value-level, recorded in the audit's own tables:
-`/system/health` (board-gated; `state` and `state-after-reboot` are API-only) and
-`/routing/bgp/advertisements` (WinBox exposes it as the session window's `dump-adv` action, not a table).
+One is left, and it is not a decode question at all: `/routing/bgp/advertisements`. WinBox reaches
+advertisements only through the BGP session window's *Dump Adv.* action —
+`{title:'Dump Adv.',type:'doit',path:[44,33],cmd:9,c:[…,{name:'Save To',type:'string',id:'s2c2035'}]}` —
+a command that writes a **file**. There is no window listing advertisements, so there is nothing to
+`getall`. The transport says so: a path in `WinboxHandlerMap.NoWinboxWindow` raises
+`TikPathNotMappedException` with "has no WinBox window … this is not a mapping gap", instead of the
+"add a `PathAlias`" advice that fits a genuine mapping gap and would send a caller looking for a window
+that does not exist.
+
+`/system/health` was on that list and is not any more. Its reason said `state` and `state-after-reboot`
+were "API-only fields with no WinBox equivalent"; the router sends both. A getall on `[24,14]` answers
+`0x8=bool:False 0x9=bool:True` against the API's `state=disabled state-after-reboot=enabled`, and the
+pairing was confirmed by setting `state-after-reboot=disabled` and watching `0x9` go True → False while
+`0x8` stayed put (`0x8` is the read-only one — `/system/health set` tab-completes to `state-after-reboot`
+and nothing else). Neither `[24,14]` window declares those keys — 'Settings' is fan control, 'System
+Health' is the x86-gated voltages and temperatures — and the decoder drops keys nothing names, so the path
+read as `caps` alone. They are supplied as SYNTHETIC fields carrying key, wire type and enum map, so they
+read, resolve and write like catalogued ones. Note the two bools are spelled as words: a mapped value is
+now written at the field's own wire type, because a `u32` on a bool key is a request the router accepts,
+answers and ignores.
+
+The board-gated sensor half of that window stays genuinely empty on a CHR — as it is over the API.
 
 `/ip/route` and `/interface/wireless/sniffer` were on that list and are not any more (G3.4, G3.5). Both
 were the same mistake in two costumes: the path named a window that shares a handler with the one the API
