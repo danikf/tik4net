@@ -438,6 +438,17 @@ namespace tik4net.Objects
         /// Saves entity to mikrotik router. Does insert (/add) whan entity has empty id and update(/set + /unset) when id is present).
         /// Behavior of save is modified via <see cref="TikPropertyAttribute"/> on properties.
         /// See <see cref="TikPropertyAttribute.DefaultValue"/>, <see cref="TikPropertyAttribute.UnsetOnDefault"/>.
+        /// <para>
+        /// <b>Load and save an entity on the SAME connection.</b> The change tracker is scoped to the
+        /// <see cref="ITikConnection"/> it was loaded on, so an entity loaded on one connection and saved on
+        /// another has no snapshot on the saving connection — and under
+        /// <see cref="TikSaveMode.OnlyChanges"/> (the 4.x default) "no snapshot" means <b>every writable
+        /// field is sent</b>, not just the ones you changed. Any field the loading transport spells
+        /// differently from the saving one is then written back in the loading transport's spelling.
+        /// <see cref="TikSaveMode.FullUpdate"/> does not have this problem — it resolves the difference by
+        /// re-reading the row over the SAVING connection — but the two-connection pattern is not a supported
+        /// way to use the mapper either way.
+        /// </para>
         /// </summary>
         /// <typeparam name="TEntity">Saved entitie type.</typeparam>
         /// <param name="connection">Tik connection used to save.</param>

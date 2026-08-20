@@ -10,6 +10,12 @@ namespace tik4net.Objects
         /// Send only properties that changed since the entity was loaded (diff against snapshot).
         /// When no snapshot is available the entity is sent in full.
         /// This is the default in 4.x.
+        /// <para>
+        /// The snapshot lives on the <see cref="ITikConnection"/> the entity was LOADED on, so an entity
+        /// loaded on one connection and saved on another falls into the "sent in full" case — see the
+        /// remarks on <see cref="TikConnectionExtensions.Save{TEntity}(ITikConnection, TEntity, System.Collections.Generic.IEnumerable{string}, TikSaveMode)"/>.
+        /// Load and save on the same connection.
+        /// </para>
         /// </summary>
         OnlyChanges,
 

@@ -47,9 +47,16 @@ namespace tik4net.integrationtests
         // one cannot hide among them. Measured on RouterOS 7.23.2, 2026-08-15.
         private static readonly Dictionary<string, string> KnownFieldGaps = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            // Known and documented: /system/health on a CHR has no hardware sensors, and state/
-            // state-after-reboot are API-only fields with no WinBox equivalent.
-            ["/system/health"] = "board-gated singleton; state/state-after-reboot are API-only",
+            // A CHR has no hardware sensors, so the board-gated half of this window is genuinely empty.
+            //
+            // The OTHER half is ours, and the reason here used to say the opposite: 'state/
+            // state-after-reboot are API-only fields with no WinBox equivalent'. The router sends both.
+            // Measured on 7.24, a getall on [24,14] answers `0x8=bool:False 0x9=bool:True` against the
+            // API's `state=disabled state-after-reboot=enabled` — we drop them because no .jg window names
+            // those two keys ('Settings' is fan control, 'System Health' is x86-gated voltages and temps),
+            // and the decoder drops unnamed keys. Closable with a KeyToApi alias, the same mechanism
+            // /ping's unnamed responder key already uses. Open as its own item, not part of G3.
+            ["/system/health"] = "board-gated singleton (no sensors on a CHR); state/state-after-reboot ARE on the wire at [24,14] 0x8/0x9 and we do not name the keys",
         };
 
         // Paths WinBox genuinely does not expose as a readable window, verified against the router's own .jg
@@ -143,43 +150,57 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
-        /// Paths whose values are known to differ for a reason already diagnosed — same rule as
-        /// <see cref="KnownFieldGaps"/>, one level deeper. Keep each entry's reason specific enough that a
-        /// NEW disagreement on the same path cannot hide behind it.
+        /// The individual FIELDS whose values the two transports are not required to agree on, with the
+        /// reason for each. Everything else is compared.
         /// </summary>
         /// <remarks>
-        /// <para>Every entry below was measured on 7.23.2 and is recorded per path so that a path picking up
-        /// a NEW disagreement still fails: the reason names which fields are excused.</para>
-        /// <para>What is left is no longer a list of missing decoders — every decode class the first
-        /// value-comparing run turned up (interval/duration, raw MAC, zero-spelled-as-a-word sentinels, the
-        /// empty list, set order, date/epoch, the <c>age</c> uptime clock, the wire-type key collision, the
-        /// union/tuple element, the <c>multibits</c> bitmask, an <c>enm</c>'s <c>postfix</c>, and the
-        /// address:port pair) has been closed. These three are differences of a different kind, and two of
-        /// them are the API being the LESS informative side:</para>
-        /// <list type="bullet">
-        /// <item><b>the same fact spelled two ways</b> — <c>/routing/table</c>'s <c>fib</c> is a valueless
-        /// presence flag over the API and REST (<c>fib=</c>) and a spelled-out <c>true</c> over the CLI
-        /// transports and native. This audit compares raw words, so the two spellings differ here for good;
-        /// the O/R mapper does not, because <c>RoutingTable.Fib</c> is declared
-        /// <see cref="TikPropertyAttribute.IsPresenceFlag"/> and reads the empty value as <c>true</c>
-        /// (G3.1). Before that it read <c>false</c> on api/rest whatever the router said.</item>
-        /// <item><b>precision</b> — <c>/system/ntp/client</c>'s <c>system-offset</c> is a whole-millisecond
-        /// <c>integer</c> on the wire where the API reports fractions (and it drifts constantly).
-        /// <c>freq-drift</c>, which the wire carries as a <c>fixedpoint</c>, agrees exactly.</item>
-        /// <item><b>closed, G3.3</b> — <c>/interface/ethernet</c>'s <c>auto-negotiation</c> was the LINK's
-        /// live state (<c>not-available</c> on a CHR's virtual NIC) where the API reports the SETTING
-        /// (<c>true</c>). The window carries both and the .jg labels both 'Auto Negotiation'; the setting
-        /// declares <c>name:'autoneg'</c> and the status does not, so the status took the name. A field
-        /// alias pairs the setting with the API's name and the status now reads as
-        /// <c>auto-negotiation-status</c>. Measured in both directions before shipping: the write used to
-        /// land on a <c>ro:1</c> field and be silently ignored.</item>
-        /// </list>
+        /// <para>Per field, not per path, so a path carrying one excused field still has every OTHER field
+        /// of every row compared — a path-level pardon excused a whole table for one known difference, and
+        /// a new disagreement anywhere on that path went unreported. An entry whose field turns out to
+        /// AGREE fails the run and must be deleted (see the stale check), so this list cannot quietly
+        /// outlive what it describes.</para>
+        /// <para>This is no longer a list of missing decoders. Every decode class the first value-comparing
+        /// run turned up — interval/duration, raw MAC, zero-spelled-as-a-word sentinels, the empty list, set
+        /// order, date/epoch, the <c>age</c> uptime clock, the wire-type key collision, the union/tuple
+        /// element, the <c>multibits</c> bitmask, an <c>enm</c>'s <c>postfix</c>, the address:port pair —
+        /// has been closed, and so have the four G3 items that were recorded here as differences with a
+        /// reason and turned out to be client defects (G3.1 <c>fib</c>, G3.3 <c>auto-negotiation</c>,
+        /// G3.4 <c>/ip/route</c>, G3.5 the wireless sniffer).</para>
+        /// <para>What remains are differences neither side can remove.</para>
         /// </remarks>
-        private static readonly Dictionary<string, string> KnownValueGaps = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        private static readonly Dictionary<string, Dictionary<string, string>> ValueComparisonExceptions =
+            new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase)
         {
-            ["/routing/table"]                        = "fib is a valueless presence flag: api/rest send 'fib=' where native and the CLI send 'true'. The RAW WORDS differ for good; the mapper no longer does - RoutingTable.Fib is IsPresenceFlag (G3.1)",
-            ["/system/ntp/client"]                     = "system-offset is a whole-millisecond `integer` on the wire where the API reports fractions — an information difference, not a decode gap (and it drifts constantly). freq-drift agrees.",
+            ["/routing/table"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                // The same fact spelled two ways, and neither spelling is wrong. RouterOS stores `fib` as a
+                // valueless PRESENCE flag: the binary API and REST answer `fib=` (word present, value empty)
+                // for a table that has it and omit the word for one that does not, while the CLI transports
+                // and native answer `fib=true`. This audit compares RAW WORDS, so '' and 'true' differ here
+                // for good. The O/R mapper does not: RoutingTable.Fib is declared IsPresenceFlag and reads
+                // the empty value as true, which is what closed G3.1 — before that it read false on api and
+                // rest whatever the router said.
+                ["fib"] = "api/rest spell a set presence flag as an empty value, native and the CLI as 'true'",
+            },
+            ["/system/ntp/client"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                // Precision the wire does not carry. The offset rides as a plain signed integer of
+                // milliseconds (0x67, measured on 7.24: u32 4294967280 = -16) where the API reports
+                // thousandths, so native can only ever be the API's value with the fraction cut off —
+                // and cut off, not rounded: a live pair read seconds apart was api 59.819 / native 59.
+                //
+                // Truncating before comparing would therefore be exact... until an NTP poll lands between
+                // the two reads. The value does not drift continuously, it STEPS per poll, by tens of
+                // milliseconds (one session: -22.362, -19.434, -16.395, +59.819, each held constant across
+                // repeated reads in between). No tolerance survives that, so the field is excused rather
+                // than compared cleverly.
+                ["system-offset"] = "integer milliseconds on the wire vs thousandths over the API, and it steps per NTP poll",
+            },
         };
+
+        /// <summary>The fields excused on <paramref name="path"/>, or null when none are.</summary>
+        private static Dictionary<string, string> ExceptionsFor(string path)
+            => ValueComparisonExceptions.TryGetValue(path, out var e) ? e : null;
 
         /// <summary>
         /// Per shared, non-volatile field: the values the two transports gave for the same row, when they
@@ -191,10 +212,18 @@ namespace tik4net.integrationtests
         /// and the API did not is a ROW-count disagreement, already reported above; pairing by ordinal
         /// instead would line up unrelated records and invent differences.
         /// </remarks>
-        private static List<string> CompareValues(Reading api, Reading native)
+        private static List<string> CompareValues(Reading api, Reading native, string path,
+            out List<string> excusedButAgreeing)
         {
             var diffs = new List<string>();
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var excused = ExceptionsFor(path);
+            // An excused field is watched, not ignored: a field that AGREES on every row it was compared on
+            // no longer needs its exception, and the run fails until the entry is deleted. Recorded here
+            // rather than inferred later, because only this loop knows the field was actually present on
+            // both sides — a field nobody read agrees vacuously.
+            var agreeing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var disagreeing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var kv in api.Rows)
             {
@@ -203,11 +232,19 @@ namespace tik4net.integrationtests
                 {
                     if (f.Key == ".id" || IsVolatile(f.Key)) continue;
                     if (!nativeRow.TryGetValue(f.Key, out string nativeValue)) continue;
-                    if (string.Equals(f.Value ?? "", nativeValue ?? "", StringComparison.OrdinalIgnoreCase)) continue;
+                    bool agrees = string.Equals(f.Value ?? "", nativeValue ?? "", StringComparison.OrdinalIgnoreCase);
+                    if (excused != null && excused.ContainsKey(f.Key))
+                    {
+                        (agrees ? agreeing : disagreeing).Add(f.Key);
+                        continue;
+                    }
+                    if (agrees) continue;
                     if (!seen.Add(f.Key)) continue;
                     diffs.Add($"{f.Key}: api='{Trim(f.Value)}' native='{Trim(nativeValue)}'");
                 }
             }
+
+            excusedButAgreeing = agreeing.Where(f => !disagreeing.Contains(f)).OrderBy(f => f).ToList();
             return diffs;
         }
 
@@ -289,21 +326,19 @@ namespace tik4net.integrationtests
                     // /system/logging read `topics` as the raw handle list "[1]" where the API says "info",
                     // and this audit called the path OK for a release. So compare the values too, on rows
                     // paired by .id, over the fields both transports report.
-                    var valueDiffs = CompareValues(a, n);
+                    var valueDiffs = CompareValues(a, n, path, out var excusedButAgreeing);
+
+                    // A tally that only ever grows stops meaning anything (the lesson A12's enum list was
+                    // built on). An excused field that now AGREES must leave the exception list in the same
+                    // change, or the remaining reasons stop describing what is actually still broken.
+                    foreach (string f in excusedButAgreeing) staleGaps.Add(path + " " + f);
+
                     if (valueDiffs.Count == 0)
                     {
                         agreed++;
-                        report.Add($"OK         {path}\trows={a.RowCount}\tshared fields={shared}/{a.FieldNames.Count}");
-                        // A tally that only ever grows stops meaning anything (the lesson A12's enum list was
-                        // built on). A path that now agrees must leave the table in the same change, or the
-                        // remaining reasons stop describing what is actually still broken.
-                        if (KnownValueGaps.ContainsKey(path)) staleGaps.Add(path);
-                    }
-                    else if (KnownValueGaps.TryGetValue(path, out string valueWhy))
-                    {
-                        known++;
-                        report.Add($"KNOWN-GAP  {path}\trows={a.RowCount}\tvalues differ: "
-                                   + string.Join("; ", valueDiffs.Take(6)) + $"\t{valueWhy}");
+                        var excused = ExceptionsFor(path);
+                        report.Add($"OK         {path}\trows={a.RowCount}\tshared fields={shared}/{a.FieldNames.Count}"
+                                   + (excused != null ? "\tnot compared: " + string.Join(", ", excused.Keys) : ""));
                     }
                     else
                     {
@@ -327,7 +362,7 @@ namespace tik4net.integrationtests
             Assert.AreEqual(0, valueMismatched,
                 "paths that read the right window but decode a value the API spells differently — see the report");
             Assert.AreEqual(0, staleGaps.Count,
-                "these now agree with the API and must be removed from KnownValueGaps: "
+                "these fields now agree with the API and must be removed from ValueComparisonExceptions: "
                 + string.Join(", ", staleGaps));
         }
     }

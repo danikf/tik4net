@@ -243,6 +243,12 @@ namespace tik4net.Winbox
                         // padded to the scale's digit count (fraction2string). /system/ntp/client freq-drift
                         // is scale:1000, so 4294925573 is -41723 thousandths = -41.723 — the API's value
                         // exactly.
+                        //
+                        // Trailing zeros are then TRIMMED, which is where this departs from webfig on
+                        // purpose: webfig pads to the scale's width and shows -39.730, RouterOS prints
+                        // -39.73. Padding therefore disagreed with the API on exactly the values whose last
+                        // digit is zero — roughly one reading in ten, which is why it was recorded as
+                        // agreeing exactly. A fraction that trims away entirely takes the '.' with it.
                         if (!WinboxFieldResolver.TryToInt64(value, out long fp))
                         {
                             TraceNonNumeric("fixedpoint", value);
@@ -254,8 +260,10 @@ namespace tik4net.Winbox
                         string sign = v < 0 ? "-" : "";
                         long abs = Math.Abs(v);
                         int digits = scale.ToString(CultureInfo.InvariantCulture).Length - 1;
-                        return sign + (abs / scale).ToString(CultureInfo.InvariantCulture) + "."
-                             + (abs % scale).ToString(CultureInfo.InvariantCulture).PadLeft(digits, '0');
+                        string frac = (abs % scale).ToString(CultureInfo.InvariantCulture)
+                            .PadLeft(digits, '0').TrimEnd('0');
+                        return sign + (abs / scale).ToString(CultureInfo.InvariantCulture)
+                             + (frac.Length > 0 ? "." + frac : "");
                     }
                     case "age":
                     {

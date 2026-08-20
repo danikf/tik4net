@@ -496,9 +496,37 @@ namespace tik4net.unittests.Winbox
             // 4294925573 is -41723 thousandths, and the API prints freq-drift=-41.723 for exactly this row.
             Assert.AreEqual("-41.723",
                 Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0xE, "u32", 4294925573u)))["freq-drift"]);
-            // fraction2string pads to the scale's digit count, so a small remainder keeps its leading zeros.
+            // fraction2string pads to the scale's digit count, so a small remainder keeps its LEADING zeros.
             Assert.AreEqual("2.005",
                 Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0xE, "u32", 2005u)))["freq-drift"]);
+        }
+
+        /// <summary>
+        /// TRAILING zeros are trimmed, which is where this deliberately departs from webfig.
+        /// </summary>
+        /// <remarks>
+        /// webfig pads to the scale's width and shows <c>-39.730</c>; RouterOS prints <c>-39.73</c>. Padding
+        /// therefore disagreed with the API on exactly the values whose last digit is zero — about one
+        /// reading in ten, which is why the path-map audit's note recorded freq-drift as agreeing exactly.
+        /// It was the field-level exception list that exposed it: with system-offset excused by name instead
+        /// of the whole path being pardoned, the very next run reported
+        /// <c>freq-drift: api='-39.73' native='-39.730'</c>.
+        /// </remarks>
+        [TestMethod]
+        public void AFixedPointValueTrimsTrailingZerosLikeRouterOsPrintsThem()
+        {
+            // The live pair this was found on: 4294927566 is -39730 thousandths, and the API says -39.73.
+            Assert.AreEqual("-39.73",
+                Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0xE, "u32", 4294927566u)))["freq-drift"]);
+            // Two trailing zeros go too, and leading ones inside the fraction still do not.
+            Assert.AreEqual("2.5",
+                Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0xE, "u32", 2500u)))["freq-drift"]);
+            Assert.AreEqual("0.05",
+                Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0xE, "u32", 50u)))["freq-drift"]);
+            // A fraction that trims away entirely takes the decimal point with it — RouterOS prints a whole
+            // number as a whole number, not as '41.000'.
+            Assert.AreEqual("41",
+                Decode(Parse(NtpClientWindow), new[] { 24, 9 }, Rec((0xE, "u32", 41000u)))["freq-drift"]);
         }
 
         [TestMethod]

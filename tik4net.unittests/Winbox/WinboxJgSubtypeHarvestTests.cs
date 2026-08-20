@@ -87,6 +87,61 @@ namespace tik4net.unittests.Winbox
                 "but not the one discriminated by hwtype");
         }
 
+        // The routes tree, cut to the rule it exercises: ONE table for both address families, a base that
+        // owns its handler and declares typeon:'rtype', and two windows over it. This is the shape that is
+        // NOT the interface family — the base has a real path of its own, where an interface subtype base
+        // does not — and it had no harvest rule at all, so /ip/route addressed the base and answered with
+        // the IPv6 routes too (six rows against the API's two on the lab CHR).
+        private const string RouteBase =
+            "{name:'Routes',title:'Routes',group:'IP',c:[{name:'Route',title:'All Routes',type:'map'," +
+            "path:[ 44,21 ],generic:'route',hide:1,typeon:'rtype',c:[{name:'rtype',type:'number',id:'u81',ro:1}," +
+            "{name:'Dst. Address',type:'addr',id:'m105'}]}," +
+            "{title:'Routes',type:'map',inherit:'route',typevalue:2,c:[{name:'Distance',type:'number',id:'u107'}]}]}";
+
+        [TestMethod]
+        public void NonIfaceSubtype_OverABaseThatOwnsItsHandler_IsHarvested()
+        {
+            var catalog = Parse(RouteBase);
+
+            var derived = catalog.GetDerivedPaths();
+            CollectionAssert.AreEqual(new[] { 44, 21 }, (System.Array)derived["/ip/routes/routes"],
+                "the IPv4 window reads the shared routes table");
+            var filter = catalog.GetSubtypeFilters()["/ip/routes/routes"];
+            Assert.AreEqual(0x81, filter.Item1, "filtered on the base window's own `rtype` key, not on `type`");
+            Assert.AreEqual(2, filter.Item2);
+        }
+
+        [TestMethod]
+        public void ANonIfaceGenericInheritedAcrossPlugins_ResolvesToTheSameTable()
+        {
+            // ipv6.jg declares `inherit:'route'` for a generic that lives in roteros.jg. roteros.jg is
+            // parsed first by design, so the base is registered before anything inherits it — this pins
+            // that, because the two families sharing one table is the whole reason a filter is needed.
+            var catalog = new WinboxJgCatalog();
+            Assert.IsTrue(catalog.TryParseInto("[" + RouteBase + "]"));
+            Assert.IsTrue(catalog.TryParseInto(
+                "[{name:'Routes',title:'Routes',group:'IPv6',c:[{title:'Routes6',type:'map'," +
+                "inherit:'route',typevalue:3,c:[{name:'Distance',type:'number',id:'u107'}]}]}]"));
+
+            CollectionAssert.AreEqual(new[] { 44, 21 },
+                (System.Array)catalog.GetDerivedPaths()["/ipv6/routes/routes6"]);
+            Assert.AreEqual(3, catalog.GetSubtypeFilters()["/ipv6/routes/routes6"].Item2,
+                "the IPv6 window filters the same table on the other rtype");
+        }
+
+        [TestMethod]
+        public void ANonIfaceBaseWithoutADiscriminator_IsNotHarvested()
+        {
+            // No `typeon` field to filter on means there is nothing to tell the children apart with, and
+            // registering the window anyway would answer with the base's whole table under a subtype's name.
+            var catalog = Parse(
+                "{name:'Things',c:[{name:'Thing',title:'All Things',type:'map',path:[ 60,1 ],generic:'thing'}," +
+                "{title:'Some Things',type:'map',inherit:'thing',typevalue:2,c:[{name:'X',type:'number',id:'u1'}]}]}");
+
+            Assert.IsFalse(catalog.GetDerivedPaths().ContainsKey("/things/some-things"),
+                "a base with no resolvable discriminator cannot filter its children");
+        }
+
         [TestMethod]
         public void SingletonIsRecordedPerWindow_NotPerHandler()
         {
