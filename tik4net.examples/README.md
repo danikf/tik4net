@@ -8,6 +8,10 @@ Runnable usage examples for the library — the code behind the wiki's example p
 high-level O/R mapper, and the asynchronous/monitor calls. It is linked from the project
 [README](../README.md) as the example project.
 
+`OneTaskEveryTransportExamples.cs` is the code behind the wiki page *One task on every transport and API
+level*: one task — find an interface by its comment, keep its `.id`, write a new comment back — written
+once per API level, plus the single method that opens any of the 11 transports.
+
 Router coordinates come from the project's own configuration — point it at a router before running.
 
 ## Related
