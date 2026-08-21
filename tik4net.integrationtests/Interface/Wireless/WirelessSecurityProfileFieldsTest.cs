@@ -3,6 +3,7 @@ using System.Configuration;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
+using tik4net.Objects.Interface.Wireless;
 
 namespace tik4net.integrationtests
 {
@@ -51,6 +52,67 @@ namespace tik4net.integrationtests
             var row = api.CreateCommandAndParameters(ProfilePath + "/print", TikCommandParameterFormat.Filter, ".id", id)
                 .ExecuteList().Single();
             return row.GetResponseFieldOrDefault(field, null);
+        }
+
+        /// <summary>The entity reads the whole profile, RADIUS and static-key blocks included.</summary>
+        [TestMethod]
+        public void ListWirelessSecurityProfilesWillNotFail()
+        {
+            EnsureCommandAvailable(ProfilePath);
+            var list = Connection.LoadAll<WirelessSecurityProfile>();
+            Assert.IsNotNull(list);
+            Assert.IsTrue(list.Any(), "every router has a 'default' security profile");
+        }
+
+        /// <summary>
+        /// The O/R mapper round-trip over the properties this entity gained: create, set every block,
+        /// reload by id, delete.
+        /// </summary>
+        /// <remarks>
+        /// <c>static-key-*</c> is deliberately NOT asserted on reload: RouterOS's CLI omits secret fields
+        /// from <c>print as-value</c>, so on the five CLI transports it reads back null. It is written
+        /// here — the router refuses an algorithm whose key is the wrong length, so the write landing is
+        /// proven by the algorithm surviving at all.
+        /// </remarks>
+        [TestMethod]
+        public void AddWirelessSecurityProfileWillNotFail()
+        {
+            EnsureCommandAvailable(ProfilePath);
+            string marker = "t4n" + Guid.NewGuid().ToString("N").Substring(0, 10);
+
+            var profile = new WirelessSecurityProfile
+            {
+                Name = marker,
+                Mode = WirelessSecurityProfile.SecurityMode.StaticKeysRequiered,
+                RadiusMacAuthentication = true,
+                RadiusMacAccounting = true,
+                RadiusCalledFormat = WirelessSecurityProfile.CalledFormatType.Ssid,
+                RadiusMacMode = WirelessSecurityProfile.MacModeType.AsUsernameAndPassword,
+                RadiusMacFormat = "xx:xx:xx:xx:xx:xx",
+                StaticAlgo0 = WirelessSecurityProfile.StaticAlgoType.Wep40Bit,
+                StaticKey0 = "1234567890",
+                StaticTransmitKey = WirelessSecurityProfile.TransmitKeyType.Key0,
+            };
+            SaveTracked(profile);
+
+            try
+            {
+                var loaded = Connection.LoadById<WirelessSecurityProfile>(profile.Id);
+                Assert.IsNotNull(loaded);
+                Assert.AreEqual(marker, loaded.Name);
+                Assert.AreEqual(true, loaded.RadiusMacAuthentication);
+                Assert.AreEqual(true, loaded.RadiusMacAccounting);
+                Assert.AreEqual(WirelessSecurityProfile.CalledFormatType.Ssid, loaded.RadiusCalledFormat);
+                Assert.AreEqual(WirelessSecurityProfile.MacModeType.AsUsernameAndPassword, loaded.RadiusMacMode);
+                Assert.AreEqual("xx:xx:xx:xx:xx:xx", loaded.RadiusMacFormat,
+                    "the case is part of the value on this field");
+                Assert.AreEqual(WirelessSecurityProfile.StaticAlgoType.Wep40Bit, loaded.StaticAlgo0);
+                Assert.AreEqual(WirelessSecurityProfile.TransmitKeyType.Key0, loaded.StaticTransmitKey);
+            }
+            finally
+            {
+                Connection.Delete(profile);
+            }
         }
 
         /// <summary>

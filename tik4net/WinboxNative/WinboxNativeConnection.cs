@@ -1359,7 +1359,7 @@ namespace tik4net.WinboxNative
             // A path WinBox has no window for is a different answer from a path we failed to map, and the
             // advice is the opposite: there is no alias to add, because there is nothing to point one at.
             // Telling the caller to write one would send them looking for a window that does not exist.
-            if (WinboxHandlerMap.NoWinboxWindow.TryGetValue(WinboxHandlerMap.Normalize(apiPath), out string why))
+            if (WinboxHandlerMap.NoWinboxWindow.TryGetValue(WinboxHandlerMap.Normalize(apiPath), out string? why))
                 return new TikPathNotMappedException(cmd, apiPath,
                     $"WinBox native: '{apiPath}' has no WinBox window. {why}. This is not a mapping gap — " +
                     "the request was never sent, and no PathAlias or PathOverride can help. Use an " +

@@ -1,4 +1,4 @@
-namespace tik4net.Objects
+﻿namespace tik4net.Objects
 {
     /// <summary>Save behavior when calling <see cref="TikConnectionExtensions.Save{TEntity}"/>.</summary>
     public enum TikSaveMode
@@ -13,7 +13,7 @@ namespace tik4net.Objects
         /// <para>
         /// The snapshot lives on the <see cref="ITikConnection"/> the entity was LOADED on, so an entity
         /// loaded on one connection and saved on another falls into the "sent in full" case — see the
-        /// remarks on <see cref="TikConnectionExtensions.Save{TEntity}(ITikConnection, TEntity, System.Collections.Generic.IEnumerable{string}, TikSaveMode)"/>.
+        /// remarks on <c>TikConnectionExtensions.Save</c>.
         /// Load and save on the same connection.
         /// </para>
         /// </summary>

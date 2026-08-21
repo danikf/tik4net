@@ -1510,7 +1510,7 @@ namespace tik4net.Winbox
                 string n = WinboxFieldResolver.NormalizeLabel(kv.Value);
                 // Two DIFFERENT raw labels landing on one normalized form is the collision. The same raw
                 // label appearing at two keys is not — a defenum names an id the wrapped list also names.
-                if (byNormalized.TryGetValue(n, out string other) && !string.Equals(other, kv.Value, StringComparison.Ordinal))
+                if (byNormalized.TryGetValue(n, out string? other) && !string.Equals(other, kv.Value, StringComparison.Ordinal))
                     return raw;
                 byNormalized[n] = kv.Value;
             }
