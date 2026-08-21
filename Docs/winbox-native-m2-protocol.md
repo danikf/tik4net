@@ -1085,6 +1085,34 @@ Three paths still disagree on a value, and on two of them the API is the side th
 - **`/interface/ethernet` `auto-negotiation`** — WinBox's field is the LINK's live state
   (`not-available` on a CHR's virtual NIC), the API's is the SETTING (`true`). Two fields, one label.
 
+### A normalized label is right until it merges two members
+
+Every `.jg` label is normalized — lowercased, whitespace folded to hyphens, abbreviation dots dropped — and
+that is what makes a label match the API's spelling at all (`'as username'` is `as-username`, `'key 0'` is
+`key-0`). A handful of enum maps distinguish their members by exactly those characters. A sweep of the whole
+7.24 catalog finds three, and in all three the RAW label is what RouterOS prints and accepts:
+
+| map | labels | normalized | why they collide |
+|---|---|---|---|
+| `/interface/wireless/security-profiles` 'MAC Format' | 14 | 6 | the same seven formats twice, upper then lower — and the case selects how the MAC reaches the RADIUS server |
+| `/ip/hotspot/profile` 'MAC Format' | 7 | 6 | `'XX XX XX XX XX XX'` and `'XX-XX-XX-XX-XX-XX'` fold together |
+| 'Rate' | 13 | 12 | `'2.5Gbps'` and `'25Gbps'` both fold to `25gbps` — the dot rule. The API prints `rate=1Gbps` |
+
+So a map whose labels would merge keeps them raw; the detection is from the map itself, not a per-field list,
+so a new such map on a later RouterOS needs no code change. On the write side an EXACT match now wins and the
+case-insensitive comparison is only a fallback: matching insensitively in one pass returns whichever member
+comes first, so every lowercase MAC format was written as its uppercase twin — accepted, answered, and a
+different setting from the one asked for.
+
+### A tuple is two API fields
+
+`/interface/wireless/security-profiles`' Static Keys tab declares each key as `type:'tuple'` — `'Key 0'` …
+`'Key 3'`, `'St. Private Key'` — holding an unnamed `enm` (the algorithm) and an unnamed `secret` (the key),
+where RouterOS splits every one into two fields. The record carries them: with `mode=static-keys-required`
+and `static-algo-0=40bit-wep` a getall answers `0x7=1` and `0xB=…`. Named per element (u7/sb, u8/sc, u9/sd,
+ua/se, u10/s11), with the algorithm's map spelled the way the router spells it — the `.jg` says
+`'104 bit wep'`, which normalizes to `104-bit-wep`, a value RouterOS refuses.
+
 One is left, and it is not a decode question at all: `/routing/bgp/advertisements`. WinBox reaches
 advertisements only through the BGP session window's *Dump Adv.* action —
 `{title:'Dump Adv.',type:'doit',path:[44,33],cmd:9,c:[…,{name:'Save To',type:'string',id:'s2c2035'}]}` —

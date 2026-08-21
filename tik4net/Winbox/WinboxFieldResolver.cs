@@ -269,6 +269,20 @@ namespace tik4net.Winbox
             return d;
         }
 
+        // The WEP/static-key tuples of a wireless security profile. Each is an algorithm enm plus a secret,
+        // and the .jg gives the pair one name ('Key 0') and its two children none.
+        private static readonly Dictionary<int, string> WepAlgoMap = new Dictionary<int, string>
+        {
+            [0] = "none", [1] = "40bit-wep", [2] = "104bit-wep", [3] = "aes-ccm", [4] = "tkip",
+        };
+
+        private static WinboxJgField WepAlgo(string apiName, int key)
+            => new WinboxJgField(apiName, key, "u32", false, enumMap: WepAlgoMap);
+
+        // A 'secret' in the .jg; the API prints and accepts it as a plain string.
+        private static WinboxJgField WepKey(string apiName, int key)
+            => new WinboxJgField(apiName, key, "string", false);
+
         // /system/health's two states, as RouterOS spells them.
         private static readonly Dictionary<int, string> HealthStateMap = new Dictionary<int, string>
         {
@@ -425,6 +439,51 @@ namespace tik4net.Winbox
                         ["state"] = new WinboxJgField("state", 0x8, "bool", true, enumMap: HealthStateMap),
                         ["state-after-reboot"] = new WinboxJgField("state-after-reboot", 0x9, "bool", false,
                                                                    enumMap: HealthStateMap),
+                    }),
+
+                // /interface/wireless/security-profiles ([88,14], wlan6.jg) — the audit's one standing
+                // MISMATCH, in two halves.
+                //
+                // The RADIUS tab drops the 'radius-' prefix the API spells out and renames three fields
+                // outright, exactly as /ip/hotspot/profile's RADIUS tab does. All seven were measured in
+                // both directions on 7.24 before shipping; the values already agreed.
+                //
+                // The Static Keys tab is the other half, and the fields are NOT missing from the wire —
+                // that was the assumption, and a trace disproves it. With mode=static-keys-required and
+                // static-algo-0=40bit-wep the record carries `0x7=1` and `0xB=1234567890`. They are dropped
+                // because the .jg wraps each pair in a type:'tuple' ('Key 0'…'Key 3', 'St. Private Key')
+                // whose two children — an enm for the algorithm and a secret for the key — carry ids but no
+                // names, while RouterOS splits every tuple into two fields. Named here per key, with the
+                // algorithm's enum map, so they read, resolve and write like catalogued fields.
+                ["/interface/wireless/security-profiles"] = new FieldAliasSet(
+                    apiToJg: Ci(("radius-mac-authentication", "mac-authentication"),
+                               ("radius-mac-accounting", "mac-accounting"),
+                               ("radius-eap-accounting", "eap-accounting"),
+                               ("radius-mac-format", "mac-format"),
+                               ("radius-mac-mode", "mac-mode"),
+                               ("radius-called-format", "called-id-format"),
+                               ("radius-mac-caching", "mac-caching-time"),
+                               ("static-transmit-key", "transmit-key")),
+                    jgToApi: Ci(("mac-authentication", "radius-mac-authentication"),
+                               ("mac-accounting", "radius-mac-accounting"),
+                               ("eap-accounting", "radius-eap-accounting"),
+                               ("mac-format", "radius-mac-format"),
+                               ("mac-mode", "radius-mac-mode"),
+                               ("called-id-format", "radius-called-format"),
+                               ("mac-caching-time", "radius-mac-caching"),
+                               ("transmit-key", "static-transmit-key")),
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["static-algo-0"] = WepAlgo("static-algo-0", 0x7),
+                        ["static-key-0"]  = WepKey("static-key-0", 0xB),
+                        ["static-algo-1"] = WepAlgo("static-algo-1", 0x8),
+                        ["static-key-1"]  = WepKey("static-key-1", 0xC),
+                        ["static-algo-2"] = WepAlgo("static-algo-2", 0x9),
+                        ["static-key-2"]  = WepKey("static-key-2", 0xD),
+                        ["static-algo-3"] = WepAlgo("static-algo-3", 0xA),
+                        ["static-key-3"]  = WepKey("static-key-3", 0xE),
+                        ["static-sta-private-algo"] = WepAlgo("static-sta-private-algo", 0x10),
+                        ["static-sta-private-key"]  = WepKey("static-sta-private-key", 0x11),
                     }),
 
                 // /ip/upnp: the settings singleton's second field is labelled 'Allow To Disable External
@@ -1024,14 +1083,29 @@ namespace tik4net.Winbox
             // typed branch's — see the "opt/not container flags" block.)
 
             // enum static map: encode the API string to its numeric index.
+            //
+            // EXACT match first, case-insensitive only as a fallback. Case is not always decoration: a
+            // wireless security profile's 'MAC Format' lists the same seven formats twice, upper then lower,
+            // and the case is what selects how the MAC reaches the RADIUS server. Matching case-insensitively
+            // in one pass returns whichever member comes FIRST, so every lowercase value was written as its
+            // uppercase twin. The fallback keeps every other map working, where the API's spelling and the
+            // label differ only in case.
             if (jg?.EnumMap != null)
             {
                 foreach (var kv in jg.EnumMap)
-                    if (string.Equals(kv.Value, value, StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(kv.Value, value, StringComparison.Ordinal))
                     {
                         // ...at the field's own wire type. A two-member map over a BOOL key is a real shape
                         // (/system/health spells its two bools 'disabled'/'enabled'), and a u32 written to a
                         // bool key is a request the router accepts, answers, and ignores — G4's shape.
+                        result.Add(jg.WireType == "bool"
+                            ? M2Message.BoolSys(key, kv.Key != 0)
+                            : EncodeU32(key, (uint)kv.Key));
+                        return result;
+                    }
+                foreach (var kv in jg.EnumMap)
+                    if (string.Equals(kv.Value, value, StringComparison.OrdinalIgnoreCase))
+                    {
                         result.Add(jg.WireType == "bool"
                             ? M2Message.BoolSys(key, kv.Key != 0)
                             : EncodeU32(key, (uint)kv.Key));

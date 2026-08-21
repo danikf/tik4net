@@ -74,6 +74,30 @@ breaks.
 `print detail as-value`. The O/R mapper's `IncludeDetails` metadata flag controls this; the builder
 translates it into the `detail` modifier.
 
+### Secret fields are WRITE-ONLY over the CLI — `detail` does not help
+
+A field the `.jg` types as `secret` — a pre-shared key, a WEP key, a RADIUS or MSCHAPv2 password — is
+**absent from `print as-value` entirely**, not empty. Adding `detail` changes nothing. The catalog types 166
+fields this way, so this is a general rule rather than a quirk of one menu.
+
+Measured on 7.24, one profile carrying `wpa2-pre-shared-key=SuperSecret123`, read four ways:
+
+| transport | result |
+|---|---|
+| binary API / REST | `wpa2-pre-shared-key=SuperSecret123` |
+| WinBox native (M2) | `wpa2-pre-shared-key=SuperSecret123` |
+| Telnet / SSH / MAC-Telnet / WinBox CLI | field **not present in the record at all** |
+
+This is the router's decision, not a gap in this client, and it is not something a `.proplist` or a
+different verb recovers. The consequences for a caller:
+
+* a secret property read over a CLI transport is `null`, and *cannot* be distinguished from one the router
+  genuinely holds empty;
+* WRITING one works normally on every transport — these fields are write-only, not unsupported;
+* a read-modify-write cycle over a CLI transport therefore must not send the secret back. The O/R mapper's
+  diff-based `Save` already handles this: an unread field is unchanged, so it is not in the diff. A
+  `FullUpdate` save, or any code that copies an entity field by field, will blank it.
+
 ### `print stats` — counters need a second query
 
 `print detail as-value` does **not** include runtime counters (`bytes`/`packets`, `rx-byte`, …).

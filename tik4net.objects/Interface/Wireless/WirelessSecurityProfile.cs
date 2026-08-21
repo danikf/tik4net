@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -74,18 +74,39 @@ namespace tik4net.Objects.Interface.Wireless
 
         /// <summary>
         /// management-protection-key
+        /// <para>
+        /// <b>Write-only over the CLI transports.</b> RouterOS's CLI omits secret fields from
+        /// <c>print as-value</c> entirely (<c>detail</c> does not help), so over <c>Telnet</c>,
+        /// <c>Ssh</c>, <c>MacTelnet</c>, <c>WinboxCli</c> and <c>WinboxCliMac</c> this reads back
+        /// <c>null</c> — indistinguishable from a key the router holds empty. The binary API, REST and
+        /// <c>WinboxNative</c> report it. Writing works on every transport.
+        /// </para>
         /// </summary>
         [TikProperty("management-protection-key")]
         public string? ManagementProtectionKey { get; set; }
 
         /// <summary>
         /// wpa-pre-shared-key
+        /// <para>
+        /// <b>Write-only over the CLI transports.</b> RouterOS's CLI omits secret fields from
+        /// <c>print as-value</c> entirely (<c>detail</c> does not help), so over <c>Telnet</c>,
+        /// <c>Ssh</c>, <c>MacTelnet</c>, <c>WinboxCli</c> and <c>WinboxCliMac</c> this reads back
+        /// <c>null</c> — indistinguishable from a key the router holds empty. The binary API, REST and
+        /// <c>WinboxNative</c> report it. Writing works on every transport.
+        /// </para>
         /// </summary>
         [TikProperty("wpa-pre-shared-key")]
         public string? WpaPreSharedKey { get; set; }
 
         /// <summary>
         /// wpa2-pre-shared-key
+        /// <para>
+        /// <b>Write-only over the CLI transports.</b> RouterOS's CLI omits secret fields from
+        /// <c>print as-value</c> entirely (<c>detail</c> does not help), so over <c>Telnet</c>,
+        /// <c>Ssh</c>, <c>MacTelnet</c>, <c>WinboxCli</c> and <c>WinboxCliMac</c> this reads back
+        /// <c>null</c> — indistinguishable from a key the router holds empty. The binary API, REST and
+        /// <c>WinboxNative</c> report it. Writing works on every transport.
+        /// </para>
         /// </summary>
         [TikProperty("wpa2-pre-shared-key")]
         public string? Wpa2PreSharedKey { get; set; }

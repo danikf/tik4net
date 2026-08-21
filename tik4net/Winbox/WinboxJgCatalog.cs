@@ -1477,7 +1477,46 @@ namespace tik4net.Winbox
             if (node.TryGetValue("values", out var vv)) CollectEnumMap(vv, map, 0);
             // A list field's element type is an unnamed child ({type:'multinumber',c:[{type:'enm',values:…}]}).
             if (map.Count == 0 && node.TryGetValue("c", out var cv)) CollectEnumMap(cv, map, 0);
-            return map.Count > 0 ? map : null;
+            return map.Count > 0 ? Normalized(map) : null;
+        }
+
+        /// <summary>
+        /// Normalizes a map's labels the way every other .jg label is normalized — <b>unless doing so would
+        /// merge two members into one</b>, in which case the raw labels are kept.
+        /// </summary>
+        /// <remarks>
+        /// <para>Normalizing is what makes a label match the API's spelling at all: WinBox's
+        /// <c>'as username'</c> is the API's <c>as-username</c> and <c>'key 0'</c> is <c>key-0</c>. But it
+        /// lowercases and folds separators, and a handful of maps distinguish members by exactly those.
+        /// A whole-catalog sweep of 7.24 finds three:</para>
+        /// <list type="bullet">
+        /// <item><c>/interface/wireless/security-profiles</c> 'MAC Format' — the same seven formats twice,
+        /// uppercase then lowercase, and the case SELECTS how the MAC is sent to RADIUS. 14 labels collapse
+        /// to 6. The router agrees they are 14 distinct values (tab-completion offers all of them).</item>
+        /// <item><c>/ip/hotspot/profile</c> 'MAC Format' — 7 labels, where <c>'XX XX XX XX XX XX'</c> and
+        /// <c>'XX-XX-XX-XX-XX-XX'</c> both fold to the same thing.</item>
+        /// <item>'Rate' — <c>'2.5Gbps'</c> and <c>'25Gbps'</c> both fold to <c>25gbps</c>, because the
+        /// abbreviation-dot rule drops the point. The API prints <c>rate=1Gbps</c>, i.e. the raw label.</item>
+        /// </list>
+        /// <para>In all three the raw label is exactly what RouterOS prints and accepts, so keeping it is
+        /// not a compromise — normalizing was simply wrong for them. Detected from the map itself rather
+        /// than listed per field, so a new such map on a later RouterOS is handled without a code change.</para>
+        /// </remarks>
+        private static Dictionary<int, string> Normalized(Dictionary<int, string> raw)
+        {
+            var byNormalized = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var kv in raw)
+            {
+                string n = WinboxFieldResolver.NormalizeLabel(kv.Value);
+                // Two DIFFERENT raw labels landing on one normalized form is the collision. The same raw
+                // label appearing at two keys is not — a defenum names an id the wrapped list also names.
+                if (byNormalized.TryGetValue(n, out string other) && !string.Equals(other, kv.Value, StringComparison.Ordinal))
+                    return raw;
+                byNormalized[n] = kv.Value;
+            }
+            var normalized = new Dictionary<int, string>(raw.Count);
+            foreach (var kv in raw) normalized[kv.Key] = WinboxFieldResolver.NormalizeLabel(kv.Value);
+            return normalized;
         }
 
         // The wrappers whose inner `values` still lead to a static map. Anything else (queryenum, slotenum, …)
@@ -1525,10 +1564,12 @@ namespace tik4net.Winbox
             if (d.TryGetValue("values", out var inner)) CollectEnumMap(inner, map, depth + 1);
             if (d.TryGetValue("c", out var children)) CollectEnumMap(children, map, depth + 1);
 
+            // Stores the RAW label. Normalization happens once, in ExtractEnumMap, because it needs to see
+            // the WHOLE map before it can tell whether normalizing would merge two members.
             void Put(int key, string label)
             {
                 if (map.ContainsKey(key)) return;
-                map[key] = WinboxFieldResolver.NormalizeLabel(StripValueSuffix(label));
+                map[key] = StripValueSuffix(label);
             }
         }
 

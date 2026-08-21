@@ -29,6 +29,21 @@ namespace tik4net.unittests.Winbox
             "[{name:'System',title:'System',c:[{name:'Health',title:'System Health',type:'item'," +
             "path:[ 24,14 ],c:[{name:'caps',type:'number',id:'uf',nonpublic:1}]}]}]";
 
+        // A resolver for /system/health whose synthetic fields are the shipped ones.
+        private static WinboxFieldResolver ResolverWith(WinboxJgField field)
+        {
+            // The security-profile path, so the shipped alias set for it is in force; the field under test
+            // is handed in through the catalog rather than the alias table, which is enough to exercise
+            // EncodeField's enum branch.
+            var catalog = new WinboxJgCatalog();
+            Assert.IsTrue(catalog.TryParseInto(
+                "[{name:'X',c:[{name:'Y',title:'Y',type:'map',path:[ 90,1 ],c:[{name:'" + field.ApiName
+                + "',type:'enm',id:'u" + field.Key.ToString("x") + "',values:{type:'static',map:{"
+                + string.Join(",", field.EnumMap.Select(kv => kv.Key + ":'" + kv.Value + "'"))
+                + "}}}]}]}]"));
+            return new WinboxFieldResolver("/x/y", new[] { 90, 1 }, catalog, new Dictionary<string, int>());
+        }
+
         private static WinboxFieldResolver Resolver()
         {
             var catalog = new WinboxJgCatalog();
@@ -96,6 +111,34 @@ namespace tik4net.unittests.Winbox
         public void TheReadOnlyHalfEncodesToNothing()
         {
             Assert.AreEqual(0, Resolver().EncodeField("state", "enabled").Count);
+        }
+
+        /// <summary>
+        /// G8(c), the write side: an EXACT match wins over a case-insensitive one.
+        /// </summary>
+        /// <remarks>
+        /// Matching case-insensitively in one pass returns whichever member comes FIRST, so on a map that
+        /// carries a value twice — a wireless MAC format, upper then lower — every lowercase value was
+        /// written as its uppercase twin, silently changing what the router sends to RADIUS. The
+        /// case-insensitive pass is kept as a FALLBACK, because on every other map the API's spelling and
+        /// the .jg label routinely differ in case and always did resolve.
+        /// </remarks>
+        [TestMethod]
+        public void AnExactEnumMatchWinsOverACaseInsensitiveOne()
+        {
+            var twins = new Dictionary<int, string> { [0] = "XX:XX:XX:XX:XX:XX", [7] = "xx:xx:xx:xx:xx:xx" };
+            var field = new WinboxJgField("mac-format", 0x1C, "u32", false, enumMap: twins);
+            var resolver = ResolverWith(field);
+
+            Assert.AreEqual(7L, Convert.ToInt64(Encoded(resolver.EncodeField("mac-format", "xx:xx:xx:xx:xx:xx")).Value),
+                "the lowercase value is member 7, not its uppercase twin at 0");
+            Assert.AreEqual(0L, Convert.ToInt64(Encoded(resolver.EncodeField("mac-format", "XX:XX:XX:XX:XX:XX")).Value));
+
+            // The fallback still resolves a value whose case matches no member exactly.
+            var single = new Dictionary<int, string> { [0] = "as-username", [1] = "as-username-and-password" };
+            var plain = ResolverWith(new WinboxJgField("mac-mode", 0x1D, "u32", false, enumMap: single));
+            Assert.AreEqual(1L, Convert.ToInt64(Encoded(plain.EncodeField("mac-mode", "AS-Username-And-Password")).Value),
+                "an inexact case must still resolve — that is what the fallback is for");
         }
 
         /// <summary>A synthetic field resolves for a write like any other — that is what makes it settable.</summary>
