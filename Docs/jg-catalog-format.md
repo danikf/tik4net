@@ -108,12 +108,28 @@ Without `allow`, `addr` cannot be encoded at all; the catalog therefore carries 
 [winbox-native-m2-protocol.md §23](winbox-native-m2-protocol.md).
 Histogram (7.17, 9 files): u×4773, b×2442, s×1437, U×334, q×287, r×241, Q×141,
 M×134, a×133, m×105, S×57, R×8, A×6. **No other type codes appear** → the table is complete.
+Re-counted on 7.24 (18 files): u×5954, b×2874, s×2056, U×398, q×357, r×292, Q×257, M×202,
+a×155, m×131, S×87, R×12, A×6 — **the same thirteen letters**, seven versions apart. The sibling-key
+attributes (`maskid`, `optid`, `oid`, `highid`, `id2`) draw from the same alphabet and use five of them
+(u×252, b×41, U×13, r×6, R×2).
+
+⚠️ **`Q` is the one array prefix that carries a whole UI family.** All 255 `multibignumber` fields and two
+`bigbitrate` ones are spelled `Q`; a prefix table that stops at `q` therefore drops the whole family at
+harvest time — the fields do not become mistyped, they cease to exist. Every one of them is an interface,
+LCD, container or wireless statistic, which is why the omission is invisible on a CHR
+([winbox-native-m2-protocol.md §32.4](winbox-native-m2-protocol.md)).
 
 ⚠️ **The key does not identify the field on its own — the prefix's CASE is part of it.** A window may
 declare both `u12` and `U12`, one scalar and one array on key `0x12`, and the router sends both in the
 same record: `/ip/dhcp-client` has 'Add Default Route' at `u12` and 'DHCP Options' at `U12`. A parser
 keyed on the numeric key alone drops one of them silently. See
 [winbox-native-m2-protocol.md §30](winbox-native-m2-protocol.md).
+
+⚠️ **A label does not identify a field either — one window can use it twice.** The packet sniffer
+`[45,1]` declares `Port` on its Streaming tab (`u9`, the streaming port) and `Port` again on its Filter tab
+(`Mcd`, a list of port matches). Nothing in the node tells them apart; the `{type:'tab'}` node that PRECEDES
+them as a sibling does, and RouterOS names the second one after it — `filter-port`. A catalog keyed on the
+label alone keeps whichever comes first and the other is addressable by no name at all.
 
 ### Key namespace
 

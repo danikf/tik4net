@@ -1343,21 +1343,25 @@ Counted over the 7.24 `.jg` set:
 
 | Shape | Fields | Why |
 |---|---|---|
-| `multibignumber` | 255 | its id prefix `Q` is **absent from the prefix table**, so the fields are not in the catalog at all — see below |
+| `multibignumber` | 255 | its id prefix `Q` is missing from `WinboxJgCatalog.Prefix`, so the fields are not in the catalog at all — see below |
 | `multilinestring` | 27 | not a list: `inherit(types.string)`, overriding only the view. Encodes as the string it is |
 | `stringarray` | 4 | all `ro:1` |
 | `numbertable` | 3 | a read-only table of named columns, all three on radio hardware |
 | `multinetwork6` | 2 | the `multinetwork` shape over `ip6[]`; both fields are traffic-generator templates |
 | `gridmultinumber` | 1 | one wireless field |
 
-**The `Q` prefix.** `q` (u64) is in the id-prefix table and `Q` is not, so every `multibignumber` field —
-and two `bigbitrate` ones — is silently dropped when the window is harvested. By the table's own
-upper-case-is-array convention `Q` is `u64[]`, and `types.multibignumber = inherit(types.multinumber)`
-says an element is one u64; but **not one of the 257 is observable on a CHR**: they are interface, LCD,
-container and wireless statistics, and a `/interface/list/member` record created for the purpose comes back
-with no `Q` key at all. Left as-is rather than registered blind — adding 257 fields to the catalog can
-change which field an existing NAME resolves to, and there is nothing here to check that against.
-(`x`/`X` are in the table and appear nowhere in the catalog.)
+**The `Q` prefix.** `Q` = `u64[]` is settled ground:
+[jg-catalog-format.md](jg-catalog-format.md) has carried it since the 7.17 survey and the 7.24 recount
+finds it 257 times. `WinboxJgCatalog.Prefix` has `q` and not `Q`, so `DecodeId` returns nothing for those
+ids and the field is dropped at harvest time — it does not become mistyped, it ceases to exist. What the
+element is follows from webfig alone (`types.multibignumber = inherit(types.multinumber)`, one u64 each).
+
+What is missing is a way to check the result: **not one of the 257 is observable on a CHR.** They are
+interface, LCD, container and wireless statistics; a `/interface/list/member` record created for the
+purpose comes back with no `Q` key at all. Registering 257 new fields can change which field an existing
+NAME resolves to (first-wins per handler), and nothing on this hardware would show it — so the gap is
+recorded rather than closed. The same table also carries `x`/`X`, which appear in no catalog of either
+version.
 
 ## Settled questions — do not re-investigate
 
