@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -82,7 +82,7 @@ namespace tik4net.unittests
             Disabled = false,
             BurstLimit = 0,
             BurstThreshold = 0,
-            BurstTime = "0s",
+            BurstTime = TimeSpan.Zero,
         };
 
         // ── Merge builders — the exact fluent setup the shaper uses ───────────

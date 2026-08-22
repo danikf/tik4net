@@ -1,4 +1,4 @@
-namespace tik4net.Objects.Ip.Hotspot
+﻿namespace tik4net.Objects.Ip.Hotspot
 {
     /// <summary>
     /// ip/hotspot/user
@@ -126,7 +126,7 @@ namespace tik4net.Objects.Ip.Hotspot
         /// uptime: 
         /// </summary>
         [TikProperty("uptime", IsReadOnly = true)]
-        public string? Uptime { get; private set; }
+        public TikDuration? Uptime { get; private set; }
 
         /// <summary>
         /// ctor

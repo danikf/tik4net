@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -168,7 +168,7 @@ namespace tik4net.Objects.Tool
 
         /// <summary>thr-tcp-conn-time — TCP connection time threshold range (e.g. "5ms-30ms"); probe fails when connection time is outside this range (type=tcp-conn).</summary>
         [TikProperty("thr-tcp-conn-time")]
-        public string? ThrTcpConnTime { get; set; }
+        public TikDuration? ThrTcpConnTime { get; set; }
 
         // ── HTTP/HTTPS-specific (type=http-get / https-get) ──────────────────────
 

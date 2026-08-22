@@ -9,7 +9,6 @@ namespace tik4net
     /// </summary>
     public static class TikTimeHelper
     {
-        private static readonly Regex regexpUptime = new Regex(@"((\d+)w)?((\d+)d)?((\d+)h)?((\d+)m)?((\d+)s)?((\d+)ms)?", RegexOptions.Compiled);
 
         /// <summary>
         /// Convert the seconds passed in to a MikroTik time string
@@ -96,51 +95,25 @@ namespace tik4net
         }
 
         /// <summary>
-        /// Convert a MikroTik time string to TimeSpan
+        /// Reads a MikroTik duration into a <see cref="TimeSpan"/>, in either of the forms the router
+        /// writes: compact (<c>10s</c>, <c>1d2h</c>, <c>200ms</c>) as the API, REST and native WinBox send
+        /// it, or clock (<c>00:00:10</c>, <c>1d00:00:00</c>, <c>00:00:00.200</c>) as the CLI transports do.
         /// </summary>
-        /// <param name="time">The time as specified by MikroTik</param>
-        /// <returns></returns>
+        /// <param name="time">The duration as the router wrote it.</param>
+        /// <returns>The length of time.</returns>
+        /// <exception cref="FormatException">
+        /// <paramref name="time"/> is not a duration — including the words the router uses in place of one
+        /// (<c>none</c>, <c>disabled</c>, …). Those are a real state of the field, not a zero: a property
+        /// that can carry them should be typed <see cref="TikDuration"/>, which keeps them.
+        /// </exception>
         public static TimeSpan FromTikTimeToTimeSpan(string time)
         {
-            TimeSpan uptime = TimeSpan.MinValue;
-            Match regexResult = regexpUptime.Match(time);
-            if (regexResult.Success)
-            {
-                double ms = 0;
-                for (int i = 1; i < regexResult.Groups.Count; i += 2)
-                {
-                    if (!string.IsNullOrEmpty(regexResult.Groups[i].Value))
-                    {
-                        double value = double.Parse(regexResult.Groups[i + 1].Value);
-                        if (regexResult.Groups[i].Value.EndsWith("w"))
-                        {
-                            ms += value * 604800000;
-                        }
-                        else if (regexResult.Groups[i].Value.EndsWith("d"))
-                        {
-                            ms += value * 86400000;
-                        }
-                        else if (regexResult.Groups[i].Value.EndsWith("h"))
-                        {
-                            ms += value * 3600000;
-                        }
-                        else if (regexResult.Groups[i].Value.EndsWith("m"))
-                        {
-                            ms += value * 60000;
-                        }
-                        else if (regexResult.Groups[i].Value.EndsWith("ms"))
-                        {
-                            ms += value;
-                        }
-                        else if (regexResult.Groups[i].Value.EndsWith("s"))
-                        {
-                            ms += value * 1000;
-                        }
-                    }
-                }
-                uptime = TimeSpan.FromMilliseconds(ms);
-            }
-            return uptime;
+            if (TikDuration.TryParseTimeSpan(time, out TimeSpan result))
+                return result;
+
+            throw new FormatException(
+                $"'{time}' is not a MikroTik duration. Expected either the compact form (10s, 1d2h, 200ms) "
+                + "or the clock form the CLI transports report (00:00:10, 1d00:00:00, 00:00:00.200).");
         }
     }
 }

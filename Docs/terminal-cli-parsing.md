@@ -148,6 +148,57 @@ Examples:
 - For everything else (nonquery): `name=value ...`
 - Special case: `.proplist` is ignored (`as-value` always returns every field)
 
+### 2b. Durations come back in a different notation than the API's
+
+`print as-value` writes durations in **clock** form where the binary API writes them in the **compact**
+form. Same router, same field, same moment — verified on RouterOS 7.24:
+
+| Field | API / REST / WinBox-native | CLI (`print as-value`) |
+|---|---|---|
+| `/interface/wireless/sniffer channel-time` | `200ms` | `00:00:00.200` |
+| `…/connection/tracking icmp-timeout` | `10s` | `00:00:10` |
+| `…/connection/tracking tcp-max-retrans-timeout` | `5m` | `00:05:00` |
+| `…/connection/tracking tcp-established-timeout` | `1d` | `1d00:00:00` |
+| `/system/resource uptime` | `21h16m40s` | `21:16:40` |
+
+The clock form takes an optional `Nw`/`Nd` prefix and an optional fraction of a second, so the full shape
+is `[Nw][Nd]HH:MM:SS[.fff]`. Both forms are accepted on **write**, so a client that normalizes to the
+compact form can use one spelling everywhere.
+
+### 2c. Paired values are abbreviated by the CLI and spelled out by the API
+
+A field that carries an **upload/download pair** — the `x/y` fields of `/queue/simple` — is where the
+second notation difference lives. Verified on RouterOS 7.24 by creating one queue of each kind:
+
+| Field | API / REST | CLI (`print as-value`) |
+|---|---|---|
+| `/queue/simple max-limit` | `1000000/2000000` | `1M/2M` |
+| `/queue/simple burst-limit` | `4000000/8000000` | `4M/8M` |
+| `/queue/simple burst-threshold` | `500000/1000000` | `500k/1M` |
+| `/queue/simple limit-at` | `1000/2000` | `1k/2k` |
+| `/queue/tree max-limit` (single) | `1000000` | `1000000` — **the same** |
+
+So it is the pairing, not the magnitude, that changes the rendering: single-valued rate and size fields
+come back as bare digits on both sides, and so do read-only counters (`free-memory=3788062720`). The
+human-readable `3788.1MiB` belongs to `print detail`, which this transport never uses.
+
+Durations run the other way round, which is worth holding side by side:
+
+| Field | API / REST | CLI |
+|---|---|---|
+| `/queue/tree burst-time` (single) | `10s` | `00:00:10` — differs |
+| `/queue/simple burst-time` (paired) | `10s/10s` | `10s/10s` — **the same** |
+
+A paired duration is written in the compact form by both, because the pair is formatted as text rather
+than as two duration fields. That is why `QueueSimple.BurstTime` is a string in the O/R mapper while
+`QueueTree.BurstTime` is a `TikDuration`: they look like the same field and are not.
+
+**The paired rate fields are still mapped as strings, and still differ per transport.** Nothing reads
+`1M` and `1000000` as one value yet — see [HISTORY](HISTORY.md) for where that stands.
+
+In tik4net this is why a duration field is mapped as `TikDuration` rather than as a string — see
+[ARCHITECTURE.md](../ARCHITECTURE.md#adding-an-entity).
+
 ### 3. Building the CLI command per operation
 
 Operation is detected from the last segment of the path:

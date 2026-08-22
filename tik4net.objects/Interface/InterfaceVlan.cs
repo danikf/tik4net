@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -83,7 +83,7 @@ namespace tik4net.Objects.Interface
         /// arp-timeout
         /// </summary>
         [TikProperty("arp-timeout")]
-        public string? ArpTimeout { get; set; }
+        public TikDuration? ArpTimeout { get; set; }
         public enum LoopProtectMode
         {
             /// <summary>

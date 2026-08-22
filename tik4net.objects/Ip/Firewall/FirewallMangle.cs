@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -232,7 +232,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// address-list-timeout
         /// </summary>
         [TikProperty("address-list-timeout", DefaultValue = "00:00:00")]
-        public string? AddressListTimeout { get; set; }
+        public TikDuration? AddressListTimeout { get; set; }
 
         /// <summary>
         /// ToString override.

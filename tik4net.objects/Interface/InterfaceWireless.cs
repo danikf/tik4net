@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -795,7 +795,7 @@ namespace tik4net.Objects.Interface
         /// This is proprietary extension.
         /// </summary>
         [TikProperty("update-stats-interval")]
-        public string? UpdateStatsInterval { get; set; }
+        public TikDuration? UpdateStatsInterval { get; set; }
 
         /// <summary>
         /// vht-basic-mcs

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -45,7 +45,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// timeout  (00:00:00)
         /// </summary>
         [TikProperty("timeout", DefaultValue = "00:00:00")]
-        public string? Timeout { get; set; }
+        public TikDuration? Timeout { get; set; }
 
         /// <summary>
         /// list

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -82,7 +82,7 @@ namespace tik4net.Objects.Ppp
         /// uptime: User's uptime
         /// </summary>
         [TikProperty("uptime", IsReadOnly = true)]
-        public string? Uptime { get; private set; }
+        public TikDuration? Uptime { get; private set; }
 
     }
 

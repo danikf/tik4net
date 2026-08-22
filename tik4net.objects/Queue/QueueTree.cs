@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -75,7 +75,7 @@ namespace tik4net.Objects.Queue
         /// burst-time
         /// </summary>
         [TikProperty("burst-time")]
-        public string? BurstTime { get; set; }
+        public TikDuration? BurstTime { get; set; }
 
         /// <summary>
         /// bytes

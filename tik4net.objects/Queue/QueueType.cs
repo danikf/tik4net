@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -123,7 +123,7 @@ namespace tik4net.Objects.Queue
         /// pcq-burst-time
         /// </summary>
         [TikProperty("pcq-burst-time")]
-        public string? PcqBurstTime { get; set; }
+        public TikDuration? PcqBurstTime { get; set; }
 
         /// <summary>
         /// pcq-src-address-mask

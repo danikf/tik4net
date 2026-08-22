@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace tik4net.Objects.Routing.Bgp
 {
@@ -63,7 +63,7 @@ namespace tik4net.Objects.Routing.Bgp
         /// Gets or sets the hold-time of this peer.
         /// </summary>
         [TikProperty("hold-time")]
-        public string? HoldTime { get; set; }
+        public TikDuration? HoldTime { get; set; }
 
         /// <summary>
         /// Gets or sets the time-to-live setting of this peer.
@@ -123,7 +123,7 @@ namespace tik4net.Objects.Routing.Bgp
         /// Gets the uptime of the link to this peer.
         /// </summary>
         [TikProperty("uptime", IsReadOnly = true)]
-        public string? Uptime { get; private set; }
+        public TikDuration? Uptime { get; private set; }
 
         /// <summary>
         /// Gets the number of prefixes advertised by this peer.
@@ -159,19 +159,19 @@ namespace tik4net.Objects.Routing.Bgp
         /// remote-hold-time: 
         /// </summary>
         [TikProperty("remote-hold-time", IsReadOnly = true)]
-        public string? RemoteHoldTime { get; private set; }
+        public TikDuration? RemoteHoldTime { get; private set; }
 
         /// <summary>
         /// Gets the actually used hold-time of the link to this peer.
         /// </summary>
         [TikProperty("used-hold-time", IsReadOnly = true)]
-        public string? UsedHoldTime { get; private set; }
+        public TikDuration? UsedHoldTime { get; private set; }
 
         /// <summary>
         /// Gets the actually used keepalive-time of the link to this peer.
         /// </summary>
         [TikProperty("used-keepalive-time", IsReadOnly = true)]
-        public string? UsedKeepaliveTime { get; private set; }
+        public TikDuration? UsedKeepaliveTime { get; private set; }
 
         /// <summary>
         /// Gets a value indicating whether this peer has the refresh capability.

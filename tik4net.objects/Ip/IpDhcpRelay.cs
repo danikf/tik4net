@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -29,7 +29,7 @@ namespace tik4net.Objects.Ip
         /// delay-threshold: If secs field in DHCP packet is smaller than delay-threshold, then this packet is ignored
         /// </summary>
         [TikProperty("delay-threshold", DefaultValue = "none")]
-        public string? DelayThreshold { get; set; }
+        public TikDuration? DelayThreshold { get; set; }
 
         /// <summary>
         /// dhcp-server: List of DHCP servers' IP addresses which should the DHCP requests be forwarded to

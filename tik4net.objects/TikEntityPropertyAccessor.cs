@@ -166,7 +166,7 @@ namespace tik4net.Objects
                 || (!propertyInfo.CanWrite) || (propertyAttribute.IsReadOnly);
             IsMandatory = propertyAttribute.IsMandatory;
             if (propertyAttribute.DefaultValue != null)
-                DefaultValue = propertyAttribute.DefaultValue;
+                DefaultValue = NormalizeDefaultValue(propertyAttribute.DefaultValue);
             else if (IsNullable)
                 // A nullable property that declares no default HAS no default: its unset state is null, and
                 // null is already "do not send". Computing one from the underlying type (which would give a
@@ -275,6 +275,18 @@ namespace tik4net.Objects
                     return value;
                 else if (ValueType == typeof(TimeSpan))
                     return TikTimeHelper.FromTikTimeToTimeSpan(value);
+                // A duration the router may also answer with a word (none / disabled / auto). Both of the
+                // forms the router writes durations in parse to the same value here, which is the point:
+                // the API says "10s" and the CLI says "00:00:10" for the same field.
+                else if (ValueType == typeof(TikDuration))
+                {
+                    // An empty value is the router saying the field carries nothing, which is not the same
+                    // as a zero-length duration. A nullable property can say that; a non-nullable one has
+                    // nowhere to put it and keeps the type's own default.
+                    if (value.Length == 0)
+                        return IsNullable ? (object?)null : default(TikDuration);
+                    return TikDuration.Parse(value);
+                }
                 // InvariantCulture on every numeric conversion, in both directions. The thread's culture
                 // has no business here: the router's wire form is invariant, and the digits being the same
                 // in every culture is not enough — a few (sv-SE, fi-FI) render minus as U+2212, which
@@ -352,6 +364,8 @@ namespace tik4net.Objects
                 return propValue.ToString();
             else if (ValueType == typeof(TimeSpan))
                 return TikTimeHelper.ToTikTime((int)((TimeSpan)propValue).TotalSeconds);
+            else if (ValueType == typeof(TikDuration))
+                return ((TikDuration)propValue).ToString();
             else if (ValueType == typeof(int))
                 return ((int)propValue).ToString(CultureInfo.InvariantCulture);
             else if (ValueType == typeof(long))
@@ -399,6 +413,29 @@ namespace tik4net.Objects
             string? propValue = GetEntityValue(entity);
 
             return (propValue == null) || (Convert.ToString(propValue) == DefaultValue);
+        }
+
+        /// <summary>
+        /// Puts a declared <see cref="TikPropertyAttribute.DefaultValue"/> into the same spelling the
+        /// property itself produces, so the two can be compared as strings.
+        /// </summary>
+        /// <remarks>
+        /// It matters for durations and nothing else so far, and there it matters a lot: the router writes
+        /// the same duration as <c>10s</c> over the API and <c>00:00:10</c> over the CLI, and entity
+        /// defaults in this repository are written in both spellings. Without this, a field sitting at its
+        /// default reads as CHANGED on one transport and unchanged on the other — so <c>Save</c> would send
+        /// a value the caller never set, on some transports only.
+        /// <para>
+        /// Anything that is not a normalizable type is left exactly as declared: this must not become a
+        /// general rewriting pass over values whose spelling is already the one the router expects.
+        /// </para>
+        /// </remarks>
+        private string NormalizeDefaultValue(string declared)
+        {
+            if (ValueType != typeof(TikDuration))
+                return declared;
+
+            return TikDuration.TryParse(declared, out TikDuration duration) ? duration.ToString() : declared;
         }
 
         /// <summary>

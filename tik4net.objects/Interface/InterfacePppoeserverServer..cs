@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -60,7 +60,7 @@ namespace tik4net.Objects.Interface
         /// keepalive-timeout - Defines the time period (in seconds) after which the router is starting to send keepalive packets every second. If there is no traffic and no keepalive responses arrive for that period of time (i.e. 2 * keepalive-timeout), the non responding client is proclaimed disconnected.
         /// </summary>
         [TikProperty("keepalive-timeout", DefaultValue = "10")]
-        public string? KeepaliveTimeout { get; set; }
+        public TikDuration? KeepaliveTimeout { get; set; }
 
         /// <summary>
         /// one-session-per-host - Allow only one session per host (determined by MAC address). If a host tries to establish a new session, the old one will be closed.
@@ -78,7 +78,7 @@ namespace tik4net.Objects.Interface
         /// pado-delay
         /// </summary>
         [TikProperty("pado-delay")]
-        public string? PadoDelay { get; set; }
+        public TikDuration? PadoDelay { get; set; }
 
         /// <summary>
         /// default-profile - Default user profile to use

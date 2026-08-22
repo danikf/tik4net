@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -39,6 +39,6 @@ namespace tik4net.Objects.Interface.Wireless
         /// channel-time: Default: 200ms
         /// </summary>
         [TikProperty("channel-time", DefaultValue = "200")]
-        public string? ChannelTime { get; set; }
+        public TikDuration? ChannelTime { get; set; }
     }
 }

@@ -285,6 +285,18 @@ Helpers: `TikEntityObjectsExtensions` (`Clone<T>`, `EntityDescription`, `EntityD
    populates fewer still, and the mapper constructs entities through a parameterless constructor.
    Value-typed properties (`bool?`, `long`, enums) are unchanged by this — see the `DefaultValue` rules
    above for when those need `?`.
+6. **A duration field is `TikDuration?`, never `string?`.** The router writes the same duration two ways
+   depending on who asked — `10s` / `200ms` / `1d` over the API, REST and native WinBox, `00:00:10` /
+   `00:00:00.200` / `1d00:00:00` over the CLI transports, which read `print as-value`. A `string?`
+   property hands that difference to the caller, so the same field compares unequal to itself across
+   transports and `Save` sees a default-valued field as changed. `TikDuration` reads both forms, writes
+   the compact one, and keeps the words the router uses in place of a duration (`none`, `disabled`,
+   `auto`) instead of flattening them to zero — which a `TimeSpan` cannot do.
+   Not every field whose name ends in `-time` is a duration: `build-time` and `last-link-up-time` are
+   timestamps, firewall `ttl` is a hop count, and a tunnel's `keepalive` is an interval and a retry count
+   in one field. Those stay as they are. Nor is a **paired** field one — `/queue/simple burst-time` is
+   `10s/10s`, an upload/download pair, and stays a string, while `/queue/tree burst-time` is a single
+   duration and is a `TikDuration`. Check the actual value on a live router before typing a field.
 
 These conventions are **enforced in CI**, not just documented: `EntityStructureConventionTests` (shape —
 `.id`, paths, enums, read-only counters) and `EntityDefaultValueConventionTests` (the `DefaultValue` /

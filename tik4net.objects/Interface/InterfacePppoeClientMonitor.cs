@@ -1,4 +1,4 @@
-namespace tik4net.Objects.Interface
+﻿namespace tik4net.Objects.Interface
 {
     [TikEntity("/interface/pppoe-client/monitor", LoadCommand ="", LoadDefaultParameneterFormat = TikCommandParameterFormat.NameValue, IncludeDetails = false, IsReadOnly = true)]
     public class InterfacePppoeClientMonitor
@@ -7,7 +7,7 @@ namespace tik4net.Objects.Interface
         public string? Status { get; private set; }
 
         [TikProperty("uptime", IsMandatory = false, IsReadOnly = true)]
-        public string? Uptime { get; private set; }
+        public TikDuration? Uptime { get; private set; }
 
         [TikProperty("active-links", IsMandatory = false, IsReadOnly = true)]
         public string? ActiveLinks { get; private set; }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -43,7 +43,7 @@ namespace tik4net.Objects.Tool
         /// The ping time.
         /// </summary>
         [TikProperty("time", IsReadOnly = true)]
-        public string? Time { get; private set; }
+        public TikDuration? Time { get; private set; }
 
         /// <summary>
         /// sent
@@ -102,9 +102,10 @@ namespace tik4net.Objects.Tool
         /// </summary>
         public override string ToString()
         {
-            // Time!: Time is not IsMandatory, so a row without it (e.g. a timeout) leaves it null - this
-            // was already an unguarded NRE risk before nullable annotations; not fixed here (annotation only).
-            return string.Format("{0} ....... {1}", Host, TikTimeHelper.FromTikTimeToSeconds(Time!));
+            // Time is not IsMandatory: a row without it (a ping that timed out) leaves it null, and saying
+            // so beats the old formatting, which ran the value through a whole-seconds conversion — every
+            // round trip under a second printed as 0.
+            return string.Format("{0} ....... {1}", Host, Time?.ToString() ?? "(timeout)");
         }
 
         /// <summary>

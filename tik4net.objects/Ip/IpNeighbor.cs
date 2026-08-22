@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -91,13 +91,13 @@ namespace tik4net.Objects.Ip
         /// age: Time elapsed since the last discovery packet was received from this neighbor. /*time*/
         /// </summary>
         [TikProperty("age", IsReadOnly = true)]
-        public string? Age { get; private set; }
+        public TikDuration? Age { get; private set; }
 
         /// <summary>
         /// uptime: Uptime of the remote device at the time of the last discovery packet. /*time*/
         /// </summary>
         [TikProperty("uptime", IsReadOnly = true)]
-        public string? Uptime { get; private set; }
+        public TikDuration? Uptime { get; private set; }
 
         /// <summary>
         /// ipv6: Whether IPv6 is enabled on the discovered device.

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -117,6 +117,6 @@ namespace tik4net.Objects.Ip.Firewall
         /// timeout: Time after connection will be removed from connection list.
         /// </summary>
         [TikProperty("timeout", IsReadOnly = true)]
-        public string? Timeout { get; private set; }
+        public TikDuration? Timeout { get; private set; }
     }
 }
