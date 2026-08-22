@@ -203,14 +203,18 @@ namespace tik4net.unittests.Winbox
         // ── a wrapper is not a value ───────────────────────────────────────────
 
         [TestMethod]
-        public void ANotWrappedElementIsRefusedRatherThanWrittenIntoTheFlag()
+        public void ANotWrappedElementPutsTheValueInTheLeafAndNotInTheFlag()
         {
             // {type:'not',id:'b6',c:[…]} carries an id without being a value. Taking it for one would write
             // the caller's number into the NEGATION FLAG and drop the value entirely — a request the router
-            // accepts and reads as a rule matching everything.
-            Assert.ThrowsException<WinboxFieldResolutionException>(
-                () => Resolver(SwitchWindow, "/interface/ethernet/switch/port", SwitchHandler)
-                          .EncodeField("custom-fields", "5"));
+            // accepts and reads as a rule matching everything. The value belongs to the leaf INSIDE, and the
+            // flag stays a flag: it is the '!' of one element, and is written either way round.
+            var elements = Elements(
+                Resolver(SwitchWindow, "/interface/ethernet/switch/port", SwitchHandler)
+                    .EncodeField("custom-fields", "5"), 0x71A);
+
+            Assert.AreEqual(5L, Num(elements[0][0x1]), "the value, at the wrapped leaf's own key");
+            Assert.AreEqual(false, elements[0][0x6], "and the wrapper's id carries the flag, not the value");
         }
     }
 }

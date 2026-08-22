@@ -202,6 +202,27 @@ namespace tik4net.Winbox
         internal string? ElementSeparator { get; }
 
         /// <summary>
+        /// For a message-array list whose element is wrapped in a <c>type:'not'</c>, the M2 key of the
+        /// per-element negation flag inside the element's submessage; 0 when it is not wrapped.
+        /// </summary>
+        /// <remarks>
+        /// <c>types.not.tostr</c> renders the element as <c>(flag ? '!' : '') + inner.tostr(…)</c>, so the
+        /// flag is a PREFIX on one element rather than on the whole field (contrast <see cref="NotKey"/>,
+        /// which negates a scalar, and <see cref="OffKey"/>, where the negated members ride in a second
+        /// array). <c>/tool/sniffer</c>'s filters are the live shape:
+        /// <c>filter-ip-address="!192.168.251.0/24,10.0.0.1/32"</c> is one message array whose two elements
+        /// carry <c>b1=true</c> and <c>b1=false</c>.
+        /// </remarks>
+        internal int ElementNotKey { get; }
+
+        /// <summary>
+        /// The <c>range:1</c> of a LIST's element — whether the second half of each pair is the range END
+        /// rather than a netmask. The field-level analogue is <see cref="IsRange"/>; a list declares it on
+        /// the element (<c>{type:'network',range:1}</c>), because that is whose <c>tostr</c> reads it.
+        /// </summary>
+        internal bool ElementIsRange { get; }
+
+        /// <summary>
         /// The <c>.jg</c> <c>def</c> value, when the field declares one. Only interesting for the u32
         /// <b>unset marker</b> <c>0xFFFFFFFF</c>: a field declaring <c>def:4294967295</c> (e.g. a logging
         /// action's <c>Syslog Severity</c>, whose real domain is 0–7) carries that value when it is NOT SET,
@@ -296,9 +317,12 @@ namespace tik4net.Winbox
             string? paneKind = null, int paneSelectorKey = 0, int[]? paneValues = null, int offKey = 0,
             bool isOptional = false, string? elementUiType = null, int scale = 1,
             IReadOnlyList<WinboxJgElementPart>? elementParts = null, string? postfix = null,
-            string? elementSeparator = null, Tuple<WinboxJgField, WinboxJgField>? pairHalves = null)
+            string? elementSeparator = null, Tuple<WinboxJgField, WinboxJgField>? pairHalves = null,
+            int elementNotKey = 0, bool elementIsRange = false)
         {
             PairHalves = pairHalves;
+            ElementNotKey = elementNotKey;
+            ElementIsRange = elementIsRange;
             ElementSeparator = elementSeparator;
             Postfix = postfix;
             ElementParts = elementParts;
@@ -323,5 +347,15 @@ namespace tik4net.Winbox
             NotKey = notKey;
             IsRange = isRange;
         }
+
+        /// <summary>
+        /// The same field under a different API name — for a field a window gives a label another field of
+        /// that window already claimed, and which is therefore reachable only under a qualified name.
+        /// </summary>
+        internal WinboxJgField WithApiName(string apiName)
+            => new WinboxJgField(apiName, Key, WireType, ReadOnly, EnumMap, UiType, MaskKey, RefHandler,
+                OptKey, NotKey, IsRange, Allow, Def, PaneKind, PaneSelectorKey, PaneValues, OffKey,
+                IsOptional, ElementUiType, Scale, ElementParts, Postfix, ElementSeparator, PairHalves,
+                ElementNotKey, ElementIsRange);
     }
 }

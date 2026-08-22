@@ -779,7 +779,8 @@ namespace tik4net.Winbox
             { Kind = kind; SelectorKey = selectorKey; Values = values; }
         }
 
-        private void Walk(object? node, string? handlerKey, List<string> crumb, PaneContext? pane = null)
+        private void Walk(object? node, string? handlerKey, List<string> crumb, PaneContext? pane = null,
+            string? tab = null)
         {
             if (node is Dictionary<string, object> dict)
             {
@@ -1001,7 +1002,9 @@ namespace tik4net.Winbox
                             def: ExtractDef(dict), pane: pane, offKey: offKey,
                             isOptional: IsOptionalAttr(dict), elementUiType: ElementUiTypeOf(dict),
                             scale: ScaleOf(dict), elementParts: ElementPartsOf(dict),
-                            postfix: PostfixOf(dict), elementSeparator: ElementSeparatorOf(dict));
+                            postfix: PostfixOf(dict), elementSeparator: ElementSeparatorOf(dict),
+                            elementNotKey: ElementNotKeyOf(dict), elementIsRange: ElementIsRangeOf(dict),
+                            tab: tab);
                     }
                 }
 
@@ -1045,13 +1048,24 @@ namespace tik4net.Winbox
                 foreach (var kv in dict)
                 {
                     if (kv.Key == "id") continue;
-                    Walk(kv.Value, owner, childCrumb, handlerInts != null ? null : pane);
+                    Walk(kv.Value, owner, childCrumb, handlerInts != null ? null : pane,
+                        handlerInts != null ? null : tab);
                 }
             }
             else if (node is List<object> list)
             {
+                // A tab is a SIBLING of the fields it heads, not their parent, so the current tab is carried
+                // along the list rather than down a subtree. It is what tells apart two fields a window gives
+                // the same label - and what the API prefixes the second one with (see AddField).
+                string? currentTab = tab;
                 foreach (var it in list)
-                    Walk(it, handlerKey, crumb, pane);
+                {
+                    if (it is Dictionary<string, object> td
+                        && td.TryGetValue("type", out var ttv) && (ttv as string) == "tab"
+                        && td.TryGetValue("name", out var tnv) && tnv is string tn)
+                        currentTab = WinboxFieldResolver.NormalizeLabel(tn);
+                    Walk(it, handlerKey, crumb, pane, currentTab);
+                }
             }
         }
 
@@ -1119,14 +1133,28 @@ namespace tik4net.Winbox
             int optKey = 0, int notKey = 0, bool isRange = false, string? allow = null, long? def = null,
             PaneContext? pane = null, int offKey = 0, bool isOptional = false, string? elementUiType = null,
             int scale = 1, IReadOnlyList<WinboxJgElementPart>? elementParts = null, string? postfix = null,
-            string? elementSeparator = null)
+            string? elementSeparator = null, int elementNotKey = 0, bool elementIsRange = false,
+            string? tab = null)
         {
             string apiName = WinboxFieldResolver.NormalizeLabel(label);
             if (string.IsNullOrEmpty(apiName)) return;
             var field = new WinboxJgField(apiName, key, wireType, ro, enumMap, uiType, maskKey,
                 refHandler, optKey, notKey, isRange, allow, def,
                 pane?.Kind, pane?.SelectorKey ?? 0, pane?.Values, offKey, isOptional, elementUiType, scale,
-                elementParts, postfix, elementSeparator);
+                elementParts, postfix, elementSeparator, elementNotKey: elementNotKey,
+                elementIsRange: elementIsRange);
+            // Two fields of one window may carry the same label - the packet sniffer's streaming 'Port' (a
+            // number) and its filter 'Port' (a list of port matches) - and first-wins kept only the first,
+            // leaving the second reachable under no name at all. The TAB it sits under is what tells them
+            // apart, and is what RouterOS prefixes the second with: 'filter-port'. Registered only for the
+            // loser of a collision, so every name that resolved before keeps resolving to the same key.
+            if (tab != null && _byHandler.TryGetValue(handlerKey, out var taken)
+                && taken.ContainsKey(apiName))
+            {
+                string qualified = WinboxFieldResolver.PrefixWithKind(tab, apiName);
+                if (qualified != apiName) field = field.WithApiName(qualified);
+                apiName = qualified;
+            }
             Put(handlerKey, apiName, field);
             // A pane field is ALSO filed under the kind-prefixed name the API uses for it (memory-lines,
             // pcq-rate). Both registrations are needed: the plain one keeps every name that resolved before
@@ -1174,8 +1202,50 @@ namespace tik4net.Winbox
         // The `type` of a list field's unnamed element child — what webfig renders each element through.
         private static string? ElementUiTypeOf(Dictionary<string, object> dict)
         {
-            var child = FirstChildDict(dict);
+            var child = ElementChild(dict, out _);
             return child != null && child.TryGetValue("type", out var tv) ? tv as string : null;
+        }
+
+        /// <summary>
+        /// The element child of a list field, with a <c>not</c> WRAPPER unwrapped: an element declared
+        /// <c>{type:'not',id:'b1',c:[…]}</c> carries a negation flag at its own id and the real value inside,
+        /// exactly as <c>types.not</c> does for a scalar. <paramref name="notKey"/> receives the flag's M2
+        /// key, or 0 when the element is not wrapped.
+        /// </summary>
+        /// <remarks>
+        /// The wrapper is NOT the value, which is why it is unwrapped here rather than treated as a leaf:
+        /// its own id is a bool, and writing a caller's number into it would set the negation flag and drop
+        /// the value (see <see cref="SingleLeafElementTypes"/>).
+        /// </remarks>
+        private static Dictionary<string, object>? ElementChild(Dictionary<string, object> dict, out int notKey)
+        {
+            notKey = 0;
+            var child = FirstChildDict(dict);
+            for (int guard = 0; guard < 4 && child != null; guard++)
+            {
+                if (!(child.TryGetValue("type", out var tv) && (tv as string) == "not")) return child;
+                int k = DecodedKeyOf(child, "id");
+                var inner = FirstChildDict(child);
+                if (inner == null) return child;   // a childless 'not' is a plain flag, not a wrapper
+                notKey = k;
+                child = inner;
+            }
+            return child;
+        }
+
+        // The negation-flag key of a `not`-wrapped list element (see ElementChild), or 0.
+        private static int ElementNotKeyOf(Dictionary<string, object> dict)
+        {
+            ElementChild(dict, out int notKey);
+            return notKey;
+        }
+
+        // The element's own `range:1` — for a network element it says the SIBLING is the range END rather
+        // than a netmask, exactly as it does on a scalar (types.network.tostr reads attrs.range).
+        private static bool ElementIsRangeOf(Dictionary<string, object> dict)
+        {
+            var child = ElementChild(dict, out _);
+            return child != null && child.TryGetValue("range", out var rv) && rv is int ri && ri != 0;
         }
 
         /// <summary>
@@ -1191,7 +1261,7 @@ namespace tik4net.Winbox
         /// </remarks>
         private static IReadOnlyList<WinboxJgElementPart>? ElementPartsOf(Dictionary<string, object> dict)
         {
-            var child = FirstChildDict(dict);
+            var child = ElementChild(dict, out _);
             string? childType = child != null && child.TryGetValue("type", out var tv) ? tv as string : null;
             if (childType == "tuple")
             {
@@ -1232,7 +1302,7 @@ namespace tik4net.Winbox
         // encoder and its own allow-mask rules.
         private static readonly HashSet<string> SingleLeafElementTypes = new HashSet<string>(StringComparer.Ordinal)
         {
-            "ipaddr", "ip6addr", "macaddr", "network", "network6",
+            "ipaddr", "ip6addr", "macaddr", "macnetwork", "network", "network6",
             "number", "enm", "interval", "string", "secret", "bool",
         };
 
@@ -1263,7 +1333,7 @@ namespace tik4net.Winbox
         // is not a tuple.
         private static string? ElementSeparatorOf(Dictionary<string, object> dict)
         {
-            var child = FirstChildDict(dict);
+            var child = ElementChild(dict, out _);
             if (child == null || !(child.TryGetValue("type", out var tv) && (tv as string) == "tuple"))
                 return null;
             return child.TryGetValue("sep", out var sv) && sv is string s ? s : "/";
@@ -1333,7 +1403,8 @@ namespace tik4net.Winbox
                     AddField(handlerKey, label, dec.Value.key, dec.Value.type, ro, ExtractEnumMap(cur),
                         ty, maskKey, refHandler, optKey, notKey, isRange, allow, ExtractDef(cur), pane,
                         DecodedKeyOf(cur, "oid"), IsOptionalAttr(cur), ElementUiTypeOf(cur), ScaleOf(cur),
-                        ElementPartsOf(cur), PostfixOf(cur), ElementSeparatorOf(cur));
+                        ElementPartsOf(cur), PostfixOf(cur), ElementSeparatorOf(cur),
+                        ElementNotKeyOf(cur), ElementIsRangeOf(cur));
                 }
                 return;
             }

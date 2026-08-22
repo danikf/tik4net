@@ -158,18 +158,20 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void AListWhoseElementIsNotYetEncodableStillFailsLoudly()
         {
-            // A tuple/union element is a compound this encoder does not build. Refusing is the point: the
-            // alternative is a wrong-shaped field the router accepts and ignores.
-            const string SwitchWindow =
-                "[{name:'Switch',title:'Switch',group:'Interfaces',c:[" +
-                "{name:'Switch Port',title:'Port',type:'map',path:[ 24,3 ],c:[" +
-                  "{name:'Priority To Queue',type:'multi',id:'M46b',c:[{type:'tuple',sep:':',c:[" +
-                     "{type:'number',id:'u1'},{type:'number',id:'u2'}]}]}]}" +
+            // A `numbertable` is a control of its own — a read-only table of NAMED columns, one row per
+            // rate — and this encoder does not build one. Refusing is the point: the alternative is a
+            // wrong-shaped field the router accepts and ignores. (Its three declarations are all `ro:1` and
+            // all on radio hardware, which is why it is refused rather than guessed at.)
+            const string TxPowerWindow =
+                "[{name:'Wireless',title:'Wireless',group:'Interfaces',c:[" +
+                "{name:'Interface',title:'Interfaces',type:'map',path:[ 20,20 ],c:[" +
+                  "{name:'Current Tx Powers',type:'numbertable',id:'Uc4e',c:[" +
+                     "{name:'Rate',type:'enm',id:'u0'},{name:'Tx Power',type:'number',id:'u1'}]}]}" +
                 "]}]";
-            var resolver = Resolver(SwitchWindow, "/interface/ethernet/switch/port", new[] { 24, 3 });
+            var resolver = Resolver(TxPowerWindow, "/interface/wireless", new[] { 20, 20 });
 
             Assert.ThrowsException<WinboxFieldResolutionException>(
-                () => resolver.EncodeField("priority-to-queue", "0:1"));
+                () => resolver.EncodeField("current-tx-powers", "1Mbps:17"));
         }
     }
 }

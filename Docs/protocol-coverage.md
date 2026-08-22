@@ -446,11 +446,12 @@ Last run on RouterOS 7.23.2: `OK=148 KNOWN-GAP=7 MISMATCH=0 VALUE-DIFF=0 UNMAPPE
 — a real protocol limit, and the suite skips only where the router actually refuses
 (`TestBase.SkipIfWinboxNativeCannot`), never on an assumption.
 
-The remaining array shapes (`multinetwork`, `multimacnetwork`, `multistring`, `multi`) are declined
-by `WinboxFieldResolver.EncodeField` with a loud `WinboxFieldResolutionException` rather than a
-silently wrong-typed scalar — **this is our encoder's gap, not a protocol one**: the M2 wire format
-already carries array types for writes. `multinumberrange`, `numberrangelist`, `multinumber` and
-`multitristatearray` all encode; the rest is unimplemented rather than impossible.
+Every list shape the live catalog declares now encodes, bar the six in
+[winbox-native-m2-protocol.md §32.4](winbox-native-m2-protocol.md) — four of them read-only, one of them
+not a list at all, and the largest (`multibignumber`, 255 fields) blocked one layer earlier by an id
+prefix the catalog does not know. What is left is declined by `WinboxFieldResolver.EncodeField` with a
+loud `WinboxFieldResolutionException` rather than a silently wrong-typed scalar — **our encoder's gap,
+not a protocol one**: the M2 wire format already carries array types for writes.
 
 ---
 

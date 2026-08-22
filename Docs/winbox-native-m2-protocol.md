@@ -900,8 +900,7 @@ by the same three rules, in the same order, which is what makes the round trip a
 
 An element that matches none of the three is an **error**, never a dropped element — a shorter list is one
 the router accepts without complaint, so `tagged=ether1,typo` would tag `ether1` alone and report success.
-The remaining array shapes (`multinetwork`, `multistring`, `multi`, …) still refuse loudly rather than
-sending a wrong-typed scalar.
+A shape with no encoder still refuses loudly rather than sending a wrong-typed scalar (§32.4).
 
 ### 28.3 A list carries its present-flag on the node, and a tri-state list rides on two keys
 
@@ -1236,14 +1235,68 @@ can hold the value — the mirror of `types.union.get`, which reads back the fir
 may arrive with FEWER pieces than it has parts (`types.tuple.tostr` omits a part that renders empty) but
 never more.
 
-**A wrapper is not a value.** `{type:'not',id:'b6',c:[…]}` carries an id of its own, so a rule that reads
-"the element has an id, that is where the value goes" writes the caller's number into the NEGATION FLAG
-and drops the value — which is the shape of P2.33, a firewall address that reached the router as a rule
-matching everything. Single-leaf elements are therefore taken from a **whitelist** of value types, and
-`not`-wrapped elements (52 writable fields, all on switch hardware) still refuse.
-
 A part's map matters as much as the field's: `/snmp`'s trap-interfaces is one dropdown per element, and
 without resolving it the field read as `2` where the API prints `ether1`.
+
+**A wrapper is not a value.** `{type:'not',id:'b1',c:[…]}` carries an id of its own, so a rule that reads
+"the element has an id, that is where the value goes" writes the caller's number into the NEGATION FLAG
+and drops the value — which is the shape of P2.33, a firewall address that reached the router as a rule
+matching everything. The wrapper is therefore UNWRAPPED — the inner node is the element, and the wrapper's
+id is remembered as a flag key — and a single leaf is only taken as the value when its type is on a
+**whitelist** of value types.
+
+### 32.1.2 A `not`-wrapped element negates one entry, and the flag rides inside it
+
+`types.not.tostr` renders the element as `(flag ? '!' : '') + inner.tostr(…)`, so the flag sits in the
+element's own submessage beside the value. That is a third, distinct place a `!` can live, and the three
+are not interchangeable:
+
+| Shape | Where the negation is | Scope |
+|---|---|---|
+| a scalar's `NotKey` | a sibling bool of the field | the whole value |
+| `multitristate` / `multitristatearray` | a second KEY (`maskid`) or a second ARRAY (`oid`) | one member |
+| a `not`-wrapped element | a bool INSIDE the element's submessage | one element |
+
+`/tool/sniffer`'s filters are the live family — seventeen fields, on hardware as ordinary as a CHR.
+`filter-ip-address="!192.168.251.0/24,10.0.0.1/32"` is one message array of two elements carrying
+`{b1=true,u2,u3}` and `{b1=false,u2,u3}`. The flag is written **both ways round, never only when true**: a
+key the router is not told about keeps what it holds, so an omitted `false` leaves a stale `!` on an
+element being rewritten as plain — and `false` is what the router itself sends back.
+
+The inner leaf can be any value type, including a `macnetwork` (six address bytes at `id`, six mask bytes
+at `maskid`). RouterOS prints that mask even when it is the all-ones one —
+`filter-mac-address` reads back `AA:BB:CC:DD:EE:FF/FF:FF:FF:FF:FF:FF` — where webfig's own `tostr` hides
+it; the API's text is what this codec answers in.
+
+### 32.1.3 `multinetwork` is a list of PAIRS, and where the halves live is the field's business
+
+`types.multinetwork` inherits `types.multinumberrange`, and `types.multimacnetwork` inherits it in turn:
+
+| The field | Layout |
+|---|---|
+| has a `maskid` | two PARALLEL arrays, one entry each per element (`id[i]`, `maskid[i]`) |
+| has none | one FLATTENED array, `[a0,b0,a1,b1,…]` |
+
+What the second half MEANS is the ELEMENT's business, exactly as on a scalar: the range END when the
+element declares `range:1`, a netmask otherwise (`types.network.tostr` reads `attrs.range`).
+
+`/ip/pool`'s `ranges` is the flattened, ranged form. A pool of
+`192.168.251.10-192.168.251.20,192.168.252.5,192.168.253.0/24` arrives as six u32s, and the last pair is
+`192.168.253.0`–`192.168.253.255`: **the router expands a prefix into a range and the API re-collapses an
+exactly-aligned one on the way back**, which is why the text round-trips even though the wire form does
+not remember which way it was written.
+
+The parallel mask array is not a field of its own — it holds the second half of every element of the one
+list the API prints — so it is consumed by its owner rather than reported beside it.
+
+### 32.1.4 Two fields of one window can share a label, and the tab is what tells them apart
+
+The packet sniffer has a streaming `Port` (a number) and a filter `Port` (a list of port matches). The
+catalog is first-wins per handler, so the second was reachable under **no name at all** — not a wrong key,
+no key. The tab it sits under is what distinguishes them, and is what RouterOS spells the second with:
+`filter-port`. The qualified name is registered only for the LOSER of a collision, so no name that resolved
+before changes meaning. (This is the same rule the deck panes already use for `memory-stop-on-full` vs
+`disk-stop-on-full`, one level further down the window.)
 
 ### 32.2 The bitmask family — one number, sometimes two
 
@@ -1283,6 +1336,28 @@ the sentence *"read router configuration"* and its `Alias` is the word the API p
 members are therefore read by `nameval`, kept in their own cache next to the ordinary id → name map of the
 same table — six handlers in the 7.24 catalog have a `nameval` that differs from a `Name` field they also
 have.
+
+### 32.4 What has no encoder, and why each one is left
+
+Counted over the 7.24 `.jg` set:
+
+| Shape | Fields | Why |
+|---|---|---|
+| `multibignumber` | 255 | its id prefix `Q` is **absent from the prefix table**, so the fields are not in the catalog at all — see below |
+| `multilinestring` | 27 | not a list: `inherit(types.string)`, overriding only the view. Encodes as the string it is |
+| `stringarray` | 4 | all `ro:1` |
+| `numbertable` | 3 | a read-only table of named columns, all three on radio hardware |
+| `multinetwork6` | 2 | the `multinetwork` shape over `ip6[]`; both fields are traffic-generator templates |
+| `gridmultinumber` | 1 | one wireless field |
+
+**The `Q` prefix.** `q` (u64) is in the id-prefix table and `Q` is not, so every `multibignumber` field —
+and two `bigbitrate` ones — is silently dropped when the window is harvested. By the table's own
+upper-case-is-array convention `Q` is `u64[]`, and `types.multibignumber = inherit(types.multinumber)`
+says an element is one u64; but **not one of the 257 is observable on a CHR**: they are interface, LCD,
+container and wireless statistics, and a `/interface/list/member` record created for the purpose comes back
+with no `Q` key at all. Left as-is rather than registered blind — adding 257 fields to the catalog can
+change which field an existing NAME resolves to, and there is nothing here to check that against.
+(`x`/`X` are in the table and appear nowhere in the catalog.)
 
 ## Settled questions — do not re-investigate
 

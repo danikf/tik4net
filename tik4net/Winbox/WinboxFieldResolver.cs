@@ -573,6 +573,65 @@ namespace tik4net.Winbox
                                ("mac-format", "radius-mac-format"),
                                ("rate-limit-(rx/tx)", "rate-limit"))),
 
+                // /tool/sniffer: every field of the window's FILTER tab is spelled with a 'filter-' prefix
+                // by the API and without one by WinBox, and the streaming half is spelled the other way
+                // round ('Server'/'Port' are the API's one streaming-server="0.0.0.0:37008"). The filter
+                // 'Port' needs no alias: it shares its label with the streaming port, and the catalog
+                // registers the loser of a label collision under its tab - which spells it filter-port.
+                //
+                // The filter fields are the live shape of a `not`-wrapped list element: each is a message
+                // array whose element carries a negation flag beside the value, which is the '!' in
+                // filter-ip-address="!192.168.251.0/24,10.0.0.1/32".
+                ["/tool/sniffer"] = new FieldAliasSet(
+                    addrPortPairs: Ci(("server", "port")),
+                    apiToJg: Ci(("filter-interface", "interfaces"),
+                               ("filter-mac-address", "mac-address"),
+                               ("filter-src-mac-address", "src-mac-address"),
+                               ("filter-dst-mac-address", "dst-mac-address"),
+                               ("filter-mac-protocol", "mac-protocol"),
+                               ("filter-ip-address", "ip-address"),
+                               ("filter-src-ip-address", "src-ip-address"),
+                               ("filter-dst-ip-address", "dst-ip-address"),
+                               ("filter-ipv6-address", "ipv6-address"),
+                               ("filter-src-ipv6-address", "src-ipv6-address"),
+                               ("filter-dst-ipv6-address", "dst-ipv6-address"),
+                               ("filter-ip-protocol", "ip-protocol"),
+                               ("filter-src-port", "src-port"),
+                               ("filter-dst-port", "dst-port"),
+                               ("filter-vlan", "vlan"),
+                               ("filter-cpu", "cpu"),
+                               ("filter-direction", "direction"),
+                               ("filter-operator-between-entries", "filter-operation"),
+                               ("quick-rows", "rows"),
+                               ("quick-show-frame", "show-frame"),
+                               ("streaming-server", "server")),
+                    jgToApi: Ci(("interfaces", "filter-interface"),
+                               ("mac-address", "filter-mac-address"),
+                               ("src-mac-address", "filter-src-mac-address"),
+                               ("dst-mac-address", "filter-dst-mac-address"),
+                               ("mac-protocol", "filter-mac-protocol"),
+                               ("ip-address", "filter-ip-address"),
+                               ("src-ip-address", "filter-src-ip-address"),
+                               ("dst-ip-address", "filter-dst-ip-address"),
+                               ("ipv6-address", "filter-ipv6-address"),
+                               ("src-ipv6-address", "filter-src-ipv6-address"),
+                               ("dst-ipv6-address", "filter-dst-ipv6-address"),
+                               ("ip-protocol", "filter-ip-protocol"),
+                               ("src-port", "filter-src-port"),
+                               ("dst-port", "filter-dst-port"),
+                               ("vlan", "filter-vlan"),
+                               ("cpu", "filter-cpu"),
+                               ("direction", "filter-direction"),
+                               ("filter-operation", "filter-operator-between-entries"),
+                               ("rows", "quick-rows"),
+                               ("show-frame", "quick-show-frame"),
+                               ("server", "streaming-server"))),
+
+                // /ip/pool: the window labels the ranges list 'Addresses'; the API calls it 'ranges'.
+                ["/ip/pool"] = new FieldAliasSet(
+                    apiToJg: Ci(("ranges", "addresses")),
+                    jgToApi: Ci(("addresses", "ranges"))),
+
                 // /queue/simple: RouterOS prints one field per rate where the M2 model keeps two — 'max-limit'
                 // is 'Target Upload / Max Limit' (0xD8) beside 'Target Download / Max Limit' (0x13C) in the
                 // window, and the API joins them as "1000000/2000000". Without the pairing, native reported
@@ -1306,6 +1365,71 @@ namespace tik4net.Winbox
                     result.Add(EncodeScalarArray(jg!, key, items, apiName));
                     return result;
                 }
+                case "multinetwork":
+                case "multimacnetwork":
+                {
+                    // webfig types.multinetwork: a list of (address, sibling) PAIRS. With a `maskid` the two
+                    // halves ride in two PARALLEL arrays, one entry per element; without one the type is a
+                    // plain multinumberrange and the pairs are FLATTENED into a single [a0,b0,a1,b1,...]
+                    // array (types.multinetwork.put delegates to multinumberrange.put when maskid is null).
+                    //
+                    // What the second half MEANS is the element's business, exactly as on a scalar: the range
+                    // END when the element declares range:1 (/ip/pool "192.168.251.10-192.168.251.20"), a
+                    // netmask otherwise. An empty value is the empty array, not a dropped field.
+                    bool isMac = string.Equals(uiType, "multimacnetwork", StringComparison.OrdinalIgnoreCase);
+                    // jg non-null: uiType only reaches this switch as jg?.UiType's value.
+                    if (isMac && jg!.MaskKey == 0) break;   // not the shape webfig describes - refuse below
+                    var addrs = new List<int>();
+                    var masks = new List<int>();
+                    var macs = new List<byte[]>();
+                    var macMasks = new List<byte[]>();
+                    foreach (var tok in value.Split(','))
+                    {
+                        string t = tok.Trim();
+                        if (t.Length == 0) continue;
+                        if (isMac)
+                        {
+                            var mp = t.Split('/');
+                            if (!TryParseMac(mp[0], out byte[]? mac)) throw NotThisPart(apiName, t);
+                            byte[] mask = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+                            if (mp.Length > 1 && !TryParseMac(mp[1], out mask!)) throw NotThisPart(apiName, t);
+                            macs.Add(mac!);       // non-null: TryParseMac sets it before returning true
+                            macMasks.Add(mask);
+                            continue;
+                        }
+                        uint lo, hi;
+                        if (jg!.ElementIsRange)
+                        {
+                            if (!TryParseV4Range(t, out lo, out hi)) throw NotThisPart(apiName, t);
+                        }
+                        else
+                        {
+                            var np = t.Split('/');
+                            uint? packed = PackIpV4(np[0]);
+                            if (packed == null) throw NotThisPart(apiName, t);
+                            lo = packed.Value;
+                            hi = np.Length > 1 ? MaskFrom(np[1]) : 0xFFFFFFFFu;
+                        }
+                        addrs.Add(unchecked((int)lo));
+                        masks.Add(unchecked((int)hi));
+                    }
+                    if (isMac)
+                    {
+                        result.Add(M2Message.RawArraySys(key, macs));
+                        result.Add(M2Message.RawArraySys(jg!.MaskKey, macMasks));
+                        return result;
+                    }
+                    if (jg!.MaskKey != 0)
+                    {
+                        result.Add(M2Message.U32ArraySys(key, addrs.ToArray()));
+                        result.Add(M2Message.U32ArraySys(jg.MaskKey, masks.ToArray()));
+                        return result;
+                    }
+                    var flat = new List<int>();
+                    for (int i = 0; i < addrs.Count; i++) { flat.Add(addrs[i]); flat.Add(masks[i]); }
+                    result.Add(M2Message.U32ArraySys(key, flat.ToArray()));
+                    return result;
+                }
                 case "multitristate":
                 {
                     // A bitmask whose members can each be negated, with the negated ones in a SECOND key:
@@ -1649,8 +1773,25 @@ namespace tik4net.Winbox
         private byte[][] EncodeMessageElement(WinboxJgField jg, string element, string apiName,
             Func<int[], string, int?>? resolveRef)
         {
+            var fields = new List<byte[]>();
+
+            // A `not`-wrapped element carries its own negation flag INSIDE the submessage, and the '!' is a
+            // prefix on this element alone (/tool/sniffer filter-ip-address="!10.0.0.0/8,192.168.0.0/16").
+            // The flag is written both ways round, never only when true: the router keeps whatever it holds
+            // for a key it is not told about, so an omitted `false` would leave a stale '!' on an element
+            // being rewritten as plain - and false is what the router itself sends for a plain element.
+            if (jg.ElementNotKey != 0)
+            {
+                bool negated = element.StartsWith("!", StringComparison.Ordinal);
+                if (negated) element = element.Substring(1).Trim();
+                fields.Add(M2Message.BoolSys(jg.ElementNotKey, negated));
+            }
+
             if (string.Equals(jg.ElementUiType, "addr", StringComparison.OrdinalIgnoreCase))
-                return EncodeAddr(element, jg.Allow, apiName, _apiPath);
+            {
+                fields.AddRange(EncodeAddr(element, jg.Allow, apiName, _apiPath));
+                return fields.ToArray();
+            }
 
             var parts = jg.ElementParts;
             if (parts == null || parts.Count == 0)
@@ -1659,7 +1800,6 @@ namespace tik4net.Winbox
                     + $"('{jg.ElementUiType ?? "?"}') has no addressable parts in the catalog, so an element "
                     + "cannot be encoded. Use an Api/REST/CLI connection for this field.");
 
-            var fields = new List<byte[]>();
             if (parts.Count == 1)
             {
                 fields.AddRange(EncodeElementPart(parts[0], element, apiName, resolveRef));
@@ -1750,6 +1890,22 @@ namespace tik4net.Winbox
                 {
                     if (!TryParseMac(value, out byte[]? mac)) throw NotThisPart(apiName, value);
                     fields.Add(M2Message.RawSys(part.Key, mac!)); // non-null: TryParseMac sets it before true
+                    return fields;
+                }
+                case "macnetwork":
+                {
+                    // Six bytes and six mask bytes (types.macnetwork.put writes val[0] to id and val[1] to
+                    // maskid). A bare MAC is the all-ones mask - the exact address - which is also the form
+                    // RouterOS prints it back in.
+                    var mp = value.Split('/');
+                    if (!TryParseMac(mp[0], out byte[]? mac)) throw NotThisPart(apiName, value);
+                    fields.Add(M2Message.RawSys(part.Key, mac!)); // non-null: TryParseMac sets it before true
+                    if (part.MaskKey != 0)
+                    {
+                        byte[] mask = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+                        if (mp.Length > 1 && !TryParseMac(mp[1], out mask!)) throw NotThisPart(apiName, value);
+                        fields.Add(M2Message.RawSys(part.MaskKey, mask));
+                    }
                     return fields;
                 }
                 case "network":

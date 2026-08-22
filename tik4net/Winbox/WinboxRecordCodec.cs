@@ -91,6 +91,10 @@ namespace tik4net.Winbox
                     // policy="read,write,!ftp"), not a field the router names.
                     if (f.MaskKey != 0 && IsBitSetWithMask(f.UiType))
                         consumedKeys.Add(f.MaskKey);
+                    // Nor is the parallel array of masks/range ends of a multinetwork: it holds the second
+                    // half of every element of the ONE list the API prints.
+                    if (f.MaskKey != 0 && IsMultiNetworkList(f.UiType))
+                        consumedKeys.Add(f.MaskKey);
                     if (f.OptKey != 0) consumedKeys.Add(f.OptKey);
                     if (f.NotKey != 0) consumedKeys.Add(f.NotKey);
                 }
@@ -492,6 +496,10 @@ namespace tik4net.Winbox
                 // through the ELEMENT's own type — so the list's own name says nothing about how an element
                 // reads, and none of these had a case at all: an empty one reached the caller as the literal
                 // "[]" where the API prints nothing, and /ip/dns dynamic-servers as raw u32s.
+                // webfig types.multinetwork (and multimacnetwork, which inherits it): a list of PAIRS, in
+                // two parallel arrays when the field has a maskid and flattened into one when it has not.
+                if (IsMultiNetworkList(jf.UiType))
+                    return FormatMultiNetwork(jf, value, rec);
                 if (IsMultiList(jf.UiType))
                     return FormatMultiList(jf, value, collectRefTables);
                 // dynamic enum reference: render the referenced object's name (e.g. interface id → "ether1").
@@ -652,6 +660,62 @@ namespace tik4net.Winbox
             return string.Join(",", elements.Select(e => FormatListElement(jf.ElementUiType, e)));
         }
 
+        // webfig list types whose element is an address PAIR: types.multinetwork and types.multimacnetwork,
+        // which inherits it. Deliberately not types.multinetwork6 - it inherits the same shape but no live
+        // window declares one, so its pairing has never been seen on the wire.
+        private static bool IsMultiNetworkList(string? uiType)
+            => string.Equals(uiType, "multinetwork", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(uiType, "multimacnetwork", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Renders a webfig <c>multinetwork</c> / <c>multimacnetwork</c> list: pairs of (address, sibling),
+        /// each rendered the way the scalar of the element's type renders one.
+        /// </summary>
+        /// <remarks>
+        /// <para>Where the pairs live is the FIELD's business and what the second half means is the
+        /// ELEMENT's. With a <c>maskid</c> the halves ride in two parallel arrays, one entry per element;
+        /// without one <c>types.multinetwork</c> is a plain <c>multinumberrange</c> and the pairs are
+        /// flattened into a single <c>[a0,b0,a1,b1,…]</c> array. The second half is the range END when the
+        /// element declares <c>range:1</c> and a netmask otherwise, exactly as <c>types.network.tostr</c>
+        /// reads <c>attrs.range</c> for a scalar.</para>
+        /// <para>Live on 7.24: <c>/ip/pool</c>'s <c>ranges</c> is the flattened, ranged form — a pool of
+        /// <c>192.168.251.10-192.168.251.20,192.168.252.5,192.168.253.0/24</c> arrives as six u32s — and the
+        /// API re-collapses an exact block to its prefix form, which <see cref="WinboxFieldResolver.
+        /// FormatV4Range"/> does too. Without this the whole field reached the caller as the raw
+        /// <c>[184264896,352037056,…]</c>.</para>
+        /// </remarks>
+        private string FormatMultiNetwork(WinboxJgField jf, object value,
+            Dictionary<int, Tuple<string, object>> rec)
+        {
+            var first = SplitListElements(value);
+            List<string>? second = null;
+            if (jf.MaskKey != 0)
+            {
+                if (!rec.TryGetValue(jf.MaskKey, out var maskT) || maskT?.Item2 == null) return "";
+                second = SplitListElements(maskT.Item2);
+            }
+            bool isMac = string.Equals(jf.UiType, "multimacnetwork", StringComparison.OrdinalIgnoreCase);
+            var rendered = new List<string>();
+            int count = second != null ? first.Count : first.Count / 2;
+            for (int i = 0; i < count; i++)
+            {
+                string a = second != null ? first[i] : first[i * 2];
+                string b = second != null ? (i < second.Count ? second[i] : "") : first[i * 2 + 1];
+                if (isMac)
+                {
+                    string mac = WinboxFieldResolver.MacFromBytes(a);
+                    rendered.Add(b.Length > 0 ? mac + "/" + WinboxFieldResolver.MacFromBytes(b) : mac);
+                    continue;
+                }
+                if (!uint.TryParse(a, out uint addr)) { rendered.Add(a); continue; }
+                if (!uint.TryParse(b, out uint sibling)) { rendered.Add(WinboxFieldResolver.IpFromU32(addr)); continue; }
+                rendered.Add(jf.ElementIsRange
+                    ? WinboxFieldResolver.FormatV4Range(addr, sibling)
+                    : WinboxFieldResolver.IpFromU32(addr) + "/" + WinboxFieldResolver.MaskToPrefix(sibling));
+            }
+            return string.Join(",", rendered);
+        }
+
         /// <summary>
         /// One element of a list whose element is a <c>tuple</c> or a <c>union</c>: each part rendered
         /// through its own type and joined by the tuple's separator, exactly as <c>types.tuple.tostr</c>
@@ -678,7 +742,12 @@ namespace tik4net.Winbox
             // Nothing addressable in the element — webfig's union.get returns [def,null] here. Fall back to
             // the generic dump rather than inventing a value.
             if (rendered.Count == 0) return FormatNestedMessage(element);
-            return string.Join(jf.ElementSeparator ?? "", rendered);
+            // A `not`-wrapped element negates THIS element alone: types.not.tostr renders
+            // (flag ? '!' : '') + the inner type's own text, which is the '!' RouterOS prints in front of one
+            // entry of /tool/sniffer's filter lists.
+            string prefix = jf.ElementNotKey != 0 && element.TryGetValue(jf.ElementNotKey, out var nf)
+                            && nf?.Item2 is bool nb && nb ? "!" : "";
+            return prefix + string.Join(jf.ElementSeparator ?? "", rendered);
         }
 
         private string FormatElementPart(WinboxJgElementPart part, Dictionary<int, Tuple<string, object>> element,
@@ -730,6 +799,12 @@ namespace tik4net.Winbox
                     return v.Item2 is byte[] b ? WinboxFieldResolver.IpV6FromBytes(b) : v.Item2.ToString()!; // v.Item2 != null (checked above)
                 case "macaddr":
                     return WinboxFieldResolver.MacFromBytes(v.Item2);
+                case "macnetwork":
+                    // Six address bytes and six mask bytes. RouterOS prints the mask even when it is the
+                    // all-ones one (filter-mac-address reads back "AA:BB:CC:DD:EE:FF/FF:FF:FF:FF:FF:FF"),
+                    // where webfig's own tostr hides it - the API text is what this codec answers in.
+                    return WinboxFieldResolver.MacFromBytes(v.Item2)
+                         + (mask != null ? "/" + WinboxFieldResolver.MacFromBytes(mask) : "");
                 case "addr":
                     return v.Item2 is Dictionary<int, Tuple<string, object>> a ? FormatAddr(a, collectRefTables) : v.Item2.ToString()!; // v.Item2 != null (checked above)
                 default:
