@@ -699,8 +699,21 @@ namespace tik4net.Winbox
             if (part.EnumMap != null && WinboxFieldResolver.TryToInt64(v.Item2, out long ev)
                 && part.EnumMap.TryGetValue(unchecked((int)ev), out var label))
                 return label;
+            // …and a part with a DYNAMIC dropdown is a reference wherever it sits: /snmp's trap-interfaces
+            // is a list whose element is one interface id, which the API prints as the interface's name.
+            if (part.RefHandler != null)
+            {
+                string? refName = ResolveRefName(part.RefHandler, v.Item2, collectRefTables);
+                if (refName != null) return refName;
+            }
             switch ((part.UiType ?? "").ToLowerInvariant())
             {
+                case "interval":
+                    // The wire carries a count of seconds; the API spells it "5m". A part carries no scale
+                    // of its own, and no live element declares one.
+                    return WinboxFieldResolver.TryToInt64(v.Item2, out long ticks)
+                        ? FormatDuration(ticks, 1)
+                        : v.Item2.ToString()!;
                 case "network":
                     return WinboxFieldResolver.IpFromU32(v.Item2)
                          + (mask != null ? "/" + WinboxFieldResolver.MaskToPrefix(mask) : "");

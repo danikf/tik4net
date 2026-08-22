@@ -346,6 +346,14 @@ namespace tik4net.Winbox
                 // calls it 'name'. Without the alias a read returned {"identity":…} — so LoadSingle
                 // <SystemIdentity> threw "Missing field 'name'" — and a write resolved 'name' through the
                 // FallbackSeed to key 0x10006, a key this handler does not have.
+                // /tool/bandwidth-server: the window calls the two address lists Ipv4/Ipv6 Allowed Networks
+                // where the API says allowed-addresses4/6. One name for one value, both directions.
+                ["/tool/bandwidth-server"] = new FieldAliasSet(
+                    apiToJg: Ci(("allowed-addresses4", "ipv4-allowed-networks"),
+                               ("allowed-addresses6", "ipv6-allowed-networks")),
+                    jgToApi: Ci(("ipv4-allowed-networks", "allowed-addresses4"),
+                               ("ipv6-allowed-networks", "allowed-addresses6"))),
+
                 // /user/group: the window's field is 'Policies', the API's is 'policy' — one name for one
                 // value, so the alias is the whole difference. (Its members come from the policy table
                 // [13,3], not from a static map; see EncodeField's bit-set branch.)
@@ -1261,19 +1269,18 @@ namespace tik4net.Winbox
                     result.Add(M2Message.U32ArraySys(key, items.ToArray()));
                     return result;
                 }
-                case "multi" when string.Equals(jg?.ElementUiType, "addr", StringComparison.OrdinalIgnoreCase):
+                case "multi" when jg?.WireType == "addr[]":   // .jg M-prefix: a MESSAGE array
                 {
-                    // A list whose elements are `addr` COMPOUNDS — /ip/dns servers, /ip/dns/forwarders
-                    // dns-servers, an LDP transport-address list. Each element is a whole submessage with
-                    // the address riding at the sub-key its FORM calls for (v4 u32, v6 sixteen bytes, a DNS
-                    // name as text), so the field is a message array of exactly what the scalar `addr`
-                    // encoder already produces — reused rather than re-derived, since the allow-mask rules
-                    // and the refusal of an unencodable qualifier are the same ones.
+                    // A list whose elements are whole SUBMESSAGES. What one element is varies — an `addr`
+                    // compound (/ip/dns servers), a single addressable leaf (/snmp trap-interfaces, one
+                    // interface id), or a tuple/union of several parts — and each is encoded by the same
+                    // rules its scalar counterpart is, so the allow-mask handling, the enum maps and the
+                    // reference resolution all stay in one place.
                     var elements = new List<byte[][]>();
                     foreach (var tok in value.Split(','))
                     {
                         string t = tok.Trim();
-                        if (t.Length > 0) elements.Add(EncodeAddr(t, jg!.Allow, apiName, _apiPath));
+                        if (t.Length > 0) elements.Add(EncodeMessageElement(jg!, t, apiName, resolveRef));
                     }
                     result.Add(M2Message.MessageArraySys(key, elements));
                     return result;
@@ -1626,6 +1633,179 @@ namespace tik4net.Winbox
             throw new WinboxFieldValueException(
                 $"input does not match any value of {apiName} (element '{token}')");
         }
+
+        /// <summary>
+        /// Encodes ONE element of a message-array list into the fields of its submessage — the write side of
+        /// <c>WinboxRecordCodec.FormatMultiList</c>'s element rendering.
+        /// </summary>
+        /// <remarks>
+        /// Three element shapes, in the order the <c>.jg</c> distinguishes them: an <c>addr</c> compound,
+        /// which has its own encoder; a <c>tuple</c>, whose parts are split by the tuple's separator and
+        /// encoded left to right; and everything else, which is one addressable leaf (including a
+        /// <c>union</c>, carried as a single part holding its alternatives). An element shape with no parts
+        /// at all is refused rather than sent as something else — a submessage the router cannot read is a
+        /// field it accepts and ignores.
+        /// </remarks>
+        private byte[][] EncodeMessageElement(WinboxJgField jg, string element, string apiName,
+            Func<int[], string, int?>? resolveRef)
+        {
+            if (string.Equals(jg.ElementUiType, "addr", StringComparison.OrdinalIgnoreCase))
+                return EncodeAddr(element, jg.Allow, apiName, _apiPath);
+
+            var parts = jg.ElementParts;
+            if (parts == null || parts.Count == 0)
+                throw new WinboxFieldResolutionException(
+                    $"WinBox native: field '{apiName}' on '{_apiPath}' is a list whose element type "
+                    + $"('{jg.ElementUiType ?? "?"}') has no addressable parts in the catalog, so an element "
+                    + "cannot be encoded. Use an Api/REST/CLI connection for this field.");
+
+            var fields = new List<byte[]>();
+            if (parts.Count == 1)
+            {
+                fields.AddRange(EncodeElementPart(parts[0], element, apiName, resolveRef));
+                return fields.ToArray();
+            }
+
+            // A tuple: its parts in .jg order, joined by the tuple's separator. Fewer pieces than parts is
+            // accepted because types.tuple.tostr omits a part that renders empty (an optional port, a
+            // missing range end); MORE is a value this element cannot hold, and is refused rather than
+            // truncated.
+            string sep = jg.ElementSeparator ?? "/";
+            string[] pieces = sep.Length > 0
+                ? element.Split(new[] { sep }, StringSplitOptions.None)
+                : new[] { element };
+            if (pieces.Length > parts.Count)
+                throw new WinboxFieldValueException(
+                    $"input does not match any value of {apiName} (element '{element}' has "
+                    + $"{pieces.Length} parts, the field holds {parts.Count})");
+            for (int i = 0; i < pieces.Length; i++)
+            {
+                string piece = pieces[i].Trim();
+                if (piece.Length == 0) continue;
+                fields.AddRange(EncodeElementPart(parts[i], piece, apiName, resolveRef));
+            }
+            return fields.ToArray();
+        }
+
+        /// <summary>
+        /// Encodes one PART of a list element at its own sub-key, by the part's own <c>.jg</c> type — the
+        /// write side of <c>WinboxRecordCodec.FormatElementPart</c>, and deliberately the same rules the
+        /// scalar encoders above apply to a field of that type.
+        /// </summary>
+        private List<byte[]> EncodeElementPart(WinboxJgElementPart part, string value, string apiName,
+            Func<int[], string, int?>? resolveRef)
+        {
+            var fields = new List<byte[]>();
+
+            // A union carries one logical value under a per-family key and the element holds exactly ONE of
+            // them, so the alternatives are tried in .jg order and the first that can hold the value wins —
+            // the mirror of types.union.get, which reads back the first one present.
+            if (part.Alternatives != null)
+            {
+                foreach (var alt in part.Alternatives)
+                {
+                    try { return EncodeElementPart(alt, value, apiName, resolveRef); }
+                    catch (WinboxFieldValueException) { /* not this family — try the next */ }
+                }
+                throw new WinboxFieldValueException(
+                    $"input does not match any value of {apiName} (element '{value}')");
+            }
+
+            // A static map or a dropdown decides the value before its wire type does, exactly as on the way
+            // back: the API writes the WORD, and the number under it is an index or a record id.
+            if (part.EnumMap != null)
+                foreach (var kv in part.EnumMap)
+                    if (string.Equals(kv.Value, value, StringComparison.OrdinalIgnoreCase))
+                    {
+                        fields.Add(EncodeU32(part.Key, unchecked((uint)kv.Key)));
+                        return fields;
+                    }
+            if (part.RefHandler != null && resolveRef != null && !long.TryParse(value, out _))
+            {
+                int? id = resolveRef(part.RefHandler, value);
+                if (id == null)
+                    throw new WinboxFieldValueException(
+                        $"input does not match any value of {apiName} (element '{value}')");
+                fields.Add(EncodeU32(part.Key, (uint)id.Value));
+                return fields;
+            }
+
+            switch ((part.UiType ?? "").ToLowerInvariant())
+            {
+                case "ipaddr":
+                {
+                    uint? ip = PackIpV4(value.Split('/')[0]);
+                    if (ip == null) throw NotThisPart(apiName, value);
+                    fields.Add(EncodeU32(part.Key, ip.Value));
+                    return fields;
+                }
+                case "ip6addr":
+                {
+                    byte[]? v6 = PackIpV6(value.Split('/')[0]);
+                    if (v6 == null) throw NotThisPart(apiName, value);
+                    fields.Add(M2Message.Addr6Sys(part.Key, v6));
+                    return fields;
+                }
+                case "macaddr":
+                {
+                    if (!TryParseMac(value, out byte[]? mac)) throw NotThisPart(apiName, value);
+                    fields.Add(M2Message.RawSys(part.Key, mac!)); // non-null: TryParseMac sets it before true
+                    return fields;
+                }
+                case "network":
+                {
+                    var np = value.Split('/');
+                    uint? addr = PackIpV4(np[0]);
+                    if (addr == null) throw NotThisPart(apiName, value);
+                    fields.Add(EncodeU32(part.Key, addr.Value));
+                    if (part.MaskKey != 0)
+                        fields.Add(EncodeU32(part.MaskKey,
+                            np.Length > 1 ? MaskFrom(np[1]) : 0xFFFFFFFFu));
+                    return fields;
+                }
+                case "network6":
+                {
+                    // The sibling of a network6 holds the PREFIX LENGTH itself, not a netmask
+                    // (types.network6.tostr: addr + '/' + (val[1]||0)), and a bare address means /128.
+                    var np = value.Split('/');
+                    byte[]? v6 = PackIpV6(np[0]);
+                    if (v6 == null) throw NotThisPart(apiName, value);
+                    fields.Add(M2Message.Addr6Sys(part.Key, v6));
+                    if (part.MaskKey != 0)
+                    {
+                        if (np.Length > 1 && !int.TryParse(np[1], out int declared))
+                            throw NotThisPart(apiName, value);
+                        else
+                            fields.Add(EncodeU32(part.MaskKey,
+                                np.Length > 1 ? unchecked((uint)int.Parse(np[1], CultureInfo.InvariantCulture)) : 128u));
+                    }
+                    return fields;
+                }
+                case "interval":
+                {
+                    if (!TryParseDuration(value, 1, out long ticks)) throw NotThisPart(apiName, value);
+                    fields.Add(EncodeU32(part.Key, unchecked((uint)ticks)));
+                    return fields;
+                }
+                case "string":
+                case "secret":
+                    fields.Add(M2Message.StringSys(part.Key, value));
+                    return fields;
+                default:
+                {
+                    // number / enm / numberrange low bound / tristate — all plain numbers on the wire once
+                    // the map and the dropdown above have had their turn.
+                    if (!long.TryParse(value, out long n)) throw NotThisPart(apiName, value);
+                    fields.Add(EncodeU32(part.Key, unchecked((uint)n)));
+                    return fields;
+                }
+            }
+        }
+
+        // A part that cannot hold this text. Thrown as a VALUE error because a union catches it to try the
+        // next family, and because a caller's typo is what it usually is.
+        private static WinboxFieldValueException NotThisPart(string apiName, string value)
+            => new WinboxFieldValueException($"input does not match any value of {apiName} (element '{value}')");
 
         /// <summary>
         /// The handler of the table a field takes its bit-set MEMBERS from, or <c>null</c> when the field is

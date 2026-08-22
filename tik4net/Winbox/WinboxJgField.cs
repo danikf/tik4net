@@ -26,11 +26,21 @@ namespace tik4net.Winbox
         /// subject-alt-name type is <c>{1:'IP',2:'DNS',3:'Email'}</c> and the API prints the WORD.</summary>
         internal IReadOnlyDictionary<int, string>? EnumMap { get; }
 
+        /// <summary>
+        /// The handler of the table a part's dropdown refers to, when it is a DYNAMIC <c>enm</c> — the same
+        /// thing <see cref="WinboxJgField.RefHandler"/> is for a whole field. <c>/snmp</c>'s trap-interfaces
+        /// is a list whose element is one such dropdown, and the API prints <c>ether1</c> where the element
+        /// carries the interface's numeric id.
+        /// </summary>
+        internal int[]? RefHandler { get; }
+
         internal WinboxJgElementPart(int key, string uiType, int maskKey,
             IReadOnlyList<WinboxJgElementPart>? alternatives = null,
-            IReadOnlyDictionary<int, string>? enumMap = null)
+            IReadOnlyDictionary<int, string>? enumMap = null,
+            int[]? refHandler = null)
         {
             Key = key; UiType = uiType; MaskKey = maskKey; Alternatives = alternatives; EnumMap = enumMap;
+            RefHandler = refHandler;
         }
     }
 

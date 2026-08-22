@@ -1209,8 +1209,32 @@ namespace tik4net.Winbox
                 var part = PartOf(child!);
                 return part != null ? new List<WinboxJgElementPart> { part } : null;
             }
+            // A list whose element is ONE addressable leaf — {type:'multi',id:'M18',c:[{type:'enm',id:'u19',
+            // values:{…}}]}. The element is still a submessage, with the value at the leaf's own key, so it
+            // is described by exactly the same one-part list a single-member tuple would be. Without this it
+            // had no parts at all and the whole element fell back to a generic dump of the nested message:
+            // /snmp's trap-interfaces read as "2" where the API prints "ether1".
+            //
+            // 'addr' is deliberately excluded: it is a compound of its own with its own formatter and its
+            // own allow-mask rules (see FormatAddr / EncodeAddr).
+            if (child != null && childType != null && SingleLeafElementTypes.Contains(childType))
+            {
+                var leaf = PartOf(child);
+                return leaf != null ? new List<WinboxJgElementPart> { leaf } : null;
+            }
             return null;
         }
+
+        // The element types that ARE one value at one key, so a list of them is described by a single part.
+        // A whitelist, not an exclusion list: a wrapper such as {type:'not',id:'b6',c:[…]} also carries an
+        // id, and treating it as the value would write the caller's number into the negation FLAG and drop
+        // the value entirely. 'addr' is excluded for the opposite reason — it is a compound with its own
+        // encoder and its own allow-mask rules.
+        private static readonly HashSet<string> SingleLeafElementTypes = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "ipaddr", "ip6addr", "macaddr", "network", "network6",
+            "number", "enm", "interval", "string", "secret", "bool",
+        };
 
         // One part of a tuple/union element: a union node becomes a part carrying its alternatives, anything
         // with an id becomes a value leaf, anything else is not addressable and is dropped.
@@ -1232,7 +1256,7 @@ namespace tik4net.Winbox
             // ty! : WinboxJgElementPart.UiType is declared non-nullable; a genuinely missing 'type' here
             // was already passed through as null pre-nullable (unchanged runtime behaviour).
             return new WinboxJgElementPart(dec.Value.key, ty!, DecodedKeyOf(node, "maskid"),
-                enumMap: ExtractEnumMap(node));
+                enumMap: ExtractEnumMap(node), refHandler: ExtractRefHandler(node));
         }
 
         // The `sep` of a tuple element (webfig's types.tuple.tostr default is '/'), or null when the element

@@ -1218,9 +1218,32 @@ in one place.
 **An empty list is the empty array, not a dropped field.** A key the router is not told about keeps
 whatever it already holds, so a clear that sends nothing reports success and changes nothing.
 
-Still refused, loudly: an element that is a compound of its own — `tuple`, `union`, `not` — as in a switch
-port's `priority-to-queue` (`0:1`). Those need the element's parts parsed back out of the API text, which
-is a separate piece of work; the refusal is a `WinboxFieldResolutionException`, never a silent drop.
+### 32.1.1 A message array's element is a whole submessage, and it has four shapes
+
+`addr[]` in the prefix table is `FT_MESSAGE_ARRAY` — every element is its own `'M2'` message — and what
+that message holds is what the `.jg` says the element type is:
+
+| Element | Shape | Live field |
+|---|---|---|
+| `addr` | the `addr` compound, one sub-key per address FORM | `/ip/dns` `servers` |
+| one leaf | the value at the leaf's own key | `/snmp` `trap-interfaces` (one interface id) |
+| `union` | the same, with a key per FAMILY; the element carries exactly one | `/queue/simple` `target` |
+| `tuple` | the parts in `.jg` order, each at its own key, joined in the text by `sep` | a switch port's `priority-to-queue`, `3:1` |
+
+A part is encoded by the rules its scalar counterpart uses, in the same order: a static map, then a
+dropdown lookup, then the wire type. A `union` tries its families in `.jg` order and takes the first that
+can hold the value — the mirror of `types.union.get`, which reads back the first one present. A `tuple`
+may arrive with FEWER pieces than it has parts (`types.tuple.tostr` omits a part that renders empty) but
+never more.
+
+**A wrapper is not a value.** `{type:'not',id:'b6',c:[…]}` carries an id of its own, so a rule that reads
+"the element has an id, that is where the value goes" writes the caller's number into the NEGATION FLAG
+and drops the value — which is the shape of P2.33, a firewall address that reached the router as a rule
+matching everything. Single-leaf elements are therefore taken from a **whitelist** of value types, and
+`not`-wrapped elements (52 writable fields, all on switch hardware) still refuse.
+
+A part's map matters as much as the field's: `/snmp`'s trap-interfaces is one dropdown per element, and
+without resolving it the field read as `2` where the API prints `ether1`.
 
 ### 32.2 The bitmask family — one number, sometimes two
 

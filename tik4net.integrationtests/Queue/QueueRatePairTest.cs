@@ -7,9 +7,9 @@
 // spelling, not the magnitude, which is why only the paired fields are typed.
 //
 // The queue is created and removed over a SIDE API CONNECTION, and only READ over the transport under
-// test. Not to make the test easier: /queue/simple `target` is a list-typed field that WinboxNative
-// cannot yet encode on a write, so building the fixture over the transport under test would fail that
-// one transport for a reason that has nothing to do with rates. Reading is what this test is about.
+// test: reading is what this test is about, and a fixture built over the transport under test would fold
+// two questions into one result. (Writing it there works — see QueueTargetTest, which creates the same
+// kind of queue, target and all, over whichever transport is running.)
 //
 // WinboxNative has no `max-limit` of its own — the M2 model keeps `upload-max-limit` and
 // `download-max-limit` as two scalars — so the resolver composes the API field out of both halves, in
