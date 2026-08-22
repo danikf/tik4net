@@ -713,13 +713,37 @@ namespace tik4net.Winbox
         }
 
         // One element of a scalar list, by the element's .jg type. An ipaddr element rides as the same u32 a
-        // scalar ipaddr does; a string/raw/secret element is already its own text.
+        // scalar ipaddr does, and a macaddr/ip6addr element as the same bytes — which M2Message renders as
+        // hex, exactly as it does for the scalar forms. A string/raw/secret element is already its own text.
         private static string FormatListElement(string? elementUiType, string element)
         {
-            if (string.Equals(elementUiType, "ipaddr", StringComparison.OrdinalIgnoreCase)
-                && uint.TryParse(element, out uint u))
-                return WinboxFieldResolver.IpFromU32(u);
-            return element;
+            switch ((elementUiType ?? "").ToLowerInvariant())
+            {
+                case "ipaddr":
+                    return uint.TryParse(element, out uint u) ? WinboxFieldResolver.IpFromU32(u) : element;
+                case "macaddr":
+                    return WinboxFieldResolver.MacFromBytes(element);
+                case "ip6addr":
+                {
+                    byte[]? raw = HexToBytes(element);
+                    return raw != null ? WinboxFieldResolver.IpV6FromBytes(raw) : element;
+                }
+                default:
+                    return element;
+            }
+        }
+
+        // Hex text (as M2Message renders a raw/addr6 element) back to bytes; null when it is not hex, which
+        // leaves the caller with the original text rather than a wrong address.
+        private static byte[]? HexToBytes(string hex)
+        {
+            if (hex.Length == 0 || hex.Length % 2 != 0) return null;
+            var bytes = new byte[hex.Length / 2];
+            for (int i = 0; i < bytes.Length; i++)
+                if (!byte.TryParse(hex.Substring(i * 2, 2), NumberStyles.HexNumber,
+                        CultureInfo.InvariantCulture, out bytes[i]))
+                    return null;
+            return bytes;
         }
 
         /// <summary>

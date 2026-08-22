@@ -195,6 +195,104 @@ namespace tik4net.Winbox
             return b.ToArray();
         }
 
+        /// <summary>
+        /// String-array field (webfig ftype 20, <c>FT_STRING_ARRAY</c> — type byte <c>0xA0</c>): a 16-bit
+        /// element COUNT, then each element as a 16-bit byte length followed by its UTF-8 bytes.
+        /// </summary>
+        /// <remarks>
+        /// Read from <c>master*.js</c>: <c>writeId(FT_STRING_ARRAY,r);write16(val.length);for(…)
+        /// {write16(val[i].length);…}</c>. The count and the element lengths share one width — the reader
+        /// takes both from the type's size flags — so the normal (non-short, non-long) form is 2 bytes for
+        /// each. An empty array is a valid value and the only way to CLEAR the field.
+        /// </remarks>
+        internal static byte[] StringArraySys(int fullKey, IList<string> values)
+        {
+            var b = new List<byte>
+            {
+                (byte)(fullKey & 0xFF), (byte)((fullKey >> 8) & 0xFF),
+                (byte)((fullKey >> 16) & 0xFF), 0xA0
+            };
+            b.AddRange(BitConverter.GetBytes((ushort)values.Count));
+            foreach (string v in values)
+            {
+                byte[] data = Encoding.UTF8.GetBytes(v ?? "");
+                b.AddRange(BitConverter.GetBytes((ushort)data.Length));
+                b.AddRange(data);
+            }
+            return b.ToArray();
+        }
+
+        /// <summary>
+        /// Raw-array field (webfig ftype 22, <c>FT_RAW_ARRAY</c> — type byte <c>0xB0</c>): the same shape as
+        /// <see cref="StringArraySys"/>, with each element's own bytes instead of text.
+        /// </summary>
+        /// <remarks>
+        /// webfig's writer has the two widths the wrong way round in this one case (it writes a 32-bit
+        /// element length in the SHORT branch and a 16-bit one in the long branch), while its reader takes
+        /// both from the type's size flags like every other array. The reader is what RouterOS agrees with,
+        /// so both widths are 2 bytes here.
+        /// </remarks>
+        internal static byte[] RawArraySys(int fullKey, IList<byte[]> values)
+        {
+            var b = new List<byte>
+            {
+                (byte)(fullKey & 0xFF), (byte)((fullKey >> 8) & 0xFF),
+                (byte)((fullKey >> 16) & 0xFF), 0xB0
+            };
+            b.AddRange(BitConverter.GetBytes((ushort)values.Count));
+            foreach (byte[] v in values)
+            {
+                byte[] data = v ?? new byte[0];
+                b.AddRange(BitConverter.GetBytes((ushort)data.Length));
+                b.AddRange(data);
+            }
+            return b.ToArray();
+        }
+
+        /// <summary>
+        /// IPv6-array field (webfig ftype 19, <c>FT_ADDR6_ARRAY</c> — type byte <c>0x98</c>): a 16-bit
+        /// element count followed by sixteen raw bytes per element, with NO per-element length — the same
+        /// fixed-width rule the scalar <see cref="Addr6Sys"/> follows.
+        /// </summary>
+        internal static byte[] Addr6ArraySys(int fullKey, IList<byte[]> values)
+        {
+            var b = new List<byte>
+            {
+                (byte)(fullKey & 0xFF), (byte)((fullKey >> 8) & 0xFF),
+                (byte)((fullKey >> 16) & 0xFF), 0x98
+            };
+            b.AddRange(BitConverter.GetBytes((ushort)values.Count));
+            foreach (byte[] v in values)
+            {
+                if (v == null || v.Length != 16)
+                    throw new ArgumentException("An FT_ADDR6 element is exactly 16 bytes.", nameof(values));
+                b.AddRange(v);
+            }
+            return b.ToArray();
+        }
+
+        /// <summary>
+        /// Message-array field (webfig ftype 21, <c>FT_MESSAGE_ARRAY</c> — type byte <c>0xA8</c>): a 16-bit
+        /// element count, then each element as a 16-bit byte length followed by a complete submessage
+        /// (<c>'M2'</c> + its own TLVs) — the write side of <see cref="ParseRecords"/>.
+        /// </summary>
+        internal static byte[] MessageArraySys(int fullKey, IList<byte[][]> elements)
+        {
+            var b = new List<byte>
+            {
+                (byte)(fullKey & 0xFF), (byte)((fullKey >> 8) & 0xFF),
+                (byte)((fullKey >> 16) & 0xFF), 0xA8
+            };
+            b.AddRange(BitConverter.GetBytes((ushort)elements.Count));
+            foreach (byte[][] fields in elements)
+            {
+                byte[] body = BuildM2(fields);
+                b.AddRange(BitConverter.GetBytes((ushort)body.Length));
+                b.AddRange(body);
+            }
+            return b.ToArray();
+        }
+
         // u32 array, user namespace
         internal static byte[] U32ArrayUser(int keyId, params int[] values)
         {
@@ -420,6 +518,37 @@ namespace tik4net.Winbox
                             val = "[" + string.Join(",", strs) + "]";
                         }
                         break;
+                    case 0x98:
+                    {
+                        // addr6[] (ftype 19): count + 16 fixed bytes per element, no per-element length.
+                        // Rendered like every other scalar array, one element per comma, so the codec's
+                        // list formatter can hand each 16-byte address to the ip6 element formatter.
+                        typeName = "ip6[]";
+                        int cnt = ReadLen(type, m2, ref pos);
+                        var addrs = new List<string>();
+                        for (int i = 0; i < cnt && pos + 16 <= m2.Length; i++, pos += 16)
+                            addrs.Add(BitConverter.ToString(m2, pos, 16).Replace("-", ""));
+                        val = "[" + string.Join(",", addrs) + "]";
+                        break;
+                    }
+                    case 0xB0: case 0xB1: case 0xB2:
+                    {
+                        // raw[] (ftype 22): count + (len + bytes) per element, each element rendered as the
+                        // same hex text a scalar raw is. Without this case the whole field was skipped, so
+                        // /ip/dhcp-server/alert's valid-servers and RoMON's path read as nothing at all.
+                        typeName = "raw[]";
+                        int cnt = ReadLen(type, m2, ref pos);
+                        var blobs = new List<string>();
+                        for (int i = 0; i < cnt && pos < m2.Length; i++)
+                        {
+                            int elen = ReadLen(type, m2, ref pos);
+                            if (pos + elen > m2.Length) break;
+                            blobs.Add(BitConverter.ToString(m2, pos, elen).Replace("-", ""));
+                            pos += elen;
+                        }
+                        val = "[" + string.Join(",", blobs) + "]";
+                        break;
+                    }
                     case 0x28: case 0x29: case 0x2A:
                     {
                         // message (ftype 5): length via size flags, body is a submessage.

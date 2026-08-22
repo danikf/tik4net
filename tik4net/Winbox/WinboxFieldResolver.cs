@@ -1140,7 +1140,29 @@ namespace tik4net.Winbox
                                 if (string.Equals(kv.Value, t, StringComparison.OrdinalIgnoreCase))
                                 { bits |= 1L << kv.Key; break; }
                         }
+                    // The second half of the value: the members this write says NO to. webfig's editor
+                    // sends both — SetView.save builds `set` from the ticked boxes and `unset` from the
+                    // unticked ones and calls put([set,unset]) — so the mask is the complement WITHIN the
+                    // member list, not ~bits over all 32 bits (types.multibits.put, whose editor has no
+                    // unticked-vs-absent distinction, does use the plain complement).
+                    //
+                    // It only rides when the field declares somewhere to put it: a maskid sibling for a
+                    // scalar, or the second element of a two-element u32[] for a `set` on an array key
+                    // (types.set.put's 'U' branch). A u32 written to an array key is the wrong TYPE BYTE,
+                    // which RouterOS answers with success and ignores.
+                    bool plainComplement = string.Equals(uiType, "multibits", StringComparison.OrdinalIgnoreCase);
+                    long known = jg!.EnumMap != null
+                        ? jg.EnumMap.Keys.Aggregate(0L, (acc, bit) => acc | (1L << bit))
+                        : ~0L;
+                    long setMask = plainComplement ? ~bits : known & ~bits;
+                    if (jg.WireType != null && jg.WireType.EndsWith("[]", StringComparison.Ordinal))
+                    {
+                        result.Add(M2Message.U32ArraySys(key,
+                            unchecked((int)bits), unchecked((int)setMask)));
+                        return result;
+                    }
                     result.Add(EncodeU32(key, unchecked((uint)bits)));
+                    if (jg.MaskKey != 0) result.Add(EncodeU32(jg.MaskKey, unchecked((uint)setMask)));
                     return result;
                 }
                 case "enm":
@@ -1195,6 +1217,44 @@ namespace tik4net.Winbox
                     }
                     if (items.Count == 0) return result;
                     result.Add(M2Message.U32ArraySys(key, items.ToArray()));
+                    return result;
+                }
+                case "multi" when string.Equals(jg?.ElementUiType, "addr", StringComparison.OrdinalIgnoreCase):
+                {
+                    // A list whose elements are `addr` COMPOUNDS — /ip/dns servers, /ip/dns/forwarders
+                    // dns-servers, an LDP transport-address list. Each element is a whole submessage with
+                    // the address riding at the sub-key its FORM calls for (v4 u32, v6 sixteen bytes, a DNS
+                    // name as text), so the field is a message array of exactly what the scalar `addr`
+                    // encoder already produces — reused rather than re-derived, since the allow-mask rules
+                    // and the refusal of an unencodable qualifier are the same ones.
+                    var elements = new List<byte[][]>();
+                    foreach (var tok in value.Split(','))
+                    {
+                        string t = tok.Trim();
+                        if (t.Length > 0) elements.Add(EncodeAddr(t, jg!.Allow, apiName, _apiPath));
+                    }
+                    result.Add(M2Message.MessageArraySys(key, elements));
+                    return result;
+                }
+                case "multistring":
+                case "multiraw":
+                case "multiipaddr":
+                case "multiip6addr":
+                {
+                    // The rest of the webfig list family. All four `inherit(types.multinumber)` and store one
+                    // ARRAY under one key, differing only in what an element is — text, bytes, an IPv4 packed
+                    // into a u32, sixteen IPv6 bytes — so the element type decides the conversion and the
+                    // field's WIRE type decides the array's TLV form.
+                    //
+                    // An empty value is the EMPTY ARRAY, not a dropped field: a key the router is not told
+                    // about keeps whatever it already holds, so clearing a list has to be said out loud.
+                    var items = new List<string>();
+                    foreach (var tok in value.Split(','))
+                    {
+                        string t = tok.Trim();
+                        if (t.Length > 0) items.Add(t);
+                    }
+                    result.Add(EncodeScalarArray(jg!, key, items, apiName));
                     return result;
                 }
                 case "multitristate":
@@ -1523,6 +1583,55 @@ namespace tik4net.Winbox
 
             throw new WinboxFieldValueException(
                 $"input does not match any value of {apiName} (element '{token}')");
+        }
+
+        /// <summary>
+        /// Encodes the elements of a scalar list field into the one array TLV its wire type calls for, each
+        /// element converted by the ELEMENT's <c>.jg</c> type — the write side of
+        /// <c>WinboxRecordCodec.FormatMultiList</c>.
+        /// </summary>
+        /// <remarks>
+        /// An element that cannot be converted is an error, never a dropped element: a shorter list is a
+        /// request the router accepts without complaint, so "dns-server=8.8.8.8,typo" would set one server
+        /// and report success.
+        /// </remarks>
+        private byte[] EncodeScalarArray(WinboxJgField jg, int key, List<string> items, string apiName)
+        {
+            switch (jg.WireType)
+            {
+                case "string[]":
+                    return M2Message.StringArraySys(key, items);
+                case "raw[]":
+                    return M2Message.RawArraySys(key, items.Select(ParseRaw).ToList());
+                case "ip6[]":
+                    return M2Message.Addr6ArraySys(key, items.Select(t =>
+                        PackIpV6(t.Split('/')[0]) ?? throw new WinboxFieldValueException(
+                            $"input does not match any value of {apiName} (element '{t}')")).ToList());
+                case "u32[]":
+                {
+                    var nums = new List<int>();
+                    foreach (string t in items)
+                    {
+                        // An 'ipaddr' element is the same u32 a scalar ipaddr is; anything else goes through
+                        // the ordinary element rules (reference → static map → literal).
+                        if (string.Equals(jg.ElementUiType, "ipaddr", StringComparison.OrdinalIgnoreCase))
+                        {
+                            uint? ip = PackIpV4(t.Split('/')[0]);
+                            if (ip == null)
+                                throw new WinboxFieldValueException(
+                                    $"input does not match any value of {apiName} (element '{t}')");
+                            nums.Add(unchecked((int)ip.Value));
+                        }
+                        else nums.Add(EncodeListElement(jg, t, apiName, null));
+                    }
+                    return M2Message.U32ArraySys(key, nums.ToArray());
+                }
+                default:
+                    throw new WinboxFieldResolutionException(
+                        $"WinBox native: field '{apiName}' on '{_apiPath}' is a list of '{jg.WireType}', " +
+                        "which is not yet encodable over native WinBox M2 writes. Use an Api/REST/CLI " +
+                        "connection for this field.");
+            }
         }
 
         // True for a list/array field that EncodeField has no specific encoder for (so it would otherwise be
