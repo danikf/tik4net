@@ -76,6 +76,21 @@ namespace tik4net.integrationtests.Ip.Firewall
         }
 
         [TestMethod]
+        public void AMixedTriStateReadsInTheOrderTheRouterPrintsIt()
+        {
+            // The router does not keep the order it was given: written "!fin,syn,!urg,ack", it prints the
+            // plain members first and the negated ones after, each in bit order.
+            var rule = TestRule(Connection);
+            rule.TcpFlags = "!fin,syn,!urg,ack";
+            Connection.Save(rule);
+
+            using (var api = OpenSideApi())
+                Assert.AreEqual("syn,ack,!fin,!urg", TestRule(api).TcpFlags, "as the API reads it");
+            Assert.AreEqual("syn,ack,!fin,!urg", TestRule(Connection).TcpFlags,
+                "and as the transport under test reads it");
+        }
+
+        [TestMethod]
         public void BitmaskFieldsWrittenOverTheTransportUnderTestReachTheRouter()
         {
             var rule = TestRule(Connection);

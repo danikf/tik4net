@@ -18,6 +18,11 @@ namespace tik4net.Winbox
 
         private static readonly Dictionary<string, int> EmptyOverrides = new Dictionary<string, int>();
 
+        // handler key → the bit-set member map of that table (see ReadMemberTable).
+        private readonly Dictionary<string, IReadOnlyDictionary<int, string>> _memberTables =
+            new Dictionary<string, IReadOnlyDictionary<int, string>>(StringComparer.Ordinal);
+        private readonly object _memberTablesLock = new object();
+
         internal WinboxIdResolver(WinboxNativeM2Operations ops, WinboxJgCatalog catalog)
         {
             _ops = ops;
@@ -93,6 +98,53 @@ namespace tik4net.Winbox
                 // silently dropped (which the router accepts as "field not sent", see EncodeField).
                 return ResolveReference(h, n);
             };
+        }
+
+        /// <summary>
+        /// The member map of a bit set's referenced table — <c>bit index → member name</c>, where the bit
+        /// index is the referenced row's id. Used by <c>WinboxFieldResolver.EncodeField</c> for the sets
+        /// whose members are a TABLE rather than a static <c>.jg</c> map (<c>/user/group</c> policies, a
+        /// script's or scheduler entry's policy).
+        /// </summary>
+        /// <remarks>
+        /// Cached for the life of the connection, unlike <see cref="FindIdByName"/>: these tables are the
+        /// router's fixed vocabulary of permissions, not user records that appear and disappear. Returns
+        /// <c>null</c> when the table cannot be read, which the encoder turns into a refusal rather than a
+        /// write that silently clears the field.
+        /// </remarks>
+        internal IReadOnlyDictionary<int, string>? ReadMemberTable(int[] handler)
+        {
+            string key = HandlerKey(handler);
+            lock (_memberTablesLock)
+                if (_memberTables.TryGetValue(key, out var cached)) return cached;
+
+            Dictionary<int, string>? map;
+            try { map = WinboxRecordCodec.BuildMemberMap(_catalog, handler, _ops.GetAll(handler)); }
+            catch { return null; }   // not memoized: one transient getall failure must not be permanent
+
+            lock (_memberTablesLock) _memberTables[key] = map;
+            return map;
+        }
+
+        /// <summary>
+        /// Awaited form of <see cref="ReadMemberTable"/>, so a command that writes such a field does its
+        /// table read under <c>await</c> and the encoder then only reads the cache.
+        /// </summary>
+        internal async Task PrimeMemberTableAsync(int[] handler, CancellationToken cancellationToken)
+        {
+            string key = HandlerKey(handler);
+            lock (_memberTablesLock)
+                if (_memberTables.ContainsKey(key)) return;
+
+            Dictionary<int, string> map;
+            try
+            {
+                map = WinboxRecordCodec.BuildMemberMap(_catalog, handler,
+                    await _ops.GetAllAsync(handler, cancellationToken).ConfigureAwait(false));
+            }
+            catch { return; }        // the encoder refuses loudly rather than guessing
+
+            lock (_memberTablesLock) _memberTables[key] = map;
         }
 
         /// <summary>

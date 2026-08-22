@@ -43,6 +43,13 @@ namespace tik4net.Winbox
         private readonly Dictionary<string, int[]> _derivedPaths =
             new Dictionary<string, int[]>(StringComparer.OrdinalIgnoreCase);
 
+        // handler-path-string → the label of the field a WINDOW declares as the row's display name
+        // (`nameval:'Alias'`). That is what WinBox shows for a row in a dropdown, and it is not always the
+        // field called 'Name': the policy table [13,3] names its rows by 'Alias' ('read', 'write'), while
+        // its 'Name' holds the sentence 'read router configuration'.
+        private readonly Dictionary<string, string> _nameValByHandler =
+            new Dictionary<string, string>(StringComparer.Ordinal);
+
         // Handlers backed by a singleton window (type:'item') — read via get-singleton, not getall.
         private readonly HashSet<string> _singletonHandlers = new HashSet<string>(StringComparer.Ordinal);
 
@@ -215,6 +222,13 @@ namespace tik4net.Winbox
         /// the normalized enclosing <c>group</c> + node <c>name</c>). Dropdown references
         /// (<c>type:'enm'</c>) that reuse a handler are not included.
         /// </summary>
+        /// <summary>
+        /// The API name of the field a handler's window declares as the row's display name
+        /// (<c>nameval</c>), or <c>null</c> when it declares none.
+        /// </summary>
+        internal string? GetNameValField(int[] handler)
+            => _nameValByHandler.TryGetValue(HandlerKey(handler), out var label) ? label : null;
+
         internal IReadOnlyDictionary<string, int[]> GetDerivedPaths() => _derivedPaths;
 
         /// <summary>
@@ -816,6 +830,10 @@ namespace tik4net.Winbox
                         _handlerBackedWindows.Add(wk);
                         owner = wk;
                     }
+                    // The row's display name, as the window declares it (see _nameValByHandler).
+                    if (dict.TryGetValue("nameval", out var nvv) && nvv is string nvs && nvs.Length > 0
+                        && !_nameValByHandler.ContainsKey(HandlerKey(handlerInts)))
+                        _nameValByHandler[HandlerKey(handlerInts)] = WinboxFieldResolver.NormalizeLabel(nvs);
                     if (ty == "item") _singletonHandlers.Add(HandlerKey(handlerInts));
                     // Track record-listing vs action-only windows separately so a handler that has BOTH (e.g.
                     // [20,125] = 'SMS Message' map + 'Send SMS' doit) is never mistaken for action-only.

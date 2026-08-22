@@ -346,6 +346,13 @@ namespace tik4net.Winbox
                 // calls it 'name'. Without the alias a read returned {"identity":…} — so LoadSingle
                 // <SystemIdentity> threw "Missing field 'name'" — and a write resolved 'name' through the
                 // FallbackSeed to key 0x10006, a key this handler does not have.
+                // /user/group: the window's field is 'Policies', the API's is 'policy' — one name for one
+                // value, so the alias is the whole difference. (Its members come from the policy table
+                // [13,3], not from a static map; see EncodeField's bit-set branch.)
+                ["/user/group"] = new FieldAliasSet(
+                    apiToJg: Ci(("policy", "policies")),
+                    jgToApi: Ci(("policies", "policy"))),
+
                 ["/system/identity"] = new FieldAliasSet(
                     apiToJg: Ci(("name", "identity")),
                     jgToApi: Ci(("identity", "name"))),
@@ -961,7 +968,7 @@ namespace tik4net.Winbox
         /// <see cref="WinboxFieldResolutionException"/> when the name cannot be resolved.
         /// </summary>
         internal List<byte[]> EncodeField(string apiName, string value, Func<int[], string, int?>? resolveRef = null,
-            bool allowReadOnly = false)
+            bool allowReadOnly = false, Func<int[], IReadOnlyDictionary<int, string>?>? resolveRefTable = null)
         {
             // Normalize a GUI-styled name to its canonical API name up front so both ResolveKey and the typed
             // .jg lookup below agree on it (otherwise a GUI label would resolve a key but miss its typed field).
@@ -984,8 +991,8 @@ namespace tik4net.Winbox
                 // (max-limit=1M reads back as 1000000/0).
                 string down = slash < 0 ? "0" : value.Substring(slash + 1);
 
-                paired.AddRange(EncodeField(halves.Item1, up, resolveRef, allowReadOnly));
-                paired.AddRange(EncodeField(halves.Item2, down, resolveRef, allowReadOnly));
+                paired.AddRange(EncodeField(halves.Item1, up, resolveRef, allowReadOnly, resolveRefTable));
+                paired.AddRange(EncodeField(halves.Item2, down, resolveRef, allowReadOnly, resolveRefTable));
                 return paired;
             }
 
@@ -1130,15 +1137,45 @@ namespace tik4net.Winbox
                     // The value rides as a u32 of OR'd (1<<bitIndex) per the .jg bit map; the opt/not flags and
                     // the leading '!' were handled above.
                     if (value.Length == 0) return result;
+
+                    // The members: a static .jg map, or — for /user/group's policies and the script and
+                    // scheduler policy fields — a TABLE, where the bit index is the referenced row's id.
+                    // A member list that cannot be read is refused rather than encoded as far as it goes:
+                    // without it every token misses, and the field would go out as a clean, well-formed
+                    // ZERO, which the router accepts as "this row is allowed nothing".
+                    IReadOnlyDictionary<int, string>? memberMap = jg!.EnumMap;
+                    if (memberMap == null && jg.RefHandler != null)
+                    {
+                        memberMap = resolveRefTable?.Invoke(jg.RefHandler);
+                        if (memberMap == null)
+                            throw new WinboxFieldResolutionException(
+                                $"WinBox native: field '{apiName}' on '{_apiPath}' is a bit set whose members "
+                                + $"live in table [{string.Join(",", jg.RefHandler)}], which could not be read, "
+                                + "so the value cannot be encoded without silently clearing the field.");
+                    }
+
                     long bits = 0;
-                    if (jg!.EnumMap != null) // jg non-null: uiType == "set" only when jg.UiType produced it
+                    long negatedBits = 0;
+                    if (memberMap != null)
                         foreach (var tok in value.Split(','))
                         {
                             string t = tok.Trim();
+                            bool negated = t.StartsWith("!");
+                            if (negated) t = t.Substring(1).Trim();
                             if (t.Length == 0) continue;
-                            foreach (var kv in jg.EnumMap)
+                            bool matched = false;
+                            foreach (var kv in memberMap)
                                 if (string.Equals(kv.Value, t, StringComparison.OrdinalIgnoreCase))
-                                { bits |= 1L << kv.Key; break; }
+                                {
+                                    if (negated) negatedBits |= 1L << kv.Key; else bits |= 1L << kv.Key;
+                                    matched = true;
+                                    break;
+                                }
+                            // A member nobody knows is a wrong value, not a member to skip: dropping it sends
+                            // a bit set the router accepts with that permission simply absent.
+                            if (!matched && jg.RefHandler != null)
+                                throw new WinboxFieldValueException(
+                                    $"input does not match any value of {apiName} (member '{t}')");
                         }
                     // The second half of the value: the members this write says NO to. webfig's editor
                     // sends both — SetView.save builds `set` from the ticked boxes and `unset` from the
@@ -1150,11 +1187,16 @@ namespace tik4net.Winbox
                     // scalar, or the second element of a two-element u32[] for a `set` on an array key
                     // (types.set.put's 'U' branch). A u32 written to an array key is the wrong TYPE BYTE,
                     // which RouterOS answers with success and ignores.
-                    bool plainComplement = string.Equals(uiType, "multibits", StringComparison.OrdinalIgnoreCase);
-                    long known = jg!.EnumMap != null
-                        ? jg.EnumMap.Keys.Aggregate(0L, (acc, bit) => acc | (1L << bit))
-                        : ~0L;
-                    long setMask = plainComplement ? ~bits : known & ~bits;
+                    // The second half of the value: the members this write explicitly DENIES. The router
+                    // applies the members the request mentions — the union of the two words — and leaves the
+                    // rest of the row as it found it, which is exactly how the binary API behaves for the
+                    // same command: `set policy=read,write,winbox` on a group that already had `test` keeps
+                    // test (measured on 7.24, both directions). Sending "every member not named" as denied
+                    // instead — which is what WinBox's own editor does, because it always has the whole
+                    // checkbox state in hand — turns a set of three members into a rewrite of all
+                    // seventeen. On an ADD the router fills the rest in itself, so the row still comes out
+                    // spelled exactly as the API's own add spells it.
+                    long setMask = negatedBits;
                     if (jg.WireType != null && jg.WireType.EndsWith("[]", StringComparison.Ordinal))
                     {
                         result.Add(M2Message.U32ArraySys(key,
@@ -1583,6 +1625,28 @@ namespace tik4net.Winbox
 
             throw new WinboxFieldValueException(
                 $"input does not match any value of {apiName} (element '{token}')");
+        }
+
+        /// <summary>
+        /// The handler of the table a field takes its bit-set MEMBERS from, or <c>null</c> when the field is
+        /// not a table-backed bit set. Lets a caller read that table before encoding instead of blocking
+        /// inside the encoder (see <c>WinboxIdResolver.PrimeMemberTableAsync</c>).
+        /// </summary>
+        internal int[]? BitSetMemberTable(string apiName)
+        {
+            if (JgFields == null) return null;
+            if (!JgFields.TryGetValue(AliasToJg(CanonicalInputName(apiName)), out var jg) || jg == null)
+                return null;
+            if (jg.EnumMap != null || jg.RefHandler == null) return null;
+            switch ((jg.UiType ?? "").ToLowerInvariant())
+            {
+                case "set":
+                case "multibits":
+                case "multitristate":
+                    return jg.RefHandler;
+                default:
+                    return null;
+            }
         }
 
         /// <summary>

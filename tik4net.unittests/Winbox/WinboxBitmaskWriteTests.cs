@@ -148,6 +148,96 @@ namespace tik4net.unittests.Winbox
             Assert.AreEqual(true, encoded[0x1AA], "and the opt flag that makes the router read it");
         }
 
+        // ── a bit set whose members are a TABLE ────────────────────────────────
+
+        // roteros.jg, Group [13,2]: 'Policies' takes its members from the policy table [13,3] — no static
+        // map — and keeps the denied ones in its maskid sibling. The referenced window names its rows by
+        // 'Alias' (nameval), not by its 'Name' field, which holds a whole sentence.
+        private const string GroupWindow =
+            "[{name:'Users',title:'Users',group:'System',c:[" +
+            "{name:'',type:'map',path:[ 13,3 ],nameval:'Alias',c:[" +
+              "{name:'Name',type:'string',id:'s1'},{name:'Alias',type:'string',id:'s2'}]}," +
+            "{name:'Group',title:'Groups',type:'map',path:[ 13,2 ],nameval:'Name',c:[" +
+              "{name:'Name',type:'string',id:'s1'}," +
+              "{name:'Policies',type:'set',id:'u2',maskid:'u3',values:{type:'dynamic',path:[ 13,3 ]}}]}" +
+            "]}]";
+
+        private static readonly int[] GroupHandler = { 13, 2 };
+
+        // The policy table as the router serves it: the bit index is the row's id.
+        private static readonly Dictionary<int, string> PolicyMembers = new Dictionary<int, string>
+        {
+            [4] = "ftp", [6] = "read", [7] = "write", [10] = "winbox", [19] = "rest-api",
+        };
+
+        private static WinboxFieldResolver GroupResolver()
+            => new WinboxFieldResolver("/user/group", GroupHandler, Parse(GroupWindow),
+                                       new Dictionary<string, int>());
+
+        [TestMethod]
+        public void ATableBackedSetIsRecognizedAndItsTableNamed()
+        {
+            CollectionAssert.AreEqual(new[] { 13, 3 }, GroupResolver().BitSetMemberTable("policy"),
+                "the caller has to know which table to read before encoding");
+        }
+
+        [TestMethod]
+        public void ATableBackedSetEncodesMemberNamesToTheirRowIds()
+        {
+            var encoded = Decoded(GroupResolver().EncodeField("policy", "read,write,!ftp", null, false,
+                                                              h => PolicyMembers));
+
+            Assert.AreEqual((1L << 6) | (1L << 7), Num(encoded[0x2]), "the granted members");
+            Assert.AreEqual(1L << 4, Num(encoded[0x3]), "and only the ones the value denies");
+        }
+
+        [TestMethod]
+        public void ATableBackedSetLeavesUnnamedMembersAlone()
+        {
+            // The router settles the members the request mentions and keeps the rest of the row — the same
+            // thing the binary API does for this command. Sending "everything not named" as denied would
+            // turn a two-member write into a rewrite of the whole permission list.
+            var encoded = Decoded(GroupResolver().EncodeField("policy", "read,write", null, false,
+                                                              h => PolicyMembers));
+
+            Assert.AreEqual(0L, Num(encoded[0x3]));
+        }
+
+        [TestMethod]
+        public void ATableBackedSetRefusesToEncodeWithoutItsMembers()
+        {
+            // With no member map every token misses, and the field would go out as a clean, well-formed
+            // ZERO — a write that reports success and leaves the group allowed nothing.
+            Assert.ThrowsException<WinboxFieldResolutionException>(
+                () => GroupResolver().EncodeField("policy", "read,write"));
+        }
+
+        [TestMethod]
+        public void AMemberNobodyKnowsIsAnErrorRatherThanASkippedBit()
+        {
+            Assert.ThrowsException<WinboxFieldValueException>(
+                () => GroupResolver().EncodeField("policy", "read,tpyo", null, false, h => PolicyMembers));
+        }
+
+        [TestMethod]
+        public void ABitSetsMembersAreNamedByTheWindowsNameval()
+        {
+            // The policy table's rows are 'read'/'write' (Alias), not "read router configuration" (Name).
+            var rows = new List<Dictionary<int, Tuple<string, object>>>
+            {
+                new Dictionary<int, Tuple<string, object>>
+                {
+                    [0xFE0001] = Tuple.Create("u32", (object)6u),
+                    [0x1] = Tuple.Create("str", (object)"read router configuration"),
+                    [0x2] = Tuple.Create("str", (object)"read"),
+                },
+            };
+
+            var map = WinboxRecordCodec.BuildMemberMap(Parse(GroupWindow), new[] { 13, 3 }, rows);
+
+            Assert.AreEqual("read", map[6]);
+        }
+
         [TestMethod]
         public void AMultibitsTakesSeveralMembersAtOnce()
         {

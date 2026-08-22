@@ -86,10 +86,10 @@ namespace tik4net.Winbox
                     // Nor is the download half of an upload/download pair.
                     if (f.UiType == WinboxFieldResolver.PairUiType && f.MaskKey != 0)
                         consumedKeys.Add(f.MaskKey);
-                    // Nor are the negated members of a multitristate: they are the '!' half of the ONE
-                    // value the API prints (tcp-flags="syn,!ack"), not a field the router names.
-                    if (string.Equals(f.UiType, "multitristate", StringComparison.OrdinalIgnoreCase)
-                        && f.MaskKey != 0)
+                    // Nor are the negated members of a multitristate — or of a `set`/`multibits` that has a
+                    // maskid: they are the '!' half of the ONE value the API prints (tcp-flags="syn,!ack",
+                    // policy="read,write,!ftp"), not a field the router names.
+                    if (f.MaskKey != 0 && IsBitSetWithMask(f.UiType))
                         consumedKeys.Add(f.MaskKey);
                     if (f.OptKey != 0) consumedKeys.Add(f.OptKey);
                     if (f.NotKey != 0) consumedKeys.Add(f.NotKey);
@@ -404,14 +404,15 @@ namespace tik4net.Winbox
                         if (rec.TryGetValue(jf.MaskKey, out var maskT) && maskT?.Item2 != null
                             && WinboxFieldResolver.TryToInt64(maskT.Item2, out long mb))
                             offBits = mb;
-                        var members = new List<string>();
-                        foreach (var kv in jf.EnumMap.OrderBy(kv => kv.Key))
-                        {
-                            long bit = 1L << kv.Key;
-                            if ((onBits & bit) != 0) members.Add(kv.Value);
-                            else if ((offBits & bit) != 0) members.Add("!" + kv.Value);
-                        }
-                        return string.Join(",", members);
+                        // Plain members first, then the negated ones, each in bit order — which is how the
+                        // router itself prints a mixed list: tcp-flags="!fin,syn,!urg,ack" reads back
+                        // "syn,ack,!fin,!urg" (verified on 7.24), not in the order it was written.
+                        var plain = jf.EnumMap.Where(kv => (onBits & (1L << kv.Key)) != 0)
+                                              .OrderBy(kv => kv.Key).Select(kv => kv.Value);
+                        var negated = jf.EnumMap.Where(kv => (onBits & (1L << kv.Key)) == 0
+                                                          && (offBits & (1L << kv.Key)) != 0)
+                                                .OrderBy(kv => kv.Key).Select(kv => "!" + kv.Value);
+                        return string.Join(",", plain.Concat(negated));
                     }
                     // A `multibits` is a `set` under another name: types.multibits.get is
                     // `for(i=0..31) if(val&(1<<i)) push(i)` over the same bit-indexed map, and only its
@@ -426,6 +427,17 @@ namespace tik4net.Winbox
                         // keys are consumed separately in DecodeRecord, so only the value rides here. A set
                         // 'not' flag (key NotKey) renders as the RouterOS '!' negation prefix on the whole
                         // value (CLI/API form, e.g. "!established,related").
+                        //
+                        // A set whose members come from a TABLE instead of a static map is the same bitmask
+                        // with the member names one round trip away: /user/group's policies, a script's or a
+                        // scheduler entry's policy, all reading the policy table [13,3] where the bit index
+                        // is the row's id. Without this they reached the caller as the raw number 654958.
+                        var members = jf.EnumMap;
+                        if (members == null && jf.RefHandler != null)
+                        {
+                            members = ResolveMemberMap(jf.RefHandler, collectRefTables);
+                            if (members != null) return FormatBitSet(jf, value, members, rec);
+                        }
                         if (jf.EnumMap == null) break;
                         if (!WinboxFieldResolver.TryToInt64(value, out long bits))
                         {
@@ -800,6 +812,48 @@ namespace tik4net.Winbox
             return s.Split(',').Select(p => p.Trim()).ToList();
         }
 
+        /// <summary>
+        /// Renders a bit set whose members come from a referenced table, in the form the router prints:
+        /// the members whose bit is set, then the ones its <c>maskid</c> sibling marks as explicitly
+        /// denied with a <c>!</c> in front — <c>/user/group</c>'s
+        /// <c>policy="read,write,!local,!telnet,…"</c>.
+        /// </summary>
+        /// <remarks>
+        /// Verified against 7.24: <c>/user/group add policy=read,write</c> over the binary API stores
+        /// <c>u2 = 192</c> (bits 6 and 7) and <c>u3 = 655166</c> — every OTHER member of the table. So the
+        /// mask is not "the complement of 32 bits" but "the members this row says no to".
+        /// </remarks>
+        private static string FormatBitSet(WinboxJgField jf, object value,
+            IReadOnlyDictionary<int, string> members, Dictionary<int, Tuple<string, object>> rec)
+        {
+            if (!WinboxFieldResolver.TryToInt64(value, out long onBits)) return value?.ToString() ?? "";
+            long offBits = 0;
+            if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var maskT) && maskT?.Item2 != null
+                && WinboxFieldResolver.TryToInt64(maskT.Item2, out long mb))
+                offBits = mb;
+
+            var plain = members.Where(kv => (onBits & (1L << kv.Key)) != 0)
+                               .OrderBy(kv => kv.Key).Select(kv => kv.Value);
+            var negated = members.Where(kv => (onBits & (1L << kv.Key)) == 0
+                                           && (offBits & (1L << kv.Key)) != 0)
+                                 .OrderBy(kv => kv.Key).Select(kv => "!" + kv.Value);
+            return string.Join(",", plain.Concat(negated));
+        }
+
+        // The bitmask UI types whose maskid sibling holds the NEGATED members rather than a value of its own.
+        private static bool IsBitSetWithMask(string? uiType)
+        {
+            switch ((uiType ?? "").ToLowerInvariant())
+            {
+                case "multitristate":
+                case "multibits":
+                case "set":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
         // The one list type whose elements carry their own negation flag, so it rides on TWO keys.
         private static bool IsTriStateList(string? uiType)
             => string.Equals(uiType, "multitristatearray", StringComparison.OrdinalIgnoreCase);
@@ -979,8 +1033,12 @@ namespace tik4net.Winbox
                 Dictionary<int, string> map;
                 try
                 {
-                    map = BuildRefNameMap(kv.Value,
-                        await _ops.GetAllAsync(kv.Value, cancellationToken).ConfigureAwait(false));
+                    var rows = await _ops.GetAllAsync(kv.Value, cancellationToken).ConfigureAwait(false);
+                    // The same rows, read as whichever map the key asks for — a dropdown's names or a bit
+                    // set's members (see MemberMapSuffix).
+                    map = kv.Key.EndsWith(MemberMapSuffix, StringComparison.Ordinal)
+                        ? BuildMemberMap(_catalog, kv.Value, rows)
+                        : BuildRefNameMap(kv.Value, rows);
                 }
                 catch (Exception ex)
                 {
@@ -1049,6 +1107,73 @@ namespace tik4net.Winbox
             id = unchecked((int)rowId);
             name = nt.Item2.ToString();
             return true;
+        }
+
+        /// <summary>
+        /// The cache-key suffix under which a referenced table's BIT-SET member map is kept, next to the
+        /// ordinary id → name map of the same table.
+        /// </summary>
+        /// <remarks>
+        /// The two are different maps of the same rows. A dropdown shows the row's <c>name</c>; a bit set
+        /// shows what the window declares as the row's display value (<c>nameval</c>), and for the policy
+        /// table [13,3] those disagree — 'Name' is the sentence "read router configuration" and 'Alias' is
+        /// the word the API prints, <c>read</c>.
+        /// </remarks>
+        private const string MemberMapSuffix = "|members";
+
+        /// <summary>
+        /// Builds the member map of a bit set's referenced table: <c>bit index → member name</c>, where the
+        /// bit index IS the referenced record's id (webfig's SetView keys its checkboxes by
+        /// <c>obj.ufe0001</c> and ORs <c>1&lt;&lt;id</c>).
+        /// </summary>
+        internal static Dictionary<int, string> BuildMemberMap(WinboxJgCatalog catalog, int[] refHandler,
+            IEnumerable<Dictionary<int, Tuple<string, object>>> rows)
+        {
+            var refResolver = new WinboxFieldResolver(null, refHandler, catalog, EmptyOverrides);
+            var keyToName = refResolver.BuildKeyToApiName();
+            string? nameVal = catalog.GetNameValField(refHandler);
+            int nameKey = -1;
+            if (nameVal != null)
+                foreach (var kv in keyToName)
+                    if (string.Equals(kv.Value, nameVal, StringComparison.OrdinalIgnoreCase)
+                        && !WinboxM2Protocol.TypedKey.IsQualified(kv.Key))
+                    { nameKey = kv.Key; break; }
+            if (nameKey < 0) nameKey = NameKeyOf(keyToName);
+
+            var map = new Dictionary<int, string>();
+            foreach (var r in rows)
+                if (TryReadIdAndName(r, nameKey, out int rowId, out string? rowName))
+                    map[rowId] = rowName!;
+            return map;
+        }
+
+        /// <summary>
+        /// The member map of a bit set whose members come from a TABLE rather than a static <c>.jg</c> map
+        /// (<c>/user/group</c> policies, a script's or scheduler entry's policy). Follows
+        /// <see cref="ResolveRefName"/>'s collect/cache/blocking structure exactly, so the awaited prefetch
+        /// and the decode cannot disagree about which tables get read.
+        /// </summary>
+        private Dictionary<int, string>? ResolveMemberMap(int[] refHandler,
+            Dictionary<string, int[]>? collectRefTables)
+        {
+            string key = string.Join(",", refHandler) + MemberMapSuffix;
+            var map = CachedRefNames(key);
+            if (collectRefTables != null)
+            {
+                if (map == null) collectRefTables[key] = refHandler;
+                return null;
+            }
+            if (map == null)
+            {
+                try { map = BuildMemberMap(_catalog, refHandler, _ops.GetAll(refHandler)); }
+                catch (Exception ex)
+                {
+                    TraceUnreadableRefTable(key, ex);
+                    return null;
+                }
+                StoreRefNames(key, map);
+            }
+            return map;
         }
 
         private Dictionary<int, string>? CachedRefNames(string key)

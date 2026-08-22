@@ -1173,17 +1173,93 @@ The rest of the encode table was surveyed at the same time, and nothing else has
 | `bool` | 2461 | bool — correct |
 | `u64` | 356 | **was u32; fixed** |
 | `raw` / `addr` / `ip6` | 287 / 181 / 82 | typed encoders — correct |
-| `u32[]`, `addr[]`, `string[]`, `raw[]`, `ip6[]` | 506 / 344 / 123 / 17 / 2 | not encodable — **throws**, does not drop |
+| `u32[]`, `addr[]`, `string[]`, `raw[]`, `ip6[]` | 506 / 344 / 123 / 17 / 2 | array encoders — see §32 |
 | `?` (unknown prefix) | 48 | all `multibignumber` byte/packet counters; nothing writes them |
 | `dur`, `time`, `i32` | none | share the u32 branch, which no live field exercises |
 
-The array types are the one remaining gap, and they are a **loud** one: a write to a list-typed field
-throws `WinboxFieldResolutionException` rather than silently doing nothing, which is how
-`/queue/simple`'s `target` was found.
+The array types were the one remaining gap, and a **loud** one — a write to a list-typed field threw
+`WinboxFieldResolutionException` rather than silently doing nothing, which is how `/queue/simple`'s
+`target` was found. They are encodable now; §32 has the wire shapes and what still refuses.
 
 **The test that catches a regression here has to read back over a DIFFERENT transport.** A native write
 followed by a native read passes on a router that never stored the value, because the failure is in what
 was sent, not in what was decoded.
+
+## 32. The list and bitmask shapes, and what each one is on the wire
+
+Everything RouterOS spells as a comma-separated value is one of a handful of shapes, and the `.jg` UI type
+says which. They divide into two families that look alike in the API and are nothing alike on the wire.
+
+### 32.1 The array family — one key, one array TLV
+
+Read from `master*.js`'s own writer, not from the shape of a captured frame:
+
+| Wire type | Type byte | Layout |
+|---|---|---|
+| `bool[]` | `0x80` | count(2B) + 1 byte per element |
+| `u32[]` | `0x88` | count(2B) + 4 bytes per element |
+| `u64[]` | `0x90` | count(2B) + 8 bytes per element |
+| `ip6[]` (FT_ADDR6_ARRAY) | `0x98` | count(2B) + **16 fixed bytes**, no per-element length |
+| `string[]` | `0xA0` | count(2B) + per element: length(2B) + UTF-8 |
+| `addr[]` (FT_MESSAGE_ARRAY) | `0xA8` | count(2B) + per element: length(2B) + a whole `'M2'` submessage |
+| `raw[]` | `0xB0` | count(2B) + per element: length(2B) + bytes |
+
+The count and the element lengths share one width, taken from the type's size flags — 1 byte for the short
+form, 2 for the normal one, 4 for the long one. (webfig's `raw[]` *writer* has the two the wrong way round;
+its reader agrees with every other array, and the reader is what RouterOS agrees with.)
+
+What an ELEMENT means is the element type's business, never the list's: `types.multistring`,
+`multiipaddr`, `multiip6addr` and `multiraw` all `inherit(types.multinumber)` and differ only in what one
+element is. So an `ipaddr` element is the same u32 a scalar `ipaddr` is, a `macaddr` element the same six
+bytes, and an `addr` element the same nested submessage — the scalar encoders are reused rather than
+re-derived, which is what keeps the allow-mask rules and the refusal of an unencodable `%iface` qualifier
+in one place.
+
+**An empty list is the empty array, not a dropped field.** A key the router is not told about keeps
+whatever it already holds, so a clear that sends nothing reports success and changes nothing.
+
+Still refused, loudly: an element that is a compound of its own — `tuple`, `union`, `not` — as in a switch
+port's `priority-to-queue` (`0:1`). Those need the element's parts parsed back out of the API text, which
+is a separate piece of work; the refusal is a `WinboxFieldResolutionException`, never a silent drop.
+
+### 32.2 The bitmask family — one number, sometimes two
+
+| UI type | Members from | Negation |
+|---|---|---|
+| `set` | a static `.jg` map, or a TABLE (`values:{type:'dynamic',path:[…]}`) | `maskid`, when the field has one |
+| `multibits` | a static `.jg` map | none in the live catalog |
+| `multitristate` | the ELEMENT type's map (`c:[{type:'tristate',values:…}]`) | `maskid`, always |
+| `multitristatearray` | the element type | a second ARRAY key (`oid`) |
+
+The bit INDEX is the member's numeric identity: the map key for a static map, and the referenced row's
+`.id` for a table-backed one (webfig's `SetView` keys its checkboxes by `obj.ufe0001` and ORs `1<<id`).
+
+A tri-state's members are declared on the element, not on the field, so a catalog that stops at the field
+finds no map at all and the whole bitmask reaches the caller as a bare number — `tcp-flags` read as `2`
+where the API prints `syn`.
+
+**Order on the way out:** the router prints the plain members first and the negated ones after, each in bit
+order. `tcp-flags=!fin,syn,!urg,ack` reads back `syn,ack,!fin,!urg` (7.24).
+
+**Order on the way in — the mask is what the write DENIES, not what it omits.** Measured on 7.24, both
+directions: `/user/group set policy=read,write,winbox` on a group that already had `test` keeps `test`, and
+an `add` with `policy=read,test` comes out with every other member denied because the ROUTER fills the rest
+in. So a write sends the members it names — grants in the value key, `!`-members in the mask — and nothing
+else. WinBox's own editor always sends the complete checkbox state instead, because it always has it; doing
+the same from a client turns `policy=read,write` into a rewrite of all seventeen permissions.
+
+A table-backed set that cannot read its member table **refuses**. Every token would miss, and the field
+would go out as a clean, well-formed zero — a write that reports success and leaves the group allowed
+nothing.
+
+### 32.3 A dropdown's name and a bit set's member name are different fields
+
+A window declares which of its fields is the row's display value (`nameval`). Usually that is the field
+called `Name` and the distinction never surfaces. The policy table `[13,3]` is where it does: its `Name` is
+the sentence *"read router configuration"* and its `Alias` is the word the API prints, `read`. Bit-set
+members are therefore read by `nameval`, kept in their own cache next to the ordinary id → name map of the
+same table — six handlers in the 7.24 catalog have a `nameval` that differs from a `Name` field they also
+have.
 
 ## Settled questions — do not re-investigate
 

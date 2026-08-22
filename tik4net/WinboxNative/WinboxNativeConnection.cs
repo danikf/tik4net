@@ -1442,6 +1442,11 @@ namespace tik4net.WinboxNative
             CancellationToken cancellationToken, bool allowReadOnly = false, bool includeFilters = false,
             bool skipSnapshotModifier = false)
         {
+            // A bit set whose members are a TABLE (/user/group policies, a script's policy) needs that table
+            // BEFORE the encoder runs — it cannot be collected like a name→id lookup, because without the
+            // members there is no value to encode and the encoder refuses rather than writing a clean zero.
+            await PrimeBitSetMemberTablesAsync(descriptor, resolver, cancellationToken).ConfigureAwait(false);
+
             var requests = new List<KeyValuePair<int[], string>>();
             var fields = EncodeNameValueFields(handler, descriptor, resolver, skipId, ReferenceCollector(requests),
                 allowReadOnly, includeFilters, skipSnapshotModifier);
@@ -1503,7 +1508,8 @@ namespace tik4net.WinboxNative
                 // references before sending. Consumers then handle one exception type across all transports.
                 try
                 {
-                    fields.AddRange(resolver.EncodeField(p.Name, p.Value, resolveRef, allowReadOnly));
+                    fields.AddRange(resolver.EncodeField(p.Name, p.Value, resolveRef, allowReadOnly,
+                        MemberTableReader));
                 }
                 catch (WinboxFieldValueException ex)
                 {
@@ -1513,6 +1519,30 @@ namespace tik4net.WinboxNative
                 }
             }
             return fields;
+        }
+
+        // The delegate EncodeField asks for a bit set's member table. Cached per connection by the id
+        // resolver, so the awaited path (which primes it first) never blocks here.
+        private IReadOnlyDictionary<int, string>? MemberTableReader(int[] handler)
+            => _idResolver.ReadMemberTable(handler);
+
+        // Reads, under await, the member table of every table-backed bit set the command writes. Which
+        // fields those are is asked of the RESOLVER, so it cannot drift from what the encoder will look up.
+        private async Task PrimeBitSetMemberTablesAsync(TikCommandDescriptor descriptor,
+            WinboxFieldResolver resolver, CancellationToken cancellationToken)
+        {
+            List<int[]>? wanted = null;
+            foreach (var p in descriptor.Parameters)
+            {
+                if (p.Name.StartsWith(".")) continue;
+                int[]? table = resolver.BitSetMemberTable(p.Name);
+                if (table == null) continue;
+                wanted = wanted ?? new List<int[]>();
+                if (!wanted.Any(h => h.SequenceEqual(table))) wanted.Add(table);
+            }
+            if (wanted == null) return;
+            foreach (int[] table in wanted)
+                await _idResolver.PrimeMemberTableAsync(table, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
