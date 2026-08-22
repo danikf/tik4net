@@ -12,8 +12,8 @@
 // one transport for a reason that has nothing to do with rates. Reading is what this test is about.
 //
 // WinboxNative has no `max-limit` of its own — the M2 model keeps `upload-max-limit` and
-// `download-max-limit` as two scalars — so the resolver composes the API field out of both halves. That
-// composition is what makes the assertions below meaningful on that transport rather than skipped.
+// `download-max-limit` as two scalars — so the resolver composes the API field out of both halves, in
+// both directions. Writing it there is two M2 keys going out for one API field.
 
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -87,8 +87,6 @@ namespace tik4net.integrationtests.Queue
         [TestMethod]
         public void APairedRateCanBeWrittenOverTheTransportUnderTest()
         {
-            SkipWhereTheseFieldsCannotBeWrittenYet();
-
             var loaded = Connection.LoadList<QueueSimple>().Single(q => q.Name == QueueName);
             loaded.MaxLimit = "3M/4M";
             Connection.Save(loaded);
@@ -103,26 +101,6 @@ namespace tik4net.integrationtests.Queue
                 var viaApi = api.LoadList<QueueSimple>().Single(q => q.Name == QueueName);
                 Assert.AreEqual(TikRatePair.Parse("3M/4M"), viaApi.MaxLimit.Value, "as the API reads it");
             }
-        }
-
-        /// <summary>
-        /// The WinBox native transports READ these fields correctly — that is what the composite is for —
-        /// but cannot WRITE them: the halves resolve to their keys and the set is accepted, and the value
-        /// on the router does not move. Measured on RouterOS 7.24 by writing <c>upload-max-limit</c>
-        /// directly (no effect) and <c>comment</c> on the same row through the same set (applied), so the
-        /// write path itself is sound and it is these fields that are being dropped — most likely because
-        /// the catalog marks them read-only in the window the resolver reads, which is the same shape as
-        /// the 'Key Size' column-vs-argument case in WinboxJgCatalog.GetActionFields.
-        /// <para>Our gap, not the router's, and it predates the pairing: writing either half was already
-        /// silent before there was a composite to write.</para>
-        /// </summary>
-        private void SkipWhereTheseFieldsCannotBeWrittenYet()
-        {
-            var transport = ResolveConnectionType();
-            if (transport == TikConnectionType.WinboxNative || transport == TikConnectionType.WinboxNativeMac)
-                Assert.Inconclusive(
-                    "WinBox native reads /queue/simple rate fields but does not write them — the write is "
-                    + "accepted and dropped. Reading is asserted by the other tests in this class.");
         }
 
         /// <summary>

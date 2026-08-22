@@ -214,10 +214,11 @@ composed — the four rates plus `priority` and `bucket-size`. The two that are 
 Pairing those without fixing the halves first would join two wrong values into one, so they still report
 their halves.
 
-**WinboxNative reads these fields but does not write them.** The write is accepted and the value on the
-router does not move — measured by writing `upload-max-limit` directly (no effect) beside `comment` on the
-same row through the same set (applied), so the write path is sound and these fields are being dropped.
-That is a gap in our mapping and predates the composition: writing either half was already silent.
+Writes work there too, and getting them to took finding a second defect underneath: these fields are
+`u64` on the wire (`.jg` type `bigunit`), and the encoder wrote every `u64` in the **u32** form. RouterOS
+reads the type byte, so the field was accepted and ignored — the write reported success and the value did
+not move. It looked like a read-only field and was not one. Any `u64` field was unwritable over native
+this way, not only the queue rates.
 
 In tik4net this is why a duration field is mapped as `TikDuration` rather than as a string — see
 [ARCHITECTURE.md](../ARCHITECTURE.md#adding-an-entity).

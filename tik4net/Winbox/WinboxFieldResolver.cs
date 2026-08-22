@@ -1286,12 +1286,21 @@ namespace tik4net.Winbox
                     result.Add(M2Message.BoolSys(key, ParseBool(value)));
                     break;
                 case "u32":
-                case "u64":
                 case "i32":
                 case "dur":
                 case "time":
                     if (long.TryParse(value, out long n)) result.Add(EncodeU32(key, (uint)n));
                     else result.Add(M2Message.StringSys(key, value)); // non-numeric (e.g. "auto")
+                    break;
+                case "u64":
+                    // A u64 must go out as a u64. Narrowing it to the u32 form — which is what this case
+                    // used to share — sends the wrong TYPE BYTE, and the router answers success and ignores
+                    // the field: /queue/simple's rate fields resolved to their keys, were encoded, and never
+                    // moved. Suffixes are accepted here because the API accepts them (max-limit=1M).
+                    if (TikDataRate.TryParse(value, out TikDataRate rate))
+                        result.Add(M2Message.U64Sys(key, unchecked((ulong)rate.Value)));
+                    else
+                        result.Add(M2Message.StringSys(key, value)); // non-numeric (e.g. "auto")
                     break;
                 case "raw":
                     result.Add(M2Message.RawSys(key, ParseRaw(value)));

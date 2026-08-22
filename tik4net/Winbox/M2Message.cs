@@ -59,6 +59,18 @@ namespace tik4net.Winbox
             return b.ToArray();
         }
 
+        // u64 field (ftype 2 → type byte 0x10, eight little-endian bytes). NOT interchangeable with the u32
+        // form: RouterOS reads the type byte, and a u64 field written as u32 is accepted and IGNORED — the
+        // write reports success and the value on the router does not move. That is how /queue/simple's rate
+        // fields were unwritable over native while resolving to the right keys.
+        internal static byte[] U64Sys(int fullKey, ulong val)
+        {
+            var b = new List<byte> { (byte)(fullKey & 0xFF), (byte)((fullKey >> 8) & 0xFF),
+                                     (byte)((fullKey >> 16) & 0xFF), 0x10 };
+            b.AddRange(BitConverter.GetBytes(val));
+            return b.ToArray();
+        }
+
         // Nested message field (ftype 5): key + size-flagged type (0x29 1-byte len / 0x28 2-byte / 0x2A 4-byte)
         // + body. The body is a full submessage ('M2' + concatenated sub-field TLVs), parsed by ParseAllFields.
         // Used by compound webfig types such as 'addr' (IPv4 rides as u32 at 0xFEFF20 inside the field's object).
