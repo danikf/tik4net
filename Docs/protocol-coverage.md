@@ -438,7 +438,12 @@ them still fails the run.
 | `/system/ntp/client` | `system-offset` | whole milliseconds on the wire, fractions over the API (`-23` vs `-23.622`), and it drifts constantly; `freq-drift` agrees exactly |
 | `/interface/ethernet` | `auto-negotiation` | WinBox's field is the LINK's live state (`not-available` on a CHR's virtual NIC), the API's is the SETTING (`true`) — two fields, one label |
 
-Last run on RouterOS 7.23.2: `OK=148 KNOWN-GAP=7 MISMATCH=0 VALUE-DIFF=0 UNMAPPED=0`.
+Last run on RouterOS 7.24: `OK=154 KNOWN-GAP=1 MISMATCH=0 VALUE-DIFF=0 UNMAPPED=0 ROUTER-N/A=7`, and
+`FIELD-NAMES not reported by native: 82/676 (12%)`.
+
+That second number is not an assertion — it is the shortfall the pass/fail check cannot see, because the
+name check passes a path at half the API's vocabulary. It is reported so a green run cannot hide it; see
+[winbox-native-m2-protocol.md §33.1](winbox-native-m2-protocol.md).
 
 ### Two further limits, only one of them the router's
 

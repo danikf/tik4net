@@ -137,6 +137,23 @@ namespace tik4net.Winbox
             ["disabled"] = WinboxM2Protocol.RecordKey.Disabled, // 0xFE000A (bool, 1=disabled)
         };
 
+        // Universal system keys the router sends on table after table and no .jg window ever declares: row
+        // STATE the router computes, not configuration. Two things distinguish them from SystemSeed above.
+        // They are filled in LAST, so a catalog field owning the same key keeps its own name; and they are
+        // deliberately absent from TryResolveKey, so a write refuses by name rather than sending an
+        // untyped seed value at a bool key — which is what the API does with them too.
+        private static readonly Dictionary<string, int> ReadOnlySystemSeed =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["dynamic"] = WinboxM2Protocol.RecordKey.Dynamic, // 0xFE0007
+            ["invalid"] = WinboxM2Protocol.RecordKey.Invalid, // 0xFE0008 ('inactive' on /interface)
+            // One flag, two API spellings: 'default' on the tables that ship rows you may edit (queue types,
+            // logging rules and actions, hotspot and IPsec profiles) and 'builtin' on the few that ship rows
+            // you may not (/interface/list). The majority spelling is the seed; the other is a per-path
+            // alias, the same way every other name difference is handled.
+            ["default"] = WinboxM2Protocol.RecordKey.Builtin, // 0xFE000D
+        };
+
         // Wire type for seed fields without a .jg entry (so EncodeField types them correctly).
         private static string SeedWireType(string apiName)
             => string.Equals(apiName, "disabled", StringComparison.OrdinalIgnoreCase) ? "bool" : "string";
@@ -627,6 +644,16 @@ namespace tik4net.Winbox
                                ("show-frame", "quick-show-frame"),
                                ("server", "streaming-server"))),
 
+                // /interface/list: the shipped-row flag (0xFE000D) is spelled 'builtin' here, where most
+                // tables that have it say 'default' — which is the name the universal seed gives it. A key
+                // alias wins over the seed, so this one path reports the word RouterOS uses for it.
+                ["/interface/list"] = new FieldAliasSet(
+                    apiToJg: Ci(), jgToApi: Ci(),
+                    keyToApi: new Dictionary<int, string>
+                    {
+                        [WinboxM2Protocol.RecordKey.Builtin] = "builtin",
+                    }),
+
                 // /ip/pool: the window labels the ranges list 'Addresses'; the API calls it 'ranges'.
                 ["/ip/pool"] = new FieldAliasSet(
                     apiToJg: Ci(("ranges", "addresses")),
@@ -827,6 +854,7 @@ namespace tik4net.Winbox
                 Put(kv.Value.Key, AliasToApi(kv.Key));
             }
             foreach (var kv in FallbackSeed) Put(kv.Value, kv.Key);
+            foreach (var kv in ReadOnlySystemSeed) Put(kv.Value, kv.Key);
 
             return map;
         }

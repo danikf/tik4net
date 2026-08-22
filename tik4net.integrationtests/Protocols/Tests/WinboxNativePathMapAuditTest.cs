@@ -254,6 +254,9 @@ namespace tik4net.integrationtests
             var report = new List<string>();
             var staleGaps = new List<string>();
             int unmapped = 0, mismatched = 0, agreed = 0, apiRefused = 0, known = 0, valueMismatched = 0;
+            // The field-NAME shortfall across the paths that pass: the API's vocabulary against ours. Counted
+            // separately because the pass/fail check is a half-threshold and cannot see it (see the OK line).
+            int apiFieldSlots = 0, notReported = 0;
 
             using (var api = Open(TikConnectionType.Api))
             using (var native = Open(TikConnectionType.WinboxNative))
@@ -287,8 +290,15 @@ namespace tik4net.integrationtests
 
                     // Field names are the strongest cheap signal that both transports read the SAME window:
                     // a wrong handler answers with a different vocabulary long before the row count matches.
+                    // '.tag' is not a field the ROUTER has - it is the API sentence's own tag word, which
+                    // tik4net puts there and only the API transport carries. Counting it made every one of
+                    // the 61 field-bearing paths look one name short of the API.
+                    a.FieldNames.Remove(TikSpecialProperties.Tag);
+                    n.FieldNames.Remove(TikSpecialProperties.Tag);
                     var onlyApi = a.FieldNames.Where(f => !n.FieldNames.Contains(f)).OrderBy(f => f).ToList();
                     var shared = a.FieldNames.Count(f => n.FieldNames.Contains(f));
+                    apiFieldSlots += a.FieldNames.Count;
+                    notReported += onlyApi.Count;
                     bool rowsAgree = a.RowCount == n.RowCount;
                     bool fieldsAgree = a.FieldNames.Count == 0 || shared * 2 >= a.FieldNames.Count;
 
@@ -331,7 +341,12 @@ namespace tik4net.integrationtests
                         // names and values has no gap left to excuse.
                         if (KnownFieldGaps.ContainsKey(path)) staleGaps.Add(path + " (KnownFieldGaps)");
                         var excused = ExceptionsFor(path);
+                        // A path can be OK and still report FEWER names than the API: the name check passes
+                        // at half, so everything between half and all of the API's vocabulary is invisible
+                        // in the OK/MISMATCH tally. Name them here - a field native does not report is a
+                        // field a caller cannot read, whether or not it trips the threshold.
                         report.Add($"OK         {path}\trows={a.RowCount}\tshared fields={shared}/{a.FieldNames.Count}"
+                                   + (onlyApi.Count > 0 ? "\tapi-only: " + string.Join(",", onlyApi) : "")
                                    + (excused != null ? "\tnot compared: " + string.Join(", ", excused.Keys) : ""));
                     }
                     else
@@ -349,6 +364,10 @@ namespace tik4net.integrationtests
             Console.WriteLine();
             Console.WriteLine($"OK={agreed}  KNOWN-GAP={known}  MISMATCH={mismatched}  VALUE-DIFF={valueMismatched}"
                               + $"  UNMAPPED={unmapped}  ROUTER-N/A={apiRefused}");
+            // Not an assertion - a number to watch. The pass/fail checks above cannot see it, so without
+            // this line the report reads green while a fifth of the API's field names go unreported.
+            Console.WriteLine($"FIELD-NAMES not reported by native: {notReported}/{apiFieldSlots}"
+                              + (apiFieldSlots > 0 ? $" ({notReported * 100 / apiFieldSlots}%)" : ""));
             Console.WriteLine($"report: {reportPath}");
 
             Assert.AreEqual(0, unmapped, "paths the WinBox-native transport cannot address but the API can — see the report");
