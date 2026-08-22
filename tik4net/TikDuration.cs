@@ -238,6 +238,28 @@ namespace tik4net
         /// <param name="value">The length of time.</param>
         public static implicit operator TikDuration(TimeSpan value) => FromTimeSpan(value);
 
+        /// <summary>
+        /// Reads a bare string, so <c>Timeout = "10s"</c> and <c>Timeout = "none"</c> keep working —
+        /// including the clock spelling the CLI transports report.
+        /// </summary>
+        /// <param name="value">The value as the router writes it.</param>
+        public static implicit operator TikDuration(string value) => Parse(value);
+
+        /// <summary>
+        /// A plain number is seconds, which is how the router reads one in a duration field.
+        /// </summary>
+        /// <param name="value">The number of seconds.</param>
+        public static implicit operator TikDuration(long value) => FromTimeSpan(TimeSpan.FromSeconds(value));
+
+        /// <summary>
+        /// The compact spelling, or the <see cref="Token"/> — see <see cref="ToString"/>. There is no
+        /// conversion to a number, deliberately: a duration field may hold a word rather than a length,
+        /// and "how many seconds is <c>none</c>" has no answer that is not a guess. Read
+        /// <see cref="Value"/>, which says so by being null.
+        /// </summary>
+        /// <param name="value">The duration.</param>
+        public static implicit operator string(TikDuration value) => value.ToString();
+
         /// <summary>The length of time, or <c>null</c> for a <see cref="Token"/>.</summary>
         /// <param name="value">The duration.</param>
         public static explicit operator TimeSpan?(TikDuration value) => value.Value;

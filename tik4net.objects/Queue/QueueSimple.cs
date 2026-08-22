@@ -51,25 +51,25 @@ namespace tik4net.Objects.Queue
         /// limit-at
         /// </summary>
         [TikProperty("limit-at")]
-        public string? LimitAt { get; set; }
+        public TikRatePair? LimitAt { get; set; }
 
         /// <summary>
         /// max-limit
         /// </summary>
         [TikProperty("max-limit")]
-        public string? MaxLimit { get; set; }
+        public TikRatePair? MaxLimit { get; set; }
 
         /// <summary>
         /// burst-limit
         /// </summary>
         [TikProperty("burst-limit")]
-        public string? BurstLimit { get; set; }
+        public TikRatePair? BurstLimit { get; set; }
 
         /// <summary>
         /// burst-threshold
         /// </summary>
         [TikProperty("burst-threshold")]
-        public string? BurstThreshold { get; set; }
+        public TikRatePair? BurstThreshold { get; set; }
 
         /// <summary>
         /// burst-time

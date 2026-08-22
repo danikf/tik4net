@@ -297,6 +297,11 @@ Helpers: `TikEntityObjectsExtensions` (`Clone<T>`, `EntityDescription`, `EntityD
    in one field. Those stay as they are. Nor is a **paired** field one — `/queue/simple burst-time` is
    `10s/10s`, an upload/download pair, and stays a string, while `/queue/tree burst-time` is a single
    duration and is a `TikDuration`. Check the actual value on a live router before typing a field.
+7. **A paired rate field is `TikRatePair?`.** The same problem one notation over: `/queue/simple
+   max-limit` reads `1000000/2000000` over the API and `1M/2M` over the CLI, while the single-valued
+   `/queue/tree max-limit` reads the same on both and stays a `long`. `TikDataRate` is the single-value
+   form of it, for a field that is one rate rather than a pair. The suffixes are decimal — `500k` is
+   500 000.
 
 These conventions are **enforced in CI**, not just documented: `EntityStructureConventionTests` (shape —
 `.id`, paths, enums, read-only counters) and `EntityDefaultValueConventionTests` (the `DefaultValue` /

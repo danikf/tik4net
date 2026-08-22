@@ -278,6 +278,12 @@ namespace tik4net.Objects
                 // A duration the router may also answer with a word (none / disabled / auto). Both of the
                 // forms the router writes durations in parse to the same value here, which is the point:
                 // the API says "10s" and the CLI says "00:00:10" for the same field.
+                // Rates, like durations, arrive spelled differently per transport: 1000000 over the API,
+                // 1M over the CLI. Both parse to the same value here.
+                else if (ValueType == typeof(TikDataRate))
+                    return value.Length == 0 ? (IsNullable ? (object?)null : default(TikDataRate)) : TikDataRate.Parse(value);
+                else if (ValueType == typeof(TikRatePair))
+                    return value.Length == 0 ? (IsNullable ? (object?)null : default(TikRatePair)) : TikRatePair.Parse(value);
                 else if (ValueType == typeof(TikDuration))
                 {
                     // An empty value is the router saying the field carries nothing, which is not the same
@@ -366,6 +372,10 @@ namespace tik4net.Objects
                 return TikTimeHelper.ToTikTime((int)((TimeSpan)propValue).TotalSeconds);
             else if (ValueType == typeof(TikDuration))
                 return ((TikDuration)propValue).ToString();
+            else if (ValueType == typeof(TikDataRate))
+                return ((TikDataRate)propValue).ToString();
+            else if (ValueType == typeof(TikRatePair))
+                return ((TikRatePair)propValue).ToString();
             else if (ValueType == typeof(int))
                 return ((int)propValue).ToString(CultureInfo.InvariantCulture);
             else if (ValueType == typeof(long))
@@ -420,7 +430,8 @@ namespace tik4net.Objects
         /// property itself produces, so the two can be compared as strings.
         /// </summary>
         /// <remarks>
-        /// It matters for durations and nothing else so far, and there it matters a lot: the router writes
+        /// It matters for the types that read more than one spelling — durations and rates — and there it
+        /// matters a lot: the router writes
         /// the same duration as <c>10s</c> over the API and <c>00:00:10</c> over the CLI, and entity
         /// defaults in this repository are written in both spellings. Without this, a field sitting at its
         /// default reads as CHANGED on one transport and unchanged on the other — so <c>Save</c> would send
@@ -432,10 +443,16 @@ namespace tik4net.Objects
         /// </remarks>
         private string NormalizeDefaultValue(string declared)
         {
-            if (ValueType != typeof(TikDuration))
-                return declared;
+            if (ValueType == typeof(TikDuration))
+                return TikDuration.TryParse(declared, out TikDuration duration) ? duration.ToString() : declared;
 
-            return TikDuration.TryParse(declared, out TikDuration duration) ? duration.ToString() : declared;
+            if (ValueType == typeof(TikDataRate))
+                return TikDataRate.TryParse(declared, out TikDataRate rate) ? rate.ToString() : declared;
+
+            if (ValueType == typeof(TikRatePair))
+                return TikRatePair.TryParse(declared, out TikRatePair pair) ? pair.ToString() : declared;
+
+            return declared;
         }
 
         /// <summary>

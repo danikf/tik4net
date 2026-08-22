@@ -193,8 +193,18 @@ A paired duration is written in the compact form by both, because the pair is fo
 than as two duration fields. That is why `QueueSimple.BurstTime` is a string in the O/R mapper while
 `QueueTree.BurstTime` is a `TikDuration`: they look like the same field and are not.
 
-**The paired rate fields are still mapped as strings, and still differ per transport.** Nothing reads
-`1M` and `1000000` as one value yet — see [HISTORY](HISTORY.md) for where that stands.
+The suffixes are **decimal**: `500k` is 500 000, not 512 000 — measured by setting `limit-at=500k` and
+reading back `500000`. A value written with one side only means **upload, download zero**: `max-limit=1M`
+reads back as `1000000/0`, not as `1M/1M`.
+
+In tik4net the four paired rate fields of `/queue/simple` are mapped as `TikRatePair`, which reads both
+spellings and writes the plain one. The single-valued fields of `/queue/tree` stay plain `long`, because
+they never differ.
+
+One transport is out of this picture entirely: **WinboxNative has no `max-limit` field**. The M2 model
+splits every pair into two scalars — `upload-max-limit` and `download-max-limit` — and the resolver does
+not yet compose one API field from two native ones, so the property reads null there. That predates the
+typing and is a gap in our mapping, not in the router.
 
 In tik4net this is why a duration field is mapped as `TikDuration` rather than as a string — see
 [ARCHITECTURE.md](../ARCHITECTURE.md#adding-an-entity).
