@@ -86,6 +86,11 @@ namespace tik4net.Winbox
                     // Nor is the download half of an upload/download pair.
                     if (f.UiType == WinboxFieldResolver.PairUiType && f.MaskKey != 0)
                         consumedKeys.Add(f.MaskKey);
+                    // Nor are the negated members of a multitristate: they are the '!' half of the ONE
+                    // value the API prints (tcp-flags="syn,!ack"), not a field the router names.
+                    if (string.Equals(f.UiType, "multitristate", StringComparison.OrdinalIgnoreCase)
+                        && f.MaskKey != 0)
+                        consumedKeys.Add(f.MaskKey);
                     if (f.OptKey != 0) consumedKeys.Add(f.OptKey);
                     if (f.NotKey != 0) consumedKeys.Add(f.NotKey);
                 }
@@ -381,6 +386,32 @@ namespace tik4net.Winbox
                         bool negated = jf.NotKey != 0 && rec.TryGetValue(jf.NotKey, out var nt)
                             && nt.Item2 is bool nb && nb;
                         return negated ? "!" + list : list;
+                    }
+                    // A `multitristate` is a multibits whose members can each be NEGATED, and the
+                    // negation rides in a SECOND key: types.multitristate.get reads bmap = id|maskid and
+                    // reports each set bit as negated when it is absent from `id` — so `id` holds the plain
+                    // members and `maskid` the '!' ones. /ip/firewall/filter's tcp-flags="syn,!ack" is
+                    // u56=2 (syn) plus u57=16 (ack); reading `id` alone printed the bare number 2.
+                    case "multitristate":
+                    {
+                        if (jf.EnumMap == null || jf.MaskKey == 0) break;
+                        if (!WinboxFieldResolver.TryToInt64(value, out long onBits))
+                        {
+                            TraceNonNumeric("multitristate", value);
+                            break;
+                        }
+                        long offBits = 0;
+                        if (rec.TryGetValue(jf.MaskKey, out var maskT) && maskT?.Item2 != null
+                            && WinboxFieldResolver.TryToInt64(maskT.Item2, out long mb))
+                            offBits = mb;
+                        var members = new List<string>();
+                        foreach (var kv in jf.EnumMap.OrderBy(kv => kv.Key))
+                        {
+                            long bit = 1L << kv.Key;
+                            if ((onBits & bit) != 0) members.Add(kv.Value);
+                            else if ((offBits & bit) != 0) members.Add("!" + kv.Value);
+                        }
+                        return string.Join(",", members);
                     }
                     // A `multibits` is a `set` under another name: types.multibits.get is
                     // `for(i=0..31) if(val&(1<<i)) push(i)` over the same bit-indexed map, and only its

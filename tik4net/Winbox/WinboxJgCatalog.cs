@@ -1521,8 +1521,13 @@ namespace tik4net.Winbox
 
         // The wrappers whose inner `values` still lead to a static map. Anything else (queryenum, slotenum, …)
         // is computed at runtime and has none — see the remarks on ExtractEnumMap.
+        //
+        // 'tristate' is in the list because it is where a multitristate field keeps its members: the .jg
+        // declares TCP Flags as {type:'multitristate',id:'u56',maskid:'u57',c:[{type:'tristate',values:
+        // {map:['fin','syn',…]}}]}, and stopping at the child left the field with no map at all — so the
+        // bitmask reached the caller as the bare number 2 where the API prints "syn".
         private static readonly HashSet<string> EnumMapWrappers =
-            new HashSet<string>(StringComparer.Ordinal) { "enumfilter", "defenum", "pair", "static", "enm" };
+            new HashSet<string>(StringComparer.Ordinal) { "enumfilter", "defenum", "pair", "static", "enm", "tristate" };
 
         private static void CollectEnumMap(object node, Dictionary<int, string> map, int depth)
         {

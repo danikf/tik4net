@@ -1027,7 +1027,10 @@ namespace tik4net.Winbox
 
             if (jg != null && value.Length > 0)
             {
-                if (jg.NotKey != 0 && value.StartsWith("!"))
+                // …but NOT on a per-member tri-state list, where '!' negates the MEMBER it precedes rather
+                // than the whole field: "!ack,syn" is two members with opposite senses, and stripping the
+                // leading '!' here would turn it into "the whole rule negated, ack and syn both plain".
+                if (jg.NotKey != 0 && value.StartsWith("!") && !IsPerMemberNegatedList(uiType))
                 {
                     value = value.Substring(1);
                     result.Add(M2Message.BoolSys(jg.NotKey, true));
@@ -1116,6 +1119,11 @@ namespace tik4net.Winbox
                     result.Add(M2Message.RawSys(key, ParseRaw(value)));
                     return result;
                 }
+                // A multibits is the same bitmask a `set` is — types.multibits.put ORs (1<<member) over the
+                // same bit-indexed map — and only its editor differs. Without this case it fell past the
+                // switch into the list/array refusal below, so every /ip/firewall address-type write was
+                // rejected as "not yet encodable" for a field that is one u32.
+                case "multibits":
                 case "set":
                 {
                     // Bitmask flag set (e.g. connection-state "established,related"). Empty → unset (send nothing).
@@ -1187,6 +1195,33 @@ namespace tik4net.Winbox
                     }
                     if (items.Count == 0) return result;
                     result.Add(M2Message.U32ArraySys(key, items.ToArray()));
+                    return result;
+                }
+                case "multitristate":
+                {
+                    // A bitmask whose members can each be negated, with the negated ones in a SECOND key:
+                    // types.multitristate.put ORs the plain members into `id` and the '!' ones into `maskid`
+                    // (contrast multitristatearray, which does the same across two ARRAYS, and a scalar's
+                    // NotKey, which negates the whole value). /ip/firewall/filter tcp-flags="syn,!ack".
+                    //
+                    // Both keys are always sent once anything is: the router keeps whatever it already has
+                    // for a key it is not told about, so writing only the plain half would leave a stale '!'
+                    // member behind and report success.
+                    if (jg!.MaskKey == 0) break;   // no second key: not the shape webfig describes — refuse below
+                    if (value.Length == 0) return result;
+                    long onBits = 0, offBits = 0;
+                    foreach (var tok in value.Split(','))
+                    {
+                        string t = tok.Trim();
+                        if (t.Length == 0) continue;
+                        bool negated = t.StartsWith("!");
+                        if (negated) t = t.Substring(1).Trim();
+                        if (t.Length == 0) continue;
+                        int bit = EncodeListElement(jg, t, apiName, resolveRef);
+                        if (negated) offBits |= 1L << bit; else onBits |= 1L << bit;
+                    }
+                    result.Add(EncodeU32(key, unchecked((uint)onBits)));
+                    result.Add(EncodeU32(jg.MaskKey, unchecked((uint)offBits)));
                     return result;
                 }
                 case "multitristatearray":
@@ -1503,6 +1538,12 @@ namespace tik4net.Winbox
         // `types.multilinestring = inherit(types.string)` and overrides only its VIEW (a text area instead of
         // a one-line input) — every other multi* inherits `types.multi`. Reading the prefix as "list" refused
         // /system/note's 'note' field as unencodable when it is a plain string.
+        // The list types whose members carry their own '!' (webfig multitristate / multitristatearray), as
+        // opposed to a scalar whose leading '!' is the field-wide `not` container flag.
+        private static bool IsPerMemberNegatedList(string? uiType)
+            => string.Equals(uiType, "multitristate", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(uiType, "multitristatearray", StringComparison.OrdinalIgnoreCase);
+
         private static bool IsScalarDespiteMultiPrefix(string uiType)
             => string.Equals(uiType, "multilinestring", StringComparison.OrdinalIgnoreCase);
 
