@@ -47,7 +47,7 @@ public sealed class MikroTikTools
         "Set includeRouterLog=true to also append the router's own /log lines emitted during the command (captured over " +
         "a separate API connection), giving the device-side view next to the wire trace.")]
     public string MikrotikCall(
-        [Description("IP address or hostname of the MikroTik router")] string host,
+        [Description("IP address or hostname of the MikroTik router. On the MAC-layer transports a MAC address (AA:BB:CC:DD:EE:FF) may be given instead, to reach a router that has no IP address.")] string host,
         [Description("Username for authentication")] string username,
         [Description("Password for authentication")] string password,
         [Description("API command path, e.g. /ip/address/print or /system/resource/print or /ip/address/add")] string command,
@@ -251,7 +251,7 @@ public sealed class MikroTikTools
         "single unique token (RouterOS completes it inline). Only CLI terminal transports support this " +
         "(Telnet, Ssh, WinboxCli, MacTelnet, WinboxCliMac) — not Api/Rest/WinboxNative*.")]
     public string MikrotikCliComplete(
-        [Description("IP address or hostname of the MikroTik router")] string host,
+        [Description("IP address or hostname of the MikroTik router. On the MAC-layer transports a MAC address (AA:BB:CC:DD:EE:FF) may be given instead, to reach a router that has no IP address.")] string host,
         [Description("Username for authentication")] string username,
         [Description("Password for authentication")] string password,
         [Description("Partial CLI command line to complete, EXACTLY as you would type before pressing Tab — " +

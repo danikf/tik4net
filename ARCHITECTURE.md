@@ -221,6 +221,10 @@ Options split into two kinds:
 - Universal, applied directly on `ITikConnection`: `ConnectTimeout`, `ReceiveTimeout`, `SendTimeout`,
   `Encoding`, `DebugEnabled`. (`Port` is not a property at all — it selects which `Open` overload is
   called.)
+- The router's coordinates are a `TikRouterAddress`, not a host string: a host name / IP, a MAC, or
+  both. Which of the two a transport needs is checked at `Create`, because it is a property of the
+  transport — an IP transport refuses a MAC-only address, a MAC-layer transport accepts either.
+  `RouterMac` set explicitly overrides the address's MAC.
 - Transport-specific, applied only when the connection implements the interface that declares an
   interest in them — so a transport either receives an option or provably has no use for it, with no
   third case where a value is set and silently dropped:

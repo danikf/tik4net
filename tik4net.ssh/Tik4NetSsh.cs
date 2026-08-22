@@ -35,10 +35,7 @@ namespace tik4net.Ssh
         public static ITikConnection CreateSshConnection(this TikConnectionSetup setup)
         {
             var conn = NewSshConnection(setup);
-            if (setup.Port.HasValue)
-                conn.Open(setup.Host, setup.Port.Value, setup.User, setup.Password);
-            else
-                conn.Open(setup.Host, setup.User, setup.Password);
+            setup.Open(conn);
             return conn;
         }
 
@@ -47,17 +44,14 @@ namespace tik4net.Ssh
             this TikConnectionSetup setup, CancellationToken ct = default)
         {
             var conn = NewSshConnection(setup);
-            ct.ThrowIfCancellationRequested();
-            if (setup.Port.HasValue)
-                await conn.OpenAsync(setup.Host, setup.Port.Value, setup.User, setup.Password).ConfigureAwait(false);
-            else
-                await conn.OpenAsync(setup.Host, setup.User, setup.Password).ConfigureAwait(false);
+            await setup.OpenAsync(conn, ct).ConfigureAwait(false);
             return conn;
         }
 
-        // Every option comes from the setup's own ApplyTo rather than being copied property by property
-        // here: this transport lives in another assembly and was the proof that hand-copying rots — it
-        // carried CancellationMode across and silently dropped the timeouts and the encoding.
+        // Every option comes from the setup's own ApplyTo, and the open itself from its own Open, rather
+        // than being reproduced property by property here: this transport lives in another assembly and was
+        // the proof that hand-copying rots — it carried CancellationMode across and silently dropped the
+        // timeouts and the encoding.
         private static SshConnection NewSshConnection(TikConnectionSetup setup)
         {
             if (setup == null) throw new System.ArgumentNullException(nameof(setup));
