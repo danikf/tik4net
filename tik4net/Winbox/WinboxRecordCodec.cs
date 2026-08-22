@@ -606,8 +606,12 @@ namespace tik4net.Winbox
         private static bool IsSecondsPostfix(string? postfix)
             => string.Equals(postfix, "s", StringComparison.Ordinal);
 
+        // webfig `types.multibignumber = inherit(types.multinumber)` — the same list, elements eight bytes
+        // wide instead of four. Both its element types (`bignumber`, `bigbitrate`) sit on types.number, so an
+        // element renders exactly as the scalar of the same type does: as the number itself.
         private static bool IsMultiNumberList(string? uiType)
-            => string.Equals(uiType, "multinumber", StringComparison.OrdinalIgnoreCase);
+            => string.Equals(uiType, "multinumber", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(uiType, "multibignumber", StringComparison.OrdinalIgnoreCase);
 
         // The rest of the webfig list family, taken from the inheritance chain in master*.js:
         //   types.multiipaddr = types.multiip6addr = types.multistring = types.multiraw
@@ -660,12 +664,12 @@ namespace tik4net.Winbox
             return string.Join(",", elements.Select(e => FormatListElement(jf.ElementUiType, e)));
         }
 
-        // webfig list types whose element is an address PAIR: types.multinetwork and types.multimacnetwork,
-        // which inherits it. Deliberately not types.multinetwork6 - it inherits the same shape but no live
-        // window declares one, so its pairing has never been seen on the wire.
+        // webfig list types whose element is an address PAIR: types.multinetwork and the two that inherit it,
+        // types.multimacnetwork and types.multinetwork6.
         private static bool IsMultiNetworkList(string? uiType)
             => string.Equals(uiType, "multinetwork", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(uiType, "multimacnetwork", StringComparison.OrdinalIgnoreCase);
+            || string.Equals(uiType, "multimacnetwork", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(uiType, "multinetwork6", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
         /// Renders a webfig <c>multinetwork</c> / <c>multimacnetwork</c> list: pairs of (address, sibling),
@@ -695,6 +699,7 @@ namespace tik4net.Winbox
                 second = SplitListElements(maskT.Item2);
             }
             bool isMac = string.Equals(jf.UiType, "multimacnetwork", StringComparison.OrdinalIgnoreCase);
+            bool isV6 = string.Equals(jf.UiType, "multinetwork6", StringComparison.OrdinalIgnoreCase);
             var rendered = new List<string>();
             int count = second != null ? first.Count : first.Count / 2;
             for (int i = 0; i < count; i++)
@@ -705,6 +710,18 @@ namespace tik4net.Winbox
                 {
                     string mac = WinboxFieldResolver.MacFromBytes(a);
                     rendered.Add(b.Length > 0 ? mac + "/" + WinboxFieldResolver.MacFromBytes(b) : mac);
+                    continue;
+                }
+                if (isV6)
+                {
+                    // The IPv6 pair, by the same rule the scalar network6 part follows: the second half is
+                    // the PREFIX LENGTH itself rather than a mask, and it is printed at every length,
+                    // /128 included — RouterOS prints what webfig's tostr hides.
+                    byte[]? raw = HexToBytes(a);
+                    string addr6 = raw != null ? WinboxFieldResolver.IpV6FromBytes(raw) : a;
+                    rendered.Add(long.TryParse(b, out long plen)
+                        ? addr6 + "/" + plen.ToString(CultureInfo.InvariantCulture)
+                        : addr6);
                     continue;
                 }
                 if (!uint.TryParse(a, out uint addr)) { rendered.Add(a); continue; }
@@ -723,8 +740,8 @@ namespace tik4net.Winbox
         /// </summary>
         /// <remarks>
         /// A <c>network</c> part's sibling holds a NETMASK and a <c>network6</c> part's holds the PREFIX
-        /// LENGTH itself (<c>types.network6.tostr</c>: <c>addr + '/' + (val[1]||0)</c>, and a bare address at
-        /// 128) — which is why the two cannot share one formatter. Both live shapes on 7.23.2:
+        /// LENGTH itself (<c>types.network6.tostr</c>: <c>addr + '/' + (val[1]||0)</c>) — which is why the
+        /// two cannot share one formatter. Both live shapes on 7.23.2:
         /// <c>/snmp/community</c>'s one row is the IPv6 any-address (<c>a16</c> = 16 zero bytes,
         /// <c>u17 = 0</c>) which the API prints <c>::/0</c>, and <c>/certificate</c>'s subject-alt-name is
         /// <c>{u7f = 1, u7d = 3959728320}</c> which it prints <c>IP:192.168.4.236</c>.
@@ -788,10 +805,16 @@ namespace tik4net.Winbox
                          + (mask != null ? "/" + WinboxFieldResolver.MaskToPrefix(mask) : "");
                 case "network6":
                 {
+                    // The sibling holds the PREFIX LENGTH itself, not a mask — there is no 128-bit mask to
+                    // put in a u32 — and the length is printed at every length INCLUDING 128. webfig's own
+                    // tostr hides it there (`if(val[1]==128)return addr`), but that is the GUI's display
+                    // rule, not the API's text: a /snmp/community scoped to one host reads back
+                    // "2001:db8:3::7/128" on 7.24, and this codec answers in the API's text. Same divergence
+                    // as `macnetwork`, whose all-ones mask webfig hides and RouterOS prints.
                     string addr = v.Item2 is byte[] b6 ? WinboxFieldResolver.IpV6FromBytes(b6) : "::";
                     if (mask == null) return addr;
                     long len = WinboxFieldResolver.TryToInt64(mask, out long n) ? n : 0;
-                    return len == 128 ? addr : addr + "/" + len.ToString(CultureInfo.InvariantCulture);
+                    return addr + "/" + len.ToString(CultureInfo.InvariantCulture);
                 }
                 case "ipaddr":
                     return WinboxFieldResolver.IpFromU32(v.Item2);

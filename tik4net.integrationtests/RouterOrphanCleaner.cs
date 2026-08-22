@@ -67,6 +67,8 @@ namespace tik4net.integrationtests
             "/system/scheduler",
             "/snmp/community",
             "/tool/graphing/interface",
+            "/tool/traffic-generator/packet-template",
+            "/ip/pool",
         };
 
         /// <summary>

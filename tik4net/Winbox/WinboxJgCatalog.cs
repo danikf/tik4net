@@ -129,6 +129,19 @@ namespace tik4net.Winbox
             new Dictionary<string, WinboxMonitorSpec>(StringComparer.Ordinal);
 
         // id-prefix letter → wire-type name (lower=scalar, upper=array). Mirrors jg_analyze.py PREFIX.
+        //
+        // The letters are not a convention to be inferred from examples: webfig declares the whole mapping in
+        // one literal, `id2int={b:0<<27,u:1<<27,q:2<<27,a:3<<27,s:4<<27,m:5<<27,r:6<<27,B:16<<27,U:17<<27,
+        // Q:18<<27,A:19<<27,S:20<<27,M:21<<27,R:22<<27}` — an ftype per letter, the uppercase one being the
+        // array ftype of the same thing. A letter MISSING from this table is worse than a mistyped one:
+        // DecodeId yields the type "?" and the field is dropped at harvest, so it does not read wrong, it
+        // ceases to exist. That is what `Q` (FT_U64_ARRAY) did to every `multibignumber` in the catalog.
+        //
+        // `id2int`'s fourteen letters, and no more: this table used to carry x/X/i/d/t as well, which are in
+        // neither that literal nor any catalog of either version (the 7.17 and 7.24 histograms find the same
+        // thirteen letters — every one of them here, `B` being the one this table has and no window uses).
+        // An invented mapping is worse than a missing one: a missing letter makes the field unreadable and
+        // obvious, an invented one makes it read WRONG.
         private static readonly Dictionary<char, string> Prefix = new Dictionary<char, string>
         {
             ['u'] = "u32",    ['U'] = "u32[]",
@@ -137,8 +150,7 @@ namespace tik4net.Winbox
             ['r'] = "raw",    ['R'] = "raw[]",
             ['m'] = "addr",   ['M'] = "addr[]",
             ['a'] = "ip6",    ['A'] = "ip6[]",
-            ['x'] = "u64",    ['X'] = "u64[]",
-            ['q'] = "u64",    ['i'] = "i32", ['d'] = "dur", ['t'] = "time",
+            ['q'] = "u64",    ['Q'] = "u64[]",
         };
 
         /// <summary>True once at least one <c>.jg</c> window has been parsed into the catalog.</summary>

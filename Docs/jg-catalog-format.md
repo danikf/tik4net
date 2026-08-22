@@ -113,11 +113,17 @@ a×155, m×131, S×87, R×12, A×6 — **the same thirteen letters**, seven vers
 attributes (`maskid`, `optid`, `oid`, `highid`, `id2`) draw from the same alphabet and use five of them
 (u×252, b×41, U×13, r×6, R×2).
 
-⚠️ **`Q` is the one array prefix that carries a whole UI family.** All 255 `multibignumber` fields and two
-`bigbitrate` ones are spelled `Q`; a prefix table that stops at `q` therefore drops the whole family at
-harvest time — the fields do not become mistyped, they cease to exist. Every one of them is an interface,
-LCD, container or wireless statistic, which is why the omission is invisible on a CHR
-([winbox-native-m2-protocol.md §32.4](winbox-native-m2-protocol.md)).
+**The letters are declared, not inferred.** webfig carries the whole mapping in one literal —
+`id2int={b:0<<27,u:1<<27,q:2<<27,a:3<<27,s:4<<27,m:5<<27,r:6<<27,B:16<<27,U:17<<27,Q:18<<27,A:19<<27,
+S:20<<27,M:21<<27,R:22<<27}` — one ftype per letter, the uppercase one being the array ftype of the same
+thing. Read the table from there rather than from examples; nothing else is a prefix, and a letter this
+list does not have is not one.
+
+⚠️ **A letter MISSING from a reader's prefix table is worse than a mistyped one.** The lookup has to fall
+back to something, and an unknown type reaches the field map as a field with no usable type: registered
+under its own name and its own key, resolvable, and unreadable. That is what a table stopping at `q` did to
+every `multibignumber` — a family of 50 fields in 7.24, spelled `Q`
+([winbox-native-m2-protocol.md §32.5](winbox-native-m2-protocol.md)).
 
 ⚠️ **The key does not identify the field on its own — the prefix's CASE is part of it.** A window may
 declare both `u12` and `U12`, one scalar and one array on key `0x12`, and the router sends both in the

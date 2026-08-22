@@ -1376,8 +1376,9 @@ namespace tik4net.Winbox
                 case "multiraw":
                 case "multiipaddr":
                 case "multiip6addr":
+                case "multibignumber":
                 {
-                    // The rest of the webfig list family. All four `inherit(types.multinumber)` and store one
+                    // The rest of the webfig list family. All five `inherit(types.multinumber)` and store one
                     // ARRAY under one key, differing only in what an element is — text, bytes, an IPv4 packed
                     // into a u32, sixteen IPv6 bytes — so the element type decides the conversion and the
                     // field's WIRE type decides the array's TLV form.
@@ -1456,6 +1457,36 @@ namespace tik4net.Winbox
                     var flat = new List<int>();
                     for (int i = 0; i < addrs.Count; i++) { flat.Add(addrs[i]); flat.Add(masks[i]); }
                     result.Add(M2Message.U32ArraySys(key, flat.ToArray()));
+                    return result;
+                }
+                case "multinetwork6":
+                {
+                    // `types.multinetwork6 = inherit(types.multinetwork)` — the same list of pairs, over
+                    // sixteen-byte addresses. Only the parallel-array form can exist here: a 128-bit address
+                    // does not fit the flattened u32 array the maskid-less multinetwork falls back to, and
+                    // both fields the 7.24 catalog declares carry a maskid.
+                    //
+                    // The sibling holds the PREFIX LENGTH itself, not a mask, and a bare address means /128 —
+                    // the same rule the scalar network6 part follows.
+                    if (jg!.MaskKey == 0) break;   // not the shape webfig describes - refuse below
+                    var v6Addrs = new List<byte[]>();
+                    var v6Lens = new List<int>();
+                    foreach (var tok in value.Split(','))
+                    {
+                        string t = tok.Trim();
+                        if (t.Length == 0) continue;
+                        var np = t.Split('/');
+                        byte[]? packed6 = PackIpV6(np[0]);
+                        if (packed6 == null) throw NotThisPart(apiName, t);
+                        int plen = 128;
+                        if (np.Length > 1 && (!int.TryParse(np[1], NumberStyles.Integer,
+                                CultureInfo.InvariantCulture, out plen) || plen < 0 || plen > 128))
+                            throw NotThisPart(apiName, t);
+                        v6Addrs.Add(packed6);
+                        v6Lens.Add(plen);
+                    }
+                    result.Add(M2Message.Addr6ArraySys(key, v6Addrs));
+                    result.Add(M2Message.U32ArraySys(jg.MaskKey, v6Lens.ToArray()));
                     return result;
                 }
                 case "multitristate":
@@ -2035,6 +2066,22 @@ namespace tik4net.Winbox
                     return M2Message.Addr6ArraySys(key, items.Select(t =>
                         PackIpV6(t.Split('/')[0]) ?? throw new WinboxFieldValueException(
                             $"input does not match any value of {apiName} (element '{t}')")).ToList());
+                case "u64[]":
+                {
+                    // webfig `types.multibignumber = inherit(types.multinumber)`: the same flat array, one
+                    // element width wider. Its elements are numbers (`bignumber` and `bigbitrate` both sit on
+                    // types.number), so there is no reference or enum rule to apply — and a value that is not
+                    // one is an error rather than a dropped element, as everywhere else in this method.
+                    var big = new List<ulong>();
+                    foreach (string t in items)
+                    {
+                        if (!ulong.TryParse(t, NumberStyles.Integer, CultureInfo.InvariantCulture, out ulong u))
+                            throw new WinboxFieldValueException(
+                                $"input does not match any value of {apiName} (element '{t}')");
+                        big.Add(u);
+                    }
+                    return M2Message.U64ArraySys(key, big);
+                }
                 case "u32[]":
                 {
                     var nums = new List<int>();

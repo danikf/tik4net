@@ -147,9 +147,13 @@ PREFIX = {
     'r':'raw', 'R':'raw[]',
     'm':'addr', 'M':'addr[]',
     'a':'ip6', 'A':'ip6[]',
-    'x':'u64', 'X':'u64[]',
-    'q':'u64', 'i':'i32', 'd':'dur', 't':'time',
+    'q':'u64', 'Q':'u64[]',
 }
+# Fourteen letters and no more. webfig declares the whole mapping in one literal:
+#   id2int={b:0<<27,u:1<<27,q:2<<27,a:3<<27,s:4<<27,m:5<<27,r:6<<27,
+#           B:16<<27,U:17<<27,Q:18<<27,A:19<<27,S:20<<27,M:21<<27,R:22<<27}
+# one ftype per letter, uppercase being the array ftype of the same thing. Anything not in that literal
+# is not a prefix, and inventing one makes a field read wrong instead of merely reading as unknown.
 
 def decode_id(idstr):
     """'s10006' -> ('string', 0x10006, 's'); returns (type, key, prefix) or None.

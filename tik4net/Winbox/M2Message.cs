@@ -196,6 +196,27 @@ namespace tik4net.Winbox
         }
 
         /// <summary>
+        /// u64-array field (webfig ftype 18, <c>FT_U64_ARRAY</c> — type byte <c>0x90</c>): a 16-bit element
+        /// COUNT followed by eight bytes per element, with no per-element length.
+        /// </summary>
+        /// <remarks>
+        /// The counterpart of <see cref="U32ArraySys"/> one width wider. webfig's <c>id2int</c> gives the
+        /// <c>.jg</c> prefix <c>Q</c> this ftype, which is what every <c>multibignumber</c> field is declared
+        /// as.
+        /// </remarks>
+        internal static byte[] U64ArraySys(int fullKey, IList<ulong> values)
+        {
+            var b = new List<byte>
+            {
+                (byte)(fullKey & 0xFF), (byte)((fullKey >> 8) & 0xFF),
+                (byte)((fullKey >> 16) & 0xFF), 0x90
+            };
+            b.AddRange(BitConverter.GetBytes((ushort)values.Count));
+            foreach (ulong v in values) b.AddRange(BitConverter.GetBytes(v));
+            return b.ToArray();
+        }
+
+        /// <summary>
         /// String-array field (webfig ftype 20, <c>FT_STRING_ARRAY</c> — type byte <c>0xA0</c>): a 16-bit
         /// element COUNT, then each element as a 16-bit byte length followed by its UTF-8 bytes.
         /// </summary>
@@ -478,6 +499,24 @@ namespace tik4net.Winbox
                             val = "[" + string.Join(",", arr) + "]";
                         }
                         break;
+                    case 0x90: case 0x91: case 0x92:
+                    {
+                        // FT_U64_ARRAY (ftype 18): count, then eight bytes per element and no per-element
+                        // length — the same counted-array shape u32[] has, one width wider. Rendered as the
+                        // same "[a,b,…]" text every other scalar array is, so the codec's list formatter
+                        // reads it without a case of its own.
+                        //
+                        // Without this case the field fell to `default:` and was SKIPPED. SkipTypeBytes has
+                        // always known the layout (0x90/0x91/0x92 → CountedArrayBytes(…, 8)), so the frame
+                        // stayed in sync and nothing looked wrong; the value simply never reached anyone.
+                        typeName = "u64[]";
+                        int cnt = ReadLen(type, m2, ref pos);
+                        var nums = new List<ulong>();
+                        for (int i = 0; i < cnt && pos + 8 <= m2.Length; i++, pos += 8)
+                            nums.Add(BitConverter.ToUInt64(m2, pos));
+                        val = "[" + string.Join(",", nums) + "]";
+                        break;
+                    }
                     case 0x18:
                         // FT_ADDR6: 16 raw bytes, no length prefix (see Addr6Sys).
                         typeName = "ip6";

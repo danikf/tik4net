@@ -1339,29 +1339,55 @@ have.
 
 ### 32.4 What has no encoder, and why each one is left
 
-Counted over the 7.24 `.jg` set:
+Counted by a structural walk over the whole 7.24 catalog — all eighteen plugins the lab router serves,
+which is not the same thing as the files a fetch happened to write that day: the plugin cache is
+content-addressed, so a plugin unchanged since the previous version keeps its old file. Read the router's
+own `list` to know which files are the current set.
 
 | Shape | Fields | Why |
 |---|---|---|
-| `multibignumber` | 255 | its id prefix `Q` is missing from `WinboxJgCatalog.Prefix`, so the fields are not in the catalog at all — see below |
 | `multilinestring` | 27 | not a list: `inherit(types.string)`, overriding only the view. Encodes as the string it is |
-| `stringarray` | 4 | all `ro:1` |
-| `numbertable` | 3 | a read-only table of named columns, all three on radio hardware |
-| `multinetwork6` | 2 | the `multinetwork` shape over `ip6[]`; both fields are traffic-generator templates |
-| `gridmultinumber` | 1 | one wireless field |
+| `stringarray` | 4 | all `ro:1`; read-only, and read as the string array they are |
+| `numbertable` | 2 | a read-only table of named columns, both on radio hardware |
 
-**The `Q` prefix.** `Q` = `u64[]` is settled ground:
-[jg-catalog-format.md](jg-catalog-format.md) has carried it since the 7.17 survey and the 7.24 recount
-finds it 257 times. `WinboxJgCatalog.Prefix` has `q` and not `Q`, so `DecodeId` returns nothing for those
-ids and the field is dropped at harvest time — it does not become mistyped, it ceases to exist. What the
-element is follows from webfig alone (`types.multibignumber = inherit(types.multinumber)`, one u64 each).
+`multibignumber` and `multinetwork6` were on this list and are not any more — see
+[§32.5](#325-the-two-that-came-off-the-list). `numbertable` is declared only in `wlan6.jg`; the router
+serves that plugin whatever its hardware, but a CHR never sends a value for one. A newer wireless plugin
+build adds a `gridmultinumber` (a tx-power grid) that this one does not have.
 
-What is missing is a way to check the result: **not one of the 257 is observable on a CHR.** They are
-interface, LCD, container and wireless statistics; a `/interface/list/member` record created for the
-purpose comes back with no `Q` key at all. Registering 257 new fields can change which field an existing
-NAME resolves to (first-wins per handler), and nothing on this hardware would show it — so the gap is
-recorded rather than closed. The same table also carries `x`/`X`, which appear in no catalog of either
-version.
+### 32.5 The two that came off the list
+
+**`multibignumber` (the `Q` prefix).** webfig declares the whole prefix→ftype mapping in one literal —
+`id2int={b:0<<27,u:1<<27,q:2<<27,a:3<<27,s:4<<27,m:5<<27,r:6<<27,B:16<<27,U:17<<27,Q:18<<27,A:19<<27,
+S:20<<27,M:21<<27,R:22<<27}` — so `Q` is `FT_U64_ARRAY`, type byte `18<<3 = 0x90`. Two holes met on this
+one shape:
+
+* `WinboxJgCatalog.Prefix` had `q` and not `Q`, and its lookup falls back to the type `"?"` rather than
+  failing. The field was still registered, under its own name and its own key; it simply had a type no
+  encoder or decoder could act on.
+* `M2Message.ParseAllFields` had no case for `0x90`, so the value was skipped. `SkipTypeBytes` has always
+  known the layout, so the frame stayed in sync and nothing looked wrong — the field just never arrived.
+
+The 7.24 catalog declares 50 of them, on switch-port statistics, `/container`, an MPLS/TE window and the
+bandwidth test. Reading their values needs hardware this lab has not got (a CHR has no switch chip), which
+is why the tests are at the wire and catalog levels; what an element MEANS follows from webfig alone
+(`types.multibignumber = inherit(types.multinumber)`, `types.bignumber = inherit(types.number)`).
+
+Adding the prefix cannot rename an existing field, and that is measured, not assumed: building the catalog
+from the whole 7.24 set before and after gives 8517 handler+name pairs both times, 0 added and 0 removed,
+with 48 changing type from `"?"` to `u64[]` and nothing else changing at all.
+
+**`multinetwork6`.** `inherit(types.multinetwork)` — the same list of (address, sibling) pairs, over
+sixteen-byte addresses in an `FT_ADDR6_ARRAY`, with the sibling holding the PREFIX LENGTH itself rather
+than a netmask (there is no 128-bit mask to fit in a u32). Both fields the catalog declares are on
+`/tool/traffic-generator/packet-template`, which a CHR does have, so this one is verified end to end
+against the API.
+
+**The length is printed at every length, `/128` included.** webfig's `types.network6.tostr` hides it there
+(`if(val[1]==128)return addr`), but that is the GUI's display rule and not the API's text: on 7.24 a
+`/snmp/community` scoped to one host reads `2001:db8:3::7/128`. Reading webfig's rule as RouterOS's is the
+same mistake `macnetwork` invites, whose all-ones mask webfig also hides and RouterOS also prints — and it
+was live in the SCALAR `network6` element formatter too, independently of any list.
 
 ## 33. Row state rides on system keys the catalog never names
 
