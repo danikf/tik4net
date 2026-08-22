@@ -1146,6 +1146,45 @@ sketches. What `/ip/route` still does not read is named rather than left to be r
 and the `dhcp`/`connect` source flags — for which native reports the same fact under one field,
 `belongs-to` (`dhcp` / `connected` / `interface`).
 
+## 31. A field written with the wrong wire type is accepted and ignored
+
+RouterOS reads the **type byte**, not just the value. A `u64` field written in the `u32` form
+(ftype 1 instead of 2) is taken, answered with status 0, and dropped — the write reports success and
+the value on the router does not move. The value fitting in 32 bits changes nothing; it is the type
+that is checked.
+
+That is what made `/queue/simple`'s rate fields look read-only. They are not: the encoder resolved
+them to the right keys, produced bytes, and sent the wrong shape.
+
+```
+[encode] upload-max-limit -> key=0xD8 value='5000000' wire=u64 ui=bigunit ro=False
+```
+
+**The reach, surveyed against the live 7.24 catalog: 356 writable fields are `u64`** — every rate and
+limit on `/queue/simple` and `/queue/tree`, the hotspot and PPP transfer limits, interface `speed`,
+the accounting counters. None of them could be written over native.
+
+The rest of the encode table was surveyed at the same time, and nothing else has this shape:
+
+| Wire type | Writable fields | Encoder |
+|---|---|---|
+| `u32` | 7246 | u32 — correct |
+| `string` | 2796 | string — correct |
+| `bool` | 2461 | bool — correct |
+| `u64` | 356 | **was u32; fixed** |
+| `raw` / `addr` / `ip6` | 287 / 181 / 82 | typed encoders — correct |
+| `u32[]`, `addr[]`, `string[]`, `raw[]`, `ip6[]` | 506 / 344 / 123 / 17 / 2 | not encodable — **throws**, does not drop |
+| `?` (unknown prefix) | 48 | all `multibignumber` byte/packet counters; nothing writes them |
+| `dur`, `time`, `i32` | none | share the u32 branch, which no live field exercises |
+
+The array types are the one remaining gap, and they are a **loud** one: a write to a list-typed field
+throws `WinboxFieldResolutionException` rather than silently doing nothing, which is how
+`/queue/simple`'s `target` was found.
+
+**The test that catches a regression here has to read back over a DIFFERENT transport.** A native write
+followed by a native read passes on a router that never stored the value, because the failure is in what
+was sent, not in what was decoded.
+
 ## Settled questions — do not re-investigate
 
 - **Black-box M2 probing without the webfig source is not the way to recover the CRUD command
