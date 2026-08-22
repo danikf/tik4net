@@ -23,6 +23,12 @@ Router coordinates come from `tik4net.integrationtests/App.config` (`host`, `use
 `routerMac`, plus the topology keys consumed by `TestConstants.cs`). That file is the single source of
 truth — read it, never restate its values.
 
+`TestBase.LabAddress` picks which of them a run uses, and the choice is not cosmetic: the **MAC-layer
+transports run with no host at all**, addressed by `routerMac` alone. That is the case those transports
+exist for (a router with no IP address), so a mac* run that passed the host as well would leave it
+untested — and `routerMac` is therefore mandatory in `App.config` for those three runsettings, not an
+optimization that skips MNDP.
+
 ## Transports
 
 One `*.runsettings` file per transport sets `tik.connectionType`; the suite is run once per transport.

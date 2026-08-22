@@ -127,6 +127,8 @@ namespace tik4net.Winbox
         /// </summary>
         public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs)
         {
+            // Opening the session is part of opening the connection, so it gets the connect budget.
+            SessionStartBudgetMs = connectTimeoutMs;
             BaseConnect(host, ClientType);
             // MAC-WinBox carries the SAME WinBox EC-SRP5 handshake as TCP (length-prefixed [len][0x06]
             // frames), tunnelled inside MAC-layer DATA packets — NOT the MAC-Telnet control-packet auth.

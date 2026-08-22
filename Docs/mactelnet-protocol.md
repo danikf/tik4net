@@ -178,8 +178,12 @@ Server → DATA[ END_AUTH ]
 
 - **Source port:** random, 1024–2047 (chosen by the client at startup)
 - **Destination port:** always 20561
-- **Destination IP:** broadcast 255.255.255.255 → switches to unicast after the server's first
-  reply (latches onto the IP the reply came from)
+- **Destination IP:** subnet broadcast. The protocol allows a client to latch onto the IP the
+  server's first reply came from and continue unicast, but **RouterOS does not offer one**:
+  measured on 7.23.2, every reply arrives with source `0.0.0.0:20561`, on a router that has an
+  IP address as much as on one that has none. A client that knows the router's IP by other means
+  (it was told one) can address it directly — the server accepts unicast it never advertised —
+  and a client that does not stays on broadcast for the whole session.
 - **Keepalive:** an ACK packet every ~10s of idle time
 - **Retry:** exponential backoff `[15, 20, 30, 50, 90, 170, 330, 660, 1000]` ms
 

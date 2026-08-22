@@ -63,7 +63,11 @@ namespace tik4net.MacTelnet
         // All five are assigned in BaseConnect (not the constructor) — subclasses must call it before use.
         protected UdpClient  _udp = null!;
         protected IPEndPoint _routerEp = null!;           // subnet broadcast — used for SESSIONSTART
-        protected IPEndPoint _routerUnicastEp = null!;    // known unicast IP:20561 — used for DATA/ACK
+        // The router's own IP:20561, when there is one to send to — DATA and ACK go here. Null means there
+        // is not, and then everything goes to _routerEp (subnet broadcast) instead: a session addressed by
+        // MAC alone starts that way, and stays that way, because the router never reveals an address to
+        // latch onto (see LatchRouterUnicast). Broadcast for a whole session is correct, just noisier.
+        protected IPEndPoint? _routerUnicastEp;
         protected byte[]     _localMac = null!;
         protected byte[]     _routerMac = null!;
         protected ushort     _sessionKey;
@@ -144,22 +148,325 @@ namespace tik4net.MacTelnet
         // ── Initialise UDP socket and resolve router MAC address ─────────────────
 
         /// <summary>
-        /// Initialises the UDP socket, discovers MACs, and sends the SESSIONSTART broadcast.
-        /// Must be called by subclass login methods before authentication.
+        /// Initialises the UDP socket and resolves the MACs. Must be called by subclass login methods
+        /// before authentication, which starts the session itself (<see cref="StartSession"/>).
         /// </summary>
-        protected void BaseConnect(string host, ushort clientType)
+        protected void BaseConnect(string? host, ushort clientType)
         {
             _clientType = clientType;
-
-            // Source MAC, local IPv4 and subnet broadcast must all come from the SAME NIC — see the
-            // bind below for why picking them independently is not enough.
-            var nic = SelectLocalNic(host);
-            _localMac   = nic.Mac ?? GetLocalMac(host);
             _routerMac  = GetRouterMacAddress(host);
 
             byte[] kb = new byte[2];
             using (var rng = RandomNumberGenerator.Create()) rng.GetBytes(kb);
             _sessionKey = BitConverter.ToUInt16(kb, 0);
+
+            // Two ways in, and they differ only in how the local NIC is chosen.
+            //
+            // WITH a host, the router's IP names the NIC: exactly one candidate, the one whose subnet
+            // contains it, and the session is bound there for good.
+            //
+            // WITHOUT one — the case the MAC transports exist for, a router with no IP at all — nothing
+            // points at a NIC, so every eligible NIC becomes a candidate and StartSession asks them all at
+            // once, adopting whichever the router answers. It cannot be left to the host's broadcast route
+            // (bind to IPAddress.Any): that route can point at a disconnected adapter holding a stale on-link
+            // '<subnet>.255/32', and then every SESSIONSTART leaves by a dead NIC and vanishes while every
+            // other transport still works — see the bind below.
+            _candidates = string.IsNullOrEmpty(host)
+                ? EnumerateCandidateNics()
+                : new[] { SelectLocalNic(host!) };
+            if (_candidates.Length == 0)
+                throw new InvalidOperationException(
+                    "No usable local network interface found for a MAC-layer connection. " +
+                    "At least one non-loopback, non-tunnel interface that is Up and has an IPv4 address is required.");
+
+            _bindHost = host;
+            BindToCandidate(_candidates[0], host);
+        }
+
+        // The NICs this session may use: a single entry when the router's IP named one, the whole eligible
+        // list when nothing did — in which case StartSession probes them and adopts the one that answers.
+        private LocalNic[] _candidates = new LocalNic[0];
+        private string? _bindHost;
+
+        /// <summary>
+        /// Whether the session is addressed by MAC alone, with no router IP anywhere in the picture — the
+        /// case these transports exist for. It is the only mode in which the local NIC is not already
+        /// determined and <see cref="StartSession"/> has to find it.
+        /// </summary>
+        protected bool IsMacOnly => string.IsNullOrEmpty(_bindHost);
+
+        /// <summary>
+        /// Finds the local NIC the router is reachable on by asking all of them <b>at once</b>: one socket
+        /// per candidate, each sending its own SESSIONSTART, and the first one the router acknowledges wins.
+        /// The winner's socket, source MAC, broadcast address and session key become the session's.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Asking them one at a time does not work, and the way it fails is instructive. Each candidate got
+        /// one 300 ms round and was then rebound — which <em>closes the socket the answer is coming back
+        /// to</em>. Measured inside a full suite run: the correct NIC's ACK took longer than 300 ms because
+        /// the router was busy, so it arrived at a socket that no longer existed; the probe then alternated
+        /// between two NICs six times and gave up. The session key was the same throughout, so the router
+        /// also saw one session arriving from two different source MACs. Nothing about that is specific to
+        /// slow routers: a sequential probe races the answer against its own timer and can always lose.
+        /// </para>
+        /// <para>
+        /// Probing in parallel also costs one round instead of N, and each probe carries its own session
+        /// key, so an ACK says without ambiguity which NIC it answers.
+        /// </para>
+        /// </remarks>
+        /// <param name="timeoutMs">How long to wait for any candidate to be acknowledged.</param>
+        /// <returns><c>true</c> when a candidate was adopted.</returns>
+        private bool ProbeCandidatesInParallel(int timeoutMs)
+        {
+            var probes = new List<CandidateProbe>();
+            try
+            {
+                foreach (var nic in _candidates)
+                {
+                    var probe = TryCreateProbe(nic);
+                    if (probe != null) probes.Add(probe);
+                }
+                if (probes.Count == 0) return false;
+
+                var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+                var resendAt = DateTime.UtcNow;
+
+                while (DateTime.UtcNow < deadline)
+                {
+                    if (DateTime.UtcNow >= resendAt)
+                    {
+                        foreach (var probe in probes) probe.SendSessionStart(_routerMac, _clientType);
+                        resendAt = DateTime.UtcNow.AddMilliseconds(SessionStartRetryMs);
+                    }
+
+                    foreach (var probe in probes)
+                    {
+                        if (!probe.TryReadAck(_routerMac, out uint ackCounter)) continue;
+
+                        Adopt(probe, probes);
+                        NoteAck(ackCounter);
+                        return true;
+                    }
+
+                    Thread.Sleep(5);
+                }
+
+                return false;
+            }
+            finally
+            {
+                // Everything not adopted is disposed; Adopt takes the winner out of the list first.
+                foreach (var probe in probes) probe.Dispose();
+            }
+        }
+
+        /// <summary>Makes the winning probe's socket and identity this session's own.</summary>
+        private void Adopt(CandidateProbe winner, List<CandidateProbe> probes)
+        {
+            probes.Remove(winner);          // so the caller's finally does not dispose the socket we keep
+
+            _udp?.Dispose();
+            _udp        = winner.Udp;
+            _localMac   = winner.LocalMac;
+            _routerEp   = winner.Broadcast;
+            _sessionKey = winner.SessionKey;
+            _outCounter = 0;
+            _inCounter  = 0;
+
+            if (Diagnostics.TikWireTrace.Enabled)
+                Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note,
+                    "NIC ADOPTED local=" + _udp.Client.LocalEndPoint
+                    + " srcMac=" + BitConverter.ToString(_localMac)
+                    + " bcast=" + _routerEp.Address + TraceTag);
+        }
+
+        // A NIC being tried: its own socket, source MAC, broadcast address and session key. Deliberately
+        // NOT sharing the session's fields — several of these are alive at once, and the whole point is
+        // that they cannot be confused for one another.
+        private sealed class CandidateProbe : IDisposable
+        {
+            internal UdpClient Udp = null!;
+            internal byte[] LocalMac = null!;
+            internal IPEndPoint Broadcast = null!;
+            internal ushort SessionKey;
+            internal Action<string>? Trace;
+
+            internal void SendSessionStart(byte[] routerMac, ushort clientType)
+            {
+                byte[] pkt = new byte[22];
+                pkt[0] = 1; pkt[1] = PKT_SESSIONSTART;
+                Buffer.BlockCopy(LocalMac, 0, pkt, 2, 6);
+                Buffer.BlockCopy(routerMac, 0, pkt, 8, 6);
+                pkt[14] = (byte)(SessionKey >> 8); pkt[15] = (byte)(SessionKey & 0xFF);
+                pkt[16] = (byte)(clientType >> 8); pkt[17] = (byte)(clientType & 0xFF);
+                // A NIC that refuses to send is simply not the one; the others are still being tried.
+                try
+                {
+                    Udp.Send(pkt, pkt.Length, Broadcast);
+                    Trace?.Invoke("PROBE SEND sessionstart local=" + Udp.Client.LocalEndPoint
+                        + " dst=" + Broadcast + " srcMac=" + BitConverter.ToString(LocalMac)
+                        + " key=" + SessionKey.ToString("x4"));
+                }
+                catch (SocketException ex)
+                {
+                    Trace?.Invoke("PROBE SEND FAILED local=" + Udp.Client.LocalEndPoint + " " + ex.SocketErrorCode);
+                }
+            }
+
+            /// <summary>Whether the router has acknowledged this probe. Never blocks.</summary>
+            internal bool TryReadAck(byte[] routerMac, out uint counter)
+            {
+                counter = 0;
+                try
+                {
+                    while (Udp.Available > 0)
+                    {
+                        var ep = new IPEndPoint(IPAddress.Any, 0);
+                        byte[] pkt = Udp.Receive(ref ep);
+                        Trace?.Invoke("PROBE RECV local=" + Udp.Client.LocalEndPoint + " from=" + ep
+                            + " len=" + pkt.Length
+                            + (pkt.Length >= 22
+                                ? " type=0x" + pkt[1].ToString("x2")
+                                  + " key=" + (((uint)pkt[16] << 8) | pkt[17]).ToString("x4")
+                                  + " srcMac=" + BitConverter.ToString(pkt, 2, 6)
+                                : ""));
+
+                        if (pkt.Length < 22 || pkt[1] != PKT_ACK) continue;
+
+                        // The session key rules out an ACK meant for another probe, and the source MAC
+                        // rules out another MikroTik on the segment answering our broadcast.
+                        //
+                        // THE KEY IS AT [16], NOT AT [14]: the header swaps session key and client type by
+                        // direction (Docs/mactelnet-protocol.md, "Packet header structure"), so a reply
+                        // carries the client type where our own send carries the key. Reading it at [14]
+                        // matches 0x0015 — the client type — against the key, rejects every ACK the router
+                        // sends, and the probe then loses to its own timeout with the router answering
+                        // correctly the whole time.
+                        if (pkt[16] != (byte)(SessionKey >> 8) || pkt[17] != (byte)(SessionKey & 0xFF)) continue;
+                        if (!IsFrom(pkt, routerMac)) continue;
+
+                        counter = ((uint)pkt[18] << 24) | ((uint)pkt[19] << 16) | ((uint)pkt[20] << 8) | pkt[21];
+                        return true;
+                    }
+                }
+                catch (SocketException) { /* this NIC is out of the running */ }
+
+                return false;
+            }
+
+            private static bool IsFrom(byte[] pkt, byte[] routerMac)
+            {
+                for (int i = 0; i < 6; i++)
+                    if (pkt[2 + i] != routerMac[i]) return false;
+                return true;
+            }
+
+            public void Dispose()
+            {
+                try { Udp?.Dispose(); } catch (SocketException) { /* nothing left to do about it */ }
+            }
+        }
+
+        private CandidateProbe? TryCreateProbe(LocalNic nic)
+        {
+            try
+            {
+                var udp = new UdpClient(AddressFamily.InterNetwork) { EnableBroadcast = true };
+                udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                udp.Client.Bind(new IPEndPoint(nic.LocalIp ?? IPAddress.Any, 0));
+
+                byte[] kb = new byte[2];
+                using (var rng = RandomNumberGenerator.Create()) rng.GetBytes(kb);
+
+                return new CandidateProbe
+                {
+                    Udp        = udp,
+                    LocalMac   = nic.Mac ?? GetLocalMac(null),
+                    Broadcast  = new IPEndPoint(nic.Broadcast ?? IPAddress.Broadcast, 20561),
+                    SessionKey = BitConverter.ToUInt16(kb, 0),
+                    Trace      = Diagnostics.TikWireTrace.Enabled
+                        ? new Action<string>(line => Diagnostics.TikWireTrace.Emit(
+                            WireTraceChannel, Diagnostics.TikWireDir.Note, line))
+                        : null,
+                };
+            }
+            catch (SocketException)
+            {
+                return null;   // a NIC that cannot be bound is simply not a candidate
+            }
+        }
+
+        /// <summary>
+        /// Every NIC that could plausibly carry a MAC-layer session, in the order they will be tried:
+        /// up, not loopback, not a tunnel, with a real MAC and an IPv4 address to bind to.
+        /// </summary>
+        /// <remarks>
+        /// Physical adapters come first. On a developer machine the list is dominated by Hyper-V, WSL and
+        /// VPN adapters, and trying those first spends the connect budget before reaching the NIC the
+        /// router is actually on — each candidate costs a SESSIONSTART round.
+        /// </remarks>
+        private static LocalNic[] EnumerateCandidateNics()
+        {
+            var physical = new List<LocalNic>();
+            var virt     = new List<LocalNic>();
+
+            foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (ni.OperationalStatus != OperationalStatus.Up)             continue;
+                if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
+                if (ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel)   continue;
+
+                byte[] mac = ni.GetPhysicalAddress().GetAddressBytes();
+                if (mac.Length != 6 || !mac.Any(b => b != 0)) continue;
+
+                foreach (var ua in ni.GetIPProperties().UnicastAddresses)
+                {
+                    if (ua.Address.AddressFamily != AddressFamily.InterNetwork) continue;
+
+                    IPAddress? bcast = null;
+                    if (ua.IPv4Mask != null)
+                    {
+                        byte[] lb = ua.Address.GetAddressBytes();
+                        byte[] mb = ua.IPv4Mask.GetAddressBytes();
+                        byte[] b  = new byte[4];
+                        for (int i = 0; i < 4; i++) b[i] = (byte)(lb[i] | ~mb[i]);
+                        bcast = new IPAddress(b);
+                    }
+
+                    var nic = new LocalNic { Mac = mac, LocalIp = ua.Address, Broadcast = bcast };
+                    (IsProbablyVirtual(ni) ? virt : physical).Add(nic);
+                    break;   // one address per NIC is enough to bind and broadcast from
+                }
+            }
+
+            physical.AddRange(virt);
+            return physical.ToArray();
+        }
+
+        // Best-effort only, and it must stay that way: it decides the ORDER candidates are tried in,
+        // never whether one is tried at all. A router reached through a Hyper-V switch is a normal setup.
+        private static bool IsProbablyVirtual(NetworkInterface ni)
+        {
+            string d = ni.Description ?? string.Empty;
+            return d.IndexOf("virtual", StringComparison.OrdinalIgnoreCase) >= 0
+                || d.IndexOf("hyper-v", StringComparison.OrdinalIgnoreCase) >= 0
+                || d.IndexOf("vmware",  StringComparison.OrdinalIgnoreCase) >= 0
+                || d.IndexOf("vbox",    StringComparison.OrdinalIgnoreCase) >= 0
+                || d.IndexOf("tap",     StringComparison.OrdinalIgnoreCase) >= 0
+                || d.IndexOf("loopback", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        /// <summary>
+        /// Binds the socket to one candidate NIC and points the session's addressing at it: source MAC,
+        /// bind address and subnet broadcast all come from that ONE interface. Called again per candidate
+        /// while <see cref="StartSession"/> is still looking for the one the router answers on.
+        /// </summary>
+        private void BindToCandidate(LocalNic nic, string? host)
+        {
+            // Source MAC, local IPv4 and subnet broadcast must all come from the SAME NIC — see below for
+            // why picking them independently is not enough.
+            _localMac = nic.Mac ?? GetLocalMac(host);
 
             // Bind to the local address of the NIC whose MAC and broadcast address are in the packet,
             // NOT to IPAddress.Any. An unbound socket lets the HOST's broadcast route decide which
@@ -173,14 +480,29 @@ namespace tik4net.MacTelnet
             // source MAC, bound = ACK, unbound = no reply.
             // IPAddress.Any is kept as the fallback when no NIC sits in the router's subnet (a router
             // reached through a gateway), so that case does not regress.
+            _udp?.Dispose();
             _udp = new UdpClient(AddressFamily.InterNetwork) { EnableBroadcast = true };
             _udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
             _udp.Client.Bind(new IPEndPoint(nic.LocalIp ?? IPAddress.Any, 0));
 
-            // SESSIONSTART goes to subnet broadcast; DATA and ACK go to known unicast IP.
-            IPAddress broadcastAddr = nic.Broadcast ?? GetBroadcastAddress(host);
+            // SESSIONSTART always goes to broadcast. Everything else goes to the router's own address when
+            // we have one, and to broadcast when we do not.
+            //
+            // A known host IS that address, so it is used directly — measured on RouterOS 7.23.2, waiting
+            // for the router to reveal it instead would wait forever: the mac-server answers from
+            // 0.0.0.0:20561 even on a router that HAS an IP address, so LatchRouterUnicast has nothing to
+            // latch onto and a host-addressed session would spend its whole life broadcasting the terminal
+            // to every host on the subnet. (Docs/mactelnet-protocol.md describes the latch as the reference
+            // client's behaviour; what the router actually sends is what is written here.)
+            IPAddress broadcastAddr = nic.Broadcast
+                ?? (string.IsNullOrEmpty(host) ? IPAddress.Broadcast : GetBroadcastAddress(host!));
             _routerEp        = new IPEndPoint(broadcastAddr, 20561);
-            _routerUnicastEp = new IPEndPoint(IPAddress.Parse(host), 20561);
+
+            // A host name that is not an IP literal leaves it null: there is nothing to put in an
+            // IPEndPoint, and broadcast is the correct fallback rather than a reason to fail the open.
+            _routerUnicastEp = !string.IsNullOrEmpty(host) && IPAddress.TryParse(host, out var routerIp)
+                ? new IPEndPoint(routerIp, 20561)
+                : null;
             _outCounter = 0;
             _inCounter  = 0;
 
@@ -193,7 +515,7 @@ namespace tik4net.MacTelnet
                     "SESSION OPEN key=0x" + _sessionKey.ToString("x4")
                     + " local=" + _udp.Client.LocalEndPoint
                     + " srcMac=" + BitConverter.ToString(_localMac)
-                    + " clientType=0x" + clientType.ToString("x4"));
+                    + " clientType=0x" + _clientType.ToString("x4"));
         }
 
         /// <summary>
@@ -326,7 +648,7 @@ namespace tik4net.MacTelnet
                 head = _unacked[0];
                 _lastRetransmitUtc = DateTime.UtcNow;
                 _retransmits++;
-                _udp.Send(head.Packet, head.Packet.Length, _routerUnicastEp);
+                _udp.Send(head.Packet, head.Packet.Length, Dst);
             }
 
             if (Diagnostics.TikWireTrace.Enabled)
@@ -582,25 +904,63 @@ namespace tik4net.MacTelnet
         }
 
         /// <summary>
-        /// Opens the session on the router: sends SESSIONSTART and waits for the router to acknowledge it,
-        /// resending on silence. Returns once acknowledged, or after <paramref name="timeoutMs"/> — the
-        /// caller proceeds either way, because authentication will fail on its own deadline anyway and a
-        /// second error here would only hide the first.
+        /// The budget a subclass gives <see cref="StartSession"/>: its own connect timeout, floored at the
+        /// old fixed 2 s so a caller who asked for a very short one does not get a worse session-start than
+        /// before. Set by the login path before it starts the session.
         /// </summary>
+        protected int SessionStartBudgetMs { get; set; } = DefaultSessionStartMs;
+
+        private const int DefaultSessionStartMs = 2000;
+
+        /// <summary>
+        /// Opens the session on the router: sends SESSIONSTART and waits for the router to acknowledge it,
+        /// resending on silence. Returns once acknowledged, or when the budget runs out — the caller
+        /// proceeds either way, because authentication will fail on its own deadline anyway and a second
+        /// error here would only hide the first.
+        /// </summary>
+        /// <param name="timeoutMs">
+        /// How long to keep trying. Zero, the normal case, means <see cref="SessionStartBudgetMs"/> — the
+        /// connection's own connect timeout.
+        /// </param>
         /// <remarks>
         /// SESSIONSTART is the one packet this layer cannot resend through <see cref="RetransmitIfUnacked"/>:
         /// it is not DATA, so it never enters the unacknowledged queue — and that queue is inert until the
         /// first ACK arrives (<c>_haveAck</c>), which is the very thing SESSIONSTART is waiting for. It is
-        /// also the one packet sent to <em>broadcast</em>. Before this, a single lost SESSIONSTART cost the
-        /// full authentication timeout with no retry at all; the previous code waited a blind 80 ms and sent
-        /// the auth request into a session the router might never have created.
+        /// also the one packet that is <em>always</em> sent to broadcast, whatever the session has since
+        /// learned about where the router lives. Before this, a single lost SESSIONSTART cost the full
+        /// authentication timeout with no retry at all; the previous code waited a blind 80 ms and sent the
+        /// auth request into a session the router might never have created.
         /// <para>
         /// Measured on 7.23.2 across five traced suite runs: 76 of 76 SESSIONSTARTs were acknowledged, all
         /// of them before the old blind sleep was over — so on a healthy link this waits less, not more.
         /// </para>
+        /// <para>
+        /// It is also where a MAC-only session works out which local NIC to use: with nothing naming one,
+        /// every candidate is asked at once and the one the router answers is adopted — see
+        /// <see cref="ProbeCandidatesInParallel"/>.
+        /// </para>
         /// </remarks>
-        protected void StartSession(int timeoutMs = 2000)
+        protected void StartSession(int timeoutMs = 0)
         {
+            // Spend the CONNECT budget here rather than a fixed 2 s. What the fixed budget did, measured
+            // inside a full suite run: RouterOS went quiet for about four seconds — it had just been given
+            // three deliberately wrong logins by the preceding test, on top of a run's worth of accumulated
+            // load — so SESSIONSTART went unacknowledged, and the code below proceeded to AUTHENTICATE into
+            // a session the router had never created. That burned the 10 s auth deadline and then reported
+            // a login failure, which is both slower and a worse description of what happened than simply
+            // waiting a little longer for the session to start. The caller asked for a connect timeout;
+            // this is what it is for.
+            if (timeoutMs <= 0)
+                timeoutMs = Math.Max(SessionStartBudgetMs, DefaultSessionStartMs);
+
+            // A MAC-only session does not know which NIC the router is on. Every candidate is asked at
+            // once and the one the router answers is adopted — see ProbeCandidatesInParallel for why this
+            // is not a sequence of tries. On failure it falls through to the ordinary loop below, which
+            // keeps the currently bound NIC: the probe may have been unlucky, and the loop's own retries
+            // are still worth spending before authentication is attempted.
+            if (IsMacOnly && _candidates.Length > 1 && ProbeCandidatesInParallel(timeoutMs))
+                return;
+
             var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
             var resendAt = DateTime.UtcNow;
 
@@ -626,14 +986,52 @@ namespace tik4net.MacTelnet
                 Thread.Sleep(5);
             }
 
+            // Still unacknowledged after the whole connect budget. The caller proceeds — authentication
+            // fails on its own deadline and a second error here would only hide the first — but the trace
+            // has to carry it, because from the exception alone a router that never opened the session is
+            // indistinguishable from one that rejected the credentials.
             if (Diagnostics.TikWireTrace.Enabled)
                 Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note,
-                    "SESSIONSTART UNACKED after " + timeoutMs + " ms" + TraceTag);
+                    "SESSIONSTART UNACKED after " + timeoutMs + " ms"
+                    + (IsMacOnly ? " (" + _candidates.Length + " NIC(s) probed, none answered)" : "") + TraceTag);
         }
 
         private const int SessionStartRetryMs = 300;
 
         // ── Send / Receive ───────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Where everything except SESSIONSTART is sent: the router's own address once its first reply has
+        /// told us what it is, and subnet broadcast until then — or forever, when the router has no IP.
+        /// </summary>
+        protected IPEndPoint Dst => _routerUnicastEp ?? _routerEp;
+
+        /// <summary>
+        /// Latches onto the address the router answers from, so the rest of the session is unicast rather
+        /// than broadcast. Called for every received packet; only the first one that carries a usable
+        /// address does anything.
+        /// </summary>
+        /// <remarks>
+        /// <b>Measured on RouterOS 7.23.2, this never fires:</b> the mac-server answers from
+        /// <c>0.0.0.0:20561</c> even on a router that has an IP address, so there is never an address to
+        /// latch onto and a session that was not given a host broadcasts for its whole life — which is
+        /// correct, and is what the reference implementation ends up doing too. It is kept because the
+        /// protocol prescribes the latch and a router that does reveal its address costs nothing to
+        /// honour; it is not a path to rely on. A host-addressed session does not depend on it at all —
+        /// <c>BindToCandidate</c> seeds the address from the host directly.
+        /// </remarks>
+        private void LatchRouterUnicast(IPEndPoint from)
+        {
+            if (_routerUnicastEp != null) return;
+            if (from == null || from.Address == null) return;
+            if (from.Address.Equals(IPAddress.Any) || from.Address.Equals(IPAddress.Broadcast)) return;
+
+            _routerUnicastEp = new IPEndPoint(from.Address, 20561);
+            if (Diagnostics.TikWireTrace.Enabled)
+                Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note,
+                    "UNICAST LATCH " + _routerUnicastEp + TraceTag);
+        }
+
 
         protected void Send(byte type, byte[]? payload)
         {
@@ -654,8 +1052,7 @@ namespace tik4net.MacTelnet
             pkt[20] = (byte)(counter >> 8);  pkt[21] = (byte)(counter & 0xFF);
             if (payload != null && payload.Length > 0)
                 Buffer.BlockCopy(payload, 0, pkt, 22, payload.Length);
-            var dst = (type == PKT_SESSIONSTART) ? _routerEp : _routerUnicastEp;
-            _udp.Send(pkt, pkt.Length, dst);
+            _udp.Send(pkt, pkt.Length, (type == PKT_SESSIONSTART) ? _routerEp : Dst);
 
             // The counter belongs in the note: it is the stream offset this packet claims, and the
             // router's ACK counter is what it must be compared against. Without it the trace cannot
@@ -698,7 +1095,7 @@ namespace tik4net.MacTelnet
             pkt[16] = (byte)(_clientType >> 8);  pkt[17] = (byte)(_clientType & 0xFF);
             pkt[18] = (byte)(ackCounter >> 24); pkt[19] = (byte)(ackCounter >> 16);
             pkt[20] = (byte)(ackCounter >> 8);  pkt[21] = (byte)(ackCounter & 0xFF);
-            _udp.Send(pkt, pkt.Length, _routerUnicastEp);
+            _udp.Send(pkt, pkt.Length, Dst);
 
             // Traced because a regressing ACK cannot be seen from the receive side alone - the router's
             // reaction (a retransmit burst) reads as router misbehaviour until you can see what we told
@@ -724,7 +1121,7 @@ namespace tik4net.MacTelnet
             pkt[16] = (byte)(_clientType >> 8);  pkt[17] = (byte)(_clientType & 0xFF);
             pkt[18] = (byte)(counter >> 24); pkt[19] = (byte)(counter >> 16);
             pkt[20] = (byte)(counter >> 8);  pkt[21] = (byte)(counter & 0xFF);
-            _udp.Send(pkt, pkt.Length, _routerUnicastEp);
+            _udp.Send(pkt, pkt.Length, Dst);
         }
 
         /// <summary>
@@ -798,6 +1195,13 @@ namespace tik4net.MacTelnet
             var (type, counter, payload, srcMac) = parsed.Value;
             if (srcMac.SequenceEqual(_localMac)) return false;  // skip own echo
 
+            // Latch only on OUR router's own packets. The socket is bound for broadcast, so on a segment
+            // with several MikroTiks it can see somebody else's session traffic; that must not become the
+            // address we send the rest of this session to. The check gates the latch only — which packets
+            // are ACCEPTED is left exactly as it was, since the handler below is what knows the session key.
+            if (srcMac.SequenceEqual(_routerMac))
+                LatchRouterUnicast(ep);
+
             // Counterpart of the Send emit above. Without it the trace shows only our half of
             // the conversation, so an exchange that goes wrong (a missing reply, a packet type
             // arriving where another was expected) is indistinguishable from one that never
@@ -806,7 +1210,8 @@ namespace tik4net.MacTelnet
             if (Diagnostics.TikWireTrace.Enabled)
                 Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Recv,
                     payload, 0, payload?.Length ?? 0,
-                    "type=0x" + type.ToString("x2") + " counter=" + counter + TraceTag);
+                    "type=0x" + type.ToString("x2") + " counter=" + counter
+                    + " from=" + ep + " srcMac=" + BitConverter.ToString(srcMac) + TraceTag);
 
             // payload is a non-nullable tuple element of ParsePacket's result; nullable state analysis loses
             // that through the Nullable<ValueTuple> deconstruction above, but it is never actually null here.
@@ -869,10 +1274,11 @@ namespace tik4net.MacTelnet
 
         // ── Network helpers ──────────────────────────────────────────────────────
 
-        private static byte[] GetLocalMac(string host)
+        private static byte[] GetLocalMac(string? host)
         {
             IPAddress? target = null;
-            try { target = IPAddress.Parse(host); } catch { }
+            if (!string.IsNullOrEmpty(host))
+                try { target = IPAddress.Parse(host!); } catch { }
 
             // Prefer NIC on same subnet as the router (avoids Hyper-V/VPN virtual adapters).
             if (target != null)
@@ -914,18 +1320,30 @@ namespace tik4net.MacTelnet
             return rand;
         }
 
-        private byte[] GetRouterMacAddress(string host)
+        private byte[] GetRouterMacAddress(string? host)
         {
             // RouterMacOverride is a MAC string "AA:BB:CC:DD:EE:FF" — parse directly (no MNDP).
             if (!string.IsNullOrEmpty(RouterMacOverride))
             {
                 // netstandard2.0's string.IsNullOrEmpty isn't annotated NotNullWhen, so the compiler can't narrow.
-                try { return RouterMacOverride!.Split(':').Select(s => Convert.ToByte(s, 16)).ToArray(); }
-                catch { /* malformed — fall through to MNDP */ }
+                if (TikRouterAddress.TryParseMac(RouterMacOverride!, out byte[]? parsed))
+                    return parsed!;
+
+                throw new InvalidOperationException(
+                    $"Router MAC address '{RouterMacOverride}' is not a MAC address. " +
+                    "The expected form is \"AA:BB:CC:DD:EE:FF\".");
             }
 
+            // Without a MAC there has to be a host to look one up BY: MNDP is asked which of the routers
+            // announcing themselves has that IP. A MAC-only session has no such question to ask, and
+            // falling back to "any MikroTik on the segment" would be a different router, not a default.
+            if (string.IsNullOrEmpty(host))
+                throw new InvalidOperationException(
+                    "A MAC-layer connection opened without a host address must be told which router to "
+                    + "talk to: set RouterMac, or create the setup with TikRouterAddress.FromMac(\"AA:BB:CC:DD:EE:FF\").");
+
             // MNDP discovery via the public core helper (waits up to 5 s).
-            byte[]? found = MndpHelper.FindMacByHost(host);
+            byte[]? found = MndpHelper.FindMacByHost(host!);
             if (found != null) return found;
 
             throw new InvalidOperationException(

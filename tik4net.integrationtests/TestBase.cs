@@ -300,10 +300,61 @@ namespace tik4net.integrationtests
         /// </summary>
         protected ITikConnection CreateUnopenedConnection()
         {
-            var conn = ConnectionFactory.CreateConnection(ResolveConnectionType());
-            ApplyLabPolicy(conn);
-            return conn;
+            var connType = ResolveConnectionType();
+            return LabSetup(connType).CreateUnopened(connType);
         }
+
+        /// <summary>
+        /// Where the lab router is, <b>for the transport under test</b>. The MAC-layer transports are
+        /// addressed by MAC alone, with no host at all — that is what they are for, and running the suite
+        /// over them any other way would leave the case they exist for untested.
+        /// </summary>
+        /// <remarks>
+        /// Passing the host as well would work and would be slightly faster (it names the local interface
+        /// instead of leaving it to be found), which is precisely why it must not be done here: every
+        /// mac* run would then exercise a path an IP-less router can never take.
+        /// </remarks>
+        public static TikRouterAddress LabAddress(TikConnectionType connectionType)
+        {
+            string host = ConfigurationManager.AppSettings["host"];
+            string mac = ConfigurationManager.AppSettings["routerMac"];
+
+            if (!IsMacLayer(connectionType))
+                return TikRouterAddress.FromHost(host);
+
+            if (string.IsNullOrEmpty(mac))
+                throw new InvalidOperationException(
+                    "The MAC-layer transports run without a host address, so App.config must carry "
+                    + "<add key='routerMac' value='AA:BB:CC:DD:EE:FF'/>.");
+
+            return TikRouterAddress.FromMac(mac);
+        }
+
+        /// <summary>
+        /// Whether a transport reaches the router over the MAC layer. Asked of the <b>type</b> rather than
+        /// of a connection object, because the address has to be chosen before one exists.
+        /// </summary>
+        private static bool IsMacLayer(TikConnectionType connectionType)
+            => connectionType == TikConnectionType.MacTelnet
+            || connectionType == TikConnectionType.WinboxCliMac
+            || connectionType == TikConnectionType.WinboxNativeMac;
+
+        /// <summary>
+        /// A <see cref="TikConnectionSetup"/> for the lab router carrying everything this suite's
+        /// connections need: the address for the transport, the credentials, and permission to accept the
+        /// CHR's self-signed certificate.
+        /// </summary>
+        public static TikConnectionSetup LabSetup(TikConnectionType connectionType)
+            => new TikConnectionSetup(
+                LabAddress(connectionType),
+                ConfigurationManager.AppSettings["user"],
+                ConfigurationManager.AppSettings["pass"] ?? "")
+            {
+                // Since 4.0 an invalid certificate is rejected by default and the CHR presents a
+                // self-signed one, so apissl/restssl only connect because this says so, out loud, in one
+                // place. A lab opts in; it does not inherit "encrypted but unauthenticated" from a default.
+                AllowInvalidCertificate = true,
+            };
 
         /// <summary>
         /// The two things every connection in this suite needs before it opens: the router MAC (MAC-layer
@@ -325,11 +376,8 @@ namespace tik4net.integrationtests
         /// <summary>Opens a brand-new connection to the router for the resolved transport, with retry.</summary>
         private ITikConnection OpenNewConnection(int retryTimeoutSeconds = 20)
         {
-            string host = ConfigurationManager.AppSettings["host"];
-            string user = ConfigurationManager.AppSettings["user"];
-            string pass = ConfigurationManager.AppSettings["pass"] ?? "";
-
             TikConnectionType connType = ResolveConnectionType();
+            var setup = LabSetup(connType);
 
             var deadline = DateTime.UtcNow.AddSeconds(retryTimeoutSeconds);
             Exception lastException;
@@ -337,9 +385,7 @@ namespace tik4net.integrationtests
             {
                 try
                 {
-                    var conn = ConnectionFactory.CreateConnection(connType);
-                    ApplyLabPolicy(conn);   // MAC coordinates + the lab's self-signed certificate
-                    conn.Open(host, user, pass);
+                    var conn = setup.Create(connType);
                     conn.DebugEnabled = true;
                     return conn;
                 }
@@ -350,7 +396,9 @@ namespace tik4net.integrationtests
                 }
             } while (DateTime.UtcNow < deadline);
 
-            throw new Exception($"Could not connect to router at {host} via {connType} within {retryTimeoutSeconds}s.", lastException);
+            throw new Exception(
+                $"Could not connect to router at {setup.Address} via {connType} within {retryTimeoutSeconds}s.",
+                lastException);
         }
 
         /// <summary>

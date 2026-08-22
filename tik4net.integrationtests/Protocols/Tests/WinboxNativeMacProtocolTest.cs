@@ -44,11 +44,14 @@ namespace tik4net.integrationtests
 
         private static WinboxNativeMacConnection OpenWinboxNativeMacConnection()
         {
-            var (host, user, pass) = Cfg();
-            var macAddr = ConfigurationManager.AppSettings["routerMac"]; // optional MNDP bypass
+            var (_, user, pass) = Cfg();
+            var macAddr = ConfigurationManager.AppSettings["routerMac"];
 
             var conn = new WinboxNativeMacConnection { RouterMac = macAddr };
-            conn.Open(host, user, pass);
+            // No host: these transports are for a router that has no IP address, so the suite must open
+            // them the way such a router is reached — by MAC alone. Passing the host would work and would
+            // be marginally faster, and would leave the case this transport exists for untested.
+            conn.Open("", user, pass);
             return conn;
         }
 

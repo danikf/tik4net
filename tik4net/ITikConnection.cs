@@ -172,7 +172,7 @@ namespace tik4net
         /// <summary>
         /// Opens connection to the specified mikrotik host on default port (depends on technology) and perform the logon operation.
         /// </summary>
-        /// <param name="host">The host.</param>
+        /// <param name="host">The host. On a MAC-layer connection (<see cref="ITikMacLayerConnection"/>) this may be empty — there the router is identified by its MAC address.</param>
         /// <param name="user">The user.</param>
         /// <param name="password">The password.</param>
         /// <seealso cref="Close"/>
@@ -186,7 +186,7 @@ namespace tik4net
         /// <summary>
         /// Opens connection to the specified mikrotik host on specified port and perform the logon operation.
         /// </summary>
-        /// <param name="host">The host (name or ip).</param>
+        /// <param name="host">The host (name or ip). On a MAC-layer connection (<see cref="ITikMacLayerConnection"/>) this may be empty — there the router is identified by its MAC address.</param>
         /// <param name="port">TCPIP port.</param>
         /// <param name="user">The user.</param>
         /// <param name="password">The password.</param>
@@ -203,7 +203,7 @@ namespace tik4net
         /// Awaitable version. Default timeout is <see cref="ReceiveTimeout"/>x2 or 5s if not set.
         /// REMARKS: don't forget to use Wait overload with timeout if you use it in OpenAsync(...).Wait(timeout) way.
         /// </summary>
-        /// <param name="host">The host.</param>
+        /// <param name="host">The host. On a MAC-layer connection (<see cref="ITikMacLayerConnection"/>) this may be empty — there the router is identified by its MAC address.</param>
         /// <param name="user">The user.</param>
         /// <param name="password">The password.</param>
         /// <seealso cref="Close"/>
@@ -218,7 +218,7 @@ namespace tik4net
         /// Opens connection to the specified mikrotik host on specified port and perform the logon operation.
         /// Awaitable version.
         /// </summary>
-        /// <param name="host">The host (name or ip).</param>
+        /// <param name="host">The host (name or ip). On a MAC-layer connection (<see cref="ITikMacLayerConnection"/>) this may be empty — there the router is identified by its MAC address.</param>
         /// <param name="port">TCPIP port.</param>
         /// <param name="user">The user.</param>
         /// <param name="password">The password.</param>

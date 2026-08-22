@@ -39,14 +39,16 @@ namespace tik4net.integrationtests
 
         private static WinboxCliMacConnection OpenWinboxCliMacConnection()
         {
-            var host    = ConfigurationManager.AppSettings["host"];
             var user    = ConfigurationManager.AppSettings["user"];
             var pass    = ConfigurationManager.AppSettings["pass"] ?? "";
-            var macAddr = ConfigurationManager.AppSettings["routerMac"]; // optional MNDP bypass
+            var macAddr = ConfigurationManager.AppSettings["routerMac"];
 
             var conn = new WinboxCliMacConnection { RouterMac = macAddr };
             conn.TransportDiagnostic = msg => Console.Write(msg);
-            conn.Open(host, user, pass);
+            // No host: these transports are for a router that has no IP address, so the suite must open
+            // them the way such a router is reached — by MAC alone. Passing the host would work and would
+            // be marginally faster, and would leave the case this transport exists for untested.
+            conn.Open("", user, pass);
             return conn;
         }
 

@@ -42,7 +42,7 @@ All transports share the same `ITikConnection` API and O/R mapper — pick one v
 | **Rest** / **RestSsl** | TCP 80 / 443 | REST API, RouterOS 7.1+ | `Crud`, `Listen`\*†, `AsyncCommands`‡, `CancelInFlight`‡ — stateless HTTP, so no streaming and no Safe Mode |
 | **Telnet** | TCP 23 | RouterOS CLI over plain-text Telnet | `Crud`, `Listen`\*, `SafeMode`, `RawCommand`, `AsyncCommands`‡ |
 | **Ssh** | TCP 22 | RouterOS CLI over an SSH shell (separate `tik4net.ssh` package) | `Crud`, `Listen`\*, `SafeMode`, `RawCommand`, `AsyncCommands`‡ |
-| **MacTelnet** | UDP 20561 | CLI over MAC-Telnet — reaches the router with **no IP route** | `Crud`, `Listen`\*, `SafeMode`, `RawCommand`, `AsyncCommands`‡ |
+| **MacTelnet** | UDP 20561 | CLI over MAC-Telnet — reaches a router with **no IP route, or no IP address at all** | `Crud`, `Listen`\*, `SafeMode`, `RawCommand`, `AsyncCommands`‡ |
 | **WinboxCli** / **WinboxCliMac** | TCP 8291 / UDP 20561 | CLI over the encrypted WinBox channel (EC-SRP5 + AES, no certificates) | `Crud`, `Listen`\*, `SafeMode`, `RawCommand`, `AsyncCommands`‡ |
 | **WinboxNative** / **WinboxNativeMac** | TCP 8291 / UDP 20561 | structured WinBox M2 CRUD, no terminal | `Crud`, `Listen`\*, `SafeMode`, `AsyncCommands`‡, `CancelInFlight`‡§ |
 
