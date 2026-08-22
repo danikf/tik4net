@@ -83,6 +83,9 @@ namespace tik4net.Winbox
                     // The port half of an address:port field is not a field of its own to the API.
                     if (f.UiType == WinboxFieldResolver.AddrPortUiType && f.MaskKey != 0)
                         consumedKeys.Add(f.MaskKey);
+                    // Nor is the download half of an upload/download pair.
+                    if (f.UiType == WinboxFieldResolver.PairUiType && f.MaskKey != 0)
+                        consumedKeys.Add(f.MaskKey);
                     if (f.OptKey != 0) consumedKeys.Add(f.OptKey);
                     if (f.NotKey != 0) consumedKeys.Add(f.NotKey);
                 }
@@ -214,6 +217,22 @@ namespace tik4net.Winbox
                             return addr + "/" + WinboxFieldResolver.MaskToPrefix(mt.Item2);
                         }
                         return addr;
+                    }
+                    case WinboxFieldResolver.PairUiType:
+                    {
+                        // One API field out of two M2 scalars (see WinboxFieldResolver.PairUiType). Each
+                        // half is formatted by ITS OWN typed field, which is what PairHalves carries: the
+                        // two halves of bucket-size are fixedpoints whose wire 100 is the API's 0.1, and
+                        // formatting the second with the first's rules would silently rescale it.
+                        if (jf.PairHalves == null) break;   // registered without halves — generic formatter
+                        var upField = jf.PairHalves.Item1;
+                        var downField = jf.PairHalves.Item2;
+
+                        string up = FormatTyped(upField, upField.WireType, value, rec, collectRefTables);
+                        string down = "0";
+                        if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var other) && other.Item2 != null)
+                            down = FormatTyped(downField, downField.WireType, other.Item2, rec, collectRefTables);
+                        return up + "/" + down;
                     }
                     case WinboxFieldResolver.AddrPortUiType:
                     {

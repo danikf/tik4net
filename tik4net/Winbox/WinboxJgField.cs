@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace tik4net.Winbox
@@ -70,6 +71,19 @@ namespace tik4net.Winbox
         /// u32 alongside the address u32 in <see cref="Key"/>. <c>0</c> when not a network field.
         /// </summary>
         internal int MaskKey { get; }
+
+        /// <summary>
+        /// The two halves — (upload, download) — of a field the API prints as one <c>upload/download</c>
+        /// pair, for the <see cref="WinboxFieldResolver.PairUiType"/> fields.
+        /// </summary>
+        /// <remarks>
+        /// Both halves are kept, not just the second one, because each is formatted by its OWN typed field:
+        /// the composite's own <see cref="UiType"/> is taken by the pairing, so it can no longer say what
+        /// its values are. The halves of <c>bucket-size</c> are fixedpoints whose wire 100 is the API's 0.1
+        /// — formatting either of them by anything but its own rules is wrong in a way that still looks
+        /// like a number.
+        /// </remarks>
+        internal Tuple<WinboxJgField, WinboxJgField>? PairHalves { get; }
 
         /// <summary>
         /// For <c>type:'network'</c> fields marked <c>range:1</c> in the <c>.jg</c> (e.g. a hotspot
@@ -272,8 +286,9 @@ namespace tik4net.Winbox
             string? paneKind = null, int paneSelectorKey = 0, int[]? paneValues = null, int offKey = 0,
             bool isOptional = false, string? elementUiType = null, int scale = 1,
             IReadOnlyList<WinboxJgElementPart>? elementParts = null, string? postfix = null,
-            string? elementSeparator = null)
+            string? elementSeparator = null, Tuple<WinboxJgField, WinboxJgField>? pairHalves = null)
         {
+            PairHalves = pairHalves;
             ElementSeparator = elementSeparator;
             Postfix = postfix;
             ElementParts = elementParts;

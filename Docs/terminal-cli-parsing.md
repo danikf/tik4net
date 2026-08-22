@@ -201,10 +201,23 @@ In tik4net the four paired rate fields of `/queue/simple` are mapped as `TikRate
 spellings and writes the plain one. The single-valued fields of `/queue/tree` stay plain `long`, because
 they never differ.
 
-One transport is out of this picture entirely: **WinboxNative has no `max-limit` field**. The M2 model
-splits every pair into two scalars — `upload-max-limit` and `download-max-limit` — and the resolver does
-not yet compose one API field from two native ones, so the property reads null there. That predates the
-typing and is a gap in our mapping, not in the router.
+WinboxNative arrives at the same answer by a different route: the M2 model has no `max-limit` at all,
+only `upload-max-limit` and `download-max-limit` as two separate scalars, so the resolver composes the
+API field out of both halves (`WinboxFieldResolver.PairUiType`). Six of the eight paired fields are
+composed — the four rates plus `priority` and `bucket-size`. The two that are not, and why:
+
+| Field | Halves decode as | The API says |
+|---|---|---|
+| `burst-time` | `10` / `20` | `10s/20s` — the `.jg` does not type the halves as intervals |
+| `queue` | `4294967294` / `4294967294` | `default-small/default-small` — needs the reference resolved |
+
+Pairing those without fixing the halves first would join two wrong values into one, so they still report
+their halves.
+
+**WinboxNative reads these fields but does not write them.** The write is accepted and the value on the
+router does not move — measured by writing `upload-max-limit` directly (no effect) beside `comment` on the
+same row through the same set (applied), so the write path is sound and these fields are being dropped.
+That is a gap in our mapping and predates the composition: writing either half was already silent.
 
 In tik4net this is why a duration field is mapped as `TikDuration` rather than as a string — see
 [ARCHITECTURE.md](../ARCHITECTURE.md#adding-an-entity).

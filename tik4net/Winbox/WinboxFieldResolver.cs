@@ -235,6 +235,13 @@ namespace tik4net.Winbox
             public readonly IReadOnlyDictionary<string, Tuple<string, string>>? DerivedBools;
 
             /// <summary>
+            /// API field → (upload half's <c>.jg</c> label, download half's label), for the fields RouterOS
+            /// prints as one <c>upload/download</c> pair where the M2 model has two separate scalars. See
+            /// <see cref="PairUiType"/>.
+            /// </summary>
+            public readonly IReadOnlyDictionary<string, Tuple<string, string>>? PairedFields;
+
+            /// <summary>
             /// Fields the ROUTER sends but no <c>.jg</c> window names, supplied here so the resolver can
             /// read, resolve and write them like any catalogued field. Keyed by API name.
             /// </summary>
@@ -251,15 +258,30 @@ namespace tik4net.Winbox
                 IReadOnlyDictionary<int, string>? keyToApi = null, IReadOnlyDictionary<int, string>? keyUiType = null,
                 IReadOnlyDictionary<string, string>? addrPortPairs = null,
                 IReadOnlyDictionary<string, Tuple<string, string>>? derivedBools = null,
-                IReadOnlyDictionary<string, WinboxJgField>? syntheticFields = null)
+                IReadOnlyDictionary<string, WinboxJgField>? syntheticFields = null,
+                IReadOnlyDictionary<string, Tuple<string, string>>? pairedFields = null)
             {
                 ApiToJg = apiToJg; JgToApi = jgToApi;
                 KeyToApi = keyToApi ?? new Dictionary<int, string>();
                 KeyUiType = keyUiType ?? new Dictionary<int, string>();
                 AddrPortPairs = addrPortPairs;
+                PairedFields = pairedFields;
                 DerivedBools = derivedBools;
                 SyntheticFields = syntheticFields;
             }
+        }
+
+        /// <summary>
+        /// A paired-field table: (API name, upload half's label, download half's label). Reads at the call
+        /// site the way the field reads on the wire.
+        /// </summary>
+        private static Dictionary<string, Tuple<string, string>> Pairs(
+            params (string api, string upload, string download)[] entries)
+        {
+            var result = new Dictionary<string, Tuple<string, string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var e in entries)
+                result[e.api] = Tuple.Create(e.upload, e.download);
+            return result;
         }
 
         private static Dictionary<string, string> Ci(params (string, string)[] pairs)
@@ -536,6 +558,29 @@ namespace tik4net.Winbox
                                ("mac-format", "radius-mac-format"),
                                ("rate-limit-(rx/tx)", "rate-limit"))),
 
+                // /queue/simple: RouterOS prints one field per rate where the M2 model keeps two — 'max-limit'
+                // is 'Target Upload / Max Limit' (0xD8) beside 'Target Download / Max Limit' (0x13C) in the
+                // window, and the API joins them as "1000000/2000000". Without the pairing, native reported
+                // upload-max-limit and download-max-limit and no max-limit at all, so the field simply did
+                // not exist on this transport.
+                //
+                // Six of the eight paired fields are here. The two that are not:
+                //   * burst-time — the halves decode as "10"/"20" where the API says "10s/20s"; the .jg does
+                //     not type them as intervals, so pairing them would join two wrong values into one.
+                //   * queue      — the halves are queue-type IDs (4294967294) where the API says
+                //     "default-small/default-small"; that needs the reference resolved first.
+                // Both are left reporting their halves rather than given a plausible-looking wrong answer.
+                ["/queue/simple"] = new FieldAliasSet(
+                    pairedFields: Pairs(
+                        ("max-limit", "upload-max-limit", "download-max-limit"),
+                        ("limit-at", "upload-limit-at", "download-limit-at"),
+                        ("burst-limit", "upload-burst-limit", "download-burst-limit"),
+                        ("burst-threshold", "upload-burst-threshold", "download-burst-threshold"),
+                        ("priority", "upload-priority", "download-priority"),
+                        ("bucket-size", "upload-bucket-size", "download-bucket-size")),
+                    apiToJg: Ci(),
+                    jgToApi: Ci()),
+
                 // /interface: the .jg 'type' field is the numeric type id (key 0x10001), but RouterOS API exposes
                 // 'type' as the type *name* string — which the record also carries at key 0x1001E (e.g. "ether",
                 // "loopback"). Map the string key to 'type' and rename the numeric one so they don't collide.
@@ -680,6 +725,11 @@ namespace tik4net.Winbox
 
             var contested = ContestedKeys();
             foreach (var kv in _overrides) Put(kv.Value, kv.Key);
+            // A paired field's composite name has to win over the upload half's own, and Put is first-wins,
+            // so it goes in before the catalog. Without this the joined value came out under the HALF's
+            // name — 'upload-max-limit = 1000000/2000000' — which is the right value answering to a name
+            // no other transport uses, and so still not the field the caller asked for.
+            foreach (var kv in PairedCompositeNames()) Put(kv.Key, kv.Value);
             // Shipped numeric key→apiName aliases for fields the .jg leaves unnamed (e.g. ping reply 'host' @0x1).
             var aliasSet = Aliases;
             if (aliasSet != null)
@@ -737,6 +787,7 @@ namespace tik4net.Winbox
                         map[kv.Key] = new WinboxJgField(nm ?? "", kv.Key, "u32", true, null, kv.Value);
                     }
             ApplyAddrPortPairs(map, aliasSet);
+            ApplyPairedFields(map, aliasSet);
             return map;
         }
 
@@ -754,6 +805,42 @@ namespace tik4net.Winbox
         /// </remarks>
         internal const string AddrPortUiType = "addrport";
 
+        /// <summary>
+        /// The synthetic UI type of a field RouterOS prints as one <c>upload/download</c> pair while the M2
+        /// model keeps two scalars — the <c>/queue/simple</c> rate fields. The download half's key rides in
+        /// <see cref="WinboxJgField.MaskKey"/>, both halves' typed fields in
+        /// <see cref="WinboxJgField.PairHalves"/>, and the codec consumes the key so the half does not also
+        /// surface as a field the API never reports.
+        /// </summary>
+        /// <remarks>
+        /// Shipped per path rather than derived: nothing in the <c>.jg</c> says 'Target Upload / Max Limit'
+        /// and 'Target Download / Max Limit' are one API field, any more than it says the queue-type
+        /// dropdowns beside them are.
+        /// <para>
+        /// The composite REPLACES the upload half's name rather than being added next to it. The halves are
+        /// WinBox labels, not RouterOS API names — no other transport reports an <c>upload-max-limit</c> —
+        /// and a row carrying all three would invite a write to the one the router does not take.
+        /// </para>
+        /// </remarks>
+        internal const string PairUiType = "pair";
+
+        private void ApplyPairedFields(Dictionary<int, WinboxJgField> map, FieldAliasSet? aliasSet)
+        {
+            if (aliasSet?.PairedFields == null) return;
+            var jg = JgFields;
+            if (jg == null) return;
+
+            foreach (var pair in aliasSet.PairedFields)
+            {
+                if (!jg.TryGetValue(pair.Value.Item1, out var upload)) continue;
+                if (!jg.TryGetValue(pair.Value.Item2, out var download)) continue;
+
+                map[upload.Key] = new WinboxJgField(pair.Key, upload.Key, upload.WireType, upload.ReadOnly,
+                    enumMap: upload.EnumMap, uiType: PairUiType, maskKey: download.Key,
+                    scale: upload.Scale, pairHalves: Tuple.Create(upload, download));
+            }
+        }
+
         private void ApplyAddrPortPairs(Dictionary<int, WinboxJgField> map, FieldAliasSet? aliasSet)
         {
             if (aliasSet?.AddrPortPairs == null) return;
@@ -766,6 +853,30 @@ namespace tik4net.Winbox
                 map[addr.Key] = new WinboxJgField(addr.ApiName, addr.Key, addr.WireType, addr.ReadOnly,
                     uiType: AddrPortUiType, maskKey: port.Key);
             }
+        }
+
+        /// <summary>
+        /// The upload half's key → the composite API name, for every paired field of this path.
+        /// </summary>
+        private IEnumerable<KeyValuePair<int, string>> PairedCompositeNames()
+        {
+            var paired = Aliases?.PairedFields;
+            var jg = JgFields;
+            if (paired == null || jg == null) yield break;
+
+            foreach (var pair in paired)
+                if (jg.TryGetValue(pair.Value.Item1, out var upload))
+                    yield return new KeyValuePair<int, string>(upload.Key, pair.Key);
+        }
+
+        /// <summary>
+        /// The two <c>.jg</c> labels a paired API field is made of, or <c>null</c> when the name is not one.
+        /// </summary>
+        private Tuple<string, string>? PairedHalfNames(string apiName)
+        {
+            var paired = Aliases?.PairedFields;
+            if (paired == null) return null;
+            return paired.TryGetValue(apiName, out var halves) ? halves : null;
         }
 
         // ── apiName → key (forward; for writes / filters) ──────────────────────
@@ -788,6 +899,10 @@ namespace tik4net.Winbox
                     return guiKey;
             }
 
+            // A paired field reaches this only from a FILTER or a .proplist, never from a write (EncodeField
+            // splits it first). Left failing on purpose: the composite spans two keys, so filtering on it
+            // would have to filter on one of them, and a filter that silently matches half a value is worse
+            // than one that says it cannot.
             throw new WinboxFieldResolutionException(
                 $"WinBox native: cannot resolve API field '{apiName}' on '{_apiPath}' to an M2 key. " +
                 $"Add a session field override (connection.FieldOverride(\"{_apiPath}\", \"{apiName}\", key)) " +
@@ -851,6 +966,29 @@ namespace tik4net.Winbox
             // Normalize a GUI-styled name to its canonical API name up front so both ResolveKey and the typed
             // .jg lookup below agree on it (otherwise a GUI label would resolve a key but miss its typed field).
             apiName = CanonicalInputName(apiName);
+
+            // A paired field has to be split BEFORE anything tries to resolve it: the composite is made of
+            // two M2 keys and has none of its own, so ResolveKey would (correctly) fail on it. Each half is
+            // then encoded BY ITS OWN NAME through this same method, so every typed encoder below applies
+            // to it unchanged — a hand-rolled pair encoder here would be a second place for scale, enums
+            // and read-only to be got wrong.
+            var halves = PairedHalfNames(apiName);
+            if (halves != null)
+            {
+                var paired = new List<byte[]>();
+                if (value.Length == 0) return paired;
+
+                int slash = value.IndexOf('/');
+                string up = slash < 0 ? value : value.Substring(0, slash);
+                // One side only means upload, download zero — the reading the router itself gives it
+                // (max-limit=1M reads back as 1000000/0).
+                string down = slash < 0 ? "0" : value.Substring(slash + 1);
+
+                paired.AddRange(EncodeField(halves.Item1, up, resolveRef, allowReadOnly));
+                paired.AddRange(EncodeField(halves.Item2, down, resolveRef, allowReadOnly));
+                return paired;
+            }
+
             int key = ResolveKey(apiName);
             var result = new List<byte[]>();
             // Set by the 'enm' case when a dropdown reference could not be resolved to a record; checked once
