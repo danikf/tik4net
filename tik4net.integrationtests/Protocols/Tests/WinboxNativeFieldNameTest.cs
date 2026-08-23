@@ -269,5 +269,37 @@ namespace tik4net.integrationtests
             }
             Assert.IsTrue(compared > 0, "no file was seen by both transports, so nothing was compared");
         }
+
+        /// <summary>
+        /// The generic Interface window declares no MAC Address — WinBox paints that box in the subtype
+        /// dialog beside it — so <c>/interface</c> had no name for <c>0x3E9</c> and dropped a field the
+        /// router sends on every row. Both menus are asserted: the subtype inherits the same alias set, and
+        /// a synthetic that shadowed the catalogued field would show up here.
+        /// </summary>
+        [TestMethod]
+        public void EveryInterfaceReportsItsMacAddress()
+        {
+            foreach (string path in new[] { "/interface", "/interface/ethernet" })
+            {
+                Dictionary<string, string> expected;
+                using (var api = OpenSideApi())
+                    expected = api.CreateCommand(path + "/print").ExecuteList()
+                        .ToDictionary(r => r.GetResponseField("name"),
+                                      r => r.GetResponseFieldOrDefault("mac-address", ""));
+
+                var rows = Connection.CreateCommand(path + "/print").ExecuteList()
+                    .ToDictionary(r => r.GetResponseField("name"),
+                                  r => r.GetResponseFieldOrDefault("mac-address", null));
+
+                int compared = 0;
+                foreach (var e in expected)
+                {
+                    if (!rows.TryGetValue(e.Key, out string actual)) continue;
+                    Assert.AreEqual(e.Value, actual, $"{path} '{e.Key}' mac-address");
+                    compared++;
+                }
+                Assert.IsTrue(compared > 0, $"no {path} row was seen by both transports");
+            }
+        }
     }
 }

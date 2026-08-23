@@ -855,6 +855,27 @@ namespace tik4net.Winbox
                         [0x100CB] = "rx-packets-per-second",    [0x100CD] = "tx-packets-per-second",
                         [0x100D5] = "fp-rx-bits-per-second",    [0x100D6] = "fp-tx-bits-per-second",
                         [0x100D7] = "fp-rx-packets-per-second", [0x100D8] = "fp-tx-packets-per-second",
+                    },
+                    // The generic Interface window declares no MAC Address at all — WinBox paints the box in
+                    // the SUBTYPE dialog beside it (the Ethernet tab of Interface > ether1), so /interface
+                    // had no name for the key and dropped a field the router sends on every single row.
+                    // Not a wire gap: a /interface getall carries 0x3E9=00155D041F03 next to the name.
+                    //
+                    // The pairing was CONFIRMED by moving the value, not by the three rows agreeing (ether1,
+                    // ether2 and lo all matched the API exactly, which is suggestive and proves nothing).
+                    // ether2 could not be moved — this is a CHR on Hyper-V, whose vSwitch refuses a spoofed
+                    // MAC, so RouterOS logs the set and goes on reporting the hardware address. A bridge has
+                    // its MAC entirely in software: admin-mac 02:00:00:AA:BB:01 -> …02 moved 0x3E9 with it,
+                    // and no key was left holding the old value. Of the four keys a bridge row carries that
+                    // value under, 0x3E9 is the only one present on an ether or on lo.
+                    //
+                    // Writable, as the subtype window declares it: /interface/ethernet inherits this set (see
+                    // Aliases) and a read-only synthetic would shadow its own MAC Address field and take the
+                    // write away.
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["mac-address"] = new WinboxJgField("mac-address", 0x3E9, "raw", false,
+                                                            uiType: "macaddr"),
                     }),
             };
 

@@ -1507,7 +1507,7 @@ at one of those keys keeps its own name for it.
 
 `WinboxNativePathMapAuditTest` passes a path when native reports at least HALF the API's field names, so
 everything between half and all of that vocabulary was invisible in a green tally. Counting it instead of
-thresholding it: **30 of 669 API field names (4%) are still not reported by native**, down from 111 before
+thresholding it: **29 of 669 API field names (4%) are still not reported by native**, down from 111 before
 the row-state keys, 82 before the pairings below and 35 before the scalar `union`/`tuple` shapes of §32.7. The report names the missing fields on the passing
 lines rather than only on the failing ones.
 
@@ -1575,6 +1575,20 @@ alias can reach them.
 
 **Declared, but the value lives in the children.** A named field whose value sits in `union`/`tuple`
 CHILDREN carries the label while the children carry the ids — five of them, now closed; see §32.7.
+
+**Declared, but by the SUBTYPE window beside the generic one.** The `Interface` map window on `[20,0]`
+declares no MAC Address at all — WinBox paints that box in the subtype dialog it merges alongside (the
+Ethernet tab of Interface > ether1), so `/interface` had no name for `0x3E9` and dropped a field the
+router puts in every row. Reading the catalog and reading the window came apart here precisely because
+the window the user sees is two windows. Closed with a synthetic field on `/interface`, which the
+subtypes inherit.
+
+The pairing was settled by MOVING the value, and the obvious way to move it does not work on this lab:
+a CHR's vSwitch refuses a spoofed MAC, so RouterOS logs `/interface/ethernet set … mac-address=…` and
+goes on reporting the hardware address — a write that reads as accepted and changes nothing. A bridge
+holds its MAC entirely in software, and stepping its `admin-mac` moved `0x3E9` with it, leaving no key
+on the old value. Of the four keys a bridge row carries the address under, `0x3E9` is the only one an
+ether or `lo` row has.
 
 **A second window on the same handler.** `/ip/upnp` `show-dummy-rule` is `b3` on the `item` window
 'UPnP Settings', and `[28,0]` also carries the `map` window 'UPnP' whose `b3` is 'Forced External IP'.
