@@ -1579,7 +1579,7 @@ What 62 seeded paths did to the numbers:
 | API field slots compared | 669 | 1349 |
 | names native does not report | 26 | 129 |
 | MISMATCH | 0 | 2 |
-| VALUE-DIFF | 0 | 13 → 5 |
+| VALUE-DIFF | 0 | 13 → 3 |
 
 So the audit's green tally rested on measuring half the tables. The fifteen defects it now names fall
 into families rather than being fifteen unrelated bugs:
@@ -1616,7 +1616,15 @@ into families rather than being fifteen unrelated bugs:
   plain `number` where the live 'OSPF Interface' window types the SAME key as an `interval`, and the
   API sides with the second. Typed per path rather than by preferring `interval` wherever two windows
   disagree — that rule would reach every such pair on the strength of one example.
-* **An enum member spelled differently.** `client-mac` → `mac-address`, `ipencap` → `ip-encap`.
+* **An enum member spelled differently** — **closed**. The field-name tables pair a BOX with a property;
+  this pairs the words inside one, and a member is only reachable through the label WinBox paints in its
+  dropdown. Where that label is a caption rather than the router's token, the value read back is a word
+  no other transport answers with — and a write of the router's word is refused. Renamed once, where the
+  field is built, so every reader and the write side see RouterOS's vocabulary.
+  Both entries came from the router's own tab completion, and each was checked against the WHOLE member
+  list rather than the one member the audit caught: of the 33 protocol names the catalog declares,
+  `ip-encap` is the only one RouterOS spells differently (`ipencap`); of the three lease identifiers TWO
+  are, and `option-82` → `opt-82` would have waited for a row nobody had made.
 * **Plurals and outright missing names.** `/ip/dhcp-server/network` reports `dhcp-options` for
   `dhcp-option` and `caps-managers` for `caps-manager`, and does not report `dns-server`,
   `ntp-server` or `wins-server` at all.

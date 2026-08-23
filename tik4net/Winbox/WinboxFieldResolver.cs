@@ -918,6 +918,58 @@ namespace tik4net.Winbox
             };
 
         /// <summary>
+        /// Enum MEMBERS whose <c>.jg</c> label is not the word RouterOS uses, keyed by the field's API name
+        /// and then by the member's normalized label.
+        /// </summary>
+        /// <remarks>
+        /// <para>The field-name tables above pair a BOX with a property; this pairs the words inside one.
+        /// A member is only reachable through the label WinBox paints in the dropdown, and where that label
+        /// is a caption rather than the router's own token the value read back is a word no other transport
+        /// answers with — and a write of the router's word is refused.</para>
+        /// <para>Keyed by field name rather than by path for the same reason as
+        /// <c>WinboxRecordCodec.ZeroSpelledAsWord</c>: these are RouterOS-wide vocabularies, and
+        /// <c>protocol</c> means the same 33 numbers on every firewall menu.</para>
+        /// <para>Both entries come from the router's own tab completion, and each was checked against the
+        /// WHOLE member list rather than against the one member the audit happened to catch: of the 33
+        /// protocol names the catalog declares, <c>ip-encap</c> is the only one RouterOS spells differently
+        /// (<c>ipencap</c>); of the three lease identifiers, TWO are — the audit saw
+        /// <c>mac-address</c>→<c>client-mac</c> because bits 0 and 1 were set, and
+        /// <c>option-82</c>→<c>opt-82</c> would have waited for a row nobody had made.</para>
+        /// </remarks>
+        private static readonly Dictionary<string, Dictionary<string, string>> EnumMemberAliases =
+            new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["protocol"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["ip-encap"] = "ipencap",
+                },
+                ["dynamic-lease-identifiers"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["mac-address"] = "client-mac",
+                    ["option-82"]   = "opt-82",
+                },
+            };
+
+        /// <summary>
+        /// <paramref name="members"/> with any member RouterOS spells differently renamed, or the map
+        /// itself when this field has none. Applied once, where the field is built, so every reader and the
+        /// write side all see the router's vocabulary and not WinBox's.
+        /// </summary>
+        internal static IReadOnlyDictionary<int, string>? AliasEnumMembers(
+            string apiName, IReadOnlyDictionary<int, string>? members)
+        {
+            if (members == null || !EnumMemberAliases.TryGetValue(apiName, out var table)) return members;
+            Dictionary<int, string>? renamed = null;
+            foreach (var kv in members)
+            {
+                if (!table.TryGetValue(kv.Value, out string? word) || word == null) continue;
+                renamed ??= new Dictionary<int, string>(members.ToDictionary(x => x.Key, x => x.Value));
+                renamed[kv.Key] = word;
+            }
+            return renamed ?? members;
+        }
+
+        /// <summary>
         /// The shipped alias set for this path, or the nearest ANCESTOR path's set when the path itself has
         /// none.
         /// </summary>

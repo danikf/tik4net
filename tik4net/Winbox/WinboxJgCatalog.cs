@@ -1212,6 +1212,9 @@ namespace tik4net.Winbox
             string? titleName = pane == null && title != null
                 ? WinboxFieldResolver.NormalizeLabel(title) : null;
             if (string.IsNullOrEmpty(titleName) || titleName == apiName) titleName = null;
+            // A member whose .jg label is a caption rather than the router's own token is renamed here, once,
+            // so every reader and the write side see RouterOS's vocabulary (see AliasEnumMembers).
+            enumMap = WinboxFieldResolver.AliasEnumMembers(apiName, enumMap);
             var field = new WinboxJgField(apiName, key, wireType, ro, enumMap, uiType, maskKey,
                 refHandler, optKey, notKey, isRange, allow, def,
                 pane?.Kind, pane?.SelectorKey ?? 0, pane?.Values, offKey, isOptional, elementUiType, scale,
