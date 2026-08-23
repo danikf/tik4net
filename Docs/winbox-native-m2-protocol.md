@@ -1695,11 +1695,22 @@ table. `comment` is deliberately not among them — it is a system key every pat
 measure one encoder everywhere and report broad coverage of nothing.
 
 Going from eighteen probes to sixty-one turned 0 findings into **9**, which is the answer to whether the
-first round's clean sheet meant anything: it meant eighteen fields were right. Seven are closed; the
-count now stands at **59 ok, 2 different, 0 refused**.
+first round's clean sheet meant anything: it meant eighteen fields were right. 
 
-Closed so far:
+All nine are closed. **61 ok, 0 different, 0 refused.**
 
+* **A write asked about a path with its VERB still on it.** `ApiPathOf` stripped the read verbs and
+  left the rest, so the singleton question was asked about `/ip/upnp/interfaces/set` — a path no alias
+  names. The per-PATH answer missed and the per-HANDLER fallback took over, and `[28,0]` hosts two
+  windows: the UPnP settings `item` and the interfaces `map`. The fallback said singleton, so the write
+  went out as a **set-singleton** — accepted with status 0, and the row never changed. Everything on
+  that handler READ correctly, which is why it survived until something wrote to it. The CRUD verbs are
+  stripped now too; an action path (`/system/script/run`) deliberately is not, since it has no parent
+  table and answering about its parent would describe a different window.
+* **A list's allow-mask lives on the ELEMENT.** wireguard's 'Allowed Address' is
+  `{multi,id:'M3f0',c:[{addr,allow:'46/'}]}`, and reading only the list node left the encoder with the
+  default mask — which has no `/`, so every write dropped the prefix and `10.99.2.0/24` landed as
+  `/32`. The third thing a list element turned out to own separately, after its scale and its ui type.
 * **A `group` that carries an id is an `opt` under another word** — and there are **97** of them in the
   7.24 catalog, every one a firewall or bridge-filter MATCH. `MAC Protocol` is
   `{group,id:'bcc',c:[{not,id:'bd',c:[{name:'MAC Protocol-Num',number,id:'u5',…}]}]}`: the group's bool
@@ -1732,11 +1743,6 @@ Closed so far:
   to every read-only check. A field readable in one spelling and writable only in another is worse than
   one that fails.
 
-Still open, all of them found by this audit and none of them visible to a read:
-
-* `/ip/upnp/interfaces` `type=external` — accepted with status 0 and the row does not change. Both
-  windows of `[28,0]` are on one handler (see §33.2b) and the set appears to reach the singleton's.
-* `/interface/wireguard/peers` `allowed-address=10.99.2.0/24` — the prefix length is lost, `/32` lands.
 
 
 **The first run reported two refusals and both were the harness's own fault**, which is worth recording

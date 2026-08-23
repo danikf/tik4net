@@ -1808,7 +1808,31 @@ namespace tik4net.WinboxNative
         {
             string p = TikPath.Normalize(commandText);
             string verb = TikPath.Verb(p);
-            return (verb == "print" || verb == "getall" || verb == "get") ? TikPath.Parent(p) : p;
+            // The CRUD verbs are stripped as well as the read ones. Only the read verbs were, so a write
+            // asked about "/ip/upnp/interfaces/set" — a path no alias names — the per-PATH answer missed and
+            // the per-HANDLER fallback took over. [28,0] hosts two windows, the UPnP settings `item` and the
+            // interfaces `map`, so the fallback said singleton and the write went out as a SET-SINGLETON:
+            // accepted with status 0, and the row never changed. Everything else on that handler read
+            // correctly, which is why it survived until something wrote to it.
+            //
+            // Deliberately not a blanket strip: an ACTION path (/system/script/run) is the whole path and
+            // has no parent table, and answering about its parent would describe a different window.
+            switch (verb)
+            {
+                case "print":
+                case "getall":
+                case "get":
+                case "set":
+                case "add":
+                case "remove":
+                case "unset":
+                case "enable":
+                case "disable":
+                case "move":
+                    return TikPath.Parent(p);
+                default:
+                    return p;
+            }
         }
     }
 }

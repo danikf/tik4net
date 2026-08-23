@@ -1056,7 +1056,12 @@ namespace tik4net.Winbox
                             && DecodeId(mks) is var md && md != null) ? md.Value.key : 0;
                         int[]? refHandler = ExtractRefHandler(dict);
                         bool isRange = dict.TryGetValue("range", out var rgv) && rgv is int rgi && rgi != 0;
-                        string? allow = dict.TryGetValue("allow", out var alv) ? alv as string : null;
+                        // A LIST's allow-mask lives on the element, not on the list node: wireguard's
+                        // 'Allowed Address' is {multi,id:'M3f0',c:[{addr,allow:'46/'}]}, and reading only the
+                        // node left the encoder with the default mask — which has no '/', so every write
+                        // dropped the prefix length and 10.99.2.0/24 landed as /32.
+                        string? allow = (dict.TryGetValue("allow", out var alv) ? alv as string : null)
+                                        ?? ElementAllowOf(dict);
                         // A list field carries its own present-flag on the node (`optid`) rather than in an
                         // enclosing opt wrapper, and webfig writes it from the list's LENGTH
                         // (types.multi.put: obj[optid] = val.length>0). Same meaning as OptKey, same
@@ -1417,6 +1422,13 @@ namespace tik4net.Winbox
             return new WinboxJgElementPart(dec.Value.key, ty!, DecodedKeyOf(node, "maskid"),
                 enumMap: ExtractEnumMap(node), refHandler: ExtractRefHandler(node),
                 radix: RadixOf(node));
+        }
+
+        // The `allow` mask of a LIST's element — see the call site.
+        private static string? ElementAllowOf(Dictionary<string, object> dict)
+        {
+            var child = ElementChild(dict, out _);
+            return child != null && child.TryGetValue("allow", out var av) ? av as string : null;
         }
 
         // The `scale` of a LIST's element, which is not the field's own — see WinboxJgField.ElementScale.
