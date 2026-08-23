@@ -509,9 +509,20 @@ namespace tik4net.Winbox
                     apiToJg: Ci(("store-leases-disk", "store-leases-on-disk")),
                     jgToApi: Ci(("store-leases-on-disk", "store-leases-disk"))),
 
+                // /ip/dns: 'mDNS Repeater Interfaces' is the API's mdns-repeat-ifaces. Both read empty on a
+                // stock router, so the audit could not propose it; settled by setting it to ether2 and
+                // watching that name carry the value on native.
                 ["/ip/dns"] = new FieldAliasSet(
-                    apiToJg: Ci(("verify-doh-cert", "verify-doh-certificate")),
-                    jgToApi: Ci(("verify-doh-certificate", "verify-doh-cert"))),
+                    apiToJg: Ci(("verify-doh-cert", "verify-doh-certificate"),
+                                ("mdns-repeat-ifaces", "mdns-repeater-interfaces")),
+                    jgToApi: Ci(("verify-doh-certificate", "verify-doh-cert"),
+                                ("mdns-repeater-interfaces", "mdns-repeat-ifaces"))),
+
+                // /snmp: WinBox paints 'Contact Info' beside the box the API calls contact. Empty on a stock
+                // router; settled by writing a distinctive string and reading it back under that name.
+                ["/snmp"] = new FieldAliasSet(
+                    apiToJg: Ci(("contact", "contact-info")),
+                    jgToApi: Ci(("contact-info", "contact"))),
 
                 ["/ip/service"] = new FieldAliasSet(
                     apiToJg: Ci(("proto", "protocol")),

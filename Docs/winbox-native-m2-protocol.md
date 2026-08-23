@@ -1429,7 +1429,7 @@ at one of those keys keeps its own name for it.
 
 `WinboxNativePathMapAuditTest` passes a path when native reports at least HALF the API's field names, so
 everything between half and all of that vocabulary was invisible in a green tally. Counting it instead of
-thresholding it: **37 of 669 API field names (5%) are still not reported by native**, down from 111 before
+thresholding it: **35 of 669 API field names (5%) are still not reported by native**, down from 111 before
 the row-state keys and 82 before the pairings below. The report names the missing fields on the passing
 lines rather than only on the failing ones.
 
@@ -1459,7 +1459,9 @@ That is a lead, never a licence, and the report says which is which by showing e
   the window declares both names on `u5` — and it is the catalog that says so, not the reading.
 * A field that is empty on every row cannot be proposed at all: two blanks agree vacuously, and so would
   every other blank on the row. `/user`'s `address` is one, and needed a user created with an allowed
-  address to settle.
+  address to settle. `/snmp`'s `contact` ('Contact Info') and `/ip/dns`'s `mdns-repeat-ifaces` ('mDNS
+  Repeater Interfaces') are two more, and are why a blank field is worth a WRITE before it is written off:
+  the label is sitting in the catalog in plain sight, and only the empty value hid it.
 
 ### 33.3 What a WinBox label is not
 

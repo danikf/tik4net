@@ -1,4 +1,4 @@
-// WinboxNativeFieldNameTest.cs — a handful of fields RouterOS names differently from the WinBox window.
+﻿// WinboxNativeFieldNameTest.cs — a handful of fields RouterOS names differently from the WinBox window.
 //
 // The path-map audit measures the whole vocabulary at once, but it is [Ignore]d and runs by hand. These are
 // the individual pairings that were established by MOVING the value, kept as tests so a change to the alias
@@ -47,6 +47,28 @@ namespace tik4net.integrationtests
             string actual = Single(Connection, path, detail).GetResponseFieldOrDefault(field, null);
             Assert.IsNotNull(actual, $"{path} must report '{field}' — the name RouterOS uses, not the window's");
             Assert.AreEqual(expected, actual, $"{path} {field}");
+        }
+
+        /// <summary>
+        /// Same assertion for a field that is EMPTY on a stock router. A blank cannot establish a pairing —
+        /// two blanks agree vacuously — and native does not report an unset field at all, so the value has
+        /// to be put there first and taken away again.
+        /// </summary>
+        private void AssertAgreesWithApiWhileSet(string path, string field, string probeValue)
+        {
+            using (var api = OpenSideApi())
+            {
+                string original = Single(api, path).GetResponseFieldOrDefault(field, "");
+                api.CreateCommandAndParameters(path + "/set", field, probeValue).ExecuteNonQuery();
+                try
+                {
+                    AssertAgreesWithApi(path, field);
+                }
+                finally
+                {
+                    api.CreateCommandAndParameters(path + "/set", field, original).ExecuteNonQuery();
+                }
+            }
         }
 
         /// <summary>WinBox calls it 'IP Address'; the API calls it <c>address</c> on both menus.</summary>
@@ -102,5 +124,18 @@ namespace tik4net.integrationtests
             Assert.IsFalse(row.TryGetResponseField("old-cache-path", out _),
                 "and not the disused label as well");
         }
+
+        /// <summary>WinBox paints 'Contact Info' beside the box the API calls <c>contact</c>.</summary>
+        [TestMethod]
+        public void TheSnmpContactIsReportedUnderTheApiName()
+            => AssertAgreesWithApiWhileSet("/snmp", "contact", "tik4net-field-name-test");
+
+        /// <summary>
+        /// 'mDNS Repeater Interfaces' is <c>mdns-repeat-ifaces</c> — an abbreviation of the label rather
+        /// than a spelling of it, so nothing derives it and it is an alias.
+        /// </summary>
+        [TestMethod]
+        public void TheMdnsRepeaterInterfaceListIsReportedUnderTheApiName()
+            => AssertAgreesWithApiWhileSet("/ip/dns", "mdns-repeat-ifaces", "ether2");
     }
 }
