@@ -42,6 +42,17 @@ namespace tik4net.integrationtests
         /// <summary>Paths this run actually put a row into — the audit marks their lines as seeded.</summary>
         internal HashSet<string> SeededPaths { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// The <c>.id</c> of the row this run created on a path, or null. The write audit writes to THESE
+        /// and to nothing else — a row the suite made and will delete is the only thing it may disturb.
+        /// </summary>
+        internal string CreatedIdOn(string path)
+        {
+            foreach (var kv in _created)
+                if (string.Equals(kv.Key, path, StringComparison.OrdinalIgnoreCase)) return kv.Value;
+            return null;
+        }
+
         // ── the recipes ───────────────────────────────────────────────────────
         // Ordered by dependency: a bridge before its port, a pool before the DHCP server handing it out.
         // Removal walks the list backwards for the same reason.

@@ -1668,9 +1668,39 @@ green means is worth stating precisely, because it means more than the old one d
 compared across 154 paths with a row in every table that can be written without hardware, where the
 tally before seeding rested on 669 slots and 61 populated paths.
 
-Two things it still does not measure, and neither is a spelling: the ~32 paths whose tables are pure
-router STATE and cannot be seeded at all (`/ip/firewall/connection`, `/ppp/active`, the registration
-tables, `/ip/ipsec/installed-sa`), and every WRITE — the whole audit is a read.
+One thing it still does not measure: the ~32 paths whose tables are pure router STATE and cannot be
+seeded at all (`/ip/firewall/connection`, `/ppp/active`, the registration tables,
+`/ip/ipsec/installed-sa`).
+
+### 33.2d The other direction
+
+Everything above is a READ, so a mapping that names the wrong key was measured only where it misleads
+and never where it does damage: a wrong read reports a wrong value, a wrong WRITE changes the wrong
+setting on the router.
+
+`WinboxNativeWriteAudit` rides on the fixtures for one reason — every write goes to a row this suite
+created and will delete, so a probe that goes wrong cannot touch the router's own configuration.
+
+The measurement is **differential**, which is what makes it possible at all. Comparing a written value
+against a literal would require knowing how RouterOS normalises every field, and that is exactly the
+knowledge such a test would get wrong (`10.99.0.79` comes back `10.99.0.79/32`; `yes` comes back
+`true`). Instead, per field: write the probe over native and read the row back over the API, then write
+the SAME probe over the API and read it back the same way. Both readings are the API's own print of the
+same requested change, so whatever the router does to the value happens to both, and the only question
+left is the one worth asking — did the native write land what an API write lands?
+
+Eighteen probes so far, one per seeded path, chosen for the TYPE each exercises rather than for
+importance: strings, numbers, bools, enums, addresses, a prefix, durations, a list, a reference to
+another table. `comment` is deliberately not among them — it is a system key every path shares, so it
+would measure one encoder everywhere and report broad coverage of nothing.
+
+**The first run reported two refusals and both were the harness's own fault**, which is worth recording
+because it is the shape of mistake this kind of test invites. The probe restored the field to its
+original between the two writes, and where the original is an unset field that restore is `log=""`,
+which RouterOS refuses — thrown by the API call and reported against the native transport standing next
+to it in the same `try`. Nothing needed restoring in the middle at all: `set field=value` is absolute,
+so whatever the native write leaves behind, the API write that follows lands the same thing either way.
+With the order corrected: 18 ok, 0 different, 0 refused.
 
 ### 33.2b What is left, checked against the window itself
 

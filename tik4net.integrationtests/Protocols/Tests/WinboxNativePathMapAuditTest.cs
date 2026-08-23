@@ -352,6 +352,7 @@ namespace tik4net.integrationtests
             int apiFieldSlots = 0, notReported = 0;
 
             var fixtures = default(WinboxNativeAuditFixtures);
+            var write = default(WinboxNativeWriteAudit);
             using (var api = Open(TikConnectionType.Api))
             {
             // Half the audited paths are empty on a stock router and are compared 0 rows against 0 rows —
@@ -437,7 +438,12 @@ namespace tik4net.integrationtests
                     // A tally that only ever grows stops meaning anything (the lesson A12's enum list was
                     // built on). An excused field that now AGREES must leave the exception list in the same
                     // change, or the remaining reasons stop describing what is actually still broken.
-                    foreach (string f in excusedButAgreeing) staleGaps.Add(path + " " + f);
+                    // An excuse that is no longer needed must go — that is what this check is for. But a
+                    // field excused for VOLATILITY is never "fixed": the DNS cache's ttl is a live
+                    // countdown and two reads land in the same second often enough to look settled. Making
+                    // the run fail on that would teach the next person to delete a true excuse.
+                    foreach (string f in excusedButAgreeing)
+                        if (!VolatileRowCounts.ContainsKey(path)) staleGaps.Add(path + " " + f);
 
                     if (valueDiffs.Count == 0)
                     {
@@ -476,6 +482,12 @@ namespace tik4net.integrationtests
                                    + (valueDiffs.Count > 8 ? $" (+{valueDiffs.Count - 8} more)" : ""));
                     }
                 }
+
+                // …and the other direction, on the rows this run created and will delete. Everything above
+                // is a READ, so a mapping that names the wrong key is measured only where it misleads and
+                // never where it does damage.
+                write = new WinboxNativeWriteAudit(api, native);
+                write.Run(fixtures);
             }
             }
             finally
@@ -485,6 +497,16 @@ namespace tik4net.integrationtests
             }
 
             report.Add("");
+            if (write != null)
+            {
+                foreach (var w in write.Results)
+                    report.Add($"WRITE-{w.Outcome.ToString().ToUpperInvariant(),-12} {w.Path}	{w.Detail}");
+                report.Add($"WRITES ok={write.Count(WinboxNativeWriteAudit.Outcome.Ok)}"
+                           + $"  different={write.Count(WinboxNativeWriteAudit.Outcome.Different)}"
+                           + $"  refused={write.Count(WinboxNativeWriteAudit.Outcome.Refused)}"
+                           + $"  not-probeable={write.Count(WinboxNativeWriteAudit.Outcome.NotProbeable)}");
+                report.Add("");
+            }
             report.Add($"SEEDED {fixtures.SeededPaths.Count} paths that are empty on a stock router");
             foreach (string s2 in fixtures.Skipped) report.Add($"  seed-skipped {s2}");
             foreach (string s2 in fixtures.Leaked) report.Add($"  SEED NOT REMOVED {s2}");
@@ -512,6 +534,13 @@ namespace tik4net.integrationtests
             Assert.AreEqual(0, mismatched, "paths where WinBox-native disagrees with the API — see the report");
             Assert.AreEqual(0, valueMismatched,
                 "paths that read the right window but decode a value the API spells differently — see the report");
+            if (write != null)
+            {
+                Assert.AreEqual(0, write.Count(WinboxNativeWriteAudit.Outcome.Different),
+                    "fields a WinBox-native write lands differently from an API write — see the report");
+                Assert.AreEqual(0, write.Count(WinboxNativeWriteAudit.Outcome.Refused),
+                    "fields WinBox-native refused to write that the API wrote — see the report");
+            }
             Assert.AreEqual(0, fixtures.Leaked.Count,
                 "fixture rows this run could not remove — the router is holding residue: "
                 + string.Join("; ", fixtures.Leaked));
