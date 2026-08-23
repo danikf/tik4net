@@ -14,11 +14,14 @@ namespace tik4net.integrationtests
             // /routing/bgp/advertisements is a read-only, per-peer dynamic query (RouterOS computes it
             // on print). WinBox does not expose it as a window/handler — see
             // WinboxHandlerMap.NoWinboxWindow for what it offers instead — so the native M2 transport has
-            // no handler to derive. It works fine over API and CLI transports.
-            SkipOnWinboxNativeUnmappedPath("/routing/bgp/advertisements");
-
-            var list = Connection.LoadAll<BgpAdvertisements>();
-            Assert.IsNotNull(list);
+            // no handler to derive. It works fine over API and CLI transports. The skip waits for that
+            // refusal rather than naming the transport, so it lifts by itself if a handler ever appears;
+            // BgpAdvertisementsOverWinboxNativeSaysThereIsNoWindow below pins the refusal itself.
+            SkipIfWinboxNativeCannot("/routing/bgp/advertisements", () =>
+            {
+                var list = Connection.LoadAll<BgpAdvertisements>();
+                Assert.IsNotNull(list);
+            });
         }
 
         /// <summary>

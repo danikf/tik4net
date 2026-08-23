@@ -128,7 +128,7 @@ namespace tik4net.integrationtests
             command.ExecuteSingleRow();
         }
 
-        [Ignore]
+        [Ignore("REBOOTS the router — cannot run inside a suite pass. Run by hand.")]
         [TestMethod]
         public void AsyncExecuteClosed_AfterReboot_AndNextCommandThrowsException()
         {
@@ -153,7 +153,7 @@ namespace tik4net.integrationtests
             catch (TikCommandFatalException) { /* expected: read from dead socket → synthetic !fatal */ }
         }
 
-        [Ignore]
+        [Ignore("REBOOTS the router — cannot run inside a suite pass. Run by hand.")]
         [TestMethod]
         [ExpectedException(typeof(TikCommandException))]
         public void AsyncExecuteWithDurationExecuteThrowsException_AfterReboot()
@@ -178,7 +178,7 @@ namespace tik4net.integrationtests
             }
         }
 
-        [Ignore]
+        [Ignore("REBOOTS the router — cannot run inside a suite pass. Run by hand.")]
         [TestMethod]
         public void AsyncExecuteWithDurationExecuteReturnsCorrectReason_AfterReboot()
         {

@@ -1,4 +1,4 @@
-// WinboxDumpCatalogTest.cs — Phase B: download all /home/web/webfig/ files to disk
+﻿// WinboxDumpCatalogTest.cs — Phase B: download all /home/web/webfig/ files to disk
 // Run manually from Test Explorer when a live router is reachable.
 // Output goes to the App.config "catalogDumpDir" directory (default .\.tik4net).
 
@@ -23,7 +23,7 @@ namespace tik4net.integrationtests
         private static string ResolvePath(string path) =>
             Path.GetFullPath(Environment.ExpandEnvironmentVariables(path));
 
-        [Ignore]
+        [Ignore("Catalog dump harness — writes the router's webfig/.jg files to disk. Run by hand.")]
         [TestMethod]
         public void DumpAllWebfigFiles()
         {

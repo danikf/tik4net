@@ -335,7 +335,8 @@ namespace tik4net.integrationtests
                    pairings.OrderBy(kv => kv.Key, StringComparer.Ordinal)
                            .Select(kv => kv.Key + "?=" + string.Join("|", kv.Value)));
 
-        [Ignore]
+        [Ignore("The full native-vs-API audit: minutes long, seeds and removes 62 rows on the router. "
+            + "Comment the attribute out to run it — --filter alone will not, see the file header.")]
         [TestMethod]
         public void AuditPathMapAgainstApi()
         {

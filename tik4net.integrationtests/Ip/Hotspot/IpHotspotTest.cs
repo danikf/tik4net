@@ -66,7 +66,7 @@ namespace tik4net.integrationtests
             Connection.Delete(user);
         }
 
-        [Ignore] //DAF: potentionaly harmfull test
+        [Ignore("Deletes every hotspot user/profile on the router — destructive. Run by hand.")]
         [TestMethod]
         public void DeleteAllUsersWillNotFail()
         {
@@ -96,7 +96,7 @@ namespace tik4net.integrationtests
             Connection.Delete(profile);
         }
 
-        [Ignore] //DAF: potentionaly harmfull test
+        [Ignore("Deletes every hotspot user/profile on the router — destructive. Run by hand.")]
         [TestMethod]
         public void DeleteAllUserProfilesWillNotFail()
         {

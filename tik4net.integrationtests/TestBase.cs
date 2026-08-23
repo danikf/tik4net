@@ -550,24 +550,6 @@ namespace tik4net.integrationtests
         private static bool IsWinboxNativeUnmappedPath(Exception ex) => ex is TikPathNotMappedException;
 
         /// <summary>
-        /// Marks the test as inconclusive (skipped) only on the native WinBox M2 transport, for an
-        /// API path that WinBox itself does not expose as a structured handler. Native CRUD is driven
-        /// by the version-matched WinBox <c>.jg</c> catalog (path → handler array); a path absent from
-        /// every WinBox window cannot be derived and has no numeric handler to call. Unlike the CLI
-        /// family (Telnet/SSH/WinBox-CLI), which runs the textual command and is unaffected, only the
-        /// native M2 transport needs the handler mapping.
-        /// </summary>
-        /// <param name="feature">API path / feature shown in the skip message.</param>
-        protected void SkipOnWinboxNativeUnmappedPath(string feature)
-        {
-            var t = ResolveConnectionType();
-            if (t == TikConnectionType.WinboxNative || t == TikConnectionType.WinboxNativeMac)
-                Assert.Inconclusive(
-                    $"'{feature}' is not exposed by WinBox as an M2 handler (absent from the .jg catalog), " +
-                    "so the native WinBox transport cannot reach it — use the API or a CLI transport. Test skipped.");
-        }
-
-        /// <summary>
         /// Marks the test as Inconclusive on the CLI-family transports, which drive a single request/reply
         /// terminal and therefore serialize commands by design.
         /// </summary>

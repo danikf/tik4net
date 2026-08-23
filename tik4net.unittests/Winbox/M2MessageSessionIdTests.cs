@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Winbox;
 
@@ -82,6 +82,53 @@ namespace tik4net.unittests.Winbox
             Assert.ThrowsException<InvalidOperationException>(
                 () => M2Message.ParseSessionId(new byte[] { (byte)'X', (byte)'9', 0, 0 }));
             Assert.AreEqual(42, M2Message.ParseSessionId(M2Message.BuildM2(M2Message.SessionIdField(42))));
+        }
+
+        /// <summary>
+        /// A refused mepty Login answers with an error rather than a SESSION_ID, and that answer is the only
+        /// evidence of WHY — it is gone the moment the exception is built. Reporting nothing but the absence
+        /// of the field we wanted makes a router-side refusal look identical to a client-side bug, which is
+        /// what left one such failure in a suite run undiagnosable.
+        /// </summary>
+        [TestMethod]
+        public void ParseSessionId_ReportsWhatTheRouterSaid()
+        {
+            byte[] refused = M2Message.BuildM2(
+                M2Message.SysToArr(WinboxM2Protocol.Mepty.Handler),
+                M2Message.U32Sys(WinboxM2Protocol.SysKey.ErrorCode, 5),
+                M2Message.StringSys(WinboxM2Protocol.SysKey.ErrorString, "not enough resources"));
+
+            var ex = Assert.ThrowsException<InvalidOperationException>(() => M2Message.ParseSessionId(refused));
+
+            StringAssert.Contains(ex.Message, "not enough resources");
+            StringAssert.Contains(ex.Message, "0x5");
+        }
+
+        /// <summary>An error code with no message must still be quoted — the number alone separates a session
+        /// cap from a rejected terminal size.</summary>
+        [TestMethod]
+        public void ParseSessionId_ReportsBareErrorCode()
+        {
+            byte[] refused = M2Message.BuildM2(
+                M2Message.SysToArr(WinboxM2Protocol.Mepty.Handler),
+                M2Message.U32Sys(WinboxM2Protocol.SysKey.ErrorCode, 0x1F));
+
+            var ex = Assert.ThrowsException<InvalidOperationException>(() => M2Message.ParseSessionId(refused));
+
+            StringAssert.Contains(ex.Message, "0x1F");
+        }
+
+        /// <summary>A reply that says nothing at all falls back to the whole message, so the frame that did
+        /// arrive is still on record.</summary>
+        [TestMethod]
+        public void ParseSessionId_FallsBackToTheWholeReply()
+        {
+            byte[] silent = M2Message.BuildM2(
+                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Mepty.Data));
+
+            var ex = Assert.ThrowsException<InvalidOperationException>(() => M2Message.ParseSessionId(silent));
+
+            StringAssert.Contains(ex.Message, "M2[");
         }
     }
 }

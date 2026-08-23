@@ -1,4 +1,4 @@
-# tik4net — Protocol Coverage Overview
+﻿# tik4net — Protocol Coverage Overview
 
 > A summary view across all of MikroTik's communication protocols and the `TikConnectionCapability`
 > flags each transport declares. The authoritative source is the code — specifically
@@ -438,8 +438,10 @@ them still fails the run.
 | `/system/ntp/client` | `system-offset` | whole milliseconds on the wire, fractions over the API (`-23` vs `-23.622`), and it drifts constantly; `freq-drift` agrees exactly |
 | `/interface/ethernet` | `auto-negotiation` | WinBox's field is the LINK's live state (`not-available` on a CHR's virtual NIC), the API's is the SETTING (`true`) — two fields, one label |
 
-Last run on RouterOS 7.24: `OK=154 KNOWN-GAP=1 MISMATCH=0 VALUE-DIFF=0 UNMAPPED=0 ROUTER-N/A=7`, and
-`FIELD-NAMES not reported by native: 37/669 (5%)`.
+Last run on RouterOS 7.24: `OK=154 KNOWN-GAP=1 MISMATCH=0 VALUE-DIFF=0 VALUES-UNCOMPARED=1 UNMAPPED=0
+ROUTER-N/A=7`, and `FIELD-NAMES not reported by native: 121/1351 (8%)`. The vocabulary the run measures
+against is the one 62 seeded rows expose, which is why both halves of that fraction grew when the
+fixtures did — an empty table has no fields to disagree about.
 
 That second number is not an assertion — it is the shortfall the pass/fail check cannot see, because the
 name check passes a path at half the API's vocabulary. It is reported so a green run cannot hide it.
@@ -449,11 +451,22 @@ field carrying the same value on every row (`api-name?=winbox-name`). A proposal
 usually the pairing; a proposal on a bool or a zero is a coincidence and has to be settled by writing a
 value. See [winbox-native-m2-protocol.md §33.1–33.4](winbox-native-m2-protocol.md).
 
-### Two further limits, only one of them the router's
+### Writes are audited the same way
 
-`add` of an interface SUBTYPE is refused by the router itself (`0xFE0006 'unsupported device type'`)
-— a real protocol limit, and the suite skips only where the router actually refuses
-(`TestBase.SkipIfWinboxNativeCannot`), never on an assumption.
+`set`, `add` and `remove` are measured against the API by the same differential (§33.2d of
+[winbox-native-m2-protocol.md](winbox-native-m2-protocol.md)): the same row is made over each transport
+and only the fields the recipe set are compared. Last run: `WRITES ok=105 different=0 refused=0
+not-probeable=18`. A refusal counts as a finding only when the API's identical write succeeds — a table
+already holding the fixture row refuses BOTH transports, and that is the router talking about the row,
+not about native.
+
+This matters because a read audit cannot see an empty field: a value never written is a value neither
+side can disagree about. Two of the defects the write half found were read bugs as well.
+
+The `not-probeable` residue is those already-occupied tables, where the probe cannot vary the field the
+row keys on.
+
+### One remaining limit, and it is ours
 
 Every list shape the live catalog declares now encodes, bar the six in
 [winbox-native-m2-protocol.md §32.4](winbox-native-m2-protocol.md) — four of them read-only, one of them

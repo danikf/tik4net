@@ -1,4 +1,4 @@
----
+﻿---
 name: mikrotik-tests
 description: >
   Skill for working with tik4net integration tests against a live MikroTik router.
@@ -33,19 +33,24 @@ optimization that skips MNDP.
 
 One `*.runsettings` file per transport sets `tik.connectionType`; the suite is run once per transport.
 
-| Runsettings | Protocol | Port | Approximate skips (of ~415) |
-|---|---|---|---|
-| `api` / `apissl` | binary API, plain / TLS | 8728 / 8729 | 60 |
-| `rest` / `restssl` | REST HTTP / HTTPS | 80 / 443 | 90 |
-| `telnet` | CLI | 23 | 77 |
-| `ssh` | CLI over SSH | 22 | 77 |
-| `mactelnet` | CLI over MAC layer | 20561 | 77 |
-| `winboxcli` / `winboxclimac` | CLI in the WinBox terminal, IP / MAC | 8291 / 20561 | 77 |
-| `winboxnative` / `winboxnativemac` | structured M2, IP / MAC | 8291 / 20561 | 221 |
+| Runsettings | Protocol | Port |
+|---|---|---|
+| `api` / `apissl` | binary API, plain / TLS | 8728 / 8729 |
+| `rest` / `restssl` | REST HTTP / HTTPS | 80 / 443 |
+| `telnet` | CLI | 23 |
+| `ssh` | CLI over SSH | 22 |
+| `mactelnet` | CLI over MAC layer | 20561 |
+| `winboxcli` / `winboxclimac` | CLI in the WinBox terminal, IP / MAC | 8291 / 20561 |
+| `winboxnative` / `winboxnativemac` | structured M2, IP / MAC | 8291 / 20561 |
 
-Skip counts track capability breadth: the WinBox native transports have the narrowest capability set,
-so they skip most. **The authoritative capability matrix is in [README.md](../../../README.md#connection-types)** —
-it is kept in sync with `TikConnectionCapability`. Do not maintain a second copy here.
+**The authoritative capability matrix is in [README.md](../../../README.md#connection-types)** — it is kept
+in sync with `TikConnectionCapability`. Do not maintain a second copy here.
+
+**Most of a run's skips are not capability skips.** About 76 of them are `[Ignore]`d manual probes and RE
+harnesses that skip on *every* transport — measured 2026-08-23 on RouterOS 7.24, a 520-test run skips 85
+on `api` and 98 on `winboxnative`, so what actually separates the two transports is around a dozen tests,
+not the raw count. Read the reasons (`parse-trx.ps1 -ShowSkips`) rather than the number; a count that
+looks plausible is how a bogus skip survives.
 
 `EnsureCapability(cap)` reports **Inconclusive** (a skip), not a failure, when the active transport
 lacks the capability. A skipped test is not a broken test — check the capability before "fixing" it.
@@ -192,10 +197,15 @@ diagnoses that turned out wrong — is in [`Docs/HISTORY.md`](../../../Docs/HIST
 
 - **Native CRUD only reaches paths present in the version-matched `.jg` catalog.** A path in no WinBox
   window fails with `no M2 handler mapping for path '…'`. Guard with
-  `SkipOnWinboxNativeUnmappedPath(path)`; work around with `connection.PathOverride(path, new[]{maj,min})`
-  or another transport. Verify a path really is absent before adding the guard — see the feature-parity
-  rule in [AGENTS.md](../../../AGENTS.md).
-- **Bridge creation over native** (`add type=bridge`) is not supported and answers `0xFE0006`.
+  `SkipIfWinboxNativeCannot(path, body)`, which waits for that refusal instead of naming the transport;
+  work around with `connection.PathOverride(path, new[]{maj,min})` or another transport. A guard that
+  skips native by name is how `/tool/netwatch` stayed untested on the one transport whose field mapping
+  can be wrong — WinBox exposes it perfectly well. See the feature-parity rule in
+  [AGENTS.md](../../../AGENTS.md).
+- **A subtype interface is created by sending its type discriminator.** `/interface/bridge`, `/vlan`,
+  `/eoip` and the rest share the generic `[20,0]` handler, and the field that filters a *read* is the
+  same field that tells `add` what to *create* — without it the router answers `unsupported device
+  type`. Native sends it from the handler map, so a subtype the map does not know still cannot be added.
 - **The remaining array shapes** (`multitristatearray`, `string[]`, …) are not yet encoded; the resolver
   throws `WinboxFieldResolutionException` rather than dropping them silently. `multinumber` (`tagged`/
   `untagged`, `topics`) and `multinumberrange` (`vlan-ids`, `dst-port`) do encode.
@@ -219,8 +229,8 @@ protected void EnsureCommandAvailable(string commandPath)      // path/package a
 protected void EnsureMinRouterOsVersion(int minimumMajor, string featureDescription = null)
 protected void EnsureMaxRouterOsVersion(int removedInMajor, string featureDescription = null)
 
+protected void SkipIfWinboxNativeCannot(string feature, Action body)  // skip on the REFUSAL, not the name
 protected static bool IsWinboxNativeUnsupported(Exception ex)  // catch-when: a SPECIFIC M2 error
-protected void SkipOnWinboxNativeUnmappedPath(string feature)  // verify the path really is absent
 protected void SkipOnSingleCommandTransport()                  // see below
 protected bool IsSingleCommandTransport()                      // the same list, for the inverse test
 protected bool IsNonApiTransport()                             // branching assertions ONLY, not a gate

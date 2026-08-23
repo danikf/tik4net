@@ -1,4 +1,4 @@
-// WinboxTcpProtocolTest.cs — Winbox/TCP M2 protocol tests
+﻿// WinboxTcpProtocolTest.cs — Winbox/TCP M2 protocol tests
 // Scenario: login + list interfaces + set/restore comment on ether1.
 // Terminal access via mepty handler [76].
 
@@ -16,7 +16,8 @@ namespace tik4net.integrationtests
     {
         private const int WINBOX_PORT = 8291;
 
-        [Ignore]
+        [Ignore("Reverse-engineering PoC client, superseded by the shipping WinboxNative transport and "
+            + "kept as the wire-level reference. Run by hand.")]
         [TestMethod]
         public void WinboxTcp_Login_ListInterfaces_ReturnsAtLeastOne()
         {
@@ -152,7 +153,8 @@ namespace tik4net.integrationtests
             }
         }
 
-        [Ignore]
+        [Ignore("Reverse-engineering PoC client — the shipping catalog fetch is covered by "
+            + "WinboxJgFetchTest. Run by hand.")]
         [TestMethod]
         public void WinboxTcp_ReadListCatalog_ReturnsPackageEntries()
         {
@@ -176,7 +178,8 @@ namespace tik4net.integrationtests
             }
         }
 
-        [Ignore]
+        [Ignore("Reverse-engineering PoC client — the shipping catalog parse is covered by "
+            + "WinboxJgFetchTest. Run by hand.")]
         [TestMethod]
         public void WinboxTcp_ParseCatalog_EntriesHaveValidFields()
         {

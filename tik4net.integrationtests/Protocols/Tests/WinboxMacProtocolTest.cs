@@ -1,4 +1,4 @@
-// WinboxMacProtocolTest.cs — Winbox/MAC M2 protocol tests (EXPERIMENTAL)
+﻿// WinboxMacProtocolTest.cs — Winbox/MAC M2 protocol tests (EXPERIMENTAL)
 // Scenario: login + list interfaces + set/restore comment on ether1.
 // Uses UDP 20561 with client_type=0x0f90.
 //
@@ -48,7 +48,8 @@ namespace tik4net.integrationtests
             }
         }
 
-        [Ignore]
+        [Ignore("Reverse-engineering PoC client, superseded by the shipping WinboxNativeMac transport "
+            + "and kept as the wire-level reference. Run by hand.")]
         [TestMethod]
         public void WinboxMac_Login_ListInterfaces_ReturnsAtLeastOne()
         {
@@ -67,7 +68,8 @@ namespace tik4net.integrationtests
                 Assert.IsTrue(ifaces.Count > 0, "Router should expose at least one interface");
             }
         }
-        [Ignore]
+        [Ignore("Reverse-engineering PoC client, superseded by the shipping WinboxNativeMac transport "
+            + "and kept as the wire-level reference. Run by hand.")]
         [TestMethod]
         public void WinboxMac_SetAndVerify_InterfaceEther1Comment()
         {

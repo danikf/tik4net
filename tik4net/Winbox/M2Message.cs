@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -648,7 +648,35 @@ namespace tik4net.Winbox
                 throw new InvalidOperationException("Not a valid M2 response");
             if (TryParseSessionId(m2, out int sessionId))
                 return sessionId;
-            throw new InvalidOperationException("No SESSION_ID in M2 response");
+            throw new InvalidOperationException("No SESSION_ID in M2 response — " + DescribeSysError(m2));
+        }
+
+        /// <summary>
+        /// Renders what the router said about a reply the caller cannot use: the system error code
+        /// (<c>0xFF0008</c>) and its optional string (<c>0xFF0009</c>), falling back to the whole message.
+        /// </summary>
+        /// <remarks>
+        /// The refusal is evidence available exactly once — the bytes are gone the moment the exception is
+        /// built. Reporting only the absence of the field we wanted turns a router-side refusal (a session
+        /// cap, "not enough resources") into something indistinguishable from a client-side bug.
+        /// </remarks>
+        internal static string DescribeSysError(byte[] m2)
+        {
+            try
+            {
+                var fields = ParseAllFields(m2);
+                string? err = fields.TryGetValue(WinboxM2Protocol.SysKey.ErrorString, out var es)
+                    ? es.Item2?.ToString() : null;
+                int code = ParseSysStatus(m2);
+                if (code != 0 || !string.IsNullOrEmpty(err))
+                    return "router said error 0x" + code.ToString("X") +
+                           (string.IsNullOrEmpty(err) ? " (no message)" : " '" + err + "'");
+                return "and no error field either; the reply was " + Describe(m2);
+            }
+            catch (Exception ex)
+            {
+                return "and the reply did not parse (" + ex.GetType().Name + "): " + Describe(m2);
+            }
         }
 
         /// <summary>

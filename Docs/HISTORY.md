@@ -1,4 +1,4 @@
-# Project history — the index
+﻿# Project history — the index
 
 The entry point for **narrative about the past**: diagnoses that turned out wrong, incidents, and
 measurements pinned to a moment in time.
@@ -83,6 +83,13 @@ never asked for `/tool/wol` at all. This is the origin of the feature-parity rul
 Related: "list/array field writes are not encodable over M2" was filed as a protocol limit. The wire
 format supports array writes — it was an unimplemented encoder on our side.
 → [`findings-rest-api-history.md`](findings-rest-api-history.md)
+
+Related, and the same shape a third time: `add` of an interface subtype over WinBox native was recorded
+as refused by the router itself (`unsupported device type`), and eleven integration tests skipped on it.
+The refusal was correct — the request never said what to create. The generic `[20,0]` handler's type
+discriminator is the same field on a read and on an add, and native was only sending it on reads. The
+eleven skips had been hiding three further defects underneath.
+→ [`winbox-native-m2-protocol-history.md`](winbox-native-m2-protocol-history.md)
 
 ## A skip is not a pass — a capability gate can hide a whole path
 
