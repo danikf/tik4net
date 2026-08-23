@@ -95,7 +95,7 @@ Comment the attribute out, run, then put it back. The audit and dump tests are t
 
 | Test | What it does |
 |---|---|
-| `WinboxNativePathMapAuditTest.AuditPathMapAgainstApi` | per API path, native vs. API row count, field-name set, and the VALUES of shared fields on rows paired by `.id`. Run it after touching the alias tables, the `.jg` harvest, a codec, or on a new RouterOS version — a normal suite run cannot catch a path answering with the wrong window or the wrong value. Reports `OK=… KNOWN-GAP=… MISMATCH=… VALUE-DIFF=… UNMAPPED=…`; compare that tally against the previous commit's. A known gap belongs in `KnownFieldGaps`/`KnownValueGaps` **with the reason named**, so a new disagreement on the same path still fails. |
+| `TransportPathMapAuditTest.AuditPathMapAgainstApi` | per API path, one transport against the binary API: row count, field-name set, the VALUES of shared fields on rows paired by `.id`, and all six write verbs. The transport is `TIK4NET_AUDIT_TRANSPORT` (default `WinboxNative`) and the report is named after it. Run it after touching the alias tables, the `.jg` harvest, a codec or a CLI parser, or on a new RouterOS version — a normal suite run cannot catch a path answering with the wrong window or the wrong value. Reports `OK=… KNOWN-GAP=… MISMATCH=… VALUE-DIFF=… UNMAPPED=…`; compare that tally against the previous commit's **for the same transport**. A known gap belongs in `KnownFieldGaps`/`KnownValueGaps` **with the reason named**, so a new disagreement on the same path still fails. |
 | `WinboxDumpCatalogTest` | dumps the live `.jg` catalog next to the other catalog dumps |
 
 ## Reading results

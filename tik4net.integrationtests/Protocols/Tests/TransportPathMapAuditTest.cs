@@ -1,17 +1,22 @@
-﻿// WinboxNativePathMapAuditTest.cs — diagnostic: does the WinBox-native path map reach everything the
-// binary API reaches, and does it come back with the SAME table?
+﻿// TransportPathMapAuditTest.cs — diagnostic: does the transport under test reach everything the binary
+// API reaches, and does it come back with the SAME table?
 //
-// The native transport addresses a path by resolving it to an M2 handler (the .jg menu catalog plus the
-// apiPath → menu-label alias table in WinboxHandlerMap). A path it cannot resolve is a gap in tik4net, not
-// a statement about the router — and a path it resolves to the WRONG window is worse: it answers, with
-// somebody else's records. Neither shows up in a normal suite run, because a test that cannot reach a path
-// skips and a test that reads plausible rows passes.
+// Every transport promises the same contract over a different wire, and each has its own way of getting a
+// field wrong: WinBox-native resolves a path to an M2 handler and can answer with somebody else's records;
+// the CLI family parses TEXT, where a column can be truncated, a value re-rendered or a field simply not
+// printed; REST renders values its own way. None of that shows up in a normal suite run — a test that
+// cannot reach a path skips, and a test that reads plausible rows passes.
 //
-// So this compares, per API path, what the binary API returns against what WinBox-native returns:
-// row count, the set of field names, and — on rows paired by .id — the VALUES of the fields both report.
-// The values matter as much as the names: /system/logging read `topics` as the raw handle list "[1]" where
-// the API says "info", and an audit that only counted field names called the path OK for a release. Run it after touching the alias tables, the .jg harvest, or on a
-// new RouterOS version. It writes a full report next to the other catalog dumps (App.config catalogDumpDir).
+// So this compares, per API path, what the binary API returns against what the transport under test
+// returns: row count, the set of field names, and — on rows paired by .id — the VALUES of the fields both
+// report. The values matter as much as the names: /system/logging read `topics` as the raw handle list
+// "[1]" where the API says "info", and an audit that only counted field names called the path OK for a
+// release.
+//
+// The transport is TIK4NET_AUDIT_TRANSPORT (default WinboxNative); the report is named after it, so runs
+// against different transports do not overwrite each other. It writes next to the other catalog dumps
+// (App.config catalogDumpDir). Run it after touching the alias tables, a codec or a CLI parser, after the
+// .jg harvest, or on a new RouterOS version.
 //
 // It is [Ignore]d, and --filter will NOT run it: MSTest applies [Ignore] before the filter, so naming the
 // test reports it skipped and the run passes green having measured nothing. Comment the attribute out, run,
@@ -29,7 +34,7 @@ using tik4net.Objects;
 namespace tik4net.integrationtests
 {
     [TestClass]
-    public class WinboxNativePathMapAuditTest
+    public class TransportPathMapAuditTest
     {
         // Paths whose `print` is not a plain table read, and would measure the harness rather than the map:
         // action/monitor windows that only produce rows inside a monitor cycle, and reads big enough to
@@ -73,14 +78,33 @@ namespace tik4net.integrationtests
             return paths;
         }
 
-        private static ITikConnection Open(TikConnectionType type)
+        // Through TestBase's lab policy rather than a second copy of it: that is what knows a MAC transport
+        // is addressed by routerMac and no host, and that the CHR's certificate has to be accepted for the
+        // TLS ones. Both were reasons this audit could only ever have run against a plain-TCP transport.
+        private static ITikConnection Open(TikConnectionType type) => TestBase.LabSetup(type).Create(type);
+
+        /// <summary>
+        /// The transport being held against the binary API, from <c>TIK4NET_AUDIT_TRANSPORT</c>.
+        /// </summary>
+        /// <remarks>
+        /// An environment variable rather than the runsettings, because this class does not derive from
+        /// <see cref="TestBase"/> — it owns both connections, and one of them is always the API baseline.
+        /// The default keeps the transport this audit was written for.
+        /// </remarks>
+        private static TikConnectionType TransportUnderTest
         {
-            var conn = ConnectionFactory.CreateConnection(type);
-            conn.Open(ConfigurationManager.AppSettings["host"],
-                      ConfigurationManager.AppSettings["user"],
-                      ConfigurationManager.AppSettings["pass"] ?? "");
-            return conn;
+            get
+            {
+                string name = Environment.GetEnvironmentVariable("TIK4NET_AUDIT_TRANSPORT");
+                if (string.IsNullOrEmpty(name)) return TikConnectionType.WinboxNative;
+                foreach (TikConnectionType t in Enum.GetValues(typeof(TikConnectionType)))
+                    if (string.Equals(t.ToString(), name.Trim(), StringComparison.OrdinalIgnoreCase)) return t;
+                throw new InvalidOperationException("TIK4NET_AUDIT_TRANSPORT names no transport: " + name);
+            }
         }
+
+        private static bool IsNative(TikConnectionType t)
+            => t == TikConnectionType.WinboxNative || t == TikConnectionType.WinboxNativeMac;
 
         /// <summary>What one path read as, on one transport.</summary>
         private sealed class Reading
@@ -239,7 +263,7 @@ namespace tik4net.integrationtests
         /// and the API did not is a ROW-count disagreement, already reported above; pairing by ordinal
         /// instead would line up unrelated records and invent differences.
         /// </remarks>
-        private static List<string> CompareValues(Reading api, Reading native, string path,
+        private static List<string> CompareValues(Reading api, Reading probe, string path,
             out List<string> excusedButAgreeing, out int pairedRows)
         {
             pairedRows = 0;
@@ -255,13 +279,13 @@ namespace tik4net.integrationtests
 
             foreach (var kv in api.Rows)
             {
-                if (!native.Rows.TryGetValue(kv.Key, out var nativeRow)) continue;
+                if (!probe.Rows.TryGetValue(kv.Key, out var probeRow)) continue;
                 pairedRows++;
                 foreach (var f in kv.Value)
                 {
                     if (f.Key == ".id" || IsVolatile(f.Key)) continue;
-                    if (!nativeRow.TryGetValue(f.Key, out string nativeValue)) continue;
-                    bool agrees = string.Equals(f.Value ?? "", nativeValue ?? "", StringComparison.OrdinalIgnoreCase);
+                    if (!probeRow.TryGetValue(f.Key, out string probeValue)) continue;
+                    bool agrees = string.Equals(f.Value ?? "", probeValue ?? "", StringComparison.OrdinalIgnoreCase);
                     if (excused != null && excused.ContainsKey(f.Key))
                     {
                         (agrees ? agreeing : disagreeing).Add(f.Key);
@@ -269,7 +293,7 @@ namespace tik4net.integrationtests
                     }
                     if (agrees) continue;
                     if (!seen.Add(f.Key)) continue;
-                    diffs.Add($"{f.Key}: api='{Trim(f.Value)}' native='{Trim(nativeValue)}'");
+                    diffs.Add($"{f.Key}: api='{Trim(f.Value)}' probe='{Trim(probeValue)}'");
                 }
             }
 
@@ -296,27 +320,27 @@ namespace tik4net.integrationtests
         /// agree on the rows this router happens to have and still mean different things.</para>
         /// </remarks>
         private static Dictionary<string, List<string>> ProposePairings(
-            Reading api, Reading native, List<string> onlyApi, List<string> onlyNative)
+            Reading api, Reading probe, List<string> onlyApi, List<string> onlyProbe)
         {
             var result = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-            if (onlyApi.Count == 0 || onlyNative.Count == 0) return result;
+            if (onlyApi.Count == 0 || onlyProbe.Count == 0) return result;
 
-            var paired = api.Rows.Where(kv => native.Rows.ContainsKey(kv.Key))
-                                 .Select(kv => new { Api = kv.Value, Native = native.Rows[kv.Key] })
+            var paired = api.Rows.Where(kv => probe.Rows.ContainsKey(kv.Key))
+                                 .Select(kv => new { Api = kv.Value, Probe = probe.Rows[kv.Key] })
                                  .ToList();
             if (paired.Count == 0) return result;
 
             foreach (string af in onlyApi)
             {
                 var candidates = new List<string>();
-                foreach (string nf in onlyNative)
+                foreach (string nf in onlyProbe)
                 {
                     int compared = 0;
                     bool allAgree = true;
                     foreach (var row in paired)
                     {
                         if (!row.Api.TryGetValue(af, out string av) || string.IsNullOrEmpty(av)) continue;
-                        if (!row.Native.TryGetValue(nf, out string nv)) { allAgree = false; break; }
+                        if (!row.Probe.TryGetValue(nf, out string nv)) { allAgree = false; break; }
                         if (!string.Equals(av, nv, StringComparison.OrdinalIgnoreCase)) { allAgree = false; break; }
                         compared++;
                     }
@@ -335,7 +359,7 @@ namespace tik4net.integrationtests
                    pairings.OrderBy(kv => kv.Key, StringComparer.Ordinal)
                            .Select(kv => kv.Key + "?=" + string.Join("|", kv.Value)));
 
-        [Ignore("The full native-vs-API audit: minutes long, seeds and removes 62 rows on the router. "
+        [Ignore("The full transport-vs-API audit: minutes long, seeds and removes 62 rows on the router. "
             + "Comment the attribute out to run it — --filter alone will not, see the file header.")]
         [TestMethod]
         public void AuditPathMapAgainstApi()
@@ -343,7 +367,9 @@ namespace tik4net.integrationtests
             string dumpDir = Path.GetFullPath(Environment.ExpandEnvironmentVariables(
                 ConfigurationManager.AppSettings["catalogDumpDir"] ?? @".\.tik4net"));
             Directory.CreateDirectory(dumpDir);
-            string reportPath = Path.Combine(dumpDir, "winbox-native-path-audit.txt");
+            var probeType = TransportUnderTest;
+            string probeName = probeType.ToString().ToLowerInvariant();
+            string reportPath = Path.Combine(dumpDir, probeName + "-path-audit.txt");
 
             var report = new List<string>();
             var staleGaps = new List<string>();
@@ -352,8 +378,8 @@ namespace tik4net.integrationtests
             // separately because the pass/fail check is a half-threshold and cannot see it (see the OK line).
             int apiFieldSlots = 0, notReported = 0;
 
-            var fixtures = default(WinboxNativeAuditFixtures);
-            var write = default(WinboxNativeWriteAudit);
+            var fixtures = default(TransportAuditFixtures);
+            var write = default(TransportWriteAudit);
             using (var api = Open(TikConnectionType.Api))
             {
             // Half the audited paths are empty on a stock router and are compared 0 rows against 0 rows —
@@ -361,16 +387,16 @@ namespace tik4net.integrationtests
             // hardware first, and take them away in the finally: residue on the router is a defect the
             // NEXT run inherits. The native connection is opened AFTER seeding, so its .jg catalog and
             // reference tables see the rows.
-            fixtures = new WinboxNativeAuditFixtures(api);
+            fixtures = new TransportAuditFixtures(api);
             try
             {
             fixtures.SeedAll();
-            using (var native = Open(TikConnectionType.WinboxNative))
+            using (var probe = Open(probeType))
             {
                 foreach (string path in EntityPaths())
                 {
                     var a = Read(api, path);
-                    var n = Read(native, path);
+                    var n = Read(probe, path);
 
                     if (a.Error != null)
                     {
@@ -382,14 +408,15 @@ namespace tik4net.integrationtests
                     }
                     if (n.Error != null)
                     {
-                        if (n.Error.StartsWith("UNMAPPED") && NoWinboxWindow.TryGetValue(path, out string reason))
+                        if (IsNative(probeType) && n.Error.StartsWith("UNMAPPED")
+                            && NoWinboxWindow.TryGetValue(path, out string reason))
                         {
                             known++;
                             report.Add($"NO-WINDOW  {path}\t{reason}");
                             continue;
                         }
                         if (n.Error.StartsWith("UNMAPPED")) unmapped++; else mismatched++;
-                        report.Add($"{(n.Error.StartsWith("UNMAPPED") ? "UNMAPPED   " : "NATIVE-ERR ")}{path}"
+                        report.Add($"{(n.Error.StartsWith("UNMAPPED") ? "UNMAPPED   " : "PROBE-ERR  ")}{path}"
                                    + $"\tapi rows={a.RowCount}\t{n.Error}");
                         continue;
                     }
@@ -413,18 +440,18 @@ namespace tik4net.integrationtests
                         if (KnownFieldGaps.TryGetValue(path, out string why))
                         {
                             known++;
-                            report.Add($"KNOWN-GAP  {path}\tapi rows={a.RowCount} native rows={n.RowCount}"
+                            report.Add($"KNOWN-GAP  {path}\tapi rows={a.RowCount} {probeName} rows={n.RowCount}"
                                        + $"\tshared fields={shared}/{a.FieldNames.Count}\t{why}");
                         }
                         else
                         {
                             mismatched++;
-                            var onlyNative = n.FieldNames.Where(f => !a.FieldNames.Contains(f)).OrderBy(f => f).ToList();
-                            report.Add($"MISMATCH   {path}\tapi rows={a.RowCount} native rows={n.RowCount}"
+                            var onlyProbe = n.FieldNames.Where(f => !a.FieldNames.Contains(f)).OrderBy(f => f).ToList();
+                            report.Add($"MISMATCH   {path}\tapi rows={a.RowCount} {probeName} rows={n.RowCount}"
                                        + $"\tshared fields={shared}/{a.FieldNames.Count}"
                                        + (onlyApi.Count > 0 ? "\tapi-only: " + string.Join(",", onlyApi.Take(12)) : "")
-                                       + (onlyNative.Count > 0 ? "\tnative-only: " + string.Join(",", onlyNative.Take(12)) : "")
-                                       + FormatPairings(ProposePairings(a, n, onlyApi, onlyNative)));
+                                       + (onlyProbe.Count > 0 ? $"\t{probeName}-only: " + string.Join(",", onlyProbe.Take(12)) : "")
+                                       + FormatPairings(ProposePairings(a, n, onlyApi, onlyProbe)));
                         }
                         continue;
                     }
@@ -465,7 +492,7 @@ namespace tik4net.integrationtests
                         if (pairedRows == 0 && a.RowCount > 0) uncompared++;
                         report.Add($"OK         {path}	rows={a.RowCount}"
                                    + (VolatileRowCounts.TryGetValue(path, out string vwhy)
-                                       ? $" (native {n.RowCount}; row count not compared: {vwhy})" : "")
+                                       ? $" ({probeName} {n.RowCount}; row count not compared: {vwhy})" : "")
                                    + (pairedRows == 0 && a.RowCount > 0
                                        ? "	VALUES UNCOMPARED (no row paired by .id)" : "")
                                    + $"	shared fields={shared}/{a.FieldNames.Count}"
@@ -487,7 +514,7 @@ namespace tik4net.integrationtests
                 // …and the other direction, on the rows this run created and will delete. Everything above
                 // is a READ, so a mapping that names the wrong key is measured only where it misleads and
                 // never where it does damage.
-                write = new WinboxNativeWriteAudit(api, native);
+                write = new TransportWriteAudit(api, probe, probeName);
                 write.Run(fixtures);
                 write.RunAddsAndRemoves(fixtures);
 
@@ -512,10 +539,10 @@ namespace tik4net.integrationtests
             {
                 foreach (var w in write.Results)
                     report.Add($"WRITE-{w.Outcome.ToString().ToUpperInvariant(),-12} {w.Path}	{w.Detail}");
-                report.Add($"WRITES ok={write.Count(WinboxNativeWriteAudit.Outcome.Ok)}"
-                           + $"  different={write.Count(WinboxNativeWriteAudit.Outcome.Different)}"
-                           + $"  refused={write.Count(WinboxNativeWriteAudit.Outcome.Refused)}"
-                           + $"  not-probeable={write.Count(WinboxNativeWriteAudit.Outcome.NotProbeable)}");
+                report.Add($"WRITES ok={write.Count(TransportWriteAudit.Outcome.Ok)}"
+                           + $"  different={write.Count(TransportWriteAudit.Outcome.Different)}"
+                           + $"  refused={write.Count(TransportWriteAudit.Outcome.Refused)}"
+                           + $"  not-probeable={write.Count(TransportWriteAudit.Outcome.NotProbeable)}");
                 report.Add("");
             }
             report.Add($"SEEDED {fixtures.SeededPaths.Count} paths that are empty on a stock router");
@@ -528,7 +555,7 @@ namespace tik4net.integrationtests
             report.Add("");
             report.Add($"OK={agreed}  KNOWN-GAP={known}  MISMATCH={mismatched}  VALUE-DIFF={valueMismatched}  VALUES-UNCOMPARED={uncompared}"
                        + $"  UNMAPPED={unmapped}  ROUTER-N/A={apiRefused}");
-            report.Add($"FIELD-NAMES not reported by native: {notReported}/{apiFieldSlots}"
+            report.Add($"FIELD-NAMES not reported by {probeName}: {notReported}/{apiFieldSlots}"
                        + (apiFieldSlots > 0 ? $" ({notReported * 100 / apiFieldSlots}%)" : ""));
             File.WriteAllLines(reportPath, report);
             foreach (string line in report) Console.WriteLine(line);
@@ -537,20 +564,20 @@ namespace tik4net.integrationtests
                               + $"  UNMAPPED={unmapped}  ROUTER-N/A={apiRefused}");
             // Not an assertion - a number to watch. The pass/fail checks above cannot see it, so without
             // this line the report reads green while a fifth of the API's field names go unreported.
-            Console.WriteLine($"FIELD-NAMES not reported by native: {notReported}/{apiFieldSlots}"
+            Console.WriteLine($"FIELD-NAMES not reported by {probeName}: {notReported}/{apiFieldSlots}"
                               + (apiFieldSlots > 0 ? $" ({notReported * 100 / apiFieldSlots}%)" : ""));
             Console.WriteLine($"report: {reportPath}");
 
-            Assert.AreEqual(0, unmapped, "paths the WinBox-native transport cannot address but the API can — see the report");
-            Assert.AreEqual(0, mismatched, "paths where WinBox-native disagrees with the API — see the report");
+            Assert.AreEqual(0, unmapped, "paths the transport under test cannot address but the API can — see the report");
+            Assert.AreEqual(0, mismatched, "paths where the transport under test disagrees with the API — see the report");
             Assert.AreEqual(0, valueMismatched,
                 "paths that read the right window but decode a value the API spells differently — see the report");
             if (write != null)
             {
-                Assert.AreEqual(0, write.Count(WinboxNativeWriteAudit.Outcome.Different),
-                    "fields a WinBox-native write lands differently from an API write — see the report");
-                Assert.AreEqual(0, write.Count(WinboxNativeWriteAudit.Outcome.Refused),
-                    "fields WinBox-native refused to write that the API wrote — see the report");
+                Assert.AreEqual(0, write.Count(TransportWriteAudit.Outcome.Different),
+                    "fields the transport under test writes differently from the API — see the report");
+                Assert.AreEqual(0, write.Count(TransportWriteAudit.Outcome.Refused),
+                    "fields the transport under test refused to write that the API wrote — see the report");
             }
             Assert.AreEqual(0, fixtures.Leaked.Count,
                 "fixture rows this run could not remove — the router is holding residue: "

@@ -1,4 +1,4 @@
-# tik4net architecture (4.0)
+﻿# tik4net architecture (4.0)
 
 A map of the codebase for contributors. For *usage* documentation see the [wiki](https://github.com/danikf/tik4net/wiki); for agent-facing working rules see [AGENTS.md](AGENTS.md).
 
@@ -170,7 +170,7 @@ The shipped alias table is an explicit list rather than a rule, and deliberately
 live 7.23.2 catalog, a leaf-matching normalizer resolved `/routing/rule` to the routing *filter* rule
 window (both labels end in "rule") — a wrong table, confidently, where the table answers "no mapping".
 Coverage is therefore verified against the binary API instead of reasoned about:
-`WinboxNativePathMapAuditTest` (integration, `[Ignore]`d) reads every O/R-mapper entity path over both
+`TransportPathMapAuditTest` (integration, `[Ignore]`d) reads every O/R-mapper entity path over both
 transports and compares row counts and field vocabularies.
 
 Two structures inside the catalog decide whether a path is reachable at all, and both are per-WINDOW,

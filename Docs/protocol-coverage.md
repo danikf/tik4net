@@ -401,7 +401,7 @@ format itself.
 
 ### Path coverage vs. the binary API
 
-`WinboxNativePathMapAuditTest` (integration, `[Ignore]`d — run it by hand from Test Explorer, or
+`TransportPathMapAuditTest` (integration, `[Ignore]`d — run it by hand from Test Explorer, or
 `--filter AuditPathMapAgainstApi`, after touching the alias table, the `.jg` harvest, or on a new
 RouterOS version) reads every O/R-mapper entity path over the binary API and over WinBox-native and
 compares row counts and field names. **Every path the API reaches is reachable natively** except
@@ -417,6 +417,40 @@ as of the last run (RouterOS 7.23.2) it lists:
 | `/ip/route` | native lists routes the API's `print` filters out; distance/scope/vrf not decoded |
 | `/interface/wireless/sniffer` | handler `[88,9]` returns sniffer statistics; the API returns settings |
 | `/system/health` | board-gated singleton with no hardware sensors on CHR; `state`/`state-after-reboot` are API-only fields with no WinBox equivalent |
+
+### The audit is not native's alone
+
+The comparison is between the binary API and **one other transport**, named by
+`TIK4NET_AUDIT_TRANSPORT`; nothing in it is WinBox-specific except the "no WinBox window" excuse. It
+defaults to `WinboxNative`, which is the transport it was written for and the only one that had been
+measured this way — the other nine had a 21-test smoke subset and whatever entity tests happened to
+touch them.
+
+The first run against **Telnet**, and therefore against the parser all five CLI transports share:
+
+```
+OK=125  KNOWN-GAP=0  MISMATCH=9  VALUE-DIFF=21  UNMAPPED=0  ROUTER-N/A=7
+FIELD-NAMES not reported by telnet: 286/1351 (21%)
+```
+
+The 21 value differences are not 21 defects. They are four renderings, because a CLI read is
+`:put [… print as-value]` and `as-value` gives the router's INTERNAL spelling where the API's `print`
+gives the documented one:
+
+| Class | API | CLI |
+|---|---|---|
+| durations | `15s`, `1w`, `1d`, `5m` | `00:00:15`, `1w00:00:00`, `1d00:00:00`, `00:05:00` |
+| zero spelled as a word | `mtu=auto`, `mrru=disabled`, `max-sessions=unlimited`, `dscp=inherit` | `0`, `0`, `0`, `256` |
+| scaled fixed-point | `bucket-size=0.1`, `freq-drift=-40.955`, `gmt-offset=+02:00` | `100`, `-40955`, `7200` |
+| IPv4 in an IPv6 slot | `local=192.168.4.236` | `::ffff:192.168.4.236` |
+
+Two of those classes the WinBox codec already handles for the same reason — the router speaks in units
+and sentinels, and something has to say them the way the rest of the library does. A duration read as
+`00:00:15` also does not compare equal to a `DefaultValue` of `15s`, so the change tracker sees a field
+that is always dirty.
+
+Reproducing one needs no harness at all: `/ip/dns/print` over `Api` says `doh-timeout=5s`, over `Telnet`
+`00:00:05`.
 
 ### Value-rendering differences
 

@@ -1,4 +1,4 @@
-﻿// WinboxNativeWriteAudit.cs — the half of the contract the path-map audit never measured.
+﻿// TransportWriteAudit.cs — the half of the contract the path-map audit never measured.
 //
 // The path-map audit is a READ, all 154 paths of it. Every mapping it checks is exercised in one
 // direction only, and the direction it skips is the one where a wrong mapping does damage rather than
@@ -10,12 +10,12 @@
 // Per field:
 //
 //   1. write the probe over the API, read the row back over the API   → `expected`
-//   2. write the probe over WinBox-native, read the row back over the API → `actual`
+//   2. write the probe over the transport under test, read the row back over the API → `actual`
 //   3. restore
 //
 // `expected` and `actual` are both the API's own print of the same field after the same requested
 // change, so anything RouterOS does to the value on its way in happens to both. What is left is the
-// only question worth asking: did the native write land what the API write lands?
+// only question worth asking: did that transport's write land what the API write lands?
 //
 // Everything is written to a FIXTURE row — a row this suite created and will delete — so a probe that
 // goes wrong cannot disturb the router's own configuration. That is why the write audit rides on the
@@ -28,16 +28,16 @@ using tik4net;
 
 namespace tik4net.integrationtests
 {
-    internal sealed class WinboxNativeWriteAudit
+    internal sealed class TransportWriteAudit
     {
         /// <summary>What one probe did.</summary>
         internal enum Outcome
         {
-            /// <summary>The native write landed what the API write lands.</summary>
+            /// <summary>The probed write landed what the API write lands.</summary>
             Ok,
             /// <summary>Both wrote, and the router ended up with different values.</summary>
             Different,
-            /// <summary>The native write threw or was refused where the API's went through.</summary>
+            /// <summary>The probed write threw or was refused where the API's went through.</summary>
             Refused,
             /// <summary>The API's own write did not go through, so there is nothing to compare against.</summary>
             NotProbeable,
@@ -139,13 +139,17 @@ namespace tik4net.integrationtests
             };
 
         private readonly ITikConnection _api;
-        private readonly ITikConnection _native;
+        private readonly ITikConnection _probe;
+        // What to call the transport under test in a finding. It is a label, not a decision: nothing here
+        // branches on which transport it is, and a probe that needed to would not be differential any more.
+        private readonly string _probeName;
         private readonly List<Result> _results = new List<Result>();
 
-        internal WinboxNativeWriteAudit(ITikConnection api, ITikConnection native)
+        internal TransportWriteAudit(ITikConnection api, ITikConnection probe, string probeName)
         {
             _api = api;
-            _native = native;
+            _probe = probe;
+            _probeName = probeName;
         }
 
         internal IReadOnlyList<Result> Results => _results;
@@ -157,7 +161,7 @@ namespace tik4net.integrationtests
         /// rather than written to: the whole safety of this audit is that it only ever changes a row the
         /// suite made and will delete.
         /// </summary>
-        internal void Run(WinboxNativeAuditFixtures fixtures)
+        internal void Run(TransportAuditFixtures fixtures)
         {
             foreach (var probe in Probes)
             {
@@ -203,13 +207,13 @@ namespace tik4net.integrationtests
             string actual;
             try
             {
-                Set(_native, path, id, field, probeValue);
+                Set(_probe, path, id, field, probeValue);
                 actual = ReadBack(path, id, field);
             }
             catch (Exception ex)
             {
                 r.Outcome = Outcome.Refused;
-                r.Detail = $"native write threw: {ex.GetType().Name}: {ex.Message}";
+                r.Detail = $"{_probeName} write threw: {ex.GetType().Name}: {ex.Message}";
                 TryRestore(path, id, field, original);
                 return r;
             }
@@ -239,7 +243,7 @@ namespace tik4net.integrationtests
             else
             {
                 r.Outcome = Outcome.Different;
-                r.Detail = $"{field}={probeValue}: api write gave '{expected}', native write gave '{actual}'";
+                r.Detail = $"{field}={probeValue}: api write gave '{expected}', {_probeName} write gave '{actual}'";
             }
             return r;
         }
@@ -257,30 +261,30 @@ namespace tik4net.integrationtests
         /// <para>The two rows differ in one thing by construction — their name, since a table that has one
         /// will not take a duplicate. That field, and <c>.id</c>, are the only ones excluded.</para>
         /// </remarks>
-        internal void RunAddsAndRemoves(WinboxNativeAuditFixtures fixtures)
+        internal void RunAddsAndRemoves(TransportAuditFixtures fixtures)
         {
-            foreach (var recipe in WinboxNativeAuditFixtures.Recipes)
+            foreach (var recipe in TransportAuditFixtures.Recipes)
             {
                 if (fixtures.CreatedIdOn(recipe.Path) == null) continue;
                 _results.Add(RunAddRemove(recipe));
             }
         }
 
-        private Result RunAddRemove(WinboxNativeAuditFixtures.Recipe recipe)
+        private Result RunAddRemove(TransportAuditFixtures.Recipe recipe)
         {
             var r = new Result { Path = recipe.Path, Field = "(add)" };
-            string[] nativeArgs = Rename(recipe.NameValues, "ax");
+            string[] probeArgs = Rename(recipe.NameValues, "ax");
             string[] apiArgs = Rename(recipe.NameValues, "bx");
 
-            string nativeId = null, apiId = null;
-            string nativeFailure = null;
+            string probeId = null, apiId = null;
+            string probeFailure = null;
             try
             {
-                nativeId = _native.CreateCommandAndParameters(recipe.Path + "/add", nativeArgs).ExecuteScalar();
+                probeId = _probe.CreateCommandAndParameters(recipe.Path + "/add", probeArgs).ExecuteScalar();
             }
             catch (Exception ex)
             {
-                nativeFailure = $"{ex.GetType().Name}: {ex.Message}";
+                probeFailure = $"{ex.GetType().Name}: {ex.Message}";
             }
 
             // The API's add is attempted whatever happened, because it is what says which kind of failure
@@ -295,27 +299,27 @@ namespace tik4net.integrationtests
             }
             catch (Exception ex)
             {
-                Cleanup(recipe.Path, nativeId, viaNative: false);
+                Cleanup(recipe.Path, probeId, viaProbe: false);
                 r.Outcome = Outcome.NotProbeable;
-                r.Detail = nativeFailure == null
+                r.Detail = probeFailure == null
                     ? "api add: " + ex.Message
                     : "both transports were refused, so the router is refusing the ROW: " + ex.Message;
                 return r;
             }
 
-            if (nativeFailure != null)
+            if (probeFailure != null)
             {
-                Cleanup(recipe.Path, apiId, viaNative: false);
+                Cleanup(recipe.Path, apiId, viaProbe: false);
                 r.Outcome = Outcome.Refused;
-                r.Detail = "native add threw where the API's went through: " + nativeFailure;
+                r.Detail = _probeName + " add threw where the API's went through: " + probeFailure;
                 return r;
             }
 
-            string diff = CompareRows(recipe, nativeId, apiId);
+            string diff = CompareRows(recipe, probeId, apiId);
 
             // The native row goes away over NATIVE — that is the remove probe. The API's goes over the API.
-            string removeProblem = Cleanup(recipe.Path, nativeId, viaNative: true);
-            Cleanup(recipe.Path, apiId, viaNative: false);
+            string removeProblem = Cleanup(recipe.Path, probeId, viaProbe: true);
+            Cleanup(recipe.Path, apiId, viaProbe: false);
 
             if (removeProblem != null)
             {
@@ -347,25 +351,25 @@ namespace tik4net.integrationtests
             for (int i = 0; i + 1 < copy.Length; i += 2)
             {
                 if (!string.Equals(copy[i], "name", StringComparison.OrdinalIgnoreCase)) continue;
-                if (copy[i + 1] != null && copy[i + 1].StartsWith(WinboxNativeAuditFixtures.NamePrefix,
+                if (copy[i + 1] != null && copy[i + 1].StartsWith(TransportAuditFixtures.NamePrefix,
                                                                  StringComparison.OrdinalIgnoreCase))
                     copy[i + 1] = "tik4net-" + tag + "-"
-                                + copy[i + 1].Substring(WinboxNativeAuditFixtures.NamePrefix.Length);
+                                + copy[i + 1].Substring(TransportAuditFixtures.NamePrefix.Length);
             }
             return copy;
         }
 
         /// <summary>The first field the two rows disagree on, or null when they agree.</summary>
-        private string CompareRows(WinboxNativeAuditFixtures.Recipe recipe, string nativeId, string apiId)
+        private string CompareRows(TransportAuditFixtures.Recipe recipe, string probeId, string apiId)
         {
             string path = recipe.Path;
             List<ITikReSentence> rows;
             try { rows = _api.CreateCommand(path + "/print").ExecuteList().ToList(); }
             catch (Exception ex) { return "read-back: " + ex.Message; }
 
-            var mine = rows.FirstOrDefault(x => x.GetId() == nativeId);
+            var mine = rows.FirstOrDefault(x => x.GetId() == probeId);
             var theirs = rows.FirstOrDefault(x => x.GetId() == apiId);
-            if (mine == null) return "the row the native add reported is not in the table";
+            if (mine == null) return "the row the " + _probeName + " add reported is not in the table";
             if (theirs == null) return "the row the API add reported is not in the table";
 
             // Only the fields the RECIPE asked for. Everything else on a fresh row is the router's own
@@ -380,24 +384,24 @@ namespace tik4net.integrationtests
                 string theirsValue = theirs.GetResponseFieldOrDefault(field, "(absent)");
                 string oursValue = mine.GetResponseFieldOrDefault(field, "(absent)");
                 if (!string.Equals(theirsValue, oursValue, StringComparison.Ordinal))
-                    return $"{field}: api add gave '{theirsValue}', native add gave '{oursValue}'";
+                    return $"{field}: api add gave '{theirsValue}', {_probeName} add gave '{oursValue}'";
             }
             return null;
         }
 
         // Returns null when the row is gone, or what went wrong.
-        private string Cleanup(string path, string id, bool viaNative)
+        private string Cleanup(string path, string id, bool viaProbe)
         {
             if (id == null) return null;
-            var conn = viaNative ? _native : _api;
+            var conn = viaProbe ? _probe : _api;
             try
             {
                 conn.CreateCommandAndParameters(path + "/remove", ".id", id).ExecuteNonQuery();
             }
             catch (Exception ex)
             {
-                string why = $"{(viaNative ? "native" : "api")} remove threw: {ex.GetType().Name}: {ex.Message}";
-                if (viaNative) { TryRemoveOverApi(path, id); return why; }
+                string why = $"{(viaProbe ? _probeName : "api")} remove threw: {ex.GetType().Name}: {ex.Message}";
+                if (viaProbe) { TryRemoveOverApi(path, id); return why; }
                 return why;
             }
             // Accepted is not the same as done — a set-singleton answers status 0 and changes nothing.
@@ -405,7 +409,7 @@ namespace tik4net.integrationtests
             {
                 if (_api.CreateCommand(path + "/print").ExecuteList().Any(x => x.GetId() == id))
                 {
-                    if (viaNative) { TryRemoveOverApi(path, id); return "native remove was accepted and the row is still there"; }
+                    if (viaProbe) { TryRemoveOverApi(path, id); return _probeName + " remove was accepted and the row is still there"; }
                     return "api remove was accepted and the row is still there";
                 }
             }
@@ -441,9 +445,9 @@ namespace tik4net.integrationtests
         /// the other sixty tables, each of which resolves that field through its own catalog entry — and a
         /// window that spells the flag the other way round would silently toggle the wrong direction.
         /// </remarks>
-        internal void RunToggles(WinboxNativeAuditFixtures fixtures)
+        internal void RunToggles(TransportAuditFixtures fixtures)
         {
-            foreach (var recipe in WinboxNativeAuditFixtures.Recipes)
+            foreach (var recipe in TransportAuditFixtures.Recipes)
             {
                 string id = fixtures.CreatedIdOn(recipe.Path);
                 if (id == null) continue;
@@ -467,13 +471,13 @@ namespace tik4net.integrationtests
             string actual;
             try
             {
-                Verb(_native, path, id, verb);
+                Verb(_probe, path, id, verb);
                 actual = ReadBack(path, id, "disabled");
             }
             catch (Exception ex)
             {
                 r.Outcome = Outcome.Refused;
-                r.Detail = "native " + verb + " threw: " + ex.GetType().Name + ": " + ex.Message;
+                r.Detail = _probeName + " " + verb + " threw: " + ex.GetType().Name + ": " + ex.Message;
                 return r;
             }
 
@@ -498,7 +502,7 @@ namespace tik4net.integrationtests
             else
             {
                 r.Outcome = Outcome.Different;
-                r.Detail = verb + ": api gave disabled='" + expected + "', native gave '" + actual + "'";
+                r.Detail = verb + ": api gave disabled='" + expected + "', " + _probeName + " gave '" + actual + "'";
             }
             return r;
         }
@@ -517,7 +521,7 @@ namespace tik4net.integrationtests
         /// <para>The field is set to the probe value first, over the API, so there is always something to
         /// unset — unsetting a field that is already unset is a measurement that cannot fail.</para>
         /// </remarks>
-        internal void RunUnsets(WinboxNativeAuditFixtures fixtures)
+        internal void RunUnsets(TransportAuditFixtures fixtures)
         {
             foreach (var probe in Probes)
             {
@@ -541,11 +545,11 @@ namespace tik4net.integrationtests
             string original = row.GetResponseFieldOrDefault(field, "");
 
             string actual = null;
-            string nativeFailure = null;
+            string probeFailure = null;
             try
             {
                 Set(_api, path, id, field, probeValue);
-                Unset(_native, path, id, field);
+                Unset(_probe, path, id, field);
                 actual = ReadBack(path, id, field);
             }
             catch (Exception ex)
@@ -554,7 +558,7 @@ namespace tik4net.integrationtests
                 // whichever transport asks — so the API's attempt below is what says which kind of refusal
                 // this was. Returning here would have filed 'can not set empty name' against native when
                 // the API cannot clear a bridge's name either; the add probe learnt this first.
-                nativeFailure = ex.GetType().Name + ": " + ex.Message;
+                probeFailure = ex.GetType().Name + ": " + ex.Message;
             }
 
             string expected;
@@ -569,7 +573,7 @@ namespace tik4net.integrationtests
                 // The router will not unset this field over the API either — a mandatory field, mostly. The
                 // native attempt above is then held against nothing, which is what NotProbeable means.
                 r.Outcome = Outcome.NotProbeable;
-                r.Detail = nativeFailure == null
+                r.Detail = probeFailure == null
                     ? "api unset: " + ex.Message
                     : "both transports were refused, so the router is refusing to CLEAR the field: " + ex.Message;
                 TryRestore(path, id, field, original);
@@ -578,10 +582,10 @@ namespace tik4net.integrationtests
 
             TryRestore(path, id, field, original);
 
-            if (nativeFailure != null)
+            if (probeFailure != null)
             {
                 r.Outcome = Outcome.Refused;
-                r.Detail = "native unset threw where the API's went through: " + nativeFailure;
+                r.Detail = _probeName + " unset threw where the API's went through: " + probeFailure;
                 return r;
             }
 
@@ -593,7 +597,7 @@ namespace tik4net.integrationtests
             else
             {
                 r.Outcome = Outcome.Different;
-                r.Detail = "unset " + field + ": api left '" + expected + "', native left '" + actual + "'";
+                r.Detail = "unset " + field + ": api left '" + expected + "', " + _probeName + " left '" + actual + "'";
             }
             return r;
         }
@@ -610,9 +614,9 @@ namespace tik4net.integrationtests
         /// touched, which matters more here than elsewhere — a moved firewall rule changes what the router
         /// does even though every field on it still reads correct.
         /// </remarks>
-        internal void RunMoves(WinboxNativeAuditFixtures fixtures)
+        internal void RunMoves(TransportAuditFixtures fixtures)
         {
-            foreach (var recipe in WinboxNativeAuditFixtures.Recipes)
+            foreach (var recipe in TransportAuditFixtures.Recipes)
             {
                 if (!OrderedPaths.Contains(recipe.Path)) continue;
                 if (fixtures.CreatedIdOn(recipe.Path) == null) continue;
@@ -636,15 +640,15 @@ namespace tik4net.integrationtests
                 "/interface/wifi/provisioning", "/interface/wifi/access-list",
             };
 
-        private Result RunMove(WinboxNativeAuditFixtures.Recipe recipe)
+        private Result RunMove(TransportAuditFixtures.Recipe recipe)
         {
             var r = new Result { Path = recipe.Path, Field = "(move)" };
 
             string problem;
-            string nativeOrder = MeasureMove(recipe, true, out problem);
+            string probeOrder = MeasureMove(recipe, true, out problem);
             if (problem != null)
             {
-                r.Outcome = nativeOrder == null ? Outcome.NotProbeable : Outcome.Refused;
+                r.Outcome = probeOrder == null ? Outcome.NotProbeable : Outcome.Refused;
                 r.Detail = problem;
                 return r;
             }
@@ -657,7 +661,7 @@ namespace tik4net.integrationtests
                 return r;
             }
 
-            if (string.Equals(nativeOrder, apiOrder, StringComparison.Ordinal))
+            if (string.Equals(probeOrder, apiOrder, StringComparison.Ordinal))
             {
                 r.Outcome = Outcome.Ok;
                 r.Detail = "move put the row where the API's move puts it (" + apiOrder + ")";
@@ -665,7 +669,7 @@ namespace tik4net.integrationtests
             else
             {
                 r.Outcome = Outcome.Different;
-                r.Detail = "move: api gave '" + apiOrder + "', native gave '" + nativeOrder + "'";
+                r.Detail = "move: api gave '" + apiOrder + "', " + _probeName + " gave '" + probeOrder + "'";
             }
             return r;
         }
@@ -675,7 +679,7 @@ namespace tik4net.integrationtests
         /// resulting order as "12" or "21". <paramref name="problem"/> is null on success; the rows are
         /// always removed.
         /// </summary>
-        private string MeasureMove(WinboxNativeAuditFixtures.Recipe recipe, bool viaNative, out string problem)
+        private string MeasureMove(TransportAuditFixtures.Recipe recipe, bool viaProbe, out string problem)
         {
             string path = recipe.Path;
             string firstId = null, secondId = null;
@@ -696,7 +700,7 @@ namespace tik4net.integrationtests
                     return null;
                 }
 
-                var conn = viaNative ? _native : _api;
+                var conn = viaProbe ? _probe : _api;
                 conn.CreateCommandAndParameters(path + "/move", "numbers", secondId, "destination", firstId)
                     .ExecuteNonQuery();
 
@@ -704,7 +708,7 @@ namespace tik4net.integrationtests
             }
             catch (Exception ex)
             {
-                problem = (viaNative ? "native" : "api") + " move: " + ex.GetType().Name + ": " + ex.Message;
+                problem = (viaProbe ? _probeName : "api") + " move: " + ex.GetType().Name + ": " + ex.Message;
                 // A throw AFTER both rows existed is the transport refusing the move; a throw before that is
                 // the router refusing the ROW, and there is nothing to hold native against.
                 return (firstId != null && secondId != null) ? "" : null;
