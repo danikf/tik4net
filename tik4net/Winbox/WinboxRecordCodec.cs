@@ -587,6 +587,15 @@ namespace tik4net.Winbox
                     else TraceNonNumeric("enum", value);   // falls through to the raw text, see above
                 }
             }
+            // A number the window writes in hexadecimal. webfig renders the digits BARE and paints 'hex'
+            // beside the box; RouterOS prints the 0x as part of the value, in lower case
+            // (/interface/bridge priority set to 0xA000 reads back 0xa000). The 0x is taken from the
+            // declaration rather than assumed: a scalar says `postfix:'hex'`, and a hex part inside a
+            // compound says nothing, because there the 0x belongs to the tuple's own prefix.
+            if (jf != null && value != null && jf.Radix == 16
+                && WinboxFieldResolver.TryToInt64(value, out long hx))
+                return FormatRadix(hx, jf.Radix, IsHexPostfix(jf.Postfix));
+
             // A plain number whose postfix says milliseconds is a duration too — nothing above catches it,
             // because the .jg types it `number` and only the unit beside the box says otherwise.
             if (jf != null && value != null && IsMillisecondsPostfix(jf.Postfix)
@@ -703,6 +712,20 @@ namespace tik4net.Winbox
 
         private static bool IsMillisecondsPostfix(string? postfix)
             => string.Equals(postfix, "ms", StringComparison.Ordinal);
+
+        // The postfix that is not a unit at all but a BASE: 'hex' is webfig saying it paints the base
+        // beside the box, and RouterOS spells it into the value as '0x'.
+        private static bool IsHexPostfix(string? postfix)
+            => string.Equals(postfix, "hex", StringComparison.Ordinal);
+
+        private static string FormatRadix(long value, int radix, bool withPrefix)
+        {
+            if (radix != 16) return value.ToString(CultureInfo.InvariantCulture);
+            string digits = value < 0
+                ? "-" + (-value).ToString("x", CultureInfo.InvariantCulture)
+                : value.ToString("x", CultureInfo.InvariantCulture);
+            return withPrefix ? "0x" + digits : digits;
+        }
 
         /// <summary>
         /// Ticks per second for a field whose postfix says it is a duration: the displayed number is
@@ -876,7 +899,8 @@ namespace tik4net.Winbox
             // entry of /tool/sniffer's filter lists.
             string prefix = jf.ElementNotKey != 0 && element.TryGetValue(jf.ElementNotKey, out var nf)
                             && nf?.Item2 is bool nb && nb ? "!" : "";
-            return prefix + string.Join(jf.ElementSeparator ?? "", rendered);
+            // …and a compound's own `prefix` goes in front of the whole joined value (the STP ids' '0x').
+            return prefix + (jf.Prefix ?? "") + string.Join(jf.ElementSeparator ?? "", rendered);
         }
 
         private string FormatElementPart(WinboxJgElementPart part, Dictionary<int, Tuple<string, object>> element,
@@ -904,6 +928,10 @@ namespace tik4net.Winbox
                 string? refName = ResolveRefName(part.RefHandler, v.Item2, collectRefTables);
                 if (refName != null) return refName;
             }
+            // A hex part renders its digits bare: the 0x in front of an STP identifier belongs to the
+            // compound, and only its FIRST part is hexadecimal — port-id is 0x80.1, not 0x80.0x1.
+            if (part.Radix == 16 && WinboxFieldResolver.TryToInt64(v.Item2, out long ph))
+                return FormatRadix(ph, part.Radix, withPrefix: false);
             switch ((part.UiType ?? "").ToLowerInvariant())
             {
                 case "interval":
@@ -984,10 +1012,14 @@ namespace tik4net.Winbox
         /// <summary>
         /// Renders a wire duration as the text RouterOS's own API prints for it: the non-zero units only,
         /// largest first, concatenated without separators — <c>1w</c>, <c>5m</c>, <c>2d17h30m3s</c>,
-        /// <c>518w1d18h55m42s</c> — and <c>0s</c> when the whole thing is zero.
+        /// <c>518w1d18h55m42s</c> — and a zero in <paramref name="zeroUnit"/> when the whole thing is zero.
         /// </summary>
         /// <param name="ticks">The wire value.</param>
         /// <param name="scale">Wire units per second (the <c>.jg</c> <c>scale</c>, 1 when undeclared).</param>
+        /// <param name="zeroUnit">
+        /// The unit a zero is spelled in — the unit the FIELD is expressed in, not seconds: a bonding
+        /// down-delay of nothing reads <c>0ms</c>.
+        /// </param>
         /// <remarks>
         /// Deliberately not webfig's <c>interval2string</c>, which renders <c>1d 02:03:04</c>: that is what
         /// the WinBox UI shows, and the API is what every other transport in this library reports. The unit

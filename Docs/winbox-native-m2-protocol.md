@@ -1579,7 +1579,7 @@ What 62 seeded paths did to the numbers:
 | API field slots compared | 669 | 1349 |
 | names native does not report | 26 | 129 |
 | MISMATCH | 0 | 2 |
-| VALUE-DIFF | 0 | 13 → 7 |
+| VALUE-DIFF | 0 | 13 → 5 |
 
 So the audit's green tally rested on measuring half the tables. The fifteen defects it now names fall
 into families rather than being fifteen unrelated bugs:
@@ -1594,8 +1594,16 @@ into families rather than being fifteen unrelated bugs:
   all-ones REFERENCE, which the API prints as an `.id` token rather than a word) and
   `group-authority: ''` → `none`, which runs the other way — the API prints nothing where native names
   the default member.
-* **A number the API prints in hex.** Bridge `priority: 0x8000` → `32768`, `port-id: 0x80.1` →
-  `128.1`, and the two designated-* ids that embed one.
+* **A number the API prints in hex** — **closed**, and the catalog said so all along: `radix:16`, which
+  nothing read. webfig's `types.number.tostr` is `val.toString(attrs.radix||10)`, so it renders the
+  digits BARE and paints the base beside the box; RouterOS spells the `0x` into the value, in lower case
+  (a bridge priority set to `0xA000` reads back `0xa000`).
+  Where the `0x` comes from is in the declaration too, and had to be, or the STP identifiers would have
+  come out `0x80.0x1`: a scalar carries `postfix:'hex'`, while inside a compound the `0x` is the
+  **tuple's own `prefix`** — the eight `{type:'tuple',prefix:'0x',sep:'.'}` STP ids, whose second part is
+  decimal. `radix` had to be read on three paths, not one: the plain declaration, a `union` member
+  (bridge `priority` is a union of a hex number and an `enm` whose members are spelled `0x1000` — two
+  renderings of one key, and the API uses the first's) and a wrapped `opt` leaf.
 * **A duration the API prints with a unit** — **closed**. A `postfix` of `s` or `ms` says the number is
   a TIME, and RouterOS prints a time in its own compound form rather than as the number webfig paints
   beside the unit. Both halves were measured by moving the value rather than inferred: `mii-interval`

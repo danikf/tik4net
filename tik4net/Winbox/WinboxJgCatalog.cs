@@ -1067,7 +1067,8 @@ namespace tik4net.Winbox
                             elementNotKey: ElementNotKeyOf(dict), elementIsRange: ElementIsRangeOf(dict),
                             tab: tab, title: TitleOf(dict),
                             nonPublic: dict.TryGetValue("nonpublic", out var npv) && npv is int npi && npi != 0,
-                            min: dict.TryGetValue("min", out var mnv) && mnv is int mni ? mni : 0);
+                            min: dict.TryGetValue("min", out var mnv) && mnv is int mni ? mni : 0,
+                            radix: RadixOf(dict));
                     }
                 }
 
@@ -1199,7 +1200,7 @@ namespace tik4net.Winbox
             string? elementSeparator = null, int elementNotKey = 0, bool elementIsRange = false,
             string? tab = null, string? title = null,
             IReadOnlyList<WinboxJgField>? extraRegistrations = null, bool nonPublic = false,
-            long min = 0)
+            long min = 0, int radix = 0, string? prefix = null)
         {
             string apiName = WinboxFieldResolver.NormalizeLabel(label);
             if (string.IsNullOrEmpty(apiName)) return;
@@ -1216,7 +1217,8 @@ namespace tik4net.Winbox
                 pane?.Kind, pane?.SelectorKey ?? 0, pane?.Values, offKey, isOptional, elementUiType, scale,
                 elementParts, postfix, elementSeparator, elementNotKey: elementNotKey,
                 elementIsRange: elementIsRange, titleApiName: titleName,
-                extraRegistrations: extraRegistrations, nonPublic: nonPublic, min: min);
+                extraRegistrations: extraRegistrations, nonPublic: nonPublic, min: min, radix: radix,
+                prefix: prefix);
             // Two fields of one window may carry the same label - the packet sniffer's streaming 'Port' (a
             // number) and its filter 'Port' (a list of port matches) - and first-wins kept only the first,
             // leaving the second reachable under no name at all. The TAB it sits under is what tells them
@@ -1403,8 +1405,14 @@ namespace tik4net.Winbox
             // ty! : WinboxJgElementPart.UiType is declared non-nullable; a genuinely missing 'type' here
             // was already passed through as null pre-nullable (unchanged runtime behaviour).
             return new WinboxJgElementPart(dec.Value.key, ty!, DecodedKeyOf(node, "maskid"),
-                enumMap: ExtractEnumMap(node), refHandler: ExtractRefHandler(node));
+                enumMap: ExtractEnumMap(node), refHandler: ExtractRefHandler(node),
+                radix: RadixOf(node));
         }
+
+        // webfig's types.number.tostr is `val.toString(attrs.radix||10)`: a declaration saying 16 is saying
+        // the number is written in hexadecimal. 0 here means "declares none", i.e. decimal.
+        private static int RadixOf(Dictionary<string, object> dict)
+            => dict.TryGetValue("radix", out var rv) && rv is int ri ? ri : 0;
 
         // The `sep` of a tuple element (webfig's types.tuple.tostr default is '/'), or null when the element
         // is not a tuple.
@@ -1488,7 +1496,12 @@ namespace tik4net.Winbox
                         ty, maskKey, refHandler, optKey, notKey, isRange, allow, ExtractDef(cur), pane,
                         DecodedKeyOf(cur, "oid"), IsOptionalAttr(cur), ElementUiTypeOf(cur), ScaleOf(cur),
                         ElementPartsOf(cur), PostfixOf(cur), ElementSeparatorOf(cur),
-                        ElementNotKeyOf(cur), ElementIsRangeOf(cur));
+                        ElementNotKeyOf(cur), ElementIsRangeOf(cur),
+                        // A wrapped leaf carries its own base and its own minimum, and both decide how the
+                        // API spells the value: the bridge's priority is a wrapped {radix:16,postfix:'hex'}
+                        // and reads 0x1000 where the raw number is 4096.
+                        radix: RadixOf(cur),
+                        min: cur.TryGetValue("min", out var omnv) && omnv is int omni ? omni : 0);
                 }
                 return;
             }
@@ -1536,6 +1549,11 @@ namespace tik4net.Winbox
                 elementUiType: ElementUiTypeOf(child), scale: ScaleOf(child),
                 elementParts: ElementPartsOf(child), postfix: PostfixOf(child),
                 elementSeparator: ElementSeparatorOf(child),
+                // The base and the minimum are the member's too. /interface/bridge's 'Priority' is a union
+                // of a {radix:16,postfix:'hex'} number and an enm whose members are spelled '0x1000' — two
+                // renderings of one key, and the API uses the first one's.
+                radix: RadixOf(child),
+                min: child.TryGetValue("min", out var cmnv) && cmnv is int cmni ? cmni : 0,
                 // …and the OTHER families answer to the same name at their own keys. The router sends one of
                 // them, not the first one: /snmp's 'Src. Address' is {ipaddr u1b, ip6addr a1c} and the row
                 // carries 0x1C, so registering only the IPv4 member left the field unreported on every row
@@ -1621,6 +1639,10 @@ namespace tik4net.Winbox
             if (string.IsNullOrEmpty(apiName)) return;
             bool ro = tuple.TryGetValue("ro", out var rov) && rov is int rin && rin != 0;
             string sep = TupleSeparatorOf(tuple);
+            // Text RouterOS prints in front of the whole joined value — every occurrence in the 7.24
+            // catalog is the STP identifiers' '0x', which belongs to the compound and not to its hex part
+            // (port-id is 0x80.1, its second part decimal).
+            string? prefix = tuple.TryGetValue("prefix", out var pfv) ? pfv as string : null;
 
             // The compound answers at the first part's key; the rest are registered as the same field.
             var extra = new List<WinboxJgField>();
@@ -1628,12 +1650,13 @@ namespace tik4net.Winbox
                 extra.Add(new WinboxJgField(apiName, keys[i].Item1, keys[i].Item2, ro,
                     uiType: TupleUiType, elementParts: parts, elementSeparator: sep,
                     isOptional: IsOptionalAttr(tuple),
-                    paneKind: pane?.Kind, paneSelectorKey: pane?.SelectorKey ?? 0, paneValues: pane?.Values));
+                    paneKind: pane?.Kind, paneSelectorKey: pane?.SelectorKey ?? 0, paneValues: pane?.Values,
+                    prefix: prefix));
 
             AddField(handlerKey, label, keys[0].Item1, keys[0].Item2, ro, null,
                 TupleUiType, 0, null, pane: pane, isOptional: IsOptionalAttr(tuple),
                 elementParts: parts, elementSeparator: sep,
-                extraRegistrations: extra.Count > 0 ? extra : null);
+                extraRegistrations: extra.Count > 0 ? extra : null, prefix: prefix);
         }
 
         /// <summary>The UI type of a scalar <c>tuple</c> field. webfig's <c>types.tuple.tostr</c> default

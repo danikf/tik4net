@@ -15,6 +15,9 @@ namespace tik4net.Winbox
         internal string UiType { get; }
         internal int MaskKey { get; }
 
+        /// <summary>The part's <c>radix</c> — <c>16</c> means its digits are hexadecimal.</summary>
+        internal int Radix { get; }
+
         /// <summary>
         /// For a <c>union</c> part, its members in <c>.jg</c> order; the element is rendered through the
         /// FIRST of them it actually carries, which is what webfig's <c>types.union.get</c> with
@@ -37,10 +40,10 @@ namespace tik4net.Winbox
         internal WinboxJgElementPart(int key, string uiType, int maskKey,
             IReadOnlyList<WinboxJgElementPart>? alternatives = null,
             IReadOnlyDictionary<int, string>? enumMap = null,
-            int[]? refHandler = null)
+            int[]? refHandler = null, int radix = 0)
         {
             Key = key; UiType = uiType; MaskKey = maskKey; Alternatives = alternatives; EnumMap = enumMap;
-            RefHandler = refHandler;
+            RefHandler = refHandler; Radix = radix;
         }
     }
 
@@ -351,8 +354,10 @@ namespace tik4net.Winbox
             string? elementSeparator = null, Tuple<WinboxJgField, WinboxJgField>? pairHalves = null,
             int elementNotKey = 0, bool elementIsRange = false, string? titleApiName = null,
             IReadOnlyList<WinboxJgField>? extraRegistrations = null, bool nonPublic = false,
-            long min = 0)
+            long min = 0, int radix = 0, string? prefix = null)
         {
+            Radix = radix;
+            Prefix = prefix;
             Min = min;
             NonPublic = nonPublic;
             TitleApiName = titleApiName;
@@ -384,6 +389,26 @@ namespace tik4net.Winbox
             NotKey = notKey;
             IsRange = isRange;
         }
+
+        /// <summary>
+        /// The declaration's <c>radix</c> — <c>16</c> when the number is written in hexadecimal, <c>0</c>
+        /// when it declares none (webfig's <c>types.number.tostr</c> is
+        /// <c>val.toString(attrs.radix||10)</c>).
+        /// </summary>
+        /// <remarks>
+        /// webfig renders the digits BARE and paints the base beside the box; RouterOS prints the <c>0x</c>
+        /// as part of the value. Which of the two applies is said by the declaration too: a scalar carries
+        /// <c>postfix:'hex'</c>, and inside a compound the <c>0x</c> belongs to the tuple's own
+        /// <see cref="Prefix"/> — so <c>port-id</c> is <c>0x80.1</c> and not <c>0x80.0x1</c>, its second
+        /// part being decimal.
+        /// </remarks>
+        internal int Radix { get; }
+
+        /// <summary>
+        /// A compound's <c>prefix</c> — text RouterOS prints in front of the whole joined value. All eight
+        /// occurrences in the 7.24 catalog are the STP identifiers' <c>0x</c>.
+        /// </summary>
+        internal string? Prefix { get; }
 
         /// <summary>
         /// The declaration's <c>min</c> — the smallest value the window will accept, <c>0</c> when it
@@ -445,6 +470,7 @@ namespace tik4net.Winbox
             => new WinboxJgField(apiName, Key, WireType, ReadOnly, EnumMap, UiType, MaskKey, RefHandler,
                 OptKey, NotKey, IsRange, Allow, Def, PaneKind, PaneSelectorKey, PaneValues, OffKey,
                 IsOptional, ElementUiType, Scale, ElementParts, Postfix, ElementSeparator, PairHalves,
-                ElementNotKey, ElementIsRange, TitleApiName, ExtraRegistrations, NonPublic, Min);
+                ElementNotKey, ElementIsRange, TitleApiName, ExtraRegistrations, NonPublic, Min, Radix,
+                Prefix);
     }
 }
