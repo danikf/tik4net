@@ -1,4 +1,4 @@
-// WinboxNativePathMapAuditTest.cs — diagnostic: does the WinBox-native path map reach everything the
+﻿// WinboxNativePathMapAuditTest.cs — diagnostic: does the WinBox-native path map reach everything the
 // binary API reaches, and does it come back with the SAME table?
 //
 // The native transport addresses a path by resolving it to an M2 handler (the .jg menu catalog plus the
@@ -210,8 +210,9 @@ namespace tik4net.integrationtests
         /// instead would line up unrelated records and invent differences.
         /// </remarks>
         private static List<string> CompareValues(Reading api, Reading native, string path,
-            out List<string> excusedButAgreeing)
+            out List<string> excusedButAgreeing, out int pairedRows)
         {
+            pairedRows = 0;
             var diffs = new List<string>();
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var excused = ExceptionsFor(path);
@@ -225,6 +226,7 @@ namespace tik4net.integrationtests
             foreach (var kv in api.Rows)
             {
                 if (!native.Rows.TryGetValue(kv.Key, out var nativeRow)) continue;
+                pairedRows++;
                 foreach (var f in kv.Value)
                 {
                     if (f.Key == ".id" || IsVolatile(f.Key)) continue;
@@ -314,7 +316,7 @@ namespace tik4net.integrationtests
 
             var report = new List<string>();
             var staleGaps = new List<string>();
-            int unmapped = 0, mismatched = 0, agreed = 0, apiRefused = 0, known = 0, valueMismatched = 0;
+            int unmapped = 0, mismatched = 0, agreed = 0, apiRefused = 0, known = 0, valueMismatched = 0, uncompared = 0;
             // The field-NAME shortfall across the paths that pass: the API's vocabulary against ours. Counted
             // separately because the pass/fail check is a half-threshold and cannot see it (see the OK line).
             int apiFieldSlots = 0, notReported = 0;
@@ -389,7 +391,7 @@ namespace tik4net.integrationtests
                     // /system/logging read `topics` as the raw handle list "[1]" where the API says "info",
                     // and this audit called the path OK for a release. So compare the values too, on rows
                     // paired by .id, over the fields both transports report.
-                    var valueDiffs = CompareValues(a, n, path, out var excusedButAgreeing);
+                    var valueDiffs = CompareValues(a, n, path, out var excusedButAgreeing, out int pairedRows);
 
                     // A tally that only ever grows stops meaning anything (the lesson A12's enum list was
                     // built on). An excused field that now AGREES must leave the exception list in the same
@@ -407,7 +409,16 @@ namespace tik4net.integrationtests
                         // at half, so everything between half and all of the API's vocabulary is invisible
                         // in the OK/MISMATCH tally. Name them here - a field native does not report is a
                         // field a caller cannot read, whether or not it trips the threshold.
-                        report.Add($"OK         {path}\trows={a.RowCount}\tshared fields={shared}/{a.FieldNames.Count}"
+                        // Rows are paired by .id, so a path where the two transports spell .id
+                        // differently pairs NOTHING and every value on it goes uncompared — an OK
+                        // line that measured only names. /file is one: native reports the router's
+                        // numeric handle where the API reports its opaque '**...' id. Say so rather
+                        // than let it read as agreement.
+                        if (pairedRows == 0 && a.RowCount > 0) uncompared++;
+                        report.Add($"OK         {path}	rows={a.RowCount}"
+                                   + (pairedRows == 0 && a.RowCount > 0
+                                       ? "	VALUES UNCOMPARED (no row paired by .id)" : "")
+                                   + $"	shared fields={shared}/{a.FieldNames.Count}"
                                    + (onlyApi.Count > 0 ? "\tapi-only: " + string.Join(",", onlyApi) : "")
                                    + FormatPairings(ProposePairings(a, n, onlyApi,
                                        n.FieldNames.Where(f => !a.FieldNames.Contains(f))
@@ -428,14 +439,14 @@ namespace tik4net.integrationtests
             // diffed against the last run), and a list of lines with no totals under it invites counting
             // them by hand.
             report.Add("");
-            report.Add($"OK={agreed}  KNOWN-GAP={known}  MISMATCH={mismatched}  VALUE-DIFF={valueMismatched}"
+            report.Add($"OK={agreed}  KNOWN-GAP={known}  MISMATCH={mismatched}  VALUE-DIFF={valueMismatched}  VALUES-UNCOMPARED={uncompared}"
                        + $"  UNMAPPED={unmapped}  ROUTER-N/A={apiRefused}");
             report.Add($"FIELD-NAMES not reported by native: {notReported}/{apiFieldSlots}"
                        + (apiFieldSlots > 0 ? $" ({notReported * 100 / apiFieldSlots}%)" : ""));
             File.WriteAllLines(reportPath, report);
             foreach (string line in report) Console.WriteLine(line);
             Console.WriteLine();
-            Console.WriteLine($"OK={agreed}  KNOWN-GAP={known}  MISMATCH={mismatched}  VALUE-DIFF={valueMismatched}"
+            Console.WriteLine($"OK={agreed}  KNOWN-GAP={known}  MISMATCH={mismatched}  VALUE-DIFF={valueMismatched}  VALUES-UNCOMPARED={uncompared}"
                               + $"  UNMAPPED={unmapped}  ROUTER-N/A={apiRefused}");
             // Not an assertion - a number to watch. The pass/fail checks above cannot see it, so without
             // this line the report reads green while a fifth of the API's field names go unreported.

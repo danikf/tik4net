@@ -1463,6 +1463,26 @@ That is a lead, never a licence, and the report says which is which by showing e
   Repeater Interfaces') are two more, and are why a blank field is worth a WRITE before it is written off:
   the label is sitting in the catalog in plain sight, and only the empty value hid it.
 
+### 33.2a An audit that pairs rows by `.id` compares nothing where `.id` disagrees
+
+Values are compared only on rows both transports returned under the SAME `.id` — pairing by ordinal
+would line up unrelated records and invent differences. Where the two transports spell `.id`
+differently that pairs NOTHING, and `CompareValues` returns no differences: an OK line that measured
+names only. The report says `VALUES UNCOMPARED` and the tally carries `VALUES-UNCOMPARED=N` rather
+than letting it read as agreement.
+
+On 7.24 exactly one path is in that state, and it is not a spelling difference: `/file` is keyed by the
+router's numeric handle on native and by an opaque `**…` string on the API. Two defects were sitting
+under it:
+
+* **`type` is two different fields with one name.** `[72]` declares `0x3 u32 'type'` and
+  `0x7 string 'Type'`, and the key → name direction is first-wins, so native answers `type=5` where the
+  API says `type=directory`. It is not the one-key-two-fields case of §30 — these are two keys — so the
+  wire type cannot tell them apart, and it needs a per-path preference the resolver does not have.
+* **`contents` (`0xd`) is absent from the list message.** WinBox fetches a file's text when the editor
+  is opened, not while listing, so this is the router's message and not a name we spell wrong. The API
+  prints it on every text file.
+
 ### 33.3 What a WinBox label is not
 
 Three shapes account for most of the pairings, and none of them is a spelling difference:
