@@ -690,8 +690,31 @@ namespace tik4net.Connection
             return (actualCommand, allParams);
         }
 
-        private static List<ITikCommandParameter> ResolveParamsForRead(IList<ITikCommandParameter> original)
+        /// <summary>
+        /// Gives every <see cref="TikCommandParameterFormat.Default"/> parameter of a READ its actual
+        /// format: the command's own <see cref="DefaultParameterFormat"/> when one was set, and
+        /// <see cref="TikCommandParameterFormat.Filter"/> otherwise.
+        /// </summary>
+        /// <remarks>
+        /// The command default used to be ignored here, so every unformatted parameter of a read became a
+        /// filter whatever the caller had said. <c>CreateCommandAndParameters(path + "/print",
+        /// NameValue, "detail", "")</c> — the documented way to say what the parameters ARE — went out as
+        /// <c>where detail=""</c>, which matches no row: two rows over Telnet when the same parameter was
+        /// built with <c>CreateParameter(..., NameValue)</c>, and none this way. Not an error, not a wrong
+        /// value — an empty table, on a command the router never saw. The binary API has always resolved it
+        /// in this order (parameter → command default → use-case default; see <c>ApiCommand</c>), so the two
+        /// command implementations no longer disagree about what the same call means.
+        /// <para>The Filter fallback is what makes a bare <c>CreateCommandAndParameters(path + "/print",
+        /// "name", "ether1")</c> a filtered read, and it stays: it applies only when the caller has said
+        /// nothing at all.</para>
+        /// </remarks>
+        private List<ITikCommandParameter> ResolveParamsForRead(IList<ITikCommandParameter> original)
         {
+            TikCommandParameterFormat forUnformatted =
+                _defaultParameterFormat != TikCommandParameterFormat.Default
+                    ? _defaultParameterFormat
+                    : TikCommandParameterFormat.Filter;
+
             var result = new List<ITikCommandParameter>(original.Count);
             foreach (var p in original)
             {
@@ -701,7 +724,7 @@ namespace tik4net.Connection
                     && !p.Name.StartsWith("=")
                     && !p.Name.StartsWith("?"))
                 {
-                    result.Add(new TikCommandParameter(p.Name, p.Value, TikCommandParameterFormat.Filter));
+                    result.Add(new TikCommandParameter(p.Name, p.Value, forUnformatted));
                 }
                 else
                 {

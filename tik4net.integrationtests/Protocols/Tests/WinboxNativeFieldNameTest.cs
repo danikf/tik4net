@@ -26,11 +26,8 @@ namespace tik4net.integrationtests
         /// measuring RouterOS's column layout instead of what this client names a field. A SINGLETON menu
         /// has no <c>detail</c> and answers nothing at all when told to use one, so it is passed per call
         /// rather than always.
-        /// <para>The parameter is built with <c>CreateParameter(..., NameValue)</c> rather than through
-        /// <c>CreateCommandAndParameters(..., NameValue, …)</c>: the latter leaves each parameter's own
-        /// format at <c>Default</c> and sets the COMMAND's default instead, and on a CLI or native read that
-        /// resolves to a FILTER — <c>where detail=""</c>, which matches no row. Two rows over Telnet one way
-        /// and none the other, same command.</para>
+        /// <para>Built with <c>CreateParameter(..., NameValue)</c>, which says what the parameter is on the
+        /// parameter itself rather than on the command.</para>
         /// </summary>
         private static ITikReSentence Single(ITikConnection conn, string path, bool detail = false)
             => (detail
