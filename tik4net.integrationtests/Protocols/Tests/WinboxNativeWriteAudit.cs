@@ -1,4 +1,4 @@
-// WinboxNativeWriteAudit.cs — the half of the contract the path-map audit never measured.
+﻿// WinboxNativeWriteAudit.cs — the half of the contract the path-map audit never measured.
 //
 // The path-map audit is a READ, all 154 paths of it. Every mapping it checks is exercised in one
 // direction only, and the direction it skips is the one where a wrong mapping does damage rather than
@@ -428,6 +428,323 @@ namespace tik4net.integrationtests
                           .FirstOrDefault(x => x.GetId() == id);
             return row == null ? "(row gone)" : row.GetResponseFieldOrDefault(field, "");
         }
+
+        // ── enable / disable ──────────────────────────────────────────────────
+
+        /// <summary>
+        /// The toggle verbs, on every fixture row that has a <c>disabled</c> field.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="VerbMatrixTest"/> already covers these per TRANSPORT, but on one path. What it cannot
+        /// see is that native does not send an <c>enable</c> at all: it writes the <c>disabled</c> field,
+        /// whose M2 key is per window. So the verb is proven on <c>/ip/firewall/filter</c> and unproven on
+        /// the other sixty tables, each of which resolves that field through its own catalog entry — and a
+        /// window that spells the flag the other way round would silently toggle the wrong direction.
+        /// </remarks>
+        internal void RunToggles(WinboxNativeAuditFixtures fixtures)
+        {
+            foreach (var recipe in WinboxNativeAuditFixtures.Recipes)
+            {
+                string id = fixtures.CreatedIdOn(recipe.Path);
+                if (id == null) continue;
+
+                var row = ReadRow(recipe.Path, id);
+                if (row == null || row.GetResponseFieldOrDefault("disabled", null) == null) continue;
+
+                string original = row.GetResponseFieldOrDefault("disabled", "false");
+                _results.Add(RunToggle(recipe.Path, id, "disable"));
+                _results.Add(RunToggle(recipe.Path, id, "enable"));
+                TryVerb(_api, recipe.Path, id, original == "true" ? "disable" : "enable");
+            }
+        }
+
+        // Native first, then the API, for the reason the set probe does it: both verbs name an absolute
+        // state rather than a relative one, so the API's call lands the same thing whatever native left.
+        private Result RunToggle(string path, string id, string verb)
+        {
+            var r = new Result { Path = path, Field = "(" + verb + ")" };
+
+            string actual;
+            try
+            {
+                Verb(_native, path, id, verb);
+                actual = ReadBack(path, id, "disabled");
+            }
+            catch (Exception ex)
+            {
+                r.Outcome = Outcome.Refused;
+                r.Detail = "native " + verb + " threw: " + ex.GetType().Name + ": " + ex.Message;
+                return r;
+            }
+
+            string expected;
+            try
+            {
+                Verb(_api, path, id, verb);
+                expected = ReadBack(path, id, "disabled");
+            }
+            catch (Exception ex)
+            {
+                r.Outcome = Outcome.NotProbeable;
+                r.Detail = "api " + verb + ": " + ex.Message;
+                return r;
+            }
+
+            if (string.Equals(expected, actual, StringComparison.Ordinal))
+            {
+                r.Outcome = Outcome.Ok;
+                r.Detail = verb + " → disabled='" + actual + "'";
+            }
+            else
+            {
+                r.Outcome = Outcome.Different;
+                r.Detail = verb + ": api gave disabled='" + expected + "', native gave '" + actual + "'";
+            }
+            return r;
+        }
+
+        // ── unset ─────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// <c>unset</c> on the same field each path's probe entry writes.
+        /// </summary>
+        /// <remarks>
+        /// Native has no unset operation either — it translates the verb into a write of the field's empty
+        /// or default form, and what "empty" means is a question about the FIELD's type, not about the verb:
+        /// a string's is a zero-length string, a number's is a catalog-declared sentinel, an enum's is a
+        /// member. The verb therefore has one implementation and as many correct answers as there are types,
+        /// which is exactly the shape that cannot be measured on a single path.
+        /// <para>The field is set to the probe value first, over the API, so there is always something to
+        /// unset — unsetting a field that is already unset is a measurement that cannot fail.</para>
+        /// </remarks>
+        internal void RunUnsets(WinboxNativeAuditFixtures fixtures)
+        {
+            foreach (var probe in Probes)
+            {
+                string id = fixtures.CreatedIdOn(probe.Key);
+                if (id == null) continue;
+                _results.Add(RunUnset(probe.Key, id, probe.Value.Field, probe.Value.Value));
+            }
+        }
+
+        private Result RunUnset(string path, string id, string field, string probeValue)
+        {
+            var r = new Result { Path = path, Field = "(unset " + field + ")" };
+
+            var row = ReadRow(path, id);
+            if (row == null)
+            {
+                r.Outcome = Outcome.NotProbeable;
+                r.Detail = "the fixture row is gone";
+                return r;
+            }
+            string original = row.GetResponseFieldOrDefault(field, "");
+
+            string actual = null;
+            string nativeFailure = null;
+            try
+            {
+                Set(_api, path, id, field, probeValue);
+                Unset(_native, path, id, field);
+                actual = ReadBack(path, id, field);
+            }
+            catch (Exception ex)
+            {
+                // Not a finding yet. Most of these fields are MANDATORY, and the router refuses to clear one
+                // whichever transport asks — so the API's attempt below is what says which kind of refusal
+                // this was. Returning here would have filed 'can not set empty name' against native when
+                // the API cannot clear a bridge's name either; the add probe learnt this first.
+                nativeFailure = ex.GetType().Name + ": " + ex.Message;
+            }
+
+            string expected;
+            try
+            {
+                Set(_api, path, id, field, probeValue);
+                Unset(_api, path, id, field);
+                expected = ReadBack(path, id, field);
+            }
+            catch (Exception ex)
+            {
+                // The router will not unset this field over the API either — a mandatory field, mostly. The
+                // native attempt above is then held against nothing, which is what NotProbeable means.
+                r.Outcome = Outcome.NotProbeable;
+                r.Detail = nativeFailure == null
+                    ? "api unset: " + ex.Message
+                    : "both transports were refused, so the router is refusing to CLEAR the field: " + ex.Message;
+                TryRestore(path, id, field, original);
+                return r;
+            }
+
+            TryRestore(path, id, field, original);
+
+            if (nativeFailure != null)
+            {
+                r.Outcome = Outcome.Refused;
+                r.Detail = "native unset threw where the API's went through: " + nativeFailure;
+                return r;
+            }
+
+            if (string.Equals(expected, actual, StringComparison.Ordinal))
+            {
+                r.Outcome = Outcome.Ok;
+                r.Detail = "unset " + field + " → '" + actual + "'";
+            }
+            else
+            {
+                r.Outcome = Outcome.Different;
+                r.Detail = "unset " + field + ": api left '" + expected + "', native left '" + actual + "'";
+            }
+            return r;
+        }
+
+        // ── move ──────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// The ordered tables, where a row's POSITION is part of its meaning.
+        /// </summary>
+        /// <remarks>
+        /// Measured on two rows this probe makes and deletes, rather than on the fixture row: <c>move</c>
+        /// has no absolute form, so a differential needs the same starting order twice, and the cheapest way
+        /// to have the same starting order twice is to build it twice. Nothing the router came with is
+        /// touched, which matters more here than elsewhere — a moved firewall rule changes what the router
+        /// does even though every field on it still reads correct.
+        /// </remarks>
+        internal void RunMoves(WinboxNativeAuditFixtures fixtures)
+        {
+            foreach (var recipe in WinboxNativeAuditFixtures.Recipes)
+            {
+                if (!OrderedPaths.Contains(recipe.Path)) continue;
+                if (fixtures.CreatedIdOn(recipe.Path) == null) continue;
+                _results.Add(RunMove(recipe));
+            }
+        }
+
+        /// <summary>
+        /// Tables RouterOS evaluates in order. Listed rather than detected: every table has a row ORDER, and
+        /// nothing in a print says whether the router reads it top-down or treats it as a set — so a
+        /// detected list would silently measure the wrong tables.
+        /// </summary>
+        private static readonly HashSet<string> OrderedPaths =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "/ip/firewall/filter", "/ip/firewall/nat", "/ip/firewall/mangle", "/ip/firewall/raw",
+                "/interface/bridge/filter", "/interface/bridge/nat",
+                "/ip/hotspot/walled-garden", "/ip/hotspot/walled-garden/ip", "/ip/proxy/access",
+                "/routing/rule", "/routing/filter/rule",
+                "/caps-man/provisioning", "/caps-man/access-list",
+                "/interface/wifi/provisioning", "/interface/wifi/access-list",
+            };
+
+        private Result RunMove(WinboxNativeAuditFixtures.Recipe recipe)
+        {
+            var r = new Result { Path = recipe.Path, Field = "(move)" };
+
+            string problem;
+            string nativeOrder = MeasureMove(recipe, true, out problem);
+            if (problem != null)
+            {
+                r.Outcome = nativeOrder == null ? Outcome.NotProbeable : Outcome.Refused;
+                r.Detail = problem;
+                return r;
+            }
+
+            string apiOrder = MeasureMove(recipe, false, out problem);
+            if (problem != null)
+            {
+                r.Outcome = Outcome.NotProbeable;
+                r.Detail = "api side: " + problem;
+                return r;
+            }
+
+            if (string.Equals(nativeOrder, apiOrder, StringComparison.Ordinal))
+            {
+                r.Outcome = Outcome.Ok;
+                r.Detail = "move put the row where the API's move puts it (" + apiOrder + ")";
+            }
+            else
+            {
+                r.Outcome = Outcome.Different;
+                r.Detail = "move: api gave '" + apiOrder + "', native gave '" + nativeOrder + "'";
+            }
+            return r;
+        }
+
+        /// <summary>
+        /// Builds two fresh rows, moves the second in front of the first over one transport, and returns the
+        /// resulting order as "12" or "21". <paramref name="problem"/> is null on success; the rows are
+        /// always removed.
+        /// </summary>
+        private string MeasureMove(WinboxNativeAuditFixtures.Recipe recipe, bool viaNative, out string problem)
+        {
+            string path = recipe.Path;
+            string firstId = null, secondId = null;
+            problem = null;
+            try
+            {
+                firstId = _api.CreateCommandAndParameters(path + "/add", Rename(recipe.NameValues, "m1"))
+                              .ExecuteScalar();
+                secondId = _api.CreateCommandAndParameters(path + "/add", Rename(recipe.NameValues, "m2"))
+                               .ExecuteScalar();
+
+                // Both adds land at the end, so the pair starts as [… first, second]. Moving `second` to
+                // destination `first` must reverse exactly those two.
+                string before = OrderOf(path, firstId, secondId);
+                if (before != "12")
+                {
+                    problem = "the two probe rows did not land in the order they were added (" + before + ")";
+                    return null;
+                }
+
+                var conn = viaNative ? _native : _api;
+                conn.CreateCommandAndParameters(path + "/move", "numbers", secondId, "destination", firstId)
+                    .ExecuteNonQuery();
+
+                return OrderOf(path, firstId, secondId);
+            }
+            catch (Exception ex)
+            {
+                problem = (viaNative ? "native" : "api") + " move: " + ex.GetType().Name + ": " + ex.Message;
+                // A throw AFTER both rows existed is the transport refusing the move; a throw before that is
+                // the router refusing the ROW, and there is nothing to hold native against.
+                return (firstId != null && secondId != null) ? "" : null;
+            }
+            finally
+            {
+                Cleanup(path, secondId, false);
+                Cleanup(path, firstId, false);
+            }
+        }
+
+        /// <summary>The two rows' relative position, as "12" or "21".</summary>
+        private string OrderOf(string path, string firstId, string secondId)
+        {
+            var ids = _api.CreateCommand(path + "/print").ExecuteList().Select(x => x.GetId()).ToList();
+            int a = ids.IndexOf(firstId), b = ids.IndexOf(secondId);
+            if (a < 0 || b < 0) return "a probe row is not in the table";
+            return a < b ? "12" : "21";
+        }
+
+        private ITikReSentence ReadRow(string path, string id)
+        {
+            try
+            {
+                return _api.CreateCommand(path + "/print").ExecuteList().FirstOrDefault(x => x.GetId() == id);
+            }
+            catch (Exception) { return null; }
+        }
+
+        private static void Verb(ITikConnection conn, string path, string id, string verb)
+            => conn.CreateCommandAndParameters(path + "/" + verb, ".id", id).ExecuteNonQuery();
+
+        private static void TryVerb(ITikConnection conn, string path, string id, string verb)
+        {
+            try { Verb(conn, path, id, verb); } catch (Exception) { }
+        }
+
+        // unset names its target in the pseudo-parameter `value-name`, the binary API's own spelling.
+        private static void Unset(ITikConnection conn, string path, string id, string field)
+            => conn.CreateCommandAndParameters(path + "/unset", ".id", id, "value-name", field).ExecuteNonQuery();
 
         // A restore that throws would mask the finding with its own exception — and where the original was
         // an unset field, `field=""` is a write RouterOS refuses. The row is deleted at the end of the run

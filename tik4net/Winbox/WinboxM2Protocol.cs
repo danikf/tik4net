@@ -1,4 +1,4 @@
-namespace tik4net.Winbox
+﻿namespace tik4net.Winbox
 {
     /// <summary>
     /// Single source of truth for the WinBox M2 (nv/jsproxy) protocol constants used by tik4net's
@@ -63,6 +63,18 @@ namespace tik4net.Winbox
             internal const int ErrorCode = 0xFF0008;
             /// <summary><c>k_error_string</c> — optional human error string. webfig <c>sff0009</c>.</summary>
             internal const int ErrorString = 0xFF0009;
+            /// <summary>
+            /// The fields this write CLEARS — a u32[] of type-tagged field ids (<c>Uff0014</c>).
+            /// </summary>
+            /// <remarks>
+            /// This is how WinBox unsets anything, and it is not a value write at all. webfig's
+            /// <c>unset(obj,id)</c> deletes the field from the object and pushes
+            /// <c>id2int[&lt;prefix letter&gt;] + &lt;hex key&gt;</c> onto this array — the field key with its
+            /// ftype in bits 27+ (<see cref="WinboxJgField.TypedFieldId"/>). Every ftype clears the same way,
+            /// which is why guessing per type — an empty string, a false bool, a sentinel number — got a
+            /// different answer on each and a wrong one on most.
+            /// </remarks>
+            internal const int UnsetFields = 0xFF0014;
         }
 
         // ──────────────────────────────────────────────────────────────────────

@@ -1418,6 +1418,50 @@ namespace tik4net.Winbox
         // ── Field encode (writes) ──────────────────────────────────────────────
 
         /// <summary>
+        /// Names <paramref name="apiName"/> in an unset: appends its type-tagged field id(s) to
+        /// <paramref name="unsetIds"/> and returns any M2 fields that must ride along.
+        /// </summary>
+        /// <remarks>
+        /// WinBox does not clear a field by writing an empty value — it lists the field's id in
+        /// <see cref="WinboxM2Protocol.SysKey.UnsetFields"/> (webfig's <c>unset(obj,id)</c>). An
+        /// <c>opt</c>-WRAPPED field additionally lowers its present-flag, because <c>types.opt.put</c> with
+        /// no value does both: the flag says the option is absent, the list says the value underneath is
+        /// gone. A field the catalog does not know, or one it marks read-only, yields nothing and adds no
+        /// id — the caller reports it rather than sending a request that would silently do nothing.
+        /// </remarks>
+        internal List<byte[]> EncodeUnsetField(string apiName, List<int> unsetIds)
+        {
+            var result = new List<byte[]>();
+
+            // A paired field (max-limit → its upload and download halves) is two real fields wearing one
+            // name; clearing it has to clear both, and asking here rather than duplicating the pair table
+            // keeps this from drifting away from EncodeField's own idea of what a pair is.
+            var halves = PairedHalfNames(apiName);
+            if (halves != null)
+            {
+                result.AddRange(EncodeUnsetField(halves.Item1, unsetIds));
+                result.AddRange(EncodeUnsetField(halves.Item2, unsetIds));
+                return result;
+            }
+
+            WinboxJgField? jg = null;
+            if (JgFields == null || !JgFields.TryGetValue(AliasToJg(apiName), out jg) || jg == null)
+                return result;
+            if (jg.ReadOnly) return result;
+
+            if (jg.OptKey != 0) result.Add(M2Message.BoolSys(jg.OptKey, false));
+
+            unsetIds.Add(jg.TypedFieldId);
+
+            // A network is an address key and a mask key, and a mask left behind is a value the router keeps
+            // matching on. The mask has no declaration of its own to read a type from — it rides the same
+            // u32 form its sibling does.
+            if (jg.MaskKey != 0) unsetIds.Add((1 << 27) | jg.MaskKey);
+
+            return result;
+        }
+
+        /// <summary>
         /// Encodes an API field write (<paramref name="apiName"/> = <paramref name="value"/>) into its M2
         /// wire field bytes, driven by the <c>.jg</c> UI-semantic type: IP addresses pack to u32
         /// (<c>ipaddr</c>) or address+netmask u32 pair (<c>network</c>), MACs to 6 raw bytes, enum strings to

@@ -1591,6 +1591,9 @@ namespace tik4net.WinboxNative
             Func<int[], string, int?> resolveRef)
         {
             var fields = new List<byte[]>();
+            var unsetIds = new List<int>();
+            var unknown = new List<string>();
+            int named = 0;
             foreach (var p in descriptor.Parameters)
             {
                 if (!string.Equals(p.Name, TikSpecialProperties.UnsetValueName, StringComparison.OrdinalIgnoreCase))
@@ -1598,9 +1601,11 @@ namespace tik4net.WinboxNative
                 if (string.IsNullOrEmpty(p.Value))
                     continue;
 
+                named++;
+                int before = unsetIds.Count;
                 try
                 {
-                    fields.AddRange(resolver.EncodeField(p.Value, string.Empty, resolveRef));
+                    fields.AddRange(resolver.EncodeUnsetField(p.Value, unsetIds));
                 }
                 catch (WinboxFieldValueException ex)
                 {
@@ -1608,14 +1613,27 @@ namespace tik4net.WinboxNative
                         new TikGenericCommand(this, descriptor.CommandText),
                         new TikTrapSentenceResult(ex.Message));
                 }
+                // A field the catalog cannot name has no id to list, so the request would carry the verb and
+                // nothing to apply it to — a success that clears nothing. Name it instead.
+                if (unsetIds.Count == before) unknown.Add(p.Value);
             }
 
-            if (fields.Count == 0)
+            if (unsetIds.Count > 0)
+                fields.Add(M2Message.U32ArraySys(WinboxM2Protocol.SysKey.UnsetFields, unsetIds.ToArray()));
+
+            if (named == 0)
                 throw new TikCommandTrapException(
                     new TikGenericCommand(this, descriptor.CommandText),
                     new TikTrapSentenceResult(
                         "unset requires at least one '" + TikSpecialProperties.UnsetValueName
                         + "=<field>' parameter naming the field to clear."));
+
+            if (unknown.Count > 0)
+                throw new TikCommandTrapException(
+                    new TikGenericCommand(this, descriptor.CommandText),
+                    new TikTrapSentenceResult(
+                        "no M2 field id for " + string.Join(", ", unknown)
+                        + " on this handler, so an unset naming it would clear nothing."));
 
             return fields;
         }

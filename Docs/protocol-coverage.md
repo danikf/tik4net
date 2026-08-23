@@ -453,10 +453,15 @@ value. See [winbox-native-m2-protocol.md §33.1–33.4](winbox-native-m2-protoco
 
 ### Writes are audited the same way
 
-`set`, `add` and `remove` are measured against the API by the same differential (§33.2d of
-[winbox-native-m2-protocol.md](winbox-native-m2-protocol.md)): the same row is made over each transport
-and only the fields the recipe set are compared. Last run: `WRITES ok=105 different=0 refused=0
-not-probeable=18`. A refusal counts as a finding only when the API's identical write succeeds — a table
+All six write verbs are measured against the API by the same differential (§33.2d–e of
+[winbox-native-m2-protocol.md](winbox-native-m2-protocol.md)): the same row is made, changed, cleared,
+toggled, moved and removed over each transport, and only the fields the recipe set are compared. Last run:
+`WRITES ok=204 different=0 refused=0 not-probeable=59`.
+
+`enable`/`disable`, `unset` and `move` are not verbs on the native side at all — each is translated into
+a field write, so one implementation has as many correct answers as there are field types. That is what a
+per-transport verb test on a single path cannot see, and it is where `unset` turned out to be writing an
+empty value instead of listing the field in the catalog's own unset array. A refusal counts as a finding only when the API's identical write succeeds — a table
 already holding the fixture row refuses BOTH transports, and that is the router talking about the row,
 not about native.
 

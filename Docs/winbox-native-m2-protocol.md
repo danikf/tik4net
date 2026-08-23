@@ -1,4 +1,4 @@
-# WinBox native M2 — protocol reference
+﻿# WinBox native M2 — protocol reference
 
 Durable protocol facts for the `WinboxNative` transport, verified against a live RouterOS router
 and/or read out of the webfig client. The C# implementation (`tik4net/Winbox/`,
@@ -1792,6 +1792,63 @@ which RouterOS refuses — thrown by the API call and reported against the nativ
 to it in the same `try`. Nothing needed restoring in the middle at all: `set field=value` is absolute,
 so whatever the native write leaves behind, the API write that follows lands the same thing either way.
 With the order corrected, the eighteen were 18 ok, 0 different, 0 refused.
+
+### 33.2e The three verbs that are not writes
+
+`set`, `add` and `remove` say what a row should contain. `enable`/`disable`, `unset` and `move` say
+something about a row without naming a value, and native carries none of them as a verb of its own — each
+is translated into a field write on the way out. A translation has one implementation and as many correct
+answers as there are field types, which is exactly the shape a single-path test cannot measure:
+`VerbMatrixTest` proves all three per TRANSPORT on `/ip/firewall/filter`, and that says nothing about the
+other sixty tables.
+
+**`enable`/`disable` — 64 probes, all clean.** Native writes the `disabled` field, whose key is per window,
+so every table resolves it through its own catalog entry. Measured across 32 seeded tables, both directions
+each, all agreeing with what the API's verb leaves behind.
+
+**`move` — 15 probes, all clean.** Measured on two rows the probe makes and deletes rather than on the
+fixture row, because `move` has no absolute form: a differential needs the same starting order twice, and
+building it twice is the cheapest way to have it. The ordered tables are listed rather than detected —
+every table has a row order and nothing in a print says whether the router READS it top-down.
+
+**`unset` — and the mechanism it was missing.**
+
+WinBox does not clear a field by writing an empty value. webfig's `unset(obj,id)` is:
+
+```js
+function unset(obj,id){ if(id!=null){ delete obj[id];
+  if(obj.Uff0014==null)obj.Uff0014=[];
+  obj.Uff0014.push(id2int[id.substr(0,1)]+parseInt(id.substr(1),16)); } }
+```
+
+`0xFF0014` is a **u32[] listing the fields this write clears**, each named by its key with its ftype in
+bits 27+ — `id2int` is `{b:0<<27, u:1<<27, q:2<<27, a:3<<27, s:4<<27, m:5<<27, r:6<<27}` plus the array
+forms at +16, which is the `.jg` id's own prefix letter turned back into a number. So the letter is part of
+the identity here for the same reason it is in a record: `u12` and `U12` are two fields on one key and name
+themselves differently.
+
+Every ftype clears the same way. Writing "the empty value" instead gives a different answer per type and a
+wrong one for most, and the seeded audit caught all four kinds at once:
+
+* a **string** happened to work — writing it empty does clear it;
+* a **bool** was written `false`, where the API's unset leaves the field absent entirely;
+* an **enum** was left exactly as it was, an unset reporting success and doing nothing;
+* a **number** encoded to no bytes at all — and since that was the only named field, the request failed
+  client-side with a complaint that the caller had not named a field it had named. Thirteen paths.
+
+An `opt`-WRAPPED field lowers its present-flag as well, because `types.opt.put` with no value does both:
+the flag says the option is absent, the list says the value underneath is gone. A wrapper with **no id of
+its own** — `{name:'Client Isolation',type:'opt',showdef:1,c:[{type:'bool',id:'bbb04'}]}` — has no flag to
+lower, and the list is then the entire request. That shape is why a bool could look unclearable.
+
+With the list sent, the write audit reads **204 ok, 0 different, 0 refused** across all six verbs.
+
+The remaining 59 `not-probeable` are the router refusing the operation to BOTH transports: a table that
+already holds the fixture row and keys on a field the probe cannot vary, or a mandatory field that cannot
+be cleared at all (`can not set empty name`, `no chain specified`, `at least one DHCP server is required`).
+Classifying those needs the API's attempt as well as native's — the first version of the unset probe
+returned on the native throw and filed `can not set empty name` against the transport, when the API cannot
+clear a bridge's name either.
 
 ### 33.2b What is left, checked against the window itself
 

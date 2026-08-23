@@ -490,6 +490,15 @@ namespace tik4net.integrationtests
                 write = new WinboxNativeWriteAudit(api, native);
                 write.Run(fixtures);
                 write.RunAddsAndRemoves(fixtures);
+
+                // The three verbs the CRUD probes above do not reach. Each has ONE implementation on the
+                // native side and many correct answers, because each is translated into a field write whose
+                // key and whose empty form are per window: enable/disable into ‹disabled›, unset into the
+                // field default. VerbMatrixTest proves them per transport on one path; these ask the other
+                // sixty tables the same question.
+                write.RunToggles(fixtures);
+                write.RunUnsets(fixtures);
+                write.RunMoves(fixtures);
             }
             }
             finally
