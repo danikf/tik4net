@@ -124,6 +124,18 @@ namespace tik4net.Winbox
                 if (keyToField != null && !keyToField.TryGetValue(typedKey, out jf))
                     keyToField.TryGetValue(wireKey, out jf);
                 if (IsUnsetField(jf, kv.Value.Item2, rec)) continue;
+                // A key the router filled with a different KIND of value is not this field on this row.
+                // /interface's 0x1001E carries the type NAME as a string on almost every row — and on an
+                // ENSLAVED one it carries its master's numeric id instead, because WinBox nests a slave
+                // under its master in the list. Reported as `type` that read `474` where the API says
+                // `eoip`. A row whose value contradicts the field's declared wire type gets no value at
+                // all, which is the honest answer: we do not know this row's type, and saying nothing is
+                // not the same as saying a number.
+                if (IsWireKindContradiction(jf, kv.Value.Item1))
+                {
+                    TraceWireKindContradiction(jf!, kv.Value.Item1);
+                    continue;
+                }
                 fields[apiName] = FormatTyped(jf, kv.Value.Item1, kv.Value.Item2, rec, collectRefTables);
             }
 
@@ -565,13 +577,25 @@ namespace tik4net.Winbox
                 {
                     string? name = ResolveRefName(jf.RefHandler, value, collectRefTables);
                     if (name != null) return name;
+                    // No row answers to it, and no static member names it either — which is what an
+                    // all-ones "not set" looks like on a reference the .jg wraps in no defenum. RouterOS
+                    // prints the raw id token there rather than a word: /caps-man/provisioning's
+                    // master-configuration reads *FFFFFFFF, not 4294967295 and not 'none'. A reference that
+                    // DOES have a static member for the value (see §32.6) is answered by that member below.
+                    if (collectRefTables == null
+                        && (jf.EnumMap == null
+                            || !(WinboxFieldResolver.TryToInt64(value, out long rv)
+                                 && jf.EnumMap.ContainsKey(unchecked((int)rv))))
+                        && WinboxFieldResolver.TryToInt64(value, out long idv))
+                        return FormatId(idv);
                 }
                 // static enum: map the numeric value back to its API string label.
                 if (jf.EnumMap != null)
                 {
                     if (WinboxFieldResolver.TryToInt64(value, out long ev))
                     {
-                        if (jf.EnumMap.TryGetValue(unchecked((int)ev), out var label)) return label;
+                        if (jf.EnumMap.TryGetValue(unchecked((int)ev), out var label))
+                            return PrintedMember(jf.ApiName, label);
                         // The map missed, so the value is a plain number — and a `postfix:'s'` says what
                         // KIND of number. webfig renders it bare and paints the unit next to the box; the
                         // API prints a duration. /ip/ipsec/profile dpd-interval, whose only member is
@@ -698,6 +722,66 @@ namespace tik4net.Winbox
             if (WinboxFieldResolver.TryToInt64(value, out long n) && n == 0) return true;
             word = null;
             return false;
+        }
+
+        /// <summary>
+        /// Members RouterOS ACCEPTS under the catalog's word but PRINTS as something else — here, as
+        /// nothing at all.
+        /// </summary>
+        /// <remarks>
+        /// Distinct from <c>WinboxFieldResolver.AliasEnumMembers</c>, which replaces a member's word in
+        /// BOTH directions because the catalog's is one the router would refuse (<c>ip-encap</c>). This one
+        /// is a print-only difference and must not reach the write side: <c>/interface/vrrp</c> completes
+        /// <c>group-authority=</c> to an empty token, <c>none</c> and <c>self</c>, and setting either of the
+        /// first two lands the same 0 on the wire — so <c>none</c> is a spelling the router takes and never
+        /// gives back.
+        /// </remarks>
+        private static readonly Dictionary<string, Dictionary<string, string>> MemberPrintedAs =
+            new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["group-authority"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["none"] = "",
+                },
+            };
+
+        private static string PrintedMember(string? apiName, string label)
+            => apiName != null && MemberPrintedAs.TryGetValue(apiName, out var table)
+               && table.TryGetValue(label, out string? printed) && printed != null
+                ? printed : label;
+
+        /// <summary>
+        /// True when the wire put a STRING where the field is declared numeric, or a number where it is
+        /// declared a string. Only that contradiction: every other pairing (u32 against u64, a bool read as
+        /// a number) is a width or a rendering question, not a different kind of thing, and the router is
+        /// entitled to it.
+        /// </summary>
+        private static bool IsWireKindContradiction(WinboxJgField? jf, string wireType)
+        {
+            if (jf == null || jf.WireType == null) return false;
+            bool fieldIsText = IsTextWire(jf.WireType);
+            bool wireIsText = IsTextWire(wireType);
+            if (fieldIsText == wireIsText) return false;
+            // Only a scalar declaration says anything this strong: a list, a message or an address is
+            // carried in shapes this comparison does not model.
+            return IsScalarKind(jf.WireType) && IsScalarKind(wireType);
+        }
+
+        private static bool IsTextWire(string wireType)
+            => string.Equals(wireType, "string", StringComparison.OrdinalIgnoreCase);
+
+        private static bool IsScalarKind(string wireType)
+        {
+            switch ((wireType ?? "").ToLowerInvariant())
+            {
+                case "string":
+                case "u32":
+                case "u64":
+                case "u8":
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         // The postfixes acted on: the two that mean TIME. 'min', 'MHz', '%' and the rest are units the API
@@ -1482,6 +1566,17 @@ namespace tik4net.Winbox
             TikWireTrace.Emit("wbx.codec", TikWireDir.Note,
                 $"enum '{jf.ApiName}' (key 0x{jf.Key:X}) value {value} has no member in the .jg map "
                 + $"[{string.Join(",", jf.EnumMap!.Keys)}], left as raw text");
+        }
+
+        // A key whose wire value contradicts the field's declared kind — a string where a number is declared
+        // or the reverse. The row is not carrying this field, and a silent drop is how a wrong value gets
+        // reported for a release, so say so.
+        private static void TraceWireKindContradiction(WinboxJgField jf, string wireType)
+        {
+            if (!TikWireTrace.Enabled) return;
+            TikWireTrace.Emit("wbx.codec", TikWireDir.Note,
+                $"'{jf.ApiName}' (key 0x{jf.Key:X}) is declared {jf.WireType} and the row carries "
+                + $"{wireType}; not reported on this row");
         }
 
         /// <summary>

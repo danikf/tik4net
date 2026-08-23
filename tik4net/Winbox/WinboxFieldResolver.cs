@@ -906,7 +906,7 @@ namespace tik4net.Winbox
                     jgToApi: Ci(),
                     keyToApi: new Dictionary<int, string>
                     {
-                        [0x1001E] = "type",      [0x10001] = "type-id",
+                        [0x10001] = "type-id",
                         // cumulative counters — /interface print
                         [0x100FC] = "rx-byte",   [0x100FD] = "tx-byte",
                         [0x100FE] = "rx-packet", [0x100FF] = "tx-packet",
@@ -919,6 +919,12 @@ namespace tik4net.Winbox
                         [0x100D5] = "fp-rx-bits-per-second",    [0x100D6] = "fp-tx-bits-per-second",
                         [0x100D7] = "fp-rx-packets-per-second", [0x100D8] = "fp-tx-packets-per-second",
                     },
+                    // 'type' is a synthetic rather than a key alias so it can say what KIND of value it is:
+                    // 0x1001E carries the type NAME on almost every row, and on an ENSLAVED interface it
+                    // carries its master's numeric id instead — WinBox nests a slave under its master in the
+                    // list. Declared `string`, the number is refused and the row simply has no type, which
+                    // beats reporting the master's id as one. See IsWireKindContradiction.
+                    //
                     // The generic Interface window declares no MAC Address at all — WinBox paints the box in
                     // the SUBTYPE dialog beside it (the Ethernet tab of Interface > ether1), so /interface
                     // had no name for the key and dropped a field the router sends on every single row.
@@ -937,6 +943,7 @@ namespace tik4net.Winbox
                     // write away.
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
+                        ["type"] = new WinboxJgField("type", 0x1001E, "string", true),
                         ["mac-address"] = new WinboxJgField("mac-address", 0x3E9, "raw", false,
                                                             uiType: "macaddr"),
                     }),
