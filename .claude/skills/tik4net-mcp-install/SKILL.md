@@ -36,8 +36,11 @@ it reconnects.
 
 The launcher **does not build** (a client cannot report a build failure — it would just get a server
 that never starts), so it runs whatever the last build produced. It logs the staged build's
-timestamp and path to stderr, which is the quickest way to confirm the client really picked up the
-new bits. `-Configuration Release` or `$env:TIK4NET_MCP_CONFIGURATION` selects a different build;
+timestamp and path to stderr — but stderr goes to the client's log, so the answer itself is the better
+place to look: **every tool response carries the same stamp**, as a trailing `--- MCP SERVER --- … built
+<timestamp> …` line on `mikrotik_call` and as a `serverBuild` property on the JSON the other two tools
+return. Read it before trusting any answer taken after a rebuild: a timestamp older than the build means
+the client is still on the previous server, and the answer describes the previous code. `-Configuration Release` or `$env:TIK4NET_MCP_CONFIGURATION` selects a different build;
 stagings older than two days are pruned on the next launch, skipping any still in use.
 
 PowerShell only — on Linux/macOS use the global tool below.
@@ -103,7 +106,7 @@ a server outliving its client is a real anomaly — check the parent still exist
 
 | Symptom | Cause / fix |
 |---|---|
-| Change not visible, dev launcher | Not rebuilt, or the server was not reconnected — check the launcher's stderr line for the staged build's timestamp |
+| Change not visible, dev launcher | Not rebuilt, or the server was not reconnected — compare the build stamp in the tool's own response (or the launcher's stderr line) against your build |
 | `No Debug build found at …bin\Debug\net8.0` | `dotnet build tik4net.sln` first; the launcher never builds |
 | Build fails on a locked file under `Tools\tik4net.mcp\bin` | A client is running the old `dotnet run` configuration; fix `.mcp.json` and restart it |
 | `install-tool.ps1` aborts at the confirmation prompt | Non-interactive shell; pass `-Force` |

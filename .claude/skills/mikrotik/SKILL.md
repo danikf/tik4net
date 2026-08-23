@@ -107,8 +107,25 @@ actions log nothing by default (a good `/tool/wol` is silent; a bad MAC / ipsec 
 
 > **Note:** `traceLevel`/`includeRouterLog` require the **rebuilt** MCP server — the running server keeps
 > `tik4net.dll` loaded, so rebuild + restart the MCP client after a library/tool change (see the MCP-server
-> wiki page). The public sink behind `bytes` is `tik4net.Diagnostics.TikWireTrace`, usable from any tik4net
-> program, not just the MCP.
+> wiki page), and check the build stamp below to confirm it took. The public sink behind `bytes` is
+> `tik4net.Diagnostics.TikWireTrace`, usable from any tik4net program, not just the MCP.
+
+## Which server answered — the build stamp
+
+Every answer carries the version, **build timestamp** and path of the assembly that produced it:
+
+- `mikrotik_call` — a trailing line `--- MCP SERVER --- tik4net.mcp 4.0.0 built 2026-08-23 10:15:42 (…)`
+- `mikrotik_cli_complete`, `mikrotik_discover` — a `serverBuild` property on the returned JSON object
+
+This exists because the dev launcher (`Tools/tik4net.mcp/run-dev.ps1`) starts each session from a
+throw-away **copy** of the build output under `%TEMP%`, so the server can be rebuilt and replaced while
+clients are connected — which also means the running process may be any staging, from any build, and the
+repository cannot tell you which.
+
+**After changing anything in `tik4net/` or the MCP tool, read the stamp before you read the answer.** If
+its timestamp predates your build, the client is still on the old server: the answer describes the *previous*
+code, and no amount of re-running will change that. Reconnect the `tik4net-mcp` server and check again.
+A stamp that moved is the only positive confirmation the change is live.
 
 ## Common commands
 

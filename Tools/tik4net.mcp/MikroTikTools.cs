@@ -26,6 +26,44 @@ public sealed class MikroTikTools
         TikConnectionType.WinboxNativeMac,
     };
 
+    // ── Which build is answering ──────────────────────────────────────────────────
+    // run-dev.ps1 stages a COPY of the build output under %TEMP% for every launch, precisely so the
+    // server can be replaced while clients are connected. That makes "did my rebuild take effect?"
+    // unanswerable from the repository: the running process may be any staging, from any build. So
+    // every response carries the timestamp of the assembly that produced it — the one fact that
+    // settles it. A stamp older than the edit means the client is still on the previous server and
+    // has to reconnect; nothing about the answer can be trusted to reflect the change until it moves.
+    internal static readonly string ServerBuild = DescribeBuild();
+
+    private static string DescribeBuild()
+    {
+        try
+        {
+            var asm = typeof(MikroTikTools).Assembly;
+            // A single-file publish reports an empty Location; the apphost path is the file then.
+            string path = asm.Location;
+            if (string.IsNullOrEmpty(path))
+                path = Environment.ProcessPath ?? string.Empty;
+
+            string built = path.Length > 0 && File.Exists(path)
+                ? File.GetLastWriteTime(path).ToString("yyyy-MM-dd HH:mm:ss")
+                : "unknown";
+            string version = asm.GetName().Version?.ToString() ?? "?";
+
+            return $"tik4net.mcp {version} built {built}"
+                 + (path.Length > 0 ? $" ({path})" : string.Empty);
+        }
+        catch (Exception ex)
+        {
+            // Never let self-description break a router call.
+            return $"tik4net.mcp (build unknown: {ex.GetType().Name})";
+        }
+    }
+
+    // Appends the build stamp to a plain-text answer.
+    private static string Stamp(string body)
+        => body + Environment.NewLine + Environment.NewLine + "--- MCP SERVER --- " + ServerBuild;
+
     [McpServerTool]
     [Description(
         "Execute a MikroTik command against a router over any supported transport and return the results. " +
@@ -45,7 +83,10 @@ public sealed class MikroTikTools
         "the layer a terminal/transport desync actually lives in. Use traceChannels to filter the byte trace to " +
         "specific emit sites (e.g. ['wbxcli.mepty']). (includeRawTrace=true is a back-compat alias for traceLevel='words'.) " +
         "Set includeRouterLog=true to also append the router's own /log lines emitted during the command (captured over " +
-        "a separate API connection), giving the device-side view next to the wire trace.")]
+        "a separate API connection), giving the device-side view next to the wire trace. " +
+        "Every answer ends with a '--- MCP SERVER ---' line naming the version, build timestamp and path of the " +
+        "assembly that answered: this server can be replaced while a client is connected, so that line is how you " +
+        "confirm a rebuild actually took effect before trusting the answer to reflect it.")]
     public string MikrotikCall(
         [Description("IP address or hostname of the MikroTik router. On the MAC-layer transports a MAC address (AA:BB:CC:DD:EE:FF) may be given instead, to reach a router that has no IP address.")] string host,
         [Description("Username for authentication")] string username,
@@ -102,8 +143,8 @@ public sealed class MikroTikTools
         if (!Enum.TryParse<TikConnectionType>(transport, ignoreCase: true, out var transportType)
             || Array.IndexOf(SupportedTransports, transportType) < 0)
         {
-            return $"ERROR (argument): unknown transport '{transport}'. Supported: "
-                 + string.Join(", ", SupportedTransports);
+            return Stamp($"ERROR (argument): unknown transport '{transport}'. Supported: "
+                       + string.Join(", ", SupportedTransports));
         }
 
         bool nonQuery;
@@ -112,7 +153,7 @@ public sealed class MikroTikTools
             case "auto": case "": nonQuery = false; break;
             case "nonquery": case "non-query": nonQuery = true; break;
             default:
-                return $"ERROR (argument): unknown executeMode '{executeMode}'. Use 'auto' or 'nonquery'.";
+                return Stamp($"ERROR (argument): unknown executeMode '{executeMode}'. Use 'auto' or 'nonquery'.");
         }
 
         bool wantWords, wantBytes;
@@ -122,7 +163,7 @@ public sealed class MikroTikTools
             case "words": wantWords = true;  wantBytes = false; break;
             case "bytes": wantWords = true;  wantBytes = true;  break;
             default:
-                return $"ERROR (argument): unknown traceLevel '{traceLevel}'. Use 'off', 'words' or 'bytes'.";
+                return Stamp($"ERROR (argument): unknown traceLevel '{traceLevel}'. Use 'off', 'words' or 'bytes'.");
         }
 
         var trace = wantWords ? new List<string>() : null;
@@ -148,7 +189,7 @@ public sealed class MikroTikTools
             bool hasBytes = wireCollector is { Count: > 0 };
             bool hasLog = !string.IsNullOrEmpty(routerLog);
             if (!hasWords && !hasBytes && !hasLog)
-                return body;
+                return Stamp(body);
 
             var sb = new StringBuilder(body);
             if (hasWords)
@@ -170,7 +211,7 @@ public sealed class MikroTikTools
                 sb.AppendLine("--- ROUTER LOG ---");
                 sb.Append(routerLog);
             }
-            return sb.ToString();
+            return Stamp(sb.ToString());
         }
 
         try
@@ -247,7 +288,9 @@ public sealed class MikroTikTools
         "after 'add ' or 'set ' in a menu (e.g. '/interface/vlan add ') it returns the SETTABLE PARAMETER NAMES " +
         "— i.e. the writable field set for that object, which is exactly what you need to generate a tik4net entity " +
         "(print only shows fields that have a value on some current row; completion shows them all). " +
-        "Returns a JSON object { input, transport, tokens[], raw }. tokens is empty when the input completes to a " +
+        "Returns a JSON object { serverBuild, input, transport, tokens[], raw } — serverBuild names the version, " +
+        "build timestamp and path of the assembly that answered, so a stale server is visible rather than assumed. " +
+        "tokens is empty when the input completes to a " +
         "single unique token (RouterOS completes it inline). Only CLI terminal transports support this " +
         "(Telnet, Ssh, WinboxCli, MacTelnet, WinboxCliMac) — not Api/Rest/WinboxNative*.")]
     public string MikrotikCliComplete(
@@ -270,8 +313,8 @@ public sealed class MikroTikTools
         if (!Enum.TryParse<TikConnectionType>(transport, ignoreCase: true, out var transportType)
             || Array.IndexOf(CompletionTransports, transportType) < 0)
         {
-            return $"ERROR (argument): '{transport}' does not support Tab-completion. Use a CLI terminal "
-                 + "transport: " + string.Join(", ", CompletionTransports);
+            return Stamp($"ERROR (argument): '{transport}' does not support Tab-completion. Use a CLI terminal "
+                       + "transport: " + string.Join(", ", CompletionTransports));
         }
 
         try
@@ -284,26 +327,26 @@ public sealed class MikroTikTools
             connection.DebugEnabled = false;
 
             if (connection is not ITikCliCompletion completion)
-                return $"ERROR (internal): {transportType} connection does not implement ITikCliCompletion.";
+                return Stamp($"ERROR (internal): {transportType} connection does not implement ITikCliCompletion.");
 
             string raw = completion.CompleteCliRaw(input);
             var tokens = completion.CompleteCli(input);
 
             return JsonSerializer.Serialize(
-                new { input, transport = transportType.ToString(), tokens, raw },
+                new { serverBuild = ServerBuild, input, transport = transportType.ToString(), tokens, raw },
                 new JsonSerializerOptions { WriteIndented = true });
         }
         catch (TikConnectionLoginException ex)
         {
-            return $"ERROR (auth): {ex.Message}";
+            return Stamp($"ERROR (auth): {ex.Message}");
         }
         catch (System.Net.Sockets.SocketException ex)
         {
-            return $"ERROR (network): {ex.Message}";
+            return Stamp($"ERROR (network): {ex.Message}");
         }
         catch (Exception ex)
         {
-            return $"ERROR ({ex.GetType().Name}): {ex.Message}";
+            return Stamp($"ERROR ({ex.GetType().Name}): {ex.Message}");
         }
     }
 
@@ -314,7 +357,8 @@ public sealed class MikroTikTools
         "NO host, credentials or IP are needed, which makes this the tool to use when you do not yet know " +
         "the router's address, when a rebuilt VM may have changed IP/MAC/identity, or when several MikroTiks " +
         "share the segment and picking the wrong one would be a coin flip. " +
-        "Returns a JSON object { timeoutSeconds, count, routers[] }, each router carrying identity, ipv4, " +
+        "Returns a JSON object { serverBuild, timeoutSeconds, count, routers[] } — serverBuild names the version, " +
+        "build timestamp and path of the assembly that answered. Each router carries identity, ipv4, " +
         "ipv6, mac, version, platform, boardName, uptime and interfaceName — mac is what the MAC-layer " +
         "transports (MacTelnet, WinboxCliMac, WinboxNativeMac) need. " +
         "IMPORTANT: zero rows almost always means the HOST firewall is dropping the inbound UDP 5678 " +
@@ -358,19 +402,19 @@ public sealed class MikroTikTools
                 .ToArray();
 
             return JsonSerializer.Serialize(
-                new { timeoutSeconds, count = routers.Length, routers },
+                new { serverBuild = ServerBuild, timeoutSeconds, count = routers.Length, routers },
                 new JsonSerializerOptions { WriteIndented = true });
         }
         catch (System.Net.Sockets.SocketException ex)
         {
             // The usual one is AddressAlreadyInUse: something else already holds UDP 5678 (WinBox's own
             // neighbour list, MndpTray, a second copy of this server).
-            return $"ERROR (network): {ex.Message} — UDP {5678} may already be held by another "
-                 + "MNDP listener (WinBox's Neighbors tab, MndpTray), or blocked by the host firewall.";
+            return Stamp($"ERROR (network): {ex.Message} — UDP {5678} may already be held by another "
+                       + "MNDP listener (WinBox's Neighbors tab, MndpTray), or blocked by the host firewall.");
         }
         catch (Exception ex)
         {
-            return $"ERROR ({ex.GetType().Name}): {ex.Message}";
+            return Stamp($"ERROR ({ex.GetType().Name}): {ex.Message}");
         }
     }
 

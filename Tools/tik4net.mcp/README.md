@@ -103,6 +103,17 @@ Restart your MCP client afterwards; it will not reconnect to the replaced server
 All transports accept the same `command` / `parameters` format. Only `Api` / `ApiSsl` support
 Listen/Streaming.
 
+### The build stamp
+
+Every tool response names the assembly that produced it — version, **build timestamp** and path:
+`mikrotik_call` appends a trailing `--- MCP SERVER --- tik4net.mcp 4.0.0 built 2026-08-23 10:15:42 (…)`
+line, and `mikrotik_cli_complete` / `mikrotik_discover` carry the same text in a `serverBuild` property.
+
+The dev launcher runs each session from a throw-away copy of the build output, so the server can be
+replaced while clients are connected — which also means the repository cannot tell you which build is
+answering. After a rebuild, compare the stamp against your build before reading the answer: an older
+timestamp means the client is still on the previous server.
+
 ### Examples
 
 ```jsonc

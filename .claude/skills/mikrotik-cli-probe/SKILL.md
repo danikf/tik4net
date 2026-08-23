@@ -25,6 +25,13 @@ This is the layer tik4net's CLI-based transports (`tik4net/Cli/`, `tik4net/Telne
 > probe and the faster first stop when the question is "what did *our client* do", not "what can the
 > router do at all". See the `mikrotik` skill's *Wire tracing & router-log debugging* section. Reach for
 > the standalone probe script when you need a reference implementation independent of tik4net.
+>
+> **Check which server answered.** The MCP route runs a *staged copy* of the build output, so a trace can
+> silently come from the server you had before your last build. Every answer names the assembly that
+> produced it — `mikrotik_call` on a trailing `--- MCP SERVER --- … built <timestamp> …` line,
+> `mikrotik_cli_complete` in its `serverBuild` property. If that timestamp predates your build, the trace is
+> evidence about the OLD code; reconnect `tik4net-mcp` and take it again. The probe script has no such trap:
+> it does not use the library at all, which is exactly why it stays the tie-breaker.
 
 ## The probe script
 
