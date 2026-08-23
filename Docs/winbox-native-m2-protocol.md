@@ -1579,11 +1579,30 @@ What 62 seeded paths did to the numbers:
 | API field slots compared | 669 | 1349 |
 | names native does not report | 26 | 129 |
 | MISMATCH | 0 | 2 → 0 |
-| VALUE-DIFF | 0 | 13 → 3 |
+| VALUE-DIFF | 0 | 13 → 0 |
 
 So the audit's green tally rested on measuring half the tables. The fifteen defects it now names fall
 into families rather than being fifteen unrelated bugs:
 
+* **A key the row filled with a different KIND of value** — **closed**. `/interface`'s `0x1001E`
+  carries the type NAME as a string on almost every row, and on an ENSLAVED interface it carries its
+  MASTER's numeric id instead, because WinBox nests a slave under its master in the list. Reported as
+  `type=474` where the API says `eoip`, and only visible once a fixture made a bonding out of an EoIP
+  tunnel. A row whose wire value contradicts the field's declared kind — a string against a number, and
+  nothing weaker — now gets no value at all, and says so on the trace channel. **Still open on the same
+  row:** the type is then simply absent there. Nothing on the wire carries it in a form we can read, and
+  saying nothing is not the same as saying a number.
+* **An unresolved reference** — **closed**. A dynamic reference no row answers to, and that no static
+  member names either, is what an all-ones "not set" looks like where the `.jg` wraps it in no
+  `defenum`. RouterOS prints the raw `.id` token there — `/caps-man/provisioning`'s
+  `master-configuration` reads `*FFFFFFFF`, not `4294967295` and not `none`. A reference that DOES have a
+  static member for the value is still answered by that member (§32.6), which is why
+  `/caps-man/manager`'s `certificate` goes on reading `none`.
+* **A member the router takes but never gives back** — **closed**. `/interface/vrrp` completes
+  `group-authority=` to an empty token, `none` and `self`, and setting either of the first two lands the
+  same `0` on the wire while the API prints nothing. So `none` is a spelling RouterOS accepts and does
+  not print, and the rename is applied on the READ side only — unlike the vocabulary renames above,
+  which must reach the write side because the catalog's word would be refused.
 * **A sentinel the API spells as a word** — the largest family, and **closed**: `mtu: auto` where
   native said `0` (five paths), `horizon: none` → `0`, `delay-threshold: none` → `0s`. All three joined
   the `ZeroSpelledAsWord` table, whose gate had to be widened to say what it meant. It fired only on
@@ -1644,9 +1663,14 @@ into families rather than being fifteen unrelated bugs:
   Excusing the count is not excusing the path — a wrong window still shows up as a different field
   vocabulary, and a wrong value on a shared row still fails.
 
-Only the first family is fixed so far; the rest are recorded here because the measurement that found
-them is now part of the audit. The audit is consequently RED until they are, which is the correct state for a
-diagnostic that has just been told where to look.
+All of them are now closed, and the seeded audit is green: `OK=154 MISMATCH=0 VALUE-DIFF=0`. What that
+green means is worth stating precisely, because it means more than the old one did — 1349 field slots
+compared across 154 paths with a row in every table that can be written without hardware, where the
+tally before seeding rested on 669 slots and 61 populated paths.
+
+Two things it still does not measure, and neither is a spelling: the ~32 paths whose tables are pure
+router STATE and cannot be seeded at all (`/ip/firewall/connection`, `/ppp/active`, the registration
+tables, `/ip/ipsec/installed-sa`), and every WRITE — the whole audit is a read.
 
 ### 33.2b What is left, checked against the window itself
 
