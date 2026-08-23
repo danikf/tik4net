@@ -649,6 +649,31 @@ namespace tik4net.Winbox
                                                                uiType: "interval"),
                     }),
 
+                // /ip/dhcp-server/network: WinBox labels five of these boxes in the PLURAL — 'DNS Servers',
+                // 'NTP Servers', 'WINS Servers', 'CAPS Managers', 'DHCP Options' — while RouterOS names every
+                // one of them in the singular however many values it holds. Two more are not plurals at all:
+                // the window's 'No DNS'/'No NTP' are the router's dns-none/ntp-none.
+                //
+                // All seven read off `/ip/dhcp-server/network add ?` on 7.24, which is the whole settable
+                // field set — so this is the complete list for the path, not the five the audit could see.
+                // The other two it could not: the API prints a false flag as no word at all, so no
+                // comparison would ever have named them.
+                ["/ip/dhcp-server/network"] = new FieldAliasSet(
+                    apiToJg: Ci(("dns-server", "dns-servers"),
+                                ("ntp-server", "ntp-servers"),
+                                ("wins-server", "wins-servers"),
+                                ("caps-manager", "caps-managers"),
+                                ("dhcp-option", "dhcp-options"),
+                                ("dns-none", "no-dns"),
+                                ("ntp-none", "no-ntp")),
+                    jgToApi: Ci(("dns-servers", "dns-server"),
+                                ("ntp-servers", "ntp-server"),
+                                ("wins-servers", "wins-server"),
+                                ("caps-managers", "caps-manager"),
+                                ("dhcp-options", "dhcp-option"),
+                                ("no-dns", "dns-none"),
+                                ("no-ntp", "ntp-none"))),
+
                 // /system/health: the router sends both of the API's fields and the catalog names neither.
                 //
                 // [24,14] hosts two .jg windows — 'Settings' (fan control) and the x86-gated 'System Health'

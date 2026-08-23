@@ -1578,7 +1578,7 @@ What 62 seeded paths did to the numbers:
 |---|---|---|
 | API field slots compared | 669 | 1349 |
 | names native does not report | 26 | 129 |
-| MISMATCH | 0 | 2 |
+| MISMATCH | 0 | 2 → 0 |
 | VALUE-DIFF | 0 | 13 → 3 |
 
 So the audit's green tally rested on measuring half the tables. The fifteen defects it now names fall
@@ -1625,10 +1625,24 @@ into families rather than being fifteen unrelated bugs:
   list rather than the one member the audit caught: of the 33 protocol names the catalog declares,
   `ip-encap` is the only one RouterOS spells differently (`ipencap`); of the three lease identifiers TWO
   are, and `option-82` → `opt-82` would have waited for a row nobody had made.
-* **Plurals and outright missing names.** `/ip/dhcp-server/network` reports `dhcp-options` for
-  `dhcp-option` and `caps-managers` for `caps-manager`, and does not report `dns-server`,
-  `ntp-server` or `wins-server` at all.
-* **A row count.** `/ip/dns/cache` returns two rows to the API's one.
+* **Plurals** — **closed**. WinBox labels five `/ip/dhcp-server/network` boxes in the plural ('DNS
+  Servers', 'NTP Servers', 'WINS Servers', 'CAPS Managers', 'DHCP Options') where RouterOS names each in
+  the singular however many values it holds. Taken from `/ip/dhcp-server/network add ?`, which is the
+  whole settable field set — so the aliases are the complete list for the path and not the five the
+  audit could see. **The other two it could never have seen**: the window's 'No DNS'/'No NTP' are the
+  router's `dns-none`/`ntp-none`, and the API prints a false flag as no word at all, so no comparison
+  would have named them.
+* **A member label that is already the router's token** — **closed**. `NormalizeLabel` lower-cases a
+  caption, which is right for 'Client ID' and wrong for a DNS record type: RouterOS prints `CNAME`.
+  Recognised by the vocabulary itself rather than by field name or path, because 'Type' is one of the
+  commonest labels in the catalog and two of them carry this map while others share single members with
+  it (`null`, `a`). Upper case alone is no rule either — 236 distinct ALL-CAPS members exist across the
+  catalog and RouterOS lower-cases most of them (`tkip`, `ccmp`, `tls`, `arp`).
+* **A row count** — not a defect. `/ip/dns/cache` reported two rows against one, and the same pair read
+  by hand a minute later agreed on three: entries expire and arrive between the two reads. The audit now
+  excuses the COUNT on the two cache menus and on `/ip/firewall/connection`, and says so on the line.
+  Excusing the count is not excusing the path — a wrong window still shows up as a different field
+  vocabulary, and a wrong value on a shared row still fails.
 
 Only the first family is fixed so far; the rest are recorded here because the measurement that found
 them is now part of the audit. The audit is consequently RED until they are, which is the correct state for a

@@ -1832,6 +1832,17 @@ namespace tik4net.Winbox
         /// </remarks>
         private static Dictionary<int, string> Normalized(Dictionary<int, string> raw)
         {
+            // A vocabulary whose members are already the ROUTER's tokens rather than captions keeps its
+            // case: RouterOS prints a DNS record type as `CNAME`, and NormalizeLabel would invent `cname`.
+            //
+            // Recognised by the vocabulary itself, not by field name or path. 'Type' is one of the
+            // commonest labels in the catalog and two of them carry this map — the cache's eighteen members
+            // and /ip/dns/static's nine, which add FWD and NXDOMAIN — while other 'Type' enums share single
+            // members with it ('null', 'a') and must NOT be touched. Upper case alone is no rule either:
+            // 236 distinct ALL-CAPS members exist across the catalog and RouterOS lower-cases most of them
+            // (tkip, ccmp, tls, arp). Verified against `/ip/dns/static add type=?` on 7.24.
+            if (IsRouterTokenVocabulary(raw)) return raw;
+
             var byNormalized = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var kv in raw)
             {
@@ -1845,6 +1856,18 @@ namespace tik4net.Winbox
             var normalized = new Dictionary<int, string>(raw.Count);
             foreach (var kv in raw) normalized[kv.Key] = WinboxFieldResolver.NormalizeLabel(kv.Value);
             return normalized;
+        }
+
+        // The one member set the catalog spells in the router's own case. A fingerprint rather than the whole
+        // list, so both the cache's map and /ip/dns/static's shorter one match.
+        private static readonly string[] DnsRecordTypeFingerprint = { "A", "AAAA", "CNAME", "MX", "NS", "SRV", "TXT" };
+
+        private static bool IsRouterTokenVocabulary(Dictionary<int, string> raw)
+        {
+            var values = new HashSet<string>(raw.Values, StringComparer.Ordinal);
+            foreach (string t in DnsRecordTypeFingerprint)
+                if (!values.Contains(t)) return false;
+            return true;
         }
 
         // The wrappers whose inner `values` still lead to a static map. Anything else (queryenum, slotenum, …)
