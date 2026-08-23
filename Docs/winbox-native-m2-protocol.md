@@ -1498,6 +1498,34 @@ Three shapes account for most of the pairings, and none of them is a spelling di
   4294967296, free-hdd-space 60152 → 61595648, total-hdd-size 91372 → 93564928. It survived because every
   `kbytes` field but one has a volatile name (`free-`, `total-memory`) that the audit does not compare.
 
+### 32.6 A reference's static map is not its domain
+
+`types.enm.tostr` renders a value with no member in the map as the empty string when `opt` is set, so an
+`opt` enum carrying an unmapped number is the router saying NOT SET — an unsigned certificate's
+`digest-algorithm` arrives as `0` where the API prints nothing.
+
+That reading is only valid while the map IS the domain. A `defenum` wrapping a `dynamic` puts ONE
+sentinel member in front of a referenced TABLE, and every real value is a row id the map has no member
+for by construction:
+
+```
+{name:'Certificate',type:'enm',id:'u2',def:4294967295,opt:1,
+ values:{type:'defenum',defid:0,defname:'auto',values:{type:'dynamic',path:[19,1],…}}}
+```
+
+Verified on 7.24: with a certificate assigned, `/caps-man/manager` sends `0x2=2` and the API prints
+`certificate=server-tik4net` — while the unmapped-optional rule read the id as unset and dropped the
+field, so the one state a caller cares about was the one that could not be read. The rule now stands
+down wherever the field has a `RefHandler`; the reference resolves the id against `[19,1]` exactly as
+`/ip/service`'s certificate (a `defenum` over the same table, `defname:'none'`) already did.
+
+It is the only field in the 7.24 catalog shaped that way: every other `def:4294967295,opt:1` reference
+enum declares its `dynamic` directly, has no static map at all, and was never touched by the rule.
+
+**Still open on the same field.** With no certificate the router sends the all-ones sentinel and the API
+prints the word `none` — a value, not an omission, and the second known instance of §33.5 after
+`/certificate`'s `trust-store`. One sample is not a rule, so nothing renders it yet.
+
 ### 33.5 One sentinel is a value
 
 A `.jg` field declaring `4294967295` as its default is normally the router saying NOT SET — a logging

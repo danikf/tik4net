@@ -137,5 +137,29 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void TheMdnsRepeaterInterfaceListIsReportedUnderTheApiName()
             => AssertAgreesWithApiWhileSet("/ip/dns", "mdns-repeat-ifaces", "ether2");
+
+        /// <summary>
+        /// A dropdown whose members come from a REFERENCED table, behind a <c>defenum</c> sentinel:
+        /// <c>/caps-man/manager</c>'s <c>certificate</c>. The static half has one member (<c>auto</c> at 0)
+        /// and the certificates themselves come from <c>[19,1]</c>, so an assigned certificate's id is a
+        /// value the static map has no member for — which the "unmapped optional enum means not set" rule
+        /// read as unset, dropping the field on a row where the API prints the certificate's name.
+        /// <para>The certificate is taken from the router rather than named here: which certificates a lab
+        /// router carries is provisioning, not protocol.</para>
+        /// </summary>
+        [TestMethod]
+        public void ACertificateDropdownReportsTheCertificatesName()
+        {
+            string certificate;
+            using (var api = OpenSideApi())
+            {
+                var certs = api.CreateCommand("/certificate/print").ExecuteList();
+                if (!certs.Any())
+                    Assert.Inconclusive("the router has no certificate to assign");
+                certificate = certs.First().GetResponseField("name");
+            }
+
+            AssertAgreesWithApiWhileSet("/caps-man/manager", "certificate", certificate);
+        }
     }
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace tik4net.Winbox
@@ -275,9 +275,17 @@ namespace tik4net.Winbox
         /// Deliberately NOT applied to a non-optional enum: there, an unmapped value is a <c>.jg</c>/router
         /// disagreement worth surfacing rather than swallowing, and webfig itself says <c>unknown</c>
         /// instead of nothing.
+        /// <para>Nor to a field whose members come from a dynamic REFERENCE
+        /// (<see cref="RefHandler"/>). There the static map is not the domain — it is a <c>defenum</c>
+        /// sentinel sitting in front of the referenced list — so a value it has no member for is a
+        /// reference id, not "not set". <c>/caps-man/manager</c>'s <c>Certificate</c> is
+        /// <c>{def:4294967295,opt:1,values:{defenum defid:0 defname:'auto',values:{dynamic [19,1]}}}</c>:
+        /// with a certificate assigned the router sends its id and the API prints the certificate's NAME,
+        /// while this rule read the id as unset and dropped the field.</para>
         /// </remarks>
         internal bool IsUnmappedOptionalEnum(long value)
-            => IsOptional && EnumMap != null && !EnumMap.ContainsKey(unchecked((int)value));
+            => IsOptional && EnumMap != null && RefHandler == null
+               && !EnumMap.ContainsKey(unchecked((int)value));
 
         /// <summary>
         /// For a field declared inside a <c>type:'deck'</c> PANE — the part of a window that WinBox shows only
