@@ -1065,7 +1065,8 @@ namespace tik4net.Winbox
                             scale: ScaleOf(dict), elementParts: ElementPartsOf(dict),
                             postfix: PostfixOf(dict), elementSeparator: ElementSeparatorOf(dict),
                             elementNotKey: ElementNotKeyOf(dict), elementIsRange: ElementIsRangeOf(dict),
-                            tab: tab, title: TitleOf(dict));
+                            tab: tab, title: TitleOf(dict),
+                            nonPublic: dict.TryGetValue("nonpublic", out var npv) && npv is int npi && npi != 0);
                     }
                 }
 
@@ -1196,7 +1197,7 @@ namespace tik4net.Winbox
             int scale = 1, IReadOnlyList<WinboxJgElementPart>? elementParts = null, string? postfix = null,
             string? elementSeparator = null, int elementNotKey = 0, bool elementIsRange = false,
             string? tab = null, string? title = null,
-            IReadOnlyList<WinboxJgField>? extraRegistrations = null)
+            IReadOnlyList<WinboxJgField>? extraRegistrations = null, bool nonPublic = false)
         {
             string apiName = WinboxFieldResolver.NormalizeLabel(label);
             if (string.IsNullOrEmpty(apiName)) return;
@@ -1213,14 +1214,17 @@ namespace tik4net.Winbox
                 pane?.Kind, pane?.SelectorKey ?? 0, pane?.Values, offKey, isOptional, elementUiType, scale,
                 elementParts, postfix, elementSeparator, elementNotKey: elementNotKey,
                 elementIsRange: elementIsRange, titleApiName: titleName,
-                extraRegistrations: extraRegistrations);
+                extraRegistrations: extraRegistrations, nonPublic: nonPublic);
             // Two fields of one window may carry the same label - the packet sniffer's streaming 'Port' (a
             // number) and its filter 'Port' (a list of port matches) - and first-wins kept only the first,
             // leaving the second reachable under no name at all. The TAB it sits under is what tells them
             // apart, and is what RouterOS prefixes the second with: 'filter-port'. Registered only for the
             // loser of a collision, so every name that resolved before keeps resolving to the same key.
+            // An incumbent WinBox never paints is not a collision — the visible field takes the plain name
+            // off it in Put below, so qualifying it here would rename the wrong one of the two.
             if (tab != null && _byHandler.TryGetValue(handlerKey, out var taken)
-                && taken.ContainsKey(apiName))
+                && taken.TryGetValue(apiName, out var incumbent)
+                && !(incumbent.NonPublic && !nonPublic))
             {
                 string qualified = WinboxFieldResolver.PrefixWithKind(tab, apiName);
                 if (qualified != apiName) field = field.WithApiName(qualified);
@@ -1423,7 +1427,14 @@ namespace tik4net.Winbox
                 _byHandler[mapKey] = map;
             }
             // first label wins for a given apiName; do not let later, less-specific windows clobber it.
-            if (!map.ContainsKey(apiName)) map[apiName] = field;
+            if (!map.ContainsKey(apiName)) { map[apiName] = field; return; }
+            // …with one exception: a field WinBox actually paints displaces one it never does. A
+            // `nonpublic:1` declaration is an internal slot (see WinboxJgField.NonPublic), and where it is
+            // spelled like a visible field, the visible one is what the API is naming. /file declares
+            // {name:'type',id:'u3',nonpublic:1} BEFORE {name:'Type',id:'s7'}, so first-wins alone kept the
+            // numeric file kind and dropped the text: the path reported type=5 for type=directory, and the
+            // string the router sends on every row reached no name at all.
+            if (map[apiName].NonPublic && !field.NonPublic) map[apiName] = field;
         }
 
         // Resolves a named opt/not wrapper (e.g. firewall 'Connection State': opt→not→set) to its inner value

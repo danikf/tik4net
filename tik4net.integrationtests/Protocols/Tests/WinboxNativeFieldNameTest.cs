@@ -228,5 +228,46 @@ namespace tik4net.integrationtests
             Assert.IsTrue(compared > 0,
                 "no row was seen by both transports, so the tuple was never actually compared");
         }
+
+        /// <summary>
+        /// <c>/file</c>'s window declares 'type' TWICE: <c>{name:'type',id:'u3',nonpublic:1}</c>, the numeric
+        /// file kind WinBox never paints, and <c>{name:'Type',id:'s7'}</c>, the text the API prints. The
+        /// router sends both on every row, and the internal one used to claim the name — <c>type=5</c> where
+        /// the API says <c>type=directory</c>.
+        /// </summary>
+        /// <remarks>
+        /// Paired by NAME, not by <c>.id</c>: <c>/file</c> is keyed by the router's numeric handle on native
+        /// and by an opaque <c>**…</c> string on the API, so an <c>.id</c> pairing matches nothing at all —
+        /// which is exactly why the path-map audit reports this path as VALUES UNCOMPARED and could not have
+        /// caught this.
+        /// </remarks>
+        [TestMethod]
+        public void AFileReportsTheTextualTypeAndNotTheInternalNumberBesideIt()
+        {
+            Dictionary<string, string> expected;
+            using (var api = OpenSideApi())
+                expected = api.CreateCommand("/file/print").ExecuteList()
+                    .Where(r => r.GetResponseFieldOrDefault("name", null) != null)
+                    .GroupBy(r => r.GetResponseField("name"))
+                    .ToDictionary(g => g.Key, g => g.First().GetResponseFieldOrDefault("type", ""));
+
+            if (expected.Count == 0)
+                Assert.Inconclusive("the router has no files, so there is nothing to compare");
+
+            var rows = Connection.CreateCommand("/file/print").ExecuteList()
+                .Where(r => r.GetResponseFieldOrDefault("name", null) != null)
+                .GroupBy(r => r.GetResponseField("name"))
+                .ToDictionary(g => g.Key, g => g.First().GetResponseFieldOrDefault("type", null));
+
+            int compared = 0;
+            foreach (var e in expected)
+            {
+                // A file can appear or vanish between the two reads; only names both saw mean anything.
+                if (!rows.TryGetValue(e.Key, out string actual)) continue;
+                Assert.AreEqual(e.Value, actual, $"/file '{e.Key}' type");
+                compared++;
+            }
+            Assert.IsTrue(compared > 0, "no file was seen by both transports, so nothing was compared");
+        }
     }
 }

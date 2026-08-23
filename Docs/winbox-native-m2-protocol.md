@@ -1551,12 +1551,10 @@ than letting it read as agreement.
 
 On 7.24 exactly one path is in that state, and it is not a spelling difference: `/file` is keyed by the
 router's numeric handle on native and by an opaque `**…` string on the API. Two defects were sitting
-under it:
+under it. One was ours and is fixed — `type` was answering `5` where the API says `directory`, the
+`nonpublic` case of §33.3 — and it was settled by a test that pairs the rows **by name**, since no
+`.id` pairing can exist here. The other is the router's:
 
-* **`type` is two different fields with one name.** `[72]` declares `0x3 u32 'type'` and
-  `0x7 string 'Type'`, and the key → name direction is first-wins, so native answers `type=5` where the
-  API says `type=directory`. It is not the one-key-two-fields case of §30 — these are two keys — so the
-  wire type cannot tell them apart, and it needs a per-path preference the resolver does not have.
 * **`contents` (`0xd`) is absent from the list message.** WinBox fetches a file's text when the editor
   is opened, not while listing, so this is the router's message and not a name we spell wrong. The API
   prints it on every text file.
@@ -1591,6 +1589,16 @@ Three shapes account for most of the pairings, and none of them is a spelling di
   all but the field that IS the tab's name. It is not a general rule — the 'Overall Stats' tab prefixes
   nothing — so it is applied per path.
 * **A `title` on a FIELD is the API's name, not a second label.** See §33.4.
+* **A `nonpublic:1` declaration is not a label at all.** It is a slot WinBox reads and never paints, and
+  the catalog's field map is keyed by NAME, so where a window declares one spelled like a visible field
+  the first of the two won and the other reached no name whatsoever. `/file` is the case: `[72]` declares
+  `{name:'type',id:'u3',nonpublic:1}` — the numeric file kind — before `{name:'Type',id:'s7'}`, the text
+  RouterOS prints, and the router sends BOTH on every row (`0x3=5` and `0x7=directory` side by side in
+  one record). Since the whole api-name ↔ WinBox pairing is built on what the window SHOWS, the visible
+  declaration is the one the API is naming, and it now displaces a `nonpublic` incumbent whichever order
+  the two appear in. Not a blanket demotion: 465 declarations across the router's plugins carry the flag,
+  and where nothing visible contests the name the field keeps it — which is how `/file`'s own internal
+  `family`, `basename` and `container` go on being reported.
 * **A unit webfig paints beside the box is part of the API's value.** `types.kbytes` renders "N KiB"
   straight from the wire number, unlike `types.bytes` which is already in bytes — so a `kbytes` field read
   1024 times too small. `/system/resource` on 7.24, exact to the byte: total-memory 4194304 →

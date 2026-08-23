@@ -350,8 +350,9 @@ namespace tik4net.Winbox
             IReadOnlyList<WinboxJgElementPart>? elementParts = null, string? postfix = null,
             string? elementSeparator = null, Tuple<WinboxJgField, WinboxJgField>? pairHalves = null,
             int elementNotKey = 0, bool elementIsRange = false, string? titleApiName = null,
-            IReadOnlyList<WinboxJgField>? extraRegistrations = null)
+            IReadOnlyList<WinboxJgField>? extraRegistrations = null, bool nonPublic = false)
         {
+            NonPublic = nonPublic;
             TitleApiName = titleApiName;
             ExtraRegistrations = extraRegistrations;
             PairHalves = pairHalves;
@@ -383,6 +384,26 @@ namespace tik4net.Winbox
         }
 
         /// <summary>
+        /// The declaration carried <c>nonpublic:1</c> — WinBox reads the field but never paints it in the
+        /// window.
+        /// </summary>
+        /// <remarks>
+        /// It matters only when two declarations of one window claim the same API name. The visible one is
+        /// the field the API is talking about, because the pairing is built on what WinBox SHOWS; a
+        /// <c>nonpublic</c> declaration is an internal slot that happens to be spelled the same. <c>/file</c>
+        /// is the case that forced it: <c>[72]</c> declares both <c>{name:'type',id:'u3',nonpublic:1}</c> —
+        /// the numeric file kind — and <c>{name:'Type',id:'s7',ro:1}</c>, the text the API prints. The router
+        /// sends both, and with the two competing on equal terms the numeric one claimed the name first and
+        /// <c>/file</c> reported <c>type=5</c> where the API says <c>type=directory</c>.
+        ///
+        /// So a visible declaration DISPLACES a nonpublic one holding the same name in the catalog, whichever
+        /// order the two are declared in. It is not a blanket demotion: where nothing visible claims the name
+        /// the nonpublic field keeps it, which is how <c>/file</c>'s internal-only <c>family</c>,
+        /// <c>basename</c> and <c>container</c> go on being reported.
+        /// </remarks>
+        internal bool NonPublic { get; }
+
+        /// <summary>
         /// Further <c>key → field</c> registrations this ONE declaration makes, for a field whose value does
         /// not live at a single key. <c>null</c> for the ordinary case.
         /// </summary>
@@ -411,6 +432,6 @@ namespace tik4net.Winbox
             => new WinboxJgField(apiName, Key, WireType, ReadOnly, EnumMap, UiType, MaskKey, RefHandler,
                 OptKey, NotKey, IsRange, Allow, Def, PaneKind, PaneSelectorKey, PaneValues, OffKey,
                 IsOptional, ElementUiType, Scale, ElementParts, Postfix, ElementSeparator, PairHalves,
-                ElementNotKey, ElementIsRange, TitleApiName, ExtraRegistrations);
+                ElementNotKey, ElementIsRange, TitleApiName, ExtraRegistrations, NonPublic);
     }
 }
