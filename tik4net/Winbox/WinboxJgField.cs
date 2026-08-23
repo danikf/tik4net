@@ -223,6 +223,21 @@ namespace tik4net.Winbox
         internal bool ElementIsRange { get; }
 
         /// <summary>
+        /// The API name taken from this declaration's own <c>.jg</c> <c>title</c>, when it has one that
+        /// differs from its <c>name</c>; <c>null</c> otherwise.
+        /// </summary>
+        /// <remarks>
+        /// On a FIELD the two are not two spellings of one label: the <c>name</c> is what WinBox paints
+        /// beside the box and the <c>title</c> is what RouterOS calls the field —
+        /// <c>{name:'Type',title:'Target'}</c> on <c>/system/logging/action</c> is <c>target</c> to the API,
+        /// and <c>type</c> is not a field of that table at all. Kept so the harvest can settle the commonest
+        /// shape of it: two declarations on ONE key, one conditional and prefixed 'Old'
+        /// (<c>{name:'Old Cache Path',title:'Cache Path',on:'oldfileman'}</c> beside
+        /// <c>{name:'Cache Path',on:'newfileman'}</c>), where the title says which of the two is the API's.
+        /// </remarks>
+        internal string? TitleApiName { get; }
+
+        /// <summary>
         /// The <c>.jg</c> <c>def</c> value, when the field declares one. Only interesting for the u32
         /// <b>unset marker</b> <c>0xFFFFFFFF</c>: a field declaring <c>def:4294967295</c> (e.g. a logging
         /// action's <c>Syslog Severity</c>, whose real domain is 0–7) carries that value when it is NOT SET,
@@ -318,8 +333,9 @@ namespace tik4net.Winbox
             bool isOptional = false, string? elementUiType = null, int scale = 1,
             IReadOnlyList<WinboxJgElementPart>? elementParts = null, string? postfix = null,
             string? elementSeparator = null, Tuple<WinboxJgField, WinboxJgField>? pairHalves = null,
-            int elementNotKey = 0, bool elementIsRange = false)
+            int elementNotKey = 0, bool elementIsRange = false, string? titleApiName = null)
         {
+            TitleApiName = titleApiName;
             PairHalves = pairHalves;
             ElementNotKey = elementNotKey;
             ElementIsRange = elementIsRange;
@@ -356,6 +372,6 @@ namespace tik4net.Winbox
             => new WinboxJgField(apiName, Key, WireType, ReadOnly, EnumMap, UiType, MaskKey, RefHandler,
                 OptKey, NotKey, IsRange, Allow, Def, PaneKind, PaneSelectorKey, PaneValues, OffKey,
                 IsOptional, ElementUiType, Scale, ElementParts, Postfix, ElementSeparator, PairHalves,
-                ElementNotKey, ElementIsRange);
+                ElementNotKey, ElementIsRange, TitleApiName);
     }
 }

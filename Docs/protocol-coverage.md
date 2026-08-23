@@ -439,11 +439,15 @@ them still fails the run.
 | `/interface/ethernet` | `auto-negotiation` | WinBox's field is the LINK's live state (`not-available` on a CHR's virtual NIC), the API's is the SETTING (`true`) — two fields, one label |
 
 Last run on RouterOS 7.24: `OK=154 KNOWN-GAP=1 MISMATCH=0 VALUE-DIFF=0 UNMAPPED=0 ROUTER-N/A=7`, and
-`FIELD-NAMES not reported by native: 82/676 (12%)`.
+`FIELD-NAMES not reported by native: 41/669 (6%)`.
 
 That second number is not an assertion — it is the shortfall the pass/fail check cannot see, because the
-name check passes a path at half the API's vocabulary. It is reported so a green run cannot hide it; see
-[winbox-native-m2-protocol.md §33.1](winbox-native-m2-protocol.md).
+name check passes a path at half the API's vocabulary. It is reported so a green run cannot hide it.
+
+For a name only the API reports, the run also proposes what native calls it, by naming the native-only
+field carrying the same value on every row (`api-name?=winbox-name`). A proposal on a distinctive value is
+usually the pairing; a proposal on a bool or a zero is a coincidence and has to be settled by writing a
+value. See [winbox-native-m2-protocol.md §33.1–33.4](winbox-native-m2-protocol.md).
 
 ### Two further limits, only one of them the router's
 

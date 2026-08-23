@@ -265,6 +265,25 @@ namespace tik4net.Winbox
                         }
                         return NumToInt(signed).ToString(CultureInfo.InvariantCulture);
                     }
+                    case "kbytes":
+                    {
+                        // The wire value is in KIBIBYTES and the API prints BYTES. webfig hides the
+                        // difference behind a unit — `types.kbytes.tostr` renders "N KiB" straight from the
+                        // number, with no scale multiply, unlike `types.bytes` which is already in bytes —
+                        // so nothing in the .jg says the two transports are counting different things.
+                        //
+                        // Measured on 7.24, three fields of /system/resource, exact to the byte:
+                        // total-memory 4194304 -> 4294967296, free-hdd-space 60152 -> 61595648,
+                        // total-hdd-size 91372 -> 93564928, each the API's own number. It went unnoticed
+                        // because every kbytes field on that path but one has a volatile name (free-,
+                        // total-memory) and the audit does not compare those.
+                        if (!WinboxFieldResolver.TryToInt64(value, out long kib))
+                        {
+                            TraceNonNumeric("kbytes", value);
+                            break;
+                        }
+                        return (kib * 1024L).ToString(CultureInfo.InvariantCulture);
+                    }
                     case "fixedpoint":
                     {
                         // types.fixedpoint.tostr: num2int first, then floor(|v|/scale) '.' the remainder
@@ -563,7 +582,20 @@ namespace tik4net.Winbox
         /// only affect the field it names, and the path-map audit compares every one of them against the API.</para>
         /// </remarks>
         private static readonly HashSet<string> SetPrintedDescending =
-            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "authentication", "dh-group" };
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "authentication", "dh-group",
+                // Measured the same way, on the stock rows of a 7.24 router: /ip/ipsec/profile prints its
+                // enc-algorithm as "aes-128,3des" where the window's bits run 3des,aes-128, and
+                // /ip/ipsec/proposal prints "aes-256-cbc,aes-192-cbc,aes-128-cbc" where they run the other
+                // way. Strongest first on both, as with dh-group.
+                //
+                // Spelled as the WINDOW names them, not as the API does — this set is looked up by the .jg
+                // field's own name, which is why the two entries below read 'encryption-algorithm' and
+                // 'encr-algorithms' rather than the API's 'enc-algorithm'/'enc-algorithms'. The first two
+                // entries hide the distinction by being spelled the same on both sides.
+                "encryption-algorithm", "encr-algorithms",
+            };
 
         /// <summary>
         /// Fields where RouterOS spells a zero as a WORD, and the <c>.jg</c> gives that word nowhere: the

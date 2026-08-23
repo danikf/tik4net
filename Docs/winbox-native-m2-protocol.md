@@ -1425,21 +1425,84 @@ untyped value at a bool key, which the router accepts, answers, and ignores. Wri
 `WinboxFieldResolutionException` instead. They are also filled in LAST, so a window that declares a field
 at one of those keys keeps its own name for it.
 
-### 33.1 What the audit could not see
+### 33.1 The name gap, and the tool that closes it
 
 `WinboxNativePathMapAuditTest` passes a path when native reports at least HALF the API's field names, so
 everything between half and all of that vocabulary was invisible in a green tally. Counting it instead of
-thresholding it: **82 of 676 API field names (12%) are still not reported by native**, across all 61
-field-bearing paths — down from 111 before the row-state keys, and the report now names the missing fields
-on the passing lines rather than only on the failing ones.
+thresholding it: **41 of 669 API field names (6%) are still not reported by native**, down from 111 before
+the row-state keys and 82 before the pairings below. The report names the missing fields on the passing
+lines rather than only on the failing ones.
 
-(The first count of this said 172/737. Sixty-one of those were `.tag`, which is not a router field at all
-but the API sentence's own tag word that tik4net writes and only that transport carries — an audit
-comparing itself. It is excluded now.)
+**Two of the missing names were never the router's.** Sixty-one were `.tag`, the API sentence's own tag
+word that tik4net writes; five more were `trusted2`, `dynamic2`, `published2`, `responder2` and `template2`
+— names `ApiSentence` INVENTS when RouterOS sends the same word twice in one sentence and a dictionary
+cannot hold both. Counting either as a router field is the audit comparing itself.
 
-The largest remaining groups are ordinary naming differences rather than a shape the decode cannot read:
-`address` where WinBox says `ip-address` (4 paths), `default` on 4 paths whose records do not carry
-`0xFE000D` at all (the API derives it elsewhere), and a long tail of one-path fields.
+### 33.2 Establishing a pairing mechanically
+
+The fix for a missing name is an alias, and an alias may only exist once the pairing has been established
+by MOVING the value. The audit now proposes those pairings itself: for a name only the API reports, it
+names the field only native reports that carries the same value on every row both transports returned, and
+prints them as `api-name?=winbox-name`.
+
+That is a lead, never a licence, and the report says which is which by showing every candidate:
+
+* A distinctive value settles it. `/ip/dhcp-client` proposes `address?=ip-address`,
+  `allow-reconfigure?=allow-reconfigure-messages` and `default-route-tables?=routing-tables` in one read,
+  each moving a value nothing else on the row carries.
+* A bool or a zero does not. `/ip/settings` proposes `ipv4-fragment-time?=neighbour-dump-retries` because
+  both read 3, and `/ip/firewall/connection/tracking` proposes twenty-six candidates for one flag. Those
+  were settled by writing a value: 13 and 27 into the traffic-flow sampling pair, 7s and 9m into one
+  interface's loop-protect fields and not its neighbour's.
+* A value that MOVES BY ITSELF can propose a pairing and can equally hide one. `/system/resource` reads
+  `cpu-frequency` 2938 and `freq` 4183 seconds apart on a boosting CPU; the two are one field regardless —
+  the window declares both names on `u5` — and it is the catalog that says so, not the reading.
+* A field that is empty on every row cannot be proposed at all: two blanks agree vacuously, and so would
+  every other blank on the row. `/user`'s `address` is one, and needed a user created with an allowed
+  address to settle.
+
+### 33.3 What a WinBox label is not
+
+Three shapes account for most of the pairings, and none of them is a spelling difference:
+
+* **The tab qualifies its fields.** `/interface/ethernet` declares `{name:'Loop Protect',type:'tab'}` and
+  then Loop Protect / Send Interval / Disable Time / Status under it; RouterOS prefixes the tab's name onto
+  all but the field that IS the tab's name. It is not a general rule — the 'Overall Stats' tab prefixes
+  nothing — so it is applied per path.
+* **A `title` on a FIELD is the API's name, not a second label.** See §33.4.
+* **A unit webfig paints beside the box is part of the API's value.** `types.kbytes` renders "N KiB"
+  straight from the wire number, unlike `types.bytes` which is already in bytes — so a `kbytes` field read
+  1024 times too small. `/system/resource` on 7.24, exact to the byte: total-memory 4194304 →
+  4294967296, free-hdd-space 60152 → 61595648, total-hdd-size 91372 → 93564928. It survived because every
+  `kbytes` field but one has a volatile name (`free-`, `total-memory`) that the audit does not compare.
+
+### 33.4 A field's `title` is the API's name for it
+
+On a WINDOW, `name` and `title` are two spellings of one label. On a FIELD they are not: the `name` is what
+WinBox paints beside the box and the `title` is what RouterOS calls the field.
+`{name:'Type',title:'Target'}` on `/system/logging/action` is `target` to the API, and `type` is not a
+field of that table at all.
+
+The commonest shape is a pair of declarations on ONE key, guarded by opposite conditions, the disused one
+prefixed 'Old':
+
+```
+{name:'Old Cache Path',title:'Cache Path',type:'string',id:'se',on:'oldfileman'}
+{name:'Cache Path',                       type:'string',id:'se',on:'newfileman'}
+```
+
+Both were registered — either spelling reaches the key — but first-wins let the 'Old' one claim the
+REPORTED name, so `/ip/proxy` read `old-cache-path`. Twenty-five such pairs in the 7.24 catalog.
+
+**The twin has to exist.** Acting on a title with no same-key namesake moved eighteen keys onto names
+nothing had confirmed — `{name:'addr',title:'Address Acquisition'}` and `{name:'NV2 Security',
+title:'Security'}` are headings, not the field's other name — so the rule fires only when a second
+declaration on the same key is named exactly the title. Measured over the whole catalog that is 25 reported
+names changed, 0 registrations added or removed, and one key (a Dude window's generic `name` seed) yielding
+to the window's own field.
+
+Never for a deck-pane leaf: there the API name comes from the pane KIND (`bfifo-limit`, `pcq-rate`), and
+four panes whose boxes all read 'Queue Size' would collapse onto one name.
 
 ## Settled questions — do not re-investigate
 

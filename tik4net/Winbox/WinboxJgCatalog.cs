@@ -672,12 +672,54 @@ namespace tik4net.Winbox
             {
                 object tree = new JgParser(text).Parse();
                 Walk(tree, null, new List<string>());
+                SettleTitleNames();
                 return true;
             }
             catch (Exception ex)
             {
                 TraceNote("PARSE FAILED (" + text.Length + " chars): " + ex.Message);
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Resolves the <c>.jg</c>'s "Old X" / "X" field pairs: a declaration named by its own
+        /// <c>title</c> elsewhere on the SAME key is the other spelling of that field, not a field of its
+        /// own, so it stops claiming the key's reported name.
+        /// </summary>
+        /// <remarks>
+        /// <para>The catalog declares a file-path field twice on one key, guarded by opposite conditions —
+        /// <c>{name:'Old Cache Path',title:'Cache Path',on:'oldfileman'}</c> and
+        /// <c>{name:'Cache Path',on:'newfileman'}</c> — and first-wins picked the 'Old' one, so
+        /// <c>/ip/proxy</c> reported <c>old-cache-path</c> where RouterOS says <c>cache-path</c>.
+        /// Twenty-five such pairs in the 7.24 catalog, on paths from <c>/ip/proxy</c> and
+        /// <c>/ip/hotspot/profile</c> to <c>/certificate</c> and <c>/system/scheduler</c>.</para>
+        /// <para>Both names stay REGISTERED — a caller that resolved <c>old-cache-path</c> before still
+        /// reaches the same key — but the loser's <c>ApiName</c> becomes the winner's, which is what
+        /// <c>WinboxFieldResolver.BuildKeyToApiName</c> reads to decide whether a registration may claim a
+        /// key ("only the spelling this path reports").</para>
+        /// <para>The twin has to EXIST for any of this to happen. A title with no same-key namesake — the
+        /// <c>addr</c>/'Address Acquisition' and 'NV2 Security'/'Security' declarations, where the title is
+        /// a heading rather than the field's other name — is left exactly as it was; acting on those moved
+        /// eighteen keys onto names nothing had confirmed.</para>
+        /// </remarks>
+        private void SettleTitleNames()
+        {
+            foreach (var handler in _byHandler)
+            {
+                List<string>? demote = null;
+                foreach (var entry in handler.Value)
+                {
+                    string? title = entry.Value.TitleApiName;
+                    if (title == null || string.Equals(title, entry.Key, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    if (handler.Value.TryGetValue(title, out var twin) && twin.Key == entry.Value.Key)
+                        (demote ??= new List<string>()).Add(entry.Key);
+                }
+                if (demote == null) continue;
+                foreach (string name in demote)
+                    handler.Value[name] = handler.Value[name].WithApiName(
+                        handler.Value[name].TitleApiName!);   // non-null: only names collected above
             }
         }
 
@@ -1016,7 +1058,7 @@ namespace tik4net.Winbox
                             scale: ScaleOf(dict), elementParts: ElementPartsOf(dict),
                             postfix: PostfixOf(dict), elementSeparator: ElementSeparatorOf(dict),
                             elementNotKey: ElementNotKeyOf(dict), elementIsRange: ElementIsRangeOf(dict),
-                            tab: tab);
+                            tab: tab, title: TitleOf(dict));
                     }
                 }
 
@@ -1146,15 +1188,23 @@ namespace tik4net.Winbox
             PaneContext? pane = null, int offKey = 0, bool isOptional = false, string? elementUiType = null,
             int scale = 1, IReadOnlyList<WinboxJgElementPart>? elementParts = null, string? postfix = null,
             string? elementSeparator = null, int elementNotKey = 0, bool elementIsRange = false,
-            string? tab = null)
+            string? tab = null, string? title = null)
         {
             string apiName = WinboxFieldResolver.NormalizeLabel(label);
             if (string.IsNullOrEmpty(apiName)) return;
+            // A declaration's own `title` is carried on the field (see WinboxJgField.TitleApiName) and acted
+            // on in SettleTitleNames, once the whole handler is known: it only decides anything when a
+            // SECOND declaration on the same key is named by that title, and at this point that one may not
+            // have been read yet. Never for a deck-pane leaf — there the API name comes from the pane KIND
+            // (bfifo-limit, pcq-rate) and four panes whose boxes all read 'Queue Size' would collapse.
+            string? titleName = pane == null && title != null
+                ? WinboxFieldResolver.NormalizeLabel(title) : null;
+            if (string.IsNullOrEmpty(titleName) || titleName == apiName) titleName = null;
             var field = new WinboxJgField(apiName, key, wireType, ro, enumMap, uiType, maskKey,
                 refHandler, optKey, notKey, isRange, allow, def,
                 pane?.Kind, pane?.SelectorKey ?? 0, pane?.Values, offKey, isOptional, elementUiType, scale,
                 elementParts, postfix, elementSeparator, elementNotKey: elementNotKey,
-                elementIsRange: elementIsRange);
+                elementIsRange: elementIsRange, titleApiName: titleName);
             // Two fields of one window may carry the same label - the packet sniffer's streaming 'Port' (a
             // number) and its filter 'Port' (a list of port matches) - and first-wins kept only the first,
             // leaving the second reachable under no name at all. The TAB it sits under is what tells them
@@ -1731,6 +1781,25 @@ namespace tik4net.Winbox
             result = 0;
             return false;
         }
+
+        /// <summary>
+        /// A field declaration's own <c>title</c>, when it has one that differs from its <c>name</c>.
+        /// </summary>
+        /// <remarks>
+        /// On a FIELD (not a window) the two are not two spellings of one label: the <c>name</c> is what
+        /// WinBox paints beside the box and the <c>title</c> is what RouterOS calls the field.
+        /// <c>{name:'Type',title:'Target'}</c> on <c>/system/logging/action</c> is <c>target</c> to the API
+        /// and <c>type</c> is not a field of that table at all. The commonest shape is a pair of
+        /// declarations on ONE key, one of them conditional and prefixed 'Old' —
+        /// <c>{name:'Old Cache Path',title:'Cache Path',on:'oldfileman'}</c> beside
+        /// <c>{name:'Cache Path',on:'newfileman'}</c> — and there the title says which of the two the API
+        /// uses. Twenty-five such pairs in the 7.24 catalog.
+        /// </remarks>
+        private static string? TitleOf(Dictionary<string, object> node)
+            => node.TryGetValue("title", out var tv) && tv is string ts && ts.Length > 0
+               && !(node.TryGetValue("name", out var nv) && nv is string ns
+                    && string.Equals(ns, ts, StringComparison.Ordinal))
+                ? ts : null;
 
         // The .jg `def` (the field's default), kept only so the u32 unset marker can be recognised — see
         // WinboxJgField.Def.

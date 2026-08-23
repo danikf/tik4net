@@ -451,10 +451,135 @@ namespace tik4net.Winbox
                 // different question with the API's field name. The setting is the API's
                 // 'auto-negotiation'; the status keeps a name of its own, since the API reports it only
                 // from /interface/ethernet/monitor and not on this table at all.
+                //
+                // The pairings added below it, and everything down to /ip/route, were each established by
+                // MOVING the value: the audit reads every path
+                // over both transports and, for a name only the API reports, names the field only native
+                // reports that carries the SAME value on every row (WinboxNativePathMapAuditTest's
+                // "value matches"). A proposal it makes on a bool or a zero is a coincidence and is not
+                // taken; the ones here either move a distinctive value or were confirmed by writing one.
+
+                // /interface/ethernet, Loop Protect tab: the .jg declares {name:'Loop Protect',type:'tab'}
+                // and then Loop Protect / Send Interval / Disable Time / Status under it. RouterOS prefixes
+                // the tab's name onto all but the field that IS the tab's name. Confirmed by setting
+                // send-interval=7s and disable-time=9m on one interface and not its neighbour.
                 ["/interface/ethernet"] = new FieldAliasSet(
-                    apiToJg: Ci(("auto-negotiation", "autoneg")),
+                    apiToJg: Ci(("auto-negotiation", "autoneg"),
+                               ("loop-protect-status", "status"),
+                               ("loop-protect-send-interval", "send-interval"),
+                               ("loop-protect-disable-time", "disable-time")),
                     jgToApi: Ci(("autoneg", "auto-negotiation"),
-                               ("auto-negotiation", "auto-negotiation-status"))),
+                               ("auto-negotiation", "auto-negotiation-status"),
+                               ("status", "loop-protect-status"),
+                               ("send-interval", "loop-protect-send-interval"),
+                               ("disable-time", "loop-protect-disable-time"))),
+
+                // /ip/arp and /ip/neighbor: WinBox's 'IP Address' is the API's `address`. On /ip/neighbor
+                // the router ALSO prints `address4` for the same value and `address6` for the v6 one, so
+                // one native field answers to two API names there; `address` is the one every menu uses.
+                ["/ip/arp"] = new FieldAliasSet(
+                    apiToJg: Ci(("address", "ip-address")),
+                    jgToApi: Ci(("ip-address", "address"))),
+
+                ["/ip/neighbor"] = new FieldAliasSet(
+                    apiToJg: Ci(("address", "ip-address"), ("address6", "ipv6-address"),
+                               ("board", "board-name"), ("unpack", "unpacking")),
+                    jgToApi: Ci(("ip-address", "address"), ("ipv6-address", "address6"),
+                               ("board-name", "board"), ("unpacking", "unpack"))),
+
+                // /ip/dhcp-client: three, all moving a distinctive value in one read — the lease address
+                // (192.168.4.236/24), the reconfigure flag, and the routing-table list.
+                ["/ip/dhcp-client"] = new FieldAliasSet(
+                    apiToJg: Ci(("address", "ip-address"),
+                               ("allow-reconfigure", "allow-reconfigure-messages"),
+                               ("default-route-tables", "routing-tables")),
+                    jgToApi: Ci(("ip-address", "address"),
+                               ("allow-reconfigure-messages", "allow-reconfigure"),
+                               ("routing-tables", "default-route-tables"))),
+
+                // /user: WinBox's 'Allowed Address'. Both rows of a stock router leave it EMPTY, which is
+                // why the audit could not propose it — two blanks agree vacuously. Confirmed by creating a
+                // user with address=192.168.251.0/24 and watching that one row change and the others not.
+                ["/user"] = new FieldAliasSet(
+                    apiToJg: Ci(("address", "allowed-address")),
+                    jgToApi: Ci(("allowed-address", "address"))),
+
+                // The rest: one WinBox label, one API name, no structure to derive it from.
+                ["/ip/dhcp-server/config"] = new FieldAliasSet(
+                    apiToJg: Ci(("store-leases-disk", "store-leases-on-disk")),
+                    jgToApi: Ci(("store-leases-on-disk", "store-leases-disk"))),
+
+                ["/ip/dns"] = new FieldAliasSet(
+                    apiToJg: Ci(("verify-doh-cert", "verify-doh-certificate")),
+                    jgToApi: Ci(("verify-doh-certificate", "verify-doh-cert"))),
+
+                ["/ip/service"] = new FieldAliasSet(
+                    apiToJg: Ci(("proto", "protocol")),
+                    jgToApi: Ci(("protocol", "proto"))),
+
+                ["/ip/socks"] = new FieldAliasSet(
+                    apiToJg: Ci(("auth-method", "authentication-method")),
+                    jgToApi: Ci(("authentication-method", "auth-method"))),
+
+                ["/ip/proxy"] = new FieldAliasSet(
+                    apiToJg: Ci(("cache-hit-dscp", "cache-hit-dscp-(tos)")),
+                    jgToApi: Ci(("cache-hit-dscp-(tos)", "cache-hit-dscp"))),
+
+                ["/system/ntp/client"] = new FieldAliasSet(
+                    apiToJg: Ci(("servers", "ntp-servers")),
+                    jgToApi: Ci(("ntp-servers", "servers"))),
+
+                // /system/resource: the window declares BOTH 'freq' and 'CPU Frequency' on u5 and first-wins
+                // took 'freq'. One key, one value, and the API's name for it is cpu-frequency.
+                // /system/resource: the window declares BOTH 'freq' and 'CPU Frequency' on u5 and first-wins
+                // took 'freq'. One key, one value — and a value that MOVES between two reads (an AMD host
+                // boosting), which is why the audit's own proposal for it could as easily have been a
+                // coincidence; the .jg settles it, not the reading. The disk and sector counters pair by
+                // name alone: both sector counters read the same number on a router that has been up once.
+                ["/system/resource"] = new FieldAliasSet(
+                    apiToJg: Ci(("cpu-frequency", "freq"),
+                               ("total-hdd-space", "total-hdd-size"),
+                               ("write-sect-total", "total-sector-writes"),
+                               ("write-sect-since-reboot", "sector-writes-since-reboot")),
+                    jgToApi: Ci(("freq", "cpu-frequency"),
+                               ("total-hdd-size", "total-hdd-space"),
+                               ("total-sector-writes", "write-sect-total"),
+                               ("sector-writes-since-reboot", "write-sect-since-reboot"))),
+
+                // /ip/traffic-flow: both fields read 0 on a stock router, so the audit's value match was
+                // vacuous. Confirmed by writing 13 and 27 and watching the two arrive in that order.
+                ["/ip/traffic-flow"] = new FieldAliasSet(
+                    apiToJg: Ci(("sampling-interval", "packet-sampling-interval"),
+                               ("sampling-space", "packet-sampling-space")),
+                    jgToApi: Ci(("packet-sampling-interval", "sampling-interval"),
+                               ("packet-sampling-space", "sampling-space"))),
+
+                // /ip/settings: confirmed by writing 393216 and 27 and reading both back. `icmp-rate-mask`
+                // is NOT here — no window in the catalog declares it at all, under any name.
+                ["/ip/settings"] = new FieldAliasSet(
+                    apiToJg: Ci(("ipv4-high-fragment-thresh", "ipv4-fragment-threshold-bytes"),
+                               ("ipv4-fragment-time", "ipv4-fragment-timeout")),
+                    jgToApi: Ci(("ipv4-fragment-threshold-bytes", "ipv4-high-fragment-thresh"),
+                               ("ipv4-fragment-timeout", "ipv4-fragment-time"))),
+
+                // The two IPsec algorithm sets: singular where the window says plural, and vice versa.
+                ["/ip/ipsec/profile"] = new FieldAliasSet(
+                    apiToJg: Ci(("hash-algorithm", "hash-algorithms"),
+                               ("enc-algorithm", "encryption-algorithm")),
+                    jgToApi: Ci(("hash-algorithms", "hash-algorithm"),
+                               ("encryption-algorithm", "enc-algorithm"))),
+
+                ["/ip/ipsec/proposal"] = new FieldAliasSet(
+                    apiToJg: Ci(("enc-algorithms", "encr-algorithms")),
+                    jgToApi: Ci(("encr-algorithms", "enc-algorithms"))),
+
+                ["/ip/firewall/connection/tracking"] = new FieldAliasSet(
+                    apiToJg: Ci(("tcp-max-retrans-timeout", "tcp-max-retransmit-timeout"),
+                               ("total-ip4-entries", "total-ipv4-entries"),
+                               ("total-ip6-entries", "total-ipv6-entries")),
+                    jgToApi: Ci(("tcp-max-retransmit-timeout", "tcp-max-retrans-timeout"),
+                               ("total-ipv4-entries", "total-ip4-entries"),
+                               ("total-ipv6-entries", "total-ip6-entries"))),
 
                 // /ip/route: the API's `active` bool is the route window's 'Contribution' enum — one wire
                 // field (u22), two vocabularies. The base 'All Routes' window's numflag on that key

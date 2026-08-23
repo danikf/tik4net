@@ -105,10 +105,16 @@ namespace tik4net.integrationtests
                 {
                     var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                     foreach (var w in rows[i].Words)
-                    {
-                        r.FieldNames.Add(w.Key);
                         fields[w.Key] = w.Value;
-                    }
+                    // A name the API transport INVENTED rather than one the router used. RouterOS sends the
+                    // same word twice on some rows (/certificate 'trusted', /ip/arp 'published',
+                    // /interface/list 'dynamic', two ipsec fields), and ApiSentence keeps the second under
+                    // base+2 so it is not lost. Counting that as a router field makes every other transport
+                    // look one name short of the API - the audit comparing itself, exactly as it did with
+                    // '.tag'. The rule that recognises them lives with the code that creates them.
+                    foreach (var name in fields.Keys)
+                        if (!tik4net.Api.ApiSentence.IsDuplicateWorkaroundName(name, fields.Keys))
+                            r.FieldNames.Add(name);
                     string key = fields.TryGetValue(".id", out var id) && !string.IsNullOrEmpty(id)
                         ? id : "#" + i;
                     r.Rows[key] = fields;
@@ -242,6 +248,61 @@ namespace tik4net.integrationtests
         private static string Trim(string v)
             => v == null ? "" : (v.Length > 40 ? v.Substring(0, 37) + "..." : v);
 
+        /// <summary>
+        /// For each field only the API reports, the field(s) only native reports that carry the SAME value
+        /// on every row both transports returned - a proposed api-name/winbox-name pairing, found by moving
+        /// the value rather than by matching the words.
+        /// </summary>
+        /// <remarks>
+        /// <para>Naming what is missing is only half an answer: the fix for a missing name is an alias, and
+        /// an alias may only exist once the pairing has been ESTABLISHED. This does that mechanically over
+        /// whatever the two transports already read - the same evidence a hand-run probe produces, on every
+        /// path at once.</para>
+        /// <para>It cannot pair a field that is EMPTY on every row: two blanks agree vacuously, and so would
+        /// every other blank field on the row. Those still need a value put into them by hand
+        /// (<c>/user</c>'s <c>address</c> is one). And a proposal is a lead, never a licence - two fields can
+        /// agree on the rows this router happens to have and still mean different things.</para>
+        /// </remarks>
+        private static Dictionary<string, List<string>> ProposePairings(
+            Reading api, Reading native, List<string> onlyApi, List<string> onlyNative)
+        {
+            var result = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            if (onlyApi.Count == 0 || onlyNative.Count == 0) return result;
+
+            var paired = api.Rows.Where(kv => native.Rows.ContainsKey(kv.Key))
+                                 .Select(kv => new { Api = kv.Value, Native = native.Rows[kv.Key] })
+                                 .ToList();
+            if (paired.Count == 0) return result;
+
+            foreach (string af in onlyApi)
+            {
+                var candidates = new List<string>();
+                foreach (string nf in onlyNative)
+                {
+                    int compared = 0;
+                    bool allAgree = true;
+                    foreach (var row in paired)
+                    {
+                        if (!row.Api.TryGetValue(af, out string av) || string.IsNullOrEmpty(av)) continue;
+                        if (!row.Native.TryGetValue(nf, out string nv)) { allAgree = false; break; }
+                        if (!string.Equals(av, nv, StringComparison.OrdinalIgnoreCase)) { allAgree = false; break; }
+                        compared++;
+                    }
+                    if (allAgree && compared > 0) candidates.Add(nf);
+                }
+                if (candidates.Count > 0) result[af] = candidates;
+            }
+            return result;
+        }
+
+        /// <summary>Renders <see cref="ProposePairings"/> as <c>api-name?=winbox-name</c>, an ambiguous
+        /// proposal showing every candidate.</summary>
+        private static string FormatPairings(Dictionary<string, List<string>> pairings)
+            => pairings.Count == 0 ? ""
+             : "\tvalue matches: " + string.Join(", ",
+                   pairings.OrderBy(kv => kv.Key, StringComparer.Ordinal)
+                           .Select(kv => kv.Key + "?=" + string.Join("|", kv.Value)));
+
         [Ignore]
         [TestMethod]
         public void AuditPathMapAgainstApi()
@@ -317,7 +378,8 @@ namespace tik4net.integrationtests
                             report.Add($"MISMATCH   {path}\tapi rows={a.RowCount} native rows={n.RowCount}"
                                        + $"\tshared fields={shared}/{a.FieldNames.Count}"
                                        + (onlyApi.Count > 0 ? "\tapi-only: " + string.Join(",", onlyApi.Take(12)) : "")
-                                       + (onlyNative.Count > 0 ? "\tnative-only: " + string.Join(",", onlyNative.Take(12)) : ""));
+                                       + (onlyNative.Count > 0 ? "\tnative-only: " + string.Join(",", onlyNative.Take(12)) : "")
+                                       + FormatPairings(ProposePairings(a, n, onlyApi, onlyNative)));
                         }
                         continue;
                     }
@@ -347,6 +409,9 @@ namespace tik4net.integrationtests
                         // field a caller cannot read, whether or not it trips the threshold.
                         report.Add($"OK         {path}\trows={a.RowCount}\tshared fields={shared}/{a.FieldNames.Count}"
                                    + (onlyApi.Count > 0 ? "\tapi-only: " + string.Join(",", onlyApi) : "")
+                                   + FormatPairings(ProposePairings(a, n, onlyApi,
+                                       n.FieldNames.Where(f => !a.FieldNames.Contains(f))
+                                        .OrderBy(f => f).ToList()))
                                    + (excused != null ? "\tnot compared: " + string.Join(", ", excused.Keys) : ""));
                     }
                     else
@@ -359,6 +424,14 @@ namespace tik4net.integrationtests
                 }
             }
 
+            // The tallies go in the FILE as well as the console: the report is what gets read later (and
+            // diffed against the last run), and a list of lines with no totals under it invites counting
+            // them by hand.
+            report.Add("");
+            report.Add($"OK={agreed}  KNOWN-GAP={known}  MISMATCH={mismatched}  VALUE-DIFF={valueMismatched}"
+                       + $"  UNMAPPED={unmapped}  ROUTER-N/A={apiRefused}");
+            report.Add($"FIELD-NAMES not reported by native: {notReported}/{apiFieldSlots}"
+                       + (apiFieldSlots > 0 ? $" ({notReported * 100 / apiFieldSlots}%)" : ""));
             File.WriteAllLines(reportPath, report);
             foreach (string line in report) Console.WriteLine(line);
             Console.WriteLine();

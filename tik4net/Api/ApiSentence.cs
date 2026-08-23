@@ -45,11 +45,34 @@ namespace tik4net.Api
                         }
                         _words.Add(key + idx, value);
                     }
+                    //The name above is INVENTED here, not sent by the router - see IsDuplicateWorkaroundName.
                     //if (_words[key] != value)
                     //    throw new TikSentenceException(string.Format("Duplicit key '{0}' with deffirent values '{1}' vs. '{2}'", key, _words[key], value) , this);
                     //else - duplicit key but the same value -> OK (workaround mikrotik bug?)
                 }
             }
+        }
+
+        /// <summary>
+        /// True when <paramref name="name"/> is one this class INVENTED for a word the router sent twice —
+        /// the base name plus 2, 3, … — rather than a name the router used.
+        /// </summary>
+        /// <remarks>
+        /// The rule lives next to the code that applies it, so the two cannot drift. Anything comparing this
+        /// transport's vocabulary against another's has to subtract these: RouterOS sends <c>trusted</c>
+        /// twice on a <c>/certificate</c> row, and counting the <c>trusted2</c> that comes out of it as a
+        /// router field makes every other transport look one field short of the API. Same class of mistake
+        /// as counting <c>.tag</c>, which is also ours and not the router's.
+        /// </remarks>
+        internal static bool IsDuplicateWorkaroundName(string name, ICollection<string> namesInSameSentence)
+        {
+            if (string.IsNullOrEmpty(name) || namesInSameSentence == null) return false;
+            int end = name.Length;
+            while (end > 0 && name[end - 1] >= '0' && name[end - 1] <= '9') end--;
+            if (end == name.Length || end == 0) return false;      // no trailing digits, or all digits
+            string digits = name.Substring(end);
+            if (digits[0] == '0' || digits == "1") return false;   // the loop starts at 2 and never pads
+            return namesInSameSentence.Contains(name.Substring(0, end));
         }
 
         protected bool TryGetWordValue(string wordName, out string value)
