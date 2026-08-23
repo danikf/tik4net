@@ -488,6 +488,7 @@ namespace tik4net.integrationtests
                 // never where it does damage.
                 write = new WinboxNativeWriteAudit(api, native);
                 write.Run(fixtures);
+                write.RunAddsAndRemoves(fixtures);
             }
             }
             finally

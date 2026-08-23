@@ -1697,7 +1697,47 @@ measure one encoder everywhere and report broad coverage of nothing.
 Going from eighteen probes to sixty-one turned 0 findings into **9**, which is the answer to whether the
 first round's clean sheet meant anything: it meant eighteen fields were right. 
 
-All nine are closed. **61 ok, 0 different, 0 refused.**
+All nine are closed, and the audit then grew the other two verbs.
+
+**`add` and `remove`, the same differential way.** The fixture recipes are data rather than a sequence
+of calls precisely so the write audit can REPLAY them: make the same row over native and over the API,
+compare the fields the recipe asked for, then take each away — the native one over NATIVE, which is what
+measures `remove`. Only the fields the recipe set are compared; everything else on a fresh row is the
+router's own business and much of it cannot agree by construction (a bridge is born with a random MAC, a
+wireguard interface with a random listen-port, a firewall rule with counters and an `invalid` flag that
+depends on what else is in the chain).
+
+Which kind of failure a refused add is gets decided the same way, not by reading the trap text. A table
+that already holds the fixture row and keys on something the probe cannot vary refuses BOTH transports,
+and refusing both is the router talking about the row. Guessing that from `device already added`,
+`instance already has area`, `Multiple initiator peers` would have been a list of English phrases
+pretending to be a rule.
+
+That found one thing worth the whole exercise:
+
+* **An interface subtype could not be created at all.** `/interface/bridge`, `/vlan`, `/eoip`, `/gre`,
+  `/ipip`, `/vrrp`, `/vxlan`, `/wireguard`, `/bonding` — eleven paths — share the generic `[20,0]`
+  handler, and the discriminator that FILTERS a read is the same field that says what to CREATE. The add
+  went out carrying only a name and the router answered `unsupported device type`. Sending the subtype's
+  own type value fixed every one of them, and **eleven integration tests came off the skip list** as a
+  result: they had been skipping because the add they start with could not be made.
+* Three of those eleven then failed, and all three were real: `lacp-rate` read `30-s` where RouterOS
+  writes `30secs` (the window spells it `'30 s'`), `l2tpv3-cookie-length` read `0-bytes` for the router's
+  `0`, and a bridge VLAN's `bridge` decoded to a bare `.id`.
+* **The reference-name cache outlived a write.** That last one: id → name is cached per referenced table
+  and was described as stable "within a session", which a row added through that same connection makes
+  false — the reference decoded to the raw id, which does not read as an error but as a value. Every
+  write now drops the cache, that being the only event that can make it wrong.
+* **A dot in a RouterOS field name is a hyphen in the WinBox label.** `/routing/bgp/connection` has
+  `remote.address` and `local.role`; the window says 'Remote Address' and 'Local Role'. The write side
+  could not resolve the API's spelling at all. Aliased per path rather than by rewriting every dot
+  everywhere — a dot is not reserved in a field name, and a global rule would quietly re-point any future
+  field that has one.
+
+**105 probes: 105 ok, 0 different, 0 refused, 18 not-probeable** (rows the router itself will not
+duplicate).
+
+The `set` probes alone: **61 ok, 0 different, 0 refused.**
 
 * **A write asked about a path with its VERB still on it.** `ApiPathOf` stripped the read verbs and
   left the rest, so the singleton question was asked about `/ip/upnp/interfaces/set` — a path no alias

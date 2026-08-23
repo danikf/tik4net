@@ -684,6 +684,20 @@ namespace tik4net.Winbox
                     apiToJg: Ci(("authentication-types", "authentication-type")),
                     jgToApi: Ci(("authentication-type", "authentication-types"))),
 
+                // /routing/bgp/connection: RouterOS 7 groups a connection's sub-settings with a DOT --
+                // remote.address, local.role -- and WinBox labels them 'Remote Address' and 'Local Role',
+                // which normalize with a hyphen. Two spellings of one field, and the write side could not
+                // resolve the API's at all: `remote.address` named nothing, so an add carrying it threw.
+                //
+                // Aliased per path rather than by turning every dot into a hyphen everywhere. A dot is not
+                // reserved in a RouterOS field name, and a global rewrite would quietly re-point any future
+                // field that has one.
+                ["/routing/bgp/connection"] = new FieldAliasSet(
+                    apiToJg: Ci(("remote.address", "remote-address"),
+                                ("local.role", "local-role")),
+                    jgToApi: Ci(("remote-address", "remote.address"),
+                                ("local-role", "local.role"))),
+
                 // The BGP instance window calls the router id 'IP'. Confirmed by value: with the API's
                 // router-id set to 10.99.0.13, native reports ip=10.99.0.13.
                 //
@@ -1008,6 +1022,19 @@ namespace tik4net.Winbox
                 {
                     ["mac-address"] = "client-mac",
                     ["option-82"]   = "opt-82",
+                },
+                // The window spells these with a space ('30 s', '1 s'), which normalizes to a hyphen;
+                // RouterOS writes them as one word. `/interface/bonding add lacp-rate=?` on 7.24.
+                ["lacp-rate"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["30-s"] = "30secs",
+                    ["1-s"]  = "1sec",
+                },
+                // Only the zero differs here: the router's members are 0, 4-bytes and 8-bytes, and the
+                // window calls the first '0 bytes'.
+                ["l2tpv3-cookie-length"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["0-bytes"] = "0",
                 },
             };
 

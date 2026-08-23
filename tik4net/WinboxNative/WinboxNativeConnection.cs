@@ -861,7 +861,15 @@ namespace tik4net.WinboxNative
                     var (handler, resolver) = ResolveHandlerAndFields(apiPath);
                     var fields = await EncodeNameValueFieldsAsync(handler, descriptor, resolver, skipId: true,
                         cancellationToken).ConfigureAwait(false);
+                    // An interface SUBTYPE path shares the generic [20,0] handler, and the discriminator that
+                    // filters a read is the same field that says what to CREATE. Without it the router has
+                    // only a name to go on and answers 'unsupported device type' — every
+                    // /interface/<kind>/add over native, eleven paths, refused outright.
+                    if (_handlerMap.TryResolveSubtypeFilter(apiPath, out int addTypeKey, out int addTypeValue))
+                        fields.Add(M2Message.U32Sys(addTypeKey, addTypeValue));
                     int newId = await _ops.AddAsync(handler, fields, cancellationToken).ConfigureAwait(false);
+                    // A new row is a name the reference cache has never seen (see ForgetReferenceNames).
+                    _codec.ForgetReferenceNames();
                     // RunAddAsync's declared return type is non-nullable, matching RunAdd's contract across
                     // every transport, but a failed add (newId < 0) genuinely yields null here (see the report).
                     return (newId >= 0 ? "*" + ((uint)newId).ToString("X") : null)!;
@@ -918,6 +926,7 @@ namespace tik4net.WinboxNative
                     var fields = await EncodeNameValueFieldsAsync(handler, descriptor, resolver, skipId: true,
                         cancellationToken).ConfigureAwait(false);
                     await _ops.AddAsync(handler, fields, cancellationToken).ConfigureAwait(false);
+                    _codec.ForgetReferenceNames();
                     break;
                 }
                 case "set":
@@ -962,6 +971,7 @@ namespace tik4net.WinboxNative
                     int id = await ResolveRecordIdAsync(handler, resolver, descriptor, required: true,
                         cancellationToken).ConfigureAwait(false);
                     await _ops.RemoveAsync(handler, id, cancellationToken).ConfigureAwait(false);
+                    _codec.ForgetReferenceNames();
                     break;
                 }
                 case "move":
@@ -1625,10 +1635,12 @@ namespace tik4net.WinboxNative
             {
                 await _ops.SetSingletonAsync(handler, await encodeFields().ConfigureAwait(false),
                     SingletonIdOf(descriptor), cancellationToken).ConfigureAwait(false);
+                _codec.ForgetReferenceNames();
                 return;
             }
             int id = await ResolveRecordIdAsync(handler, resolver, descriptor, required: true,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
+            _codec.ForgetReferenceNames();   // a set can RENAME the row another table refers to
             await _ops.SetAsync(handler, id, await encodeFields().ConfigureAwait(false), cancellationToken)
                 .ConfigureAwait(false);
         }

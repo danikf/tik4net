@@ -59,100 +59,96 @@ namespace tik4net.integrationtests
         internal void SeedAll()
         {
             SweepOrphans();
+            foreach (var r in Recipes) Add(r.Path, r.NameValues);
+        }
 
-            Add("/ip/pool", "name", NamePrefix + "pool", "ranges", "10.99.0.10-10.99.0.20");
+        /// <summary>One row per table, as the arguments an <c>add</c> takes.</summary>
+        /// <remarks>
+        /// Data rather than a sequence of calls, because the write audit REPLAYS them: an <c>add</c> is
+        /// measured by making the same row over native and over the API and comparing what the router ended
+        /// up with. Order is dependency order — a bridge before its port, a pool before the DHCP server
+        /// handing it out — and removal walks it backwards.
+        /// </remarks>
+        internal sealed class Recipe
+        {
+            internal string Path;
+            internal string[] NameValues;
+            internal Recipe(string path, params string[] nameValues) { Path = path; NameValues = nameValues; }
+        }
 
-            Add("/interface/bridge", "name", NamePrefix + "br");
-            Add("/interface/bridge/port", "bridge", NamePrefix + "br", "interface", "ether2");
-            Add("/interface/bridge/vlan", "bridge", NamePrefix + "br", "vlan-ids", "999");
-            Add("/interface/bridge/filter", "chain", "forward", "action", "accept");
-            Add("/interface/bridge/nat", "chain", "srcnat", "action", "accept");
-
-            Add("/interface/vlan", "name", NamePrefix + "vlan", "vlan-id", "999", "interface", "ether2");
-            Add("/interface/eoip", "name", NamePrefix + "eoip", "remote-address", "10.99.0.2",
-                "tunnel-id", "999");
+        internal static readonly Recipe[] Recipes =
+        {
+            new Recipe("/ip/pool", "name", NamePrefix + "pool", "ranges", "10.99.0.10-10.99.0.20"),
+            new Recipe("/interface/bridge", "name", NamePrefix + "br"),
+            new Recipe("/interface/bridge/port", "bridge", NamePrefix + "br", "interface", "ether2"),
+            new Recipe("/interface/bridge/vlan", "bridge", NamePrefix + "br", "vlan-ids", "999"),
+            new Recipe("/interface/bridge/filter", "chain", "forward", "action", "accept"),
+            new Recipe("/interface/bridge/nat", "chain", "srcnat", "action", "accept"),
+            new Recipe("/interface/vlan", "name", NamePrefix + "vlan", "vlan-id", "999", "interface", "ether2"),
+            new Recipe("/interface/eoip", "name", NamePrefix + "eoip", "remote-address", "10.99.0.2", "tunnel-id", "999"),
             // Over the EoIP tunnel, not over ether2: a bonding slave cannot already be a bridge port, and
             // this lab has exactly two ethers of which one carries the connection running the audit.
-            Add("/interface/bonding", "name", NamePrefix + "bond", "slaves", NamePrefix + "eoip");
-            Add("/interface/gre", "name", NamePrefix + "gre", "remote-address", "10.99.0.3");
-            Add("/interface/ipip", "name", NamePrefix + "ipip", "remote-address", "10.99.0.4");
-            Add("/interface/vrrp", "name", NamePrefix + "vrrp", "interface", "ether2", "vrid", "99");
-            Add("/interface/vxlan", "name", NamePrefix + "vxlan", "vni", "999");
-            Add("/interface/wireguard", "name", NamePrefix + "wg");
-            Add("/interface/wireguard/peers", "interface", NamePrefix + "wg",
-                "public-key", "wGVEbHiKQhLBTQxWZqQmQvzFrPMPJVDgIiDzHEQNPmM=",
-                "allowed-address", "10.99.1.0/24");
-
+            new Recipe("/interface/bonding", "name", NamePrefix + "bond", "slaves", NamePrefix + "eoip"),
+            new Recipe("/interface/gre", "name", NamePrefix + "gre", "remote-address", "10.99.0.3"),
+            new Recipe("/interface/ipip", "name", NamePrefix + "ipip", "remote-address", "10.99.0.4"),
+            new Recipe("/interface/vrrp", "name", NamePrefix + "vrrp", "interface", "ether2", "vrid", "99"),
+            new Recipe("/interface/vxlan", "name", NamePrefix + "vxlan", "vni", "999"),
+            new Recipe("/interface/wireguard", "name", NamePrefix + "wg"),
+            new Recipe("/interface/wireguard/peers", "interface", NamePrefix + "wg", "public-key", "wGVEbHiKQhLBTQxWZqQmQvzFrPMPJVDgIiDzHEQNPmM=", "allowed-address", "10.99.1.0/24"),
             // Its own list: RouterOS refuses a member of a builtin one ("cannot add to builtin list").
-            Add("/interface/list", "name", NamePrefix + "list");
-            Add("/interface/list/member", "list", NamePrefix + "list", "interface", "ether2");
-
-            Add("/ip/dns/static", "name", NamePrefix + "host.invalid", "address", "10.99.0.5");
-            Add("/ip/firewall/address-list", "list", NamePrefix + "list", "address", "10.99.0.6");
-            Add("/ip/firewall/filter", "chain", "forward", "action", "accept");
-            Add("/ip/firewall/nat", "chain", "srcnat", "action", "accept");
+            new Recipe("/interface/list", "name", NamePrefix + "list"),
+            new Recipe("/interface/list/member", "list", NamePrefix + "list", "interface", "ether2"),
+            new Recipe("/ip/dns/static", "name", NamePrefix + "host.invalid", "address", "10.99.0.5"),
+            new Recipe("/ip/firewall/address-list", "list", NamePrefix + "list", "address", "10.99.0.6"),
+            new Recipe("/ip/firewall/filter", "chain", "forward", "action", "accept"),
+            new Recipe("/ip/firewall/nat", "chain", "srcnat", "action", "accept"),
             // protocol=tcp so the write audit's tcp-flags probe has something to bite on: RouterOS refuses
             // `tcp-flags` on a rule that does not match TCP, and the refusal would read as a transport
             // finding.
-            Add("/ip/firewall/mangle", "chain", "forward", "action", "accept", "protocol", "tcp");
-            Add("/ip/firewall/raw", "chain", "prerouting", "action", "accept");
-            Add("/ip/firewall/layer7-protocol", "name", NamePrefix + "l7", "regexp", "^tik4net$");
-
-            Add("/ip/dhcp-server", "name", NamePrefix + "dhcp", "interface", "ether2",
-                "address-pool", NamePrefix + "pool");
-            Add("/ip/dhcp-server/network", "address", "10.99.0.0/24", "gateway", "10.99.0.1");
-            Add("/ip/dhcp-server/lease", "address", "10.99.0.30", "mac-address", "02:00:00:99:00:01");
-            Add("/ip/dhcp-relay", "name", NamePrefix + "relay", "interface", "ether2",
-                "dhcp-server", "10.99.0.1");
-
-            Add("/ip/hotspot/ip-binding", "address", "10.99.0.7", "type", "bypassed");
-            Add("/ip/hotspot/walled-garden", "dst-host", "tik4net.invalid", "action", "allow");
-            Add("/ip/hotspot/walled-garden/ip", "dst-address", "10.99.0.8", "action", "accept");
-
-            Add("/ip/ipsec/peer", "name", NamePrefix + "peer", "address", "10.99.0.9");
-            Add("/ip/ipsec/identity", "peer", NamePrefix + "peer", "secret", "tik4net-fixture");
-
-            Add("/ip/proxy/access", "dst-host", "tik4net.invalid", "action", "deny");
-            Add("/ip/traffic-flow/target", "dst-address", "10.99.0.11", "port", "2055");
-            Add("/ip/upnp/interfaces", "interface", "ether2", "type", "internal");
-
-            Add("/ppp/secret", "name", NamePrefix + "user", "password", "tik4net-fixture");
-            Add("/queue/simple", "name", NamePrefix + "queue", "target", "10.99.0.0/24");
-            Add("/queue/tree", "name", NamePrefix + "tree", "parent", "global");
-
-            Add("/radius", "service", "login", "address", "10.99.0.12", "secret", "tik4net-fixture");
-
-            Add("/routing/filter/rule", "chain", NamePrefix + "chain", "rule", "accept");
-            Add("/routing/rule", "action", "lookup", "table", "main");
-            Add("/routing/ospf/instance", "name", NamePrefix + "ospf", "router-id", "10.99.0.13");
-            Add("/routing/ospf/area", "name", NamePrefix + "area", "instance", NamePrefix + "ospf",
-                "area-id", "0.0.0.99");
-            Add("/routing/ospf/interface-template", "interfaces", "ether2", "area", NamePrefix + "area");
+            new Recipe("/ip/firewall/mangle", "chain", "forward", "action", "accept", "protocol", "tcp"),
+            new Recipe("/ip/firewall/raw", "chain", "prerouting", "action", "accept"),
+            new Recipe("/ip/firewall/layer7-protocol", "name", NamePrefix + "l7", "regexp", "^tik4net$"),
+            new Recipe("/ip/dhcp-server", "name", NamePrefix + "dhcp", "interface", "ether2", "address-pool", NamePrefix + "pool"),
+            new Recipe("/ip/dhcp-server/network", "address", "10.99.0.0/24", "gateway", "10.99.0.1"),
+            new Recipe("/ip/dhcp-server/lease", "address", "10.99.0.30", "mac-address", "02:00:00:99:00:01"),
+            new Recipe("/ip/dhcp-relay", "name", NamePrefix + "relay", "interface", "ether2", "dhcp-server", "10.99.0.1"),
+            new Recipe("/ip/hotspot/ip-binding", "address", "10.99.0.7", "type", "bypassed"),
+            new Recipe("/ip/hotspot/walled-garden", "dst-host", "tik4net.invalid", "action", "allow"),
+            new Recipe("/ip/hotspot/walled-garden/ip", "dst-address", "10.99.0.8", "action", "accept"),
+            new Recipe("/ip/ipsec/peer", "name", NamePrefix + "peer", "address", "10.99.0.9"),
+            new Recipe("/ip/ipsec/identity", "peer", NamePrefix + "peer", "secret", "tik4net-fixture"),
+            new Recipe("/ip/proxy/access", "dst-host", "tik4net.invalid", "action", "deny"),
+            new Recipe("/ip/traffic-flow/target", "dst-address", "10.99.0.11", "port", "2055"),
+            new Recipe("/ip/upnp/interfaces", "interface", "ether2", "type", "internal"),
+            new Recipe("/ppp/secret", "name", NamePrefix + "user", "password", "tik4net-fixture"),
+            new Recipe("/queue/simple", "name", NamePrefix + "queue", "target", "10.99.0.0/24"),
+            new Recipe("/queue/tree", "name", NamePrefix + "tree", "parent", "global"),
+            new Recipe("/radius", "service", "login", "address", "10.99.0.12", "secret", "tik4net-fixture"),
+            new Recipe("/routing/filter/rule", "chain", NamePrefix + "chain", "rule", "accept"),
+            new Recipe("/routing/rule", "action", "lookup", "table", "main"),
+            new Recipe("/routing/ospf/instance", "name", NamePrefix + "ospf", "router-id", "10.99.0.13"),
+            new Recipe("/routing/ospf/area", "name", NamePrefix + "area", "instance", NamePrefix + "ospf", "area-id", "0.0.0.99"),
+            new Recipe("/routing/ospf/interface-template", "interfaces", "ether2", "area", NamePrefix + "area"),
             // A connection needs an instance that exists and a local role; RouterOS names both in the
             // trap when they are missing, one at a time.
-            Add("/routing/bgp/instance", "name", NamePrefix + "bgpi", "as", "65099",
-                "router-id", "10.99.0.13");
-            Add("/routing/bgp/connection", "name", NamePrefix + "bgp", "remote.address", "10.99.0.14",
-                "as", "65099", "instance", NamePrefix + "bgpi", "local.role", "ebgp");
-
-            Add("/system/scheduler", "name", NamePrefix + "sched", "on-event", ":nothing");
-            Add("/system/script", "name", NamePrefix + "script", "source", ":nothing");
-            Add("/tool/netwatch", "host", "10.99.0.15");
-
-            Add("/caps-man/channel", "name", NamePrefix + "chan");
-            Add("/caps-man/datapath", "name", NamePrefix + "dpath");
-            Add("/caps-man/security", "name", NamePrefix + "sec");
-            Add("/caps-man/configuration", "name", NamePrefix + "cfg");
-            Add("/caps-man/provisioning", "action", "none");
-            Add("/caps-man/access-list", "action", "accept");
-
-            Add("/interface/wifi/channel", "name", NamePrefix + "wchan");
-            Add("/interface/wifi/datapath", "name", NamePrefix + "wdpath");
-            Add("/interface/wifi/security", "name", NamePrefix + "wsec");
-            Add("/interface/wifi/configuration", "name", NamePrefix + "wcfg");
-            Add("/interface/wifi/provisioning", "action", "none");
-            Add("/interface/wifi/access-list", "action", "accept");
-        }
+            new Recipe("/routing/bgp/instance", "name", NamePrefix + "bgpi", "as", "65099", "router-id", "10.99.0.13"),
+            new Recipe("/routing/bgp/connection", "name", NamePrefix + "bgp", "remote.address", "10.99.0.14", "as", "65099", "instance", NamePrefix + "bgpi", "local.role", "ebgp"),
+            new Recipe("/system/scheduler", "name", NamePrefix + "sched", "on-event", ":nothing"),
+            new Recipe("/system/script", "name", NamePrefix + "script", "source", ":nothing"),
+            new Recipe("/tool/netwatch", "host", "10.99.0.15"),
+            new Recipe("/caps-man/channel", "name", NamePrefix + "chan"),
+            new Recipe("/caps-man/datapath", "name", NamePrefix + "dpath"),
+            new Recipe("/caps-man/security", "name", NamePrefix + "sec"),
+            new Recipe("/caps-man/configuration", "name", NamePrefix + "cfg"),
+            new Recipe("/caps-man/provisioning", "action", "none"),
+            new Recipe("/caps-man/access-list", "action", "accept"),
+            new Recipe("/interface/wifi/channel", "name", NamePrefix + "wchan"),
+            new Recipe("/interface/wifi/datapath", "name", NamePrefix + "wdpath"),
+            new Recipe("/interface/wifi/security", "name", NamePrefix + "wsec"),
+            new Recipe("/interface/wifi/configuration", "name", NamePrefix + "wcfg"),
+            new Recipe("/interface/wifi/provisioning", "action", "none"),
+            new Recipe("/interface/wifi/access-list", "action", "accept"),
+        };
 
         // ── mechanics ─────────────────────────────────────────────────────────
 

@@ -21,8 +21,11 @@ namespace tik4net.Winbox
         private readonly WinboxNativeM2Operations _ops;
         private readonly WinboxJgCatalog _catalog;
 
-        // id → name cache per referenced table, built lazily from one getall. Names are stable enough within a
-        // session; this avoids a getall per referenced field per row.
+        // id → name cache per referenced table, built lazily from one getall — this avoids a getall per
+        // referenced field per row. Names are stable between WRITES, not for a whole session: a row added or
+        // renamed through this same connection is a row the cache has never seen, and the reference decoded
+        // to the raw id instead of the name. Every write drops the cache (see ForgetReferenceNames), which
+        // is the only event that can make it wrong.
         private readonly Dictionary<string, Dictionary<int, string>> _refNameCache =
             new Dictionary<string, Dictionary<int, string>>(StringComparer.Ordinal);
 
@@ -1543,6 +1546,16 @@ namespace tik4net.Winbox
                 StoreRefNames(key, map);
             }
             return map;
+        }
+
+        /// <summary>
+        /// Drops the id → name cache. Called after any write: an add, a rename or a remove changes what the
+        /// referenced tables contain, and a stale entry does not read as an error — the reference decodes to
+        /// the bare id, which looks like a value.
+        /// </summary>
+        internal void ForgetReferenceNames()
+        {
+            lock (_refNameCacheLock) _refNameCache.Clear();
         }
 
         private Dictionary<int, string>? CachedRefNames(string key)

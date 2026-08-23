@@ -244,6 +244,181 @@ namespace tik4net.integrationtests
             return r;
         }
 
+        // ── add and remove ────────────────────────────────────────────────────
+
+        /// <summary>
+        /// The other two verbs, measured the same differential way: make the SAME row over native and over
+        /// the API, and compare what the router ended up with field by field. Then take each away again —
+        /// the native row over NATIVE, which is what measures <c>remove</c>.
+        /// </summary>
+        /// <remarks>
+        /// Only the recipes that already SEEDED successfully are replayed. A recipe this router refuses is
+        /// a statement about the router, and running it twice more would say it twice more.
+        /// <para>The two rows differ in one thing by construction — their name, since a table that has one
+        /// will not take a duplicate. That field, and <c>.id</c>, are the only ones excluded.</para>
+        /// </remarks>
+        internal void RunAddsAndRemoves(WinboxNativeAuditFixtures fixtures)
+        {
+            foreach (var recipe in WinboxNativeAuditFixtures.Recipes)
+            {
+                if (fixtures.CreatedIdOn(recipe.Path) == null) continue;
+                _results.Add(RunAddRemove(recipe));
+            }
+        }
+
+        private Result RunAddRemove(WinboxNativeAuditFixtures.Recipe recipe)
+        {
+            var r = new Result { Path = recipe.Path, Field = "(add)" };
+            string[] nativeArgs = Rename(recipe.NameValues, "ax");
+            string[] apiArgs = Rename(recipe.NameValues, "bx");
+
+            string nativeId = null, apiId = null;
+            string nativeFailure = null;
+            try
+            {
+                nativeId = _native.CreateCommandAndParameters(recipe.Path + "/add", nativeArgs).ExecuteScalar();
+            }
+            catch (Exception ex)
+            {
+                nativeFailure = $"{ex.GetType().Name}: {ex.Message}";
+            }
+
+            // The API's add is attempted whatever happened, because it is what says which kind of failure
+            // the native one was. A table that already holds the fixture row and keys on something the probe
+            // cannot vary — an address, an interface, a bridge port — refuses BOTH, and refusing both is the
+            // router talking about the row, not about the transport. Guessing that from the trap TEXT
+            // ('device already added', 'instance already has area', 'Multiple initiator peers') would be a
+            // list of English phrases pretending to be a rule.
+            try
+            {
+                apiId = _api.CreateCommandAndParameters(recipe.Path + "/add", apiArgs).ExecuteScalar();
+            }
+            catch (Exception ex)
+            {
+                Cleanup(recipe.Path, nativeId, viaNative: false);
+                r.Outcome = Outcome.NotProbeable;
+                r.Detail = nativeFailure == null
+                    ? "api add: " + ex.Message
+                    : "both transports were refused, so the router is refusing the ROW: " + ex.Message;
+                return r;
+            }
+
+            if (nativeFailure != null)
+            {
+                Cleanup(recipe.Path, apiId, viaNative: false);
+                r.Outcome = Outcome.Refused;
+                r.Detail = "native add threw where the API's went through: " + nativeFailure;
+                return r;
+            }
+
+            string diff = CompareRows(recipe, nativeId, apiId);
+
+            // The native row goes away over NATIVE — that is the remove probe. The API's goes over the API.
+            string removeProblem = Cleanup(recipe.Path, nativeId, viaNative: true);
+            Cleanup(recipe.Path, apiId, viaNative: false);
+
+            if (removeProblem != null)
+            {
+                r.Field = "(remove)";
+                r.Outcome = Outcome.Refused;
+                r.Detail = removeProblem;
+                return r;
+            }
+            if (diff != null)
+            {
+                r.Outcome = Outcome.Different;
+                r.Detail = diff;
+                return r;
+            }
+            r.Outcome = Outcome.Ok;
+            r.Detail = "add and remove agree with the API's";
+            return r;
+        }
+
+        /// <summary>
+        /// The recipe with only the row's OWN name changed, so the probe row and the fixture row can share
+        /// a table. A value that merely REFERS to a fixture row — a bridge port's bridge, an OSPF area's
+        /// instance — is left exactly as it is: renaming it would point the probe at a row that does not
+        /// exist, and the router's refusal would read as a finding about the transport.
+        /// </summary>
+        private static string[] Rename(string[] nameValues, string tag)
+        {
+            var copy = (string[])nameValues.Clone();
+            for (int i = 0; i + 1 < copy.Length; i += 2)
+            {
+                if (!string.Equals(copy[i], "name", StringComparison.OrdinalIgnoreCase)) continue;
+                if (copy[i + 1] != null && copy[i + 1].StartsWith(WinboxNativeAuditFixtures.NamePrefix,
+                                                                 StringComparison.OrdinalIgnoreCase))
+                    copy[i + 1] = "tik4net-" + tag + "-"
+                                + copy[i + 1].Substring(WinboxNativeAuditFixtures.NamePrefix.Length);
+            }
+            return copy;
+        }
+
+        /// <summary>The first field the two rows disagree on, or null when they agree.</summary>
+        private string CompareRows(WinboxNativeAuditFixtures.Recipe recipe, string nativeId, string apiId)
+        {
+            string path = recipe.Path;
+            List<ITikReSentence> rows;
+            try { rows = _api.CreateCommand(path + "/print").ExecuteList().ToList(); }
+            catch (Exception ex) { return "read-back: " + ex.Message; }
+
+            var mine = rows.FirstOrDefault(x => x.GetId() == nativeId);
+            var theirs = rows.FirstOrDefault(x => x.GetId() == apiId);
+            if (mine == null) return "the row the native add reported is not in the table";
+            if (theirs == null) return "the row the API add reported is not in the table";
+
+            // Only the fields the RECIPE asked for. Everything else on a fresh row is the router's own
+            // business and much of it cannot agree by construction: a bridge is born with a random MAC, a
+            // wireguard interface with a random listen-port, a firewall rule with its own counters and an
+            // `invalid` flag that depends on what else is in the chain. Comparing those measured the
+            // router's imagination.
+            for (int i = 0; i + 1 < recipe.NameValues.Length; i += 2)
+            {
+                string field = recipe.NameValues[i];
+                if (string.Equals(field, "name", StringComparison.OrdinalIgnoreCase)) continue;
+                string theirsValue = theirs.GetResponseFieldOrDefault(field, "(absent)");
+                string oursValue = mine.GetResponseFieldOrDefault(field, "(absent)");
+                if (!string.Equals(theirsValue, oursValue, StringComparison.Ordinal))
+                    return $"{field}: api add gave '{theirsValue}', native add gave '{oursValue}'";
+            }
+            return null;
+        }
+
+        // Returns null when the row is gone, or what went wrong.
+        private string Cleanup(string path, string id, bool viaNative)
+        {
+            if (id == null) return null;
+            var conn = viaNative ? _native : _api;
+            try
+            {
+                conn.CreateCommandAndParameters(path + "/remove", ".id", id).ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                string why = $"{(viaNative ? "native" : "api")} remove threw: {ex.GetType().Name}: {ex.Message}";
+                if (viaNative) { TryRemoveOverApi(path, id); return why; }
+                return why;
+            }
+            // Accepted is not the same as done — a set-singleton answers status 0 and changes nothing.
+            try
+            {
+                if (_api.CreateCommand(path + "/print").ExecuteList().Any(x => x.GetId() == id))
+                {
+                    if (viaNative) { TryRemoveOverApi(path, id); return "native remove was accepted and the row is still there"; }
+                    return "api remove was accepted and the row is still there";
+                }
+            }
+            catch (Exception) { }
+            return null;
+        }
+
+        private void TryRemoveOverApi(string path, string id)
+        {
+            try { _api.CreateCommandAndParameters(path + "/remove", ".id", id).ExecuteNonQuery(); }
+            catch (Exception) { }
+        }
+
         private static void Set(ITikConnection conn, string path, string id, string field, string value)
             => conn.CreateCommandAndParameters(path + "/set", ".id", id, field, value).ExecuteNonQuery();
 
