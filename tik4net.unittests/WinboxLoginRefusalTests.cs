@@ -146,6 +146,43 @@ namespace tik4net.unittests
         }
 
         /// <summary>
+        /// A router that opens the session and then answers NOTHING to the handshake clears the same way a
+        /// refusal does, so it is ridden out the same way. Seen live once in an otherwise green suite run:
+        /// a MAC-Telnet login timed out waiting for the router's PASSSALT.
+        /// </summary>
+        [TestMethod]
+        public void Run_RetriesAnUnansweredLoginToo()
+        {
+            int attempts = 0;
+            RouterLoginRetry.Run(() =>
+            {
+                attempts++;
+                if (attempts < 2)
+                    throw new TikConnectionLoginNoAnswerException("MAC-Telnet",
+                        "waited 10000 ms; session acknowledged up to 4", new TimeoutException("x"));
+            });
+
+            Assert.AreEqual(2, attempts);
+        }
+
+        /// <summary>
+        /// And it is bounded in the same way — silence that never clears is a failure, not a loop.
+        /// </summary>
+        [TestMethod]
+        public void Run_GivesUpOnAnUnansweredLoginAfterMaxAttempts()
+        {
+            int attempts = 0;
+            Assert.ThrowsException<TikConnectionLoginNoAnswerException>(() => RouterLoginRetry.Run(() =>
+            {
+                attempts++;
+                throw new TikConnectionLoginNoAnswerException("MAC-Telnet", "waited 10000 ms",
+                    new TimeoutException("x"));
+            }));
+
+            Assert.AreEqual(RouterLoginRetry.MaxAttempts, attempts);
+        }
+
+        /// <summary>
         /// Only the refusal is retried. Retrying a broken handshake or a socket error would turn one
         /// clear failure into three slow ones and hide the cause.
         /// </summary>
@@ -157,6 +194,10 @@ namespace tik4net.unittests
                 new InvalidOperationException("WinBox EC-SRP5 handshake: ... did not complete."),
                 new UnauthorizedAccessException("Wrong username or password"),
                 new System.IO.IOException("Connection closed unexpectedly"),
+                // A BARE timeout is not the unanswered-login case: the MAC layer raises the typed one only
+                // once the router has acknowledged the session, so a plain TimeoutException here means the
+                // router was never reached and must fail once rather than three times.
+                new TimeoutException("Timed out waiting for expected MAC-layer packet"),
             })
             {
                 int attempts = 0;

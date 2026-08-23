@@ -17,7 +17,12 @@ namespace tik4net.Winbox
     /// confirmation digest all mean something else and are left to propagate untouched.</para>
     /// <para>It is not a WinBox mechanism despite living here: MAC-Telnet carries the same EC-SRP5
     /// handshake and is refused the same way, only reporting it as terminal text rather than as an M2
-    /// error. One router behaviour, one exception type, one retry.</para>
+    /// error. One router behaviour, one retry.</para>
+    /// <para>A router that opens the session and then answers NOTHING to the handshake
+    /// (<see cref="TikConnectionLoginNoAnswerException"/>) is retried on the same grounds and clears the
+    /// same way. It is a distinct exception rather than a refusal because the router did not say anything
+    /// to quote — and it is only raised once the session has been acknowledged, so an unreachable router
+    /// still fails once and fast instead of three times and slowly.</para>
     /// <para><b>Credentials that really are wrong get retried too</b> — the router says exactly the same
     /// thing either way, so nothing in the answer can separate them and only persistence can. The cost
     /// is bounded and deliberate: a genuine failure takes <see cref="MaxAttempts"/> attempts and about
@@ -78,15 +83,37 @@ namespace tik4net.Winbox
         {
             if (!Diagnostics.TikWireTrace.Enabled)
                 return;
-            string transport = Refusal(ex)?.Transport ?? "router";
+            var silence = NoAnswer(ex);
+            string transport = Refusal(ex)?.Transport ?? silence?.Transport ?? "router";
+            string what = silence != null
+                ? $"login unanswered by the router ({silence.WaitDescription})"
+                : "login refused by the router";
             Diagnostics.TikWireTrace.Emit("login", Diagnostics.TikWireDir.Note,
-                $"{transport} login refused by the router, retrying (attempt {attempt} of {MaxAttempts})");
+                $"{transport} {what}, retrying (attempt {attempt} of {MaxAttempts})");
         }
 
         // The refusal is wrapped by the time it gets here — TikConnectionLoginException at the connection
         // layer, and an AggregateException as well when it came out of a task — so the whole chain is
         // searched rather than the outermost type tested.
-        private static bool IsTransientRefusal(Exception ex) => Refusal(ex) != null;
+        private static bool IsTransientRefusal(Exception ex)
+            => Refusal(ex) != null || NoAnswer(ex) != null;
+
+        private static TikConnectionLoginNoAnswerException? NoAnswer(Exception ex)
+        {
+            for (Exception? e = ex; e != null; e = e.InnerException)
+            {
+                if (e is TikConnectionLoginNoAnswerException silence) return silence;
+                if (e is AggregateException aggregate)
+                {
+                    foreach (var inner in aggregate.InnerExceptions)
+                    {
+                        var found = NoAnswer(inner);
+                        if (found != null) return found;
+                    }
+                }
+            }
+            return null;
+        }
 
         private static TikConnectionLoginRefusedException? Refusal(Exception ex)
         {

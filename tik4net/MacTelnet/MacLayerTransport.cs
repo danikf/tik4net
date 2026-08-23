@@ -836,7 +836,8 @@ namespace tik4net.MacTelnet
                 .Concat(BuildCtrl(CTRL_PASSSALT, psd)).ToArray());
 
             byte[]? xWB = null; int parityB = 0; byte[]? salt = null;
-            RecvUntil(10000, (type, payload, counter) =>
+            var seen = new HashSet<byte>();
+            RecvUntilDuringLogin(10000, seen, (type, payload, counter) =>
             {
                 if (type == PKT_ACK) { NoteAck(counter); return false; }
                 if (type == PKT_PING) { SendPong(counter); return false; }
@@ -1150,6 +1151,49 @@ namespace tik4net.MacTelnet
                 }
             }
             throw new TimeoutException("Timed out waiting for expected MAC-layer packet");
+        }
+
+        /// <summary>
+        /// <see cref="RecvUntil"/> for a step of the LOGIN handshake: a timeout becomes a
+        /// <see cref="TikConnectionLoginNoAnswerException"/> describing what the session had done, but only
+        /// once the router has acknowledged the session — before that the silence is about reachability and
+        /// the bare timeout is the truer answer.
+        /// </summary>
+        /// <remarks>
+        /// "Timed out waiting for expected MAC-layer packet" cannot tell a router that never took our bytes
+        /// from one that took them and said nothing, and those are different faults: the first is a lost
+        /// datagram (which this layer resends up to <see cref="MaxRetransmits"/> times), the second is the
+        /// router declining to finish a handshake it opened, which clears on a fresh attempt. Seen live: an
+        /// otherwise green suite run failing once on <c>MacTransportsWillConnectWithoutAnyHostAddress</c>
+        /// with nothing in the message to say which.
+        /// </remarks>
+        private void RecvUntilDuringLogin(int timeoutMs, HashSet<byte> seen,
+            Func<byte, byte[], uint, bool> handler)
+        {
+            try
+            {
+                RecvUntil(timeoutMs, (type, payload, counter) =>
+                {
+                    seen.Add(type);
+                    return handler(type, payload, counter);
+                });
+            }
+            catch (TimeoutException ex)
+            {
+                bool sessionOpen;
+                string state;
+                lock (SendGate)
+                {
+                    sessionOpen = _haveAck;
+                    state = "waited " + timeoutMs + " ms; session "
+                          + (_haveAck ? "acknowledged up to " + _highestAck : "never acknowledged")
+                          + "; " + _unacked.Count + " packet(s) still unacknowledged after "
+                          + _retransmits + " resend(s); packet types seen: "
+                          + (seen.Count == 0 ? "none" : string.Join(",", seen.Select(t => "0x" + t.ToString("X2"))));
+                }
+                if (!sessionOpen) throw;
+                throw new TikConnectionLoginNoAnswerException("MAC-Telnet", state, ex);
+            }
         }
 
         /// <summary>

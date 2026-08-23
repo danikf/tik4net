@@ -87,6 +87,18 @@ namespace tik4net
             : base(message)
         {
         }
+
+        /// <summary>
+        /// Initializes a new instance for a subclass that composes its own message AND has an underlying
+        /// exception worth keeping — a login that timed out replaces the timeout with a description of
+        /// what the session had done, and the timeout stays reachable underneath it.
+        /// </summary>
+        /// <param name="message">The complete message.</param>
+        /// <param name="innerException">The exception this one replaces.</param>
+        protected TikConnectionLoginException(string message, Exception innerException)
+            : base(message, innerException)
+        {
+        }
     }
 
     /// <summary>
@@ -125,6 +137,46 @@ namespace tik4net
         {
             Transport     = transport;
             RouterMessage = routerMessage;
+        }
+    }
+
+    /// <summary>
+    /// Thrown when the router opened the session and then answered nothing at all to a correctly-formed
+    /// login handshake — as opposed to <see cref="TikConnectionLoginRefusedException"/>, where it answered
+    /// and said no.
+    /// </summary>
+    /// <remarks>
+    /// A MAC-layer login reaches this only once the router has ACKNOWLEDGED the session start, so the
+    /// router is demonstrably answering us and the silence is about the handshake rather than about
+    /// reachability. Seen on RouterOS 7.24 roughly once per few hundred logins, and it clears on the next
+    /// attempt — see <c>Winbox.RouterLoginRetry</c>, which treats it the same way it treats a refusal.
+    /// <para><see cref="WaitDescription"/> carries what the session had done by then — whether our
+    /// handshake packet was ever taken, how many resends were spent on it, what did arrive — because
+    /// "timed out" on its own cannot tell a router that never took our bytes from one that took them and
+    /// said nothing.</para>
+    /// </remarks>
+    public class TikConnectionLoginNoAnswerException : TikConnectionLoginException
+    {
+        /// <summary>Which login went unanswered, e.g. <c>"MAC-Telnet"</c>.</summary>
+        public string Transport { get; }
+
+        /// <summary>What the session had done by the time the wait expired.</summary>
+        public string WaitDescription { get; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TikConnectionLoginNoAnswerException"/> class.
+        /// </summary>
+        /// <param name="transport">Which login went unanswered, for the message.</param>
+        /// <param name="waitDescription">What the session had done by the time the wait expired.</param>
+        /// <param name="innerException">The timeout this replaces.</param>
+        public TikConnectionLoginNoAnswerException(string transport, string waitDescription,
+            Exception innerException)
+            : base("Cannot log in. The router opened the " + transport
+                   + " session and then answered nothing to the login handshake (" + waitDescription + ").",
+                   innerException)
+        {
+            Transport       = transport;
+            WaitDescription = waitDescription;
         }
     }
 

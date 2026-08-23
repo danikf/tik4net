@@ -220,6 +220,25 @@ before being reported.
 > at any moment. Matching that during login would turn an unrelated background event into a refused
 > login.
 
+### 8.1 It can also answer nothing at all
+
+The router can open the session — acknowledging SESSIONSTART — and then answer NOTHING to the
+`CTRL_BEGINAUTH`/`CTRL_PASSSALT` that follows it, for the whole 10 s authentication deadline. Seen on 7.24
+once in a run of ~500 tests, and only when suites run back to back: three of four consecutive full runs
+failed on the same MAC-only login while the slowest of the four (8 m 20 s, so the longest gaps between
+sessions) passed.
+
+It is the same class of behaviour as the refusal above and clears the same way, but it is not the same
+thing and must not be reported as one: the router said nothing, so there is nothing to quote.
+`TikConnectionLoginNoAnswerException : TikConnectionLoginException` carries what the session had done
+instead — whether our handshake packet was ever taken, how many resends were spent on it, which packet
+types did arrive — because "timed out waiting for expected MAC-layer packet" cannot tell a router that
+never took our bytes from one that took them and said nothing, and those are different faults.
+
+**Raised only once the session has been acknowledged.** Before that the silence is about reachability and
+the bare `TimeoutException` is the truer answer — and it keeps `RouterLoginRetry` from turning one clear
+10 s failure against an unreachable router into three.
+
 ## 9. Reliability of the MAC layer
 
 ### 9.1 SESSIONSTART is the one packet that cannot be resent by the normal path
