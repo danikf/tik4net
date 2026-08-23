@@ -1450,6 +1450,25 @@ namespace tik4net.Winbox
                     result.Add(M2Message.BoolSys(jg.OptKey, true));
             }
 
+            // A `number` whose postfix says s or ms is a DURATION, and the read side has spelled it as one
+            // since the seeded audit found `mii-interval` reading 100 where the API says 100ms. The write
+            // side has to take that spelling back or the field becomes readable and unwritable: RADIUS's
+            // timeout (u8, postfix:'ms') took "500ms" through the generic numeric branch and left 1s100ms
+            // on the router — accepted, silently wrong, and invisible to every read-only check.
+            if (jg != null && value.Length > 0
+                && string.Equals(uiType, "number", StringComparison.OrdinalIgnoreCase)
+                && IsTimePostfix(jg.Postfix)
+                && !long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+            {
+                if (!TryParseDuration(value, DurationTicksPerSecond(jg), out long units))
+                    throw new WinboxFieldResolutionException(
+                        $"WinBox native: '{value}' is not a valid duration for field '{apiName}' on "
+                        + $"'{_apiPath}'. Expected a RouterOS duration (\"500ms\", \"45s\", \"1h\") or a plain "
+                        + $"number of {jg.Postfix}.");
+                result.Add(EncodeU32(key, unchecked((uint)units)));
+                return result;
+            }
+
             // ── typed UI encodings (more specific than the wire type) ──
             switch (uiType)
             {
@@ -1978,6 +1997,22 @@ namespace tik4net.Winbox
                     break;
             }
             return result;
+        }
+
+        /// <summary>
+        /// A postfix that means TIME rather than a unit painted beside the box. Mirrors
+        /// <c>WinboxRecordCodec.IsSecondsPostfix</c> / <c>IsMillisecondsPostfix</c>; the two sides of one
+        /// field have to agree about this or it reads in one spelling and writes in another.
+        /// </summary>
+        private static bool IsTimePostfix(string? postfix)
+            => string.Equals(postfix, "s", StringComparison.Ordinal)
+               || string.Equals(postfix, "ms", StringComparison.Ordinal);
+
+        /// <summary>Wire units per second for such a field — a thousand more of them when it counts ms.</summary>
+        private static int DurationTicksPerSecond(WinboxJgField jg)
+        {
+            int scale = jg.Scale < 1 ? 1 : jg.Scale;
+            return string.Equals(jg.Postfix, "ms", StringComparison.Ordinal) ? scale * 1000 : scale;
         }
 
         /// <summary>

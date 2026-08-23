@@ -91,7 +91,10 @@ namespace tik4net.integrationtests
             Add("/ip/firewall/address-list", "list", NamePrefix + "list", "address", "10.99.0.6");
             Add("/ip/firewall/filter", "chain", "forward", "action", "accept");
             Add("/ip/firewall/nat", "chain", "srcnat", "action", "accept");
-            Add("/ip/firewall/mangle", "chain", "forward", "action", "accept");
+            // protocol=tcp so the write audit's tcp-flags probe has something to bite on: RouterOS refuses
+            // `tcp-flags` on a rule that does not match TCP, and the refusal would read as a transport
+            // finding.
+            Add("/ip/firewall/mangle", "chain", "forward", "action", "accept", "protocol", "tcp");
             Add("/ip/firewall/raw", "chain", "prerouting", "action", "accept");
             Add("/ip/firewall/layer7-protocol", "name", NamePrefix + "l7", "regexp", "^tik4net$");
 

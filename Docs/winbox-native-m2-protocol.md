@@ -1689,10 +1689,31 @@ the SAME probe over the API and read it back the same way. Both readings are the
 same requested change, so whatever the router does to the value happens to both, and the only question
 left is the one worth asking — did the native write land what an API write lands?
 
-Eighteen probes so far, one per seeded path, chosen for the TYPE each exercises rather than for
-importance: strings, numbers, bools, enums, addresses, a prefix, durations, a list, a reference to
-another table. `comment` is deliberately not among them — it is a system key every path shares, so it
-would measure one encoder everywhere and report broad coverage of nothing.
+Sixty-one probes, one per seeded path, chosen for the TYPE each exercises rather than for importance:
+strings, numbers, bools, enums, bitmasks, addresses, prefixes, durations, lists, references to another
+table. `comment` is deliberately not among them — it is a system key every path shares, so it would
+measure one encoder everywhere and report broad coverage of nothing.
+
+Going from eighteen probes to sixty-one turned 0 findings into **9**, which is the answer to whether the
+first round's clean sheet meant anything: it meant eighteen fields were right.
+
+Closed so far:
+
+* **A `number` with a time postfix could be read but not written.** The read side learned that `s`/`ms`
+  means a duration; the write side had not, so RADIUS's `timeout` (`postfix:'ms'`) took `500ms` through
+  the generic numeric branch and left `1s100ms` on the router — accepted, silently wrong, and invisible
+  to every read-only check. A field readable in one spelling and writable only in another is worse than
+  one that fails.
+
+Still open, all of them found by this audit and none of them visible to a read:
+
+* `/interface/bridge/filter` `mac-protocol=arp` — the native write lands an EMPTY value.
+* `/ip/upnp/interfaces` `type=external` — accepted with status 0 and the row does not change. Both
+  windows of `[28,0]` are on one handler (see §33.2b) and the set appears to reach the singleton's.
+* `/interface/wireguard/peers` `allowed-address=10.99.2.0/24` — the prefix length is lost, `/32` lands.
+* `/caps-man/channel` `frequency=2412` — lands `2.412`; the scale is applied on read and not on write.
+* `/routing/bgp/instance` `router-id`, `/caps-man/security` and `/interface/wifi/security`
+  `authentication-types` — three fields the resolver cannot name at all for a write.
 
 **The first run reported two refusals and both were the harness's own fault**, which is worth recording
 because it is the shape of mistake this kind of test invites. The probe restored the field to its
@@ -1700,7 +1721,7 @@ original between the two writes, and where the original is an unset field that r
 which RouterOS refuses — thrown by the API call and reported against the native transport standing next
 to it in the same `try`. Nothing needed restoring in the middle at all: `set field=value` is absolute,
 so whatever the native write leaves behind, the API write that follows lands the same thing either way.
-With the order corrected: 18 ok, 0 different, 0 refused.
+With the order corrected, the eighteen were 18 ok, 0 different, 0 refused.
 
 ### 33.2b What is left, checked against the window itself
 
