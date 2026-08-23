@@ -375,39 +375,13 @@ public sealed class MikroTikTools
     }
 
     // Parses MCP-format parameter rows ('=name=value' NameValue, '?name=value' Filter) into typed command
-    // parameters for the ExecuteNonQuery() path — mirrors the row parsing in CallCommandSync so the two
-    // execution modes accept an identical parameters format.
+    // parameters for the ExecuteNonQuery() path. The rules live in tik4net (TikCommandRow) rather than
+    // here: a second copy of them drifts, and this is the copy that would go on silently dropping a row
+    // the other one has started calling an error.
     private static ITikCommandParameter[] ParseParameters(ITikConnection connection, string[]? parameters)
-    {
-        var result = new List<ITikCommandParameter>();
-        if (parameters == null)
-            return result.ToArray();
-
-        foreach (var row in parameters)
-        {
-            if (string.IsNullOrEmpty(row) || row.StartsWith(".tag=") || row.StartsWith(".tag ="))
-                continue;
-
-            if (row.StartsWith("?"))
-            {
-                string kv = row.TrimStart('?');
-                if (kv.StartsWith("="))
-                    kv = kv.Substring(1);
-                int eq = kv.IndexOf('=');
-                if (eq >= 0)
-                    result.Add(connection.CreateParameter(kv.Substring(0, eq), kv.Substring(eq + 1), TikCommandParameterFormat.Filter));
-            }
-            else if (row.StartsWith("="))
-            {
-                string kv = row.Substring(1);
-                int eq = kv.IndexOf('=');
-                if (eq >= 0)
-                    result.Add(connection.CreateParameter(kv.Substring(0, eq), kv.Substring(eq + 1), TikCommandParameterFormat.NameValue));
-            }
-        }
-
-        return result.ToArray();
-    }
+        => parameters == null
+            ? new ITikCommandParameter[0]
+            : tik4net.Connection.TikCommandRow.ParseParameters(parameters, 0).ToArray();
 
     // One call rather than a per-transport switch: the setup applies routerMac only to the transports
     // that address the router by MAC (ITikMacLayerConnection), so a transport list cannot fall behind

@@ -198,8 +198,13 @@ namespace tik4net.Rest
 
             if (filterParams.Count > 0)
             {
+                // A NULL value is the API's bare '?name' — "this property is set" — which RouterOS's REST
+                // .query spells as the bare name too. Writing 'name=' instead would ask for the property
+                // equal to the EMPTY STRING, which is the opposite question and answers a different set.
                 var queries = filterParams
-                    .Select(p => NormaliseParamName(p.Name) + "=" + p.Value)
+                    .Select(p => p.Value == null
+                        ? NormaliseParamName(p.Name)
+                        : NormaliseParamName(p.Name) + "=" + p.Value)
                     .ToList();
                 bodyObj[".query"] = queries;
             }

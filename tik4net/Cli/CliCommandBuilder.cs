@@ -381,7 +381,15 @@ namespace tik4net.Cli
         /// </summary>
         internal static string BuildWhereClause(IList<ITikCommandParameter> parameters)
         {
-            var conditions = new List<string>();
+            // The filters are a postfix STACK, not a list of things to AND: the API's query words
+            // '?#|', '?#&' and '?#!' combine the two (or one) predicates before them. Joining everything
+            // with '&&' answered a different question — '?type=ether ?type=loopback ?#|' asks for either
+            // and was sent as 'where type=ether && type=loopback', which no row can satisfy. RouterOS
+            // spells the combinations '(a || b)', '(a && b)' and '!(a)'; all three verified on 7.24.
+            //
+            // The same evaluation the WinBox-native transport does in memory (TikQueryStack), rendered as
+            // text instead of applied to a row, so a query means the same thing on both.
+            var stack = new List<string>();
             foreach (var p in parameters)
             {
                 if (p.ParameterFormat != TikCommandParameterFormat.Filter)
@@ -393,12 +401,45 @@ namespace tik4net.Cli
                 if (IsSpecialParam(name))
                     continue;
 
+                if (name == "#|" || name == "#&")
+                {
+                    string b = PopCondition(stack, name), a = PopCondition(stack, name);
+                    stack.Add("(" + a + (name == "#|" ? " || " : " && ") + b + ")");
+                    continue;
+                }
+                if (name == "#!")
+                {
+                    stack.Add("!(" + PopCondition(stack, name) + ")");
+                    continue;
+                }
+                // Any other '#…' is a stack word this does not implement. Left alone rather than treated
+                // as a field name, exactly as TikQueryStack leaves it — inventing 'where #x=…' would send
+                // the router a predicate on a property that does not exist.
+                if (name.StartsWith("#"))
+                    continue;
+
                 string condition = BuildCondition(name, val);
                 if (!string.IsNullOrEmpty(condition))
-                    conditions.Add(condition);
+                    stack.Add(condition);
             }
 
-            return string.Join(" && ", conditions);
+            // Whatever is left unconsumed is ANDed, which is what a query with no operators at all means.
+            return string.Join(" && ", stack);
+        }
+
+        /// <summary>
+        /// Pops the operand an operator needs, or refuses: an operator with nothing under it cannot be
+        /// rendered, and guessing would send the router a clause the caller did not write.
+        /// </summary>
+        private static string PopCondition(List<string> stack, string op)
+        {
+            if (stack.Count == 0)
+                throw new ArgumentException(
+                    $"query operator '?{op}' has no predicate to apply it to. The filters form a postfix "
+                    + "stack: the operands come first, then the operator.", nameof(op));
+            string top = stack[stack.Count - 1];
+            stack.RemoveAt(stack.Count - 1);
+            return top;
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────

@@ -17,3 +17,6 @@ using System.Runtime.InteropServices;
 // to reuse the shared CLI/PTY helpers (RouterOsCliLogin, Vt100State, CliOutputHelper) without
 // making them public or duplicating them.
 [assembly: InternalsVisibleTo("tik4net.ssh")]
+// The MCP server shares the command-row parser rather than keeping a second copy of the same rules:
+// two parsers of one format drift, and this one decides which rows are an error.
+[assembly: InternalsVisibleTo("tik4net.mcp")]

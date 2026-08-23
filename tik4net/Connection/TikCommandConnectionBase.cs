@@ -216,31 +216,7 @@ namespace tik4net.Connection
 
             string commandText = rows[0];
 
-            // Parse remaining rows as parameters
-            var parameters = new List<ITikCommandParameter>();
-            for (int i = 1; i < rows.Count; i++)
-            {
-                string row = rows[i];
-                if (row.StartsWith(".tag=") || row.StartsWith(".tag ="))
-                    continue;  // tags are no-op for command transports
-
-                if (row.StartsWith("?"))
-                {
-                    string kv = row.TrimStart('?');
-                    if (kv.StartsWith("="))
-                        kv = kv.Substring(1);
-                    int eq = kv.IndexOf('=');
-                    if (eq >= 0)
-                        parameters.Add(new TikCommandParameter(kv.Substring(0, eq), kv.Substring(eq + 1), TikCommandParameterFormat.Filter));
-                }
-                else if (row.StartsWith("="))
-                {
-                    string kv = row.Substring(1);
-                    int eq = kv.IndexOf('=');
-                    if (eq >= 0)
-                        parameters.Add(new TikCommandParameter(kv.Substring(0, eq), kv.Substring(eq + 1), TikCommandParameterFormat.NameValue));
-                }
-            }
+            var parameters = new List<ITikCommandParameter>(TikCommandRow.ParseParameters(rows, 1));
 
             string verb = TikPath.Verb(commandText);
             var descriptor = new TikCommandDescriptor(commandText, parameters);
