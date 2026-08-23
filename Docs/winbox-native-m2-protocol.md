@@ -1507,8 +1507,8 @@ at one of those keys keeps its own name for it.
 
 `WinboxNativePathMapAuditTest` passes a path when native reports at least HALF the API's field names, so
 everything between half and all of that vocabulary was invisible in a green tally. Counting it instead of
-thresholding it: **35 of 669 API field names (5%) are still not reported by native**, down from 111 before
-the row-state keys and 82 before the pairings below. The report names the missing fields on the passing
+thresholding it: **30 of 669 API field names (4%) are still not reported by native**, down from 111 before
+the row-state keys, 82 before the pairings below and 35 before the scalar `union`/`tuple` shapes of §32.7. The report names the missing fields on the passing
 lines rather than only on the failing ones.
 
 **Two of the missing names were never the router's.** Sixty-one were `.tag`, the API sentence's own tag
