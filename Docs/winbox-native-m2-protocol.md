@@ -1579,14 +1579,21 @@ What 62 seeded paths did to the numbers:
 | API field slots compared | 669 | 1349 |
 | names native does not report | 26 | 129 |
 | MISMATCH | 0 | 2 |
-| VALUE-DIFF | 0 | 13 |
+| VALUE-DIFF | 0 | 13 → 9 |
 
 So the audit's green tally rested on measuring half the tables. The fifteen defects it now names fall
 into families rather than being fifteen unrelated bugs:
 
-* **A sentinel the API spells as a word.** `mtu: auto` where native says `0` (five paths),
-  `horizon: none` → `0`, `delay-threshold: none` → `0s`, `master-configuration: *FFFFFFFF` →
-  `4294967295`, `group-authority: ''` → `none`. The same shape as §33.5.
+* **A sentinel the API spells as a word** — the largest family, and **closed**: `mtu: auto` where
+  native said `0` (five paths), `horizon: none` → `0`, `delay-threshold: none` → `0s`. All three joined
+  the `ZeroSpelledAsWord` table, whose gate had to be widened to say what it meant. It fired only on
+  `opt:1`, and `/interface`'s own MTU declares no `opt:1` — it declares `min:64`. Both are the window
+  saying a zero here is not a quantity, so the gate is now *optional OR a declared minimum above zero*,
+  and the generic menu stopped reporting `0` for a bridge row while every subtype menu had been
+  corrected. Still open in the same family: `master-configuration: *FFFFFFFF` → `4294967295` (an
+  all-ones REFERENCE, which the API prints as an `.id` token rather than a word) and
+  `group-authority: ''` → `none`, which runs the other way — the API prints nothing where native names
+  the default member.
 * **A number the API prints in hex.** Bridge `priority: 0x8000` → `32768`, `port-id: 0x80.1` →
   `128.1`, and the two designated-* ids that embed one.
 * **A duration the API prints with a unit.** `interval: 1s` → `1`, `transmit-delay: 1s` → `1`,
@@ -1597,8 +1604,8 @@ into families rather than being fifteen unrelated bugs:
   `ntp-server` or `wins-server` at all.
 * **A row count.** `/ip/dns/cache` returns two rows to the API's one.
 
-None of these are fixed yet; they are recorded here because the measurement that found them is now
-part of the audit. The audit is consequently RED until they are, which is the correct state for a
+Only the first family is fixed so far; the rest are recorded here because the measurement that found
+them is now part of the audit. The audit is consequently RED until they are, which is the correct state for a
 diagnostic that has just been told where to look.
 
 ### 33.2b What is left, checked against the window itself

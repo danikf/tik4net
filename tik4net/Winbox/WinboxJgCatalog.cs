@@ -1066,7 +1066,8 @@ namespace tik4net.Winbox
                             postfix: PostfixOf(dict), elementSeparator: ElementSeparatorOf(dict),
                             elementNotKey: ElementNotKeyOf(dict), elementIsRange: ElementIsRangeOf(dict),
                             tab: tab, title: TitleOf(dict),
-                            nonPublic: dict.TryGetValue("nonpublic", out var npv) && npv is int npi && npi != 0);
+                            nonPublic: dict.TryGetValue("nonpublic", out var npv) && npv is int npi && npi != 0,
+                            min: dict.TryGetValue("min", out var mnv) && mnv is int mni ? mni : 0);
                     }
                 }
 
@@ -1197,7 +1198,8 @@ namespace tik4net.Winbox
             int scale = 1, IReadOnlyList<WinboxJgElementPart>? elementParts = null, string? postfix = null,
             string? elementSeparator = null, int elementNotKey = 0, bool elementIsRange = false,
             string? tab = null, string? title = null,
-            IReadOnlyList<WinboxJgField>? extraRegistrations = null, bool nonPublic = false)
+            IReadOnlyList<WinboxJgField>? extraRegistrations = null, bool nonPublic = false,
+            long min = 0)
         {
             string apiName = WinboxFieldResolver.NormalizeLabel(label);
             if (string.IsNullOrEmpty(apiName)) return;
@@ -1214,7 +1216,7 @@ namespace tik4net.Winbox
                 pane?.Kind, pane?.SelectorKey ?? 0, pane?.Values, offKey, isOptional, elementUiType, scale,
                 elementParts, postfix, elementSeparator, elementNotKey: elementNotKey,
                 elementIsRange: elementIsRange, titleApiName: titleName,
-                extraRegistrations: extraRegistrations, nonPublic: nonPublic);
+                extraRegistrations: extraRegistrations, nonPublic: nonPublic, min: min);
             // Two fields of one window may carry the same label - the packet sniffer's streaming 'Port' (a
             // number) and its filter 'Port' (a list of port matches) - and first-wins kept only the first,
             // leaving the second reachable under no name at all. The TAB it sits under is what tells them

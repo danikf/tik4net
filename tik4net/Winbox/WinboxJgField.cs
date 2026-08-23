@@ -350,8 +350,10 @@ namespace tik4net.Winbox
             IReadOnlyList<WinboxJgElementPart>? elementParts = null, string? postfix = null,
             string? elementSeparator = null, Tuple<WinboxJgField, WinboxJgField>? pairHalves = null,
             int elementNotKey = 0, bool elementIsRange = false, string? titleApiName = null,
-            IReadOnlyList<WinboxJgField>? extraRegistrations = null, bool nonPublic = false)
+            IReadOnlyList<WinboxJgField>? extraRegistrations = null, bool nonPublic = false,
+            long min = 0)
         {
+            Min = min;
             NonPublic = nonPublic;
             TitleApiName = titleApiName;
             ExtraRegistrations = extraRegistrations;
@@ -382,6 +384,17 @@ namespace tik4net.Winbox
             NotKey = notKey;
             IsRange = isRange;
         }
+
+        /// <summary>
+        /// The declaration's <c>min</c> — the smallest value the window will accept, <c>0</c> when it
+        /// declares none.
+        /// </summary>
+        /// <remarks>
+        /// Carried for one reason: it says whether ZERO is inside the field's domain. A window declaring
+        /// <c>min:64</c> cannot mean sixty-four-minus-sixty-four by a zero on the wire, and RouterOS prints
+        /// a word there instead (<c>mtu=auto</c>). See <c>WinboxRecordCodec.ZeroSpelledAsWord</c>.
+        /// </remarks>
+        internal long Min { get; }
 
         /// <summary>
         /// The declaration carried <c>nonpublic:1</c> — WinBox reads the field but never paints it in the
@@ -432,6 +445,6 @@ namespace tik4net.Winbox
             => new WinboxJgField(apiName, Key, WireType, ReadOnly, EnumMap, UiType, MaskKey, RefHandler,
                 OptKey, NotKey, IsRange, Allow, Def, PaneKind, PaneSelectorKey, PaneValues, OffKey,
                 IsOptional, ElementUiType, Scale, ElementParts, Postfix, ElementSeparator, PairHalves,
-                ElementNotKey, ElementIsRange, TitleApiName, ExtraRegistrations, NonPublic);
+                ElementNotKey, ElementIsRange, TitleApiName, ExtraRegistrations, NonPublic, Min);
     }
 }

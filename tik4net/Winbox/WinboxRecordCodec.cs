@@ -653,12 +653,24 @@ namespace tik4net.Winbox
                 ["max-sessions"]          = "unlimited",
                 ["ddns-update-interval"]  = "none",
                 ["watch-address"]         = "none",
+                // An MTU of zero is no MTU: every window declaring it says min 32 or 64, so the value is
+                // outside the field's own domain and RouterOS prints the word instead. Bridges and the
+                // EoIP/GRE/IPIP tunnels all read 0 on a stock row and the API prints 'auto' for each.
+                ["mtu"]                   = "auto",
+                // A bridge port's split horizon: 0 is not horizon zero, it is no horizon.
+                ["horizon"]               = "none",
+                // Same again for a DHCP relay's delay threshold, where 0 formatted as the interval '0s'.
+                ["delay-threshold"]       = "none",
             };
 
         private static bool TryZeroWord(WinboxJgField jf, object value, out string? word)
         {
             word = null;
-            if (!jf.IsOptional || jf.ApiName == null) return false;
+            // Either the window says the value may be absent, or it declares a minimum that excludes zero:
+            // both are the window saying a zero here is not a quantity. /interface's own MTU declaration is
+            // the second kind — no `opt:1`, but `min:64` — and without it the generic menu went on reporting
+            // 0 for a bridge row the API prints `auto` for, while every subtype menu had been corrected.
+            if ((!jf.IsOptional && jf.Min <= 0) || jf.ApiName == null) return false;
             if (!ZeroSpelledAsWord.TryGetValue(jf.ApiName, out word)) { word = null; return false; }
             if (WinboxFieldResolver.TryToInt64(value, out long n) && n == 0) return true;
             word = null;
