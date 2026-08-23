@@ -1032,6 +1032,13 @@ namespace tik4net.Winbox
                 {
                     AddUnionField(owner, nodeName, dict, pane);
                 }
+                // A named `tuple` is the same problem with a different answer: the label is on the node, the
+                // ids are on the children, and the API prints the children joined by the node's `sep`.
+                else if (owner != null && ty == "tuple" && !dict.ContainsKey("id")
+                         && !string.IsNullOrEmpty(nodeName))
+                {
+                    AddTupleField(owner, nodeName, dict, pane);
+                }
                 else if (owner != null && dict.TryGetValue("id", out var idv) && idv is string idStr)
                 {
                     var dec = DecodeId(idStr);
@@ -1188,7 +1195,8 @@ namespace tik4net.Winbox
             PaneContext? pane = null, int offKey = 0, bool isOptional = false, string? elementUiType = null,
             int scale = 1, IReadOnlyList<WinboxJgElementPart>? elementParts = null, string? postfix = null,
             string? elementSeparator = null, int elementNotKey = 0, bool elementIsRange = false,
-            string? tab = null, string? title = null)
+            string? tab = null, string? title = null,
+            IReadOnlyList<WinboxJgField>? extraRegistrations = null)
         {
             string apiName = WinboxFieldResolver.NormalizeLabel(label);
             if (string.IsNullOrEmpty(apiName)) return;
@@ -1204,7 +1212,8 @@ namespace tik4net.Winbox
                 refHandler, optKey, notKey, isRange, allow, def,
                 pane?.Kind, pane?.SelectorKey ?? 0, pane?.Values, offKey, isOptional, elementUiType, scale,
                 elementParts, postfix, elementSeparator, elementNotKey: elementNotKey,
-                elementIsRange: elementIsRange, titleApiName: titleName);
+                elementIsRange: elementIsRange, titleApiName: titleName,
+                extraRegistrations: extraRegistrations);
             // Two fields of one window may carry the same label - the packet sniffer's streaming 'Port' (a
             // number) and its filter 'Port' (a list of port matches) - and first-wins kept only the first,
             // leaving the second reachable under no name at all. The TAB it sits under is what tells them
@@ -1513,8 +1522,113 @@ namespace tik4net.Winbox
                 isOptional: IsOptionalAttr(union) || IsOptionalAttr(child),
                 elementUiType: ElementUiTypeOf(child), scale: ScaleOf(child),
                 elementParts: ElementPartsOf(child), postfix: PostfixOf(child),
-                elementSeparator: ElementSeparatorOf(child));
+                elementSeparator: ElementSeparatorOf(child),
+                // …and the OTHER families answer to the same name at their own keys. The router sends one of
+                // them, not the first one: /snmp's 'Src. Address' is {ipaddr u1b, ip6addr a1c} and the row
+                // carries 0x1C, so registering only the IPv4 member left the field unreported on every row
+                // that had a v6 value. The write side is unchanged — the name still resolves to the first
+                // member, so an IPv6 value still fails to encode with the codec's own error.
+                extraRegistrations: UnionAlternatives(label, union, ro, pane));
         }
+
+        /// <summary>
+        /// Every member of a <c>union</c> after the first, as a field of its own — same API name, its own
+        /// key, wire type, <c>maskid</c> and enum/reference metadata.
+        /// </summary>
+        private static IReadOnlyList<WinboxJgField>? UnionAlternatives(string label,
+            Dictionary<string, object> union, bool unionReadOnly, PaneContext? pane)
+        {
+            if (!(union.TryGetValue("c", out var cv) && cv is List<object> members)) return null;
+            string apiName = WinboxFieldResolver.NormalizeLabel(label);
+            if (string.IsNullOrEmpty(apiName)) return null;
+
+            var result = new List<WinboxJgField>();
+            bool first = true;
+            foreach (var m in members)
+            {
+                if (!(m is Dictionary<string, object> md)) continue;
+                if (!(md.TryGetValue("id", out var idv) && idv is string ids)) continue;
+                var dec = DecodeId(ids);
+                if (dec == null) continue;
+                if (first) { first = false; continue; }     // the primary, registered by AddUnionField
+
+                bool ro = unionReadOnly
+                       || (md.TryGetValue("ro", out var rov) && rov is int rin && rin != 0);
+                result.Add(new WinboxJgField(apiName, dec.Value.key, dec.Value.type, ro,
+                    ExtractEnumMap(md), md.TryGetValue("type", out var tv) ? tv as string : null,
+                    DecodedKeyOf(md, "maskid"), ExtractRefHandler(md),
+                    def: ExtractDef(md),
+                    paneKind: pane?.Kind, paneSelectorKey: pane?.SelectorKey ?? 0, paneValues: pane?.Values,
+                    isOptional: IsOptionalAttr(union) || IsOptionalAttr(md),
+                    scale: ScaleOf(md)));
+            }
+            return result.Count > 0 ? result : null;
+        }
+
+        /// <summary>
+        /// A named scalar <c>tuple</c> — one field the API prints as its children joined by <c>sep</c>.
+        /// </summary>
+        /// <remarks>
+        /// Like a union the node has no <c>id</c> of its own and the children have no names, so without this
+        /// the field is not in the catalog at all. <c>/ip/service</c>'s
+        /// <c>{name:'Remote',type:'tuple',sep:':',c:[{ip6addr ad},{number ue}]}</c> is one, and the API
+        /// prints <c>192.168.4.31:65504</c> where the record carries <c>0xD</c> and <c>0xE</c>.
+        /// <para>Every part key registers the same compound field, so the row renders the whole value
+        /// whichever part the decode reaches first — and the parts, which have no label of their own, do
+        /// not surface as fields the API never reports.</para>
+        /// </remarks>
+        private void AddTupleField(string handlerKey, string label, Dictionary<string, object> tuple,
+            PaneContext? pane = null)
+        {
+            if (!(tuple.TryGetValue("c", out var cv) && cv is List<object> children)) return;
+            // `separate:1` is webfig saying the parts are shown as boxes of their OWN, and such a tuple's
+            // children carry their own names — /queue/simple's 'Max Limit' is
+            // {tuple,separate:1,c:[{name:'Upload Max Limit',…},{name:'Download Max Limit',…}]}. Registering
+            // the parent there would claim the children's keys first and take two named fields away to put
+            // one joined value under a label RouterOS does not use. A child with a name of its own is a
+            // field in its own right whatever the tuple says, so both tests are applied.
+            if (tuple.TryGetValue("separate", out var sepv) && sepv is int sepi && sepi != 0) return;
+            foreach (var c0 in children)
+                if (c0 is Dictionary<string, object> cd0 && cd0.TryGetValue("name", out var cn)
+                    && cn is string cns && cns.Length > 0)
+                    return;
+
+            var parts = new List<WinboxJgElementPart>();
+            var keys = new List<Tuple<int, string>>();
+            foreach (var c in children)
+            {
+                if (!(c is Dictionary<string, object> cd)) continue;
+                if (PartOf(cd) is WinboxJgElementPart part) parts.Add(part);
+                if (cd.TryGetValue("id", out var idv) && idv is string ids && DecodeId(ids) is var d && d != null)
+                    keys.Add(Tuple.Create(d.Value.key, d.Value.type));
+            }
+            if (parts.Count == 0 || keys.Count == 0) return;
+
+            string apiName = WinboxFieldResolver.NormalizeLabel(label);
+            if (string.IsNullOrEmpty(apiName)) return;
+            bool ro = tuple.TryGetValue("ro", out var rov) && rov is int rin && rin != 0;
+            string sep = TupleSeparatorOf(tuple);
+
+            // The compound answers at the first part's key; the rest are registered as the same field.
+            var extra = new List<WinboxJgField>();
+            for (int i = 1; i < keys.Count; i++)
+                extra.Add(new WinboxJgField(apiName, keys[i].Item1, keys[i].Item2, ro,
+                    uiType: TupleUiType, elementParts: parts, elementSeparator: sep,
+                    isOptional: IsOptionalAttr(tuple),
+                    paneKind: pane?.Kind, paneSelectorKey: pane?.SelectorKey ?? 0, paneValues: pane?.Values));
+
+            AddField(handlerKey, label, keys[0].Item1, keys[0].Item2, ro, null,
+                TupleUiType, 0, null, pane: pane, isOptional: IsOptionalAttr(tuple),
+                elementParts: parts, elementSeparator: sep,
+                extraRegistrations: extra.Count > 0 ? extra : null);
+        }
+
+        /// <summary>The UI type of a scalar <c>tuple</c> field. webfig's <c>types.tuple.tostr</c> default
+        /// separator is <c>'/'</c>.</summary>
+        internal const string TupleUiType = "tuple";
+
+        private static string TupleSeparatorOf(Dictionary<string, object> tuple)
+            => tuple.TryGetValue("sep", out var sv) && sv is string ss ? ss : "/";
 
         // Registers a per-record action verb (doit/action label → SYS_CMD) under its owning handler and
         // returns the normalized label its arguments are keyed by (null when the label is unusable).

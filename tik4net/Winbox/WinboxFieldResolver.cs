@@ -958,16 +958,20 @@ namespace tik4net.Winbox
             // field order pick between them — /system/ntp/server read the client's flag and reported true
             // where the API says false. A name belongs to the most specific window that claims it.
             var claimed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            void Put(int key, string apiName)
+            void Put(int key, string apiName, bool sameField = false)
             {
                 if (map.ContainsKey(key)) return;
                 // A qualified registration is the SAME field as its plain one (see ContestedKeys), so it must
-                // not be the thing that claims the name away from it.
-                if (!WinboxM2Protocol.TypedKey.IsQualified(key) && !claimed.Add(apiName)) return;
+                // not be the thing that claims the name away from it. Neither must a union's other family or
+                // a tuple's other part (sameField) — those keys ARE the field that just claimed the name, and
+                // letting the claim block them is what left a v6 address unreported.
+                if (!sameField && !WinboxM2Protocol.TypedKey.IsQualified(key) && !claimed.Add(apiName)) return;
                 map[key] = apiName;
             }
 
             var contested = ContestedKeys();
+            // Extra registrations of a union/tuple, applied after the loop below — see there.
+            var deferred = new List<KeyValuePair<int, string>>();
             foreach (var kv in _overrides) Put(kv.Value, kv.Key);
             // A paired field's composite name has to win over the upload half's own, and Put is first-wins,
             // so it goes in before the catalog. Without this the joined value came out under the HALF's
@@ -995,7 +999,19 @@ namespace tik4net.Winbox
                 if (!string.Equals(kv.Key, RegisteredNameToReport(kv.Value), StringComparison.OrdinalIgnoreCase))
                     continue;
                 Put(kv.Value.Key, AliasToApi(kv.Key));
+                // One declaration, several keys: a union's other address families and a tuple's other parts
+                // (see WinboxJgField.ExtraRegistrations). They answer to the same name, so the row decodes
+                // whichever key the router actually sent — but they are a FALLBACK, not an owner, and are
+                // applied only after every field that has a key of its own has had it.
+                if (kv.Value.ExtraRegistrations != null)
+                    foreach (var extra in kv.Value.ExtraRegistrations)
+                        deferred.Add(new KeyValuePair<int, string>(extra.Key, AliasToApi(kv.Key)));
             }
+            // …here. The Ping window is why: its reply's 'Seq #' is `uf` and its request's 'Src. Address'
+            // union has `af` for the IPv6 family — ONE key, 0xF, told apart by nothing but the ftype letter.
+            // Registering the alternative inside the loop let it win 0xF from a field that owns it outright,
+            // and every ping reply lost its sequence number.
+            foreach (var kv in deferred) Put(kv.Key, kv.Value, sameField: true);
             foreach (var kv in FallbackSeed) Put(kv.Value, kv.Key);
             foreach (var kv in ReadOnlySystemSeed) Put(kv.Value, kv.Key);
 
@@ -1010,6 +1026,7 @@ namespace tik4net.Winbox
         {
             var map = new Dictionary<int, WinboxJgField>();
             var contested = ContestedKeys();
+            var deferredFields = new List<WinboxJgField>();
             // Most specific first, for the same reason BuildKeyToApiName does it: a key claimed by two
             // windows on one handler must be typed by the window this path addresses.
             foreach (var kv in JgFieldsSpecificFirst())
@@ -1020,7 +1037,13 @@ namespace tik4net.Winbox
                     if (!map.ContainsKey(typed)) map[typed] = kv.Value;
                 }
                 if (!map.ContainsKey(kv.Value.Key)) map[kv.Value.Key] = kv.Value;
+                if (kv.Value.ExtraRegistrations != null) deferredFields.AddRange(kv.Value.ExtraRegistrations);
             }
+            // Each extra registration is typed as ITSELF — a union's network6 family renders through its own
+            // prefix-length sibling, not through the first family's netmask — and, as in BuildKeyToApiName,
+            // only where no field owns the key outright.
+            foreach (var extra in deferredFields)
+                if (!map.ContainsKey(extra.Key)) map[extra.Key] = extra;
             // Synthesize typed fields for shipped key aliases the .jg leaves unnamed (collide on empty apiName),
             // so decode formats them correctly (e.g. ping reply 'host' @0x1 as an ipaddr u32).
             var aliasSet = Aliases;
@@ -1750,6 +1773,19 @@ namespace tik4net.Winbox
                     $"WinBox native: field '{apiName}' on '{_apiPath}' is a list/array type " +
                     $"('{uiType ?? wireType}') that is not yet encodable over native WinBox M2 writes. " +
                     "Use an Api/REST/CLI connection for this field (or a FieldOverride to a scalar key).");
+
+            // A scalar tuple is a compound the API prints joined by a separator, and splitting the text back
+            // onto the parts is not the inverse of joining it: an IPv6 'Remote' would put its own colons in
+            // the way of the tuple's. Refusing beats writing the first part and dropping the rest, which is
+            // a request the router accepts and half-obeys.
+            // Every tuple the 7.24 catalog puts on a MAPPED path is read-only and is dropped above before
+            // reaching here; oflow's 'Datapath ID' is one that is not, and is why this is not dead.
+            if (value.Length > 0
+                && string.Equals(uiType, WinboxJgCatalog.TupleUiType, StringComparison.OrdinalIgnoreCase))
+                throw new WinboxFieldResolutionException(
+                    $"WinBox native: field '{apiName}' on '{_apiPath}' is a tuple of several WinBox fields " +
+                    "joined for display and is not encodable over native WinBox M2 writes. " +
+                    "Use an Api/REST/CLI connection for this field.");
 
             // 'addr' (webfig types.addr) is a compound: the value is a nested message, and each address FORM
             // rides at its own sub-key. Encoding it needs the whole set, not just IPv4 — see EncodeAddr.

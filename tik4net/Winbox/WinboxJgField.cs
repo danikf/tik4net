@@ -349,9 +349,11 @@ namespace tik4net.Winbox
             bool isOptional = false, string? elementUiType = null, int scale = 1,
             IReadOnlyList<WinboxJgElementPart>? elementParts = null, string? postfix = null,
             string? elementSeparator = null, Tuple<WinboxJgField, WinboxJgField>? pairHalves = null,
-            int elementNotKey = 0, bool elementIsRange = false, string? titleApiName = null)
+            int elementNotKey = 0, bool elementIsRange = false, string? titleApiName = null,
+            IReadOnlyList<WinboxJgField>? extraRegistrations = null)
         {
             TitleApiName = titleApiName;
+            ExtraRegistrations = extraRegistrations;
             PairHalves = pairHalves;
             ElementNotKey = elementNotKey;
             ElementIsRange = elementIsRange;
@@ -381,6 +383,27 @@ namespace tik4net.Winbox
         }
 
         /// <summary>
+        /// Further <c>key → field</c> registrations this ONE declaration makes, for a field whose value does
+        /// not live at a single key. <c>null</c> for the ordinary case.
+        /// </summary>
+        /// <remarks>
+        /// Two shapes need it, and both are declarations where the LABEL is on the parent and the ids are on
+        /// the children (see the M2 protocol findings, §32.7).
+        /// <para>A <c>union</c> with <c>single:1</c> is one field with alternative wire encodings, one per
+        /// address family, of which the router sends whichever it has: <c>/snmp</c>'s 'Src. Address' is
+        /// <c>{ipaddr u1b, ip6addr a1c}</c> and the row carries <c>0x1C</c>. Only the FIRST family was
+        /// registered, so a row that used any other one had no field at that key and the API name went
+        /// unreported. Each alternative is registered here with its OWN type and <c>maskid</c> — a
+        /// <c>network6</c> renders through its prefix length, a <c>network</c> through its mask.</para>
+        /// <para>A <c>tuple</c> is one field the API prints as its children joined by the declaration's
+        /// <c>sep</c>: <c>/ip/service</c>'s 'Remote' is <c>{ip6addr ad, number ue}</c> printed
+        /// <c>192.168.4.31:65504</c>. Every part key registers the SAME compound field, so the row decodes
+        /// to the whole value whichever part the reader reaches first, and the parts do not also surface as
+        /// fields of their own.</para>
+        /// </remarks>
+        internal IReadOnlyList<WinboxJgField>? ExtraRegistrations { get; }
+
+        /// <summary>
         /// The same field under a different API name — for a field a window gives a label another field of
         /// that window already claimed, and which is therefore reachable only under a qualified name.
         /// </summary>
@@ -388,6 +411,6 @@ namespace tik4net.Winbox
             => new WinboxJgField(apiName, Key, WireType, ReadOnly, EnumMap, UiType, MaskKey, RefHandler,
                 OptKey, NotKey, IsRange, Allow, Def, PaneKind, PaneSelectorKey, PaneValues, OffKey,
                 IsOptional, ElementUiType, Scale, ElementParts, Postfix, ElementSeparator, PairHalves,
-                ElementNotKey, ElementIsRange, TitleApiName);
+                ElementNotKey, ElementIsRange, TitleApiName, ExtraRegistrations);
     }
 }

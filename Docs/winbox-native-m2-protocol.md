@@ -1435,15 +1435,37 @@ has, each child carrying its own type and `maskid`. A `tuple` is one field the A
 children joined by `sep`. So the label exists, the ids exist, and nothing connects them: the field is
 dropped, and the API name it would have answered to shows up as a gap.
 
-Four of the remaining names are exactly this, verified against both the window and the wire on 7.24:
+Five of the remaining names were exactly this, verified against both the window and the wire on 7.24:
 `/ip/ipsec/policy` `src-address`/`dst-address` (unions of `network`+`network6`; the record carries
-`0x15`/`0x17` with their lengths at `0x16`/`0x18`, and the API prints `::/0`), `/snmp` `src-address`
-(union of `ipaddr`+`ip6addr`; the record carries `0x1C`), and `/ip/service` `remote` (tuple; the record
-carries `0xD` and `0xE`, and the API prints `192.168.4.31:65504`).
+`0x15`/`0x17` with their lengths at `0x16`/`0x18`, and the API prints `::/0`), `/snmp` `src-address` and
+`/ip/proxy` `parent-proxy` (unions of `ipaddr`+`ip6addr`, both carried in the v6 member), and
+`/ip/service` `remote` (tuple; the record carries `0xD` and `0xE`, and the API prints
+`192.168.4.31:65504`). 35 of 669 → 30, with VALUE-DIFF still 0.
 
-The shipped `AddrPortPairs` table is a hand-written special case of the tuple — `/ip/hotspot/profile`'s
-`http-proxy` is `{tuple sep:':'}` in everything but name — so deriving tuples removes a table rather
-than adding one.
+A scalar `network6` had no decode case of its own until then — only the list-element formatter had one —
+so the v6 member of a union read `::` where the API says `::/0`. Nothing had reached it before, the v6
+member never having been registered.
+
+**An alternative is a fallback, never an owner.** The Ping window declares its reply's `Seq #` as `uf`
+and its request's 'Src. Address' union carries `af` for the IPv6 family: ONE key, `0xF`, two fields of
+one window told apart by nothing but the ftype letter (§30, one key two fields — except here neither is
+an array, so the arrayness qualifier cannot separate them either). Registering an alternative while
+walking the catalog let it win `0xF` from the field whose own id it is, and every ping reply lost its
+sequence number. Extra registrations are therefore applied only after every field with a key of its own
+has had it.
+
+**And a tuple is one field only when the `.jg` says the parts are not shown separately.** `separate:1`
+is webfig drawing them as boxes of their own, and such a tuple's children carry their own names —
+`/queue/simple`'s 'Max Limit' is `{tuple,separate:1,c:[{name:'Upload Max Limit',…},{name:'Download Max
+Limit',…}]}`. Claiming the parent there would take two named fields away and put one joined value under
+a label RouterOS does not use. A child with a name of its own is a field in its own right whatever the
+tuple says, so both tests are applied.
+
+It does NOT subsume the shipped `AddrPortPairs` table, which is a different shape: there the `.jg`
+labels BOTH boxes and the API joins them — `/ip/hotspot/profile` declares `{name:'HTTP Proxy',id:'u83'}`
+and `{name:'HTTP Proxy Port',id:'u84'}` as two ordinary fields, and only RouterOS knows they are one.
+A tuple is the opposite: one label, children with no labels of their own, and the `.jg` itself saying
+how they join. Both tables stay.
 
 ## 33. Row state rides on system keys the catalog never names
 
@@ -1553,8 +1575,8 @@ with its own result window), `/system/logging` and `/system/logging/action` `man
 `actual-interface`. These are API fields WinBox does not offer, not names we spell wrong, and no
 alias can reach them.
 
-**Declared, but the caption lives in the layout rather than in a string.** A named field whose value
-sits in `union`/`tuple` CHILDREN carries the label while the children carry the ids — see §32.7.
+**Declared, but the value lives in the children.** A named field whose value sits in `union`/`tuple`
+CHILDREN carries the label while the children carry the ids — five of them, now closed; see §32.7.
 
 **A second window on the same handler.** `/ip/upnp` `show-dummy-rule` is `b3` on the `item` window
 'UPnP Settings', and `[28,0]` also carries the `map` window 'UPnP' whose `b3` is 'Forced External IP'.

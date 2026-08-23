@@ -233,6 +233,26 @@ namespace tik4net.Winbox
                         }
                         return addr;
                     }
+                    case "network6":
+                    {
+                        // The IPv6 twin of the case above, and the sibling is not the same thing: it holds
+                        // the PREFIX LENGTH itself (types.network6.tostr: addr + '/' + (val[1]||0)), there
+                        // being no 128-bit mask to put in a u32. RouterOS prints the length at every value
+                        // including 128 — see FormatElementPart's network6, which is where the same rule
+                        // already lived for a LIST element.
+                        //
+                        // Only a scalar network6 reaches here, and until a union registered its other
+                        // families (WinboxJgField.ExtraRegistrations) none ever did: /ip/ipsec/policy's
+                        // 'Src. Address' is a union whose IPv4 member was the only one in the catalog, so
+                        // the v6 value the router actually sends fell through to the wire formatter and
+                        // read '::' where the API says '::/0'.
+                        string addr6 = value is byte[] b6
+                            ? WinboxFieldResolver.IpV6FromBytes(b6) : value.ToString()!;
+                        if (jf.MaskKey != 0 && rec.TryGetValue(jf.MaskKey, out var m6) && m6.Item2 != null)
+                            return addr6 + "/" + (WinboxFieldResolver.TryToInt64(m6.Item2, out long n6)
+                                ? n6 : 0).ToString(CultureInfo.InvariantCulture);
+                        return addr6;
+                    }
                     case WinboxFieldResolver.PairUiType:
                     {
                         // One API field out of two M2 scalars (see WinboxFieldResolver.PairUiType). Each
@@ -527,6 +547,12 @@ namespace tik4net.Winbox
                     return FormatMultiNetwork(jf, value, rec);
                 if (IsMultiList(jf.UiType))
                     return FormatMultiList(jf, value, collectRefTables);
+                // A scalar tuple: one field the API prints as its parts joined by the .jg's own separator.
+                // The parts live in the ROW rather than in a nested element, which is the only difference
+                // from a list element of the same shape — hence the same formatter, given the row.
+                if (jf.ElementParts != null
+                    && string.Equals(jf.UiType, WinboxJgCatalog.TupleUiType, StringComparison.OrdinalIgnoreCase))
+                    return FormatCompoundElement(jf, rec, collectRefTables);
                 // dynamic enum reference: render the referenced object's name (e.g. interface id → "ether1").
                 if (jf.RefHandler != null)
                 {

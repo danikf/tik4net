@@ -7,6 +7,7 @@
 // Every assertion compares the transport under test against the BINARY API on the same router, rather than
 // against a literal — the API's own text is the reference, and a stock router's values differ per machine.
 
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net;
@@ -160,6 +161,72 @@ namespace tik4net.integrationtests
             }
 
             AssertAgreesWithApiWhileSet("/caps-man/manager", "certificate", certificate);
+        }
+
+        // ── a declaration whose label is on the parent and whose ids are on the children ──
+
+        /// <summary>
+        /// A <c>union</c> with <c>single:1</c> is one field with alternative wire encodings, one per address
+        /// family, and the router sends whichever it has. <c>/ip/ipsec/policy</c>'s 'Src. Address' is
+        /// <c>{network u1, network6 a15}</c> and a stock template policy carries the IPv6 one — the family
+        /// that was not in the catalog at all, only the first being registered.
+        /// <para>Value as well as name: the prefix length lives in a sibling key, so an alternative
+        /// registered without its own <c>maskid</c> would read <c>::</c> where the API says <c>::/0</c>.</para>
+        /// </summary>
+        [TestMethod]
+        public void ABothFamiliesUnionIsReportedInWhicheverFamilyTheRouterSent()
+        {
+            AssertAgreesWithApi("/ip/ipsec/policy", "src-address");
+            AssertAgreesWithApi("/ip/ipsec/policy", "dst-address");
+        }
+
+        /// <summary>The same shape on a singleton: <c>/snmp</c>'s 'Src. Address' is
+        /// <c>{ipaddr u1b, ip6addr a1c}</c> and the row carries the second.</summary>
+        [TestMethod]
+        public void ASingletonsUnionFieldIsReportedToo()
+            => AssertAgreesWithApi("/snmp", "src-address");
+
+        /// <summary>
+        /// A third union, on a writable field: <c>/ip/proxy</c>'s 'Parent Proxy' is
+        /// <c>{union,opt:1,single:1,c:[{ipaddr u3},{ip6addr a16}]}</c> — note that the port beside it is a
+        /// field of its OWN ('Parent Proxy Port', <c>u4</c>), so this is not the tuple shape however much
+        /// an address next to a port looks like one.
+        /// </summary>
+        [TestMethod]
+        public void AWritableUnionFieldIsReportedToo()
+            => AssertAgreesWithApi("/ip/proxy", "parent-proxy");
+
+        /// <summary>
+        /// A tuple whose parts are only on SOME rows: <c>/ip/service</c>'s 'Remote' is
+        /// <c>{ip6addr ad, number ue}</c> and only a live connection row carries it. Compared per row
+        /// against the API rather than on the first row, because which connections exist depends on which
+        /// transport is running the test.
+        /// </summary>
+        [TestMethod]
+        public void ATupleOnlySomeRowsCarryIsReportedOnThoseRows()
+        {
+            Dictionary<string, string> expected;
+            using (var api = OpenSideApi())
+                expected = api.CreateCommand("/ip/service/print").ExecuteList()
+                    .Where(r => r.GetResponseFieldOrDefault("remote", null) != null)
+                    .ToDictionary(r => r.GetId(), r => r.GetResponseField("remote"));
+
+            if (expected.Count == 0)
+                Assert.Inconclusive("no /ip/service row carries 'remote' — nothing is connected");
+
+            var rows = Connection.CreateCommand("/ip/service/print").ExecuteList()
+                .ToDictionary(r => r.GetId(), r => r.GetResponseFieldOrDefault("remote", null));
+
+            int compared = 0;
+            foreach (var e in expected)
+            {
+                // A connection can come and go between the two reads; only rows both saw mean anything.
+                if (!rows.TryGetValue(e.Key, out string actual)) continue;
+                Assert.AreEqual(e.Value, actual, $"/ip/service {e.Key} remote");
+                compared++;
+            }
+            Assert.IsTrue(compared > 0,
+                "no row was seen by both transports, so the tuple was never actually compared");
         }
     }
 }
