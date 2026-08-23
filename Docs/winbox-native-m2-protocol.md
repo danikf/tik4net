@@ -1695,10 +1695,29 @@ table. `comment` is deliberately not among them — it is a system key every pat
 measure one encoder everywhere and report broad coverage of nothing.
 
 Going from eighteen probes to sixty-one turned 0 findings into **9**, which is the answer to whether the
-first round's clean sheet meant anything: it meant eighteen fields were right.
+first round's clean sheet meant anything: it meant eighteen fields were right. Six are closed; the
+count now stands at **58 ok, 3 different, 0 refused**.
 
 Closed so far:
 
+* **Three fields the resolver could not name for a write at all**, each empty on a stock row so no read
+  could pair it: `/caps-man/security` calls it `authentication-type` (singular) and
+  `/interface/wifi/security` plain `types`, both against the API's `authentication-types`; the BGP
+  instance window calls the router id `ip`. Each pairing was confirmed by VALUE — with the API asked to
+  set it, native reports the same value under its own name — not by resemblance. The BGP window's
+  'Invalid' beside the API's `inactive` is deliberately NOT aliased: both are false on every row this
+  lab can make, so nothing has told the two apart.
+  The wifi one also had to be MERGED into that path's existing alias set rather than added beside it.
+  The table is built through the indexer, so a duplicate key does not throw — it silently overwrites,
+  and a second entry lower down had taken the new one's place with no sign at all.
+* **A list ELEMENT's scale is not the field's.** `/caps-man/channel`'s frequency is
+  `{multinumber,id:'U6008',c:[{fixedpoint,scale:1000}]}`: the wire carries 2412000 where the API prints
+  2412. Both directions ignored it — the read answered `2412000` and the write landed `2412`, which the
+  router printed back as `2.412`. The read was wrong too and no read-only check could have said so,
+  because a stock channel has no frequency to compare; the write probe is what made it visible.
+* **A scalar `fixedpoint` had no encoder at all**, so it went through the generic numeric branch with
+  the scale dropped. Fixed alongside, and a time postfix makes it a duration on the way out exactly as
+  it does on the way in.
 * **A `number` with a time postfix could be read but not written.** The read side learned that `s`/`ms`
   means a duration; the write side had not, so RADIUS's `timeout` (`postfix:'ms'`) took `500ms` through
   the generic numeric branch and left `1s100ms` on the router — accepted, silently wrong, and invisible
@@ -1711,9 +1730,7 @@ Still open, all of them found by this audit and none of them visible to a read:
 * `/ip/upnp/interfaces` `type=external` — accepted with status 0 and the row does not change. Both
   windows of `[28,0]` are on one handler (see §33.2b) and the set appears to reach the singleton's.
 * `/interface/wireguard/peers` `allowed-address=10.99.2.0/24` — the prefix length is lost, `/32` lands.
-* `/caps-man/channel` `frequency=2412` — lands `2.412`; the scale is applied on read and not on write.
-* `/routing/bgp/instance` `router-id`, `/caps-man/security` and `/interface/wifi/security`
-  `authentication-types` — three fields the resolver cannot name at all for a write.
+
 
 **The first run reported two refusals and both were the harness's own fault**, which is worth recording
 because it is the shape of mistake this kind of test invites. The probe restored the field to its

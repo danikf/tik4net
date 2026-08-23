@@ -354,8 +354,9 @@ namespace tik4net.Winbox
             string? elementSeparator = null, Tuple<WinboxJgField, WinboxJgField>? pairHalves = null,
             int elementNotKey = 0, bool elementIsRange = false, string? titleApiName = null,
             IReadOnlyList<WinboxJgField>? extraRegistrations = null, bool nonPublic = false,
-            long min = 0, int radix = 0, string? prefix = null)
+            long min = 0, int radix = 0, string? prefix = null, int elementScale = 1)
         {
+            ElementScale = elementScale < 1 ? 1 : elementScale;
             Radix = radix;
             Prefix = prefix;
             Min = min;
@@ -403,6 +404,13 @@ namespace tik4net.Winbox
         /// part being decimal.
         /// </remarks>
         internal int Radix { get; }
+
+        /// <summary>
+        /// The <c>scale</c> of a list's ELEMENT, which is not the field's own: <c>/caps-man/channel</c>'s
+        /// frequency is <c>{multinumber,id:'U6008',c:[{fixedpoint,scale:1000}]}</c>, so the wire carries
+        /// 2412000 where the API prints 2412. <c>1</c> when the element declares none.
+        /// </summary>
+        internal int ElementScale { get; }
 
         /// <summary>
         /// A compound's <c>prefix</c> — text RouterOS prints in front of the whole joined value. All eight
@@ -471,6 +479,6 @@ namespace tik4net.Winbox
                 OptKey, NotKey, IsRange, Allow, Def, PaneKind, PaneSelectorKey, PaneValues, OffKey,
                 IsOptional, ElementUiType, Scale, ElementParts, Postfix, ElementSeparator, PairHalves,
                 ElementNotKey, ElementIsRange, TitleApiName, ExtraRegistrations, NonPublic, Min, Radix,
-                Prefix);
+                Prefix, ElementScale);
     }
 }

@@ -1068,7 +1068,7 @@ namespace tik4net.Winbox
                             tab: tab, title: TitleOf(dict),
                             nonPublic: dict.TryGetValue("nonpublic", out var npv) && npv is int npi && npi != 0,
                             min: dict.TryGetValue("min", out var mnv) && mnv is int mni ? mni : 0,
-                            radix: RadixOf(dict));
+                            radix: RadixOf(dict), elementScale: ElementScaleOf(dict));
                     }
                 }
 
@@ -1200,7 +1200,7 @@ namespace tik4net.Winbox
             string? elementSeparator = null, int elementNotKey = 0, bool elementIsRange = false,
             string? tab = null, string? title = null,
             IReadOnlyList<WinboxJgField>? extraRegistrations = null, bool nonPublic = false,
-            long min = 0, int radix = 0, string? prefix = null)
+            long min = 0, int radix = 0, string? prefix = null, int elementScale = 1)
         {
             string apiName = WinboxFieldResolver.NormalizeLabel(label);
             if (string.IsNullOrEmpty(apiName)) return;
@@ -1221,7 +1221,7 @@ namespace tik4net.Winbox
                 elementParts, postfix, elementSeparator, elementNotKey: elementNotKey,
                 elementIsRange: elementIsRange, titleApiName: titleName,
                 extraRegistrations: extraRegistrations, nonPublic: nonPublic, min: min, radix: radix,
-                prefix: prefix);
+                prefix: prefix, elementScale: elementScale);
             // Two fields of one window may carry the same label - the packet sniffer's streaming 'Port' (a
             // number) and its filter 'Port' (a list of port matches) - and first-wins kept only the first,
             // leaving the second reachable under no name at all. The TAB it sits under is what tells them
@@ -1410,6 +1410,13 @@ namespace tik4net.Winbox
             return new WinboxJgElementPart(dec.Value.key, ty!, DecodedKeyOf(node, "maskid"),
                 enumMap: ExtractEnumMap(node), refHandler: ExtractRefHandler(node),
                 radix: RadixOf(node));
+        }
+
+        // The `scale` of a LIST's element, which is not the field's own — see WinboxJgField.ElementScale.
+        private static int ElementScaleOf(Dictionary<string, object> dict)
+        {
+            var child = ElementChild(dict, out _);
+            return child != null && child.TryGetValue("scale", out var sv) && sv is int si && si > 0 ? si : 1;
         }
 
         // webfig's types.number.tostr is `val.toString(attrs.radix||10)`: a declaration saying 16 is saying

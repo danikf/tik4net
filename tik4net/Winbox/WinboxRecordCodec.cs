@@ -554,7 +554,7 @@ namespace tik4net.Winbox
                 // or a static enum (/ip/ssh 'Ciphers' u32[0] → "auto"). Without this the wire form reached the
                 // caller verbatim as "[8080]"/"[0]"; the API prints one value per element, comma-joined.
                 if (IsMultiNumberList(jf.UiType))
-                    return FormatNumberList(value, jf.EnumMap);
+                    return FormatNumberList(value, jf.EnumMap, jf.ElementScale);
                 // Every OTHER member of the webfig list family. types.multistring/multiipaddr/multiip6addr/
                 // multiraw all `inherit(types.multinumber)`, and types.multi.tostr renders each element
                 // through the ELEMENT's own type — so the list's own name says nothing about how an element
@@ -880,7 +880,7 @@ namespace tik4net.Winbox
             // A scalar array, which M2Message renders as the text "[a,b,…]" (and "[]" when empty).
             var elements = SplitListElements(value);
             if (elements.Count == 0) return "";
-            return string.Join(",", elements.Select(e => FormatListElement(jf.ElementUiType, e)));
+            return string.Join(",", elements.Select(e => FormatListElement(jf.ElementUiType, e, jf.ElementScale)));
         }
 
         // webfig list types whose element is an address PAIR: types.multinetwork and the two that inherit it,
@@ -1062,10 +1062,22 @@ namespace tik4net.Winbox
         // One element of a scalar list, by the element's .jg type. An ipaddr element rides as the same u32 a
         // scalar ipaddr does, and a macaddr/ip6addr element as the same bytes — which M2Message renders as
         // hex, exactly as it does for the scalar forms. A string/raw/secret element is already its own text.
-        private static string FormatListElement(string? elementUiType, string element)
+        private static string FormatListElement(string? elementUiType, string element, int elementScale = 1)
         {
             switch ((elementUiType ?? "").ToLowerInvariant())
             {
+                case "fixedpoint":
+                {
+                    // The element's own scale, not the field's: /caps-man/channel's frequency is a
+                    // multinumber of {fixedpoint,scale:1000}, so the wire's 2412000 is the API's 2412. The
+                    // list carried the raw count until a WRITE probe on an empty field made it visible —
+                    // no read could, because a stock row has no frequency to compare.
+                    if (elementScale <= 1
+                        || !long.TryParse(element, NumberStyles.Integer, CultureInfo.InvariantCulture,
+                                          out long fp))
+                        return element;
+                    return FormatScaled(fp, elementScale);
+                }
                 case "ipaddr":
                     return uint.TryParse(element, out uint u) ? WinboxFieldResolver.IpFromU32(u) : element;
                 case "macaddr":
@@ -1078,6 +1090,23 @@ namespace tik4net.Winbox
                 default:
                     return element;
             }
+        }
+
+        /// <summary>
+        /// A scaled integer as the API prints it: the whole part, then the fraction padded to the scale's
+        /// digits and trimmed of trailing zeros — the same rule the scalar <c>fixedpoint</c> case follows,
+        /// so 2412000/1000 is "2412" and 1500/1000 is "1.5".
+        /// </summary>
+        private static string FormatScaled(long value, int scale)
+        {
+            if (scale < 1) scale = 1;
+            string sign = value < 0 ? "-" : "";
+            long abs = Math.Abs(value);
+            int digits = scale.ToString(CultureInfo.InvariantCulture).Length - 1;
+            string frac = (abs % scale).ToString(CultureInfo.InvariantCulture)
+                .PadLeft(digits, '0').TrimEnd('0');
+            return sign + (abs / scale).ToString(CultureInfo.InvariantCulture)
+                 + (frac.Length > 0 ? "." + frac : "");
         }
 
         // Hex text (as M2Message renders a raw/addr6 element) back to bytes; null when it is not hex, which
@@ -1653,7 +1682,8 @@ namespace tik4net.Winbox
         // comma-joined API form: each element through the element's static enum map when it has one, else the
         // number itself. An element the map does not name stays numeric rather than being dropped — a shorter
         // list would read as "the router has fewer of these", which is the P2.25 defect class.
-        private static string FormatNumberList(object? value, IReadOnlyDictionary<int, string>? enumMap)
+        private static string FormatNumberList(object? value, IReadOnlyDictionary<int, string>? enumMap,
+            int elementScale = 1)
         {
             var parts = new List<string>();
             foreach (System.Text.RegularExpressions.Match m in
@@ -1666,6 +1696,13 @@ namespace tik4net.Winbox
                 if (enumMap != null && long.TryParse(m.Value, out long n)
                     && enumMap.TryGetValue(unchecked((int)n), out var label))
                     parts.Add(label);
+                // The ELEMENT's own scale, which is not the field's: /caps-man/channel's frequency is a
+                // multinumber of {fixedpoint,scale:1000}, so the wire's 2412000 is the API's 2412. It read
+                // as the raw count until a WRITE probe made it visible — no read could, because a stock row
+                // carries no frequency to compare.
+                else if (elementScale > 1 && long.TryParse(m.Value, NumberStyles.Integer,
+                                                           CultureInfo.InvariantCulture, out long scaled))
+                    parts.Add(FormatScaled(scaled, elementScale));
                 else
                     parts.Add(m.Value);
             }

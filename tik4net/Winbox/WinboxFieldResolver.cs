@@ -674,6 +674,26 @@ namespace tik4net.Winbox
                                 ("no-dns", "dns-none"),
                                 ("no-ntp", "ntp-none"))),
 
+                // Three fields the WRITE audit found and no read could: each is empty on a stock row, so
+                // the two transports agreed on an empty vocabulary and the path passed. They surfaced the
+                // moment something tried to WRITE them — the resolver could not name the field at all.
+                //
+                // Each pairing was then confirmed by value, not by resemblance: with the API asked to set
+                // it, native reports the same value under its own name.
+                ["/caps-man/security"] = new FieldAliasSet(
+                    apiToJg: Ci(("authentication-types", "authentication-type")),
+                    jgToApi: Ci(("authentication-type", "authentication-types"))),
+
+                // The BGP instance window calls the router id 'IP'. Confirmed by value: with the API's
+                // router-id set to 10.99.0.13, native reports ip=10.99.0.13.
+                //
+                // NOT aliased here: the window's 'Invalid' beside the API's 'inactive'. They are false on
+                // every row this lab can make, so nothing has told the two apart — and a pairing on
+                // resemblance is what this table exists to avoid.
+                ["/routing/bgp/instance"] = new FieldAliasSet(
+                    apiToJg: Ci(("router-id", "ip")),
+                    jgToApi: Ci(("ip", "router-id"))),
+
                 // /system/health: the router sends both of the API's fields and the catalog names neither.
                 //
                 // [24,14] hosts two .jg windows — 'Settings' (fan control) and the x86-gated 'System Health'
@@ -756,9 +776,18 @@ namespace tik4net.Winbox
                 // /interface/wifi/security: WinBox writes the label with the ID spelled out — 'FT Preserve
                 // VLAN ID' normalizes to ft-preserve-vlan-id, where the API says ft-preserve-vlanid. Same
                 // field (wave2 b2023), one hyphen apart, so an add carrying it could not resolve a key at all.
+                // …and the window labels the authentication set plain 'Types' where the API spells out
+                // authentication-types. Found by the WRITE audit: empty on a stock row, so no read could
+                // pair it, and the resolver could not name the field at all when something tried to set it.
+                //
+                // Merged into THIS entry rather than added as a second one for the path. The table is
+                // initialised through the indexer, so a duplicate key does not throw — it silently
+                // overwrites, and a second entry lower down took this one's place with no sign at all.
                 ["/interface/wifi/security"] = new FieldAliasSet(
-                    apiToJg: Ci(("ft-preserve-vlanid", "ft-preserve-vlan-id")),
-                    jgToApi: Ci(("ft-preserve-vlan-id", "ft-preserve-vlanid"))),
+                    apiToJg: Ci(("ft-preserve-vlanid", "ft-preserve-vlan-id"),
+                                ("authentication-types", "types")),
+                    jgToApi: Ci(("ft-preserve-vlan-id", "ft-preserve-vlanid"),
+                                ("types", "authentication-types"))),
 
                 // /ip/hotspot/profile: the RADIUS tab drops the 'radius-' prefix the API spells out — the
                 // checkbox is just 'Accounting' (b8e, def:1, on:'radius') where the API says
@@ -1472,6 +1501,32 @@ namespace tik4net.Winbox
             // ── typed UI encodings (more specific than the wire type) ──
             switch (uiType)
             {
+                case "fixedpoint":
+                {
+                    // The inverse of the decode, and missing for the same reason the ms case above was: a
+                    // `fixedpoint` renders as value/scale and had no encoder at all, so /caps-man/channel's
+                    // frequency (scale:1000, the wire holding 2412000) took "2412" through the generic
+                    // numeric branch and landed 2412 — which the router then printed back as 2.412.
+                    if (value.Length == 0) return result;
+                    // A time postfix makes it a duration on the way out, exactly as on the way in.
+                    if (IsTimePostfix(jg?.Postfix))
+                    {
+                        if (!TryParseDuration(value, DurationTicksPerSecond(jg!), out long dticks))
+                            throw new WinboxFieldResolutionException(
+                                $"WinBox native: '{value}' is not a valid duration for field '{apiName}' "
+                                + $"on '{_apiPath}'.");
+                        result.Add(EncodeU32(key, unchecked((uint)dticks)));
+                        return result;
+                    }
+                    int fpScale = jg == null || jg.Scale < 1 ? 1 : jg.Scale;
+                    if (!TryParseScaled(value, fpScale, out long scaled))
+                        throw new WinboxFieldResolutionException(
+                            $"WinBox native: '{value}' is not a valid number for field '{apiName}' on "
+                            + $"'{_apiPath}'. Expected a decimal with at most "
+                            + $"{fpScale.ToString(CultureInfo.InvariantCulture).Length - 1} fraction digit(s).");
+                    result.Add(EncodeU32(key, unchecked((uint)scaled)));
+                    return result;
+                }
                 case "interval":
                 {
                     // The inverse of WinboxRecordCodec's interval decode, and it has to exist for the same
@@ -1686,8 +1741,20 @@ namespace tik4net.Winbox
                     {
                         string t = tok.Trim();
                         if (t.Length == 0) continue;
+                        // The ELEMENT's own scale, the inverse of the decode: "2412" on a
+                        // {fixedpoint,scale:1000} element is 2412000 on the wire. Without it the write
+                        // landed 2412 and the router printed it back as 2.412. Gated on the scale alone —
+                        // a scale above 1 IS the statement that the wire counts in smaller units than the
+                        // API prints, whatever the element's ui type is spelled as.
                         // jg non-null: uiType == "multinumber" only when jg.UiType produced it.
-                        items.Add(EncodeListElement(jg!, t, apiName, resolveRef));
+                        if (jg!.ElementScale > 1)
+                        {
+                            if (!TryParseScaled(t, jg.ElementScale, out long scaledElem))
+                                throw new WinboxFieldValueException(
+                                    $"input does not match any value of {apiName} (element '{t}')");
+                            items.Add(unchecked((int)scaledElem));
+                        }
+                        else items.Add(EncodeListElement(jg!, t, apiName, resolveRef));
                     }
                     if (items.Count == 0) return result;
                     result.Add(M2Message.U32ArraySys(key, items.ToArray()));
@@ -2007,6 +2074,34 @@ namespace tik4net.Winbox
         private static bool IsTimePostfix(string? postfix)
             => string.Equals(postfix, "s", StringComparison.Ordinal)
                || string.Equals(postfix, "ms", StringComparison.Ordinal);
+
+        /// <summary>
+        /// Parses a decimal into the <paramref name="scale"/>-per-unit integer the wire carries — "2412"
+        /// with scale 1000 is 2412000, "1.5" is 1500. The inverse of the codec's fixedpoint rendering,
+        /// which trims trailing zeros, so a value written back as "1.5" must read as "1.5" again.
+        /// </summary>
+        private static bool TryParseScaled(string value, int scale, out long scaled)
+        {
+            scaled = 0;
+            if (scale < 1) scale = 1;
+            string text = value.Trim();
+            bool negative = text.StartsWith("-", StringComparison.Ordinal);
+            if (negative) text = text.Substring(1);
+            int dot = text.IndexOf('.');
+            string whole = dot < 0 ? text : text.Substring(0, dot);
+            string frac = dot < 0 ? "" : text.Substring(dot + 1);
+            if (whole.Length == 0) whole = "0";
+            if (!long.TryParse(whole, NumberStyles.None, CultureInfo.InvariantCulture, out long w)) return false;
+            int digits = scale.ToString(CultureInfo.InvariantCulture).Length - 1;
+            if (frac.Length > digits) return false;
+            if (frac.Length > 0 && !long.TryParse(frac, NumberStyles.None, CultureInfo.InvariantCulture, out _))
+                return false;
+            long f = 0;
+            if (frac.Length > 0) f = long.Parse(frac.PadRight(digits, '0'), CultureInfo.InvariantCulture);
+            scaled = w * scale + f;
+            if (negative) scaled = -scaled;
+            return true;
+        }
 
         /// <summary>Wire units per second for such a field — a thousand more of them when it counts ms.</summary>
         private static int DurationTicksPerSecond(WinboxJgField jg)
