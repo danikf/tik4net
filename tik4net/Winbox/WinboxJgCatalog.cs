@@ -1015,7 +1015,14 @@ namespace tik4net.Winbox
                 // the wrapper's own id is just a flag bool (opt=present, not=negated). Map the API name to the
                 // inner value leaf, carrying the flag keys — e.g. firewall 'Connection State' (opt→not→set) maps
                 // to the inner bitmask, not the outer bool. (A childless opt is a plain bool — handled below.)
-                if (owner != null && (ty == "opt" || ty == "not")
+                //
+                // A `group` that carries an ID is the same shape under another word: 97 of them in the 7.24
+                // catalog, every one a firewall or bridge-filter MATCH — 'MAC Protocol' is
+                // {group,id:'bcc',c:[{not,id:'bd',c:[{name:'MAC Protocol-Num',number,id:'u5',…}]}]}. Without
+                // this the group registered as a plain bool and took the name first, so `mac-protocol` meant
+                // the present FLAG: the read answered 'true' and a write of `arp` sent bool:False. A group
+                // with no id (64 more) is pure layout and its children are fields in their own right.
+                if (owner != null && (ty == "opt" || ty == "not" || (ty == "group" && dict.ContainsKey("id")))
                     && dict.ContainsKey("c") && !string.IsNullOrEmpty(nodeName))
                 {
                     AddOptionField(owner, nodeName, dict, pane);
@@ -1472,9 +1479,11 @@ namespace tik4net.Winbox
                 string? ty = cur.TryGetValue("type", out var tv) && tv is string ts ? ts : null;
                 var dec = (cur.TryGetValue("id", out var iv) && iv is string ids) ? DecodeId(ids) : null;
 
-                if (ty == "opt" || ty == "not")
+                if (ty == "opt" || ty == "not" || ty == "group")
                 {
-                    if (dec != null) { if (ty == "opt") optKey = dec.Value.key; else notKey = dec.Value.key; }
+                    // A `group` with an id is an opt under another word — its bool says the match is in
+                    // force, exactly as an opt's does.
+                    if (dec != null) { if (ty == "not") notKey = dec.Value.key; else optKey = dec.Value.key; }
                     var child = FirstChildDict(cur);
                     if (child == null)
                     {

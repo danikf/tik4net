@@ -1695,11 +1695,19 @@ table. `comment` is deliberately not among them — it is a system key every pat
 measure one encoder everywhere and report broad coverage of nothing.
 
 Going from eighteen probes to sixty-one turned 0 findings into **9**, which is the answer to whether the
-first round's clean sheet meant anything: it meant eighteen fields were right. Six are closed; the
-count now stands at **58 ok, 3 different, 0 refused**.
+first round's clean sheet meant anything: it meant eighteen fields were right. Seven are closed; the
+count now stands at **59 ok, 2 different, 0 refused**.
 
 Closed so far:
 
+* **A `group` that carries an id is an `opt` under another word** — and there are **97** of them in the
+  7.24 catalog, every one a firewall or bridge-filter MATCH. `MAC Protocol` is
+  `{group,id:'bcc',c:[{not,id:'bd',c:[{name:'MAC Protocol-Num',number,id:'u5',…}]}]}`: the group's bool
+  says the match is in force and the value lives two levels in. `group` was not in the wrapper list, so
+  the node registered as a plain bool and took the name first — `mac-protocol` meant the present FLAG.
+  The read answered `true` and a write of `arp` sent `bool:False`. A group with NO id (64 more) is pure
+  layout and its children stay fields in their own right, which is why `/interface/wifi/security`
+  reports the inner label `types`.
 * **Three fields the resolver could not name for a write at all**, each empty on a stock row so no read
   could pair it: `/caps-man/security` calls it `authentication-type` (singular) and
   `/interface/wifi/security` plain `types`, both against the API's `authentication-types`; the BGP
@@ -1726,7 +1734,6 @@ Closed so far:
 
 Still open, all of them found by this audit and none of them visible to a read:
 
-* `/interface/bridge/filter` `mac-protocol=arp` — the native write lands an EMPTY value.
 * `/ip/upnp/interfaces` `type=external` — accepted with status 0 and the row does not change. Both
   windows of `[28,0]` are on one handler (see §33.2b) and the set appears to reach the singleton's.
 * `/interface/wireguard/peers` `allowed-address=10.99.2.0/24` — the prefix length is lost, `/32` lands.
