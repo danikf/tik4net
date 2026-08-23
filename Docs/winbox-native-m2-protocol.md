@@ -1389,6 +1389,62 @@ against the API.
 same mistake `macnetwork` invites, whose all-ones mask webfig also hides and RouterOS also prints — and it
 was live in the SCALAR `network6` element formatter too, independently of any list.
 
+### 32.6 A reference's static map is not its domain
+
+`types.enm.tostr` renders a value with no member in the map as the empty string when `opt` is set, so an
+`opt` enum carrying an unmapped number is the router saying NOT SET — an unsigned certificate's
+`digest-algorithm` arrives as `0` where the API prints nothing.
+
+That reading is only valid while the map IS the domain. A `defenum` wrapping a `dynamic` puts ONE
+sentinel member in front of a referenced TABLE, and every real value is a row id the map has no member
+for by construction:
+
+```
+{name:'Certificate',type:'enm',id:'u2',def:4294967295,opt:1,
+ values:{type:'defenum',defid:0,defname:'auto',values:{type:'dynamic',path:[19,1],…}}}
+```
+
+Verified on 7.24: with a certificate assigned, `/caps-man/manager` sends `0x2=2` and the API prints
+`certificate=server-tik4net` — while the unmapped-optional rule read the id as unset and dropped the
+field, so the one state a caller cares about was the one that could not be read. The rule now stands
+down wherever the field has a `RefHandler`; the reference resolves the id against `[19,1]` exactly as
+`/ip/service`'s certificate (a `defenum` over the same table, `defname:'none'`) already did.
+
+It is the only field in the 7.24 catalog shaped that way: every other `def:4294967295,opt:1` reference
+enum declares its `dynamic` directly, has no static map at all, and was never touched by the rule.
+
+**Still open on the same field.** With no certificate the router sends the all-ones sentinel and the API
+prints the word `none` — a value, not an omission, and the second known instance of §33.5 after
+`/certificate`'s `trust-store`. One sample is not a rule, so nothing renders it yet.
+
+### 32.7 A scalar `union` or `tuple` holds the label; its children hold the ids
+
+§30 records `union` and `tuple` as shapes a LIST ELEMENT can take. They are also field shapes in their
+own right, and there the parser loses them: it takes a field's key from the declaration's own `id`, and
+these declarations have none — the name is on the parent and the ids are on the children.
+
+```
+{name:'Src. Address',type:'union',single:1,
+ c:[{type:'network',id:'u1',maskid:'u2'},{type:'network6',id:'a15',deflen:0,maskid:'u16'}]}
+{name:'Remote',type:'tuple',sep:':',ro:1,
+ c:[{type:'ip6addr',id:'ad',allowipv4:1},{type:'number',id:'ue'}]}
+```
+
+A `union` with `single:1` is one field with alternative wire encodings — the router sends whichever it
+has, each child carrying its own type and `maskid`. A `tuple` is one field the API prints as its
+children joined by `sep`. So the label exists, the ids exist, and nothing connects them: the field is
+dropped, and the API name it would have answered to shows up as a gap.
+
+Four of the remaining names are exactly this, verified against both the window and the wire on 7.24:
+`/ip/ipsec/policy` `src-address`/`dst-address` (unions of `network`+`network6`; the record carries
+`0x15`/`0x17` with their lengths at `0x16`/`0x18`, and the API prints `::/0`), `/snmp` `src-address`
+(union of `ipaddr`+`ip6addr`; the record carries `0x1C`), and `/ip/service` `remote` (tuple; the record
+carries `0xD` and `0xE`, and the API prints `192.168.4.31:65504`).
+
+The shipped `AddrPortPairs` table is a hand-written special case of the tuple — `/ip/hotspot/profile`'s
+`http-proxy` is `{tuple sep:':'}` in everything but name — so deriving tuples removes a table rather
+than adding one.
+
 ## 33. Row state rides on system keys the catalog never names
 
 A record carries more than the window's fields. Four flags in the `0xFE` namespace describe the ROW rather
@@ -1483,6 +1539,27 @@ under it:
   is opened, not while listing, so this is the router's message and not a name we spell wrong. The API
   prints it on every text file.
 
+### 33.2b What is left, checked against the window itself
+
+The `.jg` catalog IS what WinBox draws, so a field the catalog does not declare is one the GUI does not
+show either — reading the catalog and reading the window are the same measurement, except where WinBox
+composes a caption the catalog has no string for. Both were checked against WinBox on 7.24, and the
+answers split three ways.
+
+**Not a field of the window at all.** `/ip/settings` `icmp-rate-mask` (the window has ICMP Rate Limit
+and nothing beside it), `/system/resource` `platform`, `/interface/ethernet` `cable-settings` and
+`orig-mac-address` (the Ethernet tab carries Auto Negotiation and Advertise; Cable Test is an ACTION
+with its own result window), `/system/logging` and `/system/logging/action` `managed`, `/ip/address`
+`actual-interface`. These are API fields WinBox does not offer, not names we spell wrong, and no
+alias can reach them.
+
+**Declared, but the caption lives in the layout rather than in a string.** A named field whose value
+sits in `union`/`tuple` CHILDREN carries the label while the children carry the ids — see §32.7.
+
+**A second window on the same handler.** `/ip/upnp` `show-dummy-rule` is `b3` on the `item` window
+'UPnP Settings', and `[28,0]` also carries the `map` window 'UPnP' whose `b3` is 'Forced External IP'.
+The singleton reads two of its three fields for that reason alone.
+
 ### 33.3 What a WinBox label is not
 
 Three shapes account for most of the pairings, and none of them is a spelling difference:
@@ -1497,34 +1574,6 @@ Three shapes account for most of the pairings, and none of them is a spelling di
   1024 times too small. `/system/resource` on 7.24, exact to the byte: total-memory 4194304 →
   4294967296, free-hdd-space 60152 → 61595648, total-hdd-size 91372 → 93564928. It survived because every
   `kbytes` field but one has a volatile name (`free-`, `total-memory`) that the audit does not compare.
-
-### 32.6 A reference's static map is not its domain
-
-`types.enm.tostr` renders a value with no member in the map as the empty string when `opt` is set, so an
-`opt` enum carrying an unmapped number is the router saying NOT SET — an unsigned certificate's
-`digest-algorithm` arrives as `0` where the API prints nothing.
-
-That reading is only valid while the map IS the domain. A `defenum` wrapping a `dynamic` puts ONE
-sentinel member in front of a referenced TABLE, and every real value is a row id the map has no member
-for by construction:
-
-```
-{name:'Certificate',type:'enm',id:'u2',def:4294967295,opt:1,
- values:{type:'defenum',defid:0,defname:'auto',values:{type:'dynamic',path:[19,1],…}}}
-```
-
-Verified on 7.24: with a certificate assigned, `/caps-man/manager` sends `0x2=2` and the API prints
-`certificate=server-tik4net` — while the unmapped-optional rule read the id as unset and dropped the
-field, so the one state a caller cares about was the one that could not be read. The rule now stands
-down wherever the field has a `RefHandler`; the reference resolves the id against `[19,1]` exactly as
-`/ip/service`'s certificate (a `defenum` over the same table, `defname:'none'`) already did.
-
-It is the only field in the 7.24 catalog shaped that way: every other `def:4294967295,opt:1` reference
-enum declares its `dynamic` directly, has no static map at all, and was never touched by the rule.
-
-**Still open on the same field.** With no certificate the router sends the all-ones sentinel and the API
-prints the word `none` — a value, not an omission, and the second known instance of §33.5 after
-`/certificate`'s `trust-store`. One sample is not a rule, so nothing renders it yet.
 
 ### 33.5 One sentinel is a value
 
