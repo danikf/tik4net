@@ -1559,6 +1559,48 @@ under it. One was ours and is fixed — `type` was answering `5` where the API s
   is opened, not while listing, so this is the router's message and not a name we spell wrong. The API
   prints it on every text file.
 
+### 33.2c An empty table is not agreement
+
+A path with no rows is compared 0 rows against 0 rows, agrees on an empty vocabulary, and is reported
+OK. On a freshly provisioned CHR that is **94 of the audit's 155 paths** — more than half the audit
+measuring nothing while reading green, and by a wide margin its largest blind spot.
+
+`WinboxNativeAuditFixtures` closes it: one row in every table that can be written without hardware,
+seeded before the native connection opens and removed in a `finally`, since residue is a defect the
+next run inherits rather than a mess to tidy by hand. Rows are named `tik4net-fx-…` and a sweep runs
+before seeding, so a killed run cannot collide with the next one. A recipe the router refuses is
+recorded and skipped, never fatal — the report carries the skip list, so a recipe that is simply wrong
+stays visible.
+
+What 62 seeded paths did to the numbers:
+
+| | stock router | seeded |
+|---|---|---|
+| API field slots compared | 669 | 1349 |
+| names native does not report | 26 | 129 |
+| MISMATCH | 0 | 2 |
+| VALUE-DIFF | 0 | 13 |
+
+So the audit's green tally rested on measuring half the tables. The fifteen defects it now names fall
+into families rather than being fifteen unrelated bugs:
+
+* **A sentinel the API spells as a word.** `mtu: auto` where native says `0` (five paths),
+  `horizon: none` → `0`, `delay-threshold: none` → `0s`, `master-configuration: *FFFFFFFF` →
+  `4294967295`, `group-authority: ''` → `none`. The same shape as §33.5.
+* **A number the API prints in hex.** Bridge `priority: 0x8000` → `32768`, `port-id: 0x80.1` →
+  `128.1`, and the two designated-* ids that embed one.
+* **A duration the API prints with a unit.** `interval: 1s` → `1`, `transmit-delay: 1s` → `1`,
+  `mii-interval: 100ms` → `100`, `down-delay`/`up-delay: 0ms` → `0`.
+* **An enum member spelled differently.** `client-mac` → `mac-address`, `ipencap` → `ip-encap`.
+* **Plurals and outright missing names.** `/ip/dhcp-server/network` reports `dhcp-options` for
+  `dhcp-option` and `caps-managers` for `caps-manager`, and does not report `dns-server`,
+  `ntp-server` or `wins-server` at all.
+* **A row count.** `/ip/dns/cache` returns two rows to the API's one.
+
+None of these are fixed yet; they are recorded here because the measurement that found them is now
+part of the audit. The audit is consequently RED until they are, which is the correct state for a
+diagnostic that has just been told where to look.
+
 ### 33.2b What is left, checked against the window itself
 
 The `.jg` catalog IS what WinBox draws, so a field the catalog does not declare is one the GUI does not

@@ -193,6 +193,17 @@ namespace tik4net.integrationtests
                 // than compared cleverly.
                 ["system-offset"] = "integer milliseconds on the wire vs thousandths over the API, and it steps per NTP poll",
             },
+            // The DNS cache is not a configuration table: its rows appear and expire while the audit runs,
+            // and `ttl` is a live countdown, so the two transports read it a moment apart and differ by the
+            // moment. Excusing the field, not the path — every other name on it is still compared.
+            ["/ip/dns/cache"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["ttl"] = "a live countdown; the two transports read it at different instants",
+            },
+            ["/ip/dns/cache/all"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["ttl"] = "a live countdown; the two transports read it at different instants",
+            },
         };
 
         /// <summary>The fields excused on <paramref name="path"/>, or null when none are.</summary>
@@ -321,7 +332,18 @@ namespace tik4net.integrationtests
             // separately because the pass/fail check is a half-threshold and cannot see it (see the OK line).
             int apiFieldSlots = 0, notReported = 0;
 
+            var fixtures = default(WinboxNativeAuditFixtures);
             using (var api = Open(TikConnectionType.Api))
+            {
+            // Half the audited paths are empty on a stock router and are compared 0 rows against 0 rows —
+            // an OK line that measured nothing. Put one row in each table that can be written without
+            // hardware first, and take them away in the finally: residue on the router is a defect the
+            // NEXT run inherits. The native connection is opened AFTER seeding, so its .jg catalog and
+            // reference tables see the rows.
+            fixtures = new WinboxNativeAuditFixtures(api);
+            try
+            {
+            fixtures.SeedAll();
             using (var native = Open(TikConnectionType.WinboxNative))
             {
                 foreach (string path in EntityPaths())
@@ -434,6 +456,17 @@ namespace tik4net.integrationtests
                     }
                 }
             }
+            }
+            finally
+            {
+                fixtures.Dispose();
+            }
+            }
+
+            report.Add("");
+            report.Add($"SEEDED {fixtures.SeededPaths.Count} paths that are empty on a stock router");
+            foreach (string s2 in fixtures.Skipped) report.Add($"  seed-skipped {s2}");
+            foreach (string s2 in fixtures.Leaked) report.Add($"  SEED NOT REMOVED {s2}");
 
             // The tallies go in the FILE as well as the console: the report is what gets read later (and
             // diffed against the last run), and a list of lines with no totals under it invites counting
@@ -458,6 +491,9 @@ namespace tik4net.integrationtests
             Assert.AreEqual(0, mismatched, "paths where WinBox-native disagrees with the API — see the report");
             Assert.AreEqual(0, valueMismatched,
                 "paths that read the right window but decode a value the API spells differently — see the report");
+            Assert.AreEqual(0, fixtures.Leaked.Count,
+                "fixture rows this run could not remove — the router is holding residue: "
+                + string.Join("; ", fixtures.Leaked));
             Assert.AreEqual(0, staleGaps.Count,
                 "these now agree with the API and must be removed from the table naming them: "
                 + string.Join(", ", staleGaps));
