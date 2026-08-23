@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Net.Security;
 using System.Text;
 using System.Threading;
@@ -436,6 +436,13 @@ namespace tik4net
         /// structured M2 CRUD calls (no terminal), translating API paths/field names to/from WinBox handler
         /// and field keys via the router's version-matched <c>.jg</c> catalog. Requires the <c>winbox</c>
         /// service to be enabled (default).
+        /// <para><b>Experimental.</b> That catalog mapping is reconstructed rather than published, so
+        /// translating RouterOS API syntax into M2 — which addresses everything by number — is not a
+        /// straightforward one: common tables are covered, an exotic table or verb may need one of the
+        /// mappings below. <b>For production work prefer
+        /// <see cref="CreateWinboxCliConnection"/></b>, the stable, proven transport on the same encrypted
+        /// channel, which drives the router's own CLI and needs no name mapping at all. See
+        /// <see cref="WinboxNativeConnection"/> and the wiki page <i>WinBox-Native-connection</i>.</para>
         /// </summary>
         /// <param name="configure">
         /// Optional hook to configure the connection <b>before it opens</b> — the place to register
@@ -479,6 +486,9 @@ namespace tik4net
         /// Creates and opens a WinBox native-M2 connection over the MAC layer (UDP port 20561). Same
         /// structured M2 CRUD as <see cref="CreateWinboxNativeConnection"/>, but works without an IP route
         /// to the router. Requires <c>/tool/mac-server/mac-winbox set allowed-interface-list=all</c>.
+        /// <para><b>Experimental</b>, for the same reason as <see cref="CreateWinboxNativeConnection"/>.
+        /// <b>For production work prefer <see cref="CreateWinboxCliMacConnection"/></b> — the stable, proven
+        /// transport on the same encrypted channel and the same MAC carrier.</para>
         /// </summary>
         /// <param name="configure">
         /// Optional hook to configure the connection before it opens — any of the mappings documented on

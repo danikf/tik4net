@@ -75,6 +75,14 @@
         /// version-matched <c>.jg</c> catalog, so the O/R mapper works unchanged.
         /// Listen/Streaming are not supported.
         /// Requires the <c>winbox</c> service to be enabled on the router (default).
+        /// <para><b>Experimental.</b> M2 addresses everything by number, and the API name ↔ WinBox key
+        /// mapping is reconstructed from the router's own <c>.jg</c> catalog rather than being a published
+        /// contract, so translating RouterOS API syntax into it is not a straightforward one: it covers
+        /// common tables, but an exotic table or verb may need a session mapping, and mapping details may
+        /// still change between releases. <b>For production work prefer <see cref="WinboxCli"/></b> — the
+        /// stable, proven transport on the same encrypted channel, which drives the router's own CLI and so
+        /// needs no name mapping at all. The two are interchangeable at the <c>ITikConnection</c> level.
+        /// See the wiki page <i>WinBox-Native-connection</i> ("The mapping problem").</para>
         /// </summary>
         WinboxNative,
         /// <summary>
@@ -86,6 +94,12 @@
         /// Requires <c>/tool/mac-server/mac-winbox set allowed-interface-list=all</c> on the router.
         /// The router's MAC address is discovered via MNDP (up to 5 s) unless
         /// <see cref="WinboxNativeMac.WinboxNativeMacConnection.RouterMac"/> is set before opening.
+        /// <para><b>Experimental</b>, for the same reason as <see cref="WinboxNative"/>: the API name ↔
+        /// WinBox key mapping is reconstructed from the router's <c>.jg</c> catalog, not published, so the
+        /// translation from RouterOS API syntax is not a straightforward one. <b>For production work prefer
+        /// <see cref="WinboxCliMac"/></b> — the stable, proven transport on the same encrypted channel and
+        /// the same MAC carrier, which needs no name mapping at all. See the wiki page
+        /// <i>WinBox-Native-MAC-connection</i>.</para>
         /// </summary>
         WinboxNativeMac
     }

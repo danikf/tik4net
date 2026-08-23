@@ -1,4 +1,4 @@
-using tik4net.Winbox;
+﻿using tik4net.Winbox;
 using tik4net.WinboxNative;
 
 namespace tik4net.WinboxNativeMac
@@ -8,8 +8,18 @@ namespace tik4net.WinboxNativeMac
     /// client_type 0x0f90). Same structured getall/get/set/add/remove/move CRUD as
     /// <see cref="WinboxNative.WinboxNativeConnection"/>, but the M2 messages travel over the MAC
     /// layer instead of TCP 8291 — so it works without an IP route to the router.
+    /// <para><b>Experimental.</b> See the remarks for what that means and what to use instead in
+    /// production.</para>
     /// </summary>
     /// <remarks>
+    /// <para><b>Experimental</b>, for the same reason as
+    /// <see cref="WinboxNative.WinboxNativeConnection"/>: the API name ↔ WinBox key mapping is
+    /// reconstructed from the router's <c>.jg</c> catalog, not published, so the translation from RouterOS
+    /// API syntax is not a straightforward one.
+    /// <b>For production work prefer <see cref="WinboxCliMac.WinboxCliMacConnection"/></b> — the stable,
+    /// proven transport on the same encrypted channel and the same MAC carrier, which needs no name mapping
+    /// at all and is interchangeable at the <see cref="ITikConnection"/> level. See the wiki page
+    /// <i>WinBox-Native-MAC-connection</i>.</para>
     /// Reuses the whole native-M2 engine (.jg catalog resolver, field encode/decode, streaming
     /// monitors, Safe Mode) from <see cref="WinboxNative.WinboxNativeConnection"/>; only the channel
     /// is swapped to the MAC-layer <c>WinboxMacM2Session</c> (EC-SRP5 + AES in MAC DATA packets).

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -15,8 +15,22 @@ namespace tik4net.WinboxNative
     /// Performs reads as structured M2 <c>getall</c>/<c>get-one</c> calls (no terminal), translating
     /// numeric WinBox field keys back to RouterOS API field names so the existing O/R mapper works
     /// unchanged.
+    /// <para><b>Experimental.</b> See the remarks for what that means and what to use instead in
+    /// production.</para>
     /// </summary>
     /// <remarks>
+    /// <para><b>Experimental — and for one specific reason.</b> M2 addresses everything by NUMBER, and the
+    /// API name ↔ WinBox key mapping is reconstructed from the router's own <c>.jg</c> catalog rather than
+    /// being a published contract, so translating RouterOS API syntax into it is not a straightforward one.
+    /// It covers common tables, but an exotic table or verb may need a session mapping
+    /// (<c>PathAlias</c>/<c>PathOverride</c>/<c>FieldOverride</c>), and mapping details may still change
+    /// between releases.
+    /// <b>For production work prefer <see cref="WinboxCli.WinboxCliConnection"/></b> — the stable, proven
+    /// transport on the same encrypted WinBox channel (same port, same crypto), which drives the router's
+    /// own CLI and so needs no name mapping at all. The two are interchangeable at the
+    /// <see cref="ITikConnection"/> level, so moving between them is a one-line change to the
+    /// <see cref="TikConnectionType"/>. The wiki page <i>WinBox-Native-connection</i> explains the mapping
+    /// problem in full ("The mapping problem: API names ↔ WinBox keys").</para>
     /// <para>Full CRUD: <see cref="ITikConnection.CreateCommand()"/> + <c>ExecuteList</c>/<c>LoadAll</c>
     /// route reads through native M2 <c>getall</c>/<c>get-one</c>; <c>Save</c>/<c>Add</c>/<c>Delete</c>/<c>Move</c>
     /// route writes through native <c>set</c>/<c>add</c>/<c>remove</c>/<c>move</c>.</para>
