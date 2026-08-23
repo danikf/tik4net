@@ -102,6 +102,53 @@ namespace tik4net.unittests.Winbox
         }
 
         [TestMethod]
+        public void AnAllOnesNetmaskIsSlashThirtyTwoAndNotAnUnsetMarker()
+        {
+            // A .jg field declaring 4294967295 as its default is normally the router saying "not set" — a
+            // logging action's Syslog Severity arrives that way on a row the API prints nothing for. A
+            // netmask is the exception: types.netmask.tostr is netmask2len(val), so all-ones is /32, and
+            // all five netmask fields in the 7.24 catalog declare it as their default. The three stock pcq
+            // queue types carry it, and the API prints pcq-src-address-mask=32 where the field used to be
+            // dropped entirely.
+            const string Window =
+                "[{name:'Queues',title:'Queues',group:'Queues',c:[" +
+                "{name:'Queue Types',title:'Queue Type',type:'map',path:[ 20,10 ],c:[" +
+                  "{name:'Src. Address Mask',type:'netmask',id:'u1fc',def:4294967295}," +
+                  "{name:'Total Limit',type:'number',id:'u1f8'}]}" +
+                "]}]";
+            var catalog = Parse(Window);
+            var resolver = new WinboxFieldResolver("/queue/type", new[] { 20, 10 }, catalog,
+                                                   new Dictionary<string, int>());
+            var decoded = Decode(resolver, catalog,
+                (0x1FC, "u32", 4294967295u), (0x1F8, "u32", 2000u));
+
+            Assert.AreEqual("32", decoded["src-address-mask"],
+                "the LENGTH, as types.netmask.tostr and RouterOS both give it");
+            Assert.AreEqual("2000", decoded["total-limit"]);
+        }
+
+        [TestMethod]
+        public void ANarrowerNetmaskReadsAsItsOwnLength()
+        {
+            const string Window =
+                "[{name:'Queues',title:'Queues',group:'Queues',c:[" +
+                "{name:'Queue Types',title:'Queue Type',type:'map',path:[ 20,10 ],c:[" +
+                  "{name:'Src. Address Mask',type:'netmask',id:'u1fc',def:4294967295}]}" +
+                "]}]";
+            var catalog = Parse(Window);
+            var resolver = new WinboxFieldResolver("/queue/type", new[] { 20, 10 }, catalog,
+                                                   new Dictionary<string, int>());
+
+            Assert.AreEqual("24", Decode(resolver, catalog, (0x1FC, "u32", 0xFFFFFF00u))["src-address-mask"]);
+
+            // And the write side takes the same spelling back — plus the dotted one, as
+            // types.netmask.fromstr does.
+            var byLength = resolver.EncodeField("src-address-mask", "24");
+            var byMask = resolver.EncodeField("src-address-mask", "255.255.255.0");
+            Assert.AreEqual(BitConverter.ToString(byMask[0]), BitConverter.ToString(byLength[0]));
+        }
+
+        [TestMethod]
         public void AKibibyteFieldReadsAsTheBytesTheApiPrints()
         {
             // webfig's types.kbytes renders "N KiB" straight from the wire number — no scale multiply,

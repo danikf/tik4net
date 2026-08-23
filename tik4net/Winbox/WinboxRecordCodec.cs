@@ -216,6 +216,12 @@ namespace tik4net.Winbox
                 {
                     case "ipaddr":
                         return WinboxFieldResolver.IpFromU32(value);
+                    case "netmask":
+                        // types.netmask.tostr is netmask2len(val).toString() — the LENGTH, not the mask,
+                        // and RouterOS agrees: a pcq queue type prints pcq-src-address-mask=32 for the
+                        // 4294967295 on the wire. Without this the raw u32 reached the caller.
+                        return WinboxFieldResolver.MaskToPrefix(value)
+                                   .ToString(CultureInfo.InvariantCulture);
                     case "network":
                     {
                         string addr = WinboxFieldResolver.IpFromU32(value);

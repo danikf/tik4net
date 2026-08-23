@@ -439,7 +439,7 @@ them still fails the run.
 | `/interface/ethernet` | `auto-negotiation` | WinBox's field is the LINK's live state (`not-available` on a CHR's virtual NIC), the API's is the SETTING (`true`) — two fields, one label |
 
 Last run on RouterOS 7.24: `OK=154 KNOWN-GAP=1 MISMATCH=0 VALUE-DIFF=0 UNMAPPED=0 ROUTER-N/A=7`, and
-`FIELD-NAMES not reported by native: 41/669 (6%)`.
+`FIELD-NAMES not reported by native: 37/669 (5%)`.
 
 That second number is not an assertion — it is the shortfall the pass/fail check cannot see, because the
 name check passes a path at half the API's vocabulary. It is reported so a green run cannot hide it.

@@ -1429,7 +1429,7 @@ at one of those keys keeps its own name for it.
 
 `WinboxNativePathMapAuditTest` passes a path when native reports at least HALF the API's field names, so
 everything between half and all of that vocabulary was invisible in a green tally. Counting it instead of
-thresholding it: **41 of 669 API field names (6%) are still not reported by native**, down from 111 before
+thresholding it: **37 of 669 API field names (5%) are still not reported by native**, down from 111 before
 the row-state keys and 82 before the pairings below. The report names the missing fields on the passing
 lines rather than only on the failing ones.
 
@@ -1475,6 +1475,22 @@ Three shapes account for most of the pairings, and none of them is a spelling di
   1024 times too small. `/system/resource` on 7.24, exact to the byte: total-memory 4194304 →
   4294967296, free-hdd-space 60152 → 61595648, total-hdd-size 91372 → 93564928. It survived because every
   `kbytes` field but one has a volatile name (`free-`, `total-memory`) that the audit does not compare.
+
+### 33.5 One sentinel is a value
+
+A `.jg` field declaring `4294967295` as its default is normally the router saying NOT SET — a logging
+action's `Syslog Severity` arrives that way on a row the API prints nothing for. A `netmask` is the
+exception: `types.netmask.tostr` is `netmask2len(val)`, so all-ones is `/32`, and all five netmask fields
+in the 7.24 catalog declare it as their default. The three stock pcq queue types carry it and the API
+prints `pcq-src-address-mask=32`, where the field was dropped from the record entirely.
+
+Two halves were wrong and each hid the other: the field was suppressed, and nothing rendered a `netmask` as
+a LENGTH — so un-suppressing it alone would have produced `4294967295`. The write side takes both spellings
+back, `24` and `255.255.255.0`, as `types.netmask.fromstr` does.
+
+The same sweep finds one other field whose all-ones default is a value rather than a sentinel:
+`/certificate`'s `trust-store` is a `set` at `u2d` with `def:4294967295`, and the API prints `all` for it —
+a spelling the members list has no word for. Left open.
 
 ### 33.4 A field's `title` is the API's name for it
 

@@ -321,8 +321,16 @@ namespace tik4net.Winbox
         /// True when this field declares the <see cref="UnsetSentinel"/> as its default and the catalog gives
         /// that number no label of its own — so a record carrying it is telling us the field is not set.
         /// </summary>
+        /// <remarks>
+        /// A <c>netmask</c> is exempt, because for one all-ones is not a sentinel but a VALUE:
+        /// <c>types.netmask.tostr</c> is <c>netmask2len(val)</c>, so 4294967295 is <c>/32</c>. All five
+        /// netmask fields in the 7.24 catalog declare it as their default, and RouterOS prints it — the
+        /// three stock pcq queue types answer <c>pcq-src-address-mask=32</c> where this rule dropped the
+        /// field entirely.
+        /// </remarks>
         internal bool IsUnsetValue(long value)
             => value == UnsetSentinel && Def == UnsetSentinel
+               && !string.Equals(UiType, "netmask", StringComparison.OrdinalIgnoreCase)
                && (EnumMap == null || !EnumMap.ContainsKey(unchecked((int)UnsetSentinel)));
 
         internal WinboxJgField(string apiName, int key, string wireType, bool readOnly,

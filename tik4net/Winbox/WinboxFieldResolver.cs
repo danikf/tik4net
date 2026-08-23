@@ -573,11 +573,18 @@ namespace tik4net.Winbox
                     apiToJg: Ci(("enc-algorithms", "encr-algorithms")),
                     jgToApi: Ci(("encr-algorithms", "enc-algorithms"))),
 
+                // The two timeouts were confirmed by writing 17s and 23s and reading both back: every other
+                // TCP timeout on this window is named '<state>-timeout' on both sides, and these two are the
+                // pair where the window drops the suffix.
                 ["/ip/firewall/connection/tracking"] = new FieldAliasSet(
                     apiToJg: Ci(("tcp-max-retrans-timeout", "tcp-max-retransmit-timeout"),
+                               ("tcp-close-timeout", "tcp-close"),
+                               ("tcp-time-wait-timeout", "tcp-time-wait"),
                                ("total-ip4-entries", "total-ipv4-entries"),
                                ("total-ip6-entries", "total-ipv6-entries")),
                     jgToApi: Ci(("tcp-max-retransmit-timeout", "tcp-max-retrans-timeout"),
+                               ("tcp-close", "tcp-close-timeout"),
+                               ("tcp-time-wait", "tcp-time-wait-timeout"),
                                ("total-ipv4-entries", "total-ip4-entries"),
                                ("total-ipv6-entries", "total-ip6-entries"))),
 
@@ -1338,6 +1345,15 @@ namespace tik4net.Winbox
                     uint? ip = PackIpV4(value.Split('/')[0]);
                     if (ip == null) break;
                     result.Add(EncodeU32(key, ip.Value));
+                    return result;
+                }
+                case "netmask":
+                {
+                    // The read side answers in prefix lengths (types.netmask.tostr), so the write side has
+                    // to accept one. MaskFrom takes both spellings — "32" and "255.255.255.255" — which is
+                    // also what types.netmask.fromstr does.
+                    if (value.Length == 0) return result;
+                    result.Add(EncodeU32(key, MaskFrom(value)));
                     return result;
                 }
                 case "macaddr":
