@@ -328,6 +328,13 @@ namespace tik4net.Winbox
                             break;
                         }
                         long v = NumToInt(fp);
+                        // A postfix of s or ms says this fixedpoint is a TIME, and RouterOS prints a time in
+                        // its own compound form rather than as a decimal: /interface/vrrp's interval
+                        // (scale:100, postfix:'s') reads 1s at 100 and 1s500ms at 150 — measured by moving
+                        // the value, since 1.5 and 1s500ms are the same quantity spelled two ways and only
+                        // the router says which spelling is its own.
+                        if (IsSecondsPostfix(jf.Postfix) || IsMillisecondsPostfix(jf.Postfix))
+                            return FormatDuration(v, DurationTicksPerSecond(jf), DurationZeroUnit(jf));
                         int scale = jf.Scale < 1 ? 1 : jf.Scale;
                         if (scale == 1) return v.ToString(CultureInfo.InvariantCulture);
                         string sign = v < 0 ? "-" : "";
@@ -580,6 +587,13 @@ namespace tik4net.Winbox
                     else TraceNonNumeric("enum", value);   // falls through to the raw text, see above
                 }
             }
+            // A plain number whose postfix says milliseconds is a duration too — nothing above catches it,
+            // because the .jg types it `number` and only the unit beside the box says otherwise.
+            if (jf != null && value != null && IsMillisecondsPostfix(jf.Postfix)
+                && string.Equals(jf.UiType, "number", StringComparison.OrdinalIgnoreCase)
+                && WinboxFieldResolver.TryToInt64(value, out long ms))
+                return FormatDuration(ms, DurationTicksPerSecond(jf), DurationZeroUnit(jf));
+
             return FormatValue(wireType, value);
         }
 
@@ -677,10 +691,32 @@ namespace tik4net.Winbox
             return false;
         }
 
-        // The only postfix acted on. 'min', 'MHz', '%' and the rest are units the API spells the same way
-        // WinBox does (a bare number), so appending them would invent text the router never prints.
+        // The postfixes acted on: the two that mean TIME. 'min', 'MHz', '%' and the rest are units the API
+        // spells the same way WinBox does (a bare number), so appending them would invent text the router
+        // never prints — but a duration RouterOS does spell out, and in its own compound form.
+        //
+        // 'ms' was on the wrong side of that line until a seeded audit could see a bonding row: webfig paints
+        // `100` beside a box labelled ms, and the API prints `100ms`. Not an appended unit either — setting
+        // mii-interval=1500ms reads back `1s500ms`, so the value is a DURATION, in milliseconds.
         private static bool IsSecondsPostfix(string? postfix)
             => string.Equals(postfix, "s", StringComparison.Ordinal);
+
+        private static bool IsMillisecondsPostfix(string? postfix)
+            => string.Equals(postfix, "ms", StringComparison.Ordinal);
+
+        /// <summary>
+        /// Ticks per second for a field whose postfix says it is a duration: the displayed number is
+        /// <c>value/scale</c> in that unit, so a millisecond field packs a thousand more of them into a
+        /// second than a seconds field does.
+        /// </summary>
+        private static int DurationTicksPerSecond(WinboxJgField jf)
+        {
+            int scale = jf.Scale < 1 ? 1 : jf.Scale;
+            return IsMillisecondsPostfix(jf.Postfix) ? scale * 1000 : scale;
+        }
+
+        private static string DurationZeroUnit(WinboxJgField jf)
+            => IsMillisecondsPostfix(jf.Postfix) ? "ms" : "s";
 
         // webfig `types.multibignumber = inherit(types.multinumber)` — the same list, elements eight bytes
         // wide instead of four. Both its element types (`bignumber`, `bigbitrate`) sit on types.number, so an
@@ -958,7 +994,7 @@ namespace tik4net.Winbox
         /// set and the omit-zeroes rule are read off the API's own output on 7.23.2 (604800 → <c>1w</c>,
         /// 300 → <c>5m</c>, 0 → <c>0s</c>).
         /// </remarks>
-        private static string FormatDuration(long ticks, int scale)
+        private static string FormatDuration(long ticks, int scale, string zeroUnit = "s")
         {
             if (scale < 1) scale = 1;
             bool negative = ticks < 0;
@@ -983,8 +1019,9 @@ namespace tik4net.Winbox
             // that in milliseconds. Dropping it would report a value the router did not give us.
             if (remainder > 0) sb.Append(remainder * 1000 / scale).Append("ms");
 
-            // Everything was zero — which is a value, and the API prints it as 0s rather than as nothing.
-            if (sb.Length == 0 || (negative && sb.Length == 1)) sb.Append("0s");
+            // Everything was zero — which is a value, and the API prints it as a zero in the unit the FIELD
+            // is expressed in, not in seconds: a bonding down-delay of nothing reads `0ms`, not `0s`.
+            if (sb.Length == 0 || (negative && sb.Length == 1)) sb.Append("0").Append(zeroUnit);
             return sb.ToString();
         }
 

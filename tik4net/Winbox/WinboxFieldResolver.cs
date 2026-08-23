@@ -634,6 +634,21 @@ namespace tik4net.Winbox
                                                              uiType: "multi", elementUiType: "addr"),
                     }),
 
+                // /routing/ospf/interface-template: the template window types Transmit Delay as a plain
+                // `number` (u2c700b, max:65535 min:1) while the live 'OSPF Interface' window on [44,111]
+                // types the SAME key as an `interval` — and RouterOS prints `1s`, siding with the second.
+                // WinBox is not wrong about its own box; the API is simply a different contract, and ours.
+                // Typed here per path rather than by preferring `interval` wherever two windows disagree:
+                // that rule would reach every such pair in the catalog on the strength of one example.
+                ["/routing/ospf/interface-template"] = new FieldAliasSet(
+                    apiToJg: Ci(),
+                    jgToApi: Ci(),
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["transmit-delay"] = new WinboxJgField("transmit-delay", 0x2C700B, "u32", false,
+                                                               uiType: "interval"),
+                    }),
+
                 // /system/health: the router sends both of the API's fields and the catalog names neither.
                 //
                 // [24,14] hosts two .jg windows — 'Settings' (fan control) and the x86-gated 'System Health'

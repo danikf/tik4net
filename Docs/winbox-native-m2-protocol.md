@@ -1579,7 +1579,7 @@ What 62 seeded paths did to the numbers:
 | API field slots compared | 669 | 1349 |
 | names native does not report | 26 | 129 |
 | MISMATCH | 0 | 2 |
-| VALUE-DIFF | 0 | 13 → 9 |
+| VALUE-DIFF | 0 | 13 → 7 |
 
 So the audit's green tally rested on measuring half the tables. The fifteen defects it now names fall
 into families rather than being fifteen unrelated bugs:
@@ -1596,8 +1596,18 @@ into families rather than being fifteen unrelated bugs:
   the default member.
 * **A number the API prints in hex.** Bridge `priority: 0x8000` → `32768`, `port-id: 0x80.1` →
   `128.1`, and the two designated-* ids that embed one.
-* **A duration the API prints with a unit.** `interval: 1s` → `1`, `transmit-delay: 1s` → `1`,
-  `mii-interval: 100ms` → `100`, `down-delay`/`up-delay: 0ms` → `0`.
+* **A duration the API prints with a unit** — **closed**. A `postfix` of `s` or `ms` says the number is
+  a TIME, and RouterOS prints a time in its own compound form rather than as the number webfig paints
+  beside the unit. Both halves were measured by moving the value rather than inferred: `mii-interval`
+  set to `1500ms` reads back `1s500ms`, and `/interface/vrrp`'s interval (a `fixedpoint`, `scale:100`,
+  `postfix:'s'`) reads `1s` at 100 and `1s500ms` at 150 — so `1.5` and `1s500ms` are the same quantity
+  and only the router says which spelling is its. `ms` had been on the excluded side of
+  `IsSecondsPostfix`, whose comment claimed the API spells those units the way WinBox does; a seeded
+  bonding row disproved it. A zero now carries the field's OWN unit (`0ms`, not `0s`).
+  `/routing/ospf/interface-template` needed one more thing: its window types `Transmit Delay` as a
+  plain `number` where the live 'OSPF Interface' window types the SAME key as an `interval`, and the
+  API sides with the second. Typed per path rather than by preferring `interval` wherever two windows
+  disagree — that rule would reach every such pair on the strength of one example.
 * **An enum member spelled differently.** `client-mac` → `mac-address`, `ipencap` → `ip-encap`.
 * **Plurals and outright missing names.** `/ip/dhcp-server/network` reports `dhcp-options` for
   `dhcp-option` and `caps-managers` for `caps-manager`, and does not report `dns-server`,
