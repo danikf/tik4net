@@ -603,12 +603,35 @@ namespace tik4net.Winbox
                 // field (u22), two vocabularies. The base 'All Routes' window's numflag on that key
                 // (4:['active','A']) is what says which member the API's true stands for. Derived rather
                 // than renamed, so `contribution` survives alongside it.
+                //
+                // The route's ORIGIN is the same shape again, and a bigger one: WinBox has ONE enum for it,
+                // 'Belongs To' at 0x128, while the API splits it into a family of bools and prints only the
+                // member that is true — `connect=true` on a connected route, `dhcp=true` on the one the DHCP
+                // client installed, `static=true` on a hand-written one, and no key at all for the rest. So
+                // three names the audit called API-only are one field we already read.
+                //
+                // All three were watched on the wire on 7.24: the connected and DHCP routes of a stock CHR
+                // carry 0x128=connected and 0x128=dhcp, and adding a static route to a scratch prefix made a
+                // third row appear carrying 0x128=static, which vanished with it again. RouterOS names more
+                // origins than that (bgp, ospf, rip, …); they are deliberately absent, since a name mapped
+                // onto an enum member nobody has ever seen the router send is a guess.
+                //
+                // Unlike the API, native answers `false` rather than nothing on a row of another origin —
+                // that is how DerivedBools works, and it is what `active` already does.
                 ["/ip/route"] = new FieldAliasSet(
                     apiToJg: Ci(),
                     jgToApi: Ci(),
                     derivedBools: new Dictionary<string, Tuple<string, string>>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["active"] = Tuple.Create("contribution", "active"),
+                        ["active"]  = Tuple.Create("contribution", "active"),
+                        ["connect"] = Tuple.Create("belongs-to", "connected"),
+                        ["dhcp"]    = Tuple.Create("belongs-to", "dhcp"),
+                        ["static"]  = Tuple.Create("belongs-to", "static"),
+                    },
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["immediate-gw"] = new WinboxJgField("immediate-gw", 0x108, "addr[]", true,
+                                                             uiType: "multi", elementUiType: "addr"),
                     }),
 
                 // /system/health: the router sends both of the API's fields and the catalog names neither.

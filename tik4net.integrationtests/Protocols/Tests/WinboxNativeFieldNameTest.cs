@@ -37,6 +37,17 @@ namespace tik4net.integrationtests
                     : conn.CreateCommand(path + "/print"))
                .ExecuteList().First();
 
+        /// <summary>
+        /// Every row of <paramref name="path"/> from the transport under test, read with <c>detail</c>.
+        /// A CLI transport's bare <c>print</c> returns the COLUMNS RouterOS chose to show, and a route's
+        /// <c>immediate-gw</c> is not one of them — without this the test measures the router's column
+        /// layout and calls a transport broken for obeying it.
+        /// </summary>
+        private IEnumerable<ITikReSentence> AllDetailed(string path)
+            => Connection.CreateCommand(path + "/print",
+                   Connection.CreateParameter("detail", "", TikCommandParameterFormat.NameValue))
+               .ExecuteList();
+
         /// <summary>Asserts the transport under test reports <paramref name="field"/> with the API's value.</summary>
         private void AssertAgreesWithApi(string path, string field, bool detail = false)
         {
@@ -300,6 +311,77 @@ namespace tik4net.integrationtests
                 }
                 Assert.IsTrue(compared > 0, $"no {path} row was seen by both transports");
             }
+        }
+
+        /// <summary>
+        /// A route's ORIGIN: WinBox has one enum for it ('Belongs To'), the API a family of bools of which
+        /// it prints only the member that is true. Asserted only where the API DID print one — native
+        /// answers <c>false</c> on the other rows, which is more than the API says rather than different
+        /// from it.
+        /// </summary>
+        [TestMethod]
+        public void ARoutesOriginIsReportedAsTheApisBool()
+        {
+            var expected = new Dictionary<string, Dictionary<string, string>>();
+            using (var api = OpenSideApi())
+                foreach (var r in api.CreateCommand("/ip/route/print").ExecuteList())
+                {
+                    var flags = new Dictionary<string, string>();
+                    foreach (string f in new[] { "connect", "dhcp", "static" })
+                    {
+                        string v = r.GetResponseFieldOrDefault(f, null);
+                        if (v != null) flags[f] = v;
+                    }
+                    if (flags.Count > 0) expected[r.GetId()] = flags;
+                }
+
+            if (expected.Count == 0)
+                Assert.Inconclusive("no route on this router carries an origin flag the API prints");
+
+            var rows = AllDetailed("/ip/route").ToDictionary(r => r.GetId(), r => r);
+
+            int compared = 0;
+            foreach (var e in expected)
+            {
+                if (!rows.TryGetValue(e.Key, out var row)) continue;
+                foreach (var f in e.Value)
+                {
+                    Assert.AreEqual(f.Value, row.GetResponseFieldOrDefault(f.Key, null),
+                        $"/ip/route {e.Key} {f.Key}");
+                    compared++;
+                }
+            }
+            Assert.IsTrue(compared > 0, "no route was seen by both transports");
+        }
+
+        /// <summary>
+        /// <c>immediate-gw</c> is an <c>addr</c> LIST at <c>0x108</c>. The IPv4 route window declares only a
+        /// hyperlink beside it, so the key went unnamed and the field was dropped — though the catalog does
+        /// name it, on the IPv6 window (<c>M108</c>), and the router sends it to both.
+        /// </summary>
+        [TestMethod]
+        public void ARouteReportsItsImmediateGateway()
+        {
+            Dictionary<string, string> expected;
+            using (var api = OpenSideApi())
+                expected = api.CreateCommand("/ip/route/print").ExecuteList()
+                    .Where(r => r.GetResponseFieldOrDefault("immediate-gw", null) != null)
+                    .ToDictionary(r => r.GetId(), r => r.GetResponseField("immediate-gw"));
+
+            if (expected.Count == 0)
+                Assert.Inconclusive("no route on this router has an immediate gateway");
+
+            var rows = AllDetailed("/ip/route")
+                .ToDictionary(r => r.GetId(), r => r.GetResponseFieldOrDefault("immediate-gw", null));
+
+            int compared = 0;
+            foreach (var e in expected)
+            {
+                if (!rows.TryGetValue(e.Key, out string actual)) continue;
+                Assert.AreEqual(e.Value, actual, $"/ip/route {e.Key} immediate-gw");
+                compared++;
+            }
+            Assert.IsTrue(compared > 0, "no route was seen by both transports");
         }
     }
 }

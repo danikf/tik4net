@@ -1507,7 +1507,7 @@ at one of those keys keeps its own name for it.
 
 `WinboxNativePathMapAuditTest` passes a path when native reports at least HALF the API's field names, so
 everything between half and all of that vocabulary was invisible in a green tally. Counting it instead of
-thresholding it: **29 of 669 API field names (4%) are still not reported by native**, down from 111 before
+thresholding it: **26 of 669 API field names (3%) are still not reported by native**, down from 111 before
 the row-state keys, 82 before the pairings below and 35 before the scalar `union`/`tuple` shapes of §32.7. The report names the missing fields on the passing
 lines rather than only on the failing ones.
 
@@ -1589,6 +1589,22 @@ goes on reporting the hardware address — a write that reads as accepted and ch
 holds its MAC entirely in software, and stepping its `admin-mac` moved `0x3E9` with it, leaving no key
 on the old value. Of the four keys a bridge row carries the address under, `0x3E9` is the only one an
 ether or `lo` row has.
+
+**One WinBox enum the API splits into a family of bools.** A route's origin is 'Belongs To' (`0x128`,
+a string) on the window; the API prints `connect=true`, `dhcp=true` or `static=true` and omits the key
+entirely for every origin that is false. Three names the audit called API-only are one field already
+read, closed as `DerivedBools` — the same shape `active` uses. Only the three members the router has
+been seen sending are mapped; RouterOS names more (`bgp`, `ospf`, …) and a name put on an enum member
+nobody has watched arrive is a guess. Native answers `false` where the API says nothing, which is more
+than the API states rather than different from it.
+
+**Declared by the SIBLING family's window.** `immediate-gw` is an `addr` LIST at `0x108`, and the
+router sends it on IPv4 and IPv6 rows alike; the IPv4 route window declares only a `hyperlink` beside
+it (`u21`, a handle into `[44,16]`), so the key went unnamed and the value was dropped. The catalog
+does name it — as `M108` on the IPv6 window — which is why naming the key was enough: the codec
+already renders an `addr[]`, down to the `%ether1` suffix RouterOS prints. Still open on the same
+field: `/ipv6/route` does not report it either, and the reason its own `M108` declaration does not
+reach that path is not yet established, so no alias has been put there.
 
 **A second window on the same handler.** `/ip/upnp` `show-dummy-rule` is `b3` on the `item` window
 'UPnP Settings', and `[28,0]` also carries the `map` window 'UPnP' whose `b3` is 'Forced External IP'.
