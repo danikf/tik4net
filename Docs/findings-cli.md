@@ -211,9 +211,31 @@ form only appears in human-readable `print detail` and is never used for parsing
 `where address=192.168.1.1/24` (unquoted) **matches nothing** — in a `where` expression context, `/`
 and `:` are interpreted as operators. It must be `where address="192.168.1.1/24"`. The safe unquoted
 character set is `[A-Za-z0-9._-]` (`CliCommandBuilder.QuoteForWhere`); anything outside it is
-double-quoted. `*N` (an `.id`) must **not** be quoted — `where .id=*1` works unquoted. Note:
-`name=value` parameters for `add`/`set` do **not** need this quoting — they are not an expression
-context, so `/` and `:` are ordinary characters there.
+double-quoted. `*N` (an `.id`) works unquoted inside a `find` — `where .id=*1` — and also works quoted, so the builder
+quotes it like anything else.
+
+### A `name=value` argument is parsed by the PARAMETER's type, so it needs the same quoting
+
+An unquoted value is not read as text: RouterOS parses it according to the type of the parameter it is
+being given to. `address=10.0.0.0/24` is fine because that parameter is an IP prefix — and the same
+characters are a syntax error on a **script-typed** parameter, where the router parses the value as
+code. `/system/script`'s `source` is the one that shows it:
+
+```
+/system script add name=x source=:nothing     → syntax error (line 1 column 47)
+/system script add name=x source=":nothing"   → accepted, stored as :nothing
+```
+
+Measured on 7.24 against `source`, every one of `` : [ ] ( ) { } ' ? ! ~ < > | & , * / + = `` breaks an
+unquoted value, leading **or** mid-value. `[`, `(` and `{` do not report an error on their own line —
+they open a construct that swallows the *next* command, which then fails at "line 2".
+
+So the safe unquoted set for `name=value` is the same `[A-Za-z0-9._-]` as for `where`, and
+`CliCommandBuilder.IsSafeUnquoted` is shared by both. Quoting costs nothing: an IP prefix, an interface
+reference, a bool, an enum and `numbers=` with a `*`-id were each verified to round-trip unchanged when
+quoted. The rule has to be an allow-list rather than a list of dangerous characters, because the builder
+does not know the parameter's type — and a type nobody has looked at yet must not be able to produce a
+value that is silently mis-sent.
 
 ### Inside double quotes, `$` and `\` are live — an unescaped value is silently rewritten
 
@@ -235,8 +257,9 @@ quotes are the only quoting mechanism — and inside them, **variable substituti
 Full escape set (MikroTik docs, verified for `\$ \\ \" \t \n \_ \41`): `\"` `\\` `\n` `\r` `\t` `\$`
 `\_` `\a` `\b` `\f` `\v` `\<hex>`.
 
-`CliCommandBuilder.QuoteIfNeeded`/`QuoteForWhere` therefore both quote any value containing `$`, `\`,
-whitespace, `;`, `#` or `"`, and escape inside the quotes in the order `\` → `"` → `$` (escaping the
+`CliCommandBuilder.QuoteIfNeeded`/`QuoteForWhere` therefore quote any value that is not entirely
+`[A-Za-z0-9._-]` — which covers `$`, `\`, whitespace, `;`, `#` and `"` along with everything above — and
+escape inside the quotes in the order `\` → `"` → `$` (escaping the
 backslash first, or the pass that escapes `$` would double what the backslash pass already added). An
 actual newline inside a quoted value is left as a real character rather than rewritten to `\n` — RouterOS
 accepts a literal line break inside an open quote (that is how a multi-line script source round-trips),

@@ -422,18 +422,36 @@ as of the last run (RouterOS 7.23.2) it lists:
 
 The comparison is between the binary API and **one other transport**, named by
 `TIK4NET_AUDIT_TRANSPORT`; nothing in it is WinBox-specific except the "no WinBox window" excuse. It
-defaults to `WinboxNative`, which is the transport it was written for and the only one that had been
-measured this way — the other nine had a 21-test smoke subset and whatever entity tests happened to
-touch them.
+defaults to `WinboxNative`, which is the transport it was written for.
 
-The first run against **Telnet**, and therefore against the parser all five CLI transports share:
+Measured so far (RouterOS 7.24, 154 paths, `ROUTER-N/A=7` on every transport — menus this router does
+not have):
 
-```
-OK=125  KNOWN-GAP=0  MISMATCH=9  VALUE-DIFF=21  UNMAPPED=0  ROUTER-N/A=7
-FIELD-NAMES not reported by telnet: 286/1351 (21%)
-```
+| Transport | OK | MISMATCH | VALUE-DIFF | field names missing | WRITES ok/diff/refused | run |
+|---|---|---|---|---|---|---|
+| REST | 155 | 0 | **0** | **0/1338 (0%)** | 207 / 0 / 0 | 51 s |
+| WinBox native | 153 | 0 | 1 | 112/1328 (8%) | 207 / 0 / 0 | 45 s |
+| Telnet | 139 | 0 | 16 | 84/1338 (6%) | 207 / 0 / 0 | 2 m 25 s |
+| SSH | 139 | 0 | 16 | 84/1338 (6%) | 207 / 0 / 0 | 2 m 07 s |
+| WinBox CLI | 138 | 0 | 17 | 84/1338 (6%) | 207 / 0 / 0 | 2 m 39 s |
 
-The 21 value differences are not 21 defects. They are four renderings, because a CLI read is
+WinBox native also carries `KNOWN-GAP=1` (a menu with no WinBox window) and `VALUES-UNCOMPARED=1`; it is
+the only transport with either, because it is the only one that resolves paths to M2 handlers rather than
+typing the path.
+
+**REST matches the binary API exactly** — same field names, same spellings, no writes refused. It renders
+from the same internal representation the API does, so none of the CLI value classes below arise there.
+
+**The CLI family is interchangeable**, which is what sharing one parser and one command builder is
+supposed to mean: Telnet and SSH are identical to the field, and WinBox CLI differs by one — a
+`/ip/firewall/connection` row whose `dstnat` came back `false,dyi`, the truncated tail of the following
+`dying=false` arriving as a duplicate key. That is the WinBox CLI large-output path, not a mapping
+difference; it did not reproduce on a repeat read.
+
+The MAC-layer variants are not in the table: at roughly 5 s per command a full audit over them runs for
+hours, and they share the code above with their TCP siblings.
+
+The value differences are not defects one per line. They are four renderings, because a CLI read is
 `:put [… print as-value]` and `as-value` gives the router's INTERNAL spelling where the API's `print`
 gives the documented one:
 

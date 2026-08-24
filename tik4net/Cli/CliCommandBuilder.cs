@@ -480,7 +480,10 @@ namespace tik4net.Cli
         /// expression context where characters like <c>/</c> (e.g. in <c>192.168.1.1/24</c>) and
         /// <c>:</c> (e.g. MAC/IPv6) are interpreted as operators, so <c>where address=192.168.1.1/24</c>
         /// matches NOTHING. Anything outside a conservative safe set is wrapped in double-quotes.
-        /// (Name=value parameters for add/set do NOT need this — they are not expression context.)
+        /// <para>The safe set is <see cref="IsSafeUnquoted"/>, shared with <see cref="QuoteIfNeeded"/>:
+        /// a name=value argument turned out to need exactly the same treatment, for a different reason —
+        /// there the router parses the value by the PARAMETER'S type, and a script-typed one reads
+        /// punctuation as code. Two contexts, one rule, so they cannot drift apart.</para>
         /// <para>
         /// The safe set excludes <c>$</c>, so a value containing one is always quoted — and inside
         /// those quotes it would be substituted away, silently matching the wrong rows. Escaping is
@@ -498,9 +501,7 @@ namespace tik4net.Cli
             bool safe = true;
             foreach (char c in value)
             {
-                bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
-                          || (c >= '0' && c <= '9') || c == '.' || c == '_' || c == '-';
-                if (!ok) { safe = false; break; }
+                if (!IsSafeUnquoted(c)) { safe = false; break; }
             }
 
             if (safe)
@@ -665,8 +666,9 @@ namespace tik4net.Cli
             || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
-        /// Wraps a value in double-quotes if it contains characters the RouterOS CLI parser would
-        /// otherwise misread, and escapes the characters that are special *inside* those quotes.
+        /// Wraps a value in double-quotes unless every character of it is plainly safe bare
+        /// (<see cref="IsSafeUnquoted"/>), and escapes the characters that are special *inside* those
+        /// quotes.
         /// <para>
         /// Measured on RouterOS 7.23.2 (see <c>Docs/findings-cli.md</c>): inside a double-quoted
         /// value <c>$</c> starts variable substitution and <c>\</c> starts an escape sequence, so an
@@ -699,8 +701,7 @@ namespace tik4net.Cli
             // netstandard2.0's string.IsNullOrEmpty isn't annotated NotNullWhen, so the compiler can't narrow.
             foreach (char c in value!)
             {
-                if (c == ' ' || c == '\t' || c == '\r' || c == '\n'
-                    || c == ';' || c == '#' || c == '"' || c == '$' || c == '\\')
+                if (!IsSafeUnquoted(c))
                 {
                     needsQuote = true;
                     break;
@@ -712,6 +713,30 @@ namespace tik4net.Cli
 
             return "\"" + EscapeInsideQuotes(value) + "\"";
         }
+
+        /// <summary>
+        /// Whether <paramref name="c"/> can stand in an unquoted CLI value.
+        /// </summary>
+        /// <remarks>
+        /// An ALLOW-list, not a deny-list, and that is the point. RouterOS parses an unquoted value
+        /// according to the PARAMETER'S TYPE, so which characters are legal is not a property of the CLI
+        /// grammar that could be enumerated once - <c>address=10.0.0.0/24</c> is fine because that
+        /// parameter is an IP prefix, while <c>source=a/bc</c> is a syntax error because
+        /// <c>/system/script</c>'s <c>source</c> is script-typed and the router parses the value as CODE.
+        /// Measured on RouterOS 7.24 against a script-typed parameter, every one of
+        /// <c>: [ ] ( ) { } ' ? ! ~ &lt; &gt; | &amp; , * / + =</c> breaks it, leading or mid-value. The
+        /// deny-list this replaced listed nine characters and caught none of them.
+        /// <para>Quoting costs nothing: the same values quoted round-trip unchanged through an IP prefix,
+        /// an interface reference, a bool, an enum and <c>numbers=</c> with a <c>*</c>-id, each verified on
+        /// the router. So anything that is not plainly a bare word gets quotes, and a parameter type never
+        /// seen before cannot produce a value that is silently mis-sent.</para>
+        /// <para><c>-</c>, <c>_</c> and <c>.</c> stay unquoted because nearly every RouterOS value is built
+        /// from them (<c>wpa2-psk</c>, <c>ether2</c>, <c>1.5</c>, <c>10.99.0.10-10.99.0.20</c>), and
+        /// quoting all of those would make every wire trace unreadable for no gain.</para>
+        /// </remarks>
+        private static bool IsSafeUnquoted(char c)
+            => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+            || c == '-' || c == '_' || c == '.';
 
         /// <summary>
         /// Escapes the three characters that are special inside a RouterOS double-quoted string.

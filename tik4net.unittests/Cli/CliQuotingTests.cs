@@ -27,11 +27,51 @@ namespace tik4net.unittests.Cli
     {
         // ── QuoteIfNeeded: name=value arguments for add/set ────────────────────
 
+        /// <summary>A bare word goes out bare — letters, digits, and the three joiners RouterOS builds
+        /// nearly every value from.</summary>
         [TestMethod]
         public void QuoteIfNeeded_PlainValue_IsNotQuoted()
         {
             Assert.AreEqual("ether1", CliCommandBuilder.QuoteIfNeeded("ether1"));
-            Assert.AreEqual("192.168.1.1/24", CliCommandBuilder.QuoteIfNeeded("192.168.1.1/24"));
+            Assert.AreEqual("wpa2-psk", CliCommandBuilder.QuoteIfNeeded("wpa2-psk"));
+            Assert.AreEqual("1.5", CliCommandBuilder.QuoteIfNeeded("1.5"));
+            Assert.AreEqual("10.99.0.10-10.99.0.20", CliCommandBuilder.QuoteIfNeeded("10.99.0.10-10.99.0.20"));
+            Assert.AreEqual("tik4net_x", CliCommandBuilder.QuoteIfNeeded("tik4net_x"));
+        }
+
+        /// <summary>
+        /// Punctuation is quoted even where an unquoted value would have been accepted.
+        /// </summary>
+        /// <remarks>
+        /// <c>192.168.1.1/24</c> used to go out bare and works bare — for an IP-prefix parameter. RouterOS
+        /// parses an unquoted value by the PARAMETER'S type, so the same characters are a syntax error on a
+        /// script-typed one: <c>/system/script</c>'s <c>source=:nothing</c> was refused on every CLI
+        /// transport while the API accepted it. Since the builder does not know the parameter's type, the
+        /// rule is an allow-list, and quoting is free — each of these round-trips unchanged on the router.
+        /// </remarks>
+        [TestMethod]
+        public void QuoteIfNeeded_Punctuation_IsQuotedEvenWhereBareWouldHaveWorked()
+        {
+            Assert.AreEqual("\"192.168.1.1/24\"", CliCommandBuilder.QuoteIfNeeded("192.168.1.1/24"));
+            Assert.AreEqual("\"00:15:5D:04:1F:03\"", CliCommandBuilder.QuoteIfNeeded("00:15:5D:04:1F:03"));
+            Assert.AreEqual("\"*5D\"", CliCommandBuilder.QuoteIfNeeded("*5D"));
+            Assert.AreEqual("\"syn,!ack\"", CliCommandBuilder.QuoteIfNeeded("syn,!ack"));
+        }
+
+        /// <summary>
+        /// The one that started it: a script source. Every character measured as breaking an unquoted
+        /// script-typed value on RouterOS 7.24, leading and mid-value.
+        /// </summary>
+        [TestMethod]
+        public void QuoteIfNeeded_ScriptSource_IsQuoted()
+        {
+            Assert.AreEqual("\":nothing\"", CliCommandBuilder.QuoteIfNeeded(":nothing"));
+            foreach (char c in ":[](){}'?!~<>|&,*/+=")
+            {
+                string lead = c + "abc", mid = "a" + c + "bc";
+                Assert.AreEqual("\"" + lead + "\"", CliCommandBuilder.QuoteIfNeeded(lead), "leading '" + c + "'");
+                Assert.AreEqual("\"" + mid + "\"", CliCommandBuilder.QuoteIfNeeded(mid), "mid '" + c + "'");
+            }
         }
 
         [TestMethod]
