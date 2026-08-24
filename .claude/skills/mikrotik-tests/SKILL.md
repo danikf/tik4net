@@ -215,15 +215,14 @@ diagnoses that turned out wrong — is in [`Docs/HISTORY.md`](../../../Docs/HIST
   window. Consequence is an orphan, as above.
 - **`print stats` is not reachable** from the CLI layer, so live counter fields (firewall
   `bytes`/`packets` and similar) come back empty over CLI transports.
-- **The audit's `/routing/rule` move leaves RouterOS 7.24's routing MANAGEMENT interface stuck** — from
-  that moment every `/routing/*` menu and `/ip/route` stops answering, on every transport and in the
-  router's own shell, which never returns a prompt. Forwarding is unaffected and every other menu is
-  instant, so this is the routing process, not connectivity — do not confuse it with a probe row that is
-  dropping traffic (see "Create traffic-path rows disabled" above; that one MacTelnet can fix, this one
-  needs a reboot). `disabled=yes` on every rule involved does NOT prevent it. Signature: the audit's
-  first timeout is the `/routing/rule` move, then seven `SEED NOT REMOVED /routing/…` lines at teardown
-  and a ~3.5-minute gap in `/log` — seven 30-second timeouts. The path is excluded from the audit's
-  ordered tables for that reason; the other fourteen still cover the verb.
+- **Reordering a `/routing/rule` in the same second its rows were added wedges RouterOS 7.24's routing
+  MANAGEMENT interface.** The move returns and the router logs it as applied; from then on every
+  `/routing/*` menu and `/ip/route` times out — on every transport and in the router's own shell, which
+  never returns a prompt. Nothing is logged, not even under `error`, CPU stays idle, and forwarding and
+  every other menu are unaffected, so **the API still answers everything except routing** — this is not
+  the router falling off the network (that one is a probe row dropping traffic, see above; MacTelnet
+  fixes it). Only a reboot clears this one. A three-second settle before the move avoids it, which is
+  what the audit does; `RoutingRuleMoveWedgeRepro` reproduces it in 90 s if you need it again.
 - **`/system/script/run` yields no per-line output** over a terminal — it is fire-and-forget there,
   unlike the binary API.
 - **Never poll a large list without a filter.** Pulling `/log/print` unfiltered inside a poll loop can

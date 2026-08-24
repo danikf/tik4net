@@ -638,42 +638,33 @@ namespace tik4net.integrationtests
                 "/ip/firewall/filter", "/ip/firewall/nat", "/ip/firewall/mangle", "/ip/firewall/raw",
                 "/interface/bridge/filter", "/interface/bridge/nat",
                 "/ip/hotspot/walled-garden", "/ip/hotspot/walled-garden/ip", "/ip/proxy/access",
-                // "/routing/rule" — see RoutingRuleMoveWedgesTheRoutingProcess below.
-                "/routing/filter/rule",
+                "/routing/rule", "/routing/filter/rule",
                 "/caps-man/provisioning", "/caps-man/access-list",
                 "/interface/wifi/provisioning", "/interface/wifi/access-list",
             };
 
 
         /// <summary>
-        /// Why <c>/routing/rule</c> is not in <see cref="OrderedPaths"/>.
+        /// How long the two fresh rows are left to settle before the move.
         /// </summary>
         /// <remarks>
-        /// This probe's move on <c>/routing/rule</c> leaves RouterOS 7.24's routing process not answering
-        /// its MANAGEMENT interface: from that call on, every <c>/routing/*</c> menu and <c>/ip/route</c>
-        /// times out — on every transport, and in the router's own shell, which never returns a prompt.
-        /// It is the audit's FIRST timeout, and the seven <c>SEED NOT REMOVED /routing/…</c> lines at
-        /// teardown are all downstream of it. Only a reboot clears it.
-        /// <para>What it is NOT: the router is otherwise healthy — forwarding keeps working and every other
-        /// menu answers instantly — so this is not the router falling off the network, which is the other
-        /// way an audit can appear to kill the lab (see the fixture rows' <c>disabled=yes</c>). And it is
-        /// not OSPF or BGP: every one of those reads, toggles, adds and unsets passed earlier in the same
-        /// run.</para>
-        /// <para>What has been ruled out, each by measurement: <c>disabled=yes</c> on every rule involved
-        /// does not prevent it; the same move by hand is clean on two rules and on three, enabled and
-        /// disabled; the three-rule shape including the <c>src-address=""</c> the audit's unset leaves
-        /// behind is clean; and the exact line this code synthesises — <c>/routing rule move
-        /// numbers=*BC destination=*BF</c>, internal <c>.id</c>s rather than the ordinals a human types —
-        /// goes through on its own over Telnet and leaves the router healthy.</para>
-        /// <para>What is left is the thing the probe does that none of those do: it issues the move over
-        /// the probe transport IMMEDIATELY after adding both rows over a DIFFERENT connection (the API),
-        /// with only one print in between. A race between the routing process settling two fresh rows and
-        /// a reorder arriving on another session fits every exclusion above, and is where to start.</para>
-        /// <para>So this is an excuse for the INSTRUMENT, not a statement about the transport: an audit that
-        /// takes the lab down cannot be run, and everything after the wedge is unmeasured anyway. The other
-        /// fourteen ordered tables still cover the verb.</para>
+        /// Not a flake workaround — it is the difference between measuring the verb and taking the lab
+        /// down. Reordering a <c>/routing/rule</c> in the same second its rows were added stops RouterOS
+        /// 7.24's routing process answering its management interface: the move itself RETURNS and the
+        /// router logs it as applied, and then every <c>/routing/*</c> menu and <c>/ip/route</c> times out
+        /// — on every transport, and in the router's own shell, which never returns a prompt. Nothing is
+        /// logged, not even under <c>error</c>, CPU stays idle, forwarding and every other menu are
+        /// unaffected, and only a reboot clears it.
+        /// <para>Measured as a controlled pair on an empty rule table, same code, same router, one
+        /// variable: with no pause the run wedges (92 s, the timeout), with a three-second pause it is
+        /// clean (5 s) and the rows reorder correctly. Rule count, <c>disabled</c>, OSPF/BGP being
+        /// present, the internal <c>.id</c> spelling and the synthesised CLI line were each excluded by
+        /// their own measurement first.</para>
+        /// <para>Applied to every ordered path rather than just this one, so a move is measured the same
+        /// way everywhere. <see cref="RoutingRuleMoveWedgeRepro"/> is the standalone reproduction.</para>
         /// </remarks>
-        private const string RoutingRuleMoveWedgesTheRoutingProcess = "/routing/rule";
+        private static readonly TimeSpan MoveSettle = TimeSpan.FromSeconds(3);
+
 
         private Result RunMove(TransportAuditFixtures.Recipe recipe)
         {
@@ -734,6 +725,8 @@ namespace tik4net.integrationtests
                     problem = "the two probe rows did not land in the order they were added (" + before + ")";
                     return null;
                 }
+
+                System.Threading.Thread.Sleep(MoveSettle);
 
                 var conn = viaProbe ? _probe : _api;
                 conn.CreateCommandAndParameters(path + "/move", "numbers", secondId, "destination", firstId)

@@ -128,14 +128,21 @@ silent at once, which reads exactly like a dead router. It was not: one MAC-laye
 instantly, and a single `remove` over that L2 path brought IP back with the uptime unbroken. Three
 reboots were spent not fixing anything.
 
-**The other is real, and is still open.** With the drop rule gone the audit runs to completion for the
-first time — and its report shows the surviving failure precisely: the first timeout in the whole run is
-the `/routing/rule` move, and from there every `/routing/*` menu and `/ip/route` stops answering, on
-every transport and in the router's own shell, which never returns a prompt. Forwarding keeps working
-and every other menu is instant, so it is the routing process's management interface that is stuck, not
-the data path. The seven `SEED NOT REMOVED` lines at teardown are downstream of it, and the ~3.5-minute
-gap they leave in `/log` is seven 30-second timeouts back to back. `disabled=yes` on every rule involved
-does not prevent it; the same move by hand, on two rules instead of three, is clean.
+**The other was real, and turned out to be a race.** With the drop rule gone the audit ran to completion
+for the first time, and its report named the surviving failure precisely: the first timeout in the whole
+run was the `/routing/rule` move. Reordering a routing rule *in the same second its rows were added*
+stops RouterOS 7.24's routing process answering its management interface — the move returns and the
+router logs it as applied, and from then on every `/routing/*` menu and `/ip/route` times out on every
+transport and in the router's own shell. Nothing is logged, not even under `error`, CPU stays idle, and
+forwarding and every other menu are unaffected; only a reboot clears it.
+
+Getting there meant excluding, each by its own measurement rather than by argument: OSPF and BGP (every
+one of their operations passed earlier in the same run, and the wedge reproduces with no OSPF on the
+router at all), `disabled=yes`, the two-, three- and four-rule shapes, the `src-address=""` an unset
+leaves behind, the internal `.id` spelling, and the exact CLI line the code synthesises — which goes
+through on its own and leaves the router healthy. What survived was the one thing the probe does that
+none of those did: it moves rows that are a fraction of a second old. The controlled pair, on an empty
+rule table with one variable: no pause wedges (92 s), a three-second pause is clean (5 s).
 
 The reasoning failures worth keeping:
 
@@ -144,18 +151,22 @@ The reasoning failures worth keeping:
   together; each round of evidence confirmed half and was read as confirming the whole. Splitting them
   took one measurement — a MAC-layer read — that had been available all along.
 - **A failed reproduction on a simplified setup is not a disproof.** The move on two rules by hand is
-  clean, which was briefly read as clearing the move entirely. The audit has three rules at that point;
-  the report then named the move as the first timeout in the run. A negative result bounds the trigger,
-  it does not remove it.
+  clean, which was briefly read as clearing the move entirely — twice, because typing it by hand and
+  sending it through the library both take longer than the effect survives. A negative result bounds the
+  trigger; it does not remove it.
+- **Two candidates that move together measure nothing.** The first clean run had both a settle and a
+  smaller table, so it could not say which mattered. The control that separated them — no settle, empty
+  table — cost one more reboot and was the only run in the sequence that proved anything on its own.
 - **The diagnosis was never falsified, because every probe used the broken channel.** Over IP, a wedged
   router and an unreachable one are the same observation. The transport that could tell them apart —
   L2, which no routing rule touches — was never tried.
 - **"The router needs a reboot" ended the enquiry** before it distinguished the two failures, and merged
   them under one heading.
 
-The instrument is fixed for the self-inflicted half: probe rows that sit in a traffic path are created
-`disabled=yes`, and a rule's toggle is a match condition, which can only narrow it. `/routing/rule`
-stays out of the ordered tables while the second failure is open.
+The instrument is fixed for both: probe rows that sit in a traffic path are created `disabled=yes`, a
+rule's toggle is a match condition, which can only narrow it, and every move waits three seconds for its
+rows to settle. `/routing/rule` is back in the ordered tables, and `RoutingRuleMoveWedgeRepro` keeps the
+90-second reproduction for whenever the RouterOS side is worth revisiting.
 → [`../.claude/skills/mikrotik-tests/SKILL.md`](../.claude/skills/mikrotik-tests/SKILL.md)
 
 ## Silent success is the worst failure mode
