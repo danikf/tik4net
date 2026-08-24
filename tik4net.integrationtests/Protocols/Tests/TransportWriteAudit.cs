@@ -656,14 +656,17 @@ namespace tik4net.integrationtests
         /// logged, not even under <c>error</c>, CPU stays idle, forwarding and every other menu are
         /// unaffected, and only a reboot clears it.
         /// <para>Measured as a controlled pair on an empty rule table, same code, same router, one
-        /// variable: with no pause the run wedges (92 s, the timeout), with a three-second pause it is
-        /// clean (5 s) and the rows reorder correctly. Rule count, <c>disabled</c>, OSPF/BGP being
-        /// present, the internal <c>.id</c> spelling and the synthesised CLI line were each excluded by
-        /// their own measurement first.</para>
+        /// variable: with no pause the run wedges (92 s, the timeout), with a pause it is clean and the
+        /// rows reorder correctly. Rule count, <c>disabled</c>, OSPF/BGP being present, the internal
+        /// <c>.id</c> spelling and the synthesised CLI line were each excluded by their own measurement
+        /// first.</para>
+        /// <para>The boundary was then walked down on a healthy router: 3 s, 1 s (three times), 500 ms
+        /// and 200 ms are all clean, and 100 ms wedges. One second is about five times the boundary —
+        /// enough margin to be a rule rather than a lucky number, and cheap at fifteen ordered paths.</para>
         /// <para>Applied to every ordered path rather than just this one, so a move is measured the same
         /// way everywhere. <see cref="RoutingRuleMoveWedgeRepro"/> is the standalone reproduction.</para>
         /// </remarks>
-        private static readonly TimeSpan MoveSettle = TimeSpan.FromSeconds(3);
+        private static readonly TimeSpan MoveSettle = TimeSpan.FromSeconds(1);
 
 
         private Result RunMove(TransportAuditFixtures.Recipe recipe)

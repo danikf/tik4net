@@ -142,7 +142,9 @@ router at all), `disabled=yes`, the two-, three- and four-rule shapes, the `src-
 leaves behind, the internal `.id` spelling, and the exact CLI line the code synthesises — which goes
 through on its own and leaves the router healthy. What survived was the one thing the probe does that
 none of those did: it moves rows that are a fraction of a second old. The controlled pair, on an empty
-rule table with one variable: no pause wedges (92 s), a three-second pause is clean (5 s).
+rule table with one variable: no pause wedges (92 s), a pause is clean. Walking the boundary down on a
+healthy router put it between 100 ms and 200 ms — 3 s, 1 s, 500 ms and 200 ms all clean, 100 ms wedges —
+so the audit waits one second, about five times the boundary.
 
 The reasoning failures worth keeping:
 
@@ -164,8 +166,8 @@ The reasoning failures worth keeping:
   them under one heading.
 
 The instrument is fixed for both: probe rows that sit in a traffic path are created `disabled=yes`, a
-rule's toggle is a match condition, which can only narrow it, and every move waits three seconds for its
-rows to settle. `/routing/rule` is back in the ordered tables, and `RoutingRuleMoveWedgeRepro` keeps the
+rule's toggle is a match condition, which can only narrow it, and every move waits a second for its rows
+to settle. `/routing/rule` is back in the ordered tables, and `RoutingRuleMoveWedgeRepro` keeps the
 90-second reproduction for whenever the RouterOS side is worth revisiting.
 → [`../.claude/skills/mikrotik-tests/SKILL.md`](../.claude/skills/mikrotik-tests/SKILL.md)
 

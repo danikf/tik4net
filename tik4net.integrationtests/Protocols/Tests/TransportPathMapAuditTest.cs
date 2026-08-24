@@ -198,6 +198,10 @@ namespace tik4net.integrationtests
             // same value on both transports to within ONE SECOND — the gap between the two reads, not a
             // decode difference. It belongs with the counters rather than in the gap table.
             "expires-after",
+            // 'entries' is /ip/firewall/connection/tracking's live connection count (total-entries,
+            // total-ip4-entries): it moved by one BETWEEN the audit's two reads. Across the 154 audited
+            // paths those two, and the substring itself, are the only fields carrying the word.
+            "entries",
             "age", "last-", "active", "current", "usage", "free", "used", "load", "temperature", "voltage",
             "signal", "noise", "cpu", "memory", "sent", "received", "requests", "hits", "misses", "status",
         };

@@ -221,8 +221,10 @@ diagnoses that turned out wrong — is in [`Docs/HISTORY.md`](../../../Docs/HIST
   never returns a prompt. Nothing is logged, not even under `error`, CPU stays idle, and forwarding and
   every other menu are unaffected, so **the API still answers everything except routing** — this is not
   the router falling off the network (that one is a probe row dropping traffic, see above; MacTelnet
-  fixes it). Only a reboot clears this one. A three-second settle before the move avoids it, which is
-  what the audit does; `RoutingRuleMoveWedgeRepro` reproduces it in 90 s if you need it again.
+  fixes it). Only a reboot clears this one. A settle before the move avoids it: the boundary
+  measured between 100 ms (wedges) and 200 ms (clean), and the audit waits 1 s.
+  `RoutingRuleMoveWedgeRepro` reproduces it in 90 s, and its `TIK4NET_WEDGE_SETTLE_MS` walks the
+  boundary again on a new RouterOS version.
 - **`/system/script/run` yields no per-line output** over a terminal — it is fire-and-forget there,
   unlike the binary API.
 - **Never poll a large list without a filter.** Pulling `/log/print` unfiltered inside a poll loop can

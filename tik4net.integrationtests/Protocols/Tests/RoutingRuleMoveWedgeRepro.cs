@@ -27,20 +27,21 @@ namespace tik4net.integrationtests
         private const string Path = "/routing/rule";
 
         /// <summary>
-        /// Seconds to let the two fresh rows settle before the move. <c>0</c> is what the audit does.
+        /// Milliseconds to let the two fresh rows settle before the move. <c>0</c> reproduces.
         /// </summary>
         /// <remarks>
         /// The one factor still standing after everything else was ruled out: in the router's own log the
         /// two adds and the move all carry the SAME SECOND, and a move against rules that have merely
-        /// existed for a while is clean. Set this from TIK4NET_WEDGE_SETTLE to measure where the boundary
-        /// is — if a small delay makes it go away, the audit needs a settle rather than an exclusion.
+        /// existed for a while is clean. Set this from TIK4NET_WEDGE_SETTLE_MS to measure where the boundary
+        /// is. Measured on a healthy router: 3 s, 1 s (three times), 500 ms and 200 ms are all clean;
+        /// 100 ms wedges. The audit waits 1 s, roughly five times the boundary.
         /// </remarks>
-        private static int SettleSeconds
+        private static int SettleMs
         {
             get
             {
                 int s2;
-                return int.TryParse(Environment.GetEnvironmentVariable("TIK4NET_WEDGE_SETTLE"), out s2) ? s2 : 0;
+                return int.TryParse(Environment.GetEnvironmentVariable("TIK4NET_WEDGE_SETTLE_MS"), out s2) ? s2 : 0;
             }
         }
 
@@ -58,6 +59,11 @@ namespace tik4net.integrationtests
             {
                 try
                 {
+                    // A run that wedges cannot tear itself down — the removes go to the stuck menu — so its
+                    // two rows survive the reboot into the next run. Sweep them here rather than leaving
+                    // them to be deleted by hand: this test's residue is expected, not exceptional.
+                    Sweep(api, log);
+
                     // Disabled, so the rows cannot affect anything the router forwards — the wedge is not
                     // about what the rules DO.
                     firstId = Add(api, "m1");
@@ -68,11 +74,11 @@ namespace tik4net.integrationtests
                                    .Select(x => x.GetId()).ToList();
                     log.Add("order before: " + string.Join(",", order));
 
-                    int settle = SettleSeconds;
+                    int settle = SettleMs;
                     if (settle > 0)
                     {
-                        System.Threading.Thread.Sleep(settle * 1000);
-                        log.Add("settled " + settle + "s");
+                        System.Threading.Thread.Sleep(settle);
+                        log.Add("settled " + settle + "ms");
                     }
 
                     // The move goes out over the probe transport, on a different connection from the one
@@ -103,6 +109,15 @@ namespace tik4net.integrationtests
 
             Assert.Inconclusive("Did not reproduce this time." + Environment.NewLine
                 + string.Join(Environment.NewLine, log));
+        }
+
+        private static void Sweep(ITikConnection conn, List<string> log)
+        {
+            var stale = conn.CreateCommand(Path + "/print").ExecuteList()
+                            .Where(x => (x.GetResponseFieldOrDefault("comment", "")).StartsWith("tik4net-wedge-"))
+                            .Select(x => x.GetId()).ToList();
+            foreach (string id in stale) TryRemove(conn, id);
+            if (stale.Count > 0) log.Add("swept " + stale.Count + " row(s) left by an earlier wedged run");
         }
 
         private static string Add(ITikConnection conn, string tag)
