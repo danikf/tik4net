@@ -185,6 +185,11 @@ diagnoses that turned out wrong — is in [`Docs/HISTORY.md`](../../../Docs/HIST
   window. Consequence is an orphan, as above.
 - **`print stats` is not reachable** from the CLI layer, so live counter fields (firewall
   `bytes`/`packets` and similar) come back empty over CLI transports.
+- **Moving a `/routing/rule` from the write audit wedges RouterOS 7.24's routing process** — `/routing/*`
+  and `/ip/route` then time out on every transport until the router is rebooted, and the fixtures cannot
+  be torn down. Reproduced three times at the same line; the same move by hand, and over the API, is
+  clean. The path is excluded from the audit's ordered-table list for that reason. If a run ends with
+  `SEED NOT REMOVED /routing/…`, this is what happened: reboot, then delete the rows by hand.
 - **`/system/script/run` yields no per-line output** over a terminal — it is fire-and-forget there,
   unlike the binary API.
 - **Never poll a large list without a filter.** Pulling `/log/print` unfiltered inside a poll loop can

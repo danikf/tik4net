@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -53,7 +53,9 @@ namespace tik4net.Cli
                     current = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                     records.Add(current);
                 }
-                current[kv.Key] = kv.Value;
+                // The one place every as-value field passes through, which is where the router's internal
+                // spelling is turned back into the API's (see CliValueNormalizer).
+                current[kv.Key] = CliValueNormalizer.Normalize(kv.Key, kv.Value);
             }
 
             foreach (var rec in records)
@@ -71,7 +73,7 @@ namespace tik4net.Cli
         {
             var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var kv in ParseOrderedFields(line))
-                fields[kv.Key] = kv.Value;
+                fields[kv.Key] = CliValueNormalizer.Normalize(kv.Key, kv.Value);
             return fields;
         }
 

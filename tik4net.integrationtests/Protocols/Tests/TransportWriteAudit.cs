@@ -635,10 +635,29 @@ namespace tik4net.integrationtests
                 "/ip/firewall/filter", "/ip/firewall/nat", "/ip/firewall/mangle", "/ip/firewall/raw",
                 "/interface/bridge/filter", "/interface/bridge/nat",
                 "/ip/hotspot/walled-garden", "/ip/hotspot/walled-garden/ip", "/ip/proxy/access",
-                "/routing/rule", "/routing/filter/rule",
+                // "/routing/rule" — see RoutingRuleMoveWedgesTheRouter below.
+                "/routing/filter/rule",
                 "/caps-man/provisioning", "/caps-man/access-list",
                 "/interface/wifi/provisioning", "/interface/wifi/access-list",
             };
+
+        /// <summary>
+        /// Why <c>/routing/rule</c> is not in <see cref="OrderedPaths"/>.
+        /// </summary>
+        /// <remarks>
+        /// Moving a routing rule over a CLI transport, in this probe, stops RouterOS 7.24's routing process
+        /// answering ANYTHING — <c>/routing/*</c> and <c>/ip/route</c> time out on every transport, the
+        /// fixtures cannot be torn down, and the router needs a reboot. Reproduced three times, each stopping
+        /// at exactly this line and taking the rest of the run with it.
+        /// <para>It is not the command: the same <c>numbers=</c>/<c>destination=</c> move typed at the same
+        /// router by hand goes through and leaves it healthy, and the move over the API and over WinBox
+        /// native is clean. What the probe adds is doing it immediately after building the two rows, which
+        /// is as far as the diagnosis got — the next step costs a reboot per attempt.</para>
+        /// <para>So this is an excuse for the INSTRUMENT, not a statement about the transport: an audit that
+        /// takes the lab down cannot be run, and everything after the wedge is unmeasured anyway. The other
+        /// fourteen ordered tables still cover the verb.</para>
+        /// </remarks>
+        private const string RoutingRuleMoveWedgesTheRouter = "/routing/rule";
 
         private Result RunMove(TransportAuditFixtures.Recipe recipe)
         {

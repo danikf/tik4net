@@ -1,4 +1,4 @@
-# CLI/PTY transports (Telnet, SSH, MAC-Telnet, WinBox terminal) — RouterOS ground truth
+﻿# CLI/PTY transports (Telnet, SSH, MAC-Telnet, WinBox terminal) — RouterOS ground truth
 
 How RouterOS's terminal actually behaves, and how the CLI-family transports are built on top of it.
 Complements the design document [terminal-cli-parsing.md](terminal-cli-parsing.md) (the
@@ -73,6 +73,29 @@ breaks.
 `default-name`, `mtu`, `rx-byte`. The full field set (parity with the binary API) requires
 `print detail as-value`. The O/R mapper's `IncludeDetails` metadata flag controls this; the builder
 translates it into the `detail` modifier.
+
+### `as-value` spells values the router's way, not the API's
+
+`print` and the binary API render a field for a reader; `as-value` renders it for a script, and the two
+disagree on four kinds of value. Measured across the 154 audited paths on 7.24:
+
+| | `print` / API | `as-value` |
+|---|---|---|
+| durations | `15s`, `1w`, `5m`, `100ms` | `00:00:15`, `1w00:00:00`, `00:05:00`, `00:00:00.100` |
+| a zero spelled as a word | `mtu=auto`, `mrru=disabled`, `max-sessions=unlimited`, `dscp=inherit` | `0`, `0`, `0`, `256` |
+| scaled fixed-point | `bucket-size=0.1`, `freq-drift=-40.955`, `gmt-offset=+02:00` | `100`, `-40955`, `7200` |
+| an IPv4 address in an IPv6 slot | `local=192.168.4.236` | `::ffff:192.168.4.236` |
+
+`CliValueNormalizer` re-spells the durations, which is the only one of the four identifiable from the
+value: the others depend on which field the value belongs to. Two fields' `HH:MM:SS` is a clock TIME and
+not a duration — `/system/clock` `time` and `/system/scheduler` `start-time`, and that is the whole list.
+
+### A print the router REFUSES answers with text and no records
+
+`:put [/ip dns print detail as-value]` answers `bad parameter detail (line 1 column 27)` — a singleton
+menu has no `detail` modifier. Since as-value output is `key=value;…` or nothing at all, text that parses
+to no record is not output: it is the router saying why there is none. `CliConnectionBase.ParseRecords`
+throws on it, the same positional rule monitors have always used, and with no phrase list.
 
 ### Secret fields are WRITE-ONLY over the CLI — `detail` does not help
 

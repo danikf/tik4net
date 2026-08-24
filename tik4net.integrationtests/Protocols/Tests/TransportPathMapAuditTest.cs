@@ -103,6 +103,15 @@ namespace tik4net.integrationtests
             }
         }
 
+        /// <summary>A bare <c>HH:MM:SS</c>, the one duration spelling the API never uses.</summary>
+        private static bool IsClockShaped(string v)
+        {
+            if (v == null || v.Length != 8 || v[2] != ':' || v[5] != ':') return false;
+            for (int i = 0; i < 8; i++)
+                if (i != 2 && i != 5 && (v[i] < '0' || v[i] > '9')) return false;
+            return true;
+        }
+
         private static bool IsNative(TikConnectionType t)
             => t == TikConnectionType.WinboxNative || t == TikConnectionType.WinboxNativeMac;
 
@@ -118,12 +127,42 @@ namespace tik4net.integrationtests
             public string Error;
         }
 
+        /// <summary>
+        /// Reads a path, asking for <c>detail</c> and falling back to a plain print when the router will
+        /// not take the word.
+        /// </summary>
+        /// <remarks>
+        /// A CLI read without <c>detail</c> returns the SUMMARY columns only — `/interface` comes back with
+        /// no default-name, no mtu, no byte counters — so a plain print made the CLI look like it was
+        /// missing a fifth of the API's vocabulary when it had simply been asked a narrower question. But
+        /// <c>detail</c> is not universally accepted either: sent to the binary API it is a word the router
+        /// sees, and 31 of the audited menus refuse it outright, which turned those paths into
+        /// ROUTER-N/A and measured nothing at all.
+        /// <para>So it is attempted and retried without, per path per transport, rather than decided from a
+        /// list of which transports or which menus take it. The retry costs one refused call on the paths
+        /// that do not, and it cannot silently under-ask: the fallback happens only after the router has
+        /// said no.</para>
+        /// </remarks>
+        private static List<ITikReSentence> PrintRows(ITikConnection conn, string path)
+        {
+            try
+            {
+                return conn.CreateCommand(path + "/print",
+                               conn.CreateParameter("detail", "", TikCommandParameterFormat.NameValue))
+                           .ExecuteList().ToList();
+            }
+            catch (Exception)
+            {
+                return conn.CreateCommand(path + "/print").ExecuteList().ToList();
+            }
+        }
+
         private static Reading Read(ITikConnection conn, string path)
         {
             var r = new Reading();
             try
             {
-                var rows = conn.CreateCommand(path + "/print").ExecuteList().ToList();
+                var rows = PrintRows(conn, path);
                 r.RowCount = rows.Count;
                 for (int i = 0; i < rows.Count; i++)
                 {
@@ -377,6 +416,12 @@ namespace tik4net.integrationtests
             // The field-NAME shortfall across the paths that pass: the API's vocabulary against ours. Counted
             // separately because the pass/fail check is a half-threshold and cannot see it (see the OK line).
             int apiFieldSlots = 0, notReported = 0;
+            // Fields whose API value is a bare HH:MM:SS. The API spells a DURATION in units ("15s", "1w"),
+            // so a value in this shape is a clock TIME — and that is the one thing a CLI reader cannot tell
+            // apart by looking, because as-value spells durations as HH:MM:SS too. Anything converting the
+            // CLI's spelling back has to leave these alone, so the list is reported rather than assumed
+            // short: if it ever grows, the conversion rule has to grow with it.
+            var clockShaped = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
 
             var fixtures = default(TransportAuditFixtures);
             var write = default(TransportWriteAudit);
@@ -396,6 +441,9 @@ namespace tik4net.integrationtests
                 foreach (string path in EntityPaths())
                 {
                     var a = Read(api, path);
+                    foreach (var row in a.Rows.Values)
+                        foreach (var f in row)
+                            if (IsClockShaped(f.Value)) clockShaped.Add(path + " " + f.Key);
                     var n = Read(probe, path);
 
                     if (a.Error != null)
@@ -557,6 +605,7 @@ namespace tik4net.integrationtests
                        + $"  UNMAPPED={unmapped}  ROUTER-N/A={apiRefused}");
             report.Add($"FIELD-NAMES not reported by {probeName}: {notReported}/{apiFieldSlots}"
                        + (apiFieldSlots > 0 ? $" ({notReported * 100 / apiFieldSlots}%)" : ""));
+            report.Add($"CLOCK-SHAPED api values ({clockShaped.Count}): " + string.Join(", ", clockShaped));
             File.WriteAllLines(reportPath, report);
             foreach (string line in report) Console.WriteLine(line);
             Console.WriteLine();

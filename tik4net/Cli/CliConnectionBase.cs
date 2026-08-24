@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -598,29 +598,37 @@ namespace tik4net.Cli
 
             string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false);
             CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
-            return ParseMonitorSnapshot(output, descriptor);
+            return ParseRecords(output, descriptor);
         }
 
         /// <summary>
-        /// Parses a monitor snapshot's <c>as-value</c> output, treating text that yields no record as the
-        /// router's refusal rather than as an empty result.
+        /// Parses <c>as-value</c> output, treating text that yields no record as the router's refusal
+        /// rather than as an empty result.
         /// </summary>
         /// <remarks>
-        /// The positional rule, narrowed to monitors: a monitor exists to produce output, so a
-        /// snapshot that SUCCEEDS always prints at least one <c>.id=…</c> record, and a snapshot that fails
-        /// prints its complaint and nothing else. Measured on 7.23.2:
+        /// The positional rule in its general form, and it needs no phrase list: as-value output is
+        /// <c>key=value;…</c> or nothing at all, so text that parses to no record is not as-value output —
+        /// it is the router saying why there is none. An EMPTY table is empty output, and stays a legitimate
+        /// empty result.
+        /// <para>This covers ordinary reads as well as monitors, which is not where it started. A print that
+        /// the router refuses answers with its complaint and no records: asking <c>/ip/dns</c> for
+        /// <c>detail</c> — a modifier a singleton menu does not have — answers
+        /// <c>bad parameter detail (line 1 column 27)</c>, and with that swallowed the caller was told the
+        /// singleton simply had no rows. Every menu the transport audit compared this way looked like a
+        /// transport that could not read singletons at all.</para>
+        /// <para>Measured on 7.23.2:
         /// <c>:put [/interface monitor-traffic interface=kjdshfkjdhf once as-value]</c> answers
         /// <c>input does not match any value of interface</c> — a phrase no classifier in
         /// <see cref="CliErrorParser"/> matches, so the call returned "no rows" and the O/R layer reported
         /// success for a command the router had rejected. Unlike
         /// <see cref="CliErrorParser.IsSilentOnSuccessVerb"/> this needs no phrase list and no verb whitelist:
-        /// output-with-no-record is the signal.
+        /// output-with-no-record is the signal.</para>
         /// <para>
         /// Empty output is deliberately NOT an error — <c>/tool torch … as-value</c> legitimately prints
         /// nothing at all (see <see cref="CliMonitorVerbs"/>), and "nothing happened" is not a refusal.
         /// </para>
         /// </remarks>
-        private IList<TikRecordSentence> ParseMonitorSnapshot(string output, TikCommandDescriptor descriptor)
+        private IList<TikRecordSentence> ParseRecords(string output, TikCommandDescriptor descriptor)
         {
             IList<TikRecordSentence> rows = CliOutputParser.ParseAsValue(output);
             if (rows.Count == 0 && !string.IsNullOrWhiteSpace(output))
@@ -688,7 +696,7 @@ namespace tik4net.Cli
                         + "rest of this connection; fields holding free-form text may parse incorrectly");
             }
 
-            return CliOutputParser.ParseAsValue(output);
+            return ParseRecords(output, descriptor);
         }
 
         /// <summary>
@@ -906,10 +914,10 @@ namespace tik4net.Cli
                 {
                     string output = ExecuteCliCommand(cliText);
                     CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
-                    // ParseMonitorSnapshot, not ParseAsValue: a rejected monitor (bad interface name) prints a
+                    // ParseRecords, not ParseAsValue: a rejected monitor (bad interface name) prints a
                     // diagnostic no phrase list catches, and a poll loop that shrugs it off spins forever
                     // delivering nothing instead of reporting the error once (P2.51).
-                    foreach (var row in ParseMonitorSnapshot(output, descriptor))
+                    foreach (var row in ParseRecords(output, descriptor))
                     {
                         if (handle.CancelRequested) break;
                         onRow?.Invoke(row);
@@ -971,7 +979,7 @@ namespace tik4net.Cli
                 output = ExecuteCliCommand(CliCommandBuilder.BuildMonitorSnapshot(
                     descriptor.CommandText, descriptor.Parameters, snapshotModifier));
                 CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
-                foreach (var row in ParseMonitorSnapshot(output, descriptor))
+                foreach (var row in ParseRecords(output, descriptor))
                 {
                     if (handle.CancelRequested) break;
                     onRow?.Invoke(row);

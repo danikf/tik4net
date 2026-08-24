@@ -437,20 +437,36 @@ The 21 value differences are not 21 defects. They are four renderings, because a
 `:put [… print as-value]` and `as-value` gives the router's INTERNAL spelling where the API's `print`
 gives the documented one:
 
-| Class | API | CLI |
-|---|---|---|
-| durations | `15s`, `1w`, `1d`, `5m` | `00:00:15`, `1w00:00:00`, `1d00:00:00`, `00:05:00` |
-| zero spelled as a word | `mtu=auto`, `mrru=disabled`, `max-sessions=unlimited`, `dscp=inherit` | `0`, `0`, `0`, `256` |
-| scaled fixed-point | `bucket-size=0.1`, `freq-drift=-40.955`, `gmt-offset=+02:00` | `100`, `-40955`, `7200` |
-| IPv4 in an IPv6 slot | `local=192.168.4.236` | `::ffff:192.168.4.236` |
+| Class | API | CLI | |
+|---|---|---|---|
+| durations | `15s`, `1w`, `1d`, `5m` | `00:00:15`, `1w00:00:00`, `1d00:00:00`, `00:05:00` | **closed** |
+| zero spelled as a word | `mtu=auto`, `mrru=disabled`, `max-sessions=unlimited`, `dscp=inherit` | `0`, `0`, `0`, `256` | open |
+| scaled fixed-point | `bucket-size=0.1`, `freq-drift=-40.955`, `gmt-offset=+02:00` | `100`, `-40955`, `7200` | open |
+| IPv4 in an IPv6 slot | `local=192.168.4.236` | `::ffff:192.168.4.236` | open |
 
-Two of those classes the WinBox codec already handles for the same reason — the router speaks in units
-and sentinels, and something has to say them the way the rest of the library does. A duration read as
-`00:00:15` also does not compare equal to a `DefaultValue` of `15s`, so the change tracker sees a field
-that is always dirty.
+**Durations are re-spelled by `CliValueNormalizer`**, because a duration is the only one of the four that
+says what it is. The rest need to know which FIELD they belong to — `mtu=0` is `auto` and `mrru=0` is
+`disabled` while a `0` elsewhere is a zero — and guessing from the value would corrupt every field that
+legitimately holds the number.
 
-Reproducing one needs no harness at all: `/ip/dns/print` over `Api` says `doh-timeout=5s`, over `Telnet`
-`00:00:05`.
+The one thing a duration cannot say about itself is which unit its ZERO is in: as-value gives `00:00:00`
+for both a `0s` field and a `0ms` one. `0s` is emitted; the millisecond fields
+(`/interface/bonding` `up-delay`/`down-delay`) read `0s` where the API says `0ms`, which is the same
+duration in another unit.
+
+Reproducing the class needed no harness at all: `/ip/dns/print` over `Api` said `doh-timeout=5s`, over
+`Telnet` `00:00:05`.
+
+**`detail`, and what it hid.** A CLI read without `detail` returns the summary columns only, so the audit's
+plain `print` made the CLI look short of a fifth of the API's vocabulary. Asking for `detail` on both sides
+is wrong too — the binary API takes it as a word and 31 of the audited menus refuse it — so the audit
+attempts it and falls back per path.
+
+Adding it surfaced something better: asking `/ip/dns` for `detail` answers `bad parameter detail`, and the
+CLI layer was turning that into an EMPTY RESULT. Every singleton menu then looked like a transport that
+could not read singletons at all. The positional rule that already covered monitor snapshots — as-value
+output is `key=value;…` or nothing, so text that parses to no record is the router saying why — now covers
+ordinary reads as well.
 
 ### Value-rendering differences
 
