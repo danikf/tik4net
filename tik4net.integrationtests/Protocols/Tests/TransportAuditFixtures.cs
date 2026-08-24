@@ -68,6 +68,12 @@ namespace tik4net.integrationtests
         /// measured by making the same row over native and over the API and comparing what the router ended
         /// up with. Order is dependency order — a bridge before its port, a pool before the DHCP server
         /// handing it out — and removal walks it backwards.
+        /// <para>A row that sits in a live traffic path — a firewall or bridge rule, a routing rule, a
+        /// walled-garden or access-list entry — carries <c>disabled=yes</c>. The audit does not just read
+        /// these rows, it REWRITES a field on each and reorders the ordered ones, and a probe row that is
+        /// live while that happens is a rule the router is actually enforcing against the connection running
+        /// the audit. Disabled costs the measurement nothing: every comparison here is differential, so both
+        /// sides see the same row.</para>
         /// </remarks>
         internal sealed class Recipe
         {
@@ -82,8 +88,8 @@ namespace tik4net.integrationtests
             new Recipe("/interface/bridge", "name", NamePrefix + "br"),
             new Recipe("/interface/bridge/port", "bridge", NamePrefix + "br", "interface", "ether2"),
             new Recipe("/interface/bridge/vlan", "bridge", NamePrefix + "br", "vlan-ids", "999"),
-            new Recipe("/interface/bridge/filter", "chain", "forward", "action", "accept"),
-            new Recipe("/interface/bridge/nat", "chain", "srcnat", "action", "accept"),
+            new Recipe("/interface/bridge/filter", "chain", "forward", "action", "accept", "disabled", "yes"),
+            new Recipe("/interface/bridge/nat", "chain", "srcnat", "action", "accept", "disabled", "yes"),
             new Recipe("/interface/vlan", "name", NamePrefix + "vlan", "vlan-id", "999", "interface", "ether2"),
             new Recipe("/interface/eoip", "name", NamePrefix + "eoip", "remote-address", "10.99.0.2", "tunnel-id", "999"),
             // Over the EoIP tunnel, not over ether2: a bonding slave cannot already be a bridge port, and
@@ -100,32 +106,32 @@ namespace tik4net.integrationtests
             new Recipe("/interface/list/member", "list", NamePrefix + "list", "interface", "ether2"),
             new Recipe("/ip/dns/static", "name", NamePrefix + "host.invalid", "address", "10.99.0.5"),
             new Recipe("/ip/firewall/address-list", "list", NamePrefix + "list", "address", "10.99.0.6"),
-            new Recipe("/ip/firewall/filter", "chain", "forward", "action", "accept"),
-            new Recipe("/ip/firewall/nat", "chain", "srcnat", "action", "accept"),
+            new Recipe("/ip/firewall/filter", "chain", "forward", "action", "accept", "disabled", "yes"),
+            new Recipe("/ip/firewall/nat", "chain", "srcnat", "action", "accept", "disabled", "yes"),
             // protocol=tcp so the write audit's tcp-flags probe has something to bite on: RouterOS refuses
             // `tcp-flags` on a rule that does not match TCP, and the refusal would read as a transport
             // finding.
-            new Recipe("/ip/firewall/mangle", "chain", "forward", "action", "accept", "protocol", "tcp"),
-            new Recipe("/ip/firewall/raw", "chain", "prerouting", "action", "accept"),
+            new Recipe("/ip/firewall/mangle", "chain", "forward", "action", "accept", "protocol", "tcp", "disabled", "yes"),
+            new Recipe("/ip/firewall/raw", "chain", "prerouting", "action", "accept", "disabled", "yes"),
             new Recipe("/ip/firewall/layer7-protocol", "name", NamePrefix + "l7", "regexp", "^tik4net$"),
             new Recipe("/ip/dhcp-server", "name", NamePrefix + "dhcp", "interface", "ether2", "address-pool", NamePrefix + "pool"),
             new Recipe("/ip/dhcp-server/network", "address", "10.99.0.0/24", "gateway", "10.99.0.1"),
             new Recipe("/ip/dhcp-server/lease", "address", "10.99.0.30", "mac-address", "02:00:00:99:00:01"),
             new Recipe("/ip/dhcp-relay", "name", NamePrefix + "relay", "interface", "ether2", "dhcp-server", "10.99.0.1"),
             new Recipe("/ip/hotspot/ip-binding", "address", "10.99.0.7", "type", "bypassed"),
-            new Recipe("/ip/hotspot/walled-garden", "dst-host", "tik4net.invalid", "action", "allow"),
-            new Recipe("/ip/hotspot/walled-garden/ip", "dst-address", "10.99.0.8", "action", "accept"),
+            new Recipe("/ip/hotspot/walled-garden", "dst-host", "tik4net.invalid", "action", "allow", "disabled", "yes"),
+            new Recipe("/ip/hotspot/walled-garden/ip", "dst-address", "10.99.0.8", "action", "accept", "disabled", "yes"),
             new Recipe("/ip/ipsec/peer", "name", NamePrefix + "peer", "address", "10.99.0.9"),
             new Recipe("/ip/ipsec/identity", "peer", NamePrefix + "peer", "secret", "tik4net-fixture"),
-            new Recipe("/ip/proxy/access", "dst-host", "tik4net.invalid", "action", "deny"),
+            new Recipe("/ip/proxy/access", "dst-host", "tik4net.invalid", "action", "deny", "disabled", "yes"),
             new Recipe("/ip/traffic-flow/target", "dst-address", "10.99.0.11", "port", "2055"),
             new Recipe("/ip/upnp/interfaces", "interface", "ether2", "type", "internal"),
             new Recipe("/ppp/secret", "name", NamePrefix + "user", "password", "tik4net-fixture"),
             new Recipe("/queue/simple", "name", NamePrefix + "queue", "target", "10.99.0.0/24"),
             new Recipe("/queue/tree", "name", NamePrefix + "tree", "parent", "global"),
             new Recipe("/radius", "service", "login", "address", "10.99.0.12", "secret", "tik4net-fixture"),
-            new Recipe("/routing/filter/rule", "chain", NamePrefix + "chain", "rule", "accept"),
-            new Recipe("/routing/rule", "action", "lookup", "table", "main"),
+            new Recipe("/routing/filter/rule", "chain", NamePrefix + "chain", "rule", "accept", "disabled", "yes"),
+            new Recipe("/routing/rule", "action", "lookup", "table", "main", "disabled", "yes"),
             new Recipe("/routing/ospf/instance", "name", NamePrefix + "ospf", "router-id", "10.99.0.13"),
             new Recipe("/routing/ospf/area", "name", NamePrefix + "area", "instance", NamePrefix + "ospf", "area-id", "0.0.0.99"),
             new Recipe("/routing/ospf/interface-template", "interfaces", "ether2", "area", NamePrefix + "area"),
@@ -140,14 +146,14 @@ namespace tik4net.integrationtests
             new Recipe("/caps-man/datapath", "name", NamePrefix + "dpath"),
             new Recipe("/caps-man/security", "name", NamePrefix + "sec"),
             new Recipe("/caps-man/configuration", "name", NamePrefix + "cfg"),
-            new Recipe("/caps-man/provisioning", "action", "none"),
-            new Recipe("/caps-man/access-list", "action", "accept"),
+            new Recipe("/caps-man/provisioning", "action", "none", "disabled", "yes"),
+            new Recipe("/caps-man/access-list", "action", "accept", "disabled", "yes"),
             new Recipe("/interface/wifi/channel", "name", NamePrefix + "wchan"),
             new Recipe("/interface/wifi/datapath", "name", NamePrefix + "wdpath"),
             new Recipe("/interface/wifi/security", "name", NamePrefix + "wsec"),
             new Recipe("/interface/wifi/configuration", "name", NamePrefix + "wcfg"),
-            new Recipe("/interface/wifi/provisioning", "action", "none"),
-            new Recipe("/interface/wifi/access-list", "action", "accept"),
+            new Recipe("/interface/wifi/provisioning", "action", "none", "disabled", "yes"),
+            new Recipe("/interface/wifi/access-list", "action", "accept", "disabled", "yes"),
         };
 
         // ── mechanics ─────────────────────────────────────────────────────────

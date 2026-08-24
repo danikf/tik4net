@@ -113,6 +113,51 @@ tabular lines — tolerates retransmission. Only the longer, time-sensitive term
 it. A latent defect inherited from a PoC, not a porting regression.
 → [`findings-mactelnet.md`](findings-mactelnet.md)
 
+## One name for two failures, and the reproduction pinned neither (2026-08-24)
+
+The write audit was recorded as having found a RouterOS defect: *moving a `/routing/rule` over a CLI
+transport wedges 7.24's routing process* — reproduced three times, each costing a reboot, and the path
+was excluded from the audit's ordered tables on that evidence.
+
+Two unrelated failures had been rolled into one sentence, and the `move` caused neither.
+
+**One was self-inflicted, and not a wedge at all.** The audit's fixture row was an *unconditional*
+`/routing/rule`, and its toggle map rewrote that row's `action` to `drop` — a rule matching everything,
+told to discard it, sitting in the path of the connection running the audit. Every IP transport went
+silent at once, which reads exactly like a dead router. It was not: one MAC-layer read answered
+instantly, and a single `remove` over that L2 path brought IP back with the uptime unbroken. Three
+reboots were spent not fixing anything.
+
+**The other is real, and is still open.** With the drop rule gone the audit runs to completion for the
+first time — and its report shows the surviving failure precisely: the first timeout in the whole run is
+the `/routing/rule` move, and from there every `/routing/*` menu and `/ip/route` stops answering, on
+every transport and in the router's own shell, which never returns a prompt. Forwarding keeps working
+and every other menu is instant, so it is the routing process's management interface that is stuck, not
+the data path. The seven `SEED NOT REMOVED` lines at teardown are downstream of it, and the ~3.5-minute
+gap they leave in `/log` is seven 30-second timeouts back to back. `disabled=yes` on every rule involved
+does not prevent it; the same move by hand, on two rules instead of three, is clean.
+
+The reasoning failures worth keeping:
+
+- **Two failures under one heading defeat every attempt to reason about either.** "The move wedges the
+  routing process, and the router goes off the network" was one true clause and one false one welded
+  together; each round of evidence confirmed half and was read as confirming the whole. Splitting them
+  took one measurement — a MAC-layer read — that had been available all along.
+- **A failed reproduction on a simplified setup is not a disproof.** The move on two rules by hand is
+  clean, which was briefly read as clearing the move entirely. The audit has three rules at that point;
+  the report then named the move as the first timeout in the run. A negative result bounds the trigger,
+  it does not remove it.
+- **The diagnosis was never falsified, because every probe used the broken channel.** Over IP, a wedged
+  router and an unreachable one are the same observation. The transport that could tell them apart —
+  L2, which no routing rule touches — was never tried.
+- **"The router needs a reboot" ended the enquiry** before it distinguished the two failures, and merged
+  them under one heading.
+
+The instrument is fixed for the self-inflicted half: probe rows that sit in a traffic path are created
+`disabled=yes`, and a rule's toggle is a match condition, which can only narrow it. `/routing/rule`
+stays out of the ordered tables while the second failure is open.
+→ [`../.claude/skills/mikrotik-tests/SKILL.md`](../.claude/skills/mikrotik-tests/SKILL.md)
+
 ## Silent success is the worst failure mode
 
 `/file/print` over CLI has worn three faces: an empty read (the test passes vacuously), a thrown

@@ -162,6 +162,36 @@ Check the router after a run using the `mikrotik` skill:
 
 Test-created objects are prefixed `t4n` plus a GUID fragment, which is what to look for.
 
+### Create traffic-path rows disabled
+
+A test row that sits in a path the router actually enforces — a firewall or bridge rule, a routing rule,
+a walled-garden or access-list entry, a queue — is **created with `disabled=yes`**. The suite runs over
+the very connection those rows govern, so an enabled probe row is a rule being applied to the test
+that made it, and the blast radius is the whole lab rather than one red test.
+
+The failure this prevents does not look like a test failure. It looks like the router dying: an
+unconditional `/routing/rule` whose `action` a write probe flipped to `drop` takes every IP transport
+offline at once, so the run appears to hang at whatever line came next and the obvious reading is "the
+router wedged, reboot it". It has not wedged — **the MAC-layer transports still answer**, because they
+are L2 and no routing rule touches them.
+
+So when every IP transport goes silent mid-run, **try `MacTelnet` before reaching for a reboot**:
+
+```
+transport: MacTelnet, routerMac from App.config →  /routing/rule/print
+```
+
+If that answers, the router is healthy and something the run created is dropping or diverting traffic;
+remove it over the same L2 path and IP returns immediately, with the uptime unbroken. A wedge and a
+self-inflicted blackout are indistinguishable over IP alone, and only one of them needs a reboot.
+
+Belt-and-braces for a probe that has to enable such a row: park a scheduler on the router first, so the
+router undoes it without you.
+
+```
+/system/scheduler/add name=probe-rescue interval=2m on-event="/routing/rule remove [find comment~\"probe-\"]"
+```
+
 ### The suite must not leave error-severity log lines
 
 A red `/log` after a run alarms whoever opens the router next, so every marker the tests write is
@@ -185,11 +215,15 @@ diagnoses that turned out wrong — is in [`Docs/HISTORY.md`](../../../Docs/HIST
   window. Consequence is an orphan, as above.
 - **`print stats` is not reachable** from the CLI layer, so live counter fields (firewall
   `bytes`/`packets` and similar) come back empty over CLI transports.
-- **Moving a `/routing/rule` from the write audit wedges RouterOS 7.24's routing process** — `/routing/*`
-  and `/ip/route` then time out on every transport until the router is rebooted, and the fixtures cannot
-  be torn down. Reproduced three times at the same line; the same move by hand, and over the API, is
-  clean. The path is excluded from the audit's ordered-table list for that reason. If a run ends with
-  `SEED NOT REMOVED /routing/…`, this is what happened: reboot, then delete the rows by hand.
+- **The audit's `/routing/rule` move leaves RouterOS 7.24's routing MANAGEMENT interface stuck** — from
+  that moment every `/routing/*` menu and `/ip/route` stops answering, on every transport and in the
+  router's own shell, which never returns a prompt. Forwarding is unaffected and every other menu is
+  instant, so this is the routing process, not connectivity — do not confuse it with a probe row that is
+  dropping traffic (see "Create traffic-path rows disabled" above; that one MacTelnet can fix, this one
+  needs a reboot). `disabled=yes` on every rule involved does NOT prevent it. Signature: the audit's
+  first timeout is the `/routing/rule` move, then seven `SEED NOT REMOVED /routing/…` lines at teardown
+  and a ~3.5-minute gap in `/log` — seven 30-second timeouts. The path is excluded from the audit's
+  ordered tables for that reason; the other fourteen still cover the verb.
 - **`/system/script/run` yields no per-line output** over a terminal — it is fire-and-forget there,
   unlike the binary API.
 - **Never poll a large list without a filter.** Pulling `/log/print` unfiltered inside a poll loop can

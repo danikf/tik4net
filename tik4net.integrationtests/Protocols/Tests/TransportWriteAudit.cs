@@ -109,7 +109,10 @@ namespace tik4net.integrationtests
                 ["/queue/tree"]                    = ("priority", "3"),
                 ["/radius"]                        = ("timeout", "500ms"),
                 ["/routing/filter/rule"]           = ("rule", "reject"),
-                ["/routing/rule"]                  = ("action", "drop"),
+                // NOT `action` -> `drop`: an unconditional routing rule set to drop takes the router off
+                // the network, which is what the "move wedges the router" note used to describe. A match
+                // condition only ever NARROWS the rule, so it cannot.
+                ["/routing/rule"]                  = ("src-address", "10.99.0.13/32"),
                 ["/routing/ospf/instance"]         = ("router-id", "10.99.0.99"),
                 ["/routing/ospf/area"]             = ("area-id", "0.0.0.98"),
                 ["/routing/bgp/instance"]          = ("router-id", "10.99.0.97"),
@@ -635,29 +638,42 @@ namespace tik4net.integrationtests
                 "/ip/firewall/filter", "/ip/firewall/nat", "/ip/firewall/mangle", "/ip/firewall/raw",
                 "/interface/bridge/filter", "/interface/bridge/nat",
                 "/ip/hotspot/walled-garden", "/ip/hotspot/walled-garden/ip", "/ip/proxy/access",
-                // "/routing/rule" — see RoutingRuleMoveWedgesTheRouter below.
+                // "/routing/rule" — see RoutingRuleMoveWedgesTheRoutingProcess below.
                 "/routing/filter/rule",
                 "/caps-man/provisioning", "/caps-man/access-list",
                 "/interface/wifi/provisioning", "/interface/wifi/access-list",
             };
 
+
         /// <summary>
         /// Why <c>/routing/rule</c> is not in <see cref="OrderedPaths"/>.
         /// </summary>
         /// <remarks>
-        /// Moving a routing rule over a CLI transport, in this probe, stops RouterOS 7.24's routing process
-        /// answering ANYTHING — <c>/routing/*</c> and <c>/ip/route</c> time out on every transport, the
-        /// fixtures cannot be torn down, and the router needs a reboot. Reproduced three times, each stopping
-        /// at exactly this line and taking the rest of the run with it.
-        /// <para>It is not the command: the same <c>numbers=</c>/<c>destination=</c> move typed at the same
-        /// router by hand goes through and leaves it healthy, and the move over the API and over WinBox
-        /// native is clean. What the probe adds is doing it immediately after building the two rows, which
-        /// is as far as the diagnosis got — the next step costs a reboot per attempt.</para>
+        /// This probe's move on <c>/routing/rule</c> leaves RouterOS 7.24's routing process not answering
+        /// its MANAGEMENT interface: from that call on, every <c>/routing/*</c> menu and <c>/ip/route</c>
+        /// times out — on every transport, and in the router's own shell, which never returns a prompt.
+        /// It is the audit's FIRST timeout, and the seven <c>SEED NOT REMOVED /routing/…</c> lines at
+        /// teardown are all downstream of it. Only a reboot clears it.
+        /// <para>What it is NOT: the router is otherwise healthy — forwarding keeps working and every other
+        /// menu answers instantly — so this is not the router falling off the network, which is the other
+        /// way an audit can appear to kill the lab (see the fixture rows' <c>disabled=yes</c>). And it is
+        /// not OSPF or BGP: every one of those reads, toggles, adds and unsets passed earlier in the same
+        /// run.</para>
+        /// <para>What has been ruled out, each by measurement: <c>disabled=yes</c> on every rule involved
+        /// does not prevent it; the same move by hand is clean on two rules and on three, enabled and
+        /// disabled; the three-rule shape including the <c>src-address=""</c> the audit's unset leaves
+        /// behind is clean; and the exact line this code synthesises — <c>/routing rule move
+        /// numbers=*BC destination=*BF</c>, internal <c>.id</c>s rather than the ordinals a human types —
+        /// goes through on its own over Telnet and leaves the router healthy.</para>
+        /// <para>What is left is the thing the probe does that none of those do: it issues the move over
+        /// the probe transport IMMEDIATELY after adding both rows over a DIFFERENT connection (the API),
+        /// with only one print in between. A race between the routing process settling two fresh rows and
+        /// a reorder arriving on another session fits every exclusion above, and is where to start.</para>
         /// <para>So this is an excuse for the INSTRUMENT, not a statement about the transport: an audit that
         /// takes the lab down cannot be run, and everything after the wedge is unmeasured anyway. The other
         /// fourteen ordered tables still cover the verb.</para>
         /// </remarks>
-        private const string RoutingRuleMoveWedgesTheRouter = "/routing/rule";
+        private const string RoutingRuleMoveWedgesTheRoutingProcess = "/routing/rule";
 
         private Result RunMove(TransportAuditFixtures.Recipe recipe)
         {
