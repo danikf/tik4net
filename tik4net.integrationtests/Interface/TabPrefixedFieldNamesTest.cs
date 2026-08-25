@@ -54,7 +54,7 @@ namespace tik4net.integrationtests
         public void LoopProtectFieldsCarryTheTabPrefix()
         {
             AssertNamesAgree("/interface/vlan", "name", VlanName,
-                "loop-protect-disable-time", "loop-protect-send-interval");
+                "loop-protect-disable-time", "loop-protect-send-interval", "loop-protect-status");
         }
 
         /// <summary>
@@ -66,7 +66,24 @@ namespace tik4net.integrationtests
         public void MlagFieldsCarryTheTabPrefix()
         {
             AssertNamesAgree("/interface/bridge", "name", BridgeName,
-                "mlag-heartbeat", "mlag-peer-port");
+                "mlag-heartbeat", "mlag-peer-port", "mlag-priority");
+        }
+
+        /// <summary>
+        /// The collision the prefix settles, asserted as a PAIR on one row.
+        /// </summary>
+        /// <remarks>
+        /// The bridge window labels two different fields <c>Priority</c> — one under STP, one under MLAG —
+        /// and the router calls them <c>priority</c> (an STP bridge priority, <c>0x8000</c>) and
+        /// <c>mlag-priority</c> (a small integer). Before the tab prefix the qualified name existed only
+        /// because the two COLLIDED and the loser was tab-qualified, so which field held the plain name
+        /// depended on read order. Asserting both on the same row is what would catch that coming back:
+        /// either name alone can look right while the values are swapped.
+        /// </remarks>
+        [TestMethod]
+        public void StpAndMlagPriorityAreDifferentFields()
+        {
+            AssertNamesAgree("/interface/bridge", "name", BridgeName, "priority", "mlag-priority");
         }
 
         /// <summary>
