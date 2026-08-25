@@ -1298,6 +1298,30 @@ no key. The tab it sits under is what distinguishes them, and is what RouterOS s
 before changes meaning. (This is the same rule the deck panes already use for `memory-stop-on-full` vs
 `disk-stop-on-full`, one level further down the window.)
 
+### 32.1.5 Some tabs prefix their fields, and nothing in the catalog says which
+
+`/interface/vlan` has `loop-protect`, `loop-protect-send-interval` and `loop-protect-disable-time`; the
+catalog has a tab called `Loop Protect` holding fields labelled `Loop Protect`, `Send Interval` and
+`Disable Time`. `/interface/bridge` does the same with `MLAG`: `Peer Port`, `Priority` and `Heartbeat` are
+`mlag-peer-port`, `mlag-priority` and `mlag-heartbeat`.
+
+**It is not derivable.** On that same bridge window the `STP` tab is written identically —
+`{name:'STP',type:'tab'}` against `{name:'MLAG',type:'tab'}`, neither carrying an attribute — and STP's
+fields are *not* prefixed: the router calls them `protocol-mode` and `priority`. Across the 7.24 catalog
+there are 337 tab declarations and the only attributes any of them carry are `inline`, `combine` and `on`,
+none of which correlates. So the prefixing tabs are a **shipped list**
+(`WinboxFieldResolver.TabPrefixed`), read off the router with tab completion, exactly like the deck-pane
+list in §27.1 and for the same reason.
+
+Unlike §32.1.4 above, this prefix is applied unconditionally rather than only to the loser of a collision:
+these fields carry it whether or not anything else claims the bare name. It also *settles* a collision the
+old rule could only resolve arbitrarily — the bridge labels two different fields `Priority`, one under STP
+and one under MLAG, and first-wins gave the name to whichever was read first.
+
+Missing entries surface in the transport audit as an `api-only` name with the unprefixed label reported
+beside it (`loop-protect-disable-time?=disable-time`). Adding the two known tabs took the native
+field-name shortfall from 113/1328 to 102/1328.
+
 ### 32.2 The bitmask family — one number, sometimes two
 
 | UI type | Members from | Negation |

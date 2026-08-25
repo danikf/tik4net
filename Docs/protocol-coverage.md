@@ -433,7 +433,7 @@ not have):
 | Telnet | **155** | 0 | **0** | 84/1341 (6%) | 214 / 0 / 0 | 2 m 27 s |
 | SSH | **155** | 0 | **0** | 84/1341 (6%) | 214 / 0 / 0 | 2 m 14 s |
 | WinBox CLI | **155** | 0 | **0** | 84/1341 (6%) | 214 / 0 / 0 | 2 m 47 s |
-| WinBox native | 154 | 0 | **0** | 113/1328 (8%) | 227 / 0 / 0 | 47 s |
+| WinBox native | 154 | 0 | **0** | 102/1328 (7%) | 227 / 0 / 0 | 44 s |
 
 WinBox native also carries `KNOWN-GAP=1` (a menu with no WinBox window) and `VALUES-UNCOMPARED=1`; it is
 the only transport with either, because it is the only one that resolves paths to M2 handlers rather than

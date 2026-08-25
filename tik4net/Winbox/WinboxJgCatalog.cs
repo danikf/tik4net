@@ -1216,6 +1216,13 @@ namespace tik4net.Winbox
         {
             string apiName = WinboxFieldResolver.NormalizeLabel(label);
             if (string.IsNullOrEmpty(apiName)) return;
+            // A tab whose fields RouterOS names with the tab as a prefix (loop-protect-disable-time,
+            // mlag-heartbeat). Unconditional, unlike the collision-driven qualification below: these fields
+            // are prefixed whether or not anything else on the window claims the bare name. The prefix is
+            // idempotent, so the tab's own same-named field (Loop Protect on the Loop Protect tab) keeps
+            // reading `loop-protect`.
+            if (WinboxFieldResolver.TabPrefixed(tab))
+                apiName = WinboxFieldResolver.PrefixWithKind(tab, apiName);
             // A declaration's own `title` is carried on the field (see WinboxJgField.TitleApiName) and acted
             // on in SettleTitleNames, once the whole handler is known: it only decides anything when a
             // SECOND declaration on the same key is named by that title, and at this point that one may not

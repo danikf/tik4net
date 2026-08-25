@@ -176,6 +176,33 @@ namespace tik4net.Winbox
         }
 
         /// <summary>
+        /// Which <c>tab</c>s RouterOS's API spells with the tab name as a prefix.
+        /// </summary>
+        /// <remarks>
+        /// <para>Shipped rather than derived, for the same reason as <see cref="PanePrefixed"/>: the
+        /// catalog carries nothing that separates the two cases. On <c>/interface/bridge</c> the
+        /// <c>MLAG</c> tab and the <c>STP</c> tab are both a bare <c>{name:'…',type:'tab'}</c> with no
+        /// attributes, and the router prefixes one and not the other — <c>mlag-heartbeat</c>,
+        /// <c>mlag-peer-port</c>, <c>mlag-priority</c>, but <c>protocol-mode</c> and <c>priority</c>. A
+        /// blanket tab prefix would rename correctly named fields, so the default stays "leave the name
+        /// alone".</para>
+        /// <para>Read off the live router with tab completion (<c>/interface/bridge set ?</c>,
+        /// <c>/interface/vlan set ?</c>), not inferred. The transport audit is what would find a missing
+        /// entry: the field shows up as an <c>api-only</c> name with the unprefixed label reported beside
+        /// it.</para>
+        /// <para>It also settles a collision rather than making one. The bridge window labels two different
+        /// fields <c>Priority</c> — one under <c>STP</c>, one under <c>MLAG</c> — and first-wins gave the
+        /// name to whichever was read first. With the prefix they are <c>priority</c> and
+        /// <c>mlag-priority</c>, which is what the router calls them.</para>
+        /// </remarks>
+        private static readonly HashSet<string> TabPrefixedTabs =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "loop-protect", "mlag" };
+
+        /// <summary>Whether fields on <paramref name="tab"/> carry the tab name as a prefix.</summary>
+        internal static bool TabPrefixed(string? tab)
+            => !string.IsNullOrEmpty(tab) && TabPrefixedTabs.Contains(tab!);
+
+        /// <summary>
         /// Which <c>deck</c> panes RouterOS's API spells with the kind prefix, per path — <c>"*"</c> for every
         /// pane of that window.
         /// </summary>
