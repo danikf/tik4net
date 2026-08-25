@@ -113,6 +113,27 @@ tabular lines — tolerates retransmission. Only the longer, time-sensitive term
 it. A latent defect inherited from a PoC, not a porting regression.
 → [`findings-mactelnet.md`](findings-mactelnet.md)
 
+## A staleness indicator that named the wrong file (2026-08-25)
+
+Every MCP answer carried the build timestamp of the assembly that produced it, so that a rebuild could
+be confirmed to have taken effect before the answer was believed. It named `tik4net.mcp.dll` — the thin
+tool wrapper — while essentially every change under diagnosis lands in `tik4net.dll`, and the two move
+independently: `dotnet build tik4net.sln` after a library-only edit refreshes the library in the output
+directory and leaves the wrapper alone, because the wrapper's own compile is up to date and MSBuild
+skips it. Measured that day: solution build, `tik4net.dll` 09:44:56, `tik4net.mcp.dll` 09:44:29, and a
+staging then in live use whose two files were 38 minutes apart, library newer.
+
+The failure is one-directional and therefore quiet. The stamp can only lag the library, never lead it,
+so it never claims freshness it does not have — it just reads "stale" when the answers are current. A
+correct field mapping was written off on that basis the day before, and the check that was supposed to
+protect against believing old output instead produced a reason to disbelieve new output.
+
+The stamp now reports both assemblies, and `run-dev.ps1` passes the directory it staged from in
+`TIK4NET_MCP_SOURCE_DIR` so the server re-checks it per call and says `STALE` itself. Rebuilding is
+still not sufficient — the process runs from a frozen copy and has to be reconnected — but it no longer
+has to be remembered.
+→ [`Tools/tik4net.mcp/README.md`](../Tools/tik4net.mcp/README.md)
+
 ## One name for two failures, and the reproduction pinned neither (2026-08-24)
 
 The write audit was recorded as having found a RouterOS defect: *moving a `/routing/rule` over a CLI

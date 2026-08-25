@@ -30,33 +30,98 @@ public sealed class MikroTikTools
     // run-dev.ps1 stages a COPY of the build output under %TEMP% for every launch, precisely so the
     // server can be replaced while clients are connected. That makes "did my rebuild take effect?"
     // unanswerable from the repository: the running process may be any staging, from any build. So
-    // every response carries the timestamp of the assembly that produced it — the one fact that
+    // every response carries the timestamp of the assemblies that produced it — the one fact that
     // settles it. A stamp older than the edit means the client is still on the previous server and
     // has to reconnect; nothing about the answer can be trusted to reflect the change until it moves.
-    internal static readonly string ServerBuild = DescribeBuild();
+    //
+    // Two assemblies, not one, because they move independently and the interesting one is NOT the
+    // one named on the tin. Nearly every change lands in tik4net.dll, and `dotnet build tik4net.sln`
+    // after a library-only edit refreshes tik4net.dll in this output directory while leaving
+    // tik4net.mcp.dll untouched — its own compile is up to date, so MSBuild skips it and the copy
+    // keeps its old timestamp. Measured 2026-08-25: solution build, tik4net.dll 09:44:56,
+    // tik4net.mcp.dll 09:44:29, and a live staging whose two files were 38 minutes apart. Reporting
+    // only the wrapper therefore UNDER-reports: it reads "stale" while the answers are current, and
+    // a real library change can hide behind a stamp that never moves.
+    internal static string ServerBuild => BuiltDescription + StaleNote();
+
+    private static readonly string BuiltDescription = DescribeBuild();
+
+    // Where the build output these files were staged from lives, so a rebuild can be noticed while
+    // the server runs. Set by run-dev.ps1; absent for the installed global tool, where there is no
+    // source directory to be behind and the check is simply skipped.
+    private static readonly string? SourceDir = Environment.GetEnvironmentVariable("TIK4NET_MCP_SOURCE_DIR");
 
     private static string DescribeBuild()
     {
         try
         {
-            var asm = typeof(MikroTikTools).Assembly;
-            // A single-file publish reports an empty Location; the apphost path is the file then.
-            string path = asm.Location;
-            if (string.IsNullOrEmpty(path))
-                path = Environment.ProcessPath ?? string.Empty;
+            string version = typeof(MikroTikTools).Assembly.GetName().Version?.ToString() ?? "?";
+            string self = SelfPath();
+            string dir = self.Length > 0 ? (Path.GetDirectoryName(self) ?? string.Empty) : string.Empty;
 
-            string built = path.Length > 0 && File.Exists(path)
-                ? File.GetLastWriteTime(path).ToString("yyyy-MM-dd HH:mm:ss")
-                : "unknown";
-            string version = asm.GetName().Version?.ToString() ?? "?";
-
-            return $"tik4net.mcp {version} built {built}"
-                 + (path.Length > 0 ? $" ({path})" : string.Empty);
+            return $"tik4net.mcp {version} built {Built(self)}"
+                 + $", tik4net.dll built {Built(Path.Combine(dir, "tik4net.dll"))}"
+                 + (dir.Length > 0 ? $" ({dir})" : string.Empty);
         }
         catch (Exception ex)
         {
             // Never let self-description break a router call.
             return $"tik4net.mcp (build unknown: {ex.GetType().Name})";
+        }
+    }
+
+    // A single-file publish reports an empty Location; the apphost path is the file then.
+    private static string SelfPath()
+    {
+        string path = typeof(MikroTikTools).Assembly.Location;
+        return string.IsNullOrEmpty(path) ? Environment.ProcessPath ?? string.Empty : path;
+    }
+
+    private static string Built(string path)
+        => path.Length > 0 && File.Exists(path)
+            ? File.GetLastWriteTime(path).ToString("yyyy-MM-dd HH:mm:ss")
+            : "unknown";
+
+    /// <summary>
+    /// A warning when the repository has been built since this process was staged.
+    /// </summary>
+    /// <remarks>
+    /// Evaluated per call rather than once, because the whole point is to catch a build that happens
+    /// AFTER the server started — which is every build in a working session. Two file stats.
+    /// <para>This is what makes "rebuild and the MCP is current" nearly true: it still is not (the
+    /// process runs from a frozen copy and must be reconnected), but the answer now says so instead
+    /// of quietly describing the previous code.</para>
+    /// </remarks>
+    private static string StaleNote()
+    {
+        if (string.IsNullOrEmpty(SourceDir)) return string.Empty;
+        try
+        {
+            string self = SelfPath();
+            string dir = self.Length > 0 ? (Path.GetDirectoryName(self) ?? string.Empty) : string.Empty;
+            if (dir.Length == 0) return string.Empty;
+
+            var behind = new List<string>();
+            foreach (string file in new[] { "tik4net.dll", "tik4net.mcp.dll" })
+            {
+                string mine = Path.Combine(dir, file);
+                string theirs = Path.Combine(SourceDir!, file);
+                if (!File.Exists(mine) || !File.Exists(theirs)) continue;
+                // Whole seconds: the copy preserves the timestamp exactly, so anything newer is a
+                // genuine rebuild rather than filesystem resolution.
+                if (File.GetLastWriteTime(theirs) > File.GetLastWriteTime(mine).AddSeconds(1))
+                    behind.Add($"{file} {File.GetLastWriteTime(theirs):yyyy-MM-dd HH:mm:ss}");
+            }
+
+            return behind.Count == 0
+                ? string.Empty
+                : " — STALE: the repository has been rebuilt since this server was staged ("
+                  + string.Join(", ", behind)
+                  + "). Reconnect the tik4net-mcp server; this answer describes the PREVIOUS code.";
+        }
+        catch
+        {
+            return string.Empty;   // a staleness check may never break a router call either
         }
     }
 

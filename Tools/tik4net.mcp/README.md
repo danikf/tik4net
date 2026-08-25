@@ -105,14 +105,26 @@ Listen/Streaming.
 
 ### The build stamp
 
-Every tool response names the assembly that produced it — version, **build timestamp** and path:
-`mikrotik_call` appends a trailing `--- MCP SERVER --- tik4net.mcp 4.0.0 built 2026-08-23 10:15:42 (…)`
+Every tool response names the assemblies that produced it — version, the **build timestamp of both**, and
+the path they ran from: `mikrotik_call` appends a trailing
+`--- MCP SERVER --- tik4net.mcp 4.0.0 built 2026-08-25 09:46:25, tik4net.dll built 2026-08-25 09:46:54 (…)`
 line, and `mikrotik_cli_complete` / `mikrotik_discover` carry the same text in a `serverBuild` property.
 
 The dev launcher runs each session from a throw-away copy of the build output, so the server can be
 replaced while clients are connected — which also means the repository cannot tell you which build is
-answering. After a rebuild, compare the stamp against your build before reading the answer: an older
-timestamp means the client is still on the previous server.
+answering. **`dotnet build` alone therefore changes nothing the running process can see**; it keeps
+answering out of its frozen copy until the client reconnects.
+
+Two timestamps because they move independently, and the one that matters is usually not the wrapper: a
+solution build after a library-only edit refreshes `tik4net.dll` in the output directory while MSBuild
+skips `tik4net.mcp.dll`, whose own compile is up to date. A `tik4net.mcp` timestamp older than your edit
+is therefore not evidence the answer is stale.
+
+You do not have to compare by hand. `run-dev.ps1` passes the directory it staged from in
+`TIK4NET_MCP_SOURCE_DIR`, and the server re-checks it on every call: when the repository has been built
+since, the stamp gains `— STALE: … Reconnect the tik4net-mcp server; this answer describes the PREVIOUS
+code.` No note means the running copy matches the last build. The installed global tool has no source
+directory to be behind, so it never carries the note.
 
 ### Examples
 

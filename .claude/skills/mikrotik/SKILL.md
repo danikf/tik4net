@@ -112,9 +112,10 @@ actions log nothing by default (a good `/tool/wol` is silent; a bad MAC / ipsec 
 
 ## Which server answered — the build stamp
 
-Every answer carries the version, **build timestamp** and path of the assembly that produced it:
+Every answer carries the version, the build timestamp of **both** assemblies, and the path they ran from:
 
-- `mikrotik_call` — a trailing line `--- MCP SERVER --- tik4net.mcp 4.0.0 built 2026-08-23 10:15:42 (…)`
+- `mikrotik_call` — a trailing line
+  `--- MCP SERVER --- tik4net.mcp 4.0.0 built 2026-08-25 09:46:25, tik4net.dll built 2026-08-25 09:46:54 (…)`
 - `mikrotik_cli_complete`, `mikrotik_discover` — a `serverBuild` property on the returned JSON object
 
 This exists because the dev launcher (`Tools/tik4net.mcp/run-dev.ps1`) starts each session from a
@@ -122,10 +123,45 @@ throw-away **copy** of the build output under `%TEMP%`, so the server can be reb
 clients are connected — which also means the running process may be any staging, from any build, and the
 repository cannot tell you which.
 
-**After changing anything in `tik4net/` or the MCP tool, read the stamp before you read the answer.** If
-its timestamp predates your build, the client is still on the old server: the answer describes the *previous*
-code, and no amount of re-running will change that. Reconnect the `tik4net-mcp` server and check again.
-A stamp that moved is the only positive confirmation the change is live.
+### Rebuilding is necessary but not sufficient
+
+```bash
+dotnet build tik4net.sln
+```
+
+…then **reconnect the `tik4net-mcp` server**. The build alone changes nothing the running process can see:
+it was started from a frozen copy and will keep answering out of it until it is restarted. The copy is
+what keeps `dotnet build` from ever failing on a file lock, so this is by design, not an oversight.
+
+You no longer have to remember the second step, though: the server compares itself against the build
+output it was staged from (`run-dev.ps1` passes it in `TIK4NET_MCP_SOURCE_DIR`) and appends
+
+> `— STALE: the repository has been rebuilt since this server was staged (tik4net.dll …). Reconnect the
+> tik4net-mcp server; this answer describes the PREVIOUS code.`
+
+to every answer, checked per call. No note means the running copy matches the repository's last build.
+The installed global tool has no source directory to be behind, so the check is simply absent there.
+
+### Two timestamps, because the interesting one is not the one on the tin
+
+**Nearly every change lands in `tik4net.dll`, not in `tik4net.mcp.dll` — and they move independently.** A
+solution build after a library-only edit refreshes `tik4net.dll` in the output directory and leaves
+`tik4net.mcp.dll` alone: the wrapper's own compile is up to date, so MSBuild skips it and the copy keeps
+its old timestamp. Measured 2026-08-25 — solution build, `tik4net.dll` 09:44:56, `tik4net.mcp.dll` 09:44:29;
+a live staging had the two 38 minutes apart, library newer.
+
+So a `tik4net.mcp` timestamp older than your edit **does not** mean the answer is stale. Read the
+`tik4net.dll` half, or just read the STALE note. (This is how a correct fix was once written off as "the
+MCP is stale": the stamp named the wrapper, and the wrapper had not been touched.)
+
+### When staleness matters at all
+
+Only when the MCP is being used as **evidence about code you just changed** — verifying a field mapping, a
+value normalisation, a new transport, a tool parameter. Then a stale server is worse than no answer,
+because it looks like a measurement.
+
+It does not matter when you are using the MCP to **read or change router state** — inventory, a log, a
+firewall rule, a `set`. The router is the source of truth there and any recent build reaches it.
 
 ## Common commands
 

@@ -82,6 +82,12 @@ Copy-Item -Path (Join-Path $sourceDir '*') -Destination $stageDir -Recurse -Forc
 $built = (Get-Item $sourceDll).LastWriteTime
 Write-Note ("running $Configuration build of {0:yyyy-MM-dd HH:mm:ss} from $stageDir" -f $built)
 
+# Tell the server where it was staged FROM, so it can notice a rebuild that lands while it runs and
+# say so on every answer instead of quietly describing the previous code. Without this the staged
+# copy has no way back to the repository, and "did my rebuild take effect?" is unanswerable from
+# inside the process.
+$env:TIK4NET_MCP_SOURCE_DIR = $sourceDir
+
 # ── Run ────────────────────────────────────────────────────────────────────────
 # The apphost when present, so the child process keeps the recognisable tik4net.mcp name; stdio is
 # inherited, so the client's pipes reach the server untouched.
