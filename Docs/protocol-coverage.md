@@ -429,11 +429,11 @@ not have):
 
 | Transport | OK | MISMATCH | VALUE-DIFF | field names missing | WRITES ok/diff/refused | run |
 |---|---|---|---|---|---|---|
-| REST | 155 | 0 | **0** | **0/1338 (0%)** | 207 / 0 / 0 | 51 s |
-| WinBox native | 153 | 0 | 1 | 112/1328 (8%) | 207 / 0 / 0 | 45 s |
-| Telnet | 139 | 0 | 16 | 84/1338 (6%) | 207 / 0 / 0 | 2 m 25 s |
-| SSH | 139 | 0 | 16 | 84/1338 (6%) | 207 / 0 / 0 | 2 m 07 s |
-| WinBox CLI | 138 | 0 | 17 | 84/1338 (6%) | 207 / 0 / 0 | 2 m 39 s |
+| REST | 155 | 0 | **0** | **0/1327 (0%)** | 210 / 0 / 0 | 48 s |
+| WinBox native | 154 | 0 | **0** | 113/1328 (8%) | 210 / 0 / 0 | 44 s |
+| Telnet | 154 | 0 | 1 | 84/1341 (6%) | 210 / 0 / 0 | 2 m 26 s |
+| SSH | 154 | 0 | 1 | 84/1341 (6%) | 210 / 0 / 0 | 2 m 10 s |
+| WinBox CLI | 154 | 0 | 1 | 84/1341 (6%) | 210 / 0 / 0 | 2 m 40 s |
 
 WinBox native also carries `KNOWN-GAP=1` (a menu with no WinBox window) and `VALUES-UNCOMPARED=1`; it is
 the only transport with either, because it is the only one that resolves paths to M2 handlers rather than
@@ -443,10 +443,8 @@ typing the path.
 from the same internal representation the API does, so none of the CLI value classes below arise there.
 
 **The CLI family is interchangeable**, which is what sharing one parser and one command builder is
-supposed to mean: Telnet and SSH are identical to the field, and WinBox CLI differs by one — a
-`/ip/firewall/connection` row whose `dstnat` came back `false,dyi`, the truncated tail of the following
-`dying=false` arriving as a duplicate key. That is the WinBox CLI large-output path, not a mapping
-difference; it did not reproduce on a repeat read.
+supposed to mean: Telnet, SSH and WinBox CLI now read identically, down to the single remaining
+difference they all share.
 
 The MAC-layer variants are not in the table: at roughly 5 s per command a full audit over them runs for
 hours, and they share the code above with their TCP siblings.
@@ -458,14 +456,35 @@ gives the documented one:
 | Class | API | CLI | |
 |---|---|---|---|
 | durations | `15s`, `1w`, `1d`, `5m` | `00:00:15`, `1w00:00:00`, `1d00:00:00`, `00:05:00` | **closed** |
-| zero spelled as a word | `mtu=auto`, `mrru=disabled`, `max-sessions=unlimited`, `dscp=inherit` | `0`, `0`, `0`, `256` | open |
-| scaled fixed-point | `bucket-size=0.1`, `freq-drift=-40.955`, `gmt-offset=+02:00` | `100`, `-40955`, `7200` | open |
-| IPv4 in an IPv6 slot | `local=192.168.4.236` | `::ffff:192.168.4.236` | open |
+| a number the API prints as a word | `mtu=auto`, `ttl=auto`, `horizon=none`, `mrru=disabled`, `max-sessions=unlimited`, `dscp=inherit` | `0`, `0`, `0`, `0`, `0`, `256` | **closed** |
+| scaled fixed-point | `bucket-size=5`, `freq-drift=-47.516`, `gmt-offset=+02:00` | `5000`, `-47516`, `7200` | **closed** |
+| IPv4 in an IPv6 slot | `local=192.168.4.236` | `::ffff:192.168.4.236` | **closed** |
 
-**Durations are re-spelled by `CliValueNormalizer`**, because a duration is the only one of the four that
-says what it is. The rest need to know which FIELD they belong to — `mtu=0` is `auto` and `mrru=0` is
-`disabled` while a `0` elsewhere is a zero — and guessing from the value would corrupt every field that
-legitimately holds the number.
+All four are handled by `CliValueNormalizer`, in two different ways. A **duration** and an **IPv4-mapped
+IPv6 address** say what they are, so they are recognised by shape. The other two cannot be: `mtu=0` is
+`auto` and `mrru=0` is `disabled` while a `0` elsewhere is a zero, and `bucket-size=5000` is `5` only
+because that field is scaled by a thousand. Those are keyed by FIELD NAME — which is exactly what the
+parser is handed, so the gap was never the missing metadata it was first written up as.
+
+Every entry in those tables was pinned by setting a NON-sentinel value on the router and reading it back
+both ways, which is what keeps the rule from being a guess that happens to fit. It also caught one that
+would have been wrong: **`dscp=0` is a real DSCP class**, read back as `0` over both transports — the
+sentinel for `inherit` is `256`, outside the field's 0..63 range. Mapping its zero the way the five other
+fields map theirs would have corrupted a legitimate value.
+
+### What is left: a value with newlines in it
+
+The single remaining `VALUE-DIFF` on the CLI transports is `/file` `contents`, and it is not a spelling —
+as-value is a `;`-separated `key=value` stream with no escaping, so a value containing real line breaks
+splits across what the parser reads as several fields. The result arrives as a DUPLICATE KEY: the API's
+`<html>\n<head>…` comes back as `contents` twice, joined `<html>,<head>`.
+
+RouterOS's answer to this is `:put [:serialize to=json […]]`, which the CLI transports already implement
+(`CliJsonParser`) — but it is opt-in per command via `TikSpecialProperties.CliJson`, so a plain read of a
+free-text field is silently truncated instead. The same duplicate-key signature showed up once on WinBox
+CLI in a large `/ip/firewall/connection` read (`dstnat` = `false,dyi`, the tail of the following
+`dying=false`), from truncation rather than newlines — so a mis-split as-value stream has one recognisable
+shape whatever caused it.
 
 The one thing a duration cannot say about itself is which unit its ZERO is in: as-value gives `00:00:00`
 for both a `0s` field and a `0ms` one. `0s` is emitted; the millisecond fields

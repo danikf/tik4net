@@ -112,6 +112,45 @@ namespace tik4net.integrationtests
             return true;
         }
 
+        /// <summary>Every transport that does not answer in the binary API's own spelling.</summary>
+        /// <remarks>Declared BEFORE <see cref="GapAppliesTo"/>, which reads it: static field initialisers
+        /// run in declaration order, so the other way round hands that dictionary a null array.</remarks>
+        private static readonly TikConnectionType[] NonApiShaped =
+        {
+            TikConnectionType.Telnet, TikConnectionType.Ssh, TikConnectionType.MacTelnet,
+            TikConnectionType.WinboxCli, TikConnectionType.WinboxCliMac,
+            TikConnectionType.WinboxNative, TikConnectionType.WinboxNativeMac,
+        };
+
+        /// <summary>
+        /// Gaps that are a property of SOME transports only, listed by the ones they apply to.
+        /// </summary>
+        /// <remarks>
+        /// The staleness check above exists so an excuse that is no longer true has to be deleted. But a
+        /// gap can be real on one transport and meaningless on another, and then "it agrees here" is not
+        /// evidence the entry is stale — it is the entry not being about this transport. Both of these say
+        /// so in their own reason text: <c>fib</c> is "api/rest spell a presence flag as an empty value,
+        /// native and the CLI as 'true'", so over REST there is nothing to excuse, and <c>system-offset</c>
+        /// is about what the wire carries below the API's precision.
+        /// <para>Absent from this table means "applies everywhere", which is the normal case — only a gap
+        /// whose reason names particular transports belongs here.</para>
+        /// </remarks>
+        private static readonly Dictionary<string, TikConnectionType[]> GapAppliesTo =
+            new Dictionary<string, TikConnectionType[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["/routing/table fib"] = NonApiShaped,
+                ["/system/ntp/client system-offset"] = NonApiShaped,
+            };
+
+        private static bool GapApplies(string key, TikConnectionType probe)
+        {
+            TikConnectionType[] only;
+            if (!GapAppliesTo.TryGetValue(key, out only)) return true;
+            foreach (TikConnectionType t in only)
+                if (t == probe) return true;
+            return false;
+        }
+
         private static bool IsNative(TikConnectionType t)
             => t == TikConnectionType.WinboxNative || t == TikConnectionType.WinboxNativeMac;
 
@@ -523,7 +562,8 @@ namespace tik4net.integrationtests
                     // countdown and two reads land in the same second often enough to look settled. Making
                     // the run fail on that would teach the next person to delete a true excuse.
                     foreach (string f in excusedButAgreeing)
-                        if (!VolatileRowCounts.ContainsKey(path)) staleGaps.Add(path + " " + f);
+                        if (!VolatileRowCounts.ContainsKey(path) && GapApplies(path + " " + f, probeType))
+                            staleGaps.Add(path + " " + f);
 
                     if (valueDiffs.Count == 0)
                     {

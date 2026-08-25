@@ -78,7 +78,9 @@ namespace tik4net.unittests.Cli
             {
                 "2026-08-24 00:27:30",      // a timestamp
                 "aug/24/2026 00:27:30",     // RouterOS's other timestamp spelling
-                "::ffff:192.168.4.236",     // an address
+                "::ffff:not.an.address",    // ffff-shaped but not a mapped IPv4
+                "::ffff:192.168.4.999",     // nor is this
+                "2001:db8::1",              // a real IPv6
                 "00:15:5D:04:1F:03",        // a MAC
                 "192.168.4.236",
                 "15s",                      // already an API duration
@@ -93,6 +95,96 @@ namespace tik4net.unittests.Cli
             {
                 Assert.AreEqual(v, N("some-field", v), "must pass through unchanged: '" + v + "'");
             }
+        }
+
+        /// <summary>
+        /// The numeric sentinels the API prints as a word. Keyed by field name, because the value cannot
+        /// carry it: the same <c>0</c> is <c>auto</c>, <c>none</c>, <c>disabled</c> or a plain zero
+        /// depending only on which field it came from.
+        /// </summary>
+        [TestMethod]
+        public void SpellsTheSentinelTheWayTheApiDoes()
+        {
+            Assert.AreEqual("auto", N("mtu", "0"));
+            Assert.AreEqual("auto", N("ttl", "0"));
+            Assert.AreEqual("none", N("horizon", "0"));
+            Assert.AreEqual("disabled", N("mrru", "0"));
+            Assert.AreEqual("unlimited", N("max-sessions", "0"));
+            Assert.AreEqual("inherit", N("dscp", "256"));
+        }
+
+        /// <summary>
+        /// Only the sentinel number maps, and only on its own field. Each of these was read back from the
+        /// router as the plain number over BOTH transports.
+        /// </summary>
+        [TestMethod]
+        public void LeavesRealValuesOfSentinelFieldsAlone()
+        {
+            Assert.AreEqual("1400", N("mtu", "1400"));
+            Assert.AreEqual("5", N("horizon", "5"));
+            Assert.AreEqual("64", N("ttl", "64"));
+            Assert.AreEqual("1600", N("mrru", "1600"));
+            Assert.AreEqual("10", N("max-sessions", "10"));
+            // dscp=0 is a real DSCP class; its sentinel is 256, outside the 0..63 range. Mapping the zero
+            // here — as every other field in the table does — would have silently corrupted it.
+            Assert.AreEqual("0", N("dscp", "0"));
+            Assert.AreEqual("63", N("dscp", "63"));
+            // The same 0 on a field that is not in the table.
+            Assert.AreEqual("0", N("priority", "0"));
+            Assert.AreEqual("0", N("vni", "0"));
+        }
+
+        /// <summary>A scale, not a sentinel: every value of these fields is a thousand times the API's.</summary>
+        [TestMethod]
+        public void ScalesTheThousandthsFields()
+        {
+            Assert.AreEqual("5", N("bucket-size", "5000"));
+            Assert.AreEqual("0.1", N("bucket-size", "100"));
+            Assert.AreEqual("10", N("bucket-size", "10000"));
+            Assert.AreEqual("0", N("bucket-size", "0"));
+            Assert.AreEqual("-47.516", N("freq-drift", "-47516"));
+            Assert.AreEqual("-0.001", N("freq-drift", "-1"));
+            // Not scaled on a field that is not in the table.
+            Assert.AreEqual("5000", N("burst-limit", "5000"));
+        }
+
+        /// <summary>Seconds east of UTC, which the API prints as a signed clock offset.</summary>
+        [TestMethod]
+        public void RendersGmtOffsetAsASignedClock()
+        {
+            Assert.AreEqual("+02:00", N("gmt-offset", "7200"));
+            Assert.AreEqual("+00:00", N("gmt-offset", "0"));
+            Assert.AreEqual("-05:30", N("gmt-offset", "-19800"));
+            Assert.AreEqual("+05:45", N("gmt-offset", "20700"));
+            // The same number on any other field is just a number.
+            Assert.AreEqual("7200", N("port", "7200"));
+        }
+
+        /// <summary>
+        /// An IPv4 sitting in an IPv6-shaped slot. Recognised by SHAPE like a duration, because
+        /// <c>::ffff:</c> followed by a dotted quad cannot be anything else.
+        /// </summary>
+        [TestMethod]
+        public void UnwrapsAnIpv4MappedAddress()
+        {
+            Assert.AreEqual("192.168.4.236", N("local", "::ffff:192.168.4.236"));
+            Assert.AreEqual("0.0.0.0", N("address", "::FFFF:0.0.0.0"));
+        }
+
+        /// <summary>
+        /// The zero of a millisecond-resolution duration. as-value gives <c>00:00:00</c> for both
+        /// resolutions, so only the field name distinguishes them.
+        /// </summary>
+        [TestMethod]
+        public void ZeroOfAMillisecondFieldIsSpelledInMilliseconds()
+        {
+            Assert.AreEqual("0ms", N("down-delay", "00:00:00"));
+            Assert.AreEqual("0ms", N("up-delay", "00:00:00"));
+            // A non-zero one needs no help — the fraction already carries the unit.
+            Assert.AreEqual("500ms", N("down-delay", "00:00:00.5"));
+            Assert.AreEqual("1s", N("down-delay", "00:00:01"));
+            // And a second-resolution field keeps 0s.
+            Assert.AreEqual("0s", N("interim-update", "00:00:00"));
         }
 
         /// <summary>A null value survives — a field can be present and empty.</summary>

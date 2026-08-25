@@ -139,6 +139,41 @@ back to config-only rather than dropping the record. The binary API and REST tra
 marker (`IsSpecialParam` in `ApiCommand`/`RestRequestBuilder`) — they already get counters from
 `detail`, and the marker never reaches the wire.
 
+### A number as-value prints, and the word the API prints for it
+
+Some fields store a number whose extreme value the API renders as a word. as-value always gives the
+number, so the CLI reader has to know the pairing — and the pairing is a property of the FIELD, not of
+the value. Measured on 7.24 by setting a non-sentinel value and reading it back both ways:
+
+| Field | as-value | API | a real value, both ways |
+|---|---|---|---|
+| `mtu` | `0` | `auto` | `1400` → `1400` |
+| `ttl` | `0` | `auto` | `64` → `64` |
+| `horizon` | `0` | `none` | `5` → `5` |
+| `mrru` | `0` | `disabled` | `1600` → `1600` |
+| `max-sessions` | `0` | `unlimited` | `10` → `10` |
+| `dscp` | `256` | `inherit` | **`0` → `0`** |
+
+`dscp` is the one that matters: **its zero is a real DSCP class**, and its sentinel is `256`, outside the
+field's own 0..63 range. Applying the other five fields' rule to it would have quietly replaced a valid
+value with `inherit`.
+
+`horizon` is worth stating too, because it looks like it could have a real zero: setting `horizon=0` reads
+back `none` over the API, so 0 and `none` are one state and there is no third case to lose. And `mrru`
+cannot be *set* to 0 at all (range 1500..16384), which is what makes 0 unambiguously the disabled state.
+
+### Two fields as-value scales by a thousand, and one it gives in seconds
+
+`bucket-size=5` comes back from as-value as `5000` (the router's own range for the field is 0..10), and
+`freq-drift` the same way — a scale on every value, not a sentinel. `/system/clock`'s `gmt-offset` is
+seconds east of UTC where the API prints a signed clock offset: `7200` → `+02:00`.
+
+### An IPv4 in an IPv6-shaped slot
+
+`/ip/service` `local` reads `::ffff:192.168.4.236` over the CLI and `192.168.4.236` over the API. Unlike
+the two above this needs no field knowledge — `::ffff:` followed by a dotted quad cannot be anything else,
+so it is recognised by shape, like a duration.
+
 ### `as-value` has no escaping — free-text fields go through `:serialize to=json`
 
 `as-value` joins records with `;`, fields with `;` and `=`, and has **no escape mechanism whatsoever**.
