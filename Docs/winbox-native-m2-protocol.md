@@ -677,6 +677,42 @@ being exactly zero, so a real count is never rewritten.
 date alone. `timezone` is a signed second offset rendered `±HH:MM` — the wire carries it unsigned, so a
 negative offset arrives wrapped and must be unwrapped before the sign is taken.
 
+**A declaration carrying `relative:1` is a third time shape, and the wire type does not say so.** Such a
+field is an absolute moment measured on the router's UPTIME clock, in `scale` units — not on the epoch —
+so reading it as epoch seconds lands it in 1970. webfig `types.dateandtime.tostr` spells the arithmetic
+out: `getNow()-getUptime()+sysres.GMToffset+Math.floor(val/100)` — boot, in the router's own timezone,
+plus the value's distance from boot.
+
+**The origin is taken from the router, not from webfig's recipe**, which reads the browser's clock and a
+whole-second uptime. Two singletons, both read once per connection, both already read for other reasons:
+
+| value | where | why not webfig's |
+|---|---|---|
+| the router's current time | clock `[24,0]` key `0x7` — epoch seconds, already in the router's timezone | webfig uses the BROWSER's clock plus the GMT offset (`0x1b`); a client whose clock is wrong would date every such field by its own error |
+| the distance from boot | resources `[24,2]` key `0x2e` (`jiffies`, nonpublic) — hundredths | `u1` is the same counter in whole SECONDS, and the discarded fraction is exactly what decides which second the answer falls in |
+
+`jiffies` is `u1` at a hundred times the resolution, measured on 7.24: 1137 units in 11.367 s, and
+`u1 = jiffies/100` to the unit. It is also the very clock a `relative` value is expressed on. The two
+singletons are one round trip apart, so the local clock is trusted for that ELAPSED interval and never for
+the absolute time. With either unreadable the field keeps its raw value, as an `age` does: a date computed
+from a guessed origin is indistinguishable from one the router meant.
+
+**Neither side of this is stable to the second, and the router is the one that moves.** RouterOS re-derives
+the wall-clock time from the same counter on every print: two API reads fifteen minutes apart answered
+`2026-08-25 21:43:13` and `21:43:12` for one link that had not moved. Reading the clock to the second
+leaves half a second of error here (the midpoint of the second the router named), which is inside that
+wobble — so the live test asserts agreement within a second rather than equality.
+
+The 7.24 catalog declares `relative` on three fields — `/interface`'s 'Last Link Up Time' and 'Last Link
+Down Time' (`scale:100`, so hundredths) and wave2's 'First Beacon'. Sweeping every entity path over the
+native transport, 1055 decoded timestamps across 157 paths carry no year before 2000; the two that do are
+`/system/clock`'s `dst-start`/`dst-end`, which the wire sends as a literal zero and the API does not
+report at all.
+
+Note the sibling shape it is NOT: an `age` is also a moment on the uptime clock, but rendered as its
+DISTANCE from now, which is what the API prints for those fields. Same clock, different rendering, and
+the declaration is the only thing that tells them apart.
+
 **The `set` ORDER is per field, and measured.** A bitmask decodes here by ascending bit index, and
 RouterOS prints its own order — which for two fields is exactly the reverse:
 

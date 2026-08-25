@@ -1080,7 +1080,8 @@ namespace tik4net.Winbox
                             tab: tab, title: TitleOf(dict),
                             nonPublic: dict.TryGetValue("nonpublic", out var npv) && npv is int npi && npi != 0,
                             min: dict.TryGetValue("min", out var mnv) && mnv is int mni ? mni : 0,
-                            radix: RadixOf(dict), elementScale: ElementScaleOf(dict));
+                            radix: RadixOf(dict), elementScale: ElementScaleOf(dict),
+                            relative: RelativeOf(dict));
                     }
                 }
 
@@ -1212,7 +1213,8 @@ namespace tik4net.Winbox
             string? elementSeparator = null, int elementNotKey = 0, bool elementIsRange = false,
             string? tab = null, string? title = null,
             IReadOnlyList<WinboxJgField>? extraRegistrations = null, bool nonPublic = false,
-            long min = 0, int radix = 0, string? prefix = null, int elementScale = 1)
+            long min = 0, int radix = 0, string? prefix = null, int elementScale = 1,
+            bool relative = false)
         {
             string apiName = WinboxFieldResolver.NormalizeLabel(label);
             if (string.IsNullOrEmpty(apiName)) return;
@@ -1240,7 +1242,7 @@ namespace tik4net.Winbox
                 elementParts, postfix, elementSeparator, elementNotKey: elementNotKey,
                 elementIsRange: elementIsRange, titleApiName: titleName,
                 extraRegistrations: extraRegistrations, nonPublic: nonPublic, min: min, radix: radix,
-                prefix: prefix, elementScale: elementScale);
+                prefix: prefix, elementScale: elementScale, relative: relative);
             // Two fields of one window may carry the same label - the packet sniffer's streaming 'Port' (a
             // number) and its filter 'Port' (a list of port matches) - and first-wins kept only the first,
             // leaving the second reachable under no name at all. The TAB it sits under is what tells them
@@ -1291,6 +1293,11 @@ namespace tik4net.Winbox
         // type:'opt' WRAPPER, which is a node of its own carrying a present-flag bool (see OptKey).
         private static bool IsOptionalAttr(Dictionary<string, object> dict)
             => dict.TryGetValue("opt", out var ov) && ov is int oi && oi != 0;
+
+        // The .jg `relative:1` flag: a dateandtime measured on the uptime clock rather than on the epoch.
+        // See WinboxJgField.Relative.
+        private static bool RelativeOf(IDictionary<string, object> dict)
+            => dict.TryGetValue("relative", out var rv) && rv is int ri && ri != 0;
 
         // The .jg `scale` of an interval field: how many wire units make one second.
         private static int ScaleOf(Dictionary<string, object> dict)
@@ -1584,7 +1591,7 @@ namespace tik4net.Winbox
                 uiType, maskKey, ExtractRefHandler(child), isRange: isRange, allow: allow,
                 def: ExtractDef(child), pane: pane,
                 isOptional: IsOptionalAttr(union) || IsOptionalAttr(child),
-                elementUiType: ElementUiTypeOf(child), scale: ScaleOf(child),
+                elementUiType: ElementUiTypeOf(child), scale: ScaleOf(child), relative: RelativeOf(child),
                 elementParts: ElementPartsOf(child), postfix: PostfixOf(child),
                 elementSeparator: ElementSeparatorOf(child),
                 // The base and the minimum are the member's too. /interface/bridge's 'Priority' is a union
@@ -1629,7 +1636,7 @@ namespace tik4net.Winbox
                     def: ExtractDef(md),
                     paneKind: pane?.Kind, paneSelectorKey: pane?.SelectorKey ?? 0, paneValues: pane?.Values,
                     isOptional: IsOptionalAttr(union) || IsOptionalAttr(md),
-                    scale: ScaleOf(md)));
+                    scale: ScaleOf(md), relative: RelativeOf(md)));
             }
             return result.Count > 0 ? result : null;
         }

@@ -7,7 +7,9 @@
 // Every assertion compares the transport under test against the BINARY API on the same router, rather than
 // against a literal — the API's own text is the reference, and a stock router's values differ per machine.
 
+using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net;
@@ -122,6 +124,46 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void TheDiskSizeIsReportedInTheApisUnits()
             => AssertAgreesWithApi("/system/resource", "total-hdd-space");
+
+        /// <summary>
+        /// G12: an interface's last link times, which the window declares <c>relative:1, scale:100</c> -
+        /// hundredths of a second on the router's UPTIME clock, where every other <c>dateandtime</c> on the
+        /// wire is unix-epoch seconds. Read as an epoch they landed in February 1970: a well-formed
+        /// timestamp, which is why nothing else here catches them - the path-map audit excuses any field
+        /// whose name carries 'time' or 'last-' as volatile, and both sides look like dates.
+        /// </summary>
+        /// <remarks>
+        /// <b>Why a tolerance and not <c>AreEqual</c>.</b> RouterOS re-derives these two from the same uptime
+        /// counter on every print, so the API's own answer is not stable to the second: two reads fifteen
+        /// minutes apart returned <c>21:43:13</c> and <c>21:43:12</c> for one link that had not moved (7.24).
+        /// A second of tolerance is the router's wobble; the defect this guards was 56 years wide. The native
+        /// transports read 0 s apart once the origin came from the router's own clock rather than the local
+        /// machine's - the tolerance is for the router moving under the two reads, not for our arithmetic.
+        /// <para>The row is whichever interface the path lists first, and it must be one that has LINKED - a
+        /// never-linked interface reports neither field, and two absent values agree vacuously.</para>
+        /// </remarks>
+        [TestMethod]
+        public void AnInterfacesLastLinkTimeIsDatedFromBootAndNotFromTheEpoch()
+        {
+            string expected;
+            using (var api = OpenSideApi())
+                expected = Single(api, "/interface", detail: true)
+                           .GetResponseFieldOrDefault("last-link-up-time", null);
+            if (expected == null)
+                Assert.Inconclusive("the first interface has never linked, so it carries no link times");
+
+            string actual = Single(Connection, "/interface", detail: true)
+                            .GetResponseFieldOrDefault("last-link-up-time", null);
+            Assert.IsNotNull(actual, "/interface must report 'last-link-up-time'");
+
+            var apiTime = DateTime.ParseExact(expected, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+            var ours = DateTime.ParseExact(actual, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+            double off = Math.Abs((ours - apiTime).TotalSeconds);
+            Console.WriteLine($"last-link-up-time api='{expected}' transport='{actual}' ({off} s apart)");
+            Assert.IsTrue(off <= 1, $"last-link-up-time api='{expected}' {Connection.GetType().Name}="
+                                    + $"'{actual}' - {off} s apart, which is more than the router's own"
+                                    + " print-to-print wobble");
+        }
 
         /// <summary>
         /// Two declarations of one key, the disused one prefixed 'Old' and carrying the other's name as its

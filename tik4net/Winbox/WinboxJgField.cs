@@ -156,6 +156,25 @@ namespace tik4net.Winbox
         internal int Scale { get; }
 
         /// <summary>
+        /// The <c>.jg</c> <c>relative:1</c> flag on a <c>dateandtime</c> field: the wire value is an absolute
+        /// moment measured on the router's UPTIME clock (in <see cref="Scale"/> units), not unix-epoch
+        /// seconds. <c>false</c> for every other field.
+        /// </summary>
+        /// <remarks>
+        /// A third time shape, distinct from both siblings the codec already knows: a plain
+        /// <c>dateandtime</c> is an epoch timestamp, an <c>age</c> is a moment on the uptime clock rendered
+        /// as its DISTANCE from now, and this is a moment on the uptime clock rendered as an absolute
+        /// wall-clock time — which is what RouterOS's API prints for it.
+        /// webfig <c>types.dateandtime.tostr</c>:
+        /// <c>getNow()-getUptime()+sysres.GMToffset+Math.floor(val/100)</c>, i.e. boot time in the router's
+        /// own timezone plus the value's distance from boot (the origin is taken from the router rather than
+        /// from the local clock - see <c>WinboxRecordCodec.RouterBootEpochHundredths</c>). The 7.24 catalog
+        /// declares it on three fields: <c>/interface</c>'s 'Last Link Up Time' and 'Last Link Down Time',
+        /// and wave2's 'First Beacon'.
+        /// </remarks>
+        internal bool Relative { get; }
+
+        /// <summary>
         /// The <c>.jg</c> <c>postfix</c> — the UNIT a numeric field is expressed in (<c>'s'</c>,
         /// <c>'min'</c>, …). <c>null</c> when the field declares none.
         /// </summary>
@@ -388,8 +407,10 @@ namespace tik4net.Winbox
             string? elementSeparator = null, Tuple<WinboxJgField, WinboxJgField>? pairHalves = null,
             int elementNotKey = 0, bool elementIsRange = false, string? titleApiName = null,
             IReadOnlyList<WinboxJgField>? extraRegistrations = null, bool nonPublic = false,
-            long min = 0, int radix = 0, string? prefix = null, int elementScale = 1)
+            long min = 0, int radix = 0, string? prefix = null, int elementScale = 1,
+            bool relative = false)
         {
+            Relative = relative;
             ElementScale = elementScale < 1 ? 1 : elementScale;
             Radix = radix;
             Prefix = prefix;
@@ -513,6 +534,6 @@ namespace tik4net.Winbox
                 OptKey, NotKey, IsRange, Allow, Def, PaneKind, PaneSelectorKey, PaneValues, OffKey,
                 IsOptional, ElementUiType, Scale, ElementParts, Postfix, ElementSeparator, PairHalves,
                 ElementNotKey, ElementIsRange, TitleApiName, ExtraRegistrations, NonPublic, Min, Radix,
-                Prefix, ElementScale);
+                Prefix, ElementScale, Relative);
     }
 }
