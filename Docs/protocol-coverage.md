@@ -424,16 +424,28 @@ The comparison is between the binary API and **one other transport**, named by
 `TIK4NET_AUDIT_TRANSPORT`; nothing in it is WinBox-specific except the "no WinBox window" excuse. It
 defaults to `WinboxNative`, which is the transport it was written for.
 
-Measured so far (RouterOS 7.24, 154 paths, `ROUTER-N/A=7` on every transport — menus this router does
-not have):
+**Every transport has now been measured**, RouterOS 7.24, in one router state. `ROUTER-N/A=7` on all of
+them — menus this router does not have — and `MISMATCH=0`, `VALUE-DIFF=0` and `WRITES 227/0/0` everywhere:
 
-| Transport | OK | MISMATCH | VALUE-DIFF | field names missing | WRITES ok/diff/refused | run |
-|---|---|---|---|---|---|---|
-| REST | **155** | 0 | **0** | **0/1327 (0%)** | 214 / 0 / 0 | 51 s |
-| Telnet | **155** | 0 | **0** | 84/1341 (6%) | 214 / 0 / 0 | 2 m 27 s |
-| SSH | **155** | 0 | **0** | 84/1341 (6%) | 214 / 0 / 0 | 2 m 14 s |
-| WinBox CLI | **155** | 0 | **0** | 84/1341 (6%) | 214 / 0 / 0 | 2 m 47 s |
-| WinBox native | 154 | 0 | **0** | 102/1328 (7%) | 227 / 0 / 0 | 44 s |
+| Transport | OK | field names missing | run |
+|---|---|---|---|
+| API/SSL | 155 | **0/1341 (0%)** | 48 s |
+| REST | 155 | **0/1341 (0%)** | 47 s |
+| REST/SSL | 155 | **0/1344 (0%)** | 49 s |
+| Telnet | 155 | 84/1344 (6%) | 2 m 36 s |
+| SSH | 155 | 84/1341 (6%) | 2 m 14 s |
+| MAC-Telnet | 155 | 84/1344 (6%) | 2 m 20 s |
+| WinBox CLI | 155 | 84/1344 (6%) | 2 m 53 s |
+| WinBox CLI/MAC | 155 | 84/1341 (6%) | 2 m 37 s |
+| WinBox native | 154 + 1 KNOWN-GAP | 102/1328 (7%) | 44 s |
+| WinBox native/MAC | 154 + 1 KNOWN-GAP | 105/1344 (7%) | 1 m 04 s |
+
+The MAC-layer variants cost about a minute more than their TCP siblings, not the hours the per-command
+latency suggested — a full audit over MAC-Telnet runs in the same 2-3 minutes as Telnet. The denominator
+moves by a few fields between runs because the API's field count depends on which rows exist at the time.
+
+**The four API-shaped transports report every field name the API does.** The CLI family is short 84, WinBox
+native 102 — those are the remaining gap, and they are NAMES, not wrong values.
 
 WinBox native also carries `KNOWN-GAP=1` (a menu with no WinBox window) and `VALUES-UNCOMPARED=1`; it is
 the only transport with either, because it is the only one that resolves paths to M2 handlers rather than
@@ -442,12 +454,15 @@ typing the path.
 **REST matches the binary API exactly** — same field names, same spellings, no writes refused. It renders
 from the same internal representation the API does, so none of the CLI value classes below arise there.
 
+Running the audit with an API-shaped transport as the PROBE found a defect in the audit itself: `.tag` is
+the sentence sequence number our own API layer stamps on, not a field the router sent, and it counts up
+per connection. Against Api it had never been compared, because no other transport produces it; the first
+ApiSsl run reported 126 of 155 paths as `VALUE-DIFF`, every one of them `.tag`. The audit was comparing
+itself. It is excluded from the value comparison now, as `.id` already was.
+
 **The CLI family is interchangeable**, which is what sharing one parser and one command builder is
 supposed to mean: Telnet, SSH and WinBox CLI now read identically, down to the single remaining
 difference they all share.
-
-The MAC-layer variants are not in the table: at roughly 5 s per command a full audit over them runs for
-hours, and they share the code above with their TCP siblings.
 
 The value differences are not defects one per line. They are four renderings, because a CLI read is
 `:put [… print as-value]` and `as-value` gives the router's INTERNAL spelling where the API's `print`

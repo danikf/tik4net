@@ -413,7 +413,13 @@ namespace tik4net.integrationtests
                 pairedRows++;
                 foreach (var f in kv.Value)
                 {
-                    if (f.Key == ".id" || IsVolatile(f.Key)) continue;
+                    // '.tag' is the API sentence's sequence number — something OUR api layer stamps on,
+                    // not a field the router sent, and it counts up per connection. It only becomes
+                    // visible here when the PROBE is api-shaped too (ApiSsl), where the two connections
+                    // are simply at different points in their own numbering: the first ApiSsl run
+                    // reported 126 of 155 paths as VALUE-DIFF, every one of them '.tag'. The audit was
+                    // comparing itself.
+                    if (f.Key == ".id" || f.Key == ".tag" || IsVolatile(f.Key)) continue;
                     if (!probeRow.TryGetValue(f.Key, out string probeValue)) continue;
                     bool agrees = string.Equals(f.Value ?? "", probeValue ?? "", StringComparison.OrdinalIgnoreCase);
                     if (excused != null && excused.ContainsKey(f.Key))
