@@ -168,6 +168,50 @@ cannot be *set* to 0 at all (range 1500..16384), which is what makes 0 unambiguo
 `freq-drift` the same way — a scale on every value, not a sentinel. `/system/clock`'s `gmt-offset` is
 seconds east of UTC where the API prints a signed clock offset: `7200` → `+02:00`.
 
+### `:serialize to=json` fixes the framing and changes the values
+
+The JSON read is what a free-text field needs (see the section below), and it is not a drop-in
+replacement for `as-value` — the same record comes back spelled differently. Measured on 7.24:
+
+| | as-value | `:serialize to=json` |
+|---|---|---|
+| `ttl=1d` | `1d00:00:00` | `"1970-01-02 00:00:00"` |
+| `ttl=52w1d` | `52w1d00:00:00` | `"1971-01-01 00:00:00"` |
+| `arp-interval=100ms` | `00:00:00.100` | `"00:00:00"` |
+| `mtu`, `gmt-offset` | `1500`, `7200` | `1500`, `7200` (JSON numbers) |
+
+So a duration is rendered as a **date counted from the Unix epoch**, and **sub-second precision is
+dropped**. Neither is recoverable from the JSON alone in general: the epoch date has exactly the shape a
+real timestamp has through the same serialiser (`last-link-up-time` reads `"2026-08-25 00:27:44"`), and
+the milliseconds are simply gone. `CliValueNormalizer` converts the date back for the duration fields
+measured to need it and leaves every other date-shaped value alone, so an unlisted duration shows up in
+the transport audit while an unlisted timestamp is never turned into a nonsense duration.
+
+None of `:serialize`'s options change this — `options=json.no-string-conversion` and `json.pretty` both
+render the date.
+
+**This is why the JSON read is opt-in per entity** rather than the default for CLI transports. It fixes a
+failure that only occurs when a value carries the format's own separators, and it costs precision on every
+value that does not.
+
+### A comment can shred an as-value read, and is deliberately not on the JSON path
+
+`comment` is arbitrary user text on every menu, so it can carry the separators too — and the failure is
+worse than a wrong value. Measured on 7.24, `comment=a;b=c d` on an interface reads back over every CLI
+transport as:
+
+```
+.id=*3;actual-mtu=1500;comment=a;b=c d;disabled=false;name=ether2;…
+```
+
+— a truncated comment **plus a field called `b` that the router never sent**.
+
+Marking `comment` free-text on every entity would fix it and put every entity on the lossy JSON path
+above: `/interface/bonding`, for instance, has no free-form field other than its comment, and would lose
+`arp-interval=100ms` on every read to protect a comment that almost never contains a `;`. The trade is not
+worth it, so this stays a known limitation: a comment containing `;`, `=` or a newline is not read
+correctly over a CLI transport unless its entity is on the JSON path for another reason.
+
 ### An IPv4 in an IPv6-shaped slot
 
 `/ip/service` `local` reads `::ffff:192.168.4.236` over the CLI and `192.168.4.236` over the API. Unlike

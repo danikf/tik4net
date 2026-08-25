@@ -75,6 +75,16 @@ namespace tik4net.Objects
         /// fall back to <c>as-value</c>, i.e. to the shredding this flag exists to avoid — so on such a
         /// router, do not read these entities over a CLI transport.
         /// </para>
+        /// <para>
+        /// <b>It costs something, so mark only what needs it.</b> <c>:serialize to=json</c> fixes the
+        /// framing and changes the VALUES: a duration comes back as a date counted from the Unix epoch
+        /// (<c>ttl=1d</c> arrives as <c>1970-01-02 00:00:00</c>, <c>52w1d</c> as <c>1971-01-01 00:00:00</c>)
+        /// and sub-second precision is truncated — <c>arp-interval=100ms</c> reads as <c>00:00:00</c>.
+        /// <c>CliValueNormalizer</c> converts the dates back for the duration fields it knows about; the
+        /// lost milliseconds cannot be recovered. This is why <c>comment</c> is not marked automatically
+        /// even though a comment carrying a <c>;</c> does shred: it would put every entity on the lossy
+        /// path to fix a rare case.
+        /// </para>
         /// </summary>
         /// <seealso cref="tik4net.TikSpecialProperties.CliJson"/>
         public bool IsFreeText { get; set; }

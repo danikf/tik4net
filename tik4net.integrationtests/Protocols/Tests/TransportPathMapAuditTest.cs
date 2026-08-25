@@ -182,17 +182,65 @@ namespace tik4net.integrationtests
         /// that do not, and it cannot silently under-ask: the fallback happens only after the router has
         /// said no.</para>
         /// </remarks>
+        /// <summary>
+        /// Paths whose entity declares at least one <c>IsFreeText</c> property.
+        /// </summary>
+        /// <remarks>
+        /// Read from the entity attributes rather than listed here, so this cannot fall behind the entities
+        /// it describes: marking a property is the whole declaration.
+        /// <para>The audit reads through low-level commands, which is deliberate — it is comparing what the
+        /// TRANSPORTS return, not what the mapper makes of it. But the free-text marker is not a mapper
+        /// convenience; it changes the request the library sends, to <c>:put [:serialize to=json […]]</c>,
+        /// because as-value has no escaping and a value containing a newline or a <c>;</c> splits into what
+        /// the parser reads as further fields. Reading these paths without it measured a request the
+        /// library never makes, and reported the shredding as a transport difference.</para>
+        /// </remarks>
+        private static readonly HashSet<string> FreeTextPaths = BuildFreeTextPaths();
+
+        private static HashSet<string> BuildFreeTextPaths()
+        {
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (Type t in typeof(TikEntityAttribute).Assembly.GetTypes())
+            {
+                var ea = t.GetCustomAttribute<TikEntityAttribute>();
+                if (ea == null || string.IsNullOrEmpty(ea.EntityPath)) continue;
+                // The library's own answer, not a re-reading of the attributes: `comment` counts as free
+                // text by RULE rather than by declaration (see TikEntityPropertyAccessor), and an audit
+                // that re-derived the set from attributes alone would quietly disagree with the mapper it
+                // is supposed to be measuring.
+                bool anyFreeText;
+                try
+                {
+                    var meta = typeof(TikEntityMetadataCache).GetMethod("GetMetadata")
+                                   .MakeGenericMethod(t).Invoke(null, null);
+                    anyFreeText = ((TikEntityMetadata)meta).HasFreeTextProperties;
+                }
+                catch (Exception) { continue; }   // not a loadable entity; EntityPaths skips it too
+                if (anyFreeText)
+                    set.Add(ea.EntityPath.StartsWith("/") ? ea.EntityPath : "/" + ea.EntityPath);
+            }
+            return set;
+        }
+
         private static List<ITikReSentence> PrintRows(ITikConnection conn, string path)
         {
+            // Harmless on the transports that do not need it: API and REST both drop '.cli-json' rather
+            // than putting it on the wire.
+            var extra = new List<ITikCommandParameter>();
+            if (FreeTextPaths.Contains(path))
+                extra.Add(conn.CreateParameter(TikSpecialProperties.CliJson, "",
+                                               TikCommandParameterFormat.NameValue));
             try
             {
-                return conn.CreateCommand(path + "/print",
-                               conn.CreateParameter("detail", "", TikCommandParameterFormat.NameValue))
-                           .ExecuteList().ToList();
+                var withDetail = new List<ITikCommandParameter>(extra)
+                {
+                    conn.CreateParameter("detail", "", TikCommandParameterFormat.NameValue)
+                };
+                return conn.CreateCommand(path + "/print", withDetail.ToArray()).ExecuteList().ToList();
             }
             catch (Exception)
             {
-                return conn.CreateCommand(path + "/print").ExecuteList().ToList();
+                return conn.CreateCommand(path + "/print", extra.ToArray()).ExecuteList().ToList();
             }
         }
 

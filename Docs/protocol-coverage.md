@@ -429,11 +429,11 @@ not have):
 
 | Transport | OK | MISMATCH | VALUE-DIFF | field names missing | WRITES ok/diff/refused | run |
 |---|---|---|---|---|---|---|
-| REST | 155 | 0 | **0** | **0/1327 (0%)** | 210 / 0 / 0 | 48 s |
-| WinBox native | 154 | 0 | **0** | 113/1328 (8%) | 210 / 0 / 0 | 44 s |
-| Telnet | 154 | 0 | 1 | 84/1341 (6%) | 210 / 0 / 0 | 2 m 26 s |
-| SSH | 154 | 0 | 1 | 84/1341 (6%) | 210 / 0 / 0 | 2 m 10 s |
-| WinBox CLI | 154 | 0 | 1 | 84/1341 (6%) | 210 / 0 / 0 | 2 m 40 s |
+| REST | **155** | 0 | **0** | **0/1327 (0%)** | 214 / 0 / 0 | 51 s |
+| Telnet | **155** | 0 | **0** | 84/1341 (6%) | 214 / 0 / 0 | 2 m 27 s |
+| SSH | **155** | 0 | **0** | 84/1341 (6%) | 214 / 0 / 0 | 2 m 14 s |
+| WinBox CLI | **155** | 0 | **0** | 84/1341 (6%) | 214 / 0 / 0 | 2 m 47 s |
+| WinBox native | 153 | 0 | 1 | 113/1328 (8%) | 214 / 0 / 0 | 45 s |
 
 WinBox native also carries `KNOWN-GAP=1` (a menu with no WinBox window) and `VALUES-UNCOMPARED=1`; it is
 the only transport with either, because it is the only one that resolves paths to M2 handlers rather than
@@ -472,19 +472,36 @@ would have been wrong: **`dscp=0` is a real DSCP class**, read back as `0` over 
 sentinel for `inherit` is `256`, outside the field's 0..63 range. Mapping its zero the way the five other
 fields map theirs would have corrupted a legitimate value.
 
-### What is left: a value with newlines in it
+### A value with newlines in it: the JSON read, and what it costs
 
-The single remaining `VALUE-DIFF` on the CLI transports is `/file` `contents`, and it is not a spelling —
-as-value is a `;`-separated `key=value` stream with no escaping, so a value containing real line breaks
-splits across what the parser reads as several fields. The result arrives as a DUPLICATE KEY: the API's
-`<html>\n<head>…` comes back as `contents` twice, joined `<html>,<head>`.
+`as-value` is a `;`-separated `key=value` stream with no escaping, so a value carrying real line breaks —
+`/file` `contents` — splits across what the parser reads as several fields and arrives as a DUPLICATE KEY:
+the API's `<html>\n<head>…` comes back as `contents` twice, joined `<html>,<head>`.
 
-RouterOS's answer to this is `:put [:serialize to=json […]]`, which the CLI transports already implement
-(`CliJsonParser`) — but it is opt-in per command via `TikSpecialProperties.CliJson`, so a plain read of a
-free-text field is silently truncated instead. The same duplicate-key signature showed up once on WinBox
-CLI in a large `/ip/firewall/connection` read (`dstnat` = `false,dyi`, the tail of the following
-`dying=false`), from truncation rather than newlines — so a mis-split as-value stream has one recognisable
-shape whatever caused it.
+The answer is `:put [:serialize to=json […]]`, which the CLI transports implement (`CliJsonParser`) and
+which an entity opts into by marking the property `IsFreeText`. Thirteen properties are marked today — a
+file body, script sources and `on-event`/`up-script` handlers, two regexps. The audit reads through the
+same marker, so it measures the request the library actually makes rather than one it never sends.
+
+**The JSON read is not a free upgrade**, which is why it is per-entity rather than the default: it renders
+a duration as a date counted from the Unix epoch and truncates sub-second precision
+(`arp-interval=100ms` → `00:00:00`). `CliValueNormalizer` converts the dates back for the duration fields
+measured to need it; the milliseconds are gone for good. See
+[findings-cli.md](findings-cli.md) for the measurements, including why `comment` is deliberately NOT on
+this path.
+
+### Still open
+
+- **A comment containing `;`, `=` or a newline** is read incorrectly over a CLI transport unless its
+  entity is on the JSON path for another reason — and it does not merely truncate, it invents a field.
+  The trade for fixing it (every entity on the lossy JSON path) is worse than the failure.
+- **WinBox native decodes `/ip/firewall/connection` `icmp-type` as a name** where the API gives the
+  number (`echo-request` vs `8`). Only visible while an ICMP connection is live, which is why it took this
+  long to surface.
+- **A duplicate key from a truncated read.** The same signature as the newline case appeared once on
+  WinBox CLI in a large `/ip/firewall/connection` read (`dstnat` = `false,dyi`, the tail of the following
+  `dying=false`) and did not reproduce. A mis-split `as-value` stream has one recognisable shape whatever
+  caused it, so the parser could refuse it rather than pass a joined value on.
 
 The one thing a duration cannot say about itself is which unit its ZERO is in: as-value gives `00:00:00`
 for both a `0s` field and a `0ms` one. `0s` is emitted; the millisecond fields

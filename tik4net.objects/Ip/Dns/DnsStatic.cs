@@ -46,7 +46,7 @@ namespace tik4net.Objects.Ip.Dns
         /// REMARKS: either <see cref="Name"/> of <see cref="Regexp"/> must be filled.
         /// REMARKS: supported by 6.38 and higher. In Lower version true/false is used as value to determine <see cref="Name"/> format.
         /// </summary>
-        [TikProperty("regexp", IsMandatory = false)]
+        [TikProperty("regexp", IsMandatory = false, IsFreeText = true)]
         public string? Regexp { get; set; }
 
         /// <summary>

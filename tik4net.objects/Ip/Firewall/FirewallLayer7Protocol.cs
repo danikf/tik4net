@@ -30,7 +30,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// or 2048 bytes of a TCP/UDP connection payload. The match is case-insensitive.
         /// WinBox: "Regexp"
         /// </summary>
-        [TikProperty("regexp")]
+        [TikProperty("regexp", IsFreeText = true)]
         public string? Regexp { get; set; }
 
         /// <summary>

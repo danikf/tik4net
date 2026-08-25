@@ -73,15 +73,15 @@ namespace tik4net.Objects.Tool
         // ── Scripts ─────────────────────────────────────────────────────────────
 
         /// <summary>up-script — RouterOS script to execute when a host transitions from down to up.</summary>
-        [TikProperty("up-script")]
+        [TikProperty("up-script", IsFreeText = true)]
         public string? UpScript { get; set; }
 
         /// <summary>down-script — RouterOS script to execute when a host transitions from up to down.</summary>
-        [TikProperty("down-script")]
+        [TikProperty("down-script", IsFreeText = true)]
         public string? DownScript { get; set; }
 
         /// <summary>test-script — RouterOS script to execute after each probe (regardless of state).</summary>
-        [TikProperty("test-script")]
+        [TikProperty("test-script", IsFreeText = true)]
         public string? TestScript { get; set; }
 
         // ── Behaviour ───────────────────────────────────────────────────────────

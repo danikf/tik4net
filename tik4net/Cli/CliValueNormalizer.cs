@@ -88,11 +88,36 @@ namespace tik4net.Cli
         private static readonly string[] MillisecondZeroFields = { "down-delay", "up-delay" };
 
         /// <summary>
-        /// The value <paramref name="field"/> should carry, given what as-value put in it.
+        /// Duration fields that <c>:serialize to=json</c> renders as a DATE counted from the Unix epoch.
         /// </summary>
-        internal static string Normalize(string field, string value)
+        /// <remarks>
+        /// The JSON read is used for entities holding free-form text, and it renders a duration as
+        /// <c>1970-01-01</c> plus the duration: <c>ttl=1d</c> arrives as <c>1970-01-02 00:00:00</c> and
+        /// <c>52w1d</c> as <c>1971-01-01 00:00:00</c> — which is the SAME shape a real timestamp has
+        /// (<c>last-link-up-time</c> reads <c>2026-08-25 00:27:44</c> through the same serialiser). Nothing
+        /// in the value separates them, so the conversion is done only for fields measured to be durations
+        /// and every other date-shaped value is left exactly as the router sent it. An unlisted duration
+        /// field shows up in the transport audit as a difference; an unlisted TIMESTAMP silently becomes a
+        /// nonsense duration, so the list only ever grows on evidence.
+        /// </remarks>
+        private static readonly string[] JsonEpochDurationFields = { "ttl", "interval", "timeout" };
+
+        /// <summary>
+        /// The value <paramref name="field"/> should carry, given what the CLI read put in it.
+        /// </summary>
+        /// <param name="field">The field name the value arrived under.</param>
+        /// <param name="value">The value as the read format rendered it.</param>
+        /// <param name="fromJson">
+        /// Whether the value came from <c>:serialize to=json</c> rather than from <c>as-value</c>. The two
+        /// render the same field differently, and only the caller knows which it ran.
+        /// </param>
+        internal static string Normalize(string? field, string value, bool fromJson = false)
         {
             if (string.IsNullOrEmpty(value)) return value;
+
+            if (fromJson && Contains(JsonEpochDurationFields, field)
+                && TryConvertEpochDateToDuration(value, out string? asValueForm))
+                value = asValueForm!;
 
             KeyValuePair<string, string> sentinel;
             if (SentinelFields.TryGetValue(field ?? string.Empty, out sentinel)
@@ -117,6 +142,31 @@ namespace tik4net.Cli
             return TryParseAsValueDuration(value, out string? apiForm)
                 ? (apiForm == "0s" && Contains(MillisecondZeroFields, field) ? "0ms" : apiForm!)
                 : value;
+        }
+
+        /// <summary>
+        /// Rewrites the JSON read's <c>1970-01-01</c>-based date into the <c>[Nd]HH:MM:SS</c> as-value
+        /// spelling, so one duration parser serves both read formats.
+        /// </summary>
+        /// <remarks>
+        /// The day count is folded into weeks here, because the duration renderer emits the components it
+        /// is given rather than normalising them: handing it 365 days produced <c>365d</c> where the API
+        /// says <c>52w1d</c>.
+        /// </remarks>
+        private static bool TryConvertEpochDateToDuration(string value, out string? asValueForm)
+        {
+            asValueForm = null;
+            DateTime when;
+            if (!DateTime.TryParseExact(value, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture,
+                                        DateTimeStyles.None, out when))
+                return false;
+            var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
+            if (when < epoch) return false;
+            int days = (when.Date - epoch.Date).Days;
+            asValueForm = (days / 7 > 0 ? (days / 7).ToString(CultureInfo.InvariantCulture) + "w" : string.Empty)
+                        + (days % 7 > 0 ? (days % 7).ToString(CultureInfo.InvariantCulture) + "d" : string.Empty)
+                        + when.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
+            return true;
         }
 
         private static bool Contains(string[] names, string? field)
@@ -179,7 +229,7 @@ namespace tik4net.Cli
             return parts == 3 && digits > 0;
         }
 
-        private static bool IsClockTimeField(string field)
+        private static bool IsClockTimeField(string? field)
         {
             if (string.IsNullOrEmpty(field)) return false;
             foreach (string f in ClockTimeFields)

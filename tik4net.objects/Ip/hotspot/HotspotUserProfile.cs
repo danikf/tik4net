@@ -100,7 +100,7 @@ namespace tik4net.Objects.Ip.Hotspot
         ///  $mac-address
         ///  $interface
         /// </summary>
-        [TikProperty("on-login", DefaultValue = "")]
+        [TikProperty("on-login", DefaultValue = "", IsFreeText = true)]
         public string? OnLogin { get; set; }
 
         /// <summary>
@@ -114,7 +114,7 @@ namespace tik4net.Objects.Ip.Hotspot
         ///  $interface
         ///  $cause
         /// </summary>
-        [TikProperty("on-logout", DefaultValue = "")]
+        [TikProperty("on-logout", DefaultValue = "", IsFreeText = true)]
         public string? OnLogout { get; set; }
 
         /// <summary>

@@ -100,7 +100,12 @@ namespace tik4net.Cli
         {
             var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var property in element.EnumerateObject())
-                fields[property.Name] = ReadValue(property.Value, property.Name);
+                // Through the same normaliser as the as-value path: ':serialize to=json' fixes the
+                // FRAMING, not the spelling — it still renders a duration as 00:00:00 and a sentinel as a
+                // bare number, exactly as as-value does. Skipping it here made a path read differently
+                // depending only on whether one of its fields happened to be marked free-text.
+                fields[property.Name] = CliValueNormalizer.Normalize(
+                    property.Name, ReadValue(property.Value, property.Name), fromJson: true);
             return new TikRecordSentence(fields);
         }
 

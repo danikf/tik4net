@@ -187,6 +187,48 @@ namespace tik4net.unittests.Cli
             Assert.AreEqual("0s", N("interim-update", "00:00:00"));
         }
 
+        private static string J(string field, string value)
+            => CliValueNormalizer.Normalize(field, value, fromJson: true);
+
+        /// <summary>
+        /// <c>:serialize to=json</c> renders a duration as a DATE counted from the Unix epoch, where
+        /// as-value renders it as <c>[Nw][Nd]HH:MM:SS</c>. Both have to come out in the API's spelling.
+        /// </summary>
+        [TestMethod]
+        public void ReadsTheJsonEpochDateAsADuration()
+        {
+            Assert.AreEqual("1d", J("ttl", "1970-01-02 00:00:00"));
+            Assert.AreEqual("52w1d", J("ttl", "1971-01-01 00:00:00"));
+            Assert.AreEqual("15s", J("timeout", "1970-01-01 00:00:15"));
+            Assert.AreEqual("0s", J("interval", "1970-01-01 00:00:00"));
+            Assert.AreEqual("1w2d3h4m5s", J("ttl", "1970-01-10 03:04:05"));
+        }
+
+        /// <summary>
+        /// The same shape is what a REAL timestamp has through the same serialiser
+        /// (<c>last-link-up-time</c> reads <c>2026-08-25 00:27:44</c>), and nothing in the value separates
+        /// them. So only fields measured to be durations are converted, and everything else is left as the
+        /// router sent it — an unlisted duration shows up in the audit, an unlisted timestamp would have
+        /// become a nonsense duration.
+        /// </summary>
+        [TestMethod]
+        public void LeavesADateShapedValueAloneOnAnyOtherField()
+        {
+            Assert.AreEqual("2026-08-25 00:27:44", J("last-link-up-time", "2026-08-25 00:27:44"));
+            Assert.AreEqual("1970-01-02 00:00:00", J("creation-time", "1970-01-02 00:00:00"));
+            Assert.AreEqual("2026-08-24 01:32:43", J("creation-time", "2026-08-24 01:32:43"));
+        }
+
+        /// <summary>The epoch rewrite is a JSON-read rule; as-value never produces that shape.</summary>
+        [TestMethod]
+        public void DoesNotApplyTheEpochRuleToAnAsValueRead()
+        {
+            Assert.AreEqual("1970-01-02 00:00:00", N("ttl", "1970-01-02 00:00:00"));
+            // and the as-value spelling of the same duration still works on both paths
+            Assert.AreEqual("1d", N("ttl", "1d00:00:00"));
+            Assert.AreEqual("1d", J("ttl", "1d00:00:00"));
+        }
+
         /// <summary>A null value survives — a field can be present and empty.</summary>
         [TestMethod]
         public void LeavesNullAlone()

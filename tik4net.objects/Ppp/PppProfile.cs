@@ -187,13 +187,13 @@ namespace tik4net.Objects.Ppp
         ///  called-id
         ///  interface
         /// </summary>
-        [TikProperty("on-up")]
+        [TikProperty("on-up", IsFreeText = true)]
         public string?/*script*/ OnUp { get; set; }
 
         /// <summary>
         /// on-down: Execute script on user logging off. See on-up for more details
         /// </summary>
-        [TikProperty("on-down")]
+        [TikProperty("on-down", IsFreeText = true)]
         public string?/*script*/ OnDown { get; set; }
 
         /// <summary>
