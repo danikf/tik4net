@@ -1039,6 +1039,25 @@ namespace tik4net.Winbox
             };
 
         /// <summary>
+        /// Fields the <c>.jg</c> declares as an enum but RouterOS prints as the plain NUMBER.
+        /// </summary>
+        /// <remarks>
+        /// The window and the API disagree about whether the value has a name at all, and here the API
+        /// wins — a transport is supposed to answer what the binary API answers. <c>icmp-type</c> on
+        /// <c>/ip/firewall/connection</c> is the measured case: the wire carries <c>8</c> (M2 key
+        /// <c>0x10</c>), the catalog names it <c>echo-request</c> because that is what WinBox shows, and
+        /// <c>/ip/firewall/connection/print</c> over the API says <c>8</c>.
+        /// <para>Dropping the map rather than aliasing every member: the members are not spelled
+        /// differently, they should not be words. The codec then falls through to the raw number, which is
+        /// what the field carried all along.</para>
+        /// <para>Keyed by field name, which is safe while <c>icmp-type</c> exists on one path. A sibling
+        /// would be found the same way this one was — as a VALUE-DIFF in the transport audit, which is the
+        /// only thing that compares a decoded name against what the API prints.</para>
+        /// </remarks>
+        private static readonly HashSet<string> NumericEnumFields =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "icmp-type" };
+
+        /// <summary>
         /// <paramref name="members"/> with any member RouterOS spells differently renamed, or the map
         /// itself when this field has none. Applied once, where the field is built, so every reader and the
         /// write side all see the router's vocabulary and not WinBox's.
@@ -1046,6 +1065,7 @@ namespace tik4net.Winbox
         internal static IReadOnlyDictionary<int, string>? AliasEnumMembers(
             string apiName, IReadOnlyDictionary<int, string>? members)
         {
+            if (NumericEnumFields.Contains(apiName)) return null;
             if (members == null || !EnumMemberAliases.TryGetValue(apiName, out var table)) return members;
             Dictionary<int, string>? renamed = null;
             foreach (var kv in members)

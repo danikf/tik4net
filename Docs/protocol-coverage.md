@@ -433,7 +433,7 @@ not have):
 | Telnet | **155** | 0 | **0** | 84/1341 (6%) | 214 / 0 / 0 | 2 m 27 s |
 | SSH | **155** | 0 | **0** | 84/1341 (6%) | 214 / 0 / 0 | 2 m 14 s |
 | WinBox CLI | **155** | 0 | **0** | 84/1341 (6%) | 214 / 0 / 0 | 2 m 47 s |
-| WinBox native | 153 | 0 | 1 | 113/1328 (8%) | 214 / 0 / 0 | 45 s |
+| WinBox native | 154 | 0 | **0** | 113/1328 (8%) | 227 / 0 / 0 | 47 s |
 
 WinBox native also carries `KNOWN-GAP=1` (a menu with no WinBox window) and `VALUES-UNCOMPARED=1`; it is
 the only transport with either, because it is the only one that resolves paths to M2 handlers rather than
@@ -495,9 +495,6 @@ this path.
 - **A comment containing `;`, `=` or a newline** is read incorrectly over a CLI transport unless its
   entity is on the JSON path for another reason — and it does not merely truncate, it invents a field.
   The trade for fixing it (every entity on the lossy JSON path) is worse than the failure.
-- **WinBox native decodes `/ip/firewall/connection` `icmp-type` as a name** where the API gives the
-  number (`echo-request` vs `8`). Only visible while an ICMP connection is live, which is why it took this
-  long to surface.
 - **A duplicate key from a truncated read.** The same signature as the newline case appeared once on
   WinBox CLI in a large `/ip/firewall/connection` read (`dstnat` = `false,dyi`, the tail of the following
   `dying=false`) and did not reproduce. A mis-split `as-value` stream has one recognisable shape whatever
