@@ -151,7 +151,9 @@ namespace tik4net.integrationtests
                             using (var conn = OpenOne(type))
                             {
                                 opened++;
-                                conn.CallCommandSync("/system/identity/print").Count();
+                                // Any command proves the session works; the mid level runs on every
+                                // transport, which is what this probe iterates over.
+                                conn.CreateCommand("/system/identity/print").ExecuteScalar();
                             }
                         }
                         catch (Exception ex)

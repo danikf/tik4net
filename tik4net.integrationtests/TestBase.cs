@@ -434,6 +434,46 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
+        /// Marks the test as Inconclusive unless the active transport's low-level dialect is <b>API
+        /// sentence rows</b>.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="TikConnectionCapability.RawSentences"/> says a transport has a command language of its
+        /// own; it does not say WHICH, and that is deliberate. The low-level level is written in the
+        /// transport's language and is the one level that is not portable: rows are API sentence words on
+        /// Api/ApiSsl and RouterOS CLI text on the CLI family, so a test written in one dialect can only run
+        /// where that dialect applies. Use this rather than assuming a row like <c>=address=…</c> means
+        /// anything to a terminal.
+        /// </remarks>
+        protected void EnsureRawDialectIsApiSentences(string feature = null)
+        {
+            EnsureCapability(TikConnectionCapability.RawSentences, feature);
+
+            var type = ResolveConnectionType();
+            if (type != TikConnectionType.Api && type != TikConnectionType.ApiSsl)
+                Assert.Inconclusive($"Transport '{type}' has a low-level dialect, but it is not API sentence "
+                                    + $"rows{(feature != null ? " (" + feature + ")" : "")} — test skipped. "
+                                    + "See EnsureRawDialectIsCliText for the terminal counterpart.");
+        }
+
+        /// <summary>
+        /// Marks the test as Inconclusive unless the active transport's low-level dialect is <b>RouterOS CLI
+        /// text</b> — the counterpart of <see cref="EnsureRawDialectIsApiSentences"/>.
+        /// </summary>
+        protected void EnsureRawDialectIsCliText(string feature = null)
+        {
+            EnsureCapability(TikConnectionCapability.RawSentences, feature);
+
+            var type = ResolveConnectionType();
+            bool cli = type == TikConnectionType.Telnet || type == TikConnectionType.Ssh
+                       || type == TikConnectionType.MacTelnet || type == TikConnectionType.WinboxCli
+                       || type == TikConnectionType.WinboxCliMac;
+            if (!cli)
+                Assert.Inconclusive($"Transport '{type}' has a low-level dialect, but it is not CLI text"
+                                    + $"{(feature != null ? " (" + feature + ")" : "")} — test skipped.");
+        }
+
+        /// <summary>
         /// Blocks until <paramref name="condition"/> holds or the timeout elapses, and reports which.
         /// </summary>
         /// <remarks>

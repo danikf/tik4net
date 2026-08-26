@@ -15,9 +15,10 @@ namespace tik4net.integrationtests
     [TestClass]
     public class TikCommandTest : TestBase
     {
+        // Cleanup, not a test of the low-level API — see DeleteAllItems in SafeModeTest.
         private void DeleteAllItems(string itemsPath)
         {
-            foreach (var id in Connection.CallCommandSync($"{itemsPath}/print").OfType<ITikReSentence>().Select(sentence => sentence.GetId()))
+            foreach (var id in Connection.CreateCommand($"{itemsPath}/print").ExecuteList().Select(sentence => sentence.GetId()).ToList())
             {
                 var deleteCommand = Connection.CreateCommandAndParameters($"{itemsPath}/remove", TikSpecialProperties.Id, id);
                 deleteCommand.ExecuteNonQuery();
@@ -85,7 +86,8 @@ namespace tik4net.integrationtests
             createCommand.ExecuteNonQuery();
 
             //find our IP
-            var id = Connection.CallCommandSync("/ip/address/print", $"?=address={IP}").OfType<ITikReSentence>().Single().GetResponseField(TikSpecialProperties.Id);
+            var id = Connection.CreateCommandAndParameters("/ip/address/print", "address", IP)
+                .ExecuteSingleRow().GetResponseField(TikSpecialProperties.Id);
 
             //delete by ID
             var deleteCommand = Connection.CreateCommandAndParameters("/ip/address/remove",

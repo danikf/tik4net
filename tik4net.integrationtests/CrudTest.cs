@@ -39,6 +39,8 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void Create_IpAddress_With_LowLevel_API()
         {
+            EnsureRawDialectIsApiSentences("CallCommandSync with API sentence rows");
+
             string IP = TestConstants.Address;
             string INTERFACE = TestConstants.Interface;
             Cleanup_DeteleAddressByIp(IP);
@@ -120,6 +122,8 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void Load_IpAddress_With_LowLevel_API()
         {
+            EnsureRawDialectIsApiSentences("CallCommandSync with API sentence rows");
+
             string IP = TestConstants.Address;
             string INTERFACE = TestConstants.Interface;
             Cleanup_DeteleAddressByIp(IP);
@@ -208,6 +212,8 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void Update_IpAddress_With_LowLevel_API()
         {
+            EnsureRawDialectIsApiSentences("CallCommandSync with API sentence rows");
+
             string IP = TestConstants.Address;
             string INTERFACE = TestConstants.Interface;
             Cleanup_DeteleAddressByIp(IP);
@@ -277,6 +283,8 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void Delete_IpAddress_With_LowLevel_API()
         {
+            EnsureRawDialectIsApiSentences("CallCommandSync with API sentence rows");
+
             string IP = TestConstants.Address;
             string INTERFACE = TestConstants.Interface;
             Cleanup_DeteleAddressByIp(IP);

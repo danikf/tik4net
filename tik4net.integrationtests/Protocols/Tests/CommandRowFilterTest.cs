@@ -1,12 +1,17 @@
 // CommandRowFilterTest.cs — the two low-level filter forms that used to be dropped before they were sent.
 //
-// CallCommandSync parses its rows itself on every transport except the binary API, which puts them on the
-// wire verbatim. Two forms carry no value and so fell through a "no '=' means nothing" rule: the API's
-// bare `?name` ("this property is set") and the postfix query-stack operators `?#|` / `?#&` / `?#!`. Both
-// were understood by the layers below and never reached them.
+// The rows go in as a multi-line CommandText — the whole sentence, one word per line — which is where a
+// caller hands these transports raw API rows and where they are parsed (TikCommandRow) into the query the
+// transport then builds. Two forms carry no value and so fell through a "no '=' means nothing" rule: the
+// API's bare `?name` ("this property is set") and the postfix query-stack operators `?#|` / `?#&` / `?#!`.
+// Both were understood by the layers below and never reached them.
 //
 // A dropped filter is not a smaller answer — it is a BIGGER one, the whole table where the caller asked
 // for part of it, reported as success.
+//
+// This is deliberately NOT CallCommandSync, which it used to be: that level takes the transport's own
+// language now (CLI text on a terminal), so a test written in API rows could only run on the binary API.
+// Multi-line CommandText carries the same rows through the same parser on all eleven transports.
 
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -18,7 +23,7 @@ namespace tik4net.integrationtests
     public class CommandRowFilterTest : TestBase
     {
         private int CountOf(params string[] rows)
-            => Connection.CallCommandSync(rows).OfType<ITikReSentence>().Count();
+            => Connection.CreateCommand(string.Join("\n", rows)).ExecuteList().Count();
 
         /// <summary>
         /// <c>?name</c> asks for the rows that HAVE the property. Every interface on the lab router has a

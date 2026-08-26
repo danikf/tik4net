@@ -214,6 +214,13 @@ namespace tik4net.integrationtests
             // read with tag formated directly in command
             using (var connection = CreateOpenedConnection())
             {
+                // '.tag' is a word of the API's own protocol and there is nothing for it to mean on a
+                // terminal, which is what the Tagging capability says. The rows below are API sentence
+                // words too — the low-level level is written in the transport's own language, so they are
+                // only a command on the transport whose language that is.
+                if (!connection.Supports(TikConnectionCapability.Tagging))
+                    Assert.Inconclusive("Transport does not support Tagging (inlined .tag row) — test skipped.");
+
                 string[] commandRows = new string[]
                 {
                     "/system/health/print",

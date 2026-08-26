@@ -175,7 +175,7 @@ namespace tik4net.integrationtests
                         try
                         {
                             using (var conn = OpenOne(type))
-                                conn.CallCommandSync("/system/identity/print").Count();
+                                conn.CreateCommand("/system/identity/print").ExecuteScalar();
                             ok++;
                             sink.Drain();   // a successful open teaches nothing; keep the ring for the next
                         }

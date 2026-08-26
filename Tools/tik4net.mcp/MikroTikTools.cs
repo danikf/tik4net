@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using tik4net.Cli;
+using tik4net.Connection;
 using tik4net.Diagnostics;
 
 namespace tik4net.mcp;
@@ -132,7 +133,8 @@ public sealed class MikroTikTools
     [McpServerTool]
     [Description(
         "Execute a MikroTik command against a router over any supported transport and return the results. " +
-        "The same low-level word/sentence call (CallCommandSync) runs over every transport, so the command " +
+        "The same command and parameter format runs over every transport (the mid-level ITikCommand, which " +
+        "translates it into each transport's own language), so the command " +
         "and parameters format is identical regardless of transport — this is the tool for debugging/comparing " +
         "the protocol across transports. " +
         "Returns JSON array of !re records, 'OK (no data returned)' for commands with no output, or an ERROR/TRAP message. " +
@@ -192,8 +194,8 @@ public sealed class MikroTikTools
         [Description("Max number of router-log lines to keep (includeRouterLog only), guarding against a chatty " +
                      "router flooding the window. Default 200.")]
         int routerLogTail = 200,
-        [Description("Execution path (case-insensitive): 'auto' (default) runs the low-level CallCommandSync, " +
-                     "which dispatches by verb and is right for print/get and CRUD (add/set/remove/enable/disable/move). " +
+        [Description("Execution path (case-insensitive): 'auto' (default) dispatches by verb over ITikCommand " +
+                     "and is right for print/get and CRUD (add/set/remove/enable/disable/move). " +
                      "'nonquery' forces ExecuteNonQuery() — required for ACTION verbs that yield no result set " +
                      "(e.g. /system/script/run, /system/reboot, /system/reset-configuration) over command transports, " +
                      "where 'auto' would treat the verb as a read and throw NotSupportedException. " +
@@ -309,11 +311,32 @@ public sealed class MikroTikTools
                 return WithTrace("OK (action executed, no data returned)");
             }
 
-            var commandRows = new List<string> { command };
-            if (parameters is { Length: > 0 })
-                commandRows.AddRange(parameters);
+            // Mid level (ITikCommand), NOT CallCommandSync. This tool's promise is that one command and
+            // parameter format works on every transport, and that is what ITikCommand gives: the API-shaped
+            // path and '?'/'=' words below are translated into each transport's own language. CallCommandSync
+            // is the LOW level and takes the transport's own language instead — API sentence words on
+            // Api/ApiSsl, CLI text on a terminal, and nothing at all on REST or WinBox native, which have no
+            // command language to write. Sending these rows there would fail on three transports and mean
+            // something different on five more.
+            //
+            // Dispatching by verb here is deliberate: a client may translate, the library may not. This
+            // mirrors what the read/add/non-query split does so the answer shape stays what it always was.
+            var call = connection.CreateCommand(command, ParseParameters(connection, parameters));
+            string verb = TikPath.Verb(command);
 
-            var sentences = connection.CallCommandSync(commandRows).ToList();
+            if (verb == "add")
+            {
+                string newId = call.ExecuteScalar();
+                return WithTrace(FormatResponse(new List<ITikSentence> { new McpDoneSentence(newId) }));
+            }
+
+            if (verb is "remove" or "set" or "unset" or "move" or "enable" or "disable" or "comment")
+            {
+                call.ExecuteNonQuery();
+                return WithTrace("OK (no data returned)");
+            }
+
+            var sentences = call.ExecuteList().Cast<ITikSentence>().ToList();
             return WithTrace(FormatResponse(sentences));
         }
         catch (TikConnectionLoginException ex)
@@ -589,6 +612,27 @@ public sealed class MikroTikTools
         {
             return $"(router log unavailable: {ex.Message})";
         }
+    }
+
+    // Carries an add's new .id back into FormatResponse as a !done/ret, which is the shape this tool has
+    // always answered an add with. The transports build their own; this one exists because the verb
+    // dispatch above lives here rather than in the library.
+    private sealed class McpDoneSentence : ITikDoneSentence
+    {
+        private readonly string? _ret;
+
+        internal McpDoneSentence(string? ret) => _ret = ret;
+
+        public IReadOnlyDictionary<string, string> Words
+            => _ret == null
+                ? new Dictionary<string, string>()
+                : new Dictionary<string, string> { [TikSpecialProperties.Ret] = _ret };
+
+        public string Tag => string.Empty;
+
+        public string GetResponseWord() => _ret ?? string.Empty;
+
+        public string GetResponseWordOrDefault(string defaultValue) => _ret ?? defaultValue;
     }
 
     private string FormatResponse(List<ITikSentence> sentences)

@@ -127,7 +127,10 @@ namespace tik4net.integrationtests
                         conn.Open(host, user, pass);
                         handlerCounts.Add(native.CatalogHandlerCount);
                         // The catalog load must leave a working connection behind, not just a catalog.
-                        try { lastRead = conn.CallCommandSync("/interface/print").Count(); }
+                        // Mid level on purpose: WinboxNative has no command language of its own, so it
+                        // declares no RawSentences and CallCommandSync would fail here on capability
+                        // rather than on the thing this line is checking.
+                        try { lastRead = conn.CreateCommand("/interface/print").ExecuteList().Count(); }
                         catch (Exception ex) { lastRead = -1; Console.WriteLine("  read failed: " + ex.Message); }
                     }
                     sw.Stop();

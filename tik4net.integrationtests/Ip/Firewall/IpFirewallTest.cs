@@ -12,6 +12,8 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void ConnectionList_DirectCall_WillNotFail()
         {
+            EnsureRawDialectIsApiSentences("CallCommandSync with API sentence rows");
+
             string[] command = new string[]
             {
                 "/ip/firewall/connection/print",

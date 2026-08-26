@@ -43,7 +43,7 @@ rather than guessing.
 | `includeRawTrace`| bool     | Back-compat alias for `traceLevel='words'`, default false |
 | `includeRouterLog`| bool    | Also append the router's own `/log` lines emitted during the command (`--- ROUTER LOG ---`), read over a separate API connection; default false |
 | `routerLogTail`  | int      | `includeRouterLog` only: cap on kept log lines, default 200 |
-| `executeMode`    | string   | `auto` (default) = `CallCommandSync`; `nonquery` = `ExecuteNonQuery()` — needed for action verbs (see below) |
+| `executeMode`    | string   | `auto` (default) = verb dispatch over `ITikCommand`; `nonquery` = `ExecuteNonQuery()` — needed for action verbs (see below) |
 | `parameters`     | string[] | Extra API words (see below) |
 
 ## Transports
@@ -226,7 +226,7 @@ Some commands are **actions** — they *do* something and return **no result set
 
 These map to `ExecuteNonQuery()`, **not** the print/read path. Over the **command transports**
 (`Telnet`, `MacTelnet`, `WinboxCli`, `WinboxCliMac`, `WinboxNative`) the default `auto` path
-(`CallCommandSync`) dispatches by verb and treats an unknown verb like `run` as a *read*, so it throws
+dispatches by verb and treats an unknown verb like `run` as a *read*, so it throws
 `NotSupportedException` ("…is an action command and returns no result set… Invoke it with
 ExecuteNonQuery()"). Pass **`executeMode: "nonquery"`** to invoke the action instead:
 

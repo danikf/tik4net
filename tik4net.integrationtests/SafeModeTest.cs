@@ -40,14 +40,16 @@ namespace tik4net.integrationtests
             catch { /* nothing held, or API unavailable — ignore */ }
         }
 
+        // Cleanup, not a test of the low-level API: ExecuteList is the portable level and runs on every
+        // transport, while CallCommandSync is written in the transport's own language.
         private void DeleteAllItems(string itemsPath)
         {
-            foreach (var id in Connection.CallCommandSync($"{itemsPath}/print").OfType<ITikReSentence>().Select(s => s.GetId()))
+            foreach (var id in Connection.CreateCommand($"{itemsPath}/print").ExecuteList().Select(s => s.GetId()).ToList())
                 Connection.CreateCommandAndParameters($"{itemsPath}/remove", TikSpecialProperties.Id, id).ExecuteNonQuery();
         }
 
         private int CountItems(ITikConnection conn, string name)
-            => conn.CallCommandSync($"{PATH}/print").OfType<ITikReSentence>()
+            => conn.CreateCommand($"{PATH}/print").ExecuteList()
                    .Count(s => s.GetResponseFieldOrDefault("name", null) == name);
 
         [TestMethod]
