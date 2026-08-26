@@ -8,12 +8,17 @@ namespace tik4net.Connection
     /// into typed command parameters, for the transports that cannot simply put the words on the wire.
     /// </summary>
     /// <remarks>
+    /// <para>Used by <see cref="TikGenericCommand"/> for a multi-line <see cref="ITikCommand.CommandText"/>
+    /// — the whole sentence written one word per line — which is the one place a caller hands these
+    /// transports raw API rows. It is deliberately the ONLY parser of that format in the library: there
+    /// were two for a while, this strict one and a lenient copy inline in the command, and only the strict
+    /// one knew what the format costs to get wrong.</para>
     /// <para>The binary API sends a row verbatim and lets the ROUTER judge it, so a malformed one comes
     /// back as a trap. Every other transport has to understand the row before it can build CLI text, a REST
     /// body or an M2 field — and understanding it is where a row that makes no sense used to be dropped in
-    /// silence: <c>CallCommandSync("/ip/address/add", "address=10.0.0.1/24")</c>, one leading <c>=</c>
-    /// short, sent an add with no fields at all and reported success. One typo, loud on one transport and
-    /// invisible on the other ten.</para>
+    /// silence: <c>"/ip/address/add\naddress=10.0.0.1/24"</c>, one leading <c>=</c> short, sent an add with
+    /// no fields at all and reported success. One typo, loud on one transport and invisible on the other
+    /// ten.</para>
     /// <para>So a row this cannot parse is an <see cref="ArgumentException"/> naming the row and the forms
     /// that exist. The one thing still passed over in silence is an API sentence MARKER — a row whose name
     /// begins with <c>.</c>, such as <c>.tag</c> or <c>.proplist</c> — because those are words of the API's

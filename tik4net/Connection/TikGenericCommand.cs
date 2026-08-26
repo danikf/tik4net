@@ -648,6 +648,23 @@ namespace tik4net.Connection
 
         // ── Multi-line normalization (same logic as RestCommand) ──────────────
 
+        /// <summary>
+        /// Splits a multi-line <see cref="CommandText"/> — the whole sentence, one word per line — into the
+        /// command and the parameters its rows describe, appended to any the caller added directly.
+        /// </summary>
+        /// <remarks>
+        /// The row parsing is <see cref="TikCommandRow"/>'s, not a second copy of it. It used to be one: a
+        /// lenient inline version that recognised <c>?…</c> and <c>=…</c> and let everything else fall out
+        /// of the bottom of the loop in silence — so a row one leading <c>=</c> short became no parameter at
+        /// all, and the command went out missing a filter and answered with the whole table. That is the
+        /// exact defect <see cref="TikCommandRow"/> was written to end, and keeping two parsers of one
+        /// format meant only one of them knew it.
+        /// <para>
+        /// Blank lines are dropped before parsing: they are formatting rather than words, so they must not
+        /// reach a parser that (correctly) refuses an empty row.
+        /// </para>
+        /// </remarks>
+        /// <exception cref="ArgumentException">A row is neither a parameter nor an API sentence marker.</exception>
         private static (string command, IList<ITikCommandParameter> parameters) NormalizeMultilineCommand(
             string commandText, IList<ITikCommandParameter> parameters)
         {
@@ -663,31 +680,13 @@ namespace tik4net.Connection
                     filtered.Add(t);
             }
 
-            string actualCommand = filtered.Count > 0 ? filtered[0] : commandText;
+            if (filtered.Count == 0)
+                return (commandText, parameters);
+
             var allParams = new List<ITikCommandParameter>(parameters);
+            allParams.AddRange(TikCommandRow.ParseParameters(filtered, 1));
 
-            for (int i = 1; i < filtered.Count; i++)
-            {
-                string line = filtered[i];
-                if (line.StartsWith("?"))
-                {
-                    string raw = line.Substring(1);
-                    int eq = raw.IndexOf('=');
-                    if (eq >= 0)
-                        allParams.Add(new TikCommandParameter(raw.Substring(0, eq), raw.Substring(eq + 1), TikCommandParameterFormat.Filter));
-                    else
-                        allParams.Add(new TikCommandParameter(raw, "", TikCommandParameterFormat.Filter));
-                }
-                else if (line.StartsWith("="))
-                {
-                    string raw = line.Substring(1);
-                    int eq = raw.IndexOf('=');
-                    if (eq >= 0)
-                        allParams.Add(new TikCommandParameter(raw.Substring(0, eq), raw.Substring(eq + 1), TikCommandParameterFormat.NameValue));
-                }
-            }
-
-            return (actualCommand, allParams);
+            return (filtered[0], allParams);
         }
 
         /// <summary>

@@ -21,8 +21,22 @@ namespace tik4net
         ITikConnection Connection { get; set; }
 
         /// <summary>
-        /// Comnmand send to router (in mikrotik API format).
+        /// Command sent to the router, in MikroTik API format — usually just the path and verb
+        /// (<c>/ip/address/print</c>), with the words supplied through <see cref="Parameters"/>.
         /// </summary>
+        /// <remarks>
+        /// It may also carry the <b>whole sentence, one word per line</b>:
+        /// <c>"/ip/address/print\n?address=10.0.0.1/24"</c>. Those rows are parsed into
+        /// <see cref="Parameters"/> and appended to any added directly, and blank lines are ignored.
+        /// <para>
+        /// Off the binary API a row that is neither a parameter (<c>=name=value</c>, <c>?name=value</c>,
+        /// <c>?name</c>) nor an API sentence marker (<c>.tag</c>, <c>.proplist</c>, which those transports
+        /// cannot express and skip) raises an <see cref="System.ArgumentException"/> naming it. The binary
+        /// API instead puts the row on the wire and lets the router judge it, which comes back as a trap.
+        /// Either way a malformed row is reported rather than dropped — one leading <c>=</c> short used to
+        /// mean a parameter silently missing from the command.
+        /// </para>
+        /// </remarks>
         string CommandText { get; set; }
 
         /// <summary>
