@@ -129,8 +129,27 @@ namespace tik4net.Objects.Interface
         [TikProperty("loop-protect-disable-time", DefaultValue = "00:05:00")]
         public string?/*time*/ LoopProtectDisableTime { get; set; }
 
-        [TikProperty("vlan-id", IsMandatory =true)]
-        public string? vlanId { get; set; }
+        /// <summary>
+        /// vlan-id: the VLAN tag (1–4094) carried on this interface's traffic.
+        /// </summary>
+        [TikProperty("vlan-id", IsMandatory = true)]
+        public string? VlanId { get; set; }
+
+        /// <summary>
+        /// Previous spelling of <see cref="VlanId"/>, kept so existing code compiles. It was the only
+        /// camelCase public property in the library.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately carries no <c>[TikProperty]</c>: the mapper maps only decorated properties, so this
+        /// forwarder is invisible to it and <c>vlan-id</c> stays mapped exactly once.
+        /// </remarks>
+        [Obsolete("Renamed to VlanId (the library's naming is PascalCase).")]
+        public string? vlanId
+        {
+            get => VlanId;
+            set => VlanId = value;
+        }
+
         /// <summary>
         /// interface
         /// </summary>

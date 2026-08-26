@@ -99,7 +99,7 @@ Response sentences: `ITikReSentence` (`!re`), `ITikDoneSentence` (`!done`),
 ### Capabilities — the key cross-transport pattern
 
 Transports differ in what they can physically do, so features are gated by
-`TikConnectionCapability` flags (`tik4net/Rest/TikConnectionCapability.cs`):
+`TikConnectionCapability` flags (`tik4net/TikConnectionCapability.cs`):
 
 `Crud`, `Listen`, `Streaming`, `RawSentences`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`,
 `CancelInFlight`.

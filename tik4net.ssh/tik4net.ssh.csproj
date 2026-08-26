@@ -1,20 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
     <TargetFrameworks>netstandard2.0;net8.0</TargetFrameworks>
     <AssemblyName>tik4net.ssh</AssemblyName>
     <RootNamespace>tik4net.Ssh</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <Nullable>enable</Nullable>
-    <LangVersion>latest</LangVersion>
 
     <PackageId>tik4net.ssh</PackageId>
-    <VersionPrefix>4.0.0</VersionPrefix>
-    <AssemblyVersion>$(VersionPrefix).0</AssemblyVersion>
-    <FileVersion>$(VersionPrefix).0</FileVersion>
-    <VersionSuffix Condition=" '$(BUILD_BUILDNUMBER)' != '' ">CI-$(BUILD_BUILDNUMBER)</VersionSuffix>
-    <VersionSuffix Condition=" '$(PREVIEW_NUMBER)' != '' ">pre-$(PREVIEW_NUMBER)</VersionSuffix>
-    <Authors>Daniel Frantik</Authors>
-    <Copyright>Copyright (C) Daniel Frantik 2026</Copyright>
     <Description>SSH (TCP 22) connection transport for tik4net. Drives the MikroTik RouterOS CLI over an SSH PTY shell (full CRUD, Listen and Safe Mode). Kept as a separate package because of its Renci.SshNet dependency.</Description>
     <PackageTags>Mikrotik Library API CSharp .NET Manage SSH</PackageTags>
     <PackageProjectUrl>https://github.com/danikf/tik4net</PackageProjectUrl>

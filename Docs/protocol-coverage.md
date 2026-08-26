@@ -2,7 +2,7 @@
 
 > A summary view across all of MikroTik's communication protocols and the `TikConnectionCapability`
 > flags each transport declares. The authoritative source is the code — specifically
-> `tik4net/Rest/TikConnectionCapability.cs` (the flag definitions) and
+> `tik4net/TikConnectionCapability.cs` (the flag definitions) and
 > `tik4net.unittests/ConnectionCapabilityMatrixTests.cs` (which pins the exact flag set per
 > `TikConnectionType` and fails the build if code and docs drift apart). This file, `README.md`'s
 > transport table, and the *Connection types and capabilities* wiki page are expected to agree with
@@ -44,7 +44,7 @@ standalone discovery helper — matching the "12 transports" figure in the top-l
 
 ## Capability flags
 
-`TikConnectionCapability` (`tik4net/Rest/TikConnectionCapability.cs`) is a `[Flags]` enum:
+`TikConnectionCapability` (`tik4net/TikConnectionCapability.cs`) is a `[Flags]` enum:
 `Crud`, `Listen`, `Streaming`, `RawSentences`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`,
 `CancelInFlight`. A connection that does not implement `ITikConnectionCapabilities` is treated as
 supporting **nothing** (fail-closed) — see `connection.Supports(...)` / `connection.Require(...)`.

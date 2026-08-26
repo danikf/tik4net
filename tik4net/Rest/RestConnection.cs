@@ -65,7 +65,7 @@ namespace tik4net.Rest
     /// logout never is. Details and measurements in <c>Docs/findings-rest-api.md</c> §5.1.
     /// </para>
     /// </remarks>
-    public class RestConnection : TikCommandConnectionBase, ITikMonitorTransport, IPollingMonitorHost, ITikTlsConnection
+    public sealed class RestConnection : TikCommandConnectionBase, ITikMonitorTransport, IPollingMonitorHost, ITikTlsConnection
     {
         // How often a listen diff / a continuous monitor re-reads the router. Same cadence as the CLI and
         // native transports, which poll the same way for the same reason.

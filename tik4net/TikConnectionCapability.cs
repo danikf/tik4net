@@ -140,7 +140,7 @@ namespace tik4net
                 throw new TikConnectionCapabilityNotSupportedException(cap,
                     $"This transport does not support the '{cap}' capability"
                     + (feature != null ? $" ({feature})" : "") + ". "
-                    + $"Use a transport that reports '{cap}' — see the capability matrix in the wiki.");
+                    + $"Use a transport that reports '{cap}' — see the capability matrix in README.md ('Connection types') or the wiki page 'Connection types and capabilities'.");
         }
     }
 }

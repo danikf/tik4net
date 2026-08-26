@@ -21,7 +21,8 @@ namespace tik4net.Cli
     /// <para>Limitations (v0.2):
     ///   - Quote-aware: values enclosed in "…" may contain embedded ';' without issue.
     ///   - Embedded ';' in unquoted list-type fields (route-count, wireless ranges, BGP stats) can
-    ///     still cause incorrect splits — use :serialize delimiter="#" for those (TODO).
+    ///     still cause incorrect splits. Ask the router for an unambiguous delimiter in that case:
+    ///     <c>:serialize delimiter="#"</c>.
     ///   - A list entity that has no <c>.id</c> at all collapses into one record.</para>
     /// </summary>
     internal static class CliOutputParser

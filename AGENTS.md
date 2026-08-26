@@ -157,8 +157,11 @@ say how to obtain or regenerate it, not by a path only one machine has.
 ### Documentation is present-tense
 
 Reference documentation describes **how things work now**. It does not narrate how they used to be
-broken. Dated incidents, superseded diagnoses and "this used to fail because…" belong in
-[Docs/HISTORY.md](Docs/HISTORY.md) — nowhere else.
+broken. Dated incidents, superseded diagnoses and "this used to fail because…" belong in the history
+files, and in exactly two places: [Docs/HISTORY.md](Docs/HISTORY.md) — the index, the transferable
+lessons and the pinned measurements — or a `<doc>-history.md` sitting beside the document whose subject
+it covers (`findings-winbox-history.md`, `findings-cli-history.md`, …). Each fact lives in one of them,
+never both; [Docs/README.md](Docs/README.md) states the rule in full. Everywhere else is present-tense.
 
 ## Skills
 
