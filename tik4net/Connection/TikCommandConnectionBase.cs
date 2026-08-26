@@ -25,6 +25,17 @@ namespace tik4net.Connection
     ///   <item><see cref="Close"/></item>
     ///   <item>the three CRUD hooks <see cref="RunPrint"/>, <see cref="RunAdd"/>, <see cref="RunNonQuery"/>.</item>
     /// </list>
+    /// <para>
+    /// <b>This is a real extension point, not just the shape the in-tree transports happen to share.</b> The
+    /// hooks are <c>protected</c>, so a transport can be written outside this assembly: implement the three,
+    /// declare what it can do in <see cref="Capabilities"/>, and register it through
+    /// <c>ConnectionFactory.RegisterConnectionFactory</c> — which is exactly how the <c>tik4net.ssh</c>
+    /// satellite package plugs in. The <c>Run*Async</c> siblings are optional: their defaults throw rather
+    /// than wrapping the synchronous hook in a <c>Task.Run</c> façade, so a transport that cannot genuinely
+    /// await its I/O simply does not declare
+    /// <see cref="TikConnectionCapability.AsyncCommands"/>. Only <see cref="ITikRawSentenceConnection"/> is
+    /// left out on purpose — see below.
+    /// </para>
     /// </summary>
     public abstract class TikCommandConnectionBase : ITikConnection, ITikConnectionCapabilities
     {
@@ -114,17 +125,17 @@ namespace tik4net.Connection
         /// <summary>
         /// Executes a read (<c>print</c>) command and returns the matching records.
         /// </summary>
-        internal abstract IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor);
+        protected abstract IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor);
 
         /// <summary>
         /// Executes an <c>add</c> command and returns the new record's <c>.id</c>.
         /// </summary>
-        internal abstract string RunAdd(TikCommandDescriptor descriptor);
+        protected abstract string RunAdd(TikCommandDescriptor descriptor);
 
         /// <summary>
         /// Executes a non-query command (set, remove, enable, disable, move, unset, reboot, …).
         /// </summary>
-        internal abstract void RunNonQuery(TikCommandDescriptor descriptor);
+        protected abstract void RunNonQuery(TikCommandDescriptor descriptor);
 
         /// <summary>
         /// Sends a <b>raw</b> pass-through payload (<see cref="TikCommandDescriptor.CommandText"/>) verbatim in the
@@ -133,7 +144,7 @@ namespace tik4net.Connection
         /// that declare <see cref="TikConnectionCapability.RawCommand"/> override it. (For raw <c>ExecuteList</c>,
         /// <see cref="RunPrint"/> handles the <see cref="TikCommandDescriptor.IsRaw"/> descriptor itself.)
         /// </summary>
-        internal virtual string RunRawText(TikCommandDescriptor descriptor)
+        protected virtual string RunRawText(TikCommandDescriptor descriptor)
             => throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.RawCommand,
                 "This transport does not support raw command pass-through (CreateRawCommand).");
 
@@ -150,19 +161,19 @@ namespace tik4net.Connection
             + "a transport that reports the 'AsyncCommands' capability.";
 
         /// <summary>Async <see cref="RunPrint"/>. Default: not supported (see the note on the async hooks).</summary>
-        internal virtual Task<IList<TikRecordSentence>> RunPrintAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        protected virtual Task<IList<TikRecordSentence>> RunPrintAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
             => throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.AsyncCommands, AsyncUnsupported);
 
         /// <summary>Async <see cref="RunAdd"/>. Default: not supported (see the note on the async hooks).</summary>
-        internal virtual Task<string> RunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        protected virtual Task<string> RunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
             => throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.AsyncCommands, AsyncUnsupported);
 
         /// <summary>Async <see cref="RunNonQuery"/>. Default: not supported (see the note on the async hooks).</summary>
-        internal virtual Task RunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        protected virtual Task RunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
             => throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.AsyncCommands, AsyncUnsupported);
 
         /// <summary>Async <see cref="RunRawText"/>. Default: not supported (see the note on the async hooks).</summary>
-        internal virtual Task<string> RunRawTextAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        protected virtual Task<string> RunRawTextAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
             => throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.AsyncCommands, AsyncUnsupported);
 
         // ── ITikConnection — Command factory ──────────────────────────────────
@@ -206,6 +217,34 @@ namespace tik4net.Connection
         /// <inheritdoc/>
         public ITikCommandParameter CreateParameter(string name, string value, TikCommandParameterFormat parameterFormat)
             => new TikCommandParameter(name, value, parameterFormat);
+
+        // ── Internal dispatch ─────────────────────────────────────────────────
+        //
+        // The hooks above are protected: they are the extension point a transport implements, and a
+        // transport is the only thing that should be able to define them. But TikGenericCommand — a
+        // different class — is what CALLS them, and protected does not reach across classes. These shims
+        // are that one bridge, internal so they stay inside the assembly, and nothing more than a
+        // forwarding call. Adding a hook means adding its shim beside it.
+
+        internal IList<TikRecordSentence> InvokeRunPrint(TikCommandDescriptor descriptor) => RunPrint(descriptor);
+
+        internal string InvokeRunAdd(TikCommandDescriptor descriptor) => RunAdd(descriptor);
+
+        internal void InvokeRunNonQuery(TikCommandDescriptor descriptor) => RunNonQuery(descriptor);
+
+        internal string InvokeRunRawText(TikCommandDescriptor descriptor) => RunRawText(descriptor);
+
+        internal Task<IList<TikRecordSentence>> InvokeRunPrintAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+            => RunPrintAsync(descriptor, cancellationToken);
+
+        internal Task<string> InvokeRunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+            => RunAddAsync(descriptor, cancellationToken);
+
+        internal Task InvokeRunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+            => RunNonQueryAsync(descriptor, cancellationToken);
+
+        internal Task<string> InvokeRunRawTextAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+            => RunRawTextAsync(descriptor, cancellationToken);
 
         // ── IDisposable ────────────────────────────────────────────────────────
 

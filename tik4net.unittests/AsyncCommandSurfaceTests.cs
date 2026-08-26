@@ -50,16 +50,16 @@ namespace tik4net.unittests
             public override Task OpenAsync(string host, int port, string user, string password) { SetOpened(); return Task.FromResult(0); }
             public override void Close() => SetClosed();
 
-            internal override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)
+            protected override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)
             { Calls.Add("sync:print"); return Rows; }
 
-            internal override string RunAdd(TikCommandDescriptor descriptor)
+            protected override string RunAdd(TikCommandDescriptor descriptor)
             { Calls.Add("sync:add"); return AddedId; }
 
-            internal override void RunNonQuery(TikCommandDescriptor descriptor)
+            protected override void RunNonQuery(TikCommandDescriptor descriptor)
             { Calls.Add("sync:nonquery"); }
 
-            internal override Task<IList<TikRecordSentence>> RunPrintAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+            protected override Task<IList<TikRecordSentence>> RunPrintAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
             {
                 if (!ImplementAsyncHooks) return base.RunPrintAsync(descriptor, cancellationToken);
                 Calls.Add("async:print");
@@ -67,7 +67,7 @@ namespace tik4net.unittests
                 return Task.FromResult(Rows);
             }
 
-            internal override Task<string> RunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+            protected override Task<string> RunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
             {
                 if (!ImplementAsyncHooks) return base.RunAddAsync(descriptor, cancellationToken);
                 Calls.Add("async:add");
@@ -75,7 +75,7 @@ namespace tik4net.unittests
                 return Task.FromResult(AddedId);
             }
 
-            internal override Task RunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+            protected override Task RunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
             {
                 if (!ImplementAsyncHooks) return base.RunNonQueryAsync(descriptor, cancellationToken);
                 Calls.Add("async:nonquery");

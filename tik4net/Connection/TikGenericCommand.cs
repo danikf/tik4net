@@ -126,11 +126,11 @@ namespace tik4net.Connection
                 if (_isRaw)
                 {
                     // Fire-and-forget raw send; response discarded.
-                    _connection.RunRawText(BuildRawDescriptor());
+                    _connection.InvokeRunRawText(BuildRawDescriptor());
                     return;
                 }
                 var (cmd, p) = NormalizeMultilineCommand(_commandText, _parameters);
-                _connection.RunNonQuery(BuildCommand(cmd, p));
+                _connection.InvokeRunNonQuery(BuildCommand(cmd, p));
             }
             finally
             {
@@ -175,19 +175,19 @@ namespace tik4net.Connection
             try
             {
                 if (_isRaw)
-                    return ScalarFromRawText(_connection.RunRawText(BuildRawDescriptor()), throwIfMissing, defaultValue);
+                    return ScalarFromRawText(_connection.InvokeRunRawText(BuildRawDescriptor()), throwIfMissing, defaultValue);
 
                 var (normalCmd, normalParams) = NormalizeMultilineCommand(_commandText, _parameters);
                 string verb = TikPath.Verb(normalCmd);
 
                 if (verb == "add")
-                    return ScalarFromAddedId(_connection.RunAdd(BuildCommand(normalCmd, normalParams)), throwIfMissing, defaultValue);
+                    return ScalarFromAddedId(_connection.InvokeRunAdd(BuildCommand(normalCmd, normalParams)), throwIfMissing, defaultValue);
 
                 var cmd = BuildCommand(normalCmd, ResolveParamsForRead(normalParams));
                 IList<TikRecordSentence> rows;
                 try
                 {
-                    rows = _connection.RunPrint(cmd);
+                    rows = _connection.InvokeRunPrint(cmd);
                 }
                 catch (TikNoSuchItemException)
                 {
@@ -314,7 +314,7 @@ namespace tik4net.Connection
             _isRunning = true;
             try
             {
-                return SingleRowFromRows(_connection.RunPrint(BuildReadDescriptor()), throwIfMissing);
+                return SingleRowFromRows(_connection.InvokeRunPrint(BuildReadDescriptor()), throwIfMissing);
             }
             finally
             {
@@ -340,7 +340,7 @@ namespace tik4net.Connection
             try
             {
                 // proplist is ignored for CLI (as-value always returns all fields)
-                return _connection.RunPrint(BuildReadDescriptor());
+                return _connection.InvokeRunPrint(BuildReadDescriptor());
             }
             finally
             {
@@ -432,11 +432,11 @@ namespace tik4net.Connection
                 if (_isRaw)
                 {
                     // Fire-and-forget raw send; response discarded.
-                    await _connection.RunRawTextAsync(BuildRawDescriptor(), cancellationToken).ConfigureAwait(false);
+                    await _connection.InvokeRunRawTextAsync(BuildRawDescriptor(), cancellationToken).ConfigureAwait(false);
                     return;
                 }
                 var (cmd, p) = NormalizeMultilineCommand(_commandText, _parameters);
-                await _connection.RunNonQueryAsync(BuildCommand(cmd, p), cancellationToken).ConfigureAwait(false);
+                await _connection.InvokeRunNonQueryAsync(BuildCommand(cmd, p), cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -458,7 +458,7 @@ namespace tik4net.Connection
             {
                 if (_isRaw)
                 {
-                    string rawText = await _connection.RunRawTextAsync(BuildRawDescriptor(), cancellationToken).ConfigureAwait(false);
+                    string rawText = await _connection.InvokeRunRawTextAsync(BuildRawDescriptor(), cancellationToken).ConfigureAwait(false);
                     return ScalarFromRawText(rawText, throwIfMissing, defaultValue)!;
                 }
 
@@ -467,7 +467,7 @@ namespace tik4net.Connection
 
                 if (verb == "add")
                 {
-                    string newId = await _connection.RunAddAsync(BuildCommand(normalCmd, normalParams), cancellationToken).ConfigureAwait(false);
+                    string newId = await _connection.InvokeRunAddAsync(BuildCommand(normalCmd, normalParams), cancellationToken).ConfigureAwait(false);
                     return ScalarFromAddedId(newId, throwIfMissing, defaultValue)!;
                 }
 
@@ -475,7 +475,7 @@ namespace tik4net.Connection
                 IList<TikRecordSentence> rows;
                 try
                 {
-                    rows = await _connection.RunPrintAsync(readCmd, cancellationToken).ConfigureAwait(false);
+                    rows = await _connection.InvokeRunPrintAsync(readCmd, cancellationToken).ConfigureAwait(false);
                 }
                 catch (TikNoSuchItemException)
                 {
@@ -501,7 +501,7 @@ namespace tik4net.Connection
             _isRunning = true;
             try
             {
-                var rows = await _connection.RunPrintAsync(BuildReadDescriptor(), cancellationToken).ConfigureAwait(false);
+                var rows = await _connection.InvokeRunPrintAsync(BuildReadDescriptor(), cancellationToken).ConfigureAwait(false);
                 return SingleRowFromRows(rows, throwIfMissing)!;
             }
             finally
@@ -518,7 +518,7 @@ namespace tik4net.Connection
             _isRunning = true;
             try
             {
-                var rows = await _connection.RunPrintAsync(BuildReadDescriptor(), cancellationToken).ConfigureAwait(false);
+                var rows = await _connection.InvokeRunPrintAsync(BuildReadDescriptor(), cancellationToken).ConfigureAwait(false);
                 return rows.Cast<ITikReSentence>().ToList();
             }
             finally

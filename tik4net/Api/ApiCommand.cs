@@ -534,7 +534,7 @@ namespace tik4net.Api
             try
             {
                 string[] commandRows = ConstructCommandText(format, extraParameters ?? new ITikCommandParameter[] { });
-                var response = await apiConnection.CallCommandSyncAsync(commandRows, cancellationToken, forceTag).ConfigureAwait(false);
+                var response = await apiConnection.CallCommandAsync(commandRows, cancellationToken, forceTag).ConfigureAwait(false);
                 return interpret(EnsureApiSentences(response));
             }
             finally

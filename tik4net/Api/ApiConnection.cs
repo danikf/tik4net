@@ -721,6 +721,13 @@ namespace tik4net.Api
         /// sentences without holding a thread.
         /// </summary>
         /// <remarks>
+        /// The <c>Sync</c> in <see cref="CallCommandSync(string[])"/> is historical — it distinguished the
+        /// blocking call from the callback pattern, not from anything awaitable — which is why this one is
+        /// not called <c>CallCommandSyncAsync</c>. It is internal, so the name costs nothing to keep
+        /// straight; the public low-level surface is <see cref="ITikRawSentenceConnection"/> and remains
+        /// synchronous only.
+        /// </remarks>
+        /// <remarks>
         /// <para>
         /// The command is <b>always</b> tagged, whatever <see cref="SendTagWithSyncCommand"/> says. A tag is
         /// what makes the answer addressable, and it is also what makes cancelling possible at all — the
@@ -743,7 +750,7 @@ namespace tik4net.Api
         /// be a wire change on the most sensitive exchange there is, including against pre-6.43 routers that
         /// no test here can reach.
         /// </param>
-        internal async System.Threading.Tasks.Task<IList<ITikSentence>> CallCommandSyncAsync(
+        internal async System.Threading.Tasks.Task<IList<ITikSentence>> CallCommandAsync(
             string[] commandRows, System.Threading.CancellationToken cancellationToken, bool forceTag = true)
         {
             EnsureOpened();

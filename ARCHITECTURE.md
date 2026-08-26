@@ -193,11 +193,28 @@ not per-handler (`Docs/jg-catalog-format.md` has the `.jg` shapes):
 ### `TikCommandConnectionBase`
 
 Every non-API transport derives from it (`tik4net/Connection/`). It implements the whole
-`ITikConnection` surface and factors real work down to three hooks used by `TikGenericCommand`:
+`ITikConnection` surface and factors real work down to three `protected abstract` hooks:
 
-- `RunPrint(TikCommandDescriptor)` → rows
+- `RunPrint(TikCommandDescriptor)` → `IList<TikRecordSentence>`
 - `RunAdd(...)` → new `.id`
 - `RunNonQuery(...)`
+
+plus four optional `protected virtual` ones — `RunRawText` and the four `Run*Async` siblings — whose
+defaults throw rather than wrapping the synchronous hook in a `Task.Run` façade, so a transport that
+cannot genuinely await its I/O declines `AsyncCommands` instead of pretending to have it.
+
+**This is a real extension point.** A transport can be written outside the assembly: implement the three
+hooks, declare `Capabilities`, and register with `ConnectionFactory.RegisterConnectionFactory` — which is
+how `tik4net.ssh` plugs in. That satellite is a friend assembly for *other* reasons (it reuses the internal
+CLI/PTY helpers), not because the hooks require it. `TikCommandDescriptor` and `TikRecordSentence` are
+public because they are the hooks' whole vocabulary, and `TransportExtensionPointTests` pins all of that
+accessibility, since the failure mode of losing it is a confusing compiler error for whoever tries next.
+
+`TikGenericCommand` cannot call a `protected` member from another class, so the base carries one internal
+`InvokeRun*` shim per hook — a forwarding call and nothing else. Adding a hook means adding its shim.
+
+The one thing deliberately **not** offered here is `ITikRawSentenceConnection`: see the contract section
+above for why a transport-neutral base cannot have a connection-specific format.
 
 Supporting pieces in `Connection/`: `TikPath` (path normalization), `TikQueryStack` (filter →
 transport query translation), `PollingMonitorEngine` + `TikMonitorHandle` (poll+diff emulation of

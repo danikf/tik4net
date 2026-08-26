@@ -427,11 +427,11 @@ namespace tik4net.WinboxNative
         // rippled through ~1000 lines of reverse-engineered encoder that no deterministic test covers.
 
         /// <inheritdoc/>
-        internal override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)
+        protected override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)
             => RunPrintAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
 
         /// <inheritdoc/>
-        internal override async Task<IList<TikRecordSentence>> RunPrintAsync(
+        protected override async Task<IList<TikRecordSentence>> RunPrintAsync(
             TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             int generation = _sessionGeneration;
@@ -844,11 +844,11 @@ namespace tik4net.WinboxNative
         // ── Writes — Phase F2 (set / add / remove / move) ──────────────────────
 
         /// <inheritdoc/>
-        internal override string RunAdd(TikCommandDescriptor descriptor)
+        protected override string RunAdd(TikCommandDescriptor descriptor)
             => RunAddAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
 
         /// <inheritdoc/>
-        internal override async Task<string> RunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        protected override async Task<string> RunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             EnsureNativeOpen();
             // descriptor.CommandText is "/path/add"; the resolution path is the parent.
@@ -879,11 +879,11 @@ namespace tik4net.WinboxNative
         }
 
         /// <inheritdoc/>
-        internal override void RunNonQuery(TikCommandDescriptor descriptor)
+        protected override void RunNonQuery(TikCommandDescriptor descriptor)
             => RunNonQueryAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
 
         /// <inheritdoc/>
-        internal override async Task RunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        protected override async Task RunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             EnsureNativeOpen();
             // Try the whole command text as a standalone action window first (e.g. /tool/wol). Splitting it

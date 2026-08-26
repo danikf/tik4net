@@ -39,10 +39,10 @@ namespace tik4net.unittests
             public override TikConnectionCapability Capabilities
                 => TikConnectionCapability.Crud | TikConnectionCapability.RawCommand;
 
-            internal override string RunRawText(TikCommandDescriptor descriptor) => RawTextToReturn;
-            internal override string RunAdd(TikCommandDescriptor descriptor) => AddIdToReturn;
-            internal override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor) => new List<TikRecordSentence>();
-            internal override void RunNonQuery(TikCommandDescriptor descriptor) { }
+            protected override string RunRawText(TikCommandDescriptor descriptor) => RawTextToReturn;
+            protected override string RunAdd(TikCommandDescriptor descriptor) => AddIdToReturn;
+            protected override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor) => new List<TikRecordSentence>();
+            protected override void RunNonQuery(TikCommandDescriptor descriptor) { }
 
             public override void Open(string host, string user, string password) { }
             public override void Open(string host, int port, string user, string password) { }

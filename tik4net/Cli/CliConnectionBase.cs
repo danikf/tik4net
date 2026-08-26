@@ -522,19 +522,19 @@ namespace tik4net.Cli
         // also what keeps the blocking wrappers safe to call from a UI / ASP.NET-classic SynchronizationContext.
 
         /// <inheritdoc/>
-        internal override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)
+        protected override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)
             => RunPrintAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
 
         /// <inheritdoc/>
-        internal override string RunAdd(TikCommandDescriptor descriptor)
+        protected override string RunAdd(TikCommandDescriptor descriptor)
             => RunAddAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
 
         /// <inheritdoc/>
-        internal override void RunNonQuery(TikCommandDescriptor descriptor)
+        protected override void RunNonQuery(TikCommandDescriptor descriptor)
             => RunNonQueryAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
 
         /// <inheritdoc/>
-        internal override string RunRawText(TikCommandDescriptor descriptor)
+        protected override string RunRawText(TikCommandDescriptor descriptor)
             => RunRawTextAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
 
         /// <summary>
@@ -543,7 +543,7 @@ namespace tik4net.Cli
         /// performs two queries (detail + stats) and merges the results by <c>.id</c>
         /// so that config fields and live counter fields are combined in each record.
         /// </summary>
-        internal override async Task<IList<TikRecordSentence>> RunPrintAsync(
+        protected override async Task<IList<TikRecordSentence>> RunPrintAsync(
             TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             EnsureOpened();
@@ -786,7 +786,7 @@ namespace tik4net.Cli
         /// <summary>
         /// Executes an <c>add</c> command and returns the new record's .id.
         /// </summary>
-        internal override async Task<string> RunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        protected override async Task<string> RunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             EnsureOpened();
             string cliText = CliCommandBuilder.BuildAdd(descriptor.CommandText, descriptor.Parameters);
@@ -842,7 +842,7 @@ namespace tik4net.Cli
         /// <summary>
         /// Executes a non-query command (set, remove, enable, disable, move, reboot, …).
         /// </summary>
-        internal override async Task RunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        protected override async Task RunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             EnsureOpened();
             string verb = TikPath.Verb(descriptor.CommandText);
@@ -890,7 +890,7 @@ namespace tik4net.Cli
         /// by output text — raw mode cannot know what counts as an error for an arbitrary command, so the text is
         /// returned as-is. Used by <c>ExecuteScalar</c> (e.g. <c>/export</c>) and <c>ExecuteNonQuery</c>.
         /// </summary>
-        internal override async Task<string> RunRawTextAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        protected override async Task<string> RunRawTextAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             EnsureOpened();
             string rawCli = descriptor.WrapAsValue

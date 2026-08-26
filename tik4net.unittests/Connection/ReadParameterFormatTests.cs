@@ -30,15 +30,15 @@ namespace tik4net.unittests.Connection
 
             public override TikConnectionCapability Capabilities => TikConnectionCapability.Crud;
 
-            internal override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)
+            protected override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)
             {
                 LastPrint = descriptor;
                 return new List<TikRecordSentence>();
             }
 
-            internal override string RunRawText(TikCommandDescriptor descriptor) => "";
-            internal override string RunAdd(TikCommandDescriptor descriptor) => "*1";
-            internal override void RunNonQuery(TikCommandDescriptor descriptor) { }
+            protected override string RunRawText(TikCommandDescriptor descriptor) => "";
+            protected override string RunAdd(TikCommandDescriptor descriptor) => "*1";
+            protected override void RunNonQuery(TikCommandDescriptor descriptor) { }
 
             public override void Open(string host, string user, string password) { }
             public override void Open(string host, int port, string user, string password) { }

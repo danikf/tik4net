@@ -30,11 +30,20 @@ namespace tik4net.Connection
     /// Transport-neutral <c>!re</c> record sentence backed by a field dictionary.
     /// Produced by command connections that build records in-memory (CLI parsing, native M2 decode).
     /// </summary>
-    internal class TikRecordSentence : ITikReSentence
+    /// <remarks>
+    /// Public because it is what a transport's <c>RunPrint</c> hook returns: writing a transport means
+    /// constructing these from whatever the router sent.
+    /// </remarks>
+    public class TikRecordSentence : ITikReSentence
     {
         private readonly Dictionary<string, string> _fields;
 
-        internal TikRecordSentence(Dictionary<string, string> fields)
+        /// <summary>Wraps a field dictionary as one <c>!re</c> record.</summary>
+        /// <param name="fields">
+        /// The record's fields, keyed by RouterOS field name. Held by reference rather than copied — the
+        /// records a read produces are on a hot path — so do not modify it after handing it over.
+        /// </param>
+        public TikRecordSentence(Dictionary<string, string> fields)
         {
             _fields = fields;
         }
@@ -162,26 +171,38 @@ namespace tik4net.Connection
     /// Lightweight descriptor passed from <see cref="TikGenericCommand"/> to the connection's
     /// CRUD hooks. Avoids exposing the full command internals to the connection.
     /// </summary>
-    internal sealed class TikCommandDescriptor
+    /// <remarks>
+    /// Public because it is the argument every <c>Run*</c> hook on
+    /// <see cref="TikCommandConnectionBase"/> receives: it is the whole input a transport is given.
+    /// </remarks>
+    public sealed class TikCommandDescriptor
     {
-        internal string CommandText { get; }
-        internal IList<ITikCommandParameter> Parameters { get; }
+        /// <summary>The command path/verb, in RouterOS API form (<c>/ip/address/print</c>).</summary>
+        public string CommandText { get; }
+
+        /// <summary>The command's parameters — filters (<c>?</c>) and name/value words (<c>=</c>).</summary>
+        public IList<ITikCommandParameter> Parameters { get; }
 
         /// <summary>
         /// When <c>true</c>, <see cref="CommandText"/> is a <b>raw</b> transport-dialect payload that must be sent
         /// verbatim, bypassing the structured CLI builder/mapper (see <c>CreateRawCommand</c> and the
         /// <see cref="TikConnectionCapability.RawCommand"/> capability). <see cref="Parameters"/> is ignored.
         /// </summary>
-        internal bool IsRaw { get; }
+        public bool IsRaw { get; }
 
         /// <summary>
         /// Raw-mode convenience: when <c>true</c>, the transport wraps the raw payload so it materialises a
         /// machine-readable <c>as-value</c> line (CLI: <c>:put [ … as-value]</c>) before parsing. No effect when
         /// <see cref="IsRaw"/> is <c>false</c>.
         /// </summary>
-        internal bool WrapAsValue { get; }
+        public bool WrapAsValue { get; }
 
-        internal TikCommandDescriptor(string commandText, IList<ITikCommandParameter> parameters,
+        /// <summary>Creates a descriptor for one command.</summary>
+        /// <param name="commandText">The command path/verb in API form.</param>
+        /// <param name="parameters">The command's parameters; may be empty, never null.</param>
+        /// <param name="isRaw">See <see cref="IsRaw"/>.</param>
+        /// <param name="wrapAsValue">See <see cref="WrapAsValue"/>.</param>
+        public TikCommandDescriptor(string commandText, IList<ITikCommandParameter> parameters,
             bool isRaw = false, bool wrapAsValue = false)
         {
             CommandText = commandText;

@@ -211,23 +211,23 @@ namespace tik4net.Rest
         // the blocking wrapper safe to call from a UI or ASP.NET-classic SynchronizationContext.
 
         /// <inheritdoc/>
-        internal override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)
+        protected override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)
             => RunPrintAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
 
         /// <inheritdoc/>
-        internal override string RunAdd(TikCommandDescriptor descriptor)
+        protected override string RunAdd(TikCommandDescriptor descriptor)
             => RunAddAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
 
         /// <inheritdoc/>
-        internal override void RunNonQuery(TikCommandDescriptor descriptor)
+        protected override void RunNonQuery(TikCommandDescriptor descriptor)
             => RunNonQueryAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
 
         /// <inheritdoc/>
-        internal override Task<IList<TikRecordSentence>> RunPrintAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        protected override Task<IList<TikRecordSentence>> RunPrintAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
             => ExecuteRequestListAsync(descriptor.CommandText, descriptor.Parameters, cancellationToken);
 
         /// <inheritdoc/>
-        internal override async Task<string> RunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        protected override async Task<string> RunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             var single = await ExecuteRequestSingleAsync(descriptor.CommandText, descriptor.Parameters, cancellationToken).ConfigureAwait(false);
             string? id = null;
@@ -238,7 +238,7 @@ namespace tik4net.Rest
         }
 
         /// <inheritdoc/>
-        internal override Task RunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        protected override Task RunNonQueryAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
             => ExecuteRequestAsync(descriptor.CommandText, descriptor.Parameters, cancellationToken);
 
         // ── Monitor / async / listen (ITikMonitorTransport) ────────────────────

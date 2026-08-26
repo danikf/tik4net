@@ -92,7 +92,7 @@ namespace tik4net.unittests.Rest
                 var descriptor = new TikCommandDescriptor("/ip/address/print", new List<ITikCommandParameter>());
                 var sw = Stopwatch.StartNew();
                 var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
-                    () => conn.RunPrint(descriptor));
+                    () => conn.InvokeRunPrint(descriptor));
                 sw.Stop();
 
                 Assert.IsTrue(sw.ElapsedMilliseconds < GenerousLimitMs,
