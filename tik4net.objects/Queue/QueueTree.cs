@@ -18,61 +18,61 @@ namespace tik4net.Objects.Queue
         public string? Id { get; private set; }
 
         /// <summary>
-        /// Name
+        /// name: unique identifier for the queue, can be referenced as a parent by other queues.
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
         public string? Name { get; set; }
 
         /// <summary>
-        /// parent
+        /// parent: specifies the parent queue, typically "global" for top-level queues in one directional HTB.
         /// </summary>
         [TikProperty("parent")]
         public string? Parent { get; set; }
 
         /// <summary>
-        /// packet-mark
+        /// packet-mark: references packet marks from /ip/firewall/mangle; matching traffic is subject to this queue.
         /// </summary>
         [TikProperty("packet-mark")]
         public string? PacketMark { get; set; }
 
         /// <summary>
-        /// limit-at
+        /// limit-at: guaranteed minimum bandwidth (committed information rate) for the queue.
         /// </summary>
         [TikProperty("limit-at")]
         public long LimitAt { get; set; }
 
         /// <summary>
-        /// queue
+        /// queue: selects the queue type that determines the queueing algorithm applied.
         /// </summary>
         [TikProperty("queue")]
         public string? Queue { get; set; }
 
         /// <summary>
-        /// priority
+        /// priority: values 1-8 determine queue precedence (1=highest); higher priority queues reach max-limit first.
         /// </summary>
         [TikProperty("priority")]
         public long Priority { get; set; }
 
         /// <summary>
-        /// max-limit
+        /// max-limit: maximum bandwidth allowed for the queue (maximum information rate).
         /// </summary>
         [TikProperty("max-limit")]
         public long MaxLimit { get; set; }
 
         /// <summary>
-        /// burst-limit
+        /// burst-limit: maximum rate achievable during burst periods.
         /// </summary>
         [TikProperty("burst-limit")]
         public long BurstLimit { get; set; }
 
         /// <summary>
-        /// burst-threshold
+        /// burst-threshold: trigger point for burst; when average rate is below this value, burst is allowed.
         /// </summary>
         [TikProperty("burst-threshold")]
         public long BurstThreshold { get; set; }
 
         /// <summary>
-        /// burst-time
+        /// burst-time: time period in seconds over which average rate is calculated for bursts.
         /// </summary>
         [TikProperty("burst-time")]
         public TikDuration? BurstTime { get; set; }
@@ -126,13 +126,13 @@ namespace tik4net.Objects.Queue
         public bool Invalid { get; private set; }
 
         /// <summary>
-        /// disabled
+        /// disabled: enable or disable this queue.
         /// </summary>
         [TikProperty("disabled")]
         public bool? Disabled { get; set; }
 
         /// <summary>
-        /// comment
+        /// comment: optional description or comment for this queue.
         /// </summary>
         [TikProperty("comment")]
         public string? Comment { get; set; }

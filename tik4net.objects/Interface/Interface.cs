@@ -18,7 +18,7 @@ namespace tik4net.Objects.Interface
         public string? Id { get; private set; }
 
         /// <summary>
-        /// name
+        /// name: interface identifier used in commands and configuration.
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
         public string? Name { get; set; }
@@ -68,25 +68,25 @@ namespace tik4net.Objects.Interface
         public bool? FastPath { get; private set; }
 
         /// <summary>
-        /// rx-byte
+        /// rx-byte: total bytes received on the interface.
         /// </summary>
         [TikProperty("rx-byte", IsReadOnly = true)]
         public long RxByte { get; private set; }
 
         /// <summary>
-        /// tx-byte
+        /// tx-byte: total bytes transmitted on the interface.
         /// </summary>
         [TikProperty("tx-byte", IsReadOnly = true)]
         public long TxByte { get; private set; }
 
         /// <summary>
-        /// rx-packet
+        /// rx-packet: number of packets received on the interface.
         /// </summary>
         [TikProperty("rx-packet", IsReadOnly = true)]
         public long RxPacket { get; private set; }
 
         /// <summary>
-        /// tx-packet
+        /// tx-packet: total packets transmitted through the interface.
         /// </summary>
         [TikProperty("tx-packet", IsReadOnly = true)]
         public long TxPacket { get; private set; }
@@ -98,7 +98,7 @@ namespace tik4net.Objects.Interface
         public long RxDrop { get; private set; }
 
         /// <summary>
-        /// tx-drop
+        /// tx-drop: number of packets dropped by the interface transmit queue.
         /// </summary>
         [TikProperty("tx-drop", IsReadOnly = true)]
         public long TxDrop { get; private set; }
@@ -116,13 +116,13 @@ namespace tik4net.Objects.Interface
         public long TxError { get; private set; }
 
         /// <summary>
-        /// running
+        /// running: indicates whether the interface is currently active.
         /// </summary>
         [TikProperty("running", IsReadOnly = true)]
         public bool Running { get; private set; }
 
         /// <summary>
-        /// disabled
+        /// disabled: administratively shut down the interface.
         /// </summary>
         [TikProperty("disabled")]
         public bool? Disabled { get; set; }

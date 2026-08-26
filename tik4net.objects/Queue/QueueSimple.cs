@@ -18,61 +18,61 @@ namespace tik4net.Objects.Queue
         public string? Id { get; private set; }
 
         /// <summary>
-        /// name
+        /// name: unique queue identifier used as a parent for other queues.
         /// </summary>
         [TikProperty("name", IsMandatory = true)]
         public string? Name { get; set; }
 
         /// <summary>
-        /// target
+        /// target: IP address/netmask or interface used to identify traffic direction. Upload when source matches, download when destination matches.
         /// </summary>
         [TikProperty("target")]
         public string? Target { get; set; }
 
         /// <summary>
-        /// parent
+        /// parent: designates this queue as subordinate to another queue, enabling hierarchical structures.
         /// </summary>
         [TikProperty("parent")]
         public string? Parent { get; set; }
 
         /// <summary>
-        /// priority
+        /// priority: numerical ranking (1-8) where 1 is highest priority; determines which child queue reaches max-limit first.
         /// </summary>
         [TikProperty("priority")]
         public string? Priority { get; set; }
 
         /// <summary>
-        /// queue
+        /// queue: specifies the queue type algorithm to use, created via /queue/type.
         /// </summary>
         [TikProperty("queue")]
         public string? Queue { get; set; }
 
         /// <summary>
-        /// limit-at
+        /// limit-at: guaranteed upload/download data rate for the target (CIR).
         /// </summary>
         [TikProperty("limit-at")]
         public TikRatePair? LimitAt { get; set; }
 
         /// <summary>
-        /// max-limit
+        /// max-limit: maximal upload/download data rate allowed for the target (MIR).
         /// </summary>
         [TikProperty("max-limit")]
         public TikRatePair? MaxLimit { get; set; }
 
         /// <summary>
-        /// burst-limit
+        /// burst-limit: maximum rate achievable during burst activation periods.
         /// </summary>
         [TikProperty("burst-limit")]
         public TikRatePair? BurstLimit { get; set; }
 
         /// <summary>
-        /// burst-threshold
+        /// burst-threshold: rate threshold for toggling burst on/off, positioned between limit-at and max-limit.
         /// </summary>
         [TikProperty("burst-threshold")]
         public TikRatePair? BurstThreshold { get; set; }
 
         /// <summary>
-        /// burst-time
+        /// burst-time: duration in seconds for calculating average data rate during bursts.
         /// </summary>
         [TikProperty("burst-time")]
         public string? BurstTime { get; set; }
@@ -174,31 +174,31 @@ namespace tik4net.Objects.Queue
         public bool Dynamic { get; private set; }
 
         /// <summary>
-        /// disabled
+        /// disabled: enable or disable this queue.
         /// </summary>
         [TikProperty("disabled")]
         public bool? Disabled { get; set; }
 
         /// <summary>
-        /// dst
+        /// dst: destination IP address/netmask for filtering specific traffic streams.
         /// </summary>
         [TikProperty("dst")]
         public string? Dst { get; set; }
 
         /// <summary>
-        /// total-max-limit
+        /// total-max-limit: maximal data rate for the global-total HTB queue.
         /// </summary>
         [TikProperty("total-max-limit")]
         public long TotalMaxLimit { get; set; }
 
         /// <summary>
-        /// total-queue
+        /// total-queue: queue type for the global-total HTB queue.
         /// </summary>
         [TikProperty("total-queue")]
         public string? TotalQueue { get; set; }
 
         /// <summary>
-        /// comment
+        /// comment: optional description or comment for this queue.
         /// </summary>
         [TikProperty("comment")]
         public string? Comment { get; set; }

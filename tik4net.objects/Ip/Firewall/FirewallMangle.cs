@@ -133,31 +133,31 @@ namespace tik4net.Objects.Ip.Firewall
         public string? Id { get; private set; }
 
         /// <summary>
-        /// chain
+        /// chain: firewall chain this rule applies to (prerouting, input, output, forward, postrouting).
         /// </summary>
         [TikProperty("chain")]
         public string? Chain { get; set; }
 
         /// <summary>
-        /// action
+        /// action: determines packet processing behavior for matched rules.
         /// </summary>
         [TikProperty("action")]
         public ActionType Action { get; set; }
 
         /// <summary>
-        /// new-priorityne
+        /// new-priority: sets priority for packets (VLAN, WMM, DSCP, or MPLS EXP priority).
         /// </summary>
         [TikProperty("new-priority", DefaultValue = "0")]
         public string? NewPriority { get; set; }
 
         /// <summary>
-        /// passthrough
+        /// passthrough: when enabled, matched packets proceed to subsequent rules rather than stopping.
         /// </summary>
         [TikProperty("passthrough", DefaultValue = "yes")]
         public bool? Passthrough { get; set; }
 
         /// <summary>
-        /// src-address-list
+        /// src-address-list: references predefined address list for source IP filtering.
         /// </summary>
         [TikProperty("src-address-list", UnsetOnDefault = true)]
         public string? SrcAddressList { get; set; }
@@ -175,61 +175,61 @@ namespace tik4net.Objects.Ip.Firewall
         public bool Dynamic { get; private set; }
 
         /// <summary>
-        /// disabled
+        /// disabled: toggles rule activation without deletion.
         /// </summary>
         [TikProperty("disabled")]
         public bool? Disabled { get; set; }
 
         /// <summary>
-        /// new-packet-mark
+        /// new-packet-mark: sets a new packet-mark value for matching packets.
         /// </summary>
         [TikProperty("new-packet-mark")]
         public string? NewPacketMark { get; set; }
 
         /// <summary>
-        /// comment
+        /// comment: rule documentation and identification text.
         /// </summary>
         [TikProperty("comment")]
         public string? Comment { get; set; }
 
         /// <summary>
-        /// dst-address-list
+        /// dst-address-list: references predefined address list for destination IP filtering.
         /// </summary>
         [TikProperty("dst-address-list", UnsetOnDefault = true)]
         public string? DstAddressList { get; set; }
 
         /// <summary>
-        /// protocol
+        /// protocol: filters packets by protocol type (TCP, UDP, ICMP, etc.).
         /// </summary>
         [TikProperty("protocol", UnsetOnDefault = true)]
         public string? Protocol { get; set; }
 
         /// <summary>
-        /// src-address
+        /// src-address: matches packets based on source IP address or prefix.
         /// </summary>
         [TikProperty("src-address", UnsetOnDefault = true)]
         public string? SrcAddress { get; set; }
 
         /// <summary>
-        /// dst-address
+        /// dst-address: matches packets based on destination IP address or prefix.
         /// </summary>
         [TikProperty("dst-address", UnsetOnDefault = true)]
         public string? DstAddress { get; set; }
 
         /// <summary>
-        /// jump-target
+        /// jump-target: redirects rule processing to custom chains for advanced logic.
         /// </summary>
         [TikProperty("jump-target")]
         public string? JumpTarget { get; set; }
         
         /// <summary>
-        /// address-list
+        /// address-list: specifies address list name for address-based matching.
         /// </summary>
         [TikProperty("address-list")]
         public string? AddressList { get; set; }
 
         /// <summary>
-        /// address-list-timeout
+        /// address-list-timeout: timeout duration for addresses added to address lists.
         /// </summary>
         [TikProperty("address-list-timeout", DefaultValue = "00:00:00")]
         public TikDuration? AddressListTimeout { get; set; }

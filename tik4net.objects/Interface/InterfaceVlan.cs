@@ -80,7 +80,7 @@ namespace tik4net.Objects.Interface
         public ArpMode? Arp { get; set; }
 
         /// <summary>
-        /// arp-timeout
+        /// arp-timeout: how long the ARP record is kept in the ARP table after no packets are received from IP.
         /// </summary>
         [TikProperty("arp-timeout")]
         public TikDuration? ArpTimeout { get; set; }
@@ -138,7 +138,7 @@ namespace tik4net.Objects.Interface
         public string? Interface { get; set; }
 
         /// <summary>
-        /// use-service-tag
+        /// use-service-tag: IEEE 802.1ad compatible Service Tag.
         /// </summary>
         [TikProperty("use-service-tag")]
         public bool? UseServiceTag { get; set; }
