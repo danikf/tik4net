@@ -147,10 +147,21 @@ public sealed class SampleOptions
     }
 
     /// <summary>Opens the connection these options describe.</summary>
+    /// <remarks>
+    /// The transport comes from a command-line switch, so this is the runtime-chosen case and
+    /// <c>Create(TikConnectionType)</c> is the right route — there is no type to name at compile time.
+    /// When the transport IS known while writing the code, prefer the per-transport factory in that
+    /// transport's namespace (<c>using tik4net.Api;</c> then <c>setup.CreateApiConnection()</c>), as
+    /// tik4net.examples does.
+    /// <para>
+    /// <see cref="TikConnectionSetup"/> rather than <c>ConnectionFactory</c>: the factory hands out a
+    /// connection with transport defaults and nowhere to state an option, so a timeout or a certificate
+    /// policy would have to be set on the connection object afterwards.
+    /// </para>
+    /// </remarks>
     public ITikConnection Open()
     {
-        var connection = ConnectionFactory.CreateConnection(Transport);
-        connection.Open(Host!, User, Password);
-        return connection;
+        var setup = new TikConnectionSetup(TikRouterAddress.FromHost(Host!), User, Password);
+        return setup.Create(Transport);
     }
 }

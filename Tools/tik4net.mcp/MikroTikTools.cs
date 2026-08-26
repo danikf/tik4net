@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using ModelContextProtocol.Server;
+using tik4net.Api;
 using tik4net.Cli;
 using tik4net.Connection;
 using tik4net.Diagnostics;

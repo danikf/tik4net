@@ -236,9 +236,21 @@ load-bearing.
 `TikConnectionSetup` is the single entry point: one options object plus `Create(TikConnectionType)` /
 `Create(TikConnectionType, Action<ITikConnection> configure)` (and their `Async` and `CreateUnopened`
 counterparts) apply every option and open the transport named. `ApplyTo(ITikConnection)` is the piece
-that does the applying — public so the SSH satellite package can configure its own connection type the
-same way. The per-transport `Create<Transport>Connection[Async]()` methods still exist and are just
-routed through `Create`.
+that does the applying — public so a satellite transport package can configure its own connection type the
+same way.
+
+The per-transport `Create<Transport>Connection[Async]()` factories are **extension methods on
+`TikConnectionSetup`, each in the namespace of the transport it creates** — `CreateApiConnection` in
+`tik4net.Api`, `CreateWinboxNativeConnection` in `tik4net.WinboxNative`, and so on, one
+`<Transport>ConnectionSetupExtensions` class per folder. They forward to `Create(type)`, so a new option
+reaches every transport without anyone copying it.
+
+They used to be members of `TikConnectionSetup`, which meant one class grew a method pair per transport (22
+of them) and a satellite package could not add its own without changing core. The SSH transport already had
+the extension shape for exactly that reason — it lives in another assembly — so this makes the ten built-in
+transports match the one that had no choice. The cost is that they need a `using tik4net.<Transport>;` to
+be visible; the enum-driven `Create(TikConnectionType)` needs no import and stays the way to pick a
+transport at runtime, from config.
 
 Options split into two kinds:
 

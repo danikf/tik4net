@@ -17,11 +17,24 @@ namespace tik4net.examples
     {
         static void Main(string[] args)
         {
-            using (ITikConnection connection = ConnectionFactory.CreateConnection(TikConnectionType.Api))
+            // TikConnectionSetup is the entry point (ConnectionFactory is a compatibility shim with nowhere
+            // to put an option). The usual one-liner for a transport known at compile time is
+            //     using tik4net.Api;  ...  using var connection = setup.CreateApiConnection();
+            // — a per-transport factory, an extension living in that transport's own namespace. This example
+            // wants the diagnostic handlers attached BEFORE the login exchange so that it is logged too, so
+            // it takes the two-step route instead: CreateUnopened, wire up, then Open. Both apply the same
+            // options. When the transport comes from config or a switch, use Create(TikConnectionType) —
+            // see tik4net.samples.
+            var setup = new TikConnectionSetup(
+                TikRouterAddress.FromHost(ConfigurationManager.AppSettings["host"]),
+                ConfigurationManager.AppSettings["user"],
+                ConfigurationManager.AppSettings["pass"]);
+
+            using (ITikConnection connection = setup.CreateUnopened(TikConnectionType.Api))
             {
                 connection.OnReadRow += Connection_OnReadRow;   // logging commands to cosole
                 connection.OnWriteRow += Connection_OnWriteRow; // logging commands to cosole
-                connection.Open(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
+                setup.Open(connection);                         // handlers attached before the login exchange
 
                 //------------------------------------------------
                 //  LOW LEVEL API (hint: uncomment any example call and debug)

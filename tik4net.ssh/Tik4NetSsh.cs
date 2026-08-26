@@ -6,7 +6,7 @@ namespace tik4net.Ssh
     /// <summary>
     /// Entry points for the SSH transport. <see cref="SshConnection"/>'s constructor is internal — like
     /// every other tik4net connection type, it is created only via the <see cref="TikConnectionSetup"/>
-    /// extension methods (<see cref="Tik4NetSshExtensions.CreateSshConnection"/>) or — after calling
+    /// extension methods (<see cref="SshConnectionSetupExtensions.CreateSshConnection"/>) or — after calling
     /// <see cref="Register"/> once — through the standard <see cref="ConnectionFactory"/> using
     /// <see cref="TikConnectionType.Ssh"/>.
     /// </summary>
@@ -23,10 +23,13 @@ namespace tik4net.Ssh
     }
 
     /// <summary>
-    /// <see cref="TikConnectionSetup"/> extension methods for the SSH transport, kept in the satellite
-    /// package alongside the implementation. Mirror the built-in <c>CreateTelnetConnection</c> helpers.
+    /// <see cref="TikConnectionSetup"/> factories for the SSH transport, kept in this transport's own
+    /// namespace beside the connection they create — the same shape the built-in transports use
+    /// (<c>ApiConnectionSetupExtensions</c>, <c>TelnetConnectionSetupExtensions</c>, …). This satellite had
+    /// the pattern first: it lives in another assembly and could never have added members to
+    /// <see cref="TikConnectionSetup"/> itself.
     /// </summary>
-    public static class Tik4NetSshExtensions
+    public static class SshConnectionSetupExtensions
     {
         /// <summary>
         /// Creates and opens an SSH CLI connection (PTY shell, default port 22). Requires the RouterOS

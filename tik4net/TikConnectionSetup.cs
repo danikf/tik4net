@@ -212,7 +212,7 @@ namespace tik4net
         /// <param name="configure">
         /// Optional hook run <b>after</b> the options are applied and <b>before</b> the connection opens —
         /// the place for transport-specific settings that are not options of this setup (see
-        /// <see cref="CreateWinboxNativeConnection(Action{WinboxNativeConnection})"/> for the case that
+        /// <c>CreateWinboxNativeConnection</c> in <c>tik4net.WinboxNative</c> for the case that
         /// needs it).
         /// </param>
         public ITikConnection Create(TikConnectionType connectionType, Action<ITikConnection>? configure)
@@ -329,189 +329,36 @@ namespace tik4net
             return (int)ms;
         }
 
-        // ── API ───────────────────────────────────────────────────────────────
-
-        /// <summary>Creates and opens a plain MikroTik API connection (TCP 8728).</summary>
-        public ITikConnection CreateApiConnection()
-            => Create(TikConnectionType.Api);
-
-        /// <summary>Creates and opens a MikroTik API-SSL connection (TLS TCP 8729).</summary>
-        public ITikConnection CreateApiSslConnection()
-            => Create(TikConnectionType.ApiSsl);
-
-        /// <summary>Async version of <see cref="CreateApiConnection"/>.</summary>
-        public Task<ITikConnection> CreateApiConnectionAsync(CancellationToken ct = default)
-            => CreateAsync(TikConnectionType.Api, ct);
-
-        /// <summary>Async version of <see cref="CreateApiSslConnection"/>.</summary>
-        public Task<ITikConnection> CreateApiSslConnectionAsync(CancellationToken ct = default)
-            => CreateAsync(TikConnectionType.ApiSsl, ct);
-
-        // ── REST ──────────────────────────────────────────────────────────────
-
-        /// <summary>Creates and opens a REST API connection (HTTP, default port 80). Requires RouterOS 7.1+.</summary>
-        public ITikConnection CreateRestConnection()
-            => Create(TikConnectionType.Rest);
-
-        /// <summary>Creates and opens a REST API SSL connection (HTTPS, default port 443). Requires RouterOS 7.1+ with www-ssl enabled.</summary>
-        public ITikConnection CreateRestSslConnection()
-            => Create(TikConnectionType.RestSsl);
-
-        /// <summary>Async version of <see cref="CreateRestConnection"/>.</summary>
-        public Task<ITikConnection> CreateRestConnectionAsync(CancellationToken ct = default)
-            => CreateAsync(TikConnectionType.Rest, ct);
-
-        /// <summary>Async version of <see cref="CreateRestSslConnection"/>.</summary>
-        public Task<ITikConnection> CreateRestSslConnectionAsync(CancellationToken ct = default)
-            => CreateAsync(TikConnectionType.RestSsl, ct);
-
-        // ── Telnet ────────────────────────────────────────────────────────────
-
-        /// <summary>Creates and opens a Telnet CLI connection (plain-text TCP port 23). Requires RouterOS telnet service enabled.</summary>
-        public ITikConnection CreateTelnetConnection()
-            => Create(TikConnectionType.Telnet);
-
-        /// <summary>Async version of <see cref="CreateTelnetConnection"/>.</summary>
-        public Task<ITikConnection> CreateTelnetConnectionAsync(CancellationToken ct = default)
-            => CreateAsync(TikConnectionType.Telnet, ct);
-
-        // ── MAC-Telnet ────────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Creates and opens a MAC-Telnet CLI connection (UDP port 20561).
-        /// Requires <c>/tool/mac-server set allowed-interface-list=all</c> on the router.
-        /// The router MAC address is discovered via MNDP (up to 5 s) when neither
-        /// <paramref name="routerMac"/> nor <see cref="RouterMac"/> nor <see cref="Address"/> carries one —
-        /// which needs a host to look it up by, so a MAC-only setup must name the MAC itself.
-        /// </summary>
-        /// <param name="routerMac">
-        /// Optional router MAC address as <c>"AA:BB:CC:DD:EE:FF"</c>, overriding <see cref="RouterMac"/>
-        /// for this connection.
-        /// </param>
-        public ITikConnection CreateMacTelnetConnection(string? routerMac = null)
-            => Create(TikConnectionType.MacTelnet, OverrideRouterMac(routerMac));
-
-        /// <summary>Async version of <see cref="CreateMacTelnetConnection"/>.</summary>
-        public Task<ITikConnection> CreateMacTelnetConnectionAsync(string? routerMac = null, CancellationToken ct = default)
-            => CreateAsync(TikConnectionType.MacTelnet, OverrideRouterMac(routerMac), ct);
-
-        // ── WinBox CLI ────────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Creates and opens a WinBox CLI connection (encrypted TCP port 8291). Drives the RouterOS CLI
-        /// over the WinBox <c>mepty</c> terminal handler (EC-SRP5 auth, AES-128-CBC). Requires the
-        /// <c>winbox</c> service to be enabled on the router (enabled by default).
-        /// </summary>
-        public ITikConnection CreateWinboxCliConnection()
-            => Create(TikConnectionType.WinboxCli);
-
-        /// <summary>Async version of <see cref="CreateWinboxCliConnection"/>.</summary>
-        public Task<ITikConnection> CreateWinboxCliConnectionAsync(CancellationToken ct = default)
-            => CreateAsync(TikConnectionType.WinboxCli, ct);
-
-        // ── WinBox CLI over MAC ─────────────────────────────────────────────────
-
-        /// <summary>
-        /// Creates and opens a WinBox CLI connection over the MAC layer (UDP port 20561). Same encrypted
-        /// WinBox terminal CLI as <see cref="CreateWinboxCliConnection"/>, but works without an IP route
-        /// to the router. Requires <c>/tool/mac-server/mac-winbox set allowed-interface-list=all</c>.
-        /// The router MAC address is discovered via MNDP (up to 5 s) when neither
-        /// <paramref name="routerMac"/> nor <see cref="RouterMac"/> is set.
-        /// </summary>
-        /// <param name="routerMac">
-        /// Optional router MAC address as <c>"AA:BB:CC:DD:EE:FF"</c>, overriding <see cref="RouterMac"/>
-        /// for this connection.
-        /// </param>
-        public ITikConnection CreateWinboxCliMacConnection(string? routerMac = null)
-            => Create(TikConnectionType.WinboxCliMac, OverrideRouterMac(routerMac));
-
-        /// <summary>Async version of <see cref="CreateWinboxCliMacConnection"/>.</summary>
-        public Task<ITikConnection> CreateWinboxCliMacConnectionAsync(string? routerMac = null, CancellationToken ct = default)
-            => CreateAsync(TikConnectionType.WinboxCliMac, OverrideRouterMac(routerMac), ct);
-
-        // ── WinBox Native (M2) ──────────────────────────────────────────────────
-
-        /// <summary>
-        /// Creates and opens a WinBox <b>native-M2</b> connection (encrypted TCP port 8291). Issues
-        /// structured M2 CRUD calls (no terminal), translating API paths/field names to/from WinBox handler
-        /// and field keys via the router's version-matched <c>.jg</c> catalog. Requires the <c>winbox</c>
-        /// service to be enabled (default).
-        /// <para><b>Experimental.</b> That catalog mapping is reconstructed rather than published, so
-        /// translating RouterOS API syntax into M2 — which addresses everything by number — is not a
-        /// straightforward one: common tables are covered, an exotic table or verb may need one of the
-        /// mappings below. <b>For production work prefer
-        /// <see cref="CreateWinboxCliConnection"/></b>, the stable, proven transport on the same encrypted
-        /// channel, which drives the router's own CLI and needs no name mapping at all. See
-        /// <see cref="WinboxNativeConnection"/> and the wiki page <i>WinBox-Native-connection</i>.</para>
-        /// </summary>
-        /// <param name="configure">
-        /// Optional hook to configure the connection <b>before it opens</b> — the place to register
-        /// <see cref="WinboxNativeConnection.PathAlias"/> / <see cref="WinboxNativeConnection.FieldOverride"/>
-        /// mappings or set <see cref="WinboxNativeConnection.CatalogCachePath"/>. These must be set before
-        /// <c>Open</c>, which is why this factory exposes a callback rather than only returning the connection.
-        /// </param>
-        /// <example>
-        /// <para>The mappings are written in the <b>labels WinBox shows you</b>, not in raw handler numbers.
-        /// Open the window in WinBox, read its menu breadcrumb and field captions, and lower-case them with
-        /// spaces as dashes:</para>
-        /// <code>
-        /// using var conn = setup.CreateWinboxNativeConnection(c =>
-        /// {
-        ///     // WinBox menu:  PPP ▸ Secrets ▸ (window) PPP Secret     API path: /ppp/secret
-        ///     c.PathAlias("/ppp/secret", "/ppp/secrets/ppp-secret");
-        ///
-        ///     // Accept field captions as typed in the GUI ("MAC Address" → mac-address, "Dst. Address" → dst-address).
-        ///     c.UseGuiNames = true;
-        ///
-        ///     // Escape hatches, only when the label route fails:
-        ///     c.FieldOverride("/ip/hotspot/user", "mac-address", 0x1);   // pin one field to its M2 key
-        ///     c.PathOverride("/tool/sniffer", new[] { 27, 101 });        // pin a whole path to its handler
-        /// });
-        /// </code>
-        /// <para><see cref="WinboxNativeConnection.PathAlias"/> keeps working after a RouterOS upgrade (only the
-        /// text is pinned; the handler number is read live from the router's <c>.jg</c> catalog), whereas the
-        /// numeric <c>*Override</c> forms pin values that can move between versions.</para>
-        /// </example>
-        public ITikConnection CreateWinboxNativeConnection(Action<WinboxNativeConnection>? configure = null)
-            => Create(TikConnectionType.WinboxNative, Typed(configure));
-
-        /// <summary>Async version of <see cref="CreateWinboxNativeConnection"/>.</summary>
-        public Task<ITikConnection> CreateWinboxNativeConnectionAsync(
-            Action<WinboxNativeConnection>? configure = null, CancellationToken ct = default)
-            => CreateAsync(TikConnectionType.WinboxNative, Typed(configure), ct);
-
-        // ── WinBox Native (M2) over MAC ──────────────────────────────────────────
-
-        /// <summary>
-        /// Creates and opens a WinBox native-M2 connection over the MAC layer (UDP port 20561). Same
-        /// structured M2 CRUD as <see cref="CreateWinboxNativeConnection"/>, but works without an IP route
-        /// to the router. Requires <c>/tool/mac-server/mac-winbox set allowed-interface-list=all</c>.
-        /// <para><b>Experimental</b>, for the same reason as <see cref="CreateWinboxNativeConnection"/>.
-        /// <b>For production work prefer <see cref="CreateWinboxCliMacConnection"/></b> — the stable, proven
-        /// transport on the same encrypted channel and the same MAC carrier.</para>
-        /// </summary>
-        /// <param name="configure">
-        /// Optional hook to configure the connection before it opens — any of the mappings documented on
-        /// <see cref="CreateWinboxNativeConnection"/>. The router MAC comes from <see cref="RouterMac"/>.
-        /// </param>
-        public ITikConnection CreateWinboxNativeMacConnection(Action<WinboxNativeMacConnection>? configure = null)
-            => Create(TikConnectionType.WinboxNativeMac, Typed(configure));
-
-        /// <summary>Async version of <see cref="CreateWinboxNativeMacConnection"/>.</summary>
-        public Task<ITikConnection> CreateWinboxNativeMacConnectionAsync(
-            Action<WinboxNativeMacConnection>? configure = null, CancellationToken ct = default)
-            => CreateAsync(TikConnectionType.WinboxNativeMac, Typed(configure), ct);
+        // ── Per-transport factories live in the transport's own namespace ─────
+        //
+        // CreateApiConnection(), CreateTelnetConnection(), CreateWinboxNativeConnection(…) and the rest are
+        // extension methods on this class, each in the namespace of the transport it creates
+        // (tik4net.Api, tik4net.Telnet, …). They used to be members here, which meant this one class grew a
+        // method pair per transport — 22 of them for 11 transports, all forwarding to Create(type) — and a
+        // satellite package could not add its own without changing core.
+        //
+        // The SSH transport already worked that way (SshConnectionSetupExtensions.CreateSshConnection in
+        // tik4net.Ssh, a different assembly); the built-in ones were the inconsistent half. Note that this
+        // does mean a 'using tik4net.Api;' is needed to see them.
 
         // ── Internals ─────────────────────────────────────────────────────────
 
-        private static Action<ITikConnection>? Typed<TConnection>(Action<TConnection>? configure)
+        /// <summary>
+        /// Adapts a transport-typed configure callback to the untyped one <see cref="Create(TikConnectionType, Action{ITikConnection})"/>
+        /// takes. Internal because the per-transport factory extensions are the only callers, and they are
+        /// the only code that already knows the concrete type is right.
+        /// </summary>
+        internal static Action<ITikConnection>? Typed<TConnection>(Action<TConnection>? configure)
             where TConnection : class, ITikConnection
             => configure == null ? (Action<ITikConnection>?)null : conn => configure((TConnection)conn);
 
         // The per-transport routerMac argument beats the RouterMac option, and only when supplied — the
         // option is already on the connection by the time this runs (ApplyTo), so a null argument must
         // leave it alone rather than write the null back.
-        private static Action<ITikConnection>? OverrideRouterMac(string? routerMac)
+        /// <summary>
+        /// Applies a per-call router MAC to a MAC-layer connection, for the factory extensions that take one.
+        /// </summary>
+        internal static Action<ITikConnection>? OverrideRouterMac(string? routerMac)
             => routerMac == null
                 ? (Action<ITikConnection>?)null
                 : conn => ((ITikMacLayerConnection)conn).RouterMac = routerMac;
