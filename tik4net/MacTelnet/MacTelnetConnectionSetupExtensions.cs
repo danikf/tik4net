@@ -28,11 +28,13 @@ namespace tik4net.MacTelnet
         /// Optional router MAC address as <c>"AA:BB:CC:DD:EE:FF"</c>, overriding <see cref="TikConnectionSetup.RouterMac"/>
         /// for this connection.
         /// </param>
-        public static ITikConnection CreateMacTelnetConnection(this TikConnectionSetup setup, string? routerMac = null)
-            => setup.Create(TikConnectionType.MacTelnet, TikConnectionSetup.OverrideRouterMac(routerMac));
+        public static ITikMacCliConnection CreateMacTelnetConnection(this TikConnectionSetup setup, string? routerMac = null)
+            => (ITikMacCliConnection)setup.Create(TikConnectionType.MacTelnet, TikConnectionSetup.OverrideRouterMac(routerMac));
 
         /// <summary>Async version of <see cref="CreateMacTelnetConnection"/>.</summary>
-        public static Task<ITikConnection> CreateMacTelnetConnectionAsync(this TikConnectionSetup setup, string? routerMac = null, CancellationToken ct = default)
-            => setup.CreateAsync(TikConnectionType.MacTelnet, TikConnectionSetup.OverrideRouterMac(routerMac), ct);
+        public static async Task<ITikMacCliConnection> CreateMacTelnetConnectionAsync(this TikConnectionSetup setup, string? routerMac = null, CancellationToken ct = default)
+        {
+            return (ITikMacCliConnection)await setup.CreateAsync(TikConnectionType.MacTelnet, TikConnectionSetup.OverrideRouterMac(routerMac), ct).ConfigureAwait(false);
+        }
     }
 }

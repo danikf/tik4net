@@ -24,7 +24,7 @@ namespace tik4net.WinboxCliMac
     /// wait for the RouterOS shell prompt.
     /// </para>
     /// </remarks>
-    public sealed class WinboxCliMacConnection : CliConnectionBase, ITikMacLayerConnection
+    public sealed class WinboxCliMacConnection : CliConnectionBase, ITikMacCliConnection
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
         internal WinboxCliMacConnection() { }

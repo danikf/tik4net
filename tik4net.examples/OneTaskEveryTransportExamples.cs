@@ -14,9 +14,12 @@ namespace tik4net.examples
     /// One task on every transport and API level</see>; the file exists so the snippets on that page are
     /// compiled rather than only proof-read.
     ///
-    /// None of the three methods names a transport. They take an open <see cref="ITikConnection"/> and run
-    /// unchanged on every one of them — which is the point the page makes, and <see cref="OpenAny"/> is the
-    /// only part that differs.
+    /// <see cref="AdoNetLike"/> and <see cref="OrMapper"/> name no transport: they take an open
+    /// <see cref="ITikConnection"/> and run unchanged on every one of them, which is the point the page
+    /// makes. <see cref="LowLevel"/> is the exception, and deliberately so — the low level is written in the
+    /// transport's OWN language, so its parameter is an <see cref="ITikApiConnection"/>: the rows below are
+    /// API sentence words, which mean nothing to a terminal (where the same call takes RouterOS CLI text)
+    /// and are not offered at all by REST or native WinBox. That is what the type is saying.
     /// </summary>
     static class OneTaskEveryTransportExamples
     {
@@ -24,9 +27,11 @@ namespace tik4net.examples
         private const string NewComment = "managed-by-tik4net (checked)";
 
         /// <summary>
-        /// Level 1 — the low-level API: raw request words in, raw sentences out.
+        /// Level 1 — the low-level API: raw request words in, raw sentences out, in the transport's own
+        /// language. Takes <see cref="ITikApiConnection"/> because these words are the binary API's;
+        /// the CLI transports take the same call with RouterOS CLI text instead.
         /// </summary>
-        public static void LowLevel(ITikConnection connection)
+        public static void LowLevel(ITikApiConnection connection)
         {
             // '?' words are filters. The router answers one !re sentence per matching row, then !done.
             var findResponse = connection.CallCommandSync("/interface/print", "?comment=" + Marker);
@@ -121,7 +126,11 @@ namespace tik4net.examples
         {
             using (var connection = OpenAny(connectionType))
             {
-                LowLevel(connection);
+                // Only the binary API speaks the sentence words LowLevel is written in — the type says so,
+                // so this is a check rather than a hope. The other two levels are transport-neutral.
+                if (connection is ITikApiConnection api)
+                    LowLevel(api);
+
                 AdoNetLike(connection);
                 OrMapper(connection);
             }

@@ -246,14 +246,26 @@ namespace tik4net.unittests.Connection
         }
 
         [TestMethod]
-        public void SafeModeGetIsAnswerableEvenWhereSafeModeIsNot()
+        public void SafeModeCannotEvenBeAskedAboutWhereItDoesNotExist()
         {
-            // A finally block asking "am I holding safe mode?" must not throw on REST on the way out.
+            // This used to be "SafeModeGet is answerable even where Safe Mode is not": an extension on
+            // ITikConnection answered false on REST so that a finally block asking "am I holding safe mode?"
+            // did not throw on the way out. The shim is gone and the guarantee got stronger — REST does not
+            // implement ITikSafeModeConnection, so that finally block does not compile against a REST
+            // connection rather than needing to be defended at runtime.
             using (var rest = ConnectionFactory.CreateConnection(TikConnectionType.Rest))
             {
-                Assert.IsFalse(rest.SafeModeGet());
-                Assert.ThrowsException<TikConnectionCapabilityNotSupportedException>(() => rest.SafeModeTake());
+                Assert.IsFalse(rest is ITikSafeModeConnection,
+                    "REST is stateless — there is no session to bind a rollback to, so the facet must be absent");
+                Assert.IsFalse(rest.Supports(TikConnectionCapability.SafeMode),
+                    "and the flag must agree with the type");
             }
+
+            // The transports that DO have it carry the facet, so no cast-and-hope is needed.
+            foreach (var type in new[] { TikConnectionType.Api, TikConnectionType.Telnet,
+                                         TikConnectionType.WinboxNative })
+                using (var conn = ConnectionFactory.CreateConnection(type))
+                    Assert.IsTrue(conn is ITikSafeModeConnection, type.ToString());
         }
 
         [TestMethod]

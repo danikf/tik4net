@@ -76,11 +76,44 @@ interfaces, each paired with the capability flag that answers the same question:
 There is no public `CallCommandAsync`: `ITikCommand.ExecuteAsync` and the Task-based `Execute*Async`
 extensions are the async surface.
 
-`TikRawSentenceExtensions`/`TikSafeModeExtensions` keep `connection.CallCommandSync(...)` and
-`connection.SafeModeTake()` compiling on a plain `ITikConnection`: they cast and throw
-`TikConnectionCapabilityNotSupportedException` when the transport lacks the interface. There is no
-such extension for `SendTagWithSyncCommand` — callers cast (`((ITikTaggedConnection)conn)...`) or
-pattern-match (`if (conn is ITikTaggedConnection t)`).
+**There are no convenience shims on `ITikConnection`.** `TikRawSentenceExtensions` and
+`TikSafeModeExtensions` used to keep `connection.CallCommandSync(...)` and `connection.SafeModeTake()`
+compiling on any connection by casting and throwing when the transport lacked the interface — a compile
+error traded for a runtime one, on a call that could not work on most transports. They are gone, and
+`TypedConnectionTests` fails if anything of that shape comes back.
+
+Reach a facet one of two ways, depending on whether the transport is known when the code is written:
+
+- **Known** — use the transport's own factory, which returns a type that already has it:
+  `setup.CreateApiConnection()` gives an `ITikApiConnection`, so `CallCommandSync`, `SafeModeTake` and
+  `SendTagWithSyncCommand` are members. See below.
+- **Chosen at runtime** — `Create(TikConnectionType)` returns `ITikConnection`; pattern-match for what you
+  need (`if (conn is ITikSafeModeConnection safe)`). The integration suite does this, because its transport
+  comes from a runsettings file; `TestBase` wraps it once in `RawConnection` / `SafeModeConnection`, which
+  report Inconclusive rather than throwing.
+
+### Typed connections
+
+Each transport has a composite interface listing exactly its facets (`tik4net/ITikTypedConnections.cs`),
+and the per-transport factories return it:
+
+| Interface | Transports | Adds to `ITikConnection` |
+|---|---|---|
+| `ITikApiConnection` | `Api`, `ApiSsl` | raw sentences, Safe Mode, tagging, TLS |
+| `ITikRestConnection` | `Rest`, `RestSsl` | TLS only |
+| `ITikCliConnection` | `Telnet`, `Ssh`, `WinboxCli` | raw sentences, Safe Mode, cancellation mode, Tab-completion |
+| `ITikMacCliConnection` | `MacTelnet`, `WinboxCliMac` | the above plus the router MAC |
+| `ITikWinboxNativeConnection` | `WinboxNative` | Safe Mode |
+| `ITikWinboxNativeMacConnection` | `WinboxNativeMac` | the above plus the router MAC |
+
+`ITikRestConnection` being the thinnest is the information, not an omission: REST is stateless so there is
+no session to bind Safe Mode to, and it has a request shape rather than a command language so neither raw
+level exists. Those members are **absent**, so the mistake is a compile error.
+
+**The type says what the transport implements; `Supports()` says what the router allows.** The second
+question does not go away — Safe Mode over native WinBox needs RouterOS 7.18+, REST needs 7.1+ — and no
+type can answer it. `TypedConnectionTests` pins that the facets and the flags agree wherever the flag is a
+property of the transport alone.
 
 `ITikCommand` is ADO.NET-shaped: `ExecuteNonQuery`, `ExecuteScalar`, `ExecuteSingleRow`,
 `ExecuteList`, `ExecuteListWithDuration`, `ExecuteAsync`. Parameters are `ITikCommandParameter`

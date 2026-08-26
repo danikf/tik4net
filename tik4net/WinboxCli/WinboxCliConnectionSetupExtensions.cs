@@ -21,11 +21,13 @@ namespace tik4net.WinboxCli
         /// over the WinBox <c>mepty</c> terminal handler (EC-SRP5 auth, AES-128-CBC). Requires the
         /// <c>winbox</c> service to be enabled on the router (enabled by default).
         /// </summary>
-        public static ITikConnection CreateWinboxCliConnection(this TikConnectionSetup setup)
-            => setup.Create(TikConnectionType.WinboxCli);
+        public static ITikCliConnection CreateWinboxCliConnection(this TikConnectionSetup setup)
+            => (ITikCliConnection)setup.Create(TikConnectionType.WinboxCli);
 
         /// <summary>Async version of <see cref="CreateWinboxCliConnection"/>.</summary>
-        public static Task<ITikConnection> CreateWinboxCliConnectionAsync(this TikConnectionSetup setup, CancellationToken ct = default)
-            => setup.CreateAsync(TikConnectionType.WinboxCli, ct);
+        public static async Task<ITikCliConnection> CreateWinboxCliConnectionAsync(this TikConnectionSetup setup, CancellationToken ct = default)
+        {
+            return (ITikCliConnection)await setup.CreateAsync(TikConnectionType.WinboxCli, ct).ConfigureAwait(false);
+        }
     }
 }

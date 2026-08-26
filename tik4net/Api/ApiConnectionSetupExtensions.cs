@@ -17,19 +17,23 @@ namespace tik4net.Api
     public static class ApiConnectionSetupExtensions
     {
         /// <summary>Creates and opens a plain MikroTik API connection (TCP 8728).</summary>
-        public static ITikConnection CreateApiConnection(this TikConnectionSetup setup)
-            => setup.Create(TikConnectionType.Api);
+        public static ITikApiConnection CreateApiConnection(this TikConnectionSetup setup)
+            => (ITikApiConnection)setup.Create(TikConnectionType.Api);
 
         /// <summary>Creates and opens a MikroTik API-SSL connection (TLS TCP 8729).</summary>
-        public static ITikConnection CreateApiSslConnection(this TikConnectionSetup setup)
-            => setup.Create(TikConnectionType.ApiSsl);
+        public static ITikApiConnection CreateApiSslConnection(this TikConnectionSetup setup)
+            => (ITikApiConnection)setup.Create(TikConnectionType.ApiSsl);
 
         /// <summary>Async version of <see cref="CreateApiConnection"/>.</summary>
-        public static Task<ITikConnection> CreateApiConnectionAsync(this TikConnectionSetup setup, CancellationToken ct = default)
-            => setup.CreateAsync(TikConnectionType.Api, ct);
+        public static async Task<ITikApiConnection> CreateApiConnectionAsync(this TikConnectionSetup setup, CancellationToken ct = default)
+        {
+            return (ITikApiConnection)await setup.CreateAsync(TikConnectionType.Api, ct).ConfigureAwait(false);
+        }
 
         /// <summary>Async version of <see cref="CreateApiSslConnection"/>.</summary>
-        public static Task<ITikConnection> CreateApiSslConnectionAsync(this TikConnectionSetup setup, CancellationToken ct = default)
-            => setup.CreateAsync(TikConnectionType.ApiSsl, ct);
+        public static async Task<ITikApiConnection> CreateApiSslConnectionAsync(this TikConnectionSetup setup, CancellationToken ct = default)
+        {
+            return (ITikApiConnection)await setup.CreateAsync(TikConnectionType.ApiSsl, ct).ConfigureAwait(false);
+        }
     }
 }

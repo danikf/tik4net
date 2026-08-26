@@ -205,9 +205,11 @@ namespace tik4net.unittests.Connection
                 using (var conn = ConnectionFactory.CreateConnection(type))
                 {
                     Assert.IsFalse(conn.Supports(TikConnectionCapability.RawCommand), type.ToString());
+                    // Absent, not present-and-throwing: there is no CallCommandSync to call on these at all,
+                    // so the mistake is a compile error rather than an exception at run time.
                     Assert.IsFalse(conn is ITikRawSentenceConnection, type.ToString());
                     Assert.ThrowsException<TikConnectionCapabilityNotSupportedException>(
-                        () => conn.CallCommandSync("/interface/print"), type.ToString());
+                        () => conn.CreateRawCommand("/interface/print"), type.ToString());
                 }
             }
         }

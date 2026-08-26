@@ -260,7 +260,7 @@ namespace tik4net.integrationtests
                 var sibling = Open(TikConnectionType.WinboxCliMac);
                 try
                 {
-                    sibling.SafeModeTake();
+                    ((ITikSafeModeConnection)sibling).SafeModeTake();   // WinboxCliMac is a CLI terminal
                     sibling.CreateCommandAndParameters("/ppp/secret/add", "name", name).ExecuteNonQuery();
                     sibling.Close();        // dropped while still holding Safe Mode -> RouterOS rolls back
                 }

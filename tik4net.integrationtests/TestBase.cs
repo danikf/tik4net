@@ -30,6 +30,44 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
+        /// The shared connection as an <see cref="ITikRawSentenceConnection"/>, or <b>Inconclusive</b> when
+        /// this transport has no command language of its own (REST, WinBox native).
+        /// </summary>
+        /// <remarks>
+        /// <see cref="Connection"/> is an <see cref="ITikConnection"/> because the transport comes from a
+        /// runsettings file — the runtime-chosen case, where there is no static type to hold. Reaching a
+        /// facet from it is a check, and doing that check once here is what keeps a capability skip reading
+        /// as "skipped" rather than as a cast exception in the middle of a test.
+        /// </remarks>
+        protected ITikRawSentenceConnection RawConnection
+        {
+            get
+            {
+                if (_connection is ITikRawSentenceConnection raw)
+                    return raw;
+                Assert.Inconclusive($"Transport '{ResolveConnectionType()}' has no raw command language "
+                                    + "(ITikRawSentenceConnection) — test skipped.");
+                return null;   // unreachable: Assert.Inconclusive throws
+            }
+        }
+
+        /// <summary>
+        /// The shared connection as an <see cref="ITikSafeModeConnection"/>, or <b>Inconclusive</b> when this
+        /// transport cannot bind Safe Mode to a session (REST).
+        /// </summary>
+        protected ITikSafeModeConnection SafeModeConnection
+        {
+            get
+            {
+                if (_connection is ITikSafeModeConnection safe)
+                    return safe;
+                Assert.Inconclusive($"Transport '{ResolveConnectionType()}' does not support Safe Mode "
+                                    + "(ITikSafeModeConnection) — test skipped.");
+                return null;   // unreachable
+            }
+        }
+
+        /// <summary>
         /// When true (the default), every test in the class reuses one router connection — created lazily
         /// and cached for the whole run — instead of opening and logging in a fresh one per test. This is a
         /// large speed win on transports with expensive setup (SSL handshake, MAC-layer MNDP discovery,

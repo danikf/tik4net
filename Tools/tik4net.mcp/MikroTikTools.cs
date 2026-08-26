@@ -533,7 +533,10 @@ public sealed class MikroTikTools
     // window is an .id-diff — the newest log .id before the command, everything after it — which is exact
     // and independent of the router's log time format (which varies with /system/logging settings).
 
-    private static ITikConnection? TryOpenSideApi(string host, string username, string password)
+    // ITikApiConnection, not ITikConnection: this is always the binary API, and the log reads below are
+    // written in its sentence dialect. The typed factory hands the raw level over as a member rather
+    // than something to check for.
+    private static ITikApiConnection? TryOpenSideApi(string host, string username, string password)
     {
         try
         {

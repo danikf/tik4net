@@ -18,6 +18,16 @@ public static class ConsoleSample
         connection.OnReadRow += (_, args) => Write(ConsoleColor.Green, "< " + args.Word);
         connection.OnWriteRow += (_, args) => Write(ConsoleColor.Magenta, "> " + args.Word);
 
+        // The transport came from a command-line switch, so this is the runtime-chosen case: there is no
+        // static type, and reaching the low level is a check. REST and native WinBox have no command
+        // language of their own, so this prompt has nothing to send them.
+        if (connection is not ITikRawSentenceConnection raw)
+        {
+            Write(ConsoleColor.Red,
+                $"{options.Transport} has no raw command language — try Api, Telnet, Ssh or WinboxCli.");
+            return Task.CompletedTask;
+        }
+
         Console.WriteLine($"Connected to {options.Host} over {options.Transport}.");
         Console.WriteLine("Enter one word per line — the command path first, then its parameters.");
         Console.WriteLine("A blank line sends what you typed; a blank line on an empty command quits.");
@@ -46,7 +56,7 @@ public static class ConsoleSample
 
             try
             {
-                var response = connection.CallCommandSync(words.ToArray());
+                var response = raw.CallCommandSync(words.ToArray());
                 Console.WriteLine($"-- {response.Count()} sentence(s)");
             }
             catch (TikCommandException ex)

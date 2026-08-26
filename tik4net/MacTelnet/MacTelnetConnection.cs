@@ -25,7 +25,7 @@ namespace tik4net.MacTelnet
     /// its second attempt.
     /// </para>
     /// </remarks>
-    public sealed class MacTelnetConnection : CliConnectionBase, ITikMacLayerConnection
+    public sealed class MacTelnetConnection : CliConnectionBase, ITikMacCliConnection
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
         internal MacTelnetConnection() { }

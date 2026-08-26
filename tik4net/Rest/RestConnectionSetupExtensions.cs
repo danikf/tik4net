@@ -17,19 +17,23 @@ namespace tik4net.Rest
     public static class RestConnectionSetupExtensions
     {
         /// <summary>Creates and opens a REST API connection (HTTP, default port 80). Requires RouterOS 7.1+.</summary>
-        public static ITikConnection CreateRestConnection(this TikConnectionSetup setup)
-            => setup.Create(TikConnectionType.Rest);
+        public static ITikRestConnection CreateRestConnection(this TikConnectionSetup setup)
+            => (ITikRestConnection)setup.Create(TikConnectionType.Rest);
 
         /// <summary>Creates and opens a REST API SSL connection (HTTPS, default port 443). Requires RouterOS 7.1+ with www-ssl enabled.</summary>
-        public static ITikConnection CreateRestSslConnection(this TikConnectionSetup setup)
-            => setup.Create(TikConnectionType.RestSsl);
+        public static ITikRestConnection CreateRestSslConnection(this TikConnectionSetup setup)
+            => (ITikRestConnection)setup.Create(TikConnectionType.RestSsl);
 
         /// <summary>Async version of <see cref="CreateRestConnection"/>.</summary>
-        public static Task<ITikConnection> CreateRestConnectionAsync(this TikConnectionSetup setup, CancellationToken ct = default)
-            => setup.CreateAsync(TikConnectionType.Rest, ct);
+        public static async Task<ITikRestConnection> CreateRestConnectionAsync(this TikConnectionSetup setup, CancellationToken ct = default)
+        {
+            return (ITikRestConnection)await setup.CreateAsync(TikConnectionType.Rest, ct).ConfigureAwait(false);
+        }
 
         /// <summary>Async version of <see cref="CreateRestSslConnection"/>.</summary>
-        public static Task<ITikConnection> CreateRestSslConnectionAsync(this TikConnectionSetup setup, CancellationToken ct = default)
-            => setup.CreateAsync(TikConnectionType.RestSsl, ct);
+        public static async Task<ITikRestConnection> CreateRestSslConnectionAsync(this TikConnectionSetup setup, CancellationToken ct = default)
+        {
+            return (ITikRestConnection)await setup.CreateAsync(TikConnectionType.RestSsl, ct).ConfigureAwait(false);
+        }
     }
 }

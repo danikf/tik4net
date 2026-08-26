@@ -19,7 +19,7 @@ namespace tik4net.integrationtests
                 "/ip/firewall/connection/print",
                 "?src-address=192.168.3.103"
             };
-            var result = Connection.CallCommandSync(command);
+            var result = RawConnection.CallCommandSync(command);
         }
 
         [TestMethod]

@@ -7,9 +7,10 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace tik4net.integrationtests
 {
     /// <summary>
-    /// Live-router tests for the <see cref="ITikConnection.SafeModeTake"/> /
-    /// <see cref="ITikConnection.SafeModeRelease"/> / <see cref="ITikConnection.SafeModeUnroll"/> /
-    /// <see cref="ITikConnection.SafeModeGet"/> pattern. Requires a transport that reports
+    /// Live-router tests for the <see cref="ITikSafeModeConnection.SafeModeTake"/> /
+    /// <see cref="ITikSafeModeConnection.SafeModeRelease"/> /
+    /// <see cref="ITikSafeModeConnection.SafeModeUnroll"/> /
+    /// <see cref="ITikSafeModeConnection.SafeModeGet"/> pattern. Requires a transport that reports
     /// <see cref="TikConnectionCapability.SafeMode"/> (binary API, a CLI terminal, or native WinBox).
     /// </summary>
     [TestClass]
@@ -60,14 +61,14 @@ namespace tik4net.integrationtests
             string name = "safemode-commit-" + Guid.NewGuid().ToString("N").Substring(0, 8);
             try
             {
-                Assert.IsFalse(Connection.SafeModeGet(), "Should not be in safe mode initially.");
-                Connection.SafeModeTake();
-                Assert.IsTrue(Connection.SafeModeGet(), "SafeModeGet should report held after take.");
+                Assert.IsFalse(SafeModeConnection.SafeModeGet(), "Should not be in safe mode initially.");
+                SafeModeConnection.SafeModeTake();
+                Assert.IsTrue(SafeModeConnection.SafeModeGet(), "SafeModeGet should report held after take.");
                 Connection.CreateCommandAndParameters($"{PATH}/add", "name", name).ExecuteNonQuery();
                 Assert.AreEqual(1, CountItems(Connection, name), "Item should exist inside safe mode.");
 
-                Connection.SafeModeRelease();
-                Assert.IsFalse(Connection.SafeModeGet(), "SafeModeGet should report not-held after release.");
+                SafeModeConnection.SafeModeRelease();
+                Assert.IsFalse(SafeModeConnection.SafeModeGet(), "SafeModeGet should report not-held after release.");
 
                 // Reconnect — a committed change survives the session ending.
                 RecreateConnection();
@@ -96,12 +97,12 @@ namespace tik4net.integrationtests
             string name = "safemode-unroll-" + Guid.NewGuid().ToString("N").Substring(0, 8);
             try
             {
-                Connection.SafeModeTake();
+                SafeModeConnection.SafeModeTake();
                 Connection.CreateCommandAndParameters($"{PATH}/add", "name", name).ExecuteNonQuery();
                 Assert.AreEqual(1, CountItems(Connection, name), "Item should exist inside safe mode.");
 
-                Connection.SafeModeUnroll();   // roll back NOW, stay connected
-                Assert.IsFalse(Connection.SafeModeGet(), "SafeModeGet should report not-held after unroll.");
+                SafeModeConnection.SafeModeUnroll();   // roll back NOW, stay connected
+                Assert.IsFalse(SafeModeConnection.SafeModeGet(), "SafeModeGet should report not-held after unroll.");
 
                 // Same connection, no reconnect — the change must be gone.
                 Assert.AreEqual(0, CountItems(Connection, name), "Unroll must discard the change in place.");
@@ -129,7 +130,7 @@ namespace tik4net.integrationtests
             bool committed = false;
             try
             {
-                Connection.SafeModeTake();
+                SafeModeConnection.SafeModeTake();
                 Connection.CreateCommandAndParameters($"{PATH}/add", "name", name).ExecuteNonQuery();
                 Assert.AreEqual(1, CountItems(Connection, name), "Item should exist inside safe mode.");
 

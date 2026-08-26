@@ -58,12 +58,14 @@ namespace tik4net.WinboxNative
         /// text is pinned; the handler number is read live from the router's <c>.jg</c> catalog), whereas the
         /// numeric <c>*Override</c> forms pin values that can move between versions.</para>
         /// </example>
-        public static ITikConnection CreateWinboxNativeConnection(this TikConnectionSetup setup, Action<WinboxNativeConnection>? configure = null)
-            => setup.Create(TikConnectionType.WinboxNative, TikConnectionSetup.Typed(configure));
+        public static ITikWinboxNativeConnection CreateWinboxNativeConnection(this TikConnectionSetup setup, Action<WinboxNativeConnection>? configure = null)
+            => (ITikWinboxNativeConnection)setup.Create(TikConnectionType.WinboxNative, TikConnectionSetup.Typed(configure));
 
         /// <summary>Async version of <see cref="CreateWinboxNativeConnection"/>.</summary>
-        public static Task<ITikConnection> CreateWinboxNativeConnectionAsync(this TikConnectionSetup setup, 
+        public static async Task<ITikWinboxNativeConnection> CreateWinboxNativeConnectionAsync(this TikConnectionSetup setup, 
             Action<WinboxNativeConnection>? configure = null, CancellationToken ct = default)
-            => setup.CreateAsync(TikConnectionType.WinboxNative, TikConnectionSetup.Typed(configure), ct);
+        {
+            return (ITikWinboxNativeConnection)await setup.CreateAsync(TikConnectionType.WinboxNative, TikConnectionSetup.Typed(configure), ct).ConfigureAwait(false);
+        }
     }
 }

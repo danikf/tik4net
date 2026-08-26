@@ -226,7 +226,9 @@ namespace tik4net.integrationtests
                     "/system/health/print",
                     TikSpecialProperties.Tag+"=1234"
                 };
-                var result = connection.CallCommandSync(commandRows);
+                // The Tagging gate above already established this is the binary API, whose low-level
+                // dialect is API sentence rows — which is what commandRows is written in.
+                var result = ((ITikRawSentenceConnection)connection).CallCommandSync(commandRows);
 
                 Assert.IsTrue(result.Count() == 2);
                 Assert.IsTrue(result.Count(s => s is ITikReSentence) == 1);

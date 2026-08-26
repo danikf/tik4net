@@ -29,12 +29,14 @@ namespace tik4net.WinboxNativeMac
         /// Optional hook to configure the connection before it opens — any of the mappings documented on
         /// <c>CreateWinboxNativeConnection</c> (<c>tik4net.WinboxNative</c>). The router MAC comes from <see cref="TikConnectionSetup.RouterMac"/>.
         /// </param>
-        public static ITikConnection CreateWinboxNativeMacConnection(this TikConnectionSetup setup, Action<WinboxNativeMacConnection>? configure = null)
-            => setup.Create(TikConnectionType.WinboxNativeMac, TikConnectionSetup.Typed(configure));
+        public static ITikWinboxNativeMacConnection CreateWinboxNativeMacConnection(this TikConnectionSetup setup, Action<WinboxNativeMacConnection>? configure = null)
+            => (ITikWinboxNativeMacConnection)setup.Create(TikConnectionType.WinboxNativeMac, TikConnectionSetup.Typed(configure));
 
         /// <summary>Async version of <see cref="CreateWinboxNativeMacConnection"/>.</summary>
-        public static Task<ITikConnection> CreateWinboxNativeMacConnectionAsync(this TikConnectionSetup setup, 
+        public static async Task<ITikWinboxNativeMacConnection> CreateWinboxNativeMacConnectionAsync(this TikConnectionSetup setup, 
             Action<WinboxNativeMacConnection>? configure = null, CancellationToken ct = default)
-            => setup.CreateAsync(TikConnectionType.WinboxNativeMac, TikConnectionSetup.Typed(configure), ct);
+        {
+            return (ITikWinboxNativeMacConnection)await setup.CreateAsync(TikConnectionType.WinboxNativeMac, TikConnectionSetup.Typed(configure), ct).ConfigureAwait(false);
+        }
     }
 }

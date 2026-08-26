@@ -29,8 +29,8 @@ namespace tik4net.Cli
     /// (<see cref="VtStripper.StripAnsi"/>) and any terminal echo / prompt trimmed by the transport — the
     /// core layer only sees data lines.
     /// </summary>
-    public abstract class CliConnectionBase : TikCommandConnectionBase, ITikMonitorTransport, IPollingMonitorHost,
-        ITikCliCompletion, ITikCancellationModeConnection, ITikSafeModeConnection, ITikRawSentenceConnection
+    public abstract class CliConnectionBase : TikCommandConnectionBase, ITikCliConnection,
+        ITikMonitorTransport, IPollingMonitorHost
     {
         /// <summary>Interval between monitor-snapshot polls (ms). Sub-second so callers see a fresh reading
         /// promptly; RouterOS GUI/webfig refresh ~1 s but a terminal snapshot is cheap.</summary>

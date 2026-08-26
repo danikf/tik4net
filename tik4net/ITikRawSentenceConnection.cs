@@ -54,37 +54,4 @@ namespace tik4net
         /// <exception cref="TikConnectionNotOpenException" />
         IEnumerable<ITikSentence> CallCommandSync(IEnumerable<string> commandRows);
     }
-
-    /// <summary>
-    /// Reaches <see cref="ITikRawSentenceConnection"/> from a plain <see cref="ITikConnection"/>, so the
-    /// low-level call reads the same as it did before the interface was split off, and a transport that
-    /// does not offer it fails with a capability error rather than a cast exception.
-    /// </summary>
-    public static class TikRawSentenceExtensions
-    {
-        /// <inheritdoc cref="ITikRawSentenceConnection.CallCommandSync(string[])"/>
-        /// <exception cref="TikConnectionCapabilityNotSupportedException">The transport has no sentence dialect.</exception>
-        public static IEnumerable<ITikSentence> CallCommandSync(this ITikConnection connection, params string[] commandRows)
-            => AsRawSentenceConnection(connection).CallCommandSync(commandRows);
-
-        /// <inheritdoc cref="ITikRawSentenceConnection.CallCommandSync(IEnumerable{string})"/>
-        /// <exception cref="TikConnectionCapabilityNotSupportedException">The transport has no sentence dialect.</exception>
-        public static IEnumerable<ITikSentence> CallCommandSync(this ITikConnection connection, IEnumerable<string> commandRows)
-            => AsRawSentenceConnection(connection).CallCommandSync(commandRows);
-
-        /// <summary>
-        /// The connection as an <see cref="ITikRawSentenceConnection"/>, or a capability error naming what
-        /// is missing.
-        /// </summary>
-        public static ITikRawSentenceConnection AsRawSentenceConnection(this ITikConnection connection)
-        {
-            Guard.ArgumentNotNull(connection, nameof(connection));
-            if (connection is ITikRawSentenceConnection raw)
-                return raw;
-            throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.RawCommand,
-                "This connection does not implement ITikRawSentenceConnection, so it has no low-level "
-                + "sentence dialect to call. Use ITikCommand (connection.CreateCommand(...)) or the O/R "
-                + "mapper instead.");
-        }
-    }
 }

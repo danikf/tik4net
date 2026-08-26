@@ -26,7 +26,7 @@ namespace tik4net.WinboxNativeMac
     /// The router MAC is discovered via MNDP unless <see cref="RouterMac"/> is set. Requires
     /// <c>/tool/mac-server/mac-winbox set allowed-interface-list=all</c> on the router.
     /// </remarks>
-    public sealed class WinboxNativeMacConnection : WinboxNativeConnection, ITikMacLayerConnection
+    public sealed class WinboxNativeMacConnection : WinboxNativeConnection, ITikWinboxNativeMacConnection
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
         internal WinboxNativeMacConnection() { }

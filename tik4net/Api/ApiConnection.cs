@@ -12,8 +12,7 @@ using System.Threading;
 
 namespace tik4net.Api
 {  
-    internal sealed class ApiConnection : ITikConnection, ITikConnectionCapabilities, ITikTlsConnection,
-        ITikRawSentenceConnection, ITikSafeModeConnection, ITikTaggedConnection
+    internal sealed class ApiConnection : ITikApiConnection
     {
         ///// <summary>
         ///// Version of the login process. See https://wiki.mikrotik.com/wiki/Manual:API#Initial_login

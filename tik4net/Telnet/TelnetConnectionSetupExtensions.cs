@@ -17,11 +17,13 @@ namespace tik4net.Telnet
     public static class TelnetConnectionSetupExtensions
     {
         /// <summary>Creates and opens a Telnet CLI connection (plain-text TCP port 23). Requires RouterOS telnet service enabled.</summary>
-        public static ITikConnection CreateTelnetConnection(this TikConnectionSetup setup)
-            => setup.Create(TikConnectionType.Telnet);
+        public static ITikCliConnection CreateTelnetConnection(this TikConnectionSetup setup)
+            => (ITikCliConnection)setup.Create(TikConnectionType.Telnet);
 
         /// <summary>Async version of <see cref="CreateTelnetConnection"/>.</summary>
-        public static Task<ITikConnection> CreateTelnetConnectionAsync(this TikConnectionSetup setup, CancellationToken ct = default)
-            => setup.CreateAsync(TikConnectionType.Telnet, ct);
+        public static async Task<ITikCliConnection> CreateTelnetConnectionAsync(this TikConnectionSetup setup, CancellationToken ct = default)
+        {
+            return (ITikCliConnection)await setup.CreateAsync(TikConnectionType.Telnet, ct).ConfigureAwait(false);
+        }
     }
 }

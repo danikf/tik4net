@@ -45,8 +45,8 @@ namespace tik4net.WinboxNative
     /// <para><see cref="ITikConnection.ConnectTimeout"/> bounds the connect handshake and then the
     /// authentication exchange, but not the <c>.jg</c> catalog load that follows them.</para>
     /// </remarks>
-    public class WinboxNativeConnection : TikCommandConnectionBase, ITikMonitorTransport, IPollingMonitorHost,
-        ITikSafeModeConnection
+    public class WinboxNativeConnection : TikCommandConnectionBase, ITikWinboxNativeConnection,
+        ITikMonitorTransport, IPollingMonitorHost
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly); the MAC-layer
         // subclass constructor is internal too and calls this one.

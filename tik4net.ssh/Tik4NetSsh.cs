@@ -35,7 +35,7 @@ namespace tik4net.Ssh
         /// Creates and opens an SSH CLI connection (PTY shell, default port 22). Requires the RouterOS
         /// <c>ssh</c> service to be enabled.
         /// </summary>
-        public static ITikConnection CreateSshConnection(this TikConnectionSetup setup)
+        public static ITikCliConnection CreateSshConnection(this TikConnectionSetup setup)
         {
             var conn = NewSshConnection(setup);
             setup.Open(conn);
@@ -43,7 +43,7 @@ namespace tik4net.Ssh
         }
 
         /// <summary>Async version of <see cref="CreateSshConnection"/>.</summary>
-        public static async Task<ITikConnection> CreateSshConnectionAsync(
+        public static async Task<ITikCliConnection> CreateSshConnectionAsync(
             this TikConnectionSetup setup, CancellationToken ct = default)
         {
             var conn = NewSshConnection(setup);

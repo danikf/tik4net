@@ -47,7 +47,7 @@ namespace tik4net.integrationtests
 
             try
             {
-                var response = Connection.CallCommandSync("/ip/address/add", $"=address={IP}", $"=interface={INTERFACE}");
+                var response = RawConnection.CallCommandSync("/ip/address/add", $"=address={IP}", $"=interface={INTERFACE}");
 
                 Assert.AreEqual(1, response.Count());
                 Assert.IsInstanceOfType(response.Single(), typeof(ITikDoneSentence));
@@ -131,11 +131,11 @@ namespace tik4net.integrationtests
 
             try
             {
-                var response = Connection.CallCommandSync("/ip/address/print", $"?=address={IP}");
+                var response = RawConnection.CallCommandSync("/ip/address/print", $"?=address={IP}");
 
                 /* EXAMPLE:
                 //find by IP address -> we need ID of item
-                var itemId  = Connection.CallCommandSync("/ip/address/print", $"?=address={IP}")
+                var itemId  = RawConnection.CallCommandSync("/ip/address/print", $"?=address={IP}")
                     .OfType<ITikReSentence>()
                     .Single()
                     .GetId();
@@ -221,7 +221,7 @@ namespace tik4net.integrationtests
 
             try
             {
-                var response = Connection.CallCommandSync("/ip/address/set", "=comment=test comment", $"=.id={id}");
+                var response = RawConnection.CallCommandSync("/ip/address/set", "=comment=test comment", $"=.id={id}");
 
                 Assert.IsNotNull(response);
                 Assert.AreEqual(1, response.Count());
@@ -290,7 +290,7 @@ namespace tik4net.integrationtests
             Cleanup_DeteleAddressByIp(IP);
             var id = Init_CreateAddress(IP, INTERFACE);
 
-            var response = Connection.CallCommandSync("/ip/address/remove", $"=.id={id}");
+            var response = RawConnection.CallCommandSync("/ip/address/remove", $"=.id={id}");
 
             Assert.IsNotNull(response);
             Assert.AreEqual(1, response.Count());

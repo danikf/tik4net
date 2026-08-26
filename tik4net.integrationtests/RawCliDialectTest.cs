@@ -25,7 +25,7 @@ namespace tik4net.integrationtests
             // RouterOS prints nothing for a bare 'print as-value' typed at a terminal — as-value output is
             // materialised only in script context — so the caller wraps it. That the library does NOT wrap
             // it is the contract: what is typed is what is sent.
-            var sentences = Connection.CallCommandSync(":put [/interface print as-value]").ToList();
+            var sentences = RawConnection.CallCommandSync(":put [/interface print as-value]").ToList();
 
             var rows = sentences.OfType<ITikReSentence>().ToList();
             Assert.IsTrue(rows.Count > 0, "the lab router has interfaces");
@@ -40,9 +40,9 @@ namespace tik4net.integrationtests
         {
             EnsureRawDialectIsCliText("CallCommandSync with CLI text");
 
-            int whole = Connection.CallCommandSync(":put [/interface print as-value]")
+            int whole = RawConnection.CallCommandSync(":put [/interface print as-value]")
                                   .OfType<ITikReSentence>().Count();
-            int split = Connection.CallCommandSync(":put [/interface print", "as-value]")
+            int split = RawConnection.CallCommandSync(":put [/interface print", "as-value]")
                                   .OfType<ITikReSentence>().Count();
 
             Assert.AreEqual(whole, split,
@@ -56,7 +56,7 @@ namespace tik4net.integrationtests
 
             string expected = Connection.CreateCommand("/system/identity/print").ExecuteScalar();
 
-            var sentences = Connection.CallCommandSync(":put [/system identity get name]").ToList();
+            var sentences = RawConnection.CallCommandSync(":put [/system identity get name]").ToList();
 
             Assert.AreEqual(0, sentences.OfType<ITikReSentence>().Count(),
                 "a scalar :put has no record structure and must not be invented into rows");
@@ -70,7 +70,7 @@ namespace tik4net.integrationtests
 
             // A :foreach with a computed value — there is no ITikCommand or entity shape for this, which is
             // the whole reason the level exists.
-            var sentences = Connection.CallCommandSync(
+            var sentences = RawConnection.CallCommandSync(
                 ":put [:len [/interface find]]").ToList();
 
             string count = sentences.OfType<ITikDoneSentence>().Single().GetResponseWord();
@@ -88,7 +88,7 @@ namespace tik4net.integrationtests
             // whatever CliErrorParser classifies "bad command name prnt" as; what matters is that it is a
             // trap.
             var ex = Assert.ThrowsException<TikNoSuchCommandException>(
-                () => Connection.CallCommandSync("/interface prnt").ToList());
+                () => RawConnection.CallCommandSync("/interface prnt").ToList());
             Assert.IsInstanceOfType(ex, typeof(TikCommandTrapException));
         }
 
@@ -110,7 +110,7 @@ namespace tik4net.integrationtests
         {
             EnsureRawDialectIsCliText("CallCommandSync with CLI text");
 
-            var sentences = Connection.CallCommandSync("/interface/print").ToList();
+            var sentences = RawConnection.CallCommandSync("/interface/print").ToList();
 
             Assert.AreEqual(0, sentences.OfType<ITikReSentence>().Count(),
                 "the router printed its human table, not as-value output — nothing here parses into records, "
