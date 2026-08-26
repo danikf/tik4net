@@ -80,7 +80,7 @@ namespace tik4net.Api
         /// </remarks>
         public TikConnectionCapability Capabilities =>
             TikConnectionCapability.Crud | TikConnectionCapability.Listen
-            | TikConnectionCapability.Streaming | TikConnectionCapability.RawSentences
+            | TikConnectionCapability.Streaming | TikConnectionCapability.RawCommand
             | TikConnectionCapability.Tagging | TikConnectionCapability.SafeMode
             | TikConnectionCapability.RawCommand
             | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight;

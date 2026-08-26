@@ -59,12 +59,14 @@ every transport has. Three things that not every transport can reasonably provid
 interfaces, each paired with the capability flag that answers the same question:
 
 - `ITikRawSentenceConnection` (`tik4net/ITikRawSentenceConnection.cs`) — `CallCommandSync`, both
-  overloads (`RawSentences`). The contract is a command **in the connection's own language**, sent
+  overloads (`RawCommand`). The contract is a command **in the connection's own language**, sent
   unchanged: API sentence words on the binary API, RouterOS CLI text on the five CLI transports. It is the
-  low-level half of what `RawCommand`/`CreateRawCommand` offers at the `ITikCommand` level, and carries the
-  same distribution — `Api`/`ApiSsl` and the CLI family. REST and WinBox native implement neither: they have
-  a request shape, not a command language, so `TikCommandConnectionBase` deliberately does not implement the
-  interface and `CliConnectionBase` does.
+  low-level half of what `CreateRawCommand` offers at the `ITikCommand` level — one flag gates both, since
+  a transport either has a writable command language or has neither level. `Api`/`ApiSsl` and the CLI family
+  do; REST and WinBox native have a request shape rather than a language, so `TikCommandConnectionBase`
+  deliberately does not implement the interface and `CliConnectionBase` does. Both levels raise a trap when
+  the router reports an error, rather than handing the error text back as a value.
+  (`RawSentences` is an `[Obsolete]` alias of `RawCommand`, the same bit — the two were always set together.)
 - `ITikSafeModeConnection` (`tik4net/ITikSafeModeConnection.cs`) — `SafeModeTake`/`Release`/`Unroll`/`Get`
   (`SafeMode`). ApiConnection, `CliConnectionBase` (so all five CLI transports incl. SSH) and
   WinboxNativeConnection implement it; RestConnection does not.
@@ -101,7 +103,7 @@ Response sentences: `ITikReSentence` (`!re`), `ITikDoneSentence` (`!done`),
 Transports differ in what they can physically do, so features are gated by
 `TikConnectionCapability` flags (`tik4net/TikConnectionCapability.cs`):
 
-`Crud`, `Listen`, `Streaming`, `RawSentences`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`,
+`Crud`, `Listen`, `Streaming`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`,
 `CancelInFlight`.
 
 The per-transport matrix — which transport declares which flag, and what the emulated and

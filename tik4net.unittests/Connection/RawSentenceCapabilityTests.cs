@@ -9,7 +9,7 @@ using tik4net.Cli;
 namespace tik4net.unittests.Connection
 {
     /// <summary>
-    /// Pins what <see cref="TikConnectionCapability.RawSentences"/> means and who has it:
+    /// Pins what <see cref="TikConnectionCapability.RawCommand"/> means and who has it:
     /// <b>a command written in the transport's own language</b>, sent without translation.
     /// </summary>
     /// <remarks>
@@ -184,7 +184,7 @@ namespace tik4net.unittests.Connection
 
                 using (var conn = ConnectionFactory.CreateConnection(type))
                 {
-                    bool flag = conn.Supports(TikConnectionCapability.RawSentences);
+                    bool flag = conn.Supports(TikConnectionCapability.RawCommand);
                     bool iface = conn is ITikRawSentenceConnection;
 
                     Assert.AreEqual(iface, flag,
@@ -204,7 +204,7 @@ namespace tik4net.unittests.Connection
             {
                 using (var conn = ConnectionFactory.CreateConnection(type))
                 {
-                    Assert.IsFalse(conn.Supports(TikConnectionCapability.RawSentences), type.ToString());
+                    Assert.IsFalse(conn.Supports(TikConnectionCapability.RawCommand), type.ToString());
                     Assert.IsFalse(conn is ITikRawSentenceConnection, type.ToString());
                     Assert.ThrowsException<TikConnectionCapabilityNotSupportedException>(
                         () => conn.CallCommandSync("/interface/print"), type.ToString());
@@ -213,21 +213,39 @@ namespace tik4net.unittests.Connection
         }
 
         [TestMethod]
-        public void RawSentencesTracksRawCommand()
+        public void RawSentencesIsTheSameFlagAsRawCommand()
         {
-            // The two flags answer the same underlying question at two levels — "is there a language here to
-            // write" — so they belong to the same transports. If they ever diverge it is worth a deliberate
-            // decision rather than an accident, which is what this pins.
+            // They were two flags for the two levels a raw command can be issued at, always set together,
+            // which is two chances to check the wrong one. RawSentences is an obsolete alias of RawCommand
+            // now — the same bit — so any code still asking the old question gets the same answer.
+#pragma warning disable CS0618 // deliberately referencing the obsolete alias
+            Assert.AreEqual(TikConnectionCapability.RawCommand, TikConnectionCapability.RawSentences);
+#pragma warning restore CS0618
+        }
+
+        [TestMethod]
+        public void TheFlagGatesBothRawLevelsTogether()
+        {
+            // The merge is only honest if the flag really does answer for both levels: a transport that
+            // declares it must offer CreateRawCommand AND CallCommandSync, and one that does not must offer
+            // neither. That is the property the two separate flags were trying and failing to express.
             foreach (TikConnectionType type in Enum.GetValues(typeof(TikConnectionType)))
             {
-                if (type == TikConnectionType.Ssh) continue;
+                if (type == TikConnectionType.Ssh) continue; // satellite package, not referenced here
 
                 using (var conn = ConnectionFactory.CreateConnection(type))
                 {
-                    Assert.AreEqual(conn.Supports(TikConnectionCapability.RawCommand),
-                        conn.Supports(TikConnectionCapability.RawSentences),
-                        $"{type}: RawCommand and RawSentences are the ADO-level and low-level halves of the "
-                        + "same native-syntax promise and should be declared together");
+                    bool flag = conn.Supports(TikConnectionCapability.RawCommand);
+
+                    Assert.AreEqual(flag, conn is ITikRawSentenceConnection,
+                        $"{type}: the low-level half (CallCommandSync) must match the flag");
+
+                    if (flag)
+                        conn.CreateRawCommand("/system/identity/print");   // must not throw on capability
+                    else
+                        Assert.ThrowsException<TikConnectionCapabilityNotSupportedException>(
+                            () => conn.CreateRawCommand("/system/identity/print"),
+                            $"{type}: the ADO-level half must refuse for the same reason");
                 }
             }
         }

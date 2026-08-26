@@ -438,7 +438,7 @@ namespace tik4net.integrationtests
         /// sentence rows</b>.
         /// </summary>
         /// <remarks>
-        /// <see cref="TikConnectionCapability.RawSentences"/> says a transport has a command language of its
+        /// <see cref="TikConnectionCapability.RawCommand"/> says a transport has a command language of its
         /// own; it does not say WHICH, and that is deliberate. The low-level level is written in the
         /// transport's language and is the one level that is not portable: rows are API sentence words on
         /// Api/ApiSsl and RouterOS CLI text on the CLI family, so a test written in one dialect can only run
@@ -447,7 +447,7 @@ namespace tik4net.integrationtests
         /// </remarks>
         protected void EnsureRawDialectIsApiSentences(string feature = null)
         {
-            EnsureCapability(TikConnectionCapability.RawSentences, feature);
+            EnsureCapability(TikConnectionCapability.RawCommand, feature);
 
             var type = ResolveConnectionType();
             if (type != TikConnectionType.Api && type != TikConnectionType.ApiSsl)
@@ -462,7 +462,7 @@ namespace tik4net.integrationtests
         /// </summary>
         protected void EnsureRawDialectIsCliText(string feature = null)
         {
-            EnsureCapability(TikConnectionCapability.RawSentences, feature);
+            EnsureCapability(TikConnectionCapability.RawCommand, feature);
 
             var type = ResolveConnectionType();
             bool cli = type == TikConnectionType.Telnet || type == TikConnectionType.Ssh

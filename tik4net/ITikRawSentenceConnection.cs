@@ -22,7 +22,7 @@ namespace tik4net
     /// </para>
     /// <para>
     /// So this interface is implemented only where such a language exists, and
-    /// <see cref="TikConnectionCapability.RawSentences"/> is declared exactly there:
+    /// <see cref="TikConnectionCapability.RawCommand"/> is declared exactly there:
     /// <c>Api</c>/<c>ApiSsl</c> and the CLI family. REST and native WinBox have a request shape rather than a
     /// command language — an HTTP path, numeric M2 handlers and field keys — so they implement neither this
     /// interface nor <see cref="TikConnectionCapability.RawCommand"/>, its counterpart at the
@@ -81,7 +81,7 @@ namespace tik4net
             Guard.ArgumentNotNull(connection, nameof(connection));
             if (connection is ITikRawSentenceConnection raw)
                 return raw;
-            throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.RawSentences,
+            throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.RawCommand,
                 "This connection does not implement ITikRawSentenceConnection, so it has no low-level "
                 + "sentence dialect to call. Use ITikCommand (connection.CreateCommand(...)) or the O/R "
                 + "mapper instead.");

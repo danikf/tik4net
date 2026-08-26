@@ -45,7 +45,7 @@ standalone discovery helper — matching the "12 transports" figure in the top-l
 ## Capability flags
 
 `TikConnectionCapability` (`tik4net/TikConnectionCapability.cs`) is a `[Flags]` enum:
-`Crud`, `Listen`, `Streaming`, `RawSentences`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`,
+`Crud`, `Listen`, `Streaming`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`,
 `CancelInFlight`. A connection that does not implement `ITikConnectionCapabilities` is treated as
 supporting **nothing** (fail-closed) — see `connection.Supports(...)` / `connection.Require(...)`.
 
@@ -53,7 +53,7 @@ Four flag sets recur across the transport families:
 
 | Name | Flags | Who declares it |
 |---|---|---|
-| **Full** | `Crud`, `Listen`, `Streaming`, `RawSentences`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`, `CancelInFlight` | `Api`, `ApiSsl` |
+| **Full** | `Crud`, `Listen`, `Streaming`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`, `CancelInFlight` | `Api`, `ApiSsl` |
 | **Cli** | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands` | `Telnet`, `Ssh`, `MacTelnet`, `WinboxCli`, `WinboxCliMac` (all inherit `CliConnectionBase`) |
 | **Native** | `Crud`, `Listen`, `SafeMode`, `AsyncCommands`, `CancelInFlight` | `WinboxNative`, `WinboxNativeMac` |
 | **Rest** | `Crud`, `Listen`, `AsyncCommands`, `CancelInFlight` | `Rest`, `RestSsl` (stateless HTTP — no Streaming, no SafeMode) |

@@ -32,18 +32,25 @@ namespace tik4net
         /// one command exchange; use the async monitor pattern (<see cref="Listen"/>) there instead.</summary>
         Streaming    = 4,
         /// <summary>
-        /// Run a command written in the transport's <b>own language</b>, below the O/R mapper, through
-        /// <see cref="ITikRawSentenceConnection"/> — API sentence words on the binary API, RouterOS CLI text
-        /// on the CLI transports. The command is sent unchanged and the reply comes back as
-        /// <c>!re</c>/<c>!done</c>/<c>!trap</c> sentences.
-        /// <para>
-        /// Declared by <c>Api</c>/<c>ApiSsl</c> and the CLI family, and always in step with the interface.
-        /// REST and native WinBox declare it not at all: they have a request shape, not a command language a
-        /// caller could write. It is the low-level counterpart of <see cref="RawCommand"/>
-        /// (<c>CreateRawCommand</c>), which makes the same promise for an <see cref="ITikCommand"/>.
-        /// </para>
+        /// <b>Obsolete alias of <see cref="RawCommand"/>.</b> Kept so existing checks keep compiling and
+        /// keep answering the same thing — it is the same bit, so
+        /// <c>Supports(RawSentences) == Supports(RawCommand)</c> always.
         /// </summary>
-        RawSentences = 8,
+        /// <remarks>
+        /// The two were separate flags for the two levels a raw command can be issued at — this one for
+        /// <see cref="ITikRawSentenceConnection.CallCommandSync(string[])"/>, <see cref="RawCommand"/> for
+        /// <c>CreateRawCommand</c>. They answer one question, though: does this transport have a command
+        /// language a caller can write? A terminal does (RouterOS CLI text) and the binary API does (sentence
+        /// words); REST and native WinBox have a request shape instead and can offer neither level. Two flags
+        /// that are always set together are two chances to check the wrong one.
+        /// <para>
+        /// Bit 8 is left free rather than reused, so a persisted old value cannot silently come back as some
+        /// other capability.
+        /// </para>
+        /// </remarks>
+        [Obsolete("Use RawCommand. The two always had the same answer — a transport either has a writable "
+                  + "command language or it has neither raw level — and are now one flag.")]
+        RawSentences = RawCommand,
         /// <summary>Per-command tagging for multiplexed concurrent commands on a single channel (binary API <c>.tag</c>).</summary>
         Tagging      = 16,
         /// <summary>
@@ -55,12 +62,26 @@ namespace tik4net
         /// </summary>
         SafeMode     = 32,
         /// <summary>
-        /// Transport can run a <b>raw command pass-through</b> (<see cref="ITikConnection"/>.<c>CreateRawCommand</c>):
-        /// a payload in the transport's own dialect sent verbatim, bypassing the structured command builder/mapper.
-        /// The dialect is transport-specific — an API sentence (<c>\n</c>-separated words, lossless <c>!re</c> rows)
-        /// on the binary API, a verbatim CLI line on the CLI transports. WinBox native does NOT report it (its raw
-        /// form would be a numeric M2 message, not a string; use a CLI transport for raw over that channel).
-        /// Distinct from <see cref="RawSentences"/> (read access to raw response sentences below the O/R mapper).
+        /// The transport has a <b>command language a caller can write</b>, so a command can be sent in it
+        /// unchanged — bypassing the structured builder and the O/R mapper. This is what both raw levels are
+        /// gated on:
+        /// <list type="bullet">
+        /// <item><c>ITikConnection.CreateRawCommand</c> — an <see cref="ITikCommand"/> whose
+        /// <see cref="ITikCommand.CommandText"/> is sent verbatim.</item>
+        /// <item><see cref="ITikRawSentenceConnection.CallCommandSync(string[])"/> — the same thing one level
+        /// down, answering with sentences directly.</item>
+        /// </list>
+        /// <para>
+        /// The language is the transport's own: API sentence words (newline-separated, lossless <c>!re</c>
+        /// rows) on <c>Api</c>/<c>ApiSsl</c>, a verbatim CLI line on the five CLI transports. REST and native
+        /// WinBox do NOT report it — an HTTP request shape and numeric M2 handler/field keys are not a
+        /// language, so there is no line for a caller to write; use a CLI transport for raw over the WinBox
+        /// channel.
+        /// </para>
+        /// <para>
+        /// Both levels report a router error rather than returning it: an error line in the output raises a
+        /// <see cref="TikCommandTrapException"/> instead of arriving as a successful value.
+        /// </para>
         /// </summary>
         RawCommand   = 64,
         /// <summary>

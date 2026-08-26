@@ -38,24 +38,26 @@ All transports share the same `ITikConnection` API and O/R mapper — pick one v
 
 | Transport | Port | What it is | Capabilities |
 |---|---|---|---|
-| **Api** / **ApiSsl** | TCP 8728 / 8729 | native MikroTik API protocol — the default and fastest; TLS variant needs a certificate on the router | **all of them**: `Crud`, `Listen`, `Streaming`, `RawSentences`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`‡, `CancelInFlight`‡ |
+| **Api** / **ApiSsl** | TCP 8728 / 8729 | native MikroTik API protocol — the default and fastest; TLS variant needs a certificate on the router | **all of them**: `Crud`, `Listen`, `Streaming`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`‡, `CancelInFlight`‡ |
 | **Rest** / **RestSsl** | TCP 80 / 443 | REST API, RouterOS 7.1+ | `Crud`, `Listen`\*†, `AsyncCommands`‡, `CancelInFlight`‡ — stateless HTTP, so no streaming and no Safe Mode |
-| **Telnet** | TCP 23 | RouterOS CLI over plain-text Telnet | `Crud`, `Listen`\*, `RawSentences`\*\*, `SafeMode`, `RawCommand`, `AsyncCommands`‡ |
-| **Ssh** | TCP 22 | RouterOS CLI over an SSH shell (separate `tik4net.ssh` package) | `Crud`, `Listen`\*, `RawSentences`\*\*, `SafeMode`, `RawCommand`, `AsyncCommands`‡ |
-| **MacTelnet** | UDP 20561 | CLI over MAC-Telnet — reaches a router with **no IP route, or no IP address at all** | `Crud`, `Listen`\*, `RawSentences`\*\*, `SafeMode`, `RawCommand`, `AsyncCommands`‡ |
-| **WinboxCli** / **WinboxCliMac** | TCP 8291 / UDP 20561 | CLI over the encrypted WinBox channel (EC-SRP5 + AES, no certificates) | `Crud`, `Listen`\*, `RawSentences`\*\*, `SafeMode`, `RawCommand`, `AsyncCommands`‡ |
+| **Telnet** | TCP 23 | RouterOS CLI over plain-text Telnet | `Crud`, `Listen`\*, `SafeMode`, `RawCommand`\*\*, `AsyncCommands`‡ |
+| **Ssh** | TCP 22 | RouterOS CLI over an SSH shell (separate `tik4net.ssh` package) | `Crud`, `Listen`\*, `SafeMode`, `RawCommand`\*\*, `AsyncCommands`‡ |
+| **MacTelnet** | UDP 20561 | CLI over MAC-Telnet — reaches a router with **no IP route, or no IP address at all** | `Crud`, `Listen`\*, `SafeMode`, `RawCommand`\*\*, `AsyncCommands`‡ |
+| **WinboxCli** / **WinboxCliMac** | TCP 8291 / UDP 20561 | CLI over the encrypted WinBox channel (EC-SRP5 + AES, no certificates) | `Crud`, `Listen`\*, `SafeMode`, `RawCommand`\*\*, `AsyncCommands`‡ |
 | **WinboxNative** / **WinboxNativeMac** | TCP 8291 / UDP 20561 | structured WinBox M2 CRUD, no terminal | `Crud`, `Listen`\*, `SafeMode`, `AsyncCommands`‡, `CancelInFlight`‡§ |
 
 \* **`Listen` outside the API is emulated by polling** (re-issuing a snapshot on a background worker), not
 server push. **`Streaming`** (`ExecuteListWithDuration`) is binary-API only — no other transport holds a
 command exchange open for a blocking multi-row read.
 
-\*\* **`RawSentences` is native syntax, not a translation.** `CallCommandSync` takes a command written in the
-transport's own language and sends it unchanged: API sentence words on `Api`/`ApiSsl`, RouterOS **CLI text**
-on the terminal transports (`:put [/interface print as-value]`). It is the low-level half of the same promise
-`RawCommand` (`CreateRawCommand`) makes at the `ITikCommand` level, which is why the two flags go together —
-they exist to reach what the O/R mapper cannot express. REST and WinBox native declare neither: they have a
-request shape, not a command language a caller could write.
+\*\* **`RawCommand` is native syntax, not a translation, and it gates both raw levels.** A command is
+written in the transport's own language and sent unchanged: API sentence words on `Api`/`ApiSsl`, RouterOS
+**CLI text** on the terminal transports (`:put [/interface print as-value]`). Two entry points share it —
+`CreateRawCommand` at the `ITikCommand` level and `CallCommandSync` one level down, answering with sentences
+directly — and both raise a trap when the router reports an error rather than returning it as a value. They
+exist to reach what the O/R mapper cannot express. REST and WinBox native do not declare it at all: they have a
+request shape, not a command language a caller could write. (`RawSentences` is an obsolete alias of this same
+flag; it used to gate the low-level half alone.)
 
 † On REST an async monitor's rows arrive **when the command ends**, not as the router produces them: RouterOS
 buffers the whole HTTP response. Prefer an explicit bound (`count`/`duration`) on a REST monitor — and note

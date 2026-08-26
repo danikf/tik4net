@@ -135,7 +135,7 @@ namespace tik4net.Cli
         /// <see cref="TikCancellationMode"/> for what a token does here instead.
         /// </para>
         /// <para>
-        /// <see cref="TikConnectionCapability.RawSentences"/> is reported because a terminal <i>has</i> a
+        /// <see cref="TikConnectionCapability.RawCommand"/> is reported because a terminal <i>has</i> a
         /// native dialect to be raw in: <see cref="CallCommandSync(string[])"/> sends RouterOS CLI text
         /// verbatim. It is not reported by REST or native WinBox, which have no command language of their own
         /// for a caller to write.
@@ -144,7 +144,7 @@ namespace tik4net.Cli
         public override TikConnectionCapability Capabilities
             => TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode
              | TikConnectionCapability.RawCommand | TikConnectionCapability.AsyncCommands
-             | TikConnectionCapability.RawSentences;
+             | TikConnectionCapability.RawCommand;
 
         /// <inheritdoc/>
         /// <remarks>
@@ -557,6 +557,10 @@ namespace tik4net.Cli
                     ? WrapRawAsValue(descriptor.CommandText)
                     : descriptor.CommandText;
                 string rawOutput = await ExecuteCliCommandAsync(rawCli, cancellationToken).ConfigureAwait(false);
+                // A command that did not run must not come back as an empty table: 0 rows is
+                // indistinguishable from a table with nothing in it. Same check the low-level
+                // CallCommandSync applies, so the two halves of the raw promise agree about failure.
+                CliErrorParser.ThrowIfError(rawOutput, CreateDummyCommand(descriptor));
                 return CliOutputParser.ParseAsValue(rawOutput);
             }
 
@@ -886,17 +890,26 @@ namespace tik4net.Cli
 
         /// <summary>
         /// Raw pass-through scalar/non-query (CreateRawCommand): sends the command line verbatim and returns the
-        /// cleaned terminal output text (ANSI-stripped, echo/prompt-trimmed by the transport). No error parsing
-        /// by output text — raw mode cannot know what counts as an error for an arbitrary command, so the text is
-        /// returned as-is. Used by <c>ExecuteScalar</c> (e.g. <c>/export</c>) and <c>ExecuteNonQuery</c>.
+        /// cleaned terminal output text (ANSI-stripped, echo/prompt-trimmed by the transport).
+        /// Used by <c>ExecuteScalar</c> (e.g. <c>/export</c>) and <c>ExecuteNonQuery</c>.
         /// </summary>
+        /// <remarks>
+        /// The output IS checked for a router error, which raw mode used to leave alone on the argument that
+        /// it cannot know what counts as one for an arbitrary command. The argument is real but the trade is
+        /// the wrong way round: not checking meant <c>bad command name prnt (line 1 column 12)</c> was
+        /// returned as a successful value, to be assigned and used, while the command had never run. The
+        /// check is <see cref="CliErrorParser"/>'s text-only one — the same the rest of the CLI path relies
+        /// on — and it recognises a router error line rather than the word "error" appearing in a value.
+        /// </remarks>
         protected override async Task<string> RunRawTextAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
         {
             EnsureOpened();
             string rawCli = descriptor.WrapAsValue
                 ? WrapRawAsValue(descriptor.CommandText)
                 : descriptor.CommandText;
-            return (await ExecuteCliCommandAsync(rawCli, cancellationToken).ConfigureAwait(false) ?? string.Empty).Trim();
+            string output = (await ExecuteCliCommandAsync(rawCli, cancellationToken).ConfigureAwait(false) ?? string.Empty).Trim();
+            CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+            return output;
         }
 
         // Wraps a verbatim CLI line so RouterOS materialises its as-value output (bare 'print as-value' prints
