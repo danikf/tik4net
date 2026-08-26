@@ -17,8 +17,8 @@ namespace tik4net.Objects
     /// <item><see cref="LoadById"/></item>
     /// <item><see cref="LoadList{TEntity}(ITikConnection, ITikCommandParameter[])"/></item>
     /// <item><see cref="LoadWithDuration"/></item>
-    /// <item><see cref="LoadAsync"/></item>
-    /// <item><see cref="LoadListenAsync"/></item>
+    /// <item><see cref="LoadWithCallback"/></item>
+    /// <item><see cref="LoadListenWithCallback"/></item>
     /// </list>
     /// </para>
     /// 
@@ -225,8 +225,8 @@ namespace tik4net.Objects
         /// <param name="onExceptionCallback">Callback called when error occurs (!trap row is returned)</param>
         /// <param name="parameters">Optional list of filters/parameters (interpreted as connected with AND)</param>
         /// <returns><see cref="ITikCommand"/> which is already running the async load operation. You can cancel the running operation by <see cref="ITikCommand.Cancel"/> method call.</returns>
-        /// <seealso cref="TikCommandExtensions.LoadAsync{TEntity}(ITikCommand, Action{TEntity}, Action{Exception}, Action)"/>
-        public static ITikCommand LoadAsync<TEntity>(this ITikConnection connection,
+        /// <seealso cref="TikCommandExtensions.LoadWithCallback{TEntity}(ITikCommand, Action{TEntity}, Action{Exception}, Action)"/>
+        public static ITikCommand LoadWithCallback<TEntity>(this ITikConnection connection,
             Action<TEntity> onLoadItemCallback, Action<Exception>? onExceptionCallback = null,
             params ITikCommandParameter[] parameters)
             where TEntity : new()
@@ -239,7 +239,7 @@ namespace tik4net.Objects
             var tracker = TikChangeTracker.For(connection);
             var trackedFields = GetProplistFields(command, metadata);
 
-            command.LoadAsync<TEntity>(
+            command.LoadWithCallback<TEntity>(
                 entity => {
                     tracker.TakeSnapshot(entity, metadata, trackedFields);
                     onLoadItemCallback(entity);
@@ -251,7 +251,7 @@ namespace tik4net.Objects
         /// <summary>
         /// Starts asynchronous listening for real-time changes in the entity list.
         /// Builds a <c>/listen</c> command from the entity's API path and starts it via
-        /// <see cref="TikCommandExtensions.LoadListenAsync{TEntity}(ITikCommand, Action{TEntity}, Action{string}, Action{Exception})"/>.
+        /// <see cref="TikCommandExtensions.LoadListenWithCallback{TEntity}(ITikCommand, Action{TEntity}, Action{string}, Action{Exception})"/>.
         /// The command streams <c>!re</c> sentences whenever an item is added, changed, or removed.
         /// It never sends <c>!done</c> — stop listening by calling <see cref="ITikCommand.Cancel"/> or <see cref="ITikCommand.CancelAndJoin()"/>
         /// on the returned command.
@@ -263,8 +263,8 @@ namespace tik4net.Objects
         /// <param name="onExceptionCallback">Called when a <c>!trap</c> is received.</param>
         /// <param name="parameters">Optional query filters applied to the listen command.</param>
         /// <returns>The running <see cref="ITikCommand"/>. Cancel it to stop listening.</returns>
-        /// <seealso cref="TikCommandExtensions.LoadListenAsync{TEntity}(ITikCommand, Action{TEntity}, Action{string}, Action{Exception})"/>
-        public static ITikCommand LoadListenAsync<TEntity>(this ITikConnection connection,
+        /// <seealso cref="TikCommandExtensions.LoadListenWithCallback{TEntity}(ITikCommand, Action{TEntity}, Action{string}, Action{Exception})"/>
+        public static ITikCommand LoadListenWithCallback<TEntity>(this ITikConnection connection,
             Action<TEntity> onChangeCallback,
             Action<string>? onDeletedCallback = null,
             Action<Exception>? onExceptionCallback = null,
@@ -275,7 +275,7 @@ namespace tik4net.Objects
             Guard.ArgumentNotNull(onChangeCallback, "onChangeCallback");
 
             var command = CreateListenCommandWithFilter<TEntity>(connection, parameters);
-            command.LoadListenAsync<TEntity>(onChangeCallback, onDeletedCallback, onExceptionCallback);
+            command.LoadListenWithCallback<TEntity>(onChangeCallback, onDeletedCallback, onExceptionCallback);
             return command;
         }
 

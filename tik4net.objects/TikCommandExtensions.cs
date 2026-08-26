@@ -123,7 +123,7 @@ namespace tik4net.Objects
         /// <param name="onLoadItemCallback">Callback called for each loaded !re row</param>
         /// <param name="onExceptionCallback">Callback called when error occurs (!trap row is returned)</param>
         /// <param name="onDoneCallback">Callback called at the end of command run (!done row is returned). Usefull for cleanup operations at the end of command lifecycle. You can also use synchronous call <see cref="ITikCommand.CancelAndJoin()"/> from calling thread and do cleanup after it.</param>
-        public static void LoadAsync<TEntity>(this ITikCommand command,
+        public static void LoadWithCallback<TEntity>(this ITikCommand command,
                     Action<TEntity> onLoadItemCallback,
                     Action<Exception>? onExceptionCallback = null,
                     Action? onDoneCallback = null)
@@ -148,7 +148,7 @@ namespace tik4net.Objects
 
         /// <summary>
         /// Starts asynchronous listening for changes in the entity list via the RouterOS <c>/listen</c> command.
-        /// Unlike <see cref="LoadAsync{TEntity}(ITikCommand, Action{TEntity}, Action{Exception}, Action)"/> which uses <c>/print</c>,
+        /// Unlike <see cref="LoadWithCallback{TEntity}(ITikCommand, Action{TEntity}, Action{Exception}, Action)"/> which uses <c>/print</c>,
         /// this method sends <c>!re</c> sentences only when the list changes — it never sends <c>!done</c>.
         /// Stop by calling <see cref="ITikCommand.Cancel"/> or <see cref="ITikCommand.CancelAndJoin()"/>.
         /// When an item is deleted the router sends <c>=.dead=yes</c>; the optional <paramref name="onDeletedCallback"/>
@@ -159,7 +159,7 @@ namespace tik4net.Objects
         /// <param name="onChangeCallback">Called for each changed item.</param>
         /// <param name="onDeletedCallback">Called with the deleted item's <c>.id</c> when <c>=.dead=yes</c> is received. Can be <c>null</c>.</param>
         /// <param name="onExceptionCallback">Called when a <c>!trap</c> is received.</param>
-        public static void LoadListenAsync<TEntity>(this ITikCommand command,
+        public static void LoadListenWithCallback<TEntity>(this ITikCommand command,
             Action<TEntity> onChangeCallback,
             Action<string>? onDeletedCallback = null,
             Action<Exception>? onExceptionCallback = null)

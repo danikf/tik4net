@@ -22,10 +22,10 @@ namespace tik4net.integrationtests
             Connection.OnWriteRow += (sender, args) => { System.Diagnostics.Debug.WriteLine(args.Word); };
             Connection.OnReadRow += (sender, args) => { System.Diagnostics.Debug.WriteLine(args.Word); };
 
-            var cmd1 = Connection.LoadAsync<ToolTorch>(t => { rowCount++; System.Diagnostics.Debug.WriteLine("ether1a: " + t); },
+            var cmd1 = Connection.LoadWithCallback<ToolTorch>(t => { rowCount++; System.Diagnostics.Debug.WriteLine("ether1a: " + t); },
                 ex => { System.Diagnostics.Debug.WriteLine("ERROR: " + ex.Message); isFailed = true; },
                 Connection.CreateParameter("interface", TestConstants.Interface));
-            var cmd2 = Connection.LoadAsync<ToolTorch>(t => { rowCount++; System.Diagnostics.Debug.WriteLine("ether1b: " + t); },
+            var cmd2 = Connection.LoadWithCallback<ToolTorch>(t => { rowCount++; System.Diagnostics.Debug.WriteLine("ether1b: " + t); },
                 ex => { System.Diagnostics.Debug.WriteLine("ERROR: " + ex.Message); isFailed = true; },
                 Connection.CreateParameter("interface", TestConstants.Interface));
             // CLI transports drive torch via freeze-frame-interval, where each poll blocks for several real

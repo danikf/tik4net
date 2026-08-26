@@ -132,7 +132,7 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void AsyncExecuteClosed_AfterReboot_AndNextCommandThrowsException()
         {
-            var torchAsyncCmd = Connection.LoadAsync<Objects.Tool.ToolTorch>(t => {; },
+            var torchAsyncCmd = Connection.LoadWithCallback<Objects.Tool.ToolTorch>(t => {; },
                 null,
                 Connection.CreateParameter("interface", TestConstants.Interface));
 

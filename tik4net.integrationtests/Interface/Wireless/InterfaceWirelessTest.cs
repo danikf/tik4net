@@ -29,7 +29,7 @@ namespace tik4net.integrationtests
             {
                 var result = new List<WirelessAccessList>();
                 bool failed = false;
-                var cmd = Connection.LoadAsync<WirelessAccessList>(
+                var cmd = Connection.LoadWithCallback<WirelessAccessList>(
                     (item) => { result.Add(item); },
                     (ex) => { failed = true; }
                 );

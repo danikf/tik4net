@@ -31,7 +31,7 @@ public static class TorchSample
         Console.WriteLine($"Torching {options.InterfaceName} on {options.Host}. Press [ENTER] to stop.");
         Console.WriteLine();
 
-        var loadingContext = connection.LoadAsync<ToolTorch>(
+        var loadingContext = connection.LoadWithCallback<ToolTorch>(
             OnRow,
             error => Console.Error.WriteLine(error.ToString()),
             connection.CreateParameter("interface", options.InterfaceName),

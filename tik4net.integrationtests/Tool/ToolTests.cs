@@ -42,7 +42,7 @@ namespace tik4net.integrationtests
             List<ToolPing> responseList = new List<ToolPing>();
             Exception responseException = null;
 
-            ITikCommand pingCommand = Connection.LoadAsync<ToolPing>(
+            ITikCommand pingCommand = Connection.LoadWithCallback<ToolPing>(
                 ping => responseList.Add(ping), //read callback
                 exception => responseException = exception, //exception callback
                 Connection.CreateParameter("address", HOST),
@@ -92,7 +92,7 @@ namespace tik4net.integrationtests
             var responseList = new List<ToolPing>();
             Exception responseException = null;
 
-            ITikCommand pingCommand = Connection.LoadAsync<ToolPing>(
+            ITikCommand pingCommand = Connection.LoadWithCallback<ToolPing>(
                 ping => { lock (responseList) responseList.Add(ping); },
                 exception => responseException = exception,
                 Connection.CreateParameter("address", HOST),
@@ -155,7 +155,7 @@ namespace tik4net.integrationtests
             List<ToolPing> responseList = new List<ToolPing>();
             Exception responseException = null;
 
-            ITikCommand pingCommand = Connection.LoadAsync<ToolPing>(
+            ITikCommand pingCommand = Connection.LoadWithCallback<ToolPing>(
                 ping => responseList.Add(ping), //read callback
                 exception => responseException = exception, //exception callback
                 Connection.CreateParameter("address", HOST),

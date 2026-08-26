@@ -106,7 +106,7 @@ namespace tik4net.integrationtests
                             ?type=wlan
                             ?#|");
             var list = new List<Interface>();
-            cmd.LoadAsync<Interface>(i=>list.Add(i));
+            cmd.LoadWithCallback<Interface>(i=>list.Add(i));
             Thread.Sleep(1000);
             cmd.CancelAndJoin();
 
@@ -200,7 +200,7 @@ namespace tik4net.integrationtests
             List<Interface> changes = new List<Interface>();
             Exception listenException = null;
 
-            var listenCmd = Connection.LoadListenAsync<Interface>(
+            var listenCmd = Connection.LoadListenWithCallback<Interface>(
                 iface => { lock (changes) changes.Add(iface); },
                 onDeletedCallback: null,
                 onExceptionCallback: ex => { listenException = ex; });
@@ -277,7 +277,7 @@ namespace tik4net.integrationtests
             Exception listenException = null;
             string newId = null;
 
-            var listenCmd = Connection.LoadListenAsync<Objects.Ip.IpAddress>(
+            var listenCmd = Connection.LoadListenWithCallback<Objects.Ip.IpAddress>(
                 addr => { lock (seenIds) seenIds.Add(addr.Id); },
                 onDeletedCallback: id => { lock (deletedIds) deletedIds.Add(id); },
                 onExceptionCallback: ex => { listenException = ex; });

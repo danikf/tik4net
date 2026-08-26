@@ -35,7 +35,7 @@ namespace tik4net.Objects
     /// <b>Not here, and deliberately.</b> <c>LoadWithDuration</c> needs
     /// <see cref="TikConnectionCapability.Streaming"/>, and <c>LoadAsync</c>/<c>LoadListenAsync</c> are the
     /// callback monitors — a different thing that happens to share the word (see
-    /// <see cref="TikConnectionExtensions.LoadAsync"/>). The compound operations — <c>SaveListDifferences</c>,
+    /// <see cref="TikConnectionExtensions.LoadWithCallback"/>). The compound operations — <c>SaveListDifferences</c>,
     /// <c>DeleteAll</c>, <c>Move</c> — stay synchronous for now: each is a sequence of the primitives below,
     /// and an async form of them is a design question about partial failure, not a mechanical translation.
     /// </para>

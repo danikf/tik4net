@@ -224,9 +224,22 @@ namespace tik4net
 
         /// <summary>
         /// Calls given <see cref="CommandText"/> to router. Response is returned via <paramref name="oneResponseCallback"/> callback when it is read from mikrotik (for tag, which has been dynamically assigned).
-        /// REMARKS: <paramref name="oneResponseCallback"/> is called from another NON-GUI thread. If you want to show response in UI, 
+        /// REMARKS: <paramref name="oneResponseCallback"/> is called from another NON-GUI thread. If you want to show response in UI,
         /// you should use some kind of synchronization like BeginInvoke in WinForms or SynchronizationContext. You can not touch UI controls directly without it.
         /// </summary>
+        /// <remarks>
+        /// <b>This is not the awaitable surface, despite the name.</b> It returns <c>void</c>: it starts the
+        /// command on a background thread and calls you back, and you stop it with <see cref="Cancel"/> or
+        /// <see cref="CancelAndJoin()"/>. The Task-based commands are the <c>Execute*Async</c> extension
+        /// methods (<c>ExecuteListAsync</c>, <c>ExecuteScalarAsync</c>, … — see <c>ITikCommandAsync</c>),
+        /// each taking a <see cref="System.Threading.CancellationToken"/> and gated on
+        /// <see cref="TikConnectionCapability.AsyncCommands"/>.
+        /// <para>
+        /// The name is kept because this member is on a public interface that callers implement; the O/R
+        /// mapper's equivalents were renamed to <c>LoadWithCallback</c>/<c>LoadListenWithCallback</c>, which
+        /// is the vocabulary to prefer when writing new code against either level.
+        /// </para>
+        /// </remarks>
         /// <param name="oneResponseCallback">Callback called periodically when response sentence is read from mikrotik.</param>
         /// <param name="errorCallback">Callback called when error occurs (command operation is than ended).</param>
         /// <param name="onDoneCallback">Callback called at the end of command run (when command is successfully finished - !done is returned). Usefull for cleanup operations at the end of command lifecycle. You can also use synchronous call <see cref="CancelAndJoin()"/> from calling thread and do cleanup after it.</param>
