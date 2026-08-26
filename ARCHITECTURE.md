@@ -308,10 +308,24 @@ Helpers: `TikEntityObjectsExtensions` (`Clone<T>`, `EntityDescription`, `EntityD
    form of it, for a field that is one rate rather than a pair. The suffixes are decimal — `500k` is
    500 000.
 
-These conventions are **enforced in CI**, not just documented: `EntityStructureConventionTests` (shape —
-`.id`, paths, enums, read-only counters) and `EntityDefaultValueConventionTests` (the `DefaultValue` /
-nullability rules) run over every `[TikEntity]` on every push. A new entity that breaks one fails the build
-rather than the first person to load that menu.
+Most of these conventions are **enforced in CI**, not just documented — they run over every `[TikEntity]` on
+every push, so a new entity that breaks one fails the build rather than the first person to load that menu:
+
+| Test | Covers | Shape |
+|---|---|---|
+| `EntityStructureConventionTests` | `.id`, paths, enums, read-only counters | pass/fail |
+| `EntityDefaultValueConventionTests` | the `DefaultValue` / nullability rules (points 5–6 above) | pass/fail |
+| `EntityDurationConventionTests` | rule 6 — a duration is `TikDuration?`, never `string?` | **ratchet** |
+
+The duration rule is a ratchet rather than pass/fail because it was documented for a long time before
+anything checked it, and 108 fields are still `string?` against 24 converted. The test carries that backlog
+as an explicit list: a field on the list is tolerated, anything else fails, and converting one means deleting
+its line. It cannot grow, and a stale entry fails too. Alongside it sits a second list of fields whose names
+read temporal but which are **not** durations — `/system/clock`'s `time` and `gmt-offset`, a firewall `time`
+match (a time-of-day range plus weekdays), wireless `ht-guard-interval` (an enum), `add-lifetime` (a
+soft/hard pair) — because that distinction is the part no rule gets right on its own.
+
+**Rule 7 (`TikRatePair`) has no test yet.** Treat it as documented-only until it does.
 
 The `entity-generator` skill scaffolds these from a live router. It replaced two WinForms
 generators (`tik4net.entitygenerator`, `tik4net.entityWikiImporter`), deleted in 4.0 — the skill reads
