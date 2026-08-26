@@ -11,12 +11,19 @@ namespace tik4net
     /// Implementation of interface depends on technology that 
     /// is used to access mikrotik (API, SSH, TELNET, ...).
     /// <example>
-    /// using(ITikConnection connection = ConnectionFactory.OpenConnection(TikConnectionType.Api, "192.168.1.1", "user", "pass"))
+    /// <code>
+    /// var setup = new TikConnectionSetup(TikRouterAddress.FromHost("192.168.1.1"), "user", "pass");
+    /// using (ITikConnection connection = setup.Create(TikConnectionType.Api))
     /// {
-    ///     // ... do work ... 
+    ///     // ... do work ...
     ///     // ... do query ...
-    ///     Connection.Close();
-    /// }
+    /// }   // leaving the using closes the connection — an explicit Close() is not needed
+    /// </code>
+    /// <para>
+    /// <see cref="TikConnectionSetup"/> is the entry point: it carries the options (timeouts, TLS policy,
+    /// router MAC, encoding) and opens the transport named. <see cref="ConnectionFactory"/> still works and
+    /// is the shorter spelling when no option needs stating, but it has nowhere to put one.
+    /// </para>
     /// </example>
     /// </summary>
     /// <remarks>
@@ -200,8 +207,7 @@ namespace tik4net
 
         /// <summary>
         /// Opens connection to the specified mikrotik host on default port (depends on technology) and perform the logon operation.
-        /// Awaitable version. Default timeout is <see cref="ReceiveTimeout"/>x2 or 5s if not set.
-        /// REMARKS: don't forget to use Wait overload with timeout if you use it in OpenAsync(...).Wait(timeout) way.
+        /// Awaitable version, bounded by <see cref="ConnectTimeout"/> (default 15 000 ms).
         /// </summary>
         /// <param name="host">The host. On a MAC-layer connection (<see cref="ITikMacLayerConnection"/>) this may be empty — there the router is identified by its MAC address.</param>
         /// <param name="user">The user.</param>

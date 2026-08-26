@@ -31,7 +31,18 @@ namespace tik4net
         /// <c>/tool/torch</c>). Binary API only — CLI/WinBox transports have no persistent multi-row read within
         /// one command exchange; use the async monitor pattern (<see cref="Listen"/>) there instead.</summary>
         Streaming    = 4,
-        /// <summary>Raw sentence access below the O/R mapper (direct <c>!re</c>/<c>!done</c>/<c>!trap</c> words).</summary>
+        /// <summary>
+        /// Run a command written in the transport's <b>own language</b>, below the O/R mapper, through
+        /// <see cref="ITikRawSentenceConnection"/> — API sentence words on the binary API, RouterOS CLI text
+        /// on the CLI transports. The command is sent unchanged and the reply comes back as
+        /// <c>!re</c>/<c>!done</c>/<c>!trap</c> sentences.
+        /// <para>
+        /// Declared by <c>Api</c>/<c>ApiSsl</c> and the CLI family, and always in step with the interface.
+        /// REST and native WinBox declare it not at all: they have a request shape, not a command language a
+        /// caller could write. It is the low-level counterpart of <see cref="RawCommand"/>
+        /// (<c>CreateRawCommand</c>), which makes the same promise for an <see cref="ITikCommand"/>.
+        /// </para>
+        /// </summary>
         RawSentences = 8,
         /// <summary>Per-command tagging for multiplexed concurrent commands on a single channel (binary API <c>.tag</c>).</summary>
         Tagging      = 16,

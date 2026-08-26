@@ -30,7 +30,7 @@ namespace tik4net.Cli
     /// core layer only sees data lines.
     /// </summary>
     public abstract class CliConnectionBase : TikCommandConnectionBase, ITikMonitorTransport, IPollingMonitorHost,
-        ITikCliCompletion, ITikCancellationModeConnection, ITikSafeModeConnection
+        ITikCliCompletion, ITikCancellationModeConnection, ITikSafeModeConnection, ITikRawSentenceConnection
     {
         /// <summary>Interval between monitor-snapshot polls (ms). Sub-second so callers see a fresh reading
         /// promptly; RouterOS GUI/webfig refresh ~1 s but a terminal snapshot is cheap.</summary>
@@ -41,6 +41,83 @@ namespace tik4net.Cli
         /// <c>2×</c> this (see <see cref="CliCommandBuilder.BuildTorchSnapshot"/>) — confirmed live as the
         /// minimum that reliably flushes one frame — so no separate inter-poll sleep is needed.</summary>
         private const int TorchFreezeFrameSeconds = 2;
+
+        // ── Raw sentences — native CLI text (ITikRawSentenceConnection) ───────
+
+        /// <inheritdoc/>
+        public IEnumerable<ITikSentence> CallCommandSync(params string[] commandRows)
+            => CallCommandSync((IEnumerable<string>)commandRows);
+
+        /// <summary>
+        /// Runs a command written in this transport's own language — <b>RouterOS CLI text</b> — and returns
+        /// the response as sentences. Nothing is translated on the way out.
+        /// </summary>
+        /// <param name="commandRows">
+        /// The command, in CLI syntax. Several rows are joined with a single space, so the command may be
+        /// written in one piece or split the way the API's sentence rows are:
+        /// <c>CallCommandSync("/interface print as-value")</c> and
+        /// <c>CallCommandSync("/interface print", "as-value", "where name=ether1")</c> send the same line.
+        /// </param>
+        /// <returns>
+        /// The parsed response. A command whose output is in <c>as-value</c> form yields one
+        /// <see cref="ITikReSentence"/> per record followed by an <see cref="ITikDoneSentence"/>; any other
+        /// output is returned whole as the <c>ret</c> word of a single <see cref="ITikDoneSentence"/>, because
+        /// arbitrary terminal text has no record structure to parse.
+        /// </returns>
+        /// <remarks>
+        /// <para>
+        /// This is the low-level counterpart of <c>CreateRawCommand</c> and behaves the same way: the line is
+        /// sent as typed, with no path rewriting, no <c>where</c> building and no <c>proplist</c>. That is the
+        /// point of it — everything the O/R mapper cannot express is reachable here, including
+        /// <c>:put</c>/<c>:foreach</c> scripting, <c>/export</c>, and menus tik4net has no entity for.
+        /// </para>
+        /// <para>
+        /// <b>To get records back you must ask the router for them.</b> RouterOS prints nothing for a bare
+        /// <c>print as-value</c> typed at a terminal — as-value output is materialised only in script context
+        /// — so wrap a read yourself: <c>:put [/interface print as-value]</c>. Unwrapped output is still
+        /// returned, just as text rather than as rows.
+        /// </para>
+        /// <para>
+        /// Errors the router reports in its output are raised as
+        /// <see cref="TikCommandTrapException"/>, the same as on any other CLI command.
+        /// </para>
+        /// </remarks>
+        /// <exception cref="TikConnectionNotOpenException">The connection is not open.</exception>
+        /// <exception cref="TikCommandTrapException">The router reported an error.</exception>
+        public IEnumerable<ITikSentence> CallCommandSync(IEnumerable<string> commandRows)
+        {
+            Guard.ArgumentNotNull(commandRows, nameof(commandRows));
+            EnsureOpened();
+
+            string cliText = string.Join(" ",
+                commandRows.Where(r => !string.IsNullOrWhiteSpace(r)).Select(r => r.Trim()).ToArray());
+            if (cliText.Length == 0)
+                throw new ArgumentException("commandRows must contain a CLI command.", nameof(commandRows));
+
+            string output = ExecuteCliCommand(cliText) ?? string.Empty;
+
+            // Raw mode cannot know which verb this was, so the error check is the text-only one: a router
+            // error line is recognisable on its own, while "no output" is a perfectly good answer here and
+            // must not be read as failure.
+            CliErrorParser.ThrowIfError(output,
+                CreateDummyCommand(new TikCommandDescriptor(cliText, new List<ITikCommandParameter>())));
+
+            var result = new List<ITikSentence>();
+            var records = CliOutputParser.ParseAsValue(output);
+            if (records.Count > 0)
+            {
+                foreach (var record in records)
+                    result.Add(record);
+                result.Add(new TikDoneSentenceResult());
+            }
+            else
+            {
+                // Not as-value output — hand back the text rather than inventing rows from it.
+                string text = output.Trim();
+                result.Add(new TikDoneSentenceResult(text.Length > 0 ? text : null));
+            }
+            return result;
+        }
 
         // ── Capabilities ──────────────────────────────────────────────────────
 
@@ -57,10 +134,17 @@ namespace tik4net.Cli
         /// abandoned mid-command leaves output for the next command to misread. See
         /// <see cref="TikCancellationMode"/> for what a token does here instead.
         /// </para>
+        /// <para>
+        /// <see cref="TikConnectionCapability.RawSentences"/> is reported because a terminal <i>has</i> a
+        /// native dialect to be raw in: <see cref="CallCommandSync(string[])"/> sends RouterOS CLI text
+        /// verbatim. It is not reported by REST or native WinBox, which have no command language of their own
+        /// for a caller to write.
+        /// </para>
         /// </summary>
         public override TikConnectionCapability Capabilities
             => TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode
-             | TikConnectionCapability.RawCommand | TikConnectionCapability.AsyncCommands;
+             | TikConnectionCapability.RawCommand | TikConnectionCapability.AsyncCommands
+             | TikConnectionCapability.RawSentences;
 
         /// <inheritdoc/>
         /// <remarks>

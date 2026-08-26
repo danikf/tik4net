@@ -59,7 +59,12 @@ every transport has. Three things that not every transport can reasonably provid
 interfaces, each paired with the capability flag that answers the same question:
 
 - `ITikRawSentenceConnection` (`tik4net/ITikRawSentenceConnection.cs`) — `CallCommandSync`, both
-  overloads (`RawSentences`). Every shipped transport implements it.
+  overloads (`RawSentences`). The contract is a command **in the connection's own language**, sent
+  unchanged: API sentence words on the binary API, RouterOS CLI text on the five CLI transports. It is the
+  low-level half of what `RawCommand`/`CreateRawCommand` offers at the `ITikCommand` level, and carries the
+  same distribution — `Api`/`ApiSsl` and the CLI family. REST and WinBox native implement neither: they have
+  a request shape, not a command language, so `TikCommandConnectionBase` deliberately does not implement the
+  interface and `CliConnectionBase` does.
 - `ITikSafeModeConnection` (`tik4net/ITikSafeModeConnection.cs`) — `SafeModeTake`/`Release`/`Unroll`/`Get`
   (`SafeMode`). ApiConnection, `CliConnectionBase` (so all five CLI transports incl. SSH) and
   WinboxNativeConnection implement it; RestConnection does not.

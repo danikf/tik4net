@@ -13,11 +13,21 @@ namespace tik4net
     /// a lifecycle long before it has a sentence dialect, and requiring every implementor to provide one
     /// would make the connection interface hard to implement.
     /// <para>
-    /// Every transport tik4net ships does implement it, and the sentence dialect differs: the binary API
-    /// returns the router's own <c>!re</c>/<c>!done</c>/<c>!trap</c> words, while the command transports
-    /// synthesize equivalent sentences from what they parsed. The stronger promise — that the sentences
-    /// are the router's, losslessly — is the separate
-    /// <see cref="TikConnectionCapability.RawSentences"/> capability, which only the binary API declares.
+    /// <b>"Connection-specific format" is meant literally: the command is written in the transport's own
+    /// language and sent unchanged.</b> On the binary API that is API sentence words, and the rows are the
+    /// wire format. On the five CLI transports it is RouterOS CLI text — <c>:put [/interface print
+    /// as-value]</c> — and that exact line goes to the terminal, with no path rewriting, no <c>where</c>
+    /// building and no <c>proplist</c>. Nothing here translates an API path into a CLI command; a caller who
+    /// wants that already has the O/R mapper and <see cref="ITikCommand"/>.
+    /// </para>
+    /// <para>
+    /// So this interface is implemented only where such a language exists, and
+    /// <see cref="TikConnectionCapability.RawSentences"/> is declared exactly there:
+    /// <c>Api</c>/<c>ApiSsl</c> and the CLI family. REST and native WinBox have a request shape rather than a
+    /// command language — an HTTP path, numeric M2 handlers and field keys — so they implement neither this
+    /// interface nor <see cref="TikConnectionCapability.RawCommand"/>, its counterpart at the
+    /// <see cref="ITikCommand"/> level. The two flags are the low-level and ADO-level halves of one promise
+    /// and travel together.
     /// </para>
     /// </remarks>
     public interface ITikRawSentenceConnection

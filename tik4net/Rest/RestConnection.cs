@@ -18,9 +18,8 @@ namespace tik4net.Rest
     /// Requires RouterOS 7.1+ with www or www-ssl service enabled.
     /// </summary>
     /// <remarks>
-    /// Rides the shared <see cref="TikCommandConnectionBase"/>: the command factory, low-level
-    /// <see cref="TikCommandConnectionBase.CallCommandSync(string[])"/> dispatch, diagnostics and the generic
-    /// <see cref="ITikCommand"/> (<see cref="TikGenericCommand"/>) are inherited. REST only supplies the three
+    /// Rides the shared <see cref="TikCommandConnectionBase"/>: the command factory, diagnostics and the
+    /// generic <see cref="ITikCommand"/> (<see cref="TikGenericCommand"/>) are inherited. REST only supplies the three
     /// CRUD hooks (<see cref="RunPrint"/>/<see cref="RunAdd"/>/<see cref="RunNonQuery"/>) implemented over HTTP
     /// plus the request build (<see cref="RestRequestBuilder"/>), JSON parsing and HTTP-status→exception mapping.
     /// <para>Capability is <see cref="TikConnectionCapability.Crud"/> | <see cref="TikConnectionCapability.Listen"/> |

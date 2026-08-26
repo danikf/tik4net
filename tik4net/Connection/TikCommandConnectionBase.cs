@@ -9,8 +9,14 @@ namespace tik4net.Connection
     /// <summary>
     /// Transport-neutral base class for RouterOS command-style connections that expose CRUD through
     /// the four <c>Run*</c> hooks (instead of the binary API sentence protocol). It implements the full
-    /// <see cref="ITikConnection"/> surface — command factory, low-level <see cref="CallCommandSync(string[])"/>
-    /// dispatch, diagnostics and lifecycle — and serialises commands through a <see cref="SemaphoreSlim"/>.
+    /// <see cref="ITikConnection"/> surface — command factory, diagnostics and lifecycle — and serialises
+    /// commands through a <see cref="SemaphoreSlim"/>.
+    ///
+    /// It deliberately does <b>not</b> implement <see cref="ITikRawSentenceConnection"/>. That interface's
+    /// contract is a command in the <i>connection-specific</i> format, and this class knows only the
+    /// transport-neutral one; a base-class implementation could only accept API-shaped rows and translate
+    /// them, which is what the O/R mapper already does and is the opposite of a raw call. Transports with a
+    /// native dialect of their own implement it themselves — see <c>CliConnectionBase</c>.
     ///
     /// Concrete subclasses provide the transport (CLI terminal, native WinBox M2, …) by implementing:
     /// <list type="bullet">
@@ -20,7 +26,7 @@ namespace tik4net.Connection
     ///   <item>the three CRUD hooks <see cref="RunPrint"/>, <see cref="RunAdd"/>, <see cref="RunNonQuery"/>.</item>
     /// </list>
     /// </summary>
-    public abstract class TikCommandConnectionBase : ITikConnection, ITikConnectionCapabilities, ITikRawSentenceConnection
+    public abstract class TikCommandConnectionBase : ITikConnection, ITikConnectionCapabilities
     {
         /// <summary>Serialises command execution — the underlying transports are inherently sequential.</summary>
         protected readonly SemaphoreSlim _cmdLock = new SemaphoreSlim(1, 1);
@@ -200,46 +206,6 @@ namespace tik4net.Connection
         /// <inheritdoc/>
         public ITikCommandParameter CreateParameter(string name, string value, TikCommandParameterFormat parameterFormat)
             => new TikCommandParameter(name, value, parameterFormat);
-
-        // ── CallCommandSync (low-level) ────────────────────────────────────────
-
-        /// <inheritdoc/>
-        public IEnumerable<ITikSentence> CallCommandSync(params string[] commandRows)
-            => CallCommandSync((IEnumerable<string>)commandRows);
-
-        /// <inheritdoc/>
-        public IEnumerable<ITikSentence> CallCommandSync(IEnumerable<string> commandRows)
-        {
-            var rows = new List<string>(commandRows);
-            if (rows.Count == 0)
-                throw new ArgumentException("commandRows must not be empty.");
-
-            string commandText = rows[0];
-
-            var parameters = new List<ITikCommandParameter>(TikCommandRow.ParseParameters(rows, 1));
-
-            string verb = TikPath.Verb(commandText);
-            var descriptor = new TikCommandDescriptor(commandText, parameters);
-
-            if (verb == "add")
-            {
-                string id = RunAdd(descriptor);
-                return new List<ITikSentence> { new TikDoneSentenceResult(id) };
-            }
-
-            if (verb == "remove" || verb == "set" || verb == "unset" || verb == "move"
-                || verb == "enable" || verb == "disable" || verb == "comment")
-            {
-                RunNonQuery(descriptor);
-                return new List<ITikSentence> { new TikDoneSentenceResult() };
-            }
-
-            // Read
-            var result = new List<ITikSentence>();
-            result.AddRange(RunPrint(descriptor));
-            result.Add(new TikDoneSentenceResult());
-            return result;
-        }
 
         // ── IDisposable ────────────────────────────────────────────────────────
 
