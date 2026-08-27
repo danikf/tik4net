@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace tik4net
 {
@@ -53,5 +55,35 @@ namespace tik4net
         /// <returns>The returned sentences.</returns>
         /// <exception cref="TikConnectionNotOpenException" />
         IEnumerable<ITikSentence> CallCommandSync(IEnumerable<string> commandRows);
+
+        /// <summary>
+        /// Awaitable counterpart of <see cref="CallCommandSync(string[])"/>: the same command, in the same
+        /// connection-specific format, without holding a thread while the router thinks.
+        /// </summary>
+        /// <param name="commandRows">Rows of one command, in connection-specific format.</param>
+        /// <param name="cancellationToken">
+        /// Cancels the command. What that means depends on the transport, and it is the same contract the
+        /// <c>Execute*Async</c> command surface has: on the binary API cancelling sends
+        /// <c>/cancel tag=N</c> and the connection stays usable
+        /// (<see cref="TikConnectionCapability.CancelInFlight"/>); on a terminal it is honoured before
+        /// dispatch and deferred to the next safe point after it, because an abandoned read would leave
+        /// output for the next command to misparse. See <see cref="TikCancellationMode"/>.
+        /// </param>
+        /// <returns>The returned sentences, already read.</returns>
+        /// <remarks>
+        /// The low level was synchronous-only, which was backwards: it is where long commands live —
+        /// <c>/export</c>, a script, a monitor — and the levels above it
+        /// (<c>ITikCommandAsync</c>, and <c>ITikStreamingCommand</c> on <c>net8.0</c>) had been awaitable
+        /// for some time. Every transport implementing this interface awaits its own I/O rather than
+        /// wrapping the blocking call, which is the promise
+        /// <see cref="TikConnectionCapability.AsyncCommands"/> makes.
+        /// </remarks>
+        /// <exception cref="TikConnectionNotOpenException" />
+        Task<IList<ITikSentence>> CallCommandAsync(string[] commandRows,
+            CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <inheritdoc cref="CallCommandAsync(string[], CancellationToken)"/>
+        Task<IList<ITikSentence>> CallCommandAsync(IEnumerable<string> commandRows,
+            CancellationToken cancellationToken = default(CancellationToken));
     }
 }

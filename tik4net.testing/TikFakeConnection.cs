@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using tik4net.Objects;
 
 namespace tik4net.Testing
@@ -384,6 +385,25 @@ namespace tik4net.Testing
                     "Register one via WithResponse / WithEntities / WithScalarResponse / WithNonQuery / WithTrap.");
 
             return handler.Response(rows).ToList();
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// The fake answers from memory, so there is nothing to await — but it still has to OFFER the
+        /// awaitable shape, or a consumer's <c>await conn.CallCommandAsync(...)</c> could not be tested
+        /// against it, which is the whole point of this class. The token is honoured before the answer is
+        /// produced, matching the one guarantee every real transport makes.
+        /// </remarks>
+        public Task<IList<ITikSentence>> CallCommandAsync(string[] commandRows,
+            CancellationToken cancellationToken = default(CancellationToken))
+            => CallCommandAsync((IEnumerable<string>)commandRows, cancellationToken);
+
+        /// <inheritdoc/>
+        public Task<IList<ITikSentence>> CallCommandAsync(IEnumerable<string> commandRows,
+            CancellationToken cancellationToken = default(CancellationToken))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult<IList<ITikSentence>>(CallCommandSync(commandRows).ToList());
         }
 
         // Async variant — runs the fake sentences on a background thread, calling oneResponseCallback for

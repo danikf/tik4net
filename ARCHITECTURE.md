@@ -73,8 +73,12 @@ interfaces, each paired with the capability flag that answers the same question:
 - `ITikTaggedConnection` (`tik4net/ITikTaggedConnection.cs`) — `SendTagWithSyncCommand` (`Tagging`).
   Binary API only; the other transports have no meaningful implementation of it.
 
-There is no public `CallCommandAsync`: `ITikCommand.ExecuteAsync` and the Task-based `Execute*Async`
-extensions are the async surface.
+`CallCommandAsync` (both overloads, each taking a `CancellationToken`) sits beside `CallCommandSync` on
+`ITikRawSentenceConnection`. The low level was synchronous-only, which was backwards — it is where the long
+commands live (`/export`, a script) while the levels above it had been awaitable for some time. On the CLI
+family the async form is the implementation and the synchronous one blocks on it, so there is one code path
+rather than two that can drift. `ITikCommand.ExecuteAsync` is a different thing entirely: callbacks, no
+`Task` — see its own docs.
 
 **There are no convenience shims on `ITikConnection`.** `TikRawSentenceExtensions` and
 `TikSafeModeExtensions` used to keep `connection.CallCommandSync(...)` and `connection.SafeModeTake()`

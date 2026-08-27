@@ -534,7 +534,7 @@ namespace tik4net.Api
             try
             {
                 string[] commandRows = ConstructCommandText(format, extraParameters ?? new ITikCommandParameter[] { });
-                var response = await apiConnection.CallCommandAsync(commandRows, cancellationToken, forceTag).ConfigureAwait(false);
+                var response = await apiConnection.CallCommandCoreAsync(commandRows, cancellationToken, forceTag).ConfigureAwait(false);
                 return interpret(EnsureApiSentences(response));
             }
             finally
@@ -638,7 +638,7 @@ namespace tik4net.Api
             try
             {
                 string[] commandRows = ConstructCommandText(TikCommandParameterFormat.NameValue);
-                _asyncLoadingThread = _connection.CallCommandAsync(commandRows, tag.ToString(),
+                _asyncLoadingThread = _connection.CallCommandCallbackThread(commandRows, tag.ToString(),
                                         response =>
                                         {
                                             ApiReSentence? reResponse = response as ApiReSentence;

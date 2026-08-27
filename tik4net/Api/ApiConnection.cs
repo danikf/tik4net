@@ -715,6 +715,16 @@ namespace tik4net.Api
             return CallCommandSync(commandRows.ToArray());
         }
 
+        /// <inheritdoc/>
+        public System.Threading.Tasks.Task<IList<ITikSentence>> CallCommandAsync(string[] commandRows,
+            System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+            => CallCommandCoreAsync(commandRows, cancellationToken);
+
+        /// <inheritdoc/>
+        public System.Threading.Tasks.Task<IList<ITikSentence>> CallCommandAsync(IEnumerable<string> commandRows,
+            System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+            => CallCommandCoreAsync(commandRows.ToArray(), cancellationToken);
+
         /// <summary>
         /// Task-based sibling of <see cref="CallCommandSync(string[])"/>: writes the command and awaits its
         /// sentences without holding a thread.
@@ -749,7 +759,7 @@ namespace tik4net.Api
         /// be a wire change on the most sensitive exchange there is, including against pre-6.43 routers that
         /// no test here can reach.
         /// </param>
-        internal async System.Threading.Tasks.Task<IList<ITikSentence>> CallCommandAsync(
+        internal async System.Threading.Tasks.Task<IList<ITikSentence>> CallCommandCoreAsync(
             string[] commandRows, System.Threading.CancellationToken cancellationToken, bool forceTag = true)
         {
             EnsureOpened();
@@ -835,7 +845,11 @@ namespace tik4net.Api
         // is no longer offered to callers (ITikCommand.ExecuteAsync and the Task-based Execute*Async
         // extensions are). ApiCommand still drives the callback form through it — the Thread it returns is
         // what ApiCommand.Cancel joins.
-        internal Thread CallCommandAsync(IEnumerable<string> commandRows, string tag,
+        //
+        // NOT called CallCommandAsync: that name now belongs to the awaitable ITikRawSentenceConnection
+        // member, and a second method wearing it while returning a Thread is the exact confusion the
+        // LoadAsync rename was about.
+        internal Thread CallCommandCallbackThread(IEnumerable<string> commandRows, string tag,
             Action<ITikSentence> oneResponseCallback)
         {
             Guard.ArgumentNotNullOrEmptyString(tag, "tag");

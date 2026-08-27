@@ -85,6 +85,21 @@ namespace tik4net.Cli
         /// <exception cref="TikConnectionNotOpenException">The connection is not open.</exception>
         /// <exception cref="TikCommandTrapException">The router reported an error.</exception>
         public IEnumerable<ITikSentence> CallCommandSync(IEnumerable<string> commandRows)
+            => CallCommandAsync(commandRows, CancellationToken.None).GetAwaiter().GetResult();
+
+        /// <inheritdoc/>
+        public Task<IList<ITikSentence>> CallCommandAsync(string[] commandRows,
+            CancellationToken cancellationToken = default(CancellationToken))
+            => CallCommandAsync((IEnumerable<string>)commandRows, cancellationToken);
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// This is the implementation and <see cref="CallCommandSync(IEnumerable{string})"/> blocks on it,
+        /// the same way round as the rest of this class: one code path, so the two cannot drift apart in
+        /// what they send or how they read the answer.
+        /// </remarks>
+        public async Task<IList<ITikSentence>> CallCommandAsync(IEnumerable<string> commandRows,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             Guard.ArgumentNotNull(commandRows, nameof(commandRows));
             EnsureOpened();
@@ -94,7 +109,8 @@ namespace tik4net.Cli
             if (cliText.Length == 0)
                 throw new ArgumentException("commandRows must contain a CLI command.", nameof(commandRows));
 
-            string output = ExecuteCliCommand(cliText) ?? string.Empty;
+            string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false)
+                            ?? string.Empty;
 
             // Raw mode cannot know which verb this was, so the error check is the text-only one: a router
             // error line is recognisable on its own, while "no output" is a perfectly good answer here and
