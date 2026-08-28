@@ -90,11 +90,11 @@ namespace tik4net.unittests.Objects
                 ["DnsStatic"] = new[] { "ttl" },
                 ["FirewallFilter"] = new[] { "address-list-timeout" },
                 ["FirewallRaw"] = new[] { "address-list-timeout" },
-                ["HotspotServerProfile"] = new[] { "http-cookie-lifetime", "radius-interim-update", "trial-uptime-limit", "trial-uptime-reset" },
+                ["HotspotServerProfile"] = new[] { "radius-interim-update", "trial-uptime-limit", "trial-uptime-reset" },
                 ["HotspotActive"] = new[] { "idle-timeout" },
                 ["HotspotServer"] = new[] { "idle-timeout", "keepalive-timeout", "login-timeout" },
                 ["HotspotUser"] = new[] { "limit-uptime" },
-                ["HotspotUserProfile"] = new[] { "advertise-timeout", "idle-timeout", "keepalive-timeout", "mac-cookie-timeout", "session-timeout" },
+                ["HotspotUserProfile"] = new[] { "advertise-timeout", "session-timeout" },
                 ["InterfaceBonding"] = new[] { "arp-interval", "arp-timeout", "down-delay", "mii-interval", "up-delay" },
                 ["InterfaceBridge"] = new[] { "ageing-time", "forward-delay", "max-message-age" },
                 ["InterfaceEoip"] = new[] { "arp-timeout", "loop-protect-disable-time", "loop-protect-send-interval" },
@@ -106,8 +106,6 @@ namespace tik4net.unittests.Objects
                 ["IpDhcpServer"] = new[] { "lease-time" },
                 ["IpsecActivePeers"] = new[] { "last-seen", "uptime" },
                 ["IpsecInstalledSa"] = new[] { "expires-in" },
-                ["IpsecProfile"] = new[] { "dpd-interval", "lifetime" },
-                ["IpsecProposal"] = new[] { "lifetime" },
                 ["OvpnServer"] = new[] { "keepalive-timeout" },
                 ["OspfNeighbor"] = new[] { "adjacency", "timeout" },
                 ["PppProfile"] = new[] { "idle-timeout", "session-timeout" },
@@ -205,7 +203,7 @@ namespace tik4net.unittests.Objects
         {
             // A number to watch rather than a rule to satisfy. It started at 101 (against 24 already
             // converted); lower it as the backlog shrinks so the direction stays visible in the diff.
-            const int WhenThisTestWasWritten = 78;
+            const int WhenThisTestWasWritten = 71;
 
             int pending = PendingTikDuration.Sum(kv => kv.Value.Length);
             Assert.IsTrue(pending <= WhenThisTestWasWritten,

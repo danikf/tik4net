@@ -94,7 +94,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Accepts RouterOS time format (e.g. "1d", "8h", "30m"). Default: "1d"
         /// </summary>
         [TikProperty("lifetime", DefaultValue = "1d")]
-        public string?/*time*/ Lifetime { get; set; }
+        public TikDuration? Lifetime { get; set; }
 
         /// <summary>
         /// lifebytes — maximum number of bytes transferred before the Phase 1 SA is re-keyed.
@@ -119,7 +119,8 @@ namespace tik4net.Objects.Ip.Ipsec
         /// When not set the mapper omits the field on add and the router uses its own default.
         /// </summary>
         [TikProperty("dpd-interval")]
-        public string?/*time|disable-dpd*/ DpdInterval { get; set; }
+        // 'disable-dpd' is one of the words TikDuration keeps as a Token rather than flattening to zero.
+        public TikDuration? DpdInterval { get; set; }
 
         /// <summary>
         /// dpd-maximum-failures — number of consecutive DPD probe failures before the peer

@@ -58,7 +58,7 @@ namespace tik4net.Objects.Ip.Hotspot
         /// idle-timeout: Maximal period of inactivity for authorized HotSpot clients. Timer is counting, when there is no traffic coming from that client and going through the router, for example computer is switched off. User is logged out, dropped of the host list, the address used by the user is freed, when timeout is reached.
         /// </summary>
         [TikProperty("idle-timeout", DefaultValue = "none", UnsetOnDefault = true)]
-        public string?/*time | none*/ IdleTimeout { get; set; }
+        public TikDuration? IdleTimeout { get; set; }
 
         /// <summary>
         /// incoming-filter: Name of the firewall chain applied to incoming packets from the users of this profile, jump rule is required from built-in chain (input, forward, output) to chain=hotspot
@@ -76,13 +76,13 @@ namespace tik4net.Objects.Ip.Hotspot
         /// keepalive-timeout: Keepalive timeout for authorized HotSpot clients. Used to detect, that the computer of the client is alive and reachable. User is logged out, when timeout value is reached
         /// </summary>
         [TikProperty("keepalive-timeout", UnsetOnDefault = true)]
-        public string?/*time | none*/ KeepaliveTimeout { get; set; }
+        public TikDuration? KeepaliveTimeout { get; set; }
 
         /// <summary>
         /// mac-cookie-timeout: Selects mac-cookie timeout from last login or logout. Read more&gt;&gt;
         /// </summary>
         [TikProperty("mac-cookie-timeout", DefaultValue = "3d", UnsetOnDefault = true)]
-        public string?/*time*/ MacCookieTimeout { get; set; }
+        public TikDuration? MacCookieTimeout { get; set; }
 
         /// <summary>
         /// name: Descriptive name of the profile

@@ -51,7 +51,7 @@ namespace tik4net.Objects.Ip.Hotspot
 
         /// <summary>http-cookie-lifetime — validity period of the authentication cookie. Default: 3d.</summary>
         [TikProperty("http-cookie-lifetime", DefaultValue = "3d")]
-        public string?/*time*/ HttpCookieLifetime { get; set; }
+        public TikDuration? HttpCookieLifetime { get; set; }
 
         /// <summary>install-hotspot-queue — create a simple queue to limit overall HotSpot throughput when enabled.</summary>
         [TikProperty("install-hotspot-queue", DefaultValue = "no")]

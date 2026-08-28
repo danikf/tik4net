@@ -76,7 +76,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// Default: 30m
         /// </summary>
         [TikProperty("lifetime", DefaultValue = "30m")]
-        public string?/*time*/ Lifetime { get; set; }
+        public TikDuration? Lifetime { get; set; }
 
         /// <summary>
         /// pfs-group — Diffie-Hellman group used for Perfect Forward Secrecy in Phase 2.
