@@ -121,13 +121,13 @@ namespace tik4net.Objects.Interface
         /// loop-protect-send-interval
         /// </summary>
         [TikProperty("loop-protect-send-interval", DefaultValue = "00:00:05")]
-        public string?/*time*/ LoopProtectSendInterval { get; set; }
+        public TikDuration? LoopProtectSendInterval { get; set; }
 
         /// <summary>
         /// loop-protect-disable-time
         /// </summary>
         [TikProperty("loop-protect-disable-time", DefaultValue = "00:05:00")]
-        public string?/*time*/ LoopProtectDisableTime { get; set; }
+        public TikDuration? LoopProtectDisableTime { get; set; }
 
         /// <summary>
         /// vlan-id: the VLAN tag (1–4094) carried on this interface's traffic.

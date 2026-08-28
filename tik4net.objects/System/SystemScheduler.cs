@@ -28,7 +28,7 @@ namespace tik4net.Objects.System
         /// interval — time between executions. <c>0s</c> means execute only at <see cref="StartTime"/>.
         /// </summary>
         [TikProperty("interval", DefaultValue = "0s")]
-        public string?/*time*/ Interval { get; set; }
+        public TikDuration? Interval { get; set; }
 
         /// <summary>
         /// start-date — date when the script first executes.

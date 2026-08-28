@@ -98,7 +98,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: 5m.
         /// </summary>
         [TikProperty("group-key-update", DefaultValue = "5m")]
-        public string?/*time*/ GroupKeyUpdate { get; set; }
+        public TikDuration? GroupKeyUpdate { get; set; }
 
         // ── PSK ───────────────────────────────────────────────────────────────
 

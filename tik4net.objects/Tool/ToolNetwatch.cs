@@ -56,19 +56,19 @@ namespace tik4net.Objects.Tool
 
         /// <summary>interval — time between successive probe attempts (e.g. "10s", "1m"). Default: 10s.</summary>
         [TikProperty("interval", DefaultValue = "10s")]
-        public string?/*time*/ Interval { get; set; }
+        public TikDuration? Interval { get; set; }
 
         /// <summary>timeout — maximum wait time for a probe response. Default: 3s.</summary>
         [TikProperty("timeout", DefaultValue = "3s")]
-        public string?/*time*/ Timeout { get; set; }
+        public TikDuration? Timeout { get; set; }
 
         /// <summary>start-delay — delay before the first probe after the entry is enabled. Default: 3s.</summary>
         [TikProperty("start-delay", DefaultValue = "3s")]
-        public string?/*time*/ StartDelay { get; set; }
+        public TikDuration? StartDelay { get; set; }
 
         /// <summary>startup-delay — delay after a system restart before the first probe. Default: 5m.</summary>
         [TikProperty("startup-delay", DefaultValue = "5m")]
-        public string?/*time*/ StartupDelay { get; set; }
+        public TikDuration? StartupDelay { get; set; }
 
         // ── Scripts ─────────────────────────────────────────────────────────────
 
@@ -114,7 +114,7 @@ namespace tik4net.Objects.Tool
 
         /// <summary>packet-interval — interval between individual ICMP packets within one probe cycle (type=icmp). Default: 50ms.</summary>
         [TikProperty("packet-interval", DefaultValue = "50ms")]
-        public string?/*time*/ PacketInterval { get; set; }
+        public TikDuration? PacketInterval { get; set; }
 
         /// <summary>packet-size — IP datagram size for ICMP packets (type=icmp). Default: 54.</summary>
         [TikProperty("packet-size")] // router default 54; omitted on add when left 0
@@ -138,19 +138,19 @@ namespace tik4net.Objects.Tool
 
         /// <summary>thr-max — maximum RTT threshold; probe fails when any packet exceeds this (type=icmp). Default: 1s.</summary>
         [TikProperty("thr-max", DefaultValue = "1s")]
-        public string?/*time*/ ThrMax { get; set; }
+        public TikDuration? ThrMax { get; set; }
 
         /// <summary>thr-avg — average RTT threshold (type=icmp). Default: 100ms.</summary>
         [TikProperty("thr-avg", DefaultValue = "100ms")]
-        public string?/*time*/ ThrAvg { get; set; }
+        public TikDuration? ThrAvg { get; set; }
 
         /// <summary>thr-stdev — RTT standard-deviation threshold (type=icmp). Default: 250ms.</summary>
         [TikProperty("thr-stdev", DefaultValue = "250ms")]
-        public string?/*time*/ ThrStdev { get; set; }
+        public TikDuration? ThrStdev { get; set; }
 
         /// <summary>thr-jitter — jitter threshold (type=icmp). Default: 1s.</summary>
         [TikProperty("thr-jitter", DefaultValue = "1s")]
-        public string?/*time*/ ThrJitter { get; set; }
+        public TikDuration? ThrJitter { get; set; }
 
         /// <summary>thr-loss-percent — packet loss percentage threshold; probe fails when loss exceeds this value (type=icmp). Default: 85.</summary>
         [TikProperty("thr-loss-percent", DefaultValue = "85")]
@@ -178,7 +178,7 @@ namespace tik4net.Objects.Tool
 
         /// <summary>thr-http-time — HTTP response time threshold; probe fails when response time exceeds this (type=http-get/https-get). Default: 10s.</summary>
         [TikProperty("thr-http-time", DefaultValue = "10s")]
-        public string?/*time*/ ThrHttpTime { get; set; }
+        public TikDuration? ThrHttpTime { get; set; }
 
         /// <summary>certificate — name of a certificate to use for HTTPS verification (type=https-get).</summary>
         [TikProperty("certificate")]

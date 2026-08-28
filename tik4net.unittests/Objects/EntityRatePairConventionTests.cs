@@ -102,11 +102,11 @@ namespace tik4net.unittests.Objects
                 ["FirewallFilter"] = new[] { "limit", "dst-limit" },
                 ["FirewallRaw"] = new[] { "limit", "dst-limit" },
 
-                // ── Durations, caught here only because their name contains 'limit' ─────────────────
-                // Both belong to the duration rule instead — see EntityDurationConventionTests, which
-                // carries them on its own backlog.
-                ["HotspotServerProfile"] = new[] { "rate-limit", "trial-uptime-limit" },
-                ["HotspotUser"] = new[] { "limit-uptime" },
+                // ── A duration, caught here only because its name contains 'limit' ─────────────────
+                // trial-uptime-limit and HotspotUser.limit-uptime used to sit here too; both are now
+                // TikDuration, so they are no longer string candidates and this list no longer needs to
+                // excuse them. rate-limit stays: it is the packed six-value string above.
+                ["HotspotServerProfile"] = new[] { "rate-limit" },
 
                 // ── Link speeds and a bitmask ───────────────────────────────────────────────────────
                 // Measured: '/interface/ethernet/monitor rate' is '1Gbps'. TikDataRate.TryParse rejects

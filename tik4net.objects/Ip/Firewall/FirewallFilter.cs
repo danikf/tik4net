@@ -157,7 +157,7 @@ namespace tik4net.Objects.Ip.Firewall
         /// Value of 00:00:00 will leave the address in the address list forever
         /// </summary>
         [TikProperty("address-list-timeout", DefaultValue = "00:00:00")]
-        public string?/*time*/ AddressListTimeout { get; set; }
+        public TikDuration? AddressListTimeout { get; set; }
 
         /// <summary>
         /// chain: Specifies to which chain rule will be added. If the input does not match the name of an already defined chain, a new chain will be created. 

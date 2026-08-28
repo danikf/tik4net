@@ -188,7 +188,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Group Key Update"
         /// </summary>
         [TikProperty("group-key-update", DefaultValue = "24h")]
-        public string?/*time*/ GroupKeyUpdate { get; set; }
+        public TikDuration? GroupKeyUpdate { get; set; }
 
         // ── Management frame protection (802.11w) ─────────────────────────────
 
@@ -368,7 +368,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "FT R0 Key Lifetime"
         /// </summary>
         [TikProperty("ft-r0-key-lifetime", DefaultValue = "600000s")]
-        public string?/*time*/ FtR0KeyLifetime { get; set; }
+        public TikDuration? FtR0KeyLifetime { get; set; }
 
         /// <summary>
         /// ft-reassociation-deadline — time window (0..70s) within which a client must

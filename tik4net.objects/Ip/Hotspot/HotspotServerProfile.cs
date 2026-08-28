@@ -86,7 +86,7 @@ namespace tik4net.Objects.Ip.Hotspot
         /// profile with <c>use-radius=yes</c>.
         /// </summary>
         [TikProperty("radius-interim-update", DefaultValue = "received")]
-        public string?/*time*/ RadiusInterimUpdate { get; set; }
+        public TikDuration? RadiusInterimUpdate { get; set; }
 
         /// <summary>radius-default-domain — domain appended to username for RADIUS lookups when no domain is specified.</summary>
         [TikProperty("radius-default-domain", DefaultValue = "")]
@@ -126,11 +126,11 @@ namespace tik4net.Objects.Ip.Hotspot
 
         /// <summary>trial-uptime-limit — maximum session time for trial users (0s = disabled).</summary>
         [TikProperty("trial-uptime-limit", DefaultValue = "0s")]
-        public string?/*time*/ TrialUptimeLimit { get; set; }
+        public TikDuration? TrialUptimeLimit { get; set; }
 
         /// <summary>trial-uptime-reset — interval after which the trial uptime counter resets (0s = no reset).</summary>
         [TikProperty("trial-uptime-reset", DefaultValue = "0s")]
-        public string?/*time*/ TrialUptimeReset { get; set; }
+        public TikDuration? TrialUptimeReset { get; set; }
 
         // --- Read-only ---
 

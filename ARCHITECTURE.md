@@ -387,7 +387,13 @@ every push, so a new entity that breaks one fails the build rather than the firs
 | `EntityRatePairConventionTests` | rule 7 — a paired rate is `TikRatePair?`, never `string?` | **ratchet** |
 
 The duration rule is a ratchet rather than pass/fail because it was documented for a long time before
-anything checked it, and 108 fields are still `string?` against 24 converted. The test carries that backlog
+anything checked it: 108 fields were `string?` against 24 converted when the test was written, and 14 remain.
+Most of the backlog was cleared by **configuring the lab router**, not by reading documentation — the menus
+were not empty, they simply had no rows, and RouterOS does not report a field that is unset. Two things that
+exercise settled are worth carrying forward: the clock-form spelling is **per field, not per transport**
+(`/tool/netwatch interval` is `1d00:00:00` over the CLI while `/interface/eoip arp-timeout` is `25s` on both),
+and it has to be read from the **raw** CLI, because this library normalises clock form back to compact on the
+way in — probing through our own command path shows compact everywhere and proves nothing. The test carries that backlog
 as an explicit list: a field on the list is tolerated, anything else fails, and converting one means deleting
 its line. It cannot grow, and a stale entry fails too. Alongside it sits a second list of fields whose names
 read temporal but which are **not** durations — `/system/clock`'s `time` and `gmt-offset`, a firewall `time`

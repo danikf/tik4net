@@ -54,7 +54,7 @@
         /// limit-uptime: Uptime limit for the HotSpot client, user is disconnected from HotSpot as soon as uptime is reached.
         /// </summary>
         [TikProperty("limit-uptime", DefaultValue = "0")]
-        public string?/*time*/ LimitUptime { get; set; }
+        public TikDuration? LimitUptime { get; set; }
 
         /// <summary>
         /// mac-address: Client is allowed to login only from the specified MAC-address. If value is  00:00:00:00:00:00, any mac address is allowed.

@@ -146,7 +146,7 @@ namespace tik4net.Objects.CapsMan
         /// (time value, e.g. "1h", "30m").  Empty = no automatic re-selection.
         /// </summary>
         [TikProperty("reselect-interval", DefaultValue = "")]
-        public string?/*time*/ ReselectInterval { get; set; }
+        public TikDuration? ReselectInterval { get; set; }
 
         /// <summary>
         /// save-selected — when true, persists the automatically-selected frequency across

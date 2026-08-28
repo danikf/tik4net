@@ -54,7 +54,7 @@ namespace tik4net.Objects.Ip.Dns
         /// time-to-live of the DNS record
         /// </summary>
         [TikProperty("ttl")]
-        public string?/*time*/ Ttl { get; set; }
+        public TikDuration? Ttl { get; set; }
 
         /// <summary>
         /// disabled: 

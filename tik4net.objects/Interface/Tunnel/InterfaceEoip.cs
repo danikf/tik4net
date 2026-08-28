@@ -57,7 +57,7 @@ namespace tik4net.Objects.Interface.Tunnel
 
         /// <summary>arp-timeout — How long ARP entries are kept. Default: auto.</summary>
         [TikProperty("arp-timeout", DefaultValue = "auto")]
-        public string?/*time*/ ArpTimeout { get; set; }
+        public TikDuration? ArpTimeout { get; set; }
 
         public enum LoopProtectMode
         {
@@ -80,11 +80,11 @@ namespace tik4net.Objects.Interface.Tunnel
 
         /// <summary>loop-protect-send-interval — How often loop protection packets are sent. Default: 5s.</summary>
         [TikProperty("loop-protect-send-interval", DefaultValue = "5s")]
-        public string?/*time*/ LoopProtectSendInterval { get; set; }
+        public TikDuration? LoopProtectSendInterval { get; set; }
 
         /// <summary>loop-protect-disable-time — How long to disable interface when loop is detected. Default: 5m.</summary>
         [TikProperty("loop-protect-disable-time", DefaultValue = "5m")]
-        public string?/*time*/ LoopProtectDisableTime { get; set; }
+        public TikDuration? LoopProtectDisableTime { get; set; }
 
         /// <summary>local-address — Local tunnel endpoint IP address. 0.0.0.0 means use the outgoing interface address.</summary>
         [TikProperty("local-address", DefaultValue = "0.0.0.0")]

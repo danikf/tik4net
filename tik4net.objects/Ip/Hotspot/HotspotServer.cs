@@ -39,15 +39,15 @@ namespace tik4net.Objects.Ip.Hotspot
 
         /// <summary>idle-timeout — how long an idle (no traffic) client remains connected. Default: none (disabled).</summary>
         [TikProperty("idle-timeout", DefaultValue = "none")]
-        public string?/*time|none*/ IdleTimeout { get; set; }
+        public TikDuration? IdleTimeout { get; set; }
 
         /// <summary>keepalive-timeout — interval for checking that a client's host is still reachable. Default: none.</summary>
         [TikProperty("keepalive-timeout", DefaultValue = "none")]
-        public string?/*time|none*/ KeepaliveTimeout { get; set; }
+        public TikDuration? KeepaliveTimeout { get; set; }
 
         /// <summary>login-timeout — maximum time allowed for login after initial redirect. Default: none.</summary>
         [TikProperty("login-timeout", DefaultValue = "none")]
-        public string?/*time|none*/ LoginTimeout { get; set; }
+        public TikDuration? LoginTimeout { get; set; }
 
         /// <summary>disabled — when yes, the server is inactive.</summary>
         [TikProperty("disabled", DefaultValue = "no")]

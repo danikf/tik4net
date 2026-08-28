@@ -45,7 +45,7 @@ namespace tik4net.Objects.Interface
 
         /// <summary>interval — How often the VRRP master sends advertisement packets. Default: 1s.</summary>
         [TikProperty("interval", DefaultValue = "1s")]
-        public string?/*time*/ Interval { get; set; }
+        public TikDuration? Interval { get; set; }
 
         /// <summary>preemption-mode — Whether a higher-priority backup immediately takes over master role.</summary>
         [TikProperty("preemption-mode", DefaultValue = "yes")]
@@ -89,7 +89,7 @@ namespace tik4net.Objects.Interface
 
         /// <summary>arp-timeout — How long ARP entries are kept. Default: auto.</summary>
         [TikProperty("arp-timeout", DefaultValue = "auto")]
-        public string?/*time*/ ArpTimeout { get; set; }
+        public TikDuration? ArpTimeout { get; set; }
 
         /// <summary>version — VRRP protocol version (2 or 3). Default: 3. DefaultValue="0" prevents sending 0 on add.</summary>
         [TikProperty("version", DefaultValue = "0")]

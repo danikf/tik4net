@@ -148,7 +148,7 @@ namespace tik4net.Objects.Ip.Hotspot
         /// session-timeout: Allowed session time for client.  After this time, the user is logged out unconditionally
         /// </summary>
         [TikProperty("session-timeout", DefaultValue = "0s")]
-        public string?/*time*/ SessionTimeout { get; set; }
+        public TikDuration? SessionTimeout { get; set; }
 
         /// <summary>
         /// shared-users: Allowed number of simultaneously logged in users with the same HotSpot username

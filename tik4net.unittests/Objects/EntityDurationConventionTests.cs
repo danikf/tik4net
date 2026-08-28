@@ -22,16 +22,30 @@ namespace tik4net.unittests.Objects
     /// (<c>none</c>, <c>disabled</c>, <c>auto</c>) rather than flattening them to zero.
     /// </para>
     /// <para>
-    /// It was documented but nothing enforced it, and documentation on its own lost: 108 duration fields were
-    /// still <c>string?</c> when this test was written, against 24 converted. The source carries a
-    /// <c>/*time*/</c> marker comment on many of them, and counting those alone gives 101 — the marker is not
-    /// the measure either way, since it also sits on several fields that are not durations at all. Reflection
-    /// over the wire names found 16 more offenders with no marker, and the three lists below were sorted out
-    /// by hand from there. So the test is built
-    /// as a <b>ratchet</b> rather than a pass/fail: <see cref="PendingTikDuration"/> lists the known offenders
-    /// and they are tolerated, while anything outside it fails. Converting one means deleting its line here —
-    /// and the list is checked for staleness in both directions, so a converted field left in the list fails
-    /// too. The backlog cannot grow and cannot silently stop shrinking.
+    /// It was documented but nothing enforced it, and documentation on its own lost: 108 duration fields
+    /// were still <c>string?</c> when this test was written, against 24 converted. So it is built as a
+    /// <b>ratchet</b> rather than pass/fail: <see cref="PendingTikDuration"/> lists the known offenders and
+    /// they are tolerated, while anything outside it fails. Converting one means deleting its line here —
+    /// and the list is checked for staleness in both directions, so a converted field left in the list
+    /// fails too. The backlog cannot grow and cannot silently stop shrinking.
+    /// </para>
+    /// <para>
+    /// <b>Most of the backlog was cleared by configuring the router rather than by reading more
+    /// documentation.</b> The menus were not empty; they simply had no rows, and a RouterOS field that is
+    /// unset is not reported at all. Creating one row per menu and setting each field brought 56 of the
+    /// remaining 71 within reach of a live measurement. The 14 still listed below each need a state this
+    /// lab cannot produce, and are grouped by which one.
+    /// </para>
+    /// <para>
+    /// <b>Two things that measurement settled, and neither was what the rule assumed.</b> First, the
+    /// clock-form spelling is <b>per field, not per transport</b>: in one <c>/tool/netwatch</c> row the CLI
+    /// writes <c>interval=1d00:00:00</c> and <c>packet-interval=00:00:00.100</c> while, three fields away in
+    /// <c>/interface/eoip</c>, <c>arp-timeout=25s</c> is compact on both. Both kinds are converted — the
+    /// type also exists to hold the words <c>none</c>/<c>auto</c>, which a compact-only field still uses —
+    /// but the divergence is not the blanket rule the original wording implied. Second, the spelling must be
+    /// read from the <b>raw</b> CLI: this library already normalises clock form back to compact on the way
+    /// in, so probing through our own command path shows compact everywhere and proves nothing. That is how
+    /// <c>/tool/netwatch</c> first looked like it did not diverge at all.
     /// </para>
     /// <para>
     /// <b>Not every field whose name reads like a duration is one</b>, which is why the classification is two
@@ -72,6 +86,11 @@ namespace tik4net.unittests.Objects
                 ["IpsecInstalledSa"] = new[] { "add-lifetime" },
                 // A comma-separated LIST of intervals ('30m,10m,5m'), not one duration.
                 ["HotspotUserProfile"] = new[] { "advertise-interval" },
+
+                // Measured: an OpenVPN server reports keepalive-timeout=60 — a bare integer of seconds —
+                // and REFUSES '75s' with 'input does not match any value'. The name is the whole trap: the
+                // field beside it on every other menu is a duration, this one is a count.
+                ["OvpnServer"] = new[] { "keepalive-timeout" },
             };
 
         /// <summary>
@@ -81,42 +100,30 @@ namespace tik4net.unittests.Objects
         private static readonly Dictionary<string, string[]> PendingTikDuration =
             new Dictionary<string, string[]>
             {
-                ["CapsManAccessList"] = new[] { "allow-signal-out-of-range" },
-                ["CapsManChannel"] = new[] { "reselect-interval" },
-                ["CapsManConfiguration"] = new[] { "channel.reselect-interval", "disconnect-timeout", "frame-lifetime", "security.group-key-update" },
-                ["CapsManInterface"] = new[] { "arp-timeout" },
-                ["CapsManSecurity"] = new[] { "group-key-update" },
-                ["DhcpServerAlert"] = new[] { "alert-timeout" },
-                ["DnsStatic"] = new[] { "ttl" },
-                ["FirewallFilter"] = new[] { "address-list-timeout" },
-                ["FirewallRaw"] = new[] { "address-list-timeout" },
-                ["HotspotServerProfile"] = new[] { "radius-interim-update", "trial-uptime-limit", "trial-uptime-reset" },
+                // What is left is not a matter of effort: every one of these needs a router state this lab
+                // cannot reach. They fall into three groups.
+                //
+                // Runtime state that needs a live peer, session or client:
                 ["HotspotActive"] = new[] { "idle-timeout" },
-                ["HotspotServer"] = new[] { "idle-timeout", "keepalive-timeout", "login-timeout" },
-                ["HotspotUser"] = new[] { "limit-uptime" },
-                ["HotspotUserProfile"] = new[] { "advertise-timeout", "session-timeout" },
-                ["InterfaceBonding"] = new[] { "arp-interval", "arp-timeout", "down-delay", "mii-interval", "up-delay" },
-                ["InterfaceBridge"] = new[] { "ageing-time", "forward-delay", "max-message-age" },
-                ["InterfaceEoip"] = new[] { "arp-timeout", "loop-protect-disable-time", "loop-protect-send-interval" },
-                ["InterfaceVlan"] = new[] { "loop-protect-disable-time", "loop-protect-send-interval" },
-                ["InterfaceVrrp"] = new[] { "arp-timeout", "interval" },
-                ["InterfaceWifi"] = new[] { "arp-timeout" },
-                ["InterfaceWireless"] = new[] { "disconnect-timeout" },
-                ["InterfaceVxlan"] = new[] { "arp-timeout", "loop-protect-disable-time", "loop-protect-send-interval" },
-                ["IpDhcpServer"] = new[] { "lease-time" },
                 ["IpsecActivePeers"] = new[] { "last-seen", "uptime" },
                 ["IpsecInstalledSa"] = new[] { "expires-in" },
-                ["OvpnServer"] = new[] { "keepalive-timeout" },
                 ["OspfNeighbor"] = new[] { "adjacency", "timeout" },
-                ["PppProfile"] = new[] { "idle-timeout", "session-timeout" },
-                ["SystemScheduler"] = new[] { "interval" },
-                ["ToolNetwatch"] = new[] { "interval", "packet-interval", "start-delay", "startup-delay", "tcp-connect-time", "thr-avg", "thr-http-time", "thr-jitter", "thr-max", "thr-stdev", "timeout" },
-                ["WifiAccessList"] = new[] { "allow-signal-out-of-range" },
-                ["WifiChannel"] = new[] { "reselect-interval" },
-                ["WifiConfiguration"] = new[] { "beacon-interval" },
                 ["WifiRegistrationTable"] = new[] { "last-activity", "uptime" },
-                ["WifiSecurity"] = new[] { "ft-r0-key-lifetime", "group-key-update" },
+                // A read-only counter that only appears once a probe cycle has completed against a
+                // reachable host (the writable threshold beside it, thr-tcp-conn-time, IS converted).
+                ["ToolNetwatch"] = new[] { "tcp-connect-time" },
+                //
+                // Hardware or a real CAP:
+                ["CapsManInterface"] = new[] { "arp-timeout" },
+                ["InterfaceWifi"] = new[] { "arp-timeout" },
+                //
+                // The menu does not exist on this RouterOS at all — /interface/wireless answers "no such
+                // command prefix", so neither entity can be checked here under any configuration:
+                ["InterfaceWireless"] = new[] { "disconnect-timeout" },
                 ["WirelessSecurityProfile"] = new[] { "interim-update" },
+                //
+                // Reported only when advertising is switched on, which needs a working hotspot:
+                ["HotspotUserProfile"] = new[] { "advertise-timeout" },
             };
 
         // Wire-name shapes that mean "elapsed time" on RouterOS. Deliberately narrow: a suffix that also
@@ -203,7 +210,7 @@ namespace tik4net.unittests.Objects
         {
             // A number to watch rather than a rule to satisfy. It started at 101 (against 24 already
             // converted); lower it as the backlog shrinks so the direction stays visible in the diff.
-            const int WhenThisTestWasWritten = 71;
+            const int WhenThisTestWasWritten = 14;
 
             int pending = PendingTikDuration.Sum(kv => kv.Value.Length);
             Assert.IsTrue(pending <= WhenThisTestWasWritten,

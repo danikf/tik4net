@@ -204,7 +204,7 @@ namespace tik4net.Objects.CapsMan
         /// channel.reselect-interval — interval for automatic frequency re-optimisation (time value, e.g. "1h").
         /// </summary>
         [TikProperty("channel.reselect-interval")]
-        public string?/*time*/ ChannelReselectInterval { get; set; }
+        public TikDuration? ChannelReselectInterval { get; set; }
 
         /// <summary>
         /// channel.save-selected — persist the auto-selected frequency across CAP reconnections.
@@ -320,7 +320,7 @@ namespace tik4net.Objects.CapsMan
         /// Default: 5m.
         /// </summary>
         [TikProperty("security.group-key-update", DefaultValue = "5m")]
-        public string?/*time*/ SecurityGroupKeyUpdate { get; set; }
+        public TikDuration? SecurityGroupKeyUpdate { get; set; }
 
         /// <summary>
         /// security.passphrase — WPA/WPA2 pre-shared key (PSK).
@@ -487,14 +487,14 @@ namespace tik4net.Objects.CapsMan
         /// Empty = no limit.
         /// </summary>
         [TikProperty("frame-lifetime")]
-        public string?/*time*/ FrameLifetime { get; set; }
+        public TikDuration? FrameLifetime { get; set; }
 
         /// <summary>
         /// disconnect-timeout — how long to wait after the last keepalive failure before
         /// de-authenticating the client (time value, e.g. "3s").
         /// </summary>
         [TikProperty("disconnect-timeout")]
-        public string?/*time*/ DisconnectTimeout { get; set; }
+        public TikDuration? DisconnectTimeout { get; set; }
 
         // ── Multicast ─────────────────────────────────────────────────────────
 

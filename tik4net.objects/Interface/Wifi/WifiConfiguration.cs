@@ -277,7 +277,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Beacon Interval"
         /// </summary>
         [TikProperty("beacon-interval", DefaultValue = "100ms")]
-        public string?/*time*/ BeaconInterval { get; set; }
+        public TikDuration? BeaconInterval { get; set; }
 
         /// <summary>
         /// dtim-period — number of beacon intervals between DTIM frames (1..255).

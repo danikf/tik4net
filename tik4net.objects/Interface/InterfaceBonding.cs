@@ -78,11 +78,11 @@ namespace tik4net.Objects.Interface
 
         /// <summary>mii-interval — How often to monitor link failures when link-monitoring=mii. Real default: 100ms.</summary>
         [TikProperty("mii-interval", DefaultValue = "100ms")]
-        public string?/*time*/ MiiInterval { get; set; }
+        public TikDuration? MiiInterval { get; set; }
 
         /// <summary>arp-interval — How often to monitor ARP requests when link-monitoring=arp. Real default: 100ms.</summary>
         [TikProperty("arp-interval", DefaultValue = "100ms")]
-        public string?/*time*/ ArpInterval { get; set; }
+        public TikDuration? ArpInterval { get; set; }
 
         /// <summary>arp-ip-targets — IP addresses monitored when link-monitoring=arp (comma-separated).</summary>
         [TikProperty("arp-ip-targets", DefaultValue = "")]
@@ -107,15 +107,15 @@ namespace tik4net.Objects.Interface
 
         /// <summary>arp-timeout — How long to keep ARP entries. Real default: auto.</summary>
         [TikProperty("arp-timeout", DefaultValue = "auto")]
-        public string?/*time*/ ArpTimeout { get; set; }
+        public TikDuration? ArpTimeout { get; set; }
 
         /// <summary>down-delay — Time to disable interface after link failure is detected. Default: 0ms.</summary>
         [TikProperty("down-delay", DefaultValue = "0ms")]
-        public string?/*time*/ DownDelay { get; set; }
+        public TikDuration? DownDelay { get; set; }
 
         /// <summary>up-delay — Time to disable interface after a link is brought up. Default: 0ms.</summary>
         [TikProperty("up-delay", DefaultValue = "0ms")]
-        public string?/*time*/ UpDelay { get; set; }
+        public TikDuration? UpDelay { get; set; }
 
         /// <summary>min-links — Minimum number of active slave links required for bonding to be active. Default: 0 (disabled).</summary>
         [TikProperty("min-links", DefaultValue = "0")]

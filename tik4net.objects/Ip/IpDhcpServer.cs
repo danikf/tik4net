@@ -145,7 +145,7 @@ namespace tik4net.Objects.Ip
         /// lease-time: The time that a client may use the assigned address. The client will try to renew this address after a half of this time and will request a new address after time limit expires.
         /// </summary>
         [TikProperty("lease-time", DefaultValue = "72h")]
-        public string?/*time*/ LeaseTime { get; set; }
+        public TikDuration? LeaseTime { get; set; }
 
         /// <summary>
         /// name: Reference name

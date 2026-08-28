@@ -119,7 +119,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Allow Signal Out Of Range"
         /// </summary>
         [TikProperty("allow-signal-out-of-range", DefaultValue = "always")]
-        public string?/*time*/ AllowSignalOutOfRange { get; set; }
+        public TikDuration? AllowSignalOutOfRange { get; set; }
 
         /// <summary>
         /// time — time-of-day range during which the rule is active, in the form

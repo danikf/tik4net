@@ -125,7 +125,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// WinBox: "Reselect Interval"
         /// </summary>
         [TikProperty("reselect-interval", DefaultValue = "disabled")]
-        public string?/*time|disabled*/ ReselectInterval { get; set; }
+        public TikDuration? ReselectInterval { get; set; }
 
         /// <summary>
         /// reselect-time — wall-clock time at which a periodic channel rescan is triggered.

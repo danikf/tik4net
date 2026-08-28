@@ -62,7 +62,7 @@ namespace tik4net.Objects.Ppp
         /// idle-timeout: Specifies the amount of time after which the link will be terminated if there are no activity present. Timeout is not set by default
         /// </summary>
         [TikProperty("idle-timeout")]
-        public string?/*time*/ IdleTimeout { get; set; }
+        public TikDuration? IdleTimeout { get; set; }
 
         /// <summary>
         /// incoming-filter: Firewall chain name for incoming packets. Specified chain gets control for each packet coming from the client. The ppp chain should be manually added and rules with action=jump jump-target=ppp should be added to other relevant chains in order for this feature to work. For more information look at the  examples section
@@ -120,7 +120,7 @@ namespace tik4net.Objects.Ppp
         /// session-timeout: Maximum time the connection can stay up. By default no time limit is set.
         /// </summary>
         [TikProperty("session-timeout")]
-        public string?/*time*/ SessionTimeout { get; set; }
+        public TikDuration? SessionTimeout { get; set; }
 
         /// <summary>
         /// use-compression

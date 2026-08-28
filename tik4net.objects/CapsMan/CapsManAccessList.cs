@@ -146,7 +146,7 @@ namespace tik4net.Objects.CapsMan
         /// WinBox: "Allow Signal Out Of Range"
         /// </summary>
         [TikProperty("allow-signal-out-of-range", DefaultValue = "always")]
-        public string?/*time*/ AllowSignalOutOfRange { get; set; }
+        public TikDuration? AllowSignalOutOfRange { get; set; }
 
         /// <summary>
         /// time — time-of-day and days-of-week range during which the rule is active,

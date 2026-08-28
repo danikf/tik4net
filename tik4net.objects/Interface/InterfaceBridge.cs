@@ -29,7 +29,7 @@ namespace tik4net.Objects.Interface
         /// ageing-time: How long a host's information will be kept in the bridge database
         /// </summary>
         [TikProperty("ageing-time", DefaultValue = "00:05:00")]
-        public string?/*time*/ AgeingTime { get; set; }
+        public TikDuration? AgeingTime { get; set; }
 
         /// <summary>
         /// Address Resolution Protocol setting  
@@ -81,7 +81,7 @@ namespace tik4net.Objects.Interface
         /// forward-delay: Time which is spent during the initialization phase of the bridge interface (i.e., after router startup or enabling the interface) in listening/learning state before the bridge will start functioning normally
         /// </summary>
         [TikProperty("forward-delay", DefaultValue = "00:00:15")]
-        public string?/*time*/ ForwardDelay { get; set; }
+        public TikDuration? ForwardDelay { get; set; }
 
         /// <summary>
         /// l2mtu: Layer2 Maximum transmission unit.  read more&#187; 
@@ -93,7 +93,7 @@ namespace tik4net.Objects.Interface
         /// max-message-age: How long to remember Hello messages received from other bridges
         /// </summary>
         [TikProperty("max-message-age", DefaultValue = "00:00:20")]
-        public string?/*time*/ MaxMessageAge { get; set; }
+        public TikDuration? MaxMessageAge { get; set; }
 
         /// <summary>
         /// mtu: Maximum Transmission Unit
