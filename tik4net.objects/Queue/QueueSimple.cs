@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -114,10 +114,13 @@ namespace tik4net.Objects.Queue
         public long TotalDropped { get; private set; }
 
         /// <summary>
-        /// rate
+        /// The traffic currently passing the queue, as an <c>upload/download</c> pair — measured
+        /// <c>0/0</c> on an idle queue. Reported only by the binary API and REST: the CLI transports read
+        /// <c>print as-value</c>, which omits the statistics block entirely, so this stays null there.
+        /// <see cref="TotalRate"/> is the same reading as one number.
         /// </summary>
         [TikProperty("rate", IsReadOnly = true)]
-        public string? Rate { get; private set; }
+        public TikRatePair? Rate { get; private set; }
 
         /// <summary>
         /// total-rate
@@ -126,10 +129,12 @@ namespace tik4net.Objects.Queue
         public long TotalRate { get; private set; }
 
         /// <summary>
-        /// packet-rate
+        /// Packets per second through the queue, as an <c>upload/download</c> pair. A rate pair like
+        /// <see cref="Rate"/> and read the same way, counting packets rather than bits; see there for why
+        /// it is null over the CLI transports.
         /// </summary>
         [TikProperty("packet-rate", IsReadOnly = true)]
-        public string? PacketRate { get; private set; }
+        public TikRatePair? PacketRate { get; private set; }
 
         /// <summary>
         /// total-packet-rate

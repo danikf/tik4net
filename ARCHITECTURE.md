@@ -384,6 +384,7 @@ every push, so a new entity that breaks one fails the build rather than the firs
 | `EntityStructureConventionTests` | `.id`, paths, enums, read-only counters | pass/fail |
 | `EntityDefaultValueConventionTests` | the `DefaultValue` / nullability rules (points 5–6 above) | pass/fail |
 | `EntityDurationConventionTests` | rule 6 — a duration is `TikDuration?`, never `string?` | **ratchet** |
+| `EntityRatePairConventionTests` | rule 7 — a paired rate is `TikRatePair?`, never `string?` | **ratchet** |
 
 The duration rule is a ratchet rather than pass/fail because it was documented for a long time before
 anything checked it, and 108 fields are still `string?` against 24 converted. The test carries that backlog
@@ -393,7 +394,17 @@ read temporal but which are **not** durations — `/system/clock`'s `time` and `
 match (a time-of-day range plus weekdays), wireless `ht-guard-interval` (an enum), `add-lifetime` (a
 soft/hard pair) — because that distinction is the part no rule gets right on its own.
 
-**Rule 7 (`TikRatePair`) has no test yet.** Treat it as documented-only until it does.
+Rule 7 is a ratchet too, but a short one, and for a reason worth knowing: **neither the field's name nor
+the shape of its value identifies a rate pair.** One `/queue/simple` row carries eight fields written `a/b`
+and only four are rates — `queue=default-small/default-small` is a pair of queue-type names, `priority=8/8`
+a pair of small integers, `bucket-size=0.1/0.1` a pair of decimals `TikDataRate` would truncate, and
+`burst-time=0s/0s` a pair of durations. Read the other way, most rate-sounding names are not pairs at all:
+`/interface/ethernet/monitor rate` is `1Gbps`, whose unit `TikDataRate` rejects outright (the suffixes are
+`k M G T`), `/ip/settings icmp-rate-mask` is the bitmask `0x1818`, `rate-set` and `rate-selection` are enums,
+and a PPP or Hotspot `rate-limit` packs up to six pairs into one string. So the test classifies all 46
+candidates by hand into `NotRatePairs` and a backlog of one: `/interface/ethernet bandwidth`, a real rx/tx
+pair whose default is `unlimited/unlimited` — a word `TikDataRate` has no room for the way `TikDuration` has
+for `none`.
 
 The `entity-generator` skill scaffolds these from a live router. It replaced two WinForms
 generators (`tik4net.entitygenerator`, `tik4net.entityWikiImporter`), deleted in 4.0 — the skill reads
