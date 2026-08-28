@@ -941,12 +941,27 @@ namespace tik4net.Winbox
                 // upload-max-limit and download-max-limit and no max-limit at all, so the field simply did
                 // not exist on this transport.
                 //
-                // Six of the eight paired fields are here. The two that are not:
+                // Six of the eight paired CONFIGURATION fields are here. The two that are not:
                 //   * burst-time — the halves decode as "10"/"20" where the API says "10s/20s"; the .jg does
                 //     not type them as intervals, so pairing them would join two wrong values into one.
                 //   * queue      — the halves are queue-type IDs (4294967294) where the API says
                 //     "default-small/default-small"; that needs the reference resolved first.
                 // Both are left reporting their halves rather than given a plausible-looking wrong answer.
+                //
+                // The READ-ONLY statistics pair the same way, and for the same reason. The window's
+                // Statistics tab is a column of {tuple,separate:1,c:[{name:'Upload …'},{name:'Download …'}]}
+                // and the TUPLE's own name is the API's field name — 'Bytes' over 'Total Uploaded Bytes'
+                // (0xC8) and 'Total Downloaded Bytes' (0x12C) is the API's 'bytes'. Every statistic the API
+                // prints on this menu is one such tuple and every half is consumed by exactly one of them,
+                // which is what makes the correspondence a reading of the catalog rather than a guess.
+                //
+                // Magnitudes are NOT verified against the API: a simple queue counts forwarded traffic only
+                // and the lab CHR forwards none, so every half reads 0 on both transports. What is verified
+                // is the shape — the API's own "0/0" on each of them — and the direction, which the
+                // configuration pairs above pin down on this same path with 1M/2M.
+                //
+                // 'PCQ Queues' (0xD5/0x139) is deliberately NOT paired: the API prints no such field on
+                // /queue/simple, so pairing it would invent one.
                 ["/queue/simple"] = new FieldAliasSet(
                     pairedFields: Pairs(
                         ("max-limit", "upload-max-limit", "download-max-limit"),
@@ -954,9 +969,24 @@ namespace tik4net.Winbox
                         ("burst-limit", "upload-burst-limit", "download-burst-limit"),
                         ("burst-threshold", "upload-burst-threshold", "download-burst-threshold"),
                         ("priority", "upload-priority", "download-priority"),
-                        ("bucket-size", "upload-bucket-size", "download-bucket-size")),
-                    apiToJg: Ci(),
-                    jgToApi: Ci()),
+                        ("bucket-size", "upload-bucket-size", "download-bucket-size"),
+                        // Statistics tab — read-only, one tuple per API field.
+                        ("bytes", "total-uploaded-bytes", "total-downloaded-bytes"),
+                        ("packets", "total-uploaded-packets", "total-downloaded-packets"),
+                        ("dropped", "upload-dropped", "download-dropped"),
+                        ("rate", "upload-avg-rate", "download-avg-rate"),
+                        ("packet-rate", "upload-avg-packet-rate", "download-avg-packet-rate"),
+                        ("queued-bytes", "upload-queued-bytes", "download-queued-bytes"),
+                        ("queued-packets", "upload-queued-packets", "download-queued-packets")),
+                    // The Total Statistics tab needs no pairing — those are single values — but WinBox says
+                    // 'Avg.' where the API does not: 'Total Avg. Rate' (0x194) is the API's 'total-rate' and
+                    // 'Total Avg. Packet Rate' (0x195) its 'total-packet-rate'. The other five totals
+                    // (total-bytes, total-packets, total-dropped, total-queued-bytes, total-queued-packets)
+                    // already carry the API's own name.
+                    apiToJg: Ci(("total-rate", "total-avg-rate"),
+                                ("total-packet-rate", "total-avg-packet-rate")),
+                    jgToApi: Ci(("total-avg-rate", "total-rate"),
+                                ("total-avg-packet-rate", "total-packet-rate"))),
 
                 // /interface: the .jg 'type' field is the numeric type id (key 0x10001), but RouterOS API exposes
                 // 'type' as the type *name* string — which the record also carries at key 0x1001E (e.g. "ether",

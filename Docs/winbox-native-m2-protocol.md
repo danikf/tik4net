@@ -1521,6 +1521,28 @@ Limit',…}]}`. Claiming the parent there would take two named fields away and p
 a label RouterOS does not use. A child with a name of its own is a field in its own right whatever the
 tuple says, so both tests are applied.
 
+The same shape carries the menu's READ-ONLY statistics, and the pairing table carries those too. The
+Statistics tab is a column of `{tuple,sep:' ',separate:1,c:[{name:'Upload …',ro:1},{name:'Download …',
+ro:1}]}`, and **the tuple's own name is the API's field name**: `Bytes` over `Total Uploaded Bytes`
+(`0xC8`) and `Total Downloaded Bytes` (`0x12C`) is the API's `bytes`, `Avg. Rate` over `0xCC`/`0x130` is
+its `rate`, and so on through `packets`, `dropped`, `packet-rate`, `queued-bytes` and `queued-packets`.
+Every statistic the API prints on the menu is one such tuple and every half is claimed by exactly one of
+them, which is what makes the correspondence a reading of the catalog rather than a guess. `PCQ Queues`
+(`0xD5`/`0x139`) is the one tuple deliberately left unpaired — the API prints no such field, so pairing
+it would invent one.
+
+The neighbouring `Total Statistics` tab needs no pairing (single values), but WinBox says `Avg.` where
+the API does not: `Total Avg. Rate` (`0x194`) is `total-rate` and `Total Avg. Packet Rate` (`0x195`) is
+`total-packet-rate`. Those two are name aliases; the other five totals already carry the API's own name.
+
+**The magnitudes are not verified against the API, and cannot be on this lab.** A simple queue counts
+FORWARDED traffic only: measured on 7.24, a queue targeting the router's own address stays at zero while
+273 KB leaves the router, and so does one targeting `ether1`, because the CHR forwards nothing. What is
+verified is the shape — the API's own `0/0` on every one of them — and the direction, which the
+configuration pairs of the same window pin down with `1M/2M`. Value correlation could not have settled
+it either way: with every half at zero the audit's pairing proposal offered all 23 zero-valued fields as
+candidates for each name.
+
 It does NOT subsume the shipped `AddrPortPairs` table, which is a different shape: there the `.jg`
 labels BOTH boxes and the API joins them — `/ip/hotspot/profile` declares `{name:'HTTP Proxy',id:'u83'}`
 and `{name:'HTTP Proxy Port',id:'u84'}` as two ordinary fields, and only RouterOS knows they are one.
@@ -1567,9 +1589,13 @@ at one of those keys keeps its own name for it.
 
 `TransportPathMapAuditTest` passes a path when native reports at least HALF the API's field names, so
 everything between half and all of that vocabulary was invisible in a green tally. Counting it instead of
-thresholding it: **26 of 669 API field names (3%) are still not reported by native**, down from 111 before
-the row-state keys, 82 before the pairings below and 35 before the scalar `union`/`tuple` shapes of §32.7. The report names the missing fields on the passing
-lines rather than only on the failing ones.
+thresholding it: **96 of 1342 API field names (7%) are still not reported by native**. The report names the
+missing fields on the passing lines rather than only on the failing ones.
+
+Both halves of that fraction move when the audit's fixtures do — an empty table has no field names to
+disagree about — so it is comparable only between runs of the same fixture set. Measured against the
+current one, `/queue/simple`'s statistics were the last large block: pairing them took the path from
+19 of 30 field names to 28 of 30, and the whole run from 105 to 96.
 
 **Two of the missing names were never the router's.** Sixty-one were `.tag`, the API sentence's own tag
 word that tik4net writes; five more were `trusted2`, `dynamic2`, `published2`, `responder2` and `template2`

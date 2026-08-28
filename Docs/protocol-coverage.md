@@ -555,7 +555,7 @@ them still fails the run.
 | `/interface/ethernet` | `auto-negotiation` | WinBox's field is the LINK's live state (`not-available` on a CHR's virtual NIC), the API's is the SETTING (`true`) — two fields, one label |
 
 Last run on RouterOS 7.24: `OK=154 KNOWN-GAP=1 MISMATCH=0 VALUE-DIFF=0 VALUES-UNCOMPARED=1 UNMAPPED=0
-ROUTER-N/A=7`, and `FIELD-NAMES not reported by native: 121/1351 (8%)`. The vocabulary the run measures
+ROUTER-N/A=7`, and `FIELD-NAMES not reported by native: 96/1342 (7%)`. The vocabulary the run measures
 against is the one 62 seeded rows expose, which is why both halves of that fraction grew when the
 fixtures did — an empty table has no fields to disagree about.
 

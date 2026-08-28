@@ -120,26 +120,37 @@ namespace tik4net.integrationtests.Queue
         [TestMethod]
         public void TheReadOnlyStatisticsArriveOnEveryTransport()
         {
-            // Measured, not assumed: the native WinBox transports report the configuration fields of this
-            // menu and none of the statistics block. That is almost certainly OUR gap — the M2 model has no
-            // mapping for those keys — rather than something the router refuses, so this is a named skip
-            // pointing at work, not an accepted limitation.
-            var transport = ResolveConnectionType();
-            if (transport == TikConnectionType.WinboxNative || transport == TikConnectionType.WinboxNativeMac)
-                Assert.Inconclusive($"'{transport}' reports no /queue/simple statistics: the M2 field mapping "
-                    + "for the rate/packet/byte counters is missing. Probe the router before treating this as "
-                    + "a limitation of the transport.");
-
             var loaded = Connection.LoadList<QueueSimple>().Single(q => q.Name == QueueName);
 
             Assert.IsFalse(string.IsNullOrEmpty(loaded.Rate),
                 "rate was not reported — on a CLI transport that means the IncludeCliStats merge did not "
-                + "happen, since 'print detail as-value' alone never carries the statistics block");
+                + "happen, since 'print detail as-value' alone never carries the statistics block; on native "
+                + "WinBox it means the two halves of the pair were not joined into the API's field");
             Assert.IsFalse(string.IsNullOrEmpty(loaded.PacketRate), "packet-rate was not reported");
+
+            // The whole statistics block, not just the two paired rates: native WinBox reported none of it
+            // until the Statistics tab's tuples were paired, and a check that stopped at 'rate' would have
+            // passed with six of the nine still missing.
+            Assert.IsFalse(string.IsNullOrEmpty(loaded.Bytes), "bytes was not reported");
+            Assert.IsFalse(string.IsNullOrEmpty(loaded.Packets), "packets was not reported");
+            Assert.IsFalse(string.IsNullOrEmpty(loaded.Dropped), "dropped was not reported");
+            Assert.IsFalse(string.IsNullOrEmpty(loaded.QueuedBytes), "queued-bytes was not reported");
+            Assert.IsFalse(string.IsNullOrEmpty(loaded.QueuedPackets), "queued-packets was not reported");
 
             // Nothing is routed through 192.168.253.0/24, so both sides are zero however they are spelled.
             StringAssert.StartsWith(loaded.Rate, "0", "an idle queue passes no traffic");
             Assert.AreEqual("0/0", loaded.PacketRate, "packet-rate is spelled the same on every transport");
+            Assert.AreEqual("0/0", loaded.Packets, "packets");
+            Assert.AreEqual("0/0", loaded.Dropped, "dropped");
+            Assert.AreEqual("0/0", loaded.QueuedBytes, "queued-bytes");
+            Assert.AreEqual("0/0", loaded.QueuedPackets, "queued-packets");
+
+            // The 'Total Statistics' tab is single-valued, and WinBox spells two of its fields 'Avg.' where
+            // the API does not — so these are the ones a rename, not a pairing, has to get right.
+            Assert.AreEqual(0L, loaded.TotalRate, "total-rate");
+            Assert.AreEqual(0L, loaded.TotalPacketRate, "total-packet-rate");
+            Assert.AreEqual(0L, loaded.TotalBytes, "total-bytes");
+            Assert.AreEqual(0L, loaded.TotalPackets, "total-packets");
         }
 
         /// <summary>
