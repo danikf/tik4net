@@ -402,9 +402,14 @@ a pair of small integers, `bucket-size=0.1/0.1` a pair of decimals `TikDataRate`
 `/interface/ethernet/monitor rate` is `1Gbps`, whose unit `TikDataRate` rejects outright (the suffixes are
 `k M G T`), `/ip/settings icmp-rate-mask` is the bitmask `0x1818`, `rate-set` and `rate-selection` are enums,
 and a PPP or Hotspot `rate-limit` packs up to six pairs into one string. So the test classifies all 46
-candidates by hand into `NotRatePairs` and a backlog of one: `/interface/ethernet bandwidth`, a real rx/tx
-pair whose default is `unlimited/unlimited` — a word `TikDataRate` has no room for the way `TikDuration` has
-for `none`.
+candidates by hand into `NotRatePairs` and a backlog of three, each blocked on the type rather than on
+effort: `/interface/ethernet bandwidth` is a real rx/tx pair whose default is `unlimited/unlimited`, a word
+`TikDataRate` has no room for the way `TikDuration` has for `none`; and `/queue/simple` `rate` and
+`packet-rate` are real pairs the CLI spells `0bps/0bps` — `bps` is not one of the `k M G T` suffixes, so
+typing `rate` throws a `FormatException` on every CLI load, and for the **whole entity** rather than the one
+field. That is the cost of guessing here, and it is why the classification is measured rather than reasoned:
+`/queue/simple` is declared `IncludeCliStats`, so the CLI does fetch the statistics in a second `print stats`
+query and the unreadable value does arrive.
 
 The `entity-generator` skill scaffolds these from a live router. It replaced two WinForms
 generators (`tik4net.entitygenerator`, `tik4net.entityWikiImporter`), deleted in 4.0 — the skill reads

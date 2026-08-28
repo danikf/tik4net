@@ -1,4 +1,4 @@
-// QueueRatePairTest.cs — a paired rate field must mean the same thing on every transport.
+﻿// QueueRatePairTest.cs — a paired rate field must mean the same thing on every transport.
 //
 // /queue/simple max-limit reads 1000000/2000000 over the binary API and 1M/2M over the CLI transports,
 // which read `print as-value`. While the property was a string that difference reached the caller: the
@@ -101,6 +101,45 @@ namespace tik4net.integrationtests.Queue
                 var viaApi = api.LoadList<QueueSimple>().Single(q => q.Name == QueueName);
                 Assert.AreEqual(TikRatePair.Parse("3M/4M"), viaApi.MaxLimit.Value, "as the API reads it");
             }
+        }
+
+        /// <summary>
+        /// The menu's read-only statistics reach the mapper on every transport — including the ones whose
+        /// ordinary read does not carry them.
+        /// </summary>
+        /// <remarks>
+        /// <c>print detail as-value</c> has no statistics block at all, so a plain CLI read returns the
+        /// configuration fields and nothing else. The mapper does not stop there: <c>/queue/simple</c> is
+        /// declared <c>IncludeCliStats</c>, so the CLI issues a second <c>print stats</c> query and merges it
+        /// by <c>.id</c>. This is the test for that merge, and it is worth having because the two transports
+        /// then disagree about the spelling — measured on RouterOS 7.24, <c>rate</c> is <c>0/0</c> over the
+        /// API and <c>0bps/0bps</c> over the CLI, which is why the field is still a string and sits on the
+        /// backlog in <c>EntityRatePairConventionTests</c>: <c>bps</c> is not a suffix
+        /// <see cref="TikDataRate"/> reads.
+        /// </remarks>
+        [TestMethod]
+        public void TheReadOnlyStatisticsArriveOnEveryTransport()
+        {
+            // Measured, not assumed: the native WinBox transports report the configuration fields of this
+            // menu and none of the statistics block. That is almost certainly OUR gap — the M2 model has no
+            // mapping for those keys — rather than something the router refuses, so this is a named skip
+            // pointing at work, not an accepted limitation.
+            var transport = ResolveConnectionType();
+            if (transport == TikConnectionType.WinboxNative || transport == TikConnectionType.WinboxNativeMac)
+                Assert.Inconclusive($"'{transport}' reports no /queue/simple statistics: the M2 field mapping "
+                    + "for the rate/packet/byte counters is missing. Probe the router before treating this as "
+                    + "a limitation of the transport.");
+
+            var loaded = Connection.LoadList<QueueSimple>().Single(q => q.Name == QueueName);
+
+            Assert.IsFalse(string.IsNullOrEmpty(loaded.Rate),
+                "rate was not reported — on a CLI transport that means the IncludeCliStats merge did not "
+                + "happen, since 'print detail as-value' alone never carries the statistics block");
+            Assert.IsFalse(string.IsNullOrEmpty(loaded.PacketRate), "packet-rate was not reported");
+
+            // Nothing is routed through 192.168.253.0/24, so both sides are zero however they are spelled.
+            StringAssert.StartsWith(loaded.Rate, "0", "an idle queue passes no traffic");
+            Assert.AreEqual("0/0", loaded.PacketRate, "packet-rate is spelled the same on every transport");
         }
 
         /// <summary>

@@ -114,13 +114,18 @@ namespace tik4net.Objects.Queue
         public long TotalDropped { get; private set; }
 
         /// <summary>
-        /// The traffic currently passing the queue, as an <c>upload/download</c> pair — measured
-        /// <c>0/0</c> on an idle queue. Reported only by the binary API and REST: the CLI transports read
-        /// <c>print as-value</c>, which omits the statistics block entirely, so this stays null there.
-        /// <see cref="TotalRate"/> is the same reading as one number.
+        /// The traffic currently passing the queue, as an <c>upload/download</c> pair — <c>0/0</c> on an
+        /// idle queue. <see cref="TotalRate"/> is the same reading as one number.
         /// </summary>
+        /// <remarks>
+        /// Still a <c>string</c>, and it is the one paired rate field on this entity that cannot yet be a
+        /// <see cref="TikRatePair"/>: measured on RouterOS 7.24, the binary API writes <c>0/0</c> while the
+        /// CLI transports write <c>0bps/0bps</c>, and <c>bps</c> is not one of the suffixes
+        /// <see cref="TikDataRate"/> reads. So the two spellings do reach the caller unreconciled — see
+        /// <c>EntityRatePairConventionTests</c>, which carries the field on its backlog.
+        /// </remarks>
         [TikProperty("rate", IsReadOnly = true)]
-        public TikRatePair? Rate { get; private set; }
+        public string? Rate { get; private set; }
 
         /// <summary>
         /// total-rate
@@ -129,12 +134,17 @@ namespace tik4net.Objects.Queue
         public long TotalRate { get; private set; }
 
         /// <summary>
-        /// Packets per second through the queue, as an <c>upload/download</c> pair. A rate pair like
-        /// <see cref="Rate"/> and read the same way, counting packets rather than bits; see there for why
-        /// it is null over the CLI transports.
+        /// Packets per second through the queue, as an <c>upload/download</c> pair — <c>0/0</c> on both the
+        /// API and the CLI transports when idle.
         /// </summary>
+        /// <remarks>
+        /// Left a <c>string</c> for the same reason as <see cref="Rate"/>, one step removed: the idle
+        /// spelling agrees on every transport, but the lab router cannot be made to carry traffic through a
+        /// queue, so what the CLI writes for a NON-zero packet rate has never been read. An unparseable
+        /// value throws on load for the whole entity, not just the field, so the guess is not worth making.
+        /// </remarks>
         [TikProperty("packet-rate", IsReadOnly = true)]
-        public TikRatePair? PacketRate { get; private set; }
+        public string? PacketRate { get; private set; }
 
         /// <summary>
         /// total-packet-rate
