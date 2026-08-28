@@ -70,7 +70,7 @@ namespace tik4net.Objects.Ip.Proxy
 
         /// <summary>max-fresh-time — maximum time a cached object is considered fresh. Default: 3d.</summary>
         [TikProperty("max-fresh-time", DefaultValue = "3d")]
-        public string?/*time*/ MaxFreshTime { get; set; }
+        public TikDuration? MaxFreshTime { get; set; }
 
         /// <summary>serialize-connections — enforces sequential client processing over persistent connections.</summary>
         [TikProperty("serialize-connections", DefaultValue = "no")]

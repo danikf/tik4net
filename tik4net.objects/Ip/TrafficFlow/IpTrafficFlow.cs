@@ -44,14 +44,14 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// Default: 30m
         /// </summary>
         [TikProperty("active-flow-timeout", DefaultValue = "30m")]
-        public string?/*time*/ ActiveFlowTimeout { get; set; }
+        public TikDuration? ActiveFlowTimeout { get; set; }
 
         /// <summary>
         /// inactive-flow-timeout — duration to maintain an idle flow before treating it as a new
         /// flow (time value, e.g. "15s"). Default: 15s
         /// </summary>
         [TikProperty("inactive-flow-timeout", DefaultValue = "15s")]
-        public string?/*time*/ InactiveFlowTimeout { get; set; }
+        public TikDuration? InactiveFlowTimeout { get; set; }
 
         /// <summary>
         /// packet-sampling — enable or disable packet sampling functionality (RouterOS v7+).

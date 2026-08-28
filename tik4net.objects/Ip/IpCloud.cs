@@ -20,7 +20,7 @@ namespace tik4net.Objects.Ip
 
         /// <summary>ddns-update-interval — sets the interval for DDNS connection attempts; <c>none</c> lets the router check the IP internally.</summary>
         [TikProperty("ddns-update-interval", DefaultValue = "none")]
-        public string?/*time*/ DdnsUpdateInterval { get; set; }
+        public TikDuration? DdnsUpdateInterval { get; set; }
 
         /// <summary>update-time — synchronises the device clock with the cloud server when no NTP/SNTP client is enabled.</summary>
         [TikProperty("update-time", DefaultValue = "yes")]

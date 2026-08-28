@@ -23,7 +23,7 @@ namespace tik4net.Objects.Ip
         /// specifies maximum time-to-live for cache records. In other words, cache records will expire unconditionally after cache-max-ttl time. Shorter TTL received from DNS servers are respected
         /// </summary>
         [TikProperty("cache-max-ttl", DefaultValue = "1w")]
-        public string?/*time*/ CacheMaxTtl { get; set; }
+        public TikDuration? CacheMaxTtl { get; set; }
 
         /// <summary>
         /// cache-size

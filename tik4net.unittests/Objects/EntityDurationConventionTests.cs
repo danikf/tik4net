@@ -86,9 +86,7 @@ namespace tik4net.unittests.Objects
                 ["CapsManConfiguration"] = new[] { "channel.reselect-interval", "disconnect-timeout", "frame-lifetime", "security.group-key-update" },
                 ["CapsManInterface"] = new[] { "arp-timeout" },
                 ["CapsManSecurity"] = new[] { "group-key-update" },
-                ["Certificate"] = new[] { "expires-after" },
                 ["DhcpServerAlert"] = new[] { "alert-timeout" },
-                ["ConnectionTracking"] = new[] { "generic-timeout", "icmp-timeout", "tcp-close-timeout", "tcp-close-wait-timeout", "tcp-established-timeout", "tcp-fin-wait-timeout", "tcp-last-ack-timeout", "tcp-syn-received-timeout", "tcp-syn-sent-timeout", "tcp-time-wait-timeout", "udp-stream-timeout", "udp-timeout" },
                 ["DnsStatic"] = new[] { "ttl" },
                 ["FirewallFilter"] = new[] { "address-list-timeout" },
                 ["FirewallRaw"] = new[] { "address-list-timeout" },
@@ -105,26 +103,15 @@ namespace tik4net.unittests.Objects
                 ["InterfaceWifi"] = new[] { "arp-timeout" },
                 ["InterfaceWireless"] = new[] { "disconnect-timeout" },
                 ["InterfaceVxlan"] = new[] { "arp-timeout", "loop-protect-disable-time", "loop-protect-send-interval" },
-                ["IpCloud"] = new[] { "ddns-update-interval" },
                 ["IpDhcpServer"] = new[] { "lease-time" },
-                ["IpDns"] = new[] { "cache-max-ttl" },
-                ["IpProxy"] = new[] { "max-fresh-time" },
-                ["IpSettings"] = new[] { "arp-timeout" },
-                ["IpSocks"] = new[] { "connection-idle-timeout" },
-                ["IpTrafficFlow"] = new[] { "active-flow-timeout", "inactive-flow-timeout" },
-                ["IpTrafficFlowTarget"] = new[] { "v9-template-timeout" },
                 ["IpsecActivePeers"] = new[] { "last-seen", "uptime" },
                 ["IpsecInstalledSa"] = new[] { "expires-in" },
                 ["IpsecProfile"] = new[] { "dpd-interval", "lifetime" },
                 ["IpsecProposal"] = new[] { "lifetime" },
                 ["OvpnServer"] = new[] { "keepalive-timeout" },
-                ["OspfInterfaceTemplate"] = new[] { "dead-interval", "hello-interval", "retransmit-interval", "transmit-delay" },
                 ["OspfNeighbor"] = new[] { "adjacency", "timeout" },
-                ["PppAaa"] = new[] { "interim-update" },
                 ["PppProfile"] = new[] { "idle-timeout", "session-timeout" },
-                ["Radius"] = new[] { "radsec-timeout", "timeout" },
                 ["SystemScheduler"] = new[] { "interval" },
-                ["SystemWatchdog"] = new[] { "ping-start-after-boot", "ping-timeout" },
                 ["ToolNetwatch"] = new[] { "interval", "packet-interval", "start-delay", "startup-delay", "tcp-connect-time", "thr-avg", "thr-http-time", "thr-jitter", "thr-max", "thr-stdev", "timeout" },
                 ["WifiAccessList"] = new[] { "allow-signal-out-of-range" },
                 ["WifiChannel"] = new[] { "reselect-interval" },
@@ -218,7 +205,7 @@ namespace tik4net.unittests.Objects
         {
             // A number to watch rather than a rule to satisfy. It started at 101 (against 24 already
             // converted); lower it as the backlog shrinks so the direction stays visible in the diff.
-            const int WhenThisTestWasWritten = 108;
+            const int WhenThisTestWasWritten = 78;
 
             int pending = PendingTikDuration.Sum(kv => kv.Value.Length);
             Assert.IsTrue(pending <= WhenThisTestWasWritten,

@@ -27,11 +27,11 @@ namespace tik4net.Objects.System
 
         /// <summary>ping-start-after-boot — delay after boot before the first ping watchdog check begins. Default: 5m.</summary>
         [TikProperty("ping-start-after-boot", DefaultValue = "5m")]
-        public string?/*time*/ PingStartAfterBoot { get; set; }
+        public TikDuration? PingStartAfterBoot { get; set; }
 
         /// <summary>ping-timeout — how long the watch-address must be unreachable before the router reboots. Default: 1m.</summary>
         [TikProperty("ping-timeout", DefaultValue = "1m")]
-        public string?/*time*/ PingTimeout { get; set; }
+        public TikDuration? PingTimeout { get; set; }
 
         /// <summary>automatic-supout — when yes, a support output file (supout.rif) is automatically created after an unexpected reboot. Default: yes.</summary>
         [TikProperty("automatic-supout", DefaultValue = "yes")]

@@ -103,27 +103,27 @@ namespace tik4net.Objects.Routing.Ospf
         /// Default: 10s
         /// </summary>
         [TikProperty("hello-interval", DefaultValue = "10s")]
-        public string?/*time*/ HelloInterval { get; set; }
+        public TikDuration? HelloInterval { get; set; }
 
         /// <summary>
         /// dead-interval — time after which a silent neighbour is declared dead. Typically 4× hello-interval.
         /// Must match all neighbours on the segment. Default: 40s
         /// </summary>
         [TikProperty("dead-interval", DefaultValue = "40s")]
-        public string?/*time*/ DeadInterval { get; set; }
+        public TikDuration? DeadInterval { get; set; }
 
         /// <summary>
         /// retransmit-interval — time between LSA retransmissions to a neighbour. Default: 5s
         /// </summary>
         [TikProperty("retransmit-interval", DefaultValue = "5s")]
-        public string?/*time*/ RetransmitInterval { get; set; }
+        public TikDuration? RetransmitInterval { get; set; }
 
         /// <summary>
         /// transmit-delay — estimated time to transmit an LSA; added to the age of LSAs before flooding.
         /// Default: 1s
         /// </summary>
         [TikProperty("transmit-delay", DefaultValue = "1s")]
-        public string?/*time*/ TransmitDelay { get; set; }
+        public TikDuration? TransmitDelay { get; set; }
 
         /// <summary>
         /// instance-id — OSPF instance ID used in OSPFv3 to separate multiple instances on the same link.

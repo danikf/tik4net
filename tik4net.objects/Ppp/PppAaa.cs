@@ -22,7 +22,7 @@ namespace tik4net.Objects.Ppp
         /// interim-update: Interim-Update time interval
         /// </summary>
         [TikProperty("interim-update", DefaultValue = "0s")]
-        public string?/*time*/ InterimUpdate { get; set; }
+        public TikDuration? InterimUpdate { get; set; }
 
         /// <summary>
         /// use-radius: Enable user authentication via RADIUS. If entry in local secret database is not found, then client will be authenticated via RADIUS.

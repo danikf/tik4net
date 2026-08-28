@@ -100,7 +100,7 @@ namespace tik4net.Objects.Radius
         /// Value is a time string, e.g. "1s100ms". Default: 1s100ms (1100ms).
         /// </summary>
         [TikProperty("timeout", DefaultValue = "1s100ms")]
-        public string?/*time*/ Timeout { get; set; }
+        public TikDuration? Timeout { get; set; }
 
         /// <summary>
         /// radsec-timeout — timeout after which the request should be resent when using RadSec (TLS).
@@ -108,7 +108,7 @@ namespace tik4net.Objects.Radius
         /// Only relevant when <see cref="Protocol"/> is <see cref="ProtocolType.Radsec"/>.
         /// </summary>
         [TikProperty("radsec-timeout", DefaultValue = "3s300ms")]
-        public string?/*time*/ RadsecTimeout { get; set; }
+        public TikDuration? RadsecTimeout { get; set; }
 
         /// <summary>
         /// accounting-backup — designates this entry as a backup RADIUS server for accounting.

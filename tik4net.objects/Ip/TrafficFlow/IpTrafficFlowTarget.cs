@@ -74,7 +74,7 @@ namespace tik4net.Objects.Ip.TrafficFlow
         /// Default: 30m
         /// </summary>
         [TikProperty("v9-template-timeout", DefaultValue = "30m")]
-        public string?/*time*/ V9TemplateTimeout { get; set; }
+        public TikDuration? V9TemplateTimeout { get; set; }
 
         /// <summary>
         /// disabled — whether this export target is administratively disabled.

@@ -55,7 +55,7 @@ namespace tik4net.Objects.Ip
 
         /// <summary>arp-timeout — base reachable time for ARP cache entries across interfaces. Default: 30s.</summary>
         [TikProperty("arp-timeout", DefaultValue = "30s")]
-        public string?/*time*/ ArpTimeout { get; set; }
+        public TikDuration? ArpTimeout { get; set; }
 
         /// <summary>max-neighbor-entries — maximum ARP/NDP neighbour table size. Defaults are RAM-dependent; 0 = not set (use router default).</summary>
         [TikProperty("max-neighbor-entries", DefaultValue = "0")]

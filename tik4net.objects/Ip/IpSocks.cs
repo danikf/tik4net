@@ -23,7 +23,7 @@ namespace tik4net.Objects.Ip
 
         /// <summary>connection-idle-timeout — time after which idle connections are terminated. Default: 2m.</summary>
         [TikProperty("connection-idle-timeout", DefaultValue = "2m")]
-        public string?/*time*/ ConnectionIdleTimeout { get; set; }
+        public TikDuration? ConnectionIdleTimeout { get; set; }
 
         /// <summary>max-connections — maximum number of simultaneous connections. Range: 1..500. Default: 200.</summary>
         [TikProperty("max-connections", DefaultValue = "200")]

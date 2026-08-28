@@ -170,7 +170,7 @@ namespace tik4net.Objects.Certificate
         /// WinBox: "Expires After"
         /// </summary>
         [TikProperty("expires-after", IsReadOnly = true)]
-        public string?/*time*/ ExpiresAfter { get; private set; }
+        public TikDuration? ExpiresAfter { get; private set; }
 
         /// <summary>
         /// ca — Name of the CA certificate that signed this certificate (read-only, device-signed only).
