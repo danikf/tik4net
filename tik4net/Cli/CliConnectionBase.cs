@@ -619,6 +619,16 @@ namespace tik4net.Cli
             if (CliMonitorVerbs.IsSyncMonitorVerb(printVerb))
                 return await RunMonitorSnapshotAsync(descriptor, printVerb, cancellationToken).ConfigureAwait(false);
 
+            // The `get` verb. BuildPrint cannot express it: it drops the .id and value-name inputs (neither
+            // is a print modifier) and appends as-value, so `/interface/get =.id=*2 =value-name=name` went
+            // out as `:put [/interface get as-value]` — a singleton read of a list menu, answered "no such
+            // item". The singleton form was broken the same way, and worse: `as-value` landed where the
+            // value name goes, so `/system/identity/get =value-name=name` was refused with "input does not
+            // match any value of value-name". The binary API honours both, and ITikCommand is the level
+            // whose whole promise is that one command runs everywhere, so this is ours to translate.
+            if (printVerb == "get")
+                return await RunGetAsync(descriptor, cancellationToken).ConfigureAwait(false);
+
             bool needStats = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliStats);
             bool wantJson = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliJson);
 
@@ -749,6 +759,36 @@ namespace tik4net.Cli
         /// exactly the kind that costs 30 s a command with nothing going red.
         /// </summary>
         private bool? _serializeSupported;
+
+        /// <summary>
+        /// Runs the <c>get</c> verb and returns its answer as a single record.
+        /// </summary>
+        /// <remarks>
+        /// The record carries one field, named after the requested <c>value-name</c> (or <c>ret</c> for a
+        /// whole-row get). That name is what makes both scalar spellings work: <c>ExecuteScalar()</c> takes
+        /// the first non-<c>.id</c> field, and <c>ExecuteScalar("name")</c> asks for it by name.
+        /// <para>
+        /// An empty answer is left as zero records rather than an empty-valued one. <c>get</c> is a read
+        /// verb, so the layer above turns "no rows" into <see cref="TikNoSuchItemException"/> — which is what
+        /// a get for a row that is not there means, and what the binary API reports for the same command.
+        /// </para>
+        /// </remarks>
+        private async Task<IList<TikRecordSentence>> RunGetAsync(
+            TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        {
+            string? id = TikGetResult.FindInput(descriptor.Parameters, TikSpecialProperties.Id);
+            string? valueName = TikGetResult.FindInput(descriptor.Parameters, "value-name");
+
+            string cliText = CliCommandBuilder.BuildGet(descriptor.CommandText, id, valueName);
+            string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false);
+            CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+
+            string value = (output ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(value))
+                return new List<TikRecordSentence>();
+
+            return TikGetResult.One(string.IsNullOrEmpty(valueName) ? TikSpecialProperties.Ret : valueName!, value);
+        }
 
         /// <summary>
         /// Runs one print query, in JSON form when <paramref name="wantJson"/> is set and this router has

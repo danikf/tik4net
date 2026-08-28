@@ -49,7 +49,7 @@ namespace tik4net.Rest
 
         private static readonly HashSet<string> _readVerbs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "print", "listen",
+            "print", "listen", "get",
         };
 
         // Monitor commands (see TikMonitorVerbs) are POSTed to the path as given: their trailing segment IS the
@@ -139,6 +139,9 @@ namespace tik4net.Rest
                 case "print":
                     return BuildPrint(restBase, parameters);
 
+                case "get":
+                    return BuildGet(restBase, parameters);
+
                 case "add":
                     return BuildAdd(restBase, parameters);
 
@@ -157,6 +160,57 @@ namespace tik4net.Rest
             }
         }
 
+
+        /// <summary>
+        /// Builds the <c>get</c> verb: <c>GET /rest/path/*ID</c>, narrowed with
+        /// <c>?.proplist=field</c> when a <c>value-name</c> was given.
+        /// </summary>
+        /// <remarks>
+        /// REST has no <c>get</c> of its own — it addresses a row by URL — so the verb is translated rather
+        /// than forwarded. Measured on RouterOS 7.24: <c>GET /rest/interface/*2?.proplist=name</c> answers
+        /// <c>{"name":"ether1"}</c>, <c>GET /rest/system/identity?.proplist=name</c> answers
+        /// <c>{"name":"CHR"}</c> for a singleton menu, and the id-only form returns the whole row object.
+        /// <para>
+        /// Without this the trailing segment fell through to the generic POST branch, so
+        /// <c>/interface/get</c> went out as <c>POST /rest/interface/get</c> and RouterOS answered
+        /// <c>400 no such command</c> — the one transport that refused a command the API and all five CLI
+        /// transports honour.
+        /// </para>
+        /// <para>
+        /// The id is placed in the path unescaped: RouterOS ids are <c>*</c> plus hex, and
+        /// <c>Uri.EscapeDataString</c> would percent-encode the <c>*</c> into a URL the router does not
+        /// match.
+        /// </para>
+        /// </remarks>
+        private static RestRequest BuildGet(string restBase, IList<ITikCommandParameter> parameters)
+        {
+            string? id = FindInput(parameters, TikSpecialProperties.Id);
+            string? valueName = FindInput(parameters, "value-name");
+
+            string path = restBase;
+            if (!string.IsNullOrEmpty(id))
+                path += "/" + id;
+            if (!string.IsNullOrEmpty(valueName))
+                path += "?.proplist=" + Uri.EscapeDataString(valueName!);
+
+            return new RestRequest(HttpMethod.Get, path);
+        }
+
+        /// <summary>
+        /// Reads one of <c>get</c>'s inputs, in whichever format it arrived — a parameter the caller
+        /// declared <c>NameValue</c> keeps that format, while an unformatted one is rewritten to
+        /// <c>Filter</c> on the read path, so accepting only one of the two would honour half the callers.
+        /// </summary>
+        private static string? FindInput(IList<ITikCommandParameter> parameters, string name)
+        {
+            foreach (var p in parameters)
+            {
+                if (string.Equals(NormaliseParamName(p.Name), name, StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrEmpty(p.Value))
+                    return p.Value;
+            }
+            return null;
+        }
         // ── READ ─────────────────────────────────────────────────────────────
 
         private static RestRequest BuildPrint(string restBase, IList<ITikCommandParameter> parameters)

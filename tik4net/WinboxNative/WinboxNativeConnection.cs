@@ -632,7 +632,11 @@ namespace tik4net.WinboxNative
             if (filters.Count > 0)
                 rows = rows.Where(r => TikQueryStack.Matches(r, filters)).ToList();
 
-            return rows;
+            // `get` is a narrowing of this same read: native has no get of its own, so the window is read
+            // and the row and field are picked here. Without it value-name was ignored entirely and the
+            // scalar layer returned whichever field happened to come first — /system/identity/get
+            // value-name=name answered "7.24", the RouterOS version. A wrong answer, with no error.
+            return TikGetResult.Shape(descriptor, rows);
         }
 
         // Attempts a "monitor [once]" snapshot (e.g. /interface/ethernet/monitor numbers=ether1). The monitored

@@ -63,6 +63,93 @@ namespace tik4net.integrationtests
             }
         }
 
+        // ── get ───────────────────────────────────────────────────────────────
+        //
+        // Added late, and that is the point worth recording: this class exists so verb coverage is not
+        // incidental, and `get` was still missing from it. Nothing else reaches the verb either — every
+        // entity loads through `/print`, and ExecuteScalar reads through `print … where .id=` — so the one
+        // way in was a caller naming `/path/get` by hand. The translation was consequently wrong on all
+        // five CLI transports (both inputs dropped, the command sent as a singleton read of the menu),
+        // absent on REST, and wrong-but-silent on native WinBox, with a green suite throughout. All three
+        // are fixed and none of these is skipped anywhere: `get` is a narrowing of a read, so REST addresses
+        // the row by URL, native WinBox filters the window it already read, and only the CLI family has a
+        // `get` of its own to send.
+
+        [TestMethod]
+        public void Verb_Get_ByIdAndValueNameReturnsThatField()
+        {
+            string comment = _stamp + "-get";
+            string id = AddRule("192.0.2.81", comment);
+
+            var cmd = Connection.CreateCommand(Path + "/get");
+            cmd.AddParameter(TikSpecialProperties.Id, id, TikCommandParameterFormat.NameValue);
+            cmd.AddParameter("value-name", "comment", TikCommandParameterFormat.NameValue);
+
+            Assert.AreEqual(comment, cmd.ExecuteScalar());
+        }
+
+        [TestMethod]
+        public void Verb_Get_WithoutValueNameReturnsTheWholeRowAsOneValue()
+        {
+            // Not a shortcoming of any transport: RouterOS answers a get with no value-name by putting the
+            // entire row in =ret= as one as-value string, with no !re record at all, and the CLI prints the
+            // same. So this is a scalar everywhere — use print when you want a record.
+            string comment = _stamp + "-getrow";
+            string id = AddRule("192.0.2.82", comment);
+
+            var cmd = Connection.CreateCommand(Path + "/get");
+            cmd.AddParameter(TikSpecialProperties.Id, id, TikCommandParameterFormat.NameValue);
+
+            string whole = cmd.ExecuteScalar();
+            StringAssert.Contains(whole, "comment=" + comment);
+            StringAssert.Contains(whole, ".id=" + id);
+        }
+
+        [TestMethod]
+        public void Verb_Get_OnASingletonMenuReturnsTheField()
+        {
+            // No id to give. This shape looked safe and was broken too: with the inputs dropped the CLI
+            // appended `as-value`, which `get` reads as the NAME of the field to return, so the router
+            // refused it with "input does not match any value of value-name".
+
+            var cmd = Connection.CreateCommand("/system/identity/get");
+            cmd.AddParameter("value-name", "name", TikCommandParameterFormat.NameValue);
+
+            Assert.AreEqual(Connection.LoadSingle<tik4net.Objects.System.SystemIdentity>().Name,
+                cmd.ExecuteScalar());
+        }
+
+        /// <summary>
+        /// A <c>get</c> for a row that does not exist yields nothing usable — but <b>which</b> nothing
+        /// differs, and the binary API cannot do better.
+        /// </summary>
+        /// <remarks>
+        /// Measured on RouterOS 7.24, over the API these two are byte-for-byte identical on the wire:
+        /// <c>get .id=*7FFFFFFF value-name=comment</c> for a row that is not there, and the same command
+        /// for a real row whose comment is empty. Both answer <c>!done</c> with an empty <c>=ret=</c>. So
+        /// "not found" and "that field is empty" are indistinguishable there, and reporting the first would
+        /// misreport the second — which is why the API returns the empty value rather than raising.
+        /// <para>
+        /// The CLI and REST transports CAN tell the two apart (the router refuses the id outright, and REST
+        /// answers 404), so they report not-found. This asserts what all three agree on — that nothing
+        /// usable comes back — rather than papering over a distinction the API genuinely does not have.
+        /// </para>
+        /// </remarks>
+        [TestMethod]
+        public void Verb_Get_ByAnUnknownIdYieldsNothing()
+        {
+
+            var cmd = Connection.CreateCommand(Path + "/get");
+            cmd.AddParameter(TikSpecialProperties.Id, "*7FFFFFFF", TikCommandParameterFormat.NameValue);
+            cmd.AddParameter("value-name", "comment", TikCommandParameterFormat.NameValue);
+
+            string result = cmd.ExecuteScalarOrDefault();
+
+            Assert.IsTrue(string.IsNullOrEmpty(result),
+                "a get for a row that does not exist returned '" + result + "' — whichever way this "
+                + "transport reports the miss, it must not return another row's value");
+        }
+
         // ── add ───────────────────────────────────────────────────────────────
 
         [TestMethod]

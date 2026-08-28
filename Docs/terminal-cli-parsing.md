@@ -235,7 +235,7 @@ remove  → /path remove [find where .id=*N]
 enable  → /path enable [find where .id=*N]
 disable → /path disable [find where .id=*N]
 move    → /path move [find where .id=*N] destination=*M
-get     → /path get .id=*N value-name=name  (alias for scalar)
+get     → :put [/path get number=*N value-name=name]   ('.id=' is refused; see findings-cli.md §8)
 ```
 
 **Build examples:**
@@ -515,8 +515,9 @@ public static class VtStripper
 | `ExecuteNonQuery()` | `/path verb [find where .id=*N] params` | empty output = success |
 | `ExecuteList()` | `/path print as-value [where ...]` | parses the lines |
 | `ExecuteSingleRow()` | `/path print as-value [where ...]` | asserts exactly 1 line |
-| `ExecuteScalar()` | `:put [/path get .id=*N value-name=x]` | scalar output |
-| `ExecuteScalar(target)` | `:put [/path get .id=*N value-name=target]` | |
+| `ExecuteScalar()` | `/path print as-value [where ...]`, value picked from the row | `get` cannot return `.id` |
+| `ExecuteScalar(target)` | as above, `target` picked from the row | |
+| an explicit `/path/get` | `:put [/path get number=*N value-name=x]` | the verb named by the caller |
 | `ExecuteAsync(cb,...)` | ⚠️ emulated via thread + sync exec | no true push |
 | `ExecuteListWithDuration` | ❌ not possible | needs streaming |
 | `ExecuteListUntilDone` | ⚠️ only for self-terminating commands | `/ping count=N` |

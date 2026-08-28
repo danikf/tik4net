@@ -582,9 +582,22 @@ as a duplicated row.
 - **`add`**: `:put [/ip/address/add address=10.0.0.1/24 interface=ether1]` returns the new record's
   **`.id`** (e.g. `*3`), the CLI equivalent of the API's `=ret=*3`. Without the `:put [...]` wrapper,
   `add` returns nothing useful, not `*N`.
-- **Scalars must be read via `print`, not `get`.** `:put [/path get .id=*N value-name=.id]` is invalid:
-  `get .id=` is a syntax error, and `value-name=.id` answers "input does not match any value of
-  value-name". `.id` and every other scalar are read by selecting the value out of a `print` row instead.
+- **`get` selects a row with `number=`, never with `.id=`.** Measured on 7.24: `get .id=*2
+  value-name=name` answers "bad parameter .id" and so does `get [find .id=*2] name`, while
+  `get number=*2 value-name=name` and the positional `get *2 name` both return the value — an `.id` is
+  accepted as the `number=` argument despite the parameter being named for the ordinal. With no
+  `value-name` the router prints the whole row as one `as-value` string, which is exactly what the binary
+  API puts in `=ret=` for the same command. `as-value` must **not** be appended: `get` takes the value
+  name positionally, so `:put [/system identity get as-value]` is read as a request for a field called
+  "as-value" and refused with "input does not match any value of value-name".
+- **`ExecuteScalar` nonetheless reads through `print`, not `get`.** That is a deliberate choice and not a
+  consequence of the above: `value-name=.id` answers "input does not match any value of value-name", so
+  `get` cannot return an `.id` at all, while `:put [/path print as-value where .id=*N]` works for every
+  field. The `get` translation exists for callers who name the verb themselves.
+- **A missing row and an empty field are the same answer.** `get number=*BAD value-name=comment` is refused
+  by the CLI, but over the binary API both that and a real row with an empty comment reply `!done` with an
+  empty `=ret=` — measured byte-for-byte identical. The API therefore cannot report "no such item" for a
+  get without misreporting a genuinely empty field, and does not try.
 - **Action commands with no per-row output** (`/system/script/run` and similar): the command runs, but
   RouterOS does not return the per-row `!re` output the binary API produces — it is fire-and-forget over
   a terminal. `CliConnectionBase` routes such verbs (`IsActionVerb`) to a non-query path and returns an

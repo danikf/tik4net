@@ -224,8 +224,12 @@ namespace tik4net.Rest
             => RunNonQueryAsync(descriptor, CancellationToken.None).GetAwaiter().GetResult();
 
         /// <inheritdoc/>
-        protected override Task<IList<TikRecordSentence>> RunPrintAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
-            => ExecuteRequestListAsync(descriptor.CommandText, descriptor.Parameters, cancellationToken);
+        protected override async Task<IList<TikRecordSentence>> RunPrintAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)
+        {
+            var records = await ExecuteRequestListAsync(descriptor.CommandText, descriptor.Parameters,
+                cancellationToken).ConfigureAwait(false);
+            return TikGetResult.Shape(descriptor, records);
+        }
 
         /// <inheritdoc/>
         protected override async Task<string> RunAddAsync(TikCommandDescriptor descriptor, CancellationToken cancellationToken)

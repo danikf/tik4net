@@ -319,31 +319,51 @@ namespace tik4net.Cli
             return BuildFindVerb(apiPath, parameters);
         }
 
-        // ── GetScalar ─────────────────────────────────────────────────────────
+        // ── Get ───────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Builds <c>:put [/path get .id=*N value-name=propertyName]</c>.
-        /// Used for ExecuteScalar on non-singleton paths where a specific field is requested.
+        /// Builds <c>:put [/path get [number=*N] [value-name=field]]</c> — the <c>get</c> verb, which the
+        /// print builder cannot express.
         /// </summary>
-        internal static string BuildGetScalar(string apiPath, string id, string valueName)
+        /// <remarks>
+        /// <b>The row is selected with <c>number=</c>, not <c>.id=</c>.</b> Measured on RouterOS 7.24:
+        /// <c>get .id=*2 value-name=name</c> answers "bad parameter .id" and so does
+        /// <c>get [find .id=*2] name</c>, while <c>get number=*2 value-name=name</c> and the positional
+        /// <c>get *2 name</c> both return the value. An <c>.id</c> is accepted as the <c>number=</c>
+        /// argument even though the parameter is named for the ordinal — that is what makes this
+        /// translation possible at all.
+        /// <para>
+        /// With no <c>value-name</c> the router returns the whole row as one <c>as-value</c> string, which
+        /// is exactly what the binary API puts in <c>=ret=</c> for the same command — so the two transports
+        /// answer a whole-row get with the same single value rather than with different shapes.
+        /// </para>
+        /// <para>
+        /// Note that <c>as-value</c> must NOT be appended here: <c>get</c> takes the value name as a
+        /// positional argument, so <c>:put [/system identity get as-value]</c> is read as a request for a
+        /// field called "as-value" and answered "input does not match any value of value-name".
+        /// </para>
+        /// </remarks>
+        /// <param name="apiPath">API-style path whose last segment is the <c>get</c> verb.</param>
+        /// <param name="id">The row's <c>.id</c>, or null/empty for a singleton menu.</param>
+        /// <param name="valueName">The field to read, or null/empty for the whole row.</param>
+        internal static string BuildGet(string apiPath, string? id, string? valueName)
         {
             string cliBase = ApiPathToCli(apiPath);
-            // Strip last segment (print/get) and replace with "get"
-            int lastSpace = cliBase.LastIndexOf(' ');
-            string basePath = lastSpace >= 0 ? cliBase.Substring(0, lastSpace) : cliBase;
 
             var sb = new StringBuilder(":put [");
-            sb.Append(basePath);
-            sb.Append(" get");
+            sb.Append(cliBase);
             if (!string.IsNullOrEmpty(id))
             {
-                sb.Append(" .id=");
+                // Not quoted: an id is '*' plus hex and never needs it, and the rest of this builder spells
+                // ids bare too ([find where .id=*1]). Both forms are accepted here — measured — but one
+                // spelling across the file is worth more than the redundancy.
+                sb.Append(" number=");
                 sb.Append(id);
             }
             if (!string.IsNullOrEmpty(valueName))
             {
                 sb.Append(" value-name=");
-                sb.Append(valueName);
+                sb.Append(QuoteIfNeeded(valueName!));
             }
             sb.Append(']');
             return sb.ToString();
