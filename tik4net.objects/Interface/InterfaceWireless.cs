@@ -197,7 +197,7 @@ namespace tik4net.Objects.Interface
         /// time [0s..15s]
         /// </summary>
         [TikProperty("disconnect-timeout", DefaultValue = "3s")]
-        public string?/*time [0s..15s]*/ DisconnectTimeout { get; set; }
+        public TikDuration? DisconnectTimeout { get; set; }
 
         /// <summary>
         /// distance

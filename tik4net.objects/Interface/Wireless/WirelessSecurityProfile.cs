@@ -186,7 +186,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// <para>WinBox: "Interim Update" (RADIUS tab).</para>
         /// </summary>
         [TikProperty("interim-update", DefaultValue = "0s")]
-        public string? /*time*/ InterimUpdate { get; set; }
+        public TikDuration? InterimUpdate { get; set; }
 
         /// <summary>
         /// radius-mac-format — how a client's MAC address is written in the RADIUS request.

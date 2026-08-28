@@ -34,7 +34,10 @@ namespace tik4net.unittests.Objects
     /// documentation.</b> The menus were not empty; they simply had no rows, and a RouterOS field that is
     /// unset is not reported at all. Creating one row per menu and setting each field brought 56 of the
     /// remaining 71 within reach of a live measurement. The 14 still listed below each need a state this
-    /// lab cannot produce, and are grouped by which one.
+    /// lab cannot produce, and are grouped by which one. Two more were settled on a different router — a
+    /// physical board with wireless hardware and an older RouterOS, which has the <c>/interface/wireless</c>
+    /// menu the CHR does not: <c>disconnect-timeout</c> reads <c>3s</c> and a security profile's
+    /// <c>interim-update</c> reads <c>0s</c> over the API against <c>00:00:00</c> over the CLI.
     /// </para>
     /// <para>
     /// <b>Two things that measurement settled, and neither was what the rule assumed.</b> First, the
@@ -116,11 +119,6 @@ namespace tik4net.unittests.Objects
                 // Hardware or a real CAP:
                 ["CapsManInterface"] = new[] { "arp-timeout" },
                 ["InterfaceWifi"] = new[] { "arp-timeout" },
-                //
-                // The menu does not exist on this RouterOS at all — /interface/wireless answers "no such
-                // command prefix", so neither entity can be checked here under any configuration:
-                ["InterfaceWireless"] = new[] { "disconnect-timeout" },
-                ["WirelessSecurityProfile"] = new[] { "interim-update" },
                 //
                 // Reported only when advertising is switched on, which needs a working hotspot:
                 ["HotspotUserProfile"] = new[] { "advertise-timeout" },
@@ -210,7 +208,7 @@ namespace tik4net.unittests.Objects
         {
             // A number to watch rather than a rule to satisfy. It started at 101 (against 24 already
             // converted); lower it as the backlog shrinks so the direction stays visible in the diff.
-            const int WhenThisTestWasWritten = 14;
+            const int WhenThisTestWasWritten = 12;
 
             int pending = PendingTikDuration.Sum(kv => kv.Value.Length);
             Assert.IsTrue(pending <= WhenThisTestWasWritten,
