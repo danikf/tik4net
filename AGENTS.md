@@ -176,6 +176,7 @@ Project skills live in `.claude/skills/`. Invoke them by name rather than recons
 | `entity-generator` | Scaffold O/R mapper entities |
 | `chr-test-router-init` | Re-provision the CHR test router after a restore/reset |
 | `tik4net-mcp-install` | Refresh the MCP server after changing it — the in-repo dev launcher, or the global tool |
+| `wiki-cleanup` | Review/clean the end-user wiki: truth, as-is phrasing, examples, page scope and placement |
 
 `Docs/` holds transport ground truth established by live probing; source XML docs cite these files by
 name. Read the relevant one before changing a transport, and update it when live behaviour contradicts
