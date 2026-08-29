@@ -23,7 +23,10 @@ namespace tik4net.Mndp
         public string SoftwareId { get; }
         /// <summary>Mikrotik board (eq. RB800)</summary>
         public string BoardName { get; }
-        /// <summary>no idea :-)</summary>
+        /// <summary>
+        /// Raw MNDP field 15, kept verbatim because its meaning is not established. It is surfaced rather
+        /// than dropped so that a caller who works out what a router puts here is not blocked by us.
+        /// </summary>
         public string Unpack { get; }
         /// <summary>Mikrotik interface MAC</summary>
         public string Mac { get; }

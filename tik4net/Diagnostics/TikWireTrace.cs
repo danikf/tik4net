@@ -96,8 +96,14 @@ namespace tik4net.Diagnostics
         /// by that, because RouterOS does not echo a password back. Notes are left alone — the point is to
         /// keep the shape of the handshake visible while removing only the secret.
         /// </para>
+        /// <para>
+        /// Internal, and staying that way until something outside the library needs it: both <c>Emit</c>
+        /// overloads are internal, so an external caller cannot produce a trace event and would have nothing
+        /// for this scope to suppress. Widening a surface later is additive; narrowing one after a release
+        /// is not.
+        /// </para>
         /// </remarks>
-        public static IDisposable Secret()
+        internal static IDisposable Secret()
         {
             bool previous = _secret.Value;
             _secret.Value = true;
@@ -109,7 +115,7 @@ namespace tik4net.Diagnostics
         /// rendered — the plaintext <c>=password=</c> of the 6.43+ login, the <c>=response=</c> of the older
         /// challenge protocol (equivalent to the password for replay), and a password being changed.
         /// </summary>
-        public static bool IsSecretWord(string? word)
+        internal static bool IsSecretWord(string? word)
         {
             if (string.IsNullOrEmpty(word)) return false;
             foreach (string name in SecretWordNames)

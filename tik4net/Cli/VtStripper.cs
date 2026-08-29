@@ -5,7 +5,7 @@ namespace tik4net.Cli
     /// <summary>
     /// Utility class for stripping ANSI/VT100 escape sequences from terminal output.
     /// Transport-agnostic: does NOT remove command echo or shell prompts — that is a
-    /// PTY-transport concern handled in the concrete transport implementation (chapter C/E).
+    /// PTY-transport concern handled in the concrete transport implementation.
     /// </summary>
     public static class VtStripper
     {
