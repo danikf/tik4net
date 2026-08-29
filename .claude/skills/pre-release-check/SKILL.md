@@ -297,10 +297,12 @@ the same shape: **a tool that did not look reports the same green as a tool that
   pin rather than claiming it as evidence.
 * **A new gate can break an existing one.** Adding `net48` to the unit-test project so the
   netstandard2.0 assets are executed and not merely compiled is a good check — and it broke the ubuntu CI
-  job, which runs that same project and cannot build .NET Framework at all. A TFM added to a test project
-  reaches every job that runs it. Condition it (`'$(OS)' == 'Windows_NT'`) and **watch the first CI run
-  after the push**, because a gate is not installed until it has passed once somewhere other than the
-  machine that wrote it.
+  job, which runs that same project. Note *how* it broke, because the shape is the lesson: the SDK
+  **compiled** net48 on Linux quite happily against reference assemblies, and only `dotnet test` failed,
+  so the log showed a successful build followed by a dead test run. A TFM added to a test project reaches
+  every job that runs it. Condition it (`'$(OS)' == 'Windows_NT'`) and **watch the first CI run after the
+  push**, because a gate is not installed until it has passed once somewhere other than the machine that
+  wrote it.
 * **A pre-existing failure is not an outcome.** Either fix it in this change or write up the diagnosis — and
   check for orphaned router state first, because residue from an earlier run looks exactly like a code
   defect.

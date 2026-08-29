@@ -1,10 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <!--
-      net48 is Windows-only, and has to be: .NET Framework does not build or run on Linux, and the CI
-      job that builds the cross-platform projects on ubuntu runs this test project too. Declaring both
-      frameworks unconditionally made that job fail - the netstandard2.0 coverage this leg exists for is
-      worth having, but not at the price of the Linux leg that proves the library builds there at all.
+      net48 is Windows-only, and has to be. The ubuntu CI job that builds the cross-platform projects
+      runs this test project too, and while the SDK will happily COMPILE net48 there against reference
+      assemblies, `dotnet test` cannot execute it - which is how the failure presented: a green build
+      followed by a test run that died. The netstandard2.0 coverage this leg exists for is worth having,
+      but not at the price of the Linux leg that proves the library builds there at all.
     -->
     <TargetFrameworks>net8.0</TargetFrameworks>
     <TargetFrameworks Condition=" '$(OS)' == 'Windows_NT' ">net8.0;net48</TargetFrameworks>
