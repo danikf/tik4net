@@ -174,6 +174,17 @@ doesn't, the workaround goes and the current behaviour is stated plainly.
   ```
 
   Then confirm the variable's declaring line names a facet type, not `ITikConnection`.
+
+  Two more of the same shape — a sample that compiles in the author's head but warns or fails in the
+  reader's project, both found in real pages:
+
+  ```bash
+  grep -nE 'GetResponseFieldOrDefault\([^,]+, *null\)' *.md   # non-nullable defaultValue parameter
+  grep -nE '\b(string|var|[A-Z][A-Za-z]*) +\w+ *= *[^;]*\.(Single|First)OrDefault\(' *.md
+  ```
+
+  The second one matters only when the local is explicitly typed and non-nullable: `…OrDefault()`
+  returns null for "not found", which is usually the very case the surrounding prose is describing.
 * **The entry point is `TikConnectionSetup`.** `ConnectionFactory` is a compatibility shim; a sample that
   opens with it while the page's own next paragraph calls it a shim contradicts itself. Show the setup
   form unless the page is specifically about the shim.
@@ -263,6 +274,9 @@ families. Record what is missing as a finding; writing new pages is separate wor
   findings; wrong, stale, misplaced and scary are.
 * **Report, don't invent.** A missing page, a missing example, an API that has no documentation at all —
   these are findings for the maintainer, not work to improvise in a cleanup pass.
+* **A page that states a count of examples has stated it elsewhere too.** Before changing how many of
+  anything a page contains, grep the whole wiki for that number — and again afterwards. "33 programs"
+  lived in three places in three different wordings, only one of them on the page that had them.
 * If a check keeps producing the same kind of finding, or a page needs a rule this skill does not have,
   say so — the skill is meant to grow.
 
@@ -346,12 +360,11 @@ Verify rather than assume — this is a snapshot, and the point of the cleanup i
   generations of pages have been levelled (every page now has an H1 and a what/when opening), the
   maturity markers are consolidated, and the maintainer's lab coordinates — which had reached ten pages,
   including a full router dump with MAC, link-local IPv6 and software ID — are scrubbed.
-* **Open, and the top item:** `One-task-on-every-transport-and-API-level` — nine of the eleven Level-1
-  (low-level) programs do not work. All eleven declare `ITikConnection` and call `CallCommandSync`; the
-  five CLI tabs send API sentence words where that level takes a RouterOS CLI line; and `Rest`,
-  `RestSsl`, `WinboxNative`, `WinboxNativeMac` do not declare `RawCommand`, so the level does not exist
-  there at all. The page carries an accurate warning at the head of the Level-1 section; rewriting the
-  CLI programs needs live-router verification. Levels 2 and 3 (22 tabs) are correct.
+* `One-task-on-every-transport-and-API-level` now holds **29 programs, not 33**: the low level does not
+  exist on `Rest`, `RestSsl`, `WinboxNative` or `WinboxNativeMac`, and those four tabs say so and point
+  at the levels that do work there. The other seven were each compiled and run against a live router,
+  and their `OUTPUT` blocks are what they actually printed. That page is the precedent for two rules
+  above — the receiver-type check, and grepping the whole wiki for a count before changing it.
 * **Open, from check 9** — the wiki still never gives a reader: a map of the entity families (169
   entities in 15 folders, and the wiki names one), the entity helper surface (`ExecuteWol`,
   `ToolPing.Execute`, `SystemPackage.Enable`, the `Log*` helpers, …), or a home for the typed value types
