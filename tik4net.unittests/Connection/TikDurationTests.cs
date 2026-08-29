@@ -124,5 +124,68 @@ namespace tik4net.unittests.Connection
             Assert.AreEqual("5m", duration.ToString());
             Assert.AreEqual(TimeSpan.FromMinutes(5), (TimeSpan?)duration);
         }
+
+        /// <summary>
+        /// A word the router really uses and text we simply cannot read used to be the same state — both
+        /// "not a value, here is a token" — which cost twice: a caller could only ask "is this off?" by
+        /// comparing raw text, and a gap in our own parsing was invisible, because the token round-tripped
+        /// perfectly and reported nothing.
+        /// </summary>
+        [TestMethod]
+        public void AKnownWordIsSpecialAndAnythingElseIsUnknown()
+        {
+            Assert.AreEqual(TikValueKind.Value, TikDuration.Parse("10s").Kind);
+
+            foreach (var (word, expected) in new[]
+            {
+                ("none", TikDurationSpecial.None),
+                ("disabled", TikDurationSpecial.Disabled),
+                ("auto", TikDurationSpecial.Auto),
+                ("never", TikDurationSpecial.Never),
+            })
+            {
+                TikDuration d = TikDuration.Parse(word);
+                Assert.AreEqual(TikValueKind.Special, d.Kind, word);
+                Assert.AreEqual(expected, d.Special, word);
+            }
+
+            TikDuration gap = TikDuration.Parse("totally-made-up");
+            Assert.AreEqual(TikValueKind.Unknown, gap.Kind);
+            Assert.IsNull(gap.Special);
+            // Still lossless: unknown is a gap in the library, never a reason to lose the router's value.
+            Assert.AreEqual("totally-made-up", gap.ToString());
+        }
+
+        /// <summary>The spelling comes from one table, so a typo at the call site is a compile error.</summary>
+        [TestMethod]
+        public void FromSpecialWritesTheWordAndReadsBackAsTheSameMember()
+        {
+            Assert.AreEqual("none", TikDuration.FromSpecial(TikDurationSpecial.None).ToString());
+            Assert.AreEqual(TikDurationSpecial.Disabled,
+                TikDuration.Parse(TikDuration.FromSpecial(TikDurationSpecial.Disabled)).Special);
+
+            // Case varies by transport; the member does not.
+            Assert.AreEqual(TikDurationSpecial.None, TikDuration.Parse("NONE").Special);
+        }
+
+        /// <summary>
+        /// ToString() writes a leading '-' for a negative TimeSpan, so Parse has to read one back — a type
+        /// that cannot re-read its own output turns a value into a token on the way round.
+        /// </summary>
+        [TestMethod]
+        public void ANegativeDurationSurvivesItsOwnToString()
+        {
+            TikDuration negative = TimeSpan.FromSeconds(-5);
+            Assert.AreEqual("-5s", negative.ToString());
+
+            TikDuration back = TikDuration.Parse(negative.ToString());
+            Assert.AreEqual(TikValueKind.Value, back.Kind, "it came back as a token, not a value");
+            Assert.AreEqual(negative, back);
+
+            // The sign applies to every grammar, not just the compact one.
+            Assert.AreEqual(TimeSpan.FromSeconds(-5), TikDuration.Parse("-00:00:05").Value);
+            Assert.AreEqual(TimeSpan.FromSeconds(-5), TikDuration.Parse("-5").Value);
+            Assert.AreEqual(-new TimeSpan(1, 2, 0, 0), TikDuration.Parse("-1d2h").Value);
+        }
     }
 }

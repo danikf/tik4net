@@ -68,9 +68,54 @@ namespace tik4net
         /// <summary>Whether this is a real length of time rather than a word.</summary>
         public bool HasValue => _value.HasValue;
 
+        /// <summary>
+        /// What this actually holds: a <see cref="Value"/>, a <see cref="Special"/> word the library
+        /// recognises, or <see cref="TikValueKind.Unknown"/> text it does not.
+        /// </summary>
+        /// <remarks>
+        /// <b><see cref="TikValueKind.Unknown"/> is a gap in tik4net, not a state of the router.</b> The
+        /// value still survives verbatim and still writes back unchanged, so nothing breaks — but it is
+        /// also reported on the <c>value.token</c> trace channel, because a token that behaves perfectly
+        /// is exactly how a missing word stays missing.
+        /// </remarks>
+        public TikValueKind Kind
+        {
+            get
+            {
+                if (_value.HasValue) return TikValueKind.Value;
+                if (_token == null) return TikValueKind.Empty;
+                return TikSpecialWords.TryReadDuration(_token, out _)
+                    ? TikValueKind.Special
+                    : TikValueKind.Unknown;
+            }
+        }
+
+        /// <summary>
+        /// The router word this field carries, when it is one the library recognises — otherwise
+        /// <c>null</c>. Compare against this rather than against <see cref="Token"/>: the word's spelling
+        /// and case vary by transport, the enum member does not.
+        /// </summary>
+        public TikDurationSpecial? Special
+            => _token != null && TikSpecialWords.TryReadDuration(_token, out TikDurationSpecial s)
+                ? s
+                : (TikDurationSpecial?)null;
+
         /// <summary>A duration of the given length.</summary>
         /// <param name="value">The length of time.</param>
         public static TikDuration FromTimeSpan(TimeSpan value) => new TikDuration(value, null);
+
+        /// <summary>
+        /// A duration field set to one of the router's words, named rather than spelled.
+        /// </summary>
+        /// <param name="special">The state, e.g. <see cref="TikDurationSpecial.None"/>.</param>
+        /// <remarks>
+        /// Prefer this to <see cref="FromToken"/> when you know which state you mean: the spelling comes
+        /// from one table instead of from the call site, so a typo is a compile error. The router still
+        /// refuses a word the particular field does not accept — the type knows what durations use, not
+        /// what this menu takes.
+        /// </remarks>
+        public static TikDuration FromSpecial(TikDurationSpecial special)
+            => new TikDuration(null, TikSpecialWords.WordFor(special));
 
         /// <summary>
         /// One of the router's non-duration words for a duration field, kept verbatim.
@@ -123,6 +168,9 @@ namespace tik4net
                 return true;
             }
 
+            if (!TikSpecialWords.TryReadDuration(text, out _))
+                TikSpecialWords.TraceUnknown(nameof(TikDuration), text);
+
             result = new TikDuration(null, text);
             return true;
         }
@@ -142,10 +190,21 @@ namespace tik4net
 
             string text = value!.Trim();
 
+            // ToString() writes a leading '-' for a negative TimeSpan, so Parse has to read one back or the
+            // type cannot round-trip its own output. The sign is stripped here and re-applied at the end,
+            // which keeps the three grammars below free of it.
+            bool negative = text.StartsWith("-", StringComparison.Ordinal);
+            if (negative)
+            {
+                text = text.Substring(1).TrimStart();
+                if (text.Length == 0)
+                    return false;
+            }
+
             // A bare number is seconds. RouterOS accepts it on write and several fields report it that way.
             if (long.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out long seconds))
             {
-                result = TimeSpan.FromSeconds(seconds);
+                result = TimeSpan.FromSeconds(negative ? -seconds : seconds);
                 return true;
             }
 
@@ -164,7 +223,7 @@ namespace tik4net
                 if (frac.Success)
                     ms += double.Parse("0." + frac.Value, CultureInfo.InvariantCulture) * 1000d;
 
-                result = TimeSpan.FromMilliseconds(ms);
+                result = TimeSpan.FromMilliseconds(negative ? -ms : ms);
                 return true;
             }
 
@@ -180,7 +239,7 @@ namespace tik4net
                           + Part(compact, "s") * 1000d
                           + Part(compact, "ms");
 
-                result = TimeSpan.FromMilliseconds(ms);
+                result = TimeSpan.FromMilliseconds(negative ? -ms : ms);
                 return true;
             }
 

@@ -207,5 +207,48 @@ namespace tik4net.unittests.Connection
             // And a word is never equal to a number, however the number is spelled.
             Assert.AreNotEqual(TikDataRate.Parse("unlimited"), TikDataRate.Parse("0"));
         }
+
+        /// <summary>The rate half of the same rule — see TikDurationTests for why the two states differ.</summary>
+        [TestMethod]
+        public void AKnownWordIsSpecialAndAnythingElseIsUnknown()
+        {
+            Assert.AreEqual(TikValueKind.Value, TikDataRate.Parse("1M").Kind);
+            Assert.AreEqual(TikValueKind.Value, TikDataRate.Parse("1Gbps").Kind);
+
+            TikDataRate unlimited = TikDataRate.Parse("unlimited");
+            Assert.AreEqual(TikValueKind.Special, unlimited.Kind);
+            Assert.AreEqual(TikDataRateSpecial.Unlimited, unlimited.Special);
+
+            TikDataRate gap = TikDataRate.Parse("made-up-rate");
+            Assert.AreEqual(TikValueKind.Unknown, gap.Kind);
+            Assert.IsNull(gap.Special);
+            Assert.AreEqual("made-up-rate", gap.ToString());
+
+            Assert.AreEqual("unlimited", TikDataRate.FromSpecial(TikDataRateSpecial.Unlimited).ToString());
+        }
+
+        /// <summary>
+        /// A bare NUMBER is the upload side with download zero — measured, writing max-limit=1M reads back
+        /// 1000000/0. A bare WORD is not: it describes the whole field, and pairing it with a zero download
+        /// wrote back 'unlimited/0', a different configuration from the one the router reported.
+        /// </summary>
+        [TestMethod]
+        public void ABareWordAppliesToBothSidesOfAPair()
+        {
+            TikRatePair number = TikRatePair.Parse("1M");
+            Assert.AreEqual(1000000L, number.Upload.Value);
+            Assert.AreEqual(0L, number.Download.Value);
+            Assert.AreEqual("1000000/0", number.ToString());
+
+            TikRatePair word = TikRatePair.Parse("unlimited");
+            Assert.AreEqual(TikDataRateSpecial.Unlimited, word.Upload.Special);
+            Assert.AreEqual(TikDataRateSpecial.Unlimited, word.Download.Special);
+            Assert.AreEqual("unlimited/unlimited", word.ToString());
+
+            // A mixed pair still keeps each half as the router wrote it.
+            TikRatePair mixed = TikRatePair.Parse("1M/unlimited");
+            Assert.AreEqual(1000000L, mixed.Upload.Value);
+            Assert.AreEqual(TikDataRateSpecial.Unlimited, mixed.Download.Special);
+        }
     }
 }

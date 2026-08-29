@@ -66,9 +66,52 @@ namespace tik4net
         /// <summary>Whether this is a real rate rather than a word.</summary>
         public bool HasValue => _value.HasValue;
 
+        /// <summary>
+        /// What this actually holds: a <see cref="Value"/>, a <see cref="Special"/> word the library
+        /// recognises, or <see cref="TikValueKind.Unknown"/> text it does not.
+        /// </summary>
+        /// <remarks>
+        /// <b><see cref="TikValueKind.Unknown"/> is a gap in tik4net, not a state of the router.</b> The
+        /// value survives verbatim and writes back unchanged, so nothing breaks — and it is reported on the
+        /// <c>value.token</c> trace channel, because a token that behaves perfectly is exactly how a
+        /// missing spelling stays missing.
+        /// </remarks>
+        public TikValueKind Kind
+        {
+            get
+            {
+                if (_value.HasValue) return TikValueKind.Value;
+                if (_token == null) return TikValueKind.Empty;
+                return TikSpecialWords.TryReadRate(_token, out _)
+                    ? TikValueKind.Special
+                    : TikValueKind.Unknown;
+            }
+        }
+
+        /// <summary>
+        /// The router word this field carries, when it is one the library recognises — otherwise
+        /// <c>null</c>. Compare against this rather than against <see cref="Token"/>: the spelling and case
+        /// vary by transport, the enum member does not.
+        /// </summary>
+        public TikDataRateSpecial? Special
+            => _token != null && TikSpecialWords.TryReadRate(_token, out TikDataRateSpecial s)
+                ? s
+                : (TikDataRateSpecial?)null;
+
         /// <summary>A rate of the given plain value.</summary>
         /// <param name="value">The value with no suffix applied.</param>
         public static TikDataRate FromValue(long value) => new TikDataRate(value, null);
+
+        /// <summary>
+        /// A rate field set to one of the router's words, named rather than spelled.
+        /// </summary>
+        /// <param name="special">The state, e.g. <see cref="TikDataRateSpecial.Unlimited"/>.</param>
+        /// <remarks>
+        /// Prefer this to <see cref="FromToken"/> when you know which state you mean — the spelling comes
+        /// from one table instead of from the call site.
+        /// </remarks>
+        public static TikDataRate FromSpecial(TikDataRateSpecial special)
+            => new TikDataRate(null, TikSpecialWords.WordFor(special));
 
         /// <summary>
         /// One of the router's non-numeric words for a rate field, kept verbatim.
@@ -94,10 +137,14 @@ namespace tik4net
             if (TryParse(value, out TikDataRate result))
                 return result;
 
-            // A non-empty value always becomes a rate or a token, so this is unreachable — stated rather
-            // than assumed, the same way TikDuration.Parse does, so a change below cannot make this method
-            // return a wrong value instead of complaining.
-            return FromToken(value.Trim());
+            // Not a number, so it is a word. A word the library knows is a state; one it does not know is
+            // a gap in the library, and saying so on the trace is the only way that gap ever surfaces —
+            // the token itself round-trips perfectly either way.
+            string token = value.Trim();
+            if (!TikSpecialWords.TryReadRate(token, out _))
+                TikSpecialWords.TraceUnknown(nameof(TikDataRate), token);
+
+            return FromToken(token);
         }
 
         /// <summary>

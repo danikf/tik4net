@@ -42,9 +42,10 @@ namespace tik4net
         }
 
         /// <summary>
-        /// Reads a pair in either spelling the router uses — <c>1M/2M</c> or <c>1000000/2000000</c>. A
-        /// value with no separator is the upload side, with download zero, which is what the router does
-        /// with it.
+        /// Reads a pair in either spelling the router uses — <c>1M/2M</c> or <c>1000000/2000000</c>. A bare
+        /// <b>number</b> with no separator is the upload side with download zero, which is what the router
+        /// does with it; a bare <b>word</b> (<c>unlimited</c>) applies to both sides, because it describes
+        /// the field rather than one half of it.
         /// </summary>
         /// <param name="value">The value as the router wrote it.</param>
         /// <exception cref="ArgumentException"><paramref name="value"/> is null or empty.</exception>
@@ -80,7 +81,15 @@ namespace tik4net
 
             if (slash < 0)
             {
-                result = new TikRatePair(ParseHalf(text), TikDataRate.FromValue(0));
+                TikDataRate single = ParseHalf(text);
+
+                // A bare NUMBER is the upload side with download zero — measured: writing 'max-limit=1M'
+                // reads back '1000000/0'. A bare WORD is not: 'unlimited' says the whole field is
+                // unlimited, and pairing it with a zero download would write back 'unlimited/0', which is
+                // a different configuration from the one the router reported. A word applies to both.
+                result = single.HasValue
+                    ? new TikRatePair(single, TikDataRate.FromValue(0))
+                    : new TikRatePair(single, single);
                 return true;
             }
 
