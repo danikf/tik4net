@@ -112,11 +112,13 @@ namespace tik4net.Cli
             string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false)
                             ?? string.Empty;
 
-            // Raw mode cannot know which verb this was, so the error check is the text-only one: a router
-            // error line is recognisable on its own, while "no output" is a perfectly good answer here and
-            // must not be read as failure.
+            // Raw mode is handed a finished line rather than building one, but the verb is IN that line —
+            // so a plain '/path set …' still gets the positional check, and only a line the reader cannot
+            // vouch for (scripting, ':put [ … ]', chaining) falls back to phrase matching alone. "No
+            // output" remains a perfectly good answer either way and must not be read as failure.
             CliErrorParser.ThrowIfError(output,
-                CreateDummyCommand(new TikCommandDescriptor(cliText, new List<ITikCommandParameter>())));
+                CreateDummyCommand(new TikCommandDescriptor(cliText, new List<ITikCommandParameter>())),
+                silentOnSuccess: CliErrorParser.TryGetRawSilentVerb(cliText, out _));
 
             var result = new List<ITikSentence>();
             var records = CliOutputParser.ParseAsValue(output);
@@ -652,7 +654,7 @@ namespace tik4net.Cli
             var statsById = new Dictionary<string, TikRecordSentence>(StringComparer.OrdinalIgnoreCase);
             foreach (var sr in statsRecords)
             {
-                string id = sr.GetResponseFieldOrDefault(TikSpecialProperties.Id, null!); // defaultValue is meant to accept null (interface out of scope here)
+                string? id = sr.GetResponseFieldOrDefault(TikSpecialProperties.Id, null);
                 if (id != null)
                     statsById[id] = sr;
             }
@@ -667,7 +669,7 @@ namespace tik4net.Cli
             var merged = new List<TikRecordSentence>(configRecords.Count);
             foreach (var cfg in configRecords)
             {
-                string id = cfg.GetResponseFieldOrDefault(TikSpecialProperties.Id, null!); // defaultValue is meant to accept null (interface out of scope here)
+                string? id = cfg.GetResponseFieldOrDefault(TikSpecialProperties.Id, null);
                 if (id == null || !statsById.TryGetValue(id, out TikRecordSentence? sr))
                 {
                     // No matching stats record — keep config as-is.

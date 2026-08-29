@@ -22,7 +22,8 @@ namespace tik4net.Api
             return GetWordValue(fieldName);
         }
 
-        public string GetResponseFieldOrDefault(string fieldName, string defaultValue)
+        [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull(nameof(defaultValue))]
+        public string? GetResponseFieldOrDefault(string fieldName, string? defaultValue)
         {
             return GetWordValueOrDefault(fieldName, defaultValue);
         }

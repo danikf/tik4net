@@ -172,11 +172,11 @@ namespace tik4net.Objects
                 reSentence =>
                 {
                     // RouterOS documents =.dead=yes but sends =.dead=true in practice — accept both
-                    var deadValue = reSentence.GetResponseFieldOrDefault(".dead", null!); // defaultValue is meant to accept null (interface out of scope here)
+                    var deadValue = reSentence.GetResponseFieldOrDefault(".dead", null);
                     if (deadValue == "yes" || deadValue == "true")
                     {
                         if (onDeletedCallback != null)
-                            onDeletedCallback(reSentence.GetResponseFieldOrDefault(TikSpecialProperties.Id, null!)); // defaultValue is meant to accept null (interface out of scope here)
+                            onDeletedCallback(reSentence.GetResponseField(TikSpecialProperties.Id));
                     }
                     else
                     {
@@ -219,9 +219,9 @@ namespace tik4net.Objects
             if (property.IsMandatory)
                 return sentence.GetResponseField(property.FieldName);
             else
-                // defaultValue is meant to accept null (interface out of scope here): a nullable property
-                // with no declared default has DefaultValue == null, meaning "absent field stays unset".
-                return sentence.GetResponseFieldOrDefault(property.FieldName, property.DefaultValue!);
+                // A nullable property with no declared default has DefaultValue == null, meaning
+                // "absent field stays unset" — which the sentence API now says in its signature.
+                return sentence.GetResponseFieldOrDefault(property.FieldName, property.DefaultValue);
         }
     }
 }

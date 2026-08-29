@@ -17,7 +17,8 @@ namespace tik4net.Api
             return GetWordValue(TikSpecialProperties.Ret);
         }
 
-        public string GetResponseWordOrDefault(string defaultValue)
+        [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull(nameof(defaultValue))]
+        public string? GetResponseWordOrDefault(string? defaultValue)
         {
             return GetWordValueOrDefault(TikSpecialProperties.Ret, defaultValue);
         }

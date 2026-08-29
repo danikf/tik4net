@@ -24,6 +24,7 @@ namespace tik4net
         /// Gets the =ret sentence word (result). Returns <paramref name="defaultValue"/> if property with name =ret has not been returned from mikrotik router as part of done sentence. 
         /// </summary>
         /// <seealso cref="TikSpecialProperties.Ret"/>        
-        string GetResponseWordOrDefault(string defaultValue);
+        [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull(nameof(defaultValue))]
+        string? GetResponseWordOrDefault(string? defaultValue);
     }
 }

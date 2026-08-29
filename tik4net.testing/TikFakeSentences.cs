@@ -43,7 +43,7 @@ namespace tik4net.Testing
         }
 
         /// <inheritdoc/>
-        public string GetResponseFieldOrDefault(string fieldName, string defaultValue)
+        public string? GetResponseFieldOrDefault(string fieldName, string? defaultValue)
             => _words.TryGetValue(fieldName, out string? value) ? value : defaultValue;
     }
 
@@ -83,7 +83,7 @@ namespace tik4net.Testing
         }
 
         /// <inheritdoc/>
-        public string GetResponseWordOrDefault(string defaultValue)
+        public string? GetResponseWordOrDefault(string? defaultValue)
             => _words.TryGetValue(TikSpecialProperties.Ret, out string? value) ? value : defaultValue;
     }
 

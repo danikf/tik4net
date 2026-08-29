@@ -43,8 +43,9 @@ namespace tik4net
         /// Gets the sentence word (one property). Resturns <paramref name="defaultValue"/> if property with given name has not been returned from mikrotik router as part of response sentence.
         /// </summary>
         /// <param name="fieldName">Name of the word (property). =name=value</param>
-        /// <param name="defaultValue">Default value, which is returned if property with given name has not been returned from mikrotik router as part of response sentence.</param>
+        /// <param name="defaultValue">Default value, which is returned if property with given name has not been returned from mikrotik router as part of response sentence. May be <c>null</c> — "the router did not send this field" is a legitimate answer, and passing <c>null</c> is how you ask to be told so without a sentinel.</param>
         /// <returns>Value of the word (property) with given <paramref name="fieldName"/> or <paramref name="defaultValue"/>.  =name=value</returns>
-        string GetResponseFieldOrDefault(string fieldName, string defaultValue);
+        [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull(nameof(defaultValue))]
+        string? GetResponseFieldOrDefault(string fieldName, string? defaultValue);
     }
 }

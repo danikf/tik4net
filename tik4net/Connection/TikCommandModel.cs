@@ -66,7 +66,8 @@ namespace tik4net.Connection
         }
 
         /// <inheritdoc/>
-        public string GetResponseFieldOrDefault(string fieldName, string defaultValue)
+        [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull(nameof(defaultValue))]
+        public string? GetResponseFieldOrDefault(string fieldName, string? defaultValue)
             => _fields.TryGetValue(fieldName, out var v) ? v : defaultValue;
 
         /// <inheritdoc/>
@@ -114,7 +115,8 @@ namespace tik4net.Connection
         }
 
         /// <inheritdoc/>
-        public string GetResponseWordOrDefault(string defaultValue) => _ret ?? defaultValue;
+        [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull(nameof(defaultValue))]
+        public string? GetResponseWordOrDefault(string? defaultValue) => _ret ?? defaultValue;
     }
 
     /// <summary>

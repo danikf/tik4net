@@ -92,7 +92,8 @@ namespace tik4net.Api
             return found;
         }
 
-        protected string GetWordValueOrDefault(string wordName, string defaultValue)
+        [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull(nameof(defaultValue))]
+        protected string? GetWordValueOrDefault(string wordName, string? defaultValue)
         {
             string result;
             if (TryGetWordValue(wordName, out result))

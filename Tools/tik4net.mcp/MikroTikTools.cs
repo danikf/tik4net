@@ -636,7 +636,7 @@ public sealed class MikroTikTools
 
         public string GetResponseWord() => _ret ?? string.Empty;
 
-        public string GetResponseWordOrDefault(string defaultValue) => _ret ?? defaultValue;
+        public string? GetResponseWordOrDefault(string? defaultValue) => _ret ?? defaultValue;
     }
 
     private string FormatResponse(List<ITikSentence> sentences)

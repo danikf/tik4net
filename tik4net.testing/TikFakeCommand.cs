@@ -84,7 +84,7 @@ namespace tik4net.Testing
             var done = sentences.OfType<ITikDoneSentence>().FirstOrDefault();
             if (done != null)
             {
-                string ret = done.GetResponseWordOrDefault(null!);
+                string? ret = done.GetResponseWordOrDefault(null);
                 if (ret != null)
                     return ret;
             }
@@ -118,7 +118,7 @@ namespace tik4net.Testing
             var done = sentences.OfType<ITikDoneSentence>().FirstOrDefault();
             if (done != null)
             {
-                string ret = done.GetResponseWordOrDefault(null!);
+                string? ret = done.GetResponseWordOrDefault(null);
                 if (ret != null)
                     return ret;
             }
@@ -136,9 +136,7 @@ namespace tik4net.Testing
             var sentences = ExecuteSync();
             ThrowOnTrap(sentences);
             return sentences.OfType<ITikReSentence>().SingleOrDefault()
-                // defaultValue may be null and the sentence API takes a non-nullable default; both branches
-                // end at the same value, which is what the OrDefault contract promises.
-                ?.GetResponseFieldOrDefault(target, defaultValue!)
+                ?.GetResponseFieldOrDefault(target, defaultValue)
                 ?? defaultValue;
         }
 
