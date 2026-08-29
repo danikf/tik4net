@@ -47,10 +47,11 @@ One `*.runsettings` file per transport sets `tik.connectionType`; the suite is r
 in sync with `TikConnectionCapability`. Do not maintain a second copy here.
 
 **Most of a run's skips are not capability skips.** About 76 of them are `[Ignore]`d manual probes and RE
-harnesses that skip on *every* transport — measured 2026-08-23 on RouterOS 7.24, a 520-test run skips 85
-on `api` and 98 on `winboxnative`, so what actually separates the two transports is around a dozen tests,
+harnesses that skip on *every* transport — measured 2026-08-29 on RouterOS 7.24, a 541-test run skips 92
+on `api` and 108 on `winboxnative`, so what actually separates the two transports is around a dozen tests,
 not the raw count. Read the reasons (`parse-trx.ps1 -ShowSkips`) rather than the number; a count that
-looks plausible is how a bogus skip survives.
+looks plausible is how a bogus skip survives. The per-transport figures for that run are pinned in
+[Docs/HISTORY.md](../../../Docs/HISTORY.md#measurements-pinned-to-a-moment).
 
 `EnsureCapability(cap)` reports **Inconclusive** (a skip), not a failure, when the active transport
 lacks the capability. A skipped test is not a broken test — check the capability before "fixing" it.

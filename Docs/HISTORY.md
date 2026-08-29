@@ -233,11 +233,41 @@ True when measured, not maintained. Re-measure rather than citing them.
 
 | Measured | What | Value |
 |---|---|---|
+| 2026-08-29 | Full integration run, RouterOS 7.24, 541 tests, nine transports | See the table below — 0 failures everywhere, 3–9 minutes per transport |
+| 2026-08-29 | `tik4net.unittests` | 915 tests, 0 skipped |
+| 2026-08-29 | `TransportPathMapAuditTest` against the binary API, transport `WinboxNative` | `OK=154 KNOWN-GAP=1 MISMATCH=0 VALUE-DIFF=0 VALUES-UNCOMPARED=1 UNMAPPED=0 ROUTER-N/A=7`; field-name shortfall 96/1342 (7%), and 105/1345 measured on the same fixtures one commit earlier |
 | 2026-07-26 | Full integration run, RouterOS 7.23.2, 390 tests | Api/ApiSsl ~5 min; Rest/RestSsl ~3 min; Telnet/Ssh ~7 min; MacTelnet ~13 min; WinboxNative ~5–8 min; WinboxCli ~7 min; WinboxCliMac ~1 h 20 min |
 | 2026-07-26 | Same-version reinstall of the MCP global tool | Verified to deliver new code: a marker in `Program.cs` changed the installed assembly hash |
 
-MAC transports pay roughly 5 s per command against ~200 ms over TCP, which is why `WinboxCliMac`
-dominates a full run. That is a property of the MAC layer, not of the WinBox terminal.
+## Full run, 2026-08-29 — RouterOS 7.24, 541 tests
+
+Read from the TRX files, counting `outcome="NotExecuted"` rather than the `ResultSummary` counters,
+which report zero skips on a run that skipped a hundred.
+
+| Transport | Passed | Skipped | Failed | Wall clock |
+|---|---:|---:|---:|---:|
+| `Api` | 449 | 92 | 0 | 2.9 min |
+| `WinboxNative` | 433 | 108 | 0 | 3.4 min |
+| `WinboxNativeMac` | 433 | 108 | 0 | 3.8 min |
+| `Rest` | 435 | 106 | 0 | 4.3 min |
+| `MacTelnet` | 446 | 95 | 0 | 7.2 min |
+| `Telnet` | 446 | 95 | 0 | 7.7 min |
+| `Ssh` | 445 | 96 | 0 | 8.1 min |
+| `WinboxCliMac` | 446 | 95 | 0 | 8.4 min |
+| `WinboxCli` | 446 | 95 | 0 | 9.0 min |
+
+`ApiSsl` and `RestSsl` were not run in full that day. `Api`, `Rest` and `WinboxNative` were measured one
+commit before the others, on a change confined to the CLI `add` path, which none of the three reaches.
+
+Most of what these runs skip is not a capability skip, so the difference between `Api` (92) and
+`WinboxNative` (108) is much smaller than the totals suggest — the `mikrotik-tests` skill states the rule
+and the breakdown.
+
+**The MAC-layer penalty in the 2026-07-26 row is gone.** That run measured `WinboxCliMac` at about
+1 h 20 min and read it as a property of the layer: roughly 5 s per command against ~200 ms over TCP. On
+7.24 the same transport finishes in 8.4 minutes — *faster* than `WinboxCli` over TCP — and `MacTelnet` is
+the quickest of the five CLI transports. Whatever the older figure measured, it was not a floor imposed
+by addressing the router at L2. Budget minutes for a MAC-transport run, and do not cite the old number.
 
 ---
 
