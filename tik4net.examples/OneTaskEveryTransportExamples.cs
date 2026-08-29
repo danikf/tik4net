@@ -16,10 +16,11 @@ namespace tik4net.examples
     ///
     /// <see cref="AdoNetLike"/> and <see cref="OrMapper"/> name no transport: they take an open
     /// <see cref="ITikConnection"/> and run unchanged on every one of them, which is the point the page
-    /// makes. <see cref="LowLevel"/> is the exception, and deliberately so — the low level is written in the
-    /// transport's OWN language, so its parameter is an <see cref="ITikApiConnection"/>: the rows below are
-    /// API sentence words, which mean nothing to a terminal (where the same call takes RouterOS CLI text)
-    /// and are not offered at all by REST or native WinBox. That is what the type is saying.
+    /// makes. The low level is the exception, and deliberately so — it is written in the transport's OWN
+    /// language, so it needs one method per language: <see cref="LowLevel"/> takes an
+    /// <see cref="ITikApiConnection"/> and sends API sentence words, <see cref="LowLevelCli"/> takes an
+    /// <see cref="ITikCliConnection"/> and sends RouterOS CLI text. Neither is offered by REST or native
+    /// WinBox, which have a request shape rather than a language. That is what the types are saying.
     /// </summary>
     static class OneTaskEveryTransportExamples
     {
@@ -57,6 +58,35 @@ namespace tik4net.examples
             var trap = setResponse.OfType<ITikTrapSentence>().FirstOrDefault();
             if (trap != null)
                 System.Console.WriteLine("update refused: " + trap.Message);
+        }
+
+        /// <summary>
+        /// Level 1 over a terminal — the same task, the same call, a different language. Takes
+        /// <see cref="ITikCliConnection"/>: these are RouterOS CLI lines, which mean nothing to the binary
+        /// API. Compiled here because a CLI line that is really API words is the mistake this pair exists
+        /// to make impossible to write.
+        /// </summary>
+        public static void LowLevelCli(ITikCliConnection connection)
+        {
+            // A raw CLI read has to ask for as-value itself — nothing is added on the way out. 'detail'
+            // widens the summary columns (8 fields for /interface) to 14; the byte counters are in neither
+            // and need 'print stats'.
+            var findResponse = connection.CallCommandSync(
+                ":put [/interface print detail as-value where comment=\"" + Marker + "\"]");
+
+            var row = findResponse.OfType<ITikReSentence>().SingleOrDefault();
+            if (row == null)
+                return;                       // no interface carries that comment
+
+            string id = row.GetId();          // the .id word, in the router's '*2' form
+
+            // The CLI takes the id as a bare selector — no '=.id=' word, that is the API's spelling.
+            connection.CallCommandSync(
+                "/interface set " + id + " comment=\"" + NewComment + "\"");
+
+            // A refusal arrives as TEXT, and raw mode does not know which verb was sent, so a wording the
+            // parser does not recognise reaches the caller as success. 'no such item (4)' is recognised and
+            // throws TikNoSuchItemException.
         }
 
         /// <summary>
@@ -126,10 +156,13 @@ namespace tik4net.examples
         {
             using (var connection = OpenAny(connectionType))
             {
-                // Only the binary API speaks the sentence words LowLevel is written in — the type says so,
-                // so this is a check rather than a hope. The other two levels are transport-neutral.
+                // The low level is written in the transport's own language, so which method applies is a
+                // type check rather than a hope. Neither matches on REST or native WinBox — they declare no
+                // RawCommand, and the level does not exist there. The other two levels are transport-neutral.
                 if (connection is ITikApiConnection api)
                     LowLevel(api);
+                else if (connection is ITikCliConnection cli)
+                    LowLevelCli(cli);
 
                 AdoNetLike(connection);
                 OrMapper(connection);

@@ -50,10 +50,20 @@ powershell -NoProfile -ExecutionPolicy Bypass -File Tools\probes\telnet-cli-prob
 ```
 
 Take the router coordinates from `tik4net.integrationtests/App.config` (`host`, `user`, `pass`).
-The script takes `-RouterHost` (mandatory), `-User` (default `admin`), `-Pass` (default empty), and
-`-Command` (string array of CLI lines to send after login).
+The script takes `-RouterHost` (mandatory), `-User` (default `admin`), `-Pass` (default empty),
+`-Command` (string array of CLI lines to send after login), `-CommandFile` and `-LoginTries`.
 **Omit `-Pass` for an empty password** — passing `-Pass ''` through `powershell -File` is unreliable
 (it errors "Missing an argument for parameter 'Pass'"); the default is already empty.
+
+**Use `-CommandFile <path>` whenever a command contains parentheses** — or anything else PowerShell
+parses as syntax. `-Command ':put [... where comment="a (b)"]'` fails with *"A positional parameter
+cannot be found"*; a file (one command per line, `#` comments allowed) bypasses argument parsing.
+
+The login retries on a fresh TCP connection, `-LoginTries` times (default 10). The probe answers the
+VT100 cursor probe with a canned report, which sometimes desyncs the router's credential read into a
+spurious *"incorrect username or password"* — so a first-attempt failure is expected occasionally and
+is not evidence about the router or about the library. Waiting for the `Login:` prompt instead of
+using fixed delays was measured **worse**: the probe cannot tell a prompt from an echo of one.
 
 Interpreting output: each command echoes back first (with stray ESC bytes), then the data, then the
 prompt `[user@identity] >`. Strip the `\e…` escapes and the echo/prompt to see the payload. If you

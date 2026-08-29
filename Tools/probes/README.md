@@ -67,6 +67,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File Tools/probes/telnet-cli-prob
 coordinates from `tik4net.integrationtests/App.config`. **Omit `-Pass` for an empty password** —
 passing `-Pass ''` through `powershell -File` is unreliable.
 
+**`-CommandFile <path>` instead of `-Command`** when a command contains parentheses or anything else
+PowerShell parses as syntax — `-Command ':put [... where comment="a (b)"]'` fails with *"A positional
+parameter cannot be found"*. One command per line; blank lines and `#` comments are skipped, and
+reading from a file bypasses PowerShell's argument parsing entirely.
+
+The login uses fixed delays and **retries on a fresh TCP connection** (`-LoginTries`, default 10):
+the probe answers VT100 probes with a canned cursor report, which occasionally desyncs the router's
+credential read and produces a spurious *"incorrect username or password"*. Prompt-driven sending was
+measured worse — the probe cannot tell a prompt from an echo of one — so retrying is the fix, and a
+new socket is required because the router has already made up its mind about the old session.
+
 See the `mikrotik-cli-probe` skill for the accumulated CLI findings this script was used to
 establish.
 
