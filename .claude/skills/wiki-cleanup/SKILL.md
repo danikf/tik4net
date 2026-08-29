@@ -333,22 +333,41 @@ grep -c "4.0.0-alpha" *.md | grep -v ":0"    # status banners — keep to one li
                                              # release-day removal is one grep
 ```
 
-Link graph — broken links, orphans, and pages `Home.md` does not reach:
+Link graph — broken links, **broken anchors**, orphans, and pages `Home.md` does not reach.
+
+**Check the anchors, not just the page names.** A link to a heading that has been reworded still
+resolves to the right page and lands the reader at the top of it, which looks like it worked — three
+of those were sitting in this wiki, pointing at headings whose wording had changed years ago. Note the
+two traps the checker below handles: GitHub anchors headings inside **blockquotes** too (`> ### …`), and
+it strips backticks before slugging, so a checker that misses either reports false positives.
 
 ```bash
 python - <<'EOF'
 import re, os, glob
-pages = {os.path.splitext(f)[0] for f in glob.glob("*.md")}
-links = {}
-for f in sorted(glob.glob("*.md")):
+def slug(h):
+    s = re.sub(r'`', '', h.strip().lower())
+    s = re.sub(r'[^\w\s-]', '', s)          # punctuation, em dashes and emoji drop out
+    return re.sub(r'\s', '-', s)            # a dropped dash between spaces leaves '--'
+heads, links = {}, {}
+for f in glob.glob("*.md"):
     t = open(f, encoding='utf-8').read()
-    links[os.path.splitext(f)[0]] = {
-        u.split('#')[0] for u in re.findall(r'\]\(([^)\s]+)\)', t)
-        if not u.startswith(('http', '#', 'mailto')) and u.split('#')[0]}
-linked = set().union(*links.values())
-print("broken:", [(p, r) for p, refs in links.items() for r in refs if r not in pages])
-print("orphans:", sorted(p for p in pages if p not in linked and p != 'Home'))
-print("not on Home:", sorted(p for p in pages if p not in links['Home'] and p != 'Home'))
+    name = os.path.splitext(f)[0]
+    heads[name] = {slug(m.group(2)) for m in re.finditer(r'^>?\s*(#{1,6})\s+(.*)$', t, re.M)}
+    links[name] = re.findall(r'\]\(([^)\s]+)\)', t)
+bad = []
+for src, urls in links.items():
+    for u in urls:
+        if u.startswith(('http', 'mailto')): continue
+        page, _, anchor = u.partition('#')
+        target = page or src
+        if target not in heads: bad.append((src, u, 'no page'))
+        elif anchor and anchor not in heads[target]: bad.append((src, u, 'no anchor'))
+linked = {u.split('#')[0] for urls in links.values() for u in urls
+          if not u.startswith(('http', '#', 'mailto')) and u.split('#')[0]}
+print("broken:", bad)
+print("orphans:", sorted(p for p in heads if p not in linked and p != 'Home'))
+print("not on Home:", sorted(p for p in heads
+                             if not any(u.split('#')[0] == p for u in links['Home']) and p != 'Home'))
 EOF
 ```
 
