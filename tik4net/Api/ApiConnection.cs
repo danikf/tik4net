@@ -81,7 +81,6 @@ namespace tik4net.Api
             TikConnectionCapability.Crud | TikConnectionCapability.Listen
             | TikConnectionCapability.Streaming | TikConnectionCapability.RawCommand
             | TikConnectionCapability.Tagging | TikConnectionCapability.SafeMode
-            | TikConnectionCapability.RawCommand
             | TikConnectionCapability.AsyncCommands | TikConnectionCapability.CancelInFlight;
 
         public bool IsOpened

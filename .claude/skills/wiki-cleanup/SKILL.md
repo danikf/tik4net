@@ -103,7 +103,7 @@ neither survives being buried:
 
 * **Starting is easy.** A handful of lines, one package, a program that runs. The reader should see that
   before they see any transport matrix, capability flag or protocol detail.
-* **The coverage is real.** tik4net is not a thin API wrapper: 12 transports behind one connection
+* **The coverage is real.** tik4net is not a thin API wrapper: 11 transports behind one connection
   contract (binary API, REST, and the CLI / WinBox / MAC-layer family), a typed O/R mapper over a large
   set of RouterOS menus, change tracking, Safe Mode, streaming reads, unit-testing support without a
   router, MNDP discovery, an MCP server. That breadth is the reason to invest in learning it, and it
@@ -305,7 +305,7 @@ Beginner path first (a fix there pays the most), then reference, then deep mater
    `login-versions`, `MNDP`, `Safe-Mode`
 4. Big reference: `Command-translation-on-non-API-transports`,
    `One-task-on-every-transport-and-API-level`, `WinBox-Native-connection`, `MCP-server`
-5. Testing: `Communication-debugging-&-testing`, `Testing-*-API`
+5. Testing and debugging: `Unit-testing-without-a-router`, `Testing-*-API`, `Communication-debugging`
 6. Meta: `History`, `Upgrading-from-3.x-to-4.0`, `Roadmap-4x` — these three follow different rules
    (they *are* the history and the plan) and mostly need accuracy checks only.
 

@@ -21,7 +21,7 @@ against it works the same as against a real transport. It does not implement `IT
 a fake has no wire to tag, so `SendTagWithSyncCommand` does not exist on it. Register the responses your
 code expects and assert on what it sent.
 
-See [Communication debugging & testing](https://github.com/danikf/tik4net/wiki/Communication-debugging-&-testing)
+See [Unit testing without a router](https://github.com/danikf/tik4net/wiki/Unit-testing-without-a-router)
 in the wiki for usage.
 
 ## Not to be confused with

@@ -23,7 +23,7 @@ namespace tik4net.Objects.Interface.Bridge
     /// 
     /// General bridge firewall properties are described in this section. Some parameters that differ between nat and filter rules are described in further sections.
     /// </summary>
-    [TikEntity("/interface/bridge/filter")]
+    [TikEntity("/interface/bridge/filter", IsOrdered = true)]
     public class BridgeFilter : BridgeFirewallBase
     {
         /// <summary>

@@ -40,11 +40,12 @@ namespace tik4net
     /// <item><see cref="ITikTlsConnection"/>, <see cref="ITikMacLayerConnection"/>,
     /// <see cref="ITikCancellationModeConnection"/> — the options that are not universal.</item>
     /// </list>
-    /// Extension methods keep the old spellings working (<c>connection.CallCommandSync(…)</c>,
-    /// <c>connection.SafeModeTake()</c>): they cast, and throw
-    /// <see cref="TikConnectionCapabilityNotSupportedException"/> when the transport does not have the
-    /// feature — the same failure the fat interface produced at runtime, minus the obligation to
-    /// implement it.
+    /// <b>There are no compatibility extension methods for these.</b> A facet member is reached by
+    /// holding the facet type — <c>((ITikSafeModeConnection)connection).SafeModeTake()</c>, or better,
+    /// a variable declared as the facet — so a transport that lacks the feature is a compile error
+    /// rather than a runtime one. That is the point: <c>connection.SafeModeTake()</c> on a plain
+    /// <see cref="ITikConnection"/> does not build. Ask <see cref="ITikConnectionCapabilities"/>
+    /// (<c>connection.Supports(...)</c>) when the transport is only known at run time.
     /// <br/>
     /// <b>What is safe to do concurrently on one connection.</b> The library states this rather than
     /// leaving it to be discovered, because the answer is not the same on every transport and the failure

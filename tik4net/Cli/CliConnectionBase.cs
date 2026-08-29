@@ -159,8 +159,7 @@ namespace tik4net.Cli
         /// </summary>
         public override TikConnectionCapability Capabilities
             => TikConnectionCapability.Crud | TikConnectionCapability.Listen | TikConnectionCapability.SafeMode
-             | TikConnectionCapability.RawCommand | TikConnectionCapability.AsyncCommands
-             | TikConnectionCapability.RawCommand;
+             | TikConnectionCapability.RawCommand | TikConnectionCapability.AsyncCommands;
 
         /// <inheritdoc/>
         /// <remarks>

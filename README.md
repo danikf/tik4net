@@ -37,7 +37,7 @@ Tested and debugged against **RouterOS 7.24** (latest stable) — every transpor
 * 🆕 4.0 [Safe Mode](https://github.com/danikf/tik4net/wiki/Safe-Mode) — `SafeModeTake()` / `SafeModeRelease()` / `SafeModeUnroll()` with automatic rollback-on-disconnect (lockout protection)
 * 🆕 4.0 [Change tracking](https://github.com/danikf/tik4net/wiki/Change-tracking) — `Save` sends only the fields you changed; no-op saves skip the API call
 * 🆕 4.0 [Connection capability model](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities) — `connection.Supports(TikConnectionCapability.Listen)`; unsupported features fail closed
-* [Unit testing without a router](https://github.com/danikf/tik4net/wiki/Communication-debugging-&-testing) via `tik4net.testing` (`TikFakeConnection`)
+* [Unit testing without a router](https://github.com/danikf/tik4net/wiki/Unit-testing-without-a-router) via `tik4net.testing` (`TikFakeConnection`)
 * Uniform [exception tree](https://github.com/danikf/tik4net/wiki/Exception-handling) across all transports
 * [Entity scaffolding](https://github.com/danikf/tik4net/wiki/High-level-API-tools) from a live router, and an [MCP server](https://github.com/danikf/tik4net/wiki/MCP-server) that lets an AI assistant drive a router over any tik4net transport
 * Easy to understand and well documented code
@@ -126,7 +126,8 @@ Project wiki:
 * [Connection types and capabilities](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities) — pick a transport and see what it supports
 * [Exception handling](https://github.com/danikf/tik4net/wiki/Exception-handling) — the full exception tree
 * [Safe Mode](https://github.com/danikf/tik4net/wiki/Safe-Mode) · [Change tracking](https://github.com/danikf/tik4net/wiki/Change-tracking) — the flagship 4.0 features
-* [Communication debugging & testing](https://github.com/danikf/tik4net/wiki/Communication-debugging-&-testing) — protocol tracing and unit tests without a router
+* [Communication debugging](https://github.com/danikf/tik4net/wiki/Communication-debugging) — protocol words and raw wire bytes
+* [Unit testing without a router](https://github.com/danikf/tik4net/wiki/Unit-testing-without-a-router) — `TikFakeConnection`, tests with no hardware
 * [History](https://github.com/danikf/tik4net/wiki/History)
 
 Examples and help:

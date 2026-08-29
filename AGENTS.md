@@ -10,7 +10,7 @@ including agent-facing files.
 ## What this is
 
 tik4net is a .NET library for talking to MikroTik RouterOS devices. It is **not** an API-only library:
-as of 4.0 it ships 12 transports (binary API, REST, and a family of CLI/WinBox/MAC-layer channels)
+as of 4.0 it ships 11 transports (binary API, REST, and a family of CLI/WinBox/MAC-layer channels)
 behind one connection contract, plus an attribute-driven O/R mapper on top. The five shipping projects
 multi-target `netstandard2.0;net8.0` — netstandard2.0 is kept deliberately (Unity/Xamarin/.NET Framework
 reach), and the net8.0 leg is where the modern surface lives, e.g. the `IAsyncEnumerable` streaming reads.
