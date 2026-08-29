@@ -27,13 +27,13 @@ namespace tik4net.Objects.Interface.Ethernet
         public string?/*done | incomplete*/ AutoNegotiation { get; set; }
 
         /// <summary>
-        /// default-cable-settings
+        /// default-cable-setting
         /// Default cable length setting (only applicable to NS DP83815/6 cards)
         ///  short - support short cables 
         ///  standard - support standard cables
         /// </summary>
-        [TikProperty("default-cable-settings")]
-        public string?/*short | standard*/ DefaultCableSettings { get; set; }
+        [TikProperty("default-cable-setting")]
+        public string?/*short | standard*/ DefaultCableSetting { get; set; }
 
         /// <summary>
         /// full-duplex: Whether transmission of data occurs in two directions simultaneously
@@ -42,10 +42,19 @@ namespace tik4net.Objects.Interface.Ethernet
         public bool? FullDuplex { get; set; }
 
         /// <summary>
-        /// rate: Actual data rate of the connection.
+        /// rate: Actual data rate of the connection. RouterOS renders it with a unit here —
+        /// <c>10Mbps</c>, <c>100Mbps</c>, <c>1Gbps</c> — which is one of the spellings
+        /// <see cref="TikDataRate"/> exists to read; the value is bits per second either way.
         /// </summary>
         [TikProperty("rate")]
-        public string?/*10Mbps | 100Mbps | 1Gbps*/ Rate { get; set; }
+        public TikDataRate? Rate { get; set; }
+
+        /// <summary>
+        /// supported: the rate/duplex combinations the port itself can do, as a comma-separated list
+        /// (e.g. <c>10M-baseT-half,10M-baseT-full,100M-baseT-half,…</c>). Empty on a virtual NIC.
+        /// </summary>
+        [TikProperty("supported")]
+        public string? Supported { get; set; }
 
         /// <summary>
         /// status

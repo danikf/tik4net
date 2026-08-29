@@ -109,12 +109,14 @@ namespace tik4net.unittests.Objects
                 ["HotspotServerProfile"] = new[] { "rate-limit" },
 
                 // ── Link speeds and a bitmask ───────────────────────────────────────────────────────
-                // Measured: '/interface/ethernet/monitor rate' is '1Gbps', and TikDataRate reads that now.
-                // They stay here anyway, because THIS list is about pairing and neither is a pair: a link
-                // runs at one speed, not an upload one and a download one. Typing them as a scalar
-                // TikDataRate would be defensible; typing them as a TikRatePair would invent a second half.
-                ["EthernetMonitor"] = new[] { "rate" },
-                // 'speed' is the same 10Mbps|1Gbps spelling; 'sfp-rate-select' is high|low, an enum.
+                // EthernetMonitor.rate USED to be here and is now TikDataRate: measured '1Gbps', which the
+                // type reads. It was never a pair — a link runs at one speed, not an upload one and a
+                // download one — so it left this list by being typed as a scalar, not by becoming a pair.
+                //
+                // InterfaceEthernet.speed is the same 10Mbps|1Gbps spelling and stays a string, on a
+                // difference that matters: monitor's rate is READ-ONLY, so TikDataRate.ToString() never
+                // reaches the router, while speed is WRITTEN BACK — and RouterOS takes the unit spelling
+                // there, not the plain number ToString() would send. 'sfp-rate-select' is high|low, an enum.
                 ["InterfaceEthernet"] = new[] { "speed", "sfp-rate-select" },
                 // Measured '0x1818' — a hex mask of which ICMP types the rate limit applies to.
                 ["IpSettings"] = new[] { "icmp-rate-mask" },
