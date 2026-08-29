@@ -103,6 +103,56 @@ namespace tik4net.Cli
         }
 
         /// <summary>
+        /// Reads the verb out of a <b>raw</b> CLI line so that the positional error check can apply there
+        /// too, and returns false when the line is anything the check would be unsafe on.
+        /// </summary>
+        /// <remarks>
+        /// The structured path knows its verb because it built the command; raw mode is handed a finished
+        /// line, and without a verb it can only phrase-match — which reports every wording the list misses
+        /// as SUCCESS. The verb is in the text, so it can be read.
+        /// <para>
+        /// Deliberately conservative, because the two failure directions are not equal: missing a verb
+        /// costs a refusal that keeps being phrase-matched, exactly as before, while a wrong verb turns
+        /// legitimate output into a thrown exception. So this recognises only a plain single command —
+        /// leading <c>/</c>, and none of <c>[ ] $ ; { }</c>, which is what scripting,
+        /// <c>:put [ … ]</c> and command chaining need — and within it only a word that is already a
+        /// confirmed <see cref="IsSilentOnSuccessVerb"/>. Everything else returns false and keeps the old
+        /// behaviour. Scanning stops at the first argument (a <c>name=value</c> word, a quoted value or a
+        /// <c>*id</c> selector) so a value can never be mistaken for a verb.
+        /// </para>
+        /// </remarks>
+        internal static bool TryGetRawSilentVerb(string cliText, out string verb)
+        {
+            verb = string.Empty;
+            if (string.IsNullOrWhiteSpace(cliText))
+                return false;
+
+            string text = cliText.Trim();
+            if (text[0] != '/')
+                return false;                                   // ':put …', ':foreach …', a bare word
+            if (text.IndexOfAny(new[] { '[', ']', '$', ';', '{', '}' }) >= 0)
+                return false;                                   // scripting or chained commands
+
+            foreach (string word in text.Split(' '))
+            {
+                if (word.Length == 0)
+                    continue;
+                if (word.IndexOf('=') >= 0 || word[0] == '"' || word[0] == '*')
+                    break;                                      // arguments start here
+
+                // '/interface set' and '/interface/set' are the same command.
+                int slash = word.LastIndexOf('/');
+                string candidate = slash >= 0 ? word.Substring(slash + 1) : word;
+                if (IsSilentOnSuccessVerb(candidate))
+                {
+                    verb = candidate;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Extracts the first non-blank line from <paramref name="output"/> to use as the error message.
         /// </summary>
         internal static string ExtractErrorLine(string output)

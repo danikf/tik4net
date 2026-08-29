@@ -74,5 +74,63 @@ namespace tik4net.unittests.Cli
             foreach (string verb in new[] { "add", "run", "print", "getall", "monitor-traffic", "ping" })
                 Assert.IsFalse(CliErrorParser.IsSilentOnSuccessVerb(verb), verb + " legitimately prints output");
         }
+
+        /// <summary>
+        /// The raw level is handed a finished CLI line instead of building one, so it used to have no verb
+        /// and could only phrase-match. The verb is in the text, and these are the lines it may be read from.
+        /// </summary>
+        [TestMethod]
+        public void RawSilentVerb_IsReadFromAPlainWriteCommand()
+        {
+            foreach (string line in new[]
+            {
+                "/interface set *2 comment=\"x\"",
+                "/interface/set *2 comment=\"x\"",
+                "/ip/firewall/filter remove numbers=0",
+                "/interface enable ether1",
+                "/interface disable ether1",
+                "/ip firewall filter move 1 destination=0",
+                "/interface unset *2 comment",
+            })
+            {
+                Assert.IsTrue(CliErrorParser.TryGetRawSilentVerb(line, out string verb), line);
+                Assert.IsTrue(CliErrorParser.IsSilentOnSuccessVerb(verb), line + " -> " + verb);
+            }
+        }
+
+        /// <summary>
+        /// The important half. A wrong verb turns legitimate output into a thrown exception, so anything the
+        /// reader cannot vouch for must fall back to phrase matching rather than guess.
+        /// </summary>
+        [TestMethod]
+        public void RawSilentVerb_RefusesEverythingItCannotVouchFor()
+        {
+            foreach (string line in new[]
+            {
+                ":put [/interface print as-value where comment=\"x\"]",   // scripting, and it prints
+                "/interface print detail as-value where comment=\"x\"",   // print exists to produce output
+                "/interface add name=vlan1",                              // add prints the new .id
+                "/system/script/run myscript",                            // run prints the script's output
+                "/interface set *2 comment=\"x\"; /interface print",       // chained: the second one prints
+                ":global x [/interface find]",                            // a script variable
+                "/interface set $id comment=\"x\"",                        // a script variable as a selector
+                "",
+                "   ",
+            })
+                Assert.IsFalse(CliErrorParser.TryGetRawSilentVerb(line, out _), line);
+        }
+
+        /// <summary>
+        /// Scanning stops at the first argument, so a VALUE that happens to spell a verb is never read as
+        /// one — the case that would otherwise make a legitimate answer throw.
+        /// </summary>
+        [TestMethod]
+        public void RawSilentVerb_DoesNotReadAVerbOutOfAValue()
+        {
+            Assert.IsFalse(CliErrorParser.TryGetRawSilentVerb(
+                "/interface print detail as-value where comment=\"set\"", out _));
+            Assert.IsFalse(CliErrorParser.TryGetRawSilentVerb(
+                "/log print where message=\"remove\"", out _));
+        }
     }
 }
