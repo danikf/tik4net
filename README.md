@@ -1,7 +1,19 @@
 tik4net
 ====
 
-tik4net is a .NET library for communicating with MikroTik routers, targeting `netstandard2.0;net8.0` — enabling use in .NET Framework 4.6.1+, .NET Core 2.0+, .NET 5/6/7/8/9, Xamarin, and Unity, with a dedicated `net8.0` build (no runtime dependencies, and the `net8.0`-only async streaming API — see [ADO.NET-like API](https://github.com/danikf/tik4net/wiki/ADO.NET-like-API)) for consumers on modern .NET. It offers a clean, easy-to-use interface that scales from low-level raw API access all the way up to a fully typed O/R mapper. Tested and debugged against **RouterOS 7.24** (latest stable).
+**tik4net is the most complete .NET library for talking to MikroTik RouterOS devices.** Every way into a
+router is available — the binary API, REST, Telnet, SSH, MAC-Telnet and the WinBox channel, over IP or
+straight over the MAC layer — and they all sit behind one `ITikConnection` interface. You work with
+whatever the router already has enabled instead of reconfiguring it first, and switching transport is one
+enum value; the rest of your code does not change.
+
+Work at whichever level suits the task — raw sentences, an ADO.NET-shaped command API, or a fully typed
+O/R mapper — on the same connection, mixing them freely. Response parsing, terminal and paging quirks,
+both API login handshakes and correlating replies to their caller are handled for you; what a transport
+genuinely cannot do, it tells you through its capabilities instead of quietly doing the wrong thing. The
+surface is large, and the first working program is five lines.
+
+Tested and debugged against **RouterOS 7.24** (latest stable) — every transport verified against a live router.
 
 > **🆕 Many new connection types!** Beyond the classic API, tik4net now drives the router over REST, Telnet, SSH, MAC-Telnet, and WinBox (terminal + native-M2, over IP or MAC layer). See [Connection types and capabilities](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities). tik4net is the **only .NET library** that speaks **MAC-Telnet** and the **WinBox** protocols.
 
@@ -9,88 +21,57 @@ tik4net is a .NET library for communicating with MikroTik routers, targeting `ne
 |---|---|---|
 | **tik4net** | [![NuGet](https://img.shields.io/nuget/v/tik4net.svg)](https://www.nuget.org/packages/tik4net) | Everything you normally need: the [low-level ADO.NET-like API](https://github.com/danikf/tik4net/wiki/ADO.NET-like-API) (sync and async R/W access) **and** the [high-level O/R mapper](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper) (strongly typed entities, full CRUD) |
 | **tik4net.testing** | [![NuGet](https://img.shields.io/nuget/v/tik4net.testing.svg)](https://www.nuget.org/packages/tik4net.testing) | Unit-testing support — `TikFakeConnection` lets you write tests without a live router |
-| **tik4net.ssh** | [![NuGet](https://img.shields.io/nuget/v/tik4net.ssh.svg)](https://www.nuget.org/packages/tik4net.ssh) | SSH (TCP 22) transport — drives the RouterOS CLI over an SSH shell (`Crud`, `Listen`, `SafeMode`, `RawCommand`, like the other CLI transports). A separate package because of its `Renci.SshNet` dependency. |
+| **tik4net.ssh** | [![NuGet](https://img.shields.io/nuget/v/tik4net.ssh.svg)](https://www.nuget.org/packages/tik4net.ssh) | The SSH transport (TCP 22) — a separate package because of its `Renci.SshNet` dependency |
 
-> **⚠️ Upgrading from 3.x?** The O/R mapper used to be a separate `tik4net.objects` package.
-> Since 4.0 it is part of `tik4net` itself — **remove any `PackageReference` to `tik4net.objects`**
-> or you will get an assembly conflict. Your source code does not change.
-> See [Upgrading from 3.x to 4.0](https://github.com/danikf/tik4net/wiki/Upgrading-from-3.x-to-4.0).
-
-[Tools](https://github.com/danikf/tik4net/wiki/High-level-API-tools) — how to scaffold a custom entity from a live router. The repo also ships an [MCP server](https://github.com/danikf/tik4net/wiki/MCP-server) that lets an AI assistant run a command against a live router over any tik4net transport (`mikrotik_call`), enumerate a menu's writable fields via Tab-completion (`mikrotik_cli_complete`), and find routers on the local segment via MNDP (`mikrotik_discover`).
+> **⚠️ Upgrading from 3.x?** The O/R mapper is now part of `tik4net` itself — **remove any
+> `PackageReference` to `tik4net.objects`** or you will get an assembly conflict. Your source code does
+> not change. See [Upgrading from 3.x to 4.0](https://github.com/danikf/tik4net/wiki/Upgrading-from-3.x-to-4.0).
 
 # Features
-* Easy to use with [O/R mapper like highlevel API](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper)
-* Low level access supported by [low level API](https://github.com/danikf/tik4net/wiki/Low-level-API) 
-* Stable interface and backward compatibility
-* Broad range of .NET runtimes supported (including .NET core 2 and Xamarin)
-* New mikrotik [v.6.43 login process](https://github.com/danikf/tik4net/wiki/login-versions) supported
-* Includes [MNDP](https://github.com/danikf/tik4net/wiki/MNDP) discovery helper 
+* Easy to use with the [O/R mapper high-level API](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper) — strongly typed entities, full CRUD
+* [Low-level API](https://github.com/danikf/tik4net/wiki/Low-level-API) when you need to send the transport's own language unchanged
+* One connection contract over [every transport](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities), including the MAC-layer ones that reach a router with no IP address
+* Broad range of .NET runtimes supported (including .NET Framework, Xamarin and Unity)
+* Both API login handshakes, [old and v6.43+](https://github.com/danikf/tik4net/wiki/login-versions), negotiated automatically
+* [MNDP](https://github.com/danikf/tik4net/wiki/MNDP) discovery helper — find routers on the segment with no connection at all
 * 🆕 4.0 [Safe Mode](https://github.com/danikf/tik4net/wiki/Safe-Mode) — `SafeModeTake()` / `SafeModeRelease()` / `SafeModeUnroll()` with automatic rollback-on-disconnect (lockout protection)
 * 🆕 4.0 [Change tracking](https://github.com/danikf/tik4net/wiki/Change-tracking) — `Save` sends only the fields you changed; no-op saves skip the API call
 * 🆕 4.0 [Connection capability model](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities) — `connection.Supports(TikConnectionCapability.Listen)`; unsupported features fail closed
 * [Unit testing without a router](https://github.com/danikf/tik4net/wiki/Communication-debugging-&-testing) via `tik4net.testing` (`TikFakeConnection`)
 * Uniform [exception tree](https://github.com/danikf/tik4net/wiki/Exception-handling) across all transports
+* [Entity scaffolding](https://github.com/danikf/tik4net/wiki/High-level-API-tools) from a live router, and an [MCP server](https://github.com/danikf/tik4net/wiki/MCP-server) that lets an AI assistant drive a router over any tik4net transport
 * Easy to understand and well documented code
 
 ## Connection types
 
-All transports share the same `ITikConnection` API and O/R mapper — pick one via `TikConnectionType`. See [Connection types and capabilities](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities).
+All transports share the same `ITikConnection` API and O/R mapper — pick one via `TikConnectionType`. See
+[Connection types and capabilities](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities)
+for what each capability means in practice, and for the per-transport detail behind this table.
 
 | Transport | Port | What it is | Capabilities |
 |---|---|---|---|
-| **Api** / **ApiSsl** | TCP 8728 / 8729 | native MikroTik API protocol — the default and fastest; TLS variant needs a certificate on the router | **all of them**: `Crud`, `Listen`, `Streaming`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`‡, `CancelInFlight`‡ |
-| **Rest** / **RestSsl** | TCP 80 / 443 | REST API, RouterOS 7.1+ | `Crud`, `Listen`\*†, `AsyncCommands`‡, `CancelInFlight`‡ — stateless HTTP, so no streaming and no Safe Mode |
-| **Telnet** | TCP 23 | RouterOS CLI over plain-text Telnet | `Crud`, `Listen`\*, `SafeMode`, `RawCommand`\*\*, `AsyncCommands`‡ |
-| **Ssh** | TCP 22 | RouterOS CLI over an SSH shell (separate `tik4net.ssh` package) | `Crud`, `Listen`\*, `SafeMode`, `RawCommand`\*\*, `AsyncCommands`‡ |
-| **MacTelnet** | UDP 20561 | CLI over MAC-Telnet — reaches a router with **no IP route, or no IP address at all** | `Crud`, `Listen`\*, `SafeMode`, `RawCommand`\*\*, `AsyncCommands`‡ |
-| **WinboxCli** / **WinboxCliMac** | TCP 8291 / UDP 20561 | CLI over the encrypted WinBox channel (EC-SRP5 + AES, no certificates) | `Crud`, `Listen`\*, `SafeMode`, `RawCommand`\*\*, `AsyncCommands`‡ |
-| **WinboxNative** / **WinboxNativeMac** | TCP 8291 / UDP 20561 | structured WinBox M2 CRUD, no terminal | `Crud`, `Listen`\*, `SafeMode`, `AsyncCommands`‡, `CancelInFlight`‡§ |
+| **Api** / **ApiSsl** | TCP 8728 / 8729 | native MikroTik API protocol — the default and fastest; TLS variant needs a certificate on the router | **all of them**: `Crud`, `Listen`, `Streaming`, `Tagging`, `SafeMode`, `RawCommand`, `AsyncCommands`, `CancelInFlight` |
+| **Rest** / **RestSsl** | TCP 80 / 443 | REST API, RouterOS 7.1+ | `Crud`, `Listen`, `AsyncCommands`, `CancelInFlight` — stateless HTTP, so no streaming and no Safe Mode |
+| **Telnet** | TCP 23 | RouterOS CLI over plain-text Telnet | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands` |
+| **Ssh** | TCP 22 | RouterOS CLI over an SSH shell (separate `tik4net.ssh` package) | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands` |
+| **MacTelnet** | UDP 20561 | CLI over MAC-Telnet — reaches a router with **no IP route, or no IP address at all** | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands` |
+| **WinboxCli** / **WinboxCliMac** | TCP 8291 / UDP 20561 | CLI over the encrypted WinBox channel (EC-SRP5 + AES, no certificates) | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands` |
+| **WinboxNative** / **WinboxNativeMac** | TCP 8291 / UDP 20561 | structured WinBox M2 CRUD, no terminal | `Crud`, `Listen`, `SafeMode`, `AsyncCommands`, `CancelInFlight` |
 
-\* **`Listen` outside the API is emulated by polling** (re-issuing a snapshot on a background worker), not
-server push. **`Streaming`** (`ExecuteListWithDuration`) is binary-API only — no other transport holds a
-command exchange open for a blocking multi-row read.
+What the table does not say, in one line each — the
+[capabilities page](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities) has the rest:
 
-\*\* **`RawCommand` is native syntax, not a translation, and it gates both raw levels.** A command is
-written in the transport's own language and sent unchanged: API sentence words on `Api`/`ApiSsl`, RouterOS
-**CLI text** on the terminal transports (`:put [/interface print as-value]`). Two entry points share it —
-`CreateRawCommand` at the `ITikCommand` level and `CallCommandSync` one level down, answering with sentences
-directly — and both raise a trap when the router reports an error rather than returning it as a value. They
-exist to reach what the O/R mapper cannot express. REST and WinBox native do not declare it at all: they have a
-request shape, not a command language a caller could write. (`RawSentences` is an obsolete alias of this same
-flag; it used to gate the low-level half alone.)
-
-† On REST an async monitor's rows arrive **when the command ends**, not as the router produces them: RouterOS
-buffers the whole HTTP response. Prefer an explicit bound (`count`/`duration`) on a REST monitor — and note
-that closing the connection does not stop a command already running on the router.
-
-‡ **`Execute*Async` — the Task-based command surface** (`ExecuteListAsync`, `ExecuteScalarAsync`, … with a
-`CancellationToken`) was rolled out per transport: REST first, then the whole CLI family, then the binary API,
-and finally WinBox native — each over its own awaited I/O. A transport that cannot await its I/O would not
-declare the flag at all and its async methods would throw, rather than block a thread pretending to be
-asynchronous; every shipped transport now awaits. `CancelInFlight`
-means a token cancelled *after* dispatch really stops the wait and leaves the connection usable. **On the binary
-API it is the protocol's own operation**: the client sends `/cancel tag=N`, the router answers the cancelled
-command with `!trap interrupted` + `!done`, and the connection carries on — nothing is abandoned mid-stream. **On the CLI
-transports it never will**: a terminal answers with an unframed byte stream, so abandoning a read would leave
-output for the next command to misparse. There a mid-command cancel is reported once the response has been
-drained — correct, but no faster than the command itself. A caller who would rather lose the session than wait
-opts in with `TikConnectionSetup.CancellationMode = TikCancellationMode.AbandonAndClose`, which closes the
-connection instead of silently desynchronizing it.
-
-§ **On WinBox native `CancelInFlight` means two different things**, and the stronger one is why it is
-declared. A **streaming window** — torch, ping, scan, traceroute, bandwidth-test — is closed by sending the
-window's own `cancelcmd`, exactly what WinBox does when you close that window; the router stops. Every
-streaming window in the router's `.jg` catalog declares one (68 of them on RouterOS 7.23.2, one per
-`startcmd`), so this is as real a stop as the binary API's `/cancel`. An **ordinary round trip**
-(getall/set/add) has no cancel verb: cancelling frees the caller and drops the request's registration while
-the router finishes the work — safe because replies are dispatched by request id, so the late reply is
-identified and discarded rather than handed to the next command. That weaker half is the same guarantee REST
-gives.
-
-Every transport can have its connection **reused**. Concurrent commands on one connection work on
-`Api`/`ApiSsl` (`SendTagWithSyncCommand`, on `ITikTaggedConnection`, defaults to `true` since 4.0, so no
-setup is needed), `Rest`/`RestSsl` and both WinBox-native transports; the CLI family drives a single
-request/reply terminal and serializes by design.
+* **`Listen`** is server push on the binary API and emulated by polling everywhere else; **`Streaming`**
+  (a blocking multi-row read) is binary-API only.
+* **`RawCommand`** sends a command in the transport's *own* language, unchanged — API words on the API,
+  real CLI text on the terminal transports. REST and WinBox native have a request shape rather than a
+  language, so they do not offer it.
+* **`AsyncCommands`** is the `Task`-based surface with a `CancellationToken`; **`CancelInFlight`** adds
+  that a cancel after dispatch really stops the wait and leaves the connection usable — on the CLI
+  transports a cancel is correct but no faster than the command itself.
+* **Connections are reusable on every transport.** Concurrent commands on one connection work on
+  `Api`/`ApiSsl`, `Rest`/`RestSsl` and both WinBox-native transports; the CLI family drives a single
+  terminal and serializes by design.
 
 # Binaries
 
@@ -102,72 +83,61 @@ dotnet add package tik4net.testing   # unit-testing support
 dotnet add package tik4net.ssh       # SSH (TCP 22) transport
 ```
 
+**Runtimes:** the packages target `netstandard2.0;net8.0` — usable from .NET Framework 4.6.1+, .NET Core
+2.0+, .NET 5 and newer, Xamarin and Unity, with no runtime dependencies. The `net8.0` build additionally
+carries the async streaming API (see
+[ADO.NET-like API](https://github.com/danikf/tik4net/wiki/ADO.NET-like-API)).
+
 See [release notes / version history](https://github.com/danikf/tik4net/wiki/History) for what's new.
 
 # Getting started and documentation
-Mikrotik API wiki:
-* [Mikrotik API wiki](https://wiki.mikrotik.com/wiki/Manual:API)
-* [Mikrotik API notes](https://wiki.mikrotik.com/wiki/API_command_notes)
+
+A complete first program — connect, read a typed list, create a rule:
+
+```cs
+using tik4net;
+using tik4net.Objects;
+using tik4net.Objects.Ip.Firewall;
+
+// TikConnectionSetup is the entry point: it carries every option and opens the transport you name.
+// TikConnectionType.Api works for both the old and the new (v6.43+) login.
+var setup = new TikConnectionSetup(HOST, USER, PASS);
+using (ITikConnection connection = setup.Create(TikConnectionType.Api))
+{
+    ITikCommand cmd = connection.CreateCommand("/system/identity/print");
+    Console.WriteLine("Identity: " + cmd.ExecuteScalar());
+
+    foreach (Log log in connection.LoadList<Log>())
+        Console.WriteLine("{0}[{1}]: {2}", log.Time, log.Topics, log.Message);
+
+    connection.Save(new FirewallFilter()
+    {
+        Chain = FirewallFilter.ChainType.Forward,
+        Action = FirewallFilter.ActionType.Accept,
+    });
+}
+```
 
 Project wiki:
 * [**Getting started**](https://github.com/danikf/tik4net/wiki/Getting-started) — step-by-step first project (NuGet → connect → CRUD)
-* [wiki root](https://github.com/danikf/tik4net/wiki) 
+* [wiki root](https://github.com/danikf/tik4net/wiki)
+* [How to use tik4net](https://github.com/danikf/tik4net/wiki/How-to-use-tik4net-library) — picking the right API level
 * [CRUD examples for all APIs](https://github.com/danikf/tik4net/wiki/CRUD-examples-for-all-APIs)
-* [how to use](https://github.com/danikf/tik4net/wiki/How-to-use-tik4net-library)
 * [Connection types and capabilities](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities) — pick a transport and see what it supports
 * [Exception handling](https://github.com/danikf/tik4net/wiki/Exception-handling) — the full exception tree
 * [Safe Mode](https://github.com/danikf/tik4net/wiki/Safe-Mode) · [Change tracking](https://github.com/danikf/tik4net/wiki/Change-tracking) — the flagship 4.0 features
 * [Communication debugging & testing](https://github.com/danikf/tik4net/wiki/Communication-debugging-&-testing) — protocol tracing and unit tests without a router
 * [History](https://github.com/danikf/tik4net/wiki/History)
 
-Examples:
-* [example project](https://github.com/danikf/tik4net/blob/master/tik4net.examples/ProgramExamples.cs)
+Examples and help:
+* [example project](https://github.com/danikf/tik4net/blob/master/tik4net.examples/ProgramExamples.cs) — including asynchronous commands such as `/tool/torch`
+* [VisualBasic example](https://github.com/danikf/tik4net/wiki/VB-trivial-example)
 * [support forum](http://forum.mikrotik.com/viewtopic.php?t=99954)
-* For VisualBasic trivial example see [VB example](https://github.com/danikf/tik4net/wiki/VB-trivial-example)
 
-```cs
-   // TikConnectionSetup is the entry point: it carries every option and opens the transport you name.
-   // TikConnectionType.Api works for both the old and the new (v6.43+) login.
-   var setup = new TikConnectionSetup(TikRouterAddress.FromHost(HOST), USER, PASS);
-   using (ITikConnection connection = setup.Create(TikConnectionType.Api))
-   {
-```
-```cs
-   ITikCommand cmd = connection.CreateCommand("/system/identity/print");
-   var identity = cmd.ExecuteScalar(); 
-   Console.WriteLine("Identity: {0}", identity);
-```
-```cs
-   var logs = connection.LoadList<Log>();
-   foreach (Log log in logs)
-   {
-       Console.WriteLine("{0}[{1}]: {2}", log.Time, log.Topics, log.Message);
-   }
-```
-```cs
-   var firewallFilter = new FirewallFilter()
-   {
-      Chain = FirewallFilter.ChainType.Forward,
-      Action = FirewallFilter.ActionType.Accept,
-   };
-   connection.Save(firewallFilter);
-```
-```cs
-   ITikCommand torchCmd = connection.CreateCommand("/tool/torch", 
-      connection.CreateParameter("interface", "ether1"), 
-      connection.CreateParameter("port", "any"),
-      connection.CreateParameter("src-address", "0.0.0.0/0"),
-      connection.CreateParameter("dst-address", "0.0.0.0/0"));
+MikroTik's own protocol documentation:
+* [MikroTik API manual](https://wiki.mikrotik.com/wiki/Manual:API)
+* [MikroTik API command notes](https://wiki.mikrotik.com/wiki/API_command_notes)
 
-  torchCmd.ExecuteAsync(response =>
-      {
-         Console.WriteLine("Row: " + response.GetResponseField("tx"));
-      });
-  Console.WriteLine("Press ENTER");
-  Console.ReadLine();
-  torchCmd.Cancel();
-```
-  
 # Contributing
 
 * [ARCHITECTURE.md](ARCHITECTURE.md) — how the codebase is laid out: the transport family, the capability model, the O/R mapper internals, and where the risky code lives. **Read this before any non-trivial change.**
