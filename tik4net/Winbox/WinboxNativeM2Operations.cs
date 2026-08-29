@@ -266,7 +266,7 @@ namespace tik4net.Winbox
                     resp = await SendReceiveAsync(
                         BuildGetAll(handler, flags, maxObjs, cont), cancellationToken, remaining).ConfigureAwait(false);
                 }
-                catch (TimeoutException ex)
+                catch (TikConnectionReceiveTimeoutException ex)
                 {
                     // A13. The multiplexer can only name the request id and what the CHANNEL has been doing;
                     // how much of the TABLE had already arrived lives here, in the cursor loop, and it is
@@ -274,10 +274,12 @@ namespace tik4net.Winbox
                     // this table is simply bigger than the deadline (the fix is a longer one, or filtering
                     // router-side over another transport); nothing read at all on the first page means the
                     // request never got going.
-                    throw new TimeoutException(
+                    throw new TikConnectionReceiveTimeoutException(ex.TimeoutMilliseconds,
                         $"WinBox M2 getall on handler [{string.Join(",", handler)}] timed out after "
                         + $"{sw.ElapsedMilliseconds} ms with {records.Count} row(s) from {round} completed "
-                        + $"page(s). {ex.Message}", ex);
+                        + $"page(s). {ex.Message}",
+                        partialResponse: $"{records.Count} row(s) from {round} completed page(s)",
+                        innerException: ex);
                 }
 
                 int status = M2Message.ParseSysStatus(resp);
@@ -312,13 +314,16 @@ namespace tik4net.Winbox
         /// the whole table: a short list is indistinguishable from a router that has that many rows, so this
         /// says out loud what stopped it and how far it got.
         /// </summary>
-        private static TimeoutException Truncated(int[] handler, Stopwatch sw, int rows, int pages, string why)
-            => new TimeoutException(
+        private static TikConnectionReceiveTimeoutException Truncated(
+            int[] handler, Stopwatch sw, int rows, int pages, string why)
+            => new TikConnectionReceiveTimeoutException(
+                (int)sw.ElapsedMilliseconds,
                 $"WinBox M2 getall on handler [{string.Join(",", handler)}] could not read the whole table: {why}. "
                 + $"{rows} row(s) from {pages} completed page(s) in {sw.ElapsedMilliseconds} ms are discarded rather "
                 + "than returned as a complete answer. A native read is proportional to the TABLE, not to the "
                 + "answer — there is no server-side filtering in M2 and the router picks the page size — so "
-                + "raise ReceiveTimeout, or read a table this size over a transport that can filter on the router.");
+                + "raise ReceiveTimeout, or read a table this size over a transport that can filter on the router.",
+                partialResponse: $"{rows} row(s) from {pages} completed page(s)");
 
         private byte[] BuildGetAll(int[] handler, int flags, int maxObjs, WinboxM2Continuation? cont)
         {

@@ -52,8 +52,8 @@ namespace tik4net.unittests.Connection
 
             public override void Open(string host, string user, string password) => OpenScripted();
             public override void Open(string host, int port, string user, string password) => OpenScripted();
-            public override Task OpenAsync(string host, string user, string password) { OpenScripted(); return Task.FromResult(0); }
-            public override Task OpenAsync(string host, int port, string user, string password) { OpenScripted(); return Task.FromResult(0); }
+            public override Task OpenAsync(string host, string user, string password, CancellationToken cancellationToken = default) { OpenScripted(); return Task.FromResult(0); }
+            public override Task OpenAsync(string host, int port, string user, string password, CancellationToken cancellationToken = default) { OpenScripted(); return Task.FromResult(0); }
         }
 
         private static RecordingCliConnection OpenConnection(string reply = "")
@@ -214,15 +214,24 @@ namespace tik4net.unittests.Connection
             }
         }
 
+        /// <summary>
+        /// Bit 8 stays out of the enum.
+        /// </summary>
+        /// <remarks>
+        /// It belonged to <c>RawSentences</c>, the second flag for the second raw level, always set together
+        /// with <see cref="TikConnectionCapability.RawCommand"/>. The member is gone (it never shipped outside
+        /// the 4.0 alphas), and the bit is not reused, so a persisted old value cannot come back meaning some
+        /// other capability. This test is what makes that a rule rather than an intention.
+        /// </remarks>
         [TestMethod]
-        public void RawSentencesIsTheSameFlagAsRawCommand()
+        public void BitEightIsNotReusedByAnotherCapability()
         {
-            // They were two flags for the two levels a raw command can be issued at, always set together,
-            // which is two chances to check the wrong one. RawSentences is an obsolete alias of RawCommand
-            // now — the same bit — so any code still asking the old question gets the same answer.
-#pragma warning disable CS0618 // deliberately referencing the obsolete alias
-            Assert.AreEqual(TikConnectionCapability.RawCommand, TikConnectionCapability.RawSentences);
-#pragma warning restore CS0618
+            foreach (TikConnectionCapability flag in Enum.GetValues(typeof(TikConnectionCapability)))
+            {
+                Assert.AreNotEqual(8, (int)flag,
+                    $"{flag} has taken bit 8, which the removed RawSentences flag used. A capability "
+                    + "persisted by an older build would silently come back as this one.");
+            }
         }
 
         [TestMethod]

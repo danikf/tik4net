@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 
 namespace tik4net.Connection
@@ -24,8 +25,8 @@ namespace tik4net.Connection
                 if (name == "#|") { bool a = Pop(stack), b = Pop(stack); stack.Push(a || b); }
                 else if (name == "#&") { bool a = Pop(stack), b = Pop(stack); stack.Push(a && b); }
                 else if (name == "#!") { stack.Push(!Pop(stack)); }
-                else if (name.StartsWith("#")) { /* unsupported stack op — leave stack unchanged */ }
-                else if (name.StartsWith(".") && name != TikSpecialProperties.Id) { stack.Push(true); }
+                else if (name.StartsWith("#", StringComparison.Ordinal)) { /* unsupported stack op — leave stack unchanged */ }
+                else if (name.StartsWith(".", StringComparison.Ordinal) && name != TikSpecialProperties.Id) { stack.Push(true); }
                 else stack.Push(EvalPredicate(row, name, f.Value));
             }
             return stack.All(b => b);
@@ -41,7 +42,12 @@ namespace tik4net.Connection
             if (op == '<' || op == '>')
             {
                 if (!has) return false;
-                if (double.TryParse(v, out var dv) && double.TryParse(value, out var dq))
+                // Invariant, not the current culture: RouterOS writes a fixed wire format, so '1.5' is
+                // 1.5 on every machine. Parsed with the culture, a decimal point fails to parse on cs-CZ,
+                // the comparison falls through to the ordinal string compare below, and '9' > '10' — the
+                // same query answering differently depending on the regional settings of the caller.
+                if (double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out var dv)
+                    && double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var dq))
                     return op == '<' ? dv < dq : dv > dq;
                 int cmp = string.CompareOrdinal(v, value);
                 return op == '<' ? cmp < 0 : cmp > 0;

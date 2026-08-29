@@ -29,4 +29,30 @@
     <Copyright>Copyright (C) Daniel Frantik 2026</Copyright>
   </PropertyGroup>
 
+  <!--
+    Debuggability of the shipped assemblies. Unlike the frameworks above, this genuinely is a
+    tree-wide decision: a consumer stepping into tik4net does not care which project a type came from.
+
+    DebugType=embedded rather than a .snupkg symbol package, on purpose. The `tik4net` package is
+    assembled by tik4net.package, which sets IncludeBuildOutput=false and copies the two referenced
+    assemblies in by hand (see the target there) — so the standard symbol packaging has no build output
+    to collect and would produce a .snupkg that packs, uploads, and contains nothing. An empty symbol
+    package is worse than none, because it looks like the problem is solved. Embedding puts the PDB
+    inside the assembly, where the existing copy target carries it along for free.
+
+    The cost is assembly size (roughly a third larger). The benefit is that a stack trace from a user has
+    file names and line numbers in it, and SourceLink resolves them to this repository at the exact commit.
+
+    ContinuousIntegrationBuild is set only in CI: it normalises source paths, which is what makes a build
+    reproducible and is required for SourceLink to be useful — and is precisely wrong locally, where the
+    paths are meant to point at the working copy.
+  -->
+  <PropertyGroup>
+    <DebugType>embedded</DebugType>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition=" '$(GITHUB_ACTIONS)' == 'true' ">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
 </Project>

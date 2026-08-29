@@ -123,22 +123,28 @@ namespace tik4net.Rest
 
         /// <inheritdoc/>
         public override void Open(string host, string user, string password)
-            => OpenInternalAsync(host, _useSsl ? 443 : 80, user, password).GetAwaiter().GetResult();
+            => OpenInternalAsync(host, _useSsl ? 443 : 80, user, password, CancellationToken.None)
+                .GetAwaiter().GetResult();
 
         /// <inheritdoc/>
         public override void Open(string host, int port, string user, string password)
-            => OpenInternalAsync(host, port, user, password).GetAwaiter().GetResult();
+            => OpenInternalAsync(host, port, user, password, CancellationToken.None)
+                .GetAwaiter().GetResult();
 
         /// <inheritdoc/>
-        public override Task OpenAsync(string host, string user, string password)
-            => OpenInternalAsync(host, _useSsl ? 443 : 80, user, password);
+        public override Task OpenAsync(string host, string user, string password,
+            CancellationToken cancellationToken = default)
+            => OpenInternalAsync(host, _useSsl ? 443 : 80, user, password, cancellationToken);
 
         /// <inheritdoc/>
-        public override Task OpenAsync(string host, int port, string user, string password)
-            => OpenInternalAsync(host, port, user, password);
+        public override Task OpenAsync(string host, int port, string user, string password,
+            CancellationToken cancellationToken = default)
+            => OpenInternalAsync(host, port, user, password, cancellationToken);
 
-        private async Task OpenInternalAsync(string host, int port, string user, string password)
+        private async Task OpenInternalAsync(string host, int port, string user, string password,
+            CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             string scheme = _useSsl ? "https" : "http";
             _baseUrl = $"{scheme}://{host}:{port}/rest";
             _authHeader = "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes($"{user}:{password}"));
@@ -167,7 +173,7 @@ namespace tik4net.Rest
             try
             {
                 await SendHttpAsync(new HttpRequestMessage(HttpMethod.Get, _baseUrl + "/system/resource"),
-                    ConnectTimeout, CancellationToken.None).ConfigureAwait(false);
+                    ConnectTimeout, cancellationToken).ConfigureAwait(false);
                 // 401 = wrong credentials, already handled by SendHttpAsync → TikConnectionLoginException
                 SetOpened();
             }

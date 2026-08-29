@@ -65,9 +65,10 @@ namespace tik4net.Winbox
         // ── Connect + authenticate ────────────────────────────────────────────
 
         /// <inheritdoc/>
-        public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs)
+        public void Open(string host, int port, string user, string password, int connectTimeoutMs,
+            int ioTimeoutMs, int sendTimeoutMs = 0)
         {
-            _transport.Connect(host, port, connectTimeoutMs, ioTimeoutMs);
+            _transport.Connect(host, port, connectTimeoutMs, ioTimeoutMs, sendTimeoutMs);
             Authenticate(host, port, connectTimeoutMs, ioTimeoutMs, user, pass: password);
         }
 

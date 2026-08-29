@@ -29,11 +29,18 @@ namespace tik4net.Telnet
         // multiple lines, which would corrupt parsing.
         private readonly Cli.Vt100State _vt100 = new Cli.Vt100State(4096, 25);
 
-        internal TelnetClient(Encoding encoding, int receiveTimeoutMs)
+        internal TelnetClient(Encoding encoding, int receiveTimeoutMs, int sendTimeoutMs)
         {
             _encoding = encoding ?? Encoding.UTF8;
             _receiveTimeoutMs = receiveTimeoutMs;
+            _sendTimeoutMs = sendTimeoutMs;
         }
+
+        // Separate from _receiveTimeoutMs, which is what the write side used to be given. They are two
+        // different questions - how long the router may take to answer, and how long a write may block -
+        // and ITikConnection exposes them as two properties, so honouring one with the other made
+        // SendTimeout a setting the caller could change with no effect.
+        private readonly int _sendTimeoutMs;
 
         // ── Connect ───────────────────────────────────────────────────────────
 
@@ -63,7 +70,7 @@ namespace tik4net.Telnet
 
             _stream = _tcpClient.GetStream();
             _stream.ReadTimeout = _receiveTimeoutMs;
-            _stream.WriteTimeout = _receiveTimeoutMs;
+            _stream.WriteTimeout = _sendTimeoutMs > 0 ? _sendTimeoutMs : Timeout.Infinite;
         }
 
         // ── Login ─────────────────────────────────────────────────────────────

@@ -46,14 +46,16 @@ namespace tik4net.Ssh
         }
 
         /// <inheritdoc/>
-        public override Task OpenAsync(string host, string user, string password)
-            => OpenAsync(host, DefaultPort, user, password);
+        public override Task OpenAsync(string host, string user, string password,
+            CancellationToken cancellationToken = default)
+            => OpenAsync(host, DefaultPort, user, password, cancellationToken);
 
         /// <inheritdoc/>
-        public override Task OpenAsync(string host, int port, string user, string password)
+        public override Task OpenAsync(string host, int port, string user, string password,
+            CancellationToken cancellationToken = default)
         {
             var (login, send, sendRaw, sendRawSettle, sendStreaming, close) = BuildTransport(host, port, user, password);
-            var opened = OpenWithAsync(login, send, sendRaw, close);
+            var opened = OpenWithAsync(login, send, sendRaw, close, cancellationToken);
             RegisterCompletionDriver(sendRawSettle);
             RegisterStreamingDriver(sendStreaming);
             return opened;

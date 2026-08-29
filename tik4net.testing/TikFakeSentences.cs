@@ -110,14 +110,24 @@ namespace tik4net.Testing
 
         /// <summary>Creates a fake !trap sentence.</summary>
         /// <param name="message">Error message (e.g. "no such item", "already have such item").</param>
-        /// <param name="categoryCode">Optional MikroTik error category code.</param>
-        /// <param name="tag">Optional tag.</param>
+        /// <param name="categoryCode">Optional MikroTik error category code. Omitted means "not stated",
+        /// which is the empty string on the wire — never null.</param>
+        /// <param name="tag">Optional tag. Omitted means untagged, again the empty string.</param>
+        /// <remarks>
+        /// The three defaults here are <b>not</b> cosmetic. <see cref="ITikTrapSentence.CategoryCode"/>,
+        /// <see cref="ITikTrapSentence.CategoryDescription"/> and <see cref="ITikSentence.Tag"/> are declared
+        /// non-nullable, and every real transport upholds that — <c>ApiTrapSentence.CategoryDescription</c>
+        /// falls back to <c>"unknown"</c> and every real sentence defaults <c>Tag</c> to the empty string.
+        /// A fake that handed out nulls behind those signatures would produce, in a unit test, the one
+        /// failure that cannot happen against a router: a NullReferenceException the compiler said was
+        /// impossible. A test double whose contract is weaker than the real thing tests the wrong library.
+        /// </remarks>
         public TikFakeTrapSentence(string message, string? categoryCode = null, string? tag = null)
         {
             Message = message;
-            CategoryCode = categoryCode!; // ITikTrapSentence.CategoryCode is non-nullable; optional here
-            CategoryDescription = null!; // ITikTrapSentence.CategoryDescription is non-nullable; never populated by the fake
-            Tag = tag!; // ITikSentence.Tag is non-nullable; fake sentences have no tag
+            CategoryCode = categoryCode ?? string.Empty;
+            CategoryDescription = "unknown";   // what ApiTrapSentence answers for an unrecognised code
+            Tag = tag ?? string.Empty;
             Words = new Dictionary<string, string> { { "message", message } };
         }
     }

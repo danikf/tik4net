@@ -66,7 +66,6 @@ interfaces, each paired with the capability flag that answers the same question:
   do; REST and WinBox native have a request shape rather than a language, so `TikCommandConnectionBase`
   deliberately does not implement the interface and `CliConnectionBase` does. Both levels raise a trap when
   the router reports an error, rather than handing the error text back as a value.
-  (`RawSentences` is an `[Obsolete]` alias of `RawCommand`, the same bit — the two were always set together.)
 - `ITikSafeModeConnection` (`tik4net/ITikSafeModeConnection.cs`) — `SafeModeTake`/`Release`/`Unroll`/`Get`
   (`SafeMode`). ApiConnection, `CliConnectionBase` (so all five CLI transports incl. SSH) and
   WinboxNativeConnection implement it; RestConnection does not.
@@ -293,7 +292,10 @@ Options split into two kinds:
 
 - Universal, applied directly on `ITikConnection`: `ConnectTimeout`, `ReceiveTimeout`, `SendTimeout`,
   `Encoding`, `DebugEnabled`. (`Port` is not a property at all — it selects which `Open` overload is
-  called.)
+  called.) *Universal* here means every transport **accepts** the option, not that every transport can
+  act on it: `SendTimeout` reaches a socket only where there is a blocking write to bound, so the MAC-layer
+  transports and SSH ignore it. Its XML doc carries the per-transport list; when adding an option, check
+  what the value is applied to and not merely that it is read.
 - The router's coordinates are a `TikRouterAddress`, not a host string: a host name / IP, a MAC, or
   both. Which of the two a transport needs is checked at `Create`, because it is a property of the
   transport — an IP transport refuses a MAC-only address, a MAC-layer transport accepts either.

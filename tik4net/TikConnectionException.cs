@@ -298,4 +298,47 @@ namespace tik4net
             Capability = capability;
         }
     }
+
+    /// <summary>
+    /// Thrown when the router answers with a sentence type this version of the library does not know —
+    /// something other than <c>!re</c>, <c>!done</c>, <c>!trap</c>, <c>!fatal</c> or <c>!empty</c>.
+    /// </summary>
+    /// <remarks>
+    /// This is a <b>forward-compatibility</b> signal, not a bug in the caller's code: RouterOS has added a
+    /// sentence type before (<c>!empty</c> arrived in 7.18) and can do so again, and a client that predates
+    /// the addition has no way to know what the new one means.
+    /// <para>
+    /// It is a <see cref="TikConnectionException"/> so that it is caught by code already handling connection
+    /// failures. It replaces a bare <see cref="NotImplementedException"/>, which said nothing about which
+    /// sentence had arrived and read as "the library author forgot to finish this" rather than "your router
+    /// is newer than your client" — and, being outside the tik4net hierarchy, escaped every
+    /// <c>catch (TikConnectionException)</c> a caller had written.
+    /// </para>
+    /// </remarks>
+    public class TikUnknownSentenceTypeException : TikConnectionException
+    {
+        /// <summary>The sentence name the router sent, e.g. <c>!something-new</c>.</summary>
+        public string SentenceName { get; }
+
+        /// <summary>
+        /// The words that followed it, so the unknown sentence can be reported without reproducing it.
+        /// Empty when the sentence carried none.
+        /// </summary>
+        public IReadOnlyList<string> Words { get; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TikUnknownSentenceTypeException"/> class.
+        /// </summary>
+        /// <param name="sentenceName">The unrecognised sentence name.</param>
+        /// <param name="words">The words the sentence carried.</param>
+        public TikUnknownSentenceTypeException(string sentenceName, IReadOnlyList<string>? words = null)
+            : base("Router sent sentence type '" + sentenceName + "', which this version of tik4net does not "
+                   + "know. This usually means the router is running a newer RouterOS than the library was "
+                   + "written against. Words: "
+                   + (words == null || words.Count == 0 ? "(none)" : string.Join(" ", words)))
+        {
+            SentenceName = sentenceName;
+            Words = words ?? Array.Empty<string>();
+        }
+    }
 }

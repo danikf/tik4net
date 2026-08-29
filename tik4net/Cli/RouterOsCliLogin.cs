@@ -190,7 +190,12 @@ namespace tik4net.Cli
                 if (IsLoginFailure(afterUser))
                     throw LoginException(afterUser);
                 if (!IsShellPrompt(afterUser))
-                    await sendLine(password, ct).ConfigureAwait(false);
+                {
+                    // The terminal transports type the password as ordinary bytes, so the socket-level
+                    // trace would otherwise carry it verbatim into whatever the user pastes into an issue.
+                    using (Diagnostics.TikWireTrace.Secret())
+                        await sendLine(password, ct).ConfigureAwait(false);
+                }
             }
 
             // 3. Resolve to the shell prompt, dismissing the change-password nag with Ctrl-C. Credentials

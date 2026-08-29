@@ -171,7 +171,7 @@ namespace tik4net.unittests.Winbox
                 },
                 (mux, server) =>
                 {
-                    Assert.ThrowsException<TimeoutException>(
+                    Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
                         () => mux.SendReceive(Request(mux.NextReqIdField()), 300),
                         "An unanswered request must surface as a timeout.");
 
@@ -374,7 +374,7 @@ namespace tik4net.unittests.Winbox
                     byte[] patientRequest = Request(mux.NextReqIdField());
                     var patient = mux.SendReceiveAsync(patientRequest, TimeoutMs, CancellationToken.None);
 
-                    await Assert.ThrowsExceptionAsync<TimeoutException>(() => impatient);
+                    await Assert.ThrowsExceptionAsync<TikConnectionReceiveTimeoutException>(() => impatient);
                     impatientGaveUp.Set();
 
                     Assert.AreEqual(M2Message.ParseSysReqId(patientRequest), M2Message.ParseSysReqId(await patient),
@@ -395,7 +395,7 @@ namespace tik4net.unittests.Winbox
                 server => server.ReadRawFrame(),
                 (mux, server) =>
                 {
-                    var ex = Assert.ThrowsException<TimeoutException>(
+                    var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
                         () => mux.SendReceive(Request(mux.NextReqIdField()), 300));
                     StringAssert.Contains(ex.Message, "No frame at all has arrived",
                         "a channel that has never answered is a different diagnosis from a slow one");
@@ -414,7 +414,7 @@ namespace tik4net.unittests.Winbox
                 {
                     mux.SendReceive(Request(mux.NextReqIdField()), TimeoutMs);
 
-                    var ex = Assert.ThrowsException<TimeoutException>(
+                    var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
                         () => mux.SendReceive(Request(mux.NextReqIdField()), 300));
                     StringAssert.Contains(ex.Message, "the channel is alive");
                     StringAssert.Contains(ex.Message, "frame(s)");

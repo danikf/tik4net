@@ -1,10 +1,26 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFrameworks>net8.0;net48</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
     <AssemblyName>tik4net.unittests</AssemblyName>
     <RootNamespace>tik4net.unittests</RootNamespace>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
+
+  <!--
+    net48 is here to EXECUTE the netstandard2.0 assets. The two shipping libraries multi-target
+    netstandard2.0;net8.0, and until this leg existed the netstandard2.0 half was only ever compiled -
+    a net8.0 test project resolves the net8.0 asset, so nothing ever ran the other one. net48 is the
+    cheapest framework whose nearest asset is netstandard2.0.
+
+    It is expected that a few tests are net8.0-only: the IAsyncEnumerable streaming surface genuinely
+    does not exist in the netstandard2.0 build, which is the asymmetry this leg is here to keep honest.
+    Exclude such a file below and say why - do not reach for a #if inside the test.
+  -->
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net48' ">
+    <!-- ExecuteListWithDurationAsync / ExecuteListUntilDoneAsync are #if NET8_0_OR_GREATER in ApiCommand. -->
+    <Compile Remove="Api\ApiAsyncStreamingTests.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />

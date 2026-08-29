@@ -125,7 +125,13 @@ namespace tik4net.Winbox
         /// receive timeout here, every read carries its own explicit deadline.
         /// <paramref name="connectTimeoutMs"/> bounds each wait for a handshake frame.
         /// </summary>
-        public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs)
+        /// <remarks>
+        /// <paramref name="sendTimeoutMs"/> is accepted and ignored, and that is the honest answer rather
+        /// than an omission: this carrier writes UDP datagrams, which are handed to the network stack and
+        /// do not block waiting for the far end. There is nothing here for a send deadline to bound.
+        /// </remarks>
+        public void Open(string host, int port, string user, string password, int connectTimeoutMs,
+            int ioTimeoutMs, int sendTimeoutMs = 0)
         {
             // Opening the session is part of opening the connection, so it gets the connect budget.
             SessionStartBudgetMs = connectTimeoutMs;

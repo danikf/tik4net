@@ -21,7 +21,8 @@ namespace tik4net.Connection
     /// Concrete subclasses provide the transport (CLI terminal, native WinBox M2, …) by implementing:
     /// <list type="bullet">
     ///   <item><see cref="Open(string, string, string)"/> / <see cref="Open(string, int, string, string)"/></item>
-    ///   <item><see cref="OpenAsync(string, string, string)"/> / <see cref="OpenAsync(string, int, string, string)"/></item>
+    ///   <item><see cref="OpenAsync(string, string, string, CancellationToken)"/> /
+    ///       <see cref="OpenAsync(string, int, string, string, CancellationToken)"/></item>
     ///   <item><see cref="Close"/></item>
     ///   <item>the three CRUD hooks <see cref="RunPrint"/>, <see cref="RunAdd"/>, <see cref="RunNonQuery"/>.</item>
     /// </list>
@@ -91,10 +92,12 @@ namespace tik4net.Connection
         public abstract void Open(string host, int port, string user, string password);
 
         /// <inheritdoc/>
-        public abstract Task OpenAsync(string host, string user, string password);
+        public abstract Task OpenAsync(string host, string user, string password,
+            CancellationToken cancellationToken = default);
 
         /// <inheritdoc/>
-        public abstract Task OpenAsync(string host, int port, string user, string password);
+        public abstract Task OpenAsync(string host, int port, string user, string password,
+            CancellationToken cancellationToken = default);
 
         /// <inheritdoc/>
         public abstract void Close();

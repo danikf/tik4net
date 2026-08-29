@@ -153,7 +153,7 @@ namespace tik4net.Objects.Interface
         /// Deliberately carries no <c>[TikProperty]</c>: the mapper maps only decorated properties, so this
         /// forwarder is invisible to it and <c>vlan-id</c> stays mapped exactly once.
         /// </remarks>
-        [Obsolete("Renamed to VlanId (the library's naming is PascalCase).")]
+        [Obsolete("Renamed to VlanId (the library's naming is PascalCase).", true)]
         public string? vlanId
         {
             get => VlanId;

@@ -207,7 +207,7 @@ Source: `tik4net/Rest/RestConnection.cs`, `tik4net/TikTrapClassifier.cs`.
 - 📄 **~60 s hard timeout** on a request, router-side, so a long-running operation cannot be kept open
   regardless of client-side handling.
 - Capability matrix: `Crud`, `Listen` (polled), `AsyncCommands`, `CancelInFlight` — yes. `Streaming`,
-  `RawSentences`, `Tagging`, `SafeMode` — no. Full matrix in [`protocol-coverage.md`](protocol-coverage.md).
+  `Tagging`, `SafeMode` — no. Full matrix in [`protocol-coverage.md`](protocol-coverage.md).
 
 ---
 

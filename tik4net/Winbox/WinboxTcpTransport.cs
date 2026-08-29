@@ -26,7 +26,8 @@ namespace tik4net.Winbox
         /// <paramref name="ioTimeoutMs"/> becomes the socket's receive/send timeout (individual reads
         /// override it temporarily via <see cref="SetReceiveTimeout"/>).
         /// </summary>
-        public void Connect(string host, int port, int connectTimeoutMs = 10000, int ioTimeoutMs = 30000)
+        public void Connect(string host, int port, int connectTimeoutMs = 10000, int ioTimeoutMs = 30000,
+            int sendTimeoutMs = 0)
         {
             _tcp = new TcpClient();
 
@@ -46,7 +47,10 @@ namespace tik4net.Winbox
             }
 
             _tcp.ReceiveTimeout = ioTimeoutMs;
-            _tcp.SendTimeout    = ioTimeoutMs;
+            // Falls back to ioTimeoutMs when the caller has no separate send bound, which is what this
+            // always did - but a caller who sets ITikConnection.SendTimeout now gets that value applied
+            // here instead of silently getting the receive one.
+            _tcp.SendTimeout    = sendTimeoutMs > 0 ? sendTimeoutMs : ioTimeoutMs;
 
             // Nagle off, matching TelnetClient. Every M2 message is one small write and the next one is
             // not issued until this one is answered, so coalescing can only ever add latency waiting for

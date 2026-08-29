@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 
 namespace tik4net.Cli
@@ -73,7 +74,8 @@ namespace tik4net.Cli
         {
             string p = _param.TrimStart('?');
             int[] ns = p.Split(new[] { ';' }, StringSplitOptions.None)
-                        .Select(s => int.TryParse(s, out int n) ? n : 0).ToArray();
+                        .Select(s => int.TryParse(s, NumberStyles.None, CultureInfo.InvariantCulture, out int n) ? n : 0)
+                        .ToArray();
             int n1 = ns.Length > 0 ? ns[0] : 0;
             int n2 = ns.Length > 1 ? ns[1] : 0;
 

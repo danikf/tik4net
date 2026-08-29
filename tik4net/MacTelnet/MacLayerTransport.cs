@@ -38,41 +38,72 @@ namespace tik4net.MacTelnet
     /// </summary>
     public abstract class MacLayerTransport : IDisposable
     {
-        // Low-level wire-protocol plumbing (packet/control constants, transport state, framing helpers) is
-        // documented inline rather than with per-member XML docs — suppress the missing-doc warning for them.
-#pragma warning disable CS1591
         // ── Packet type constants ────────────────────────────────────────────────
+        // These are the wire's numbers, not ours: RouterOS fixes them, so they must not be renumbered.
+
+        /// <summary>Opens a session. Sent to the subnet broadcast, because at this point the router's IP is
+        /// not necessarily known — only its MAC.</summary>
         protected const byte PKT_SESSIONSTART = 0;
+        /// <summary>Carries session payload: the control packets of the handshake, then the terminal or M2
+        /// stream. The only type whose counter advances.</summary>
         protected const byte PKT_DATA         = 1;
+        /// <summary>Acknowledges received payload. Its counter is the stream offset <b>past</b> what is being
+        /// acknowledged — payload bytes received so far, not a packet number.</summary>
         protected const byte PKT_ACK          = 2;
+        /// <summary>Liveness probe from the router.</summary>
         protected const byte PKT_PING         = 4;
+        /// <summary>The answer to <see cref="PKT_PING"/>, echoing its counter.</summary>
         protected const byte PKT_PONG         = 5;
+        /// <summary>Ends the session; the router frees its side on receipt.</summary>
         protected const byte PKT_END          = 255;
 
         // ── Control packet type constants ────────────────────────────────────────
+        /// <summary>Client opens the authentication exchange.</summary>
         protected const byte CTRL_BEGINAUTH   = 0;
+        /// <summary>The router's salt/challenge, from which the password proof is derived.</summary>
         protected const byte CTRL_PASSSALT    = 1;
+        /// <summary>The client's password proof — never the password itself.</summary>
         protected const byte CTRL_PASSWORD    = 2;
+        /// <summary>The user name being authenticated.</summary>
         protected const byte CTRL_USERNAME    = 3;
+        /// <summary>Terminal type the client emulates (terminal sessions only).</summary>
         protected const byte CTRL_TERM_TYPE   = 4;
+        /// <summary>Terminal width in columns (terminal sessions only).</summary>
         protected const byte CTRL_TERM_WIDTH  = 5;
+        /// <summary>Terminal height in rows (terminal sessions only).</summary>
         protected const byte CTRL_TERM_HEIGHT = 6;
+        /// <summary>Closes the authentication exchange. A refusal can arrive <i>after</i> this rather than in
+        /// place of it, so reaching it is not by itself a successful login.</summary>
         protected const byte CTRL_END_AUTH    = 9;
 
         // ── Transport state ──────────────────────────────────────────────────────
         // All five are assigned in BaseConnect (not the constructor) — subclasses must call it before use.
+        /// <summary>The bound UDP socket. Assigned by <c>BaseConnect</c>, not the constructor.</summary>
         protected UdpClient  _udp = null!;
+        /// <summary>Subnet broadcast endpoint — where SESSIONSTART goes, and where everything goes while
+        /// <see cref="_routerUnicastEp"/> is null.</summary>
         protected IPEndPoint _routerEp = null!;           // subnet broadcast — used for SESSIONSTART
         // The router's own IP:20561, when there is one to send to — DATA and ACK go here. Null means there
         // is not, and then everything goes to _routerEp (subnet broadcast) instead: a session addressed by
         // MAC alone starts that way, and stays that way, because the router never reveals an address to
         // latch onto (see LatchRouterUnicast). Broadcast for a whole session is correct, just noisier.
+        /// <summary>The router's own <c>IP:20561</c> once one is known; null while the session is addressed
+        /// by MAC alone. See the note above for why a session can legitimately stay on broadcast throughout.</summary>
         protected IPEndPoint? _routerUnicastEp;
+        /// <summary>This host's MAC on the NIC facing the router — the source address of every packet.</summary>
         protected byte[]     _localMac = null!;
+        /// <summary>The router's MAC — what selects it out of the broadcast.</summary>
         protected byte[]     _routerMac = null!;
+        /// <summary>Random per-session key echoed in every packet, separating this session from another
+        /// client's on the same segment.</summary>
         protected ushort     _sessionKey;
+        /// <summary>Tells the router which kind of client this is (terminal vs. WinBox).</summary>
         protected ushort     _clientType;
+        /// <summary>Cumulative DATA payload <b>bytes</b> sent. This is what a packet carries as its counter
+        /// and what the router's ACK is measured against — not a packet count.</summary>
         protected uint       _outCounter;         // cumulative DATA payload bytes sent
+        /// <summary>Cumulative DATA payload bytes received: the value sent back in an ACK, and what lets a
+        /// retransmitted duplicate be recognised as one.</summary>
         protected uint       _inCounter;          // cumulative DATA payload bytes received (for ACK + dedup)
 
         // Outbound reliability (P2.19). The MAC layer is UDP with no delivery guarantee, and RouterOS
@@ -127,6 +158,8 @@ namespace tik4net.MacTelnet
 
         // ── AES / HMAC stream keys (derived after EC-SRP5, used by WinBox MAC) ──
         // Assigned in FinishAuth (post-construction, post-BaseConnect), not the constructor.
+        /// <summary>Stream cipher and MAC keys derived from the EC-SRP5 exchange, used by the WinBox MAC
+        /// transport. Assigned in <c>FinishAuth</c> — after construction and after <c>BaseConnect</c>.</summary>
         protected byte[] _sendAesKey = null!, _receiveAesKey = null!, _sendHmacKey = null!, _receiveHmacKey = null!;
 
         // ── Optional router MAC override ──────────────────────────────────────────
@@ -1034,6 +1067,11 @@ namespace tik4net.MacTelnet
         }
 
 
+        /// <summary>Sends one packet, taking <see cref="SendGate"/> first.</summary>
+        /// <param name="type">One of the <c>PKT_*</c> constants.</param>
+        /// <param name="payload">Payload bytes, or null for a type that carries none. For
+        /// <see cref="PKT_DATA"/> this advances <see cref="_outCounter"/>, and the packet is retained for
+        /// possible retransmission until the router acknowledges past it.</param>
         protected void Send(byte type, byte[]? payload)
         {
             lock (SendGate)
@@ -1080,6 +1118,9 @@ namespace tik4net.MacTelnet
             }
         }
 
+        /// <summary>Acknowledges received payload, taking <see cref="SendGate"/> first.</summary>
+        /// <param name="ackCounter">The stream offset past the data being acknowledged — the received
+        /// packet's counter <b>plus its payload length</b>, not the counter alone.</param>
         protected void SendAck(uint ackCounter)
         {
             lock (SendGate)
@@ -1106,6 +1147,8 @@ namespace tik4net.MacTelnet
                     "type=0x02 ack=" + ackCounter + TraceTag);
         }
 
+        /// <summary>Answers a router <see cref="PKT_PING"/>, taking <see cref="SendGate"/> first.</summary>
+        /// <param name="counter">The counter from the ping, echoed back unchanged.</param>
         protected void SendPong(uint counter)
         {
             lock (SendGate)
@@ -1277,6 +1320,13 @@ namespace tik4net.MacTelnet
 
         // ── Control packet helpers ───────────────────────────────────────────────
 
+        /// <summary>
+        /// Frames one control packet: the magic <c>56 34 12 FF</c>, the control type, a 32-bit big-endian
+        /// length, then the data.
+        /// </summary>
+        /// <param name="ctrlType">One of the <c>CTRL_*</c> constants.</param>
+        /// <param name="data">The control packet's payload; may be empty.</param>
+        /// <returns>The framed packet, to be sent as a <see cref="PKT_DATA"/> payload.</returns>
         protected static byte[] BuildCtrl(byte ctrlType, byte[] data)
         {
             uint len = (uint)(data?.Length ?? 0);
@@ -1289,6 +1339,15 @@ namespace tik4net.MacTelnet
             return pkt;
         }
 
+        /// <summary>
+        /// Reads back every control packet in a DATA payload — several can be concatenated into one.
+        /// </summary>
+        /// <param name="payload">The DATA payload to walk.</param>
+        /// <returns>
+        /// One entry per control packet, in wire order; empty when <paramref name="payload"/> does not begin
+        /// with the control magic. A declared length running past the end of the buffer yields an empty data
+        /// array for that entry rather than throwing, because the input is whatever actually arrived.
+        /// </returns>
         protected static (byte ctrlType, byte[] data)[] ParseCtrl(byte[] payload)
         {
             if (payload == null || payload.Length < 9 ||
@@ -1311,6 +1370,8 @@ namespace tik4net.MacTelnet
             return result.ToArray();
         }
 
+        /// <summary>True when <paramref name="payload"/> opens with the control magic <c>56 34 12 FF</c> —
+        /// i.e. carries handshake control packets rather than session data.</summary>
         protected static bool IsControlPacket(byte[] payload)
             => payload != null && payload.Length >= 4
             && payload[0] == 0x56 && payload[1] == 0x34
@@ -1398,6 +1459,10 @@ namespace tik4net.MacTelnet
 
         // ── IDisposable ──────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Lets the subclass end its own protocol first (<c>OnDisposing</c> — normally a
+        /// <see cref="PKT_END"/>), then closes the socket.
+        /// </summary>
         public void Dispose()
         {
             OnDisposing();
@@ -1409,6 +1474,5 @@ namespace tik4net.MacTelnet
         /// stop it here, so it cannot race a disposed <see cref="_udp"/>.
         /// </summary>
         protected virtual void OnDisposing() { }
-#pragma warning restore CS1591
     }
 }

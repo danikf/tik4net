@@ -199,11 +199,26 @@ namespace tik4net.Cli
         /// <summary>Async counterpart of <see cref="OpenWith"/>.</summary>
         protected async Task OpenWithAsync(Func<CancellationToken, Task> login,
             Func<string, CancellationToken, Task<string>> send,
-            Func<byte[], CancellationToken, Task<string>> sendRaw, Action close)
+            Func<byte[], CancellationToken, Task<string>> sendRaw, Action close,
+            CancellationToken cancellationToken = default)
         {
+            // Before the delegate, not inside it: the delegate opens the socket synchronously and only then
+            // awaits the login, so an already-cancelled token would otherwise still cost a TCP connect.
+            cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                await login(CancellationToken.None).ConfigureAwait(false);
+                // The login delegate has always taken a token; it used to be handed CancellationToken.None,
+                // so a caller's token stopped at the door. It reaches the router-facing waits now — the
+                // prompt reads of RouterOsCliLogin — which is the part of an open that actually blocks.
+                // The socket connect inside the delegate is synchronous and stays bounded by ConnectTimeout.
+                await login(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Not a login failure: the caller asked to stop. Wrapping it would break every
+                // catch (OperationCanceledException) written against the async surface.
+                close();
+                throw;
             }
             catch (TikConnectionLoginException)
             {

@@ -386,7 +386,12 @@ namespace tik4net
 
         /// <summary>Async version of <see cref="Open(ITikConnection)"/>.</summary>
         /// <param name="connection">A connection created and configured by this setup.</param>
-        /// <param name="ct">Cancellation token, checked before the connection is opened.</param>
+        /// <param name="ct">
+        /// Cancels the open. Passed through to the connection, so how far it reaches is the transport's
+        /// answer — see <see cref="ITikConnection.OpenAsync(string, int, string, string, CancellationToken)"/>.
+        /// It used to be checked here and then dropped, which made it look like a stuck connect could be
+        /// abandoned when only <see cref="ConnectTimeout"/> could end one.
+        /// </param>
         public async Task OpenAsync(ITikConnection connection, CancellationToken ct = default)
         {
             Guard.ArgumentNotNull(connection, nameof(connection));
@@ -405,9 +410,9 @@ namespace tik4net
         {
             ct.ThrowIfCancellationRequested();
             if (Port.HasValue)
-                await conn.OpenAsync(HostArgument, Port.Value, User, Password).ConfigureAwait(false);
+                await conn.OpenAsync(HostArgument, Port.Value, User, Password, ct).ConfigureAwait(false);
             else
-                await conn.OpenAsync(HostArgument, User, Password).ConfigureAwait(false);
+                await conn.OpenAsync(HostArgument, User, Password, ct).ConfigureAwait(false);
             return conn;
         }
     }

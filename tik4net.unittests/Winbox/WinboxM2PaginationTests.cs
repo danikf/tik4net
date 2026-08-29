@@ -251,7 +251,7 @@ namespace tik4net.unittests.Winbox
             var channel = new EndlesslyPagingChannel(Handler, pageDelayMs: 100);
             var ops = new WinboxNativeM2Operations(channel, TimeoutMs);
 
-            var ex = Assert.ThrowsException<TimeoutException>(() => ops.GetAll(Handler, budgetMs: 500));
+            var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(() => ops.GetAll(Handler, budgetMs: 500));
 
             StringAssert.Contains(ex.Message, "are discarded rather",
                 "the partial pages must be reported as discarded, not handed back as the answer");
@@ -289,7 +289,7 @@ namespace tik4net.unittests.Winbox
             public bool SendStalled => false;
             public bool SupportsReaderLoop => false;   // lockstep: SendReceive is the whole channel
 
-            public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs)
+            public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs, int sendTimeoutMs = 0)
                 => throw new NotSupportedException("The fake channel is handed to the operations layer already open.");
 
             public byte[] NextReqIdField()

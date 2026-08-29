@@ -108,7 +108,7 @@ namespace tik4net.unittests.Winbox
                 return null;
             }
 
-            public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs)
+            public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs, int sendTimeoutMs = 0)
                 => throw new NotSupportedException();
             public byte[] NextReqIdField() => new byte[0];
             public void Send(byte[] m2) => throw new NotSupportedException();

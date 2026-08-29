@@ -75,13 +75,19 @@ namespace tik4net.WinboxCli
         // terminal stuck on that prompt fails loudly instead of being fed input indefinitely.
         private const int MaxNagRounds = 3;
 
-        internal WinboxCliClient(IWinboxM2Channel channel, Encoding encoding, int receiveTimeoutMs, int loginTimeoutMs)
+        internal WinboxCliClient(IWinboxM2Channel channel, Encoding encoding, int receiveTimeoutMs,
+            int loginTimeoutMs, int sendTimeoutMs = 0)
         {
             _session          = channel ?? throw new ArgumentNullException(nameof(channel));
             _encoding         = encoding ?? Encoding.UTF8;
             _receiveTimeoutMs = receiveTimeoutMs;
             _loginTimeoutMs   = loginTimeoutMs > 0 ? loginTimeoutMs : receiveTimeoutMs;
+            _sendTimeoutMs    = sendTimeoutMs;
         }
+
+        // Zero means "the channel decides", which for the TCP carrier is the receive timeout it always
+        // used. Kept separate so ITikConnection.SendTimeout reaches the socket it is about.
+        private readonly int _sendTimeoutMs;
 
         // ── Login ─────────────────────────────────────────────────────────────
 
@@ -99,7 +105,7 @@ namespace tik4net.WinboxCli
         {
             return Task.Run(async () =>
             {
-                _session.Open(host, port, user, pass, _loginTimeoutMs, _receiveTimeoutMs);
+                _session.Open(host, port, user, pass, _loginTimeoutMs, _receiveTimeoutMs, _sendTimeoutMs);
 
                 // Open one mepty terminal and keep it for the whole connection. The password is supplied
                 // here (not via a Login:/Password: prompt) — auth already happened at the M2 layer, so the

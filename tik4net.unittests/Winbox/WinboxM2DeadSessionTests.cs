@@ -64,7 +64,7 @@ namespace tik4net.unittests.Winbox
                 byte[] request = M2Message.BuildM2(
                     M2Message.SysToArr(24, 1), M2Message.SysFrom(), mux.NextReqIdField());
 
-                Assert.ThrowsException<TimeoutException>(() => mux.SendReceive(request, 500));
+                Assert.ThrowsException<TikConnectionReceiveTimeoutException>(() => mux.SendReceive(request, 500));
             }
         }
 
@@ -88,7 +88,7 @@ namespace tik4net.unittests.Winbox
             public bool SendStalled => false;
             public bool SupportsReaderLoop => true;
 
-            public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs)
+            public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs, int sendTimeoutMs = 0)
                 => throw new NotSupportedException("The fake channel is handed to the multiplexer already open.");
 
             public byte[] NextReqIdField()

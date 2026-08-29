@@ -147,7 +147,7 @@ The reference transport — declares the **Full** flag set explicitly rather tha
 | Login (≥ 6.43 challenge-response) | ✅ | ✅ |
 | Login (< 6.43 legacy MD5) | ✅ | ✅ |
 | ExecuteNonQuery / ExecuteScalar / ExecuteList | ✅ | ✅ |
-| `Crud`, `Listen`, `Streaming`, `RawSentences`, `Tagging`, `SafeMode`, `RawCommand` | ✅ all | ✅ all |
+| `Crud`, `Listen`, `Streaming`, `Tagging`, `SafeMode`, `RawCommand` | ✅ all | ✅ all |
 | O/R mapper (LoadAll, Save, Delete…) | ✅ | ✅ |
 | Streaming (Torch, ongoing Ping via `ExecuteListWithDuration`) | ✅ | ✅ |
 | Encryption | ❌ | ✅ TLS |
@@ -370,7 +370,7 @@ Structured M2 CRUD — no terminal. Performs `getall`/`get-one`/`set`/`add`/`rem
 M2 calls, translating numeric WinBox field keys to/from RouterOS API field names via a
 version-matched `.jg` catalog, so the O/R mapper works unchanged on top of it. Both declare the
 **Native** flag set (`Crud`, `Listen`, `SafeMode`, `AsyncCommands`, `CancelInFlight` — no
-`Streaming`, `RawSentences`, or `Tagging`, and no `RawCommand`: its raw wire form is a numeric M2
+`Streaming` or `Tagging`, and no `RawCommand`: its raw wire form is a numeric M2
 message, not a string, so use a CLI transport for raw access over WinBox).
 
 ### Capabilities
@@ -631,7 +631,6 @@ not a protocol one**: the M2 wire format already carries array types for writes.
 | `Crud` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `Listen` (native push on API; poll-emulated elsewhere) | ✅ native | ❌ | ✅ poll | ✅ poll | ✅ poll | ✅ poll | ✅ poll | ✅ `.jg` query window | ✅ `.jg` query window |
 | `Streaming` (`ExecuteListWithDuration`) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| `RawSentences` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | `Tagging` (`.tag` multiplexing) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | `SafeMode` | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (RouterOS 7.18+) | ✅ (RouterOS 7.18+) |
 | `RawCommand` | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |

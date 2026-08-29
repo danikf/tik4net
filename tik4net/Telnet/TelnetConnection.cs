@@ -41,14 +41,16 @@ namespace tik4net.Telnet
         }
 
         /// <inheritdoc/>
-        public override Task OpenAsync(string host, string user, string password)
-            => OpenAsync(host, DefaultPort, user, password);
+        public override Task OpenAsync(string host, string user, string password,
+            CancellationToken cancellationToken = default)
+            => OpenAsync(host, DefaultPort, user, password, cancellationToken);
 
         /// <inheritdoc/>
-        public override async Task OpenAsync(string host, int port, string user, string password)
+        public override async Task OpenAsync(string host, int port, string user, string password,
+            CancellationToken cancellationToken = default)
         {
             var (login, send, sendRaw, sendRawSettle, sendStreaming, close) = BuildTransport(host, port, user, password);
-            await OpenWithAsync(login, send, sendRaw, close).ConfigureAwait(false);
+            await OpenWithAsync(login, send, sendRaw, close, cancellationToken).ConfigureAwait(false);
             RegisterCompletionDriver(sendRawSettle);
             RegisterStreamingDriver(sendStreaming);
         }
@@ -60,7 +62,7 @@ namespace tik4net.Telnet
             Func<string, Action<string>, CancellationToken, Task<string>>, Action)
             BuildTransport(string host, int port, string user, string password)
         {
-            var client = new TelnetClient(Encoding, ReceiveTimeout);
+            var client = new TelnetClient(Encoding, ReceiveTimeout, SendTimeout);
             Func<CancellationToken, Task> login = async ct =>
             {
                 client.Connect(host, port, ConnectTimeout);

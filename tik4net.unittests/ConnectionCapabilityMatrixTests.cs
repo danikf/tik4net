@@ -24,7 +24,7 @@ namespace tik4net.unittests
     {
         // RawCommand means "this transport has a command language a caller can write" — a terminal does (CLI
         // text), the binary API does (sentence words), REST and native WinBox do not. It gates BOTH raw
-        // levels; RawSentences is an obsolete alias of the same bit. See RawSentenceCapabilityTests.
+        // levels; there is no separate flag for the sentence level. See RawSentenceCapabilityTests.
 
         // AsyncCommands, but deliberately NOT CancelInFlight (P2.2 step 3): the terminal clients await their
         // socket, so the Task-based surface is real — while the response is an unframed byte stream, so a read

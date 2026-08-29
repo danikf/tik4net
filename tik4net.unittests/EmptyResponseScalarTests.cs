@@ -13,6 +13,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Api;
@@ -46,8 +47,8 @@ namespace tik4net.unittests
 
             public override void Open(string host, string user, string password) { }
             public override void Open(string host, int port, string user, string password) { }
-            public override Task OpenAsync(string host, string user, string password) => Task.CompletedTask;
-            public override Task OpenAsync(string host, int port, string user, string password) => Task.CompletedTask;
+            public override Task OpenAsync(string host, string user, string password, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public override Task OpenAsync(string host, int port, string user, string password, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public override void Close() { }
         }
 

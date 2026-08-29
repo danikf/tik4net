@@ -75,18 +75,24 @@ namespace tik4net.MacTelnet
         }
 
         /// <inheritdoc/>
-        public override Task OpenAsync(string host, string user, string password)
-            => OpenAsync(host, DefaultPort, user, password);
+        public override Task OpenAsync(string host, string user, string password,
+            CancellationToken cancellationToken = default)
+            => OpenAsync(host, DefaultPort, user, password, cancellationToken);
 
         /// <inheritdoc/>
-        public override async Task OpenAsync(string host, int port, string user, string password)
+        public override async Task OpenAsync(string host, int port, string user, string password,
+            CancellationToken cancellationToken = default)
         {
             Func<byte[], int, CancellationToken, Task<string>>? sendRawSettle = null;
             Func<string, Action<string>, CancellationToken, Task<string>>? sendStreaming = null;
             await Winbox.RouterLoginRetry.RunAsync(async () =>
             {
+                // Inside the retry loop on purpose: a cancelled attempt must end the whole open rather than
+                // be retried as if the router had refused. OpenWithAsync rethrows OperationCanceledException
+                // unwrapped, and RouterLoginRetry only retries a refusal, so cancelling stops here.
+                cancellationToken.ThrowIfCancellationRequested();
                 var (login, send, sendRaw, settle, streaming, close) = BuildTransport(host, port, user, password);
-                await OpenWithAsync(login, send, sendRaw, close).ConfigureAwait(false);
+                await OpenWithAsync(login, send, sendRaw, close, cancellationToken).ConfigureAwait(false);
                 sendRawSettle = settle;
                 sendStreaming = streaming;
             }).ConfigureAwait(false);

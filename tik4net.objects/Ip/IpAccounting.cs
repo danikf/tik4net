@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -36,7 +37,7 @@ namespace tik4net.Objects.Ip
         /// </summary>
         public IpAccounting()
         {
-            Threshold = int.Parse(DEFAULT_TRESHOLD);
+            Threshold = int.Parse(DEFAULT_TRESHOLD, CultureInfo.InvariantCulture);
         }
     }
 }

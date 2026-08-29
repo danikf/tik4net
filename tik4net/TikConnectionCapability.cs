@@ -31,26 +31,6 @@ namespace tik4net
         /// <c>/tool/torch</c>). Binary API only — CLI/WinBox transports have no persistent multi-row read within
         /// one command exchange; use the async monitor pattern (<see cref="Listen"/>) there instead.</summary>
         Streaming    = 4,
-        /// <summary>
-        /// <b>Obsolete alias of <see cref="RawCommand"/>.</b> Kept so existing checks keep compiling and
-        /// keep answering the same thing — it is the same bit, so
-        /// <c>Supports(RawSentences) == Supports(RawCommand)</c> always.
-        /// </summary>
-        /// <remarks>
-        /// The two were separate flags for the two levels a raw command can be issued at — this one for
-        /// <see cref="ITikRawSentenceConnection.CallCommandSync(string[])"/>, <see cref="RawCommand"/> for
-        /// <c>CreateRawCommand</c>. They answer one question, though: does this transport have a command
-        /// language a caller can write? A terminal does (RouterOS CLI text) and the binary API does (sentence
-        /// words); REST and native WinBox have a request shape instead and can offer neither level. Two flags
-        /// that are always set together are two chances to check the wrong one.
-        /// <para>
-        /// Bit 8 is left free rather than reused, so a persisted old value cannot silently come back as some
-        /// other capability.
-        /// </para>
-        /// </remarks>
-        [Obsolete("Use RawCommand. The two always had the same answer — a transport either has a writable "
-                  + "command language or it has neither raw level — and are now one flag.")]
-        RawSentences = RawCommand,
         /// <summary>Per-command tagging for multiplexed concurrent commands on a single channel (binary API <c>.tag</c>).</summary>
         Tagging      = 16,
         /// <summary>
@@ -77,6 +57,13 @@ namespace tik4net
         /// WinBox do NOT report it — an HTTP request shape and numeric M2 handler/field keys are not a
         /// language, so there is no line for a caller to write; use a CLI transport for raw over the WinBox
         /// channel.
+        /// </para>
+        /// <para>
+        /// <b>Bit 8 is deliberately left unused.</b> It belonged to a second flag (<c>RawSentences</c>)
+        /// covering the <see cref="ITikRawSentenceConnection"/> level separately — two flags that were
+        /// always set together, which is two chances to check the wrong one. It was removed rather than
+        /// kept as an alias because it never shipped outside the 4.0 alphas. The bit is not reused so that
+        /// a persisted old value cannot come back meaning some other capability.
         /// </para>
         /// <para>
         /// Both levels report a router error rather than returning it: an error line in the output raises a

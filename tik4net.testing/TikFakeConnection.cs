@@ -280,13 +280,26 @@ namespace tik4net.Testing
         /// <summary>No-op — fake connection is always "open".</summary>
         public void Open(string host, int port, string user, string password) { }
 
-        /// <summary>No-op — fake connection is always "open".</summary>
-        public System.Threading.Tasks.Task OpenAsync(string host, string user, string password)
-            => System.Threading.Tasks.Task.CompletedTask;
+        /// <summary>No-op — fake connection is always "open" — but an already-cancelled token still throws.</summary>
+        /// <remarks>
+        /// The cancellation check is not ceremony: a double that ignored the token would let a test of
+        /// "cancel the open" pass while the real connection throws, which is the one thing a test double must
+        /// never do.
+        /// </remarks>
+        public System.Threading.Tasks.Task OpenAsync(string host, string user, string password,
+            System.Threading.CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return System.Threading.Tasks.Task.CompletedTask;
+        }
 
-        /// <summary>No-op — fake connection is always "open".</summary>
-        public System.Threading.Tasks.Task OpenAsync(string host, int port, string user, string password)
-            => System.Threading.Tasks.Task.CompletedTask;
+        /// <inheritdoc cref="OpenAsync(string, string, string, System.Threading.CancellationToken)"/>
+        public System.Threading.Tasks.Task OpenAsync(string host, int port, string user, string password,
+            System.Threading.CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return System.Threading.Tasks.Task.CompletedTask;
+        }
 
         /// <summary>No-op.</summary>
         public void Close() { }

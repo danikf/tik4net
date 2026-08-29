@@ -82,7 +82,13 @@ namespace tik4net.Winbox
         /// black-holed host fails fast without also shortening per-command reads.
         /// </param>
         /// <param name="ioTimeoutMs">Default socket receive/send timeout for the established session.</param>
-        void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs);
+        /// <param name="sendTimeoutMs">
+        /// How long a write may block, when the carrier can bound one. Zero means "use
+        /// <paramref name="ioTimeoutMs"/>", which is what every caller did before this parameter existed.
+        /// The MAC carrier ignores it: a UDP datagram is handed to the stack and does not block.
+        /// </param>
+        void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs,
+            int sendTimeoutMs = 0);
 
         /// <summary>Builds the next request-id system field (key 0xFF0006), advancing the counter.</summary>
         byte[] NextReqIdField();

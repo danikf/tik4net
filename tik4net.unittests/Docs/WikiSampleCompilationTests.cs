@@ -82,9 +82,37 @@ namespace tik4net.unittests.Docs
             "CS8321", // local function never used
         };
 
+        /// <summary>
+        /// The reference set this harness builds exists only on .NET Core.
+        /// </summary>
+        /// <remarks>
+        /// <c>TRUSTED_PLATFORM_ASSEMBLIES</c> is a CoreCLR concept and is null on .NET Framework, so on the
+        /// net48 leg the compilation has no references at all and every sample fails with "the namespace
+        /// System could not be found" — a harness failure wearing the costume of 289 documentation defects.
+        /// <para>
+        /// Skipped rather than fixed, because fixing it would raise a real design question rather than
+        /// settle one: the netstandard2.0 build genuinely lacks the <c>IAsyncEnumerable</c> surface, so a
+        /// sample using <c>await foreach</c> compiles on net8.0 and could not on .NET Framework. Checking
+        /// the samples per target framework means the wiki has to say which framework each sample needs —
+        /// worth doing, and not something to decide inside a skip.
+        /// </para>
+        /// </remarks>
+        private static void RequireCoreClrReferenceSet()
+        {
+            if (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") is string tpa && tpa.Length > 0)
+                return;
+
+            Assert.Inconclusive(
+                "This check needs the CoreCLR reference set (TRUSTED_PLATFORM_ASSEMBLIES), which .NET "
+                + "Framework does not provide - the net8.0 leg runs it. NOT checked here, and worth "
+                + "knowing: whether every sample also compiles against the netstandard2.0 build, which "
+                + "has no IAsyncEnumerable surface.");
+        }
+
         [TestMethod]
         public void EveryWikiSampleCompiles()
         {
+            RequireCoreClrReferenceSet();
             string? wiki = WikiSampleFinder.FindWikiDirectory();
             if (wiki == null)
                 Assert.Inconclusive(
@@ -111,6 +139,7 @@ namespace tik4net.unittests.Docs
         [TestMethod]
         public void EveryReadmeSampleCompiles()
         {
+            RequireCoreClrReferenceSet();
             string? repo = WikiSampleFinder.FindRepositoryRoot();
             Assert.IsNotNull(repo, "Could not find the repository root (no tik4net.sln above the test assembly).");
 
@@ -132,6 +161,7 @@ namespace tik4net.unittests.Docs
         [TestMethod]
         public void NoCompileMarkersAreStillNeeded()
         {
+            RequireCoreClrReferenceSet();
             string? wiki = WikiSampleFinder.FindWikiDirectory();
             if (wiki == null)
                 Assert.Inconclusive("The wiki is not checked out beside this repository - see EveryWikiSampleCompiles.");

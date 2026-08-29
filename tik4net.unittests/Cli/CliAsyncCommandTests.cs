@@ -58,8 +58,8 @@ namespace tik4net.unittests.Cli
 
             public override void Open(string host, string user, string password) => OpenScripted();
             public override void Open(string host, int port, string user, string password) => OpenScripted();
-            public override Task OpenAsync(string host, string user, string password) { OpenScripted(); return Task.FromResult(0); }
-            public override Task OpenAsync(string host, int port, string user, string password) { OpenScripted(); return Task.FromResult(0); }
+            public override Task OpenAsync(string host, string user, string password, CancellationToken cancellationToken = default) { OpenScripted(); return Task.FromResult(0); }
+            public override Task OpenAsync(string host, int port, string user, string password, CancellationToken cancellationToken = default) { OpenScripted(); return Task.FromResult(0); }
         }
 
         private static ScriptedCliConnection OpenConnection(string reply = "")

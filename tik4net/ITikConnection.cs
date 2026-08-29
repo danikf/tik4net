@@ -126,9 +126,28 @@ namespace tik4net
         Encoding Encoding { get; set; }
 
         /// <summary>
-        ///     Gets or sets the amount of time a ITikConnection will wait for a send operation to complete successfully. In miliseconds.
+        /// How long a send may block before it fails, in milliseconds. Must be set before
+        /// <see cref="Open(string, string, string)"/>: it is applied to the socket as the connection opens.
         /// </summary>
-        /// <remarks>Must be called before <see cref="Open(string, string, string)"/> call.</remarks>
+        /// <remarks>
+        /// <b>Not every transport can bound a send, and this says which can rather than implying all do.</b>
+        /// It is the counterpart of <see cref="ReceiveTimeout"/> and answers a different question — how long
+        /// a <i>write</i> may block, not how long the router may take to answer.
+        /// <list type="bullet">
+        /// <item><c>Api</c>, <c>ApiSsl</c>, <c>Telnet</c>, <c>WinboxCli</c>, <c>WinboxNative</c> — applied to
+        /// the TCP socket and its stream. Zero means no send bound.</item>
+        /// <item><c>Rest</c>, <c>RestSsl</c> — HTTP gives no separate send phase to bound, so the request is
+        /// bounded by the larger of this and <see cref="ReceiveTimeout"/>.</item>
+        /// <item><c>MacTelnet</c>, <c>WinboxCliMac</c>, <c>WinboxNativeMac</c> — <b>ignored.</b> These write
+        /// UDP datagrams, which are handed to the network stack and do not block on the far end. There is
+        /// nothing for a send deadline to bound, so setting this changes nothing.</item>
+        /// <item><c>Ssh</c> — <b>ignored.</b> SSH.NET exposes one operation timeout, which the transport
+        /// spends on connect and on reads; it has no separate write deadline to set.</item>
+        /// </list>
+        /// Where it is ignored it is ignored silently, because the alternative — throwing on a property
+        /// setter for a value that is merely inapplicable — would make a portable configuration object
+        /// impossible to write.
+        /// </remarks>
         int SendTimeout { get; set; }
 
         /// <summary>
@@ -219,7 +238,24 @@ namespace tik4net
         /// <seealso cref="TikCommandTrapException">Some other Tik4Net error.</seealso>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
-        System.Threading.Tasks.Task OpenAsync(string host, string user, string password);
+        /// <param name="cancellationToken">
+        /// Cancels the open. <b>How far it reaches depends on the transport, and it is never a promise that
+        /// a connect can be torn out mid-handshake:</b>
+        /// <list type="bullet">
+        /// <item><c>Api</c>/<c>ApiSsl</c> and <c>Rest</c>/<c>RestSsl</c> honour it throughout — the TCP/TLS
+        /// connect and the login/probe exchange are all awaited, so cancelling aborts the attempt.</item>
+        /// <item>The CLI family (<c>Telnet</c>, <c>Ssh</c>, <c>MacTelnet</c>, <c>WinboxCli</c>,
+        /// <c>WinboxCliMac</c>) honours it during the <i>login exchange</i>, which is the part that waits on
+        /// the router. The socket connect ahead of it is synchronous and stays bounded by
+        /// <see cref="ConnectTimeout"/> alone.</item>
+        /// <item><c>WinboxNative</c>/<c>WinboxNativeMac</c> check it before starting and cannot honour it
+        /// after: the EC-SRP5 handshake and catalog fetch have no awaitable form (see the remarks on that
+        /// transport). <see cref="ConnectTimeout"/> is the bound there.</item>
+        /// </list>
+        /// Cancellation surfaces as <see cref="System.OperationCanceledException"/>, never wrapped.
+        /// </param>
+        System.Threading.Tasks.Task OpenAsync(string host, string user, string password,
+            System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Opens connection to the specified mikrotik host on specified port and perform the logon operation.
@@ -235,7 +271,24 @@ namespace tik4net
         /// <seealso cref="TikCommandTrapException">Some other Tik4Net error.</seealso>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
-        System.Threading.Tasks.Task OpenAsync(string host, int port, string user, string password);
+        /// <param name="cancellationToken">
+        /// Cancels the open. <b>How far it reaches depends on the transport, and it is never a promise that
+        /// a connect can be torn out mid-handshake:</b>
+        /// <list type="bullet">
+        /// <item><c>Api</c>/<c>ApiSsl</c> and <c>Rest</c>/<c>RestSsl</c> honour it throughout — the TCP/TLS
+        /// connect and the login/probe exchange are all awaited, so cancelling aborts the attempt.</item>
+        /// <item>The CLI family (<c>Telnet</c>, <c>Ssh</c>, <c>MacTelnet</c>, <c>WinboxCli</c>,
+        /// <c>WinboxCliMac</c>) honours it during the <i>login exchange</i>, which is the part that waits on
+        /// the router. The socket connect ahead of it is synchronous and stays bounded by
+        /// <see cref="ConnectTimeout"/> alone.</item>
+        /// <item><c>WinboxNative</c>/<c>WinboxNativeMac</c> check it before starting and cannot honour it
+        /// after: the EC-SRP5 handshake and catalog fetch have no awaitable form (see the remarks on that
+        /// transport). <see cref="ConnectTimeout"/> is the bound there.</item>
+        /// </list>
+        /// Cancellation surfaces as <see cref="System.OperationCanceledException"/>, never wrapped.
+        /// </param>
+        System.Threading.Tasks.Task OpenAsync(string host, int port, string user, string password,
+            System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Performs the logoff operation and closes connection. Called also via Dispose of connector.

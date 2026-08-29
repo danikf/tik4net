@@ -46,8 +46,8 @@ namespace tik4net.unittests
 
             public override void Open(string host, string user, string password) => SetOpened();
             public override void Open(string host, int port, string user, string password) => SetOpened();
-            public override Task OpenAsync(string host, string user, string password) { SetOpened(); return Task.FromResult(0); }
-            public override Task OpenAsync(string host, int port, string user, string password) { SetOpened(); return Task.FromResult(0); }
+            public override Task OpenAsync(string host, string user, string password, CancellationToken cancellationToken = default) { SetOpened(); return Task.FromResult(0); }
+            public override Task OpenAsync(string host, int port, string user, string password, CancellationToken cancellationToken = default) { SetOpened(); return Task.FromResult(0); }
             public override void Close() => SetClosed();
 
             protected override IList<TikRecordSentence> RunPrint(TikCommandDescriptor descriptor)

@@ -195,7 +195,11 @@ namespace tik4net.Api
                         //case TikCommandParameterFormat.NameOnly:
                         //      return string.Format("={0}", p.Name);
                         default:
-                            throw new NotImplementedException();
+                            // Not a tik4net exception on purpose: an undefined enum value here is a bug in
+                            // the caller's argument, nothing the router said.
+                            throw new ArgumentOutOfRangeException(nameof(defaultParameterFormat),
+                                ResolveParameterFormat(defaultParameterFormat, _defaultParameterFormat, p),
+                                "Unknown " + nameof(TikCommandParameterFormat) + ".");
                     }
                 }
             }));

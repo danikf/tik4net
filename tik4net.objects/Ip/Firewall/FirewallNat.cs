@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -107,8 +108,8 @@ namespace tik4net.Objects.Ip.Firewall
         /// <seealso cref="DstPortStr"/>
         public long DstPort
         {
-            get { return string.IsNullOrWhiteSpace(DstPortStr) ? 0 : long.Parse(DstPortStr); }
-            set { DstPortStr = value.ToString(); }
+            get { return string.IsNullOrWhiteSpace(DstPortStr) ? 0 : long.Parse(DstPortStr, CultureInfo.InvariantCulture); }
+            set { DstPortStr = value.ToString(CultureInfo.InvariantCulture); }
         }
 
         /// <summary>
@@ -124,8 +125,8 @@ namespace tik4net.Objects.Ip.Firewall
         /// <seealso cref="SrcPortStr"/>
         public long SrcPort
         {
-            get { return string.IsNullOrWhiteSpace(SrcPortStr) ? 0 : long.Parse(SrcPortStr); }
-            set { SrcPortStr = value.ToString(); }
+            get { return string.IsNullOrWhiteSpace(SrcPortStr) ? 0 : long.Parse(SrcPortStr, CultureInfo.InvariantCulture); }
+            set { SrcPortStr = value.ToString(CultureInfo.InvariantCulture); }
         }
 
         /// <summary>

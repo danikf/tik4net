@@ -237,7 +237,7 @@ namespace tik4net.WinboxNative
                 session = CreateChannel();
                 try
                 {
-                    session.Open(host, port, user, password, ConnectTimeout, ReceiveTimeout);
+                    session.Open(host, port, user, password, ConnectTimeout, ReceiveTimeout, SendTimeout);
                 }
                 catch (TikConnectionLoginException)
                 {
@@ -255,12 +255,19 @@ namespace tik4net.WinboxNative
         }
 
         /// <inheritdoc/>
-        public override Task OpenAsync(string host, string user, string password)
-            => OpenAsync(host, DefaultPortValue, user, password);
+        public override Task OpenAsync(string host, string user, string password,
+            CancellationToken cancellationToken = default)
+            => OpenAsync(host, DefaultPortValue, user, password, cancellationToken);
 
         /// <inheritdoc/>
-        public override Task OpenAsync(string host, int port, string user, string password)
+        public override Task OpenAsync(string host, int port, string user, string password,
+            CancellationToken cancellationToken = default)
         {
+            // Checked here and nowhere after, and that is the whole truth of it: everything below is
+            // synchronous (see the note under this line), so there is no await for a token to interrupt.
+            // Claiming otherwise by sprinkling checks between blocking calls would be theatre — the
+            // handshake would still have to finish first. ConnectTimeout is the real bound.
+            cancellationToken.ThrowIfCancellationRequested();
             // A Task.Run façade, and knowingly so — the one place on this transport that still is, now that
             // the command surface awaits for real (P2.8). Opening means a blocking connect followed by the
             // EC-SRP5 handshake and the .jg catalog fetch, none of which has an awaitable form:
@@ -275,7 +282,7 @@ namespace tik4net.WinboxNative
             // the one part of this transport that has no deterministic coverage, for a thread held once.
             // MAC-Telnet and WinBox CLI open the same way and for the same reason; the capability's own
             // documentation says opening is excluded rather than leaving each site to explain itself.
-            return Task.Run(() => Open(host, port, user, password));
+            return Task.Run(() => Open(host, port, user, password), cancellationToken);
         }
 
         private void InitAfterAuth(IWinboxM2Channel session, string routerKey)

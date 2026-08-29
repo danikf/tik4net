@@ -78,9 +78,88 @@ namespace tik4net.Diagnostics
             return new Restorer(previous);
         }
 
+        private static readonly AsyncLocal<bool> _secret = new AsyncLocal<bool>();
+
+        /// <summary>
+        /// Suppresses the <b>payload</b> of every trace event emitted inside the returned scope, replacing it
+        /// with a length-only note. Wrap the moment a credential goes onto the wire:
+        /// <code>using (TikWireTrace.Secret()) await sendLine(password, ct);</code>
+        /// </summary>
+        /// <remarks>
+        /// A wire trace is a debugging aid that people paste into bug reports, so it must not carry a
+        /// password. The binary API sends the credential as a word this class can recognise by name (see
+        /// <see cref="IsSecretWord"/>); a terminal transport just types it, and raw bytes on a socket say
+        /// nothing about what they mean — only the code doing the typing knows, so it has to say so.
+        /// <para>
+        /// The scope is an <see cref="AsyncLocal{T}"/> so it survives the <c>await</c>s of a login handshake.
+        /// It deliberately does <b>not</b> reach a transport's own background reader thread; nothing is lost
+        /// by that, because RouterOS does not echo a password back. Notes are left alone — the point is to
+        /// keep the shape of the handshake visible while removing only the secret.
+        /// </para>
+        /// </remarks>
+        public static IDisposable Secret()
+        {
+            bool previous = _secret.Value;
+            _secret.Value = true;
+            return new SecretRestorer(previous);
+        }
+
+        /// <summary>
+        /// True when <paramref name="word"/> is an API word whose value is a credential and must never be
+        /// rendered — the plaintext <c>=password=</c> of the 6.43+ login, the <c>=response=</c> of the older
+        /// challenge protocol (equivalent to the password for replay), and a password being changed.
+        /// </summary>
+        public static bool IsSecretWord(string? word)
+        {
+            if (string.IsNullOrEmpty(word)) return false;
+            foreach (string name in SecretWordNames)
+            {
+                if (word!.StartsWith(name, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
+        private static readonly string[] SecretWordNames =
+        {
+            "=password=", "=response=", "=new-password=", "=confirm-password=",
+        };
+
         // Payload event. off/len bound the region of data to render; the buffer is not retained.
         internal static void Emit(string channel, TikWireDir dir, byte[]? data, int offset, int count, string? note = null)
-            => _sink?.Emit(channel, dir, data, offset, count, note);
+        {
+            var sink = _sink;
+            if (sink == null) return;
+            if (_secret.Value && count > 0)
+            {
+                sink.Emit(channel, dir, null, 0, 0, Redacted(count, note));
+                return;
+            }
+            sink.Emit(channel, dir, data, offset, count, note);
+        }
+
+        /// <summary>
+        /// Payload event for one API word, redacted by the word's own name rather than by a scope.
+        /// </summary>
+        /// <remarks>
+        /// Preferred over a <see cref="Secret"/> scope around the whole login, which would also blank the
+        /// challenge, the banner and the reply — the parts a login problem is actually diagnosed from.
+        /// </remarks>
+        internal static void EmitWord(string channel, TikWireDir dir, byte[] data, int offset, int count, string? word)
+        {
+            var sink = _sink;
+            if (sink == null) return;
+            if (IsSecretWord(word))
+            {
+                int eq = word!.IndexOf('=', 1);
+                sink.Emit(channel, dir, null, 0, 0,
+                    "len=" + count + " " + word.Substring(0, eq + 1) + "<redacted>");
+                return;
+            }
+            Emit(channel, dir, data, offset, count, "len=" + count);
+        }
+
+        private static string Redacted(int count, string? note)
+            => (string.IsNullOrEmpty(note) ? "" : note + " ") + "<redacted " + count + " bytes>";
 
         // Note-only event (no payload).
         internal static void Emit(string channel, TikWireDir dir, string note)
@@ -120,6 +199,20 @@ namespace tik4net.Diagnostics
 
         /// <summary>Convenience overload rendering the whole array.</summary>
         public static string Escape(byte[]? data) => Escape(data, 0, data?.Length ?? 0);
+
+        private sealed class SecretRestorer : IDisposable
+        {
+            private readonly bool _previous;
+            private int _disposed;
+
+            internal SecretRestorer(bool previous) => _previous = previous;
+
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+                _secret.Value = _previous;
+            }
+        }
 
         private sealed class Restorer : IDisposable
         {

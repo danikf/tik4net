@@ -3,9 +3,14 @@ using System;
 namespace tik4net.Objects
 {
     /// <summary>
-    /// The previous names of the callback-based loads, kept so existing code keeps compiling.
-    /// They forward to <c>LoadWithCallback</c> / <c>LoadListenWithCallback</c> and do exactly what they
-    /// always did.
+    /// The previous names of the callback-based loads, kept only so that 3.x code fails to compile with an
+    /// explanation instead of silently binding to something else.
+    /// <para>
+    /// These are <c>[Obsolete(..., error: true)]</c> rather than warnings, deliberately: the old name now
+    /// denotes a DIFFERENT KIND of method. A warning is the right tool when the call still does what the
+    /// caller expects; here somebody writing <c>LoadAsync</c> in 4.0 is reaching for the awaitable one, and
+    /// letting that compile with a warning hands them a background callback they will not await.
+    /// </para>
     /// </summary>
     /// <remarks>
     /// <para>
@@ -34,7 +39,7 @@ namespace tik4net.Objects
             + "calls you back on a background thread.";
 
         /// <inheritdoc cref="TikConnectionExtensions.LoadWithCallback{TEntity}(ITikConnection, Action{TEntity}, Action{Exception}, ITikCommandParameter[])"/>
-        [Obsolete(LoadMessage)]
+        [Obsolete(LoadMessage, true)]
         public static ITikCommand LoadAsync<TEntity>(this ITikConnection connection,
             Action<TEntity> onLoadItemCallback, Action<Exception>? onExceptionCallback = null,
             params ITikCommandParameter[] parameters)
@@ -42,7 +47,7 @@ namespace tik4net.Objects
             => connection.LoadWithCallback(onLoadItemCallback, onExceptionCallback, parameters);
 
         /// <inheritdoc cref="TikConnectionExtensions.LoadListenWithCallback{TEntity}(ITikConnection, Action{TEntity}, Action{string}, Action{Exception}, ITikCommandParameter[])"/>
-        [Obsolete(ListenMessage)]
+        [Obsolete(ListenMessage, true)]
         public static ITikCommand LoadListenAsync<TEntity>(this ITikConnection connection,
             Action<TEntity> onChangeCallback,
             Action<string>? onDeletedCallback = null,
@@ -52,7 +57,7 @@ namespace tik4net.Objects
             => connection.LoadListenWithCallback(onChangeCallback, onDeletedCallback, onExceptionCallback, parameters);
 
         /// <inheritdoc cref="TikCommandExtensions.LoadWithCallback{TEntity}(ITikCommand, Action{TEntity}, Action{Exception}, Action)"/>
-        [Obsolete(LoadMessage)]
+        [Obsolete(LoadMessage, true)]
         public static void LoadAsync<TEntity>(this ITikCommand command,
             Action<TEntity> onLoadItemCallback,
             Action<Exception>? onExceptionCallback = null,
@@ -61,7 +66,7 @@ namespace tik4net.Objects
             => command.LoadWithCallback(onLoadItemCallback, onExceptionCallback, onDoneCallback);
 
         /// <inheritdoc cref="TikCommandExtensions.LoadListenWithCallback{TEntity}(ITikCommand, Action{TEntity}, Action{string}, Action{Exception})"/>
-        [Obsolete(ListenMessage)]
+        [Obsolete(ListenMessage, true)]
         public static void LoadListenAsync<TEntity>(this ITikCommand command,
             Action<TEntity> onChangeCallback,
             Action<string>? onDeletedCallback = null,

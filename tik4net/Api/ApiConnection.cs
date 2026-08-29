@@ -245,11 +245,15 @@ namespace tik4net.Api
         public void Open(string host, int port, string user, string password)
             => OpenAsync(host, port, user, password).GetAwaiter().GetResult();
 
-        public System.Threading.Tasks.Task OpenAsync(string host, string user, string password)
-            => OpenAsync(host, _isSsl ? APISSL_DEFAULT_PORT : API_DEFAULT_PORT, user, password);
+        public System.Threading.Tasks.Task OpenAsync(string host, string user, string password,
+            System.Threading.CancellationToken cancellationToken = default)
+            => OpenAsync(host, _isSsl ? APISSL_DEFAULT_PORT : API_DEFAULT_PORT, user, password,
+                cancellationToken);
 
-        public async System.Threading.Tasks.Task OpenAsync(string host, int port, string user, string password)
+        public async System.Threading.Tasks.Task OpenAsync(string host, int port, string user, string password,
+            System.Threading.CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             try
             {
                 //open connection
@@ -261,13 +265,17 @@ namespace tik4net.Api
 
                 // Task.WhenAny + Task.Delay so we work on netstandard2.0 (no ConnectAsync(CancellationToken) overload there).
                 var connectTask = _tcpConnection.ConnectAsync(host, port);
-                var timeoutTask = System.Threading.Tasks.Task.Delay(ConnectTimeout);
+                // The delay carries the token, so the same WhenAny races BOTH the deadline and the caller's
+                // cancellation. Which of the two ended the wait is then read off the token, because a
+                // cancelled open must not be reported as a router that timed out.
+                var timeoutTask = System.Threading.Tasks.Task.Delay(ConnectTimeout, cancellationToken);
                 if (await System.Threading.Tasks.Task.WhenAny(connectTask, timeoutTask).ConfigureAwait(false) == timeoutTask)
                 {
                     // Observe the abandoned connect so a later "connection refused" cannot surface as an
                     // unobserved task exception in an unrelated part of the process.
                     _ = connectTask.ContinueWith(t => { _ = t.Exception; },
                         System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
+                    cancellationToken.ThrowIfCancellationRequested();
                     throw new SocketException((int)SocketError.TimedOut);
                 }
                 await connectTask.ConfigureAwait(false); // observe/rethrow any connect exception
@@ -292,6 +300,7 @@ namespace tik4net.Api
                         // TLS 1.0 (the former explicit value) is disabled on modern systems and RouterOS 7+.
                         await sslStream.AuthenticateAsClientAsync(host, null, SslProtocols.None, false)
                             .ConfigureAwait(false);
+                        cancellationToken.ThrowIfCancellationRequested();
                     }
                     catch (AuthenticationException ex)
                     {
@@ -497,7 +506,9 @@ namespace tik4net.Api
                     case "!fatal": return new ApiFatalSentence(sentenceWords);
                     case "!empty": return ReadSentence(); // RouterOS 7.18+: data sentence meaning "no rows", always followed by !done — skip it and return the real final sentence
                     case "": throw new IOException("Can not read sentence from connection"); // With SSL possibly not logged in
-                    default: throw new NotImplementedException(string.Format("Response type '{0}' not supported", sentenceName));
+                    // A sentence type we do not know is the ROUTER being newer than us, not an unfinished
+                    // method — and NotImplementedException escaped every catch(TikConnectionException).
+                    default: throw new TikUnknownSentenceTypeException(sentenceName, sentenceWords);
                 }
             }
             catch(IOException ex)
@@ -527,8 +538,8 @@ namespace tik4net.Api
                     _tcpConnectionStream.Write(bytes, 0, bytes.Length);   //write sentence body
 
                     if (Diagnostics.TikWireTrace.Enabled)
-                        Diagnostics.TikWireTrace.Emit("api.word", Diagnostics.TikWireDir.Send,
-                            bytes, 0, bytes.Length, "len=" + bytes.Length);
+                        Diagnostics.TikWireTrace.EmitWord("api.word", Diagnostics.TikWireDir.Send,
+                            bytes, 0, bytes.Length, row);
 
                     if (OnWriteRow != null)
                         OnWriteRow(this, new TikConnectionCommCallbackEventArgs(row));
@@ -608,8 +619,8 @@ namespace tik4net.Api
                     await _tcpConnectionStream.WriteAsync(bytes, 0, bytes.Length).ConfigureAwait(false);
 
                     if (Diagnostics.TikWireTrace.Enabled)
-                        Diagnostics.TikWireTrace.Emit("api.word", Diagnostics.TikWireDir.Send,
-                            bytes, 0, bytes.Length, "len=" + bytes.Length);
+                        Diagnostics.TikWireTrace.EmitWord("api.word", Diagnostics.TikWireDir.Send,
+                            bytes, 0, bytes.Length, row);
 
                     OnWriteRow?.Invoke(this, new TikConnectionCommCallbackEventArgs(row));
                     if (DebugEnabled)

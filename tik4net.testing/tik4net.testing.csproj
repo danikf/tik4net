@@ -8,7 +8,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
 
     <PackageId>tik4net.testing</PackageId>
-    <Description>Testing support for tik4net — provides TikFakeConnection for unit testing without a live MikroTik router.</Description>
+    <Description>Unit-testing support for tik4net: write tests against RouterOS logic with no router involved. TikFakeConnection implements the same ITikConnection contract as a real transport, answers scripted rows through TikFakeReSentence / TikFakeDoneSentence / TikFakeTrapSentence, and records what was sent so a test can assert on it. Works at all three API levels, including the O/R mapper.</Description>
     <PackageTags>Mikrotik Testing Fake Mock CSharp .NET</PackageTags>
     <PackageProjectUrl>https://github.com/danikf/tik4net</PackageProjectUrl>
     <RepositoryUrl>https://github.com/danikf/tik4net</RepositoryUrl>

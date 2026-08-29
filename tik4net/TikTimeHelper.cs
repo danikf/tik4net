@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace tik4net
@@ -33,11 +34,13 @@ namespace tik4net
             var weeks = (long)t.TotalDays / 7;
             t -= TimeSpan.FromDays(weeks * 7);
             return
-                (weeks != 0 ? weeks + "w" : string.Empty) +
-                (t.Days != 0 ? t.Days + "d" : string.Empty) +
-                (t.Hours != 0 ? t.Hours + "h" : string.Empty) +
-                (t.Minutes != 0 ? t.Minutes + "m" : string.Empty) +
-                (t.Seconds != 0 ? t.Seconds + "s" : string.Empty);
+                // Invariant on both sides: this is a RouterOS wire value, not text for a human, so the
+                // caller's regional settings must not reach it.
+                (weeks != 0 ? weeks.ToString(CultureInfo.InvariantCulture) + "w" : string.Empty) +
+                (t.Days != 0 ? t.Days.ToString(CultureInfo.InvariantCulture) + "d" : string.Empty) +
+                (t.Hours != 0 ? t.Hours.ToString(CultureInfo.InvariantCulture) + "h" : string.Empty) +
+                (t.Minutes != 0 ? t.Minutes.ToString(CultureInfo.InvariantCulture) + "m" : string.Empty) +
+                (t.Seconds != 0 ? t.Seconds.ToString(CultureInfo.InvariantCulture) + "s" : string.Empty);
         }
 
         /// <summary>
@@ -53,42 +56,42 @@ namespace tik4net
                 return 0;
 
             // Sanitise the input
-            time = time.ToLower();
+            time = time.ToLowerInvariant();
             int output = 0;
             string[] split;
             if ((split = time.Split('w')).Length >= 2)
             {
                 if (split.Length != 2)
                     throw new FormatException("Multiple week sections specified");
-                output += int.Parse(split[0]) * 604800;
+                output += int.Parse(split[0], CultureInfo.InvariantCulture) * 604800;
                 time = split[1];
             }
             if ((split = time.Split('d')).Length >= 2)
             {
                 if (split.Length != 2)
                     throw new FormatException("Multiple day sections specified");
-                output += int.Parse(split[0]) * 86400;
+                output += int.Parse(split[0], CultureInfo.InvariantCulture) * 86400;
                 time = split[1];
             }
             if ((split = time.Split('h')).Length >= 2)
             {
                 if (split.Length != 2)
                     throw new FormatException("Multiple hour sections specified");
-                output += int.Parse(split[0]) * 3600;
+                output += int.Parse(split[0], CultureInfo.InvariantCulture) * 3600;
                 time = split[1];
             }
             if ((split = time.Split('m')).Length >= 2)
             {
                 if (split.Length != 2)
                     throw new FormatException("Multiple minute sections specified");
-                output += int.Parse(split[0]) * 60;
+                output += int.Parse(split[0], CultureInfo.InvariantCulture) * 60;
                 time = split[1];
             }
             if ((split = time.Split('s')).Length >= 2)
             {
                 if (split.Length != 2)
                     throw new FormatException("Multiple second sections specified");
-                output += int.Parse(split[0]);
+                output += int.Parse(split[0], CultureInfo.InvariantCulture);
                 time = split[1];
             }
             return output;

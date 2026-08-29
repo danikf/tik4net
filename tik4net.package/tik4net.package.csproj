@@ -18,8 +18,12 @@
     <IncludeBuildOutput>false</IncludeBuildOutput>
 
     <PackageId>tik4net</PackageId>
-    <Description>Manage MikroTik RouterOS devices from .NET. Includes both the low-level ADO.NET-like API and the high-level O/R mapper with 169 ready-made entities, over 11 transports: binary API, API-SSL, REST, Telnet, SSH, MAC-Telnet and WinBox (CLI and native-M2, over IP or MAC layer). The O/R mapper was previously distributed separately as tik4net.objects / tik4net.entities; since 4.0 it is part of this package.</Description>
-    <PackageTags>Mikrotik RouterOS Library API CSharp .NET Manage ORM Entities WinBox MacTelnet</PackageTags>
+    <Description>Manage MikroTik RouterOS devices from .NET over ten connection variants: the binary API (plain and TLS), REST (HTTP and HTTPS), Telnet, MAC-Telnet, and WinBox — either as an encrypted terminal or as the structured native M2 protocol, each reachable over IP or directly over the MAC layer for a router with no usable address. SSH is the eleventh, in the separate tik4net.ssh package.
+
+All of them behind one connection contract, with three API levels on top: a low-level raw command API written in the transport's own language, an ADO.NET-like command/parameter API, and an O/R mapper with 169 ready-made entities. Capability flags and typed connection interfaces make the differences between transports a compile-time matter rather than a runtime surprise. Also includes Safe Mode, MNDP device discovery and byte-level wire tracing.
+
+Targets netstandard2.0 and net8.0. The O/R mapper was distributed separately as tik4net.objects / tik4net.entities before 4.0; since 4.0 it is part of this package.</Description>
+    <PackageTags>Mikrotik RouterOS Library API CSharp .NET Manage ORM Entities WinBox MacTelnet Telnet REST MNDP</PackageTags>
     <PackageProjectUrl>https://github.com/danikf/tik4net</PackageProjectUrl>
     <RepositoryUrl>https://github.com/danikf/tik4net</RepositoryUrl>
     <RepositoryType>git</RepositoryType>

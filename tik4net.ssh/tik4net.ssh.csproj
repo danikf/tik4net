@@ -8,7 +8,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
 
     <PackageId>tik4net.ssh</PackageId>
-    <Description>SSH (TCP 22) connection transport for tik4net. Drives the MikroTik RouterOS CLI over an SSH PTY shell (full CRUD, Listen and Safe Mode). Kept as a separate package because of its Renci.SshNet dependency.</Description>
+    <Description>SSH (TCP 22) connection transport for tik4net — the eleventh connection variant, kept in its own package because of its SSH.NET dependency. Drives the MikroTik RouterOS CLI over an SSH PTY shell with the same connection contract and the same three API levels as every other transport: full CRUD, Listen and Safe Mode. Requires the tik4net package.</Description>
     <PackageTags>Mikrotik Library API CSharp .NET Manage SSH</PackageTags>
     <PackageProjectUrl>https://github.com/danikf/tik4net</PackageProjectUrl>
     <RepositoryUrl>https://github.com/danikf/tik4net</RepositoryUrl>
