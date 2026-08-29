@@ -63,6 +63,22 @@ namespace tik4net
             : base(message)
         {
         }
+
+        /// <summary>
+        /// As above, keeping whatever the torn-down transport threw.
+        /// </summary>
+        /// <remarks>
+        /// Used when a <c>Close</c> on another thread pulls the socket out from under a running command: the
+        /// framework exception that produced (an <see cref="ObjectDisposedException"/>, an
+        /// <see cref="System.IO.IOException"/>) is worth keeping for a bug report, while the type the caller
+        /// catches should still be a <see cref="TikConnectionException"/>.
+        /// </remarks>
+        /// <param name="message">Diagnostic message.</param>
+        /// <param name="innerException">The underlying transport failure.</param>
+        public TikConnectionNotOpenException(string message, Exception innerException)
+            : base(message, innerException)
+        {
+        }
     }
 
     /// <summary>

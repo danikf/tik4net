@@ -42,6 +42,30 @@ namespace tik4net.Connection
     {
         /// <summary>Serialises command execution — the underlying transports are inherently sequential.</summary>
         protected readonly SemaphoreSlim _cmdLock = new SemaphoreSlim(1, 1);
+
+        /// <summary>
+        /// The exception for "the connection was closed while this command was still running".
+        /// </summary>
+        /// <remarks>
+        /// <c>Close</c> does not wait for an in-flight command — it must stay prompt, and a caller closing a
+        /// connection to escape a stuck one would be defeated by a Close that blocked for
+        /// <see cref="ReceiveTimeout"/>. So the command loses its socket mid-flight, and the question is only
+        /// what it is told. Left alone it surfaces whatever the framework threw — an
+        /// <see cref="ObjectDisposedException"/> or a raw <see cref="System.IO.IOException"/> — which is
+        /// outside the tik4net hierarchy and reads like a bug in the library rather than a race the caller
+        /// started.
+        /// <para>
+        /// The message deliberately does <b>not</b> say the command did not run. Nobody here knows: the
+        /// bytes may have reached the router before the socket went. Claiming otherwise is the kind of
+        /// confident wrong answer that costs somebody a duplicated write.
+        /// </para>
+        /// </remarks>
+        /// <param name="inner">Whatever the torn-down transport threw.</param>
+        protected TikConnectionNotOpenException ClosedWhileRunning(Exception inner)
+            => new TikConnectionNotOpenException(
+                "The connection was closed while this command was in flight. Whether the router received "
+                + "and executed it is not known — Close does not wait for a running command. Close from the "
+                + "thread that owns the connection, or let the command finish first.", inner);
         private bool _isOpened;
 
         // ── ITikConnection properties ─────────────────────────────────────────

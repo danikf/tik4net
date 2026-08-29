@@ -75,10 +75,15 @@ namespace tik4net
     /// observe it, or use the binary API, where the tag makes the two independent.
     /// </item>
     /// <item>
-    /// <b>Opening and closing are not concurrent operations.</b> <see cref="Close"/> and
-    /// <see cref="IDisposable.Dispose"/> tear the channel down under whatever is using it; a command in
-    /// flight when that happens fails, and on the terminal transports it can fail as a truncated read
-    /// rather than as an error. Finish or cancel outstanding work first.
+    /// <b>Closing does not wait for a running command.</b> <see cref="Close"/> and
+    /// <see cref="IDisposable.Dispose"/> tear the channel down under whatever is using it, deliberately:
+    /// a Close that waited would defeat the caller who is closing precisely to escape a stuck command. A
+    /// command in flight when that happens therefore <i>fails</i> — but it fails as a
+    /// <see cref="TikConnectionException"/> saying the connection was closed underneath it, not as the raw
+    /// <c>ObjectDisposedException</c> the torn-down socket produced. <b>What it cannot tell you is whether
+    /// the router ran the command</b>: the bytes may have arrived before the socket went. Treat a write
+    /// interrupted this way as unknown rather than failed, and finish or cancel outstanding work first if
+    /// that distinction matters.
     /// </item>
     /// <item>
     /// <b>Safe Mode is connection-wide state, not a per-command option</b> —

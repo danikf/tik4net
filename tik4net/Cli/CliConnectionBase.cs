@@ -239,11 +239,15 @@ namespace tik4net.Cli
         /// <inheritdoc/>
         public override void Close()
         {
+            // SetClosed FIRST, as WinboxNativeConnection.Close does and for the same reason: a command
+            // running on another thread is about to lose its socket, and IsOpened is how it tells "the user
+            // closed this" from "the transport broke". Tearing down first left a window in which the failure
+            // arrived while the connection still looked open, and it was reported as a transport error.
+            SetClosed();
             _close?.Invoke();
             _send = null;
             _sendRaw = null;
             _close = null;
-            SetClosed();
         }
 
         private TikConnectionNotOpenException NotOpen()
@@ -280,6 +284,13 @@ namespace tik4net.Cli
                     // in step again.
                     CloseAfterAbandonedRead();
                     throw;
+                }
+                catch (Exception ex) when (!IsOpened && !(ex is TikConnectionException))
+                {
+                    // Close() ran on another thread while this command held the socket. IsOpened is already
+                    // false because Close sets it first, which is what makes this distinguishable from a
+                    // transport that simply broke.
+                    throw ClosedWhileRunning(ex);
                 }
                 FireReadRow(result);
                 // The safe point. The response has been drained, so the channel is consistent and the caller's

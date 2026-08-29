@@ -469,7 +469,18 @@ namespace tik4net.Rest
                     // does afterwards only reads the buffer these token sources are no longer needed for.
                     // Non-null here: the open probe calls this right after assigning _httpClient, and every
                     // other caller goes through EnsureOpened(), which is only true once that assignment happened.
-                    response = await _httpClient!.SendAsync(req, linked.Token).ConfigureAwait(false);
+                    // Snapshotted, not read through the field: Close() nulls _httpClient, and a send that
+                    // read the field a moment later would fail with a NullReferenceException instead of
+                    // anything meaningful. Holding the reference also means the dispose below races the send
+                    // rather than the field read, which is the failure we can actually translate.
+                    HttpClient client = _httpClient
+                        ?? throw ClosedWhileRunning(new ObjectDisposedException(nameof(HttpClient)));
+                    response = await client.SendAsync(req, linked.Token).ConfigureAwait(false);
+                }
+                catch (ObjectDisposedException ex) when (!IsOpened)
+                {
+                    // Close() disposed the client while this request was on the wire.
+                    throw ClosedWhileRunning(ex);
                 }
                 catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
                 {
