@@ -25,8 +25,10 @@ tik4net/MacTelnet/
   ~5 s of discovery).
 - Crypto lives in `tik4net/Crypto/` (`EcSrp5`, `WinboxStreamCrypto`); VT100 and stripping live in
   `tik4net/Cli/` (`Vt100State`, `VtStripper`, `RouterOsCliLogin`, `CliOutputHelper`, `CliOutputParser`).
-- `MacLayerTransport` is **public** on purpose — `WinboxMacClient` in another assembly also derives
-  from it.
+- `MacLayerTransport` is **internal**. `WinboxMacClient` in `tik4net.integrationtests` derives from it,
+  which works because that assembly is an `InternalsVisibleTo` friend — it was public for a while on
+  the theory that a cross-assembly subclass needed it to be, and no such subclass is outside the friend
+  list. Public would have frozen the protected AES session keys and stream counters into the API.
 - `MacTelnetUdpClient` is **fully synchronous** (`UdpClient.ReceiveTimeout` plus a blocking `Receive`
   on a 500 ms poll), wrapped in `Task.Run`. Mixing sync and async `Receive` on .NET Framework 4.8
   breaks `SO_RCVTIMEO`, so the receive path must not be made async piecemeal.

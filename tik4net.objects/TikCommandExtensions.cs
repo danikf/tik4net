@@ -132,7 +132,7 @@ namespace tik4net.Objects
             Guard.ArgumentNotNull(command, "command");
             Guard.ArgumentNotNull(onLoadItemCallback, "onLoadItemCallback");
 
-            command.ExecuteAsync(
+            command.ExecuteWithCallback(
                 reSentence => onLoadItemCallback(CreateObject<TEntity>(reSentence)),
                 trapSentence =>
                 {
@@ -168,7 +168,7 @@ namespace tik4net.Objects
             Guard.ArgumentNotNull(command, "command");
             Guard.ArgumentNotNull(onChangeCallback, "onChangeCallback");
 
-            command.ExecuteAsync(
+            command.ExecuteWithCallback(
                 reSentence =>
                 {
                     // RouterOS documents =.dead=yes but sends =.dead=true in practice — accept both

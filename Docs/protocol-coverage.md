@@ -202,7 +202,7 @@ IEnumerable<TikInstanceDescriptor> routers = MndpHelper.Discover(stopWhenFirstFo
 | HTTPS (SSL variant) | ✅ |
 | `System.Text.Json` serialization (BCL, no extra dependency) | ✅ |
 | `ITikConnectionCapabilities` — declares `Crud`, `Listen`, `AsyncCommands`, `CancelInFlight` | ✅ |
-| Listen/push (`ExecuteAsync`) | ✅ polled — the router's own `listen` is accepted and delivers nothing (§12) |
+| Listen/push (`ExecuteWithCallback`) | ✅ polled — the router's own `listen` is accepted and delivers nothing (§12) |
 | `Execute*Async` with `CancellationToken` | ✅ native (`HttpClient`), cancellable mid-request |
 | Streaming (Torch, monitor-traffic follow) | ❌ not supported — the response arrives in one lump |
 | SafeMode | ❌ not supported |

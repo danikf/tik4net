@@ -25,18 +25,30 @@ namespace tik4net.WinboxNativeMac
         /// transport on the same encrypted channel and the same MAC carrier.</para>
         /// </summary>
         /// <param name="setup">The configured connection setup.</param>
+        /// <param name="routerMac">
+        /// Optional router MAC address as <c>"AA:BB:CC:DD:EE:FF"</c>, overriding <see cref="TikConnectionSetup.RouterMac"/>
+        /// for this connection — the same parameter the other two MAC-layer factories take. It was missing
+        /// here, so this was the one MAC transport whose router had to be named on the setup rather than on
+        /// the call.
+        /// </param>
         /// <param name="configure">
         /// Optional hook to configure the connection before it opens — any of the mappings documented on
-        /// <c>CreateWinboxNativeConnection</c> (<c>tik4net.WinboxNative</c>). The router MAC comes from <see cref="TikConnectionSetup.RouterMac"/>.
+        /// <c>CreateWinboxNativeConnection</c> (<c>tik4net.WinboxNative</c>). Runs after
+        /// <paramref name="routerMac"/> is applied.
         /// </param>
-        public static ITikWinboxNativeMacConnection CreateWinboxNativeMacConnection(this TikConnectionSetup setup, Action<WinboxNativeMacConnection>? configure = null)
-            => (ITikWinboxNativeMacConnection)setup.Create(TikConnectionType.WinboxNativeMac, TikConnectionSetup.Typed(configure));
+        public static ITikWinboxNativeMacConnection CreateWinboxNativeMacConnection(this TikConnectionSetup setup,
+            string? routerMac = null, Action<WinboxNativeMacConnection>? configure = null)
+            => (ITikWinboxNativeMacConnection)setup.Create(TikConnectionType.WinboxNativeMac,
+                TikConnectionSetup.Then(TikConnectionSetup.OverrideRouterMac(routerMac),
+                                        TikConnectionSetup.Typed(configure)));
 
         /// <summary>Async version of <see cref="CreateWinboxNativeMacConnection"/>.</summary>
-        public static async Task<ITikWinboxNativeMacConnection> CreateWinboxNativeMacConnectionAsync(this TikConnectionSetup setup, 
-            Action<WinboxNativeMacConnection>? configure = null, CancellationToken ct = default)
+        public static async Task<ITikWinboxNativeMacConnection> CreateWinboxNativeMacConnectionAsync(this TikConnectionSetup setup,
+            string? routerMac = null, Action<WinboxNativeMacConnection>? configure = null, CancellationToken ct = default)
         {
-            return (ITikWinboxNativeMacConnection)await setup.CreateAsync(TikConnectionType.WinboxNativeMac, TikConnectionSetup.Typed(configure), ct).ConfigureAwait(false);
+            return (ITikWinboxNativeMacConnection)await setup.CreateAsync(TikConnectionType.WinboxNativeMac,
+                TikConnectionSetup.Then(TikConnectionSetup.OverrideRouterMac(routerMac),
+                                        TikConnectionSetup.Typed(configure)), ct).ConfigureAwait(false);
         }
     }
 }

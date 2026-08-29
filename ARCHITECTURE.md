@@ -55,8 +55,25 @@ net8.0). All SDK-style.
 
 `ITikConnection` (`tik4net/ITikConnection.cs`) covers lifecycle (`Open`/`OpenAsync` ×4, `Close`,
 `Dispose`), configuration (`Encoding`, timeouts), diagnostic events, and command factories — what
-every transport has. Three things that not every transport can reasonably provide live on their own
-interfaces, each paired with the capability flag that answers the same question:
+every transport has. What a transport can reasonably lack goes on a facet interface, and there are
+**two kinds of facet**, which is what decides whether a capability flag comes with it:
+
+- **A feature some transports cannot perform** gets a facet **and** a flag. The flag exists because a
+  caller holding a connection chosen at run time has to be able to ask before casting. Three of these:
+
+- **A setting that is meaningless elsewhere** gets a facet and **no flag** — `ITikTlsConnection`,
+  `ITikMacLayerConnection`, `ITikCancellationModeConnection`. There is no operation to attempt and so
+  nothing to ask about: either the connection has somewhere to put the value or it does not, and that
+  is answered by whether the cast succeeds. `ITikCliCompletion` sits here too, reached by holding
+  `ITikCliConnection` rather than by a flag of its own.
+
+The inverse also holds and is not an oversight: `Crud`, `Listen`, `Streaming`, `AsyncCommands` and
+`CancelInFlight` are flags with **no** facet, because their members are on `ITikConnection` /
+`ITikCommand` for everyone and a transport that cannot honour one fails at run time with
+`TikConnectionCapabilityNotSupportedException`. A facet moves a failure to compile time; a flag
+describes one that cannot be moved there.
+
+The three feature facets:
 
 - `ITikRawSentenceConnection` (`tik4net/ITikRawSentenceConnection.cs`) — `CallCommandSync`, both
   overloads (`RawCommand`). The contract is a command **in the connection's own language**, sent
@@ -76,7 +93,7 @@ interfaces, each paired with the capability flag that answers the same question:
 `ITikRawSentenceConnection`. The low level was synchronous-only, which was backwards — it is where the long
 commands live (`/export`, a script) while the levels above it had been awaitable for some time. On the CLI
 family the async form is the implementation and the synchronous one blocks on it, so there is one code path
-rather than two that can drift. `ITikCommand.ExecuteAsync` is a different thing entirely: callbacks, no
+rather than two that can drift. `ITikCommand.ExecuteWithCallback` is a different thing entirely: callbacks, no
 `Task` — see its own docs.
 
 **There are no convenience shims on `ITikConnection`.** `TikRawSentenceExtensions` and
@@ -119,7 +136,7 @@ type can answer it. `TypedConnectionTests` pins that the facets and the flags ag
 property of the transport alone.
 
 `ITikCommand` is ADO.NET-shaped: `ExecuteNonQuery`, `ExecuteScalar`, `ExecuteSingleRow`,
-`ExecuteList`, `ExecuteListWithDuration`, `ExecuteAsync`. Parameters are `ITikCommandParameter`
+`ExecuteList`, `ExecuteListWithDuration`, `ExecuteWithCallback`. Parameters are `ITikCommandParameter`
 with a `TikCommandParameterFormat` of `Filter` (`?name=value`) or `NameValue` (`=name=value`).
 
 On `net8.0`, `ITikStreamingCommand` (`tik4net/ITikStreamingCommand.cs`) adds

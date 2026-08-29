@@ -852,7 +852,7 @@ namespace tik4net.Api
         }
 
         // Internal since 4.0: it hands back a Thread nobody can await, cancel or observe a failure on, so it
-        // is no longer offered to callers (ITikCommand.ExecuteAsync and the Task-based Execute*Async
+        // is no longer offered to callers (ITikCommand.ExecuteWithCallback and the Task-based Execute*Async
         // extensions are). ApiCommand still drives the callback form through it — the Thread it returns is
         // what ApiCommand.Cancel joins.
         //
@@ -894,12 +894,12 @@ namespace tik4net.Api
                     //NOTE: Should be ended via !done or !trap+!done (called via Cancel() command for specific tag)
                     // The loop no longer tests _isOpened: a closed connection reaches the callback as the
                     // reader's synthetic !fatal, which ends it. Testing the flag instead ended the pump
-                    // silently, leaving ExecuteAsync's caller with a monitor that simply stopped.
+                    // silently, leaving ExecuteWithCallback's caller with a monitor that simply stopped.
                 }
                 catch (Exception ex)
                 {
                     // Everything that can still land here is local (a receive timeout on this tag). Connection
-                    // loss arrives as the reader's !fatal, above. Either way the caller (ExecuteAsync) must be
+                    // loss arrives as the reader's !fatal, above. Either way the caller (ExecuteWithCallback) must be
                     // told, or it never clears its running state — carry the reason (P2.14).
                     try
                     {

@@ -363,6 +363,18 @@ namespace tik4net
                 ? (Action<ITikConnection>?)null
                 : conn => ((ITikMacLayerConnection)conn).RouterMac = routerMac;
 
+        /// <summary>
+        /// Runs both hooks, in order, skipping the nulls. For a factory that takes a per-call router MAC
+        /// <b>and</b> a typed configure callback — the MAC is applied first, so the callback can still
+        /// override it if the caller means to.
+        /// </summary>
+        internal static Action<ITikConnection>? Then(Action<ITikConnection>? first, Action<ITikConnection>? second)
+        {
+            if (first == null) return second;
+            if (second == null) return first;
+            return conn => { first(conn); second(conn); };
+        }
+
         // The MAC-layer transports accept an empty host — it is the "no IP anywhere" case they exist for,
         // and ITikConnection.Open has nowhere else to say it. RequireUsableAddress has already established
         // that the connection about to be opened is one of them.

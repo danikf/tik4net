@@ -18,7 +18,7 @@ namespace tik4net.Connection
         private string _commandText = null!; // set via CommandText property before EnsureCommandTextSet() is called
         private TikCommandParameterFormat _defaultParameterFormat;
         private volatile bool _isRunning;
-        private TikMonitorHandle? _monitorHandle; // only set once ExecuteAsync has been called; see Cancel/CancelAndJoin's null-conditional use
+        private TikMonitorHandle? _monitorHandle; // only set once ExecuteWithCallback has been called; see Cancel/CancelAndJoin's null-conditional use
 
         // ── Raw pass-through (ITikRawCommand) ──────────────────────────────────
         // Set by the CreateRawCommand factory. When IsRaw, CommandText is sent verbatim through the
@@ -547,7 +547,7 @@ namespace tik4net.Connection
             return ExecuteList();
         }
 
-        public void ExecuteAsync(Action<ITikReSentence> oneResponseCallback,
+        public void ExecuteWithCallback(Action<ITikReSentence> oneResponseCallback,
             Action<ITikTrapSentence>? errorCallback = null,
             Action? onDoneCallback = null)
         {

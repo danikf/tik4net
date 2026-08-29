@@ -26,26 +26,25 @@ namespace tik4net.Mndp
         private const int MNDP_UDP_PORT = 5678;
 
         /// <summary>
-        /// Discovers the MAC address of the router at <paramref name="host"/> (IPv4 string) via MNDP.
-        /// Returns the MAC as a 6-byte array, or <c>null</c> if not found within <paramref name="timeout"/>
-        /// (default 5 s).
+        /// Discovers the MAC address of the router at <paramref name="host"/> (IPv4 string) via MNDP, as
+        /// <c>AA:BB:CC:DD:EE:FF</c>, or <c>null</c> if no router announced that address within
+        /// <paramref name="timeout"/> (default 5 s).
         /// </summary>
-        public static byte[]? FindMacByHost(string host, TimeSpan? timeout = null)
+        /// <remarks>
+        /// A string, because that is the spelling every other MAC in this library uses — it can be assigned
+        /// straight to <see cref="ITikMacLayerConnection.RouterMac"/> or passed to
+        /// <see cref="TikRouterAddress.FromMac(string)"/>. It used to return <c>byte[]</c>, which was the
+        /// one shape nothing else accepted: a caller had to re-format the result of the discovery helper
+        /// before handing it to the thing the helper exists to feed. The bytes were themselves produced by
+        /// parsing this string, so nothing is lost by not making the round trip.
+        /// </remarks>
+        public static string? FindMacByHost(string host, TimeSpan? timeout = null)
         {
             var effectiveTimeout = timeout ?? TimeSpan.FromSeconds(5);
             var encoding = Encoding.GetEncoding("iso-8859-1");
             var found = Discover(effectiveTimeout, encoding, stopWhenFirstFound: false)
                 .FirstOrDefault(r => r.IPv4?.ToString() == host);
-            if (string.IsNullOrEmpty(found.Mac))
-                return null;
-            try
-            {
-                return found.Mac.Split(':').Select(s => Convert.ToByte(s, 16)).ToArray();
-            }
-            catch
-            {
-                return null;
-            }
+            return string.IsNullOrEmpty(found.Mac) ? null : found.Mac;
         }
 
         /// <summary>

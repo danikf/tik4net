@@ -278,7 +278,7 @@ namespace tik4net.unittests
                     });
 
             ITikCommand cmd = conn.CreateCommand("/ip/address/print");
-            cmd.ExecuteAsync(
+            cmd.ExecuteWithCallback(
                 oneResponseCallback: re   => received.Add(re.GetResponseField("address")),
                 onDoneCallback:      ()   => finished.Set());
 

@@ -14,8 +14,8 @@ namespace tik4net.Testing
     public sealed class TikFakeCommand : ITikCommand, ITikCommandAsync
     {
         private readonly TikFakeConnection _fakeConnection;
-        private Thread _asyncThread = null!; // set by ExecuteAsync; IsRunning is false and CancelAndJoin no-ops until then
-        private string _asyncTag = null!; // set by ExecuteAsync, alongside _asyncThread
+        private Thread _asyncThread = null!; // set by ExecuteWithCallback; IsRunning is false and CancelAndJoin no-ops until then
+        private string _asyncTag = null!; // set by ExecuteWithCallback, alongside _asyncThread
 
         /// <inheritdoc/>
         public ITikConnection Connection { get; set; }
@@ -267,14 +267,14 @@ namespace tik4net.Testing
         }
 
         /// <inheritdoc/>
-        public void ExecuteAsync(
+        public void ExecuteWithCallback(
             Action<ITikReSentence> oneResponseCallback,
             Action<ITikTrapSentence>? errorCallback = null,
             Action? onDoneCallback = null)
         {
             _asyncTag = Guid.NewGuid().ToString();
             // CallCommandAsync is obsolete for consumers (A9) and this is the shipped alternative it points
-            // them at — ExecuteAsync is implemented ON it, exactly as ApiCommand implements it on the binary
+            // them at — ExecuteWithCallback is implemented ON it, exactly as ApiCommand implements it on the binary
             // API's own version. Suppressed here rather than at the declaration, so a CONSUMER still sees the
             // warning and this one deliberate use does not silence it for everyone.
 #pragma warning disable 618

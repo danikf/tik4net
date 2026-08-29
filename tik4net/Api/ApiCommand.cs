@@ -15,7 +15,7 @@ namespace tik4net.Api
     {
         private volatile bool _isRuning;
         private volatile int _asynchronouslyRunningTag;
-        private volatile Thread? _asyncLoadingThread; // only set while an ExecuteAsync-family command is running; null otherwise
+        private volatile Thread? _asyncLoadingThread; // only set while an ExecuteWithCallback-family command is running; null otherwise
         private readonly List<ITikCommandParameter> _parameters = new List<ITikCommandParameter>();
         private ApiConnection _connection = null!; // set via Connection property before EnsureConnectionSet() is called
         private string _commandText = null!; // set via CommandText property before EnsureCommandTextSet() is called
@@ -603,7 +603,7 @@ namespace tik4net.Api
             }
         }
 
-        public void ExecuteAsync(Action<ITikReSentence> oneResponseCallback,
+        public void ExecuteWithCallback(Action<ITikReSentence> oneResponseCallback,
             Action<ITikTrapSentence>? errorCallback = null,
             Action? onDoneCallback = null)
         {
@@ -611,7 +611,7 @@ namespace tik4net.Api
         }
 
         /// <summary>
-        /// <see cref="ExecuteAsync(Action{ITikReSentence}, Action{ITikTrapSentence}, Action)"/> plus one extra
+        /// <see cref="ExecuteWithCallback(Action{ITikReSentence}, Action{ITikTrapSentence}, Action)"/> plus one extra
         /// hook: <paramref name="onTerminalCallback"/> is invoked for whichever sentence ENDED the command —
         /// <c>!done</c> or <c>!fatal</c> — after the running state has been cleared.
         /// </summary>

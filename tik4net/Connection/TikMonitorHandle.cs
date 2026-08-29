@@ -5,9 +5,9 @@ namespace tik4net.Connection
 {
     /// <summary>
     /// Optional capability interface for transports that support streaming-monitor commands
-    /// (<c>ExecuteAsync</c>/<c>LoadAsync</c>). Kept off the neutral <see cref="TikCommandConnectionBase"/> so the
+    /// (<c>ExecuteWithCallback</c>/<c>LoadAsync</c>). Kept off the neutral <see cref="TikCommandConnectionBase"/> so the
     /// base stays CRUD-only — mirrors how <c>ITikConnectionCapabilities</c> is an opt-in interface rather than a
-    /// throwing base member. <see cref="TikGenericCommand.ExecuteAsync"/> checks for this interface and throws
+    /// throwing base member. <see cref="TikGenericCommand.ExecuteWithCallback"/> checks for this interface and throws
     /// <see cref="NotSupportedException"/> only when the active transport does not implement it. Implemented by
     /// the CLI transports (<c>CliConnectionBase</c>, via polling) and the native WinBox M2 connection.
     /// </summary>

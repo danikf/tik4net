@@ -162,7 +162,7 @@ namespace tik4net.integrationtests
             EnsureCapability(TikConnectionCapability.Listen, "async monitor-traffic");
             var cmd = Connection.CreateCommandAndParameters("/interface/monitor-traffic", "interface", TestConstants.Interface);
             List<ITikReSentence> responses = new List<ITikReSentence>();
-            cmd.ExecuteAsync(re => { lock (responses) responses.Add(re); });
+            cmd.ExecuteWithCallback(re => { lock (responses) responses.Add(re); });
             Thread.Sleep(2 * 1000);
 
             ITikReSentence[] got;
@@ -362,11 +362,11 @@ namespace tik4net.integrationtests
             // guarantee at all when Add and Count overlap. Lock both sides.
             var cmdWlan = Connection.CreateCommandAndParameters("/interface/monitor-traffic", "interface", TestConstants.WirelessInterface);
             List<ITikReSentence> responsesWlan = new List<ITikReSentence>();
-            cmdWlan.ExecuteAsync(re => { lock (responsesWlan) responsesWlan.Add(re); });
+            cmdWlan.ExecuteWithCallback(re => { lock (responsesWlan) responsesWlan.Add(re); });
 
             var cmdEth = Connection.CreateCommandAndParameters("/interface/monitor-traffic", "interface", TestConstants.Interface);
             List<ITikReSentence> responsesEth = new List<ITikReSentence>();
-            cmdEth.ExecuteAsync(re => { lock (responsesEth) responsesEth.Add(re); });
+            cmdEth.ExecuteWithCallback(re => { lock (responsesEth) responsesEth.Add(re); });
 
             int EthCount() { lock (responsesEth) return responsesEth.Count; }
 

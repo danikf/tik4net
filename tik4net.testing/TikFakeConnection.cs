@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net.Security;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -42,7 +43,10 @@ namespace tik4net.Testing
     /// </code>
     /// </example>
     public sealed class TikFakeConnection : ITikConnection, ITikConnectionCapabilities,
-        ITikRawSentenceConnection, ITikSafeModeConnection
+        ITikRawSentenceConnection, ITikSafeModeConnection, ITikTaggedConnection, ITikTlsConnection,
+        ITikCancellationModeConnection, ITikMacLayerConnection, tik4net.Cli.ITikCliCompletion,
+        ITikApiConnection, ITikRestConnection, ITikCliConnection, ITikMacCliConnection,
+        ITikWinboxNativeConnection, ITikWinboxNativeMacConnection
     {
         private readonly List<(Func<IEnumerable<string>, bool> Predicate, Func<IEnumerable<string>, IEnumerable<ITikSentence>> Response)> _handlers
             = new List<(Func<IEnumerable<string>, bool>, Func<IEnumerable<string>, IEnumerable<ITikSentence>>)>();
@@ -221,7 +225,7 @@ namespace tik4net.Testing
         /// <summary>
         /// What this fake claims to support. Defaults to what it actually implements:
         /// <see cref="TikConnectionCapability.Crud"/>, <see cref="TikConnectionCapability.Listen"/> (the
-        /// callback <c>ExecuteAsync</c>/<c>LoadAsync</c> pattern) and
+        /// callback <c>ExecuteWithCallback</c>/<c>LoadAsync</c> pattern) and
         /// <see cref="TikConnectionCapability.AsyncCommands"/> (the <c>Execute*Async</c> surface, completing
         /// synchronously — see <see cref="TikFakeCommand"/>) and <see cref="TikConnectionCapability.SafeMode"/>
         /// (recorded, not performed — the counters below).
@@ -234,15 +238,23 @@ namespace tik4net.Testing
         /// (<see cref="TikConnectionCapability.RawCommand"/>) would only move the failure later.
         /// </para>
         /// <para>
-        /// <see cref="TikConnectionCapability.SafeMode"/> is in the default set because this fake implements
-        /// <see cref="ITikSafeModeConnection"/>, and a
-        /// connection whose flags disagreed with the interfaces it implements would answer the same
-        /// question two ways. Clear the flag to test the branch where a transport has no safe mode.
+        /// <see cref="TikConnectionCapability.SafeMode"/> and <see cref="TikConnectionCapability.Tagging"/>
+        /// are in the default set because this fake implements <see cref="ITikSafeModeConnection"/> and
+        /// <see cref="ITikTaggedConnection"/> functionally, and a connection whose flags disagreed with the
+        /// interfaces it implements would answer the same question two ways. Clear either flag to test the
+        /// branch where a transport lacks that feature.
+        /// </para>
+        /// <para>
+        /// <see cref="TikConnectionCapability.RawCommand"/> is the one exception, and a deliberate one: the
+        /// fake implements <see cref="ITikRawSentenceConnection"/> so that it can stand in for a typed
+        /// connection, but does not perform raw commands. Declaring the flag would move that failure from
+        /// the cast to somewhere later and less obvious.
         /// </para>
         /// </summary>
         public TikConnectionCapability Capabilities { get; set; } =
             TikConnectionCapability.Crud | TikConnectionCapability.Listen
-            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.SafeMode;
+            | TikConnectionCapability.AsyncCommands | TikConnectionCapability.SafeMode
+            | TikConnectionCapability.Tagging;
 
         // ── ITikConnection ─────────────────────────────────────────────────────
 
@@ -422,7 +434,7 @@ namespace tik4net.Testing
         // Async variant — runs the fake sentences on a background thread, calling oneResponseCallback for
         // each sentence until the thread is cancelled. Internal since 4.0, mirroring the real connections:
         // the Thread-returning entry point left ITikConnection, and TikFakeCommand (same assembly) is the
-        // only caller left, driving ITikCommand.ExecuteAsync exactly as ApiCommand does.
+        // only caller left, driving ITikCommand.ExecuteWithCallback exactly as ApiCommand does.
         internal Thread CallCommandAsync(IEnumerable<string> commandRows, string tag, Action<ITikSentence> oneResponseCallback)
         {
             var rows = commandRows.ToArray();
@@ -452,5 +464,60 @@ namespace tik4net.Testing
             thread.Start();
             return thread;
         }
+
+        // ── The option facets, so the fake satisfies the composite connection interfaces ──────
+        //
+        // The wiki tells people to prefer a typed connection - `ITikCliConnection cli =
+        // setup.CreateTelnetConnection()` - over a runtime Supports() check, because it turns a missing
+        // feature into a compile error. That advice was unusable in a test: a method taking
+        // ITikApiConnection or ITikCliConnection had nothing to pass it, since this class implemented
+        // only ITikConnection and two facets and is sealed. The library steered users toward a shape its
+        // own testing package could not stand in for.
+        //
+        // So the fake implements every facet and every composite. It is not claiming to BE an API or a
+        // CLI connection - a double stands in for whatever the code under test asked for, and the
+        // capability set (Capabilities, settable per test) is still the thing that answers "can it".
+
+        /// <summary>Per-command tagging. Settable; the fake does not act on it.</summary>
+        public bool SendTagWithSyncCommand { get; set; } = true;
+
+        /// <summary>TLS option. Settable so a test can assert configuration; no TLS is involved.</summary>
+        public bool AllowInvalidCertificate { get; set; }
+
+        /// <summary>TLS option. Settable so a test can assert configuration; no TLS is involved.</summary>
+        public RemoteCertificateValidationCallback? CertificateValidationCallback { get; set; }
+
+        /// <summary>What a mid-command cancel costs on a terminal. Settable; the fake has no terminal.</summary>
+        public TikCancellationMode CancellationMode { get; set; } = TikCancellationMode.Cooperative;
+
+        /// <summary>Router MAC for the MAC-layer transports. Settable; the fake reaches no router.</summary>
+        public string? RouterMac { get; set; }
+
+        /// <summary>
+        /// Tab-completion answers this fake will give, keyed by the partial input. A test that exercises
+        /// completion scripts it here; anything unscripted completes to nothing rather than throwing,
+        /// because "the router offered no completion" is a real answer and not an error.
+        /// </summary>
+        public readonly Dictionary<string, IReadOnlyList<string>> Completions
+            = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+
+        /// <inheritdoc/>
+        public IReadOnlyList<string> CompleteCli(string partialInput)
+            => Completions.TryGetValue(partialInput ?? string.Empty, out var tokens)
+                ? tokens
+                : new string[0];
+
+        /// <inheritdoc/>
+        public string CompleteCliRaw(string partialInput)
+            => string.Join(" ", CompleteCli(partialInput));
+
+        /// <summary>Address WinBox-native fields by their GUI label. Settable; the fake maps nothing.</summary>
+        public bool UseGuiNames { get; set; }
+
+        /// <summary>
+        /// How many handlers the WinBox `.jg` catalog loaded. Zero on a real connection means silent
+        /// degradation to a seed table, so a test asserting on that path can script it here.
+        /// </summary>
+        public int CatalogHandlerCount { get; set; }
     }
 }

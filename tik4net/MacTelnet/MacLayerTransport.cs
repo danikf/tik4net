@@ -36,7 +36,11 @@ namespace tik4net.MacTelnet
     /// Handles UDP framing, session management, and EC-SRP5 authentication.
     /// Subclasses implement the application-level protocol (terminal or M2 messages).
     /// </summary>
-    public abstract class MacLayerTransport : IDisposable
+    // Internal, not public. It was public for one stated reason - "WinboxMacClient in another assembly
+    // also derives from it" - and that assembly is tik4net.integrationtests, which is already a friend.
+    // What being public actually bought was a frozen contract containing protected AES session keys,
+    // raw MAC-Telnet stream counters and the wire's own packet constants.
+    internal abstract class MacLayerTransport : IDisposable
     {
         // ── Packet type constants ────────────────────────────────────────────────
         // These are the wire's numbers, not ours: RouterOS fixes them, so they must not be renumbered.
@@ -1447,9 +1451,11 @@ namespace tik4net.MacTelnet
                     "A MAC-layer connection opened without a host address must be told which router to "
                     + "talk to: set RouterMac, or create the setup with TikRouterAddress.FromMac(\"AA:BB:CC:DD:EE:FF\").");
 
-            // MNDP discovery via the public core helper (waits up to 5 s).
-            byte[]? found = MndpHelper.FindMacByHost(host!);
-            if (found != null) return found;
+            // MNDP discovery via the public core helper (waits up to 5 s). It answers in the same string
+            // spelling as RouterMac, so the parse below is the one already used for the override above.
+            string? found = MndpHelper.FindMacByHost(host!);
+            if (found != null && TikRouterAddress.TryParseMac(found, out byte[]? discovered))
+                return discovered!;
 
             throw new InvalidOperationException(
                 $"Cannot determine MAC address for router {host}. " +

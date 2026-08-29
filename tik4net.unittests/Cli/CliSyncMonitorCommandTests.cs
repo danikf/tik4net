@@ -96,7 +96,7 @@ namespace tik4net.unittests.Cli
         [TestMethod]
         public void WithoutIncludeFilters_TheAsyncPathIsUnchanged()
         {
-            // ExecuteAsync passes the caller's parameters through untouched (Default format, never rewritten),
+            // ExecuteWithCallback passes the caller's parameters through untouched (Default format, never rewritten),
             // so the async path must keep ignoring Filter parameters exactly as before.
             var cli = CliCommandBuilder.BuildMonitorSnapshot("/ping",
                 Params(TikCommandParameterFormat.Filter, ("address", "127.0.0.1")),

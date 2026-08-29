@@ -29,8 +29,11 @@ namespace tik4net
     /// <remarks>
     /// <b>What a connection is, and what it is not.</b> This interface is the lifecycle (open, close,
     /// timeouts, encoding, diagnostics) and the command factory — what every transport has. The parts a
-    /// transport can reasonably lack are separate interfaces it implements when it has them, each paired
-    /// with the capability flag that answers the same question:
+    /// transport can reasonably lack are separate interfaces it implements when it has them. <b>Two kinds,
+    /// and the kind decides whether a capability flag comes with it:</b> a <i>feature</i> some transports
+    /// cannot perform gets a facet and a flag, because a caller holding a connection chosen at run time has
+    /// to be able to ask before casting; a <i>setting</i> that is meaningless elsewhere gets a facet and no
+    /// flag, because there is no operation to attempt and the cast succeeding is already the answer.
     /// <list type="bullet">
     /// <item><see cref="ITikRawSentenceConnection"/> — the low-level <c>CallCommandSync</c> dialect.</item>
     /// <item><see cref="ITikSafeModeConnection"/> — Safe Mode bound to the session
@@ -38,8 +41,14 @@ namespace tik4net
     /// <item><see cref="ITikTaggedConnection"/> — per-command tagging
     /// (<see cref="TikConnectionCapability.Tagging"/>), i.e. the binary API.</item>
     /// <item><see cref="ITikTlsConnection"/>, <see cref="ITikMacLayerConnection"/>,
-    /// <see cref="ITikCancellationModeConnection"/> — the options that are not universal.</item>
+    /// <see cref="ITikCancellationModeConnection"/> — settings rather than features, so <b>no flag</b>.</item>
     /// </list>
+    /// The inverse is deliberate too: <see cref="TikConnectionCapability.Crud"/>,
+    /// <see cref="TikConnectionCapability.Listen"/>, <see cref="TikConnectionCapability.Streaming"/>,
+    /// <see cref="TikConnectionCapability.AsyncCommands"/> and
+    /// <see cref="TikConnectionCapability.CancelInFlight"/> are flags with <b>no</b> facet, because their
+    /// members are on this interface for everyone and a transport that cannot honour one fails at run time.
+    /// A facet moves a failure to compile time; a flag describes one that cannot be moved there.
     /// <b>There are no compatibility extension methods for these.</b> A facet member is reached by
     /// holding the facet type — <c>((ITikSafeModeConnection)connection).SafeModeTake()</c>, or better,
     /// a variable declared as the facet — so a transport that lacks the feature is a compile error

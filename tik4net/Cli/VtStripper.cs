@@ -7,7 +7,10 @@ namespace tik4net.Cli
     /// Transport-agnostic: does NOT remove command echo or shell prompts — that is a
     /// PTY-transport concern handled in the concrete transport implementation.
     /// </summary>
-    public static class VtStripper
+    // Internal: tik4net.ssh is the only caller outside this assembly and is a friend. The rest of the
+    // CLI helper family (CliOutputHelper, Vt100State, CliOutputParser, CliCommandBuilder) is internal
+    // already; this one was the odd one out rather than a deliberate public service.
+    internal static class VtStripper
     {
         // Covers:
         //   CSI sequences:  ESC [ {params} {final}        e.g. ESC[32m, ESC[1;33m, ESC[?25h

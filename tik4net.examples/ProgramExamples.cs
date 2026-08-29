@@ -130,7 +130,7 @@ namespace tik4net.examples
                 connection.CreateParameter("src-address", "0.0.0.0/0"),
                 connection.CreateParameter("dst-address", "0.0.0.0/0")
                 );
-            torchCmd.ExecuteAsync(response =>
+            torchCmd.ExecuteWithCallback(response =>
             {
                 Console.WriteLine("Row: " + response.GetResponseField("tx"));
             });

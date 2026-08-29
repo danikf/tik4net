@@ -39,7 +39,7 @@ namespace tik4net.WinboxNative
     /// connect time from the <c>.jg</c> catalog the router itself advertises (cached under
     /// <see cref="CatalogCachePath"/>); the apiName↔label mapping is a stable normalizer plus
     /// session overrides.</para>
-    /// <para>Streaming monitors are supported via <c>ExecuteAsync</c>/<c>LoadAsync</c> (capability
+    /// <para>Streaming monitors are supported via <c>ExecuteWithCallback</c>/<c>LoadAsync</c> (capability
     /// <see cref="TikConnectionCapability.Listen"/>): <c>.jg</c> <c>type:'query'</c> windows such as
     /// <c>/tool/torch</c>/<c>/tool/profile</c> are polled start→poll→cancel on a background worker.</para>
     /// <para><see cref="ITikConnection.ConnectTimeout"/> bounds the connect handshake and then the
@@ -1004,7 +1004,7 @@ namespace tik4net.WinboxNative
         }
 
 
-        // ── Streaming monitor (ExecuteAsync / LoadAsync) ─────────────────────────
+        // ── Streaming monitor (ExecuteWithCallback / LoadAsync) ─────────────────────────
 
         /// <summary>
         /// Native WinBox M2 supports streaming monitors (<c>.jg</c> <c>type:'query'</c> / poll-action windows),
@@ -1284,7 +1284,7 @@ namespace tik4net.WinboxNative
         // The monitor worker: encode request fields → start → poll loop (emit decoded rows, sleep autorefresh,
         // honour cancel/finished) → cancel. Request-field encoding runs here (not on the caller) so a runtime
         // resolution failure (e.g. interface not found) surfaces async via onError, matching the API transport,
-        // instead of throwing synchronously out of ExecuteAsync. onDone always fires exactly once.
+        // instead of throwing synchronously out of ExecuteWithCallback. onDone always fires exactly once.
         private void MonitorLoop(WinboxMonitorSpec spec, TikCommandDescriptor descriptor, WinboxFieldResolver resolver,
             IReadOnlyDictionary<int, string> keyToName, IReadOnlyDictionary<int, WinboxJgField> keyToField,
             TikMonitorHandle handle, Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)

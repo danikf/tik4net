@@ -28,7 +28,7 @@ namespace tik4net.Connection
     }
 
     /// <summary>
-    /// Shared background-worker scaffolding for the polling monitor emulation (<c>ExecuteAsync</c>/<c>LoadAsync</c>/
+    /// Shared background-worker scaffolding for the polling monitor emulation (<c>ExecuteWithCallback</c>/<c>LoadAsync</c>/
     /// <c>LoadListenAsync</c>) used by <c>CliConnectionBase</c> and <c>WinboxNativeConnection</c>. A terminal / M2
     /// channel has no server push, so async-list, <c>/listen</c> and continuous monitors are emulated by polling
     /// the table on a background thread. The transport supplies an <see cref="IPollingMonitorHost"/>; the

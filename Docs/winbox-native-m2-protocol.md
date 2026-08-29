@@ -194,7 +194,7 @@ while (!cancelled):
     sleep(autorefresh)
 Post(cancelcmd, id)
 ```
-This maps 1:1 onto tik4net's `ExecuteAsync(onReply, onError, onDone)` + `CancelAndJoin()` and the
+This maps 1:1 onto tik4net's `ExecuteWithCallback(onReply, onError, onDone)` + `CancelAndJoin()` and the
 `TikConnectionCapability.Listen` capability.
 
 ### Runtime architecture
@@ -215,7 +215,7 @@ This maps 1:1 onto tik4net's `ExecuteAsync(onReply, onError, onDone)` + `CancelA
 Monitor id is **uint** everywhere — a session handle can exceed `int.MaxValue` (Profile echoes
 `0xFFFFFFFD`) — carried via `M2Message.SessionIdField(uint)`. Monitor support is opt-in
 (`ITikMonitorTransport`, `tik4net/Connection/TikMonitorHandle.cs`) rather than living in the
-neutral `TikCommandConnectionBase`; `TikGenericCommand.ExecuteAsync` routes through
+neutral `TikCommandConnectionBase`; `TikGenericCommand.ExecuteWithCallback` routes through
 `is ITikMonitorTransport` and reports `NotSupported` otherwise. `WinboxNativeConnection` implements
 it (`Capabilities = Crud | Listen`); the CLI transports do not.
 

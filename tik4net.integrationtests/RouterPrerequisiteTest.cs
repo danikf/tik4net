@@ -231,7 +231,7 @@ namespace tik4net.integrationtests
             Console.WriteLine("No routerMac in App.config — testing MNDP discovery (5 s)...");
             var found = tik4net.Mndp.MndpHelper.FindMacByHost(Host);
             Console.WriteLine(found != null
-                ? $"MNDP found router MAC: {string.Join(":", found.Select(b => b.ToString("X2")))}"
+                ? $"MNDP found router MAC: {found}"
                 : "MNDP: router not found");
 
             if (found == null)

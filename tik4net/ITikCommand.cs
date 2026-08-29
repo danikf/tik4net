@@ -42,7 +42,7 @@ namespace tik4net
         /// <summary>
         /// True when command is already running.
         /// </summary>
-        /// <seealso cref="ExecuteAsync"/>
+        /// <seealso cref="ExecuteWithCallback"/>
         /// <seealso cref="Cancel"/>
         bool IsRunning { get; }
 
@@ -259,7 +259,7 @@ namespace tik4net
         /// <param name="onDoneCallback">Callback called at the end of command run (when command is successfully finished - !done is returned). Usefull for cleanup operations at the end of command lifecycle. You can also use synchronous call <see cref="CancelAndJoin()"/> from calling thread and do cleanup after it.</param>
         /// <seealso cref="Cancel"/>
         /// <seealso cref="ITikReSentence"/>
-        void ExecuteAsync(Action<ITikReSentence> oneResponseCallback, Action<ITikTrapSentence>? errorCallback = null, Action? onDoneCallback = null);
+        void ExecuteWithCallback(Action<ITikReSentence> oneResponseCallback, Action<ITikTrapSentence>? errorCallback = null, Action? onDoneCallback = null);
 
         /// <summary>
         /// Adds new instance of parameter to <see cref="Parameters"/> list. Type of parameter is resolved from parameter name or from command type.
@@ -303,25 +303,25 @@ namespace tik4net
         IEnumerable<ITikCommandParameter> AddParameterAndValues(params string[] parameterNamesAndValues);
 
         /// <summary>
-        /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteAsync"/> has been called).
+        /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteWithCallback"/> has been called).
         /// </summary>
-        /// <seealso cref="ExecuteAsync"/>
+        /// <seealso cref="ExecuteWithCallback"/>
         void Cancel();
 
         /// <summary>
-        /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteAsync"/> has been called).
+        /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteWithCallback"/> has been called).
         /// Blocks the calling thread until a thread terminates or the specified time elapses, while continuing to perform standard COM and SendMessage pumping.
         /// </summary>
-        /// <seealso cref="ExecuteAsync"/>
+        /// <seealso cref="ExecuteWithCallback"/>
         void CancelAndJoin();
 
         /// <summary>
-        /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteAsync"/> has been called).
+        /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteWithCallback"/> has been called).
         /// Blocks the calling thread until a thread terminates or the specified time elapses, while continuing to perform standard COM and SendMessage pumping.
         /// </summary>
         /// <param name="milisecondsTimeout">Wait timeout.</param>
         /// <returns>True if loading thread ends before given timeout.</returns>
-        /// <seealso cref="ExecuteAsync"/>
+        /// <seealso cref="ExecuteWithCallback"/>
         bool CancelAndJoin(int milisecondsTimeout);
     }
 }

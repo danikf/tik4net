@@ -9,7 +9,9 @@ namespace tik4net.Mndp
     /// <summary>
     /// <see cref="BinaryReader"/> mikrotik specific extensions.
     /// </summary>
-    public static class BinaryReaderExtensions
+    // Internal: an extension method on System.IO.BinaryReader in namespace tik4net reached every
+    // consumer's IntelliSense, and its only caller is MNDP's own parser.
+    internal static class BinaryReaderExtensions
     {
         /// <summary>
         /// Reads word value from mikrotik binary format.

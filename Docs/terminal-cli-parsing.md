@@ -534,7 +534,7 @@ public static class VtStripper
 | `ExecuteScalar()` | `/path print as-value [where ...]`, value picked from the row | `get` cannot return `.id` |
 | `ExecuteScalar(target)` | as above, `target` picked from the row | |
 | an explicit `/path/get` | `:put [/path get number=*N value-name=x]` | the verb named by the caller |
-| `ExecuteAsync(cb,...)` | ⚠️ emulated via thread + sync exec | no true push |
+| `ExecuteWithCallback(cb,...)` | ⚠️ emulated via thread + sync exec | no true push |
 | `ExecuteListWithDuration` | ❌ not possible | needs streaming |
 | `ExecuteListUntilDone` | ⚠️ only for self-terminating commands | `/ping count=N` |
 | `CallCommandSync` | ❌ low-level, can't be mapped | raw API sentences |
@@ -636,8 +636,8 @@ from `CliReSentence`.
    Recommendation: a separate NuGet package from the start — lets other projects reuse the
    parsing.
 
-5. **`ExecuteAsync` emulation**: `CliConnectionBase.ExecuteCliCommandAsync` plus the semaphore is
-   the right foundation. `ITikCommand.ExecuteAsync(callback, done, trap)` can be emulated as
+5. **`ExecuteWithCallback` emulation**: `CliConnectionBase.ExecuteCliCommandAsync` plus the semaphore is
+   the right foundation. `ITikCommand.ExecuteWithCallback(callback, done, trap)` can be emulated as
    `Task.Run(() => { /* sync exec */; callback(each_re); done(); })` — it returns immediately, and
    results arrive via the callback. Cancel is not possible (no in-flight command). Recommendation:
    implement it, but document the limitation.

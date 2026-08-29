@@ -224,11 +224,11 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void ExecuteAsync_OnDoneCallback_Called()
         {
-            EnsureCapability(TikConnectionCapability.Listen, "ExecuteAsync");
+            EnsureCapability(TikConnectionCapability.Listen, "ExecuteWithCallback");
             bool onDoneCallbackCalled = false;
 
             var torchCommand = Connection.CreateCommandAndParameters("/tool/torch", "interface", TestConstants.Interface);
-            torchCommand.ExecuteAsync(response => { }, error => { }, () => { onDoneCallbackCalled = true; });
+            torchCommand.ExecuteWithCallback(response => { }, error => { }, () => { onDoneCallbackCalled = true; });
             Thread.Sleep(3000);
             torchCommand.CancelAndJoin();
 
@@ -242,14 +242,14 @@ namespace tik4net.integrationtests
             // /tool/profile (the CPU profiler) reliably streams per-process rows on any router with no traffic
             // dependency. On WinBox native this exercises the full start→poll→cancel cycle and field decode;
             // on the binary API it is the regular async/listen path. CLI transports lack Listen and skip.
-            EnsureCapability(TikConnectionCapability.Listen, "ExecuteAsync streaming");
+            EnsureCapability(TikConnectionCapability.Listen, "ExecuteWithCallback streaming");
 
             int rowCount = 0;
             bool doneCalled = false;
             ITikTrapSentence error = null;
 
             var profile = Connection.CreateCommand("/tool/profile");
-            profile.ExecuteAsync(
+            profile.ExecuteWithCallback(
                 row => Interlocked.Increment(ref rowCount),
                 trap => error = trap,
                 () => doneCalled = true);
