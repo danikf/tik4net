@@ -120,6 +120,18 @@ If a change touches public API surface (new/renamed/removed public types, member
 update **both** the XML doc comments in the source and the corresponding wiki page(s) in the same
 change. Don't leave docs to a follow-up.
 
+**The samples are compiled, so a rename cannot quietly rot them.** `WikiSampleCompilationTests` builds
+every C# block on the wiki and in `README.md` against the current library; the README half runs in CI, and
+the wiki half runs for anyone who has the wiki cloned beside this repository (or sets `TIK4NET_WIKI_DIR`).
+Run it after changing public API:
+
+```bash
+dotnet test tik4net.unittests/tik4net.unittests.csproj --filter WikiSampleCompilationTests
+```
+
+A block that cannot compile by design carries `<!-- no-compile: why -->` on the line above its fence, and a
+companion test fails when such a marker is no longer needed. The `wiki-cleanup` skill has the details.
+
 ### Commit directly to master
 
 This project commits straight to `master` — no feature branches. When incorporating a PR, preserve

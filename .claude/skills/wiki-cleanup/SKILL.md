@@ -160,6 +160,32 @@ doesn't, the workaround goes and the current behaviour is stated plainly.
 
 ### 4. Are the examples right?
 
+**Run the compiler first.** `WikiSampleCompilationTests` in `tik4net.unittests` compiles every C# block on
+the wiki and in the repository README against the current library, so the checks in this section are for
+what a compiler cannot see — not for what it can.
+
+```bash
+dotnet test tik4net.unittests/tik4net.unittests.csproj --filter WikiSampleCompilationTests
+```
+
+It finds the wiki as a sibling `tik4net.wiki` directory, or wherever `TIK4NET_WIKI_DIR` points; without one
+it is Inconclusive. What it checks is deliberately narrow — **every name a sample resolves against tik4net
+must exist, on that receiver, with that shape** — and it does not require a block to stand alone, because a
+page is read top to bottom and a later block legitimately continues an earlier one.
+
+Two conventions it relies on, both of which are also information for the reader:
+
+* `<!-- no-compile: why -->` on the line above a fence exempts a block that cannot compile by design — an
+  elided body, one link of a fluent chain, code shown *because* it no longer compiles. The reason is
+  mandatory, and a second test fails if a marked block starts compiling, so the exemption cannot outlive
+  what it excused.
+* `<!-- sample-connection: ITikApiConnection -->` anywhere on a page declares what its snippets assume
+  `connection` already is. The default is the least capable `ITikConnection`, which is what keeps the
+  receiver-type check below alive; only a page that genuinely opens one connection at the top and continues
+  from it should declare otherwise.
+
+The rest of this check is what the compiler cannot judge:
+
 * Every type, member and namespace exists, spelled as in the source.
 * **Would it compile — is the member on the *receiver's declared type*?** This is the single most common
   defect in this wiki, and it slips past "the member exists" because the member does exist, just not on
@@ -173,7 +199,14 @@ doesn't, the workaround goes and the current behaviour is stated plainly.
   grep -nE '\b(connection|conn)\.(CallCommandSync|SafeModeTake|SafeModeRelease|SafeModeUnroll|SafeModeGet)' *.md
   ```
 
-  Then confirm the variable's declaring line names a facet type, not `ITikConnection`.
+  Then confirm the variable's declaring line names a facet type, not `ITikConnection`. The compile test
+  above catches this class outright now — this grep is for reading a page before you have run it, and for
+  the blocks the test cannot check.
+
+  A related trap the compiler *does* catch and a reader would not expect: a `using tik4net;` directive
+  imports that namespace's **types**, not its nested namespaces, so `Objects.Ip.IpAddress` does not
+  resolve however many usings a sample has. Write it `tik4net.Objects.Ip.IpAddress`, or import the leaf
+  namespace and use the bare class name.
 
   Two more of the same shape — a sample that compiles in the author's head but warns or fails in the
   reader's project, both found in real pages:

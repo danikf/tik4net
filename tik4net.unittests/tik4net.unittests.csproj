@@ -10,6 +10,12 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="MSTest.TestAdapter" Version="3.7.3" />
     <PackageReference Include="MSTest.TestFramework" Version="3.7.3" />
+    <!--
+      Roslyn, for WikiSampleCompilationTests: it compiles the C# blocks out of the wiki and the repository
+      README, so a sample that names a member the library does not have fails here instead of in a
+      reader's editor. Test-only - nothing shipping references it.
+    -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.11.0" />
   </ItemGroup>
 
   <ItemGroup>

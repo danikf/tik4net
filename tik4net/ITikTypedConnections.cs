@@ -81,10 +81,41 @@ namespace tik4net
     /// No raw level: M2 addresses windows and fields numerically, so there is no command language for a
     /// caller to write. Safe Mode is here because the M2 session can hold it (RouterOS 7.18+ — the version
     /// part is what <c>Supports</c> is still for).
+    /// <para>
+    /// The two members below are the ones a caller reaches <b>after</b> the connection exists. The rest of
+    /// the native transport's own surface — <c>PathAlias</c>, <c>FieldOverride</c>, <c>PathOverride</c>,
+    /// <c>CatalogCachePath</c> — has to be set <b>before</b> <c>Open</c>, so it is reached through the
+    /// <c>configure</c> callback of <c>CreateWinboxNativeConnection</c>, which hands you the concrete
+    /// <see cref="WinboxNative.WinboxNativeConnection"/>. That is the line: what you configure before
+    /// opening comes from the callback, what you use afterwards is on this interface.
+    /// </para>
     /// </remarks>
     public interface ITikWinboxNativeConnection : ITikConnection, ITikConnectionCapabilities,
         ITikSafeModeConnection
     {
+        /// <summary>
+        /// When <c>true</c>, paths and field names may also be given as the label the <b>WinBox GUI</b>
+        /// shows (spaces or underscores, any case, abbreviation dots) — <c>"MAC Address"</c> resolves to
+        /// <c>"mac-address"</c>. Default <c>false</c> (strict API names). Decoded output always comes back
+        /// in canonical API names either way.
+        /// </summary>
+        /// <remarks>
+        /// Settable at any time, including between commands: the resolvers are built per operation and read
+        /// it then, so it can be scoped to a single call. See
+        /// <see cref="WinboxNative.WinboxNativeConnection.UseGuiNames"/> for the full rules.
+        /// </remarks>
+        bool UseGuiNames { get; set; }
+
+        /// <summary>
+        /// How many handlers this connection read from the router's live <c>.jg</c> catalog.
+        /// </summary>
+        /// <remarks>
+        /// <b>Zero means the catalog did not load</b> and the connection is running on the built-in seed
+        /// table. It still opens and still answers most commands, which is why this is worth checking: the
+        /// failure shows up as wrong values rather than as errors. See
+        /// <see cref="WinboxNative.WinboxNativeConnection.CatalogHandlerCount"/>.
+        /// </remarks>
+        int CatalogHandlerCount { get; }
     }
 
     /// <summary>
