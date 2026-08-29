@@ -49,8 +49,14 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// bandwidth: Sets max rx/tx bandwidth in kbps that will be handled by an interface. TX limit is supported on all Atheros  switch-chip ports. RX limit is supported only on AR8327 switch-chip ports.
         /// </summary>
+        /// <remarks>
+        /// The default is the word <c>unlimited</c> on both sides rather than a number, which is why this
+        /// is a <see cref="TikRatePair"/> and not two <see cref="long"/>s — read
+        /// <see cref="TikDataRate.Token"/> when <see cref="TikDataRate.HasValue"/> is false. Not reportable
+        /// on every board: a CHR's virtual interfaces do not carry the field at all.
+        /// </remarks>
         [TikProperty("bandwidth", DefaultValue = "unlimited/unlimited")]
-        public string?/*integer/integer*/ Bandwidth { get; set; }
+        public TikRatePair? Bandwidth { get; set; }
 
         /// <summary>
         /// cable-setting: Changes the cable length setting (only applicable to NS DP83815/6 cards)
@@ -104,6 +110,9 @@ namespace tik4net.Objects.Interface
         ///// flow-control-auto
         ///// </summary>
         //[TikProperty("flow-control-auto")]
+        /// <summary>
+        /// flow-control-auto: obsolete, removed from RouterOS. Kept only so old code referencing it still compiles.
+        /// </summary>
         [Obsolete("Removed from mikrotik", true)]
         public YesNoOptions/*yes | no | auto*/ FlowControlAuto { get; set; }
 

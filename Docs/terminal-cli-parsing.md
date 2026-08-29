@@ -71,6 +71,14 @@ Output: `*3` (returns the .id of the new entity — the equivalent of the API's 
 Without the `:put [...]` wrapper, `add` returns an empty output or an index (a plain number), not
 the `*N` format.
 
+**The id can also fail to arrive when the command was right.** A terminal answers with an unframed byte
+stream terminated by the prompt going quiet, so a reply that lands after the read has settled is lost, not
+delayed — while the row it names is on the router. Seen mainly on the WinBox terminal transports, whose
+per-command latency is highest. The library reports that as `TikAddIdNotReadException` rather than
+handing back an id it does not have; both of the alternatives were silently wrong, since an empty id gives
+the caller nothing to clean up with and a non-id line (the plain index above is exactly that shape)
+travels into the `[find where .id=…]` of the next `set` or `remove` and matches nothing there.
+
 ### Set
 
 ```
@@ -197,9 +205,17 @@ The suffixes are **decimal**: `500k` is 500 000, not 512 000 — measured by set
 reading back `500000`. A value written with one side only means **upload, download zero**: `max-limit=1M`
 reads back as `1000000/0`, not as `1M/1M`.
 
-In tik4net the four paired rate fields of `/queue/simple` are mapped as `TikRatePair`, which reads both
-spellings and writes the plain one. The single-valued fields of `/queue/tree` stay plain `long`, because
+In tik4net the paired rate fields of `/queue/simple` are mapped as `TikRatePair`, which reads every
+spelling and writes the plain one. The single-valued fields of `/queue/tree` stay plain `long`, because
 they never differ.
+
+The read-only statistics of the same menu need one notation more. A raw
+`:put [/queue simple print stats as-value]` answers `rate=0bps/0bps` where the API answers `rate=0/0` —
+and the single-valued `total-rate` on the very same record is a bare `0`, so the unit is not even
+consistent within one row. `TikDataRate` reads the `bps` family (`bps`, `kbps`, `Mbps`, `Gbps`) as well as
+the `k M G T` suffixes; `/interface/ethernet monitor` answers `rate=1Gbps` and is the other measured
+example. It also keeps a spelling it cannot read as a `Token` rather than throwing, which is what lets a
+field whose non-zero form has never been observed be typed at all.
 
 WinboxNative arrives at the same answer by a different route: the M2 model has no `max-limit` at all,
 only `upload-max-limit` and `download-max-limit` as two separate scalars, so the resolver composes the

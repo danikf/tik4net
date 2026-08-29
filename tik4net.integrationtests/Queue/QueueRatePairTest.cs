@@ -122,11 +122,11 @@ namespace tik4net.integrationtests.Queue
         {
             var loaded = Connection.LoadList<QueueSimple>().Single(q => q.Name == QueueName);
 
-            Assert.IsFalse(string.IsNullOrEmpty(loaded.Rate),
+            Assert.IsTrue(loaded.Rate.HasValue,
                 "rate was not reported — on a CLI transport that means the IncludeCliStats merge did not "
                 + "happen, since 'print detail as-value' alone never carries the statistics block; on native "
                 + "WinBox it means the two halves of the pair were not joined into the API's field");
-            Assert.IsFalse(string.IsNullOrEmpty(loaded.PacketRate), "packet-rate was not reported");
+            Assert.IsTrue(loaded.PacketRate.HasValue, "packet-rate was not reported");
 
             // The whole statistics block, not just the two paired rates: native WinBox reported none of it
             // until the Statistics tab's tuples were paired, and a check that stopped at 'rate' would have
@@ -137,9 +137,17 @@ namespace tik4net.integrationtests.Queue
             Assert.IsFalse(string.IsNullOrEmpty(loaded.QueuedBytes), "queued-bytes was not reported");
             Assert.IsFalse(string.IsNullOrEmpty(loaded.QueuedPackets), "queued-packets was not reported");
 
-            // Nothing is routed through 192.168.253.0/24, so both sides are zero however they are spelled.
-            StringAssert.StartsWith(loaded.Rate, "0", "an idle queue passes no traffic");
-            Assert.AreEqual("0/0", loaded.PacketRate, "packet-rate is spelled the same on every transport");
+            // Nothing is routed through 192.168.253.0/24, so both sides are zero however they are spelled —
+            // and THAT is the assertion the type exists for: the API writes rate=0/0 and the CLI writes
+            // rate=0bps/0bps, and this compares equal on both because TikDataRate reads the unit. While the
+            // property was a string this line could only be a StringAssert.StartsWith("0"), which passed
+            // without ever comparing the two transports' answers to each other.
+            Assert.AreEqual(TikRatePair.Parse("0/0"), loaded.Rate.Value, "an idle queue passes no traffic");
+            Assert.AreEqual(TikRatePair.Parse("0bps/0bps"), loaded.Rate.Value, "the CLI's spelling of it");
+            Assert.AreEqual(0L, loaded.Rate.Value.Upload.Value, "rate upload");
+            Assert.AreEqual(0L, loaded.Rate.Value.Download.Value, "rate download");
+            Assert.AreEqual(TikRatePair.Parse("0/0"), loaded.PacketRate.Value,
+                "packet-rate is spelled the same on every transport");
             Assert.AreEqual("0/0", loaded.Packets, "packets");
             Assert.AreEqual("0/0", loaded.Dropped, "dropped");
             Assert.AreEqual("0/0", loaded.QueuedBytes, "queued-bytes");

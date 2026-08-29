@@ -205,6 +205,43 @@ namespace tik4net
     }
 
     /// <summary>
+    /// Thrown when an <c>add</c> reached the router but its new <c>.id</c> could not be read back.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The row has very likely been created.</b> That is what separates this from an add that failed: the
+    /// router did not refuse anything — it answered, and the answer did not contain an id. On the CLI
+    /// transports the response is an unframed byte stream terminated by a stable prompt, so a reply that
+    /// arrives after the read has settled is lost rather than delayed, and the row it describes stays on the
+    /// router with nothing referring to it.
+    /// </para>
+    /// <para>
+    /// This used to be reported as an add that returned an empty id: the entity came back with no
+    /// <see cref="TikSpecialProperties.Id"/>, so the caller's own cleanup had nothing to delete and the row
+    /// survived the process that made it. A caller that catches this should <b>look the row up by a field it
+    /// set</b> (a name or a comment it chose) rather than assume nothing happened — retrying the add blindly
+    /// creates a second row.
+    /// </para>
+    /// <para>
+    /// The message carries what the router actually said, because the difference between "nothing arrived"
+    /// and "something arrived that was not an id" is the whole diagnosis.
+    /// </para>
+    /// </remarks>
+    public class TikAddIdNotReadException : TikCommandUnexpectedResponseException
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TikAddIdNotReadException"/> class.
+        /// </summary>
+        /// <param name="message">The exception message.</param>
+        /// <param name="command">The add command that was sent.</param>
+        /// <param name="response">What the router answered.</param>
+        public TikAddIdNotReadException(string message, ITikCommand command, ITikSentence response)
+            : base(message, command, response)
+        {
+        }
+    }
+
+    /// <summary>
     /// Exception thrown if command returns unexpected error/fault.
     /// </summary>
     public class TikCommandUnexpectedResponseException : TikCommandException

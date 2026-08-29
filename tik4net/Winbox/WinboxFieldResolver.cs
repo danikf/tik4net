@@ -2189,8 +2189,14 @@ namespace tik4net.Winbox
                     // used to share — sends the wrong TYPE BYTE, and the router answers success and ignores
                     // the field: /queue/simple's rate fields resolved to their keys, were encoded, and never
                     // moved. Suffixes are accepted here because the API accepts them (max-limit=1M).
-                    if (TikDataRate.TryParse(value, out TikDataRate rate))
-                        result.Add(M2Message.U64Sys(key, unchecked((ulong)rate.Value)));
+                    //
+                    // TikDataRate.TryParse is the STRICT half of that type on purpose, and this is the
+                    // caller it is strict for: a word like 'auto' or 'unlimited' has to go out as a string,
+                    // and a parse that turned it into a token would put a 64-bit integer on the wire for it
+                    // — which the router accepts and then ignores, the same silent no-op this whole case
+                    // exists to prevent.
+                    if (TikDataRate.TryParse(value, out TikDataRate rate) && rate.Value.HasValue)
+                        result.Add(M2Message.U64Sys(key, unchecked((ulong)rate.Value.Value)));
                     else
                         result.Add(M2Message.StringSys(key, value)); // non-numeric (e.g. "auto")
                     break;

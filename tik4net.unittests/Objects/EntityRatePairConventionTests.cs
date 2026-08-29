@@ -109,9 +109,10 @@ namespace tik4net.unittests.Objects
                 ["HotspotServerProfile"] = new[] { "rate-limit" },
 
                 // ── Link speeds and a bitmask ───────────────────────────────────────────────────────
-                // Measured: '/interface/ethernet/monitor rate' is '1Gbps'. TikDataRate.TryParse rejects
-                // that — the suffix table is k/M/G/T, so 'Gbps' ends in 's' and fails the number parse.
-                // Typing this as a rate would turn a working read into a FormatException.
+                // Measured: '/interface/ethernet/monitor rate' is '1Gbps', and TikDataRate reads that now.
+                // They stay here anyway, because THIS list is about pairing and neither is a pair: a link
+                // runs at one speed, not an upload one and a download one. Typing them as a scalar
+                // TikDataRate would be defensible; typing them as a TikRatePair would invent a second half.
                 ["EthernetMonitor"] = new[] { "rate" },
                 // 'speed' is the same 10Mbps|1Gbps spelling; 'sfp-rate-select' is high|low, an enum.
                 ["InterfaceEthernet"] = new[] { "speed", "sfp-rate-select" },
@@ -126,25 +127,23 @@ namespace tik4net.unittests.Objects
         private static readonly Dictionary<string, string[]> PendingTikRatePair =
             new Dictionary<string, string[]>
             {
-                // A genuine rx/tx pair — but its default is 'unlimited/unlimited', and TikDataRate has no
-                // room for a word the way TikDuration has for 'none'. Converting it means giving the type
-                // that first, so this is a backlog entry rather than an oversight. Not verifiable on the
-                // lab CHR either: its virtual interfaces do not report the field at all.
-                ["InterfaceEthernet"] = new[] { "bandwidth" },
-                // Both are genuine pairs, and 'rate' is a genuine cross-transport divergence — but it is
-                // blocked on the same missing spelling. Measured on one live queue read both ways:
+                // EMPTY, and the ratchet below keeps it that way. The three entries that used to sit here —
+                // InterfaceEthernet.bandwidth, QueueSimple.rate and QueueSimple.packet-rate — were all
+                // blocked on the same two gaps in TikDataRate, and both are closed:
                 //
-                //   API   rate=0/0        packet-rate=0/0
-                //   CLI   rate=0bps/0bps  packet-rate=0/0
+                //   * the 'bps' unit. Measured on RouterOS 7.24, a raw ':put [/queue simple print stats
+                //     as-value]' over Telnet answers rate=0bps/0bps where the API answers rate=0/0, and
+                //     '/interface/ethernet monitor' answers rate=1Gbps. The type reads both, so the two
+                //     transports' answers now compare equal instead of reaching the caller unreconciled.
+                //   * words. '/interface/ethernet bandwidth' defaults to 'unlimited/unlimited', and
+                //     TikDataRate keeps a word it cannot read as a Token the way TikDuration keeps 'none'.
                 //
-                // 'bps' is not one of TikDataRate's suffixes (k/M/G/T), so typing 'rate' throws a
-                // FormatException on every CLI load — and for the WHOLE entity, not just the field. It was
-                // typed and reverted for exactly that: /queue/simple is declared IncludeCliStats, so the CLI
-                // does fetch the statistics block in a second 'print stats' query and the value does arrive.
-                // 'packet-rate' agrees at zero, but no traffic can be pushed through a queue on the lab CHR,
-                // so its non-zero CLI spelling has never been read — and the failure mode above is too
-                // expensive to guess at.
-                ["QueueSimple"] = new[] { "rate", "packet-rate" },
+                // That second one is what makes the conversions safe rather than merely possible. The old
+                // objection was that an unrecognised spelling threw a FormatException that failed the load
+                // of the WHOLE entity — so a field whose non-zero form had never been read (packet-rate: no
+                // traffic can be pushed through a queue on the lab CHR) was too expensive to guess at. A
+                // spelling the type does not recognise is now a Token: the property degrades, the entity
+                // loads, and the value survives verbatim for the caller to look at.
             };
 
         // A wire name is a candidate when one of its hyphen- or dot-separated tokens is one of these.
@@ -267,10 +266,11 @@ namespace tik4net.unittests.Objects
         [TestMethod]
         public void TheBacklogIsSmallerThanItWas()
         {
-            // A number to watch rather than a rule to satisfy — see the duration test, which started at 101.
-            // This one starts at 3 out of 46 candidates, because the classification work happened before the
-            // list was written rather than after. All three are blocked on the type rather than on effort.
-            const int WhenThisTestWasWritten = 3;
+            // Zero. It started at 3 out of 46 candidates — the classification work happened before the list
+            // was written rather than after — and all three were blocked on the same two gaps in
+            // TikDataRate, which are now closed. At zero this is no longer a ratchet but a rule: a new
+            // string-typed paired rate has nowhere to be excused to, and the test above fails outright.
+            const int WhenThisTestWasWritten = 0;
 
             int pending = PendingTikRatePair.Sum(kv => kv.Value.Length);
             Assert.IsTrue(pending <= WhenThisTestWasWritten,

@@ -55,6 +55,7 @@ namespace tik4net.Objects.Interface.Tunnel
         [TikProperty("interface", DefaultValue = "")]
         public string? Interface { get; set; }
 
+        /// <summary>arp — the Address Resolution Protocol setting for the VXLAN interface.</summary>
         public enum ArpMode
         {
             /// <summary>enabled — Interface uses ARP.</summary>
@@ -78,6 +79,7 @@ namespace tik4net.Objects.Interface.Tunnel
         [TikProperty("arp-timeout", DefaultValue = "auto")]
         public TikDuration? ArpTimeout { get; set; }
 
+        /// <summary>loop-protect — the loop protection mode for the VXLAN interface.</summary>
         public enum LoopProtectMode
         {
             /// <summary>default — Use the interface default loop protection setting.</summary>
@@ -109,6 +111,7 @@ namespace tik4net.Objects.Interface.Tunnel
         [TikProperty("vtep-vrf", DefaultValue = "main")]
         public string? VtepVrf { get; set; }
 
+        /// <summary>vteps-ip-version — the IP version used for static VTEP connections.</summary>
         public enum VtepsIpVersionType
         {
             /// <summary>ipv4 — Use IPv4 for static VTEP connections.</summary>
@@ -142,6 +145,7 @@ namespace tik4net.Objects.Interface.Tunnel
         [TikProperty("checksum", DefaultValue = "no")]
         public bool? Checksum { get; set; }
 
+        /// <summary>rem-csum — the Remote Checksum Offload setting for the VXLAN interface.</summary>
         public enum RemCsumType
         {
             /// <summary>none — No remote checksum offload.</summary>

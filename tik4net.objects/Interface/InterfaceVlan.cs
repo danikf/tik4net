@@ -43,6 +43,11 @@ namespace tik4net.Objects.Interface
         /// </summary>
         [TikProperty("mac-address")]
         public string? MacAddress { get; set; }
+
+        /// <summary>
+        /// arp
+        /// Address Resolution Protocol setting for the VLAN interface.
+        /// </summary>
         public enum ArpMode
         {
             /// <summary>
@@ -84,6 +89,11 @@ namespace tik4net.Objects.Interface
         /// </summary>
         [TikProperty("arp-timeout")]
         public TikDuration? ArpTimeout { get; set; }
+
+        /// <summary>
+        /// loop-protect
+        /// Loopback protection setting for the VLAN interface.
+        /// </summary>
         public enum LoopProtectMode
         {
             /// <summary>

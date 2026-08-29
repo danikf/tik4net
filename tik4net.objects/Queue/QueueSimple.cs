@@ -118,14 +118,13 @@ namespace tik4net.Objects.Queue
         /// idle queue. <see cref="TotalRate"/> is the same reading as one number.
         /// </summary>
         /// <remarks>
-        /// Still a <c>string</c>, and it is the one paired rate field on this entity that cannot yet be a
-        /// <see cref="TikRatePair"/>: measured on RouterOS 7.24, the binary API writes <c>0/0</c> while the
-        /// CLI transports write <c>0bps/0bps</c>, and <c>bps</c> is not one of the suffixes
-        /// <see cref="TikDataRate"/> reads. So the two spellings do reach the caller unreconciled — see
-        /// <c>EntityRatePairConventionTests</c>, which carries the field on its backlog.
+        /// The transports disagree about the spelling and the type is what reconciles them: measured on
+        /// RouterOS 7.24 the binary API writes <c>0/0</c> and the CLI transports write <c>0bps/0bps</c>,
+        /// which are the same rate and compare equal. <see cref="TikDataRate"/> reads the <c>bps</c> unit
+        /// for exactly this field.
         /// </remarks>
         [TikProperty("rate", IsReadOnly = true)]
-        public string? Rate { get; private set; }
+        public TikRatePair? Rate { get; private set; }
 
         /// <summary>
         /// total-rate
@@ -138,13 +137,15 @@ namespace tik4net.Objects.Queue
         /// API and the CLI transports when idle.
         /// </summary>
         /// <remarks>
-        /// Left a <c>string</c> for the same reason as <see cref="Rate"/>, one step removed: the idle
-        /// spelling agrees on every transport, but the lab router cannot be made to carry traffic through a
-        /// queue, so what the CLI writes for a NON-zero packet rate has never been read. An unparseable
-        /// value throws on load for the whole entity, not just the field, so the guess is not worth making.
+        /// The idle spelling agrees on every transport (<c>0/0</c>), and what the CLI writes for a NON-zero
+        /// packet rate has never been read — a simple queue counts forwarded traffic only and the lab CHR
+        /// forwards none. That is no longer a reason to leave the field a <c>string</c>: a spelling
+        /// <see cref="TikDataRate"/> does not recognise is kept as a <see cref="TikDataRate.Token"/> rather
+        /// than throwing, so an unexpected form degrades this one property instead of failing the load of
+        /// the whole entity.
         /// </remarks>
         [TikProperty("packet-rate", IsReadOnly = true)]
-        public string? PacketRate { get; private set; }
+        public TikRatePair? PacketRate { get; private set; }
 
         /// <summary>
         /// total-packet-rate

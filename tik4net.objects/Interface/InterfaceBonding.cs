@@ -34,6 +34,7 @@ namespace tik4net.Objects.Interface
         [TikProperty("slaves", IsMandatory = true)]
         public string? Slaves { get; set; }
 
+        /// <summary>mode — the bonding policy that selects how slave interfaces are used together.</summary>
         public enum BondingMode
         {
             /// <summary>balance-rr — Round-Robin transmit policy.</summary>
@@ -61,6 +62,7 @@ namespace tik4net.Objects.Interface
         [TikProperty("primary", DefaultValue = "none")]
         public string? Primary { get; set; }
 
+        /// <summary>link-monitoring — the method used for monitoring slave link status.</summary>
         public enum LinkMonitoringMode
         {
             /// <summary>mii — MII (Media Independent Interface) link monitoring.</summary>
@@ -88,6 +90,7 @@ namespace tik4net.Objects.Interface
         [TikProperty("arp-ip-targets", DefaultValue = "")]
         public string? ArpIpTargets { get; set; }
 
+        /// <summary>arp — the Address Resolution Protocol setting for the bonding interface.</summary>
         public enum ArpMode
         {
             /// <summary>enabled — Interface uses ARP.</summary>
@@ -125,6 +128,7 @@ namespace tik4net.Objects.Interface
         [TikProperty("forced-mac-address", DefaultValue = "")]
         public string?/*MAC*/ ForcedMacAddress { get; set; }
 
+        /// <summary>lacp-rate — the frequency of LACPDU exchange with bonding peers in 802.3ad mode.</summary>
         public enum LacpRateMode
         {
             /// <summary>30secs — Slow LACPDU exchange (every 30 seconds).</summary>
@@ -138,6 +142,7 @@ namespace tik4net.Objects.Interface
         [TikProperty("lacp-rate", DefaultValue = "30secs")]
         public LacpRateMode LacpRate { get; set; }
 
+        /// <summary>lacp-mode — the LACP participation mode for ports in 802.3ad mode.</summary>
         public enum LacpParticipationMode
         {
             /// <summary>active — Actively initiates LACP negotiation.</summary>
@@ -163,6 +168,7 @@ namespace tik4net.Objects.Interface
         [TikProperty("lacp-user-key", DefaultValue = "0")]
         public int LacpUserKey { get; set; }
 
+        /// <summary>transmit-hash-policy — the hash policy used for slave selection in balance-xor and 802.3ad modes.</summary>
         public enum TransmitHashPolicyMode
         {
             /// <summary>layer-2 — Uses MAC addresses for slave selection. Default.</summary>

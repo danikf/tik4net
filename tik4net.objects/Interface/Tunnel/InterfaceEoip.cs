@@ -38,6 +38,7 @@ namespace tik4net.Objects.Interface.Tunnel
         [TikProperty("mac-address", DefaultValue = "")]
         public string?/*MAC*/ MacAddress { get; set; }
 
+        /// <summary>arp — the Address Resolution Protocol setting for the EoIP interface.</summary>
         public enum ArpMode
         {
             /// <summary>enabled — Interface uses ARP.</summary>
@@ -59,6 +60,7 @@ namespace tik4net.Objects.Interface.Tunnel
         [TikProperty("arp-timeout", DefaultValue = "auto")]
         public TikDuration? ArpTimeout { get; set; }
 
+        /// <summary>loop-protect — the loop protection mode for the EoIP interface.</summary>
         public enum LoopProtectMode
         {
             /// <summary>default — Use the interface default loop protection setting.</summary>

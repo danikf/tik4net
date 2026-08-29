@@ -9,7 +9,12 @@
 // These run without a router, in CI, on every push. They assert the COMMAND TEXT rather than the answer,
 // because the defect was entirely in what was sent: `/interface/get =.id=*2 =value-name=name` went out as
 // `:put [/interface get as-value]`, with both inputs silently dropped.
+//
+// The last section is the other half of the same recording harness and does look at an answer: what `add`
+// must do when the router's reply carries no .id. That one is not a translation bug — the command sent is
+// right — but it is the same class of silence, and it is the one that leaves rows on the router.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -172,6 +177,99 @@ namespace tik4net.unittests.Cli
 
                 StringAssert.Contains(conn.Sent.Single(), "[find where .id=*1]");
                 StringAssert.Contains(conn.Sent.Single(), "destination=\"*3\"");   // move quotes its target id
+            }
+        }
+
+        // ── what add must do when no .id comes back ───────────────────────────
+        //
+        // An `add` over a terminal can answer with no id. The command reached the router and the row was
+        // created; what was lost is the reply naming it, because a terminal has no framing and a reply that
+        // arrives after the prompt has gone quiet is not read at all. The library used to hand that back as
+        // an empty id, and the caller's cleanup then had nothing to delete — which is how a test run
+        // leaves an EoIP interface or an IPsec peer behind, and why the NEXT run on another transport fails
+        // with a name collision rather than with the original error.
+
+        [TestMethod]
+        public void AnAddWhoseAnswerCarriesNoIdIsReported()
+        {
+            using (var conn = Open(reply: string.Empty))
+            {
+                var cmd = conn.CreateCommand("/interface/eoip/add",
+                    NameValue(conn, "name", "test-eoip"),
+                    NameValue(conn, "remote-address", "10.0.0.2"));
+
+                var ex = Assert.ThrowsException<TikAddIdNotReadException>(() => cmd.ExecuteScalar());
+
+                // The message has to say the row is probably THERE. "Add failed" would be the wrong thing to
+                // believe: retrying on that belief makes a second row.
+                StringAssert.Contains(ex.Message, "created");
+            }
+        }
+
+        [TestMethod]
+        public void AnAnswerThatIsNotAnIdIsNotUsedAsOne()
+        {
+            // The old fallback took the last non-empty line whatever it was, so a stray line of terminal
+            // noise became the entity's .id. Nothing rejects it at that point — it travels into the
+            // `[find where .id=…]` of the next set or remove and matches nothing there, which surfaces far
+            // from the add that caused it. '3' is the shape that makes the point: an id is '*' plus hex, so
+            // a lone number is not one however plausible it looks.
+            using (var conn = Open(reply: "3"))
+            {
+                var cmd = conn.CreateCommand("/interface/eoip/add", NameValue(conn, "name", "test-eoip"));
+
+                Assert.ThrowsException<TikAddIdNotReadException>(() => cmd.ExecuteScalar());
+            }
+        }
+
+        [TestMethod]
+        public void AnAddTheRouterREFUSEDIsNotReportedAsALostId()
+        {
+            // The distinction the new exception has to preserve: an add the router rejected did NOT create a
+            // row, and saying "it probably exists, go find it" about one would send the caller looking for
+            // something that is not there. A recognised router error still surfaces as itself, because the
+            // error check runs before the id is looked for at all.
+            using (var conn = Open(reply: "bad command name eoip (line 1 column 12)"))
+            {
+                var cmd = conn.CreateCommand("/interface/eoip/add", NameValue(conn, "name", "test-eoip"));
+
+                Assert.ThrowsException<TikNoSuchCommandException>(() => cmd.ExecuteScalar());
+            }
+        }
+
+        [TestMethod]
+        public void TheAnswerTheRouterNormallyGivesIsStillRead()
+        {
+            using (var conn = Open(reply: "*3"))
+                Assert.AreEqual("*3", conn.CreateCommand("/interface/eoip/add",
+                    NameValue(conn, "name", "test-eoip")).ExecuteScalar());
+        }
+
+        [TestMethod]
+        public void AnIdAfterContinuationLinesIsStillFound()
+        {
+            // A parameter value containing newlines (a script `source`) puts the line editor into
+            // bracket-continuation mode, and the continuation lines are echoed BEFORE the result — so the id
+            // is not the only line, and it is the last one.
+            string continued = "[\"... " + Environment.NewLine + "[\"... " + Environment.NewLine + "*A";
+
+            using (var conn = Open(reply: continued))
+                Assert.AreEqual("*A", conn.CreateCommand("/system/script/add",
+                    NameValue(conn, "name", "s")).ExecuteScalar());
+        }
+
+        [TestMethod]
+        public void WhatTheRouterSaidIsCarriedWithTheFailure()
+        {
+            // A timeout or a truncation that does not say what the other side sent leaves nothing to
+            // diagnose from — the difference between "nothing arrived" and "something arrived that was not
+            // an id" is the whole diagnosis.
+            using (var conn = Open(reply: "interface with such name already exists"))
+            {
+                var cmd = conn.CreateCommand("/interface/eoip/add", NameValue(conn, "name", "test-eoip"));
+                var ex = Assert.ThrowsException<TikAddIdNotReadException>(() => cmd.ExecuteScalar());
+
+                StringAssert.Contains(ex.Message, "already exists");
             }
         }
 

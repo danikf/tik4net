@@ -73,20 +73,36 @@ namespace tik4net
             string text = value!.Trim();
             int slash = text.IndexOf('/');
 
+            // Exactly one separator, or none. '1//2' is not a pair with a strange half — it is not a pair,
+            // and the half-tolerant reading below would otherwise take '/2' for a word.
+            if (slash >= 0 && text.IndexOf('/', slash + 1) >= 0)
+                return false;
+
             if (slash < 0)
             {
-                if (!TikDataRate.TryParse(text, out TikDataRate single))
-                    return false;
-                result = new TikRatePair(single, TikDataRate.FromValue(0));
+                result = new TikRatePair(ParseHalf(text), TikDataRate.FromValue(0));
                 return true;
             }
 
-            if (!TikDataRate.TryParse(text.Substring(0, slash), out TikDataRate up)) return false;
-            if (!TikDataRate.TryParse(text.Substring(slash + 1), out TikDataRate down)) return false;
+            string upText = text.Substring(0, slash);
+            string downText = text.Substring(slash + 1);
+            if (upText.Length == 0 || downText.Length == 0)
+                return false;
 
-            result = new TikRatePair(up, down);
+            result = new TikRatePair(ParseHalf(upText), ParseHalf(downText));
             return true;
         }
+
+        /// <summary>
+        /// One side of the pair, which may be a number or one of the router's words.
+        /// </summary>
+        /// <remarks>
+        /// This uses <see cref="TikDataRate.Parse"/> rather than its strict <c>TryParse</c>, because a half
+        /// is genuinely allowed to be a word: <c>/interface/ethernet bandwidth</c> defaults to
+        /// <c>unlimited/unlimited</c>. Refusing that would leave the field a <c>string</c> forever, which is
+        /// where it sat on the convention backlog until the type learned words.
+        /// </remarks>
+        private static TikDataRate ParseHalf(string text) => TikDataRate.Parse(text);
 
         /// <summary>
         /// <c>upload/download</c> in plain numbers — the spelling the binary API uses, accepted on write by

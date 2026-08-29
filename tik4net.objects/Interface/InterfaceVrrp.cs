@@ -51,6 +51,7 @@ namespace tik4net.Objects.Interface
         [TikProperty("preemption-mode", DefaultValue = "yes")]
         public bool? PreemptionMode { get; set; }
 
+        /// <summary>authentication — the method used to authenticate VRRP packets.</summary>
         public enum AuthenticationMode
         {
             /// <summary>none — No authentication.</summary>
@@ -70,6 +71,7 @@ namespace tik4net.Objects.Interface
         [TikProperty("password", DefaultValue = "")]
         public string? Password { get; set; }
 
+        /// <summary>arp — the Address Resolution Protocol setting for the VRRP interface.</summary>
         public enum ArpMode
         {
             /// <summary>enabled — Interface uses ARP.</summary>
@@ -95,6 +97,7 @@ namespace tik4net.Objects.Interface
         [TikProperty("version", DefaultValue = "0")]
         public int Version { get; set; }
 
+        /// <summary>v3-protocol — the IP protocol used when version=3.</summary>
         public enum V3ProtocolType
         {
             /// <summary>ipv4 — Use IPv4 for VRRPv3.</summary>
@@ -128,6 +131,7 @@ namespace tik4net.Objects.Interface
         [TikProperty("sync-connection-tracking", DefaultValue = "no")]
         public bool? SyncConnectionTracking { get; set; }
 
+        /// <summary>connection-tracking-mode — how connection tracking entries synchronize across VRRP nodes.</summary>
         public enum ConnectionTrackingModeType
         {
             /// <summary>passive-active — Passive on backup, active on master.</summary>

@@ -47,6 +47,7 @@ namespace tik4net.Objects.Interface
         [TikProperty("nr-band", DefaultValue = "")]
         public string? NrBand { get; set; }
 
+        /// <summary>network-mode — the cellular network technology the modem is restricted to.</summary>
         public enum NetworkModeType
         {
             /// <summary>auto — Automatically select the best available network mode.</summary>
@@ -78,6 +79,7 @@ namespace tik4net.Objects.Interface
         [TikProperty("modem-init", DefaultValue = "")]
         public string? ModemInit { get; set; }
 
+        /// <summary>sms-protocol — the SMS signaling protocol used by the modem.</summary>
         public enum SmsProtocolType
         {
             /// <summary>auto — Automatically detect SMS protocol.</summary>

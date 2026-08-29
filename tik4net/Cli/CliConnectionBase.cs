@@ -852,10 +852,34 @@ namespace tik4net.Cli
             string cliText = CliCommandBuilder.BuildAdd(descriptor.CommandText, descriptor.Parameters);
             string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false);
             CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
-            // ExtractAddId can return null when the cleaned output is entirely whitespace after a
-            // successful add - RunAddAsync's declared Task<string> is non-nullable, so this `!` matches the
-            // base class contract rather than a proven-non-null value. See report: a real latent null path.
-            return ExtractAddId(output)!;
+
+            string? id = ExtractAddId(output);
+            if (id != null)
+                return id;
+
+            // No id in the answer, and the router did not complain — so the row is very probably ON the
+            // router with nothing referring to it. This is reported rather than returned because both ways
+            // of returning it were silently wrong: `null!` handed the caller a null through a non-nullable
+            // contract, and the text-shaped fallback handed back whatever the last line happened to be,
+            // which then travelled into the `[find where .id=…]` of the next set or remove and matched
+            // nothing there.
+            //
+            // Either way the caller's own cleanup had no id to delete with, so the row outlived the process
+            // that made it — the orphan the integration suite keeps finding, and the reason a later run on a
+            // different transport fails with a name collision instead of with the original error.
+            //
+            // The cause is a read that settled too early: a terminal answers with an unframed byte stream,
+            // so a reply arriving after the prompt has gone quiet is lost rather than late. That is not
+            // repairable from here, but it is reportable — and what the router said is carried with it,
+            // because "nothing arrived" and "something arrived that was not an id" are different diagnoses.
+            string said = (output ?? string.Empty).Trim();
+            throw new TikAddIdNotReadException(
+                "the add reached the router but no .id came back, so the new row cannot be tracked and has "
+                + "very likely been created anyway — look it up by a field the add set rather than repeating "
+                + "the add, which would make a second row. The router answered: "
+                + (said.Length == 0 ? "(nothing)" : "'" + said + "'"),
+                CreateDummyCommand(descriptor),
+                new TikDoneSentenceResult(said.Length == 0 ? null : said));
         }
 
         /// <summary>
@@ -863,26 +887,27 @@ namespace tik4net.Cli
         /// single <c>*N</c> token. But when a parameter VALUE contains newlines (e.g. a script <c>source</c>
         /// with embedded line breaks), RouterOS's line editor enters bracket-continuation mode and echoes the
         /// continuation lines (<c>["... …</c>) BEFORE printing the result, so the cleaned output is multi-line
-        /// with the real id on the LAST non-empty line. Prefer the last line that looks like an id
-        /// (<c>*</c> + hex); otherwise fall back to the last non-empty line.
+        /// with the real id on the LAST non-empty line. So the id is looked for on every line, from the last
+        /// backwards.
+        /// <para>
+        /// <c>null</c> means <b>no line was an id</b>, and the caller reports that rather than substituting
+        /// something for it. There used to be a fallback to the last non-empty line, which turned a read
+        /// that had gone wrong into an id-shaped string: it was stored on the entity and then reached the
+        /// <c>[find where .id=…]</c> of the next set or remove, where it matched nothing.
+        /// </para>
         /// </summary>
         private static string? ExtractAddId(string output)
         {
             if (string.IsNullOrWhiteSpace(output))
                 return null;
             var lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            string? lastNonEmpty = null;
             for (int i = lines.Length - 1; i >= 0; i--)
             {
                 string t = lines[i].Trim();
-                if (t.Length == 0)
-                    continue;
-                if (lastNonEmpty == null)
-                    lastNonEmpty = t;
-                if (IsRecordId(t))
+                if (t.Length != 0 && IsRecordId(t))
                     return t;
             }
-            return lastNonEmpty ?? output.Trim();
+            return null;
         }
 
         // True when <paramref name="s"/> is a RouterOS record id: '*' followed by one or more hex digits.

@@ -384,7 +384,7 @@ every push, so a new entity that breaks one fails the build rather than the firs
 | `EntityStructureConventionTests` | `.id`, paths, enums, read-only counters | pass/fail |
 | `EntityDefaultValueConventionTests` | the `DefaultValue` / nullability rules (points 5–6 above) | pass/fail |
 | `EntityDurationConventionTests` | rule 6 — a duration is `TikDuration?`, never `string?` | **ratchet** |
-| `EntityRatePairConventionTests` | rule 7 — a paired rate is `TikRatePair?`, never `string?` | **ratchet** |
+| `EntityRatePairConventionTests` | rule 7 — a paired rate is `TikRatePair?`, never `string?` | **ratchet, at zero** |
 
 The duration rule is a ratchet rather than pass/fail because it was documented for a long time before
 anything checked it: 108 fields were `string?` against 24 converted when the test was written, and 14 remain.
@@ -408,14 +408,19 @@ a pair of small integers, `bucket-size=0.1/0.1` a pair of decimals `TikDataRate`
 `/interface/ethernet/monitor rate` is `1Gbps`, whose unit `TikDataRate` rejects outright (the suffixes are
 `k M G T`), `/ip/settings icmp-rate-mask` is the bitmask `0x1818`, `rate-set` and `rate-selection` are enums,
 and a PPP or Hotspot `rate-limit` packs up to six pairs into one string. So the test classifies all 46
-candidates by hand into `NotRatePairs` and a backlog of three, each blocked on the type rather than on
-effort: `/interface/ethernet bandwidth` is a real rx/tx pair whose default is `unlimited/unlimited`, a word
-`TikDataRate` has no room for the way `TikDuration` has for `none`; and `/queue/simple` `rate` and
-`packet-rate` are real pairs the CLI spells `0bps/0bps` — `bps` is not one of the `k M G T` suffixes, so
-typing `rate` throws a `FormatException` on every CLI load, and for the **whole entity** rather than the one
-field. That is the cost of guessing here, and it is why the classification is measured rather than reasoned:
-`/queue/simple` is declared `IncludeCliStats`, so the CLI does fetch the statistics in a second `print stats`
-query and the unreadable value does arrive.
+candidates by hand into `NotRatePairs` and a backlog — which is now **empty**, and the ratchet holds it
+there. The three that were on it (`/interface/ethernet bandwidth`, `/queue/simple` `rate` and
+`packet-rate`) were blocked on the same two gaps in `TikDataRate`, both closed: the type reads the `bps`
+unit the CLI writes, and it keeps a word it cannot read as a `Token` the way `TikDuration` keeps `none`,
+which is what `bandwidth`'s `unlimited/unlimited` default needs.
+
+That second one is what made the conversions safe rather than merely possible. The old cost of guessing was
+that an unrecognised spelling threw a `FormatException` failing the load of the **whole entity** rather than
+the one field — so `packet-rate`, whose non-zero CLI form has never been read (a simple queue counts
+forwarded traffic only, and the lab CHR forwards none), was not worth the risk. A spelling the type does not
+recognise is now a `Token`: the property degrades, the entity loads, and the value survives verbatim. The
+classification itself stays measured rather than reasoned — `/queue/simple` is declared `IncludeCliStats`,
+so the CLI does fetch the statistics in a second `print stats` query and the divergent value does arrive.
 
 The `entity-generator` skill scaffolds these from a live router. It replaced two WinForms
 generators (`tik4net.entitygenerator`, `tik4net.entityWikiImporter`), deleted in 4.0 — the skill reads
@@ -459,8 +464,8 @@ after. `MapperBenchmarks` is what a caller pays (a 1000-row `LoadAll`, and seria
 
 `.github/workflows/build.yml` — Windows builds the full solution (including the net48 projects),
 Linux builds the cross-platform ones, both run `tik4net.unittests`, and a pack job validates the
-NuGet outputs. Warnings are errors in CI only; `.editorconfig` keeps the missing-XML-doc backlog
-(CS1591) silent while treating malformed docs as real warnings.
+NuGet outputs. Warnings are errors in CI only; `.editorconfig` raises the doc warnings — missing
+(CS1591), mismatched (CS1573) and malformed (CS1574) — so an undocumented public member fails CI.
 
 ## Where the risk is
 

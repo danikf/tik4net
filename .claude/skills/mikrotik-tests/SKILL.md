@@ -210,9 +210,12 @@ diagnoses that turned out wrong — is in [`Docs/HISTORY.md`](../../../Docs/HIST
 
 ### CLI family
 
-- **`add` can return an empty string** instead of the new `.id`, mainly on `winboxcli`/`winboxclimac`,
-  occasionally on the others. The terminal's latency puts the router's response outside the read
-  window. Consequence is an orphan, as above.
+- **`add` can answer without the new `.id`**, mainly on `winboxcli`/`winboxclimac`, occasionally on the
+  others. The terminal's latency puts the router's response outside the read window, so the reply is lost
+  rather than late — the row itself is created. This now raises **`TikAddIdNotReadException`** instead of
+  handing back an empty id, so the test that hits it fails *at the add* and names the cause. The
+  consequence is still an orphan (there is no id to clean up with), so a test that creates rows over a CLI
+  transport should be able to find its own row by the marker it chose — see the orphan section above.
 - **`print stats` is not reachable** from the CLI layer, so live counter fields (firewall
   `bytes`/`packets` and similar) come back empty over CLI transports.
 - **Reordering a `/routing/rule` in the same second its rows were added wedges RouterOS 7.24's routing
