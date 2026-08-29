@@ -16,7 +16,7 @@ namespace tik4net.Objects.Ip.Dns
     /// 
     /// Regular expression matching is significantly slower than of the plain entries, so it is advised to minimize the number of regular expression rules and optimize the expressions themselves
     /// </summary>
-    [TikEntity("ip/dns/static", IsOrdered = true)]
+    [TikEntity("/ip/dns/static", IsOrdered = true)]
     public class DnsStatic
     {
         /// <summary>

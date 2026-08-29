@@ -12,7 +12,7 @@ namespace tik4net.Objects.Ip.DhcpServer
     /// 
     /// As DHCP replies can be unicast, the 'rogue dhcp detector' may not receive any offer to other dhcp clients at all. To deal with this, the rogue dhcp detector acts as a dhcp client as well - it sends out dhcp discover requests once a minute 
     /// </summary>
-    [TikEntity("ip/dhcp-server/alert")]
+    [TikEntity("/ip/dhcp-server/alert")]
     public class DhcpServerAlert
     {
         /// <summary>

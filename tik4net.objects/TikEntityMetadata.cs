@@ -47,7 +47,7 @@ namespace tik4net.Objects
         /// <summary>
         /// Parameter format (when parameter itself is set to <see cref="TikCommandParameterFormat.Default"/>) during  load operation.
         /// </summary>
-        public TikCommandParameterFormat LoadDefaultParameneterFormat { get; set; }
+        public TikCommandParameterFormat LoadDefaultParameterFormat { get; set; }
 
         /// <summary>
         /// If the whole entity is R/O.
@@ -134,7 +134,7 @@ namespace tik4net.Objects
                 ? entityAttribute.EntityPath
                 : "/" + entityAttribute.EntityPath;
             LoadCommand = entityAttribute.LoadCommand;
-            LoadDefaultParameneterFormat = entityAttribute.LoadDefaultParameneterFormat;
+            LoadDefaultParameterFormat = entityAttribute.LoadDefaultParameterFormat;
             IsReadOnly = entityAttribute.IsReadOnly;
             IsOrdered = entityAttribute.IsOrdered;
             IncludeDetails = entityAttribute.IncludeDetails;

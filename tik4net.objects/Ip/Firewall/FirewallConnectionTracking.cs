@@ -11,7 +11,7 @@ namespace tik4net.Objects.Ip.Firewall
     /// * NAT
     /// * firewall: connection-bytes, connection-mark, connection-type, connection-state, connection-limit, connection-rate, layer7-protocol, p2p, new-connection-mark, tarpit, p2p matching in simple queues
     /// </summary>
-    [TikEntity("ip/firewall/connection/tracking", IsSingleton = true)]
+    [TikEntity("/ip/firewall/connection/tracking", IsSingleton = true)]
     public class ConnectionTracking
     {
         /// <summary>

@@ -11,7 +11,7 @@ namespace tik4net.Objects.Interface
     /// <seealso href="https://wiki.mikrotik.com/wiki/Manual:Interface/PPPoE#PPPoE_Server"/>
     /// <seealso href="https://wiki.mikrotik.com/wiki/Pppoe_server_with_profiles"/>
     /// <seealso href="https://wiki.mikrotik.com/wiki/PPPOE_Server"/>
-    [TikEntity("interface/pppoe-server/server", IncludeDetails = true)]
+    [TikEntity("/interface/pppoe-server/server", IncludeDetails = true)]
     public class InterfacePppoeserverServer
     {
         /// <summary>

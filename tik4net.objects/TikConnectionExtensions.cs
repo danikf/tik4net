@@ -282,7 +282,7 @@ namespace tik4net.Objects
         private static ITikCommand CreateListenCommandWithFilter<TEntity>(ITikConnection connection, params ITikCommandParameter[] parameters)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
-            ITikCommand command = connection.CreateCommand(metadata.EntityPath + "/listen", metadata.LoadDefaultParameneterFormat);
+            ITikCommand command = connection.CreateCommand(metadata.EntityPath + "/listen", metadata.LoadDefaultParameterFormat);
 
             if (parameters != null)
             {
@@ -374,7 +374,7 @@ namespace tik4net.Objects
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
 
-            ITikCommand command = connection.CreateCommand(metadata.EntityPath + metadata.LoadCommand, metadata.LoadDefaultParameneterFormat);
+            ITikCommand command = connection.CreateCommand(metadata.EntityPath + metadata.LoadCommand, metadata.LoadDefaultParameterFormat);
 
             // =detail=
             if (metadata.IncludeDetails)

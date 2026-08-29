@@ -8,7 +8,7 @@ namespace tik4net.Objects.CapsMan
     /// <summary>
     /// /caps-man/registration-table: In the registration table you can see various information about currently connected clients. It is used only for Controlled Access Points. All properties are read-only.
     /// </summary>
-    [TikEntity("caps-man/registration-table", IsReadOnly = true)]
+    [TikEntity("/caps-man/registration-table", IsReadOnly = true)]
     public class CapsManRegistrationTable
     {
         /// <summary>

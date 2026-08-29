@@ -8,7 +8,7 @@ namespace tik4net.Objects.Ip.Firewall
     /// <summary>
     /// ip/firewall/connection tracking: 
     /// </summary>
-    [TikEntity("ip/firewall/connection", IsReadOnly = true)]
+    [TikEntity("/ip/firewall/connection", IsReadOnly = true)]
     public class FirewallConnection
     {
         /// <summary>

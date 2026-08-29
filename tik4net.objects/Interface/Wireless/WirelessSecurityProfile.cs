@@ -8,7 +8,7 @@ namespace tik4net.Objects.Interface.Wireless
     /// <summary>
     /// Wireless security profiles
     /// </summary>
-    [TikEntity("interface/wireless/security-profiles")]
+    [TikEntity("/interface/wireless/security-profiles")]
     public class WirelessSecurityProfile
     {
         /// <summary>

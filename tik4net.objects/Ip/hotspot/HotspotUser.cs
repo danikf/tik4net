@@ -5,7 +5,7 @@
     /// 
     /// This is the menu, where client's user/password information is actually added, additional configuration options for HotSpot users are configured here as well.
     /// </summary>
-    [TikEntity("ip/hotspot/user")]
+    [TikEntity("/ip/hotspot/user")]
     public class HotspotUser
     {
         /// <summary>

@@ -9,7 +9,7 @@ namespace tik4net.Objects.Ppp
     /// ppp/active: This submenu allows to monitor active (connected) users. 
     /// https://wiki.mikrotik.com/wiki/Manual:PPP_AAA
     /// </summary>
-    [TikEntity("ppp/active", IsReadOnly = true)]
+    [TikEntity("/ppp/active", IsReadOnly = true)]
     public class PppActive
     {
         /// <summary>

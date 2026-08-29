@@ -10,7 +10,7 @@ namespace tik4net.Objects.Ip.Hotspot
     /// 
     /// IP-Binding HotSpot menu allows to setup static One-to-One NAT translations, allows to bypass specific HotSpot clients without any authentication, and also allows to block specific hosts and subnets from HotSpot network 
     /// </summary>
-    [TikEntity("ip/hotspot/ip-binding")]
+    [TikEntity("/ip/hotspot/ip-binding")]
     public class HotspotIpBinding
     {
         /// <summary>

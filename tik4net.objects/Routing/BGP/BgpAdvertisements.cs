@@ -4,7 +4,7 @@ namespace tik4net.Objects.Routing.Bgp
     /// Mikrotik BGP advertisements as provided by
     /// /routing/bgp/advertisements
     /// </summary>
-    [TikEntity("routing/bgp/advertisements", IsReadOnly = true)]
+    [TikEntity("/routing/bgp/advertisements", IsReadOnly = true)]
     public class BgpAdvertisements
     {
         /// <summary>

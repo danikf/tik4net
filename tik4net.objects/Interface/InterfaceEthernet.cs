@@ -9,7 +9,7 @@ namespace tik4net.Objects.Interface
     /// interface/ethernet
     /// MikroTik RouterOS supports various types of Ethernet interfaces. 
     /// </summary>
-    [TikEntity("interface/ethernet")]
+    [TikEntity("/interface/ethernet")]
     public class InterfaceEthernet
     {
         /// <summary>

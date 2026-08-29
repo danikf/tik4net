@@ -9,7 +9,7 @@ namespace tik4net.Objects.Interface
     /// /interface/monitor-traffic
     /// NOTE: use <see cref="InterfaceMonitorTraffic.GetSnapshot"/> or with some kind of bulk/async load
     /// </summary>
-    [TikEntity("/interface/monitor-traffic", LoadCommand ="", LoadDefaultParameneterFormat = TikCommandParameterFormat.NameValue, IncludeDetails = false, IsReadOnly = true)]
+    [TikEntity("/interface/monitor-traffic", LoadCommand ="", LoadDefaultParameterFormat = TikCommandParameterFormat.NameValue, IncludeDetails = false, IsReadOnly = true)]
     public class InterfaceMonitorTraffic
     {
         /// <summary>
@@ -81,14 +81,14 @@ namespace tik4net.Objects.Interface
         /// </summary>
         public static InterfaceMonitorTraffic GetSnapshot(ITikConnection connection, string interfaceName)
         {
-            return InterfaceMonitorConnectionExtensions.GetInterfaceMonitorTrafficSnapshot(connection, interfaceName);
+            return InterfaceMonitorTrafficConnectionExtensions.GetInterfaceMonitorTrafficSnapshot(connection, interfaceName);
         }
     }
 
     /// <summary>
     /// Connection extension class for <see cref="InterfaceMonitorTraffic"/>
     /// </summary>
-    public static class InterfaceMonitorConnectionExtensions
+    public static class InterfaceMonitorTrafficConnectionExtensions
     {
         /// <summary>
         /// Gets snapshot of actual traffic RX/TX values for given <paramref name="interfaceName"/>.

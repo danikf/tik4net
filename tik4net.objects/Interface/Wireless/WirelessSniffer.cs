@@ -8,7 +8,7 @@ namespace tik4net.Objects.Interface.Wireless
     /// <summary>
     /// interface/wireless/sniffer: Wireless sniffer allows to capture frames including Radio header, 802.11 header and other wireless related information. 
     /// </summary>
-    [TikEntity("interface/wireless/sniffer", IsSingleton = true)]
+    [TikEntity("/interface/wireless/sniffer", IsSingleton = true)]
     public class WirelessSniffer
     {
         /// <summary>

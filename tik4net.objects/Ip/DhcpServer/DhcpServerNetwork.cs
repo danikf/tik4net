@@ -8,7 +8,7 @@ namespace tik4net.Objects.Ip.DhcpServer
     /// <summary>
     /// ip/dhcp-server/network : 
     /// </summary>
-    [TikEntity("ip/dhcp-server/network")]
+    [TikEntity("/ip/dhcp-server/network")]
     public class DhcpServerNetwork
     {
         /// <summary>

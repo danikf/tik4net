@@ -11,7 +11,7 @@ namespace tik4net.Objects.Interface.Bridge
     /// those ports carry the VLAN tag on egress (tagged / trunk) or strip it (untagged / access).
     /// The table is only enforced when <c>vlan-filtering=yes</c> is set on the parent bridge.
     /// </summary>
-    [TikEntity("interface/bridge/vlan", IncludeDetails = true)]
+    [TikEntity("/interface/bridge/vlan", IncludeDetails = true)]
     public class BridgeVlan
     {
         /// <summary>

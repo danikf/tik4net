@@ -11,7 +11,7 @@ namespace tik4net.Objects.Ip.TrafficFlow
     /// formats, compatible with Cisco and third-party collection tools. This is a singleton
     /// (global configuration — no .id).
     /// </summary>
-    [TikEntity("ip/traffic-flow", IsSingleton = true)]
+    [TikEntity("/ip/traffic-flow", IsSingleton = true)]
     public class IpTrafficFlow
     {
         /// <summary>

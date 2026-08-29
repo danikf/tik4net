@@ -4,7 +4,7 @@
     /// /interface/pppoe-client/monitor
     /// Read-only snapshot of the runtime state of a PPPoE client interface, as reported by the "monitor" command.
     /// </summary>
-    [TikEntity("/interface/pppoe-client/monitor", LoadCommand ="", LoadDefaultParameneterFormat = TikCommandParameterFormat.NameValue, IncludeDetails = false, IsReadOnly = true)]
+    [TikEntity("/interface/pppoe-client/monitor", LoadCommand ="", LoadDefaultParameterFormat = TikCommandParameterFormat.NameValue, IncludeDetails = false, IsReadOnly = true)]
     public class InterfacePppoeClientMonitor
     {
         /// <summary>status — Current connection status of the PPPoE client (read-only).</summary>

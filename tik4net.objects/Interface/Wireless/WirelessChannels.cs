@@ -11,7 +11,7 @@ namespace tik4net.Objects.Interface.Wireless
     /// * non-standard channel center frequencies(specified with KHz granularity) for hardware that allows that;
     /// * non-standard channel widths(specified with KHz granularity) for hardware that allows that.
     /// </summary>
-    [TikEntity("interface/wireless/channels", IsSingleton = false)]
+    [TikEntity("/interface/wireless/channels", IsSingleton = false)]
     public class WirelessChannels
     {
         /// <summary>

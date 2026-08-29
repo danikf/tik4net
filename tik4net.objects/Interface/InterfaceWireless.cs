@@ -12,7 +12,7 @@ namespace tik4net.Objects.Interface
     /// 
     /// Wireless can operate in several modes: client (station), access point, wireless bridge etc. Client/station also can operate in different modes, complete list of supported modes can be found here. 
     /// </summary>
-    [TikEntity("interface/wireless")]
+    [TikEntity("/interface/wireless")]
     public class InterfaceWireless
     {
         /// <summary>

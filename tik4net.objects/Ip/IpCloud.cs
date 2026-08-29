@@ -10,7 +10,7 @@ namespace tik4net.Objects.Ip
     /// including DDNS, time updates, backups, and relay services to ease configuration and monitoring.
     /// This is a singleton menu — use <see cref="TikConnectionExtensions.LoadSingle{T}"/> to load it.
     /// </summary>
-    [TikEntity("ip/cloud", IsSingleton = true)]
+    [TikEntity("/ip/cloud", IsSingleton = true)]
     public class IpCloud
     {
         /// <summary>ddns-enabled — enables DDNS; if <c>auto</c>, activates only when Back To Home is enabled.</summary>

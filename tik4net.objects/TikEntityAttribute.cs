@@ -30,7 +30,7 @@ namespace tik4net.Objects
         /// Parameter format (when parameter itself is set to <see cref="TikCommandParameterFormat.Default"/>) during  load operation.
         /// Default: <see cref="TikCommandParameterFormat.Filter"/>.
         /// </summary>
-        public TikCommandParameterFormat LoadDefaultParameneterFormat { get; set; }
+        public TikCommandParameterFormat LoadDefaultParameterFormat { get; set; }
 
         /// <summary>
         /// If the whole entity is R/O.
@@ -71,17 +71,17 @@ namespace tik4net.Objects
         /// </summary>
         /// <param name="entityPath">The entity path in API notation (/ip/firewall/mangle).</param>
         /// <param name="loadCommand">Sufix added to entity path when loading. eq. /print</param>
-        /// <param name="loadDefaultParameneterFormat">Parameter format (when parameter itself is set to <see cref="TikCommandParameterFormat.Default"/>) during  load operation.</param>
+        /// <param name="loadDefaultParameterFormat">Parameter format (when parameter itself is set to <see cref="TikCommandParameterFormat.Default"/>) during  load operation.</param>
         /// <param name="isReadOnly">If the whole entity is R/O.</param>
         /// <param name="isOrdered">If entity list is ordered (move operation does make sense).</param>
         /// <param name="includeDetails">If entity should be loaded with =detail= option.</param>
         /// <param name="isSingleton">If entity exists in single instance</param>
-        public TikEntityAttribute(string entityPath, string loadCommand, TikCommandParameterFormat loadDefaultParameneterFormat, bool isReadOnly, bool isOrdered, bool includeDetails, bool isSingleton)
+        public TikEntityAttribute(string entityPath, string loadCommand, TikCommandParameterFormat loadDefaultParameterFormat, bool isReadOnly, bool isOrdered, bool includeDetails, bool isSingleton)
         {
             Guard.ArgumentNotNullOrEmptyString(entityPath, "entityPath");
             EntityPath = entityPath;
             LoadCommand = loadCommand;
-            LoadDefaultParameneterFormat = loadDefaultParameneterFormat;
+            LoadDefaultParameterFormat = loadDefaultParameterFormat;
             IsReadOnly = isReadOnly;
             IsOrdered = isOrdered;
             IncludeDetails = includeDetails;
@@ -97,7 +97,7 @@ namespace tik4net.Objects
             Guard.ArgumentNotNullOrEmptyString(entityPath, "entityPath");
             EntityPath = entityPath;
             LoadCommand = "/print";
-            LoadDefaultParameneterFormat = TikCommandParameterFormat.Filter;
+            LoadDefaultParameterFormat = TikCommandParameterFormat.Filter;
 
             IsReadOnly = false;
             IsOrdered = false;

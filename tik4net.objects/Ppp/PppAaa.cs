@@ -9,7 +9,7 @@ namespace tik4net.Objects.Ppp
     /// ppp/aaa: Settings in this submenu allows to set RADIUS accounting and authentication. Note that RADIUS user database is consulted only if the required username is not found in local user database. 
     /// https://wiki.mikrotik.com/wiki/Manual:PPP_AAA
     /// </summary>
-    [TikEntity("ppp/aaa", IsSingleton = true)]
+    [TikEntity("/ppp/aaa", IsSingleton = true)]
     public class PppAaa
     {
         /// <summary>

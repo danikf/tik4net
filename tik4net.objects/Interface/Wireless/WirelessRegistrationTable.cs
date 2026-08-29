@@ -8,7 +8,7 @@ namespace tik4net.Objects.Interface.Wireless
     /// <summary>
     /// /interface wireless registration-table: In the registration table you can see various information about currently connected clients. It is used only for Access Points. All properties are read-only.
     /// </summary>
-    [TikEntity("interface/wireless/registration-table", IsReadOnly = true)]
+    [TikEntity("/interface/wireless/registration-table", IsReadOnly = true)]
     public class WirelessRegistrationTable
     {
         /// <summary>

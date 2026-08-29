@@ -11,7 +11,7 @@ namespace tik4net.Objects.Tool
     /// Initially by traceroute, the TTL value is set to 1 when next router finds a packet with TTL = 1 it sets TTL value to zero, and responds with an ICMP "time exceeded" message to the source. This message lets the source know that the packet traverses that particular router as a hop. Next time TTL value is incremented by 1 and so on.Typically, each router in the path towards the destination decrements the TTL field by one unit TTL reaches zero.
     /// Using this command you can see how packets travel through the network and where it may fail or slow down. Using this information you can determine the computer, router, switch or other network device that possibly causing network issues or failures.  
     /// </summary>
-    [TikEntity("/tool/traceroute", LoadCommand = "", LoadDefaultParameneterFormat = TikCommandParameterFormat.NameValue, IsReadOnly = true, IncludeProplist = false)]
+    [TikEntity("/tool/traceroute", LoadCommand = "", LoadDefaultParameterFormat = TikCommandParameterFormat.NameValue, IsReadOnly = true, IncludeProplist = false)]
     public class ToolTraceroute
     {
         /// <summary>

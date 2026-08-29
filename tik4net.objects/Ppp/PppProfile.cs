@@ -9,7 +9,7 @@ namespace tik4net.Objects.Ppp
     /// ppp/profile: PPP profiles are used to define default values for user access records stored under /ppp secret submenu. Settings in /ppp secret User Database override corresponding /ppp profile settings except that single IP addresses always take precedence over IP pools when specified as local-address or remote-address parameters. 
     /// https://wiki.mikrotik.com/wiki/Manual:PPP_AAA
     /// </summary>
-    [TikEntity("ppp/profile")]
+    [TikEntity("/ppp/profile")]
     public class PppProfile
     {
         /// <summary>

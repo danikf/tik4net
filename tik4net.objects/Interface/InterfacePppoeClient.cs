@@ -4,7 +4,7 @@ namespace tik4net.Objects.Interface
     /// /interface/pppoe-client
     /// PPPoE client interface, used to dial a PPPoE server over an ethernet-like interface.
     /// </summary>
-    [TikEntity("interface/pppoe-client", IncludeDetails = true)]
+    [TikEntity("/interface/pppoe-client", IncludeDetails = true)]
     public class InterfacePppoeClient
     {
         /// <summary>.id — primary key</summary>

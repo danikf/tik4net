@@ -142,7 +142,14 @@ tidy-up there changes observable behaviour.
 ### Adding an entity
 
 Prefer the **`entity-generator` skill** over hand-writing — it scaffolds from a live router and applies
-the documented conventions. The conventions themselves are in
+the documented conventions.
+
+**A new entity is not finished until it is published.** `Docs/entity-catalog.md` is generated from the
+`[TikEntity]` attributes and `EntityCatalogTests` fails when it drifts, so regenerate it in the same
+change (`TIK4NET_UPDATE_DOCS=1 dotnet test tik4net.unittests/tik4net.unittests.csproj --filter
+EntityCatalogTests`) and paste the block into the wiki's *Entity reference* page. A helper class is
+named after the entity it serves (`ToolPingConnectionExtensions` for `ToolPing`) — the same test holds
+that, because a misnamed one silently drops its verbs out of the catalog. The conventions themselves are in
 [ARCHITECTURE.md](ARCHITECTURE.md#adding-an-entity), including the nullable-reference-type convention:
 every mapped reference-typed property (`string`) is declared `string?`.
 

@@ -298,7 +298,7 @@ reverted.
 | Single-instance menu, no `.id` (`/system/resource`, `/ip/dns`)        | `IsSingleton = true` |
 | Whole menu is read-only (`/log`, monitor outputs)                     | `IsReadOnly = true` |
 | Live counter fields only present in CLI `print stats`                 | `IncludeCliStats = true` |
-| Action-style command, not a list (ping, monitor, torch)              | `LoadCommand = "", LoadDefaultParameneterFormat = TikCommandParameterFormat.NameValue, IsReadOnly = true, IncludeProplist = false` (see `ToolPing`) |
+| Action-style command, not a list (ping, monitor, torch)              | `LoadCommand = "", LoadDefaultParameterFormat = TikCommandParameterFormat.NameValue, IsReadOnly = true, IncludeProplist = false` (see `ToolPing`) |
 | Need explicit `.proplist` field list                                  | `IncludeProplist = true` |
 
 > **`IncludeDetails` exception — some singletons/legacy menus reject `=detail=`.** A few paths trap

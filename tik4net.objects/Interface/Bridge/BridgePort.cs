@@ -8,7 +8,7 @@ namespace tik4net.Objects.Interface.Bridge
     /// <summary>
     /// interface/bridge/port: Port submenu is used to enslave interfaces in a particular bridge interface.
     /// </summary>
-    [TikEntity("interface/bridge/port")]
+    [TikEntity("/interface/bridge/port")]
     public class BridgePort
     {
         /// <summary>

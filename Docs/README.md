@@ -50,6 +50,7 @@ code was actually wrong.
 |---|---|
 | [`protocol-coverage.md`](protocol-coverage.md) | Which capabilities each transport actually supports, and where the gaps are |
 | [`findings-router-throughput-ceiling.md`](findings-router-throughput-ceiling.md) | Sustained load hits an **aggregate** ceiling — ~1 ms round trips clamp to ~20 ms after a shared burst budget, on every transport and across all connections at once |
+| [`entity-catalog.md`](entity-catalog.md) | **Generated** — every mapped `[TikEntity]` with its path, class and behaviour markers. Do not edit by hand: `EntityCatalogTests` fails when it drifts from the code. Regenerate with `TIK4NET_UPDATE_DOCS=1`, then paste the block into the wiki's *Entity reference* page |
 
 ## History
 

@@ -8,7 +8,7 @@ namespace tik4net.Objects.Interface.Bridge
     /// <summary>
     /// interface/bridge/settings: 
     /// </summary>
-    [TikEntity("interface/bridge/settings", IsSingleton = true)]
+    [TikEntity("/interface/bridge/settings", IsSingleton = true)]
     public class BridgeSettings
     {
         /// <summary>

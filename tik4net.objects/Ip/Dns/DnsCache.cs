@@ -8,7 +8,7 @@ namespace tik4net.Objects.Ip.Dns
     /// <summary>
     /// ip/dns: This menu provides a list with all address (DNS type "A") records stored on the server 
     /// </summary>
-    [TikEntity("ip/dns/cache", IsReadOnly = true)]
+    [TikEntity("/ip/dns/cache", IsReadOnly = true)]
     public class DnsCache
     {
         /// <summary>
@@ -43,21 +43,21 @@ namespace tik4net.Objects.Ip.Dns
         /// </summary>
         public static void Flush(ITikConnection connection)
         {
-            AccountingSnapshotConnectionExtensions.FlushDnsCache(connection);
+            DnsCacheConnectionExtensions.FlushDnsCache(connection);
         }
     }
 
     /// <summary>
     /// Connection extension class for <see cref="DnsCache"/>
     /// </summary>
-    public static class AccountingSnapshotConnectionExtensions
+    public static class DnsCacheConnectionExtensions
     {
         /// <summary>
-        /// Takes new accounting snapshot (/ip/accounting/snapshot/take)
+        /// Clears the router's internal DNS cache (/ip/dns/cache/flush).
         /// </summary>
         public static void FlushDnsCache(this ITikConnection connection)
         {
-            var cmd = connection.CreateCommand("ip/dns/cache/flush");
+            var cmd = connection.CreateCommand("/ip/dns/cache/flush");
             cmd.ExecuteNonQuery();
         }
     }

@@ -19,7 +19,7 @@ namespace tik4net.Objects.Ip.DhcpServer
     /// 
     /// A client may free the leased address. The dynamic lease is removed, and the allocated address is returned to the address pool. But the static lease becomes busy until the client reacquires the address. 
     /// </summary>
-    [TikEntity("ip/dhcp-server/lease")]
+    [TikEntity("/ip/dhcp-server/lease")]
     public class DhcpServerLease
     {
         /// <summary>

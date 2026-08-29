@@ -3,7 +3,7 @@ namespace tik4net.Objects.Ip.Hotspot
     /// <summary>
     /// ip/hotspot/user: User profile menu is used for common HotSpot client settings. Profiles are like User groups with the same set of settings, rate-limit, filter chain name, etc. 
     /// </summary>
-    [TikEntity("ip/hotspot/user/profile")]
+    [TikEntity("/ip/hotspot/user/profile")]
     public class HotspotUserProfile
     {
         /// <summary>

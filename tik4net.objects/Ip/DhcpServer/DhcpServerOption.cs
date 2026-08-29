@@ -9,7 +9,7 @@ namespace tik4net.Objects.Ip.DhcpServer
     /// ip/dhcp-server/option :  With help of DHCP Option list, it is possible to define additional custom options for DHCP Server to advertise.
     ///        According to the DHCP protocol, a parameter is returned to the DHCP client only if it requests this parameter, specifying the respective code in DHCP request Parameter-List(code 55) attribute.If the code is not included in Parameter-List attribute, DHCP server will not send it to the DHCP client.
     /// </summary>
-    [TikEntity("ip/dhcp-server/option")]
+    [TikEntity("/ip/dhcp-server/option")]
     public class DhcpServerOption
     {
         /// <summary>
