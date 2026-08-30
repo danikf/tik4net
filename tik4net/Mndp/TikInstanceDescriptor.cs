@@ -16,7 +16,7 @@ namespace tik4net.Mndp
         /// <summary>Mikrotik version (eq. 6.49.2 (stable))</summary>
         public string Version { get; }
         /// <summary>Mikrotik platform (eq. MikroTik)</summary>
-        public string Platform;
+        public string Platform { get; }
         /// <summary>Mikrotik uptime</summary>
         public TimeSpan Uptime { get; }
         /// <summary>Mikrotik software</summary>
