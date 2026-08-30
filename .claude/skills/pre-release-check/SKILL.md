@@ -1,4 +1,4 @@
----
+﻿---
 name: pre-release-check
 description: >
   Run the pre-release review of tik4net before tagging a version — the scans that can be automated and the
@@ -270,9 +270,17 @@ and `testing` are separate, and that nothing tells a user to reference a package
 
 ## 2.7 Trimming and AOT
 
-The O/R mapper is reflection-driven and net8.0 consumers will try to trim. Decide and **declare** —
-`IsTrimmable`, `RequiresUnreferencedCode`, or a documented statement that it is unsupported. Silence means
-each user discovers it separately, at publish time.
+**Decided and declared — this is now a gate, not a review.** `tik4net.csproj` sets `IsAotCompatible`
+(which stamps `IsTrimmable` and turns on the trim/AOT/single-file analyzers); `tik4net.objects.csproj`
+turns the same analyzers on but is deliberately *not* marked, and its mapper surface carries
+`[RequiresUnreferencedCode]` / `[RequiresDynamicCode]`. With warnings-as-errors, an ordinary
+`dotnet build` is the check.
+
+What a release still has to look at is whether that split is still **true**, because only one half is
+enforced. The analyzers prove core reflects over nothing; nothing proves the annotations on the mapper are
+complete, only that they are consistent. So when a release added a mapper entry point, confirm it carries
+the attribute — the propagation makes the build say so, but a new *public* method that reaches reflection
+by a path the analyzer cannot see (a delegate, a `dynamic`) would not.
 
 ---
 
@@ -303,6 +311,17 @@ the same shape: **a tool that did not look reports the same green as a tool that
   every job that runs it. Condition it (`'$(OS)' == 'Windows_NT'`) and **watch the first CI run after the
   push**, because a gate is not installed until it has passed once somewhere other than the machine that
   wrote it.
+* **Two entry points, two sets of defaults.** `ConnectionFactory` and `TikConnectionSetup` both handed out
+  connections, and the documentation asserted they agreed. Ten of eleven transports did; `ApiConnection`
+  defaulted `SendTimeout` to 0 — "leave the socket alone", i.e. a blocking send with no bound — while a
+  setup applied 30 s, and every green test in the suite was compatible with that. What found it was a test
+  written for a *documentation claim* rather than for a behaviour: comparing the two routes property by
+  property, on every transport. When a doc sentence says two things are the same, that sentence is a test
+  case. Two more shapes worth stealing from it: assert on **accumulated** divergences rather than
+  first-failure, because the useful answer is how far the two have drifted, not which one tripped first;
+  and say out loud which half of such a test could not have failed before the change — the new overloads
+  had no old code to run against, so they pin behaviour rather than prove a fix.
+
 * **A pre-existing failure is not an outcome.** Either fix it in this change or write up the diagnosis — and
   check for orphaned router state first, because residue from an earlier run looks exactly like a code
   defect.

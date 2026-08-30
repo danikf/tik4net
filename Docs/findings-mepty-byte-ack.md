@@ -1,4 +1,4 @@
-# WinBox CLI `mepty` — the terminal byte-acknowledgement contract
+﻿# WinBox CLI `mepty` — the terminal byte-acknowledgement contract
 
 How the WinBox terminal channel (`mepty`) flow-controls terminal output, and what a client must do to
 keep a session usable. For how this was worked out — including the theory that was wrong and the
@@ -60,9 +60,8 @@ Set `ReceiveTimeout` **before** `Open` when probing, so a wedge surfaces in seco
 30 s default:
 
 ```csharp
-var conn = ConnectionFactory.CreateConnection(TikConnectionType.WinboxCli);
-conn.ReceiveTimeout = 8000;
-conn.Open(host, user, pass);
+var setup = new TikConnectionSetup(host, user, pass) { ReceiveTimeout = TimeSpan.FromSeconds(8) };
+var conn = setup.Create(TikConnectionType.WinboxCli);
 ```
 
 A probe harness for this wants three modes, the middle one being the important one: a soak loop that

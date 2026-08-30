@@ -48,7 +48,11 @@ namespace tik4net.Api
         // On since 4.0: the router echoes the tag back, and that is the only thing tying a reply to the
         // caller that asked for it. Off, two threads on one connection cross-deliver rows rather than fail.
         private bool _sendTagWithSyncCommand = true;
-        private int _sendTimeout;
+        // 30 s, the same default TikCommandConnectionBase gives every other transport. It used to be 0,
+        // which the Open path reads as "leave the socket alone" — so a connection built without a
+        // TikConnectionSetup was the one transport in eleven whose blocking send had no bound at all, and
+        // nothing said so. Zero still means exactly that, for a caller who asks for it deliberately.
+        private int _sendTimeout = 30000;
         private int _receiveTimeout = 30000;
         private TcpClient _tcpConnection = null!; // assigned by Open()/OpenAsync(), called right after construction
         private /*NetworkStream*/System.IO.Stream _tcpConnectionStream = null!; // assigned by Open()/OpenAsync()

@@ -140,8 +140,9 @@ namespace tik4net
         Encoding Encoding { get; set; }
 
         /// <summary>
-        /// How long a send may block before it fails, in milliseconds. Must be set before
-        /// <see cref="Open(string, string, string)"/>: it is applied to the socket as the connection opens.
+        /// How long a send may block before it fails, in milliseconds. Defaults to 30 000 on every
+        /// transport. Must be set before <see cref="Open(string, string, string)"/>: it is applied to the
+        /// socket as the connection opens.
         /// </summary>
         /// <remarks>
         /// <b>Not every transport can bound a send, and this says which can rather than implying all do.</b>

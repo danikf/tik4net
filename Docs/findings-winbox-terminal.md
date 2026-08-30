@@ -1,4 +1,4 @@
-# WinBox M2 terminal — mepty session behaviour
+﻿# WinBox M2 terminal — mepty session behaviour
 
 How the WinBox terminal channel behaves: the mepty session lifecycle, VT100 negotiation, and how
 RouterOS renders and accepts a comment over the CLI.
@@ -224,7 +224,7 @@ Access is controlled solely by `allowed-interface-list`:
 // Correct pattern for enabling the MAC server on RouterOS 7.x
 // (used in ClassInitialize in MacLayerTest.cs)
 
-using (var conn = ConnectionFactory.OpenConnection(TikConnectionType.Api, host, user, pass))
+using (var conn = new TikConnectionSetup(host, user, pass).Create(TikConnectionType.Api))
 {
     // Read current state
     var print = conn.CreateCommand("/tool/mac-server/print");
