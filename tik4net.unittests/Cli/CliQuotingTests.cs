@@ -53,7 +53,7 @@ namespace tik4net.unittests.Cli
         public void QuoteIfNeeded_Punctuation_IsQuotedEvenWhereBareWouldHaveWorked()
         {
             Assert.AreEqual("\"192.168.1.1/24\"", CliCommandBuilder.QuoteIfNeeded("192.168.1.1/24"));
-            Assert.AreEqual("\"00:15:5D:04:1F:03\"", CliCommandBuilder.QuoteIfNeeded("00:15:5D:04:1F:03"));
+            Assert.AreEqual("\"AA:BB:CC:DD:EE:FF\"", CliCommandBuilder.QuoteIfNeeded("AA:BB:CC:DD:EE:FF"));
             Assert.AreEqual("\"*5D\"", CliCommandBuilder.QuoteIfNeeded("*5D"));
             Assert.AreEqual("\"syn,!ack\"", CliCommandBuilder.QuoteIfNeeded("syn,!ack"));
         }

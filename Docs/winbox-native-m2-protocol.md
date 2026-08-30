@@ -572,10 +572,10 @@ also excluded — it inherits `types.multi` directly and is a bitmask, not a lis
 
 ### 26.2c A `macaddr` arrives as hex text, not as bytes
 
-`M2Message` renders an `FT_RAW` value as unseparated uppercase hex (`00155D041F03`), never as a byte
+`M2Message` renders an `FT_RAW` value as unseparated uppercase hex (`AABBCCDDEEFF`), never as a byte
 array — so the `macaddr` decoder, which only handled `byte[]`, had a case no live value ever reached and
 every MAC fell through to its raw text. `/interface/ethernet`, `/ip/arp`, `/ip/neighbor` and `/tool/romon`
-all reported one 12-digit run where RouterOS prints `00:15:5D:04:1F:03`. The `.jg` types all four
+all reported one 12-digit run where RouterOS prints `AA:BB:CC:DD:EE:FF`. The `.jg` types all four
 `macaddr` correctly; the catalog was never the problem, which is why this looked like four separate path
 defects in the audit and was one decoder.
 

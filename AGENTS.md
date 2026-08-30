@@ -173,6 +173,14 @@ docs and skills must **read** them from there rather than restating them. Mainta
 (working notes, vendor assets, the wiki clone) lives outside the repository; reference it by role, and
 say how to obtain or regenerate it, not by a path only one machine has.
 
+**`App.config` is the one exception, and only it.** The lab router's host, credentials and `routerMac`
+live there by design — that file *is* the single place router coordinates are allowed to be, and its MAC
+is a deliberate, accepted disclosure. Everywhere else the same value is a finding, including in a `//`
+comment, a prose example in `Docs/`, or test data where the value is arbitrary. Use `AA:BB:CC:DD:EE:FF`
+(the placeholder already used ~60 times in this repository) rather than pasting what a capture happened to
+contain: a real address in a comment is no less published than one in code, and it teaches the next reader
+that pasting captures is fine.
+
 ### Documentation is present-tense
 
 Reference documentation describes **how things work now**. It does not narrate how they used to be

@@ -341,18 +341,18 @@ namespace tik4net.unittests.Winbox
             // macaddr case had a decoder that no live value ever reached, and /interface/ethernet, /ip/arp,
             // /ip/neighbor and /tool/romon all reported one 12-digit run.
             var decoded = Decode(Parse(MacWindow), new[] { 20, 5 },
-                Rec((0x2, "raw", "48EA62D0AD17")));
+                Rec((0x2, "raw", "AABBCCDDEEFF")));
 
-            Assert.AreEqual("48:EA:62:D0:AD:17", decoded["mac-address"]);
+            Assert.AreEqual("AA:BB:CC:DD:EE:FF", decoded["mac-address"]);
         }
 
         [TestMethod]
         public void AnAlreadySeparatedMacIsLeftAlone()
         {
             var decoded = Decode(Parse(MacWindow), new[] { 20, 5 },
-                Rec((0x2, "raw", "48:EA:62:D0:AD:17")));
+                Rec((0x2, "raw", "AA:BB:CC:DD:EE:FF")));
 
-            Assert.AreEqual("48:EA:62:D0:AD:17", decoded["mac-address"]);
+            Assert.AreEqual("AA:BB:CC:DD:EE:FF", decoded["mac-address"]);
         }
 
         [TestMethod]

@@ -81,7 +81,7 @@ namespace tik4net.unittests.Cli
                 "::ffff:not.an.address",    // ffff-shaped but not a mapped IPv4
                 "::ffff:192.168.4.999",     // nor is this
                 "2001:db8::1",              // a real IPv6
-                "00:15:5D:04:1F:03",        // a MAC
+                "AA:BB:CC:DD:EE:FF",        // a MAC
                 "192.168.4.236",
                 "15s",                      // already an API duration
                 "1w",

@@ -170,9 +170,9 @@ namespace tik4net.unittests.Objects
         {
             var entity = new TypedEntity();
 
-            Accessor("Mac").SetEntityValue(entity, "00:15:5D:04:1F:03");
-            Assert.AreEqual("00:15:5D:04:1F:03", entity.Mac.Address);
-            Assert.AreEqual("00:15:5D:04:1F:03", Accessor("Mac").GetEntityValue(entity));
+            Accessor("Mac").SetEntityValue(entity, "AA:BB:CC:DD:EE:FF");
+            Assert.AreEqual("AA:BB:CC:DD:EE:FF", entity.Mac.Address);
+            Assert.AreEqual("AA:BB:CC:DD:EE:FF", Accessor("Mac").GetEntityValue(entity));
         }
 
         [TestMethod]

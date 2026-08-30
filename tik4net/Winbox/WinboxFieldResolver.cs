@@ -1028,7 +1028,7 @@ namespace tik4net.Winbox
                     // The generic Interface window declares no MAC Address at all — WinBox paints the box in
                     // the SUBTYPE dialog beside it (the Ethernet tab of Interface > ether1), so /interface
                     // had no name for the key and dropped a field the router sends on every single row.
-                    // Not a wire gap: a /interface getall carries 0x3E9=00155D041F03 next to the name.
+                    // Not a wire gap: a /interface getall carries 0x3E9=AABBCCDDEEFF next to the name.
                     //
                     // The pairing was CONFIRMED by moving the value, not by the three rows agreeing (ether1,
                     // ether2 and lo all matched the API exactly, which is suggestive and proves nothing).
@@ -3002,9 +3002,9 @@ namespace tik4net.Winbox
                 return string.Join(":", b.Select(x => x.ToString("X2")));
 
             // The wire form this actually arrives in. M2Message renders an FT_RAW value as unseparated
-            // uppercase hex ("00155D041F03") rather than a byte[], so every macaddr field — which is a raw
+            // uppercase hex ("AABBCCDDEEFF") rather than a byte[], so every macaddr field — which is a raw
             // on the wire — fell straight through to ToString() and reached the caller as one 12-digit run
-            // where RouterOS prints 00:15:5D:04:1F:03. /interface/ethernet, /ip/arp, /ip/neighbor and
+            // where RouterOS prints AA:BB:CC:DD:EE:FF. /interface/ethernet, /ip/arp, /ip/neighbor and
             // /tool/romon all read this way; the .jg types them macaddr correctly, so the .jg was never the
             // problem.
             string s = value?.ToString() ?? "";
