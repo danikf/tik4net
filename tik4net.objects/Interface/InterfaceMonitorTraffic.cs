@@ -1,4 +1,5 @@
-using System;
+﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -79,6 +80,8 @@ namespace tik4net.Objects.Interface
         /// <summary>
         /// Gets snapshot of actual values for given <paramref name="interfaceName"/>.
         /// </summary>
+        [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+        [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
         public static InterfaceMonitorTraffic GetSnapshot(ITikConnection connection, string interfaceName)
         {
             return InterfaceMonitorTrafficConnectionExtensions.GetInterfaceMonitorTrafficSnapshot(connection, interfaceName);
@@ -88,6 +91,8 @@ namespace tik4net.Objects.Interface
     /// <summary>
     /// Connection extension class for <see cref="InterfaceMonitorTraffic"/>
     /// </summary>
+    [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+    [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
     public static class InterfaceMonitorTrafficConnectionExtensions
     {
         /// <summary>

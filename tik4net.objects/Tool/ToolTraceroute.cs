@@ -1,4 +1,5 @@
-using System;
+﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -65,6 +66,8 @@ namespace tik4net.Objects.Tool
         /// <summary>
         /// Traceroutes given <see paramref="address"/>.
         /// </summary>
+        [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+        [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
         public static IEnumerable<ToolTraceroute> Execute(ITikConnection connection, string address)
         {
             return ToolTracerouteConnectionExtensions.Traceroute(connection, address);
@@ -74,6 +77,8 @@ namespace tik4net.Objects.Tool
     /// <summary>
     /// Connection extension class for <see cref="ToolPing"/>
     /// </summary>
+    [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+    [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
     public static class ToolTracerouteConnectionExtensions
     {
         /// <summary>

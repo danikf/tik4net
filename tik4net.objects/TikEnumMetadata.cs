@@ -1,4 +1,5 @@
-using System;
+﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -25,6 +26,7 @@ namespace tik4net.Objects
     /// instead of raising <see cref="ArgumentNullException"/> from a null <c>FieldInfo</c>.
     /// </para>
     /// </remarks>
+    [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
     internal sealed class TikEnumMetadata
     {
         private static readonly object _lockObj = new object();

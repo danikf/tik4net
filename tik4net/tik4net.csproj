@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
@@ -17,6 +17,23 @@
       collide with tik4net.package, which owns the real `tik4net` PackageId.
     -->
     <PackageId>tik4net.core.internal</PackageId>
+  </PropertyGroup>
+
+  <!--
+    The transports and the low-level API are trim- and AOT-safe: nothing here reflects over a caller's
+    types. IsAotCompatible stamps [AssemblyMetadata("IsTrimmable","True")] into the assembly AND turns on
+    the three analyzers, so the claim is checked on every build rather than asserted once — with
+    warnings-as-errors in CI, the first line of reflection over a Type that arrives from outside fails the
+    build instead of quietly making the flag a lie.
+
+    tik4net.objects is deliberately NOT marked: the O/R mapper is reflection-driven and says so with
+    [RequiresUnreferencedCode] on its surface. The two assemblies ship in the same package and are trimmed
+    independently, which is the whole reason to distinguish them.
+
+    net8.0 only — the property means nothing on netstandard2.0, whose consumers have no trimmer.
+  -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
   <ItemGroup>

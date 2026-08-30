@@ -1,4 +1,6 @@
-﻿namespace tik4net.Objects.Interface
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace tik4net.Objects.Interface
 {
     /// <summary>
     /// /interface/pppoe-client/monitor
@@ -54,6 +56,8 @@
         /// <summary>
         /// Gets snapshot of actual values for given <paramref name="interfaceName"/>.
         /// </summary>
+        [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+        [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
         public static InterfacePppoeClientMonitor GetSnapshot(ITikConnection connection, string interfaceName)
         {
             return connection.GetInterfacePppoeClientMonitorSnapshot(interfaceName);
@@ -63,6 +67,8 @@
     /// <summary>
     /// Connection extension class for <see cref="InterfacePppoeClientMonitor"/>
     /// </summary>
+    [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+    [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
     public static class InterfacePppoeClientMonitorConnectionExtensions
     {
         /// <summary>

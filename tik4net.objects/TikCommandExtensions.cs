@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,6 +10,8 @@ namespace tik4net.Objects
     /// Main mapper extension - extends <see cref="ITikCommand"/>.
     /// Supports Load metods - maps command results to entities.
     /// </summary>
+    [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+    [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
     public static class TikCommandExtensions
     {
         /// <summary>

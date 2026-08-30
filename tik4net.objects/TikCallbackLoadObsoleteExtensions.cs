@@ -1,4 +1,5 @@
-using System;
+﻿using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace tik4net.Objects
 {
@@ -27,6 +28,8 @@ namespace tik4net.Objects
     /// background thread — and they still sort under <c>Load…</c>, so nothing becomes harder to find.
     /// </para>
     /// </remarks>
+    [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+    [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
     public static class TikCallbackLoadObsoleteExtensions
     {
         private const string LoadMessage =

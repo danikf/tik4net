@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
@@ -13,6 +13,23 @@
       Package metadata lives in tik4net.package now.
     -->
     <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!--
+    Deliberately NOT IsTrimmable/IsAotCompatible — unlike tik4net.dll, which is both. The O/R mapper
+    reflects over the caller's entity types, and no amount of annotation makes that visible to a trimmer;
+    the surface says so with [RequiresUnreferencedCode] / [RequiresDynamicCode] instead, so a consumer
+    publishing trimmed gets IL2026/IL3050 at the call site naming the alternative rather than a
+    MissingMethodException in production.
+
+    The analyzers are on all the same, and that is the point: they are what keeps the annotations honest.
+    Without them a new reflection call would compile clean, and the assembly would go on claiming — by the
+    absence of a warning — that the mapper's unsafety is confined to the members that admit it.
+  -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

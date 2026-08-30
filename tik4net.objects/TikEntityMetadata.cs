@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -14,6 +15,8 @@ namespace tik4net.Objects
     /// <seealso cref="TikEntityAttribute"/>
     /// <seealso cref="TikPropertyAttribute"/>
     /// <seealso cref="TikEntityMetadataCache"/>
+    [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+    [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
     public class TikEntityMetadata
     {
         private Dictionary<string, TikEntityPropertyAccessor> _properties; //<field_name_on_mikrotik, propertyAccessor>

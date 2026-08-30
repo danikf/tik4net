@@ -329,10 +329,16 @@ Options split into two kinds:
 A unit-test matrix (`tik4net.unittests/Connection/TikConnectionSetupOptionMatrixTests.cs`) enforces that
 every option reaches every transport that can honour it.
 
-`ConnectionFactory` remains as a thin compatibility shim over the same internal registry
-(`OpenConnection(TikConnectionType, host, [port,] user, pass)`, plus `RegisterConnectionFactory` — how
-the SSH satellite plugs itself in). Connections it returns carry transport defaults and no options —
-prefer `TikConnectionSetup` in new code.
+`ConnectionFactory` is a shorter front for the same machinery rather than a parallel one: every overload
+that opens a connection builds a `TikConnectionSetup` and hands it the work, so the two routes cannot
+drift into applying different defaults. The short overloads
+(`OpenConnection(TikConnectionType, host, [port,] user, pass)`) take no options and therefore leave the
+transport defaults in place; `OpenConnection(TikConnectionType, TikConnectionSetup)` and
+`CreateConnection(TikConnectionType, TikConnectionSetup)` take a setup and apply it in full, so
+`ConnectionFactory` code can state an option without being restructured. `RegisterConnectionFactory` is
+also here — it is how the SSH satellite plugs itself in. Prefer `TikConnectionSetup` directly in new code.
+`CreateConnection(TikConnectionType)` is the one member that cannot route through a setup, because a setup
+is built around the router address and that overload is not told one.
 
 ## Layer 2 — `tik4net.objects`
 
@@ -346,6 +352,21 @@ Entities are plain classes driven entirely by attributes:
 
 Metadata is reflected once and cached in `TikEntityMetadataCache` → `TikEntityMetadata` →
 `TikEntityPropertyAccessor` (conversion lives here).
+
+**That reflection is why this assembly is not trimmable and `tik4net` is.** `tik4net.csproj` sets
+`IsAotCompatible`, which stamps `IsTrimmable` into the assembly *and* turns on the trim/AOT/single-file
+analyzers — core reflects over nothing a caller supplies, and the analyzers keep it that way. Here the
+mapper reads the caller's types, so the surface is annotated with `[RequiresUnreferencedCode]` /
+`[RequiresDynamicCode]` (one wording, `TikTrimming` in `Compat/`) and the assembly is deliberately *not*
+marked. The same analyzers are on all the same: without them a new reflection call would compile clean and
+the assembly would keep implying, by the absence of a warning, that the unsafety is confined to the members
+that admit it. `Compat/TrimmingAttributes.cs` declares the two attributes internally for the
+`netstandard2.0` leg, which has neither in its framework and no trimmer to consume them.
+
+The annotation propagates: a method calling an annotated one must carry the attribute too, which is why it
+reaches `TikConnectionExtensions`, the `…ConnectionExtensions` helper classes and the static `GetSnapshot` /
+`Execute` shortcuts on the monitor entities. Adding a mapper entry point means annotating it; the build says
+so.
 
 CRUD via `TikConnectionExtensions`:
 

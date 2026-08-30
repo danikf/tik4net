@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -26,6 +27,8 @@ namespace tik4net.Objects
     /// <seealso cref="TikEntityAttribute"/>
     /// <seealso cref="TikPropertyAttribute"/>
     /// <seealso cref="TikEntityMetadata"/>
+    [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+    [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
     public static class TikEntityMetadataCache
     {
         private static readonly object _lockObj = new object();

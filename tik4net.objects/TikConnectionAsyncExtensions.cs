@@ -1,4 +1,5 @@
-using System;
+﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -40,6 +41,8 @@ namespace tik4net.Objects
     /// and an async form of them is a design question about partial failure, not a mechanical translation.
     /// </para>
     /// </remarks>
+    [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+    [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
     public static class TikConnectionAsyncExtensions
     {
         #region -- LOAD --

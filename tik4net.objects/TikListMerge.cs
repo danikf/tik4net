@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -13,6 +14,8 @@ namespace tik4net.Objects
     /// <see cref="Save"/> method should be called to perform modifications on mikrotik router.
     /// </summary>
     /// <typeparam name="TEntity"></typeparam>
+    [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+    [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
     public class TikListMerge<TEntity>
                     where TEntity : new()
     {

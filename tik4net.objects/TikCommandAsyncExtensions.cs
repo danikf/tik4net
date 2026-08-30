@@ -1,4 +1,5 @@
-using System;
+﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -17,6 +18,8 @@ namespace tik4net.Objects
     /// <see cref="TikConnectionCapability.AsyncCommands"/> throws
     /// <see cref="TikConnectionCapabilityNotSupportedException"/> rather than quietly blocking a thread.
     /// </remarks>
+    [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+    [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
     public static class TikCommandAsyncExtensions
     {
         /// <summary>

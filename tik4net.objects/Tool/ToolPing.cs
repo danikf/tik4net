@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -111,6 +112,8 @@ namespace tik4net.Objects.Tool
         /// <summary>
         /// Pings given <see paramref="address"/>. Returns <paramref name="cnt"/> of ping results to the <paramref name="address"/>.
         /// </summary>
+        [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+        [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
         public static IEnumerable<ToolPing> Execute(ITikConnection connection, string address, int cnt)
         {
             return ToolPingConnectionExtensions.Ping(connection, address, cnt);
@@ -120,6 +123,8 @@ namespace tik4net.Objects.Tool
     /// <summary>
     /// Connection extension class for <see cref="ToolPing"/>
     /// </summary>
+    [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
+    [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
     public static class ToolPingConnectionExtensions
     {
         /// <summary>
