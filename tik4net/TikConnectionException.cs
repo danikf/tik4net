@@ -197,6 +197,83 @@ namespace tik4net
     }
 
     /// <summary>
+    /// Thrown when the peer on the other end of the socket is not speaking the protocol this connection
+    /// is speaking — most often the plain binary API pointed at the API-SSL port, or the reverse.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is deliberately NOT a <see cref="TikConnectionSSLErrorException"/>: that one means TLS was
+    /// negotiated and went wrong (an untrusted certificate, no common protocol version), whereas this one
+    /// means there is no TLS on that port at all — or, in the other direction, that there is TLS where
+    /// plain API words were sent. The two need opposite fixes, and a single "connection closed" told
+    /// nobody which they were looking at.
+    /// </para>
+    /// <para>
+    /// The router closing the connection mid-handshake is the only symptom either mistake produces, so the
+    /// message names the port that was used and what normally listens there. A closed port raises
+    /// <see cref="System.Net.Sockets.SocketException"/> instead and never reaches here.
+    /// </para>
+    /// </remarks>
+    public class TikConnectionProtocolMismatchException : TikConnectionException
+    {
+        /// <summary>The TCP port that was connected to.</summary>
+        public int Port { get; }
+
+        /// <summary>Whether this connection tried to negotiate TLS (<c>ApiSsl</c>) or not (<c>Api</c>).</summary>
+        public bool TlsAttempted { get; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TikConnectionProtocolMismatchException"/> class.
+        /// </summary>
+        /// <param name="port">The TCP port that was connected to.</param>
+        /// <param name="tlsAttempted">Whether TLS was attempted (<c>ApiSsl</c>) or not (<c>Api</c>).</param>
+        /// <param name="plainPort">The port that serves the plain binary API on a default RouterOS.</param>
+        /// <param name="sslPort">The port that serves API-SSL on a default RouterOS.</param>
+        /// <param name="symptom">
+        /// What was actually observed, as one sentence — the peer closed the socket, or it never answered.
+        /// The advice that follows is derived from <paramref name="port"/>; this is the evidence for it.
+        /// </param>
+        /// <param name="innerException">The I/O failure this replaces, if there was one.</param>
+        public TikConnectionProtocolMismatchException(int port, bool tlsAttempted,
+            int plainPort, int sslPort, string symptom, Exception? innerException)
+            : base(BuildMessage(port, tlsAttempted, plainPort, sslPort, symptom), innerException)
+        {
+            Port = port;
+            TlsAttempted = tlsAttempted;
+        }
+
+        private static string BuildMessage(int port, bool tlsAttempted, int plainPort, int sslPort,
+            string symptom)
+        {
+            // The likeliest single cause, named outright, because the port usually settles it.
+            string likely;
+            if (tlsAttempted && port == plainPort)
+                likely = " Port " + plainPort.ToString(CultureInfo.InvariantCulture)
+                       + " is the PLAIN API port — use TikConnectionType.Api for it, or connect to "
+                       + sslPort.ToString(CultureInfo.InvariantCulture) + " for API-SSL.";
+            else if (!tlsAttempted && port == sslPort)
+                likely = " Port " + sslPort.ToString(CultureInfo.InvariantCulture)
+                       + " is the API-SSL port — use TikConnectionType.ApiSsl for it, or connect to "
+                       + plainPort.ToString(CultureInfo.InvariantCulture) + " for the plain API.";
+            else if (tlsAttempted)
+                likely = " Check that /ip/service has 'api-ssl' enabled on this port AND a certificate"
+                       + " assigned to it — without a certificate RouterOS accepts the connection and then"
+                       + " drops it exactly like this.";
+            else
+                likely = " Check that /ip/service has 'api' enabled on this port, and that whatever answers"
+                       + " there is RouterOS rather than another service.";
+
+            // The address list applies to both directions — a client outside it is dropped exactly like a
+            // wrong port. The user's group policy only matters once a login is actually attempted.
+            string alsoCheck = " Also check the address list on /ip/service"
+                             + (tlsAttempted ? "." : ", and that the user's group has the 'api' policy.");
+
+            return symptom + likely + alsoCheck
+                 + " See https://github.com/danikf/tik4net/wiki/Exception-handling.";
+        }
+    }
+
+    /// <summary>
     /// Thrown when API-SSL is not properly implemented on mikrotik.
     /// See https://github.com/danikf/tik4net/wiki/SSL-connection for details.
     /// </summary>

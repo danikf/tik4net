@@ -60,6 +60,9 @@ namespace tik4net.Api
         // One reader owns the socket for the connection's whole life; callers wait on their tag (P2.3).
         private readonly ApiSentenceDispatcher _dispatcher = new ApiSentenceDispatcher();
         private System.Threading.Tasks.Task? _readerTask;
+        // The reader loop's own exception, kept because TerminateAll can only carry its text. Written on
+        // the reader thread and read on the caller's, hence volatile.
+        private volatile Exception? _readerFault;
         private volatile bool _readerStopRequested;
 
         public event EventHandler<TikConnectionCommCallbackEventArgs>? OnReadRow;
@@ -260,6 +263,7 @@ namespace tik4net.Api
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
+                _readerFault = null;    // a previous session's fault must not diagnose this one
                 //open connection
                 _tcpConnection = new TcpClient();
                 if (_sendTimeout > 0)
@@ -302,20 +306,65 @@ namespace tik4net.Api
                     {
                         // SslProtocols.None lets the OS negotiate the best available version (TLS 1.2/1.3).
                         // TLS 1.0 (the former explicit value) is disabled on modern systems and RouterOS 7+.
-                        await sslStream.AuthenticateAsClientAsync(host, null, SslProtocols.None, false)
-                            .ConfigureAwait(false);
+                        // BOUNDED, because an async handshake ignores NetworkStream.ReadTimeout: a peer that
+                        // is not speaking TLS may simply never answer the ClientHello (RouterOS's plain API
+                        // port reads it as a word length and waits for the rest of a sentence that will
+                        // never come), and Open would then hang for as long as the process lived.
+                        var authTask = sslStream.AuthenticateAsClientAsync(host, null, SslProtocols.None, false);
+                        var authTimeout = System.Threading.Tasks.Task.Delay(ConnectTimeout, cancellationToken);
+                        if (await System.Threading.Tasks.Task.WhenAny(authTask, authTimeout).ConfigureAwait(false) == authTimeout)
+                        {
+                            _ = authTask.ContinueWith(tsk => { _ = tsk.Exception; },
+                                System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
+                            cancellationToken.ThrowIfCancellationRequested();
+                            throw new TikConnectionProtocolMismatchException(port, true,
+                                API_DEFAULT_PORT, APISSL_DEFAULT_PORT,
+                                "The peer on port " + port.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                                + " never answered the TLS handshake within "
+                                + (ConnectTimeout / 1000).ToString(System.Globalization.CultureInfo.InvariantCulture)
+                                + " s, so it is not serving API-SSL.", null);
+                        }
+                        await authTask.ConfigureAwait(false);   // observe/rethrow the handshake's own failure
                         cancellationToken.ThrowIfCancellationRequested();
                     }
                     catch (AuthenticationException ex)
                     {
                         throw new TikConnectionSSLErrorException(ex);
                     }
+                    catch (IOException ex)
+                    {
+                        // Not a TLS error — a TLS NON-error: the peer closed the socket instead of
+                        // answering the ClientHello, which is what a plain-API port (or an api-ssl service
+                        // with no certificate) does. SslStream reports that as a bare IOException
+                        // ("Received an unexpected EOF or 0 bytes from the transport stream"), which used
+                        // to escape Open unwrapped and name nothing.
+                        throw new TikConnectionProtocolMismatchException(port, true,
+                            API_DEFAULT_PORT, APISSL_DEFAULT_PORT,
+                            "The peer on port " + port.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                            + " closed the connection during the TLS handshake, so it is not serving API-SSL.",
+                            ex);
+                    }
                     _tcpConnectionStream = sslStream;
                 }
 
                 _isOpened = true;
                 StartReaderLoop();        // login is an ordinary exchange — it goes through the reader too
-                await Login_v3Async(user, password).ConfigureAwait(false);
+                try
+                {
+                    await Login_v3Async(user, password).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (!_isSsl && IsPeerClosedDuringHandshake(ex))
+                {
+                    // The login sentence went out and the peer hung up without answering. On a plain API
+                    // connection that is a protocol mismatch, not a login failure: a TLS server given API
+                    // words replies with an alert record and closes, which we read as a truncated sentence.
+                    // A router that dislikes the CREDENTIALS answers !trap and never reaches here.
+                    throw new TikConnectionProtocolMismatchException(port, false,
+                        API_DEFAULT_PORT, APISSL_DEFAULT_PORT,
+                        "The router closed the connection during the API login handshake on port "
+                        + port.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                        + " without answering.", ex);
+                }
             }
             catch
             {
@@ -524,6 +573,27 @@ namespace tik4net.Api
             }
         }
 
+        // True when the failure is "the peer stopped talking", as opposed to the peer saying something we
+        // did not like. EOF and a half-read sentence both mean the socket closed mid-exchange; a !trap or
+        // !fatal carrying an actual message does not, and must keep its own exception.
+        private bool IsPeerClosedDuringHandshake(Exception ex)
+        {
+            // The reader loop flattens its exception into a synthetic !fatal, so a lost connection reaches
+            // the login caller as TikCommandFatalException with nothing attached. _readerFault is the
+            // original, and it is what says whether the socket closed or the ROUTER refused us.
+            if (ex is TikCommandFatalException && _readerFault != null)
+                ex = _readerFault;
+
+            for (Exception? e = ex; e != null; e = e.InnerException)
+            {
+                if (e is TikEofException)
+                    return true;
+                if (e is IOException io)
+                    return !IsTimeout(io);
+            }
+            return false;
+        }
+
         // True when the IOException wraps a socket read/write timeout (NetworkStream.ReadTimeout/WriteTimeout
         // elapsed), as opposed to e.g. the peer resetting the connection.
         private static bool IsTimeout(IOException ex)
@@ -595,6 +665,9 @@ namespace tik4net.Api
                 // an empty !fatal makes a router reboot, a socket error and a bug in our own reader
                 // indistinguishable, and this is the only place the exception exists (P2.14).
                 _isOpened = false;
+                // The sentence carries only the flattened text; keep the exception itself so a diagnosis
+                // that needs its TYPE (Open's protocol-mismatch check) does not have to parse the message.
+                _readerFault = _readerStopRequested ? null : ex;
                 _dispatcher.TerminateAll(_readerStopRequested
                     ? new ApiFatalSentence(new[] { "connection closed by the client" })
                     : new ApiFatalSentence(new[] { "connection lost: " + ex.GetType().Name + ": " + ex.Message }));
