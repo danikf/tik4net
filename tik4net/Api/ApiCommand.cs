@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -19,13 +19,13 @@ namespace tik4net.Api
         private readonly List<ITikCommandParameter> _parameters = new List<ITikCommandParameter>();
         private ApiConnection _connection = null!; // set via Connection property before EnsureConnectionSet() is called
         private string _commandText = null!; // set via CommandText property before EnsureCommandTextSet() is called
-        private TikCommandParameterFormat _defaultParameterFormat;      
+        private TikCommandParameterFormat _defaultParameterFormat;
 
         public ITikConnection Connection
         {
             get { return _connection; }
             set
-            {                
+            {
                 Guard.ArgumentOfType<ApiConnection>(value, "Session");
                 EnsureNotRunning();
 
@@ -64,7 +64,7 @@ namespace tik4net.Api
             _defaultParameterFormat = TikCommandParameterFormat.Default;
         }
 
-        public ApiCommand(TikCommandParameterFormat defaultParameterFormat)            
+        public ApiCommand(TikCommandParameterFormat defaultParameterFormat)
         {
             _defaultParameterFormat = defaultParameterFormat;
         }
@@ -97,7 +97,7 @@ namespace tik4net.Api
         public ApiCommand(ITikConnection connection, string commandText, params ITikCommandParameter[] parameters)
             : this(connection, commandText)
         {
-            _parameters.AddRange(parameters);            
+            _parameters.AddRange(parameters);
         }
 
         public ApiCommand(ITikConnection connection, string commandText, TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] parameters)
@@ -119,7 +119,7 @@ namespace tik4net.Api
         }
 
         private void EnsureCommandTextSet()
-       { 
+       {
             if (string.IsNullOrWhiteSpace(_commandText))
                 throw new InvalidOperationException("CommandText is not set.");
         }
@@ -158,7 +158,7 @@ namespace tik4net.Api
                 if (_parameters.Any(p => p.Name == additionalParameter.Name))
                     throw new ArgumentException($"Parameter {additionalParameter.Name} already defined (could not be additionalParameter / proplist / etc.).");
             }
-        
+
             string commandText = CommandText;
             if (!string.IsNullOrWhiteSpace(commandText) && !commandText.Contains("\n") && !commandText.StartsWith("/"))
                 commandText = "/" + commandText;
@@ -302,7 +302,14 @@ namespace tik4net.Api
         }
 
 
-        public void ExecuteNonQuery()
+        public void ExecuteNonQuery() => ExecuteNonQuery(_connection?.ReceiveTimeout ?? 0);
+
+        /// <summary>
+        /// <see cref="ExecuteNonQuery()"/> with an explicit reply deadline. Used by
+        /// <see cref="CancelInternal"/> so a bounded <see cref="CancelAndJoin(int)"/> cannot spend the
+        /// connection's <c>ReceiveTimeout</c> before its own budget is even consulted.
+        /// </summary>
+        private void ExecuteNonQuery(int receiveTimeoutMs)
         {
             EnsureConnectionSet();
             EnsureNotRunning();
@@ -311,7 +318,7 @@ namespace tik4net.Api
             try
             {
                 string[] commandRows = ConstructCommandText(TikCommandParameterFormat.NameValue);
-                InterpretNonQuery(EnsureApiSentences(_connection.CallCommandSync(commandRows)).ToArray());
+                InterpretNonQuery(EnsureApiSentences(_connection.CallCommandSync(commandRows, receiveTimeoutMs)).ToArray());
             }
             finally
             {
@@ -868,21 +875,35 @@ namespace tik4net.Api
                     new ApiCommandParameter("tag", _asynchronouslyRunningTag.ToString(), TikCommandParameterFormat.NameValue), // tag we are cancelling: REMARKS: =tag=1234 and not =.tag=1234
                     new ApiCommandParameter(TikSpecialProperties.Tag, "c_"+_asynchronouslyRunningTag.ToString(), TikCommandParameterFormat.Tag) //tag of cancell command itself
                     );
-                cancellCommand.ExecuteNonQuery();
+                // A bounded CancelAndJoin promises to come back within milisecondsTimeout. The /cancel is a
+                // command like any other, so on the connection's ReceiveTimeout it could sit for 30 s before
+                // the budget was ever looked at — measured once on a loaded router, where CancelAndJoin(2000)
+                // threw a receive timeout after 62 s instead of returning false after 2 s. So the cancel gets
+                // the caller's budget and the join gets what is left of it.
+                //
+                // A cancel that does not come back still THROWS rather than degrading to false: "the router
+                // never answered the cancel" and "the command did not stop in time" are different facts, and
+                // only the first one says the connection is in trouble. What changes is when you hear it.
+                int budgetStart = Environment.TickCount;
+                cancellCommand.ExecuteNonQuery(
+                    milisecondsTimeout > 0 ? milisecondsTimeout : _connection.ReceiveTimeout);
 
                 if (joinLoadingThread)
                 {
                     if (loadingThread != null)
                     {
                         if (milisecondsTimeout > 0)
-                            return loadingThread.Join(milisecondsTimeout);
+                        {
+                            int remaining = milisecondsTimeout - unchecked(Environment.TickCount - budgetStart);
+                            return remaining > 0 && loadingThread.Join(remaining);
+                        }
                         else
                         {
                             loadingThread.Join();
                             return true;
                         }
                     }
-                }                
+                }
             }
             return true;
         }

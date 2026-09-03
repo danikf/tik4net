@@ -319,8 +319,24 @@ namespace tik4net
         /// Cancells already running async command (should be called on the same instance of <see cref="ITikCommand"/> on which <see cref="ExecuteWithCallback"/> has been called).
         /// Blocks the calling thread until a thread terminates or the specified time elapses, while continuing to perform standard COM and SendMessage pumping.
         /// </summary>
-        /// <param name="milisecondsTimeout">Wait timeout.</param>
-        /// <returns>True if loading thread ends before given timeout.</returns>
+        /// <remarks>
+        /// <b><paramref name="milisecondsTimeout"/> bounds the whole call, not just the join.</b> Cancelling is
+        /// two steps — tell the router to stop the command, then wait for the reading thread to notice — and the
+        /// first one is an ordinary command with an ordinary reply. It is given the same budget, and the join
+        /// gets whatever is left of it; the method cannot spend the connection's
+        /// <c>ReceiveTimeout</c> before the caller's own deadline is consulted.
+        /// <para>
+        /// The two ways this can end are deliberately not the same. A router that answers the cancel but a
+        /// reading thread that has not finished in time is <c>false</c> — expected, and the reason this overload
+        /// returns a <see cref="bool"/>. A router that never answers the cancel at all throws
+        /// <see cref="TikConnectionReceiveTimeoutException"/> instead: that is not "it did not stop in time", it
+        /// is the connection being in trouble, and collapsing it into <c>false</c> would hide it. Measured
+        /// against a live router a healthy cancel round trip is 0-130 ms.
+        /// </para>
+        /// </remarks>
+        /// <param name="milisecondsTimeout">Budget for the whole cancel — the round trip to the router and the join together.</param>
+        /// <returns>True if loading thread ends within <paramref name="milisecondsTimeout"/>.</returns>
+        /// <exception cref="TikConnectionReceiveTimeoutException">The router did not answer the cancel within <paramref name="milisecondsTimeout"/>.</exception>
         /// <seealso cref="ExecuteWithCallback"/>
         bool CancelAndJoin(int milisecondsTimeout);
     }

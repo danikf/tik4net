@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -645,14 +645,18 @@ namespace tik4net.Api
             }
         }
 
-        private ITikSentence GetOne(string tag)
+        private ITikSentence GetOne(string tag) => GetOne(tag, _receiveTimeout);
+
+        private ITikSentence GetOne(string tag, int receiveTimeoutMs)
         {
             // A sentence already delivered for this tag is returned even after the connection dropped: it is
             // this caller's answer, and the router had sent it before anything went wrong.
-            return _dispatcher.Wait(tag, _receiveTimeout);
+            return _dispatcher.Wait(tag, receiveTimeoutMs);
         }
-        
-        private IEnumerable<ITikSentence> GetAll(string tag)
+
+        private IEnumerable<ITikSentence> GetAll(string tag) => GetAll(tag, _receiveTimeout);
+
+        private IEnumerable<ITikSentence> GetAll(string tag, int receiveTimeoutMs)
         {
             // NOTE: !trap is always followed by !done (keep reading). !fatal closes the connection immediately — no !done follows.
             // NOTE: yield return/break cannot be inside catch blocks in C# iterators — use a flag instead.
@@ -662,7 +666,7 @@ namespace tik4net.Api
                 TikEofException? eofException = null;
                 try
                 {
-                    sentence = GetOne(tag);
+                    sentence = GetOne(tag, receiveTimeoutMs);
                 }
                 catch (TikEofException ex)
                 {
@@ -706,6 +710,20 @@ namespace tik4net.Api
             return null;
         }
         public IEnumerable<ITikSentence> CallCommandSync(params string[] commandRows)
+            => CallCommandSync(commandRows, _receiveTimeout);
+
+        /// <summary>
+        /// <see cref="CallCommandSync(string[])"/> with an explicit reply deadline instead of the connection's
+        /// <see cref="ReceiveTimeout"/>.
+        /// <para>
+        /// Exists for <c>/cancel</c>. <see cref="ITikCommand.CancelAndJoin(int)"/> documents a bounded wait and
+        /// answers "did it stop in time", but the cancel it sends first is an ordinary command: on the
+        /// connection's timeout it could block for 30 s and throw where the caller had asked for 2 s and a
+        /// <c>bool</c>. Measured against a live router a healthy cancel round trip is 0-130 ms, so the caller's
+        /// own budget is a generous deadline for it, and an honest one to fail on.
+        /// </para>
+        /// </summary>
+        internal IEnumerable<ITikSentence> CallCommandSync(string[] commandRows, int receiveTimeoutMs)
         {
             EnsureOpened();
 
@@ -721,7 +739,7 @@ namespace tik4net.Api
             _writeLock.Wait();
             try { WriteCommand(commandRows); }
             finally { _writeLock.Release(); }
-            return GetAll(tagOrEmptyString).ToList();
+            return GetAll(tagOrEmptyString, receiveTimeoutMs).ToList();
         }
 
         public IEnumerable<ITikSentence> CallCommandSync(IEnumerable<string> commandRows)
