@@ -372,10 +372,21 @@ CRUD via `TikConnectionExtensions`:
 
 - Load: `LoadAll<T>`, `LoadList<T>`, `LoadSingle<T>`, `LoadSingleOrDefault<T>`, `LoadById<T>`,
   `LoadByName<T>`, `LoadWithDuration<T>`
-- Async/monitor: `LoadAsync<T>`, `LoadListenAsync<T>` (both `Listen`-capability gated)
+- Monitor: `LoadWithCallback<T>`, `LoadListenWithCallback<T>` (`Listen`-gated). They hand back a running
+  `ITikCommand` and call back on a background thread — not a `Task`. Their 3.x names `LoadAsync` /
+  `LoadListenAsync` are `[Obsolete(error: true)]` (`TikCallbackLoadObsoleteExtensions`), because the old
+  name now denotes a different kind of method.
 - Write: `Save<T>`, `Delete<T>`, `DeleteAll<T>`, `Move<T>`, `MoveToEnd<T>`
 - Bulk: `SaveListDifferences<T>` and `CreateMerge<T>` (`TikListMerge`) — two overlapping APIs
 - Raw: `ExecuteNonQuery`, `ExecuteScalar`
+
+Task-based CRUD is a separate class, `TikConnectionAsyncExtensions` — `LoadAllAsync`, `LoadListAsync`,
+`LoadSingleAsync`, `LoadSingleOrDefaultAsync`, `LoadByIdAsync`, `LoadByNameAsync`, `SaveAsync`,
+`DeleteAsync`, each taking a `CancellationToken` and gated on `AsyncCommands`. The rules that are not
+"wait for the router" live once in `TikConnectionExtensions` and are called from both halves. The
+compound operations (`SaveListDifferences`, `DeleteAll`, `Move`) have no async form on purpose: each is a
+sequence of the primitives, so an async one is a design question about partial failure rather than a
+mechanical translation. Its own XML doc states that.
 
 `Tracking/` (`TikChangeTracker`, `TikSnapshot`) attaches proplist-aware snapshots to loaded
 entities via `ConditionalWeakTable`, so `Save` can send only changed fields. Lifetime semantics

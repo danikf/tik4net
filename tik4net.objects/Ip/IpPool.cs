@@ -25,7 +25,7 @@ namespace tik4net.Objects.Ip
 
         /// <summary>
         /// Row ranges property.
-        /// comma seperated list of DNS server IP addresses
+        /// comma separated list of DNS server IP addresses
         /// </summary>
         [TikProperty("ranges", IsMandatory = true)]
         public string?/*IPv4/IPv6 range list*/ Ranges { get; set; }

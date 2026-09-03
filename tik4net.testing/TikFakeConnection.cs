@@ -225,7 +225,7 @@ namespace tik4net.Testing
         /// <summary>
         /// What this fake claims to support. Defaults to what it actually implements:
         /// <see cref="TikConnectionCapability.Crud"/>, <see cref="TikConnectionCapability.Listen"/> (the
-        /// callback <c>ExecuteWithCallback</c>/<c>LoadAsync</c> pattern) and
+        /// callback <c>ExecuteWithCallback</c>/<c>LoadWithCallback</c> pattern) and
         /// <see cref="TikConnectionCapability.AsyncCommands"/> (the <c>Execute*Async</c> surface, completing
         /// synchronously — see <see cref="TikFakeCommand"/>) and <see cref="TikConnectionCapability.SafeMode"/>
         /// (recorded, not performed — the counters below).

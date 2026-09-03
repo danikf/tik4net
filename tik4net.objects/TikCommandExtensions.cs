@@ -20,7 +20,7 @@ namespace tik4net.Objects
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
         /// <returns>List (or empty list) of loaded entities.</returns>
         /// <seealso cref="LoadSingle{TEntity}(ITikCommand)"/>
-        /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
@@ -41,7 +41,7 @@ namespace tik4net.Objects
         /// <param name="command">Command</param>
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
         /// <returns>Loaded single entity.</returns>
-        /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
@@ -68,7 +68,7 @@ namespace tik4net.Objects
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
         /// <param name="command">Command</param>
         /// <returns>Loaded single entity or null.</returns>
-        /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
@@ -90,7 +90,7 @@ namespace tik4net.Objects
 
         /// <summary>
         /// Calls command and reads all returned rows for given <paramref name="durationSec"/> period.
-        /// After this period calls cancell to mikrotik router and returns all loaded rows.
+        /// After this period calls cancel to mikrotik router and returns all loaded rows.
         /// Throws exception if any 'trap' row occurs.
         /// </summary>
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
@@ -98,7 +98,7 @@ namespace tik4net.Objects
         /// <param name="durationSec">Loading period.</param>
         /// <returns>List (or empty list) of loaded entities.</returns>
         /// <seealso cref="ITikCommand.ExecuteListWithDuration(int)"/>
-        /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
@@ -114,7 +114,7 @@ namespace tik4net.Objects
         }
 
         /// <summary>
-        /// Calls command and starts backgroud reading thread. After that returns control to calling thread.
+        /// Calls command and starts background reading thread. After that returns control to calling thread.
         /// All read rows are returned as callbacks (<paramref name="onLoadItemCallback"/>, <paramref name="onExceptionCallback"/>) from loading thread.
         /// REMARKS: if you want to propagate loaded values to GUI, you should use some kind of synchronization or Invoke, because 
         /// callbacks are called from non-ui thread.

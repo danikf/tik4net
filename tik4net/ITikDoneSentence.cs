@@ -7,7 +7,7 @@ namespace tik4net
 {
     /// <summary>
     /// Response sentence (<see cref="ITikSentence"/>) from mikrotik router with !done status. 
-    /// It is last sentence from sucessfull operation.
+    /// It is last sentence from successful operation.
     /// </summary>
     /// <seealso cref="ITikSentence"/>
     /// <seealso cref="ITikReSentence"/>

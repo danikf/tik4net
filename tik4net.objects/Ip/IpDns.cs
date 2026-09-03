@@ -41,7 +41,7 @@ namespace tik4net.Objects.Ip
 
         /// <summary>
         /// servers
-        /// comma seperated list of DNS server IP addresses
+        /// comma separated list of DNS server IP addresses
         /// </summary>
         [TikProperty("servers", DefaultValue = "0.0.0.0")]
         public string?/*IPv4/IPv6 address list*/ Servers { get; set; }

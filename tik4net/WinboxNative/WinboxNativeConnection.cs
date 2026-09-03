@@ -39,7 +39,7 @@ namespace tik4net.WinboxNative
     /// connect time from the <c>.jg</c> catalog the router itself advertises (cached under
     /// <see cref="CatalogCachePath"/>); the apiName↔label mapping is a stable normalizer plus
     /// session overrides.</para>
-    /// <para>Streaming monitors are supported via <c>ExecuteWithCallback</c>/<c>LoadAsync</c> (capability
+    /// <para>Streaming monitors are supported via <c>ExecuteWithCallback</c>/<c>LoadWithCallback</c> (capability
     /// <see cref="TikConnectionCapability.Listen"/>): <c>.jg</c> <c>type:'query'</c> windows such as
     /// <c>/tool/torch</c>/<c>/tool/profile</c> are polled start→poll→cancel on a background worker.</para>
     /// <para><see cref="ITikConnection.ConnectTimeout"/> bounds the connect handshake and then the

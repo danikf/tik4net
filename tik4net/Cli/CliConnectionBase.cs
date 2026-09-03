@@ -140,8 +140,8 @@ namespace tik4net.Cli
         // ── Capabilities ──────────────────────────────────────────────────────
 
         /// <summary>
-        /// CLI transports support CRUD and (via polling) Listen/async: <c>ExecuteWithCallback</c>/<c>LoadAsync</c>/
-        /// <c>LoadListenAsync</c> are emulated by re-issuing a one-shot snapshot/print on a background timer
+        /// CLI transports support CRUD and (via polling) Listen/async: <c>ExecuteWithCallback</c>/<c>LoadWithCallback</c>/
+        /// <c>LoadListenWithCallback</c> are emulated by re-issuing a one-shot snapshot/print on a background timer
         /// (see <see cref="ITikMonitorTransport"/> below). Streaming (<c>ExecuteListWithDuration</c>) is NOT
         /// reported — use the binary API for that.
         /// <para>
@@ -1041,10 +1041,10 @@ namespace tik4net.Cli
         // ── Streaming monitor / async / listen (ITikMonitorTransport) ──────────
 
         /// <summary>
-        /// Dispatches a callback-based async command (<c>ExecuteWithCallback</c>/<c>LoadAsync</c>/<c>LoadListenAsync</c>)
+        /// Dispatches a callback-based async command (<c>ExecuteWithCallback</c>/<c>LoadWithCallback</c>/<c>LoadListenWithCallback</c>)
         /// onto a background worker. A terminal has no server push, so all three shapes are emulated by polling:
         /// <list type="bullet">
-        ///   <item><c>/path/print</c> (LoadAsync) — run the read once off-thread, emit rows, complete.</item>
+        ///   <item><c>/path/print</c> (LoadWithCallback) — run the read once off-thread, emit rows, complete.</item>
         ///   <item><c>/path/listen</c> — poll the table and diff snapshots by <c>.id</c>; an added/changed row
         ///         fires <paramref name="onRow"/>, a vanished <c>.id</c> fires a synthetic <c>.dead=true</c>
         ///         record (routed to <c>onDeleted</c> by the O/R layer).</item>

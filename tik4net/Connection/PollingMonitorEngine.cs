@@ -28,8 +28,8 @@ namespace tik4net.Connection
     }
 
     /// <summary>
-    /// Shared background-worker scaffolding for the polling monitor emulation (<c>ExecuteWithCallback</c>/<c>LoadAsync</c>/
-    /// <c>LoadListenAsync</c>) used by <c>CliConnectionBase</c> and <c>WinboxNativeConnection</c>. A terminal / M2
+    /// Shared background-worker scaffolding for the polling monitor emulation (<c>ExecuteWithCallback</c>/<c>LoadWithCallback</c>/
+    /// <c>LoadListenWithCallback</c>) used by <c>CliConnectionBase</c> and <c>WinboxNativeConnection</c>. A terminal / M2
     /// channel has no server push, so async-list, <c>/listen</c> and continuous monitors are emulated by polling
     /// the table on a background thread. The transport supplies an <see cref="IPollingMonitorHost"/>; the
     /// per-transport continuous-monitor body (CLI snapshot re-issue, native start→poll→cancel window) stays in
@@ -60,7 +60,7 @@ namespace tik4net.Connection
         }
 
         /// <summary>
-        /// One-shot async list (LoadAsync on a <c>/path/print</c>): filter (?...) words are stripped and evaluated
+        /// One-shot async list (LoadWithCallback on a <c>/path/print</c>): filter (?...) words are stripped and evaluated
         /// CLIENT-SIDE via the shared postfix query stack — the CLI <c>where</c> builder and the native getall
         /// cannot express the RouterOS stack (<c>?#|</c> / <c>?#&amp;</c> / <c>?#!</c>) — then the table is snapshotted
         /// once off-thread, matching rows are emitted and the worker completes.

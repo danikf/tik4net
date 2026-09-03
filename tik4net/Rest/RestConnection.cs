@@ -255,7 +255,7 @@ namespace tik4net.Rest
         // ── Monitor / async / listen (ITikMonitorTransport) ────────────────────
 
         /// <summary>
-        /// Dispatches a callback-based async command (<c>ExecuteWithCallback</c>/<c>LoadAsync</c>/<c>LoadListenAsync</c>)
+        /// Dispatches a callback-based async command (<c>ExecuteWithCallback</c>/<c>LoadWithCallback</c>/<c>LoadListenWithCallback</c>)
         /// onto a background worker that polls the router over ordinary HTTP requests: a <c>/path/listen</c>
         /// diffs snapshots by <c>.id</c>, a <c>/path/print</c> runs once off-thread, and a monitor verb is
         /// re-issued as a bounded one-shot on a timer (<c>ping</c>/<c>traceroute</c> run once and complete).

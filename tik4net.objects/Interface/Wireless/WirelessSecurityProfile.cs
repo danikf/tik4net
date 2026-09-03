@@ -113,21 +113,21 @@ namespace tik4net.Objects.Interface.Wireless
 
         /// <summary>
         /// authentication-types
-        /// Comma seperated string
+        /// Comma separated string
         /// </summary>
         [TikProperty("authentication-types")]
         public string? AuthenticationTypes { get; set; }
 
         /// <summary>
         /// group-ciphers
-        /// Comma seperated string
+        /// Comma separated string
         /// </summary>
         [TikProperty("group-ciphers")]
         public string? /*tkip, aes-ccm*/GroupCiphers { get; set; }
 
         /// <summary>
         /// unicast-ciphers
-        /// Comma seperated string
+        /// Comma separated string
         /// </summary>
         [TikProperty("unicast-ciphers")]
         public string? /*tkip, aes-ccm*/UnicastCiphers { get; set; }

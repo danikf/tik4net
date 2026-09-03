@@ -16,7 +16,7 @@ namespace tik4net
         Crud         = 1,
         /// <summary>
         /// Live <c>/path/listen</c> change notifications (native on the API; emulated by poll+diff on CLI / WinBox M2).
-        /// Also covers the async monitor pattern (<c>LoadAsync</c>/<c>ExecuteWithCallback</c>) for streaming-monitor commands
+        /// Also covers the async monitor pattern (<c>LoadWithCallback</c>/<c>ExecuteWithCallback</c>) for streaming-monitor commands
         /// (e.g. <c>/tool/torch</c>): native on the API; on CLI transports (Telnet/SSH/MACTelnet/WinBox CLI) most
         /// monitors are emulated by re-polling a one-shot <c>once</c>/<c>as-value</c> snapshot, but <c>/tool/torch</c>
         /// specifically needs a dedicated <c>freeze-frame-interval</c> + <c>proplist</c> builder instead — its

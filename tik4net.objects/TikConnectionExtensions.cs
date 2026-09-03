@@ -57,7 +57,7 @@ namespace tik4net.Objects
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
         /// <param name="connection">Tik connection used to load.</param>
         /// <returns>Loaded list of entities.</returns>
-        /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
@@ -75,7 +75,7 @@ namespace tik4net.Objects
         /// <param name="connection">Tik connection used to load.</param>
         /// <param name="filterParameters">Optional list of filter parameters (interpreted as connected with AND)</param>
         /// <returns>Loaded single entity.</returns>
-        /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
@@ -99,7 +99,7 @@ namespace tik4net.Objects
         /// <param name="connection">Tik connection used to load.</param>
         /// <param name="filterParameters">Optional list of filter parameters (interpreted as connected with AND)</param>
         /// <returns>Loaded single entity or null.</returns>
-        /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
@@ -122,7 +122,7 @@ namespace tik4net.Objects
         /// <param name="connection">Tik connection used to load.</param>
         /// <param name="id">Entity id.</param>
         /// <returns>Loaded entity or null.</returns>
-        /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
@@ -146,7 +146,7 @@ namespace tik4net.Objects
         /// <param name="connection">Tik connection used to load.</param>
         /// <param name="name">Entity name.</param>
         /// <returns>Loaded entity or null.</returns>
-        /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
@@ -171,7 +171,7 @@ namespace tik4net.Objects
         /// <param name="filterParameters">Optional list of filter parameters (interpreted as connected with AND)</param>
         /// <returns>List (or empty list) of loaded entities.</returns>
         /// <seealso cref="TikCommandExtensions.LoadList{TEntity}(ITikCommand)"/>
-        /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
@@ -189,7 +189,7 @@ namespace tik4net.Objects
 
         /// <summary>
         /// Calls command and reads all returned rows for given <paramref name="durationSec"/> period.
-        /// After this period calls cancell to mikrotik router and returns all loaded rows.
+        /// After this period calls cancel to mikrotik router and returns all loaded rows.
         /// Throws exception if any 'trap' row occurs.
         /// </summary>
         /// <typeparam name="TEntity">Loaded entities type.</typeparam>
@@ -198,7 +198,7 @@ namespace tik4net.Objects
         /// <param name="parameters">Optional list of filters/parameters (interpreted as connected with AND)</param>
         /// <returns>List (or empty list) of loaded entities.</returns>
         /// <seealso cref="TikCommandExtensions.LoadWithDuration{TEntity}(ITikCommand, int)"/>
-        /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
@@ -215,7 +215,7 @@ namespace tik4net.Objects
 
 
         /// <summary>
-        /// Calls command and starts backgroud reading thread. After that returns control to calling thread.
+        /// Calls command and starts background reading thread. After that returns control to calling thread.
         /// All read rows are returned as callbacks (<paramref name="onLoadItemCallback"/>, <paramref name="onExceptionCallback"/>) from loading thread.
         /// REMARKS: if you want to propagate loaded values to GUI, you should use some kind of synchronization or Invoke, because 
         /// callbacks are called from non-ui thread.
@@ -453,12 +453,12 @@ namespace tik4net.Objects
         /// way to use the mapper either way.
         /// </para>
         /// </summary>
-        /// <typeparam name="TEntity">Saved entitie type.</typeparam>
+        /// <typeparam name="TEntity">Saved entity type.</typeparam>
         /// <param name="connection">Tik connection used to save.</param>
         /// <param name="entity">Saved entity.</param>
         /// <param name="usedFieldsFilter">List of field names (on mikrotik) which should be modified. If is not null, only listed fields will be modified.</param>
         /// <param name="saveMode">Controls which fields are sent — see <see cref="TikSaveMode"/>.</param>
-        /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
@@ -698,7 +698,7 @@ namespace tik4net.Objects
         /// list.RemoveAt(1); //delete
         /// connection.SaveListDifferences(list, listClonedBackup);
         /// </example>
-        /// <typeparam name="TEntity">Saved entitie type.</typeparam>
+        /// <typeparam name="TEntity">Saved entity type.</typeparam>
         /// <param name="connection">Tik connection used to save.</param>
         /// <param name="modifiedList">List with modifications. Its ORDER is applied when the entity is ordered — see remarks.</param>
         /// <param name="unmodifiedList">Original (cloned) unmodified list.</param>
@@ -827,7 +827,7 @@ namespace tik4net.Objects
         /// <typeparam name="TEntity">Deleted entity type.</typeparam>
         /// <param name="connection">Tik connection used to delete entity.</param>
         /// <param name="entity">Entity to be deleted (.id property is the key)</param>
-        /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
@@ -862,7 +862,7 @@ namespace tik4net.Objects
         /// <typeparam name="TEntity">Deleted entity type.</typeparam>
         /// <param name="connection">Tik connection used to delete entity.</param>
         /// <returns>Number of deleted entities. </returns>
-        /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
@@ -887,7 +887,7 @@ namespace tik4net.Objects
         /// <param name="connection">Tik connection used to move entity.</param>
         /// <param name="entityToMove">Entity to be moved.</param>
         /// <param name="entityToMoveBefore">Entity before which is given <paramref name="entityToMove"/> moved.</param>
-        /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
@@ -920,7 +920,7 @@ namespace tik4net.Objects
         /// <typeparam name="TEntity">Moved entity type.</typeparam>
         /// <param name="connection">Tik connection used to move entity.</param>
         /// <param name="entityToMove">Entity to be moved.</param>
-        /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
@@ -935,13 +935,13 @@ namespace tik4net.Objects
 
         #region -- MERGE --
         /// <summary>
-        /// Creates merge object. This object should be setuped (via fluent API) and finaly <see cref="TikListMerge{TEntity}.Save"/> must be called.
+        /// Creates merge object. This object should be set up (via the fluent API) and finally <see cref="TikListMerge{TEntity}.Save"/> must be called.
         /// </summary>
         /// <typeparam name="TEntity">Type of the entity in list to merge.</typeparam>
         /// <param name="connection">Tik connection used to update state of entities.</param>
         /// <param name="expected">Expected state on mikrotik router (Missing items will be added, others will be updated if are different).</param>
         /// <param name="original">Actual state on mikrotik router. (Surplus items will be deleted).</param>
-        /// <returns>Merge object, that should be setuped (via fluent API) and finaly <see cref="TikListMerge{TEntity}.Save"/> must be called on this object to perform operations on mikrotik router.</returns>
+        /// <returns>Merge object, that should be set up (via the fluent API) and finally <see cref="TikListMerge{TEntity}.Save"/> must be called on this object to perform operations on mikrotik router.</returns>
         /// <example>
         /// var original = connection.LoadAll{QueueTree}().Where(q => q.Name == "Q1" || q.Name == "Q2" || q.Name.StartsWith("Q3")); //just subset of actual QT items
         /// string unique = Guid.NewGuid().ToString();
@@ -968,12 +968,12 @@ namespace tik4net.Objects
 
         #region -- EXECUTE --
         /// <summary>
-        /// Excecutes given <paramref name="commandText"/> on router and ensures that operation was sucessfull.
+        /// Executes given <paramref name="commandText"/> on router and ensures that operation was successful.
         /// </summary>
         /// <param name="connection">Tik connection used to load.</param>
         /// <param name="commandText">Command text</param>
         /// <param name="parameters">Optional list of parameters</param>
-        /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
@@ -993,7 +993,7 @@ namespace tik4net.Objects
         /// <param name="commandText">Command text</param>
         /// <param name="parameters">Optional list of parameters</param>
         /// <returns>Value returned by router.</returns>
-        /// <exception cref="InvalidOperationException">Connection or command text not set. Comand is already running. Connection is not opened. Invalid response from API.</exception>
+        /// <exception cref="InvalidOperationException">Connection or command text not set. Command is already running. Connection is not opened. Invalid response from API.</exception>
         /// <exception cref="TikCommandTrapException">!trap returned from API call.</exception>
         /// <exception cref="TikCommandFatalException">!fatal returned from API call.</exception>
         /// <exception cref="TikCommandUnexpectedResponseException">Unexpected response from mikrotik (multiple returned rows, missing !done row etc.)</exception>
