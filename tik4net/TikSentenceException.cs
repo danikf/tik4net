@@ -11,12 +11,19 @@ namespace tik4net
     /// </summary>
     public class TikSentenceException : TikConnectionException
     {
-        private ITikSentence _sentence;
+        private readonly ITikSentence? _sentence;
 
         /// <summary>
-        /// Sentence with error - not proper format.
+        /// The sentence that could not be read, or <c>null</c> when the failure happened before there was
+        /// one to hand over.
+        /// <para>
+        /// Nullable deliberately, and not a formality: the binary API always has a parsed sentence to
+        /// attach, but the CLI transports parse the router's raw <c>as-value</c>/JSON output, and a failure
+        /// there is a failure to build a sentence at all. Declaring it non-nullable would have told a
+        /// caller writing <c>ex.Sentence.Words</c> that it was safe on every transport, and it is not.
+        /// </para>
         /// </summary>
-        public ITikSentence Sentence
+        public ITikSentence? Sentence
         {
             get { return _sentence; }
         }
@@ -25,8 +32,11 @@ namespace tik4net
         /// ctor.
         /// </summary>
         /// <param name="message">Exception message.</param>
-        /// <param name="sentence">Sentence with error - not proper format.</param>
-        public TikSentenceException(string message, ITikSentence sentence)
+        /// <param name="sentence">
+        /// Sentence with error - not proper format, or <c>null</c> when the failure happened before a
+        /// sentence existed (see <see cref="Sentence"/>).
+        /// </param>
+        public TikSentenceException(string message, ITikSentence? sentence = null)
             : base(message)
         {
             _sentence = sentence;
