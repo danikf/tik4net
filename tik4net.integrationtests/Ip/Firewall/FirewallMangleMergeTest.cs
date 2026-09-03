@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -63,9 +63,24 @@ namespace tik4net.integrationtests
 
         // ── Helpers ───────────────────────────────────────────────────────────
 
-        /// <summary>The rules in this run's private chains, in router order.</summary>
+        /// <summary>
+        /// The rules in this run's private chains, in router order.
+        /// <para>
+        /// Filtered <b>on the router</b> by <c>comment</c>, not client-side out of a full table. Every rule this
+        /// test creates is stamped with <see cref="_prefix"/>, which makes the filter a single equality the router
+        /// can answer — and the test independent of how big <c>/ip/firewall/mangle</c> happens to be. Loading the
+        /// whole menu and picking three chains out of it worked only while the lab router was nearly empty: against
+        /// a table carrying ~1700 unrelated rules the repeated full loads pushed one of these tests past the 30 s
+        /// receive timeout, failing on the router's size rather than on anything the test is about.
+        /// </para>
+        /// <para>
+        /// The chain check stays as a safety net. It is now cheap, and it still catches the one thing the comment
+        /// filter cannot: a rule of ours that somehow landed outside our chains.
+        /// </para>
+        /// </summary>
         private List<FirewallMangle> LoadOwnRules()
-            => Connection.LoadAll<FirewallMangle>()
+            => Connection.LoadList<FirewallMangle>(
+                    Connection.CreateParameter("comment", _prefix, TikCommandParameterFormat.Filter))
                 .Where(m => !string.IsNullOrEmpty(m.Chain) && m.Chain.StartsWith(_prefix, StringComparison.Ordinal))
                 .ToList();
 
@@ -77,6 +92,7 @@ namespace tik4net.integrationtests
             Action = FirewallMangle.ActionType.Jump,
             JumpTarget = upload ? _upChain : _downChain,
             Passthrough = true,
+            Comment = _prefix,
         };
 
         private FirewallMangle Mark(string customerIp, string packetMark, bool upload) => new FirewallMangle
@@ -87,6 +103,7 @@ namespace tik4net.integrationtests
             Action = FirewallMangle.ActionType.MarkPacket,
             NewPacketMark = packetMark,
             Passthrough = false,
+            Comment = _prefix,
         };
 
         private FirewallMangle Return(bool upload) => new FirewallMangle
@@ -94,6 +111,7 @@ namespace tik4net.integrationtests
             Chain = upload ? _upChain : _downChain,
             Action = FirewallMangle.ActionType.Return,
             Passthrough = true,
+            Comment = _prefix,
         };
 
         /// <summary>The merge setup a shaper uses: identity from the rule's role, not from its position.</summary>

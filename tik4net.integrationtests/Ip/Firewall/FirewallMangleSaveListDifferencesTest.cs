@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -47,8 +47,17 @@ namespace tik4net.integrationtests
             catch { /* connection already gone */ }
         }
 
+        /// <summary>
+        /// The rules in this run's private chain, in router order — filtered <b>on the router</b>, not picked
+        /// client-side out of the whole menu. Everything here lives in one chain, so the filter is a single
+        /// equality the router can answer, and the test stays independent of how big
+        /// <c>/ip/firewall/mangle</c> happens to be. Loading the full table worked only while the lab router
+        /// was nearly empty; the same pattern in the sibling merge test crossed the 30 s receive timeout once
+        /// the table carried ~1700 unrelated rules.
+        /// </summary>
         private List<FirewallMangle> LoadOwnRules()
-            => Connection.LoadAll<FirewallMangle>()
+            => Connection.LoadList<FirewallMangle>(
+                    Connection.CreateParameter("chain", _chain, TikCommandParameterFormat.Filter))
                 .Where(m => string.Equals(m.Chain, _chain, StringComparison.Ordinal))
                 .ToList();
 
