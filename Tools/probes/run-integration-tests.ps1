@@ -76,6 +76,20 @@ $smokeFilter  = ($smokeClasses | ForEach-Object { "FullyQualifiedName~$_" }) -jo
 $effectiveFilter = $Filter
 if (-not $effectiveFilter -and $Smoke) { $effectiveFilter = $smokeFilter }
 
+# Validate the whole selection BEFORE running anything. This used to warn per leg and carry on, so
+# `-Transport api,apissl` through `powershell -File` - which arrives as ONE string rather than an
+# array - matched no runsettings, ran no test, and still exited 0 with an empty summary table. A
+# run that measured nothing must not be indistinguishable from a run that passed.
+$unknown = @($Transport | Where-Object {
+    -not (Test-Path (Join-Path $repoRoot "tik4net.integrationtests\$_.runsettings")) })
+if ($unknown) {
+    $available = (Get-ChildItem (Join-Path $repoRoot 'tik4net.integrationtests') -Filter '*.runsettings' |
+                  ForEach-Object { $_.BaseName }) -join ', '
+    throw ("No runsettings for transport(s): {0}. Available: {1}. " -f ($unknown -join ', '), $available) +
+          '(Passing a comma-separated list to -Transport via "powershell -File" makes it a single ' +
+          'string - use "powershell -Command" with -Transport @(''api'',''rest'') instead.)'
+}
+
 $resultsPath = Join-Path $repoRoot $ResultsDirectory
 if (-not (Test-Path $resultsPath)) { New-Item -ItemType Directory -Path $resultsPath | Out-Null }
 
@@ -99,7 +113,16 @@ foreach ($t in $Transport) {
         Write-Host "    wire trace -> $env:TIK4NET_WIRETRACE" -ForegroundColor DarkGray
     }
 
+    # Keep the stable name (parse-trx.ps1 and the docs refer to results_<transport>.trx) but move an
+    # existing one aside first. A re-run of a failing leg otherwise destroys the very TRX that recorded
+    # the failure - which is exactly what the mikrotik-tests skill says never to do.
     $trxName = "${prefix}_$t.trx"
+    $trxPath = Join-Path $resultsPath $trxName
+    if (Test-Path $trxPath) {
+        $keep = Join-Path $resultsPath ("{0}_{1}_{2:yyyyMMdd-HHmmss}.trx" -f $prefix, $t, (Get-Item $trxPath).LastWriteTime)
+        Move-Item -LiteralPath $trxPath -Destination $keep -Force
+        Write-Host "    previous run kept as $(Split-Path $keep -Leaf)" -ForegroundColor DarkGray
+    }
     $args = @(
         'test', $project,
         '--settings', $runsettings,
@@ -130,3 +153,16 @@ $summary | Format-Table -AutoSize
 
 Write-Host "Read the results (including named skips) with:" -ForegroundColor DarkGray
 Write-Host "  $PSScriptRoot\parse-trx.ps1 -ResultsDirectory $ResultsDirectory" -ForegroundColor DarkGray
+
+# The per-leg ExitCode was collected into the table above and then thrown away: the script had no exit
+# statement, so a matrix in which three legs exited 1 still exited 0. Anything reading the exit code -
+# CI, a wrapper script, a person - was told the run passed.
+$failedLegs = @($summary | Where-Object { $_.ExitCode -ne 0 })
+if ($failedLegs) {
+    Write-Host ''
+    Write-Host ("FAILED on {0} of {1} transport(s): {2}" -f $failedLegs.Count, $summary.Count,
+                (($failedLegs | ForEach-Object { $_.Transport }) -join ', ')) -ForegroundColor Red
+    exit 1
+}
+if (-not $summary) { Write-Warning 'No transport ran.'; exit 1 }
+exit 0

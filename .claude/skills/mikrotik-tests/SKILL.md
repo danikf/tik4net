@@ -65,21 +65,41 @@ Use the harness script rather than reconstructing `dotnet test` invocations. It 
 from its own location, always writes TRX, and takes no router coordinates:
 
 ```bash
-Tools/probes/run-integration-tests.ps1 -Transport api
+powershell -NoProfile -ExecutionPolicy Bypass -File Tools/probes/run-integration-tests.ps1 -Transport api
 ```
 
 ```bash
-Tools/probes/run-integration-tests.ps1 -Smoke
+powershell -NoProfile -ExecutionPolicy Bypass -File Tools/probes/run-integration-tests.ps1 -Smoke
+```
+
+**Naming more than one transport needs `-Command`, not `-File`.** `-File` passes every argument as a
+string, so `-Transport api,rest` arrives as one transport named `api,rest`. Pass an actual array:
+
+```bash
+powershell -NoProfile -ExecutionPolicy Bypass -Command "& 'Tools/probes/run-integration-tests.ps1' -Smoke -Transport @('rest','telnet','winboxnative')"
 ```
 
 | Intent | Invocation |
 |---|---|
 | One transport, full suite | `-Transport api` |
 | Smoke subset, all transports | `-Smoke` |
-| Smoke subset, some transports | `-Smoke -Transport rest,telnet,winboxnative` |
+| Smoke subset, some transports | `-Smoke -Transport @('rest','telnet','winboxnative')` (needs `-Command`) |
 | Full matrix | no arguments |
 | Hunting an intermittent failure | `-Transport telnet -WireTrace auto` |
 | Explicit selection | `-Filter "ClassName=tik4net.integrationtests.IpRouteTest"` |
+
+**Two things the script guarantees, and one it cannot.** It **exits non-zero when any leg failed**, naming
+them, so a matrix is safe to judge by its exit code and no wrapper will call it green. It **refuses an
+unrecognised transport name up front** rather than skipping past it, because a run that matched nothing
+otherwise looks exactly like a run that passed. What it cannot tell you is whether the tests that *ran*
+were the ones you meant — `--filter` matching nothing is still a green run of zero tests, so check the
+test count against what you expected.
+
+**A re-run does not destroy the previous TRX.** Results keep the stable `results_<transport>.trx` name
+that `parse-trx.ps1` and this document use, and an existing one is moved aside as
+`results_<transport>_<timestamp>.trx` before the leg starts. This matters exactly when re-running one leg
+to see whether its failure reproduces: the file recording the failure is the evidence, and the re-run is
+what would otherwise overwrite it. `-ResultsDirectory` keeps a whole investigation separate.
 
 **How much to run for a given change** — a full API pass plus the smoke subset over the other
 transports is the right default for any non-trivial change. Reserve the full matrix for changes to a
@@ -122,8 +142,9 @@ A bug that appears once every N full runs cannot be reproduced by blind repetiti
 the router tens of minutes. The goal is not to hit it again, but to make the next occurrence sufficient
 on its own for a diagnosis.
 
-1. **Always keep the TRX, with a per-run filename.** See above: a clean summary does not mean the run
-   was identical to the previous one.
+1. **Keep every TRX and compare them.** The script preserves the previous one for you (see Running
+   above), but that only helps if you read them: a clean summary does not mean the run was identical to
+   the one before it. Skip counts and durations are the comparison worth making.
 2. **Enable the byte-level trace for the whole run** (`-WireTrace auto`, which sets `TIK4NET_WIRETRACE`).
    `WireTraceCapture` writes test boundaries into the trace as `--- TEST <name>` / `--- END <outcome>
    <name>`, so a failure can be located without correlating timestamps.
