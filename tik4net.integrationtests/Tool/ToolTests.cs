@@ -182,8 +182,7 @@ namespace tik4net.integrationtests
         {
             // ToolWol.ExecuteWol issues a plain ExecuteSingleRow() — no streaming involved — so it
             // works on every transport (Crud is the baseline capability); no EnsureCapability gate needed.
-            //const string OK_MAC = "FF:FF:FF:FF:FF:FF"; //
-            const string OK_MAC = "00:11:32:71:AD:AD";
+            const string OK_MAC = "AA:BB:CC:DD:EE:FF";
 
             ToolWol.ExecuteWol(Connection, new MacAddress(OK_MAC));
         }
