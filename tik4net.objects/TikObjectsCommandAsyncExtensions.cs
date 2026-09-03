@@ -20,7 +20,7 @@ namespace tik4net.Objects
     /// </remarks>
     [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
     [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]
-    public static class TikCommandAsyncExtensions
+    public static class TikObjectsCommandAsyncExtensions
     {
         /// <summary>
         /// Loads an entity list from the given command. Async counterpart of

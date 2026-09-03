@@ -377,7 +377,20 @@ CRUD via `TikConnectionExtensions`:
   `LoadListenAsync` are `[Obsolete(error: true)]` (`TikCallbackLoadObsoleteExtensions`), because the old
   name now denotes a different kind of method.
 - Write: `Save<T>`, `Delete<T>`, `DeleteAll<T>`, `Move<T>`, `MoveToEnd<T>`
-- Bulk: `SaveListDifferences<T>` and `CreateMerge<T>` (`TikListMerge`) — two overlapping APIs
+- Bulk: `SaveListDifferences<T>` and `CreateMerge<T>` (`TikListMerge`) — two shapes of "make the router
+  match this list", and which one fits is decided by **whether you are holding the router's own rows**:
+  - `SaveListDifferences(modified, unmodified)` is the **round trip**. You loaded a list, cloned it
+    (`CloneEntityList`), edited the clone, and hand back both. Rows pair by `.id`, every mapped field is
+    compared, and on an `IsOrdered` entity the list order is applied by issuing the `/move` commands the
+    difference needs — so reordering a firewall chain is a change like any other.
+  - `CreateMerge(expected, original)` is **declarative reconciliation**. The expected rows were built in
+    code and carry no `.id`, so the pairing key is yours (`WithKey`) and the compared fields are an
+    explicit subset (`Field`, plus `JustForInsertField`). It adds what the round trip has no place for:
+    `WithOperationFilter`, the DML and move log callbacks, and `Simulate` — a dry run returning the
+    insert/update/delete/move counts without touching the router.
+
+  Neither subsumes the other: `SaveListDifferences` cannot pair rows that have no `.id` yet, and
+  `CreateMerge` cannot diff a field you did not name. Both are kept.
 - Raw: `ExecuteNonQuery`, `ExecuteScalar`
 
 Task-based CRUD is a separate class, `TikConnectionAsyncExtensions` — `LoadAllAsync`, `LoadListAsync`,
