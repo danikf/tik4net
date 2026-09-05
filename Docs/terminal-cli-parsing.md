@@ -77,27 +77,57 @@ delayed — while the row it names is on the router. Seen mainly on the WinBox t
 per-command latency is highest. The library reports that as `TikAddIdNotReadException` rather than
 handing back an id it does not have; both of the alternatives were silently wrong, since an empty id gives
 the caller nothing to clean up with and a non-id line (the plain index above is exactly that shape)
-travels into the `[find where .id=…]` of the next `set` or `remove` and matches nothing there.
+travels into the record selector of the next `set` or `remove` and matches nothing there.
+
+### The record selector: `numbers=`, not `[find]`
+
+The row-addressing verbs select the row with `numbers=*N`. The `.id` is accepted as the `numbers=`
+argument even though the parameter is named for the ordinal — the same thing that makes the `get`
+translation possible.
+
+**A `[find]` that matches nothing is not an error, and that is the whole reason.** Measured on 7.24:
+
+| Form | row exists | row missing |
+|---|---|---|
+| `remove [find where .id=*7FFFFFFF]` | removes | prints **nothing** — indistinguishable from success |
+| `remove numbers=*7FFFFFFF` | removes | `no such item (4)` |
+
+The binary API and REST both answer a missing row with `no such item` / 404, so the `[find]` form made
+the CLI family the odd one out: every `Save`, `Delete`, `enable` and `disable` against a row that had
+gone away was a silent no-op. `set`, `remove`, `enable`, `disable`, `move`, `unset` and `comment` all
+take `numbers=` and all report `no such item (4)` for a missing row.
+
+**Two exceptions keep `[find where …]`:**
+
+- **Action verbs.** `/system/script/run numbers=*B` answers `bad parameter numbers (line 1 column 30)`;
+  `run [find where .id=*B]` runs the script. The allow-list in `CliCommandBuilder.TakesNumbers` names the
+  row-addressing verbs, so an unmeasured verb keeps the older form — which always works and merely
+  cannot report a missing row.
+- **A row addressed by NAME rather than by `.id`.** `numbers=` takes a name only on a menu that has a
+  `name` field (`/interface set numbers=ether1` works, and an unknown name answers `no such item`); on a
+  nameless menu it is a syntax error (`/ip firewall filter remove numbers=nosuchname` →
+  `syntax error (line 1 column 36)`), and the builder cannot know which kind of menu it is addressing.
+  The O/R mapper never takes this branch — it addresses rows by `.id`.
 
 ### Set
 
 ```
-/ip address set [find where .id=*1] comment=updated-comment
+/ip address set numbers=*1 comment=updated-comment
 ```
 Output: empty (success).
 
 ### Remove
 
 ```
-/ip address remove [find where .id=*1]
+/ip address remove numbers=*1
 ```
 Output: empty (success).
 
 ### Enable / Disable
 
 ```
-/ip firewall filter enable [find where .id=*1]
-/ip firewall filter disable [find where .id=*1]
+/ip firewall filter enable numbers=*1
+/ip firewall filter disable numbers=*1
 ```
 
 ### Error output (examples)
@@ -152,7 +182,7 @@ Examples:
 
 **NameValue parameters** (`Format = NameValue`, API: `=name=value`):
 - For `add`: `name=value name2=value2 ...`
-- For `set`: extract `.id` → `[find where .id=*N]`, the rest as `name=value`
+- For `set`: extract `.id` → `numbers=*N` (a NAME → `[find where .id=X or name=X]`), the rest as `name=value`
 - For everything else (nonquery): `name=value ...`
 - Special case: `.proplist` is ignored (`as-value` always returns every field)
 
@@ -246,11 +276,13 @@ Operation is detected from the last segment of the path:
 ```
 print   → /path print as-value [where filter1=val && filter2=val]
 add     → :put [/path add name=val name2=val2]
-set     → /path set [find where .id=*N] name=val name2=val2
-remove  → /path remove [find where .id=*N]
-enable  → /path enable [find where .id=*N]
-disable → /path disable [find where .id=*N]
-move    → /path move [find where .id=*N] destination=*M
+set     → /path set numbers=*N name=val name2=val2
+remove  → /path remove numbers=*N
+enable  → /path enable numbers=*N
+disable → /path disable numbers=*N
+move    → /path move numbers=*N destination=*M
+unset   → /path unset numbers=*N value-name=field
+run     → /path run [find where .id=*N]                (an action verb: numbers= is refused)
 get     → :put [/path get number=*N value-name=name]   ('.id=' is refused; see findings-cli.md §8)
 ```
 
@@ -264,10 +296,10 @@ API: /ip/address/add + =address=10.0.0.1/24 + =interface=ether1
 CLI: :put [/ip address add address=10.0.0.1/24 interface=ether1]
 
 API: /ip/address/set + =.id=*1 + =comment=test
-CLI: /ip address set [find where .id=*1] comment=test
+CLI: /ip address set numbers=*1 comment=test
 
 API: /ip/address/remove + =.id=*1
-CLI: /ip address remove [find where .id=*1]
+CLI: /ip address remove numbers=*1
 
 API: /system/reboot (nonquery)
 CLI: /system reboot
@@ -528,7 +560,7 @@ public static class VtStripper
 
 | Method | Implementation over CLI | Note |
 |---|---|---|
-| `ExecuteNonQuery()` | `/path verb [find where .id=*N] params` | empty output = success |
+| `ExecuteNonQuery()` | `/path verb numbers=*N params` | empty output = success; a missing row is `no such item (4)` |
 | `ExecuteList()` | `/path print as-value [where ...]` | parses the lines |
 | `ExecuteSingleRow()` | `/path print as-value [where ...]` | asserts exactly 1 line |
 | `ExecuteScalar()` | `/path print as-value [where ...]`, value picked from the row | `get` cannot return `.id` |
@@ -555,8 +587,8 @@ The entity mapper (`LoadAll<T>()`, `Save<T>()`, `Delete<T>()`, …) calls:
 | `LoadAll<IpAddress>()` | `ExecuteList()` on `/ip/address/print` | `as-value` parsing → `CliReSentence` list |
 | `LoadById<IpAddress>("*1")` | `ExecuteSingleRow()` on `/ip/address/print ?=.id=*1` | 1 `as-value` line |
 | `Save<IpAddress>(newEntity)` | `ExecuteNonQuery()` on `/ip/address/add` with params | `:put [add ...]` → new `.id` |
-| `Save<IpAddress>(existing)` | `ExecuteNonQuery()` on `/ip/address/set` with `.id` + changes | `set [find where .id=*N] ...` |
-| `Delete<IpAddress>(entity)` | `ExecuteNonQuery()` on `/ip/address/remove` with `.id` | `remove [find where .id=*N]` |
+| `Save<IpAddress>(existing)` | `ExecuteNonQuery()` on `/ip/address/set` with `.id` + changes | `set numbers=*N ...` |
+| `Delete<IpAddress>(entity)` | `ExecuteNonQuery()` on `/ip/address/remove` with `.id` | `remove numbers=*N` |
 | `LoadSingle<SystemResource>()` | `ExecuteSingleRow()` on `/system/resource/print` | 1 `as-value` line (no `.id`) |
 
 **The entities mapper has no knowledge** of CLI — it only sees `ITikReSentence` objects, populated

@@ -130,12 +130,25 @@ namespace tik4net.unittests.Cli
             }
         }
 
+        /// <summary>
+        /// The record-addressing verbs select the row with <c>numbers=*N</c>.
+        /// </summary>
+        /// <remarks>
+        /// <b>Not <c>[find where .id=*N]</c>, and the difference is not cosmetic:</b> a <c>[find]</c> that
+        /// matches nothing is not an error, so the router printed nothing and the CLI reported success.
+        /// Every <c>Save</c>, <c>Delete</c>, <c>enable</c> and <c>disable</c> against a row that had gone
+        /// away was therefore a silent no-op on all five CLI transports, where the binary API and REST
+        /// both raise <see cref="TikNoSuchItemException"/>. Measured on RouterOS 7.24:
+        /// <c>remove [find where .id=*7FFFFFFF]</c> prints nothing, <c>remove numbers=*7FFFFFFF</c>
+        /// answers <c>no such item (4)</c>. See <c>CliCommandBuilder.AppendFindIdentifier</c> for the
+        /// menus where <c>[find]</c> is still the only option (a NAME rather than an <c>.id</c>).
+        /// </remarks>
         [DataTestMethod]
-        [DataRow("set", "=comment=lan", "/ip address set [find where .id=*1] comment=lan")]
-        [DataRow("remove", null, "/ip address remove [find where .id=*1]")]
-        [DataRow("enable", null, "/ip address enable [find where .id=*1]")]
-        [DataRow("disable", null, "/ip address disable [find where .id=*1]")]
-        public void TheRowTargetingVerbsSelectWithFind(string verb, string extra, string expected)
+        [DataRow("set", "=comment=lan", "/ip address set numbers=*1 comment=lan")]
+        [DataRow("remove", null, "/ip address remove numbers=*1")]
+        [DataRow("enable", null, "/ip address enable numbers=*1")]
+        [DataRow("disable", null, "/ip address disable numbers=*1")]
+        public void TheRowTargetingVerbsSelectWithNumbers(string verb, string extra, string expected)
         {
             using (var conn = Open())
             {
@@ -152,6 +165,54 @@ namespace tik4net.unittests.Cli
             }
         }
 
+        /// <summary>
+        /// A row addressed by NAME rather than by <c>.id</c> keeps the <c>[find]</c> form — the one place
+        /// it survives.
+        /// </summary>
+        /// <remarks>
+        /// <c>numbers=</c> takes a name only on a menu that HAS a <c>name</c> field
+        /// (<c>/interface set numbers=ether1</c> works, and an unknown name answers <i>no such item</i>),
+        /// but on a nameless menu it is a syntax error — <c>/ip firewall filter remove
+        /// numbers=nosuchname</c> answers <i>syntax error (line 1 column 36)</i> — and the builder cannot
+        /// know which kind of menu it has. The O/R mapper never reaches this branch: it addresses rows by
+        /// <c>.id</c>.
+        /// </remarks>
+        [TestMethod]
+        public void ANameStillSelectsWithFindSoItResolvesOnEitherKindOfMenu()
+        {
+            using (var conn = Open())
+            {
+                conn.CreateCommand("/interface/set",
+                    NameValue(conn, ".id", "ether1"),
+                    NameValue(conn, "comment", "lan")).ExecuteNonQuery();
+
+                Assert.AreEqual("/interface set [find where .id=ether1 or name=ether1] comment=lan",
+                    conn.Sent.Single());
+            }
+        }
+
+        /// <summary>
+        /// An <b>action</b> verb keeps the <c>[find]</c> selector — <c>run</c> does not take
+        /// <c>numbers=</c>.
+        /// </summary>
+        /// <remarks>
+        /// Measured on 7.24: <c>/system script run numbers=*B</c> answers <i>bad parameter numbers
+        /// (line 1 column 30)</i>, while <c>run [find where .id=*B]</c> runs the script (run-count 0 → 1).
+        /// The full Telnet leg caught this — <c>RunScript_Issue53_WillNotFail</c> went red — after the
+        /// first version of the fix switched every verb at once.
+        /// </remarks>
+        [TestMethod]
+        public void AnActionVerbKeepsTheFindSelector()
+        {
+            using (var conn = Open())
+            {
+                conn.CreateCommand("/system/script/run",
+                    NameValue(conn, ".id", "*1")).ExecuteNonQuery();
+
+                Assert.AreEqual("/system script run [find where .id=*1]", conn.Sent.Single());
+            }
+        }
+
         [TestMethod]
         public void UnsetNamesItsTargetField()
         {
@@ -161,7 +222,10 @@ namespace tik4net.unittests.Cli
                     NameValue(conn, ".id", "*1"),
                     NameValue(conn, "value-name", "connection-mark")).ExecuteNonQuery();
 
-                Assert.AreEqual("/ip firewall filter unset [find where .id=*1] value-name=connection-mark",
+                // numbers=, like the other row-addressing verbs: measured on 7.24, both forms unset the
+                // field on a row that exists, but only numbers= reports "no such item (4)" on one that
+                // does not.
+                Assert.AreEqual("/ip firewall filter unset numbers=*1 value-name=connection-mark",
                     conn.Sent.Single());
             }
         }
@@ -175,7 +239,7 @@ namespace tik4net.unittests.Cli
                     NameValue(conn, ".id", "*1"),
                     NameValue(conn, "destination", "*3")).ExecuteNonQuery();
 
-                StringAssert.Contains(conn.Sent.Single(), "[find where .id=*1]");
+                StringAssert.Contains(conn.Sent.Single(), "numbers=*1");
                 StringAssert.Contains(conn.Sent.Single(), "destination=\"*3\"");   // move quotes its target id
             }
         }

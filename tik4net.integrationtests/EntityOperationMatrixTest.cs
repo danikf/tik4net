@@ -8,7 +8,7 @@ using System.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Cli;
 using tik4net.Objects;
-using tik4net.Objects.Ip.Firewall;
+using tik4net.Objects.Ip.Firewall;   // FirewallConnection, FirewallFilter
 using tik4net.Objects.Tool;
 using tik4net.Testing;   // WithId - sets the private .id setter on an entity the test never loaded
 
@@ -46,6 +46,12 @@ namespace tik4net.integrationtests
     [TestClass]
     public class EntityOperationMatrixTest : TestBase
     {
+        /// <summary>
+        /// An <c>.id</c> no row can have. <c>*7FFFFFFF</c> is well-formed — the router parses it and then
+        /// looks for it — so what comes back is "no such item" and not a syntax complaint.
+        /// </summary>
+        private const string NonexistentId = "*7FFFFFFF";
+
         /// <summary>The four verbs the mapper decides on, and the token RouterOS spells each with.</summary>
         private static readonly (TikEntityOperations Operation, string Verb)[] Verbs =
         {
@@ -137,6 +143,48 @@ namespace tik4net.integrationtests
                 () => Connection.Save(new FirewallConnection().WithId("*1A")));
             StringAssert.Contains(onUpdate.Message, "'set'");
             StringAssert.Contains(onUpdate.Message, "/ip/firewall/connection");
+        }
+
+        [TestMethod]
+        public void DeletingARowThatIsNotThereRaisesNoSuchItemOnEveryTransport()
+        {
+            // The other half of "Delete works on a status menu": on menus whose rows come and go on their
+            // own - which is precisely the set issue #84 unlocked - the row you loaded a moment ago may be
+            // gone by the time you delete it. That has to be an exception, not a shrug, and it has to be
+            // the SAME exception everywhere, or a caller cannot write one catch block.
+            //
+            // This is the test that found the CLI family reporting success for it. The mapper's Delete
+            // sent `remove [find where .id=*N]`, and a [find] that matches nothing is not an error - the
+            // router printed nothing and the CLI had nothing to raise on. Fixed by addressing the row with
+            // `numbers=*N`, which answers "no such item (4)" exactly as the API does.
+            var ghost = new FirewallFilter().WithId(NonexistentId);
+
+            var ex = Assert.ThrowsException<TikNoSuchItemException>(() => Connection.Delete(ghost));
+
+            // Not TikCommandTrapException: the whole point is that a caller can tell "the row is gone"
+            // from "the command failed", and ThrowsException is exact about the type (a subclass fails it).
+            Assert.IsNotNull(ex);
+        }
+
+        [TestMethod]
+        public void SavingARowThatIsNotThereRaisesNoSuchItemOnEveryTransport()
+        {
+            // Same for the update half. An .id the caller supplies takes Save down the /set path, so this
+            // is `set numbers=*7FFFFFFF …` - which was the same silent no-op on the CLI family, and worse
+            // than the Delete case: the caller believes the field was written.
+            var ghost = new FirewallFilter { Comment = "t4n-ghost" }.WithId(NonexistentId);
+
+            Assert.ThrowsException<TikNoSuchItemException>(
+                () => Connection.Save(ghost, new[] { "comment" }));
+        }
+
+        [TestMethod]
+        public void MovingARowThatIsNotThereRaisesNoSuchItemOnEveryTransport()
+        {
+            // /ip/firewall/filter is ordered, so Move is legal on it and only the row is missing.
+            var ghost = new FirewallFilter().WithId(NonexistentId);
+
+            Assert.ThrowsException<TikNoSuchItemException>(() => Connection.MoveToEnd(ghost));
         }
 
         // ── The declarations, measured ────────────────────────────────────────────────────────────

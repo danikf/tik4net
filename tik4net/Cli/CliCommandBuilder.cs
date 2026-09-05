@@ -292,7 +292,7 @@ namespace tik4net.Cli
             var sb = new StringBuilder(cliBase);
 
             string? idValue = FindIdParam(parameters);
-            AppendFindIdentifier(sb, idValue);
+            AppendFindIdentifier(sb, idValue, useNumbers: true);
 
             AppendNameValueParams(sb, parameters, skipId: true);
             return sb.ToString();
@@ -301,22 +301,50 @@ namespace tik4net.Cli
         // ── Remove ─────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Builds a <c>/path remove [find where .id=*N]</c> command.
+        /// Builds a <c>/path remove numbers=*N</c> command.
         /// </summary>
         internal static string BuildRemove(string apiPath, IList<ITikCommandParameter> parameters)
         {
-            return BuildFindVerb(apiPath, parameters);
+            return BuildFindVerb(apiPath, parameters, "remove");
         }
 
-        // ── Simple verbs (enable / disable / move / unset) ────────────────────
+        // ── Simple verbs (enable / disable / move / unset / comment / run) ─────
 
         /// <summary>
-        /// Builds <c>/path verb [find where .id=*N] [k=v …]</c> for simple verbs.
+        /// Builds <c>/path verb &lt;record selector&gt; [k=v …]</c> for the verbs that address one row.
         /// </summary>
         internal static string BuildSimpleVerb(string apiPath, string verb, IList<ITikCommandParameter> parameters)
         {
-            // apiPath already contains the verb as last segment; verb param is informational only
-            return BuildFindVerb(apiPath, parameters);
+            // apiPath already contains the verb as its last segment; `verb` chooses the record selector.
+            return BuildFindVerb(apiPath, parameters, verb);
+        }
+
+        /// <summary>
+        /// Whether <paramref name="verb"/> selects its row with <c>numbers=</c>. The row-addressing verbs
+        /// do; an <b>action</b> verb does not, and saying so is not cosmetic — <c>/system/script/run
+        /// numbers=*B</c> answers <i>bad parameter numbers (line 1 column 30)</i> while
+        /// <c>run [find where .id=*B]</c> runs the script (measured on 7.24, run-count 0 → 1).
+        /// </summary>
+        /// <remarks>
+        /// An allow-list rather than a deny-list, so a verb nobody has measured keeps the older
+        /// <c>[find]</c> form — which works for every verb, and merely cannot report a row that is not
+        /// there. Wrong in the direction that stays functional.
+        /// </remarks>
+        private static bool TakesNumbers(string? verb)
+        {
+            switch (verb)
+            {
+                case "set":
+                case "remove":
+                case "enable":
+                case "disable":
+                case "move":
+                case "unset":
+                case "comment":
+                    return true;
+                default:
+                    return false;   // action verbs (run, …) and anything unmeasured
+            }
         }
 
         // ── Get ───────────────────────────────────────────────────────────────
@@ -530,13 +558,13 @@ namespace tik4net.Cli
             return "\"" + EscapeInsideQuotes(value) + "\"";
         }
 
-        private static string BuildFindVerb(string apiPath, IList<ITikCommandParameter> parameters)
+        private static string BuildFindVerb(string apiPath, IList<ITikCommandParameter> parameters, string? verb = null)
         {
             string cliBase = ApiPathToCli(apiPath);
             var sb = new StringBuilder(cliBase);
 
             string? idValue = FindIdParam(parameters);
-            AppendFindIdentifier(sb, idValue);
+            AppendFindIdentifier(sb, idValue, TakesNumbers(verb));
 
             // Append any remaining NameValue params (e.g. destination for move)
             AppendNameValueParams(sb, parameters, skipId: true);
@@ -593,26 +621,49 @@ namespace tik4net.Cli
         }
 
         /// <summary>
-        /// Appends the record identifier for set/remove/enable/disable/move. A real <c>.id</c> (<c>*N</c>) uses
-        /// <c>[find where .id=*N]</c>. Any other value uses <c>[find where .id=X or name=X]</c> so a NAME works too
-        /// (<c>.id=ether1</c> alone matches nothing — the literal <c>.id</c> is <c>*N</c> — but
-        /// <c>name=ether1</c> resolves it). Names-as-id are accepted directly by the binary API/native
-        /// transports; this bridges the CLI gap. The <c>or name=…</c> clause is harmless on tables without a
-        /// <c>name</c> field (it simply never matches), and a bogus id (e.g. <c>-NoID-</c>) still yields
-        /// "expected item id" → <see cref="TikNoSuchItemException"/>, preserving error fidelity.
+        /// Appends the record identifier for set/remove/enable/disable/move/unset. A real <c>.id</c>
+        /// (<c>*N</c>) uses <c>numbers=*N</c>; any other value uses <c>[find where .id=X or name=X]</c> so a
+        /// NAME works too (<c>.id=ether1</c> alone matches nothing — the literal <c>.id</c> is <c>*N</c> —
+        /// but <c>name=ether1</c> resolves it). Names-as-id are accepted directly by the binary
+        /// API/native transports; this bridges the CLI gap. The <c>or name=…</c> clause is harmless on
+        /// tables without a <c>name</c> field (it simply never matches).
         /// <para>
-        /// The explicit <c>where</c> keyword is required as of RouterOS 7.24 — a bare <c>[find .id=X]</c>
-        /// is rejected with "bad parameter .id"/"bad parameter name" even for a well-formed <c>*N</c> id,
-        /// whereas <c>[find where .id=X]</c> still works. Earlier versions (confirmed on 7.21.4) accepted
-        /// both forms, so always emitting <c>where</c> keeps compatibility across the range.
+        /// <b><c>numbers=</c> rather than <c>[find where .id=…]</c>, because a <c>[find]</c> that matches
+        /// nothing is not an error.</b> Measured on RouterOS 7.24: <c>remove [find where .id=*7FFFFFFF]</c>
+        /// prints nothing and the CLI reports success, while <c>remove numbers=*7FFFFFFF</c> answers
+        /// <c>no such item (4)</c> — the same thing the binary API and REST say. The <c>[find]</c> form
+        /// therefore turned every <c>Save</c>, <c>Delete</c>, <c>enable</c> and <c>disable</c> against a
+        /// row that had gone away into a silent no-op on all five CLI transports, on exactly the menus
+        /// whose rows come and go on their own. <c>numbers=</c> takes an <c>.id</c> despite being named
+        /// for the ordinal — the same thing that makes the <c>get</c> translation above possible.
+        /// </para>
+        /// <para>
+        /// The name branch keeps <c>[find]</c>: <c>numbers=</c> only accepts a name on a menu that HAS a
+        /// <c>name</c> field (<c>/interface set numbers=ether1</c> works, and an unknown name answers
+        /// <i>no such item</i>), but on a nameless menu it is a syntax error
+        /// (<c>/ip firewall filter remove numbers=nosuchname</c> → <i>syntax error (line 1 column 36)</i>),
+        /// and the builder cannot know which kind of menu it is addressing. A name that resolves to
+        /// nothing is consequently still silent — the O/R mapper never takes this branch, since it always
+        /// addresses a row by <c>.id</c>.
+        /// </para>
+        /// <para>
+        /// Where <c>[find]</c> is still emitted, the explicit <c>where</c> keyword is required as of
+        /// RouterOS 7.24 — a bare <c>[find .id=X]</c> is rejected with "bad parameter .id"/"bad parameter
+        /// name" even for a well-formed <c>*N</c> id. Earlier versions (confirmed on 7.21.4) accepted both
+        /// forms, so always emitting <c>where</c> keeps compatibility across the range.
         /// </para>
         /// </summary>
-        private static void AppendFindIdentifier(StringBuilder sb, string? idValue)
+        private static void AppendFindIdentifier(StringBuilder sb, string? idValue, bool useNumbers)
         {
             if (string.IsNullOrEmpty(idValue))
                 return;
             // netstandard2.0's string.IsNullOrEmpty isn't annotated NotNullWhen, so the compiler can't narrow.
-            if (idValue!.StartsWith("*"))
+            if (useNumbers && idValue!.StartsWith("*"))
+            {
+                sb.Append(" numbers=");
+                sb.Append(idValue);
+            }
+            else if (idValue!.StartsWith("*"))
             {
                 sb.Append(" [find where .id=");
                 sb.Append(idValue);
