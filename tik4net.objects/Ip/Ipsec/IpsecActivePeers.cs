@@ -7,8 +7,15 @@ namespace tik4net.Objects.Ip.Ipsec
     /// Each row represents one active IPsec peer session, showing addressing,
     /// traffic counters, negotiation side, NAT-T status, and uptime.
     /// Use <c>kill-connections</c> to manually disconnect all remote peers.
+    /// <para>
+    /// Declared <see cref="TikEntityOperations.Remove"/> only, although the menu also lists <c>add</c> and
+    /// <c>set</c>. Those two are RouterOS's generic list machinery showing through and do not work: on 7.24
+    /// an <c>add</c> carrying the only parameter the menu accepts (<c>comment</c>) answers
+    /// <i>"error - contact MikroTik support and send a supout file (3)"</i> and creates nothing, and
+    /// <c>set</c> answers the same rather than <i>no such item</i>. <c>remove</c> behaves normally.
+    /// </para>
     /// </summary>
-    [TikEntity("/ip/ipsec/active-peers", IsReadOnly = true, IncludeDetails = true)]
+    [TikEntity("/ip/ipsec/active-peers", SupportedOperations = TikEntityOperations.Remove, IncludeDetails = true)]
     public class IpsecActivePeers
     {
         /// <summary>Possible sides for IKE Phase 1 negotiation.</summary>

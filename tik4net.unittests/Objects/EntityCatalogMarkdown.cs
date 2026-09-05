@@ -26,10 +26,11 @@ namespace tik4net.unittests.Objects
     {
         /// <summary>Marker footnote numbers, in the order the legend lists them.</summary>
         private const int MarkerSingleton = 1;
-        private const int MarkerReadOnly = 2;
-        private const int MarkerOrdered = 3;
-        private const int MarkerCliStats = 4;
-        private const int MarkerHelpers = 5;
+        private const int MarkerFieldsReadOnly = 2;
+        private const int MarkerRemovable = 3;
+        private const int MarkerOrdered = 4;
+        private const int MarkerCliStats = 5;
+        private const int MarkerHelpers = 6;
 
         /// <summary>
         /// Every mapped entity type, i.e. every public type in tik4net.objects carrying
@@ -121,7 +122,14 @@ namespace tik4net.unittests.Objects
         {
             var markers = new List<int>();
             if (attr.IsSingleton) markers.Add(MarkerSingleton);
-            if (attr.IsReadOnly) markers.Add(MarkerReadOnly);
+            // Two markers, not one: "the router builds these rows" and "you may still drop one" are
+            // different answers, and /ppp/active gives the first and not the second. A single R/O marker
+            // told a reader that Delete would throw on a menu where it works - issue #84.
+            bool fieldsReadOnly = !attr.SupportedOperations.HasFlag(TikEntityOperations.Add)
+                               && !attr.SupportedOperations.HasFlag(TikEntityOperations.Set);
+            if (fieldsReadOnly) markers.Add(MarkerFieldsReadOnly);
+            if (fieldsReadOnly && attr.SupportedOperations.HasFlag(TikEntityOperations.Remove))
+                markers.Add(MarkerRemovable);
             if (attr.IsOrdered) markers.Add(MarkerOrdered);
             if (attr.IncludeCliStats) markers.Add(MarkerCliStats);
             if (helpers.ContainsKey(type.Name)) markers.Add(MarkerHelpers);

@@ -8,7 +8,7 @@ namespace tik4net.Objects.System
     /// <summary>
     /// /system/resource (single R/O entity)
     /// </summary>
-    [TikEntity("/system/resource", IsReadOnly = true, IsSingleton = true)]
+    [TikEntity("/system/resource", SupportedOperations = TikEntityOperations.None, IsSingleton = true)]
     public class SystemResource
     {
         /// <summary>

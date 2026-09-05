@@ -3,8 +3,13 @@ namespace tik4net.Objects.System
 	/// <summary>
     /// Gets the infor provided by
 	/// /system/routerboard 
+	/// <para>
+	/// Declared <see cref="TikEntityOperations.None"/> as it always has been, but not measured: the menu
+	/// only exists on RouterBOARD hardware, and on the CHR the test suite runs against
+	/// <c>/system/routerboard/print</c> answers <i>no such command or directory (routerboard)</i>.
+	/// </para>
 	/// </summary>
-	[TikEntity("/system/routerboard", IsReadOnly = true)]
+	[TikEntity("/system/routerboard", SupportedOperations = TikEntityOperations.None)]
 	public class SystemRouterboard
 	{
 		/// <summary>

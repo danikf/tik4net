@@ -124,12 +124,14 @@ namespace tik4net.unittests.Objects
         {
             // Save (of an existing row), Delete and Move all call EnsureHasIdProperty and throw without one.
             // A singleton has no .id and does not need one — its /set addresses the menu itself.
+            // ANY write verb needs one, not just add/set: /ppp/active offers only remove and Delete still
+            // addresses the row by .id.
             var offenders = new List<string>();
 
             foreach (Type entity in EntityTypes())
             {
                 var attribute = entity.GetCustomAttribute<TikEntityAttribute>();
-                if (attribute.IsReadOnly || attribute.IsSingleton)
+                if (attribute.SupportedOperations == TikEntityOperations.None || attribute.IsSingleton)
                     continue;
 
                 bool hasId = entity.GetProperties(BindingFlags.Public | BindingFlags.Instance)
@@ -268,7 +270,7 @@ namespace tik4net.unittests.Objects
                     continue;
 
                 bool readOnly = x.Attribute.IsReadOnly
-                    || x.Entity.GetCustomAttribute<TikEntityAttribute>().IsReadOnly
+                    || FieldsAreReadOnly(x.Entity.GetCustomAttribute<TikEntityAttribute>())
                     || x.Property.SetMethod == null
                     || !x.Property.CanWrite;
 
@@ -278,5 +280,15 @@ namespace tik4net.unittests.Objects
 
             AssertNoOffenders(offenders, "live counters that are not read-only");
         }
+
+        /// <summary>
+        /// The entity-level half of <see cref="TikEntityPropertyAccessor.IsReadOnly"/>: a menu with neither
+        /// <c>add</c> nor <c>set</c> has nothing to write its fields with. NOT
+        /// <c>SupportedOperations == None</c> — that would let a counter on a remove-only menu
+        /// (<c>/ip/firewall/connection</c>) read as writable here while the mapper still treats it as R/O.
+        /// </summary>
+        private static bool FieldsAreReadOnly(TikEntityAttribute attribute)
+            => !attribute.SupportedOperations.HasFlag(TikEntityOperations.Add)
+            && !attribute.SupportedOperations.HasFlag(TikEntityOperations.Set);
     }
 }

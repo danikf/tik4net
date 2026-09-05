@@ -54,12 +54,20 @@ namespace tik4net.Objects
         public string FieldName { get; private set; }
 
         /// <summary>
-        /// If property (and mikrotik field) is R/O.
+        /// If property (and mikrotik field) is R/O — either because the property says so, or because the
+        /// menu offers neither <c>add</c> nor <c>set</c> and so has nothing to write with.
         /// </summary>
+        /// <remarks>
+        /// The entity-level half is <see cref="TikEntityMetadata.AreFieldsReadOnly"/>, not "the entity
+        /// supports no verb at all": a menu that only offers <c>remove</c> (<c>/ppp/active</c>) still has
+        /// read-only fields, and reading the verb set as a whole here would make them writable and start
+        /// putting them on a <c>/set</c> the router does not have.
+        /// </remarks>
         /// <seealso cref="TikPropertyAttribute.IsReadOnly"/>
+        /// <seealso cref="TikEntityMetadata.AreFieldsReadOnly"/>
         public bool IsReadOnly
         {
-            get { return _isReadOnly || _owner.IsReadOnly; }
+            get { return _isReadOnly || _owner.AreFieldsReadOnly; }
         }
 
         /// <summary>

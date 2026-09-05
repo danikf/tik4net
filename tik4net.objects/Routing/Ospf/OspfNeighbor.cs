@@ -8,8 +8,13 @@ namespace tik4net.Objects.Routing.Ospf
     /// election results, LSA queue depths, and adjacency uptime. The table is populated
     /// automatically by the OSPF process; entries appear when a Hello packet is received and
     /// disappear when the dead-interval expires.
+    /// <para>
+    /// The menu offers <c>set</c> and neither <c>add</c> nor <c>remove</c>, and the only field <c>set</c>
+    /// accepts is <see cref="Comment"/> — so a row can be annotated and nothing else about it can be
+    /// written.
+    /// </para>
     /// </summary>
-    [TikEntity("/routing/ospf/neighbor", IsReadOnly = true, IncludeDetails = true)]
+    [TikEntity("/routing/ospf/neighbor", SupportedOperations = TikEntityOperations.Set, IncludeDetails = true)]
     public class OspfNeighbor
     {
         /// <summary>OSPF neighbor finite-state-machine states.</summary>
@@ -143,10 +148,12 @@ namespace tik4net.Objects.Routing.Ospf
         public bool Virtual { get; private set; }
 
         /// <summary>
-        /// comment — optional annotation (set via /routing/ospf/neighbor set comment=...).
+        /// comment — optional annotation. The one writable field on this menu: <c>set</c> accepts
+        /// <c>comment</c> and nothing else (measured on RouterOS 7.24), which is why the entity declares
+        /// <see cref="TikEntityOperations.Set"/> while every other property stays read-only.
         /// </summary>
-        [TikProperty("comment", IsReadOnly = true)]
-        public string? Comment { get; private set; }
+        [TikProperty("comment")]
+        public string? Comment { get; set; }
 
         /// <summary>Human-readable identity.</summary>
         public override string ToString() => string.Format("{0} ({1}) [{2}]", RouterId, Address, State);

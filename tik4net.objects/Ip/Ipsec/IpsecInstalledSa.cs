@@ -10,7 +10,7 @@ namespace tik4net.Objects.Ip.Ipsec
     /// Sensitive fields (auth-key, enc-key) are only visible when <c>show-sensitive</c>
     /// is passed; they are mapped as strings and may be empty in normal print output.
     /// </summary>
-    [TikEntity("/ip/ipsec/installed-sa", IsReadOnly = true, IncludeDetails = true)]
+    [TikEntity("/ip/ipsec/installed-sa", SupportedOperations = TikEntityOperations.None, IncludeDetails = true)]
     public class IpsecInstalledSa
     {
         /// <summary>.id — primary key of row</summary>

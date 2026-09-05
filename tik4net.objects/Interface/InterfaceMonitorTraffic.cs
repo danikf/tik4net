@@ -10,7 +10,7 @@ namespace tik4net.Objects.Interface
     /// /interface/monitor-traffic
     /// NOTE: use <see cref="InterfaceMonitorTraffic.GetSnapshot"/> or with some kind of bulk/async load
     /// </summary>
-    [TikEntity("/interface/monitor-traffic", LoadCommand ="", LoadDefaultParameterFormat = TikCommandParameterFormat.NameValue, IncludeDetails = false, IsReadOnly = true)]
+    [TikEntity("/interface/monitor-traffic", LoadCommand ="", LoadDefaultParameterFormat = TikCommandParameterFormat.NameValue, IncludeDetails = false, SupportedOperations = TikEntityOperations.None)]
     public class InterfaceMonitorTraffic
     {
         /// <summary>

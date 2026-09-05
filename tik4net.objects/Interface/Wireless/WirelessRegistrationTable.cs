@@ -7,8 +7,13 @@ namespace tik4net.Objects.Interface.Wireless
 {
     /// <summary>
     /// /interface wireless registration-table: In the registration table you can see various information about currently connected clients. It is used only for Access Points. All properties are read-only.
+    /// <para>
+    /// The menu offers <c>remove</c> and neither <c>add</c> nor <c>set</c>: a row can be dropped -
+    /// <see cref="TikConnectionExtensions.Delete">Delete</see> de-authenticates the client - while every field stays
+    /// read-only.
+    /// </para>
     /// </summary>
-    [TikEntity("/interface/wireless/registration-table", IsReadOnly = true)]
+    [TikEntity("/interface/wireless/registration-table", SupportedOperations = TikEntityOperations.Remove)]
     public class WirelessRegistrationTable
     {
         /// <summary>

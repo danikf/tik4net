@@ -7,8 +7,13 @@ namespace tik4net.Objects.Ip.Firewall
 {
     /// <summary>
     /// ip/firewall/connection tracking: 
+    /// <para>
+    /// The menu offers <c>remove</c> and neither <c>add</c> nor <c>set</c>: a row can be dropped -
+    /// <see cref="TikConnectionExtensions.Delete">Delete</see> drops the tracked connection - while every field stays
+    /// read-only.
+    /// </para>
     /// </summary>
-    [TikEntity("/ip/firewall/connection", IsReadOnly = true)]
+    [TikEntity("/ip/firewall/connection", SupportedOperations = TikEntityOperations.Remove)]
     public class FirewallConnection
     {
         /// <summary>

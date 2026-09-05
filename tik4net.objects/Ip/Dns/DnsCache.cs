@@ -8,7 +8,7 @@ namespace tik4net.Objects.Ip.Dns
     /// <summary>
     /// ip/dns: This menu provides a list with all address (DNS type "A") records stored on the server 
     /// </summary>
-    [TikEntity("/ip/dns/cache", IsReadOnly = true)]
+    [TikEntity("/ip/dns/cache", SupportedOperations = TikEntityOperations.None)]
     public class DnsCache
     {
         /// <summary>

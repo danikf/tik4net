@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -419,10 +420,35 @@ namespace tik4net.Objects
         #endregion
 
         #region -- SAVE --
-        private static void EnsureNotReadonlyEntity(TikEntityMetadata entityMetadata)
+        /// <summary>
+        /// Throws when the entity's menu does not offer <paramref name="operations"/>, naming the verb and
+        /// the path — "R/O entity" was true of the four verbs together and of none of them separately.
+        /// </summary>
+        /// <remarks>
+        /// Internal rather than private: <c>SaveAsync</c>/<c>DeleteAsync</c> in
+        /// <see cref="TikConnectionAsyncExtensions"/> guard the same way, and a second copy of the rule is a
+        /// second rule the moment either is touched.
+        /// </remarks>
+        internal static void EnsureSupported(TikEntityMetadata entityMetadata, TikEntityOperations operations)
         {
-            if (entityMetadata.IsReadOnly)
-                throw new InvalidOperationException("Can not save R/O entity.");
+            if (!entityMetadata.Supports(operations))
+                throw new InvalidOperationException(string.Format(CultureInfo.InvariantCulture,
+                    "Entity '{0}' does not support the '{1}' operation (it declares SupportedOperations = {2}). "
+                    + "The RouterOS menu does not offer that verb - see TikEntityAttribute.SupportedOperations.",
+                    entityMetadata.EntityPath, VerbOf(operations), entityMetadata.SupportedOperations));
+        }
+
+        /// <summary>The RouterOS verb an operation flag stands for, for the message above.</summary>
+        private static string VerbOf(TikEntityOperations operations)
+        {
+            switch (operations)
+            {
+                case TikEntityOperations.Add: return "add";
+                case TikEntityOperations.Set: return "set";
+                case TikEntityOperations.Remove: return "remove";
+                case TikEntityOperations.Move: return "move";
+                default: return operations.ToString();
+            }
         }
 
         private static void EnsureSupportsOrdering(TikEntityMetadata entityMetadata)
@@ -470,15 +496,20 @@ namespace tik4net.Objects
             where TEntity:new()
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
-            EnsureNotReadonlyEntity(metadata);
             string? id = ResolveSaveId(entity, metadata);
 
+            // Guarded per branch, not before: a menu can offer one of the two verbs and not the other
+            // (/routing/ospf/neighbor has set and no add), so which one Save is about has to be decided
+            // first. Still ahead of every router round-trip on both paths.
             if (IsCreate(metadata, id))
             {
+                EnsureSupported(metadata, TikEntityOperations.Add);
                 var createCmd = BuildCreateCommand(connection, entity, metadata, usedFieldsFilter);
                 FinishCreate(connection, entity, metadata, createCmd.ExecuteScalar());
                 return;
             }
+
+            EnsureSupported(metadata, TikEntityOperations.Set);
 
             if (NeedsFilterResolution(metadata, usedFieldsFilter))
             {
@@ -507,8 +538,6 @@ namespace tik4net.Objects
         // reach the router. Save's rules are subtle — what counts as a create, what OnlyChanges does when
         // the entity was never loaded, which fields are unset rather than set, and that the unsets go first
         // — and a second copy of them would be a second set of rules the moment either is touched.
-
-        internal static void EnsureNotReadonly(TikEntityMetadata metadata) => EnsureNotReadonlyEntity(metadata);
 
         /// <summary>
         /// The nullable fields this entity was <b>loaded with a value</b> and now holds <c>null</c> for —
@@ -730,7 +759,6 @@ namespace tik4net.Objects
             where TEntity : new()
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
-            EnsureNotReadonlyEntity(metadata);
             EnsureHasIdProperty(metadata);
             var idProperty = metadata.IdProperty!; // non-null: EnsureHasIdProperty just verified it
 
@@ -760,6 +788,16 @@ namespace tik4net.Objects
             var currentOrder = metadata.IsOrdered
                 ? new TikOrderTracker(unmodifiedItems.Select(entity => idProperty.GetEntityValue(entity!)!))
                 : null;
+
+            // This is the one method that reaches for all four verbs, so it is the one that could get
+            // halfway through a partially-supported menu — rows deleted, then a create refused. Check what
+            // THIS diff will actually ask for, before the first command goes out: demanding all four would
+            // refuse a pure-delete pass on /ppp/active, which is precisely what the menu does allow.
+            // Move is deliberately not in that set: it is the LAST pass, so a refusal there leaves every
+            // field correct and only the order wrong, and Move guards itself. Demanding it up front would
+            // refuse a field-only update on any ordered menu that happens not to offer /move.
+            foreach (var required in RequiredOperations(modifiedEntities, unmodifiedEntities, entitiesToCreate.Count))
+                EnsureSupported(metadata, required);
 
             //DELETE
             foreach (string entityId in unmodifiedEntities.Keys.Where(id => !modifiedEntities.ContainsKey(id))) //missing in modified -> deleted
@@ -818,6 +856,29 @@ namespace tik4net.Objects
                 }
             }
         }
+
+        /// <summary>
+        /// The verbs a <see cref="SaveListDifferences"/> pass over this diff will actually use — so the
+        /// check happens once, before anything is written, instead of per command.
+        /// </summary>
+        /// <remarks>
+        /// The three tests mirror the DELETE/CREATE/UPDATE passes above exactly, including the
+        /// <see cref="TikEntityObjectsExtensions.EntityEquals"/> comparison the UPDATE pass makes: a diff
+        /// that changes nothing asks for nothing, and an unchanged row on a set-less menu is not an error.
+        /// </remarks>
+        private static IEnumerable<TikEntityOperations> RequiredOperations<TEntity>(
+            Dictionary<string, TEntity> modifiedEntities, Dictionary<string, TEntity> unmodifiedEntities, int createCount)
+        {
+            if (createCount > 0)
+                yield return TikEntityOperations.Add;
+
+            if (unmodifiedEntities.Keys.Any(id => !modifiedEntities.ContainsKey(id)))
+                yield return TikEntityOperations.Remove;
+
+            if (unmodifiedEntities.Any(pair => modifiedEntities.ContainsKey(pair.Key)
+                                            && !modifiedEntities[pair.Key].EntityEquals(pair.Value)))
+                yield return TikEntityOperations.Set;
+        }
         #endregion
 
         #region -- DELETE --
@@ -842,7 +903,7 @@ namespace tik4net.Objects
         internal static ITikCommand BuildDeleteCommand<TEntity>(ITikConnection connection, TEntity entity)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
-            EnsureNotReadonlyEntity(metadata);
+            EnsureSupported(metadata, TikEntityOperations.Remove);
             EnsureHasIdProperty(metadata);
             // IdProperty is non-null: EnsureHasIdProperty just verified it. The .id value itself can
             // legitimately be null/empty for a never-loaded entity — that is exactly what is checked next.
@@ -896,7 +957,8 @@ namespace tik4net.Objects
         public static void Move<TEntity>(this ITikConnection connection, TEntity entityToMove, TEntity entityToMoveBefore)
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
-            EnsureSupportsOrdering(metadata);
+            EnsureSupportsOrdering(metadata);   // first: "this menu has no order" is the more informative answer
+            EnsureSupported(metadata, TikEntityOperations.Move);
             EnsureHasIdProperty(metadata);
 
             // IdProperty is non-null: EnsureHasIdProperty just verified it. idToMove/idToMoveBefore are not

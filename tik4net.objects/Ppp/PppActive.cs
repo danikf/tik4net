@@ -8,8 +8,13 @@ namespace tik4net.Objects.Ppp
     /// <summary>
     /// ppp/active: This submenu allows to monitor active (connected) users. 
     /// https://wiki.mikrotik.com/wiki/Manual:PPP_AAA
+    /// <para>
+    /// The menu offers <c>remove</c> and neither <c>add</c> nor <c>set</c>: a row can be dropped -
+    /// <see cref="TikConnectionExtensions.Delete">Delete</see> disconnects the session - while every field stays
+    /// read-only.
+    /// </para>
     /// </summary>
-    [TikEntity("/ppp/active", IsReadOnly = true)]
+    [TikEntity("/ppp/active", SupportedOperations = TikEntityOperations.Remove)]
     public class PppActive
     {
         /// <summary>

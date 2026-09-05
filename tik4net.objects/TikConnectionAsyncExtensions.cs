@@ -205,16 +205,19 @@ namespace tik4net.Objects
             Guard.ArgumentNotNull(connection, "connection");
 
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
-            TikConnectionExtensions.EnsureNotReadonly(metadata);
             string? id = TikConnectionExtensions.ResolveSaveId(entity, metadata);
 
+            // Guarded per branch, exactly as the sync Save - see the note there.
             if (TikConnectionExtensions.IsCreate(metadata, id))
             {
+                TikConnectionExtensions.EnsureSupported(metadata, TikEntityOperations.Add);
                 var createCmd = TikConnectionExtensions.BuildCreateCommand(connection, entity, metadata, usedFieldsFilter);
                 string newId = await createCmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
                 TikConnectionExtensions.FinishCreate(connection, entity, metadata, newId);
                 return;
             }
+
+            TikConnectionExtensions.EnsureSupported(metadata, TikEntityOperations.Set);
 
             if (TikConnectionExtensions.NeedsFilterResolution(metadata, usedFieldsFilter))
             {

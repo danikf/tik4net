@@ -12,7 +12,7 @@ namespace tik4net.Objects.Ip
     /// removed manually.
     /// https://help.mikrotik.com/docs/display/ROS/Neighbor+Discovery
     /// </summary>
-    [TikEntity("/ip/neighbor", IncludeDetails = true, IsReadOnly = true)]
+    [TikEntity("/ip/neighbor", IncludeDetails = true, SupportedOperations = TikEntityOperations.None)]
     public class IpNeighbor
     {
         /// <summary>

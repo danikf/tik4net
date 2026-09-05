@@ -9,7 +9,7 @@ namespace tik4net.Objects.Interface.Ethernet
     /// <summary>
     /// /interface ethernet monitor: command prints out current link, rate and duplex status of an interface. 
     /// </summary>
-    [TikEntity("/interface/ethernet/monitor", LoadCommand = "", LoadDefaultParameterFormat = TikCommandParameterFormat.NameValue, IncludeDetails = false, IsReadOnly = true)]
+    [TikEntity("/interface/ethernet/monitor", LoadCommand = "", LoadDefaultParameterFormat = TikCommandParameterFormat.NameValue, IncludeDetails = false, SupportedOperations = TikEntityOperations.None)]
     public class EthernetMonitor
     {
         /// <summary>

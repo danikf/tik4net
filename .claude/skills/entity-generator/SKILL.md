@@ -296,9 +296,11 @@ reverted.
 | Full field set needed (almost always, when using detail)              | `IncludeDetails = true` |
 | Ordered list where `move` is meaningful (firewall rules, queues)      | `IsOrdered = true` |
 | Single-instance menu, no `.id` (`/system/resource`, `/ip/dns`)        | `IsSingleton = true` |
-| Whole menu is read-only (`/log`, monitor outputs)                     | `IsReadOnly = true` |
+| Whole menu is read-only (`/log`, monitor outputs)                     | `SupportedOperations = TikEntityOperations.None` |
+| Menu the router builds but whose rows can be dropped (`/ppp/active`, `/ip/hotspot/active`, the registration tables) | `SupportedOperations = TikEntityOperations.Remove` |
+| Menu with only some verbs (`/routing/ospf/neighbor` — `set`, no `add`/`remove`) | `SupportedOperations = TikEntityOperations.Set` (and mark every field the verb does **not** accept `IsReadOnly = true`) |
 | Live counter fields only present in CLI `print stats`                 | `IncludeCliStats = true` |
-| Action-style command, not a list (ping, monitor, torch)              | `LoadCommand = "", LoadDefaultParameterFormat = TikCommandParameterFormat.NameValue, IsReadOnly = true, IncludeProplist = false` (see `ToolPing`) |
+| Action-style command, not a list (ping, monitor, torch)              | `LoadCommand = "", LoadDefaultParameterFormat = TikCommandParameterFormat.NameValue, SupportedOperations = TikEntityOperations.None, IncludeProplist = false` (see `ToolPing`) |
 | Need explicit `.proplist` field list                                  | `IncludeProplist = true` |
 
 > **`IncludeDetails` exception — some singletons/legacy menus reject `=detail=`.** A few paths trap
@@ -403,7 +405,7 @@ namespace tik4net.Objects.<Domain>
     /// <summary>
     /// <wiki summary, multi-line ok>
     /// </summary>
-    [TikEntity("/<api/path>", IncludeDetails = true /*, IsOrdered/IsSingleton/IsReadOnly as needed */)]
+    [TikEntity("/<api/path>", IncludeDetails = true /*, IsOrdered/IsSingleton/SupportedOperations as needed */)]
     public class <EntityName>
     {
         /// <summary>.id — primary key of row</summary>

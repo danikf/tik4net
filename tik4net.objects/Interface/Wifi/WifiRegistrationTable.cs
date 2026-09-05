@@ -7,10 +7,14 @@ namespace tik4net.Objects.Interface.Wifi
     /// any WiFi interface (ROS 7 wifi package).  Each row represents one connected peer
     /// and exposes its identity (MAC, SSID, interface), signal quality, data rates,
     /// traffic counters, and authentication state.  The table is populated automatically
-    /// by the router; there is no add/set/remove — entries appear and disappear as
-    /// clients connect and disconnect.
+    /// by the router: entries appear and disappear as clients connect and disconnect.
+    /// <para>
+    /// The menu offers <c>remove</c> and neither <c>add</c> nor <c>set</c>: a row can be dropped -
+    /// <see cref="TikConnectionExtensions.Delete">Delete</see> de-authenticates the client - while every field stays
+    /// read-only.
+    /// </para>
     /// </summary>
-    [TikEntity("/interface/wifi/registration-table", IsReadOnly = true, IncludeDetails = true)]
+    [TikEntity("/interface/wifi/registration-table", SupportedOperations = TikEntityOperations.Remove, IncludeDetails = true)]
     public class WifiRegistrationTable
     {
         // ── Primary key ───────────────────────────────────────────────────────

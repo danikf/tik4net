@@ -1,11 +1,16 @@
 namespace tik4net.Objects.Ip.Hotspot
 {
     /// <summary>
-    /// ip/hotspot/user
+    /// ip/hotspot/active
     /// 
-    /// This is the menu, where client's user/password information is actually added, additional configuration options for HotSpot users are configured here as well.
+    /// The sessions of the users currently logged in to a HotSpot server.
+    /// <para>
+    /// The menu offers <c>remove</c> and neither <c>add</c> nor <c>set</c>: a row can be dropped -
+    /// <see cref="TikConnectionExtensions.Delete">Delete</see> kicks the session - while every field stays
+    /// read-only.
+    /// </para>
     /// </summary>
-    [TikEntity("/ip/hotspot/active", IsReadOnly = true)]
+    [TikEntity("/ip/hotspot/active", SupportedOperations = TikEntityOperations.Remove)]
     public class HotspotActive
     {
         /// <summary>

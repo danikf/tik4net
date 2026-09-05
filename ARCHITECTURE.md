@@ -345,9 +345,20 @@ is built around the router address and that overload is not told one.
 Entities are plain classes driven entirely by attributes:
 
 - `[TikEntity("/ip/firewall/filter")]` — API path plus behaviour flags (`IsSingleton`,
-  `IsOrdered`, `IsReadOnly`, …).
+  `IsOrdered`, `SupportedOperations`, …).
 - `[TikProperty("src-address")]` — field mapping, with `IsReadOnly`, `IsMandatory`,
   `DefaultValue`, `UnsetOnDefault`.
+
+`SupportedOperations` is a `[Flags]` `TikEntityOperations` (`Add`/`Set`/`Remove`/`Move`, default `All`),
+because RouterOS decides verbs **per menu**: `/ppp/active` has `remove` and no `add`/`set`,
+`/routing/ospf/neighbor` has `set` and neither of the others. The mapper checks it before building a
+command and throws naming the verb and the path. Two derived readings matter and are not the same
+question — `metadata.Supports(Remove)` (may `Delete` drop a row?) and `metadata.AreFieldsReadOnly` (no
+`add` and no `set`, so nothing can be written), the latter being the half that makes a property read-only
+by inheritance. `EntityOperationMatrixTest` measures every narrowed declaration against a live router.
+The entity-level `IsReadOnly` bool is `[Obsolete(error: true)]` on both the attribute and the metadata:
+one bool cannot separate "fields cannot be written" from "rows cannot be removed" (issue #84), and an
+error rather than a warning because its getter still compiles and now answers `false` for `/ppp/active`.
 - `[TikEnumAttribute("wire-value")]` on enum members.
 
 Metadata is reflected once and cached in `TikEntityMetadataCache` → `TikEntityMetadata` →

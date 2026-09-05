@@ -8,7 +8,7 @@ namespace tik4net.Objects
     /// <summary>
     /// /log
     /// </summary>
-    [TikEntity("/log", IsReadOnly = true)]
+    [TikEntity("/log", SupportedOperations = TikEntityOperations.None)]
     public class Log
     {
         /// <summary>

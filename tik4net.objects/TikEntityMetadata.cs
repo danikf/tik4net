@@ -53,10 +53,39 @@ namespace tik4net.Objects
         public TikCommandParameterFormat LoadDefaultParameterFormat { get; set; }
 
         /// <summary>
+        /// The write verbs the RouterOS menu offers, as the entity declares them.
+        /// </summary>
+        /// <seealso cref="TikEntityAttribute.SupportedOperations"/>
+        public TikEntityOperations SupportedOperations { get; private set; }
+
+        /// <summary>
+        /// True when the menu offers every verb in <paramref name="operations"/>.
+        /// </summary>
+        /// <param name="operations">One verb, or several combined — all of them must be supported.</param>
+        /// <remarks>
+        /// Same "all of the requested flags" reading as
+        /// <see cref="TikConnectionCapabilityExtensions.Supports(ITikConnection, TikConnectionCapability)"/>,
+        /// so a combined value asks one question rather than several.
+        /// </remarks>
+        public bool Supports(TikEntityOperations operations)
+            => (SupportedOperations & operations) == operations;
+
+        /// <summary>
+        /// True when no mapped property may be written, because the menu offers neither <c>add</c> nor
+        /// <c>set</c>. This — not "the entity supports nothing" — is what makes a field read-only by
+        /// inheritance: <c>/ppp/active</c> answers true here and still supports
+        /// <see cref="TikEntityOperations.Remove"/>.
+        /// </summary>
+        public bool AreFieldsReadOnly
+            => !Supports(TikEntityOperations.Add) && !Supports(TikEntityOperations.Set);
+
+        /// <summary>
         /// If the whole entity is R/O.
         /// </summary>
-        /// <seealso cref="TikEntityAttribute.IsReadOnly"/>
-        public bool IsReadOnly { get; private set; }
+        [Obsolete("A single bool cannot express a menu that allows remove but not add/set. Use "
+                + "AreFieldsReadOnly to ask whether fields can be written, or Supports(TikEntityOperations.X) "
+                + "to ask about one verb - see https://github.com/danikf/tik4net/issues/84.", error: true)]
+        public bool IsReadOnly => SupportedOperations == TikEntityOperations.None;
 
         /// <summary>
         /// If entity list is ordered (move operation does make sense).
@@ -138,7 +167,7 @@ namespace tik4net.Objects
                 : "/" + entityAttribute.EntityPath;
             LoadCommand = entityAttribute.LoadCommand;
             LoadDefaultParameterFormat = entityAttribute.LoadDefaultParameterFormat;
-            IsReadOnly = entityAttribute.IsReadOnly;
+            SupportedOperations = entityAttribute.SupportedOperations;
             IsOrdered = entityAttribute.IsOrdered;
             IncludeDetails = entityAttribute.IncludeDetails;
             IncludeCliStats = entityAttribute.IncludeCliStats;

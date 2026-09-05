@@ -8,14 +8,14 @@ Namespace `tik4net.Objects.CapsMan`.
 
 | RouterOS path | Class | |
 |---|---|---|
-| `/caps-man/access-list` | `CapsManAccessList` | ³ |
+| `/caps-man/access-list` | `CapsManAccessList` | ⁴ |
 | `/caps-man/channel` | `CapsManChannel` |  |
 | `/caps-man/configuration` | `CapsManConfiguration` |  |
 | `/caps-man/datapath` | `CapsManDatapath` |  |
 | `/caps-man/interface` | `CapsManInterface` |  |
 | `/caps-man/manager` | `CapsManManager` | ¹ |
-| `/caps-man/provisioning` | `CapsManProvisioning` | ³ |
-| `/caps-man/registration-table` | `CapsManRegistrationTable` | ² |
+| `/caps-man/provisioning` | `CapsManProvisioning` | ⁴ |
+| `/caps-man/registration-table` | `CapsManRegistrationTable` | ² ³ |
 | `/caps-man/security` | `CapsManSecurity` |  |
 
 ### /certificate
@@ -40,17 +40,17 @@ Namespace `tik4net.Objects`.
 
 | RouterOS path | Class | |
 |---|---|---|
-| `/interface` | `Interface` | ⁴ |
+| `/interface` | `Interface` | ⁵ |
 | `/interface/bonding` | `InterfaceBonding` |  |
 | `/interface/bridge` | `InterfaceBridge` |  |
-| `/interface/bridge/filter` | `BridgeFilter` | ³ |
-| `/interface/bridge/nat` | `BridgeNat` | ³ |
+| `/interface/bridge/filter` | `BridgeFilter` | ⁴ |
+| `/interface/bridge/nat` | `BridgeNat` | ⁴ |
 | `/interface/bridge/port` | `BridgePort` |  |
 | `/interface/bridge/settings` | `BridgeSettings` | ¹ |
 | `/interface/bridge/vlan` | `BridgeVlan` |  |
 | `/interface/eoip` | `InterfaceEoip` |  |
 | `/interface/ethernet` | `InterfaceEthernet` |  |
-| `/interface/ethernet/monitor` | `EthernetMonitor` | ² ⁵ |
+| `/interface/ethernet/monitor` | `EthernetMonitor` | ² ⁶ |
 | `/interface/gre` | `InterfaceGre` |  |
 | `/interface/ipip` | `InterfaceIpip` |  |
 | `/interface/l2tp-client` | `L2tpClient` |  |
@@ -58,11 +58,11 @@ Namespace `tik4net.Objects`.
 | `/interface/list` | `InterfaceList` |  |
 | `/interface/list/member` | `InterfaceListMember` |  |
 | `/interface/lte` | `InterfaceLte` |  |
-| `/interface/monitor-traffic` | `InterfaceMonitorTraffic` | ² ⁵ |
+| `/interface/monitor-traffic` | `InterfaceMonitorTraffic` | ² ⁶ |
 | `/interface/ovpn-client` | `OvpnClient` |  |
 | `/interface/ovpn-server/server` | `OvpnServer` | ¹ |
 | `/interface/pppoe-client` | `InterfacePppoeClient` |  |
-| `/interface/pppoe-client/monitor` | `InterfacePppoeClientMonitor` | ² ⁵ |
+| `/interface/pppoe-client/monitor` | `InterfacePppoeClientMonitor` | ² ⁶ |
 | `/interface/pppoe-server/server` | `InterfacePppoeserverServer` |  |
 | `/interface/pptp-client` | `PptpClient` |  |
 | `/interface/pptp-server/server` | `PptpServer` | ¹ |
@@ -72,19 +72,19 @@ Namespace `tik4net.Objects`.
 | `/interface/vrrp` | `InterfaceVrrp` |  |
 | `/interface/vxlan` | `InterfaceVxlan` |  |
 | `/interface/wifi` | `InterfaceWifi` |  |
-| `/interface/wifi/access-list` | `WifiAccessList` | ³ |
+| `/interface/wifi/access-list` | `WifiAccessList` | ⁴ |
 | `/interface/wifi/channel` | `WifiChannel` |  |
 | `/interface/wifi/configuration` | `WifiConfiguration` |  |
 | `/interface/wifi/datapath` | `WifiDatapath` |  |
-| `/interface/wifi/provisioning` | `WifiProvisioning` | ³ |
-| `/interface/wifi/registration-table` | `WifiRegistrationTable` | ² |
+| `/interface/wifi/provisioning` | `WifiProvisioning` | ⁴ |
+| `/interface/wifi/registration-table` | `WifiRegistrationTable` | ² ³ |
 | `/interface/wifi/security` | `WifiSecurity` |  |
 | `/interface/wireguard` | `InterfaceWireguard` |  |
 | `/interface/wireguard/peers` | `WireguardPeer` |  |
 | `/interface/wireless` | `InterfaceWireless` |  |
 | `/interface/wireless/access-list` | `WirelessAccessList` |  |
 | `/interface/wireless/channels` | `WirelessChannels` |  |
-| `/interface/wireless/registration-table` | `WirelessRegistrationTable` | ² |
+| `/interface/wireless/registration-table` | `WirelessRegistrationTable` | ² ³ |
 | `/interface/wireless/security-profiles` | `WirelessSecurityProfile` |  |
 | `/interface/wireless/sniffer` | `WirelessSniffer` | ¹ |
 
@@ -95,7 +95,7 @@ Namespace `tik4net.Objects.Ip`.
 | RouterOS path | Class | |
 |---|---|---|
 | `/ip/accounting` | `IpAccounting` | ¹ |
-| `/ip/accounting/snapshot` | `AccountingSnapshot` | ² ⁵ |
+| `/ip/accounting/snapshot` | `AccountingSnapshot` | ² ⁶ |
 | `/ip/accounting/uncounted` | `AccountingUncounted` | ¹ ² |
 | `/ip/accounting/web-access` | `AccountingWebAccess` | ¹ |
 | `/ip/address` | `IpAddress` |  |
@@ -110,39 +110,39 @@ Namespace `tik4net.Objects.Ip`.
 | `/ip/dhcp-server/network` | `DhcpServerNetwork` |  |
 | `/ip/dhcp-server/option` | `DhcpServerOption` |  |
 | `/ip/dns` | `IpDns` | ¹ |
-| `/ip/dns/cache` | `DnsCache` | ² ⁵ |
+| `/ip/dns/cache` | `DnsCache` | ² ⁶ |
 | `/ip/dns/cache/all` | `DnsCacheAll` | ² |
-| `/ip/dns/static` | `DnsStatic` | ³ |
+| `/ip/dns/static` | `DnsStatic` | ⁴ |
 | `/ip/firewall/address-list` | `FirewallAddressList` |  |
-| `/ip/firewall/connection` | `FirewallConnection` | ² |
+| `/ip/firewall/connection` | `FirewallConnection` | ² ³ |
 | `/ip/firewall/connection/tracking` | `ConnectionTracking` | ¹ |
-| `/ip/firewall/filter` | `FirewallFilter` | ³ ⁴ |
+| `/ip/firewall/filter` | `FirewallFilter` | ⁴ ⁵ |
 | `/ip/firewall/layer7-protocol` | `FirewallLayer7Protocol` |  |
-| `/ip/firewall/mangle` | `FirewallMangle` | ³ ⁴ |
-| `/ip/firewall/nat` | `FirewallNat` | ³ ⁴ |
-| `/ip/firewall/raw` | `FirewallRaw` | ³ ⁴ |
+| `/ip/firewall/mangle` | `FirewallMangle` | ⁴ ⁵ |
+| `/ip/firewall/nat` | `FirewallNat` | ⁴ ⁵ |
+| `/ip/firewall/raw` | `FirewallRaw` | ⁴ ⁵ |
 | `/ip/firewall/service-port` | `FirewalServicePort` |  |
 | `/ip/hotspot` | `HotspotServer` |  |
-| `/ip/hotspot/active` | `HotspotActive` | ² |
+| `/ip/hotspot/active` | `HotspotActive` | ² ³ |
 | `/ip/hotspot/ip-binding` | `HotspotIpBinding` |  |
 | `/ip/hotspot/profile` | `HotspotServerProfile` |  |
 | `/ip/hotspot/user` | `HotspotUser` |  |
 | `/ip/hotspot/user/profile` | `HotspotUserProfile` |  |
-| `/ip/hotspot/walled-garden` | `HotspotWalledGarden` | ³ |
-| `/ip/hotspot/walled-garden/ip` | `HotspotWalledGardenIp` | ³ |
-| `/ip/ipsec/active-peers` | `IpsecActivePeers` | ² |
+| `/ip/hotspot/walled-garden` | `HotspotWalledGarden` | ⁴ |
+| `/ip/hotspot/walled-garden/ip` | `HotspotWalledGardenIp` | ⁴ |
+| `/ip/ipsec/active-peers` | `IpsecActivePeers` | ² ³ |
 | `/ip/ipsec/identity` | `IpsecIdentity` |  |
 | `/ip/ipsec/installed-sa` | `IpsecInstalledSa` | ² |
-| `/ip/ipsec/key/rsa` | `IpsecKey` | ⁵ |
+| `/ip/ipsec/key/rsa` | `IpsecKey` | ⁶ |
 | `/ip/ipsec/mode-config` | `IpsecModeConfig` |  |
 | `/ip/ipsec/peer` | `IpsecPeer` |  |
-| `/ip/ipsec/policy` | `IpsecPolicy` | ³ |
+| `/ip/ipsec/policy` | `IpsecPolicy` | ⁴ |
 | `/ip/ipsec/profile` | `IpsecProfile` |  |
 | `/ip/ipsec/proposal` | `IpsecProposal` |  |
 | `/ip/neighbor` | `IpNeighbor` | ² |
 | `/ip/pool` | `IpPool` |  |
 | `/ip/proxy` | `IpProxy` | ¹ |
-| `/ip/proxy/access` | `IpProxyAccess` | ³ |
+| `/ip/proxy/access` | `IpProxyAccess` | ⁴ |
 | `/ip/route` | `IpRoute` |  |
 | `/ip/service` | `IpService` |  |
 | `/ip/settings` | `IpSettings` | ¹ |
@@ -159,7 +159,7 @@ Namespace `tik4net.Objects`.
 
 | RouterOS path | Class | |
 |---|---|---|
-| `/log` | `Log` | ² ⁵ |
+| `/log` | `Log` | ² ⁶ |
 
 ### /ping
 
@@ -167,7 +167,7 @@ Namespace `tik4net.Objects.Tool`.
 
 | RouterOS path | Class | |
 |---|---|---|
-| `/ping` | `ToolPing` | ² ⁵ |
+| `/ping` | `ToolPing` | ² ⁶ |
 
 ### /ppp
 
@@ -176,7 +176,7 @@ Namespace `tik4net.Objects.Ppp`.
 | RouterOS path | Class | |
 |---|---|---|
 | `/ppp/aaa` | `PppAaa` | ¹ |
-| `/ppp/active` | `PppActive` | ² |
+| `/ppp/active` | `PppActive` | ² ³ |
 | `/ppp/profile` | `PppProfile` |  |
 | `/ppp/secret` | `PppSecret` |  |
 
@@ -186,8 +186,8 @@ Namespace `tik4net.Objects.Queue`.
 
 | RouterOS path | Class | |
 |---|---|---|
-| `/queue/simple` | `QueueSimple` | ³ ⁴ |
-| `/queue/tree` | `QueueTree` | ⁴ |
+| `/queue/simple` | `QueueSimple` | ⁴ ⁵ |
+| `/queue/tree` | `QueueTree` | ⁵ |
 | `/queue/type` | `QueueType` |  |
 
 ### /radius
@@ -209,12 +209,12 @@ Namespace `tik4net.Objects.Routing`.
 | `/routing/bgp/instance` | `BgpInstance` |  |
 | `/routing/bgp/network` | `BgpNetwork` |  |
 | `/routing/bgp/peer` | `BgpPeer` |  |
-| `/routing/filter/rule` | `RoutingFilterRule` | ³ |
+| `/routing/filter/rule` | `RoutingFilterRule` | ⁴ |
 | `/routing/ospf/area` | `OspfArea` |  |
 | `/routing/ospf/instance` | `OspfInstance` |  |
-| `/routing/ospf/interface-template` | `OspfInterfaceTemplate` | ³ |
-| `/routing/ospf/neighbor` | `OspfNeighbor` | ² |
-| `/routing/rule` | `RoutingRule` | ³ |
+| `/routing/ospf/interface-template` | `OspfInterfaceTemplate` | ⁴ |
+| `/routing/ospf/neighbor` | `OspfNeighbor` |  |
+| `/routing/rule` | `RoutingRule` | ⁴ |
 | `/routing/table` | `RoutingTable` |  |
 
 ### /snmp
@@ -241,7 +241,7 @@ Namespace `tik4net.Objects.System`.
 | `/system/note` | `SystemNote` | ¹ |
 | `/system/ntp/client` | `SystemNtpClient` | ¹ |
 | `/system/ntp/server` | `SystemNtpServer` | ¹ |
-| `/system/package` | `SystemPackage` | ² ⁵ |
+| `/system/package` | `SystemPackage` | ² ⁶ |
 | `/system/resource` | `SystemResource` | ¹ ² |
 | `/system/routerboard` | `SystemRouterboard` | ² |
 | `/system/scheduler` | `SystemScheduler` |  |
@@ -265,7 +265,7 @@ Namespace `tik4net.Objects.Tool`.
 | `/tool/romon` | `ToolRomon` | ¹ |
 | `/tool/romon/port` | `ToolRomonPort` |  |
 | `/tool/torch` | `ToolTorch` | ² |
-| `/tool/traceroute` | `ToolTraceroute` | ² ⁵ |
+| `/tool/traceroute` | `ToolTraceroute` | ² ⁶ |
 
 ### /user
 
