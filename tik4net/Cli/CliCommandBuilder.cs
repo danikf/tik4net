@@ -631,11 +631,13 @@ namespace tik4net.Cli
         /// <b><c>numbers=</c> rather than <c>[find where .id=…]</c>, because a <c>[find]</c> that matches
         /// nothing is not an error.</b> Measured on RouterOS 7.24: <c>remove [find where .id=*7FFFFFFF]</c>
         /// prints nothing and the CLI reports success, while <c>remove numbers=*7FFFFFFF</c> answers
-        /// <c>no such item (4)</c> — the same thing the binary API and REST say. The <c>[find]</c> form
-        /// therefore turned every <c>Save</c>, <c>Delete</c>, <c>enable</c> and <c>disable</c> against a
-        /// row that had gone away into a silent no-op on all five CLI transports, on exactly the menus
-        /// whose rows come and go on their own. <c>numbers=</c> takes an <c>.id</c> despite being named
-        /// for the ordinal — the same thing that makes the <c>get</c> translation above possible.
+        /// <c>no such item (4)</c> — the same thing the binary API and REST say. A terminal has no error
+        /// channel other than the text it prints, so under <c>[find]</c> there is nothing for
+        /// <c>CliErrorParser</c> to raise on and a <c>Save</c> or <c>Delete</c> against a row that has
+        /// gone away <b>would report success</b> on all five CLI transports — worst on the menus whose
+        /// rows come and go on their own, where that is the expected case. <c>numbers=</c> takes an
+        /// <c>.id</c> despite being named for the ordinal — the same thing that makes the <c>get</c>
+        /// translation above possible.
         /// </para>
         /// <para>
         /// The name branch keeps <c>[find]</c>: <c>numbers=</c> only accepts a name on a menu that HAS a

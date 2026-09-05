@@ -121,6 +121,29 @@ coverage: they were all gated on `TikConnectionCapability.Streaming`, a flag rep
 binary API, so they reported Inconclusive on ten of eleven transports and nobody had actually run this
 code path end to end.
 
+### A delete that matched nothing reported success, because `[find]` matching nothing is not an error (2026-09-05)
+
+Until 2026-09-05 the CLI builder addressed a row with `[find where .id=*N]` for every write verb. That
+form is silent when it matches nothing: RouterOS removes nothing and prints nothing, and a terminal has
+no error channel other than the text it prints. So `Save`, `Delete`, `enable` and `disable` against a
+row that no longer existed **returned normally** on all five CLI transports, while the binary API
+(`no such item (4)`), REST (404) and native WinBox (`0xFE0004`) all raised `TikNoSuchItemException`.
+`remove numbers=*N` answers `no such item (4)` and is what ships now.
+
+Two things about how it was found are worth keeping:
+
+* **Nothing was looking.** The suite had no test for deleting a row that is not there, on any transport
+  — the gap was noticed only because issue #84 had just unlocked `Delete` on the status menus
+  (`/ppp/active`, the registration tables), which are precisely the menus whose rows disappear on their
+  own between the load and the delete. A defect can sit in the most-exercised code path in the library
+  for as long as no test asks the one question that distinguishes it from success.
+* **The first fix switched every verb, and only a full leg caught it.** `/system/script/run numbers=*B`
+  answers `bad parameter numbers (line 1 column 30)`; `run` is an action verb and needs `[find]`. The
+  unit tests were green (they had been updated to the new expectation) and the standard smoke subset
+  would have been green too — it exercises `add`/`set`/`remove` and never `run`. One test out of 548 on
+  the full Telnet leg, `RunScript_Issue53_WillNotFail`, was the only thing that failed. The shipped
+  `TakesNumbers` is consequently an allow-list, so an unmeasured verb keeps the older form.
+
 ---
 
 ## Measurements pinned to a moment

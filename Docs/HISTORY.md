@@ -201,6 +201,21 @@ middle is detectable without checking a row count.
 Likewise `generate-key name=X key-size=2048` over WinBox native produced an unnamed 1024-bit key and
 reported success, because the action dispatcher dropped every caller-supplied argument.
 
+And a CLI `remove [find where .id=*N]` against a row that no longer existed removed nothing, printed
+nothing, and returned normally — for years, in the most-exercised write path in the library, because no
+test had ever asked what happens when the row is gone. Details:
+[`findings-cli-history.md`](findings-cli-history.md).
+
+## A change on every command's path needs a full leg, not the smoke subset
+
+Switching the CLI record selector to `numbers=` broke `/system/script/run`, which is an action verb and
+rejects it. Unit tests were green — they had been updated to the new expectation — and the smoke subset
+(connect, clock, interface list, route CRUD) would have been green too, because it never runs a script.
+One test out of 548 on a full Telnet leg caught it. The smoke subset is sized for "does this transport
+still connect and do ordinary CRUD"; it is not sized for "did I change how every command is spelled".
+Corollary: when a change is per-verb, prefer an allow-list, so an unmeasured verb keeps the behaviour
+that already works.
+
 ---
 
 # Incidents

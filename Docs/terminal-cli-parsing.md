@@ -92,17 +92,19 @@ translation possible.
 | `remove [find where .id=*7FFFFFFF]` | removes | prints **nothing** — indistinguishable from success |
 | `remove numbers=*7FFFFFFF` | removes | `no such item (4)` |
 
-The binary API and REST both answer a missing row with `no such item` / 404, so the `[find]` form made
-the CLI family the odd one out: every `Save`, `Delete`, `enable` and `disable` against a row that had
-gone away was a silent no-op. `set`, `remove`, `enable`, `disable`, `move`, `unset` and `comment` all
-take `numbers=` and all report `no such item (4)` for a missing row.
+The binary API and REST both answer a missing row with `no such item` / 404. A terminal has no error
+channel other than the text it prints, so with `[find]` there is nothing to raise on and `Save`,
+`Delete`, `enable` and `disable` against a row that has gone away **would report success** — worst on
+the menus whose rows come and go on their own, where that is the expected case rather than a rare one.
+`set`, `remove`, `enable`, `disable`, `move`, `unset` and `comment` all take `numbers=` and all report
+`no such item (4)` for a missing row.
 
 **Two exceptions keep `[find where …]`:**
 
 - **Action verbs.** `/system/script/run numbers=*B` answers `bad parameter numbers (line 1 column 30)`;
   `run [find where .id=*B]` runs the script. The allow-list in `CliCommandBuilder.TakesNumbers` names the
-  row-addressing verbs, so an unmeasured verb keeps the older form — which always works and merely
-  cannot report a missing row.
+  row-addressing verbs, so an unmeasured verb keeps the `[find]` form — which works for every verb and
+  merely cannot report a missing row.
 - **A row addressed by NAME rather than by `.id`.** `numbers=` takes a name only on a menu that has a
   `name` field (`/interface set numbers=ether1` works, and an unknown name answers `no such item`); on a
   nameless menu it is a syntax error (`/ip firewall filter remove numbers=nosuchname` →
