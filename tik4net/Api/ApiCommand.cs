@@ -684,6 +684,19 @@ namespace tik4net.Api
                                                     if (response is ApiDoneSentence && onDoneCallback != null)
                                                         onDoneCallback();
 
+                                                    // A !fatal has to reach the caller by exactly ONE route.
+                                                    // The bounded readers below pass an onTerminalCallback and
+                                                    // take it from there; ExecuteWithCallback has no such hook,
+                                                    // and without this none of its three callbacks fired at all —
+                                                    // an idle /listen simply stopped at ReceiveTimeout and the
+                                                    // caller went on believing it was listening. Reported as a
+                                                    // trap, which is how the other ten transports report the
+                                                    // same failure (Connection/PollingMonitorEngine).
+                                                    if (response is ApiFatalSentence fatal
+                                                        && onTerminalCallback == null && errorCallback != null)
+                                                        errorCallback(
+                                                            new Connection.TikTrapSentenceResult(fatal.Message));
+
                                                     // Last, so a waiter woken by this signal already sees
                                                     // everything set above it.
                                                     if (onTerminalCallback != null)
