@@ -149,7 +149,6 @@ MikroTik's own protocol documentation:
 
 # Looking for help
 * **I am looking for collaborators.** If you are interested in helping maintain this project, please reach out — open an issue or contact me directly.
-* Looking for betatesters
 
 # Roadmap & future
 * create highlevel classes for all mikrotik entities (you can still generate your own classes)

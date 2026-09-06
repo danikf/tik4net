@@ -86,11 +86,10 @@ Where the answer is no, the wiki is missing something — that is a finding.
 >   is a few lines.
 
 Honest limits belong in the same lens, because overselling costs more than it gains — but state each one
-once, where it matters, and move on. **The 4.0 features are finished work, not a preview**: they are
-tested against a live router on every transport, and the prerelease label is about the API being allowed
-to still move, not about whether they work. Documenting them defensively undersells them and is the
-mirror-image error of overselling. The two native WinBox transports are the real caveat, and it is a
-caveat about *them*, not about 4.0.
+once, where it matters, and move on. **The 4.0 features are finished work**: they are tested against a
+live router on every transport. Documenting them defensively undersells them and is the mirror-image
+error of overselling. The two native WinBox transports are the real caveat, and it is a caveat about
+*them*, not about 4.0.
 
 Improve the premise as the library changes; it is a claim about today's tik4net, and if a bullet stops
 being true the fix is in the code or in the bullet, not in the wiki's tone.
@@ -318,11 +317,15 @@ families. Record what is missing as a finding; writing new pages is separate wor
 Two things look alike on the page and behave completely differently over time. Keeping them apart is
 what makes a release sweep safe.
 
-* A **maturity marker** says how settled the *release* is — `🆕 4.0.0-alpha`, "prerelease", "the API may
-  still change". It is temporary and gets swept the day the next release ships. Keep it to **one line
-  per page**, in one wording, so the sweep is one `grep` and one `sed`. Do not let it seep into body
-  prose as hedging ("this may not be reliable yet", "for now", "eventually"): that is the same claim
-  restated where no sweep will ever find it, and it quietly tells the reader the feature is not ready.
+* A **maturity marker** says how settled the *release* is — "prerelease", "the API may still change".
+  It is temporary and gets swept the day the next release ships. **There are none on the wiki today**:
+  4.0 is stable and the beta banners went with it. Keep any future one to **one line per page**, in one
+  wording, so the sweep is one `grep` and one `sed`. Do not let it seep into body prose as hedging
+  ("this may not be reliable yet", "for now", "eventually"): that is the same claim restated where no
+  sweep will ever find it, and it quietly tells the reader the feature is not ready.
+* A **newness marker** says the *feature* is new — `> 🆕 **New in 4.0**`, on the eight pages whose
+  subject did not exist in 3.x. It is not a hedge and says nothing about how finished the thing is; it
+  is swept when the version it names stops being the interesting one, not when the next release ships.
 * A **capability caveat** says what the *thing itself* does — the native WinBox transports are
   experimental, REST buffers the whole response, a transport has no terminal. These are properties of
   the subject and survive every release. They are not swept.
@@ -331,7 +334,7 @@ what makes a release sweep safe.
 the grep+sed the whole scheme is built on without rewriting the title, and it makes the page's name read
 as its status. Put the marker on its own line under the title.
 
-Version strings (`4.0.0-alpha`, release-tag URLs, the alpha badge) are the sweepable set. Spell them
+Version strings, release-tag URLs and status badges are the sweepable set. Spell them
 identically everywhere rather than paraphrasing, and prefer one marker plus a link to
 `Connection-types-and-capabilities` over repeating the status in every table row.
 
@@ -362,8 +365,8 @@ Beginner path first (a fix there pays the most), then reference, then deep mater
 cd ../tik4net.wiki
 ls -la *.md                                  # page list and size
 for f in *.md; do printf "%-45s %s\n" "$f" "$(head -1 "$f")"; done   # a page not starting with "# " has no title
-grep -c "4.0.0-alpha" *.md | grep -v ":0"    # status banners — keep to one line per page so the
-                                             # release-day removal is one grep
+grep -n '^> .*\*\*\(New in\|Beta\|Alpha\|Experimental\)' *.md   # banners — one line per page, so a
+                                                             # release-day sweep is one grep
 ```
 
 Link graph — broken links, **broken anchors**, orphans, and pages `Home.md` does not reach.
@@ -425,8 +428,8 @@ Verify rather than assume — this is a snapshot, and the point of the cleanup i
 * Four pages are large enough that a newcomer landing on them needs a way out:
   `One-task-on-every-transport-and-API-level` (~170 KB), `WinBox-Native-connection` (~48 KB),
   `Command-translation-on-non-API-transports` (~38 KB), `Connection-types-and-capabilities` (~25 KB).
-* The published packages are `4.0.0-alpha5`, and the wiki is being cleaned **ahead of the beta**. The
-  alpha markers still describe what is published, so they stay — but the 4.0 transports are finished,
-  live-tested work, and the wiki should read that way. Consolidate the markers so the beta flip is
-  mechanical (see *Maturity markers vs. capability caveats*), and treat hedging in body prose as a
-  finding.
+* **The prerelease banners are gone** (2026-09, ahead of 4.0.0 stable). Eight pages whose subject is
+  new in 4.0 carry `> 🆕 **New in 4.0**` instead; the rest carry no banner, and the two native WinBox
+  pages keep only their own ⚠️ Experimental caveat, which is a property of the protocol rather than of
+  the release. Do not reintroduce a maturity marker unless a prerelease is actually published, and
+  treat hedging in body prose as a finding either way.
