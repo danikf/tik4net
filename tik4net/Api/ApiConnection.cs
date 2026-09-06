@@ -727,6 +727,40 @@ namespace tik4net.Api
             return _dispatcher.Wait(tag, receiveTimeoutMs);
         }
 
+        /// <summary>
+        /// Re-throws a receive timeout carrying the sentences that <i>did</i> arrive, as
+        /// <see cref="TikConnectionReceiveTimeoutException.PartialResponse"/>.
+        /// </summary>
+        /// <remarks>
+        /// "No response received" is the wrong sentence when three rows of a table arrived and the fourth
+        /// never did: a silent router and a half-answering one have different causes, and the rows already
+        /// read are what separates them. Rendered as text because that is what the property carries for
+        /// every other transport — a second, typed property would be the same information in a shape only
+        /// this transport speaks. Not returned as a result: a truncated table is indistinguishable from a
+        /// short one, so the command still fails.
+        /// </remarks>
+        private static TikConnectionReceiveTimeoutException WithPartialResponse(
+            TikConnectionReceiveTimeoutException ex, IList<ITikSentence> received)
+        {
+            string partial = string.Join(Environment.NewLine, received.Select(DescribeSentence));
+            return new TikConnectionReceiveTimeoutException(ex.TimeoutMilliseconds,
+                ex.Message + " " + received.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                + " sentence(s) had already arrived — see PartialResponse.",
+                partial, ex.InnerException);
+        }
+
+        /// <summary>One sentence in its wire shape, for the partial-response text.</summary>
+        private static string DescribeSentence(ITikSentence sentence)
+        {
+            string type = sentence is ApiReSentence ? "!re"
+                : sentence is ApiDoneSentence ? "!done"
+                : sentence is ApiTrapSentence ? "!trap"
+                : sentence is ApiFatalSentence ? "!fatal"
+                : sentence.GetType().Name;
+            var words = sentence.Words.Select(w => "=" + w.Key + "=" + w.Value);
+            return (type + " " + string.Join(" ", words)).TrimEnd();
+        }
+
         private IEnumerable<ITikSentence> GetAll(string tag) => GetAll(tag, _receiveTimeout);
 
         private IEnumerable<ITikSentence> GetAll(string tag, int receiveTimeoutMs)
@@ -812,7 +846,21 @@ namespace tik4net.Api
             _writeLock.Wait();
             try { WriteCommand(commandRows); }
             finally { _writeLock.Release(); }
-            return GetAll(tagOrEmptyString, receiveTimeoutMs).ToList();
+
+            // Accumulated here rather than with ToList() so a timeout part-way through still has the rows
+            // the router already sent — ToList() dropped them, and "no response received" then described a
+            // silent router and a half-answering one identically.
+            var received = new List<ITikSentence>();
+            try
+            {
+                foreach (ITikSentence sentence in GetAll(tagOrEmptyString, receiveTimeoutMs))
+                    received.Add(sentence);
+            }
+            catch (TikConnectionReceiveTimeoutException ex) when (received.Count > 0)
+            {
+                throw WithPartialResponse(ex, received);
+            }
+            return received;
         }
 
         public IEnumerable<ITikSentence> CallCommandSync(IEnumerable<string> commandRows)
@@ -899,11 +947,13 @@ namespace tik4net.Api
                         sentence = await _dispatcher.WaitAsync(tag, _receiveTimeout,
                             System.Threading.CancellationToken.None).ConfigureAwait(false);
                     }
-                    catch (TikConnectionReceiveTimeoutException)
+                    catch (TikConnectionReceiveTimeoutException ex)
                     {
                         // Cancelled and silent: the caller asked to stop and the router said nothing at all.
                         // Report the cancellation — the timeout is a symptom of it, not the news.
                         cancellationToken.ThrowIfCancellationRequested();
+                        if (result.Count > 0)
+                            throw WithPartialResponse(ex, result);
                         throw;
                     }
 
