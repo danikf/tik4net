@@ -8,9 +8,12 @@ namespace tik4net.Objects.Ip
     /// <summary>
     /// /ip/accounting/snapshot: When a snapshot is made for data collection, the accounting table is cleared and new IP pairs and traffic data are added. The more frequently traffic data is collected, the less likelihood that the IP pairs thereshold limit will be reached.
     /// <para>
-    /// Declared <see cref="TikEntityOperations.None"/> but not measured: <c>/ip/accounting</c> does not
-    /// exist on RouterOS 7 (the router answers <i>no such command or directory (accounting)</i>), so the
-    /// entity is kept for RouterOS 6 devices and its verbs cannot be probed on a v7 router.
+    /// <b>RouterOS 6 only.</b> <c>/ip/accounting</c> was removed in RouterOS 7 — a v7 router answers
+    /// <i>no such command or directory (accounting)</i> to any command on this path, so on a v7 device
+    /// every operation here fails and <see cref="TikConnectionExtensions.LoadAll">LoadAll</see> throws
+    /// <see cref="TikNoSuchCommandException"/>. The entity is kept for v6 devices; its
+    /// <see cref="TikEntityOperations"/> declaration is the v6 shape and is not verified by
+    /// <c>EntityOperationMatrixTest</c>, which skips a menu the router does not have.
     /// </para>
     /// </summary>
     [TikEntity("/ip/accounting/snapshot", SupportedOperations = TikEntityOperations.None)]

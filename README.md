@@ -13,7 +13,7 @@ both API login handshakes and correlating replies to their caller are handled fo
 genuinely cannot do, it tells you through its capabilities instead of quietly doing the wrong thing. The
 surface is large, and the first working program is five lines.
 
-Tested and debugged against **RouterOS 7.24** (latest stable) — every transport verified against a live router.
+Tested and debugged against **RouterOS 7.24.2** (latest stable) — every transport verified against a live router.
 
 > **🆕 Many new connection types!** Beyond the classic API, tik4net now drives the router over REST, Telnet, SSH, MAC-Telnet, and WinBox (terminal + native-M2, over IP or MAC layer). See [Connection types and capabilities](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities). tik4net is the **only .NET library** that speaks **MAC-Telnet** and the **WinBox** protocols.
 

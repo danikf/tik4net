@@ -8,8 +8,9 @@ namespace tik4net.Objects.Ip
     /// <summary>
     /// /ip/accounting/uncounted: In case no more IP pairs can be added to the accounting table (the accounting threshold has been reached), all traffic that does not belong to any of the known IP pairs is summed together and totals are shown in this menu
     /// <para>
-    /// Declared <see cref="TikEntityOperations.None"/> but not measured - see
-    /// <see cref="AccountingSnapshot"/>: <c>/ip/accounting</c> does not exist on RouterOS 7.
+    /// <b>RouterOS 6 only</b> - see <see cref="AccountingSnapshot"/>: <c>/ip/accounting</c> was removed
+    /// in RouterOS 7, so on a v7 device every command on this path answers
+    /// <i>no such command or directory (accounting)</i>.
     /// </para>
     /// </summary>
     [TikEntity("/ip/accounting/uncounted", SupportedOperations = TikEntityOperations.None, IsSingleton = true)]

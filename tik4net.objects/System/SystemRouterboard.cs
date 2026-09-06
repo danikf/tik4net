@@ -4,9 +4,11 @@ namespace tik4net.Objects.System
     /// Gets the infor provided by
 	/// /system/routerboard 
 	/// <para>
-	/// Declared <see cref="TikEntityOperations.None"/> as it always has been, but not measured: the menu
-	/// only exists on RouterBOARD hardware, and on the CHR the test suite runs against
-	/// <c>/system/routerboard/print</c> answers <i>no such command or directory (routerboard)</i>.
+	/// Read-only: the menu offers <c>get</c>, <c>print</c>, <c>export</c> and <c>upgrade</c>, and no
+	/// <c>add</c>/<c>set</c>/<c>remove</c>/<c>move</c> — measured on RouterBOARD hardware, since the menu
+	/// does not exist on the CHR the test suite runs against (<c>/system/routerboard/print</c> there
+	/// answers <i>no such command or directory (routerboard)</i>, which is why
+	/// <c>EntityOperationMatrixTest</c> skips this entity rather than failing).
 	/// </para>
 	/// </summary>
 	[TikEntity("/system/routerboard", SupportedOperations = TikEntityOperations.None)]

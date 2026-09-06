@@ -187,6 +187,25 @@ namespace tik4net.integrationtests
             Assert.ThrowsException<TikNoSuchItemException>(() => Connection.MoveToEnd(ghost));
         }
 
+        [TestMethod]
+        public void UnsettingAFieldOnARowThatIsNotThereRaisesNoSuchItemOnEveryTransport()
+        {
+            // The fourth row-addressing verb, named explicitly because verb coverage is never incidental:
+            // `unset` reaches the router only from inside Save (a nullable field the caller cleared), so
+            // nothing else in the suite would exercise it against a missing row - and it shares the record
+            // selector that was the defect. Driven at the command level for the same reason VerbMatrixTest
+            // is: constructing the Save path needs a loaded snapshot, and this is about the translation.
+            //
+            // `connection-mark` and not `comment`: /ip/firewall/filter has no unsettable comment, and the
+            // router complains about the value-name BEFORE it looks for the row - on the binary API too -
+            // which would have made this test pass for the wrong reason.
+            var cmd = Connection.CreateCommand("/ip/firewall/filter/unset", TikCommandParameterFormat.NameValue);
+            cmd.AddParameter(TikSpecialProperties.Id, NonexistentId, TikCommandParameterFormat.NameValue);
+            cmd.AddParameter("value-name", "connection-mark", TikCommandParameterFormat.NameValue);
+
+            Assert.ThrowsException<TikNoSuchItemException>(() => cmd.ExecuteNonQuery());
+        }
+
         // ── The declarations, measured ────────────────────────────────────────────────────────────
 
         [TestMethod]
