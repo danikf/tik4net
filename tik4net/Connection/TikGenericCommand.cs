@@ -535,7 +535,7 @@ namespace tik4net.Connection
                 "This transport does not support streaming commands (ExecuteListWithDuration). Use a transport that reports the Streaming capability (binary API).");
         }
 
-        public IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string abortReason)
+        public IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string? abortReason)
         {
             throw new TikConnectionCapabilityNotSupportedException(TikConnectionCapability.Streaming,
                 "This transport does not support streaming commands (ExecuteListWithDuration). Use a transport that reports the Streaming capability (binary API).");

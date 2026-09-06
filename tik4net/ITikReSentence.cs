@@ -37,7 +37,7 @@ namespace tik4net
         /// <param name="fieldName">Name of the word (property). =name=value</param>
         /// <param name="fieldValue">Value of the word (property) with given <paramref name="fieldName"/>.  =name=value</param>
         /// <returns>True if word (property) with given name has been found - has been returned from mikrotik router as part of response sentence</returns>
-        bool TryGetResponseField(string fieldName, out string fieldValue);
+        bool TryGetResponseField(string fieldName, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out string fieldValue);
 
         /// <summary>
         /// Gets the sentence word (one property). Resturns <paramref name="defaultValue"/> if property with given name has not been returned from mikrotik router as part of response sentence.

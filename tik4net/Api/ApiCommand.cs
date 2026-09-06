@@ -707,11 +707,11 @@ namespace tik4net.Api
         public IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec)
         {
             bool wasAborted;
-            string abortReason;
+            string? abortReason;
             var result = ExecuteListWithDuration(durationSec, out wasAborted, out abortReason);
 
             if (wasAborted)
-                throw new TikCommandAbortException(this, abortReason);
+                throw new TikCommandAbortException(this, abortReason!);   // non-null exactly when wasAborted is true
             else
                 return result;
         }
@@ -734,7 +734,7 @@ namespace tik4net.Api
         // (a `!trap` is followed by its own `!done`), and disposing it underneath would throw inside a
         // callback whose exceptions are swallowed by design.
 
-        public IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string abortReason)
+        public IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string? abortReason)
         {
             ITikTrapSentence? asyncTrap = null;
             string? fatalMessage = null;
@@ -743,7 +743,7 @@ namespace tik4net.Api
             object resultLock = new object();
             ManualResetEventSlim finished = new ManualResetEventSlim(false);
             wasAborted = false;
-            abortReason = null!; // meaningful only when wasAborted is true, per the interface doc
+            abortReason = null; // meaningful only when wasAborted is true, per the interface doc
 
             //Async execute, responses are stored in result list
             ExecuteAsyncCore(

@@ -213,12 +213,13 @@ namespace tik4net
         /// <param name="wasAborted">If command has been terminated before <paramref name="durationSec"/>.</param>
         /// <param name="abortReason">
         /// Detail info if <paramref name="wasAborted"/> is true: the router's own <c>!trap</c> message, or the reason
-        /// the connection was lost, whichever ended the command.
+        /// the connection was lost, whichever ended the command. <b>Null when the command was not aborted</b> —
+        /// there is no reason to give — so read it only after testing <paramref name="wasAborted"/>.
         /// </param>
         /// <returns>List of !re sentences read.</returns>
         /// <remarks>If no error occurs, calling this method blocks calling thread for <paramref name="durationSec"/>.
         /// A command that ends earlier (<c>!done</c>, <c>!trap</c> or a lost connection) returns as soon as it ends.</remarks>
-        IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string abortReason);
+        IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string? abortReason);
 
         /// <summary>
         /// Executes given <see cref="CommandText"/> on router and returns all result sentences collected until the router sends <c>!done</c>.

@@ -187,7 +187,7 @@ namespace tik4net.Testing
         }
 
         /// <inheritdoc/>
-        public IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string abortReason)
+        public IEnumerable<ITikReSentence> ExecuteListWithDuration(int durationSec, out bool wasAborted, out string? abortReason)
         {
             wasAborted = false;
             abortReason = null!; // meaningful only when wasAborted is true, per the interface doc
