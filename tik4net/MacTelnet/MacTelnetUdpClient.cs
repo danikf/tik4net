@@ -134,7 +134,7 @@ namespace tik4net.MacTelnet
             string cmd = CliOutputHelper.InjectWithoutPaging(command);
             ResetReadBuffer();
             SendTerminalBytes(_encoding.GetBytes(cmd + "\r"));
-            string raw = await ReadCommandResponseAsync(cmd, onLine).ConfigureAwait(false);
+            string raw = await ReadCommandResponseAsync(cmd, ct, onLine).ConfigureAwait(false);
             return CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), cmd);
         }
 
@@ -148,7 +148,7 @@ namespace tik4net.MacTelnet
             ResetReadBuffer();
             SendTerminalBytes(raw);
             // null -> tolerant; a control key need not be answered with a prompt.
-            return VtStripper.StripAnsi(await ReadCommandResponseAsync(null).ConfigureAwait(false));
+            return VtStripper.StripAnsi(await ReadCommandResponseAsync(null, ct).ConfigureAwait(false));
         }
 
         /// <summary>
@@ -319,7 +319,15 @@ namespace tik4net.MacTelnet
         /// consumed while it runs (see <see cref="CliLineStreamer"/>). Does not affect when the read
         /// returns — the stable prompt is still the only terminator.
         /// </param>
-        private async Task<string> ReadCommandResponseAsync(string? sentCommand, Action<string>? onLine = null)
+        /// <param name="ct">
+        /// Cancels the wait between polls. Only ever the caller's own token, and only in
+        /// <see cref="TikCancellationMode.AbandonAndClose"/> — <c>CliConnectionBase</c> passes
+        /// <see cref="CancellationToken.None"/> otherwise, because a read abandoned mid-command leaves
+        /// output the next command would parse as its own. In that mode the connection is closed straight
+        /// afterwards, so there is no next command for it to confuse.
+        /// </param>
+        private async Task<string> ReadCommandResponseAsync(string? sentCommand, CancellationToken ct,
+            Action<string>? onLine = null)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
             DateTime? settleUntil = null;
@@ -329,6 +337,7 @@ namespace tik4net.MacTelnet
 
             while (sw.ElapsedMilliseconds < _receiveTimeoutMs)
             {
+                ct.ThrowIfCancellationRequested();
                 ThrowIfPumpFaulted();
                 _rxSignal.Reset();
 

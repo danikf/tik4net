@@ -46,10 +46,22 @@ namespace tik4net.Cli
 
         /// <summary>
         /// Waits for the signal, giving up after <paramref name="timeoutMs"/>. Returns true when signalled.
-        /// Deliberately takes no <see cref="CancellationToken"/>: on the terminal transports a read that is
-        /// abandoned mid-command leaves output the NEXT command would parse as its own, so cancellation is
-        /// honoured between commands and never inside one (see <see cref="TikCancellationMode"/>).
         /// </summary>
+        /// <remarks>
+        /// Deliberately takes no <see cref="CancellationToken"/>, and that is not the same as saying a
+        /// terminal read cannot be cancelled. The reason a read is normally not abandoned mid-command is
+        /// that the output it leaves behind would be parsed by the NEXT command as its own — so
+        /// <see cref="TikCancellationMode.Cooperative"/>, the default, hands the transport
+        /// <see cref="CancellationToken.None"/> and reports the cancel once the response is drained.
+        /// <see cref="TikCancellationMode.AbandonAndClose"/> is the caller opting out of exactly that, and
+        /// it closes the connection afterwards, so there is no next command to confuse.
+        /// <para>
+        /// The token therefore belongs on the <b>polling loop</b> around this wait, not on the wait itself:
+        /// a check per iteration bounds the abandon at one poll interval and needs no cancellable
+        /// primitive underneath. Every terminal client does that check; two of them did not, and
+        /// <c>AbandonAndClose</c> was silently a no-op on three transports as a result.
+        /// </para>
+        /// </remarks>
         public Task<bool> WaitAsync(int timeoutMs) => _semaphore.WaitAsync(timeoutMs);
     }
 }
