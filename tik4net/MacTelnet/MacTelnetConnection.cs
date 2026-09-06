@@ -26,10 +26,14 @@ namespace tik4net.MacTelnet
     /// stream rather than a backlog item.
     /// </para>
     /// <para>
-    /// <see cref="ITikConnection.ConnectTimeout"/> covers the MNDP discovery and the EC-SRP5 handshake and
-    /// then the wait for the RouterOS shell prompt — a stuck login fails inside it rather than inside the
-    /// per-command <see cref="ITikConnection.ReceiveTimeout"/>, so a caller's connect-retry loop still gets
-    /// its second attempt.
+    /// <see cref="ITikConnection.ConnectTimeout"/> covers the EC-SRP5 handshake and then the wait for the
+    /// RouterOS shell prompt — a stuck login fails inside it rather than inside the per-command
+    /// <see cref="ITikConnection.ReceiveTimeout"/>, so a caller's connect-retry loop still gets its second
+    /// attempt.
+    /// <b>MNDP discovery is not part of that budget.</b> When <see cref="RouterMac"/> is not set the MAC
+    /// is resolved by <c>MndpHelper.FindMacByHost</c>, which takes its own timeout and is called without
+    /// one — a fixed 5 s, whatever <see cref="ITikConnection.ConnectTimeout"/> says. Set
+    /// <see cref="RouterMac"/> to skip discovery entirely when the open has to be bounded exactly.
     /// </para>
     /// <para><b>Thread safety.</b> Safe from several threads; commands queue rather than overlap, and a
     /// monitor running on this connection may miss a change made over the same one — see

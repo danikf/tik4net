@@ -267,8 +267,10 @@ namespace tik4net.Testing
         /// <inheritdoc/>
         public Encoding Encoding { get; set; } = Encoding.ASCII;
 
-        // No SendTagWithSyncCommand: tagging is ITikTaggedConnection since 4.0 and this fake has no wire to
-        // put a tag on, so it neither implements the interface nor declares TikConnectionCapability.Tagging.
+        // SendTagWithSyncCommand lives on ITikTaggedConnection since 4.0, and this fake implements it (and
+        // declares TikConnectionCapability.Tagging) so a test can exercise the branch that reads it. There is
+        // no wire underneath, so setting it changes nothing about what the fake returns — which is the point:
+        // code under test can set it without knowing it is talking to a fake.
 
         /// <inheritdoc/>
         public int SendTimeout { get; set; }

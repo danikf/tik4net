@@ -121,6 +121,13 @@ namespace tik4net
         /// If communication should be traced via <see cref="System.Diagnostics.Debug"/>. Default is <c>true</c> when Debugger is attached and <c>false</c> if not.
         /// You can read communication commands in output window (Debug-Windows-Output) when debugging.
         /// </summary>
+        /// <remarks>
+        /// <b>On the binary API the traced text includes the login password in clear text</b>, because the
+        /// API login is an ordinary command sentence — see <see cref="OnWriteRow"/>. It defaults to
+        /// <c>Debugger.IsAttached</c>, so it is normally on while debugging and off in a shipped build;
+        /// what it is never safe to do is route <see cref="System.Diagnostics.Debug"/> output to a file or
+        /// a telemetry sink and leave this on.
+        /// </remarks>
         bool DebugEnabled { get; set; }
 
         /// <summary>
@@ -200,14 +207,44 @@ namespace tik4net
         /// <summary>
         /// Event called when row (word) from mikrotik is read by connection.
         /// </summary>
-        /// <remarks>Could be used for debug/logging</remarks>
+        /// <remarks>
+        /// <b>On the binary API these carry the login password in clear text.</b> The API login is an
+        /// ordinary command sentence, so the <c>=password=…</c> word goes through this event like any
+        /// other — with the real password in it, not a placeholder. Accepted rather than redacted: these
+        /// two events are a verbatim view of the wire, that is what makes them useful for diagnosing a
+        /// protocol problem, and filtering one word would make the view a half-truth without making the
+        /// credential any less present in the process. The other transports do not reach here with
+        /// credentials — the CLI family sends its password outside the row path, REST reports method and
+        /// path only, and native WinBox starts tracing after authentication.
+        /// <para>
+        /// So treat a handler on these as handling secrets: do not write it to a log file, a crash report
+        /// or a bug tracker unfiltered. <see cref="tik4net.Diagnostics.TikWireTrace"/> is the diagnostic
+        /// built for capture instead — it redacts the credential — and it also covers the transports these
+        /// events do not.
+        /// </para>
+        /// </remarks>
         /// <seealso cref="OnWriteRow"/>
         event EventHandler<TikConnectionCommCallbackEventArgs>? OnReadRow;
 
         /// <summary>
         /// Event called when row (word) to mikrotik is written  by connection.
         /// </summary>
-        /// <remarks>Could be used for debug/logging</remarks>
+        /// <remarks>
+        /// <b>On the binary API these carry the login password in clear text.</b> The API login is an
+        /// ordinary command sentence, so the <c>=password=…</c> word goes through this event like any
+        /// other — with the real password in it, not a placeholder. Accepted rather than redacted: these
+        /// two events are a verbatim view of the wire, that is what makes them useful for diagnosing a
+        /// protocol problem, and filtering one word would make the view a half-truth without making the
+        /// credential any less present in the process. The other transports do not reach here with
+        /// credentials — the CLI family sends its password outside the row path, REST reports method and
+        /// path only, and native WinBox starts tracing after authentication.
+        /// <para>
+        /// So treat a handler on these as handling secrets: do not write it to a log file, a crash report
+        /// or a bug tracker unfiltered. <see cref="tik4net.Diagnostics.TikWireTrace"/> is the diagnostic
+        /// built for capture instead — it redacts the credential — and it also covers the transports these
+        /// events do not.
+        /// </para>
+        /// </remarks>
         /// <seealso cref="OnReadRow"/>
         event EventHandler<TikConnectionCommCallbackEventArgs>? OnWriteRow;
 
@@ -242,7 +279,10 @@ namespace tik4net
 
         /// <summary>
         /// Opens connection to the specified mikrotik host on default port (depends on technology) and perform the logon operation.
-        /// Awaitable version, bounded by <see cref="ConnectTimeout"/> (default 15 000 ms).
+        /// Awaitable version. <see cref="ConnectTimeout"/> (default 15 000 ms) bounds the connect and the login
+        /// exchange; what else falls inside it differs per transport — MNDP discovery on the MAC-layer
+        /// transports and the <c>.jg</c> catalog load on native WinBox are bounded separately, and each
+        /// transport's own type documents which.
         /// </summary>
         /// <param name="host">The host. On a MAC-layer connection (<see cref="ITikMacLayerConnection"/>) this may be empty — there the router is identified by its MAC address.</param>
         /// <param name="user">The user.</param>
@@ -265,7 +305,8 @@ namespace tik4net
         /// <see cref="ConnectTimeout"/> alone.</item>
         /// <item><c>WinboxNative</c>/<c>WinboxNativeMac</c> check it before starting and cannot honour it
         /// after: the EC-SRP5 handshake and catalog fetch have no awaitable form (see the remarks on that
-        /// transport). <see cref="ConnectTimeout"/> is the bound there.</item>
+        /// transport). <see cref="ConnectTimeout"/> bounds the connect and the handshake there, but
+        /// <b>not</b> the <c>.jg</c> catalog load that follows them.</item>
         /// </list>
         /// Cancellation surfaces as <see cref="System.OperationCanceledException"/>, never wrapped.
         /// </param>
@@ -298,7 +339,8 @@ namespace tik4net
         /// <see cref="ConnectTimeout"/> alone.</item>
         /// <item><c>WinboxNative</c>/<c>WinboxNativeMac</c> check it before starting and cannot honour it
         /// after: the EC-SRP5 handshake and catalog fetch have no awaitable form (see the remarks on that
-        /// transport). <see cref="ConnectTimeout"/> is the bound there.</item>
+        /// transport). <see cref="ConnectTimeout"/> bounds the connect and the handshake there, but
+        /// <b>not</b> the <c>.jg</c> catalog load that follows them.</item>
         /// </list>
         /// Cancellation surfaces as <see cref="System.OperationCanceledException"/>, never wrapped.
         /// </param>
