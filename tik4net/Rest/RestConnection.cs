@@ -210,6 +210,17 @@ namespace tik4net.Rest
                     $"REST connection to {host}:{port} timed out: the router did not answer the open probe " +
                     $"within ConnectTimeout ({ConnectTimeout} ms).", ex);
             }
+            catch (OperationCanceledException)
+            {
+                // The caller's own cancel, and it leaves as itself. Wrapping it into the IOException below
+                // would break every catch (OperationCanceledException) written against this transport and
+                // report a caller's deliberate act as an I/O failure. SendHttpAsync has already separated
+                // this from a timeout — a cancellation nobody asked for becomes
+                // TikConnectionReceiveTimeoutException there — so anything reaching here was asked for.
+                _httpClient.Dispose();
+                _httpClient = null;
+                throw;
+            }
             catch (Exception ex)
             {
                 _httpClient.Dispose();

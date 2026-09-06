@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Connection;
 using tik4net.Rest;
@@ -47,6 +49,47 @@ namespace tik4net.unittests.Rest
                 var inner = ex.InnerException as TikConnectionReceiveTimeoutException;
                 Assert.IsNotNull(inner, "the connect failure carries the timeout that elapsed");
                 Assert.AreEqual(ShortTimeoutMs, inner.TimeoutMilliseconds);
+            }
+        }
+
+        /// <summary>
+        /// A cancelled <c>OpenAsync</c> must surface <see cref="OperationCanceledException"/> as itself.
+        /// </summary>
+        /// <remarks>
+        /// The open probe's generic <c>catch (Exception)</c> wrapped everything it saw into
+        /// <see cref="IOException"/>, and a caller's cancellation went through it like any other failure —
+        /// so every <c>catch (OperationCanceledException)</c> written against this transport missed, and
+        /// the caller learned about their OWN cancel as an I/O error. <c>SendHttpAsync</c> already tells a
+        /// cancel from a timeout correctly (the timeout becomes
+        /// <see cref="TikConnectionReceiveTimeoutException"/>); only the open path undid that.
+        /// <para>The timeout here is deliberately long: if it were short, the wait could end for the wrong
+        /// reason and the test would pass without the cancel ever being honoured.</para>
+        /// </remarks>
+        [TestMethod]
+        public async Task CancellingOpenAsyncSurfacesOperationCanceledRatherThanIOException()
+        {
+            using (var server = new ScriptedHttpServer()) // accepts the probe, answers nothing
+            using (var conn = new RestConnection(useSsl: false))
+            using (var cts = new CancellationTokenSource())
+            {
+                conn.ConnectTimeout = 30000;   // far longer than the cancel below, so the cancel is what ends the wait
+                cts.CancelAfter(250);
+
+                Exception caught = null;
+                try
+                {
+                    await conn.OpenAsync("127.0.0.1", server.Port, "admin", "", cts.Token);
+                }
+                catch (Exception ex)
+                {
+                    caught = ex;
+                }
+
+                Assert.IsNotNull(caught, "OpenAsync returned instead of honouring the cancelled token");
+                Assert.IsInstanceOfType(caught, typeof(OperationCanceledException),
+                    "a cancelled OpenAsync must throw OperationCanceledException, not wrap it — got "
+                    + caught.GetType().Name + ": " + caught.Message);
+                Assert.IsFalse(conn.IsOpened, "a cancelled open must not leave the connection marked open");
             }
         }
 
