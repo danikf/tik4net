@@ -18,7 +18,15 @@ namespace tik4net.WinboxCliMac
     /// packets) with the shared WinBox CLI engine. The router MAC address is discovered via MNDP unless
     /// <see cref="RouterMac"/> is set. Requires
     /// <c>/tool/mac-server/mac-winbox set allowed-interface-list=all</c> on the router.
-    /// <para>Supports CRUD only — Listen/Streaming/Async throw <see cref="NotSupportedException"/>.</para>
+    /// <para>Capability is <see cref="TikConnectionCapability.Crud"/> |
+    /// <see cref="TikConnectionCapability.Listen"/> | <see cref="TikConnectionCapability.SafeMode"/> |
+    /// <see cref="TikConnectionCapability.RawCommand"/> |
+    /// <see cref="TikConnectionCapability.AsyncCommands"/>, inherited whole from
+    /// <see cref="CliConnectionBase"/>: Listen and the callback monitors are polled, and
+    /// <c>Execute*Async</c> awaits the socket rather than wrapping a blocking call. There is no
+    /// <see cref="TikConnectionCapability.Streaming"/> — use the binary API for that — and no
+    /// <see cref="TikConnectionCapability.CancelInFlight"/>, which is intrinsic to an unframed terminal
+    /// stream rather than a backlog item.</para>
     /// <para>
     /// <see cref="ITikConnection.ConnectTimeout"/> bounds each wait for an EC-SRP5 handshake frame and the
     /// wait for the RouterOS shell prompt.

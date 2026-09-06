@@ -13,10 +13,14 @@ namespace tik4net.Ssh
     /// SSH.NET dependency.
     /// </summary>
     /// <remarks>
-    /// Supports CRUD, polled Listen and Safe Mode (capabilities inherited from <see cref="CliConnectionBase"/>:
+    /// Capability is inherited whole from <see cref="CliConnectionBase"/>:
     /// <see cref="TikConnectionCapability.Crud"/> | <see cref="TikConnectionCapability.Listen"/> |
-    /// <see cref="TikConnectionCapability.SafeMode"/>). Streaming (<c>ExecuteListWithDuration</c>) is not
-    /// supported — use the binary API for that. Terminal Tab-completion (<see cref="ITikCliCompletion"/>)
+    /// <see cref="TikConnectionCapability.SafeMode"/> | <see cref="TikConnectionCapability.RawCommand"/> |
+    /// <see cref="TikConnectionCapability.AsyncCommands"/> — Listen and the monitors are polled,
+    /// and <c>Execute*Async</c> awaits the socket rather than wrapping a blocking call. Streaming
+    /// (<c>ExecuteListWithDuration</c>) is not supported — use the binary API for that — and neither is
+    /// <see cref="TikConnectionCapability.CancelInFlight"/>, which is intrinsic to an unframed terminal
+    /// stream rather than a backlog item. Terminal Tab-completion (<see cref="ITikCliCompletion"/>)
     /// is supported, like on the other CLI transports. Requires the <c>ssh</c> service enabled on the router.
     /// <para><b>Thread safety.</b> Safe from several threads; commands queue rather than overlap, and a
     /// monitor running on this connection may miss a change made over the same one — see

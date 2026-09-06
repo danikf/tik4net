@@ -16,13 +16,22 @@ namespace tik4net.WinboxCli
     /// and runs an interactive RouterOS CLI session — so all CRUD goes through <c>print as-value</c>,
     /// exactly like the Telnet and MAC-Telnet transports.
     /// <para>
-    /// This is the terminal-driven ("Cli") WinBox mode. A future native-M2 mode (non-terminal CRUD) and
-    /// MAC-layer variants will live alongside it as <c>WinboxNative*</c> / <c>WinboxCliMac*</c> /
-    /// <c>WinboxNativeMac*</c>, reusing the shared M2 layer in <c>tik4net.Winbox</c>.
+    /// This is the terminal-driven ("Cli") WinBox mode. Three siblings share the M2 layer in
+    /// <c>tik4net.Winbox</c> with it: <see cref="WinboxCliMac.WinboxCliMacConnection"/> carries the same
+    /// terminal over the MAC layer, and <see cref="WinboxNative.WinboxNativeConnection"/> /
+    /// <see cref="WinboxNativeMac.WinboxNativeMacConnection"/> do structured non-terminal CRUD over M2
+    /// instead of driving the CLI.
     /// </para>
     /// <para>
-    /// Supports all CRUD operations. Listen/Streaming/Async are not supported
-    /// (capability: <see cref="TikConnectionCapability.Crud"/>).
+    /// Capability is <see cref="TikConnectionCapability.Crud"/> |
+    /// <see cref="TikConnectionCapability.Listen"/> | <see cref="TikConnectionCapability.SafeMode"/> |
+    /// <see cref="TikConnectionCapability.RawCommand"/> |
+    /// <see cref="TikConnectionCapability.AsyncCommands"/>, inherited whole from
+    /// <see cref="CliConnectionBase"/>: Listen and the callback monitors are polled, and
+    /// <c>Execute*Async</c> awaits the socket rather than wrapping a blocking call. There is no
+    /// <see cref="TikConnectionCapability.Streaming"/> — use the binary API for that — and no
+    /// <see cref="TikConnectionCapability.CancelInFlight"/>, which is intrinsic to an unframed terminal
+    /// stream rather than a backlog item.
     /// </para>
     /// <para>
     /// <see cref="ITikConnection.ConnectTimeout"/> bounds the TCP connect handshake, the authentication
