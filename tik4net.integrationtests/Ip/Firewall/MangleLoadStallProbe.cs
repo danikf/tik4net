@@ -85,6 +85,57 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
+        /// The same read WITHOUT <c>detail</c>, to see whether that modifier is what the router chokes on.
+        /// </summary>
+        /// <remarks>
+        /// <c>FirewallMangle</c> is declared <c>IncludeDetails = true</c>, so the mapper sends <c>=detail=</c>
+        /// and every row comes back with every field. If the stall follows the modifier rather than the row
+        /// count, a caller has a workaround (a proplist, or an entity without the flag) and the router has a
+        /// narrower bug.
+        /// </remarks>
+        [TestMethod]
+        [Ignore] // manual probe: needs a router carrying a few thousand mangle rules
+        public void MeasureMangleLoadGapsWithoutDetail()
+        {
+            for (int attempt = 1; attempt <= Attempts; attempt++)
+            {
+                var gapTicks = new List<long>(200000);
+                var sw = Stopwatch.StartNew();
+                long lastTick = 0;
+
+                using (ITikConnection connection = ConnectionFactory.CreateConnection(TikConnectionType.Api))
+                {
+                    connection.ReceiveTimeout = ReceiveTimeoutMs;
+                    connection.OnReadRow += (s, e) =>
+                    {
+                        long now = sw.ElapsedTicks;
+                        gapTicks.Add(now - lastTick);
+                        lastTick = now;
+                    };
+                    connection.Open(ConfigurationManager.AppSettings["host"],
+                                    ConfigurationManager.AppSettings["user"],
+                                    ConfigurationManager.AppSettings["pass"] ?? "");
+
+                    long openedAt = sw.ElapsedMilliseconds;
+                    try
+                    {
+                        var rows = connection.CreateCommand("/ip/firewall/mangle/print").ExecuteList();
+                        Report(attempt, "OK-nodetail", rows.Count(), sw, openedAt, gapTicks, null);
+                    }
+                    catch (TikConnectionReceiveTimeoutException ex)
+                    {
+                        int partialRows = ex.PartialResponse == null
+                            ? 0
+                            : ex.PartialResponse.Split('\n').Length;
+                        Report(attempt, "TIMEOUT-nodetail", partialRows, sw, openedAt, gapTicks, ex);
+                        Console.WriteLine("            socket at timeout: " + DescribeSocket(connection));
+                        Assert.Fail($"attempt {attempt} stalled without detail after {partialRows} sentence(s)");
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// Bytes pending in the receive buffer, and the reader task's state, read straight off the
         /// connection's private fields. Reflection because this is a diagnosis, not an API.
         /// </summary>
