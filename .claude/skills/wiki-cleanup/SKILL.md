@@ -353,8 +353,8 @@ Beginner path first (a fix there pays the most), then reference, then deep mater
 4. Big reference: `Command-translation-on-non-API-transports`,
    `One-task-on-every-transport-and-API-level`, `WinBox-Native-connection`, `MCP-server`
 5. Testing and debugging: `Unit-testing-without-a-router`, `Testing-*-API`, `Communication-debugging`
-6. Meta: `History`, `Upgrading-from-3.x-to-4.0`, `Roadmap-4x` — these three follow different rules
-   (they *are* the history and the plan) and mostly need accuracy checks only.
+6. Meta: `History`, `Upgrading-from-3.x-to-4.0` — these two follow different rules (they *are* the
+   history) and mostly need accuracy checks only.
 
 ## Inventory commands
 

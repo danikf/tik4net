@@ -18,4 +18,4 @@ Router coordinates come from the project's own configuration — point it at a r
 
 - [Getting started](https://github.com/danikf/tik4net/wiki/Getting-started) and
   [CRUD examples for all APIs](https://github.com/danikf/tik4net/wiki/CRUD-examples-for-all-APIs) in the wiki.
-- The long-term intent is to convert these examples into unit tests; see the roadmap in the wiki.
+- The long-term intent is to convert these examples into unit tests.

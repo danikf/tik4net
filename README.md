@@ -152,7 +152,6 @@ MikroTik's own protocol documentation:
 * Looking for betatesters
 
 # Roadmap & future
-See the [4.x roadmap](https://github.com/danikf/tik4net/wiki/Roadmap-4x) wiki page for details. Highlights:
 * create highlevel classes for all mikrotik entities (you can still generate your own classes)
 * create tiklink project - easy use-to wrapper over mikrotik router with fluent API 
 * convert examples to separate unittests (in progress)
