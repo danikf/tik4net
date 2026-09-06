@@ -177,18 +177,43 @@ namespace tik4net.unittests.Objects
             // Not a style rule: TikEnumMetadata builds its tables from [TikEnum], so a member without one
             // can be neither written (nothing to send) nor read (nothing to match) — it throws on the first
             // value that lands on it, which may be years after the member was added.
+            //
+            // An EMPTY value is the same defect wearing an attribute, and it is the one this test used to
+            // miss. TikEnumMetadata registers "" as that member's wire form, so Format sends a bare
+            // 'field=' and the spelling the router actually uses is absent from the tables altogether —
+            // reading a row that carries it throws FormatException and fails the whole load, not just the
+            // one property. The single legitimate case is the zero member of a [Flags] enum, where "" is
+            // how "no bits set" is written (TikEnumMetadata's _zeroMemberWire).
             var offenders = new List<string>();
 
             foreach (Type enumType in EntityEnumTypes())
             {
+                bool isFlags = enumType.GetTypeInfo().GetCustomAttribute<FlagsAttribute>() != null;
+
                 foreach (string name in Enum.GetNames(enumType))
                 {
-                    if (enumType.GetRuntimeField(name).GetCustomAttribute<TikEnumAttribute>(false) == null)
+                    var attribute = enumType.GetRuntimeField(name).GetCustomAttribute<TikEnumAttribute>(false);
+                    if (attribute == null)
+                    {
                         offenders.Add(enumType.Name + "." + name + " has no [TikEnum]");
+                        continue;
+                    }
+
+                    if (!string.IsNullOrEmpty(attribute.Value))
+                        continue;
+
+                    bool isZeroMember = Convert.ToInt64(Enum.Parse(enumType, name)) == 0;
+                    if (isFlags && isZeroMember)
+                        continue;
+
+                    offenders.Add(enumType.Name + "." + name + " has an empty [TikEnum] value"
+                        + (isZeroMember
+                            ? " — only a [Flags] enum's zero member may"
+                            : " — it can never be written or read"));
                 }
             }
 
-            AssertNoOffenders(offenders, "enum members with no wire value");
+            AssertNoOffenders(offenders, "enum members with no usable wire value");
         }
 
         [TestMethod]

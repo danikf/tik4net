@@ -83,11 +83,11 @@ namespace tik4net.Objects.Ip.Firewall
             MarkPacket,
 
             /// <summary>
-            /// 
+            /// place a mark specified by the new-routing-mark parameter on a packet. This kind of mark is
+            /// used for policy routing purposes only
             /// </summary>
-            [TikEnum("")]
+            [TikEnum("mark-routing")]
             MarkRouting,
-            //mark-routing - place a mark specified by the new-routing-mark parameter on a packet.This kind of marks is used for policy routing purposes only
 
             /// <summary>
             /// ignore this rule and go to next one (useful for statistics).
