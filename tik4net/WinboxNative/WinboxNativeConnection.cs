@@ -1553,7 +1553,9 @@ namespace tik4net.WinboxNative
                 // references before sending. Consumers then handle one exception type across all transports.
                 try
                 {
-                    fields.AddRange(resolver.EncodeField(p.Name, p.Value, resolveRef, allowReadOnly,
+                    // p.Value is non-null here: this loop handles name=value data parameters, and only a
+                    // bare '?name' FILTER (handled elsewhere) carries a null value.
+                    fields.AddRange(resolver.EncodeField(p.Name, p.Value!, resolveRef, allowReadOnly,
                         MemberTableReader));
                 }
                 catch (WinboxFieldValueException ex)
@@ -1626,7 +1628,7 @@ namespace tik4net.WinboxNative
                 int before = unsetIds.Count;
                 try
                 {
-                    fields.AddRange(resolver.EncodeUnsetField(p.Value, unsetIds));
+                    fields.AddRange(resolver.EncodeUnsetField(p.Value!, unsetIds)); // an unset carries the field NAME as its value
                 }
                 catch (WinboxFieldValueException ex)
                 {
@@ -1636,7 +1638,7 @@ namespace tik4net.WinboxNative
                 }
                 // A field the catalog cannot name has no id to list, so the request would carry the verb and
                 // nothing to apply it to — a success that clears nothing. Name it instead.
-                if (unsetIds.Count == before) unknown.Add(p.Value);
+                if (unsetIds.Count == before) unknown.Add(p.Value!);   // an unset carries the field NAME as its value
             }
 
             if (unsetIds.Count > 0)

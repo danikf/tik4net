@@ -242,8 +242,10 @@ namespace tik4net.Rest
                     return new RestRequest(HttpMethod.Get, restBase);
 
                 // GET /rest/path?.proplist=a,b,c
-                // Non-null: hasProplist (checked above) is proplist != null.
-                string query = "?.proplist=" + Uri.EscapeDataString(proplist!.Value);
+                // Non-null twice over: hasProplist (checked above) is proplist != null, and a
+                // .proplist parameter is always built with its field list — only a bare '?name'
+                // FILTER has a null Value.
+                string query = "?.proplist=" + Uri.EscapeDataString(proplist!.Value!);
                 return new RestRequest(HttpMethod.Get, restBase + query);
             }
 
@@ -265,7 +267,7 @@ namespace tik4net.Rest
 
             if (proplist != null)
             {
-                var fields = proplist.Value.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                var fields = proplist.Value!.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries); // a .proplist parameter always carries its field list
                 bodyObj[".proplist"] = fields;
             }
 

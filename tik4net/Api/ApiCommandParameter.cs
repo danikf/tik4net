@@ -8,7 +8,7 @@ namespace tik4net.Api
     internal class ApiCommandParameter : ITikCommandParameter
     {
         private string _name = null!; // set by a constructor overload or the Name setter before use
-        private string _value = null!; // set by a constructor overload or the Value setter before use
+        private string? _value; // null for a bare '?name' filter, which has no value (see ITikCommandParameter.Value)
         private TikCommandParameterFormat _parameterFormat;
 
         public string Name
@@ -17,7 +17,7 @@ namespace tik4net.Api
             set { _name = value; }
         }
 
-        public string Value
+        public string? Value
         {
             get { return _value; }
             set { _value = value; }
@@ -41,13 +41,13 @@ namespace tik4net.Api
             _name = name;
         }
 
-        public ApiCommandParameter(string name, string value)
+        public ApiCommandParameter(string name, string? value)
             :this(name)
         {
             _value = value;
         }
 
-        public ApiCommandParameter(string name, string value, TikCommandParameterFormat parameterFormat)
+        public ApiCommandParameter(string name, string? value, TikCommandParameterFormat parameterFormat)
             : this(name, value)
         {
             _parameterFormat = parameterFormat;

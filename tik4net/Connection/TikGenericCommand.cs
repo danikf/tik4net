@@ -583,14 +583,14 @@ namespace tik4net.Connection
 
         // ── Parameter helpers ─────────────────────────────────────────────────
 
-        public ITikCommandParameter AddParameter(string name, string value)
+        public ITikCommandParameter AddParameter(string name, string? value)
         {
             var p = CreateParameter(name, value);
             _parameters.Add(p);
             return p;
         }
 
-        public ITikCommandParameter AddParameter(string name, string value, TikCommandParameterFormat parameterFormat)
+        public ITikCommandParameter AddParameter(string name, string? value, TikCommandParameterFormat parameterFormat)
         {
             var p = CreateParameter(name, value, parameterFormat);
             _parameters.Add(p);
@@ -621,7 +621,7 @@ namespace tik4net.Connection
             return result;
         }
 
-        private static ITikCommandParameter CreateParameter(string name, string value, TikCommandParameterFormat fmt = TikCommandParameterFormat.Default)
+        private static ITikCommandParameter CreateParameter(string name, string? value, TikCommandParameterFormat fmt = TikCommandParameterFormat.Default)
         {
             return new TikCommandParameter(name, value, fmt);
         }

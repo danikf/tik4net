@@ -267,7 +267,7 @@ namespace tik4net
         /// <param name="name">Parameter name.</param>
         /// <param name="value">Parameter value</param>
         /// <returns>Instance of added parameter.</returns>
-        ITikCommandParameter AddParameter(string name, string value);
+        ITikCommandParameter AddParameter(string name, string? value);
 
         /// <summary>
         /// Adds new instance of parameter to <see cref="Parameters"/> list with specified <paramref name="parameterFormat"/>.
@@ -276,7 +276,7 @@ namespace tik4net
         /// <param name="value">Parameter value</param>
         /// <param name="parameterFormat">How will be parameter formated in mikrotik command.</param>
         /// <returns>Instance of added parameter.</returns>
-        ITikCommandParameter AddParameter(string name, string value, TikCommandParameterFormat parameterFormat);
+        ITikCommandParameter AddParameter(string name, string? value, TikCommandParameterFormat parameterFormat);
 
         /// <summary>
         /// Adds new instance of parameter to <see cref="Parameters"/> list. Type of parameter is resolved from parameter name or from command type.

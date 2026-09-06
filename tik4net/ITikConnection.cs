@@ -370,7 +370,7 @@ namespace tik4net
         /// <param name="value">Value of the parameter</param>
         /// <returns>Created parameter with name and value.</returns>
         /// <seealso cref="ITikCommand.Parameters"/>
-        ITikCommandParameter CreateParameter(string name, string value);
+        ITikCommandParameter CreateParameter(string name, string? value);
 
         /// <summary>
         /// Factory method - creates parameters instance specific for connection and command type.
@@ -380,6 +380,6 @@ namespace tik4net
         /// <param name="parameterFormat">How will be parameter formated in mikrotik command.</param>
         /// <returns>Created parameter with name and value.</returns>
         /// <seealso cref="ITikCommand.Parameters"/>
-        ITikCommandParameter CreateParameter(string name, string value, TikCommandParameterFormat parameterFormat);
+        ITikCommandParameter CreateParameter(string name, string? value, TikCommandParameterFormat parameterFormat);
     }
 }

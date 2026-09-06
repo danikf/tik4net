@@ -381,11 +381,11 @@ namespace tik4net.Testing
         }
 
         /// <inheritdoc/>
-        public ITikCommandParameter CreateParameter(string name, string value)
+        public ITikCommandParameter CreateParameter(string name, string? value)
             => new TikFakeParameter(name, value, TikCommandParameterFormat.Default);
 
         /// <inheritdoc/>
-        public ITikCommandParameter CreateParameter(string name, string value, TikCommandParameterFormat parameterFormat)
+        public ITikCommandParameter CreateParameter(string name, string? value, TikCommandParameterFormat parameterFormat)
             => new TikFakeParameter(name, value, parameterFormat);
 
         /// <inheritdoc/>

@@ -69,7 +69,7 @@ namespace tik4net.Connection
                 if (eq == 0)
                     throw Malformed(row, "a filter needs a property name");
                 return eq < 0
-                    ? new TikCommandParameter(kv, null!, TikCommandParameterFormat.Filter)
+                    ? new TikCommandParameter(kv, null, TikCommandParameterFormat.Filter)   // a bare '?name' filter has no value
                     : new TikCommandParameter(kv.Substring(0, eq), kv.Substring(eq + 1),
                                               TikCommandParameterFormat.Filter);
             }

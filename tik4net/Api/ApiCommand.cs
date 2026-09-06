@@ -923,7 +923,7 @@ namespace tik4net.Api
             return CancelInternal(true, milisecondsTimeout);
         }
 
-        public ITikCommandParameter AddParameter(string name, string value)
+        public ITikCommandParameter AddParameter(string name, string? value)
         {
             ApiCommandParameter result = new ApiCommandParameter(name, value);
             _parameters.Add(result);
@@ -931,7 +931,7 @@ namespace tik4net.Api
             return result;
         }
 
-        public ITikCommandParameter AddParameter(string name, string value, TikCommandParameterFormat parameterFormat)
+        public ITikCommandParameter AddParameter(string name, string? value, TikCommandParameterFormat parameterFormat)
         {
             ITikCommandParameter result = AddParameter(name, value);
             result.ParameterFormat = parameterFormat;

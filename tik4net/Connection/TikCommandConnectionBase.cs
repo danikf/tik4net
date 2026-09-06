@@ -249,11 +249,11 @@ namespace tik4net.Connection
         }
 
         /// <inheritdoc/>
-        public ITikCommandParameter CreateParameter(string name, string value)
+        public ITikCommandParameter CreateParameter(string name, string? value)
             => new TikCommandParameter(name, value);
 
         /// <inheritdoc/>
-        public ITikCommandParameter CreateParameter(string name, string value, TikCommandParameterFormat parameterFormat)
+        public ITikCommandParameter CreateParameter(string name, string? value, TikCommandParameterFormat parameterFormat)
             => new TikCommandParameter(name, value, parameterFormat);
 
         // ── Internal dispatch ─────────────────────────────────────────────────

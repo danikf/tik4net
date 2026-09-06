@@ -9,13 +9,13 @@ namespace tik4net.Testing
         public string Name { get; set; }
 
         /// <inheritdoc/>
-        public string Value { get; set; }
+        public string? Value { get; set; }
 
         /// <inheritdoc/>
         public TikCommandParameterFormat ParameterFormat { get; set; }
 
         /// <summary>Creates a fake command parameter.</summary>
-        public TikFakeParameter(string name, string value, TikCommandParameterFormat parameterFormat)
+        public TikFakeParameter(string name, string? value, TikCommandParameterFormat parameterFormat)
         {
             Name = name;
             Value = value;

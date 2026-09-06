@@ -34,7 +34,7 @@ namespace tik4net.Connection
 
         private static bool Pop(Stack<bool> s) => s.Count > 0 && s.Pop();
 
-        private static bool EvalPredicate(TikRecordSentence row, string name, string value)
+        private static bool EvalPredicate(TikRecordSentence row, string name, string? value)
         {
             char op = name.Length > 0 ? name[0] : '=';
             string field = (op == '<' || op == '>') ? name.Substring(1) : name;

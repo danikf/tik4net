@@ -444,7 +444,7 @@ namespace tik4net.Cli
                     continue;
 
                 string name = p.Name;
-                string val = p.Value;   // null and "" mean different things here — see BuildCondition
+                string? val = p.Value;   // null and "" mean different things here — see BuildCondition
 
                 if (IsSpecialParam(name))
                     continue;
@@ -492,7 +492,7 @@ namespace tik4net.Cli
 
         // ── Helpers ───────────────────────────────────────────────────────────
 
-        private static string BuildCondition(string name, string val)
+        private static string BuildCondition(string name, string? val)
         {
             // A NULL value is the binary API's '?name' — "the property is set" — which the CLI spells as the
             // bare field name. An EMPTY value is '?name=' — "the property equals the empty string" — and is

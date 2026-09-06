@@ -291,7 +291,7 @@ namespace tik4net.Testing
         }
 
         /// <inheritdoc/>
-        public ITikCommandParameter AddParameter(string name, string value)
+        public ITikCommandParameter AddParameter(string name, string? value)
         {
             var p = _fakeConnection.CreateParameter(name, value, DefaultParameterFormat);
             Parameters.Add(p);
@@ -299,7 +299,7 @@ namespace tik4net.Testing
         }
 
         /// <inheritdoc/>
-        public ITikCommandParameter AddParameter(string name, string value, TikCommandParameterFormat parameterFormat)
+        public ITikCommandParameter AddParameter(string name, string? value, TikCommandParameterFormat parameterFormat)
         {
             var p = _fakeConnection.CreateParameter(name, value, parameterFormat);
             Parameters.Add(p);

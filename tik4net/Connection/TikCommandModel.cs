@@ -11,11 +11,11 @@ namespace tik4net.Connection
         /// <inheritdoc/>
         public string Name { get; set; }
         /// <inheritdoc/>
-        public string Value { get; set; }
+        public string? Value { get; set; }
         /// <inheritdoc/>
         public TikCommandParameterFormat ParameterFormat { get; set; }
 
-        internal TikCommandParameter(string name, string value, TikCommandParameterFormat format = TikCommandParameterFormat.Default)
+        internal TikCommandParameter(string name, string? value, TikCommandParameterFormat format = TikCommandParameterFormat.Default)
         {
             Name = name;
             Value = value;

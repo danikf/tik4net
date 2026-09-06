@@ -19,7 +19,12 @@ namespace tik4net
         /// <summary>
         /// Parameter value (formated to string as expected by <see cref="ITikConnection"/>).
         /// </summary>
-        string Value { get; set; }
+        /// <remarks>
+        /// <b>Null for a bare <c>?name</c> filter</b>, which asks whether the property is present at all and
+        /// therefore has no value to carry. That is a different question from <c>?name=</c>, which asks for
+        /// an empty one, so the two cannot share a representation. Every other parameter form has a value.
+        /// </remarks>
+        string? Value { get; set; }
 
         /// <summary>
         /// Parameter specific format how will be parameter formated in mikrotik request.

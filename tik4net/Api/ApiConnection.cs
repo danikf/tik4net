@@ -1055,12 +1055,12 @@ namespace tik4net.Api
             return result;
         }
 
-        public ITikCommandParameter CreateParameter(string name, string value)
+        public ITikCommandParameter CreateParameter(string name, string? value)
         {
             return new ApiCommandParameter(name, value);
         }
 
-        public ITikCommandParameter CreateParameter(string name, string value, TikCommandParameterFormat parameterFormat)
+        public ITikCommandParameter CreateParameter(string name, string? value, TikCommandParameterFormat parameterFormat)
         {
             var result = CreateParameter(name, value);
             result.ParameterFormat = parameterFormat;

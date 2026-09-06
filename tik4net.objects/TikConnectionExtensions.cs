@@ -366,7 +366,7 @@ namespace tik4net.Objects
                 return null;
 
             var fields = new HashSet<string>(
-                proplistParam.Value.Split(','),
+                proplistParam.Value!.Split(','),   // a .proplist parameter always carries its field list; only a bare '?name' filter has a null Value
                 StringComparer.OrdinalIgnoreCase);
 
             // IncludeProplist=true sends all entity fields — treat as full load
