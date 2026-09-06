@@ -425,8 +425,18 @@ namespace tik4net.Api
         {
             if (_isOpened)
             {
+                // Close() says /quit first, so the router releases the session rather than waiting for the
+                // socket to go, and ends in DisposeConnectionResources itself.
                 try { Close(); } catch { /* Dispose must not throw */ }
+                return;
             }
+
+            // Not open is NOT the same as nothing to release. A reader that faulted — router rebooted, peer
+            // hung up, cable pulled — sets _isOpened to false from its own thread and leaves the socket
+            // exactly where it was. Trusting the flag here meant a caller who did everything right, inside a
+            // using block, still held the handle until the finalizer, and the router still saw a connected
+            // peer. Idempotent, so the Close() path above and a second Dispose cost nothing.
+            try { DisposeConnectionResources(); } catch { /* Dispose must not throw */ }
         }
 
         // Thrown only when ReadByte() returns -1 (peer closed the TCP connection).
