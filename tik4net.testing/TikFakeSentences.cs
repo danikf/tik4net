@@ -13,14 +13,14 @@ namespace tik4net.Testing
         /// <summary>Sentence words (field name → value).</summary>
         public IReadOnlyDictionary<string, string> Words => _words;
 
-        /// <summary>Tag (always null for sync fake sentences).</summary>
+        /// <summary>Tag — the empty string for a sync fake sentence, as on every real transport.</summary>
         public string Tag { get; }
 
         /// <summary>Creates a fake !re sentence from an explicit word dictionary.</summary>
         public TikFakeReSentence(Dictionary<string, string> words, string? tag = null)
         {
             _words = words ?? new Dictionary<string, string>();
-            Tag = tag!; // ITikSentence.Tag is non-nullable; fake sentences have no tag (see summary)
+            Tag = tag ?? string.Empty; // ITikSentence.Tag is non-nullable, and every real sentence defaults it to ""
         }
 
         /// <inheritdoc/>
@@ -57,21 +57,21 @@ namespace tik4net.Testing
         /// <summary>Sentence words (e.g. ret=*1 for /add responses).</summary>
         public IReadOnlyDictionary<string, string> Words => _words;
 
-        /// <summary>Tag (always null for sync fake sentences).</summary>
+        /// <summary>Tag — the empty string for a sync fake sentence, as on every real transport.</summary>
         public string Tag { get; }
 
         /// <summary>Creates a fake !done sentence with no words (typical for non-query responses).</summary>
         public TikFakeDoneSentence(string? tag = null)
         {
             _words = new Dictionary<string, string>();
-            Tag = tag!; // ITikSentence.Tag is non-nullable; fake sentences have no tag (see summary)
+            Tag = tag ?? string.Empty; // ITikSentence.Tag is non-nullable, and every real sentence defaults it to ""
         }
 
         /// <summary>Creates a fake !done sentence with explicit words (e.g. =ret=*1 for /add).</summary>
         public TikFakeDoneSentence(Dictionary<string, string> words, string? tag = null)
         {
             _words = words ?? new Dictionary<string, string>();
-            Tag = tag!; // ITikSentence.Tag is non-nullable; fake sentences have no tag (see summary)
+            Tag = tag ?? string.Empty; // ITikSentence.Tag is non-nullable, and every real sentence defaults it to ""
         }
 
         /// <inheritdoc/>

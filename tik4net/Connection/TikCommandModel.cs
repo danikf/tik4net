@@ -131,11 +131,25 @@ namespace tik4net.Connection
         /// <inheritdoc/>
         public string CategoryDescription { get; }
 
+        /// <summary>
+        /// The code and description <see cref="ITikTrapSentence"/> uses for "the router did not say which
+        /// category this was", copied from the binary API's own answer.
+        /// </summary>
+        /// <remarks>
+        /// The API transport reads <c>category</c> off the wire and falls back to <c>-1</c> /
+        /// <c>category not provided</c>; the other ten transports have no category at all, so they answer
+        /// the same rather than handing out a null from behind a non-nullable property. Answering
+        /// differently would make a caller's error handling branch on which transport produced the trap,
+        /// which is the one thing the transport-neutral sentence model exists to avoid.
+        /// </remarks>
+        internal const string NoCategoryCode = "-1";
+        internal const string NoCategoryDescription = "category not provided";
+
         internal TikTrapSentenceResult(string message, string? categoryCode = null, string? categoryDescription = null)
         {
             Message = message;
-            CategoryCode = categoryCode!; // ITikTrapSentence.CategoryCode is declared non-nullable (out of scope); most traps genuinely have none
-            CategoryDescription = categoryDescription!; // same as above, for CategoryDescription
+            CategoryCode = categoryCode ?? NoCategoryCode;
+            CategoryDescription = categoryDescription ?? NoCategoryDescription;
         }
 
         /// <summary>
