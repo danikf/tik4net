@@ -44,6 +44,16 @@ namespace tik4net.WinboxNative
     /// <c>/tool/torch</c>/<c>/tool/profile</c> are polled start→poll→cancel on a background worker.</para>
     /// <para><see cref="ITikConnection.ConnectTimeout"/> bounds the connect handshake and then the
     /// authentication exchange, but not the <c>.jg</c> catalog load that follows them.</para>
+    /// <para><b>Thread safety.</b> One open connection may be used from several threads, and commands
+    /// genuinely overlap: the M2 channel is multiplexed — every request carries an id the router echoes
+    /// back, and a single reader loop hands each reply to the caller waiting for it, so a running monitor
+    /// does not block CRUD on another thread. The concurrency is <i>between</i> independent operations,
+    /// not within one: a read that needs reference resolution still issues its follow-up <c>getall</c>
+    /// calls in sequence, because each depends on the previous reply. <c>Open</c> is the exception —
+    /// authentication, the version probe and the <c>.jg</c> catalog load run lockstep on the raw channel
+    /// before the reader loop starts, so open the connection from one thread and share it afterwards. The
+    /// rest of the contract — <c>Close</c> not waiting for a running command, Safe Mode as connection-wide
+    /// state, and the router's shared throughput ceiling — is on <see cref="ITikConnection"/>.</para>
     /// </remarks>
     public class WinboxNativeConnection : TikCommandConnectionBase, ITikWinboxNativeConnection,
         ITikMonitorTransport, IPollingMonitorHost

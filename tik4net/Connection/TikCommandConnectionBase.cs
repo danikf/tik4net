@@ -38,6 +38,17 @@ namespace tik4net.Connection
     /// left out on purpose — see below.
     /// </para>
     /// </summary>
+    /// <remarks>
+    /// <b>Thread safety is the subclass's call, and it has to be made deliberately.</b> The
+    /// <see cref="_cmdLock"/> offered here is a default, not something this class enforces: the
+    /// <c>Run*</c> hooks are invoked without it held, so each transport decides whether to serialize.
+    /// The CLI family takes it around every command because a terminal carries one conversation;
+    /// <see cref="Rest.RestConnection"/> never touches it, since each command is an independent HTTP
+    /// request; <see cref="WinboxNative.WinboxNativeConnection"/> takes it only until its multiplexer is
+    /// running and then stops. A transport written outside this assembly has to make the same choice and
+    /// document which one it made — a channel that needs serializing and does not get it fails by handing
+    /// a caller someone else's answer, not by throwing.
+    /// </remarks>
     public abstract class TikCommandConnectionBase : ITikConnection, ITikConnectionCapabilities
     {
         /// <summary>Serialises command execution — the underlying transports are inherently sequential.</summary>

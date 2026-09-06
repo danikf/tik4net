@@ -29,6 +29,27 @@ namespace tik4net.Cli
     /// (<see cref="VtStripper.StripAnsi"/>) and any terminal echo / prompt trimmed by the transport — the
     /// core layer only sees data lines.
     /// </summary>
+    /// <remarks>
+    /// <b>Thread safety.</b> A CLI connection is safe to use from several threads, but commands do not
+    /// overlap: a terminal carries one conversation, so every command is taken through
+    /// <see cref="TikCommandConnectionBase"/>'s command semaphore and extra callers queue behind the one
+    /// holding it. That is by design and not a limitation waiting to be lifted — a gate that failed to
+    /// hold here would not raise an error, it would interleave two commands' bytes and hand each caller a
+    /// plausible answer built from the other's. Open a second connection, or use a transport that
+    /// multiplexes (the binary API, REST, native WinBox), when commands have to run at the same time.
+    /// <para>
+    /// <b>A monitor is the one case worth planning around.</b> Its poll worker takes the same turn a
+    /// command does, so nothing corrupts and CRUD from another thread still runs — it queues. What is not
+    /// dependable is the other direction: the worker holds the terminal on its own cadence, so a change
+    /// made over the <i>same</i> connection can fall between two polls and never be reported. Measured on
+    /// Telnet and WinBox CLI, a listen missed such a change 3 times in 4, and polling harder made it worse
+    /// rather than better. Drive the change from a second connection when a monitor has to observe it, or
+    /// use the binary API, where the tag makes the two independent.
+    /// </para>
+    /// <para>The rest of the contract — <c>Close</c> not waiting for a running command, Safe Mode as
+    /// connection-wide state, and the router's shared throughput ceiling — is on
+    /// <see cref="ITikConnection"/>.</para>
+    /// </remarks>
     public abstract class CliConnectionBase : TikCommandConnectionBase, ITikCliConnection,
         ITikMonitorTransport, IPollingMonitorHost
     {
@@ -1052,8 +1073,11 @@ namespace tik4net.Cli
         ///         <c>:put [… &lt;snapshot-modifier&gt; as-value]</c> every <see cref="MonitorPollIntervalMs"/> ms and
         ///         emit each polled record. <c>torch</c> is driven differently — see <c>TorchFreezeFrameLoop</c>.</item>
         /// </list>
-        /// The worker owns the (single request/reply) channel while polling; issuing concurrent CRUD on the
-        /// same connection from another thread while a monitor is active is not supported.
+        /// The worker takes the same command turn everything else does, so CRUD from another thread while a
+        /// monitor runs is safe — it queues behind the poll rather than interleaving with it. What it is not
+        /// is dependable in the other direction: the worker holds the terminal on its own cadence, so a
+        /// change made over this <i>same</i> connection can fall between two polls and never be reported.
+        /// See the thread-safety remarks on <see cref="CliConnectionBase"/>.
         /// </summary>
         TikMonitorHandle ITikMonitorTransport.RunMonitorAsync(TikCommandDescriptor descriptor,
             Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)

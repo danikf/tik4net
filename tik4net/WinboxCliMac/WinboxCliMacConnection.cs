@@ -23,6 +23,9 @@ namespace tik4net.WinboxCliMac
     /// <see cref="ITikConnection.ConnectTimeout"/> bounds each wait for an EC-SRP5 handshake frame and the
     /// wait for the RouterOS shell prompt.
     /// </para>
+    /// <para><b>Thread safety.</b> Safe from several threads; commands queue rather than overlap, and a
+    /// monitor running on this connection may miss a change made over the same one — see
+    /// <see cref="CliConnectionBase"/>.</para>
     /// </remarks>
     public sealed class WinboxCliMacConnection : CliConnectionBase, ITikMacCliConnection
     {

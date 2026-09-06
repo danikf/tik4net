@@ -25,6 +25,12 @@ namespace tik4net.WinboxNativeMac
     /// is swapped to the MAC-layer <c>WinboxMacM2Session</c> (EC-SRP5 + AES in MAC DATA packets).
     /// The router MAC is discovered via MNDP unless <see cref="RouterMac"/> is set. Requires
     /// <c>/tool/mac-server/mac-winbox set allowed-interface-list=all</c> on the router.
+    /// <para><b>Thread safety.</b> Multiplexed exactly as
+    /// <see cref="WinboxNative.WinboxNativeConnection"/>: commands from several threads overlap and each
+    /// caller gets its own reply. The MAC carrier underneath is still one acknowledged byte stream, so a
+    /// lost packet stalls whatever is queued behind it — concurrency hides the per-packet round trip here,
+    /// it does not remove it. Prefer the TCP transport for high-rate concurrent work when an IP route
+    /// exists.</para>
     /// </remarks>
     public sealed class WinboxNativeMacConnection : WinboxNativeConnection, ITikWinboxNativeMacConnection
     {

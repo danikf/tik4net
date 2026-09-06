@@ -24,6 +24,9 @@ namespace tik4net.MacTelnet
     /// per-command <see cref="ITikConnection.ReceiveTimeout"/>, so a caller's connect-retry loop still gets
     /// its second attempt.
     /// </para>
+    /// <para><b>Thread safety.</b> Safe from several threads; commands queue rather than overlap, and a
+    /// monitor running on this connection may miss a change made over the same one — see
+    /// <see cref="CliConnectionBase"/>.</para>
     /// </remarks>
     public sealed class MacTelnetConnection : CliConnectionBase, ITikMacCliConnection
     {

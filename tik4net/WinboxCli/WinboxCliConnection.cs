@@ -28,6 +28,9 @@ namespace tik4net.WinboxCli
     /// <see cref="ITikConnection.ConnectTimeout"/> bounds the TCP connect handshake, the authentication
     /// exchange, and the wait for the RouterOS shell prompt.
     /// </para>
+    /// <para><b>Thread safety.</b> Safe from several threads; commands queue rather than overlap, and a
+    /// monitor running on this connection may miss a change made over the same one — see
+    /// <see cref="CliConnectionBase"/>.</para>
     /// </remarks>
     public sealed class WinboxCliConnection : CliConnectionBase
     {

@@ -64,6 +64,22 @@ namespace tik4net.Rest
     /// (<c>/log print where message~"rest-api"</c>, topic <c>account</c>): a REST login is logged, its
     /// logout never is. Details and measurements in <c>Docs/findings-rest-api.md</c> §5.1.
     /// </para>
+    /// <para>
+    /// <b>Thread safety.</b> One open connection may be used from several threads, and commands overlap
+    /// with nothing to configure: each one is an independent HTTP request on the shared
+    /// <c>HttpClient</c>, so there is no channel to serialize and no reply that can reach the wrong
+    /// caller. This is the one transport that holds no command gate at all — it never takes
+    /// <see cref="TikCommandConnectionBase"/>'s command semaphore.
+    /// </para>
+    /// <para>
+    /// <b>The limit here is the router, not the client.</b> RouterOS keeps a REST session busy for as
+    /// long as a command runs and buffers the whole response, so a long one blocks the requests behind
+    /// it: measured on 7.23.2, requests issued after a <c>count=30</c> ping was abandoned at 5 s timed
+    /// out for the remaining ~23 s the router took to finish it (<c>Docs/findings-rest-api.md</c> §12.1).
+    /// Ordinary commands are short and overlap fine; keep long monitors off a connection that also
+    /// carries them. The rest of the contract — <c>Close</c> not waiting for a running command, and the
+    /// router's shared throughput ceiling — is on <see cref="ITikConnection"/>.
+    /// </para>
     /// </remarks>
     public sealed class RestConnection : TikCommandConnectionBase, ITikRestConnection,
         ITikMonitorTransport, IPollingMonitorHost

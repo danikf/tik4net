@@ -13,6 +13,9 @@ namespace tik4net.Telnet
     /// Supports all CRUD operations. Listen/Streaming/Async are not supported
     /// (capability: <see cref="TikConnectionCapability.Crud"/>).
     /// <para><see cref="ITikConnection.ConnectTimeout"/> bounds the initial TCP handshake here.</para>
+    /// <para><b>Thread safety.</b> Safe from several threads; commands queue rather than overlap, and a
+    /// monitor running on this connection may miss a change made over the same one — see
+    /// <see cref="CliConnectionBase"/>.</para>
     /// </remarks>
     public sealed class TelnetConnection : CliConnectionBase
     {

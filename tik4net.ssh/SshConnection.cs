@@ -18,6 +18,9 @@ namespace tik4net.Ssh
     /// <see cref="TikConnectionCapability.SafeMode"/>). Streaming (<c>ExecuteListWithDuration</c>) is not
     /// supported — use the binary API for that. Terminal Tab-completion (<see cref="ITikCliCompletion"/>)
     /// is supported, like on the other CLI transports. Requires the <c>ssh</c> service enabled on the router.
+    /// <para><b>Thread safety.</b> Safe from several threads; commands queue rather than overlap, and a
+    /// monitor running on this connection may miss a change made over the same one — see
+    /// <see cref="CliConnectionBase"/>.</para>
     /// </remarks>
     public sealed class SshConnection : CliConnectionBase
     {

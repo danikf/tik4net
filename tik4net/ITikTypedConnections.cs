@@ -28,6 +28,18 @@ namespace tik4net
     /// no static type to hand back. Pattern-match to reach a facet there:
     /// <c>if (conn is ITikSafeModeConnection safe) …</c>.
     /// </para>
+    /// <para>
+    /// <b>Thread safety.</b> One open connection may be used from several threads, and commands
+    /// genuinely overlap: the router echoes the <c>.tag</c> word back, and that is the only thing tying
+    /// a reply to the caller that asked for it.
+    /// <see cref="ITikTaggedConnection.SendTagWithSyncCommand"/> defaults to <c>true</c> since 4.0, so
+    /// nothing has to be set up for it; turning it off opts into the untagged wire format, and concurrent
+    /// <i>synchronous</i> commands then cross-deliver rows between callers rather than failing. Safe Mode
+    /// is the exception on this transport — it is connection-wide router state, not a per-command option,
+    /// so do not drive <see cref="ITikSafeModeConnection.SafeModeTake"/> from two threads. The rest of the
+    /// contract — monitors, <c>Close</c> not waiting for a running command, and the router's shared
+    /// throughput ceiling — is on <see cref="ITikConnection"/>.
+    /// </para>
     /// </remarks>
     public interface ITikApiConnection : ITikConnection, ITikConnectionCapabilities,
         ITikRawSentenceConnection, ITikSafeModeConnection, ITikTaggedConnection, ITikTlsConnection
@@ -41,6 +53,12 @@ namespace tik4net
     /// Deliberately the thinnest of these types, and the thinness is the information: REST is stateless, so
     /// there is no session to bind Safe Mode to, and it has a request shape rather than a command language,
     /// so neither raw level is offered. Those members are absent here rather than present and throwing.
+    /// <para>
+    /// <b>Thread safety.</b> Safe from several threads, and concurrent with nothing to set up: every
+    /// command is its own HTTP request, so there is no channel to serialize and no correlation to get
+    /// wrong. The limit is the router rather than the client — see
+    /// <see cref="Rest.RestConnection"/> and <see cref="ITikConnection"/>.
+    /// </para>
     /// </remarks>
     public interface ITikRestConnection : ITikConnection, ITikConnectionCapabilities, ITikTlsConnection
     {
@@ -56,6 +74,11 @@ namespace tik4net
     /// router's own Tab-completion, which was previously reachable only by casting and had no convenience
     /// shim at all; and <see cref="ITikCancellationModeConnection"/>, because a terminal is the only place
     /// where cancelling mid-command is a choice between waiting and losing the session.
+    /// <para>
+    /// <b>Thread safety.</b> Safe from several threads, but commands queue rather than overlap: a
+    /// terminal carries one conversation. See <see cref="Cli.CliConnectionBase"/> for what that means for
+    /// monitors, and <see cref="ITikConnection"/> for the rest of the contract.
+    /// </para>
     /// </remarks>
     public interface ITikCliConnection : ITikConnection, ITikConnectionCapabilities,
         ITikRawSentenceConnection, ITikSafeModeConnection, ITikCancellationModeConnection, ITikCliCompletion
@@ -69,6 +92,10 @@ namespace tik4net
     /// <remarks>
     /// Everything <see cref="ITikCliConnection"/> has, plus the router MAC — these reach a router with no IP
     /// route, or no IP address at all.
+    /// <para>
+    /// <b>Thread safety.</b> As <see cref="ITikCliConnection"/> — safe from several threads, commands
+    /// queue.
+    /// </para>
     /// </remarks>
     public interface ITikMacCliConnection : ITikCliConnection, ITikMacLayerConnection
     {
@@ -88,6 +115,11 @@ namespace tik4net
     /// <c>configure</c> callback of <c>CreateWinboxNativeConnection</c>, which hands you the concrete
     /// <see cref="WinboxNative.WinboxNativeConnection"/>. That is the line: what you configure before
     /// opening comes from the callback, what you use afterwards is on this interface.
+    /// </para>
+    /// <para>
+    /// <b>Thread safety.</b> Safe from several threads, and commands genuinely overlap once the
+    /// connection is open: the M2 channel is multiplexed by request id. <c>Open</c> itself is not — see
+    /// <see cref="WinboxNative.WinboxNativeConnection"/>.
     /// </para>
     /// </remarks>
     public interface ITikWinboxNativeConnection : ITikConnection, ITikConnectionCapabilities,
@@ -122,6 +154,11 @@ namespace tik4net
     /// A structured WinBox M2 connection carried over the MAC layer
     /// (<see cref="TikConnectionType.WinboxNativeMac"/>).
     /// </summary>
+    /// <remarks>
+    /// <b>Thread safety.</b> Multiplexed exactly as <see cref="ITikWinboxNativeConnection"/>, over a
+    /// carrier that is still one acknowledged byte stream — see
+    /// <see cref="WinboxNativeMac.WinboxNativeMacConnection"/>.
+    /// </remarks>
     public interface ITikWinboxNativeMacConnection : ITikWinboxNativeConnection, ITikMacLayerConnection
     {
     }
