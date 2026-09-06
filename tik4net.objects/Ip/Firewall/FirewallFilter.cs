@@ -41,6 +41,13 @@ namespace tik4net.Objects.Ip.Firewall
             Drop,
 
             /// <summary>
+            /// fasttrack-connection - mark the connection for FastPath, so its subsequent packets bypass
+            /// the rest of the firewall. Part of the default RouterOS firewall.
+            /// </summary>
+            [TikEnum("fasttrack-connection")]
+            FasttrackConnection,
+
+            /// <summary>
             /// jump - jump to the user defined chain specified by the value of jump-target parameter
             /// </summary>
             [TikEnum("jump")]

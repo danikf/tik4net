@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
@@ -9,6 +10,82 @@ namespace tik4net.integrationtests
     [TestClass]
     public class IpFirewallTest : TestBase
     {
+        /// <summary>
+        /// Every <c>action</c> the router accepts on <c>/ip/firewall/mangle</c> and
+        /// <c>/ip/firewall/filter</c> must be readable back through the entity's enum.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// An action value the enum does not know is not a missing property — <c>TikEnumMetadata.Parse</c>
+        /// throws <c>FormatException</c>, and that fails the <b>whole</b> <c>LoadAll</c>. So one unmapped
+        /// action makes the entire menu unreadable for anyone whose router uses it, which is how
+        /// <c>mark-routing</c> (shipped with an empty wire value since v1.2.0) and <c>fasttrack-connection</c>
+        /// — a rule in the DEFAULT RouterOS firewall — went unnoticed: the lab router did not happen to have
+        /// one, so nothing read them.
+        /// </para>
+        /// <para>
+        /// The rows are created over the command API rather than the mapper, because <c>mark-routing</c> and
+        /// <c>route</c> need companion fields (<c>new-routing-mark</c>, <c>route-dst</c>) the entity does not
+        /// map — and the read path is what is being pinned regardless. They are created <b>disabled</b>: the
+        /// suite runs over the very path a firewall rule governs.
+        /// </para>
+        /// </remarks>
+        [TestMethod]
+        public void EveryFirewallActionTheRouterAcceptsCanBeReadBack()
+        {
+            const string marker = "t4n-actionprobe";
+            var created = new List<(string Path, string Id)>();
+
+            try
+            {
+                created.Add(("/ip/firewall/mangle", AddRule("/ip/firewall/mangle/add",
+                    "chain", "prerouting", "action", "drop", "disabled", "yes", "comment", marker)));
+                created.Add(("/ip/firewall/mangle", AddRule("/ip/firewall/mangle/add",
+                    "chain", "prerouting", "action", "fasttrack-connection", "disabled", "yes", "comment", marker)));
+                created.Add(("/ip/firewall/mangle", AddRule("/ip/firewall/mangle/add",
+                    "chain", "prerouting", "action", "mark-routing", "new-routing-mark", "main",
+                    "disabled", "yes", "comment", marker)));
+                created.Add(("/ip/firewall/mangle", AddRule("/ip/firewall/mangle/add",
+                    "chain", "prerouting", "action", "route", "route-dst", "192.0.2.1",
+                    "disabled", "yes", "comment", marker)));
+                created.Add(("/ip/firewall/filter", AddRule("/ip/firewall/filter/add",
+                    "chain", "forward", "action", "fasttrack-connection", "connection-state", "established,related",
+                    "disabled", "yes", "comment", marker)));
+
+                // The assertion is that these do not throw. A FormatException here names the action the
+                // enum is missing, which is the whole diagnosis.
+                var mangle = Connection.LoadAll<FirewallMangle>().ToList();
+                var filter = Connection.LoadAll<FirewallFilter>().ToList();
+
+                CollectionAssert.AreEquivalent(
+                    new[] { FirewallMangle.ActionType.Drop, FirewallMangle.ActionType.FasttrackConnection,
+                            FirewallMangle.ActionType.MarkRouting, FirewallMangle.ActionType.Route },
+                    mangle.Where(m => m.Comment == marker).Select(m => m.Action).ToList(),
+                    "the four probe rules must read back as the actions they were created with");
+
+                Assert.IsTrue(filter.Any(f => f.Comment == marker
+                                              && f.Action == FirewallFilter.ActionType.FasttrackConnection),
+                    "the fasttrack-connection filter rule must read back as FasttrackConnection");
+            }
+            finally
+            {
+                foreach (var (path, id) in created)
+                {
+                    if (string.IsNullOrEmpty(id)) continue;
+                    try
+                    {
+                        Connection.CreateCommandAndParameters(path + "/remove", TikSpecialProperties.Id, id)
+                                  .ExecuteNonQuery();
+                    }
+                    catch (Exception ex) { Console.WriteLine($"cleanup of {path} {id} failed: {ex.Message}"); }
+                }
+            }
+        }
+
+        /// <summary>Adds one rule over the command API and returns its <c>.id</c>.</summary>
+        private string AddRule(string addPath, params string[] nameValuePairs)
+            => Connection.CreateCommandAndParameters(addPath, nameValuePairs).ExecuteScalar();
+
         [TestMethod]
         public void ConnectionList_DirectCall_WillNotFail()
         {

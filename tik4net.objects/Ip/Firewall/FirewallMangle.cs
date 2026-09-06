@@ -59,6 +59,19 @@ namespace tik4net.Objects.Ip.Firewall
             ClearDf,
 
             /// <summary>
+            /// drop - silently drop the packet
+            /// </summary>
+            [TikEnum("drop")]
+            Drop,
+
+            /// <summary>
+            /// fasttrack-connection - show a FastPath counter and mark the connection for FastPath,
+            /// bypassing the rest of the firewall for its subsequent packets
+            /// </summary>
+            [TikEnum("fasttrack-connection")]
+            FasttrackConnection,
+
+            /// <summary>
             /// jump - jump to the user defined chain specified by the value of jump-target parameter
             /// </summary>
             [TikEnum("jump")]
@@ -100,6 +113,12 @@ namespace tik4net.Objects.Ip.Firewall
             /// </summary>
             [TikEnum("return")]
             Return,
+
+            /// <summary>
+            /// route - force the packet to the gateway specified by the route-dst parameter
+            /// </summary>
+            [TikEnum("route")]
+            Route,
 
             /// <summary>
             /// set-priority - set priority specified by the new- priority parameter on the packets sent out through a link that is capable of transporting priority(VLAN or WMM - enabled wireless interface). Read more>
