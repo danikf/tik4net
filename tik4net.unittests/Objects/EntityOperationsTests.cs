@@ -235,6 +235,14 @@ namespace tik4net.unittests.Objects
                 StringAssert.Contains(obsolete.Message, "issues/84",
                     "and point at the report that explains why the bool could not stay");
             }
+
+            // The attribute is the one a caller EDITS, so its message has to carry the mechanical
+            // translation and not only the interesting case. Naming TikEntityOperations.Remove alone would
+            // read as the answer to "what do I write instead of IsReadOnly = true", and it is not.
+            string attributeMessage = typeof(TikEntityAttribute).GetProperty("IsReadOnly")!
+                .GetCustomAttribute<ObsoleteAttribute>()!.Message!;
+            StringAssert.Contains(attributeMessage, "TikEntityOperations.None",
+                "an entity that set IsReadOnly = true needs its direct replacement spelled out");
         }
 
         [TestMethod]

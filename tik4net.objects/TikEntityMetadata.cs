@@ -82,6 +82,12 @@ namespace tik4net.Objects
         /// <summary>
         /// If the whole entity is R/O.
         /// </summary>
+        /// <remarks>
+        /// Kept for the same reason as <see cref="TikEntityAttribute.IsReadOnly"/>: a caller still on the
+        /// bool gets a message naming the replacement rather than an unresolved-name error. Ask
+        /// <see cref="AreFieldsReadOnly"/> for "may a field be written", and
+        /// <see cref="Supports"/> for one verb.
+        /// </remarks>
         [Obsolete("A single bool cannot express a menu that allows remove but not add/set. Use "
                 + "AreFieldsReadOnly to ask whether fields can be written, or Supports(TikEntityOperations.X) "
                 + "to ask about one verb - see https://github.com/danikf/tik4net/issues/84.", error: true)]

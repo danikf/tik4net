@@ -55,10 +55,19 @@ namespace tik4net.Objects
         /// Replaced by <see cref="SupportedOperations"/> in 4.0. The two share one storage — reading this
         /// answers <c>SupportedOperations == None</c>, writing it sets <c>None</c> or <c>All</c> — so a
         /// class that sets both keeps whichever named argument the compiler applies last.
+        /// <para>
+        /// <b>It stays in the frozen 4.0 surface deliberately.</b> Removing it would give a caller coming
+        /// from 3.x <c>CS0117</c> — a name that does not exist on the attribute — where keeping it hands
+        /// them the replacement and the mapping between the two. The cost is one property on an attribute
+        /// nobody can compile against; that is worth less than the migration message it carries.
+        /// </para>
         /// </remarks>
-        [Obsolete("Use SupportedOperations, e.g. SupportedOperations = TikEntityOperations.Remove. "
-                + "IsReadOnly cannot express a menu that allows remove but not add/set - see "
-                + "https://github.com/danikf/tik4net/issues/84.", error: true)]
+        [Obsolete("Use SupportedOperations: IsReadOnly = true becomes SupportedOperations = "
+                + "TikEntityOperations.None, and false becomes TikEntityOperations.All. The bool was "
+                + "replaced because it cannot express a menu that allows remove but not add/set - "
+                + "/ppp/active and the registration tables are SupportedOperations = "
+                + "TikEntityOperations.Remove - see https://github.com/danikf/tik4net/issues/84.",
+                error: true)]
         public bool IsReadOnly
         {
             get { return SupportedOperations == TikEntityOperations.None; }
