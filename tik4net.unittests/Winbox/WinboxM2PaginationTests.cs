@@ -263,6 +263,33 @@ namespace tik4net.unittests.Winbox
         }
 
         /// <summary>
+        /// The default budget for a whole paged read is a multiple of <c>ReceiveTimeout</c>, not one of it: a
+        /// paged read is not one round trip, and the router pauses mid-table for tens of seconds (21.8 s and
+        /// 52.8 s measured, <c>Docs/winbox-native-m2-protocol.md</c> §29) before finishing normally. A budget
+        /// equal to a single <c>ReceiveTimeout</c> fails a read the router would have completed.
+        /// </summary>
+        [TestMethod]
+        public void GetAll_WithoutAnExplicitBudget_OutlivesASingleReceiveTimeout()
+        {
+            const int receiveTimeoutMs = 200;
+            var channel = new EndlesslyPagingChannel(Handler, pageDelayMs: 50);
+            var ops = new WinboxNativeM2Operations(channel, receiveTimeoutMs);
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            Assert.ThrowsException<TikConnectionReceiveTimeoutException>(() => ops.GetAll(Handler));
+            sw.Stop();
+
+            Assert.IsTrue(sw.ElapsedMilliseconds > receiveTimeoutMs * 2,
+                $"a paged read gave up after {sw.ElapsedMilliseconds} ms, within one ReceiveTimeout of "
+                + $"{receiveTimeoutMs} ms — a router pause the table would have survived is a failed read.");
+
+            // Still bounded: the multiple is a budget, not a licence to hang.
+            Assert.IsTrue(sw.ElapsedMilliseconds < receiveTimeoutMs * 20,
+                $"the read ran {sw.ElapsedMilliseconds} ms against a {receiveTimeoutMs} ms ReceiveTimeout, "
+                + "which is no longer a bounded budget.");
+        }
+
+        /// <summary>
         /// A channel that answers every <c>getall</c> with one record and a fresh cursor, so the read can
         /// never complete on its own — the shape a table larger than the budget has.
         /// </summary>

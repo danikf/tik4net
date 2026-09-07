@@ -236,16 +236,16 @@ namespace tik4net.Winbox
         /// many records to show them all" — so the router refuses rather than pages. See
         /// <c>Docs/winbox-native-m2-protocol.md</c> §29.</para>
         /// <para>What the caller does control is the <b>budget</b>: the whole paged read is bounded by
-        /// <paramref name="budgetMs"/>, defaulting to the connection's <c>ReceiveTimeout</c>, and each page is
-        /// given what is left of it. Running out throws — a native read is proportional to the TABLE, not to
-        /// the answer, so returning the pages that fit would be a short list indistinguishable from a router
-        /// that has that many rows.</para>
+        /// <paramref name="budgetMs"/>, defaulting to the connection's <c>ReceiveTimeout</c> multiplied by
+        /// <see cref="PagedReadBudgetFactor"/>, and each page is given what is left of it. Running out throws —
+        /// a native read is proportional to the TABLE, not to the answer, so returning the pages that fit
+        /// would be a short list indistinguishable from a router that has that many rows.</para>
         /// </remarks>
         internal async Task<List<Dictionary<int, Tuple<string, object>>>> GetAllAsync(
             int[] handler, CancellationToken cancellationToken,
             int flags = WinboxM2Protocol.GetAllFlags, int maxObjs = 0, int? budgetMs = null)
         {
-            int budget = budgetMs ?? _timeoutMs;
+            int budget = budgetMs ?? PagedReadBudget(_timeoutMs);
             var records = new List<Dictionary<int, Tuple<string, object>>>();
             WinboxM2Continuation? cont = null; // cursor carried back verbatim on the next request
             var sw = Stopwatch.StartNew();
@@ -301,6 +301,37 @@ namespace tik4net.Winbox
             }
             return records;
         }
+
+        /// <summary>
+        /// How much longer than one round trip a whole paged read is allowed to take, when the caller does not
+        /// say. A paged read is <b>not</b> one round trip, and <c>ReceiveTimeout</c> bounds one: the router
+        /// pauses mid-table for tens of seconds and then finishes the table normally — 21.8 s and 52.8 s
+        /// measured on a 14-page read, roughly one read in six
+        /// (<c>Docs/winbox-native-m2-protocol.md</c> §29) — so a whole-read budget equal to a single
+        /// <c>ReceiveTimeout</c> fails a read the router would have completed.
+        /// </summary>
+        /// <remarks>
+        /// A multiple rather than a fixed figure, so a caller who deliberately shortens
+        /// <c>ReceiveTimeout</c> to fail fast still gets a proportionally short read instead of having the
+        /// setting quietly overridden. At the 30 s default this gives a 120 s whole-read budget, comfortably
+        /// past the worst pause measured while still bounded.
+        /// <para><b>Re-sending the stalled page is not the mitigation, and was measured not to be.</b> The
+        /// handler queues the repeats and answers every one of them: a 7.5 s pause absorbed three re-sends and
+        /// was then followed by three separate replies, none of them sooner than the first request's would have
+        /// been. So a retry buys nothing but router work — and a bounded retry count actively converts a
+        /// recoverable pause into a hard failure. Waiting is the fix; this constant is the waiting.</para>
+        /// </remarks>
+        private const int PagedReadBudgetFactor = 4;
+
+        /// <summary>
+        /// <see cref="PagedReadBudgetFactor"/> applied without overflowing: a caller may set
+        /// <c>ReceiveTimeout</c> to something close to <see cref="int.MaxValue"/> to mean "effectively no
+        /// deadline", and multiplying that must not wrap round into a budget that has already expired.
+        /// </summary>
+        private static int PagedReadBudget(int timeoutMs)
+            => (long)timeoutMs * PagedReadBudgetFactor > int.MaxValue
+                ? int.MaxValue
+                : timeoutMs * PagedReadBudgetFactor;
 
         /// <summary>
         /// Hard stop on the cursor loop. Not a size limit — at the ~200-row pages the router serves this is

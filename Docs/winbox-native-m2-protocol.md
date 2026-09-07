@@ -1017,9 +1017,18 @@ size and ignores `ufe0018` for it. `tik4net.integrationtests/Protocols/Tests/G2M
 probe.
 
 So the read stays proportional to the table, and the only honest client-side move is to **fail rather than
-truncate**. The cursor loop is bounded by the connection's `ReceiveTimeout` for the whole read (each page
-gets what is left of it) and throws when the budget runs out, naming how many rows from how many completed
-pages are being discarded. It used to stop silently at a hidden 8-second budget and 256 rounds and return
+truncate**. The cursor loop is bounded for the whole read (each page gets what is left of it) and throws when
+the budget runs out, naming how many rows from how many completed pages are being discarded.
+
+**The whole-read budget is four times `ReceiveTimeout`, not one.** A paged read is not one round trip, and
+`ReceiveTimeout` bounds one: the router pauses mid-table and then finishes the table normally — 21.8 s and
+52.8 s measured on a 14-page read, roughly one read in six — so a budget equal to a single `ReceiveTimeout`
+fails a read the router would have completed. A multiple rather than a fixed figure, so shortening
+`ReceiveTimeout` to fail fast still shortens the read instead of being silently overridden
+(`WinboxNativeM2Operations.PagedReadBudgetFactor`). Re-sending the stalled page is *not* part of the
+mitigation and was measured not to work: the handler queues the repeats and answers all of them, none sooner
+than the original would have arrived, so a bounded retry count only converts a recoverable pause into a hard
+failure. It used to stop silently at a hidden 8-second budget and 256 rounds and return
 the pages that fit — a short list is indistinguishable from a router that has that many rows, which is the
 one outcome worse than the timeout. For a table this size on a busy channel, raise `ReceiveTimeout` or read
 it over a transport that can filter router-side.
