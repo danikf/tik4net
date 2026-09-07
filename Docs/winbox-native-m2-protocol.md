@@ -1075,7 +1075,10 @@ it normally. On `/ip/firewall/mangle` with 1672 rows over TCP 8291 the read is 1
 not tied to a page number, a row or a cursor boundary. Two useful shapes:
 
 * a pause of **21 805 ms** that then completed the whole table — so this is a late reply, not a lost one;
-* pauses past the 30 s `ReceiveTimeout`, which are the same event and fail the read.
+* pauses past the 30 s `ReceiveTimeout`, up to 52.8 s, which are the same event and still complete: the read
+  is bounded as a whole rather than per page, so one pause longer than a single `ReceiveTimeout` does not by
+  itself fail it. A pause that outlives the *whole-read* budget is a different population — see below, it
+  does not come back.
 
 **It is the router, and the `wbxtcp.sock` trace is what shows that.** At the moment of a stall the client is
 parked in a blocking 2-byte read at a clean frame boundary with an empty buffer, the continuation request
@@ -1120,6 +1123,31 @@ speed. Two consequences for any client that tries it:
 * a bounded retry can convert a recoverable pause into a hard failure: three 2.5 s slices expire well inside
   a pause that would have completed on its own. Pauses of 21.8 s and 52.8 s have both been seen to complete,
   the second one past the 30 s default `ReceiveTimeout`.
+
+### A stall that outlives the whole-read budget does not resolve, and the connection is finished
+
+The pauses above complete. A second population does not, and the two are worth separating because their
+mitigations are opposite: the first wants a longer budget, the second cannot be rescued by any budget.
+
+On the same 1672-row mangle table, a paged read still unanswered when the whole-read budget expires has not
+been observed to recover. Nor has the connection: a later `add` on the same connection times out having
+received nothing, **149 s** after that channel's last frame — 120 s of abandoned `getall` plus its own
+`ReceiveTimeout`. So a `WinboxNative` connection whose paged read has hit the budget is finished rather than
+delayed, and the caller's move is a fresh connection, not a retry and not a larger
+`PagedReadBudgetFactor`. (The budget itself is confirmed on the wire: 120 006–120 014 ms against the 30 s
+default, i.e. the `4 ×` factor of §29 exactly.)
+
+**Both halves of the §29 timeout message occur here, and the byte-counting one carries the lead.** A stall
+reports either `Not one byte has arrived` or `11680 byte(s) have arrived … without completing a frame` — and
+that second figure has been identical on separate stalls in separate reads. 11 680 is 8 × 1460: eight
+full-MSS segments and then silence, which is the shape of a TCP window that has stopped rather than of a
+handler still thinking. This is what the byte counter is for; a frame count reports the two as one event,
+because neither has completed a frame.
+
+**Which read stalls is not a property of the caller.** Across two runs of the same set, four tests whose
+paged reads stalled (603/960/1078 rows over 5/8/9 pages) all completed in 4–11 s on the rerun while two
+others stalled in their place. The stall follows the read, so a test that names it is reporting the router's
+state at that moment, not a defect in that test's path.
 
 ## 30. One M2 key can carry two fields, and a list element can be a compound
 
