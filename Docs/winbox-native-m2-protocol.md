@@ -981,8 +981,13 @@ rules are pinned router-free by `WinboxWindowScopeAndListWriteTests`.
 ## 29. A filtered read fetches the whole table — and a timeout has to say which end is quiet
 
 Native has no server-side query: `RunPrintCore` reads every row the handler has and applies the `?name=value`
-filters **in memory**. That is not a shortcut — webfig filters on the client too (`types.def.matcher`,
-`types.number.filters` build the UI's own predicates) — but it has a consequence worth stating plainly:
+filters **in memory**. That is not a shortcut — webfig filters on the client too, and its own source says so
+rather than its type table implying it: `Container.applyFilters()` builds one predicate per filter row
+(`ftype(elem).matcher(elem, opt, value)`) into `table.matcherFilter`, `Table.prototype.shouldHide(obj)`
+evaluates them against objects **already in the map** (`match.func(ftype(match.attr).get(match.attr, obj))`),
+and `clearFilters()` empties the array and re-renders. Nothing on the Apply path constructs a request, and
+`getall` (below) carries no predicate field — so there is no router-side filter to adopt. But in-memory
+filtering has a consequence worth stating plainly:
 `/ip/firewall/connection/print ?src-address=…` transfers the entire connection-tracking table over M2
 before a single row is discarded, where the binary API returns only the matches.
 
@@ -1032,6 +1037,34 @@ failure. It used to stop silently at a hidden 8-second budget and 256 rounds and
 the pages that fit — a short list is indistinguishable from a router that has that many rows, which is the
 one outcome worse than the timeout. For a table this size on a busy channel, raise `ReceiveTimeout` or read
 it over a transport that can filter router-side.
+
+### 29.1 Webfig never reports a failed read because it has no deadline to miss
+
+Worth knowing before treating webfig as the standard to match: it does not survive the mid-table pause, it is
+simply built so the pause is not an error. `ObjectMap.getall()` in webfig's own `master-*.js` (served by the
+router under `/webfig/`) sends the same request we do — `uff0007` = `getallcmd`, `ufe000c` = `0x10000005`
+OR-ed with the window's `refetchonopen`/`refreshfilter`, `ufe0018` = the window's `maxobjs`, following
+`ufe0003` and `mfe0015` exactly as we follow them — and then:
+
+- **it has no timeout of any kind.** `post(req, onreply)` waits for a reply or forever; the only failure path
+  is an error status the ROUTER sends. So a 52.8 s pause is a table that is taking a while, not a failed read,
+  and there is no message to show. A synchronous `IEnumerable` API cannot copy this — the caller is blocked on
+  the call — which is why we have a budget at all, and why streaming (`IAsyncEnumerable`) is the shape that
+  would make our behaviour match webfig's rather than merely tolerate the pause longer.
+- **rows are rendered per page**, so a pause looks like a table that has stopped growing, not like a failure.
+  We accumulate and hand back the whole list, so the same pause is either a longer wait or a discarded read.
+- **its recovery is to start over, unbounded.** On error status `0xfe0004` it marks every row it holds dead,
+  drops the map, and calls `getall()` again from the top. Only status `16646158` reaches the user, as
+  `Failed to get all <maxobjsmsg>` — the too-many-records cap of §29, not a timeout.
+- **a `getall` cannot overlap itself** (`if (this.getallinprogress || this.block) return;`), and a completed
+  one re-arms after the window's `autorefresh` ms. This is the visible cycle of repeating reads, and it is also
+  why a router pause looks from outside like *traffic stopping altogether*: the in-flight paged read blocks the
+  next one, so nothing is sent until the stalled page answers. A filter Apply changes none of that — it sends
+  nothing — so a pause observed right after Apply is the pause of §29, coinciding with it rather than caused
+  by it.
+
+Webfig also `subscribe`s to each window (`uff0007` = `0xfe0012`) and re-reads on a change notification that
+carries no rows, so its traffic is autorefresh plus notifications; neither is a filter round trip.
 
 ### A page can be answered tens of seconds late, and that is the router
 
