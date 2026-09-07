@@ -159,6 +159,13 @@ namespace tik4net.integrationtests
             return Report(arm);
         }
 
+        // The low-level sentence form, not CreateCommand(path, params): the second overload takes typed
+        // ITikCommandParameter, and what this needs is exactly the words the router sees.
+        private static void RawSet(ITikConnection conn, string name)
+        {
+            ((ITikRawSentenceConnection)conn).CallCommandSync("/system/identity/set", "=name=" + name);
+        }
+
         private ITikConnection OpenProbeConnection()
         {
             var conn = LabSetup(ResolveConnectionType()).Create(ResolveConnectionType());
@@ -181,7 +188,90 @@ namespace tik4net.integrationtests
                 // router, a reply still trickling in, or this tag starved while the socket stayed busy.
                 Log($"  {arm.Name} #{attempt}: STALL after {sw.ElapsedMilliseconds} ms — "
                     + ex.GetType().Name + ": " + Oneline(ex.Message));
+
+                // The first stall of the run is the only chance to look at a dead connection while it is
+                // still dead — diagnose it here rather than trying to reproduce it in a test of its own,
+                // which took 45 clean reads without ever reaching the state this run reaches in eight.
+                if (!_diagnosed)
+                {
+                    _diagnosed = true;
+                    DiagnoseDeadConnection(conn, path);
+                }
             }
+        }
+
+        private bool _diagnosed;
+
+        /// <summary>
+        /// What is actually dead once a connection stops receiving: the router's session, or our reader?
+        /// </summary>
+        /// <remarks>
+        /// "Not one byte since" is deliberately ambiguous — it is equally what a router that stopped sending
+        /// and a reader thread that stopped reading look like. A <b>second, fresh</b> connection settles it
+        /// from the outside: if it reads the same table fine, the router is answering and this session was
+        /// killed. The write probe goes further and asks whether the dead session's commands still reach the
+        /// router at all, which separates "the router is not answering us" from "the router is not hearing us".
+        /// </remarks>
+        private void DiagnoseDeadConnection(ITikConnection dead, string path)
+        {
+            Log("  --- post-stall diagnosis ---");
+            Log($"  dead connection: IsOpened={dead.IsOpened}");
+
+            using (var fresh = OpenProbeConnection())
+            {
+                var sw = Stopwatch.StartNew();
+                try
+                {
+                    int rows = fresh.CreateCommand(path + "/print").ExecuteList().Count();
+                    Log($"  FRESH connection read the same table in {sw.ElapsedMilliseconds} ms ({rows} rows)"
+                        + " -> the router is answering; it is this SESSION that is dead.");
+                }
+                catch (Exception ex)
+                {
+                    Log($"  FRESH connection also failed after {sw.ElapsedMilliseconds} ms -> the ROUTER is "
+                        + "refusing everyone, not just the stalled session. " + Oneline(ex.Message));
+                }
+
+                // Does the dead session still HEAR us? A write whose effect a third party can see separates
+                // "the router is not answering us" from "the router is not processing our session at all".
+                string marker = "tik4net-stall-" + DateTime.UtcNow.ToString("HHmmss", CultureInfo.InvariantCulture);
+                string identityBefore = fresh.CreateCommand("/system/identity/print")
+                                             .ExecuteSingleRow().GetResponseField("name");
+                try
+                {
+                    RawSet(dead, marker);
+                    Log("  the dead connection's write returned normally");
+                }
+                catch (Exception ex)
+                {
+                    Log("  the dead connection's write failed: " + Oneline(ex.Message));
+                }
+
+                string identityAfter = fresh.CreateCommand("/system/identity/print")
+                                            .ExecuteSingleRow().GetResponseField("name");
+                Log(identityAfter == marker
+                    ? "  …but the router APPLIED it -> the router hears the dead session and its replies are "
+                      + "what never arrive."
+                    : $"  …and the router did not apply it (identity is still '{identityAfter}') -> the dead "
+                      + "session is not being processed at all.");
+
+                if (identityAfter != identityBefore)
+                {
+                    RawSet(fresh, identityBefore);
+                    Log($"  identity restored to '{identityBefore}'");
+                }
+
+                foreach (var row in fresh.CreateCommand("/user/active/print").ExecuteList())
+                    Log("  /user/active: " + string.Join(" ", row.Words.Select(w => w.Key + "=" + w.Value)));
+
+                var log = fresh.CreateCommand("/log/print").ExecuteList().ToList();
+                foreach (var row in log.Skip(Math.Max(0, log.Count - 12)))
+                    Log("  /log: " + row.GetResponseFieldOrDefault("time", "")
+                        + " " + row.GetResponseFieldOrDefault("topics", "")
+                        + " " + row.GetResponseFieldOrDefault("message", ""));
+            }
+
+            Log("  --- end diagnosis ---");
         }
 
         private ArmResult Report(ArmResult arm)

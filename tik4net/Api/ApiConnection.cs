@@ -499,11 +499,20 @@ namespace tik4net.Api
             long bytes = System.Threading.Interlocked.Read(ref _bytesReceived);
             long sentences = System.Threading.Interlocked.Read(ref _sentencesReceived);
 
+            // What the OS is holding for us, which is the one thing the counters above cannot say: bytes
+            // waiting here mean the router DID answer and our reader is not collecting it — our bug. Zero
+            // with a live socket means nothing arrived. Asked of the socket rather than tracked, and guarded
+            // because a disposed socket throws.
+            string available;
+            try { available = _tcpConnection.Available.ToString("N0", ci) + " byte(s) unread in the socket buffer"; }
+            catch (Exception ex) { available = "socket buffer unreadable (" + ex.GetType().Name + ")"; }
+
             return " Socket: " + bytes.ToString("N0", ci) + " byte(s) and "
                 + sentences.ToString("N0", ci) + " sentence(s) received on this connection; last byte "
                 + AgeText(System.Threading.Volatile.Read(ref _lastByteAtTicks))
                 + ", last complete sentence "
-                + AgeText(System.Threading.Volatile.Read(ref _lastSentenceAtTicks)) + ".";
+                + AgeText(System.Threading.Volatile.Read(ref _lastSentenceAtTicks))
+                + "; " + available + ".";
         }
 
         private static string AgeText(long atTicks)

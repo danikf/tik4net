@@ -300,6 +300,11 @@ namespace tik4net
     /// timeout: the router stopped answering. Last byte recent, last sentence old: a reply is still being
     /// delivered and the deadline is too short rather than the connection broken. Both recent: the
     /// connection is busy and this command's <c>.tag</c> is the one not being served.
+    /// <para>
+    /// It also reports how many bytes are waiting <b>unread in the socket buffer</b>. The three counts above
+    /// are the client's own; this one is the operating system's, and it is the only one that can say the
+    /// router did answer and the client failed to collect it.
+    /// </para>
     /// </remarks>
     public class TikConnectionReceiveTimeoutException : TikConnectionException
     {

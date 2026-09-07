@@ -68,6 +68,13 @@ namespace tik4net.unittests.Api
                 Assert.IsTrue(lastSentenceAge > ReceiveTimeoutMs / 2,
                     $"…and so must the last sentence — got {lastSentenceAge} ms in: {message}");
 
+                // The counters above are ours; this one is the OS's, and it is the only thing that can say
+                // the router did answer and we failed to collect it. Zero here is what makes "silent router"
+                // a conclusion rather than a guess.
+                Assert.IsTrue(message.Contains("0 byte(s) unread in the socket buffer"),
+                    "a silent router leaves nothing waiting in the socket buffer, and that is what rules out "
+                    + "the reader being at fault: " + message);
+
                 Assert.IsTrue(serverTask.Wait(10000));
             }
         }
