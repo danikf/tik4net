@@ -306,6 +306,15 @@ namespace tik4net.Cli
                     CloseAfterAbandonedRead();
                     throw;
                 }
+                catch (TikConnectionReceiveTimeoutException)
+                {
+                    // Same reasoning as the abandoned cancel above, arrived at from the other direction: the
+                    // response never reached a prompt, so its tail is still on its way and the NEXT command
+                    // would read it as its own answer. A terminal has no framing to resynchronize on, so the
+                    // only honest thing left is to stop pretending this session is usable.
+                    CloseAfterAbandonedRead();
+                    throw;
+                }
                 catch (Exception ex) when (!IsOpened && !(ex is TikConnectionException))
                 {
                     // Close() ran on another thread while this command held the socket. IsOpened is already
@@ -341,8 +350,9 @@ namespace tik4net.Cli
         private void CloseAfterAbandonedRead()
         {
             TikWireTrace.Emit("cli.cancel", TikWireDir.Note,
-                "in-flight cancel with TikCancellationMode.AbandonAndClose — closing the connection, "
-                    + "the unread response cannot be resynchronized");
+                "read abandoned mid-response (in-flight cancel with TikCancellationMode.AbandonAndClose, "
+                    + "or a receive timeout) — closing the connection, the unread response cannot be "
+                    + "resynchronized");
             try { Close(); }
             catch (Exception ex)
             {
@@ -392,7 +402,16 @@ namespace tik4net.Cli
             try
             {
                 FireWriteRow(cliText);
-                string result = send(cliText, onLine, CancellationToken.None).GetAwaiter().GetResult();
+                string result;
+                try
+                {
+                    result = send(cliText, onLine, CancellationToken.None).GetAwaiter().GetResult();
+                }
+                catch (TikConnectionReceiveTimeoutException)
+                {
+                    CloseAfterAbandonedRead();   // see ExecuteCliCommandAsync — the tail is still coming
+                    throw;
+                }
                 FireReadRow(result);
                 return result;
             }

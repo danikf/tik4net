@@ -31,6 +31,52 @@ namespace tik4net.unittests.Api
         private const string TestUser = "admin";
         private const string TestPassword = "secret";
 
+        /// <summary>
+        /// The other side of the same contract: closing the connection yourself is not an error.
+        /// </summary>
+        /// <remarks>
+        /// Both a lost connection and a deliberate <c>Close()</c> end a monitor with a <c>!fatal</c>, so
+        /// routing every fatal to <c>errorCallback</c> reported the caller's own shutdown back to them as a
+        /// failure — caught by <c>ToolTests.PingLocalhostAsyncWithCloseWillNotFail</c> in the integration
+        /// suite, which closes mid-ping and asserts nothing was reported. The two are distinguished by
+        /// <c>ApiFatalSentence.ClientInitiated</c>, not by the message text.
+        /// </remarks>
+        [TestMethod]
+        public void ClosingTheConnectionUnderAMonitorIsNotReportedAsAnError()
+        {
+            using (var server = new FakeRouterServer())
+            {
+                var serverTask = Task.Run(() =>
+                {
+                    server.AcceptClient();
+                    server.ReadSentence();          // login
+                    server.WriteSentence("!done");
+                    server.ReadSentence();          // the monitor command — left running
+                    server.ReadSentence();          // /quit, sent by Close()
+                    server.WriteSentence("!fatal", "session terminated on request");
+                });
+
+                using (var connection = new ApiConnection(false))
+                {
+                    connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
+
+                    ITikTrapSentence trap = null;
+                    ITikCommand command = connection.CreateCommand("/interface/listen");
+                    command.ExecuteWithCallback(row => { }, error => { trap = error; }, () => { });
+
+                    Thread.Sleep(300);              // let the monitor settle into its read
+                    connection.Close();
+                    Thread.Sleep(500);              // and let the fatal propagate
+
+                    Assert.IsNull(trap,
+                        "the caller closed the connection themselves — reporting that back to their error "
+                        + "callback turns an ordinary shutdown into a failure they have to filter out");
+                }
+
+                Assert.IsTrue(serverTask.Wait(10000));
+            }
+        }
+
         [TestMethod]
         public void AMonitorThatTimesOutReportsItRatherThanStoppingSilently()
         {

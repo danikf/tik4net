@@ -69,6 +69,65 @@ namespace tik4net.unittests.Cli
             return conn;
         }
 
+        // ── A timeout leaves the terminal out of step ─────────────────────────
+
+        /// <summary>
+        /// A receive timeout must take the connection down with it.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A terminal has no framing. When a read gives up before the response ended at a prompt, the rest
+        /// of that response is still coming, and the NEXT command reads it as its own — which is the
+        /// documented reason cancellation is refused mid-command by default. The cancel path already closes
+        /// the connection for exactly this (<c>CloseAfterAbandonedRead</c>); the timeout path did not, so a
+        /// timed-out CLI connection went on serving the previous command's output.
+        /// </para>
+        /// <para>
+        /// Found by the release matrix on a router carrying 1672 mangle rules: the table is ~145 KB of
+        /// terminal text and does not finish inside 30 s, and the tests that ran afterwards parsed the
+        /// leftovers — <c>'mark-pa,cket'</c>, <c>'mark-p-address=10.43.93.90'</c>, <c>'0,burst-tim'</c>.
+        /// Those threw because they landed on an enum and an Int64; the same splice in a string field would
+        /// have parsed cleanly and returned a wrong value nobody could see.
+        /// </para>
+        /// </remarks>
+        [TestMethod]
+        public void AReceiveTimeoutClosesTheConnectionRatherThanLeavingItOutOfStep()
+        {
+            using (var conn = OpenConnection(".id=*1;name=ether1"))
+            {
+                conn.BeforeReply = ct => throw new TikConnectionReceiveTimeoutException(
+                    1000, "Scripted: the router did not finish answering within 1000 ms",
+                    "partial=output");
+
+                Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
+                    () => conn.CreateCommand("/interface/print").ExecuteList());
+
+                Assert.IsTrue(conn.Closed,
+                    "the transport was not closed: the unread tail of the response is still on its way, and "
+                    + "the next command on this connection will read it as its own answer");
+                Assert.IsFalse(conn.IsOpened,
+                    "a connection that cannot be resynchronized must not look usable");
+            }
+        }
+
+        /// <summary>The command after a timeout must fail, not quietly return the leftovers.</summary>
+        [TestMethod]
+        public void AfterATimeoutTheNextCommandFailsInsteadOfReadingTheLeftovers()
+        {
+            using (var conn = OpenConnection(".id=*1;name=ether1"))
+            {
+                conn.BeforeReply = ct => throw new TikConnectionReceiveTimeoutException(
+                    1000, "Scripted: the router did not finish answering within 1000 ms", "partial=output");
+                Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
+                    () => conn.CreateCommand("/interface/print").ExecuteList());
+
+                conn.BeforeReply = null;   // the transport would happily answer again
+                Assert.ThrowsException<TikConnectionNotOpenException>(
+                    () => conn.CreateCommand("/interface/print").ExecuteList(),
+                    "the caller has to be told the session is gone rather than handed a plausible answer");
+            }
+        }
+
         // ── The surface exists on every CLI transport ─────────────────────────
 
         [TestMethod]

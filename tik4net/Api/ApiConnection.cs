@@ -203,7 +203,8 @@ namespace tik4net.Api
 
             // Whatever the reader did or did not manage to publish, nobody may still be waiting on a
             // connection that no longer exists.
-            _dispatcher.TerminateAll(new ApiFatalSentence(new[] { "connection closed by the client" }));
+            _dispatcher.TerminateAll(new ApiFatalSentence(new[] { "connection closed by the client" },
+                                                          clientInitiated: true));
         }
 
         /// <inheritdoc/>
@@ -679,13 +680,14 @@ namespace tik4net.Api
                 // that needs its TYPE (Open's protocol-mismatch check) does not have to parse the message.
                 _readerFault = _readerStopRequested ? null : ex;
                 _dispatcher.TerminateAll(_readerStopRequested
-                    ? new ApiFatalSentence(new[] { "connection closed by the client" })
+                    ? new ApiFatalSentence(new[] { "connection closed by the client" }, clientInitiated: true)
                     : new ApiFatalSentence(new[] { "connection lost: " + ex.GetType().Name + ": " + ex.Message }));
                 return;
             }
 
             _isOpened = false;
-            _dispatcher.TerminateAll(new ApiFatalSentence(new[] { "connection closed by the client" }));
+            _dispatcher.TerminateAll(new ApiFatalSentence(new[] { "connection closed by the client" },
+                                                          clientInitiated: true));
         }
 
         // Async sibling of WriteCommand. Same framing, same trace hooks; the difference is that it awaits the

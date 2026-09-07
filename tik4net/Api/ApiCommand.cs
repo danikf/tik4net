@@ -692,7 +692,7 @@ namespace tik4net.Api
                                                     // caller went on believing it was listening. Reported as a
                                                     // trap, which is how the other ten transports report the
                                                     // same failure (Connection/PollingMonitorEngine).
-                                                    if (response is ApiFatalSentence fatal
+                                                    if (response is ApiFatalSentence fatal && !fatal.ClientInitiated
                                                         && onTerminalCallback == null && errorCallback != null)
                                                         errorCallback(
                                                             new Connection.TikTrapSentenceResult(fatal.Message));
