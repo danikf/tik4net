@@ -1024,7 +1024,7 @@ namespace tik4net.Api
 
             if (_sendTagWithSyncCommand && string.IsNullOrEmpty(tagOrEmptyString))
             {
-                tagOrEmptyString = TagSequence.Next().ToString();
+                tagOrEmptyString = TagSequence.NextTag();
                 commandRows = commandRows.Concat(new string[] { string.Format("{0}={1}", TikSpecialProperties.Tag, tagOrEmptyString) }).ToArray();
             }
 
@@ -1108,7 +1108,7 @@ namespace tik4net.Api
             string tag = FindTag(commandRows) ?? string.Empty;
             if (string.IsNullOrEmpty(tag) && (forceTag || _sendTagWithSyncCommand))
             {
-                tag = TagSequence.Next().ToString();
+                tag = TagSequence.NextTag();
                 commandRows = commandRows.Concat(new[] { $"{TikSpecialProperties.Tag}={tag}" }).ToArray();
             }
 
@@ -1173,7 +1173,7 @@ namespace tik4net.Api
             {
                 await WriteCommandAsync(
                     new[] { "/cancel", $"=tag={tag}",
-                            $"{TikSpecialProperties.Tag}={TagSequence.Next()}" },
+                            $"{TikSpecialProperties.Tag}={TagSequence.NextTag()}" },
                     System.Threading.CancellationToken.None).ConfigureAwait(false);
             }
             catch (Exception)

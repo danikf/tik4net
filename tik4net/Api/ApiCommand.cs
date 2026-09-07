@@ -14,7 +14,9 @@ namespace tik4net.Api
 #endif
     {
         private volatile bool _isRuning;
-        private volatile int _asynchronouslyRunningTag;
+        // null when nothing is running. Was an int with -1 as the sentinel; tags are opaque strings now,
+        // so the absence of one is null rather than a value that could also be a tag.
+        private volatile string? _asynchronouslyRunningTag;
         private volatile Thread? _asyncLoadingThread; // only set while an ExecuteWithCallback-family command is running; null otherwise
         private readonly List<ITikCommandParameter> _parameters = new List<ITikCommandParameter>();
         private ApiConnection _connection = null!; // set via Connection property before EnsureConnectionSet() is called
@@ -642,14 +644,14 @@ namespace tik4net.Api
             EnsureNotRunning();
             System.Diagnostics.Debug.Assert(_asyncLoadingThread == null);
 
-            int tag = TagSequence.Next();
+            string tag = TagSequence.NextTag();
             _isRuning = true;
             _asynchronouslyRunningTag = tag;
 
             try
             {
                 string[] commandRows = ConstructCommandText(TikCommandParameterFormat.NameValue);
-                _asyncLoadingThread = _connection.CallCommandCallbackThread(commandRows, tag.ToString(),
+                _asyncLoadingThread = _connection.CallCommandCallbackThread(commandRows, tag,
                                         response =>
                                         {
                                             ApiReSentence? reResponse = response as ApiReSentence;
@@ -678,7 +680,7 @@ namespace tik4net.Api
                                                 {
                                                     //REMARKS: we are expecting !trap + !done sentences when any error occurs
                                                     _isRuning = false;
-                                                    _asynchronouslyRunningTag = -1;
+                                                    _asynchronouslyRunningTag = null;
                                                     _asyncLoadingThread = null;
 
                                                     if (response is ApiDoneSentence && onDoneCallback != null)
@@ -708,7 +710,7 @@ namespace tik4net.Api
             catch
             {
                 _isRuning = false;
-                _asynchronouslyRunningTag = -1;
+                _asynchronouslyRunningTag = null;
                 throw;
             }
             finally
@@ -877,7 +879,7 @@ namespace tik4net.Api
 
         private bool CancelInternal(bool joinLoadingThread, int milisecondsTimeout)
         {
-            if (_isRuning && _asynchronouslyRunningTag >= 0)
+            if (_isRuning && _asynchronouslyRunningTag != null)
             {
                 // Capture the thread reference BEFORE ExecuteNonQuery — the async thread may set
                 // _asyncLoadingThread to null when it processes its own !done, which can race with
@@ -885,8 +887,8 @@ namespace tik4net.Api
                 Thread? loadingThread = _asyncLoadingThread;
 
                 ApiCommand cancellCommand = new ApiCommand(_connection, "/cancel",
-                    new ApiCommandParameter("tag", _asynchronouslyRunningTag.ToString(), TikCommandParameterFormat.NameValue), // tag we are cancelling: REMARKS: =tag=1234 and not =.tag=1234
-                    new ApiCommandParameter(TikSpecialProperties.Tag, "c_"+_asynchronouslyRunningTag.ToString(), TikCommandParameterFormat.Tag) //tag of cancell command itself
+                    new ApiCommandParameter("tag", _asynchronouslyRunningTag, TikCommandParameterFormat.NameValue), // tag we are cancelling: REMARKS: =tag=1234 and not =.tag=1234
+                    new ApiCommandParameter(TikSpecialProperties.Tag, "c_" + _asynchronouslyRunningTag, TikCommandParameterFormat.Tag) //tag of cancell command itself
                     );
                 // A bounded CancelAndJoin promises to come back within milisecondsTimeout. The /cancel is a
                 // command like any other, so on the connection's ReceiveTimeout it could sit for 30 s before

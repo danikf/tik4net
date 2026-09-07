@@ -81,6 +81,18 @@ Restart your MCP client afterwards; it will not reconnect to the replaced server
 > a lock on its own `bin/` output, and `dotnet build tik4net.sln` — which includes this project —
 > then fails. Use `run-dev.ps1` (staged copy) or the installed tool (outside the repository).
 
+### Its commands are `mcp`-tagged on the wire
+
+Every binary-API `.tag` this server sends reads `mcp-<pid>-<stamp>-<counter>`, where a program that has
+not set a prefix uses `app` instead. So a wire trace or a router-side capture that has both this server
+and the integration suite in it says which command came from which — and the `pid` field means two
+processes running at once can never issue the same tag, which a bare counter starting at 1 in every
+process could not promise.
+
+This is for reading traces, not for correctness: RouterOS echoes a tag back on the session that sent it
+and each connection reads only its own socket, so identical values in two processes were never actually
+confusable.
+
 ## The `mikrotik_call` tool
 
 | Parameter         | Type     | Description |
