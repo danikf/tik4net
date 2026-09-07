@@ -4,6 +4,8 @@ using System.Configuration;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
+
+using System.Net.Sockets;
 using System.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -43,6 +45,9 @@ namespace tik4net.integrationtests
         // Its own connections throughout, so the suite's shared session is neither used nor disturbed.
         protected override bool ReuseConnectionAcrossTests => false;
 
+        // The router's sniffer settings as they were before StartSniffer overwrote them; null once restored.
+        private List<string> _snifferRestore;
+
         private static int ReadsPerArm
         {
             get
@@ -73,14 +78,24 @@ namespace tik4net.integrationtests
             using (var side = OpenProbeConnection())
                 StartSniffer(side);
 
-            var results = new List<ArmResult>
+            // The sniffer is router state, and this probe is routinely interrupted: without this the router
+            // keeps capturing, with this probe's filters, long after the run that set them is gone.
+            List<ArmResult> results;
+            try
             {
-                FreshConnectionPerRead(path, reads),
-                OneConnectionReused(path, reads),
-                OneConnectionAfterChatter(path, reads),
-                OneConnectionWithAnIdleMonitor(path, reads),
-                OneConnectionWithALongTimeout(path, reads),
-            };
+                results = new List<ArmResult>
+                {
+                    FreshConnectionPerRead(path, reads),
+                    OneConnectionReused(path, reads),
+                    OneConnectionAfterChatter(path, reads),
+                    OneConnectionWithAnIdleMonitor(path, reads),
+                    OneConnectionWithALongTimeout(path, reads),
+                };
+            }
+            finally
+            {
+                StopSnifferBestEffort();
+            }
 
             Log("");
             Log("arm                                stalls  refused  median ms  max ms");
@@ -198,6 +213,19 @@ namespace tik4net.integrationtests
             ((ITikRawSentenceConnection)conn).CallCommandSync("/system/identity/set", "=name=" + name);
         }
 
+        /// <summary>
+        /// Whether a failed read is the phenomenon under measurement — the router going quiet — rather than
+        /// the read never having been asked properly.
+        /// </summary>
+        /// <remarks>
+        /// A trap (bad path, no permission) and a stall are both "the read threw", and counting them
+        /// together lets a typo produce a full column of stalls that no router caused.
+        /// </remarks>
+        private static bool IsStall(Exception ex) =>
+            ex is TikConnectionReceiveTimeoutException
+            || ex is System.IO.IOException
+            || ex is SocketException;
+
         private ITikConnection OpenProbeConnection(int receiveTimeoutSeconds = 0)
         {
             var setup = LabSetup(ResolveConnectionType());
@@ -223,9 +251,23 @@ namespace tik4net.integrationtests
                 // router had got worse: eight reads that wedge on the third report six "stalls" where the
                 // pre-fail-fast probe reported one wedge and five more 30-second waits.
                 if (ex is TikConnectionSessionClosedException)
+                {
                     arm.AddRefusal();
-                else
+                }
+                else if (IsStall(ex))
+                {
                     arm.AddStall(sw.Elapsed.TotalMilliseconds);
+                }
+                else
+                {
+                    // Not a stall and not a refusal: the read never got as far as waiting. A mistyped
+                    // TIK4NET_STALL_PATH reported itself as twelve stalls in twelve reads before this
+                    // existed — a probe that turns its own misconfiguration into the phenomenon it is
+                    // measuring is worse than one that does not run.
+                    Log($"  {arm.Name} #{attempt}: NOT A STALL after {sw.ElapsedMilliseconds} ms — "
+                        + ex.GetType().Name + ": " + Oneline(ex.Message));
+                    throw;
+                }
                 // The message now carries the socket counters, which say WHICH stall this is: silent
                 // router, a reply still trickling in, or this tag starved while the socket stayed busy.
                 Log($"  {arm.Name} #{attempt}: STALL after {sw.ElapsedMilliseconds} ms — "
@@ -427,6 +469,7 @@ namespace tik4net.integrationtests
             try
             {
                 var raw = (ITikRawSentenceConnection)conn;
+                _snifferRestore = CaptureSnifferSettings(raw);
                 raw.CallCommandSync("/tool/sniffer/set", "=only-headers=yes", "=memory-limit=200",
                     "=memory-scroll=yes", "=file-name=", "=filter-port=8728",
                     "=filter-operator-between-entries=and").ToList();
@@ -440,16 +483,72 @@ namespace tik4net.integrationtests
             }
         }
 
+        /// <summary>
+        /// The settings this probe is about to overwrite, as the <c>=name=value</c> words that put them back.
+        /// </summary>
+        /// <remarks>
+        /// A probe that leaves the lab reconfigured is how the next investigation gets a baseline nobody can
+        /// explain — the sniffer's filters in particular, which silently narrow what a later capture sees.
+        /// Only the fields <see cref="StartSniffer"/> writes are captured: restoring a field the probe never
+        /// touched would be a second way to change the router. A field the router does not report is
+        /// restored to empty, which is what <c>/tool/sniffer/print</c> omitting it means.
+        /// </remarks>
+        private static List<string> CaptureSnifferSettings(ITikRawSentenceConnection raw)
+        {
+            string[] fields =
+            {
+                "only-headers", "memory-limit", "memory-scroll", "file-name",
+                "filter-port", "filter-operator-between-entries",
+            };
+
+            var row = raw.CallCommandSync("/tool/sniffer/print").OfType<ITikReSentence>().FirstOrDefault();
+            if (row == null)
+                return null;
+
+            return fields
+                .Select(f => "=" + f + "=" + row.GetResponseFieldOrDefault(f, string.Empty))
+                .ToList();
+        }
+
         private void StopSniffer(ITikConnection conn)
         {
             try
             {
-                ((ITikRawSentenceConnection)conn).CallCommandSync("/tool/sniffer/stop").ToList();
+                var raw = (ITikRawSentenceConnection)conn;
+                raw.CallCommandSync("/tool/sniffer/stop").ToList();
                 Log("  sniffer: stopped");
+
+                var restore = _snifferRestore;
+                if (restore != null)
+                {
+                    _snifferRestore = null;
+                    raw.CallCommandSync(new[] { "/tool/sniffer/set" }.Concat(restore)).ToList();
+                    Log("  sniffer: settings restored");
+                }
             }
             catch (Exception ex)
             {
                 Log("  sniffer: could not stop — " + Oneline(ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// Stops and restores the sniffer on a connection of its own, for the <c>finally</c> that has to run
+        /// even when the arms threw — the connections they used are gone by then.
+        /// </summary>
+        private void StopSnifferBestEffort()
+        {
+            if (_snifferRestore == null)
+                return;
+
+            try
+            {
+                using (var conn = OpenProbeConnection())
+                    StopSniffer(conn);
+            }
+            catch (Exception ex)
+            {
+                Log("  sniffer: could not be stopped on a fresh connection — " + Oneline(ex.Message));
             }
         }
 
