@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Mndp;
 
@@ -54,6 +54,26 @@ namespace tik4net.unittests
             // binding per interface exists to stop depending on. Refusing the interface is the honest answer.
             Assert.IsNull(MndpHelper.SubnetBroadcast(IPAddress.Parse("192.168.4.31"),
                                                      IPAddress.Parse("0.0.0.0")));
+        }
+
+        [TestMethod]
+        public void AnAddressWithNoUsableMaskIsStillSolicited()
+        {
+            // Real adapters — some VPN and virtual ones — report an address with no mask. Dropping it would
+            // leave that segment as unsolicited as the unbound socket left every segment but one; the socket
+            // is still bound to the address, which is what decides the interface the datagram leaves by.
+            Assert.AreEqual(IPAddress.Broadcast,
+                MndpHelper.SolicitationTarget(IPAddress.Parse("192.168.4.31"), null));
+            Assert.AreEqual(IPAddress.Broadcast,
+                MndpHelper.SolicitationTarget(IPAddress.Parse("192.168.4.31"), IPAddress.Parse("0.0.0.0")));
+        }
+
+        [TestMethod]
+        public void AUsableMaskIsPreferredToTheLimitedBroadcast()
+        {
+            Assert.AreEqual(IPAddress.Parse("192.168.4.255"),
+                MndpHelper.SolicitationTarget(IPAddress.Parse("192.168.4.31"),
+                                              IPAddress.Parse("255.255.255.0")));
         }
 
         [TestMethod]

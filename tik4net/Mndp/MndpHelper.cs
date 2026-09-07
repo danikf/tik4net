@@ -217,9 +217,24 @@ namespace tik4net.Mndp
         }
 
         /// <summary>
-        /// The local IPv4 address and subnet broadcast address of every interface worth soliciting from:
-        /// up, not loopback, not a tunnel, carrying an IPv4 address with a mask to derive the broadcast from.
+        /// Every local IPv4 address worth soliciting from, paired with the address to send the solicitation
+        /// to: the interface is up, not loopback and not a tunnel.
         /// </summary>
+        /// <remarks>
+        /// <para>
+        /// **Every address, not one per interface.** An interface carrying two IPv4 addresses is on two
+        /// segments, and stopping at the first one leaves the second as invisible as the unbound socket left
+        /// every interface but one — the same defect one level down.
+        /// </para>
+        /// <para>
+        /// The target is that address's own subnet broadcast where one can be derived, and the limited
+        /// broadcast where it cannot. An address whose <see cref="UnicastIPAddressInformation.IPv4Mask"/> is
+        /// absent or all-zero is reported by real adapters (some VPN and virtual ones), and skipping it would
+        /// silently drop that segment. The socket is still bound to the address either way, which is what
+        /// decides the interface the datagram leaves by — the limited broadcast only loses the ability to be
+        /// forwarded, which MNDP does not use.
+        /// </para>
+        /// </remarks>
         private static IEnumerable<KeyValuePair<IPAddress, IPAddress>> EnumerateBroadcastNics()
         {
             foreach (var ni in GetEligibleInterfaces())
@@ -227,16 +242,27 @@ namespace tik4net.Mndp
                 foreach (var ua in ni.GetIPProperties().UnicastAddresses)
                 {
                     if (ua.Address.AddressFamily != AddressFamily.InterNetwork) continue;
-                    if (ua.IPv4Mask == null) continue;
 
-                    var broadcast = SubnetBroadcast(ua.Address, ua.IPv4Mask);
-                    if (broadcast == null) continue;
-
-                    yield return new KeyValuePair<IPAddress, IPAddress>(ua.Address, broadcast);
-                    break;   // one address per interface is enough to reach its segment
+                    yield return new KeyValuePair<IPAddress, IPAddress>(
+                        ua.Address, SolicitationTarget(ua.Address, ua.IPv4Mask));
                 }
             }
         }
+
+        /// <summary>
+        /// Where a solicitation sent from <paramref name="address"/> should be addressed: that address's own
+        /// subnet broadcast, or the limited broadcast when no subnet can be derived.
+        /// </summary>
+        /// <remarks>
+        /// The fallback is the point. An address whose mask is missing or all-zero is reported by real
+        /// adapters, and dropping it would leave that segment as unsolicited as the unbound socket left every
+        /// segment but one. Binding the socket to the address is what decides which interface the datagram
+        /// leaves by; the limited broadcast merely gives up being forwarded, which MNDP does not use anyway.
+        /// </remarks>
+        /// <param name="address">The local address the socket will be bound to.</param>
+        /// <param name="mask">The subnet mask reported for it, if any.</param>
+        internal static IPAddress SolicitationTarget(IPAddress? address, IPAddress? mask)
+            => SubnetBroadcast(address, mask) ?? IPAddress.Broadcast;
 
         /// <summary>
         /// The directed (subnet) broadcast address for an IPv4 address and its mask — the host bits set —
