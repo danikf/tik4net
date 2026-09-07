@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -171,6 +172,67 @@ namespace tik4net.unittests.Api
                 Assert.IsTrue(serverTask.Wait(10000));
             }
         }
+
+        /// <summary>
+        /// A session that has answered nothing twice running is not asked a third time.
+        /// </summary>
+        /// <remarks>
+        /// The stall does not heal: measured against a live router, a session that stops sending never resumes,
+        /// so every later command spent a whole <c>ReceiveTimeout</c> rediscovering it and the caller
+        /// experienced an unboundedly slow connection instead of a broken one. The command is deliberately not
+        /// written — the router goes on <b>executing</b> what it receives on a stalled session, so sending
+        /// would risk a write nobody can confirm.
+        /// </remarks>
+        [TestMethod]
+        public void ASessionThatHasStoppedAnsweringIsNotAskedAgain()
+        {
+            using (var server = new FakeRouterServer())
+            {
+                var serverTask = Task.Run(() =>
+                {
+                    server.AcceptClient();
+                    server.ReadSentence();                          // login
+                    server.WriteSentence("!done");
+
+                    server.ReadSentence();                          // first command — answered with silence
+                    server.ReadSentence();                          // second — likewise
+                    Thread.Sleep(ReceiveTimeoutMs * 4);
+                });
+
+                using (var connection = new ApiConnection(false))
+                {
+                    connection.ReceiveTimeout = ReceiveTimeoutMs;
+                    connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
+
+                    for (int i = 0; i < SilentTimeoutsBeforeDead; i++)
+                        Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
+                            () => connection.CreateCommand("/interface/print").ExecuteList(),
+                            "the first unanswered commands still have to wait — one silent command is not "
+                            + "proof of anything, a monitor legitimately looks the same");
+
+                    var sw = Stopwatch.StartNew();
+                    var dead = Assert.ThrowsException<TikConnectionSessionClosedException>(
+                        () => connection.CreateCommand("/interface/print").ExecuteList());
+                    sw.Stop();
+
+                    Assert.IsTrue(sw.ElapsedMilliseconds < ReceiveTimeoutMs / 2,
+                        "failing fast is the entire point: this took " + sw.ElapsedMilliseconds + " ms of a "
+                        + ReceiveTimeoutMs + " ms timeout");
+                    Assert.IsTrue(dead.Message.Contains("did not run"),
+                        "a caller has to be able to tell whether to retry: " + dead.Message);
+
+                    // Close must still work — it is what the exception tells the caller to do, and it must not
+                    // trip over the refusal on its own /quit.
+                    connection.Close();
+                    Assert.IsFalse(connection.IsOpened);
+                }
+
+                serverTask.Wait(10000);
+            }
+        }
+
+        /// <summary>Mirrors <c>ApiConnection.SilentTimeoutsBeforePresumedDead</c>, which is internal.</summary>
+        private const int SilentTimeoutsBeforeDead = 2;
 
         /// <summary>
         /// Runs a print that is guaranteed to time out and returns the exception message.

@@ -158,6 +158,7 @@ namespace tik4net.Api
         {
             if (!_isOpened)
                 throw new TikConnectionNotOpenException("Connection has not been opened.");
+            EnsureSessionAnswering();
         }
 
         public void Close()
@@ -170,7 +171,12 @@ namespace tik4net.Api
             _closeInitiated = true;
             try
             {
-                if (IsOpened)
+                // A session that has stopped answering will not answer /quit either, so asking costs a full
+                // ReceiveTimeout and tells us nothing. Skipped rather than left to EnsureOpened's refusal:
+                // that throws TikConnectionSessionClosedException, which nothing below catches, and Close
+                // must always reach DisposeConnectionResources — a closing path that can throw past the
+                // dispose is how a socket gets leaked by the very call meant to release it.
+                if (IsOpened && !_sessionPresumedDead)
                 {
                     if (!_isSsl)
                     {
@@ -476,6 +482,71 @@ namespace tik4net.Api
         {
             System.Threading.Interlocked.Add(ref _bytesReceived, count);
             System.Threading.Volatile.Write(ref _lastByteAtTicks, System.Diagnostics.Stopwatch.GetTimestamp());
+            // Any byte at all clears the death count: whatever the session was doing, it is talking to us.
+            if (System.Threading.Volatile.Read(ref _silentTimeouts) != 0)
+                System.Threading.Volatile.Write(ref _silentTimeouts, 0);
+        }
+
+        // Consecutive receive timeouts during which not one byte arrived. Reset by NoteBytesReceived, so
+        // reaching the threshold means every one of those commands went entirely unanswered.
+        private int _silentTimeouts;
+        private volatile bool _sessionPresumedDead;
+
+        /// <summary>
+        /// How many wholly unanswered commands in a row are taken as proof that the session is finished.
+        /// </summary>
+        /// <remarks>
+        /// One is not enough: a monitor, or a command the caller gave a short deadline, can legitimately have
+        /// nothing to show yet. Two consecutive commands that between them received <b>zero bytes</b> over two
+        /// full timeouts is a different thing — a live RouterOS session answers a table read within
+        /// milliseconds (measured: 55 ms for 681 rows), so 60 s of total silence is not slowness.
+        /// </remarks>
+        private const int SilentTimeoutsBeforePresumedDead = 2;
+
+        /// <summary>
+        /// Records a receive timeout and decides whether the session has stopped answering altogether.
+        /// </summary>
+        private void NoteReceiveTimeout()
+        {
+            if (System.Threading.Interlocked.Increment(ref _silentTimeouts) >= SilentTimeoutsBeforePresumedDead)
+                _sessionPresumedDead = true;
+        }
+
+        /// <summary>
+        /// Refuses to use a session that has stopped answering, instead of spending a full
+        /// <see cref="ReceiveTimeout"/> per command discovering it again.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// RouterOS sessions are observed to stop sending while the socket stays established and the router
+        /// keeps <b>executing</b> what is sent — the identity of a stalled session's router was changed by a
+        /// command whose own reply never came. Once that has happened the session never recovers, so every
+        /// later command paid the timeout in full and the caller saw an endlessly slow connection rather than
+        /// a broken one.
+        /// </para>
+        /// <para>
+        /// The command is <b>not written</b>. That is the point: because the router still executes what it
+        /// receives, sending would risk applying a write the caller can never have confirmed, and it is what
+        /// lets this say the command did not run and mean it.
+        /// </para>
+        /// <para>
+        /// <see cref="IsOpened"/> deliberately still reports the transport's own state. It is what callers
+        /// test before <see cref="Close"/>, and a connection that claimed to be shut would have its socket
+        /// leaked by the usual <c>if (IsOpened) Close();</c>. The session must still be closed and reopened —
+        /// which is what this exception asks for.
+        /// </para>
+        /// </remarks>
+        private void EnsureSessionAnswering()
+        {
+            if (!_sessionPresumedDead)
+                return;
+
+            throw new TikConnectionSessionClosedException(
+                "The router stopped answering on this session: "
+                + SilentTimeoutsBeforePresumedDead.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                + " consecutive commands received no reply at all, and it does not recover. The command was "
+                + "not sent, so it did not run. Close this connection and open a new one — a fresh session to "
+                + "the same router is unaffected." + DescribeReaderLiveness(string.Empty));
         }
 
         private void NoteSentenceReceived()
@@ -839,6 +910,7 @@ namespace tik4net.Api
         private TikConnectionReceiveTimeoutException WithPartialResponse(
             TikConnectionReceiveTimeoutException ex, IList<ITikSentence> received, string waitingTag)
         {
+            NoteReceiveTimeout();
             string partial = string.Join(Environment.NewLine, received.Select(DescribeSentence));
             return new TikConnectionReceiveTimeoutException(ex.TimeoutMilliseconds,
                 ex.Message + " " + received.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)
@@ -856,8 +928,11 @@ namespace tik4net.Api
         /// </remarks>
         private TikConnectionReceiveTimeoutException WithReaderLiveness(
             TikConnectionReceiveTimeoutException ex, string waitingTag)
-            => new TikConnectionReceiveTimeoutException(ex.TimeoutMilliseconds,
+        {
+            NoteReceiveTimeout();
+            return new TikConnectionReceiveTimeoutException(ex.TimeoutMilliseconds,
                 ex.Message + DescribeReaderLiveness(waitingTag), ex.PartialResponse, ex.InnerException);
+        }
 
         /// <summary>One sentence in its wire shape, for the partial-response text.</summary>
         private static string DescribeSentence(ITikSentence sentence)
