@@ -1072,7 +1072,9 @@ Mid-`getall`, the router sometimes simply does not answer a continuation request
 it normally. On `/ip/firewall/mangle` with 1672 rows over TCP 8291 the read is 14 pages at ~120–150 ms/page,
 ~1.5 s in total, and roughly **one read in six** contains one such pause. Measured on an idle CHR 7.24.2,
 2026-09-07, 50 reads across three runs; the pause landed before page 8, 9 and 11 in different runs, so it is
-not tied to a page number, a row or a cursor boundary. Two useful shapes:
+not tied to a page number, a row or a cursor boundary. A later sample of 30 reads of the same table puts the
+rate at 4 in 30 with a median read of 1.55 s, and had two reads absorb a pause and still finish, at 8.8 s and
+11.7 s. Two useful shapes:
 
 * a pause of **21 805 ms** that then completed the whole table — so this is a late reply, not a lost one;
 * pauses past the 30 s `ReceiveTimeout`, up to 52.8 s, which are the same event and still complete: the read
@@ -1137,12 +1139,32 @@ delayed, and the caller's move is a fresh connection, not a retry and not a larg
 `PagedReadBudgetFactor`. (The budget itself is confirmed on the wire: 120 006–120 014 ms against the 30 s
 default, i.e. the `4 ×` factor of §29 exactly.)
 
-**Both halves of the §29 timeout message occur here, and the byte-counting one carries the lead.** A stall
-reports either `Not one byte has arrived` or `11680 byte(s) have arrived … without completing a frame` — and
-that second figure has been identical on separate stalls in separate reads. 11 680 is 8 × 1460: eight
-full-MSS segments and then silence, which is the shape of a TCP window that has stopped rather than of a
-handler still thinking. This is what the byte counter is for; a frame count reports the two as one event,
-because neither has completed a frame.
+**Both halves of the §29 timeout message occur here, and the silent one dominates.** A stall reports either
+`Not one byte has arrived` or `11680 byte(s) have arrived … without completing a frame`. The second is rare:
+**30 identical full-table reads produced 4 stalls and all four were the silent one** (RouterOS 7.24.2,
+2026-09-07, 1680 rows in 14 pages over TCP 8291). That 11 680 is exactly 8 × 1460 — eight full-MSS segments
+— and has come back byte-identical on separate stalls, which looks like a stopped TCP window; but it has not
+been caught with a socket trace on it, and it is not what the common stall does, so it is a curiosity rather
+than the mechanism. The common stall has nothing to do with flow control: the socket is drained and idle.
+
+The socket-level shape of it is the same every time, and it is the §29 signature at full size:
+
+```
+#2131   338,5ms  wbxtcp.sock   Recv    131B  got=131 131/131   ← final chunk of page 8
+#2132   338,5ms  wbxtcp.frame  Recv  16706B  tag=0x06          ← page 8 complete
+#2133   339,2ms  wbxtcp.sock   Note      0B  read want=2 into 0/2   ← blocked here for 118 742 ms
+#2134   341,7ms  wbxtcp.frame  Send    114B  tag=0x06          ← the request for page 9
+```
+
+Two things to read from the counts either side of it. A page frame is ~16.7 kB delivered in **255-byte
+chunks**, so one frame costs ~131 socket reads and a whole read ~1850 of them — and a chunk arriving in two
+pieces (113 B then 142 B, 50 ms apart) is ordinary, not a symptom. And the reader is parked at a clean frame
+boundary with an empty buffer, which is why an abandoned request leaves the stream cipher aligned.
+
+**Within one run the boundary repeats; across runs it does not.** The four stalls landed on page 9 twice and
+page 14 (the last) twice, out of 30 reads that were otherwise byte-for-byte the same request sequence. Other
+sessions have stalled at other boundaries, so nothing about page 9 or 14 is special — but a stall is not
+uniformly distributed across the pages of a given read either.
 
 **Which read stalls is not a property of the caller.** Across two runs of the same set, four tests whose
 paged reads stalled (603/960/1078 rows over 5/8/9 pages) all completed in 4–11 s on the rerun while two
