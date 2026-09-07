@@ -140,19 +140,159 @@ namespace tik4net.Mndp
             return result;
         }
 
+        /// <summary>
+        /// Sends the MNDP solicitation out of <b>every</b> eligible local interface, not just the one the
+        /// host's routing table happens to pick.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The multi-homed machine that breaks discovery is usually the CLIENT, not the router. Receiving is
+        /// not the problem — the listener binds <see cref="IPAddress.Any"/> and hears every interface — but a
+        /// solicitation sent on an <b>unbound</b> socket leaves by whichever interface the routing table
+        /// chooses for <see cref="IPAddress.Broadcast"/>, so routers on every other segment are heard from
+        /// only when they happen to broadcast on their own ~30 s cycle. A short discovery window usually
+        /// misses that, and the result is indistinguishable from an empty segment or a blocked firewall.
+        /// </para>
+        /// <para>
+        /// So: one socket per candidate interface, bound to that interface's own address, addressed to that
+        /// interface's SUBNET broadcast rather than the limited broadcast — the subnet form is what a bound
+        /// socket can route unambiguously. The same pattern, for the same reason, is in
+        /// <c>MacLayerTransport</c>, which probes each candidate NIC rather than trusting the broadcast route.
+        /// </para>
+        /// <para>
+        /// Failures are swallowed per interface deliberately: an adapter that cannot be bound or has no route
+        /// is simply not a candidate, and one of those must not stop the others from being solicited. If no
+        /// interface can be enumerated at all the original unbound send is still attempted, which on a host
+        /// where enumeration is unavailable beats sending nothing.
+        /// </para>
+        /// </remarks>
         private static void SendMndpBroadcast()
         {
             var dataToBroadcast = new byte[] { 0, 0, 0, 0 };
+            int sent = 0;
 
-            using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { EnableBroadcast = true, ExclusiveAddressUse = false })
+            foreach (var nic in EnumerateBroadcastNics())
             {
-                socket.SendTo(dataToBroadcast, new IPEndPoint(IPAddress.Broadcast, MNDP_UDP_PORT));
+                try
+                {
+                    using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { EnableBroadcast = true, ExclusiveAddressUse = false })
+                    {
+                        socket.Bind(new IPEndPoint(nic.Key, 0));
+                        socket.SendTo(dataToBroadcast, new IPEndPoint(nic.Value, MNDP_UDP_PORT));
+                        sent++;
+                    }
+                }
+                catch (SocketException)
+                {
+                    // Not usable for broadcast; the other interfaces still are.
+                }
             }
 
-            using (var socket = new Socket(AddressFamily.InterNetworkV6, SocketType.Dgram, ProtocolType.Udp) { EnableBroadcast = true, ExclusiveAddressUse = false })
+            if (sent == 0)
             {
-                socket.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.IPv6Only, true);
-                socket.SendTo(dataToBroadcast, new IPEndPoint(IPAddress.Parse("ff02::1")/*IPAddress.IPv6Any*/, MNDP_UDP_PORT));
+                using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { EnableBroadcast = true, ExclusiveAddressUse = false })
+                {
+                    socket.SendTo(dataToBroadcast, new IPEndPoint(IPAddress.Broadcast, MNDP_UDP_PORT));
+                }
+            }
+
+            foreach (int interfaceIndex in EnumerateIPv6InterfaceIndexes())
+            {
+                try
+                {
+                    using (var socket = new Socket(AddressFamily.InterNetworkV6, SocketType.Dgram, ProtocolType.Udp) { EnableBroadcast = true, ExclusiveAddressUse = false })
+                    {
+                        socket.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.IPv6Only, true);
+                        // Which interface an ff02:: datagram leaves by is this socket option, not the route.
+                        socket.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.MulticastInterface,
+                            IPAddress.HostToNetworkOrder(interfaceIndex));
+                        socket.SendTo(dataToBroadcast, new IPEndPoint(IPAddress.Parse("ff02::1"), MNDP_UDP_PORT));
+                    }
+                }
+                catch (SocketException)
+                {
+                    // As above — one interface refusing must not silence the rest.
+                }
+            }
+        }
+
+        /// <summary>
+        /// The local IPv4 address and subnet broadcast address of every interface worth soliciting from:
+        /// up, not loopback, not a tunnel, carrying an IPv4 address with a mask to derive the broadcast from.
+        /// </summary>
+        private static IEnumerable<KeyValuePair<IPAddress, IPAddress>> EnumerateBroadcastNics()
+        {
+            foreach (var ni in GetEligibleInterfaces())
+            {
+                foreach (var ua in ni.GetIPProperties().UnicastAddresses)
+                {
+                    if (ua.Address.AddressFamily != AddressFamily.InterNetwork) continue;
+                    if (ua.IPv4Mask == null) continue;
+
+                    var broadcast = SubnetBroadcast(ua.Address, ua.IPv4Mask);
+                    if (broadcast == null) continue;
+
+                    yield return new KeyValuePair<IPAddress, IPAddress>(ua.Address, broadcast);
+                    break;   // one address per interface is enough to reach its segment
+                }
+            }
+        }
+
+        /// <summary>
+        /// The directed (subnet) broadcast address for an IPv4 address and its mask — the host bits set —
+        /// or <c>null</c> when the pair does not describe a subnet a broadcast could be addressed to.
+        /// </summary>
+        /// <remarks>
+        /// A mask of all zeroes is rejected rather than turned into 255.255.255.255: that is the limited
+        /// broadcast, which is exactly the address whose routing this method exists to avoid depending on.
+        /// </remarks>
+        /// <param name="address">The interface's own IPv4 address.</param>
+        /// <param name="mask">The subnet mask reported for that address.</param>
+        internal static IPAddress? SubnetBroadcast(IPAddress? address, IPAddress? mask)
+        {
+            if (address == null || mask == null) return null;
+            if (address.AddressFamily != AddressFamily.InterNetwork) return null;
+
+            byte[] a = address.GetAddressBytes();
+            byte[] m = mask.GetAddressBytes();
+            if (a.Length != 4 || m.Length != 4) return null;
+            if (m.All(b => b == 0)) return null;   // no usable subnet
+
+            var broadcast = new byte[4];
+            for (int i = 0; i < 4; i++)
+                broadcast[i] = (byte)(a[i] | ~m[i]);
+
+            return new IPAddress(broadcast);
+        }
+
+        /// <summary>The interface index of every eligible interface that has IPv6 enabled.</summary>
+        private static IEnumerable<int> EnumerateIPv6InterfaceIndexes()
+        {
+            foreach (var ni in GetEligibleInterfaces())
+            {
+                int index;
+                try { index = ni.GetIPProperties().GetIPv6Properties().Index; }
+                catch (NetworkInformationException) { continue; }        // no IPv6 on this interface
+                catch (PlatformNotSupportedException) { continue; }
+
+                yield return index;
+            }
+        }
+
+        /// <summary>Up, not loopback, not a tunnel — the interfaces a solicitation is worth sending from.</summary>
+        private static IEnumerable<NetworkInterface> GetEligibleInterfaces()
+        {
+            NetworkInterface[] all;
+            try { all = NetworkInterface.GetAllNetworkInterfaces(); }
+            catch (NetworkInformationException) { yield break; }
+
+            foreach (var ni in all)
+            {
+                if (ni.OperationalStatus != OperationalStatus.Up) continue;
+                if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
+                if (ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel) continue;
+
+                yield return ni;
             }
         }
 
