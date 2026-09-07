@@ -79,10 +79,10 @@ namespace tik4net.integrationtests
             };
 
             Log("");
-            Log("arm                                stalls  median ms  max ms");
+            Log("arm                                stalls  refused  median ms  max ms");
             foreach (var r in results)
-                Log(string.Format(CultureInfo.InvariantCulture, "{0,-34} {1,3}/{2,-3} {3,9:F0} {4,7:F0}",
-                    r.Name, r.Stalls, r.Reads, r.MedianMs, r.MaxMs));
+                Log(string.Format(CultureInfo.InvariantCulture, "{0,-34} {1,3}/{2,-3} {3,7} {4,9:F0} {5,7:F0}",
+                    r.Name, r.Stalls, r.Reads - r.Refusals, r.Refusals, r.MedianMs, r.MaxMs));
 
             // Deliberately not asserted. The question is which arm stalls, and a threshold here would turn
             // a measurement into a flaky test — see the summary above and Docs/HISTORY.md for the numbers.
@@ -183,7 +183,15 @@ namespace tik4net.integrationtests
             }
             catch (Exception ex)
             {
-                arm.AddStall(sw.Elapsed.TotalMilliseconds);
+                // A refusal is not a new stall — it is the same wedged session being declined without a
+                // command going out, so counting the two together makes an arm's rate depend on how many
+                // reads happened to be left after it wedged. Which would compare across runs as if the
+                // router had got worse: eight reads that wedge on the third report six "stalls" where the
+                // pre-fail-fast probe reported one wedge and five more 30-second waits.
+                if (ex is TikConnectionSessionClosedException)
+                    arm.AddRefusal();
+                else
+                    arm.AddStall(sw.Elapsed.TotalMilliseconds);
                 // The message now carries the socket counters, which say WHICH stall this is: silent
                 // router, a reply still trickling in, or this tag starved while the socket stayed busy.
                 Log($"  {arm.Name} #{attempt}: STALL after {sw.ElapsedMilliseconds} ms — "
@@ -276,7 +284,9 @@ namespace tik4net.integrationtests
 
         private ArmResult Report(ArmResult arm)
         {
-            Log($"  -> {arm.Name}: {arm.Stalls} stall(s) in {arm.Reads}, median {arm.MedianMs:F0} ms");
+            Log($"  -> {arm.Name}: {arm.Stalls} stall(s) in {arm.Reads - arm.Refusals} attempted read(s)"
+                + (arm.Refusals > 0 ? $" (+{arm.Refusals} refused on the wedged session)" : "")
+                + $", median {arm.MedianMs:F0} ms");
             return arm;
         }
 
@@ -300,8 +310,16 @@ namespace tik4net.integrationtests
             public int Reads { get; }
             public int Stalls => _stalled.Count;
 
+            /// <summary>
+            /// Reads the connection refused outright once it had been declared dead. Kept apart from
+            /// <see cref="Stalls"/>: they cost nothing, prove nothing new, and only say how far into the arm
+            /// the wedge happened.
+            /// </summary>
+            public int Refusals { get; private set; }
+
             public void Add(double ms) => _ok.Add(ms);
             public void AddStall(double ms) => _stalled.Add(ms);
+            public void AddRefusal() => Refusals++;
 
             public double MedianMs
             {
