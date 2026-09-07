@@ -190,7 +190,7 @@ namespace tik4net.integrationtests
         /// </summary>
         [TestMethod]
         public void TheMdnsRepeaterInterfaceListIsReportedUnderTheApiName()
-            => AssertAgreesWithApiWhileSet("/ip/dns", "mdns-repeat-ifaces", "ether2");
+            => AssertAgreesWithApiWhileSet("/ip/dns", "mdns-repeat-ifaces", TestConstants.SecondInterface);
 
         /// <summary>
         /// A dropdown whose members come from a REFERENCED table, behind a <c>defenum</c> sentinel:

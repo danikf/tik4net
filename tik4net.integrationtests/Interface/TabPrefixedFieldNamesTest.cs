@@ -39,7 +39,8 @@ namespace tik4net.integrationtests
                     TikCommandParameterFormat.NameValue, "name", BridgeName).ExecuteScalar();
                 api.CreateCommandAndParameters("/interface/vlan/add",
                     TikCommandParameterFormat.NameValue,
-                    "name", VlanName, "vlan-id", "993", "interface", "ether2").ExecuteScalar();
+                    "name", VlanName, "vlan-id", "993",
+                    "interface", TestConstants.SecondInterface).ExecuteScalar();
             }
         }
 
