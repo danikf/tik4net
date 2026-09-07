@@ -154,6 +154,22 @@ namespace tik4net.unittests.Api
             _stream.Write(bytes, 0, bytes.Length);
         }
 
+        // Announces a word of <paramref name="length"/> bytes and then sends nothing — the client is left
+        // blocked in the word-body read. Pair with WriteRawByte to trickle the body in, which is how a
+        // reply that is still arriving is told apart from a router that stopped talking.
+        public void WriteWordLengthOnly(int length)
+        {
+            byte[] lengthBytes = ApiConnectionHelper.EncodeLength(length);
+            _stream.Write(lengthBytes, 0, lengthBytes.Length);
+            _stream.Flush();
+        }
+
+        public void WriteRawByte(byte value)
+        {
+            _stream.WriteByte(value);
+            _stream.Flush();
+        }
+
         public void EndSentence()
         {
             _stream.WriteByte(0);

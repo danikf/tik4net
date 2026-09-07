@@ -293,6 +293,14 @@ namespace tik4net
     /// <see cref="ITikConnection.ReceiveTimeout"/>. Distinct from a bare socket <see cref="System.IO.IOException"/>
     /// so callers can tell a stuck/unreachable peer apart from other I/O failures (e.g. connection reset).
     /// </summary>
+    /// <remarks>
+    /// On the binary API the <see cref="Exception.Message"/> also reports what the socket had been doing:
+    /// how many bytes and complete sentences the connection has received, and how long ago each of those
+    /// last happened. Read the two ages together — they name three different faults. Both as old as the
+    /// timeout: the router stopped answering. Last byte recent, last sentence old: a reply is still being
+    /// delivered and the deadline is too short rather than the connection broken. Both recent: the
+    /// connection is busy and this command's <c>.tag</c> is the one not being served.
+    /// </remarks>
     public class TikConnectionReceiveTimeoutException : TikConnectionException
     {
         /// <summary>The configured receive timeout (milliseconds) that elapsed.</summary>
