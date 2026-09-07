@@ -55,8 +55,11 @@ A hypervisor CPU limit or reservation on the router VM fits it precisely, and th
 serving ~1000 requests/s, and a guest cannot see time its hypervisor took away from it. RouterOS
 queueing or a rate limiter on the management path would fit the same shape.
 
-**Which one it is has not been established** — that needs the hypervisor's view of the VM, or
-router-side profiling. Whether a non-virtualized router behaves the same is likewise untested; there
+**For the single-large-read stall it was established, and it was the hypervisor**: the lab VM had 16
+vCPUs on a laptop host, and two removed the stall outright — see
+[It was the lab VM's vCPU count](#it-was-the-lab-vms-vcpu-count) below. The sustained-load clamp
+measured here has **not** been re-measured since that change, so whether it is the same cause is open;
+the shape fits. Whether a non-virtualized router behaves the same is likewise untested; there
 is one router in the lab.
 
 ## Why it surfaced as a WinBox-native-over-TCP stall
@@ -92,7 +95,7 @@ CHR against `/queue/tree` (681 rows, ~260 KB, ~2500 sentences), four arms of 6-8
 - **The session usually does not recover.** In most runs nothing further ever arrives, through a
   second 30 s window and beyond, and the connection has to be discarded.
 
-### But at least once, it was a pause and not a death
+### It is a pause, not a death
 
 One run's abandoned read **resumed**: 77 further sentences of the timed-out tag's reply turned up
 later and sat unclaimed while the next command waited. 605 + 77 sentences is the complete answer, so
@@ -102,6 +105,31 @@ That single observation constrains everything above. Sentences cannot arrive on 
 has stopped serving, so "the session is dead" is at best not always true, and a 30 s deadline is
 sometimes what turns a long pause into a failure. **The stall is a delivery gap of unbounded length,
 not a proven death.**
+
+### It was the lab VM's vCPU count
+
+**Sixteen vCPUs on a laptop host. Dropping the CHR to two removed the stall.** 40 reads across all five
+arms, zero stalls, where the same probe had been wedging about one read in six to eight — a ~0.2 %
+outcome if nothing had changed.
+
+The mechanism did not disappear, it shrank: one read in the clean run took **18.3 s** and completed.
+That is the same pause, now landing inside the 30 s budget instead of past it. A wide VM is harder for
+the hypervisor to place, and while it waits, nothing inside it runs — including the timers that would
+retransmit.
+
+Ruled out along the way, each by measurement rather than argument:
+
+- **Not the network path.** Moving the whole conversation onto an internal vSwitch — host to VM, no
+  bridge, no Wi-Fi, no USB NIC — reproduced the stall on the second read, and stalled the diagnosis's
+  *second, fresh* connection at the same moment. Two sessions going quiet together is a router-wide
+  pause, not a lost packet.
+- **Not tags, the dispatcher, or connection state.** See the arms above.
+- **The lost segment was a symptom.** The capture below is real, but a stack that is not being run for
+  tens of seconds drops packets; the loss does not explain the pause, the pause explains the loss.
+
+What is left unexplained is the **~2000 ms median**, which did not move. Healthy reads of the same
+table take 55-90 ms, so the usual read is still 30x slower than the table can be served, with no third
+speed in between.
 
 ### What the router's own byte counters do and do not say
 
@@ -115,10 +143,11 @@ IP+TCP header is the entire difference. Read it as "the two agree", and note tha
 router was not retransmitting during the silence. A host-side `netstat -s` delta across an earlier
 stalled run likewise showed **zero TCP retransmissions**.
 
-So the two live explanations are the same two as above — router-side starvation of that session, or
-loss on the way here — and **this measurement separates neither**. What would: a packet capture on
-the router (`/tool/sniffer`) or on the client during a stall. Until then the stall is characterized,
-not explained.
+That left router-side starvation and loss-on-the-way as the two candidates, which the vCPU result
+above then settled in favour of the first. The packet capture is what made the second testable, and
+`ApiLargeReadStallProbe` still runs it: the router's own sniffer, headers only, stopped at the first
+stall and dumped around the **longest silence** on each session, so the stalled session identifies
+itself.
 
 Two things are ruled out. **Not tag collision or misrouting**: tags are unique per process and per
 run (`prefix-pid-stamp-counter`), each connection reads only its own socket, and at the stall no

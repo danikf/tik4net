@@ -35,6 +35,20 @@ own library to provision the router is deliberate: it smoke-tests the transports
 
 ---
 
+## Step 0a — Check the VM's vCPU count before anything else
+
+Ask the maintainer what the CHR VM is given, and if it is wide, say so: **2 vCPUs, not 16.**
+
+A 16-vCPU CHR on a laptop host wedged large API reads about once every six to eight, for weeks, in a
+way that looked exactly like a router that stops answering — sentences arriving and then nothing for
+30 s, on a session the router was still executing writes for. Two vCPUs cleared it: 40 reads, no
+stalls. A wide VM is harder for the hypervisor to place, and while it waits nothing inside runs,
+including the timers that would retransmit. Also turn Dynamic Memory off; RouterOS expects its memory
+to be there.
+
+The measurement is `tik4net.integrationtests/ApiLargeReadStallProbe.cs` (`TIK_PROBE=1`), and the full
+story is in [Docs/findings-router-throughput-ceiling.md](../../../Docs/findings-router-throughput-ceiling.md).
+
 ## Step 0 — MNDP scan: find the router and let the user confirm which one it is
 
 **Start here, before touching `App.config` or assuming any IP.** After a VM rebuild the IP, the MAC and
