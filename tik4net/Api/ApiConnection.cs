@@ -590,8 +590,9 @@ namespace tik4net.Api
             // keyed by this address:port, and that row counts the bytes the ROUTER believes it sent us. Our
             // counters cannot tell "the router sent nothing" from "the router sent and it never arrived";
             // the two counts side by side can, and finding the right row needs the local port.
+            // Masked, because this message travels: see TikEndpointText for what is kept and why.
             string local;
-            try { local = "local endpoint " + _tcpConnection.Client.LocalEndPoint; }
+            try { local = "local endpoint " + Diagnostics.TikEndpointText.Describe(_tcpConnection.Client.LocalEndPoint); }
             catch (Exception ex) { local = "local endpoint unreadable (" + ex.GetType().Name + ")"; }
 
             return " Socket: " + local + "; " + bytes.ToString("N0", ci) + " byte(s) and "
