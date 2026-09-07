@@ -1025,10 +1025,10 @@ So the read stays proportional to the table, and the only honest client-side mov
 truncate**. The cursor loop is bounded for the whole read (each page gets what is left of it) and throws when
 the budget runs out, naming how many rows from how many completed pages are being discarded.
 
-**The whole-read budget is four times `ReceiveTimeout`, not one.** A paged read is not one round trip, and
-`ReceiveTimeout` bounds one: the router pauses mid-table and then finishes the table normally — 21.8 s and
-52.8 s measured on a 14-page read, roughly one read in six — so a budget equal to a single `ReceiveTimeout`
-fails a read the router would have completed. A multiple rather than a fixed figure, so shortening
+**The whole-read budget is four times `ReceiveTimeout`, not one.** A paged read is not one round trip and
+`ReceiveTimeout` bounds one, so a budget equal to a single `ReceiveTimeout` would fail a 14-page read whose
+pages are each answered well inside it. The factor covers a router that pauses mid-table and then finishes it
+normally, which a starved router does for tens of seconds at a time (see below). A multiple rather than a fixed figure, so shortening
 `ReceiveTimeout` to fail fast still shortens the read instead of being silently overridden
 (`WinboxNativeM2Operations.PagedReadBudgetFactor`). Re-sending the stalled page is *not* part of the
 mitigation and was measured not to work: the handler queues the repeats and answers all of them, none sooner
@@ -1047,7 +1047,7 @@ OR-ed with the window's `refetchonopen`/`refreshfilter`, `ufe0018` = the window'
 `ufe0003` and `mfe0015` exactly as we follow them — and then:
 
 - **it has no timeout of any kind.** `post(req, onreply)` waits for a reply or forever; the only failure path
-  is an error status the ROUTER sends. So a 52.8 s pause is a table that is taking a while, not a failed read,
+  is an error status the ROUTER sends. So a minute-long pause is a table that is taking a while, not a failed read,
   and there is no message to show. A synchronous `IEnumerable` API cannot copy this — the caller is blocked on
   the call — which is why we have a budget at all, and why streaming (`IAsyncEnumerable`) is the shape that
   would make our behaviour match webfig's rather than merely tolerate the pause longer.
@@ -1066,110 +1066,67 @@ OR-ed with the window's `refetchonopen`/`refreshfilter`, `ufe0018` = the window'
 Webfig also `subscribe`s to each window (`uff0007` = `0xfe0012`) and re-reads on a change notification that
 carries no rows, so its traffic is autorefresh plus notifications; neither is a filter round trip.
 
-### A page can be answered tens of seconds late, and that is the router
+### A page can be answered tens of seconds late when the router is not being run
 
-Mid-`getall`, the router sometimes simply does not answer a continuation request for ~20–30 s, then answers
-it normally. On `/ip/firewall/mangle` with 1672 rows over TCP 8291 the read is 14 pages at ~120–150 ms/page,
-~1.5 s in total, and roughly **one read in six** contains one such pause. Measured on an idle CHR 7.24.2,
-2026-09-07, 50 reads across three runs; the pause landed before page 8, 9 and 11 in different runs, so it is
-not tied to a page number, a row or a cursor boundary. A later sample of 30 reads of the same table puts the
-rate at 4 in 30 with a median read of 1.55 s, and had two reads absorb a pause and still finish, at 8.8 s and
-11.7 s. Two useful shapes:
+A `getall` continuation is normally answered in ~120–150 ms, and the whole 1672-row mangle table over TCP
+8291 is 14 pages in 2.0–4.2 s. On a **starved** router that same continuation can go unanswered for tens of
+seconds and then be answered normally, or not within any budget at all. The starvation is the router's
+hypervisor, not RouterOS: a CHR given more vCPUs than the host can place is not scheduled for tens of
+seconds at a time, and nothing inside it runs meanwhile — including the timers that would retransmit. See
+[findings-router-throughput-ceiling.md](findings-router-throughput-ceiling.md#it-was-the-lab-vms-vcpu-count),
+which is where that was established across every transport; the M2 paged read is one place it surfaces.
 
-* a pause of **21 805 ms** that then completed the whole table — so this is a late reply, not a lost one;
-* pauses past the 30 s `ReceiveTimeout`, up to 52.8 s, which are the same event and still complete: the read
-  is bounded as a whole rather than per page, so one pause longer than a single `ReceiveTimeout` does not by
-  itself fail it. A pause that outlives the *whole-read* budget is a different population — see below, it
-  does not come back.
+Measured on an idle CHR 7.24.2 with **2 vCPUs**, 2026-09-07: 50 consecutive full-table reads, no stall, and
+the largest gap between socket reads in any of them **712 ms**. The same probe against the same table on the
+same host with 16 vCPUs stalled roughly one read in six, with pauses of 21.8 s, 52.8 s and past a 120 s
+whole-read budget. Those figures and the shapes they came in are in
+[winbox-native-m2-protocol-history.md](winbox-native-m2-protocol-history.md).
 
-**It is the router, and the `wbxtcp.sock` trace is what shows that.** At the moment of a stall the client is
-parked in a blocking 2-byte read at a clean frame boundary with an empty buffer, the continuation request
-went out 2.2 ms earlier, and **not one byte arrives** for the whole pause:
+So a paged read that pauses is reporting on the router's scheduling, not on our request or on a poison row:
+the request goes out, our reader is parked in a blocking 2-byte read at a clean frame boundary with an empty
+buffer, and **not one byte arrives** for the whole pause. Two consequences for the client are permanent, and
+neither depends on how the lab is provisioned:
+
+* **The read is bounded as a whole, not per page.** A 14-page read is 14 round trips and `ReceiveTimeout`
+  bounds one, so a budget equal to a single `ReceiveTimeout` would fail a read the router is completing
+  normally. See the budget paragraph above.
+* **Asking again does not make a page arrive sooner.** With a 2.5 s per-page deadline and the same
+  continuation re-sent under a fresh request id, the router answers **every** queued request, in order, once
+  it unblocks — one pause absorbed three re-sends and was then followed by three separate replies. The
+  handler is blocked, not the request lost. A raw reader that takes "the next frame" as the reply therefore
+  runs permanently one behind: a 1672-row table read back as 2391 and 3400 rows, reported as success.
+  `WinboxM2Multiplexer` dispatches strictly by request id and drops unmatched frames, which is exactly what
+  that id matching is for (and why id reuse at the 256 wrap matters).
+
+### `wbxtcp.sock` is what attributes a stalled read
+
+`wbxtcp.frame` cannot answer "did the router send anything?" on its own: it is emitted only once a frame is
+complete, so a reader waiting for the rest of a partial frame and a reader waiting on silence look identical
+on it. `wbxtcp.sock` emits a note per blocking socket read entered and a `Recv` per read that returned, so
+the two separate cleanly — a trailing `read want=N` with no `Recv` after it is a router that sent nothing,
+while a `Recv` short of its `want` is a frame arriving in pieces:
 
 ```
-#1863   318,9ms  wbxtcp.sock   Recv    147B  got=147 147/147     ← final chunk of page 7
-#1864   318,9ms  wbxtcp.frame  Recv  16722B  tag=0x06            ← page 7 complete
-#1865   319,7ms  wbxtcp.sock   Note      0B  read want=2 into 0/2 ← blocked here for 29 691 ms
-#1866   321,9ms  wbxtcp.frame  Send    114B  tag=0x06            ← the request for page 8
+#1863   318,9ms  wbxtcp.sock   Recv    147B  got=147 147/147     <- final chunk of page 7
+#1864   318,9ms  wbxtcp.frame  Recv  16722B  tag=0x06            <- page 7 complete
+#1865   319,7ms  wbxtcp.sock   Note      0B  read want=2 into 0/2
+#1866   321,9ms  wbxtcp.frame  Send    114B  tag=0x06            <- the request for page 8
 ```
 
-`wbxtcp.frame` alone cannot establish this, because it is emitted only once a frame is complete: a reader
-waiting for the rest of a partial frame looks identical on it. `wbxtcp.sock` separates the two — a trailing
-`read want=N` with no `Recv` after it is a router that sent nothing, while a `Recv` short of its `want` would
-be a frame arriving in pieces. The same signature at a smaller scale is the **normal** per-page cadence: each
-healthy page ends with a final short chunk and then a ~120–150 ms wait in exactly that 2-byte read.
+The same signature at a smaller scale is the **normal** per-page cadence: each healthy page ends with a final
+short chunk and then a ~100–150 ms wait in exactly that 2-byte read. Read the counts either side of it with
+that in mind — a page frame is ~16.7 kB delivered in **255-byte chunks**, so one frame costs ~131 socket
+reads and a whole read ~1850 of them, and a chunk arriving in two pieces is ordinary rather than a symptom.
 
-The MAC-layer leg does not show it (0 in 12 reads of the same table against 2 in 12 on TCP), but it also
-paces slower — ~3.2 s per read — so that is not yet a clean carrier attribution.
 `tik4net.integrationtests/Ip/Firewall/MangleNativeLegProbe.cs` is the probe; it needs a router carrying a few
-thousand mangle rules and `TIK_PROBE=1`.
+thousand mangle rules and `TIK_PROBE=1`, and because the phenomenon it looks for is intermittent even when
+present, a run of three proves nothing — use 20 or more.
 
-**The request's content is not what provokes it.** The pause happens at the same rate with webfig's own
-`ufe000c` value: 28 reads of the table, half with `0x10000007` (the autorefresh stats bit `GetAllStatsFlag`
-OR'd in, which is what the shipping mangle read sends) and half with `0x10000005` (`GetAllFlags`, webfig's
-value), interleaved — 2 of 14 stalled on the first, 3 of 14 on the second. The bit is not neutral in every
-respect: it makes each row bigger, so the same 1672 rows arrive in 14 pages with it and 12 without. It just
-has nothing to do with the pause.
-
-**Asking again does not make the page arrive sooner.** With a 2.5 s per-page deadline and the same
-continuation re-sent under a fresh request id, the router answers **every** queued request, in order, once it
-unblocks — a 7.5 s pause absorbed three re-sends and was then followed by three separate replies, one per
-request. So the handler is blocked rather than the request lost, and a retry adds a reply to collect, not
-speed. Two consequences for any client that tries it:
-
-* the abandoned request's reply arrives *later than* the retry's, so a reader that takes the next frame as
-  "the reply" runs permanently one behind. Measured on the raw probe, which does not match by id: a 1672-row
-  table read back as 2391 and 3400 rows across 17 and 24 pages, reported as success. `WinboxM2Multiplexer`
-  dispatches strictly by request id and drops unmatched frames, so tik4net does not have that failure —
-  it is what the id matching is for (and why defect S-1, id reuse at the 256 wrap, matters).
-* a bounded retry can convert a recoverable pause into a hard failure: three 2.5 s slices expire well inside
-  a pause that would have completed on its own. Pauses of 21.8 s and 52.8 s have both been seen to complete,
-  the second one past the 30 s default `ReceiveTimeout`.
-
-### A stall that outlives the whole-read budget does not resolve, and the connection is finished
-
-The pauses above complete. A second population does not, and the two are worth separating because their
-mitigations are opposite: the first wants a longer budget, the second cannot be rescued by any budget.
-
-On the same 1672-row mangle table, a paged read still unanswered when the whole-read budget expires has not
-been observed to recover. Nor has the connection: a later `add` on the same connection times out having
-received nothing, **149 s** after that channel's last frame — 120 s of abandoned `getall` plus its own
-`ReceiveTimeout`. So a `WinboxNative` connection whose paged read has hit the budget is finished rather than
-delayed, and the caller's move is a fresh connection, not a retry and not a larger
-`PagedReadBudgetFactor`. (The budget itself is confirmed on the wire: 120 006–120 014 ms against the 30 s
-default, i.e. the `4 ×` factor of §29 exactly.)
-
-**Both halves of the §29 timeout message occur here, and the silent one dominates.** A stall reports either
-`Not one byte has arrived` or `11680 byte(s) have arrived … without completing a frame`. The second is rare:
-**30 identical full-table reads produced 4 stalls and all four were the silent one** (RouterOS 7.24.2,
-2026-09-07, 1680 rows in 14 pages over TCP 8291). That 11 680 is exactly 8 × 1460 — eight full-MSS segments
-— and has come back byte-identical on separate stalls, which looks like a stopped TCP window; but it has not
-been caught with a socket trace on it, and it is not what the common stall does, so it is a curiosity rather
-than the mechanism. The common stall has nothing to do with flow control: the socket is drained and idle.
-
-The socket-level shape of it is the same every time, and it is the §29 signature at full size:
-
-```
-#2131   338,5ms  wbxtcp.sock   Recv    131B  got=131 131/131   ← final chunk of page 8
-#2132   338,5ms  wbxtcp.frame  Recv  16706B  tag=0x06          ← page 8 complete
-#2133   339,2ms  wbxtcp.sock   Note      0B  read want=2 into 0/2   ← blocked here for 118 742 ms
-#2134   341,7ms  wbxtcp.frame  Send    114B  tag=0x06          ← the request for page 9
-```
-
-Two things to read from the counts either side of it. A page frame is ~16.7 kB delivered in **255-byte
-chunks**, so one frame costs ~131 socket reads and a whole read ~1850 of them — and a chunk arriving in two
-pieces (113 B then 142 B, 50 ms apart) is ordinary, not a symptom. And the reader is parked at a clean frame
-boundary with an empty buffer, which is why an abandoned request leaves the stream cipher aligned.
-
-**Within one run the boundary repeats; across runs it does not.** The four stalls landed on page 9 twice and
-page 14 (the last) twice, out of 30 reads that were otherwise byte-for-byte the same request sequence. Other
-sessions have stalled at other boundaries, so nothing about page 9 or 14 is special — but a stall is not
-uniformly distributed across the pages of a given read either.
-
-**Which read stalls is not a property of the caller.** Across two runs of the same set, four tests whose
-paged reads stalled (603/960/1078 rows over 5/8/9 pages) all completed in 4–11 s on the rerun while two
-others stalled in their place. The stall follows the read, so a test that names it is reporting the router's
-state at that moment, not a defect in that test's path.
+**Both halves of the timeout message occur on a stalled read**, and the silent one dominates: `Not one byte
+has arrived` in every stall of the 30-read sample that produced any, against a rarer `11680 byte(s) have
+arrived ... without completing a frame`. That 11 680 is exactly 8 × 1460 — eight full-MSS segments — and has
+come back byte-identical on separate stalls, which looks like a stopped TCP window; it has never been caught
+with a socket trace on it, so it is a curiosity rather than a second mechanism.
 
 ## 30. One M2 key can carry two fields, and a list element can be a compound
 

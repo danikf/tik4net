@@ -8,6 +8,57 @@ Indexed from [HISTORY.md](HISTORY.md), which carries the transferable lessons.
 
 ---
 
+## The WinBox M2 paged-read stall, and the sixteen-vCPU lab it was measured on
+
+2026-09-07. `/ip/firewall/mangle` with 1672 rows over `WinboxNative` (TCP 8291) stalled mid-read at a rate
+that took days to attribute, and the attribution landed on the lab VM rather than on RouterOS or on tik4net:
+a CHR with **sixteen vCPUs on a laptop host** is not scheduled for tens of seconds at a time. Dropping the
+same VM to two vCPUs removed it — 50 consecutive reads with no stall and a largest socket gap of 712 ms,
+against ~1 in 6 before. The transport-independent write-up is in
+[findings-router-throughput-ceiling.md](findings-router-throughput-ceiling.md#it-was-the-lab-vms-vcpu-count).
+
+The figures below were all measured on the sixteen-vCPU VM. They are kept because they are what the
+phenomenon looks like when a router is starved, and because several of them were used to size shipping
+behaviour — the `4 × ReceiveTimeout` whole-read budget among them.
+
+**Rate and shape.** 14 pages at ~120–150 ms per page, ~1.5 s in total, with roughly one read in six carrying
+one pause. Across three runs, 50 reads. The pause landed before pages 5, 6, 8, 9 and 11 in different runs, so
+it was tied to neither a page number, a row, nor a cursor boundary; within a single run it repeated at the
+same boundary. A later 30-read sample put the rate at 4 in 30 with a median read of 1.55 s, and had two reads
+absorb a pause and still finish, at 8.8 s and 11.7 s.
+
+**Pauses that completed.** 21 805 ms, then the whole table normally — a late reply, not a lost one. And
+52 795 ms, past the 30 s default `ReceiveTimeout`, which still completed because the read is bounded as a
+whole rather than per page.
+
+**Pauses that did not.** A paged read still unanswered when the whole-read budget expired was never observed
+to recover, and neither was the connection: a later `add` on the same connection timed out having received
+nothing **149 s** after that channel's last frame — 120 s of abandoned `getall` plus its own `ReceiveTimeout`.
+The budget itself was confirmed on the wire at 120 006–120 014 ms against the 30 s default, i.e. the `4 ×`
+factor exactly.
+
+**Which read stalled was not a property of the caller.** Across two runs of the same set, four tests whose
+paged reads stalled (603/960/1078 rows over 5/8/9 pages) all completed in 4–11 s on the rerun while two
+others stalled in their place.
+
+**The request's content was not the trigger.** 28 reads, half with `0x10000007` (the autorefresh stats bit
+`GetAllStatsFlag` OR'd in, which is what the shipping mangle read sends) and half with `0x10000005`
+(`GetAllFlags`, webfig's own value), interleaved: 2 of 14 stalled on the first, 3 of 14 on the second. The bit
+is not neutral in every respect — it makes each row bigger, so the same 1672 rows arrive in 14 pages with it
+and 12 without. It just had nothing to do with the pause.
+
+**The MAC leg looked immune and was not tested fairly.** 0 stalls in 12 reads over `WinboxNativeMac` against
+2 in 12 over TCP, but the MAC leg also paced slower (~3.2 s per read), so a stall triggered by fast requesting
+would have been hidden rather than absent.
+
+**What was refuted along the way**, each by measurement: the 8-bit request-id wrap (the stall was not at a
+fixed page, and the async path is guarded); our own reader wedged mid-frame in `WinboxTcpTransport.ReadExact`
+(the `wbxtcp.sock` trace shows an empty buffer at a clean frame boundary with nothing arriving at all); and
+the argument that webfig's success proved the request shape was at fault — webfig sends the same request and
+simply has no deadline to miss.
+
+---
+
 ## Diagnoses that were wrong
 
 ### Wire type inferred from the `.jg` prefix letter alone
