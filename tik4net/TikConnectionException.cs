@@ -351,7 +351,7 @@ namespace tik4net
     }
 
     /// <summary>
-    /// Thrown when the router closed the transport session while the connection object was still open,
+    /// Thrown when the router's session is no longer usable while the connection object is still open,
     /// so a command was never executed.
     /// </summary>
     /// <remarks>
@@ -367,6 +367,16 @@ namespace tik4net
     /// once by itself; this exception means that retry also failed, or that the command was not one that may
     /// be retried — <c>WinboxNativeMacConnection</c> re-runs a READ, never an <c>add</c>/<c>set</c>, and
     /// nothing is re-run while Safe Mode is held (dropping the session is what rolls Safe Mode back).</para>
+    /// <para>The binary API raises it for a different reason, and does not reconnect for you: a session that
+    /// has answered <b>nothing at all</b> to two commands in a row is treated as no longer answering, and the
+    /// third command is refused instead of sent. The socket is still open and RouterOS still executes what it
+    /// receives — it is the replies that stop — so sending would risk a write that ran and could not be
+    /// confirmed, and would cost another full <see cref="ITikConnection.ReceiveTimeout"/> to learn nothing.
+    /// Refusing is why "did not run" is a statement of fact here too: this command was never written. The
+    /// message carries the reader's byte and sentence counters, so it says whether the router went quiet or
+    /// the client stopped collecting. Recover by opening a new connection — a fresh session to the same
+    /// router is unaffected — and note that this is not the same as a partial read, which is
+    /// <see cref="TikConnectionReceiveTimeoutException"/>.</para>
     /// </remarks>
     public class TikConnectionSessionClosedException : TikConnectionException
     {
