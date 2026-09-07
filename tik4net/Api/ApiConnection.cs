@@ -64,6 +64,11 @@ namespace tik4net.Api
         // the reader thread and read on the caller's, hence volatile.
         private volatile Exception? _readerFault;
         private volatile bool _readerStopRequested;
+        // Set the moment Close() begins, which is BEFORE /quit goes out — from then on any socket failure the
+        // reader hits is our own doing, and must not be reported to a running monitor as a lost connection.
+        // Separate from _readerStopRequested, which controls the loop and cannot be set this early: the
+        // reader still has to read the router's answer to /quit.
+        private volatile bool _closeInitiated;
 
         public event EventHandler<TikConnectionCommCallbackEventArgs>? OnReadRow;
         public event EventHandler<TikConnectionCommCallbackEventArgs>? OnWriteRow;
@@ -157,6 +162,12 @@ namespace tik4net.Api
 
         public void Close()
         {
+            // Before /quit, not after: the router answers /quit with a !fatal and then closes the socket, so
+            // the reader's very next read fails while _readerStopRequested is still false — and a monitor
+            // running on another tag was told "connection lost" for a shutdown its own caller asked for
+            // (intermittent PingLocalhostAsyncWithCloseWillNotFail; whether the router's FIN or our own
+            // Dispose won the race decided which it saw).
+            _closeInitiated = true;
             try
             {
                 if (IsOpened)
@@ -651,6 +662,7 @@ namespace tik4net.Api
         private void StartReaderLoop()
         {
             _readerStopRequested = false;
+            _closeInitiated = false;    // a previous session's shutdown must not classify this one's failures
 
             // The socket read must NOT carry ReceiveTimeout any more. That value bounds a caller waiting for
             // its answer, and a reader that sits on an idle socket between commands would otherwise read its
@@ -678,8 +690,9 @@ namespace tik4net.Api
                 _isOpened = false;
                 // The sentence carries only the flattened text; keep the exception itself so a diagnosis
                 // that needs its TYPE (Open's protocol-mismatch check) does not have to parse the message.
-                _readerFault = _readerStopRequested ? null : ex;
-                _dispatcher.TerminateAll(_readerStopRequested
+                bool ours = _readerStopRequested || _closeInitiated;
+                _readerFault = ours ? null : ex;
+                _dispatcher.TerminateAll(ours
                     ? new ApiFatalSentence(new[] { "connection closed by the client" }, clientInitiated: true)
                     : new ApiFatalSentence(new[] { "connection lost: " + ex.GetType().Name + ": " + ex.Message }));
                 return;

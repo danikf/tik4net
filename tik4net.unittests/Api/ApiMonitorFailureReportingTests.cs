@@ -77,6 +77,65 @@ namespace tik4net.unittests.Api
             }
         }
 
+        /// <summary>
+        /// The same contract, with the router doing what a real one does: answer <c>/quit</c> and then close
+        /// the socket.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The test above leaves the socket open, so the reader loop never fails and the shutdown is
+        /// classified by <c>_readerStopRequested</c>, which <c>Close()</c> sets on its way out. A real router
+        /// closes right after the <c>!fatal</c>, so the reader's very NEXT read fails — and it used to do so
+        /// while that flag was still false, which turned the caller's own <c>Close()</c> into
+        /// <c>connection lost: IOException…</c> on every other tag. Whether the router's FIN or our own
+        /// Dispose won the race decided whether the caller saw it, which is why
+        /// <c>ToolTests.PingLocalhostAsyncWithCloseWillNotFail</c> failed intermittently rather than always.
+        /// </para>
+        /// <para>
+        /// Several rounds because it IS a race: one round that happens to lose it proves nothing, and the
+        /// point of the fix is that the classification no longer depends on who wins.
+        /// </para>
+        /// </remarks>
+        [TestMethod]
+        public void ARouterClosingTheSocketAfterQuitIsStillNotReportedAsAnError()
+        {
+            for (int round = 1; round <= 5; round++)
+            {
+                using (var server = new FakeRouterServer())
+                {
+                    var serverTask = Task.Run(() =>
+                    {
+                        server.AcceptClient();
+                        server.ReadSentence();          // login
+                        server.WriteSentence("!done");
+                        server.ReadSentence();          // the monitor command — left running
+                        server.ReadSentence();          // /quit, sent by Close()
+                        server.WriteSentence("!fatal", "session terminated on request");
+                        server.CloseClientConnection(); // …and the router hangs up, as a real one does
+                    });
+
+                    using (var connection = new ApiConnection(false))
+                    {
+                        connection.Open("127.0.0.1", server.Port, TestUser, TestPassword);
+
+                        ITikTrapSentence trap = null;
+                        ITikCommand command = connection.CreateCommand("/interface/listen");
+                        command.ExecuteWithCallback(row => { }, error => { trap = error; }, () => { });
+
+                        Thread.Sleep(300);              // let the monitor settle into its read
+                        connection.Close();
+                        Thread.Sleep(500);              // and let the reader's EOF propagate
+
+                        Assert.IsNull(trap,
+                            $"round {round}: the router closing the socket after answering /quit is part of "
+                            + "an ordinary shutdown, not a lost connection — reported: " + trap?.Message);
+                    }
+
+                    Assert.IsTrue(serverTask.Wait(10000), $"round {round}: the scripted server did not finish");
+                }
+            }
+        }
+
         [TestMethod]
         public void AMonitorThatTimesOutReportsItRatherThanStoppingSilently()
         {
