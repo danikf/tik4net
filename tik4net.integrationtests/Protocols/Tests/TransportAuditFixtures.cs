@@ -184,8 +184,17 @@ namespace tik4net.integrationtests
         /// only on the tables it writes: an orphan is what makes the next run fail on a collision, and
         /// deleting it by hand only resets the clock until the run after that.
         /// </summary>
+        /// <remarks>
+        /// Rows are matched on their <c>name</c>, which is why <c>/interface/list/member</c> needs
+        /// <see cref="SweepInterfaceListMembers"/> of its own: a member has no <c>name</c> — it has a
+        /// <c>list</c> and an <c>interface</c> — so this loop could never see one, while it *could* see and
+        /// delete the list the member belongs to. That order is what left a member pointing at a list id
+        /// that no longer resolves, on the very interface the fixtures build on.
+        /// </remarks>
         private void SweepOrphans()
         {
+            SweepInterfaceListMembers();
+
             foreach (string path in new[]
                      {
                          "/interface/bridge/port", "/interface/bridge/vlan", "/ip/dhcp-server",
@@ -216,6 +225,49 @@ namespace tik4net.integrationtests
                 {
                     // A table this router does not have cannot be holding an orphan.
                 }
+            }
+        }
+
+        /// <summary>
+        /// Sweeps <c>/interface/list/member</c>, which the name-prefix sweep structurally cannot reach.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Two rules, and the second one exists because the first came too late. A member whose <c>list</c>
+        /// still names one of ours is unambiguous residue. A member whose <c>list</c> is a bare <c>*id</c>
+        /// is residue too — RouterOS renders the field as a name whenever it resolves, so a raw id means the
+        /// list is gone — but it can no longer say whose it was, which is why that rule is narrowed to the
+        /// interface this fixture builds on.
+        /// </para>
+        /// <para>
+        /// Runs before the rest of the sweep, so on a router where the list is still present the first rule
+        /// does the work and the second never has to guess.
+        /// </para>
+        /// </remarks>
+        private void SweepInterfaceListMembers()
+        {
+            try
+            {
+                var orphans = _api.CreateCommand("/interface/list/member/print").ExecuteList()
+                    .Where(r =>
+                    {
+                        string list = r.GetResponseFieldOrDefault("list", "") ?? "";
+                        if (list.StartsWith(NamePrefix, StringComparison.OrdinalIgnoreCase))
+                            return true;
+
+                        return list.StartsWith("*", StringComparison.Ordinal)
+                            && StringComparer.OrdinalIgnoreCase.Equals(
+                                   r.GetResponseFieldOrDefault("interface", ""), TestConstants.SecondInterface);
+                    })
+                    .ToList();
+
+                foreach (var row in orphans)
+                    _api.CreateCommandAndParameters("/interface/list/member/remove", ".id", row.GetId())
+                        .ExecuteNonQuery();
+            }
+            catch (Exception)
+            {
+                // A table this router does not have cannot be holding an orphan.
             }
         }
 
