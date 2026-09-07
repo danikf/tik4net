@@ -1018,6 +1018,61 @@ the pages that fit — a short list is indistinguishable from a router that has 
 one outcome worse than the timeout. For a table this size on a busy channel, raise `ReceiveTimeout` or read
 it over a transport that can filter router-side.
 
+### A page can be answered tens of seconds late, and that is the router
+
+Mid-`getall`, the router sometimes simply does not answer a continuation request for ~20–30 s, then answers
+it normally. On `/ip/firewall/mangle` with 1672 rows over TCP 8291 the read is 14 pages at ~120–150 ms/page,
+~1.5 s in total, and roughly **one read in six** contains one such pause. Measured on an idle CHR 7.24.2,
+2026-09-07, 50 reads across three runs; the pause landed before page 8, 9 and 11 in different runs, so it is
+not tied to a page number, a row or a cursor boundary. Two useful shapes:
+
+* a pause of **21 805 ms** that then completed the whole table — so this is a late reply, not a lost one;
+* pauses past the 30 s `ReceiveTimeout`, which are the same event and fail the read.
+
+**It is the router, and the `wbxtcp.sock` trace is what shows that.** At the moment of a stall the client is
+parked in a blocking 2-byte read at a clean frame boundary with an empty buffer, the continuation request
+went out 2.2 ms earlier, and **not one byte arrives** for the whole pause:
+
+```
+#1863   318,9ms  wbxtcp.sock   Recv    147B  got=147 147/147     ← final chunk of page 7
+#1864   318,9ms  wbxtcp.frame  Recv  16722B  tag=0x06            ← page 7 complete
+#1865   319,7ms  wbxtcp.sock   Note      0B  read want=2 into 0/2 ← blocked here for 29 691 ms
+#1866   321,9ms  wbxtcp.frame  Send    114B  tag=0x06            ← the request for page 8
+```
+
+`wbxtcp.frame` alone cannot establish this, because it is emitted only once a frame is complete: a reader
+waiting for the rest of a partial frame looks identical on it. `wbxtcp.sock` separates the two — a trailing
+`read want=N` with no `Recv` after it is a router that sent nothing, while a `Recv` short of its `want` would
+be a frame arriving in pieces. The same signature at a smaller scale is the **normal** per-page cadence: each
+healthy page ends with a final short chunk and then a ~120–150 ms wait in exactly that 2-byte read.
+
+The MAC-layer leg does not show it (0 in 12 reads of the same table against 2 in 12 on TCP), but it also
+paces slower — ~3.2 s per read — so that is not yet a clean carrier attribution.
+`tik4net.integrationtests/Ip/Firewall/MangleNativeLegProbe.cs` is the probe; it needs a router carrying a few
+thousand mangle rules and `TIK_PROBE=1`.
+
+**The request's content is not what provokes it.** The pause happens at the same rate with webfig's own
+`ufe000c` value: 28 reads of the table, half with `0x10000007` (the autorefresh stats bit `GetAllStatsFlag`
+OR'd in, which is what the shipping mangle read sends) and half with `0x10000005` (`GetAllFlags`, webfig's
+value), interleaved — 2 of 14 stalled on the first, 3 of 14 on the second. The bit is not neutral in every
+respect: it makes each row bigger, so the same 1672 rows arrive in 14 pages with it and 12 without. It just
+has nothing to do with the pause.
+
+**Asking again does not make the page arrive sooner.** With a 2.5 s per-page deadline and the same
+continuation re-sent under a fresh request id, the router answers **every** queued request, in order, once it
+unblocks — a 7.5 s pause absorbed three re-sends and was then followed by three separate replies, one per
+request. So the handler is blocked rather than the request lost, and a retry adds a reply to collect, not
+speed. Two consequences for any client that tries it:
+
+* the abandoned request's reply arrives *later than* the retry's, so a reader that takes the next frame as
+  "the reply" runs permanently one behind. Measured on the raw probe, which does not match by id: a 1672-row
+  table read back as 2391 and 3400 rows across 17 and 24 pages, reported as success. `WinboxM2Multiplexer`
+  dispatches strictly by request id and drops unmatched frames, so tik4net does not have that failure —
+  it is what the id matching is for (and why defect S-1, id reuse at the 256 wrap, matters).
+* a bounded retry can convert a recoverable pause into a hard failure: three 2.5 s slices expire well inside
+  a pause that would have completed on its own. Pauses of 21.8 s and 52.8 s have both been seen to complete,
+  the second one past the 30 s default `ReceiveTimeout`.
+
 ## 30. One M2 key can carry two fields, and a list element can be a compound
 
 Six decode rules, each read off `master*.js` or measured against the router's own API, that between them
