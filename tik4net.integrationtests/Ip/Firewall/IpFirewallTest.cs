@@ -36,6 +36,13 @@ namespace tik4net.integrationtests
             const string marker = "t4n-actionprobe";
             var created = new List<(string Path, string Id)>();
 
+            // Residue from an earlier run that could not reach its own cleanup - a receive timeout kills the
+            // connection the cleanup would have used - would otherwise be indistinguishable from this run's
+            // rows. Swept first, and the assertions below match on .id rather than on the marker, so a leftover
+            // cannot decide the result either way.
+            SweepProbeRows("/ip/firewall/mangle", marker);
+            SweepProbeRows("/ip/firewall/filter", marker);
+
             try
             {
                 created.Add(("/ip/firewall/mangle", AddRule("/ip/firewall/mangle/add",
@@ -52,19 +59,27 @@ namespace tik4net.integrationtests
                     "chain", "forward", "action", "fasttrack-connection", "connection-state", "established,related",
                     "disabled", "yes", "comment", marker)));
 
-                // The assertion is that these do not throw. A FormatException here names the action the
-                // enum is missing, which is the whole diagnosis.
-                var mangle = Connection.LoadAll<FirewallMangle>().ToList();
-                var filter = Connection.LoadAll<FirewallFilter>().ToList();
+                // Filtered to this test's own rows rather than LoadAll. Reading the whole menu was the
+                // stronger check, and it cost the test its reliability: on a router carrying a few thousand
+                // rules RouterOS intermittently stops part-way through a print (MangleLoadStallProbe), so a
+                // full read here goes red for a reason that has nothing to do with the enum. The stronger
+                // check lives router-free in FirewallActionVocabularyTests, which compares the enums against
+                // the vocabulary the router itself reports.
+                var mine = new HashSet<string>(created.Select(c => c.Id));
+                var mangle = Connection.LoadList<FirewallMangle>(
+                    Connection.CreateParameter("comment", marker))
+                    .Where(m => mine.Contains(m.Id)).ToList();
+                var filter = Connection.LoadList<FirewallFilter>(
+                    Connection.CreateParameter("comment", marker))
+                    .Where(f => mine.Contains(f.Id)).ToList();
 
                 CollectionAssert.AreEquivalent(
                     new[] { FirewallMangle.ActionType.Drop, FirewallMangle.ActionType.FasttrackConnection,
                             FirewallMangle.ActionType.MarkRouting, FirewallMangle.ActionType.Route },
-                    mangle.Where(m => m.Comment == marker).Select(m => m.Action).ToList(),
+                    mangle.Select(m => m.Action).ToList(),
                     "the four probe rules must read back as the actions they were created with");
 
-                Assert.IsTrue(filter.Any(f => f.Comment == marker
-                                              && f.Action == FirewallFilter.ActionType.FasttrackConnection),
+                Assert.IsTrue(filter.Any(f => f.Action == FirewallFilter.ActionType.FasttrackConnection),
                     "the fasttrack-connection filter rule must read back as FasttrackConnection");
             }
             finally
@@ -80,6 +95,22 @@ namespace tik4net.integrationtests
                     catch (Exception ex) { Console.WriteLine($"cleanup of {path} {id} failed: {ex.Message}"); }
                 }
             }
+        }
+
+        /// <summary>Removes any rule left behind by an earlier run of this test.</summary>
+        private void SweepProbeRows(string path, string marker)
+        {
+            try
+            {
+                var stale = Connection.CreateCommandAndParameters(path + "/print", "comment", marker)
+                                      .ExecuteList()
+                                      .Select(row => row.GetId())
+                                      .ToList();
+                foreach (string id in stale)
+                    Connection.CreateCommandAndParameters(path + "/remove", TikSpecialProperties.Id, id)
+                              .ExecuteNonQuery();
+            }
+            catch (Exception ex) { Console.WriteLine($"sweep of {path} failed: {ex.Message}"); }
         }
 
         /// <summary>Adds one rule over the command API and returns its <c>.id</c>.</summary>
