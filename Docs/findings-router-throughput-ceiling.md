@@ -71,6 +71,60 @@ The MAC carrier acknowledges each message independently, so the same clamp shows
 smooth 10× slowdown with no cliff and no timeout. That asymmetry makes the MAC transport look
 unaffected unless it is measured against a request count rather than a wall-clock deadline.
 
+## A single large read stalls the same way, and the session does not come back
+
+The API shows the clamp's other face: not sustained load, but **one** big read. Measured on the same
+CHR against `/queue/tree` (681 rows, ~260 KB, ~2500 sentences), four arms of 6-8 reads each —
+`tik4net.integrationtests/ApiLargeReadStallProbe.cs`.
+
+- A read that succeeds takes **~2000 ms**, remarkably constant across arms and runs. The occasional
+  read takes **55-90 ms** — the same rows, the same table, 30x faster. Both are common; there is no
+  third speed.
+- Roughly one read in six to eight **stops mid-answer**: sentences arrive, then nothing at all for
+  30 s, and the caller times out. Where it stops varies (15 to 605 sentences in).
+- The socket is not the explanation. At the timeout the OS buffer holds **0 unread bytes** and the
+  byte counter has not moved for the full 30 s, so the reader is not sitting on data it failed to
+  collect; a reader stuck mid-word would still show a climbing byte total, because partial word
+  bodies are counted as they are read.
+- **The session keeps hearing us.** A `/system/identity/set` issued on the stalled connection times
+  out like everything else, and the router applies it and logs it. A second, fresh connection reads
+  the same table in 55-90 ms throughout.
+- **The session usually does not recover.** In most runs nothing further ever arrives, through a
+  second 30 s window and beyond, and the connection has to be discarded.
+
+### But at least once, it was a pause and not a death
+
+One run's abandoned read **resumed**: 77 further sentences of the timed-out tag's reply turned up
+later and sat unclaimed while the next command waited. 605 + 77 sentences is the complete answer, so
+the router had gone quiet for more than 30 s in the middle of a reply and then finished it.
+
+That single observation constrains everything above. Sentences cannot arrive on a session the router
+has stopped serving, so "the session is dead" is at best not always true, and a 30 s deadline is
+sometimes what turns a long pause into a failure. **The stall is a delivery gap of unbounded length,
+not a proven death.**
+
+### What the router's own byte counters do and do not say
+
+The router's `/ip/firewall/connection` row for the stalled session (matched by the `address:port`
+the exception now names) counted **1,577,714** bytes in the reply direction where the client socket
+had received **1,457,297** — and the router-side count did not move over the following 5 s.
+
+That 120 KB gap is **not** evidence of loss, tempting as it looks. Conntrack counts whole frames and
+the client counts payload, and the API writes a packet per sentence: ~3000 packets x 40 bytes of
+IP+TCP header is the entire difference. Read it as "the two agree", and note that it also means the
+router was not retransmitting during the silence. A host-side `netstat -s` delta across an earlier
+stalled run likewise showed **zero TCP retransmissions**.
+
+So the two live explanations are the same two as above — router-side starvation of that session, or
+loss on the way here — and **this measurement separates neither**. What would: a packet capture on
+the router (`/tool/sniffer`) or on the client during a stall. Until then the stall is characterized,
+not explained.
+
+Two things are ruled out. **Not tag collision or misrouting**: tags are unique per process and per
+run (`prefix-pid-stamp-counter`), each connection reads only its own socket, and at the stall no
+sentences are held unclaimed for any tag. **Not connection state**: fresh, reused, 300-commands-old
+and monitor-carrying connections all stall, at rates that do not separate.
+
 ## What this means for tik4net
 
 - **Nothing to fix in the multiplexer.**
@@ -84,6 +138,13 @@ unaffected unless it is measured against a request count rather than a wall-cloc
 ## Reproducing
 
 `tik4net.integrationtests/P246StallProbe.cs`, skipped unless `TIK_PROBE=1`.
+
+`tik4net.integrationtests/ApiLargeReadStallProbe.cs`, same gate, is the single-large-read half:
+four connection-state arms plus one with a 300 s budget, `TIK4NET_STALL_READS` reads each
+(default 12) over `TIK4NET_STALL_PATH` (default `/queue/tree` — it needs a big table). On the first
+stall it diagnoses the dead connection in place: a fresh connection reading the same table, a write
+issued on the stalled session, and the router's `/ip/firewall/connection` rows sampled twice five
+seconds apart.
 
 - `Probe_TwoConnections_WhereDoesEachKneeFall` — the aggregate-vs-per-session measurement.
   `TIK_PROBE_CONNS=n` sets the parallel connection count; a separate sampler connection records the

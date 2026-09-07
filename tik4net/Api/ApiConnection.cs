@@ -518,11 +518,17 @@ namespace tik4net.Api
         /// </summary>
         /// <remarks>
         /// <para>
-        /// RouterOS sessions are observed to stop sending while the socket stays established and the router
-        /// keeps <b>executing</b> what is sent — the identity of a stalled session's router was changed by a
-        /// command whose own reply never came. Once that has happened the session never recovers, so every
-        /// later command paid the timeout in full and the caller saw an endlessly slow connection rather than
-        /// a broken one.
+        /// A session is observed to stop <b>delivering replies</b> while the socket stays established and the
+        /// router keeps <b>executing</b> what is sent — the identity of a stalled session's router was changed
+        /// by a command whose own reply never came. Every later command then paid the timeout in full, so the
+        /// caller saw an endlessly slow connection rather than a broken one.
+        /// </para>
+        /// <para>
+        /// Note what is deliberately <i>not</i> claimed: not that the router stopped sending. The router's own
+        /// connection tracking has been seen counting more bytes in the reply direction than arrived at the
+        /// client socket, and a stalled read's remaining sentences have been seen turning up after their caller
+        /// gave up — so the fault can also be on the way here. This says the session is not usable, which holds
+        /// either way; where the bytes are lost is <c>Docs/</c> territory, not this exception's.
         /// </para>
         /// <para>
         /// The command is <b>not written</b>. That is the point: because the router still executes what it
@@ -542,9 +548,9 @@ namespace tik4net.Api
                 return;
 
             throw new TikConnectionSessionClosedException(
-                "The router stopped answering on this session: "
+                "No reply is reaching the client on this session: "
                 + SilentTimeoutsBeforePresumedDead.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                + " consecutive commands received no reply at all, and it does not recover. The command was "
+                + " consecutive commands received nothing at all, so it is not worth a third. The command was "
                 + "not sent, so it did not run. Close this connection and open a new one — a fresh session to "
                 + "the same router is unaffected." + DescribeReaderLiveness(string.Empty));
         }
@@ -559,8 +565,10 @@ namespace tik4net.Api
         /// What the socket has been doing, as of now — appended to every receive timeout.
         /// </summary>
         /// <remarks>
-        /// Read the two ages together; they name three different faults. Both ≈ the timeout: the router
-        /// stopped answering (nothing arrived at all). Bytes recent, sentence old: a reply is still being
+        /// Read the two ages together; they name three different faults. Both ≈ the timeout: nothing arrived at
+        /// all — which is where the router's own <c>/ip/firewall/connection</c> row is worth reading, because
+        /// its reply-direction byte count says whether the router sent bytes that never got here. Bytes recent,
+        /// sentence old: a reply is still being
         /// delivered and is either enormous or trickling, so the deadline is too short rather than the
         /// connection broken. Both recent: the connection is busy and this tag is the one not being served.
         /// </remarks>
@@ -578,7 +586,15 @@ namespace tik4net.Api
             try { available = _tcpConnection.Available.ToString("N0", ci) + " byte(s) unread in the socket buffer"; }
             catch (Exception ex) { available = "socket buffer unreadable (" + ex.GetType().Name + ")"; }
 
-            return " Socket: " + bytes.ToString("N0", ci) + " byte(s) and "
+            // Names this session in the router's own view of the world — its /ip/firewall/connection row is
+            // keyed by this address:port, and that row counts the bytes the ROUTER believes it sent us. Our
+            // counters cannot tell "the router sent nothing" from "the router sent and it never arrived";
+            // the two counts side by side can, and finding the right row needs the local port.
+            string local;
+            try { local = "local endpoint " + _tcpConnection.Client.LocalEndPoint; }
+            catch (Exception ex) { local = "local endpoint unreadable (" + ex.GetType().Name + ")"; }
+
+            return " Socket: " + local + "; " + bytes.ToString("N0", ci) + " byte(s) and "
                 + sentences.ToString("N0", ci) + " sentence(s) received on this connection; last byte "
                 + AgeText(System.Threading.Volatile.Read(ref _lastByteAtTicks))
                 + ", last complete sentence "

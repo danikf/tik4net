@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -297,7 +297,9 @@ namespace tik4net
     /// On the binary API the <see cref="Exception.Message"/> also reports what the socket had been doing:
     /// how many bytes and complete sentences the connection has received, and how long ago each of those
     /// last happened. Read the two ages together — they name three different faults. Both as old as the
-    /// timeout: the router stopped answering. Last byte recent, last sentence old: a reply is still being
+    /// timeout: nothing arrived at all — which is not the same as the router having sent nothing, and the
+    /// router's own <c>/ip/firewall/connection</c> row settles which, by counting the bytes it believes it
+    /// sent. Last byte recent, last sentence old: a reply is still being
     /// delivered and the deadline is too short rather than the connection broken. Both recent: the
     /// connection is busy and this command's <c>.tag</c> is the one not being served.
     /// <para>

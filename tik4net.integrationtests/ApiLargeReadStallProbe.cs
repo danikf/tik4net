@@ -76,6 +76,7 @@ namespace tik4net.integrationtests
                 OneConnectionReused(path, reads),
                 OneConnectionAfterChatter(path, reads),
                 OneConnectionWithAnIdleMonitor(path, reads),
+                OneConnectionWithALongTimeout(path, reads),
             };
 
             Log("");
@@ -159,6 +160,34 @@ namespace tik4net.integrationtests
             return Report(arm);
         }
 
+        /// <summary>
+        /// The same read with a five-minute budget instead of thirty seconds — is the session dead, or just
+        /// paused?
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// This is the arm that decides what everything else means, and it exists because a router that stops
+        /// answering an established session is a large claim to make on a thirty-second silence. The other arms
+        /// cannot tell the two apart: they stop asking at the deadline, so "no reply within the budget" and
+        /// "no reply ever" produce the same line.
+        /// </para>
+        /// <para>
+        /// One reading already points at a pause. A stalled read's reply <i>continued arriving after its
+        /// caller had given up</i> — 77 further sentences turned up under the abandoned tag while the next
+        /// command was waiting. Sentences cannot arrive on a session the router has stopped serving, so at
+        /// least that stall was a delay this deadline turned into a failure.
+        /// </para>
+        /// </remarks>
+        private ArmResult OneConnectionWithALongTimeout(string path, int reads)
+        {
+            const int budgetSeconds = 300;
+            var arm = new ArmResult($"one connection, {budgetSeconds} s budget", reads);
+            using (var conn = OpenProbeConnection(budgetSeconds))
+                for (int i = 1; i <= reads; i++)
+                    Measure(arm, conn, path, i);
+            return Report(arm);
+        }
+
         // The low-level sentence form, not CreateCommand(path, params): the second overload takes typed
         // ITikCommandParameter, and what this needs is exactly the words the router sees.
         private static void RawSet(ITikConnection conn, string name)
@@ -166,10 +195,12 @@ namespace tik4net.integrationtests
             ((ITikRawSentenceConnection)conn).CallCommandSync("/system/identity/set", "=name=" + name);
         }
 
-        private ITikConnection OpenProbeConnection()
+        private ITikConnection OpenProbeConnection(int receiveTimeoutSeconds = 0)
         {
-            var conn = LabSetup(ResolveConnectionType()).Create(ResolveConnectionType());
-            return conn;
+            var setup = LabSetup(ResolveConnectionType());
+            if (receiveTimeoutSeconds > 0)
+                setup.ReceiveTimeout = TimeSpan.FromSeconds(receiveTimeoutSeconds);
+            return setup.Create(ResolveConnectionType());
         }
 
         private void Measure(ArmResult arm, ITikConnection conn, string path, int attempt)
@@ -269,6 +300,13 @@ namespace tik4net.integrationtests
                     Log($"  identity restored to '{identityBefore}'");
                 }
 
+                // Twice, five seconds apart: a repl-bytes count that climbs while our own byte counter stays
+                // frozen is the router actively pushing (or re-pushing) bytes we are not getting, which no
+                // single reading can show.
+                LogRouterSideConnectionView(fresh, "sample 1");
+                Thread.Sleep(5000);
+                LogRouterSideConnectionView(fresh, "sample 2 (+5 s)");
+
                 foreach (var row in fresh.CreateCommand("/user/active/print").ExecuteList())
                     Log("  /user/active: " + string.Join(" ", row.Words.Select(w => w.Key + "=" + w.Value)));
 
@@ -280,6 +318,58 @@ namespace tik4net.integrationtests
             }
 
             Log("  --- end diagnosis ---");
+        }
+
+        /// <summary>
+        /// The router's own view of every API connection it has, byte counters included.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// This is the one thing our socket counters cannot supply. "Not one byte arrived" is equally what a
+        /// router that sent nothing and a router whose reply was lost on the way look like — and a router that
+        /// simply stops answering an established session is a big claim to rest on client-side evidence alone.
+        /// <c>repl-bytes</c> is what the <b>router</b> believes it has sent us. More than the stall message's
+        /// received count means it answered and the reply never arrived, which is a network or TCP fault; equal
+        /// counts mean it really did stop sending.
+        /// </para>
+        /// <para>
+        /// Match the row by the local endpoint the stall message names — <c>src-address</c> carries the same
+        /// <c>address:port</c>. <c>tcp-state</c> is worth reading beside it: an <c>established</c> row whose
+        /// reply direction has gone quiet is a different animal from one the router has half-closed.
+        /// </para>
+        /// </remarks>
+        private void LogRouterSideConnectionView(ITikConnection fresh, string label)
+        {
+            try
+            {
+                // Filter words rather than typed parameters: what this needs is exactly the sentence the
+                // router sees, and connection rows are not a mapped entity.
+                var rows = ((ITikRawSentenceConnection)fresh).CallCommandSync(
+                    "/ip/firewall/connection/print", "?protocol=tcp", "?dst-port=8728").ToList();
+
+                int shown = 0;
+                foreach (var row in rows.OfType<ITikReSentence>())
+                {
+                    Log("  /ip/firewall/connection " + label + ": "
+                        + row.GetResponseFieldOrDefault("src-address", "?")
+                        + ":" + row.GetResponseFieldOrDefault("src-port", "?") + " -> "
+                        + row.GetResponseFieldOrDefault("dst-address", "?")
+                        + ":" + row.GetResponseFieldOrDefault("dst-port", "?")
+                        + " tcp-state=" + row.GetResponseFieldOrDefault("tcp-state", "?")
+                        + " orig-bytes=" + row.GetResponseFieldOrDefault("orig-bytes", "?")
+                        + " repl-bytes=" + row.GetResponseFieldOrDefault("repl-bytes", "?")
+                        + " timeout=" + row.GetResponseFieldOrDefault("timeout", "?"));
+                    shown++;
+                }
+
+                if (shown == 0)
+                    Log("  /ip/firewall/connection: no tracked rows for port 8728 — connection tracking is "
+                        + "off or not tracking local traffic, so this comparison is unavailable.");
+            }
+            catch (Exception ex)
+            {
+                Log("  /ip/firewall/connection unavailable: " + Oneline(ex.Message));
+            }
         }
 
         private ArmResult Report(ArmResult arm)
