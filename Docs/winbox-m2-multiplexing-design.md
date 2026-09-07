@@ -131,12 +131,36 @@ false`).
 ## 5. Request id: one byte, allocated by the multiplexer once it owns dispatch
 
 The request id is one byte on the wire, so the counter wraps at 256.
-`WinboxM2Multiplexer.NextReqId()` allocates it with `Interlocked.Increment` masked to 8 bits and
-skips `0`, which stays reserved for "no id" — `M2Message.ParseSysReqId` reports absence as `null`,
-so a frame can never be mistaken for a reply to request `0`. `SendReceiveAsync` refuses to reuse an
-id that is still pending (`_pending.TryAdd` failing is treated as a bug and throws): with at most
-256 ids in flight, a collision means a registration is leaking, not legitimate concurrency — in
-practice the outstanding count stays in the single digits.
+`WinboxM2Multiplexer.NextReqId()` advances a counter masked to 8 bits under a lock and **sweeps past
+any id it must not hand out**, of which there are three kinds:
+
+- `0`, reserved for "no id" — `M2Message.ParseSysReqId` reports absence as `null`, so a frame can
+  never be mistaken for a reply to request `0`;
+- an id still **pending**, i.e. registered in `_pending` with a caller waiting on it;
+- an id **quarantined**: its caller gave up (timeout or cancellation) while the router still owed a
+  reply.
+
+The quarantine is the load-bearing one. The id is the *only* thing that identifies a reply, and a
+connection doing paged reads wraps through all 255 in seconds, so an abandoned id put straight back
+into circulation lets the reply the router still owes complete whichever request drew it next — right
+shape, wrong rows, no error. That is not hypothetical: reading a 1672-row mangle table with a raw
+reader that did not match ids returned 2391 and 3400 rows *as success*
+([winbox-native-m2-protocol.md §29](winbox-native-m2-protocol.md)).
+
+**The debt is normally settled by the late reply, not by a clock.** When a frame arrives for an id
+with no registration, the reader loop reports it through `OnUnmatchedFrame` and releases the id in the
+same step: nothing further can arrive under it, so it is safe again immediately. The timestamp on the
+quarantine entry is only the fallback for a reply that never comes, and it is deliberately generous —
+`AbandonedIdQuarantineMs` is 120 s, because the router has been measured answering a `getall`
+continuation 52.8 s late and then finishing the table normally. A quarantine of the same order as a
+timeout would expire while the reply was still in flight, which is the entire failure being prevented.
+
+Exhausting the sweep — all 255 ids either pending or owed — throws rather than reusing one: the
+connection is spent and the caller is told to reconnect, because there is no id left that can be
+handed out without risking a stale reply. `SendReceiveAsync` additionally refuses to reuse a pending
+id (`_pending.TryAdd` failing is treated as a bug and throws): with at most 256 ids in flight, a
+collision there means a registration is leaking, not legitimate concurrency — in practice the
+outstanding count stays in the single digits.
 
 `WinboxM2Session` and `WinboxMacM2Session` each also carry their own `NextReqIdField()`, a plain
 `Interlocked.Increment` with no zero-skip and no collision guard. That version is only ever used
@@ -183,6 +207,21 @@ router. A timeout here usually means the router went quiet, not that a reply was
 load — from any connection, the ceiling is aggregate — clamps round trips from roughly 1 ms to
 roughly 20 ms, arriving on TCP as a batch of replies after a stretch of silence (see
 [findings-router-throughput-ceiling.md](findings-router-throughput-ceiling.md)).
+
+### 8.1 What a timeout reports: bytes, not frames
+
+The same 250 ms slices sample `IWinboxM2Channel.BytesReceived` — bytes taken off the carrier, counted
+as they land rather than per completed message — so a timeout can say whether **anything at all was
+arriving for this request**. A count of completed frames cannot answer that: a frame is counted when
+it is whole, so a reader parked halfway through a large reply and a reader waiting on a silent router
+look the same on it. The two want opposite fixes (a longer deadline versus a dead connection), so the
+message states the byte progress first and the frame history second — see
+[winbox-native-m2-protocol.md §29](winbox-native-m2-protocol.md) for the wording.
+
+The TCP channel counts in `WinboxTcpTransport.ReadExact`, per socket read. The MAC channel counts the
+DATA payload it accepts for reassembly and deliberately **excludes** ACKs, PINGs and duplicate
+retransmits: those are the carrier keeping itself alive, and counting them would make a silent router
+look like one that is answering slowly — the exact distinction the counter exists to draw.
 
 ## 8a. A dropped session is asked about, not waited out
 

@@ -83,6 +83,7 @@ namespace tik4net.unittests.Winbox
 
             public bool IsEncrypted => true;
             public bool DataAvailable => false;
+            public long BytesReceived => 0;      // nothing ever arrives on this channel
             public bool SupportsStaleDrain => false;
             public bool SendAbandoned => _abandoned;
             public bool SendStalled => false;

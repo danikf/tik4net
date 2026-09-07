@@ -284,10 +284,13 @@ namespace tik4net.unittests.Winbox
 
             public bool IsEncrypted => true;
             public bool DataAvailable => false;
+            public long BytesReceived => _bytesReceived;
             public bool SupportsStaleDrain => false;
             public bool SendAbandoned => false;
             public bool SendStalled => false;
             public bool SupportsReaderLoop => false;   // lockstep: SendReceive is the whole channel
+
+            private long _bytesReceived;
 
             public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs, int sendTimeoutMs = 0)
                 => throw new NotSupportedException("The fake channel is handed to the operations layer already open.");
@@ -299,8 +302,10 @@ namespace tik4net.unittests.Winbox
             {
                 System.Threading.Thread.Sleep(_pageDelayMs);
                 int page = ++_page;
-                return Page(RequestIdOf(m2), "page" + page,
+                byte[] reply = Page(RequestIdOf(m2), "page" + page,
                     M2Message.U32Sys(WinboxM2Protocol.RecordKey.Continuation, page));
+                _bytesReceived += reply.Length;
+                return reply;
             }
 
             public void Send(byte[] m2) => throw new NotSupportedException();

@@ -995,9 +995,15 @@ compound: a big table over a channel already at the ceiling.
 **A timeout must carry what the other side said**, so it now reports both halves separately, because they want
 opposite fixes:
 
-- the multiplexer says what the CHANNEL has been doing — `No frame at all has arrived on this channel since it
-  opened` (a dead connection) versus `The channel has read 412 frame(s), the last 30 ms ago, with 1 request(s)
-  waiting` (alive, and this request is simply outstanding);
+- the multiplexer says what the CHANNEL has been doing, **counted in bytes off the carrier rather than in
+  completed frames** — `Not one byte has arrived since this request was sent, so the router answered nothing at
+  all` versus `1382 byte(s) have arrived since this request was sent, the last 250 ms ago, without completing a
+  frame — so a reply is being delivered and is either huge or trickling`, each followed by the frame history
+  (`no frame at all has arrived on this channel since it opened` for a dead connection, `the channel has read
+  412 frame(s), the last 30 ms ago` for a live one). Frames alone cannot draw the distinction: a frame is
+  counted only when it is whole, so a reader parked mid-message and a reader waiting on silence look identical
+  on a frame count right up to the point the difference stops mattering — which is why
+  `IWinboxM2Channel.BytesReceived` exists;
 - the `getall` cursor loop adds how much of the TABLE arrived — `timed out after 30000 ms with 8400 row(s) from
   3 completed page(s)`, which separates "this table is bigger than the deadline" from "the request never got
   going".

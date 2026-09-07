@@ -64,6 +64,15 @@ namespace tik4net.Winbox
 
         public bool DataAvailable => _ns?.DataAvailable ?? false;
 
+        private long _bytesRead;
+
+        /// <summary>
+        /// Bytes taken off the socket since it opened, counted per <see cref="ReadExact"/> read rather than
+        /// per assembled frame — see <see cref="IWinboxM2Channel.BytesReceived"/> for why the difference is
+        /// the whole point.
+        /// </summary>
+        public long BytesRead => System.Threading.Interlocked.Read(ref _bytesRead);
+
         // Encrypted path (tag 0x06 first chunk, 0xFF continuation)
         public void SendChunked(byte[] data, byte firstTag)
         {
@@ -186,6 +195,10 @@ namespace tik4net.Winbox
                         "got=" + n + " " + (total + (n > 0 ? n : 0)) + "/" + count);
 
                 if (n <= 0) throw new IOException("Connection closed unexpectedly");
+
+                // Counted here, not once the frame is assembled: a waiter asking "is anything arriving?"
+                // has to be answered while the frame is still incomplete, or the answer is useless.
+                System.Threading.Interlocked.Add(ref _bytesRead, n);
                 total += n;
             }
             return buf;

@@ -45,6 +45,9 @@ namespace tik4net.Winbox
 
         public bool DataAvailable => _transport.DataAvailable;
 
+        /// <inheritdoc/>
+        public long BytesReceived => _transport.BytesRead;
+
         // TCP: a waiting byte is a real buffered M2 frame, so the stale-frame drain is safe and effective.
         public bool SupportsStaleDrain => true;
 

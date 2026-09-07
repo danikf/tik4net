@@ -67,6 +67,7 @@ namespace tik4net.unittests.WinboxCli
             public bool SendAbandoned => Abandoned;
             public bool SendStalled => Stalled;
             public bool DataAvailable => _toDeliver.Count > 0;
+            public long BytesReceived => _delivered;   // frames handed out; the CLI path never reads this
 
             public void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs, int sendTimeoutMs = 0) { }
             public void StartIdleServicing() { }
@@ -80,7 +81,16 @@ namespace tik4net.unittests.WinboxCli
                     _answerFirstSendWith = null;
                 }
             }
-            public byte[] Receive(int timeoutMs) => _toDeliver.Count > 0 ? _toDeliver.Dequeue() : null;
+            private long _delivered;
+
+            public byte[] Receive(int timeoutMs)
+            {
+                if (_toDeliver.Count == 0) return null;
+                byte[] frame = _toDeliver.Dequeue();
+                _delivered += frame.Length;
+                return frame;
+            }
+
             public byte[] SendReceive(byte[] m2, int timeoutMs) { Send(m2); return Receive(timeoutMs); }
             public byte[] ReceiveNextFrame() => throw new NotSupportedException();
             public void Dispose() { }

@@ -397,8 +397,9 @@ namespace tik4net.unittests.Winbox
                 {
                     var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
                         () => mux.SendReceive(Request(mux.NextReqIdField()), 300));
-                    StringAssert.Contains(ex.Message, "No frame at all has arrived",
+                    StringAssert.Contains(ex.Message, "Not one byte has arrived",
                         "a channel that has never answered is a different diagnosis from a slow one");
+                    StringAssert.Contains(ex.Message, "no frame at all has arrived");
                 });
 
             // One request answered, the next abandoned: the channel is demonstrably alive, so the message
@@ -416,9 +417,149 @@ namespace tik4net.unittests.Winbox
 
                     var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
                         () => mux.SendReceive(Request(mux.NextReqIdField()), 300));
-                    StringAssert.Contains(ex.Message, "the channel is alive");
-                    StringAssert.Contains(ex.Message, "frame(s)");
+                    StringAssert.Contains(ex.Message, "Not one byte has arrived",
+                        "nothing came back for THIS request, whatever the channel served earlier");
+                    StringAssert.Contains(ex.Message, "1 frame(s)",
+                        "the frame history is what shows the channel itself is alive");
                 });
+        }
+
+        /// <summary>
+        /// V-7: a reply that is <b>arriving</b> and one that was never sent are the same event to a counter of
+        /// completed frames, because a frame is only counted once it is whole. The router has been measured
+        /// pausing tens of seconds mid-table (<c>Docs/winbox-native-m2-protocol.md</c> §29), so "bytes are
+        /// coming, we are mid-frame" is a diagnosis that has to be reachable — its fix is a longer deadline,
+        /// the opposite of the fix for a dead channel.
+        /// </summary>
+        [TestMethod]
+        public async Task Timeout_ReportsBytesArrivingWithoutACompletedFrame()
+        {
+            await WithMultiplexer(
+                server =>
+                {
+                    server.ReadRawFrame();
+                    server.SendFrameFirstChunkOnly();   // real bytes, no frame ever completed
+                },
+                (mux, server) =>
+                {
+                    var ex = Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
+                        () => mux.SendReceive(Request(mux.NextReqIdField()), 2000));
+
+                    StringAssert.Contains(ex.Message, "without completing a frame",
+                        "a half-delivered reply must not be reported as a router that answered nothing");
+                    StringAssert.Contains(ex.Message, "byte(s) have arrived");
+                    StringAssert.Contains(ex.Message, "no frame at all has arrived",
+                        "and the frame count is still zero — which is exactly why it cannot carry this alone");
+                });
+        }
+
+        // ── Request-id reuse (defect S-1) ─────────────────────────────────────
+        //
+        // The id is the only thing that identifies a reply, and it is one byte, so a connection doing paged
+        // reads wraps through all 255 in seconds. If an id whose caller gave up goes straight back into
+        // circulation, the reply the router still owes completes the NEXT request that draws it: right shape,
+        // wrong rows, no error. Measured against a live router, a raw reader without id matching read a
+        // 1672-row table back as 2391 and 3400 rows and called both a success.
+
+        /// <summary>
+        /// An id whose caller gave up while a reply was still owed must not be handed out again — not even
+        /// after the counter has wrapped all the way round onto it.
+        /// </summary>
+        [TestMethod]
+        public async Task AbandonedRequestId_IsNotReissued_WhileTheRouterStillOwesItAReply()
+        {
+            await WithMultiplexer(
+                server => server.ReadRawFrame(),        // taken, never answered
+                (mux, server) =>
+                {
+                    byte[] request = Request(mux.NextReqIdField());
+                    int abandonedId = M2Message.ParseSysReqId(request).Value;
+
+                    Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
+                        () => mux.SendReceive(request, 300));
+
+                    // 300 allocations wrap the one-byte counter right back over the abandoned id.
+                    var ids = Enumerable.Range(0, 300)
+                        .Select(_ => M2Message.ParseSysReqId(Request(mux.NextReqIdField())).Value)
+                        .ToList();
+
+                    CollectionAssert.DoesNotContain(ids, abandonedId,
+                        $"id {abandonedId} was handed out again while its reply could still arrive — that "
+                        + "reply would then be delivered to whoever drew it, as a successful answer.");
+                });
+        }
+
+        /// <summary>
+        /// The debt is settled by the late reply, not by the clock: once it lands, nothing more can arrive
+        /// under that id and it is safe again immediately. A quarantine released only on a timer would be a
+        /// slow leak of the 255-id space on a connection that times out occasionally.
+        /// </summary>
+        [TestMethod]
+        public async Task LateReply_ReturnsItsRequestIdToCirculation()
+        {
+            var gaveUp = new ManualResetEventSlim(false);
+
+            await WithMultiplexer(
+                server =>
+                {
+                    int id = M2Message.ParseSysReqId(server.ReadRawFrame()).Value;
+                    gaveUp.Wait(TimeoutMs);
+                    server.SendRawFrame(Reply(id));     // the router finished the work anyway
+                },
+                (mux, server) =>
+                {
+                    var lateReplySeen = new ManualResetEventSlim(false);
+                    mux.OnUnmatchedFrame = _ => lateReplySeen.Set();
+
+                    byte[] request = Request(mux.NextReqIdField());
+                    int abandonedId = M2Message.ParseSysReqId(request).Value;
+
+                    Assert.ThrowsException<TikConnectionReceiveTimeoutException>(
+                        () => mux.SendReceive(request, 300));
+                    gaveUp.Set();
+                    Assert.IsTrue(lateReplySeen.Wait(TimeoutMs), "the late reply never arrived");
+
+                    var ids = Enumerable.Range(0, 300)
+                        .Select(_ => M2Message.ParseSysReqId(Request(mux.NextReqIdField())).Value)
+                        .ToList();
+
+                    CollectionAssert.Contains(ids, abandonedId,
+                        "once the late reply has landed the id is owed nothing and must go back into use, "
+                        + "rather than waiting out a quarantine that exists for replies that never come.");
+                });
+        }
+
+        /// <summary>
+        /// With every id either awaiting a reply or owed one there is no safe id left, and the only honest
+        /// answer is to refuse. Handing one out anyway is the S-1 failure by another route, and it would be
+        /// reported as data rather than as an error.
+        /// </summary>
+        [TestMethod]
+        public async Task WhenEveryIdIsOutstanding_AnotherRequestIsRefused_RatherThanReusingOne()
+        {
+            using (var server = new FakeWinboxServer())
+            using (var session = new WinboxM2Session())
+            {
+                var serverTask = Task.Run(() => server.RunFullLoginSequence());
+                await Task.Run(() => session.Open(Host, server.Port, "admin", "", TimeoutMs, TimeoutMs));
+                await serverTask;
+
+                var calls = new List<Task<byte[]>>();
+                using (var mux = new WinboxM2Multiplexer(session))
+                {
+                    // 255 requests in flight and unanswered — every usable id is registered.
+                    for (int i = 0; i < 255; i++)
+                        calls.Add(mux.SendReceiveAsync(Request(mux.NextReqIdField()), 60000, CancellationToken.None));
+
+                    var ex = Assert.ThrowsException<InvalidOperationException>(() => mux.NextReqIdField());
+                    StringAssert.Contains(ex.Message, "reconnect",
+                        "the caller has to be told the connection is spent, not handed a colliding id");
+                }
+
+                // Disposing the multiplexer failed every waiter; observe them all so none is left unobserved.
+                foreach (var call in calls)
+                    await Assert.ThrowsExceptionAsync<ObjectDisposedException>(() => call);
+            }
         }
     }
 }

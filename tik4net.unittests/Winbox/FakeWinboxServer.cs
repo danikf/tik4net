@@ -145,6 +145,22 @@ namespace tik4net.unittests.Winbox
             _stream.Flush();
         }
 
+        /// <summary>
+        /// Writes the first chunk of a frame and stops, leaving the client parked mid-frame with real bytes
+        /// already in hand. A full 0xFF chunk always implies a continuation, so the client reads the payload
+        /// and then blocks on a chunk header that never comes.
+        /// </summary>
+        /// <remarks>
+        /// This is the one shape a completed-frame counter cannot see, and the reason
+        /// <c>IWinboxM2Channel.BytesReceived</c> exists: from the frame count's side it is indistinguishable
+        /// from a router that said nothing at all.
+        /// </remarks>
+        public void SendFrameFirstChunkOnly()
+        {
+            WriteChunk(0xFF, RawTag, new byte[0xFF], 0, 0xFF);
+            _stream.Flush();
+        }
+
         private void WriteChunk(byte chunkLen, byte tag, byte[] src, int offset, int count)
         {
             byte[] chunk = new byte[2 + count];

@@ -96,9 +96,21 @@ namespace tik4net.Winbox
                 if (!AckData(counter, payload.Length)) return false;  // duplicate retransmit
                 if (IsControlPacket(payload)) return false;
                 _rxBuf.AddRange(payload);
+                System.Threading.Interlocked.Add(ref _bytesReceived, payload.Length);
                 return false;
             });
         }
+
+        private long _bytesReceived;
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Counts the DATA payload this channel accepted for reassembly — not every byte the socket saw.
+        /// ACKs, PINGs and duplicate retransmits are deliberately excluded: they are the carrier keeping
+        /// itself alive and would make a silent router look like one that is answering slowly, which is the
+        /// exact distinction the counter exists to draw.
+        /// </remarks>
+        public long BytesReceived => System.Threading.Interlocked.Read(ref _bytesReceived);
 
         // Set by DataAvailable when its drain completes a frame, handed straight out by the next RecvFrame.
         // Without it the poll would have to either discard the frame it just assembled or leave it in a
@@ -429,6 +441,7 @@ namespace tik4net.Winbox
                     byte[]? data = RecvDataPayload(remaining);
                     if (data == null) return null;
                     _rxBuf.AddRange(data);
+                    System.Threading.Interlocked.Add(ref _bytesReceived, data.Length);
                     frame = TryExtractFrame();
                 }
                 return frame;

@@ -40,9 +40,26 @@ namespace tik4net.Winbox
         private readonly object _writeLock = new object();
         private readonly Thread _readerThread;
 
+        private readonly object _idLock = new object();
         private int _reqId;
         private volatile bool _disposed;
         private volatile Exception? _fault;
+
+        // Ids of requests whose caller gave up while the router still owed a reply, and when that happened.
+        // An id may not go back into circulation while its old reply can still arrive, because the id is the
+        // only thing that identifies a reply: reusing it lets a stale reply complete a new waiter with the
+        // wrong data (defect S-1). The debt is normally settled by the late reply landing, which releases the
+        // id in the reader loop; the timestamp is only the fallback for a reply that never comes.
+        private readonly ConcurrentDictionary<int, long> _quarantined = new ConcurrentDictionary<int, long>();
+
+        /// <summary>
+        /// How long an abandoned request id stays out of circulation when its late reply never arrives.
+        /// Deliberately generous: the router has been measured answering a <c>getall</c> continuation
+        /// 52.8 s late and then completing the table normally
+        /// (<c>Docs/winbox-native-m2-protocol.md</c> §29), so a quarantine of the same order as a timeout
+        /// would expire while the reply was still in flight — which is the whole failure being prevented.
+        /// </summary>
+        private const int AbandonedIdQuarantineMs = 120000;
 
         // What the reader loop has seen, for the timeout message. A timeout that names only the request id
         // cannot tell "the router is still working on this one" from "nothing has arrived on this channel at
@@ -91,17 +108,55 @@ namespace tik4net.Winbox
         /// <remarks>
         /// The id is one byte on the wire, so the counter wraps at 256. Id <c>0</c> is skipped and stays
         /// reserved for "no id" — <see cref="M2Message.ParseSysReqId"/> reports absence as <c>null</c>, and
-        /// keeping 0 unused means a frame can never be mistaken for a reply to request 0. Reuse of an id
-        /// that is still pending is refused at registration time in <see cref="SendReceive"/>.
+        /// keeping 0 unused means a frame can never be mistaken for a reply to request 0.
+        /// <para>
+        /// Two ids are skipped rather than handed out: one that is still <b>pending</b>, and one that is
+        /// <b>quarantined</b> because its caller gave up while a reply was still owed. Wrapping past 255 is
+        /// reachable in seconds on a connection doing paged reads, and a reply is identified by nothing but
+        /// this byte, so an id handed out twice while the first reply is in flight delivers the old reply to
+        /// the new waiter — same shape, wrong rows, no error (defect S-1). Skipping is cheap: an id is only
+        /// unavailable while something is genuinely outstanding on it.
+        /// </para>
         /// </remarks>
         internal byte[] NextReqIdField()
             => M2Message.U8Sys(WinboxM2Protocol.SysKey.RequestId, (byte)NextReqId());
 
         private int NextReqId()
         {
-            int id;
-            do { id = Interlocked.Increment(ref _reqId) & 0xFF; } while (id == 0);
-            return id;
+            lock (_idLock)
+            {
+                // A full sweep of the 255 usable ids. Failing after that is right: it means every id is
+                // either awaiting a reply or owed one, which no legitimate concurrency can produce.
+                for (int tried = 0; tried <= 0x100; tried++)
+                {
+                    _reqId = (_reqId + 1) & 0xFF;
+                    if (_reqId == 0) continue;
+                    if (_pending.ContainsKey(_reqId)) continue;
+                    if (IsQuarantined(_reqId)) continue;
+                    return _reqId;
+                }
+            }
+
+            throw new InvalidOperationException(
+                "All 255 WinBox M2 request ids are either awaiting a reply or held back because the router "
+                + "still owes one for a request that was abandoned. Reusing one would risk delivering a stale "
+                + "reply to a new request, so this connection cannot issue another request — reconnect.");
+        }
+
+        /// <summary>
+        /// True while <paramref name="id"/> is held back after its caller gave up. Expiry is evaluated here,
+        /// on the allocation path, so nothing has to sweep the dictionary on a timer.
+        /// </summary>
+        private bool IsQuarantined(int id)
+        {
+            if (!_quarantined.TryGetValue(id, out long ticks)) return false;
+
+            if ((DateTime.UtcNow - new DateTime(ticks, DateTimeKind.Utc)).TotalMilliseconds
+                    < AbandonedIdQuarantineMs)
+                return true;
+
+            _quarantined.TryRemove(id, out _);
+            return false;
         }
 
         /// <summary>
@@ -180,6 +235,16 @@ namespace tik4net.Winbox
                     try
                     {
                         var elapsed = Stopwatch.StartNew();
+
+                        // Byte-level progress, sampled per slice. Frames cannot answer "is anything arriving
+                        // for me?" — a frame is counted only once it is complete, so a reader working through
+                        // a half-delivered frame looks identical to one waiting on a silent router (V-7).
+                        // Resolution is one poll slice, which is the right granularity for a message about a
+                        // wait measured in seconds.
+                        long bytesAtSend = _channel.BytesReceived;
+                        long bytesSeen = bytesAtSend;
+                        long lastByteMs = -1;
+
                         while (true)
                         {
                             int remaining = timeoutMs - (int)elapsed.ElapsedMilliseconds;
@@ -191,12 +256,21 @@ namespace tik4net.Winbox
                                 // every transport. ChannelActivity() is what the channel had been doing, so
                                 // the timeout carries the evidence rather than just the fact.
                                 throw new TikConnectionReceiveTimeoutException(timeoutMs,
-                                    $"No WinBox M2 reply for request id {id} within {timeoutMs} ms. {ChannelActivity()}");
+                                    $"No WinBox M2 reply for request id {id} within {timeoutMs} ms. "
+                                    + ChannelActivity(bytesSeen - bytesAtSend,
+                                                      lastByteMs < 0 ? -1 : elapsed.ElapsedMilliseconds - lastByteMs));
                             }
 
                             var slice = Task.Delay(Math.Min(remaining, DeadSessionPollIntervalMs), giveUp.Token);
                             if (await Task.WhenAny(tcs.Task, slice).ConfigureAwait(false) == tcs.Task)
                                 break;
+
+                            long bytesNow = _channel.BytesReceived;
+                            if (bytesNow != bytesSeen)
+                            {
+                                bytesSeen = bytesNow;
+                                lastByteMs = elapsed.ElapsedMilliseconds;
+                            }
 
                             cancellationToken.ThrowIfCancellationRequested();
 
@@ -208,7 +282,9 @@ namespace tik4net.Winbox
                                     $"WinBox M2: the router stopped acknowledging this session — it did not take the "
                                     + $"bytes of request id {id}, so the command did not run. RouterOS drops an idle "
                                     + "MAC-layer session after about 30 s without closing the socket or reporting an "
-                                    + $"error, so the session goes silent rather than failing. {ChannelActivity()}");
+                                    + "error, so the session goes silent rather than failing. "
+                                    + ChannelActivity(bytesSeen - bytesAtSend,
+                                                      lastByteMs < 0 ? -1 : elapsed.ElapsedMilliseconds - lastByteMs));
                         }
                     }
                     finally
@@ -223,30 +299,47 @@ namespace tik4net.Winbox
             {
                 // Covers the timeout, cancellation and failure paths; on success the reader loop has already
                 // removed it. Dropping the registration is what makes a late reply unmatched rather than
-                // mistaken for the next request that reuses this id.
-                _pending.TryRemove(id, out _);
+                // mistaken for the next request that reuses this id — and the id then has to stay out of
+                // circulation, or "unmatched" only lasts until the counter wraps back onto it.
+                if (_pending.TryRemove(id, out _))
+                    _quarantined[id] = DateTime.UtcNow.Ticks;
             }
         }
 
         /// <summary>
-        /// What the channel has been doing, for a timeout message. A silent channel and a slow answer look
-        /// identical from the waiter's side, and they want opposite fixes.
+        /// What the channel has been doing, for a timeout message. A silent channel, a half-delivered frame
+        /// and a slow answer look identical from the waiter's side, and all three want a different fix.
         /// </summary>
-        private string ChannelActivity()
+        /// <param name="bytesSinceSend">
+        /// Bytes the channel read off the carrier since this request went out — including bytes of a frame
+        /// that is still being assembled, which is the whole point: frame counts cannot see those.
+        /// </param>
+        /// <param name="msSinceLastByte">
+        /// How long ago the last of those bytes arrived, or a negative value when none did. Quantized to the
+        /// poll interval.
+        /// </param>
+        private string ChannelActivity(long bytesSinceSend, long msSinceLastByte)
         {
             long frames = Interlocked.Read(ref _framesRead);
             long ticks = Interlocked.Read(ref _lastFrameTicks);
             int waiters = _pending.Count;
 
-            if (frames == 0)
-                return $"No frame at all has arrived on this channel since it opened ({waiters} request(s) "
-                     + "waiting) — the channel is silent, not slow.";
+            string frameHistory = frames == 0
+                ? "no frame at all has arrived on this channel since it opened"
+                : $"the channel has read {frames} frame(s), the last "
+                  + (ticks == 0
+                      ? "at an unknown time"
+                      : (long)(DateTime.UtcNow - new DateTime(ticks, DateTimeKind.Utc)).TotalMilliseconds + " ms ago");
 
-            string since = ticks == 0
-                ? "unknown"
-                : ((long)(DateTime.UtcNow - new DateTime(ticks, DateTimeKind.Utc)).TotalMilliseconds) + " ms ago";
-            return $"The channel has read {frames} frame(s), the last {since}, with {waiters} request(s) "
-                 + "waiting — so the channel is alive and this request is what is outstanding.";
+            // The distinction the message exists for. Bytes arriving with no frame completed means the router
+            // is answering and we are mid-frame; no bytes at all means it sent nothing, whoever is at fault.
+            string liveness = bytesSinceSend == 0
+                ? "Not one byte has arrived since this request was sent, so the router answered nothing at all"
+                : $"{bytesSinceSend} byte(s) have arrived since this request was sent, the last "
+                  + $"{msSinceLastByte} ms ago, without completing a frame — so a reply is being delivered and "
+                  + "is either huge or trickling";
+
+            return $"{liveness} ({frameHistory}, {waiters} request(s) waiting).";
         }
 
         private void ReaderLoop()
@@ -264,9 +357,16 @@ namespace tik4net.Winbox
 
                     int? id = M2Message.ParseSysReqId(m2);
                     if (id.HasValue && _pending.TryRemove(id.Value, out var tcs))
+                    {
                         tcs.TrySetResult(m2);
+                    }
                     else
+                    {
+                        // A late reply settles the debt on its id: nothing more can arrive under it, so it
+                        // goes back into circulation now rather than waiting out the quarantine.
+                        if (id.HasValue) _quarantined.TryRemove(id.Value, out _);
                         OnUnmatchedFrame?.Invoke(m2);            // late reply or id-less frame — drop it
+                    }
                 }
             }
             catch (Exception ex)

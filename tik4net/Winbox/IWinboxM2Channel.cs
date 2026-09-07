@@ -90,6 +90,19 @@ namespace tik4net.Winbox
         void Open(string host, int port, string user, string password, int connectTimeoutMs, int ioTimeoutMs,
             int sendTimeoutMs = 0);
 
+        /// <summary>
+        /// Bytes read off the carrier since the channel opened, counted as they land rather than per
+        /// completed message — a monotonic counter, only ever compared against an earlier sample of itself.
+        /// </summary>
+        /// <remarks>
+        /// This is the only signal that can tell a reader waiting on a <b>silent</b> router from one working
+        /// through a message that is still arriving. A count of completed frames cannot: a frame is counted
+        /// when it is finished, so the two look identical on it right up to the moment the difference stops
+        /// mattering. <see cref="WinboxM2Multiplexer"/>'s timeout message is built on this, which is what
+        /// makes it evidence instead of a guess.
+        /// </remarks>
+        long BytesReceived { get; }
+
         /// <summary>Builds the next request-id system field (key 0xFF0006), advancing the counter.</summary>
         byte[] NextReqIdField();
 
