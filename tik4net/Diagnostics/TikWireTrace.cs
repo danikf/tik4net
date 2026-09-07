@@ -37,7 +37,7 @@ namespace tik4net.Diagnostics
     {
         /// <summary>
         /// A single wire event. <paramref name="channel"/> is a short emit-site id
-        /// (<c>"wbxcli.mepty"</c>, <c>"wbxtcp.frame"</c>, <c>"telnet.sock"</c>, <c>"mactelnet.udp"</c>,
+        /// (<c>"wbxcli.mepty"</c>, <c>"wbxtcp.frame"</c>, <c>"wbxtcp.sock"</c>, <c>"telnet.sock"</c>, <c>"mactelnet.udp"</c>,
         /// <c>"ssh.pty"</c>, <c>"api.word"</c>). For <see cref="TikWireDir.Note"/> events <paramref name="data"/> is
         /// <c>null</c> and only <paramref name="note"/> carries meaning.
         /// </summary>

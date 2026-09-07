@@ -156,13 +156,35 @@ namespace tik4net.Winbox
             }
         }
 
+        /// <summary>
+        /// Reads exactly <paramref name="count"/> bytes, looping until the socket has delivered them all.
+        /// </summary>
+        /// <remarks>
+        /// The <c>wbxtcp.sock</c> trace events are the layer <b>below</b> <c>wbxtcp.frame</c>, which is
+        /// emitted only once a whole frame has been assembled and therefore cannot show a reader parked
+        /// here waiting for the rest of one. A note stamps the moment we enter the blocking read and a
+        /// <see cref="TikWireDir.Recv"/> event stamps what came back, so a gap in the series is
+        /// unambiguous: a note with no following <c>Recv</c> is us waiting on a router that sent nothing,
+        /// while a <c>Recv</c> short of <c>want</c> followed by a long wait is a frame arriving in pieces.
+        /// Distinguishing those two is what a mid-read stall diagnosis turns on, and it is why this exists
+        /// instead of a packet capture.
+        /// </remarks>
         public byte[] ReadExact(int count)
         {
             byte[] buf = new byte[count];
             int total = 0;
             while (total < count)
             {
+                if (TikWireTrace.Enabled)
+                    TikWireTrace.Emit("wbxtcp.sock", TikWireDir.Note,
+                        "read want=" + (count - total) + " into " + total + "/" + count);
+
                 int n = _ns.Read(buf, total, count - total);
+
+                if (TikWireTrace.Enabled)
+                    TikWireTrace.Emit("wbxtcp.sock", TikWireDir.Recv, buf, total, n > 0 ? n : 0,
+                        "got=" + n + " " + (total + (n > 0 ? n : 0)) + "/" + count);
+
                 if (n <= 0) throw new IOException("Connection closed unexpectedly");
                 total += n;
             }

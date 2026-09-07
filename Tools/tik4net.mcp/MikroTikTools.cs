@@ -182,8 +182,9 @@ public sealed class MikroTikTools
                      "Use 'bytes' to diagnose a transport-level hang or desync.")]
         string traceLevel = "off",
         [Description("Optional filter for the byte trace (traceLevel='bytes' only): only emit sites whose channel " +
-                     "id is in this list are kept. Channels: 'wbxcli.mepty', 'wbxtcp.frame', 'telnet.sock', " +
-                     "'mactelnet.udp', 'api.word'. Omit to keep all channels.")]
+                     "id is in this list are kept. Channels: 'wbxcli.mepty', 'wbxtcp.frame', 'wbxtcp.sock' " +
+                     "(the socket reads under those frames — the layer that shows a reader waiting mid-frame), " +
+                     "'telnet.sock', 'mactelnet.udp', 'api.word'. Omit to keep all channels.")]
         string[]? traceChannels = null,
         [Description("When true, also append the router's own /log lines that appeared DURING the command, as a " +
                      "'--- ROUTER LOG ---' section — the device-side story next to the wire trace. Captured over a " +
