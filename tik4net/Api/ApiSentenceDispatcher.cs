@@ -248,5 +248,39 @@ namespace tik4net.Api
             if (queue.Items.Count == 0 && queue.Waiters == 0 && queue.AsyncWaiters.Count == 0)
                 _queues.Remove(key);
         }
+
+        /// <summary>
+        /// The tags currently holding sentences nobody has claimed, for the receive-timeout report.
+        /// </summary>
+        /// <remarks>
+        /// A caller that times out has two very different reasons to have heard nothing, and only this can
+        /// tell them apart. Empty: no reply for this tag ever reached the dispatcher, so the question is
+        /// what happened on the socket. <b>Not</b> empty: the router answered and the reply was filed under a
+        /// tag nobody is waiting for — a pairing fault in this client, not a router-side stall. Sentences are
+        /// never dropped for want of a waiter (see <see cref="DropIfIdle"/>), which is exactly what makes
+        /// them still available to be counted here.
+        /// </remarks>
+        internal string DescribeUnclaimed(string waitingTag)
+        {
+            lock (_sync)
+            {
+                var parts = new List<string>();
+                int total = 0;
+                foreach (var pair in _queues)
+                {
+                    if (pair.Value.Items.Count == 0)
+                        continue;
+                    total += pair.Value.Items.Count;
+                    parts.Add(pair.Key + "×" + pair.Value.Items.Count.ToString(
+                        System.Globalization.CultureInfo.InvariantCulture));
+                }
+
+                if (total == 0)
+                    return "no unclaimed sentences are held for any tag";
+
+                return "unclaimed sentences are held for tag(s) " + string.Join(", ", parts.ToArray())
+                    + " while tag '" + waitingTag + "' waited — the router answered and the reply was not paired";
+            }
+        }
     }
 }

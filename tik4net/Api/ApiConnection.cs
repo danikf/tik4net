@@ -493,7 +493,7 @@ namespace tik4net.Api
         /// delivered and is either enormous or trickling, so the deadline is too short rather than the
         /// connection broken. Both recent: the connection is busy and this tag is the one not being served.
         /// </remarks>
-        private string DescribeReaderLiveness()
+        private string DescribeReaderLiveness(string waitingTag)
         {
             var ci = System.Globalization.CultureInfo.InvariantCulture;
             long bytes = System.Threading.Interlocked.Read(ref _bytesReceived);
@@ -512,7 +512,8 @@ namespace tik4net.Api
                 + AgeText(System.Threading.Volatile.Read(ref _lastByteAtTicks))
                 + ", last complete sentence "
                 + AgeText(System.Threading.Volatile.Read(ref _lastSentenceAtTicks))
-                + "; " + available + ".";
+                + "; " + available + "; "
+                + _dispatcher.DescribeUnclaimed(waitingTag) + ".";
         }
 
         private static string AgeText(long atTicks)
@@ -836,12 +837,12 @@ namespace tik4net.Api
         /// short one, so the command still fails.
         /// </remarks>
         private TikConnectionReceiveTimeoutException WithPartialResponse(
-            TikConnectionReceiveTimeoutException ex, IList<ITikSentence> received)
+            TikConnectionReceiveTimeoutException ex, IList<ITikSentence> received, string waitingTag)
         {
             string partial = string.Join(Environment.NewLine, received.Select(DescribeSentence));
             return new TikConnectionReceiveTimeoutException(ex.TimeoutMilliseconds,
                 ex.Message + " " + received.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                + " sentence(s) had already arrived — see PartialResponse." + DescribeReaderLiveness(),
+                + " sentence(s) had already arrived — see PartialResponse." + DescribeReaderLiveness(waitingTag),
                 partial, ex.InnerException);
         }
 
@@ -853,9 +854,10 @@ namespace tik4net.Api
         /// gains the most: with no rows to point at, the socket counters are the <i>only</i> difference
         /// between a router that never answered and one whose first reply is still on its way.
         /// </remarks>
-        private TikConnectionReceiveTimeoutException WithReaderLiveness(TikConnectionReceiveTimeoutException ex)
+        private TikConnectionReceiveTimeoutException WithReaderLiveness(
+            TikConnectionReceiveTimeoutException ex, string waitingTag)
             => new TikConnectionReceiveTimeoutException(ex.TimeoutMilliseconds,
-                ex.Message + DescribeReaderLiveness(), ex.PartialResponse, ex.InnerException);
+                ex.Message + DescribeReaderLiveness(waitingTag), ex.PartialResponse, ex.InnerException);
 
         /// <summary>One sentence in its wire shape, for the partial-response text.</summary>
         private static string DescribeSentence(ITikSentence sentence)
@@ -966,7 +968,9 @@ namespace tik4net.Api
             }
             catch (TikConnectionReceiveTimeoutException ex)
             {
-                throw received.Count > 0 ? WithPartialResponse(ex, received) : WithReaderLiveness(ex);
+                throw received.Count > 0
+                    ? WithPartialResponse(ex, received, tagOrEmptyString)
+                    : WithReaderLiveness(ex, tagOrEmptyString);
             }
             return received;
         }
@@ -1060,7 +1064,9 @@ namespace tik4net.Api
                         // Cancelled and silent: the caller asked to stop and the router said nothing at all.
                         // Report the cancellation — the timeout is a symptom of it, not the news.
                         cancellationToken.ThrowIfCancellationRequested();
-                        throw result.Count > 0 ? WithPartialResponse(ex, result) : WithReaderLiveness(ex);
+                        throw result.Count > 0
+                            ? WithPartialResponse(ex, result, tag)
+                            : WithReaderLiveness(ex, tag);
                     }
 
                     result.Add(sentence);
@@ -1159,7 +1165,7 @@ namespace tik4net.Api
                                     + ex.GetType().Name + ": " + ex.Message
                                     // A monitor's timeout is where "this tag was starved while the socket
                                     // stayed busy" is likeliest, and it is invisible from the tag alone.
-                                    + (ex is TikConnectionReceiveTimeoutException ? DescribeReaderLiveness() : "") }));
+                                    + (ex is TikConnectionReceiveTimeoutException ? DescribeReaderLiveness(tag) : "") }));
                     }
                     catch { /* callback is caller code — never let it mask the fatal */ }
                 }

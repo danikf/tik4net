@@ -129,6 +129,50 @@ namespace tik4net.unittests.Api
         }
 
         /// <summary>
+        /// The router answers in full, under a tag the caller is not waiting for. Nothing is missing from the
+        /// socket — the reply is sitting in the dispatcher, filed where nobody will look for it.
+        /// </summary>
+        /// <remarks>
+        /// This is the third way to time out and the one the socket counters alone get exactly backwards: the
+        /// bytes and the sentences all arrived, so "last byte" and "last sentence" are both as old as the
+        /// answer rather than as old as the timeout — indistinguishable from a router that fell silent at the
+        /// same moment. Only the dispatcher can say the answer is here and unpaired, which is a fault in this
+        /// client rather than in the router, and so has an entirely different fix.
+        /// </remarks>
+        [TestMethod]
+        public void AnAnswerFiledUnderTheWrongTagIsReportedAsUnpairedRatherThanMissing()
+        {
+            using (var server = new FakeRouterServer())
+            {
+                var serverTask = Task.Run(() =>
+                {
+                    server.AcceptClient();
+                    server.ReadSentence();                          // login
+                    server.WriteSentence("!done");
+
+                    server.ReadSentence();                          // /interface/print
+                    // Answer completely and correctly — except for the one word that says whose answer it is.
+                    server.EchoTags = false;
+                    string wrongTag = TikSpecialProperties.Tag + "=999999";
+                    server.WriteSentence("!re", "=name=ether0", wrongTag);
+                    server.WriteSentence("!done", wrongTag);
+
+                    Thread.Sleep(ReceiveTimeoutMs * 2);
+                });
+
+                string message = TimeOutAPrint(server);
+
+                Assert.IsTrue(message.Contains("unclaimed sentences are held for tag(s) 999999×2"),
+                    "the answer arrived and is still held — reporting this as an unanswered command sends the "
+                    + "reader looking at the router, when the fault is entirely on this side: " + message);
+
+                // The counters are deliberately NOT asserted to be old here: they cannot be, because
+                // everything did arrive. That is the whole reason this case needs the dispatcher.
+                Assert.IsTrue(serverTask.Wait(10000));
+            }
+        }
+
+        /// <summary>
         /// Runs a print that is guaranteed to time out and returns the exception message.
         /// </summary>
         private static string TimeOutAPrint(FakeRouterServer server)
