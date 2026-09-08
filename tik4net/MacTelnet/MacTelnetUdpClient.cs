@@ -132,9 +132,40 @@ namespace tik4net.MacTelnet
             ct.ThrowIfCancellationRequested();
             string cmd = CliOutputHelper.InjectWithoutPaging(command);
             ResetReadBuffer();
+            ResetDataHoles();
             SendTerminalBytes(_encoding.GetBytes(cmd + "\r"));
             string raw = await ReadCommandResponseAsync(cmd, ct, onLine).ConfigureAwait(false);
-            return CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), cmd);
+            string clean = CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), cmd);
+            ThrowIfResponseLostDatagrams(cmd, clean);
+            return clean;
+        }
+
+        /// <summary>
+        /// Refuses a response that arrived across a retransmission episode. The response itself looks
+        /// perfect — it ends at a real prompt and its byte counter is unbroken — so the packet loss is the
+        /// only evidence there is that RouterOS may have dropped part of its own output while recovering.
+        /// See <see cref="TikConnectionResponseIncompleteException"/> for the measurement behind that.
+        /// </summary>
+        private void ThrowIfResponseLostDatagrams(string sentCommand, string response)
+        {
+            // One wide gap is not enough to condemn an answer. The router refills a single gap with one
+            // retransmit and carries on; what precedes the output-dropping is a SUSTAINED episode — we stay
+            // behind, the router keeps streaming, and its queue is what it eventually discards. The measured
+            // populations do not overlap: the reads that came back short had 4, 29, 30 and 31 wide gaps,
+            // while every intact read on the same suite leg had at most one.
+            int lost = DataHoles;
+            if (lost <= 1)
+                return;
+
+            throw new TikConnectionResponseIncompleteException(
+                "MAC-Telnet: the router ran a backlog past this client " + lost + " times while answering '"
+                + sentCommand.Trim() + "' — each a gap of more than one datagram, and a sustained run of them is "
+                + "what RouterOS answers by "
+                + "discarding part of its own output and carrying on with an unbroken byte counter. The "
+                + response.Length + " characters received therefore end at a prompt and still cannot be "
+                + "trusted to be the whole answer. Retry the command, or use a transport that is not on the "
+                + "MAC layer for a response this large.",
+                lost, response);
         }
 
         /// <summary>

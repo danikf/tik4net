@@ -428,6 +428,89 @@ namespace tik4net.unittests.MacTelnet
             return (counter, payload);
         }
 
+        // ── Inbound holes: which gaps make a response untrustworthy ───────────
+        //
+        // A MAC-Telnet response can arrive whole, contiguous by counter and terminated by a real shell
+        // prompt, and still be missing rows: RouterOS answers a backlog replay by discarding part of its own
+        // output and carrying on with an unbroken counter (Docs/findings-mactelnet.md §3). The stream cannot
+        // show that, so the client judges the answer by the shape of the packet loss instead — and only a
+        // gap wider than one datagram means the router had a backlog to discard.
+
+        [TestMethod]
+        public void ASubDatagramGapIsOrdinaryLossAndDoesNotCondemnTheResponse()
+        {
+            Assert.IsTrue(_client.Deliver(0, 1450), "first packet establishes the payload yardstick");
+
+            // 200 bytes short of contiguous: one exact retransmit fills it, and the router never ran ahead.
+            Assert.IsFalse(_client.Deliver(1650, 300), "a packet past the hole is still dropped");
+            Assert.AreEqual(0, _client.Holes, "a gap inside one datagram must not condemn the answer");
+        }
+
+        [TestMethod]
+        public void AGapWiderThanOneDatagramIsCounted()
+        {
+            Assert.IsTrue(_client.Deliver(0, 1450));
+
+            Assert.IsFalse(_client.Deliver(1450 + 1451, 1450));
+            Assert.AreEqual(1, _client.Holes, "more than one datagram missing means the router ran ahead of us");
+        }
+
+        [TestMethod]
+        public void ASustainedRunOfWideGapsIsWhatTheCallerIsWarnedAbout()
+        {
+            // The count is the signal MacTelnetUdpClient acts on, and it acts only above one: a single wide
+            // gap is refilled by one retransmit, a run of them is the backlog state. Measured on the suite's
+            // MAC-Telnet leg — the reads that came back short had 4, 29, 30 and 31; every intact read had
+            // at most one.
+            Assert.IsTrue(_client.Deliver(0, 1450));
+            Assert.IsFalse(_client.Deliver(10000, 1450));
+            Assert.IsFalse(_client.Deliver(30000, 1450));
+            Assert.IsFalse(_client.Deliver(50000, 1450));
+
+            Assert.AreEqual(3, _client.Holes);
+        }
+
+        [TestMethod]
+        public void TheYardstickIsTheLargestPayloadTheRouterHasActuallySent()
+        {
+            // A session whose packets are small must not inherit a generous allowance: the same 1000-byte
+            // gap is one datagram for a 1450-byte sender and several for a 200-byte one.
+            Assert.IsTrue(_client.Deliver(0, 200));
+
+            Assert.IsFalse(_client.Deliver(1200, 200));
+            Assert.AreEqual(1, _client.Holes);
+        }
+
+        [TestMethod]
+        public void AnExactlyContiguousPacketIsNoHoleAtAll()
+        {
+            Assert.IsTrue(_client.Deliver(0, 1450));
+            Assert.IsTrue(_client.Deliver(1450, 1450), "contiguous — accepted");
+            Assert.AreEqual(0, _client.Holes);
+        }
+
+        [TestMethod]
+        public void ADuplicateIsDroppedWithoutCondemningTheResponse()
+        {
+            Assert.IsTrue(_client.Deliver(0, 1450));
+            Assert.IsTrue(_client.Deliver(1450, 1450));
+
+            Assert.IsFalse(_client.Deliver(0, 1450), "already have these bytes");
+            Assert.AreEqual(0, _client.Holes, "a retransmit we did not need says nothing about the answer");
+        }
+
+        [TestMethod]
+        public void TheCountIsPerCommand()
+        {
+            Assert.IsTrue(_client.Deliver(0, 1450));
+            Assert.IsFalse(_client.Deliver(1450 + 1451, 1450));
+            Assert.AreEqual(1, _client.Holes);
+
+            _client.ClearHoles();
+
+            Assert.AreEqual(0, _client.Holes, "losses during the previous command must not fail this one");
+        }
+
         /// <summary>
         /// Drives <see cref="MacLayerTransport"/> against a loopback peer instead of a router, and exposes the
         /// protected reliability surface. Deliberately bypasses <c>BaseConnect</c>: NIC selection, MNDP and
@@ -445,6 +528,9 @@ namespace tik4net.unittests.MacTelnet
             }
 
             internal void SendData(byte[] payload) => Send(PKT_DATA, payload);
+            internal bool Deliver(uint counter, int payloadLen) => AckData(counter, payloadLen);
+            internal int  Holes => DataHoles;
+            internal void ClearHoles() => ResetDataHoles();
             internal void Ack(uint counter) => NoteAck(counter);
             internal bool Retransmit() => RetransmitIfUnacked();
             internal bool Abandoned => LastSendAbandoned;

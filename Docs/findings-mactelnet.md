@@ -74,7 +74,7 @@ is a login that times out waiting for a shell prompt — several layers away fro
 
 ---
 
-## 2. VT100 cursor-probe width negotiation is mandatory, and the width must be large
+## 2. VT100 cursor-probe width negotiation is mandatory, and the width must be reachable
 
 After authentication RouterOS **measures the terminal** with a sequence of cursor moves plus `ESC[6n`
 (DSR). The client must answer with the cursor position `ESC[row;colR` (handled by `Vt100State`).
@@ -312,6 +312,54 @@ Both parsers that emit RECV lines — `MacTelnetUdpClient.TryParsePacket` and `R
 the session key, so a trace can be split by `key=` and read one session at a time. This is not cosmetic:
 untagged inbound lines get attributed to whichever session opened last, and a per-session reconstruction
 of a **green** run then reports hundreds of stream holes that never happened.
+
+### 9.6 A large response can come back short, and the stream cannot show it
+
+Measured 2026-09-08 on 7.24, against a 1672-row `/ip firewall mangle` table (~330 KB over two queries).
+Over `mactelnet` the same `LoadList` returned **413 rows** and reported success.
+
+What the trace shows, reconstructed packet by packet from `mactelnet.udp`:
+
+| | |
+|---|---|
+| accepted DATA packets | 165 of 378 — 53 dropped for a missing predecessor, 213 as duplicates |
+| accepted stream | **contiguous**: every accepted packet started exactly at `_inCounter` |
+| retransmits carrying new bytes we discarded | **zero** — the reassembly loses nothing |
+| the response | ended at a real shell prompt, on the table's genuine last row |
+| the content | one gap, 1258 rows, spliced mid-record at a packet boundary |
+
+The splice reads `…passthrough=false;.id=` + `150);passthrough=fal` + `10.43.26.0/24_UP;…`, and it sits
+between two packets whose counters join perfectly (61100 + 1450 = 62550).
+
+**So the router's byte counter does not describe the content it sends.** Once a retransmission episode
+starts, RouterOS discards a run of its own terminal output and carries on counting as if it had sent it.
+The client receives a well-formed, prompt-terminated, counter-contiguous response with rows missing from
+the middle, and there is nothing in the stream to detect it by. A 64 KiB → 1 MiB receive buffer does not
+change it, and neither does sending one re-ACK per hole episode instead of one per packet — both measured.
+
+Since the loss cannot be seen, the client judges the answer by the shape of the packet loss instead, on two
+counts. `AckData` counts a gap only when it is **wider than one datagram** — sub-datagram gaps (4–528 B on
+this lab, the login-phase packets) are ordinary loss the router refills exactly. `MacTelnetUdpClient` then
+refuses the response with `TikConnectionResponseIncompleteException` only when that count is **above one**:
+a single wide gap is recovered by one retransmit, whereas a sustained run of them is the state in which the
+router starts discarding output.
+
+**Both thresholds are empirical, and neither is sharp.** Judging on a single wide gap was tried first and
+is clearly wrong — it condemned seven sub-kilobyte responses (265 to 671 characters) on one suite leg. On
+that leg the reads that actually came back short had 4, 29, 30 and 31 wide gaps, which looked like a clean
+separation; the next leg produced two wide gaps on a 3.6 KB read and on an empty one, so the populations do
+overlap and the rule raises the occasional false alarm.
+
+That trade is deliberate rather than accidental: a spurious "this may be incomplete, retry it" costs a
+re-read, while the behaviour it replaces hands back a quarter of a table as though it were the table. It is
+not the end state. **The better design is to retry rather than throw** — a re-read makes the accuracy of the
+threshold stop mattering — and what blocks it today is that the transport cannot tell a read from a write,
+so it cannot know the command is safe to replay. A write is never large enough to trip the rule in practice,
+but "in practice" is not good enough to replay an `add` on.
+
+What this does **not** fix is throughput: the MAC layer still moves 7–15 KB/s against Telnet's ~70 KB/s
+and cannot finish a read this size inside the 30 s receive deadline. Holding out-of-order packets in a
+reorder buffer, so recovery costs one retransmit instead of a backlog replay, is the untried candidate.
 
 ## 10. Router-side prerequisites
 

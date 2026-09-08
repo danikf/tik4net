@@ -555,6 +555,29 @@ namespace tik4net.MacTelnet
                     + " clientType=0x" + _clientType.ToString("x4"));
         }
 
+        // Incremented on the reader thread, read on the caller's: Interlocked/Volatile, not a plain int.
+        private int _dataHoles;
+
+        // Largest DATA payload the router has sent on this session — the yardstick for whether a hole is
+        // one lost datagram or a backlog. Learned, because the payload size is the router's choice.
+        private int _maxPayloadSeen;
+
+        /// <summary>
+        /// How many times, since <see cref="ResetDataHoles"/>, a DATA packet has arrived more than one
+        /// datagram past the last byte we hold. Zero means every gap was small enough for the router to fill
+        /// with a single exact retransmit.
+        /// </summary>
+        /// <remarks>
+        /// The distinction matters because only the wide gaps are dangerous: they mean the router had
+        /// already streamed a backlog past us, and see
+        /// <see cref="TikConnectionResponseIncompleteException"/> for what RouterOS was measured to do to
+        /// its own output in that state, and why a caller must not be handed the result.
+        /// </remarks>
+        protected int DataHoles => Volatile.Read(ref _dataHoles);
+
+        /// <summary>Zeroes <see cref="DataHoles"/>, so the next command is judged on its own losses.</summary>
+        protected void ResetDataHoles() => Interlocked.Exchange(ref _dataHoles, 0);
+
         /// <summary>
         /// Acknowledges a received DATA packet and reports whether it carries new data.
         /// <para>
@@ -584,6 +607,13 @@ namespace tik4net.MacTelnet
                     Diagnostics.TikWireTrace.Emit(WireTraceChannel, Diagnostics.TikWireDir.Note,
                         "HOLE counter=" + counter + " expected=" + _inCounter
                         + " missing=" + (counter - _inCounter) + TraceTag);
+                // Only a hole the router cannot fill with ONE exact retransmit counts against the answer.
+                // A sub-datagram gap is ordinary loss and is recovered byte-for-byte; a gap wider than the
+                // largest packet this session has carried means the router had already streamed a backlog
+                // past us, which is the state in which it was measured to discard its own output. The yard-
+                // stick is learned rather than assumed, because the payload size is the router's choice.
+                if (counter - _inCounter > (uint)Volatile.Read(ref _maxPayloadSeen))
+                    Interlocked.Increment(ref _dataHoles);
                 SendAck(_inCounter);
                 return false;
             }
@@ -598,6 +628,8 @@ namespace tik4net.MacTelnet
                 return false;
             }
 
+            if (payloadLen > Volatile.Read(ref _maxPayloadSeen))
+                Volatile.Write(ref _maxPayloadSeen, payloadLen);
             _inCounter = counter + (uint)payloadLen;
             SendAck(_inCounter);
             return true;

@@ -394,6 +394,50 @@ namespace tik4net
     }
 
     /// <summary>
+    /// Thrown when a response arrived whole and well-formed but cannot be trusted to be complete, because
+    /// the transport lost datagrams while it was being delivered.
+    /// </summary>
+    /// <remarks>
+    /// <para>Raised by the MAC-layer transports, whose carrier is UDP with a cumulative byte counter. When a
+    /// datagram is lost the client holds its acknowledgement at the last contiguous byte so the router
+    /// resends — and measured on 7.24, RouterOS answers a retransmission episode by <b>discarding a run of
+    /// its own terminal output and carrying on with an unbroken counter</b>. The response then ends
+    /// normally, at a real shell prompt, with rows missing from the middle and nothing in the stream to say
+    /// so: one measured read of a 1672-row table returned 413 rows, contiguous by counter, spliced
+    /// mid-record where the skip happened.</para>
+    /// <para>So the loss cannot be detected from the response — only the packet loss that causes it can, and
+    /// that is what this exception reports. It does not mean the answer <i>is</i> short; it means nothing
+    /// here can promise it is not, and a short table silently accepted as the whole table is the failure
+    /// this library refuses to hand a caller. Retry the command: the loss is transient, and a read that
+    /// completes without loss is exact. For a table this large, prefer a transport that is not on the MAC
+    /// layer.</para>
+    /// </remarks>
+    public class TikConnectionResponseIncompleteException : TikConnectionException
+    {
+        /// <summary>How many datagrams were dropped for missing predecessors while this response arrived.</summary>
+        public int LostDatagrams { get; }
+
+        /// <summary>The response text that did arrive — exposed for diagnosis, never as a result.</summary>
+        public string? PartialResponse { get; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TikConnectionResponseIncompleteException"/> class.
+        /// </summary>
+        /// <param name="message">Diagnostic message naming the transport, the command and the loss.</param>
+        /// <param name="lostDatagrams">How many datagrams were dropped while the response arrived.</param>
+        /// <param name="partialResponse">The text that did arrive, if the transport captured it.</param>
+        /// <param name="innerException">The underlying failure, if any.</param>
+        public TikConnectionResponseIncompleteException(string message, int lostDatagrams,
+                                                        string? partialResponse = null,
+                                                        Exception? innerException = null)
+            : base(message, innerException)
+        {
+            LostDatagrams = lostDatagrams;
+            PartialResponse = partialResponse;
+        }
+    }
+
+    /// <summary>
     /// Thrown when a feature is invoked on a transport that does not report the required
     /// <see cref="TikConnectionCapability"/>. Check <see cref="ITikConnection"/> support up front with
     /// <see cref="TikConnectionCapabilityExtensions.Supports"/> to avoid it. See the
