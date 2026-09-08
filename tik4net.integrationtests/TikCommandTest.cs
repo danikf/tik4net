@@ -453,10 +453,27 @@ namespace tik4net.integrationtests
             cmd.ExecuteNonQuery();
         }
 
+        /// <summary>
+        /// The router refuses a second copy of an address it already holds — but only of an <b>enabled</b>
+        /// one. A duplicate of a disabled address is accepted, verified against a live router by adding the
+        /// same address twice with the first row enabled (refused: "already have such address") and again
+        /// with it disabled (accepted). So the test brings its own enabled row rather than duplicating
+        /// whatever <c>LoadAll().First()</c> happens to return: the lab's first address is a disabled one on
+        /// the spare port, and against that the add legitimately succeeds and the test failed on every
+        /// transport, the binary API included.
+        /// <para>The fixture is created enabled, against the suite's usual rule for rows the router enforces,
+        /// because being enabled is the whole precondition. It is a /30 on the spare interface, so the only
+        /// thing it can affect is its own connected route.</para>
+        /// </summary>
         [TestMethod]
         public void CreateDuplicitEntity_WillThrowCorrectException()
         {
-            var ipAddr = Connection.LoadAll<IpAddress>().First();
+            var ipAddr = SaveTracked(new IpAddress
+            {
+                Address = "10.255.255.1/30",
+                Interface = TestConstants.SecondInterface,
+                Comment = "t4n" + Guid.NewGuid().ToString("N").Substring(0, 12),
+            });
 
             var newAddr = new IpAddress() { Address = ipAddr.Address, Netmask = ipAddr.Netmask, Network = ipAddr.Network, Interface = ipAddr.Interface };
             // Not [ExpectedException]: if Save unexpectedly succeeds it creates a duplicate address that
