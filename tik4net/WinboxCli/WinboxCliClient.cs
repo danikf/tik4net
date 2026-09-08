@@ -47,10 +47,11 @@ namespace tik4net.WinboxCli
         // genuine stall, never multi-batch streaming.
         private const int PullIntervalMs = 120;
 
-        // Very wide terminal — prevents line-wrapping of long ':put … as-value' records. RouterOS probes
-        // width with 'ESC[9999C ESC[6n', so the cursor reply caps near 10000 columns; the width here must
-        // exceed that so the full width is advertised (see findings-mactelnet.md / chapter E).
-        private readonly Vt100State _vt100 = new Vt100State(65535, 25);
+        // Answers RouterOS VT100 cursor-probe negotiation (shared PTY logic). Without truthful
+        // cursor replies RouterOS assumes a 1x1 terminal and emits no command output; the width the
+        // shared state advertises is what keeps RouterOS from wrapping long ':put' as-value records
+        // into the data (Vt100State.RouterOsWidth explains why it is a reachable column, not a huge one).
+        private readonly Vt100State _vt100 = Vt100State.ForRouterOs();
         private readonly IWinboxM2Channel _session;
         private readonly Encoding _encoding;
         private readonly int _receiveTimeoutMs;

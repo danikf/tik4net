@@ -32,15 +32,14 @@ namespace tik4net.MacTelnet
         // How long a waiting reader blocks for the pump to signal new terminal text.
         private const int    ReadWaitMs  = 25;
 
-        // Very wide terminal — prevents line-wrapping of long ':put … as-value' records.
-        // RouterOS probes terminal width with 'ESC[9999C ESC[6n', so the cursor-position reply is
-        // capped at ~10000 columns; the width here must exceed that for the full width to be
-        // advertised (a value <10000 would itself clamp the reply and re-introduce wrapping, which
-        // corrupts as-value parsing — see findings-mactelnet.md).
         /// <inheritdoc/>
         protected override string WireTraceChannel => "mactelnet.udp";
 
-        private readonly Vt100State     _vt100 = new Vt100State(65535, 25);
+        // Answers RouterOS VT100 cursor-probe negotiation (shared PTY logic). Without truthful
+        // cursor replies RouterOS assumes a 1x1 terminal and emits no command output; the width the
+        // shared state advertises is what keeps RouterOS from wrapping long ':put' as-value records
+        // into the data (Vt100State.RouterOsWidth explains why it is a reachable column, not a huge one).
+        private readonly Vt100State     _vt100 = Vt100State.ForRouterOs();
         private readonly Encoding       _encoding;
         private readonly int            _receiveTimeoutMs;
         private readonly int            _loginTimeoutMs;

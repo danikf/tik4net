@@ -86,9 +86,9 @@ A large hint (e.g. 65535) makes RouterOS return an error response with no SESSIO
 symptom as §1, a different cause.
 
 The actual terminal width is negotiated afterwards by the **VT100 cursor probe**
-(`ESC[9999C ESC[6n`), answered with `Vt100State(65535, 25)`; the reply caps at ~9999 columns, which is
-enough to keep long `print as-value` lines from wrapping (same principle as MAC-Telnet — see
-[findings-mactelnet.md](findings-mactelnet.md) §2).
+(`ESC[9999C ESC[6n`), answered from `Vt100State.ForRouterOs()` — the same width every PTY transport
+advertises, and one the probe can reach, which is what keeps RouterOS from wrapping long
+`print as-value` lines into the data. See [findings-cli.md](findings-cli.md) §6.
 
 ---
 

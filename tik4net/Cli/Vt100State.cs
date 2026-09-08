@@ -17,6 +17,37 @@ namespace tik4net.Cli
     /// </summary>
     internal sealed class Vt100State
     {
+        /// <summary>
+        /// Terminal width every PTY transport advertises, and <see cref="RouterOsHeight"/> the height.
+        /// </summary>
+        /// <remarks>
+        /// <para>RouterOS measures the width by parking the cursor at column 1, sending
+        /// <c>ESC[9999C</c> (cursor forward) and asking where it ended up, then printing one space and
+        /// asking again. The answer to the second question is the one that matters: a terminal that
+        /// reports the next column has told RouterOS it does <b>not</b> wrap, so RouterOS wraps the
+        /// output itself and inserts a <c>\r\n</c> into the byte stream; a terminal that reports row+1,
+        /// column 1 has shown it wraps on its own, and RouterOS then leaves the stream alone.</para>
+        /// <para>So the advertised width has to be a column the cursor-forward probe can actually
+        /// <b>reach</b> — at most <c>1 + 9999</c>. Above that, <see cref="Width"/> never saturates, the
+        /// wrap is never demonstrated, and RouterOS hard-wraps at 10 000 characters. Measured on 7.24
+        /// against 681 queue trees: at 65535 the reply is <c>ESC[1;10000R</c> and a <c>\r\n</c> lands
+        /// every 10 002 characters — mid-token, which the as-value parser reads as a multi-value
+        /// continuation (findings-cli.md §1) and reports as a type error on a field the router never sent. At 4096 the
+        /// reply is <c>ESC[1;4096R</c> followed by <c>ESC[2;1R</c> and the 316 KB response carries no
+        /// wrap at all. See Docs/findings-cli.md §6.</para>
+        /// </remarks>
+        public const int RouterOsWidth = 4096;
+
+        /// <summary>Terminal height advertised with <see cref="RouterOsWidth"/>.</summary>
+        public const int RouterOsHeight = 25;
+
+        /// <summary>
+        /// The terminal every PTY transport advertises to RouterOS. Shared so the width cannot drift
+        /// between transports: a transport advertising an unreachable width corrupts every response longer
+        /// than 10 000 characters, and does it silently.
+        /// </summary>
+        public static Vt100State ForRouterOs() => new Vt100State(RouterOsWidth, RouterOsHeight);
+
         public int Width  { get; }
         public int Height { get; }
         public int Row    { get; private set; } = 1;

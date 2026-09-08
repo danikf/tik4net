@@ -511,11 +511,33 @@ it at a password-protected account to exercise SSH refusal.
 
 Without responses to RouterOS's cursor probe (`ESC[6n` → cursor report `ESC[row;colR`), the router
 treats the terminal as 1×1 and renders no command output — typically just `…\r\n\r\r\r\r] > ` with
-nothing else. `Vt100State` tracks cursor position and answers every probe. The width advertised must
-be **large** (not 80): RouterOS measures width with `ESC[9999C ESC[6n`, so the reported column is
-`min(Vt100State.Width, ~10000)` — `Width` must be at least 10000, or the client truncates its own
-answer, RouterOS measures a narrow terminal, and long `as-value` lines get wrapped with `\r\n` inserted
-into the data. For the MAC-Telnet framing of the same negotiation (and the ACK-offset requirement it
+nothing else. `Vt100State` tracks cursor position and answers every probe.
+
+### The advertised width must be a column the probe can reach
+
+RouterOS does not just measure the width, it asks whether the terminal wraps at it. The probe, captured
+on 7.24, is `ESC[H ESC[9999C ESC[6n` — home, drive the cursor as far right as it goes, report — followed
+by a space and `ESC[6n` again:
+
+| reply to the second `ESC[6n` | what RouterOS concludes | what it does to the output |
+|---|---|---|
+| row+1, column 1 | the terminal wraps on its own | leaves the byte stream alone |
+| the next column | the terminal never wraps | wraps the output itself, inserting `\r\n` into the data |
+
+So `Vt100State.Width` must be **reachable** by a cursor-forward of 9999 from column 1 — at most 10 000.
+Above that the column never saturates, the wrap is never demonstrated, and RouterOS hard-wraps at
+10 000 characters, in the middle of whatever token is there. The as-value parser then reads the fragment
+after the break as a multi-value continuation of the previous field (§1) and reports a type error naming
+a field the router never sent.
+
+The *value* barely matters, only its reachability: the integration suite's own probe clients advertise
+80×25 and have never seen a wrapped record either. Every PTY transport takes the width from one place,
+`Vt100State.ForRouterOs()`, currently 4096×25.
+Measured against 681 queue trees (a 174 KB `print detail` plus a 142 KB `print stats`): at 4096 the
+replies are `ESC[1;4096R`, `ESC[2;1R`, `ESC[2;2R` and neither response carries a single wrap; at 65535
+they are `ESC[1;10000R`, `ESC[1;10001R`, `ESC[1;10002R` and a `\r\n` lands every 10 002 characters.
+
+For the MAC-Telnet framing of the same negotiation (and the ACK-offset requirement it
 depends on) see [findings-mactelnet.md](findings-mactelnet.md) §2.
 
 ---

@@ -26,10 +26,11 @@ namespace tik4net.Ssh
         private readonly Encoding _encoding;
         private readonly int _receiveTimeoutMs;
 
-        // Answers RouterOS VT100 cursor-probe negotiation (shared PTY logic). Without truthful cursor
-        // replies RouterOS assumes a 1×1 terminal and emits no command output. The width is advertised
-        // wide (not 80) so RouterOS does not wrap long ':put' as-value records into multiple lines.
-        private readonly Vt100State _vt100 = new Vt100State(4096, 25);
+        // Answers RouterOS VT100 cursor-probe negotiation (shared PTY logic). Without truthful
+        // cursor replies RouterOS assumes a 1x1 terminal and emits no command output; the width the
+        // shared state advertises is what keeps RouterOS from wrapping long ':put' as-value records
+        // into the data (Vt100State.RouterOsWidth explains why it is a reachable column, not a huge one).
+        private readonly Vt100State _vt100 = Vt100State.ForRouterOs();
 
         internal SshShellClient(Encoding encoding, int receiveTimeoutMs)
         {

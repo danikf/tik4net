@@ -84,14 +84,15 @@ Without answers the router assumes 1×1 and renders nothing.
 |---|---|---|
 | `ESC Z` | DECID | `ESC[?1;0c` |
 | `ESC[6n` | DSR (position query) | `ESC[{Row};{Col}R` |
-| `ESC[H` … `ESC[9999C` … `ESC[6n` | **width measurement** (go as far right as possible, where are you?) | `ESC[1;{min(Width,10000)}R` |
+| `ESC[H` … `ESC[9999C` … `ESC[6n` | **width measurement** (go as far right as possible, where are you?) | `ESC[1;{min(Width,1+9999)}R` |
 | `ESC[9999B` / `ESC[9999A` / `ESC D` / `ESC[r` | height / scroll-region measurement | tracking Row |
 | `ESC[H ě H ESC[6n` | UTF-8 test (multi-byte character = 1 column) | `ESC[1;3R` |
 
-**The measuring probe is `ESC[9999C`**, so the reported column is `min(Vt100State.Width, ~1+9999)`.
-`Width` must therefore be **≥ 10000**, or `Vt100State` truncates its own answer, the router measures a
-narrow terminal, long `as-value` lines wrap, and `\r\n` lands inside the data. Production uses
-`Vt100State(65535, 25)`. See [findings-cli.md](findings-cli.md) §6.
+**The measuring probe is `ESC[9999C`**, so the reported column is `min(Vt100State.Width, 1+9999)` and
+the width must be a column that probe can **reach**: at 65535 it never saturates, RouterOS reads the
+terminal as one that does not wrap, and hard-wraps the output itself at 10 000 characters — `\r\n`
+inside the data. Production takes the width from `Vt100State.ForRouterOs()` (4096×25), shared with every
+other PTY transport. See [findings-cli.md](findings-cli.md) §6, which has the measurement.
 
 `CTRL_TERM_WIDTH` in the auth exchange (`(ushort)80`, little-endian) is **ignored** by RouterOS once
 the cursor-probe has run — it uses the measured width. It does not block login and is left at 80.
