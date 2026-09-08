@@ -133,6 +133,33 @@ namespace tik4net.unittests.Winbox
         }
 
         /// <summary>
+        /// The other direction, which had no test and did not work: a request too big for one chunk was
+        /// written whole behind a single <c>0xFF</c> length byte, which says "255 bytes and another chunk
+        /// follows" to the router and to our own reader alike (X-1). The fake reads the frame the way the
+        /// wire format defines it, not the way the client used to write it, so this fails until the client
+        /// chunks.
+        /// </summary>
+        [TestMethod]
+        public async Task Send_ChunksARequestTooBigForOneChunk()
+        {
+            byte[] payload = Enumerable.Range(0, 900).Select(i => (byte)(i % 251)).ToArray();
+            byte[] request = M2Message.BuildM2(
+                M2Message.SysToArr(24, 1), M2Message.SysFrom(),
+                M2Message.U8Sys(WinboxM2Protocol.SysKey.RequestId, 5),
+                M2Message.RawUser(0x0C, payload));
+            byte[] sent = null;
+
+            // Asserted after WithSession returns, not inside the client script: Send is fire-and-forget, so
+            // the server's read is only known to have finished once the scripted server task has been
+            // awaited.
+            await WithSession(
+                server => sent = server.ReadRawFrame(),
+                (session, server) => session.Send(request));
+
+            CollectionAssert.AreEqual(request, sent, "A multi-chunk request must arrive byte-for-byte.");
+        }
+
+        /// <summary>
         /// A response whose body is an exact multiple of the 255-byte chunk size needs a trailing
         /// zero-length chunk to terminate — otherwise the reader waits for a continuation that never comes.
         /// Boundary case of the framing in <c>WinboxTcpTransport.SendChunked</c>.

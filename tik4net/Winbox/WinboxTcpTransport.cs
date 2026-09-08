@@ -80,29 +80,41 @@ namespace tik4net.Winbox
                 TikWireTrace.Emit("wbxtcp.frame", TikWireDir.Send, data, 0, data.Length,
                     "tag=0x" + firstTag.ToString("x2"));
 
+            byte[] frame = Chunk(data, firstTag);
+            _ns.Write(frame, 0, frame.Length);
+        }
+
+        /// <summary>
+        /// Splits <paramref name="data"/> into WinBox chunks — <c>[len 1B][tag 1B][data]</c>, the first
+        /// carrying <paramref name="firstTag"/> and every continuation <c>0xFF</c>.
+        /// </summary>
+        /// <remarks>
+        /// The one place the chunk rule is written down: both the encrypted and the raw send path go through
+        /// it, because a length of exactly <c>0xFF</c> means "255 bytes and more to come" to
+        /// <see cref="RecvChunked"/> and to the router. A payload of 255 bytes or more written unchunked is
+        /// unparseable by either — which is what the raw path did until this was factored out. A body whose
+        /// length is an exact multiple of 255 therefore ends with an explicit zero-length final chunk.
+        /// </remarks>
+        internal static byte[] Chunk(byte[] data, byte firstTag)
+        {
+            int chunks = data.Length / 0xFF + 1;
+            byte[] frame = new byte[data.Length + 2 * chunks];
+
             byte tag = firstTag;
-            int pos = 0;
+            int pos = 0, outPos = 0;
             while (true)
             {
                 int rem = data.Length - pos;
-                if (rem >= 0xFF)
-                {
-                    byte[] chunk = new byte[2 + 0xFF];
-                    chunk[0] = 0xFF; chunk[1] = tag;
-                    Buffer.BlockCopy(data, pos, chunk, 2, 0xFF);
-                    _ns.Write(chunk, 0, chunk.Length);
-                    pos += 0xFF;
-                }
-                else
-                {
-                    byte[] chunk = new byte[2 + rem];
-                    chunk[0] = (byte)rem; chunk[1] = tag;
-                    Buffer.BlockCopy(data, pos, chunk, 2, rem);
-                    _ns.Write(chunk, 0, chunk.Length);
-                    break;
-                }
+                int take = rem >= 0xFF ? 0xFF : rem;
+                frame[outPos++] = (byte)take;
+                frame[outPos++] = tag;
+                Buffer.BlockCopy(data, pos, frame, outPos, take);
+                outPos += take;
+                pos += take;
+                if (take < 0xFF) break;
                 tag = 0xFF;
             }
+            return frame;
         }
 
         public byte[] RecvChunked(byte expectedFirstTag)
@@ -144,25 +156,26 @@ namespace tik4net.Winbox
             _ns.Write(frameBytes, 0, frameBytes.Length);
         }
 
-        private static byte[] BuildRawFrame(byte[] m2)
+        /// <summary>
+        /// Builds one unencrypted frame: a 2-byte big-endian message length followed by the message,
+        /// carried by the same chunk layer as the encrypted path with <c>0x01</c> as the first tag.
+        /// </summary>
+        /// <remarks>
+        /// The inner length is redundant with the chunk lengths and the receive side ignores it
+        /// (<c>WinboxM2Session</c> skips the two bytes), but the router sends it and expects it.
+        /// </remarks>
+        internal static byte[] BuildRawFrame(byte[] m2)
         {
             int n = m2.Length;
-            if (n < 0xFF)
-            {
-                byte[] f = new byte[4 + n];
-                f[0] = (byte)(n + 2); f[1] = 0x01; f[2] = 0x00; f[3] = (byte)n;
-                Buffer.BlockCopy(m2, 0, f, 4, n);
-                return f;
-            }
-            else
-            {
-                byte[] lenBytes = BitConverter.GetBytes((ushort)n);
-                // Big-endian length
-                byte[] f = new byte[4 + n];
-                f[0] = 0xFF; f[1] = 0x01; f[2] = lenBytes[1]; f[3] = lenBytes[0];
-                Buffer.BlockCopy(m2, 0, f, 4, n);
-                return f;
-            }
+            if (n > ushort.MaxValue)
+                throw new ArgumentOutOfRangeException(nameof(m2),
+                    $"A raw WinBox frame carries a 2-byte length, so it cannot hold {n} bytes.");
+
+            byte[] body = new byte[2 + n];
+            body[0] = (byte)(n >> 8);
+            body[1] = (byte)n;
+            Buffer.BlockCopy(m2, 0, body, 2, n);
+            return Chunk(body, 0x01);
         }
 
         /// <summary>

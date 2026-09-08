@@ -301,17 +301,31 @@ namespace tik4net.Winbox
                 // the receive buffer and the next slice resumes reassembly where this one stopped.
                 if (frame == null) continue;
 
-                try { return WinboxStreamCrypto.Decrypt(frame, _receiveAesKey)!; } // undecryptable handled below, not by a null result
+                // Not a clean M2 frame — drop it and keep reading, as Receive does. Traced because a
+                // dropped frame is invisible by construction: the caller sees a read that produced
+                // nothing, which is also what a silent router looks like (P2.25), and this is the layer
+                // the MAC-side wedge (P2.19) lives on.
+                //
+                // BOTH failure shapes land here. Decrypt answers null for a wrong key, a bad pad or a
+                // truncated frame and throws only for a cryptographic fault, and null is this method's word
+                // for "the channel closed" — so returning it reported a corrupt frame to every waiter as an
+                // orderly shutdown (X-2). Frames are independently keyed here (each carries its own IV), so
+                // unlike the TCP session one bad frame does not desynchronize what follows it.
+                string? dropped = null;
+                try
+                {
+                    byte[]? plain = WinboxStreamCrypto.Decrypt(frame, _receiveAesKey);
+                    if (plain != null) return plain;
+                    dropped = "Decrypt returned null (wrong key, bad padding, or a truncated frame)";
+                }
                 catch (Exception ex)
                 {
-                    // Not a clean M2 frame — drop it and keep reading, as Receive does. Traced because a
-                    // dropped frame is invisible by construction: the caller sees a read that produced
-                    // nothing, which is also what a silent router looks like (P2.25), and this is the layer
-                    // the MAC-side wedge (P2.19) lives on.
-                    if (tik4net.Diagnostics.TikWireTrace.Enabled)
-                        tik4net.Diagnostics.TikWireTrace.Emit("wbxclimac.session", tik4net.Diagnostics.TikWireDir.Note,
-                            $"undecryptable {frame.Length}B frame dropped: {ex.GetType().Name}: {ex.Message}");
+                    dropped = $"{ex.GetType().Name}: {ex.Message}";
                 }
+
+                if (tik4net.Diagnostics.TikWireTrace.Enabled)
+                    tik4net.Diagnostics.TikWireTrace.Emit("wbxclimac.session", tik4net.Diagnostics.TikWireDir.Note,
+                        $"undecryptable {frame.Length}B frame dropped: {dropped}");
             }
             return null!;
         }

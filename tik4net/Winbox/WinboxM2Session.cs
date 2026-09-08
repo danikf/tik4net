@@ -179,9 +179,10 @@ namespace tik4net.Winbox
             try
             {
                 // The interface documents null as "channel closed"; its return type predates nullable
-                // annotations, so the contract is expressed here rather than in the signature.
+                // annotations, so the contract is expressed here rather than in the signature. A frame that
+                // does not decrypt must NOT take that path — see DecryptOrThrow.
                 if (_encrypted)
-                    return WinboxStreamCrypto.Decrypt(_transport.RecvChunked(EncryptedTag), _receiveAesKey)!;
+                    return DecryptOrThrow(_transport.RecvChunked(EncryptedTag), _receiveAesKey);
 
                 byte[] assembled = _transport.RecvChunked(RawTag);
                 return assembled.Length >= 2 ? assembled.Skip(2).ToArray() : assembled;
@@ -204,12 +205,33 @@ namespace tik4net.Winbox
             _transport.SetReceiveTimeout(timeoutMs);
             try
             {
-                byte[] assembled = _transport.RecvChunked(EncryptedTag);
-                // Decrypt is nullable (undecryptable frame); this method's own signature predates nullable
-                // annotations, and its documented contract already includes "may answer with garbage/null".
-                return WinboxStreamCrypto.Decrypt(assembled, _receiveAesKey)!;
+                return DecryptOrThrow(_transport.RecvChunked(EncryptedTag), _receiveAesKey);
             }
             finally { _transport.SetReceiveTimeout(old); }
+        }
+
+        /// <summary>
+        /// Decrypts one assembled frame, or throws naming what happened.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="WinboxStreamCrypto.Decrypt"/> answers <c>null</c> for a wrong key, a bad pad and a
+        /// truncated frame alike, and <c>null</c> is also this channel's word for "the socket closed" — so
+        /// returning it made a corrupt frame arrive at the caller as an orderly shutdown, with the reader
+        /// loop failing every waiter with "the WinBox M2 channel was closed". It is a protocol failure and is
+        /// reported as one, the same way <c>RecvChunked</c> reports a frame with the wrong tag: the session
+        /// is finished either way, but only one of the two messages sends the reader to the right place.
+        /// </remarks>
+        /// <param name="assembled">The reassembled ciphertext frame.</param>
+        /// <param name="receiveAesKey">The session's receive-side AES key.</param>
+        internal static byte[] DecryptOrThrow(byte[] assembled, byte[] receiveAesKey)
+        {
+            byte[]? plain = WinboxStreamCrypto.Decrypt(assembled, receiveAesKey);
+            if (plain == null)
+                throw new InvalidOperationException(
+                    $"A {assembled?.Length ?? 0}-byte encrypted WinBox M2 frame could not be decrypted "
+                    + "(wrong key, bad padding, or a truncated frame). The stream cannot be resynchronized, "
+                    + "so this session is finished — open a new connection.");
+            return plain;
         }
 
         private byte[] SendRecvRaw(byte[] m2, int timeoutMs)

@@ -91,25 +91,32 @@ namespace tik4net.integrationtests
             _ns.Write(frameBytes, 0, frameBytes.Length);
         }
 
+        // A 2-byte big-endian message length followed by the message, carried by the same chunk layer as
+        // the encrypted path with 0x01 as the first tag. Mirrors tik4net's WinboxTcpTransport.BuildRawFrame:
+        // a chunk length of 0xFF means "255 bytes and more to come", so a message of 253 bytes or more
+        // written as one chunk is unparseable by our own reader and by the router alike (X-1).
         private static byte[] BuildRawFrame(byte[] m2)
         {
             int n = m2.Length;
-            if (n < 0xFF)
+            byte[] body = new byte[2 + n];
+            body[0] = (byte)(n >> 8);
+            body[1] = (byte)n;
+            Buffer.BlockCopy(m2, 0, body, 2, n);
+
+            var frame = new List<byte>();
+            byte tag = 0x01;
+            int pos = 0;
+            while (true)
             {
-                byte[] f = new byte[4 + n];
-                f[0] = (byte)(n + 2); f[1] = 0x01; f[2] = 0x00; f[3] = (byte)n;
-                Buffer.BlockCopy(m2, 0, f, 4, n);
-                return f;
+                int take = Math.Min(body.Length - pos, 0xFF);
+                frame.Add((byte)take);
+                frame.Add(tag);
+                frame.AddRange(new ArraySegment<byte>(body, pos, take));
+                pos += take;
+                if (take < 0xFF) break;
+                tag = 0xFF;
             }
-            else
-            {
-                byte[] lenBytes = BitConverter.GetBytes((ushort)n);
-                // Big-endian
-                byte[] f = new byte[4 + n];
-                f[0] = 0xFF; f[1] = 0x01; f[2] = lenBytes[1]; f[3] = lenBytes[0];
-                Buffer.BlockCopy(m2, 0, f, 4, n);
-                return f;
-            }
+            return frame.ToArray();
         }
 
         /// <summary>

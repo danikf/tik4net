@@ -93,21 +93,39 @@ namespace tik4net.unittests.Winbox
 
         /// <summary>
         /// Reads one raw M2 frame sent by the client and returns the M2 message inside it.
-        /// Mirrors <c>WinboxTcpTransport.BuildRawFrame</c>: <c>[b0][0x01][innerLenHi][innerLenLo][m2]</c>,
-        /// where <c>b0 = n+2</c> for short messages and <c>0xFF</c> for long ones.
+        /// Mirrors <c>WinboxTcpTransport.BuildRawFrame</c>: the chunk layer (first chunk tagged
+        /// <c>0x01</c>, continuations <c>0xFF</c>) carrying <c>[innerLenHi][innerLenLo][m2]</c>.
         /// </summary>
+        /// <remarks>
+        /// Reassembles rather than reading a single chunk: a raw message of 253 bytes or more spans two
+        /// chunks, and reading only the first one is how X-1 stayed invisible — the fake agreed with the
+        /// client's own broken framing instead of with the wire format both ends share.
+        /// </remarks>
         public byte[] ReadRawFrame()
         {
-            byte[] hdr = ReadExact(2);
-            if (hdr[1] != RawTag)
-                throw new InvalidOperationException($"Expected raw frame tag 0x01, got 0x{hdr[1]:x2}.");
+            var assembled = new List<byte>();
+            bool first = true;
+            while (true)
+            {
+                byte[] hdr = ReadExact(2);
+                if (first && hdr[1] != RawTag)
+                    throw new InvalidOperationException($"Expected raw frame tag 0x01, got 0x{hdr[1]:x2}.");
+                first = false;
 
-            byte[] innerLen = ReadExact(2);
-            int n = hdr[0] == 0xFF
-                ? (innerLen[0] << 8) | innerLen[1]   // long form: real length in the inner header
-                : hdr[0] - 2;                        // short form: chunk length minus the inner header
+                assembled.AddRange(ReadExact(hdr[0]));
+                if (hdr[0] < 0xFF) break;
+            }
 
-            byte[] m2 = ReadExact(n);
+            if (assembled.Count < 2)
+                throw new InvalidOperationException(
+                    $"A raw frame carries a 2-byte inner length, but only {assembled.Count} byte(s) arrived.");
+
+            int n = (assembled[0] << 8) | assembled[1];
+            if (n != assembled.Count - 2)
+                throw new InvalidOperationException(
+                    $"The raw frame's inner length says {n} bytes, but {assembled.Count - 2} arrived.");
+
+            byte[] m2 = assembled.Skip(2).ToArray();
             ReceivedMessages.Add(m2);
             return m2;
         }

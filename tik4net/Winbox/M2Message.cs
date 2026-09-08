@@ -866,6 +866,12 @@ namespace tik4net.Winbox
                 case 0x20: return pos + 1 < data.Length ? 2 + BitConverter.ToUInt16(data, pos) : 2;
                 case 0x31: return pos < data.Length ? 1 + data[pos] : 1;
                 case 0x30: return pos + 1 < data.Length ? 2 + BitConverter.ToUInt16(data, pos) : 2;
+                // string long / raw long: a 4-byte length, the third size flag ReadLen already reads and the
+                // one this switch was missing. Nothing we send uses it and no reply has been seen carrying
+                // one, which is precisely why it had to be here: an unhandled type does not fail, it walks
+                // into the payload and turns every field after it into a garbage key.
+                case 0x22: return pos + 3 < data.Length ? 4 + (int)BitConverter.ToUInt32(data, pos) : 4;
+                case 0x32: return pos + 3 < data.Length ? 4 + (int)BitConverter.ToUInt32(data, pos) : 4;
                 case 0x29: return pos < data.Length ? 1 + data[pos] : 1;             // message short
                 case 0x28: return pos + 1 < data.Length ? 2 + BitConverter.ToUInt16(data, pos) : 2; // message normal
                 case 0x2A: return pos + 3 < data.Length ? 4 + (int)BitConverter.ToUInt32(data, pos) : 4; // message long

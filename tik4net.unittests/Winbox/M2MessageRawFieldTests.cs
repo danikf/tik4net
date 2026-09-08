@@ -92,5 +92,38 @@ namespace tik4net.unittests.Winbox
                 "A field behind the message-array must still be found — otherwise the walk misaligned.");
             Assert.AreEqual(265, sessionId);
         }
+
+        /// <summary>Builds a variable-length field with an explicit type byte and a 4-byte (long-form) length.</summary>
+        private static byte[] LongForm(int fullKey, byte typeByte, byte[] payload)
+            => new byte[] { (byte)(fullKey & 0xFF), (byte)((fullKey >> 8) & 0xFF), (byte)((fullKey >> 16) & 0xFF), typeByte }
+                .Concat(BitConverter.GetBytes((uint)payload.Length))
+                .Concat(payload)
+                .ToArray();
+
+        /// <summary>
+        /// The long-form string (<c>0x22</c>) and raw (<c>0x32</c>) fields had no case in
+        /// <c>SkipTypeBytes</c>: both fell to <c>default: return 0</c>, after which the walker read the
+        /// payload's own bytes as the next key and type. Every other size form of both types was handled, so
+        /// the gap was one flag bit wide and silent — the assertion is again on the field <b>behind</b> it,
+        /// because a misaligned walk never complains about the field that misaligned it.
+        /// </summary>
+        [DataTestMethod]
+        [DataRow((byte)0x22, DisplayName = "string, long form (4B length)")]
+        [DataRow((byte)0x32, DisplayName = "raw, long form (4B length)")]
+        public void SkipTypeBytes_WalksPastALongFormValue(byte typeByte)
+        {
+            // The payload length is chosen, not arbitrary. A skipped field is read as key/type/payload, and
+            // 0x09 (u8) makes that a 5-byte stride — so a payload that is a multiple of 5 puts the broken
+            // walk back on the boundary by accident and the test passes against the defect. 302 leaves it
+            // two bytes out and it never recovers.
+            byte[] m2 = M2Message.BuildM2(
+                M2Message.SysFrom(),
+                LongForm(Key, typeByte, Enumerable.Repeat((byte)0x09, 302).ToArray()),
+                M2Message.SessionIdField(265));
+
+            Assert.IsTrue(M2Message.TryParseSessionId(m2, out int sessionId),
+                "A field behind a long-form value must still be found — otherwise the walk misaligned.");
+            Assert.AreEqual(265, sessionId);
+        }
     }
 }
