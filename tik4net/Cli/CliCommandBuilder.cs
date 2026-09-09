@@ -506,6 +506,12 @@ namespace tik4net.Cli
         /// Supports negation (<c>!value</c>), comparison (<c>&gt;value</c>, <c>&lt;value</c>),
         /// and regex (<c>~pattern</c>) prefixes.
         /// </summary>
+        /// <summary>
+        /// True when these parameters produce a <c>where</c> clause — i.e. the read is filtered.
+        /// </summary>
+        internal static bool HasWhereClause(IList<ITikCommandParameter> parameters)
+            => !string.IsNullOrEmpty(BuildWhereClause(parameters));
+
         internal static string BuildWhereClause(IList<ITikCommandParameter> parameters)
         {
             // The filters are a postfix STACK, not a list of things to AND: the API's query words

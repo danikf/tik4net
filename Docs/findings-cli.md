@@ -113,6 +113,15 @@ Three consequences for the command shape:
 The cost is one request per window plus, when the row count is an exact multiple of the page, one final
 empty window to discover the end.
 
+**A filtered read is not windowed.** The window is taken over the unfiltered table and the caller's `where`
+is applied inside it, so filtering multiplies the work instead of shrinking it — measured over MAC-Telnet,
+49 matching rows of 1672 cost 9.6 s windowed and one queue tree found by name among 681 cost 4.1 s, against
+well under a second as a single command. `CanPage` therefore refuses a read that carries a `where`, and the
+MAC datagram-loss check covers those reads instead (it keys on whether *this command* was a window, not on
+whether the connection pages). Pushing the filter into `find` is what would fix it properly and is deferred:
+`find !(x)` is a syntax error and `BuildWhereClause` emits that form, so it needs a narrower rule than
+"always" — see the roadmap note.
+
 Two alternatives that do **not** work, both measured rather than reasoned about:
 
 - **`:foreach i in=[/path find] do={ :put [/path get $i] }`** produces one record per iteration, `.id`

@@ -142,6 +142,25 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
+        public void AFilteredReadIsNotPagedAtAll()
+        {
+            // Windows are taken over the unfiltered table, so filtering does not shrink the work — measured
+            // over MAC-Telnet at 9.6 s for 49 of 1672 rows. Until the filter can be pushed into 'find', the
+            // single command is the faster answer and the datagram-loss check covers it.
+            using (var conn = new PagingCliConnection(rowCount: 50))
+            {
+                conn.OpenScripted();
+                conn.CliReadPageSize = 2;
+
+                conn.LoadList<PagedProbe>(new FakeParam("name", "r3")).ToList();
+
+                Assert.AreEqual(1, conn.Sent.Count, string.Join(" | ", conn.Sent));
+                StringAssert.Contains(conn.Sent[0], "where name=r3");
+                Assert.IsFalse(conn.Sent[0].Contains(":pick"), conn.Sent[0]);
+            }
+        }
+
+        [TestMethod]
         public void AMenuThatCannotReportAWindowSizeIsReadInOneCommandInstead()
         {
             // Not every menu can be windowed — a singleton has no 'find' to pick from. Discovering that on

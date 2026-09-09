@@ -156,11 +156,13 @@ namespace tik4net.MacTelnet
             };
 
             // The datagram-loss check belongs here rather than in the client, because only this layer knows
-            // whether the read was paged. RouterOS can only discard output it had queued, and a paged read
-            // never gives it a queue — so applying the check to a slice condemns answers that are complete.
+            // whether THIS command was a window. RouterOS can only discard output it had queued, and a window
+            // never gives it a queue — applying the check to one condemns answers that are complete. Every
+            // other command still needs it, including the reads a paging connection leaves unpaged (a filter,
+            // or a menu with no 'find').
             string Vetted(string cmd, string response)
             {
-                if (CliReadPageSize == 0)
+                if (!IsWindowedReadInFlight)
                     client.ThrowIfResponseLostDatagrams(cmd, response);
                 return response;
             }

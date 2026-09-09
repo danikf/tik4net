@@ -913,20 +913,42 @@ namespace tik4net.Cli
         /// menu's id list and the caller's selector is applied inside it, so the row is simply absent from
         /// every window that does not contain it and the read fails with <c>no such item</c> — measured, 18
         /// tests on the MAC-Telnet leg.</para>
-        /// <para>The JSON path is excluded because <c>:serialize</c> support is discovered by trying it, and
-        /// a discovery that has not settled cannot be repeated per window without the fallback firing
-        /// inside the loop.</para>
+        /// <para>The JSON path is windowed too. Its <c>:serialize</c> discovery happens on the FIRST window
+        /// rather than before the loop: a connection starts not knowing, and leaving the discovery read
+        /// unpaged means the one read that most needs windowing — <c>/file print detail</c> — never gets it.
+        /// Nothing has been returned at that point, so the loop simply restarts as as-value.</para>
         /// <para>A menu with no <c>find</c> verb cannot be windowed at all; that one is not predictable from
         /// the descriptor, so it is handled by falling back when the router says so.</para>
         /// </remarks>
         private bool CanPage(TikCommandDescriptor descriptor, bool wantJson)
         {
-            if (CliReadPageSize <= 0 || wantJson)
+            if (CliReadPageSize <= 0)
                 return false;
+
             if (TikGetResult.FindInput(descriptor.Parameters, TikSpecialProperties.Id) != null)
+                return false;
+            // A filtered read is deliberately left unpaged for now. A window is taken over the UNFILTERED
+            // table and the filter applied inside it, so filtering does not shrink the work: measured over
+            // MAC-Telnet, 49 of 1672 mangle rows cost 9.6 s and finding one queue tree by name cost 4.1 s,
+            // both against well under a second unpaged. Pushing the filter into 'find' would fix it and is
+            // not done here — 'find !(x)' is a syntax error and this builder emits that form, so it needs a
+            // narrower rule than "always". Until then the single command is both faster and, for the row
+            // counts a filter usually leaves, small enough not to give the router a backlog — and it is
+            // covered by the datagram-loss check, which applies to exactly the reads that are not windowed.
+            if (CliCommandBuilder.HasWhereClause(descriptor.Parameters))
                 return false;
             return !_pagingUnavailable.Contains(descriptor.CommandText);
         }
+
+        /// <summary>
+        /// True while a windowed read's own command is on the wire. The MAC-layer datagram-loss check keys
+        /// on this rather than on <see cref="CliReadPageSize"/>: what it exists to catch is the router
+        /// discarding a backlog, which only a whole-table answer can produce, and a read left unpaged — a
+        /// filter, a singleton with no <c>find</c> — still needs covering even on a paging connection.
+        /// </summary>
+        protected bool IsWindowedReadInFlight => _windowedReadDepth > 0;
+
+        private int _windowedReadDepth;
 
         // Menus this connection has already found cannot be windowed — asked once, then remembered, so the
         // fallback costs one wasted request per menu per connection rather than one per read.
@@ -956,10 +978,22 @@ namespace tik4net.Cli
                 cancellationToken.ThrowIfCancellationRequested();
 
                 PagedWindow window;
+                _windowedReadDepth++;
                 try
                 {
                     window = await RunOneWindowAsync(descriptor, wantJson, buildCommand, offset, pageSize,
                         cancellationToken).ConfigureAwait(false);
+                }
+                catch (TikCommandException) when (offset == 0 && wantJson && _serializeSupported == null)
+                {
+                    // The router refused ':serialize' and we did not yet know whether it can. Nothing has
+                    // been handed back, so settle the question and take the same table again as as-value.
+                    _serializeSupported = false;
+                    TikWireTrace.Emit("cli.json", TikWireDir.Note,
+                        "':serialize to=json' refused inside a paged read — this router is pre-7.13; "
+                            + "re-reading as-value for the rest of this connection");
+                    offset = -pageSize;   // the loop's increment puts it back to 0
+                    continue;
                 }
                 catch (TikNoSuchCommandException)
                 {
@@ -972,6 +1006,10 @@ namespace tik4net.Cli
                     TikWireTrace.Emit("cli.page", TikWireDir.Note,
                         "'" + descriptor.CommandText + "' has no 'find' verb — reading it in a single command");
                     return null;
+                }
+                finally
+                {
+                    _windowedReadDepth--;
                 }
 
                 if (window.WindowSize < 0)
@@ -1013,7 +1051,8 @@ namespace tik4net.Cli
             TikCommandDescriptor descriptor, bool wantJson, Func<bool, string?, string> buildCommand,
             int offset, int pageSize, CancellationToken cancellationToken)
         {
-            string inner = buildCommand(false, CliCommandBuilder.WindowVariable);
+            bool asJson = wantJson && _serializeSupported != false;
+            string inner = buildCommand(asJson, CliCommandBuilder.WindowVariable);
             string cliText = CliCommandBuilder.BuildPagedWindow(descriptor.CommandText, inner, offset, pageSize);
 
             string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false);
@@ -1023,7 +1062,12 @@ namespace tik4net.Cli
             if (windowSize < 0)
                 return new PagedWindow(new List<TikRecordSentence>(), -1);   // caller decides: fall back
 
-            return new PagedWindow(ParseRecords(body, descriptor), windowSize);
+            IList<TikRecordSentence> parsed = asJson
+                ? CliJsonParser.ParseJson(body)
+                : ParseRecords(body, descriptor);
+            if (asJson)
+                _serializeSupported = true;
+            return new PagedWindow(parsed, windowSize);
         }
 
         /// <summary>
