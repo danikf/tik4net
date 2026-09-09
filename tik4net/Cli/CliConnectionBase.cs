@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Text;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -51,8 +53,25 @@ namespace tik4net.Cli
     /// <see cref="ITikConnection"/>.</para>
     /// </remarks>
     public abstract class CliConnectionBase : TikCommandConnectionBase, ITikCliConnection,
-        ITikMonitorTransport, IPollingMonitorHost
+        ITikMonitorTransport, IPollingMonitorHost, ITikCliPagedReadConnection
     {
+        /// <inheritdoc/>
+        public int CliReadPageSize
+        {
+            get => _cliReadPageSize;
+            set
+            {
+                if (value < 0)
+                    throw new System.ArgumentOutOfRangeException(nameof(value),
+                        "CliReadPageSize is a row count; use 0 to read each table in a single command.");
+                _cliReadPageSize = value;
+            }
+        }
+
+        // Set by the MAC-layer terminals in their constructors (see ITikCliPagedReadConnection), and by
+        // TikConnectionSetup only when the caller asked for a value.
+        private int _cliReadPageSize;
+
         /// <summary>Interval between monitor-snapshot polls (ms). Sub-second so callers see a fresh reading
         /// promptly; RouterOS GUI/webfig refresh ~1 s but a terminal snapshot is cheap.</summary>
         private const int MonitorPollIntervalMs = 500;
@@ -703,17 +722,17 @@ namespace tik4net.Cli
             {
                 // Normal single-query path.
                 return await RunPrintQueryAsync(descriptor, wantJson,
-                    json => CliCommandBuilder.BuildPrint(descriptor.CommandText, descriptor.Parameters, json),
+                    (json, from) => CliCommandBuilder.BuildPrint(descriptor.CommandText, descriptor.Parameters, json, from),
                     cancellationToken).ConfigureAwait(false);
             }
 
             // Two-query path: detail (config) + stats (counters), merged by .id.
             IList<TikRecordSentence> configRecords = await RunPrintQueryAsync(descriptor, wantJson,
-                json => CliCommandBuilder.BuildPrint(descriptor.CommandText, descriptor.Parameters, json),
+                (json, from) => CliCommandBuilder.BuildPrint(descriptor.CommandText, descriptor.Parameters, json, from),
                 cancellationToken).ConfigureAwait(false);
 
             IList<TikRecordSentence> statsRecords = await RunPrintQueryAsync(descriptor, wantJson,
-                json => CliCommandBuilder.BuildPrintStats(descriptor.CommandText, descriptor.Parameters, json),
+                (json, from) => CliCommandBuilder.BuildPrintStats(descriptor.CommandText, descriptor.Parameters, json, from),
                 cancellationToken).ConfigureAwait(false);
 
             // Build index of stats records by .id for O(1) lookup.
@@ -870,14 +889,177 @@ namespace tik4net.Cli
         /// </para>
         /// </summary>
         private async Task<IList<TikRecordSentence>> RunPrintQueryAsync(
-            TikCommandDescriptor descriptor, bool wantJson, Func<bool, string> buildCommand,
+            TikCommandDescriptor descriptor, bool wantJson, Func<bool, string?, string> buildCommand,
             CancellationToken cancellationToken)
+        {
+            if (CanPage(descriptor, wantJson))
+            {
+                var paged = await RunPagedPrintQueryAsync(descriptor, wantJson, buildCommand,
+                    CliReadPageSize, cancellationToken).ConfigureAwait(false);
+                if (paged != null)
+                    return paged;
+            }
+
+            return await RunOnePrintQueryAsync(descriptor, wantJson, buildCommand, null, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Whether this read may be windowed. Paging is an optimisation for reading a whole table, and
+        /// several shapes of read are not that.
+        /// </summary>
+        /// <remarks>
+        /// <para>A read that names a row (<c>.id</c>) must not be windowed: the window is taken over the
+        /// menu's id list and the caller's selector is applied inside it, so the row is simply absent from
+        /// every window that does not contain it and the read fails with <c>no such item</c> — measured, 18
+        /// tests on the MAC-Telnet leg.</para>
+        /// <para>The JSON path is excluded because <c>:serialize</c> support is discovered by trying it, and
+        /// a discovery that has not settled cannot be repeated per window without the fallback firing
+        /// inside the loop.</para>
+        /// <para>A menu with no <c>find</c> verb cannot be windowed at all; that one is not predictable from
+        /// the descriptor, so it is handled by falling back when the router says so.</para>
+        /// </remarks>
+        private bool CanPage(TikCommandDescriptor descriptor, bool wantJson)
+        {
+            if (CliReadPageSize <= 0 || wantJson)
+                return false;
+            if (TikGetResult.FindInput(descriptor.Parameters, TikSpecialProperties.Id) != null)
+                return false;
+            return !_pagingUnavailable.Contains(descriptor.CommandText);
+        }
+
+        // Menus this connection has already found cannot be windowed — asked once, then remembered, so the
+        // fallback costs one wasted request per menu per connection rather than one per read.
+        private readonly HashSet<string> _pagingUnavailable = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Reads a table one window of rows at a time and concatenates them.
+        /// </summary>
+        /// <remarks>
+        /// <para>Each window is a single command that picks a slice of the menu's id list, prints the rows it
+        /// names and reports how many ids it held — so a table smaller than one page is answered by the first
+        /// request and costs nothing extra, which is the common case. The loop ends when a window holds fewer
+        /// ids than a full page.</para>
+        /// <para><b>It is not a snapshot.</b> The windows are separate commands and each re-evaluates the id
+        /// list, so a row inserted or removed part-way through shifts the ones after it and can be seen twice
+        /// or missed. A single-command read cannot do that, which is why paging is off unless a transport or
+        /// a caller asks for it.</para>
+        /// </remarks>
+        private async Task<IList<TikRecordSentence>?> RunPagedPrintQueryAsync(
+            TikCommandDescriptor descriptor, bool wantJson, Func<bool, string?, string> buildCommand,
+            int pageSize, CancellationToken cancellationToken)
+        {
+            var all = new List<TikRecordSentence>();
+
+            for (int offset = 0; ; offset += pageSize)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                PagedWindow window;
+                try
+                {
+                    window = await RunOneWindowAsync(descriptor, wantJson, buildCommand, offset, pageSize,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch (TikNoSuchCommandException)
+                {
+                    // The menu has no 'find' (a singleton, or a command menu). Nothing to window over, so
+                    // read it the way every read worked before paging — and remember, so the next read of
+                    // this menu does not pay for the discovery again.
+                    if (offset > 0)
+                        throw;   // mid-table: this is a real failure, not a menu that cannot be paged
+                    _pagingUnavailable.Add(descriptor.CommandText);
+                    TikWireTrace.Emit("cli.page", TikWireDir.Note,
+                        "'" + descriptor.CommandText + "' has no 'find' verb — reading it in a single command");
+                    return null;
+                }
+
+                if (window.WindowSize < 0)
+                {
+                    // No '#w=' came back, so there is no way to know when to stop. Same treatment.
+                    if (offset > 0)
+                        throw new TikSentenceException(
+                            "A paged read must be able to tell how many rows the window held, and the window "
+                            + "at offset " + offset + " of '" + descriptor.CommandText + "' did not say.", null);
+                    _pagingUnavailable.Add(descriptor.CommandText);
+                    TikWireTrace.Emit("cli.page", TikWireDir.Note,
+                        "'" + descriptor.CommandText + "' did not report a window size — reading it in a single command");
+                    return null;
+                }
+
+                foreach (var record in window.Records)
+                    all.Add(record);
+
+                // The window's OWN size ends the loop, never the number of records: a filtered read can empty
+                // a full window, and stopping there would silently return a short table.
+                if (window.WindowSize < pageSize)
+                    return all;
+            }
+        }
+
+        private readonly struct PagedWindow
+        {
+            internal PagedWindow(IList<TikRecordSentence> records, int windowSize)
+            {
+                Records = records;
+                WindowSize = windowSize;
+            }
+
+            internal IList<TikRecordSentence> Records { get; }
+            internal int WindowSize { get; }
+        }
+
+        private async Task<PagedWindow> RunOneWindowAsync(
+            TikCommandDescriptor descriptor, bool wantJson, Func<bool, string?, string> buildCommand,
+            int offset, int pageSize, CancellationToken cancellationToken)
+        {
+            string inner = buildCommand(false, CliCommandBuilder.WindowVariable);
+            string cliText = CliCommandBuilder.BuildPagedWindow(descriptor.CommandText, inner, offset, pageSize);
+
+            string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false);
+            CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+
+            string body = SplitOffWindowMarker(output, out int windowSize);
+            if (windowSize < 0)
+                return new PagedWindow(new List<TikRecordSentence>(), -1);   // caller decides: fall back
+
+            return new PagedWindow(ParseRecords(body, descriptor), windowSize);
+        }
+
+        /// <summary>
+        /// Removes the trailing <c>#w=</c> line a paged window ends with and reports the number it carried
+        /// (<c>-1</c> when the line is absent).
+        /// </summary>
+        // CR, LF, the field separator and a space: whatever the marker line was preceded by.
+        private static readonly char[] WindowMarkerTrim = { (char)13, (char)10, ';', ' ' };
+
+        private static string SplitOffWindowMarker(string output, out int windowSize)
+        {
+            windowSize = -1;
+            if (string.IsNullOrEmpty(output))
+                return output;
+
+            int at = output.LastIndexOf(CliCommandBuilder.WindowMarker, StringComparison.Ordinal);
+            if (at < 0)
+                return output;
+
+            string tail = output.Substring(at + CliCommandBuilder.WindowMarker.Length).Trim();
+            if (!int.TryParse(tail, NumberStyles.None, CultureInfo.InvariantCulture, out int size))
+                return output;
+
+            windowSize = size;
+            return output.Substring(0, at).TrimEnd(WindowMarkerTrim);
+        }
+
+        private async Task<IList<TikRecordSentence>> RunOnePrintQueryAsync(
+            TikCommandDescriptor descriptor, bool wantJson, Func<bool, string?, string> buildCommand,
+            string? fromIndices, CancellationToken cancellationToken)
         {
             if (wantJson && _serializeSupported != false)
             {
                 try
                 {
-                    string jsonOutput = await ExecuteCliCommandAsync(buildCommand(true), cancellationToken).ConfigureAwait(false);
+                    string jsonOutput = await ExecuteCliCommandAsync(buildCommand(true, fromIndices), cancellationToken).ConfigureAwait(false);
                     CliErrorParser.ThrowIfError(jsonOutput, CreateDummyCommand(descriptor));
                     IList<TikRecordSentence> records = CliJsonParser.ParseJson(jsonOutput);
                     _serializeSupported = true;
@@ -893,7 +1075,7 @@ namespace tik4net.Cli
                 }
             }
 
-            string output = await ExecuteCliCommandAsync(buildCommand(false), cancellationToken).ConfigureAwait(false);
+            string output = await ExecuteCliCommandAsync(buildCommand(false, fromIndices), cancellationToken).ConfigureAwait(false);
             CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
 
             if (wantJson && _serializeSupported == null)

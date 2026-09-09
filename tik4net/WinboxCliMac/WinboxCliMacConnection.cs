@@ -38,7 +38,12 @@ namespace tik4net.WinboxCliMac
     public sealed class WinboxCliMacConnection : CliConnectionBase, ITikMacCliConnection
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
-        internal WinboxCliMacConnection() { }
+        // The MAC layer pages by default, and that is a correctness setting rather than a tuning one: a
+        // single-command read of a large table makes RouterOS discard part of its own output while replaying
+        // the backlog and hand back a short answer that looks whole (findings-mactelnet.md §9.6). Slicing the
+        // read means the router never builds a backlog there is anything to drop.
+        internal WinboxCliMacConnection()
+            => CliReadPageSize = TikConnectionSetup.DefaultCliReadPageSize;
 
         /// <summary>MAC-layer WinBox UDP port (informational — the transport is fixed to UDP 20561).</summary>
         public const int DefaultPort = 20561;

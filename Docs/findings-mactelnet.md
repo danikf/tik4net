@@ -344,18 +344,25 @@ refuses the response with `TikConnectionResponseIncompleteException` only when t
 a single wide gap is recovered by one retransmit, whereas a sustained run of them is the state in which the
 router starts discarding output.
 
+**Paging is the actual fix, and it is on by default here.** Reading the table in windows
+(`ITikCliPagedReadConnection`, `:pick` + `from=` — see [findings-cli.md](findings-cli.md) §1) never gives the
+router a backlog, so there is nothing for it to discard, and a table smaller than one page still costs a
+single request. Measured on the same lab: `/ip firewall mangle` (1672 rows)
+and `/queue/tree` (681) both read complete over MAC-Telnet, repeatedly, where neither had ever succeeded in
+a single command. The check below is therefore applied **only to an unpaged read** — a slice is small enough
+that a lost datagram is refilled exactly, and condemning one throws away a complete answer: a 10-row slice
+tripped the check while the paged read it belonged to returned every row.
+
 **Both thresholds are empirical, and neither is sharp.** Judging on a single wide gap was tried first and
 is clearly wrong — it condemned seven sub-kilobyte responses (265 to 671 characters) on one suite leg. On
 that leg the reads that actually came back short had 4, 29, 30 and 31 wide gaps, which looked like a clean
 separation; the next leg produced two wide gaps on a 3.6 KB read and on an empty one, so the populations do
 overlap and the rule raises the occasional false alarm.
 
-That trade is deliberate rather than accidental: a spurious "this may be incomplete, retry it" costs a
-re-read, while the behaviour it replaces hands back a quarter of a table as though it were the table. It is
-not the end state. **The better design is to retry rather than throw** — a re-read makes the accuracy of the
-threshold stop mattering — and what blocks it today is that the transport cannot tell a read from a write,
-so it cannot know the command is safe to replay. A write is never large enough to trip the rule in practice,
-but "in practice" is not good enough to replay an `add` on.
+That trade is deliberate: a spurious "this may be incomplete, retry it" costs a re-read, while the
+behaviour it replaces hands back a quarter of a table as though it were the table. It matters less than it
+did, because with paging on by default the case it guards is the one a caller has opted into by setting
+`CliReadPageSize` to 0.
 
 What this does **not** fix is throughput: the MAC layer still moves 7–15 KB/s against Telnet's ~70 KB/s
 and cannot finish a read this size inside the 30 s receive deadline. Holding out-of-order packets in a

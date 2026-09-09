@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 
 namespace tik4net.Cli
@@ -48,7 +49,8 @@ namespace tik4net.Cli
         /// for how a command asks for it. Requires RouterOS 7.13+; <see cref="CliConnectionBase"/> owns
         /// the fallback for older routers.
         /// </param>
-        internal static string BuildPrint(string apiPath, IList<ITikCommandParameter> parameters, bool asJson = false)
+        internal static string BuildPrint(string apiPath, IList<ITikCommandParameter> parameters, bool asJson = false,
+                                          string? fromIndices = null)
         {
             string cliBase = ApiPathToCli(apiPath);
             var sb = new StringBuilder(asJson ? ":put [:serialize to=json [" : ":put [");
@@ -75,6 +77,7 @@ namespace tik4net.Cli
                 sb.Append(" once");
 
             sb.Append(" as-value");
+            AppendFrom(sb, fromIndices);
 
             string whereClause = BuildWhereClause(parameters);
             if (!string.IsNullOrEmpty(whereClause))
@@ -85,6 +88,80 @@ namespace tik4net.Cli
 
             sb.Append(asJson ? "]]" : "]");
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Appends the <c>from=</c> row selector of a paged read.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>Position matters and the failure is silent.</b> <c>where</c> consumes everything that
+        /// follows it, so <c>… as-value where chain=x from=0,1</c> swallows the <c>from=</c> into the
+        /// expression and RouterOS answers with the WHOLE table — measured at 1672 rows where 2 were asked
+        /// for. Placed before <c>where</c>, both apply: the slice is taken first and the filter is applied
+        /// inside it.</para>
+        /// <para><c>from=</c> takes a comma-separated list of positional indices; a range (<c>from=0-4</c>)
+        /// is a syntax error, and an index past the last row answers <c>no such item</c> rather than
+        /// returning fewer rows — which is why a paged read has to know the row count before it starts
+        /// (<see cref="BuildRowCount"/>). See Docs/findings-cli.md §1.</para>
+        /// </remarks>
+        private static void AppendFrom(StringBuilder sb, string? fromIndices)
+        {
+            if (string.IsNullOrEmpty(fromIndices))
+                return;
+            sb.Append(" from=");
+            sb.Append(fromIndices);
+        }
+
+        /// <summary>
+        /// Wraps one slice of a paged read: takes a window of ids with <c>:pick</c>, prints the rows it
+        /// names, and states how many ids the window held.
+        /// </summary>
+        /// <remarks>
+        /// <para><c>:pick</c> is what makes the common case free. It <b>clamps</b> — a window past the end
+        /// yields an empty array rather than an error — so a table smaller than one page is answered by the
+        /// first request, with no row-count round trip to pay for first. Measured over MAC-Telnet, a two-row
+        /// read costs 177 ms this way against 400 ms when a count query precedes it.</para>
+        /// <para>The <c>:if</c> is not decoration: <c>from=</c> rejects an <b>empty</b> array outright
+        /// (<c>invalid value for argument from</c>), which a table whose size is an exact multiple of the
+        /// page would otherwise hit on its last window. Guarding it is better than reading that error as
+        /// end-of-data, because a wording that ever covered something else would turn a real failure into a
+        /// silently short table.</para>
+        /// </summary>
+        /// <remarks>
+        /// Deliberately unfiltered and without <c>detail</c>: <c>from=</c> indexes the table as the router
+        /// stores it, not the filtered result, so a count narrowed by the caller's <c>where</c> would name
+        /// the wrong rows. The filter is applied per slice instead, and the union is the same set.
+        /// </remarks>
+        internal static string BuildPagedWindow(string apiPath, string printCommand, int offset, int pageSize)
+        {
+            string menu = MenuPathToCli(apiPath);
+            return ":local w [:pick [" + menu + " find] "
+                 + offset.ToString(CultureInfo.InvariantCulture) + " "
+                 + (offset + pageSize).ToString(CultureInfo.InvariantCulture) + "]; "
+                 + ":if ([:len $w] > 0) do={ " + printCommand + " }; "
+                 + ":put (\"" + WindowMarker + "\" . [:len $w])";
+        }
+
+        /// <summary>The selector a paged window's print uses — the window array the wrapper bound.</summary>
+        internal const string WindowVariable = "$w";
+
+        /// <summary>
+        /// Prefix of the trailing line a paged window emits, carrying how many <b>ids the window held</b>.
+        /// </summary>
+        /// <remarks>
+        /// The record count cannot stand in for it. A window is taken over the unfiltered table and the
+        /// caller's <c>where</c> is applied inside it, so a full window can print no rows at all — measured,
+        /// a 3-id window answered 2 records under a filter. Ending the loop on the records would stop at the
+        /// first window the filter emptied and silently return a short table.
+        /// </remarks>
+        internal const string WindowMarker = "#w=";
+
+        /// <summary>The menu without its verb — <c>/ip/firewall/mangle/print</c> gives <c>/ip firewall mangle</c>.</summary>
+        private static string MenuPathToCli(string apiPath)
+        {
+            string trimmed = (apiPath ?? string.Empty).TrimEnd('/');
+            int lastSlash = trimmed.LastIndexOf('/');
+            return ApiPathToCli(lastSlash > 0 ? trimmed.Substring(0, lastSlash) : trimmed);
         }
 
         /// <summary>
@@ -99,12 +176,14 @@ namespace tik4net.Cli
         /// Applies the same <c>:serialize to=json</c> wrapping as <see cref="BuildPrint"/>, so an entity
         /// asking for both the stats merge and JSON gets JSON for both halves of it.
         /// </param>
-        internal static string BuildPrintStats(string apiPath, IList<ITikCommandParameter> parameters, bool asJson = false)
+        internal static string BuildPrintStats(string apiPath, IList<ITikCommandParameter> parameters, bool asJson = false,
+                                               string? fromIndices = null)
         {
             string cliBase = ApiPathToCli(apiPath);
             var sb = new StringBuilder(asJson ? ":put [:serialize to=json [" : ":put [");
             sb.Append(cliBase);
             sb.Append(" stats as-value");
+            AppendFrom(sb, fromIndices);
 
             string whereClause = BuildWhereClause(parameters);
             if (!string.IsNullOrEmpty(whereClause))

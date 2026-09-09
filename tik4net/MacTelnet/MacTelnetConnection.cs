@@ -42,7 +42,12 @@ namespace tik4net.MacTelnet
     public sealed class MacTelnetConnection : CliConnectionBase, ITikMacCliConnection
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
-        internal MacTelnetConnection() { }
+                // The MAC layer pages by default, and that is a correctness setting rather than a tuning one: a
+        // single-command read of a large table makes RouterOS discard part of its own output while replaying
+        // the backlog and hand back a short answer that looks whole (findings-mactelnet.md §9.6). Slicing the
+        // read means the router never builds a backlog there is anything to drop.
+        internal MacTelnetConnection()
+            => CliReadPageSize = TikConnectionSetup.DefaultCliReadPageSize;
 
         /// <summary>Default MAC-Telnet UDP port.</summary>
         public const int DefaultPort = 20561;
@@ -141,14 +146,24 @@ namespace tik4net.MacTelnet
             {
                 try
                 {
-                    return await client.SendCommandAndReadAsync(cmd, ct).ConfigureAwait(false);
+                    return Vetted(cmd, await client.SendCommandAndReadAsync(cmd, ct).ConfigureAwait(false));
                 }
                 catch (TikConnectionSessionClosedException) when (ReconnectAllowed)
                 {
                     await reopen(ct).ConfigureAwait(false);
-                    return await client.SendCommandAndReadAsync(cmd, ct).ConfigureAwait(false);
+                    return Vetted(cmd, await client.SendCommandAndReadAsync(cmd, ct).ConfigureAwait(false));
                 }
             };
+
+            // The datagram-loss check belongs here rather than in the client, because only this layer knows
+            // whether the read was paged. RouterOS can only discard output it had queued, and a paged read
+            // never gives it a queue — so applying the check to a slice condemns answers that are complete.
+            string Vetted(string cmd, string response)
+            {
+                if (CliReadPageSize == 0)
+                    client.ThrowIfResponseLostDatagrams(cmd, response);
+                return response;
+            }
 
             // Streaming send (incremental monitor reads, P2.50). Same reconnect-on-logout treatment as
             // `send`, with one restriction: a retry re-runs the command from the start, so it is only safe

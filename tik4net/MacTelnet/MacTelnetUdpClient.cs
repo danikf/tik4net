@@ -135,9 +135,7 @@ namespace tik4net.MacTelnet
             ResetDataHoles();
             SendTerminalBytes(_encoding.GetBytes(cmd + "\r"));
             string raw = await ReadCommandResponseAsync(cmd, ct, onLine).ConfigureAwait(false);
-            string clean = CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), cmd);
-            ThrowIfResponseLostDatagrams(cmd, clean);
-            return clean;
+            return CliOutputHelper.CleanOutput(VtStripper.StripAnsi(raw), cmd);
         }
 
         /// <summary>
@@ -145,8 +143,12 @@ namespace tik4net.MacTelnet
         /// perfect — it ends at a real prompt and its byte counter is unbroken — so the packet loss is the
         /// only evidence there is that RouterOS may have dropped part of its own output while recovering.
         /// See <see cref="TikConnectionResponseIncompleteException"/> for the measurement behind that.
+        /// <para>Called by <see cref="MacTelnetConnection"/> and only for an <b>unpaged</b> read, because the
+        /// router can only discard a backlog it was given: a slice of a paged read is small enough that a
+        /// lost datagram is refilled exactly, and applying this to one condemns complete answers — measured,
+        /// a 10-row slice tripped it while the paged read it belonged to returned every row.</para>
         /// </summary>
-        private void ThrowIfResponseLostDatagrams(string sentCommand, string response)
+        internal void ThrowIfResponseLostDatagrams(string sentCommand, string response)
         {
             // One wide gap is not enough to condemn an answer. The router refills a single gap with one
             // retransmit and carries on; what precedes the output-dropping is a SUSTAINED episode — we stay

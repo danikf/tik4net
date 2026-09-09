@@ -60,6 +60,21 @@ namespace tik4net.unittests.Connection
             TikConnectionType.Api, TikConnectionType.ApiSsl,
         };
 
+        private static readonly TikConnectionType[] PagedReadTransports =
+        {
+            // Paging is a property of a terminal read (:put [... print as-value from=…]); the API, REST and
+            // WinBox-native transports frame their own replies and have nothing to slice.
+            TikConnectionType.Telnet, TikConnectionType.Ssh, TikConnectionType.MacTelnet,
+            TikConnectionType.WinboxCli, TikConnectionType.WinboxCliMac,
+        };
+
+        // The transports that page unless told otherwise: on the MAC layer a large single-command read is
+        // wrong, not merely slow (Docs/findings-mactelnet.md §9.6).
+        private static readonly TikConnectionType[] PagingByDefaultTransports =
+        {
+            TikConnectionType.MacTelnet, TikConnectionType.WinboxCliMac,
+        };
+
         private static readonly TikConnectionType[] CancellationModeTransports =
         {
             // The CLI family: a terminal byte stream has no framing to resynchronize on, so what a late
@@ -87,6 +102,7 @@ namespace tik4net.unittests.Connection
             DebugEnabled = true,
             RouterMac = "AA:BB:CC:DD:EE:FF",
             CancellationMode = TikCancellationMode.AbandonAndClose,
+            CliReadPageSize = 37,
             AllowInvalidCertificate = false,
             CertificateValidationCallback = new System.Net.Security.RemoteCertificateValidationCallback(CertCallback),
         };
@@ -195,6 +211,41 @@ namespace tik4net.unittests.Connection
                     if (expected)
                         Assert.AreEqual(TikCancellationMode.AbandonAndClose,
                             ((ITikCancellationModeConnection)conn).CancellationMode, type.ToString());
+                }
+            }
+        }
+
+        [TestMethod]
+        public void TheCliReadPageSizeReachesExactlyTheTerminalTransports()
+        {
+            var setup = NonDefaultSetup();
+            foreach (var type in AllTransports)
+            {
+                using (var conn = setup.CreateUnopened(type))
+                {
+                    bool expected = PagedReadTransports.Contains(type);
+                    Assert.AreEqual(expected, conn is ITikCliPagedReadConnection,
+                        type + ": ITikCliPagedReadConnection");
+                    if (expected)
+                        Assert.AreEqual(37, ((ITikCliPagedReadConnection)conn).CliReadPageSize, type.ToString());
+                }
+            }
+        }
+
+        [TestMethod]
+        public void ASetupThatSaysNothingLeavesEachTransportOnItsOwnPagingDefault()
+        {
+            // The option is nullable for this: writing an unasked-for value here would flatten the MAC
+            // layer's default to whatever the setup happened to be constructed with.
+            var setup = new TikConnectionSetup("192.0.2.1", "user", "pwd");
+            foreach (var type in PagedReadTransports)
+            {
+                using (var conn = setup.CreateUnopened(type))
+                {
+                    int expected = PagingByDefaultTransports.Contains(type)
+                        ? TikConnectionSetup.DefaultCliReadPageSize
+                        : 0;
+                    Assert.AreEqual(expected, ((ITikCliPagedReadConnection)conn).CliReadPageSize, type.ToString());
                 }
             }
         }

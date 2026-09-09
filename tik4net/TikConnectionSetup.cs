@@ -74,6 +74,23 @@ namespace tik4net
         public int? Port { get; set; }
 
         /// <summary>
+        /// Default rows per slice on the transports that page by default — the MAC-layer terminals.
+        /// </summary>
+        /// <remarks>
+        /// 100 rows is roughly 20 KB of terminal output for a wide table, which the MAC carrier delivers
+        /// without falling behind. Measured against a 1672-row mangle table: 100, 50 and 25 all returned every
+        /// row, six runs out of six, where the unpaged read returned 413 rows or timed out.
+        /// </remarks>
+        public const int DefaultCliReadPageSize = 100;
+
+        /// <summary>
+        /// Rows per slice for reads on a terminal transport, <c>0</c> to force single-command reads, or
+        /// <c>null</c> (the default) to leave each transport on its own default — see
+        /// <see cref="ITikCliPagedReadConnection.CliReadPageSize"/>.
+        /// </summary>
+        public int? CliReadPageSize { get; set; }
+
+        /// <summary>
         /// How long opening the connection may take before it fails. Default 15 s.
         /// Applied to <see cref="ITikConnection.ConnectTimeout"/> on every transport.
         /// </summary>
@@ -285,6 +302,12 @@ namespace tik4net
 
             if (connection is ITikTaggedConnection tagged)
                 tagged.SendTagWithSyncCommand = SendTagWithSyncCommand;
+
+            // Only when the caller said so: the transports differ in what a sensible default is (a MAC-layer
+            // terminal needs paging for correctness, a TCP one only pays for it), and they set their own in
+            // their constructors. Writing an unasked-for value here would flatten that.
+            if (CliReadPageSize.HasValue && connection is ITikCliPagedReadConnection paged)
+                paged.CliReadPageSize = CliReadPageSize.Value;
         }
 
         /// <summary>

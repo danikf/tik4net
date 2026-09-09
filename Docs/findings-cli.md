@@ -67,6 +67,62 @@ The output of `:put` is **one line**, with every record's fields chained togethe
 one-line-per-record — `CliOutputParser.ParseAsValue` splits records at `.id` boundaries, not at line
 breaks.
 
+### Reading a table in windows: `from=`, `:pick`, and where each one bites
+
+A read can be split into windows instead of asking for the whole table at once — `CliReadPageSize` and
+`ITikCliPagedReadConnection`. Everything below was measured on 7.24 against a 1672-row `/ip firewall mangle`.
+
+`from=` is the row selector:
+
+| | |
+|---|---|
+| accepts | a comma-separated list of positional indices (`from=0,1,2`) **or** `.id` values (`from=*B0B,*1192`) |
+| also accepts | an array expression — `from=[:pick [/path find] 0 100]` |
+| rejects | a range: `from=0-4` is *expected end of command* |
+| rejects | an **empty** array: *invalid value for argument from* |
+| an index past the last row | **`no such item`** — an out-of-range positional window is an error, not a short answer |
+| replies | in **the order the selector lists**, not table order — `from=1,0` returns row 1 then row 0 |
+| combines with | `detail`, and with `where` |
+
+**It must come before `where`.** RouterOS lets a `where` expression consume the rest of the line, so
+`… as-value where chain=x from=0,1` swallows the selector and the router answers with the **whole table** —
+measured, 1672 rows where 2 were asked for. Placed first, both apply: the window is taken, then filtered
+inside it. `CliCommandBuilder.AppendFrom` is the one place that gets to decide this.
+
+The window itself comes from `:pick [/path find] <start> <end>`, and the reason is the common case rather
+than the large one. **`:pick` clamps** — a window past the end is an empty array, not an error — so a table
+smaller than one page is answered by the *first* request. A row count up front would work too and is what
+this was built with first, but it costs a round trip on every read: measured over MAC-Telnet, a two-row read
+took 400 ms with a count query in front of it and 177 ms without, and small reads are the common ones.
+
+Three consequences for the command shape:
+
+- **`from=` rejects an empty array**, which a table whose size is an exact multiple of the page hits on its
+  last window. Hence the `:if ([:len $w] > 0)` guard. Reading that error as end-of-data would work today and
+  is deliberately not done: a wording that ever covered anything else would turn a real failure into a
+  silently short table.
+- **The window must state its own size**, `:put ("#w=" . [:len $w])`. The record count cannot stand in for
+  it, because the window is taken over the unfiltered table and the caller's `where` is applied inside it —
+  measured, a 3-id window answered 2 records under a filter. Ending the loop on records would stop at the
+  first window a filter emptied.
+- **Order is preserved.** `find` returns ids in the same order `print` does — verified on `/ip firewall
+  mangle` (ordered: `*B0B;*1192;*1191;…`, matching rows 0,1,2) and on `/ip service` (unordered, ids not
+  sequential, same sequence both ways). Since `from=` replies in the order listed, a windowed read has the
+  same row order as a single-command one, which `IsOrdered` entities depend on.
+
+The cost is one request per window plus, when the row count is an exact multiple of the page, one final
+empty window to discover the end.
+
+Two alternatives that do **not** work, both measured rather than reasoned about:
+
+- **`:foreach i in=[/path find] do={ :put [/path get $i] }`** produces one record per iteration, `.id`
+  included, and avoids building the whole array in script memory — but it is still one command, so the
+  router streams the lot and nothing paces it. Over MAC-Telnet it is *worse* than a single print: 51 and 57
+  wide datagram gaps against roughly 30, and a timeout on the third run.
+- **`:serialize to=dsv … options=dsv.remap`** drops the repeated field names — 164 583 characters against
+  272 884 for the same table as-value, a 40 % saving. That is volume, not delivery: still one answer in one
+  command.
+
 ### `detail` is required for the full field set
 
 `:put [/path print as-value]` alone returns only **summary columns** — e.g. `/interface` omits
