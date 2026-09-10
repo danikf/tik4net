@@ -27,6 +27,13 @@ namespace tik4net
             Command = command;
         }
 
+        // Library-internal: only the library's own exceptions have an original to hand on.
+        private protected TikCommandException(ITikCommand command, string message, Exception? innerException)
+            : base(message, innerException)
+        {
+            Command = command;
+        }
+
         /// <summary>
         /// Returns exception description.
         /// </summary>
@@ -173,8 +180,16 @@ namespace tik4net
     }   
 
     /// <summary>
-    /// Exception thrown if fatal  error is returned from mikrotik router call.  (!FATAL)
+    /// Exception thrown when the router ends the session with <c>!fatal</c>, or when the connection is lost
+    /// while a command is waiting for its answer.
     /// </summary>
+    /// <remarks>
+    /// On the binary API a lost connection is reported this way to every command still waiting, and the
+    /// message says which of three things ended it: the router or the network (<c>connection lost: …</c>),
+    /// the caller closing the connection, or a fault <b>on this machine</b> — an exception on the client's own
+    /// reader thread, such as an assembly that failed to load. In the last case the original exception is the
+    /// <see cref="Exception.InnerException"/>, and it is where the diagnosis is.
+    /// </remarks>
     public class TikCommandFatalException : TikCommandException
     {
         /// <summary>
@@ -184,6 +199,11 @@ namespace tik4net
         /// <param name="message">Message exception.</param>
         public TikCommandFatalException(ITikCommand command, string message)
             : base(command, message)
+        {
+        }
+
+        internal TikCommandFatalException(ITikCommand command, string message, Exception? innerException)
+            : base(command, message, innerException)
         {
         }
     }

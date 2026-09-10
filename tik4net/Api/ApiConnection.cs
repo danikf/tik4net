@@ -767,10 +767,35 @@ namespace tik4net.Api
                 if (e is TikEofException)
                     return true;
                 if (e is IOException io)
-                    return !IsTimeout(io);
+                    return IsNetworkFailure(io) && !IsTimeout(io);
             }
             return false;
         }
+
+        /// <summary>
+        /// True when <paramref name="ex"/> is the connection itself failing — the socket or the stream over it
+        /// — as opposed to a fault on this machine that happened to surface on the reader thread.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="IOException"/> alone cannot be the test. It is also the base of
+        /// <see cref="FileLoadException"/> and <see cref="FileNotFoundException"/>, which is what an assembly
+        /// that fails to bind throws — and that was reported as "the router closed the connection during the
+        /// API login handshake", with advice about <c>/ip/service</c>. The stream raises the exact type (a
+        /// <see cref="SocketException"/> inside it on a reset), plus end-of-stream, so only those count.
+        /// </remarks>
+        internal static bool IsNetworkFailure(Exception ex)
+            => ex is SocketException
+               || ex is EndOfStreamException
+               || ex is TikEofException
+               || ex is ObjectDisposedException      // the stream torn down under the reader
+               || ex is TikConnectionReceiveTimeoutException
+               || ex.GetType() == typeof(IOException);
+
+        // A fault the router cannot have caused and the network did not: neither the connection failing nor
+        // something the router sent that we refused (TikUnknownSentenceTypeException and the rest are
+        // TikConnectionExceptions).
+        private static bool IsClientSideFault(Exception ex)
+            => !IsNetworkFailure(ex) && !(ex is TikConnectionException);
 
         // True when the IOException wraps a socket read/write timeout (NetworkStream.ReadTimeout/WriteTimeout
         // elapsed), as opposed to e.g. the peer resetting the connection.
@@ -852,9 +877,18 @@ namespace tik4net.Api
                 // that needs its TYPE (Open's protocol-mismatch check) does not have to parse the message.
                 bool ours = _readerStopRequested || _closeInitiated;
                 _readerFault = ours ? null : ex;
-                _dispatcher.TerminateAll(ours
-                    ? new ApiFatalSentence(new[] { "connection closed by the client" }, clientInitiated: true)
-                    : new ApiFatalSentence(new[] { "connection lost: " + ex.GetType().Name + ": " + ex.Message }));
+                _dispatcher.TerminateAll(
+                    ours ? new ApiFatalSentence(new[] { "connection closed by the client" }, clientInitiated: true)
+                    // Worded so it cannot be read as the router's doing: nothing about this connection
+                    // failed, and the socket may still be perfectly healthy. The original rides along as the
+                    // inner exception, because for an assembly that failed to bind it carries the only detail
+                    // that says why.
+                    : IsClientSideFault(ex) ? new ApiFatalSentence(new[] {
+                            "the connection's reader failed on this machine: " + ex.GetType().Name + ": "
+                            + ex.Message + " This is a fault in the client process (see the inner exception), "
+                            + "not the router or the network closing the connection; this connection cannot be "
+                            + "used any further." }, ex)
+                    : new ApiFatalSentence(new[] { "connection lost: " + ex.GetType().Name + ": " + ex.Message }, ex));
                 return;
             }
 

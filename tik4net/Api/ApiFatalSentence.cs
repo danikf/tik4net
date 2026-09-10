@@ -30,10 +30,19 @@ namespace tik4net.Api
             ClientInitiated = clientInitiated;
         }
 
-        public ApiFatalSentence(IEnumerable<string> words)
+        /// <summary>
+        /// The exception that ended the reader, when this <c>!fatal</c> is the library's report of it rather
+        /// than a sentence the router sent. Handed on as the inner exception, because the flattened message
+        /// is all a caller would otherwise get — and for a fault on the client (an assembly that failed to
+        /// bind) the detail that diagnoses it lives only on the original.
+        /// </summary>
+        public Exception? Cause { get; }
+
+        public ApiFatalSentence(IEnumerable<string> words, Exception? cause = null)
             : base(words)
         {
             Message = string.Join("\n", words.ToArray());
+            Cause = cause;
         }
     }
 }

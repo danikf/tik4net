@@ -280,7 +280,7 @@ namespace tik4net.Api
                 }
                 ApiFatalSentence? fatalSentence = responseSentence as ApiFatalSentence;
                 if (fatalSentence != null)
-                    throw new TikCommandFatalException(this, fatalSentence.Message);
+                    throw new TikCommandFatalException(this, fatalSentence.Message, fatalSentence.Cause);
             }
         }
 
