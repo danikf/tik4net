@@ -15,6 +15,9 @@ namespace tik4net
     /// router never builds a backlog, and there is nothing for it to drop. Measured against that same table
     /// over MAC-Telnet — six runs at slice sizes 100, 50 and 25, all 1672 rows, where the single-command read
     /// had never once succeeded.</para>
+    /// <para>Every slice ends with the router's own count of the rows it holds, and the rows read back are
+    /// checked against it: a slice that disagrees is refused with
+    /// <see cref="TikConnectionResponseIncompleteException"/> rather than returned.</para>
     /// </remarks>
     public interface ITikCliPagedReadConnection
     {
@@ -24,11 +27,11 @@ namespace tik4net
         /// <remarks>
         /// <para>Defaults to <see cref="TikConnectionSetup.DefaultCliReadPageSize"/> on the MAC-layer terminal
         /// transports, where a large single-command read is not merely slow but wrong, and to <c>0</c>
-        /// everywhere else, where it is only slower: a paged read costs one extra round trip for the row
-        /// count plus one per slice, measured at 7.5 s against 5.8 s for the same 1672-row table over
-        /// Telnet.</para>
-        /// <para>Paging is skipped for a table whose row count does not exceed the page size, so a small read
-        /// costs the count query and nothing else.</para>
+        /// everywhere else, where it would only be slower: a paged read costs one round trip per slice.</para>
+        /// <para>A table smaller than one page is answered by the first slice, so a small read still costs a
+        /// single command. A read that names a row by <c>.id</c>, or filters by field, is never paged: the
+        /// slices are taken over the unfiltered table, so filtering inside them would multiply the work
+        /// instead of shrinking it. A menu with no <c>find</c> (a singleton) is read in one command too.</para>
         /// </remarks>
         int CliReadPageSize { get; set; }
     }

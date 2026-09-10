@@ -1,3 +1,6 @@
+// Nullable-enabled on its own: the test project as a whole is not (see the note in
+// Directory.Build.props), but this file implements ITikCommandParameter, whose signature is annotated.
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -197,22 +200,78 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
-        public void AFilterThatEmptiesAWindowDoesNotEndTheRead()
+        public void ATableThatIsAnExactMultipleOfThePageEndsOnAnEmptyWindow()
         {
-            // The window's own size drives the loop. This connection answers no records for the middle
-            // window while still reporting a full one, which is what a 'where' does to a slice.
-            using (var conn = new PagingCliConnection(rowCount: 6) { DropRecordsForOffset = 2 })
+            using (var conn = new PagingCliConnection(rowCount: 6))
             {
                 conn.OpenScripted();
                 conn.CliReadPageSize = 2;
 
                 var rows = conn.LoadList<PagedProbe>().ToList();
 
-                // Four, not three: 6 rows at 2 a page is an exact multiple, so the loop only learns it is
-                // done from a fourth window that comes back empty. That is the one request a row count up
-                // front would save, and the price of not paying for one on every small read.
-                Assert.AreEqual(4, conn.Sent.Count, "the empty middle window must not stop the read");
-                CollectionAssert.AreEqual(new[] { "r0", "r1", "r4", "r5" }, rows.Select(r => r.Name).ToList());
+                // Four, not three: the loop only learns it is done from a fourth window that comes back
+                // empty. That is the one request a row count up front would save, and the price of not
+                // paying for one on every small read.
+                Assert.AreEqual(4, conn.Sent.Count, string.Join(" | ", conn.Sent));
+                Assert.AreEqual(6, rows.Count);
+            }
+        }
+
+        // ── The count the router states ───────────────────────────────────────
+        //
+        // A window is never filtered, so '#w=' is the number of records its answer must carry. These are the
+        // cases where it does not — rows lost on the way, or a parser that split one — and the read must
+        // refuse rather than hand back something that is not the table.
+
+        [TestMethod]
+        public void AWindowThatAnswersNoRowsForTheIdsItHeldIsRefused()
+        {
+            using (var conn = new PagingCliConnection(rowCount: 6) { DropRecordsForOffset = 2 })
+            {
+                conn.OpenScripted();
+                conn.CliReadPageSize = 2;
+
+                var ex = Assert.ThrowsException<TikConnectionResponseIncompleteException>(
+                    () => conn.LoadList<PagedProbe>().ToList());
+
+                StringAssert.Contains(ex.Message, "offset 2");
+                StringAssert.Contains(ex.Message, "held 2 row(s)");
+                StringAssert.Contains(ex.Message, "0 record(s)");
+            }
+        }
+
+        [TestMethod]
+        public void AWindowMissingOneRowIsRefused()
+        {
+            // The realistic shape of the loss: one row gone from the middle, everything else intact, the
+            // answer still well-formed and still ending with the marker.
+            using (var conn = new PagingCliConnection(rowCount: 5) { DropOneRecordForOffset = 2 })
+            {
+                conn.OpenScripted();
+                conn.CliReadPageSize = 2;
+
+                var ex = Assert.ThrowsException<TikConnectionResponseIncompleteException>(
+                    () => conn.LoadList<PagedProbe>().ToList());
+
+                StringAssert.Contains(ex.Message, "held 2 row(s)");
+                StringAssert.Contains(ex.Message, "1 record(s)");
+                Assert.IsNotNull(ex.PartialResponse, "the answer that was refused is kept for diagnosis");
+            }
+        }
+
+        [TestMethod]
+        public void AWindowAnsweringMoreRowsThanItHeldIsRefusedToo()
+        {
+            // Not a loss but no more trustworthy: a record the parser split in two is a row that does not exist.
+            using (var conn = new PagingCliConnection(rowCount: 5) { ExtraRecordForOffset = 0 })
+            {
+                conn.OpenScripted();
+                conn.CliReadPageSize = 2;
+
+                var ex = Assert.ThrowsException<TikConnectionResponseIncompleteException>(
+                    () => conn.LoadList<PagedProbe>().ToList());
+
+                StringAssert.Contains(ex.Message, "3 record(s)");
             }
         }
 
@@ -261,6 +320,8 @@ namespace tik4net.unittests.Cli
             public readonly List<string> Sent = new List<string>();
             public bool OmitMarker;
             public int DropRecordsForOffset = -1;
+            public int DropOneRecordForOffset = -1;
+            public int ExtraRecordForOffset = -1;
 
             public PagingCliConnection(int rowCount) => _rowCount = rowCount;
 
@@ -282,7 +343,10 @@ namespace tik4net.unittests.Cli
                 int to = int.Parse(pick.Groups[2].Value);
                 int window = Math.Max(0, Math.Min(to, _rowCount) - Math.Min(from, _rowCount));
 
-                string body = from == DropRecordsForOffset ? string.Empty : Rows(from, from + window);
+                string body = from == DropRecordsForOffset ? string.Empty
+                    : from == DropOneRecordForOffset ? Rows(from + 1, from + window)
+                    : from == ExtraRecordForOffset ? Rows(from, from + window) + ";.id=*99;name=split"
+                    : Rows(from, from + window);
                 string marker = OmitMarker ? string.Empty : ((char)10) + "#w=" + window;
                 return Task.FromResult(body + marker);
             }

@@ -394,11 +394,19 @@ namespace tik4net
     }
 
     /// <summary>
-    /// Thrown when a response arrived whole and well-formed but cannot be trusted to be complete, because
-    /// the transport lost datagrams while it was being delivered.
+    /// Thrown when a response arrived whole and well-formed but is not, or cannot be trusted to be, the
+    /// complete answer. Retry the command.
     /// </summary>
     /// <remarks>
-    /// <para>Raised by the MAC-layer transports, whose carrier is UDP with a cumulative byte counter. When a
+    /// <para>Two situations raise it.</para>
+    /// <para><b>A paged CLI read whose window came back with the wrong number of rows.</b> Each window of a
+    /// paged read (<see cref="ITikCliPagedReadConnection"/>) ends with the router's own count of the rows it
+    /// holds, and the records read from the answer must match it. When they do not, rows were lost on the
+    /// way (or one was split), and the read is refused. This check is exact. <see cref="LostDatagrams"/> is
+    /// <c>0</c> here; the message names the window and both counts, and <see cref="PartialResponse"/> holds
+    /// that window's answer.</para>
+    /// <para><b>A MAC-layer response delivered across datagram loss.</b> The MAC-layer carrier is UDP with a
+    /// cumulative byte counter. When a
     /// datagram is lost the client holds its acknowledgement at the last contiguous byte so the router
     /// resends — and measured on 7.24, RouterOS answers a retransmission episode by <b>discarding a run of
     /// its own terminal output and carrying on with an unbroken counter</b>. The response then ends
@@ -414,7 +422,10 @@ namespace tik4net
     /// </remarks>
     public class TikConnectionResponseIncompleteException : TikConnectionException
     {
-        /// <summary>How many datagrams were dropped for missing predecessors while this response arrived.</summary>
+        /// <summary>
+        /// How many datagrams were dropped for missing predecessors while this response arrived; <c>0</c> when
+        /// the refusal came from a paged read's row count rather than from packet loss.
+        /// </summary>
         public int LostDatagrams { get; }
 
         /// <summary>The response text that did arrive — exposed for diagnosis, never as a result.</summary>

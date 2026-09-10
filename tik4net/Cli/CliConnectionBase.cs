@@ -1025,11 +1025,25 @@ namespace tik4net.Cli
                     return null;
                 }
 
+                // A window is never filtered (CanPage refuses a 'where'), so every id it held names a row and
+                // the router has just said how many records this answer must carry. Anything else is an answer
+                // that lost rows on the way — or a parser that split or merged them — and either way it is not
+                // the table. This is exact, which the MAC layer's datagram heuristic is not, and it is the only
+                // check a window gets: a vanished id is not a way to get here, since 'print from=' answers
+                // 'no such item' for it rather than skipping it (measured on 7.24).
+                if (window.Records.Count != window.WindowSize)
+                    throw new TikConnectionResponseIncompleteException(
+                        TransportName + ": the window at offset " + offset + " of '" + descriptor.CommandText
+                            + "' held " + window.WindowSize + " row(s) by the router's own count, and "
+                            + window.Records.Count + " record(s) were read from its answer. The answer is not the "
+                            + "table, so it is refused rather than returned. Retry the read.",
+                        0, window.Response);
+
                 foreach (var record in window.Records)
                     all.Add(record);
 
-                // The window's OWN size ends the loop, never the number of records: a filtered read can empty
-                // a full window, and stopping there would silently return a short table.
+                // The window's OWN size ends the loop — the two are equal by now, but the size is what the
+                // router stated and the record count is only what we made of it.
                 if (window.WindowSize < pageSize)
                     return all;
             }
@@ -1037,14 +1051,16 @@ namespace tik4net.Cli
 
         private readonly struct PagedWindow
         {
-            internal PagedWindow(IList<TikRecordSentence> records, int windowSize)
+            internal PagedWindow(IList<TikRecordSentence> records, int windowSize, string? response)
             {
                 Records = records;
                 WindowSize = windowSize;
+                Response = response;
             }
 
             internal IList<TikRecordSentence> Records { get; }
             internal int WindowSize { get; }
+            internal string? Response { get; }
         }
 
         private async Task<PagedWindow> RunOneWindowAsync(
@@ -1060,14 +1076,14 @@ namespace tik4net.Cli
 
             string body = SplitOffWindowMarker(output, out int windowSize);
             if (windowSize < 0)
-                return new PagedWindow(new List<TikRecordSentence>(), -1);   // caller decides: fall back
+                return new PagedWindow(new List<TikRecordSentence>(), -1, output);   // caller decides: fall back
 
             IList<TikRecordSentence> parsed = asJson
                 ? CliJsonParser.ParseJson(body)
                 : ParseRecords(body, descriptor);
             if (asJson)
                 _serializeSupported = true;
-            return new PagedWindow(parsed, windowSize);
+            return new PagedWindow(parsed, windowSize, body);
         }
 
         /// <summary>

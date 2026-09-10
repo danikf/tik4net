@@ -49,6 +49,10 @@ namespace tik4net.Cli
         /// for how a command asks for it. Requires RouterOS 7.13+; <see cref="CliConnectionBase"/> owns
         /// the fallback for older routers.
         /// </param>
+        /// <param name="fromIndices">
+        /// The <c>from=</c> row selector of a paged read — <see cref="WindowVariable"/> inside a window —
+        /// or <c>null</c> for a whole-table read. See <see cref="AppendFrom"/> for where it has to go.
+        /// </param>
         internal static string BuildPrint(string apiPath, IList<ITikCommandParameter> parameters, bool asJson = false,
                                           string? fromIndices = null)
         {
@@ -99,10 +103,11 @@ namespace tik4net.Cli
         /// expression and RouterOS answers with the WHOLE table — measured at 1672 rows where 2 were asked
         /// for. Placed before <c>where</c>, both apply: the slice is taken first and the filter is applied
         /// inside it.</para>
-        /// <para><c>from=</c> takes a comma-separated list of positional indices; a range (<c>from=0-4</c>)
-        /// is a syntax error, and an index past the last row answers <c>no such item</c> rather than
-        /// returning fewer rows — which is why a paged read has to know the row count before it starts
-        /// (<see cref="BuildRowCount"/>). See Docs/findings-cli.md §1.</para>
+        /// <para><c>from=</c> takes a comma-separated list of positional indices or <c>.id</c> values, or an
+        /// array of them; a range (<c>from=0-4</c>) is a syntax error, and an index past the last row answers
+        /// <c>no such item</c> rather than returning fewer rows. That is why a paged read selects by an array
+        /// of ids taken with <c>:pick</c>, which clamps, rather than by positions
+        /// (<see cref="BuildPagedWindow"/>). See Docs/findings-cli.md §1.</para>
         /// </remarks>
         private static void AppendFrom(StringBuilder sb, string? fromIndices)
         {
@@ -126,11 +131,9 @@ namespace tik4net.Cli
         /// page would otherwise hit on its last window. Guarding it is better than reading that error as
         /// end-of-data, because a wording that ever covered something else would turn a real failure into a
         /// silently short table.</para>
-        /// </summary>
-        /// <remarks>
-        /// Deliberately unfiltered and without <c>detail</c>: <c>from=</c> indexes the table as the router
-        /// stores it, not the filtered result, so a count narrowed by the caller's <c>where</c> would name
-        /// the wrong rows. The filter is applied per slice instead, and the union is the same set.
+        /// <para>The window is taken over the <b>unfiltered</b> table, so a read that carries a <c>where</c>
+        /// is never windowed at all (<see cref="CliConnectionBase"/> decides): applying the filter inside
+        /// each window keeps the answer correct but multiplies the work instead of shrinking it.</para>
         /// </remarks>
         internal static string BuildPagedWindow(string apiPath, string printCommand, int offset, int pageSize)
         {
@@ -149,10 +152,10 @@ namespace tik4net.Cli
         /// Prefix of the trailing line a paged window emits, carrying how many <b>ids the window held</b>.
         /// </summary>
         /// <remarks>
-        /// The record count cannot stand in for it. A window is taken over the unfiltered table and the
-        /// caller's <c>where</c> is applied inside it, so a full window can print no rows at all — measured,
-        /// a 3-id window answered 2 records under a filter. Ending the loop on the records would stop at the
-        /// first window the filter emptied and silently return a short table.
+        /// It is the router's own statement of how many rows the answer must carry — a window is never
+        /// filtered, so every id in it names one row — and it ends the loop. The records parsed from the
+        /// answer are checked against it rather than trusted in its place: a count that disagrees means rows
+        /// were lost on the way, or split by the parser, and the read is refused.
         /// </remarks>
         internal const string WindowMarker = "#w=";
 
@@ -176,6 +179,7 @@ namespace tik4net.Cli
         /// Applies the same <c>:serialize to=json</c> wrapping as <see cref="BuildPrint"/>, so an entity
         /// asking for both the stats merge and JSON gets JSON for both halves of it.
         /// </param>
+        /// <param name="fromIndices">The same row selector as <see cref="BuildPrint"/> takes.</param>
         internal static string BuildPrintStats(string apiPath, IList<ITikCommandParameter> parameters, bool asJson = false,
                                                string? fromIndices = null)
         {

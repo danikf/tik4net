@@ -81,6 +81,7 @@ A read can be split into windows instead of asking for the whole table at once �
 | rejects | a range: `from=0-4` is *expected end of command* |
 | rejects | an **empty** array: *invalid value for argument from* |
 | an index past the last row | **`no such item`** — an out-of-range positional window is an error, not a short answer |
+| an `.id` that is gone | **`no such item`**, and the rest of the command line does not run — an id removed between `find` and `print from=` fails the window rather than shortening it |
 | replies | in **the order the selector lists**, not table order — `from=1,0` returns row 1 then row 0 |
 | combines with | `detail`, and with `where` |
 
@@ -101,10 +102,13 @@ Three consequences for the command shape:
   last window. Hence the `:if ([:len $w] > 0)` guard. Reading that error as end-of-data would work today and
   is deliberately not done: a wording that ever covered anything else would turn a real failure into a
   silently short table.
-- **The window must state its own size**, `:put ("#w=" . [:len $w])`. The record count cannot stand in for
-  it, because the window is taken over the unfiltered table and the caller's `where` is applied inside it —
-  measured, a 3-id window answered 2 records under a filter. Ending the loop on records would stop at the
-  first window a filter emptied.
+- **The window states its own size**, `:put ("#w=" . [:len $w])`, and that number does two jobs. It ends
+  the loop, and it is the router's own count of the rows the answer must carry: a window is never filtered
+  (see below), so every id in it names one row, and the records parsed from the answer are checked against
+  it — a mismatch is refused as `TikConnectionResponseIncompleteException`. That is an exact completeness
+  check, where the MAC datagram-loss one is a heuristic. It holds only because windows are unfiltered: a
+  `where` applied inside a window legitimately prints fewer rows than ids (a 3-id window answered 2 records
+  under a filter).
 - **Order is preserved.** `find` returns ids in the same order `print` does — verified on `/ip firewall
   mangle` (ordered: `*B0B;*1192;*1191;…`, matching rows 0,1,2) and on `/ip service` (unordered, ids not
   sequential, same sequence both ways). Since `from=` replies in the order listed, a windowed read has the
@@ -121,6 +125,20 @@ MAC datagram-loss check covers those reads instead (it keys on whether *this com
 whether the connection pages). Pushing the filter into `find` is what would fix it properly and is deferred:
 `find !(x)` is a syntax error and `BuildWhereClause` emits that form, so it needs a narrower rule than
 "always" — see the roadmap note.
+
+**Counting a whole-table answer on the router.** The same count is available for a read that is not
+windowed — `:local d [/path print as-value]; :put $d; :put ("#n=" . [:len $d])` answers the data and its row
+count from one evaluation — with one trap in what `:len` counts:
+
+| `print as-value` of | `[:len $d]` | `[:typeof [:pick $d 0]]` |
+|---|---|---|
+| a list menu, 3 rows (`/interface`) | 3 | `array` |
+| a list menu filtered to 1 row | 1 | `array` |
+| an empty list menu | 0 | `nil` |
+| a singleton (`/system identity`) | **1 — its field count** | `str` |
+
+A singleton's answer is one record held as a flat key/value array, so `:len` counts its fields. A count
+used this way has to carry the element type too, or be skipped for menus with no `find`.
 
 Two alternatives that do **not** work, both measured rather than reasoned about:
 
