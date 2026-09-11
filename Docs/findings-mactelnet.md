@@ -369,9 +369,18 @@ two wide gaps on a 3.6 KB read and on an empty one, so the populations do overla
 occasional false alarm. The responses it still covers are small, and a spurious "retry it" costs one
 re-send.
 
-What this does **not** fix is throughput: the MAC layer still moves 7–15 KB/s against Telnet's ~70 KB/s
-and cannot finish a read this size inside the 30 s receive deadline. Holding out-of-order packets in a
-reorder buffer, so recovery costs one retransmit instead of a backlog replay, is the untried candidate.
+Paging also settles throughput for reads. A single command of this size moves 7–15 KB/s, because the loss
+episodes it provokes are recovered by backlog replay, and it cannot finish inside the 30 s receive deadline.
+In windows the same tables read in a few seconds (`MacLayerLargeReadProbe`, three reads each, 7.24):
+
+| | `/queue/tree`, 681 rows (detail + stats) | `/ip firewall mangle`, 1672 rows |
+|---|---|---|
+| `MacTelnet` | 2.8–3.0 s | 7.2–7.4 s |
+| `WinboxCliMac` | 3.8–3.9 s | 8.7–8.8 s |
+
+The mangle read is roughly 45 KB/s. Holding out-of-order packets in a reorder buffer, so recovery costs one
+retransmit instead of a backlog replay, remains the untried candidate for everything a window does not
+cover — a single large answer to a command that is not a read.
 
 ## 10. Router-side prerequisites
 
