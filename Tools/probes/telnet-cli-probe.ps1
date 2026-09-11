@@ -39,7 +39,10 @@ param(
   # One command per line. Blank lines and lines starting with # are skipped. Overrides -Command.
   [string]   $CommandFile = '',
   # Login attempts. Each is a fresh TCP connection - see the login note below.
-  [int]      $LoginTries  = 10
+  [int]      $LoginTries  = 10,
+  # How long to read each command's answer. The default suits a short answer; a large table needs more,
+  # or its tail spills into the next command's capture.
+  [int]      $ReadMs      = 2000
 )
 
 $ErrorActionPreference = 'Stop'
@@ -151,7 +154,7 @@ foreach ($cmd in $Command) {
   Send ($cmd + "`r`n")
   # Fixed-duration read: RouterOS redraws the prompt BEFORE the data, so "read until ] >" would stop
   # too early on the redraw. Reading for a fixed window captures echo + data + final prompt.
-  $r = ReadFor 2000
+  $r = ReadFor $ReadMs
   Write-Output "=== CMD: $cmd ==="; Write-Output (Vis $r); Write-Output ""
 }
 $c.Close()

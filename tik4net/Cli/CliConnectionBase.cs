@@ -995,6 +995,7 @@ namespace tik4net.Cli
             int pageSize, CancellationToken cancellationToken)
         {
             var all = new List<TikRecordSentence>();
+            int interruptions = 0;
 
             for (int offset = 0; ; offset += pageSize)
             {
@@ -1035,6 +1036,28 @@ namespace tik4net.Cli
                     _windowedReadDepth--;
                 }
 
+                if (window.Interrupted)
+                {
+                    // A row this window named vanished before it was printed, and RouterOS aborted the line. Not
+                    // a menu without 'find' (at offset 0 that mistake would switch paging off for the rest of
+                    // the connection), and not a failure of the read: the same window taken again re-runs
+                    // 'find' and names the rows that exist now.
+                    if (++interruptions > MaxInterruptedWindowRetries)
+                        throw new TikConnectionResponseIncompleteException(
+                            TransportName + ": RouterOS interrupted the window at offset " + offset + " of '"
+                                + descriptor.CommandText + "' " + interruptions + " times in a row — rows are "
+                                + "vanishing between the window's 'find' and its 'print' faster than it can be "
+                                + "taken. A table that turns over this quickly reads reliably as one command: set "
+                                + "CliReadPageSize to 0 for it, or use a transport that is not on the MAC layer.",
+                            0, window.Response);
+                    TikWireTrace.Emit("cli.page", TikWireDir.Note,
+                        "window at offset " + offset + " of '" + descriptor.CommandText
+                            + "' interrupted (a row vanished under it) — taking it again");
+                    offset -= pageSize;   // the loop's increment brings it back to the same window
+                    continue;
+                }
+                interruptions = 0;
+
                 if (window.WindowSize < 0)
                 {
                     // No '#w=' came back, so there is no way to know when to stop. Same treatment.
@@ -1072,19 +1095,42 @@ namespace tik4net.Cli
             }
         }
 
+        /// <summary>
+        /// How many times one window is taken again after RouterOS interrupted it. Measured under heavy
+        /// conntrack churn (~5000 rows turning over every 30 s), 17 of 26 reads of about 50 windows each hit
+        /// one without retry — 1.4–2.4 % of windows — so three retries leave well under one in a million per
+        /// window; a window that still fails is a table no windowed read can keep up with.
+        /// </summary>
+        private const int MaxInterruptedWindowRetries = 3;
+
         private readonly struct PagedWindow
         {
-            internal PagedWindow(IList<TikRecordSentence> records, int windowSize, string? response)
+            internal PagedWindow(IList<TikRecordSentence> records, int windowSize, string? response,
+                                 bool interrupted = false)
             {
                 Records = records;
                 WindowSize = windowSize;
                 Response = response;
+                Interrupted = interrupted;
             }
 
             internal IList<TikRecordSentence> Records { get; }
             internal int WindowSize { get; }
             internal string? Response { get; }
+
+            /// <summary>RouterOS aborted the window's line: it answered <c>interrupted</c> and nothing else.</summary>
+            internal bool Interrupted { get; }
         }
+
+        /// <summary>
+        /// True when RouterOS aborted the command line — what it answers, with no rows, no marker and no error
+        /// text, when a window's <c>print from=</c> names an id that vanished after its <c>find</c> (measured on
+        /// 7.24 under conntrack churn; Docs/findings-cli.md §1). The word alone on a line, so a field value
+        /// cannot be mistaken for it.
+        /// </summary>
+        private static bool IsInterruptedAnswer(string? output)
+            => (output ?? string.Empty).Split((char)10)
+                .Any(line => string.Equals(line.Trim(), "interrupted", StringComparison.Ordinal));
 
         private async Task<PagedWindow> RunOneWindowAsync(
             TikCommandDescriptor descriptor, bool wantJson, Func<string?, string> buildExpression,
@@ -1098,8 +1144,8 @@ namespace tik4net.Cli
             CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
 
             string body = SplitOffWindowMarker(output, out int windowSize);
-            if (windowSize < 0)
-                return new PagedWindow(new List<TikRecordSentence>(), -1, output);   // caller decides: fall back
+            if (windowSize < 0)   // caller decides: take it again if interrupted, otherwise fall back
+                return new PagedWindow(new List<TikRecordSentence>(), -1, output, IsInterruptedAnswer(output));
 
             IList<TikRecordSentence> parsed = asJson
                 ? CliJsonParser.ParseJson(body)
@@ -1200,8 +1246,9 @@ namespace tik4net.Cli
             if (expected < 0)
                 throw new TikConnectionResponseIncompleteException(
                     TransportName + ": the read of '" + descriptor.CommandText + "' ended without the router's "
-                        + "count of the records it holds, which it always writes last. The answer is incomplete, "
-                        + "so it is refused rather than returned. Retry the read.",
+                        + "count of the records it holds, which it always writes last"
+                        + (IsInterruptedAnswer(text) ? " — RouterOS interrupted the command" : "")
+                        + ". The answer is incomplete, so it is refused rather than returned. Retry the read.",
                     0, output);
 
             return text.Substring(0, at).TrimEnd(WindowMarkerTrim);

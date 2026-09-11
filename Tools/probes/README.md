@@ -72,6 +72,12 @@ PowerShell parses as syntax — `-Command ':put [... where comment="a (b)"]'` fa
 parameter cannot be found"*. One command per line; blank lines and `#` comments are skipped, and
 reading from a file bypasses PowerShell's argument parsing entirely.
 
+**`-ReadMs` for a large answer** (default 2000). Each command's answer is read for a fixed window, not
+up to a prompt — RouterOS redraws the prompt before the data, so a prompt match would stop early — and a
+table of a few hundred KB takes longer than two seconds. Its tail then lands in the *next* command's
+capture, which reads as two broken answers rather than one long one. `-ReadMs 15000` covered a
+5000-row `/ip firewall connection` print.
+
 The login uses fixed delays and **retries on a fresh TCP connection** (`-LoginTries`, default 10):
 the probe answers VT100 probes with a canned cursor report, which occasionally desyncs the router's
 credential read and produces a spurious *"incorrect username or password"*. Prompt-driven sending was

@@ -81,7 +81,7 @@ A read can be split into windows instead of asking for the whole table at once �
 | rejects | a range: `from=0-4` is *expected end of command* |
 | rejects | an **empty** array: *invalid value for argument from* |
 | an index past the last row | **`no such item`** — an out-of-range positional window is an error, not a short answer |
-| an `.id` that is gone | **`no such item`**, and the rest of the command line does not run — an id removed between `find` and `print from=` fails the window rather than shortening it |
+| an `.id` that is gone | the line is **aborted**, never shortened — but what it prints depends on how the id went: a nonexistent id answers `interrupted`, a prompt, then `no such item (4)` written over that prompt and a second prompt; an id that **vanished between the window's `find` and its `print`** answers `interrupted` and one prompt, with no rows and no error text at all |
 | replies | in **the order the selector lists**, not table order — `from=1,0` returns row 1 then row 0 |
 | combines with | `detail`, and with `where` |
 
@@ -116,6 +116,15 @@ Three consequences for the command shape:
 
 The cost is one request per window plus, when the row count is an exact multiple of the page, one final
 empty window to discover the end.
+
+**A table that reaps its own rows interrupts windows.** Measured on `/ip firewall connection` with ~5000 rows
+turning over every 30 s (UDP datagrams to random router ports): 1.4–2.4 % of windows came back `interrupted`
+— a row the window's `find` named was gone by its `print`. That is enough to fail most paged reads of the
+table, so an interrupted window is **taken again**: the retry re-runs `find` and names the rows that exist now.
+With up to three retries, 20 of 20 reads completed under the same churn (30 retries, each succeeding first
+time). Before, an interrupted *first* window was indistinguishable from a menu with no `find` and switched
+paging off for the connection. A **whole-table** `print` is not affected at all — 12 of 12 complete under the
+same churn, plain and counted, every `#n=` matching its rows — because RouterOS evaluates it in one go.
 
 **A filtered read is not windowed.** The window is taken over the unfiltered table and the caller's `where`
 is applied inside it, so filtering multiplies the work instead of shrinking it — measured over MAC-Telnet,

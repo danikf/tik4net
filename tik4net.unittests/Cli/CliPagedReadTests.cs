@@ -279,6 +279,67 @@ namespace tik4net.unittests.Cli
             }
         }
 
+        // ── A row that vanishes under a window ────────────────────────────────
+        //
+        // A window is 'find' then 'print from=$w'. When an id vanishes between the two — conntrack reaps its
+        // own rows constantly — RouterOS aborts the line and answers only 'interrupted': no rows, no '#w=', no
+        // error text (measured on 7.24 under churn, Docs/findings-cli.md §1). A whole-table print is not
+        // affected; the router snapshots it.
+
+        [TestMethod]
+        public void AnInterruptedWindowIsTakenAgain()
+        {
+            using (var conn = new PagingCliConnection(rowCount: 5))
+            {
+                conn.InterruptOffsets[2] = 1;
+                conn.OpenScripted();
+                conn.CliReadPageSize = 2;
+
+                var rows = conn.LoadList<PagedProbe>().ToList();
+
+                CollectionAssert.AreEqual(new[] { "r0", "r1", "r2", "r3", "r4" }, rows.Select(r => r.Name).ToList());
+                Assert.AreEqual(2, conn.Sent.Count(s => s.Contains(":pick [/probe find] 2 4")),
+                    "the interrupted window is asked for again: " + string.Join(" | ", conn.Sent));
+            }
+        }
+
+        [TestMethod]
+        public void AnInterruptedFirstWindowDoesNotSwitchPagingOff()
+        {
+            // The first window is where "this menu has no find" is discovered. An interrupted one is not that,
+            // and taking it for that would read this menu unpaged for the rest of the connection — on the MAC
+            // layer, exactly the read paging exists to prevent.
+            using (var conn = new PagingCliConnection(rowCount: 5))
+            {
+                conn.InterruptOffsets[0] = 1;
+                conn.OpenScripted();
+                conn.CliReadPageSize = 2;
+
+                Assert.AreEqual(5, conn.LoadList<PagedProbe>().Count());
+                conn.Sent.Clear();
+                conn.LoadList<PagedProbe>().ToList();
+
+                StringAssert.Contains(conn.Sent[0], ":pick [/probe find] 0 2", "the next read still pages");
+            }
+        }
+
+        [TestMethod]
+        public void AWindowInterruptedEveryTimeIsRefusedAndSaysWhy()
+        {
+            using (var conn = new PagingCliConnection(rowCount: 5))
+            {
+                conn.InterruptOffsets[2] = int.MaxValue;
+                conn.OpenScripted();
+                conn.CliReadPageSize = 2;
+
+                var ex = Assert.ThrowsException<TikConnectionResponseIncompleteException>(
+                    () => conn.LoadList<PagedProbe>().ToList());
+
+                StringAssert.Contains(ex.Message, "interrupted");
+                StringAssert.Contains(ex.Message, "CliReadPageSize");
+            }
+        }
+
         [TestMethod]
         public void ANegativePageSizeIsRefused()
         {
@@ -327,6 +388,9 @@ namespace tik4net.unittests.Cli
             public int DropOneRecordForOffset = -1;
             public int ExtraRecordForOffset = -1;
 
+            /// <summary>Window offset → how many more times it answers 'interrupted', as the router does.</summary>
+            public readonly Dictionary<int, int> InterruptOffsets = new Dictionary<int, int>();
+
             public PagingCliConnection(int rowCount) => _rowCount = rowCount;
 
             protected override string TransportName => "Paging";
@@ -345,6 +409,12 @@ namespace tik4net.unittests.Cli
 
                 int from = int.Parse(pick.Groups[1].Value);
                 int to = int.Parse(pick.Groups[2].Value);
+
+                if (InterruptOffsets.TryGetValue(from, out int left) && left > 0)
+                {
+                    InterruptOffsets[from] = left == int.MaxValue ? left : left - 1;
+                    return Task.FromResult("interrupted");   // the whole answer: no rows, no marker
+                }
                 int window = Math.Max(0, Math.Min(to, _rowCount) - Math.Min(from, _rowCount));
 
                 string body = from == DropRecordsForOffset ? string.Empty
