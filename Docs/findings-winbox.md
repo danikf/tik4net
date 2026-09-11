@@ -583,6 +583,30 @@ This is a softer, earlier signal than `SendAbandoned` (§16): that one means "th
 sits at the very end of the budget; this one means "the stream is stuck but may still recover" and
 governs what the client is allowed to **send**, not what it is allowed to report.
 
+## 20. The router can leave mepty pulls unanswered for seconds mid-print, then resume
+
+Measured on 7.24 (CHR, 2 vCPUs) over `WinboxCli` (TCP), with `MacLayerLargeReadProbe` reading `/queue/tree`
+(681 rows) and `/ip firewall mangle` (1672 rows, two queries each: `detail` and `stats`) ten times, with the
+byte trace on. 38 of 40 commands ran at their usual pace (mangle `detail` 2.3 s, `stats` 1.5 s). Two stalled:
+**77 and 94 consecutive pulls went unanswered, for 10.3 s and 12.5 s**, and then the router carried on
+mid-row as if nothing had happened. Both reads completed with the right row count.
+
+The pull cadence is bimodal: 859 of 861 pull runs were answered first time, and the only other runs are those
+two. Two readings put the pause on the router's side:
+
+- **the acknowledgement is exact** — on all 1030 pulls of the session, the `ack` sent equals the terminal
+  bytes received ([findings-mepty-byte-ack.md](findings-mepty-byte-ack.md)), so
+  the router was not waiting for bytes it believed unacknowledged;
+- **nothing reached the socket** — no `wbxtcp.sock` event at all during either stall; the reader sat in one
+  blocking read and no byte arrived.
+
+Telnet and SSH read the same tables ten times each in the same session with no pause (mangle 3.6–3.7 s
+every time), so the print itself does not stall — what pauses is the router serving this terminal channel.
+The two durations differ, so it is not a fixed timer. **Open:** whether the client re-pulling every ~150 ms
+during the pause shortens it, lengthens it, or is irrelevant; WinBox's own pacing has not been compared.
+The cost today is time, not correctness — a paused read still ends inside the 30 s receive deadline, and the
+record count (`#n=`, [findings-cli.md](findings-cli.md) §1) confirms it is complete.
+
 ---
 
 ## Settled questions — do not re-investigate
