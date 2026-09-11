@@ -248,11 +248,45 @@ True when measured, not maintained. Re-measure rather than citing them.
 
 | Measured | What | Value |
 |---|---|---|
+| 2026-09-11 | 4.0.0-beta3 gating matrix — see the table below | 0 failures on all eleven transports, on the 2-vCPU lab **with** the 1672 mangle rules in place |
+| 2026-09-11 | Sliced CLI read of `/ip firewall connection` under churn (~5000 rows turning over every 30 s; `ConntrackChurnPagedReadProbe`, Telnet, 100-row slices) | Without retry 6 of 20 reads complete — 1.4–2.4 % of slices answered only `interrupted`; with a slice retried, 20 of 20 (30 retries). Whole-table prints under the same churn: 12 of 12, every `#n=` exact |
+| 2026-09-11 | Large reads at 2 vCPUs (`MacLayerLargeReadProbe`): `/queue/tree` 681 rows (detail + stats) / `/ip firewall mangle` 1672 rows | Telnet 2.6 s / 3.6–3.7 s; SSH 2.6 s / 3.7 s; WinboxCli 2.7 s / 3.8 s, except 2 of 40 commands with 77 and 94 unanswered mepty pulls (10.3 s, 12.5 s); MacTelnet, sliced, 2.8–3.0 s / 7.2–7.4 s; WinboxCliMac, sliced, 3.8–3.9 s / 8.7–8.8 s |
+| 2026-09-07 | The same 1672-row mangle table after the lab VM went from 16 to 2 vCPUs | WinBox native over TCP: 50 of 50 reads, worst socket gap 712 ms (at 16 vCPUs: 6 stalls in 48, pauses of 21.8 s and 52.8 s). Binary API, five connection-state arms: 0 stalls in 60 reads, median 5.5–6.0 s |
+| 2026-09-06/07 | Full 11-transport matrix, 7.24.2, 16 vCPUs, **1672 mangle rules restored** | 12 failures (night of 09-06) and 7 on the rerun (morning of 09-07), mostly `TikConnectionReceiveTimeoutException` on large reads and `FormatException` from spliced CLI output — the findings that became 4.0.0-beta3 |
+| 2026-09-06 | Full 11-transport matrix, 7.24.2, 16 vCPUs, mangle table **empty** | 6039 results: 4938 passed, 1101 skipped, 0 failed. Green because the condition behind the 2026-09-03 timeouts had been removed, not because they were fixed — see the two rows above |
 | 2026-08-29 | Full integration run, RouterOS 7.24, 541 tests, nine transports | See the table below — 0 failures everywhere, 3–9 minutes per transport |
 | 2026-08-29 | `tik4net.unittests` | 915 tests, 0 skipped |
 | 2026-08-29 | `TransportPathMapAuditTest` against the binary API, transport `WinboxNative` | `OK=154 KNOWN-GAP=1 MISMATCH=0 VALUE-DIFF=0 VALUES-UNCOMPARED=1 UNMAPPED=0 ROUTER-N/A=7`; field-name shortfall 96/1342 (7%), and 105/1345 measured on the same fixtures one commit earlier |
 | 2026-07-26 | Full integration run, RouterOS 7.23.2, 390 tests | Api/ApiSsl ~5 min; Rest/RestSsl ~3 min; Telnet/Ssh ~7 min; MacTelnet ~13 min; WinboxNative ~5–8 min; WinboxCli ~7 min; WinboxCliMac ~1 h 20 min |
 | 2026-07-26 | Same-version reinstall of the MCP global tool | Verified to deliver new code: a marker in `Program.cs` changed the installed assembly hash |
+
+## Gating run for 4.0.0-beta3, 2026-09-11 — RouterOS 7.24.2, 559 tests
+
+On the lab CHR at 2 vCPUs, carrying the 1672-rule `/ip firewall mangle` table that the 2026-09-06/07
+failures were measured against — the stronger result, since the empty-table run of 2026-09-06 was green only
+because that condition had been removed. The full matrix found one failure, on `winboxcli`: a mid-frame
+deadline of 5 s against a router that pauses its terminal output for 10–12 s (findings-winbox.md §20). The two
+WinBox terminal legs below are the rerun on the fix; the other nine are from the full run.
+
+Counted from `<UnitTestResult outcome=…>` elements. The TRX `<ResultSummary>` also carries an `outcome`
+attribute, so a plain `grep -c 'outcome="Failed"'` counts one extra per red leg.
+
+| Transport | Passed | Skipped | Failed | Wall clock |
+|---|---:|---:|---:|---:|
+| `Api` | 457 | 102 | 0 | 3.2 min |
+| `ApiSsl` | 457 | 102 | 0 | 3.4 min |
+| `Rest` | 443 | 116 | 0 | 3.5 min |
+| `RestSsl` | 443 | 116 | 0 | 3.5 min |
+| `WinboxNative` | 440 | 119 | 0 | 4.4 min |
+| `WinboxNativeMac` | 440 | 119 | 0 | 7.1 min |
+| `MacTelnet` | 454 | 105 | 0 | 7.8 min |
+| `Telnet` | 454 | 105 | 0 | 8.2 min |
+| `Ssh` | 453 | 106 | 0 | 8.4 min |
+| `WinboxCliMac` | 454 | 105 | 0 | 8.7 min |
+| `WinboxCli` | 454 | 105 | 0 | 9.0 min |
+
+`Ssh` skips one more than the other CLI transports: the lab account has no password, and RouterOS accepts SSH
+auth method `none` for such an account, so a rejected password cannot be provoked.
 
 ## Full run, 2026-08-29 — RouterOS 7.24, 541 tests
 

@@ -403,8 +403,22 @@ namespace tik4net.WinboxCli
                 if (_session.DataAvailable)
                 {
                     byte[]? chunk;
-                    try { chunk = ReceiveTerminalChunk(FrameTimeoutMs); }
-                    catch (IOException) { break; }
+                    // A frame has started arriving. It gets what is left of the receive deadline, not a fixed
+                    // FrameTimeoutMs: the router pauses its terminal output for 10-12 s at a time
+                    // (findings-winbox.md §20), a pause BETWEEN frames already gets the whole deadline, and one
+                    // that happens to land mid-frame deserves no less. A socket deadline that fires mid-frame
+                    // also leaves the stream unreadable, so it should fire only when the read is over anyway.
+                    try { chunk = ReceiveTerminalChunk(RemainingFrameBudget(sw)); }
+                    catch (IOException ex)
+                    {
+                        // Not the generic timeout below: that one says the whole deadline elapsed, which is not
+                        // what happened, and it would drop the one exception that says what did.
+                        string soFar = VtStripper.StripAnsi(sb.ToString());
+                        if (sentCommand == null)
+                            return soFar;
+                        throw Cli.CliReadTimeout.CreateMidFrame(
+                            "WinBox CLI", _receiveTimeoutMs, sw.ElapsedMilliseconds, sentCommand, soFar, ex);
+                    }
                     if (chunk != null)
                     {
                         string text = _encoding.GetString(chunk);
@@ -500,6 +514,16 @@ namespace tik4net.WinboxCli
                 throw Cli.CliReadTimeout.Create("WinBox CLI", _receiveTimeoutMs, sentCommand, strippedSoFar);
             return strippedSoFar;
         }
+
+        /// <summary>
+        /// The deadline for completing a frame that has started arriving: what remains of the command's receive
+        /// deadline, never less than <see cref="MinFrameBudgetMs"/> so a frame begun just before the deadline
+        /// can still finish.
+        /// </summary>
+        private int RemainingFrameBudget(Stopwatch sw)
+            => (int)Math.Max(MinFrameBudgetMs, _receiveTimeoutMs - sw.ElapsedMilliseconds);
+
+        private const int MinFrameBudgetMs = 1000;
 
         /// <summary>
         /// Accumulates the terminal reaction until the channel stays quiet for <paramref name="quietMs"/>

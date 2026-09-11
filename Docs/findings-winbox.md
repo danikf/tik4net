@@ -604,8 +604,16 @@ Telnet and SSH read the same tables ten times each in the same session with no p
 every time), so the print itself does not stall — what pauses is the router serving this terminal channel.
 The two durations differ, so it is not a fixed timer. **Open:** whether the client re-pulling every ~150 ms
 during the pause shortens it, lengthens it, or is irrelevant; WinBox's own pacing has not been compared.
-The cost today is time, not correctness — a paused read still ends inside the 30 s receive deadline, and the
-record count (`#n=`, [findings-cli.md](findings-cli.md) §1) confirms it is complete.
+
+**The pause can land in the middle of a frame**, with part of a frame read and the rest not arriving (a
+3.35 s wait on `read want=203 into 52/255` in the same trace). So `WinboxCliClient.ReadCommandResponseAsync`
+gives a frame that has started arriving **what remains of the receive deadline**, the same as a pause
+between frames gets. A fixed 5 s frame deadline turned a 10 s pause into a failed read: the 2026-09-11
+gating matrix lost a 1672-row mangle read that way, inside a 5.7 s test. A frame that does fail part-way is
+reported as `TikConnectionReceiveTimeoutException` naming the elapsed time and carrying the channel's
+exception, and the connection is closed, because a stream left mid-frame cannot be read in step again. With
+that, the pause costs time rather than correctness, and the record count (`#n=`,
+[findings-cli.md](findings-cli.md) §1) confirms each read is complete.
 
 ---
 

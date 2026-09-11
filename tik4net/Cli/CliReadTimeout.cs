@@ -45,7 +45,41 @@ namespace tik4net.Cli
                 + "prompt otherwise means the terminal is out of step with the router.";
 
             return new TikConnectionReceiveTimeoutException(timeoutMs, message,
-                received.Length == 0 ? null! : received); // ctor's partialResponse is optional/nullable by contract (default null), just not annotated (out of scope here)
+                received.Length == 0 ? null : received);
+        }
+
+        /// <summary>
+        /// Creates the exception for a response whose frame stopped arriving part-way through — the channel
+        /// failed, or its deadline fired, while a frame was being read.
+        /// </summary>
+        /// <remarks>
+        /// Still a <see cref="TikConnectionReceiveTimeoutException"/>, because what the caller has to do is the
+        /// same — the response is incomplete and the connection is closed, since a stream left mid-frame cannot
+        /// be read in step again — but it says how long the read actually ran and carries the channel's own
+        /// exception, instead of claiming the whole deadline elapsed.
+        /// </remarks>
+        /// <param name="transport">Short transport name, e.g. <c>"WinBox CLI"</c>.</param>
+        /// <param name="timeoutMs">The configured receive timeout.</param>
+        /// <param name="elapsedMs">How long the read had run when the frame failed.</param>
+        /// <param name="sentCommand">The command that was sent.</param>
+        /// <param name="received">Everything received so far (ANSI-stripped).</param>
+        /// <param name="cause">The channel's exception.</param>
+        internal static TikConnectionReceiveTimeoutException CreateMidFrame(
+            string transport, int timeoutMs, long elapsedMs, string sentCommand, string received, Exception cause)
+        {
+            received = received ?? string.Empty;
+
+            string message =
+                transport + ": a frame of the answer stopped arriving part-way through, " + elapsedMs + " ms into "
+                + "the " + timeoutMs + " ms receive deadline — " + cause.GetType().Name + ": " + cause.Message + ". "
+                + (received.Length == 0
+                    ? string.Empty
+                    : received.Length + " characters had been received; the tail is '" + Tail(received) + "'. ")
+                + "Command: '" + sentCommand.Trim() + "'. A stream left mid-frame cannot be read in step again, "
+                + "so the connection is closed.";
+
+            return new TikConnectionReceiveTimeoutException(timeoutMs, message,
+                received.Length == 0 ? null : received, cause);
         }
 
         // Last TailChars characters with line breaks made visible, so the quoted tail stays on one line.
