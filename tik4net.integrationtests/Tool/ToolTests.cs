@@ -51,7 +51,9 @@ namespace tik4net.integrationtests
 
             Thread.Sleep(2 * 1000);
 
-            Assert.IsNull(responseException);
+            // Carry the exception itself: a bare "Assert.IsNull failed" once left a MAC-Telnet failure with
+            // nothing to diagnose it by.
+            Assert.IsNull(responseException, responseException?.ToString());
             Assert.AreEqual(responseList.Count, 1);
             Assert.AreEqual(responseList.Single().Host, HOST);
         }
@@ -167,7 +169,7 @@ namespace tik4net.integrationtests
             Thread.Sleep(1500);
 
             Assert.IsTrue(!Connection.IsOpened);
-            Assert.IsNull(responseException);
+            Assert.IsNull(responseException, responseException?.ToString());
             Assert.IsTrue(responseList.Count < MAX_CNT);
             Assert.IsTrue(!responseList.Any(ping => ping.Host != HOST));
 
