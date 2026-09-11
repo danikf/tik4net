@@ -121,17 +121,17 @@ namespace tik4net.Objects.Interface
         public enum ProtocolModeModes
         {
             /// <summary>
-            /// 
+            /// none - no spanning tree protocol runs on the bridge.
             /// </summary>
             [TikEnum("none")]
             None,
             /// <summary>
-            /// rstp - Select Spanning tree protocol (STP)
+            /// rstp - Rapid spanning tree protocol (RSTP), which converges faster than STP after a topology change.
             /// </summary>
             [TikEnum("rstp")]
             Rstp,
             /// <summary>
-            /// rstp - Rapid spanning tree protocol (RSTP) to ensure a loop-free topology for any bridged LAN. RSTP provides for faster spanning tree convergence after a topology change.
+            /// stp - Spanning tree protocol (STP), to ensure a loop-free topology for any bridged LAN.
             /// </summary>
             [TikEnum("stp")]
             Stp,

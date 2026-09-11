@@ -35,6 +35,14 @@ namespace tik4net
         /// <see cref="OpenConnection(TikConnectionType, string, string, string)"/>
         /// can create it like any built-in type. Re-registering the same type replaces the previous factory.
         /// </summary>
+        /// <remarks>
+        /// <see cref="TikConnectionType"/> is a closed enum, and every value except
+        /// <see cref="TikConnectionType.Ssh"/> is implemented by tik4net itself and answered before a
+        /// registered factory is consulted — so <c>Ssh</c> is the only type a registration takes effect for.
+        /// A transport of your own has no <see cref="TikConnectionType"/> value: create it directly and
+        /// configure it with <see cref="TikConnectionSetup.ApplyTo"/> (see the wiki's
+        /// <i>Writing your own transport</i> page).
+        /// </remarks>
         /// <param name="connectionType">The connection type the satellite package implements.</param>
         /// <param name="factory">Creates a fresh, unopened connection instance.</param>
         public static void RegisterConnectionFactory(TikConnectionType connectionType, Func<ITikConnection> factory)

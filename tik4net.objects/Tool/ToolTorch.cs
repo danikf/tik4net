@@ -42,25 +42,25 @@ namespace tik4net.Objects.Tool
         public string? DstPort { get; private set; }
 
         /// <summary>
-        /// tx
+        /// tx: Transmit rate of this flow in the row's <see cref="SectionNr"/>, in bits per second.
         /// </summary>
         [TikProperty("tx", IsReadOnly = true)]
         public long Tx { get; private set; }
 
         /// <summary>
-        /// rx
+        /// rx: Receive rate of this flow in the row's <see cref="SectionNr"/>, in bits per second.
         /// </summary>
         [TikProperty("rx", IsReadOnly = true)]
         public long Rx { get; private set; }
 
         /// <summary>
-        /// tx-packets
+        /// tx-packets: Transmit rate of this flow in the row's <see cref="SectionNr"/>, in packets per second.
         /// </summary>
         [TikProperty("tx-packets", IsReadOnly = true)]
         public long TxPackets { get; private set; }
 
         /// <summary>
-        /// rx-packets
+        /// rx-packets: Receive rate of this flow in the row's <see cref="SectionNr"/>, in packets per second.
         /// </summary>
         [TikProperty("rx-packets", IsReadOnly = true)]
         public long RxPackets { get; private set; }

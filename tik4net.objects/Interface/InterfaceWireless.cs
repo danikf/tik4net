@@ -444,7 +444,7 @@ namespace tik4net.Objects.Interface
             StationPseudobridgeClone,            
 
             /// <summary>
-            /// ?
+            /// station-bridge - Same as station, but the interface can be bridged. MikroTik-proprietary: works only with a RouterOS access point.
             /// </summary>
             [TikEnum("station-bridge")]
             StationBridge
@@ -906,7 +906,7 @@ namespace tik4net.Objects.Interface
             NV2NStreme80211,
 
             /// <summary>
-            /// ?
+            /// 802.11 - on AP - uses the regular 802.11 protocol; on station - connects only to regular 802.11 Access Points.
             /// </summary>
             [TikEnum("802.11")]
             Plain80211,            

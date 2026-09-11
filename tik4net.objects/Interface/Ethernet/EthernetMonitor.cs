@@ -158,7 +158,7 @@ namespace tik4net.Objects.Interface.Ethernet
     }
 
     /// <summary>
-    /// Connection extension class for <see cref="InterfaceMonitorTraffic"/>
+    /// Connection extension class for <see cref="EthernetMonitor"/>
     /// </summary>
     [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
     [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]

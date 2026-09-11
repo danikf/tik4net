@@ -26,7 +26,7 @@ namespace tik4net.Objects.Ip
             Yes,
 
             /// <summary>
-            /// no
+            /// no - does not install the route(s) received from the DHCP server.
             /// </summary>
             [TikEnum("no")]
             No,

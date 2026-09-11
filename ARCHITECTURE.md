@@ -59,13 +59,13 @@ every transport has. What a transport can reasonably lack goes on a facet interf
 **two kinds of facet**, which is what decides whether a capability flag comes with it:
 
 - **A feature some transports cannot perform** gets a facet **and** a flag. The flag exists because a
-  caller holding a connection chosen at run time has to be able to ask before casting. Three of these:
+  caller holding a connection chosen at run time has to be able to ask before casting. There are three,
+  listed under *The three feature facets* below.
 
 - **A setting that is meaningless elsewhere** gets a facet and **no flag** — `ITikTlsConnection`,
   `ITikMacLayerConnection`, `ITikCancellationModeConnection`. There is no operation to attempt and so
   nothing to ask about: either the connection has somewhere to put the value or it does not, and that
-  is answered by whether the cast succeeds. `ITikCliCompletion` sits here too, reached by holding
-  `ITikCliConnection` rather than by a flag of its own.
+  is answered by whether the cast succeeds.
 
 The inverse also holds and is not an oversight: `Crud`, `Listen`, `Streaming`, `AsyncCommands` and
 `CancelInFlight` are flags with **no** facet, because their members are on `ITikConnection` /
@@ -88,6 +88,12 @@ The three feature facets:
   WinboxNativeConnection implement it; RestConnection does not.
 - `ITikTaggedConnection` (`tik4net/ITikTaggedConnection.cs`) — `SendTagWithSyncCommand` (`Tagging`).
   Binary API only; the other transports have no meaningful implementation of it.
+
+`ITikCliCompletion` (`tik4net/Cli/ITikCliCompletion.cs`) — `CompleteCli`/`CompleteCliRaw` — is a feature
+facet too, since completion is an operation, but it deliberately has no flag of its own. It is part of
+`ITikCliConnection`, so "can this connection complete?" is the same question as "is this a terminal
+connection?", and the cast to `ITikCliConnection` (or to `ITikCliCompletion`) already answers it. A flag
+would be a second name for the transport family, not a capability.
 
 `CallCommandAsync` (both overloads, each taking a `CancellationToken`) sits beside `CallCommandSync` on
 `ITikRawSentenceConnection`. The low level was synchronous-only, which was backwards — it is where the long
@@ -259,11 +265,17 @@ defaults throw rather than wrapping the synchronous hook in a `Task.Run` façade
 cannot genuinely await its I/O declines `AsyncCommands` instead of pretending to have it.
 
 **This is a real extension point.** A transport can be written outside the assembly: implement the three
-hooks, declare `Capabilities`, and register with `ConnectionFactory.RegisterConnectionFactory` — which is
-how `tik4net.ssh` plugs in. That satellite is a friend assembly for *other* reasons (it reuses the internal
-CLI/PTY helpers), not because the hooks require it. `TikCommandDescriptor` and `TikRecordSentence` are
-public because they are the hooks' whole vocabulary, and `TransportExtensionPointTests` pins all of that
-accessibility, since the failure mode of losing it is a confusing compiler error for whoever tries next.
+hooks, declare `Capabilities`, create it with `new` and configure it with `TikConnectionSetup.ApplyTo`. The
+wiki's *Writing your own transport* page walks through one. `TikCommandDescriptor` and `TikRecordSentence`
+are public because they are the hooks' whole vocabulary, and `TransportExtensionPointTests` pins all of
+that accessibility, since the failure mode of losing it is a confusing compiler error for whoever tries
+next.
+
+`ConnectionFactory.RegisterConnectionFactory` is **not** how a new transport plugs in, though it reads that
+way. It is keyed by `TikConnectionType`, a closed enum whose every value but `Ssh` is built into
+`TikConnectionRegistry` and answered before the registered factories are consulted — so the one slot a
+registration can fill is `Ssh`, which is exactly what `tik4net.ssh` does. That satellite is a friend
+assembly for *other* reasons (it reuses the internal CLI/PTY helpers), not because the hooks require it.
 
 `TikGenericCommand` cannot call a `protected` member from another class, so the base carries one internal
 `InvokeRun*` shim per hook — a forwarding call and nothing else. Adding a hook means adding its shim.

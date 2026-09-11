@@ -75,7 +75,7 @@ namespace tik4net.Objects.Tool
     }
 
     /// <summary>
-    /// Connection extension class for <see cref="ToolPing"/>
+    /// Connection extension class for <see cref="ToolTraceroute"/>
     /// </summary>
     [RequiresUnreferencedCode(TikTrimming.MapperMessage)]
     [RequiresDynamicCode(TikTrimming.DynamicCodeMessage)]

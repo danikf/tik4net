@@ -78,12 +78,12 @@ namespace tik4net.Objects.Interface
         public enum YesNoOptions
         {
             /// <summary>
-            /// yes
+            /// yes - enabled (the router writes <c>true</c>).
             /// </summary>
             [TikEnum("true")] Yes,
 
             /// <summary>
-            /// no
+            /// no - disabled (the router writes <c>false</c>).
             /// </summary>
             [TikEnum("false")] No,
         }

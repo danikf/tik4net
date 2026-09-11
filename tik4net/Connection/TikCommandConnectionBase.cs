@@ -29,9 +29,11 @@ namespace tik4net.Connection
     /// <para>
     /// <b>This is a real extension point, not just the shape the in-tree transports happen to share.</b> The
     /// hooks are <c>protected</c>, so a transport can be written outside this assembly: implement the three,
-    /// declare what it can do in <see cref="Capabilities"/>, and register it through
-    /// <c>ConnectionFactory.RegisterConnectionFactory</c> — which is exactly how the <c>tik4net.ssh</c>
-    /// satellite package plugs in. The <c>Run*Async</c> siblings are optional: their defaults throw rather
+    /// declare what it can do in <see cref="Capabilities"/>, create it with <c>new</c> and configure it with
+    /// <see cref="TikConnectionSetup.ApplyTo"/> before opening it. (Not through
+    /// <see cref="ConnectionFactory.RegisterConnectionFactory"/>: that is keyed by the closed
+    /// <see cref="TikConnectionType"/> enum and can only fill the <c>Ssh</c> slot, which is what the
+    /// <c>tik4net.ssh</c> package does.) The <c>Run*Async</c> siblings are optional: their defaults throw rather
     /// than wrapping the synchronous hook in a <c>Task.Run</c> façade, so a transport that cannot genuinely
     /// await its I/O simply does not declare
     /// <see cref="TikConnectionCapability.AsyncCommands"/>. Only <see cref="ITikRawSentenceConnection"/> is

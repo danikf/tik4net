@@ -266,6 +266,104 @@ namespace tik4net.unittests.Objects
                 .Where(t => t.IsEnum)
                 .Distinct();
 
+        // ── Nullability ─────────────────────────────────────────────────────────
+#nullable enable
+
+        [TestMethod]
+        public void EveryMappedReferencePropertyIsDeclaredNullable()
+        {
+            // ARCHITECTURE.md: every mapped reference-typed property is `string?`. That is what the router does,
+            // not a style choice — a record carries only the fields it sent, `.proplist` fewer still, and the
+            // mapper builds the entity through a parameterless ctor, so any mapped field can be absent. A
+            // property declared `string` promises callers a value the mapper will leave null.
+            //
+            // Reflection cannot see this through PropertyType — `string` and `string?` are the same
+            // System.String, which is why no other convention test could enforce it. The annotation lives in the
+            // compiler's NullableAttribute / NullableContextAttribute; see NullableFlag below, and the
+            // NullableFlagReadsTheCompilersAnnotation test that pins the reader against a known fixture.
+            var offenders = new List<string>();
+
+            foreach (var x in Properties().Where(x => !x.Property.PropertyType.IsValueType))
+            {
+                byte flag = NullableFlag(x.Property);
+                if (flag != NullableAnnotated)
+                    offenders.Add($"{x.Entity.Name}.{x.Property.Name} ('{x.Attribute.FieldName}') is "
+                        + (flag == NullableNotAnnotated ? "declared non-nullable" : "nullable-oblivious (#nullable disable?)"));
+            }
+
+            AssertNoOffenders(offenders, "mapped reference-typed properties not declared nullable");
+        }
+
+        [TestMethod]
+        public void NullableFlagReadsTheCompilersAnnotation()
+        {
+            // The convention test above passes by finding nothing, so the reader it relies on must be shown to
+            // be able to find something. Both encodings the compiler uses are covered: a property whose flag
+            // differs from its type's NullableContext carries its own NullableAttribute, one that matches does
+            // not — and which of the two a given property gets depends on what the majority of its siblings
+            // are, hence two fixtures with opposite majorities.
+            Assert.AreEqual(NullableNotAnnotated, NullableFlag(typeof(MostlyNonNullFixture).GetProperty(nameof(MostlyNonNullFixture.NotNull1))!));
+            Assert.AreEqual(NullableAnnotated, NullableFlag(typeof(MostlyNonNullFixture).GetProperty(nameof(MostlyNonNullFixture.MayBeNull))!));
+            Assert.AreEqual(NullableAnnotated, NullableFlag(typeof(MostlyNullableFixture).GetProperty(nameof(MostlyNullableFixture.MayBeNull1))!));
+            Assert.AreEqual(NullableNotAnnotated, NullableFlag(typeof(MostlyNullableFixture).GetProperty(nameof(MostlyNullableFixture.NotNull))!));
+            Assert.AreEqual(NullableOblivious, NullableFlag(typeof(ObliviousFixture).GetProperty(nameof(ObliviousFixture.Oblivious))!));
+        }
+
+        private const byte NullableOblivious = 0;
+        private const byte NullableNotAnnotated = 1;
+        private const byte NullableAnnotated = 2;
+
+        /// <summary>
+        /// The top-level nullability of a reference-typed property as the compiler recorded it: the property's
+        /// own <c>NullableAttribute</c> if it has one (its first byte is the outermost type), otherwise the
+        /// <c>NullableContextAttribute</c> of the nearest enclosing type, otherwise oblivious. Read by name
+        /// because the compiler embeds its own copy of both attributes in every assembly, and by hand because
+        /// <c>NullabilityInfoContext</c> does not exist on net48.
+        /// </summary>
+        private static byte NullableFlag(PropertyInfo property)
+        {
+            var own = property.CustomAttributes.FirstOrDefault(a =>
+                a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute");
+            if (own != null)
+            {
+                object? value = own.ConstructorArguments[0].Value;
+                return value is byte b
+                    ? b
+                    : (byte)((IReadOnlyCollection<CustomAttributeTypedArgument>)value!).First().Value!;
+            }
+
+            for (Type? type = property.DeclaringType; type != null; type = type.DeclaringType)
+            {
+                var context = type.CustomAttributes.FirstOrDefault(a =>
+                    a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableContextAttribute");
+                if (context != null)
+                    return (byte)context.ConstructorArguments[0].Value!;
+            }
+
+            return NullableOblivious;
+        }
+
+        private class MostlyNonNullFixture
+        {
+            public string NotNull1 { get; set; } = "";
+            public string NotNull2 { get; set; } = "";
+            public string? MayBeNull { get; set; }
+        }
+
+        private class MostlyNullableFixture
+        {
+            public string? MayBeNull1 { get; set; }
+            public string? MayBeNull2 { get; set; }
+            public string NotNull { get; set; } = "";
+        }
+#nullable disable
+
+        private class ObliviousFixture
+        {
+            public string Oblivious { get; set; }
+        }
+#nullable restore
+
         // ── Read-only fields ────────────────────────────────────────────────────
 
         /// <summary>
