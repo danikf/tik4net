@@ -56,7 +56,14 @@ namespace tik4net.Objects.Interface
             /// reply-only - the interface will only reply to requests originated from matching IP address/MAC address combinations which are entered as static entries in the "/ip arp" table. No dynamic entries will be automatically stored in the "/ip arp" table. Therefore for communications to be successful, a valid static entry must already exist.
             /// </summary>
             [TikEnum("reply-only")]
-            ReplyOnly
+            ReplyOnly,
+            /// <summary>
+            /// local-proxy-arp - the interface performs proxy ARP and answers back out of the same interface,
+            /// so hosts on one segment that cannot reach each other directly (client isolation) still resolve
+            /// each other through the router.
+            /// </summary>
+            [TikEnum("local-proxy-arp")]
+            LocalProxyArp,
         }
 
         /// <summary>
@@ -65,6 +72,7 @@ namespace tik4net.Objects.Interface
         ///          disabled - the interface will not use ARP
         ///          enabled - the interface will use ARP
         ///          proxy-arp - the interface will use the ARP proxy feature
+        ///          local-proxy-arp - proxy ARP answered back out of the same interface
         ///          reply-only - the interface will only reply to requests originated from matching IP address/MAC address combinations which are entered as static entries in the "/ip arp" table. No dynamic entries will be automatically stored in the "/ip arp" table. Therefore for communications to be successful, a valid static entry must already exist.
         /// </summary>
         /// <seealso cref="ArpMode"/>
@@ -115,7 +123,7 @@ namespace tik4net.Objects.Interface
         public string?/*integer: 0..65535 decimal format or 0x0000-0xffff hex format*/ Priority { get; set; }
 
         /// <summary>
-        /// protocol-mode: Select Spanning tree protocol (STP) or Rapid spanning tree protocol (RSTP) to ensure a loop-free topology for any bridged LAN. RSTP provides for faster spanning tree convergence after a topology change.
+        /// protocol-mode: Select Spanning tree protocol (STP), Rapid spanning tree protocol (RSTP) or Multiple spanning tree protocol (MSTP) to ensure a loop-free topology for any bridged LAN. RSTP provides for faster spanning tree convergence after a topology change; MSTP runs one tree per group of VLANs.
         /// </summary>
         /// <seealso cref="ProtocolMode"/>
         public enum ProtocolModeModes
@@ -135,10 +143,16 @@ namespace tik4net.Objects.Interface
             /// </summary>
             [TikEnum("stp")]
             Stp,
+            /// <summary>
+            /// mstp - Multiple spanning tree protocol (MSTP), which runs a separate spanning tree for each group
+            /// of VLANs (MST instance). RouterOS accepts it only together with <see cref="VlanFiltering"/>.
+            /// </summary>
+            [TikEnum("mstp")]
+            Mstp,
         }
 
         /// <summary>
-        /// protocol-mode: Select Spanning tree protocol (STP) or Rapid spanning tree protocol (RSTP) to ensure a loop-free topology for any bridged LAN. RSTP provides for faster spanning tree convergence after a topology change.
+        /// protocol-mode: Select Spanning tree protocol (STP), Rapid spanning tree protocol (RSTP) or Multiple spanning tree protocol (MSTP) to ensure a loop-free topology for any bridged LAN. RSTP provides for faster spanning tree convergence after a topology change; MSTP runs one tree per group of VLANs.
         /// </summary>
         /// <seealso cref="ProtocolModeModes"/>
         [TikProperty("protocol-mode", DefaultValue = "rstp")]
@@ -149,6 +163,15 @@ namespace tik4net.Objects.Interface
         /// </summary>
         [TikProperty("transmit-hold-count", DefaultValue = "6")]
         public int/*integer: 1..10*/ TransmitHoldCount { get; set; }
+
+        /// <summary>
+        /// vlan-filtering: Whether the bridge filters traffic by VLAN (the <c>/interface/bridge/vlan</c> table and
+        /// each port's <c>pvid</c>). RouterOS refuses <see cref="ProtocolModeModes.Mstp"/> on a bridge without it
+        /// ("mstp requires vlan-filtering"), so an MSTP bridge sets both. <c>null</c> leaves the router's
+        /// default (<c>no</c>).
+        /// </summary>
+        [TikProperty("vlan-filtering", DefaultValue = "no")]
+        public bool? VlanFiltering { get; set; }
 
         /// <summary>
         /// ctor

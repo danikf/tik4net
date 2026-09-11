@@ -70,9 +70,11 @@ namespace tik4net.unittests.Objects
 
         /// <summary>
         /// Reads the enum's own <c>[TikEnum]</c> wire values, which is what <c>TikEnumMetadata</c> builds its
-        /// parse table from — so this fails for the same reason a real read would.
+        /// parse table from — so this fails for the same reason a real read would. Shared with the other
+        /// vocabulary tests (<see cref="InterfaceBridgeVocabularyTests"/>).
         /// </summary>
-        private static void AssertAllParse<TEnum>(string menu, string[] routerValues) where TEnum : struct
+        /// <param name="field">The field the values belong to, for the failure message.</param>
+        internal static void AssertAllParse<TEnum>(string menu, string[] routerValues, string field = "action") where TEnum : struct
         {
             var known = new HashSet<string>(
                 Enum.GetNames(typeof(TEnum))
@@ -86,7 +88,7 @@ namespace tik4net.unittests.Objects
             var missing = routerValues.Where(v => !known.Contains(v)).ToList();
 
             Assert.AreEqual(0, missing.Count,
-                $"{menu} accepts action values the entity cannot read, so a router using any of them fails "
+                $"{menu} accepts {field} values the entity cannot read, so a router using any of them fails "
                 + $"the whole LoadAll: {string.Join(", ", missing)}");
         }
     }
