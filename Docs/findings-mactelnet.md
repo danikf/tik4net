@@ -337,32 +337,37 @@ The client receives a well-formed, prompt-terminated, counter-contiguous respons
 the middle, and there is nothing in the stream to detect it by. A 64 KiB → 1 MiB receive buffer does not
 change it, and neither does sending one re-ACK per hole episode instead of one per packet — both measured.
 
-Since the loss cannot be seen, the client judges the answer by the shape of the packet loss instead, on two
-counts. `AckData` counts a gap only when it is **wider than one datagram** — sub-datagram gaps (4–528 B on
-this lab, the login-phase packets) are ordinary loss the router refills exactly. `MacTelnetUdpClient` then
-refuses the response with `TikConnectionResponseIncompleteException` only when that count is **above one**:
-a single wide gap is recovered by one retransmit, whereas a sustained run of them is the state in which the
-router starts discarding output.
+Three layers deal with it, each covering what the one before cannot.
 
-**Paging is the actual fix, and it is on by default here.** Reading the table in windows
+**Paging prevents it, and it is on by default here.** Reading the table in windows
 (`ITikCliPagedReadConnection`, `:pick` + `from=` — see [findings-cli.md](findings-cli.md) §1) never gives the
 router a backlog, so there is nothing for it to discard, and a table smaller than one page still costs a
 single request. Measured on the same lab: `/ip firewall mangle` (1672 rows)
 and `/queue/tree` (681) both read complete over MAC-Telnet, repeatedly, where neither had ever succeeded in
-a single command. The check below is therefore applied **only to an unpaged read** — a slice is small enough
-that a lost datagram is refilled exactly, and condemning one throws away a complete answer: a 10-row slice
-tripped the check while the paged read it belonged to returned every row.
+a single command.
 
-**Both thresholds are empirical, and neither is sharp.** Judging on a single wide gap was tried first and
-is clearly wrong — it condemned seven sub-kilobyte responses (265 to 671 characters) on one suite leg. On
-that leg the reads that actually came back short had 4, 29, 30 and 31 wide gaps, which looked like a clean
-separation; the next leg produced two wide gaps on a 3.6 KB read and on an empty one, so the populations do
-overlap and the rule raises the occasional false alarm.
+**The router's own count detects it, on every print.** The stream cannot show the loss, but the router can
+say how many records it meant to send: every window ends with the number of ids it held, and every
+whole-table read — a filtered one, a menu with no `find`, or any read with paging off — with `#n=`, its
+record count ([findings-cli.md](findings-cli.md) §1). The records read back must match, or the answer is
+refused with `TikConnectionResponseIncompleteException`. This is exact, and it is not specific to the MAC
+layer: it runs on all five CLI transports.
 
-That trade is deliberate: a spurious "this may be incomplete, retry it" costs a re-read, while the
-behaviour it replaces hands back a quarter of a table as though it were the table. It matters less than it
-did, because with paging on by default the case it guards is the one a caller has opted into by setting
-`CliReadPageSize` to 0.
+**The packet-loss heuristic covers every other command.** An `add`, `set` or action has no count to check,
+so for those the client judges the answer by the shape of the packet loss, on two counts. `AckData` counts
+a gap only when it is **wider than one datagram** — sub-datagram gaps (4–528 B on this lab, the login-phase
+packets) are ordinary loss the router refills exactly. `MacTelnetUdpClient` then refuses the response only
+when that count is **above one**: a single wide gap is recovered by one retransmit, whereas a sustained run
+of them is the state in which the router starts discarding output. `MacTelnetConnection` skips it for a
+print, which the count already checks exactly: the heuristic condemns complete answers now and then — a
+10-row slice tripped it while the paged read it belonged to returned every row.
+
+**Both of its thresholds are empirical, and neither is sharp.** Judging on a single wide gap condemned
+seven sub-kilobyte responses (265 to 671 characters) on one suite leg. On that leg the reads that actually
+came back short had 4, 29, 30 and 31 wide gaps, which looked like a clean separation; the next leg produced
+two wide gaps on a 3.6 KB read and on an empty one, so the populations do overlap and the rule raises the
+occasional false alarm. The responses it still covers are small, and a spurious "retry it" costs one
+re-send.
 
 What this does **not** fix is throughput: the MAC layer still moves 7–15 KB/s against Telnet's ~70 KB/s
 and cannot finish a read this size inside the 30 s receive deadline. Holding out-of-order packets in a

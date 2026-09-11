@@ -722,17 +722,17 @@ namespace tik4net.Cli
             {
                 // Normal single-query path.
                 return await RunPrintQueryAsync(descriptor, wantJson,
-                    (json, from) => CliCommandBuilder.BuildPrint(descriptor.CommandText, descriptor.Parameters, json, from),
+                    from => CliCommandBuilder.BuildPrintExpression(descriptor.CommandText, descriptor.Parameters, from),
                     cancellationToken).ConfigureAwait(false);
             }
 
             // Two-query path: detail (config) + stats (counters), merged by .id.
             IList<TikRecordSentence> configRecords = await RunPrintQueryAsync(descriptor, wantJson,
-                (json, from) => CliCommandBuilder.BuildPrint(descriptor.CommandText, descriptor.Parameters, json, from),
+                from => CliCommandBuilder.BuildPrintExpression(descriptor.CommandText, descriptor.Parameters, from),
                 cancellationToken).ConfigureAwait(false);
 
             IList<TikRecordSentence> statsRecords = await RunPrintQueryAsync(descriptor, wantJson,
-                (json, from) => CliCommandBuilder.BuildPrintStats(descriptor.CommandText, descriptor.Parameters, json, from),
+                from => CliCommandBuilder.BuildPrintStatsExpression(descriptor.CommandText, descriptor.Parameters, from),
                 cancellationToken).ConfigureAwait(false);
 
             // Build index of stats records by .id for O(1) lookup.
@@ -887,21 +887,43 @@ namespace tik4net.Cli
         /// i.e. exactly today's behaviour — and nothing is concluded about <c>:serialize</c>. Once support
         /// is known either way, no retry happens again on this connection.
         /// </para>
+        /// <para>
+        /// <b>Either way the answer is counted.</b> A window states how many ids it held, and a whole-table
+        /// read states how many records it produced (<see cref="CliCommandBuilder.BuildCountedRead"/>); the
+        /// records parsed must match, or the read is refused with
+        /// <see cref="TikConnectionResponseIncompleteException"/>. That turns "the answer ended at a prompt, so
+        /// it is probably whole" into a statement by the router of what "whole" is.
+        /// </para>
         /// </summary>
+        /// <param name="descriptor">The read being run.</param>
+        /// <param name="wantJson">Whether the caller asked for the JSON form.</param>
+        /// <param name="buildExpression">
+        /// The bare print expression (no <c>:put</c>) for a given <c>from=</c> selector, or <c>null</c> for
+        /// the whole table — wrapped here, differently for a window and for a counted whole-table read.
+        /// </param>
+        /// <param name="cancellationToken">Cancels the read.</param>
         private async Task<IList<TikRecordSentence>> RunPrintQueryAsync(
-            TikCommandDescriptor descriptor, bool wantJson, Func<bool, string?, string> buildCommand,
+            TikCommandDescriptor descriptor, bool wantJson, Func<string?, string> buildExpression,
             CancellationToken cancellationToken)
         {
             if (CanPage(descriptor, wantJson))
             {
-                var paged = await RunPagedPrintQueryAsync(descriptor, wantJson, buildCommand,
+                var paged = await RunPagedPrintQueryAsync(descriptor, wantJson, buildExpression,
                     CliReadPageSize, cancellationToken).ConfigureAwait(false);
                 if (paged != null)
                     return paged;
             }
 
-            return await RunOnePrintQueryAsync(descriptor, wantJson, buildCommand, null, cancellationToken)
-                .ConfigureAwait(false);
+            _countedReadDepth++;
+            try
+            {
+                return await RunOnePrintQueryAsync(descriptor, wantJson, buildExpression(null), cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                _countedReadDepth--;
+            }
         }
 
         /// <summary>
@@ -934,21 +956,22 @@ namespace tik4net.Cli
             // not done here — 'find !(x)' is a syntax error and this builder emits that form, so it needs a
             // narrower rule than "always". Until then the single command is both faster and, for the row
             // counts a filter usually leaves, small enough not to give the router a backlog — and it is
-            // covered by the datagram-loss check, which applies to exactly the reads that are not windowed.
+            // counted like any whole-table read, so a short answer is refused rather than returned.
             if (CliCommandBuilder.HasWhereClause(descriptor.Parameters))
                 return false;
             return !_pagingUnavailable.Contains(descriptor.CommandText);
         }
 
         /// <summary>
-        /// True while a windowed read's own command is on the wire. The MAC-layer datagram-loss check keys
-        /// on this rather than on <see cref="CliReadPageSize"/>: what it exists to catch is the router
-        /// discarding a backlog, which only a whole-table answer can produce, and a read left unpaged — a
-        /// filter, a singleton with no <c>find</c> — still needs covering even on a paging connection.
+        /// True while the command on the wire is a print whose answer this class will count against the
+        /// router's own statement of its size — a window, or a whole-table read. The MAC-layer datagram-loss
+        /// heuristic stands down for these: the count is exact and the heuristic is not, and it condemns
+        /// complete answers now and then. It still covers every other command.
         /// </summary>
-        protected bool IsWindowedReadInFlight => _windowedReadDepth > 0;
+        protected bool IsCountedReadInFlight => _windowedReadDepth > 0 || _countedReadDepth > 0;
 
         private int _windowedReadDepth;
+        private int _countedReadDepth;
 
         // Menus this connection has already found cannot be windowed — asked once, then remembered, so the
         // fallback costs one wasted request per menu per connection rather than one per read.
@@ -968,7 +991,7 @@ namespace tik4net.Cli
         /// a caller asks for it.</para>
         /// </remarks>
         private async Task<IList<TikRecordSentence>?> RunPagedPrintQueryAsync(
-            TikCommandDescriptor descriptor, bool wantJson, Func<bool, string?, string> buildCommand,
+            TikCommandDescriptor descriptor, bool wantJson, Func<string?, string> buildExpression,
             int pageSize, CancellationToken cancellationToken)
         {
             var all = new List<TikRecordSentence>();
@@ -981,7 +1004,7 @@ namespace tik4net.Cli
                 _windowedReadDepth++;
                 try
                 {
-                    window = await RunOneWindowAsync(descriptor, wantJson, buildCommand, offset, pageSize,
+                    window = await RunOneWindowAsync(descriptor, wantJson, buildExpression, offset, pageSize,
                         cancellationToken).ConfigureAwait(false);
                 }
                 catch (TikCommandException) when (offset == 0 && wantJson && _serializeSupported == null)
@@ -1064,11 +1087,11 @@ namespace tik4net.Cli
         }
 
         private async Task<PagedWindow> RunOneWindowAsync(
-            TikCommandDescriptor descriptor, bool wantJson, Func<bool, string?, string> buildCommand,
+            TikCommandDescriptor descriptor, bool wantJson, Func<string?, string> buildExpression,
             int offset, int pageSize, CancellationToken cancellationToken)
         {
             bool asJson = wantJson && _serializeSupported != false;
-            string inner = buildCommand(asJson, CliCommandBuilder.WindowVariable);
+            string inner = CliCommandBuilder.WrapPut(buildExpression(CliCommandBuilder.WindowVariable), asJson);
             string cliText = CliCommandBuilder.BuildPagedWindow(descriptor.CommandText, inner, offset, pageSize);
 
             string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false);
@@ -1112,18 +1135,19 @@ namespace tik4net.Cli
         }
 
         private async Task<IList<TikRecordSentence>> RunOnePrintQueryAsync(
-            TikCommandDescriptor descriptor, bool wantJson, Func<bool, string?, string> buildCommand,
-            string? fromIndices, CancellationToken cancellationToken)
+            TikCommandDescriptor descriptor, bool wantJson, string expression, CancellationToken cancellationToken)
         {
             if (wantJson && _serializeSupported != false)
             {
                 try
                 {
-                    string jsonOutput = await ExecuteCliCommandAsync(buildCommand(true, fromIndices), cancellationToken).ConfigureAwait(false);
+                    string jsonOutput = await ExecuteCliCommandAsync(
+                        CliCommandBuilder.BuildCountedRead(expression, asJson: true), cancellationToken).ConfigureAwait(false);
                     CliErrorParser.ThrowIfError(jsonOutput, CreateDummyCommand(descriptor));
-                    IList<TikRecordSentence> records = CliJsonParser.ParseJson(jsonOutput);
+                    string jsonBody = SplitOffCountMarker(jsonOutput, descriptor, out int expectedJson);
+                    IList<TikRecordSentence> records = CliJsonParser.ParseJson(jsonBody);
                     _serializeSupported = true;
-                    return records;
+                    return EnsureCounted(records, expectedJson, descriptor, jsonBody);
                 }
                 catch (TikCommandException ex) when (_serializeSupported == null)
                 {
@@ -1135,8 +1159,10 @@ namespace tik4net.Cli
                 }
             }
 
-            string output = await ExecuteCliCommandAsync(buildCommand(false, fromIndices), cancellationToken).ConfigureAwait(false);
+            string output = await ExecuteCliCommandAsync(
+                CliCommandBuilder.BuildCountedRead(expression, asJson: false), cancellationToken).ConfigureAwait(false);
             CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+            string body = SplitOffCountMarker(output, descriptor, out int expected);
 
             if (wantJson && _serializeSupported == null)
             {
@@ -1149,7 +1175,54 @@ namespace tik4net.Cli
                         + "rest of this connection; fields holding free-form text may parse incorrectly");
             }
 
-            return ParseRecords(output, descriptor);
+            return EnsureCounted(ParseRecords(body, descriptor), expected, descriptor, body);
+        }
+
+        /// <summary>
+        /// Removes the trailing <see cref="CliCommandBuilder.CountMarker"/> line of a counted read and returns
+        /// what precedes it, with the record count the marker states.
+        /// </summary>
+        /// <remarks>
+        /// A counted read that does not end with a well-formed marker is refused, not passed through. The
+        /// answer has already ended at a prompt and carried no error, so the router ran the whole line; the
+        /// marker is its last output, and an answer missing it has lost something — nothing legitimate reaches
+        /// here without one. The marker must also start its own line, so a field value that happens to contain
+        /// the same text cannot be taken for it.
+        /// </remarks>
+        private string SplitOffCountMarker(string output, TikCommandDescriptor descriptor, out int expected)
+        {
+            expected = -1;
+            string text = output ?? string.Empty;
+            int at = text.LastIndexOf(CliCommandBuilder.CountMarker, StringComparison.Ordinal);
+            if (at >= 0 && (at == 0 || text[at - 1] == (char)10 || text[at - 1] == (char)13))
+                expected = CliCommandBuilder.ExpectedRecordCount(text.Substring(at + CliCommandBuilder.CountMarker.Length));
+
+            if (expected < 0)
+                throw new TikConnectionResponseIncompleteException(
+                    TransportName + ": the read of '" + descriptor.CommandText + "' ended without the router's "
+                        + "count of the records it holds, which it always writes last. The answer is incomplete, "
+                        + "so it is refused rather than returned. Retry the read.",
+                    0, output);
+
+            return text.Substring(0, at).TrimEnd(WindowMarkerTrim);
+        }
+
+        /// <summary>
+        /// Returns <paramref name="records"/> when there are as many as the router said, and refuses them
+        /// otherwise — a short answer lost rows on the way, a long one had a row split by the parser, and
+        /// neither is the table.
+        /// </summary>
+        private IList<TikRecordSentence> EnsureCounted(IList<TikRecordSentence> records, int expected,
+            TikCommandDescriptor descriptor, string response)
+        {
+            if (records.Count == expected)
+                return records;
+
+            throw new TikConnectionResponseIncompleteException(
+                TransportName + ": the router counted " + expected + " record(s) in its answer to '"
+                    + descriptor.CommandText + "', and " + records.Count + " were read from it. The answer is not "
+                    + "the table, so it is refused rather than returned. Retry the read.",
+                0, response);
         }
 
         /// <summary>

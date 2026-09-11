@@ -106,7 +106,7 @@ Three consequences for the command shape:
   the loop, and it is the router's own count of the rows the answer must carry: a window is never filtered
   (see below), so every id in it names one row, and the records parsed from the answer are checked against
   it — a mismatch is refused as `TikConnectionResponseIncompleteException`. That is an exact completeness
-  check, where the MAC datagram-loss one is a heuristic. It holds only because windows are unfiltered: a
+  check, like the whole-table count below. It holds only because windows are unfiltered: a
   `where` applied inside a window legitimately prints fewer rows than ids (a 3-id window answered 2 records
   under a filter).
 - **Order is preserved.** `find` returns ids in the same order `print` does — verified on `/ip firewall
@@ -120,25 +120,42 @@ empty window to discover the end.
 **A filtered read is not windowed.** The window is taken over the unfiltered table and the caller's `where`
 is applied inside it, so filtering multiplies the work instead of shrinking it — measured over MAC-Telnet,
 49 matching rows of 1672 cost 9.6 s windowed and one queue tree found by name among 681 cost 4.1 s, against
-well under a second as a single command. `CanPage` therefore refuses a read that carries a `where`, and the
-MAC datagram-loss check covers those reads instead (it keys on whether *this command* was a window, not on
-whether the connection pages). Pushing the filter into `find` is what would fix it properly and is deferred:
+well under a second as a single command. `CanPage` therefore refuses a read that carries a `where`, and those
+reads are counted as whole-table reads instead (below). Pushing the filter into `find` is what would fix it properly and is deferred:
 `find !(x)` is a syntax error and `BuildWhereClause` emits that form, so it needs a narrower rule than
 "always" — see the roadmap note.
 
-**Counting a whole-table answer on the router.** The same count is available for a read that is not
-windowed — `:local d [/path print as-value]; :put $d; :put ("#n=" . [:len $d])` answers the data and its row
-count from one evaluation — with one trap in what `:len` counts:
+### Counting a whole-table answer
 
-| `print as-value` of | `[:len $d]` | `[:typeof [:pick $d 0]]` |
-|---|---|---|
-| a list menu, 3 rows (`/interface`) | 3 | `array` |
-| a list menu filtered to 1 row | 1 | `array` |
-| an empty list menu | 0 | `nil` |
-| a singleton (`/system identity`) | **1 — its field count** | `str` |
+A read that is not windowed is counted too. `CliCommandBuilder.BuildCountedRead` binds the print to a
+variable and writes the router's own count after it, in one evaluation:
 
-A singleton's answer is one record held as a flat key/value array, so `:len` counts its fields. A count
-used this way has to carry the element type too, or be skipped for menus with no `find`.
+```
+:local d [/path print as-value]; :put $d; :put ("#n=" . [:len $d] . "/" . [:typeof [:find $d [:pick $d 0]]])
+```
+
+`:put $d` is **byte-identical** to `:put [/path print as-value]`, and `:serialize to=json $d` to the direct
+JSON form — both measured on a list menu (`/ip service`) and a singleton (`/system identity`) — so binding
+the answer changes nothing about how it is parsed. The records read back must match the count, or the read
+is refused with `TikConnectionResponseIncompleteException`; an answer that ends without the marker is refused
+too, since the marker is always the router's last output.
+
+**What `[:len]` counts is the trap**, and it is why the marker carries a kind:
+
+| `print as-value` of | `[:len $d]` | `[:typeof [:pick $d 0]]` | `[:typeof [:find $d [:pick $d 0]]]` |
+|---|---|---|---|
+| a list menu, 3 rows (`/interface`) | 3 | `array` | `num` |
+| a list filtered to 1 row | 1 | `array` | `num` |
+| an empty table | 0 | `nil` | `nil` |
+| a singleton (`/system identity`) | **1 — its field count** | `str` | `nil` |
+| a singleton (`/ip dns`) | **19** | `time` | `nil` |
+| a monitor snapshot (`/interface ethernet monitor … once`) | 7 | — | `nil` |
+
+A singleton's answer is one record held as a keyed array, so `:len` counts its fields. `:find` tells the two
+shapes apart — a list answers the index `0`, a keyed array `nil` — where the first element's own type cannot:
+a singleton's first field can be of any type, `/ip dns` has several `array` fields. So `num` means the length
+is the row count, and anything else means one record, or none when the length is 0. The marker for the
+1672-row mangle table reads `#n=1672/num`.
 
 Two alternatives that do **not** work, both measured rather than reasoned about:
 

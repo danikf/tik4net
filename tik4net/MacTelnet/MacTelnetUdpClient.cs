@@ -143,10 +143,10 @@ namespace tik4net.MacTelnet
         /// perfect — it ends at a real prompt and its byte counter is unbroken — so the packet loss is the
         /// only evidence there is that RouterOS may have dropped part of its own output while recovering.
         /// See <see cref="TikConnectionResponseIncompleteException"/> for the measurement behind that.
-        /// <para>Called by <see cref="MacTelnetConnection"/> and only for an <b>unpaged</b> read, because the
-        /// router can only discard a backlog it was given: a slice of a paged read is small enough that a
-        /// lost datagram is refilled exactly, and applying this to one condemns complete answers — measured,
-        /// a 10-row slice tripped it while the paged read it belonged to returned every row.</para>
+        /// <para>Called by <see cref="MacTelnetConnection"/> for every command <b>except a print</b>. A print
+        /// carries the router's own count of its records and is checked against it exactly
+        /// (<see cref="CliConnectionBase"/>), and this heuristic condemns complete answers now and then —
+        /// measured, a 10-row slice tripped it while the paged read it belonged to returned every row.</para>
         /// </summary>
         internal void ThrowIfResponseLostDatagrams(string sentCommand, string response)
         {

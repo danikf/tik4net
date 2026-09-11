@@ -29,6 +29,10 @@ namespace tik4net.unittests.Cli
 
         private static IList<ITikCommandParameter> NoParams() => new List<ITikCommandParameter>();
 
+        // What an unpaged read of the test menu sends: the print, bound to a variable, and its record count.
+        private const string CountedProbeRead =
+            ":local d [/probe print as-value]; :put $d; :put (\"#n=\" . [:len $d] . \"/\" . [:typeof [:find $d [:pick $d 0]]])";
+
         private static IList<ITikCommandParameter> WithFilter()
             => new List<ITikCommandParameter> { new FakeParam("chain", "prerouting") };
 
@@ -139,8 +143,8 @@ namespace tik4net.unittests.Cli
 
                 conn.LoadList<PagedProbe>().ToList();
 
-                CollectionAssert.AreEqual(new[] { ":put [/probe print as-value]" }, conn.Sent,
-                    "off means off: the plain single-command read, unwrapped");
+                CollectionAssert.AreEqual(new[] { CountedProbeRead }, conn.Sent,
+                    "off means off: one command for the whole table, counted");
             }
         }
 
@@ -149,7 +153,7 @@ namespace tik4net.unittests.Cli
         {
             // Windows are taken over the unfiltered table, so filtering does not shrink the work — measured
             // over MAC-Telnet at 9.6 s for 49 of 1672 rows. Until the filter can be pushed into 'find', the
-            // single command is the faster answer and the datagram-loss check covers it.
+            // single command is the faster answer, and the router's own record count covers it.
             using (var conn = new PagingCliConnection(rowCount: 50))
             {
                 conn.OpenScripted();
@@ -159,7 +163,7 @@ namespace tik4net.unittests.Cli
 
                 Assert.AreEqual(1, conn.Sent.Count, string.Join(" | ", conn.Sent));
                 StringAssert.Contains(conn.Sent[0], "where name=r3");
-                Assert.IsFalse(conn.Sent[0].Contains(":pick"), conn.Sent[0]);
+                Assert.IsFalse(conn.Sent[0].Contains("find]"), "no window over the table: " + conn.Sent[0]);
             }
         }
 
@@ -178,7 +182,7 @@ namespace tik4net.unittests.Cli
 
                 Assert.AreEqual(5, rows.Count, "the fallback must return the whole table");
                 Assert.AreEqual(2, conn.Sent.Count, string.Join(" | ", conn.Sent));
-                Assert.AreEqual(":put [/probe print as-value]", conn.Sent[1], "plain single-command read");
+                Assert.AreEqual(CountedProbeRead, conn.Sent[1], "plain single-command read");
             }
         }
 
@@ -194,7 +198,7 @@ namespace tik4net.unittests.Cli
                 conn.Sent.Clear();
                 conn.LoadList<PagedProbe>().ToList();
 
-                CollectionAssert.AreEqual(new[] { ":put [/probe print as-value]" }, conn.Sent,
+                CollectionAssert.AreEqual(new[] { CountedProbeRead }, conn.Sent,
                     "the second read must not pay for the discovery again");
             }
         }
@@ -336,8 +340,8 @@ namespace tik4net.unittests.Cli
                 Sent.Add(cliText);
 
                 var pick = Regex.Match(cliText, @":pick \[[^\]]*find\] (\d+) (\d+)\]");
-                if (!pick.Success)
-                    return Task.FromResult(Rows(0, _rowCount));   // unpaged read: the whole table
+                if (!pick.Success)   // unpaged read: the whole table, counted as the router counts it
+                    return Task.FromResult(Rows(0, _rowCount) + ((char)10) + "#n=" + _rowCount + "/num");
 
                 int from = int.Parse(pick.Groups[1].Value);
                 int to = int.Parse(pick.Groups[2].Value);

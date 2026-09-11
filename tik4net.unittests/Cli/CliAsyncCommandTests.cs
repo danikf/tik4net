@@ -53,7 +53,7 @@ namespace tik4net.unittests.Cli
                 SeenTokens.Add(ct);
                 if (BeforeReply != null)
                     await BeforeReply(ct).ConfigureAwait(false);
-                return Reply;
+                return CountedReadFake.Answer(cliText, Reply);
             }
 
             public override void Open(string host, string user, string password) => OpenScripted();

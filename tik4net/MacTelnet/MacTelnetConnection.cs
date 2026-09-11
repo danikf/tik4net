@@ -42,7 +42,7 @@ namespace tik4net.MacTelnet
     public sealed class MacTelnetConnection : CliConnectionBase, ITikMacCliConnection
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
-                // The MAC layer pages by default, and that is a correctness setting rather than a tuning one: a
+        // The MAC layer pages by default, and that is a correctness setting rather than a tuning one: a
         // single-command read of a large table makes RouterOS discard part of its own output while replaying
         // the backlog and hand back a short answer that looks whole (findings-mactelnet.md §9.6). Slicing the
         // read means the router never builds a backlog there is anything to drop.
@@ -156,13 +156,12 @@ namespace tik4net.MacTelnet
             };
 
             // The datagram-loss check belongs here rather than in the client, because only this layer knows
-            // whether THIS command was a window. RouterOS can only discard output it had queued, and a window
-            // never gives it a queue — applying the check to one condemns answers that are complete. Every
-            // other command still needs it, including the reads a paging connection leaves unpaged (a filter,
-            // or a menu with no 'find').
+            // whether THIS command was a counted read. Every print — a window or a whole table — carries the
+            // router's own count of its records and is checked against it exactly, so the heuristic, which
+            // condemns complete answers now and then, stands down for them. It still vets everything else.
             string Vetted(string cmd, string response)
             {
-                if (!IsWindowedReadInFlight)
+                if (!IsCountedReadInFlight)
                     client.ThrowIfResponseLostDatagrams(cmd, response);
                 return response;
             }

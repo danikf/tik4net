@@ -55,9 +55,17 @@ namespace tik4net.Cli
         /// </param>
         internal static string BuildPrint(string apiPath, IList<ITikCommandParameter> parameters, bool asJson = false,
                                           string? fromIndices = null)
+            => WrapPut(BuildPrintExpression(apiPath, parameters, fromIndices), asJson);
+
+        /// <summary>
+        /// The bare print expression <see cref="BuildPrint"/> wraps — <c>/path print … as-value …</c>, with no
+        /// <c>:put</c> around it — so a caller can bind it to a variable instead (<see cref="BuildCountedRead"/>).
+        /// </summary>
+        internal static string BuildPrintExpression(string apiPath, IList<ITikCommandParameter> parameters,
+                                                    string? fromIndices = null)
         {
             string cliBase = ApiPathToCli(apiPath);
-            var sb = new StringBuilder(asJson ? ":put [:serialize to=json [" : ":put [");
+            var sb = new StringBuilder();
             sb.Append(cliBase);
 
             // The O/R mapper requests the full field set via a 'detail' NameValue parameter
@@ -90,8 +98,63 @@ namespace tik4net.Cli
                 sb.Append(whereClause);
             }
 
-            sb.Append(asJson ? "]]" : "]");
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// <c>:put [expression]</c>, or <c>:put [:serialize to=json [expression]]</c> — how a print is made
+        /// to write its value to the terminal (see <see cref="BuildPrint"/>).
+        /// </summary>
+        internal static string WrapPut(string expression, bool asJson)
+            => asJson ? ":put [:serialize to=json [" + expression + "]]" : ":put [" + expression + "]";
+
+        /// <summary>
+        /// A whole-table read that also states how many records its answer carries: binds the print to a
+        /// variable, writes it exactly as <see cref="WrapPut"/> would, then writes one <see cref="CountMarker"/>
+        /// line.
+        /// </summary>
+        /// <remarks>
+        /// <para><c>:put $d</c> is byte-identical to <c>:put [expression]</c>, and
+        /// <c>:serialize to=json $d</c> to the direct form — both measured on 7.24, on a list menu and a
+        /// singleton — so binding the answer changes nothing about how it is parsed.</para>
+        /// <para>The marker is <c>#n=&lt;len&gt;/&lt;kind&gt;</c>, and the kind is not decoration. A
+        /// singleton's (or a monitor snapshot's) <c>print as-value</c> is ONE record held as a keyed array,
+        /// and <c>[:len]</c> of that counts its <b>fields</b> — <c>/system identity</c> gives 1, <c>/ip dns</c>
+        /// 19. <c>[:find $d [:pick $d 0]]</c> tells the two apart: a list answers the index <c>0</c>
+        /// (<c>num</c>), a keyed array <c>nil</c>. Its first element's own type cannot, since a singleton's
+        /// first field can itself be an array. See Docs/findings-cli.md §1 and
+        /// <see cref="ExpectedRecordCount"/>.</para>
+        /// </remarks>
+        internal static string BuildCountedRead(string expression, bool asJson)
+            => ":local d [" + expression + "]; "
+             + (asJson ? ":put [:serialize to=json $d]; " : ":put $d; ")
+             + ":put (\"" + CountMarker + "\" . [:len $d] . \"/\" . [:typeof [:find $d [:pick $d 0]]])";
+
+        /// <summary>Prefix of the trailing line a counted read emits — <c>#n=&lt;len&gt;/&lt;kind&gt;</c>.</summary>
+        internal const string CountMarker = "#n=";
+
+        /// <summary>
+        /// The number of records a counted read's answer must carry, from its marker's tail
+        /// (<c>1672/num</c>), or <c>-1</c> when the tail is not one this builder produces.
+        /// </summary>
+        /// <remarks>
+        /// <c>num</c> is a list, so the length is the row count. Anything else is one keyed record — or none
+        /// at all when the length is 0, which is how an empty table answers (<c>0/nil</c>).
+        /// </remarks>
+        internal static int ExpectedRecordCount(string markerTail)
+        {
+            string tail = (markerTail ?? string.Empty).Trim();
+            int slash = tail.IndexOf('/');
+            if (slash <= 0)
+                return -1;
+            if (!int.TryParse(tail.Substring(0, slash), NumberStyles.None, CultureInfo.InvariantCulture, out int len))
+                return -1;
+            string kind = tail.Substring(slash + 1);
+            if (kind == "num")
+                return len;
+            if (kind == "nil")
+                return len == 0 ? 0 : 1;
+            return -1;
         }
 
         /// <summary>
@@ -182,9 +245,14 @@ namespace tik4net.Cli
         /// <param name="fromIndices">The same row selector as <see cref="BuildPrint"/> takes.</param>
         internal static string BuildPrintStats(string apiPath, IList<ITikCommandParameter> parameters, bool asJson = false,
                                                string? fromIndices = null)
+            => WrapPut(BuildPrintStatsExpression(apiPath, parameters, fromIndices), asJson);
+
+        /// <summary>The bare expression <see cref="BuildPrintStats"/> wraps, as <see cref="BuildPrintExpression"/>.</summary>
+        internal static string BuildPrintStatsExpression(string apiPath, IList<ITikCommandParameter> parameters,
+                                                         string? fromIndices = null)
         {
             string cliBase = ApiPathToCli(apiPath);
-            var sb = new StringBuilder(asJson ? ":put [:serialize to=json [" : ":put [");
+            var sb = new StringBuilder();
             sb.Append(cliBase);
             sb.Append(" stats as-value");
             AppendFrom(sb, fromIndices);
@@ -196,7 +264,6 @@ namespace tik4net.Cli
                 sb.Append(whereClause);
             }
 
-            sb.Append(asJson ? "]]" : "]");
             return sb.ToString();
         }
 

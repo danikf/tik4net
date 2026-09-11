@@ -399,32 +399,34 @@ namespace tik4net
     /// </summary>
     /// <remarks>
     /// <para>Two situations raise it.</para>
-    /// <para><b>A paged CLI read whose window came back with the wrong number of rows.</b> Each window of a
-    /// paged read (<see cref="ITikCliPagedReadConnection"/>) ends with the router's own count of the rows it
-    /// holds, and the records read from the answer must match it. When they do not, rows were lost on the
-    /// way (or one was split), and the read is refused. This check is exact. <see cref="LostDatagrams"/> is
-    /// <c>0</c> here; the message names the window and both counts, and <see cref="PartialResponse"/> holds
-    /// that window's answer.</para>
-    /// <para><b>A MAC-layer response delivered across datagram loss.</b> The MAC-layer carrier is UDP with a
-    /// cumulative byte counter. When a
+    /// <para><b>A CLI read whose rows disagree with the router's own count of them.</b> Every print over a
+    /// CLI transport ends with the router's count of the records in its answer — a window of a paged read
+    /// (<see cref="ITikCliPagedReadConnection"/>) with the ids it held, any other read with its record count
+    /// — and the records read back must match it. When they do not, or the count never arrived, rows were
+    /// lost on the way (or one was split), and the read is refused. This check is exact.
+    /// <see cref="LostDatagrams"/> is <c>0</c> here; the message names the read and both counts, and
+    /// <see cref="PartialResponse"/> holds the answer that was refused.</para>
+    /// <para><b>A MAC-layer response, other than a read, delivered across datagram loss.</b> The MAC-layer
+    /// carrier is UDP with a cumulative byte counter. When a
     /// datagram is lost the client holds its acknowledgement at the last contiguous byte so the router
     /// resends — and measured on 7.24, RouterOS answers a retransmission episode by <b>discarding a run of
     /// its own terminal output and carrying on with an unbroken counter</b>. The response then ends
     /// normally, at a real shell prompt, with rows missing from the middle and nothing in the stream to say
     /// so: one measured read of a 1672-row table returned 413 rows, contiguous by counter, spliced
     /// mid-record where the skip happened.</para>
-    /// <para>So the loss cannot be detected from the response — only the packet loss that causes it can, and
-    /// that is what this exception reports. It does not mean the answer <i>is</i> short; it means nothing
-    /// here can promise it is not, and a short table silently accepted as the whole table is the failure
-    /// this library refuses to hand a caller. Retry the command: the loss is transient, and a read that
-    /// completes without loss is exact. For a table this large, prefer a transport that is not on the MAC
+    /// <para>A read is protected from that by the count above. For any other command there is no count to
+    /// check, so the loss cannot be detected from the response — only the packet loss that causes it can,
+    /// and that is what this exception then reports. It does not mean the answer <i>is</i> short; it means
+    /// nothing here can promise it is not.</para>
+    /// <para>Either way, retry the command: the loss is transient, and an answer that arrives without it is
+    /// exact. For a table too large to read comfortably, prefer a transport that is not on the MAC
     /// layer.</para>
     /// </remarks>
     public class TikConnectionResponseIncompleteException : TikConnectionException
     {
         /// <summary>
         /// How many datagrams were dropped for missing predecessors while this response arrived; <c>0</c> when
-        /// the refusal came from a paged read's row count rather than from packet loss.
+        /// the refusal came from a read's row count rather than from packet loss.
         /// </summary>
         public int LostDatagrams { get; }
 

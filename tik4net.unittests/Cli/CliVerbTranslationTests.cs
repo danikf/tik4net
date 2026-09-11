@@ -38,7 +38,7 @@ namespace tik4net.unittests.Cli
 
             internal void OpenScripted()
                 => OpenWith(_ => Task.FromResult(0),
-                    (cliText, ct) => { Sent.Add(cliText); return Task.FromResult(Reply); },
+                    (cliText, ct) => { Sent.Add(cliText); return Task.FromResult(CountedReadFake.Answer(cliText, Reply)); },
                     (rawBytes, ct) => Task.FromResult(string.Empty),
                     () => { });
 
@@ -112,7 +112,9 @@ namespace tik4net.unittests.Cli
             using (var conn = Open(".id=*2;name=ether1"))
             {
                 conn.CreateCommand("/interface/print").ExecuteList();
-                Assert.AreEqual(":put [/interface print as-value]", conn.Sent.Single());
+                Assert.AreEqual(
+                    ":local d [/interface print as-value]; :put $d; :put (\"#n=\" . [:len $d] . \"/\" . [:typeof [:find $d [:pick $d 0]]])",
+                    conn.Sent.Single());
             }
         }
 
