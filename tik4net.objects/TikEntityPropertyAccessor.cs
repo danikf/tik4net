@@ -404,8 +404,12 @@ namespace tik4net.Objects
                 return TikDateTimeHelper.ToTikDateTime((DateTime)propValue);
             else if (ValueType == typeof(MacAddress))
                 return ((MacAddress)propValue).Address;
+            // yes/no is accepted for every boolean argument, including fields the router itself prints as
+            // true/false (disable-running-check=no measured on Api, Rest, Telnet; disabled=no on WinboxNative), so a
+            // bool needs no per-property spelling. A field that must be READ as a word other than true/yes/false/no
+            // is modelled as an enum with [TikEnum] instead.
             else if (ValueType == typeof(bool))
-                return ((bool)propValue) ? "yes" : "no"; //TODO add attribute definition for support true/false
+                return ((bool)propValue) ? "yes" : "no";
             else if (ValueType.GetTypeInfo().IsEnum)
             {
                 // _enumMetadata is set in the constructor exactly when ValueType is an enum (see there).

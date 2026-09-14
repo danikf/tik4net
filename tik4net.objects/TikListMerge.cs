@@ -42,9 +42,7 @@ namespace tik4net.Objects
         private readonly IEnumerable<TEntity> _expected;
         private readonly IEnumerable<TEntity> _original;
         private readonly TikEntityMetadata _metadata;
-        // Required fluent setup: SaveInternal dereferences this unconditionally, so it must be set via
-        // WithKey before Save/Simulate is called - nullable here only because the compiler cannot see that
-        // ordering; there is no runtime guard against calling Save without WithKey first.
+        // Required fluent setup: SaveInternal refuses to run until WithKey has set it.
         private Func<TEntity, string>? _keyExtractor;
         private Action<MergeOperation, TEntity?, TEntity?>? _dmlLogCallback; //<MergeOperation, oldEntity, newEntity>
         private Action<TEntity, int, int>? _moveLogCallback; //<Entity, oldIndex, newIndex>
@@ -70,15 +68,6 @@ namespace tik4net.Objects
 
             return memberExpression;
         }
-
-        //private static TikPropertyAttribute EnsureTikProperty<TProperty>(Expression<Func<TEntity, TProperty>> fieldExpression)
-        //{
-        //    var memberExpression = EnsureBodyIsMemberExpression(fieldExpression);
-
-        //    TikPropertyAttribute attr = memberExpression.Type.CustomAttributes.OfType<TikPropertyAttribute>().Single(); //TODO check and better exception
-        //    return attr;
-        //}
-
 
         /// <summary>
         /// Defines string representation of entity key (entities are the same, if extracted key has the same value).
@@ -216,6 +205,7 @@ namespace tik4net.Objects
         /// Items which are not present in 'expected' and are present in 'original' will be deleted from mikrotik router.
         /// </summary>
         /// <returns>List of final entities on mikrotik router after save operation (with ids).</returns>
+        /// <exception cref="InvalidOperationException"><see cref="WithKey"/> has not been called.</exception>
         /// <seealso cref="Simulate(out int, out int, out int, out int)"/>
         public IEnumerable<TEntity> Save()
         {
@@ -235,6 +225,7 @@ namespace tik4net.Objects
         /// <param name="deleteCnt">Number of items to be deleted.</param>
         /// <param name="moveCnt">Number of items to be moved (note: inserted items are always inserted at the end of list and moved to the right place by move operation).</param>
         /// <returns>Expected list of final entities on mikrotik router after save operation.</returns>
+        /// <exception cref="InvalidOperationException"><see cref="WithKey"/> has not been called.</exception>
         /// <seealso cref="Save"/>
         public IEnumerable<TEntity> Simulate(out int insertCnt, out int updateCnt, out int deleteCnt, out int moveCnt)
         {
@@ -251,6 +242,7 @@ namespace tik4net.Objects
         /// <param name="updateCnt">Number of items to be updated.</param>
         /// <param name="deleteCnt">Number of items to be deleted.</param>
         /// <returns>Expected list of final entities on mikrotik router after save operation.</returns>
+        /// <exception cref="InvalidOperationException"><see cref="WithKey"/> has not been called.</exception>
         /// <remarks>
         /// This overload hides the move count. On an ordered entity (<c>IsOrdered</c> — firewall filter, mangle,
         /// NAT…) <see cref="Save"/> still reorders the rows, so a run that only changes the ORDER reports 0/0/0
@@ -274,16 +266,21 @@ namespace tik4net.Objects
             deleteCnt = 0;
             moveCnt = 0;
 
-            //TODO ensure all fields set                
+            // The key is the only setup the merge cannot work without: it decides insert vs. update. No Field is a
+            // legitimate merge (inserts and deletes only), so that is not refused.
+            var keyExtractor = _keyExtractor
+                ?? throw new InvalidOperationException(
+                    "TikListMerge<" + typeof(TEntity).Name + ">: call WithKey(...) before Save or Simulate — "
+                    + "the key decides which router row and which expected row are the same row.");
+
             List<TEntity> result = new List<TEntity>();
-            // _keyExtractor!: required fluent setup - see the field's declaration comment.
-            Dictionary<string, TEntity> expectedDict = _expected.ToDictionaryEx(_keyExtractor!);
-            Dictionary<string, TEntity> originalDict = _original.ToDictionaryEx(_keyExtractor!);
+            Dictionary<string, TEntity> expectedDict = _expected.ToDictionaryEx(keyExtractor);
+            Dictionary<string, TEntity> originalDict = _original.ToDictionaryEx(keyExtractor);
 
             // Keys in the order the router currently holds them, kept up to date as this merge deletes, inserts
             // and moves. Shared with SaveListDifferences, which reorders the same way — see TikOrderTracker for
             // why the check has to be against the current order rather than the starting one.
-            var currentOrder = new TikOrderTracker(_original.Select(_keyExtractor!));
+            var currentOrder = new TikOrderTracker(_original.Select(keyExtractor));
 
             //Delete
             foreach (var originalEntityPair in originalDict.Reverse()) //delete from end to begining of the list (just for better show in WinBox)
@@ -347,8 +344,8 @@ namespace tik4net.Objects
                 {
                     if (result.Count > 0) // last one in the list (first taken) should be just added/leavedOnPosition and the next should be moved before the one which was added immediatelly before <=> result[0]
                     {
-                        string movedKey = _keyExtractor!(resultEntity);
-                        string anchorKey = _keyExtractor!(result[0]);
+                        string movedKey = keyExtractor(resultEntity);
+                        string anchorKey = keyExtractor(result[0]);
                         int movedIdx, anchorIdx;
 
                         // only if is in different position (is not immediately before result[0] right now)

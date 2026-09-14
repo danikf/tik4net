@@ -178,15 +178,18 @@ namespace tik4net.Api
                 // dispose is how a socket gets leaked by the very call meant to release it.
                 if (IsOpened && !_sessionPresumedDead)
                 {
+                    // The router answers /quit with a single `!fatal session terminated on request` and closes the
+                    // socket, on api and api-ssl alike (7.24.2, raw-socket probe). That answer is deliberately not
+                    // checked: Close has nobody to report a different one to, and the socket goes either way.
                     if (!_isSsl)
                     {
                         //NOTE: returns !fatal => can not use standard ExecuteNonQuery call (should not throw exception)
-                        var responseSentences = CallCommandSync(new string[] { "/quit" });
-                        //TODO should return single response of ApiFatalSentence with message "session terminated on request" - test and warning if not?
+                        CallCommandSync(new string[] { "/quit" });
                     }
                     else
                     {
-                        //NOTE: No result returned when SSL & /quit => do not read response (possible bug in SSL-API?)
+                        // Written without waiting for the answer. The router does answer here too; not waiting keeps
+                        // Close from spending a ReceiveTimeout on an older RouterOS that does not.
                         WriteCommand(new string[] { "/quit" });
                     }
                 }

@@ -199,7 +199,11 @@ namespace tik4net.integrationtests
 
             Assert.IsFalse(torchCommand.IsRunning);
             Assert.IsTrue(wasAborted);
-            Assert.AreEqual(abortReason, "Cancelled"); //TODO - Cancelled is returned because !done sentence is retrieved before connection is closed!
+            // The contract (ITikCommand.ExecuteListWithDuration): the router's !trap message or the reason the
+            // connection was lost. "Cancelled" is neither — it is what a command that ended with no !done, !trap
+            // or !fatal reports, and a reboot must not look like the caller's own cancel.
+            Assert.IsFalse(string.IsNullOrEmpty(abortReason), "an aborted command must say why");
+            Assert.AreNotEqual("Cancelled", abortReason, "a reboot was reported as a cancel");
         }
 
         [TestMethod]
