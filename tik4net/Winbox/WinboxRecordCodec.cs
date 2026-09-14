@@ -447,6 +447,18 @@ namespace tik4net.Winbox
                         long minutes = Math.Abs(offset) / 60;
                         return $"{sign}{minutes / 60:00}:{minutes % 60:00}";
                     }
+                    case "clocktime":
+                    {
+                        // A time of day: types.clocktime.tostr is interval2string(getTime(val)), getTime being
+                        // val % 86400. Measured on 7.24.2: /system/clock time 84043 where the API prints
+                        // 23:20:43.
+                        if (!WinboxFieldResolver.TryToInt64(value, out long tod))
+                        {
+                            TraceNonNumeric("clocktime", value);
+                            break;
+                        }
+                        return FormatClockTime(tod);
+                    }
                     case "interval":
                     {
                         // types.interval.tostr: `enum2string(attrs.values,val) || interval2string(val,
@@ -608,7 +620,14 @@ namespace tik4net.Winbox
                 // dynamic enum reference: render the referenced object's name (e.g. interface id → "ether1").
                 if (jf.RefHandler != null)
                 {
-                    string? name = ResolveRefName(jf.RefHandler, value, collectRefTables);
+                    // Each table the dropdown draws from, in order (webfig enm.pair.toString). In the collecting
+                    // pass every lookup answers null, so the loop notes down all of them.
+                    string? name = null;
+                    foreach (int[] table in jf.RefHandlers ?? new[] { jf.RefHandler })
+                    {
+                        name = ResolveRefName(table, value, collectRefTables);
+                        if (name != null) break;
+                    }
                     if (name != null) return name;
                     // No row answers to it, and no static member names it either — which is what an
                     // all-ones "not set" looks like on a reference the .jg wraps in no defenum. RouterOS
@@ -634,6 +653,11 @@ namespace tik4net.Winbox
                         // API prints a duration. /ip/ipsec/profile dpd-interval, whose only member is
                         // 'disable-dpd' at 0, read as 8 where the API says 8s.
                         if (IsSecondsPostfix(jf.Postfix)) return FormatDuration(ev, jf.Scale);
+                        // …or the ELEMENT says what kind: /system/scheduler start-time is
+                        // {enm,map:{4294967295:'startup'},c:[{type:'clocktime'}]}, and a time of day read as
+                        // 84032 where the API prints 23:20:32 (7.24.2).
+                        if (string.Equals(jf.ElementUiType, "clocktime", StringComparison.OrdinalIgnoreCase))
+                            return FormatClockTime(ev);
                         // A number the map has no member for. On an opt field that means "not set" and the
                         // field never reaches here (IsUnsetField drops it); here it means the .jg and the
                         // router disagree about the domain, which webfig itself calls 'unknown'. Fall through
@@ -653,9 +677,12 @@ namespace tik4net.Winbox
                 && WinboxFieldResolver.TryToInt64(value, out long hx))
                 return FormatRadix(hx, jf.Radix, IsHexPostfix(jf.Postfix));
 
-            // A plain number whose postfix says milliseconds is a duration too — nothing above catches it,
-            // because the .jg types it `number` and only the unit beside the box says otherwise.
-            if (jf != null && value != null && IsMillisecondsPostfix(jf.Postfix)
+            // A plain number whose postfix says seconds or milliseconds is a duration too — nothing above
+            // catches it, because the .jg types it `number` and only the unit beside the box says otherwise.
+            // Seconds, measured on 7.24.2: /system/watchdog ping-timeout reads 60 on the wire where the API
+            // prints 1m, and /queue/tree burst-time 0 where it prints 0s.
+            if (jf != null && value != null
+                && (IsMillisecondsPostfix(jf.Postfix) || (IsSecondsPostfix(jf.Postfix) && !IsPrintedBare(jf)))
                 && string.Equals(jf.UiType, "number", StringComparison.OrdinalIgnoreCase)
                 && WinboxFieldResolver.TryToInt64(value, out long ms))
                 return FormatDuration(ms, DurationTicksPerSecond(jf), DurationZeroUnit(jf));
@@ -741,7 +768,22 @@ namespace tik4net.Winbox
                 ["horizon"]               = "none",
                 // Same again for a DHCP relay's delay threshold, where 0 formatted as the interval '0s'.
                 ["delay-threshold"]       = "none",
+                // An interface's ARP timeout: 0 is 'auto'. Measured on 7.24.2 on an ethernet row: 30s rides
+                // as 30, and arp-timeout=0s is accepted but stored as auto — the API reads it back as auto
+                // and the key as 0 — so a zero here can never be a real zero-second timeout.
+                ["arp-timeout"]           = "auto",
             };
+
+        /// <summary>
+        /// The write side of <see cref="ZeroSpelledAsWord"/>: whether <paramref name="value"/> is the word this
+        /// field's zero is printed as, so an encoder sends 0 for it instead of refusing a non-number.
+        /// </summary>
+        internal static bool IsZeroWord(WinboxJgField jf, string value)
+        {
+            if ((!jf.IsOptional && jf.Min <= 0) || jf.ApiName == null) return false;
+            return ZeroSpelledAsWord.TryGetValue(jf.ApiName, out string? word)
+                && string.Equals(word, value, StringComparison.OrdinalIgnoreCase);
+        }
 
         private static bool TryZeroWord(WinboxJgField jf, object value, out string? word)
         {
@@ -824,6 +866,32 @@ namespace tik4net.Winbox
         // 'ms' was on the wrong side of that line until a seeded audit could see a bonding row: webfig paints
         // `100` beside a box labelled ms, and the API prints `100ms`. Not an appended unit either — setting
         // mii-interval=1500ms reads back `1s500ms`, so the value is a DURATION, in milliseconds.
+        /// <summary>
+        /// Fields declared <c>{number,postfix:'s'}</c> that the API nonetheless prints as the bare number.
+        /// </summary>
+        /// <remarks>
+        /// The declaration cannot tell them apart: <c>/queue/type</c>'s Perturb is <c>{number,def:5,postfix:'s'}</c>
+        /// like the watchdog's Ping Timeout, and the API prints <c>sfq-perturb=5</c> against
+        /// <c>ping-timeout=1m</c> (7.24.2). Measured the other way on the same router: ipv6 nd ra-delay 3s,
+        /// ra-lifetime 30m, neighbor age 28s, queue tree burst-time 0s. Keyed by the name the API reports.
+        /// </remarks>
+        private static readonly HashSet<string> SecondsPrintedBare =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "sfq-perturb" };
+
+        private static bool IsPrintedBare(WinboxJgField jf)
+            => jf.ApiName != null
+               && (SecondsPrintedBare.Contains(jf.ApiName)
+                   || (jf.PaneKind != null && SecondsPrintedBare.Contains(WinboxFieldResolver.PrefixWithKind(jf.PaneKind, jf.ApiName))));
+
+        // webfig interval2string(val % 86400) for a time of day — always HH:MM:SS, as the API prints it.
+        private static string FormatClockTime(long secondsOfDay)
+        {
+            long s = ((secondsOfDay % 86400) + 86400) % 86400;
+            return (s / 3600).ToString("00", CultureInfo.InvariantCulture) + ":"
+                 + (s / 60 % 60).ToString("00", CultureInfo.InvariantCulture) + ":"
+                 + (s % 60).ToString("00", CultureInfo.InvariantCulture);
+        }
+
         private static bool IsSecondsPostfix(string? postfix)
             => string.Equals(postfix, "s", StringComparison.Ordinal);
 
@@ -1558,8 +1626,12 @@ namespace tik4net.Winbox
             // table it could reference is cached already. Both are the steady state, and neither needs a pass.
             bool anyUncached = false;
             foreach (var jf in keyToField.Values)
-                if (jf?.RefHandler != null && CachedRefNames(string.Join(",", jf.RefHandler)) == null)
-                { anyUncached = true; break; }
+            {
+                if (jf?.RefHandler == null) continue;
+                foreach (int[] table in jf.RefHandlers ?? new[] { jf.RefHandler })
+                    if (CachedRefNames(string.Join(",", table)) == null) { anyUncached = true; break; }
+                if (anyUncached) break;
+            }
             if (!anyUncached) return;
 
             var wanted = new Dictionary<string, int[]>(StringComparer.Ordinal);

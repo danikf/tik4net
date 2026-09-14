@@ -715,6 +715,42 @@ namespace tik4net.Cli
             if (printVerb == "get")
                 return await RunGetAsync(descriptor, cancellationToken).ConfigureAwait(false);
 
+            // .proplist: the fields the caller asked for, and only those — the binary API's contract. It never
+            // reaches the wire: the CLI's own proplist= refuses the whole read when one name is unknown
+            // ("input does not match any value of value-name", 7.24) where the API ignores the name. So the
+            // read asks for the full field set and the rows are trimmed here. A plain print is the SUMMARY
+            // columns only (/interface/ethernet omits disable-running-check), which is why 'detail' is added;
+            // a singleton menu refuses it ("bad parameter detail") and prints every field without it.
+            var proplist = descriptor.Parameters.FirstOrDefault(p => p.Name == TikSpecialProperties.Proplist);
+            if (proplist != null)
+            {
+                var rest = descriptor.Parameters.Where(p => p.Name != TikSpecialProperties.Proplist).ToList();
+                var plain = new TikCommandDescriptor(descriptor.CommandText, rest);
+                IList<TikRecordSentence> rows;
+                if (rest.Any(p => p.ParameterFormat != TikCommandParameterFormat.Filter
+                                  && string.Equals(p.Name, "detail", StringComparison.OrdinalIgnoreCase)))
+                {
+                    rows = await RunPrintAsync(plain, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    var withDetail = new List<ITikCommandParameter>(rest)
+                    {
+                        new TikCommandParameter("detail", "", TikCommandParameterFormat.NameValue),
+                    };
+                    try
+                    {
+                        rows = await RunPrintAsync(new TikCommandDescriptor(descriptor.CommandText, withDetail),
+                            cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (TikConnectionResponseIncompleteException ex) when (IsDetailRefusal(ex.PartialResponse))
+                    {
+                        rows = await RunPrintAsync(plain, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+                return TrimToProplist(rows, proplist.Value);
+            }
+
             bool needStats = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliStats);
             bool wantJson = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliJson);
 
@@ -779,6 +815,17 @@ namespace tik4net.Cli
 
             return merged;
         }
+
+        /// <summary>
+        /// Whether a counted read failed because the menu has no <c>detail</c> modifier — a singleton answers
+        /// <c>bad parameter detail (line 1 column 27)</c> and no count marker.
+        /// </summary>
+        private static bool IsDetailRefusal(string? response)
+            => response != null && response.IndexOf("bad parameter detail", StringComparison.OrdinalIgnoreCase) >= 0;
+
+        /// <summary>See <see cref="TikProplist.Trim"/>.</summary>
+        private static IList<TikRecordSentence> TrimToProplist(IList<TikRecordSentence> rows, string? proplist)
+            => TikProplist.Trim(rows, proplist);
 
         /// <summary>
         /// Runs one monitor snapshot synchronously and returns its records — the read-method counterpart of

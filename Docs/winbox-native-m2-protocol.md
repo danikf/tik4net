@@ -1204,9 +1204,30 @@ member: `/ip/neighbor`'s `system-caps` of `0` — no bits, which the API prints 
 webfig does not put `postfix` in `tostr`; the view paints it beside the input box. RouterOS's API has no such
 split. `/ip/ipsec/profile`'s `dpd-interval` is an `enm` (`def:8`, `postfix:'s'`) whose only enum member is
 `disable-dpd` at 0 and whose `c:[{type:'number'}]` child renders everything else — so 8 read as a bare `8`
-where the API prints `8s`. A value that falls through the enum map on a `postfix:'s'` field is now rendered as
-a duration. Only `'s'` is acted on: `'min'`, `'PPM'`, `'ms'` and the rest are units the API spells the same way
-WinBox does, and appending them would invent text the router never prints.
+where the API prints `8s`. A time postfix makes the number a duration: a value that falls through the enum map
+on a `postfix:'s'` field, and a plain `number` with `postfix:'s'` or `'ms'`, render in RouterOS's compound form
+(`/system/watchdog` `ping-timeout` is 60 on the wire and `1m` over the API; `/queue/tree` `burst-time` 0 is `0s`,
+measured on 7.24.2; so do `/ipv6/nd` `ra-delay` `3s` and `/ip/neighbor` `age` `28s`). The declaration does not
+say which seconds field the API prints bare: `/queue/type` `sfq-perturb` is `{number,postfix:'s'}` like
+`ping-timeout` and prints `5`, so it is named in `WinboxRecordCodec.SecondsPrintedBare`. `'min'`, `'PPM'` and
+the rest are units the API spells the same way WinBox does, and appending them would invent text the router
+never prints.
+
+### A `clocktime` is a time of day
+
+`types.clocktime.tostr` is `interval2string(getTime(val))`, `getTime` being `val % 86400`, and `fromstr` is
+`string2interval`: the wire carries seconds since midnight and the API prints and accepts `HH:MM:SS`
+(`/system/clock` `time` 84043 is `23:20:43`). It also appears as the element of an `enm`: `/system/scheduler`'s
+`start-time` is `{enm,map:{4294967295:'startup'},c:[{type:'clocktime'}]}`, where the map names the word and
+every other value is a time of day — in both directions.
+
+### A dropdown can draw from several tables
+
+`values:{type:'pair',c:[…]}` merges sources, and `enm.pair.toString` asks each in declaration order until one
+names the value. `/queue/tree`'s `parent` is `pair{pair{static global, dynamic [20,0]}, dynamic [20,12]}` —
+an interface or another queue — so an id absent from the interface table is looked up in the queue table.
+`WinboxJgField.RefHandlers` keeps every dynamic source in order (`RefHandler` is the first); the decode, the
+reference prefetch and the name→id write lookup all walk the list.
 
 ### Two boxes, one API field: `address:port`
 

@@ -152,7 +152,32 @@ namespace tik4net.unittests.Winbox
         // Ethernet window: one catalogued field, so the test also shows the synthetic one sits beside it.
         private const string EthernetWindow =
             "[{name:'Interfaces',title:'Interfaces',c:[{title:'Ethernet',type:'map',path:[ 20,0 ]," +
-            "c:[{name:'autoneg',title:'Auto Negotiation',type:'bool',id:'b3f3'}]}]}]";
+            "c:[{name:'autoneg',title:'Auto Negotiation',type:'bool',id:'b3f3'}," +
+            "{name:'ARP Timeout',type:'interval',id:'u1003b',opt:1}]}]}]";
+
+        /// <summary>
+        /// arp-timeout's zero is 'auto' (7.24.2: 30s rides as 30, and a set of 0s is stored as auto), in
+        /// both directions — a value read over native must be writable back unchanged.
+        /// </summary>
+        [TestMethod]
+        public void EthernetArpTimeoutZeroIsAutoBothWays()
+        {
+            var resolver = EthernetResolver();
+            var codec = new WinboxRecordCodec(null, null);
+
+            Assert.AreEqual("auto", codec.DecodeRecord(
+                new Dictionary<int, Tuple<string, object>> { [0x1003B] = Tuple.Create("u32", (object)0u) },
+                resolver.BuildKeyToApiName(), resolver.BuildKeyToField())["arp-timeout"]);
+            Assert.AreEqual("30s", codec.DecodeRecord(
+                new Dictionary<int, Tuple<string, object>> { [0x1003B] = Tuple.Create("u32", (object)30u) },
+                resolver.BuildKeyToApiName(), resolver.BuildKeyToField())["arp-timeout"]);
+
+            var auto = Encoded(resolver.EncodeField("arp-timeout", "auto"));
+            Assert.AreEqual(0x1003B, auto.Key);
+            Assert.AreEqual(0L, Convert.ToInt64(auto.Value));
+            var thirty = Encoded(resolver.EncodeField("arp-timeout", "30s"));
+            Assert.AreEqual(30L, Convert.ToInt64(thirty.Value));
+        }
 
         private static WinboxFieldResolver EthernetResolver()
         {

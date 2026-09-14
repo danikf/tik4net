@@ -222,6 +222,37 @@ namespace tik4net.integrationtests
             return set;
         }
 
+        /// <summary>
+        /// Per path, the field names its entity declares WRITABLE — configuration, which holds still between
+        /// two reads and is therefore always value-compared (see <see cref="IsVolatile"/>).
+        /// </summary>
+        /// <remarks>Read through the mapper's metadata, like <see cref="FreeTextPaths"/>, so it cannot fall
+        /// behind the entities: a property made read-only leaves the set by the same declaration.</remarks>
+        private static readonly Dictionary<string, HashSet<string>> WritableFieldsByPath = BuildWritableFieldsByPath();
+
+        private static Dictionary<string, HashSet<string>> BuildWritableFieldsByPath()
+        {
+            var map = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (Type t in typeof(TikEntityAttribute).Assembly.GetTypes())
+            {
+                var ea = t.GetCustomAttribute<TikEntityAttribute>();
+                if (ea == null || string.IsNullOrEmpty(ea.EntityPath)) continue;
+                TikEntityMetadata meta;
+                try
+                {
+                    meta = (TikEntityMetadata)typeof(TikEntityMetadataCache).GetMethod("GetMetadata")
+                               .MakeGenericMethod(t).Invoke(null, null);
+                }
+                catch (Exception) { continue; }   // not a loadable entity; EntityPaths skips it too
+                string p = ea.EntityPath.StartsWith("/") ? ea.EntityPath : "/" + ea.EntityPath;
+                if (!map.TryGetValue(p, out var set))
+                    map[p] = set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var prop in meta.Properties)
+                    if (!prop.IsReadOnly) set.Add(prop.FieldName);
+            }
+            return map;
+        }
+
         private static List<ITikReSentence> PrintRows(ITikConnection conn, string path)
         {
             // Harmless on the transports that do not need it: API and REST both drop '.cli-json' rather
@@ -293,8 +324,19 @@ namespace tik4net.integrationtests
             "signal", "noise", "cpu", "memory", "sent", "received", "requests", "hits", "misses", "status",
         };
 
-        private static bool IsVolatile(string field)
+        /// <summary>
+        /// Whether a field's value may move between the two reads, so that a difference means nothing.
+        /// </summary>
+        /// <remarks>
+        /// The name parts above are a guess at what a counter is called, and a substring guesses wide:
+        /// `time` also matches arp-timeout and lease-time, `rate` matches accounting, `age` matches manager,
+        /// `count` matches country. 127 WRITABLE entity fields were never compared that way, and
+        /// arp-timeout read '0s' on native against the API's 'auto' under a green audit. A field the path's
+        /// own entity declares writable is configuration — it holds still — so it is always compared.
+        /// </remarks>
+        private static bool IsVolatile(string path, string field)
         {
+            if (WritableFieldsByPath.TryGetValue(path, out var writable) && writable.Contains(field)) return false;
             foreach (string part in VolatileFieldParts)
                 if (field.IndexOf(part, StringComparison.OrdinalIgnoreCase) >= 0) return true;
             return false;
@@ -419,7 +461,7 @@ namespace tik4net.integrationtests
                     // are simply at different points in their own numbering: the first ApiSsl run
                     // reported 126 of 155 paths as VALUE-DIFF, every one of them '.tag'. The audit was
                     // comparing itself.
-                    if (f.Key == ".id" || f.Key == ".tag" || IsVolatile(f.Key)) continue;
+                    if (f.Key == ".id" || f.Key == ".tag" || IsVolatile(path, f.Key)) continue;
                     if (!probeRow.TryGetValue(f.Key, out string probeValue)) continue;
                     bool agrees = string.Equals(f.Value ?? "", probeValue ?? "", StringComparison.OrdinalIgnoreCase);
                     if (excused != null && excused.ContainsKey(f.Key))

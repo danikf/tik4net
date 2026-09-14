@@ -731,7 +731,10 @@ namespace tik4net.Cli
         /// Client-side marker parameters that must NEVER be emitted as a CLI word — they are stripped
         /// from where-clauses and from name=value lists. (Mirror of <c>RestRequestBuilder.IsSpecialParam</c>
         /// / <c>ApiCommand.IsSpecialParam</c>; the membership differs per transport on purpose.)
-        ///   <c>.proplist</c> — as-value always returns every field; proplist trimming is not expressible in CLI.
+        ///   <c>.proplist</c> — honoured by trimming the rows client-side (<see cref="CliConnectionBase"/>), never as
+        ///                    the CLI's own <c>proplist=</c>: that refuses the whole read when one name is
+        ///                    unknown ("input does not match any value of value-name", 7.24), where the API
+        ///                    ignores the name.
         ///   <c>.tag</c>      — no tag protocol over a terminal.
         ///   <c>.cli-stats</c> — CLI-layer signal that triggers the two-query stats merge (<see cref="CliConnectionBase"/>).
         ///   <c>.cli-json</c>  — CLI-layer signal that switches the read to <c>:serialize to=json</c> (same class).

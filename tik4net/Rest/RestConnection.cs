@@ -261,7 +261,11 @@ namespace tik4net.Rest
         {
             var records = await ExecuteRequestListAsync(descriptor.CommandText, descriptor.Parameters,
                 cancellationToken).ConfigureAwait(false);
-            return TikGetResult.Shape(descriptor, records);
+            var shaped = TikGetResult.Shape(descriptor, records);
+            // The router honours ?.proplist= but adds .id to every row whether listed or not (7.24.2); the binary
+            // API returns exactly the listed fields, and that is the contract (see TikProplist).
+            var proplist = TikProplist.Find(descriptor.Parameters);
+            return proplist == null ? shaped : TikProplist.Trim(shaped, proplist.Value);
         }
 
         /// <inheritdoc/>

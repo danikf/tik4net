@@ -408,8 +408,10 @@ namespace tik4net.Winbox
             int elementNotKey = 0, bool elementIsRange = false, string? titleApiName = null,
             IReadOnlyList<WinboxJgField>? extraRegistrations = null, bool nonPublic = false,
             long min = 0, int radix = 0, string? prefix = null, int elementScale = 1,
-            bool relative = false)
+            bool relative = false, IReadOnlyList<int[]>? refHandlers = null)
         {
+            RefHandlers = refHandlers != null && refHandlers.Count > 0 ? refHandlers
+                        : refHandler != null ? new[] { refHandler } : null;
             Relative = relative;
             ElementScale = elementScale < 1 ? 1 : elementScale;
             Radix = radix;
@@ -526,6 +528,18 @@ namespace tik4net.Winbox
         internal IReadOnlyList<WinboxJgField>? ExtraRegistrations { get; }
 
         /// <summary>
+        /// Every table a dropdown draws its values from, in declaration order — <see cref="RefHandler"/> is the
+        /// first. <c>null</c> when the field is not a reference.
+        /// </summary>
+        /// <remarks>
+        /// A <c>values:{type:'pair',c:[…]}</c> merges several sources, and webfig's <c>enm.pair.toString</c>
+        /// asks each in turn until one names the value. <c>/queue/tree</c>'s parent is
+        /// <c>pair{pair{static global, dynamic [20,0]}, dynamic [20,12]}</c> — an interface or another queue —
+        /// and with only the first table searched, a queue parent read back as its raw id <c>*10002C1</c>.
+        /// </remarks>
+        internal IReadOnlyList<int[]>? RefHandlers { get; }
+
+        /// <summary>
         /// The same field under a different API name — for a field a window gives a label another field of
         /// that window already claimed, and which is therefore reachable only under a qualified name.
         /// </summary>
@@ -534,6 +548,6 @@ namespace tik4net.Winbox
                 OptKey, NotKey, IsRange, Allow, Def, PaneKind, PaneSelectorKey, PaneValues, OffKey,
                 IsOptional, ElementUiType, Scale, ElementParts, Postfix, ElementSeparator, PairHalves,
                 ElementNotKey, ElementIsRange, TitleApiName, ExtraRegistrations, NonPublic, Min, Radix,
-                Prefix, ElementScale, Relative);
+                Prefix, ElementScale, Relative, RefHandlers);
     }
 }

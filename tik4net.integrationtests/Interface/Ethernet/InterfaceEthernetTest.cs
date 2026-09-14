@@ -175,6 +175,48 @@ namespace tik4net.integrationtests
             }
         }
 
+        /// <summary>
+        /// <c>arp-timeout</c> reads as the API spells it and writes back unchanged on every transport.
+        /// </summary>
+        /// <remarks>
+        /// WinboxNative carries 'auto' as 0 on key 0x1003B and read it as '0s' — and refused 'auto' on the
+        /// way back, so a row read over native could not be saved unchanged. The write sends the value the
+        /// row already has, so the router is not changed.
+        /// </remarks>
+        [TestMethod]
+        public void EthernetArpTimeoutReadsAndWritesLikeTheApi()
+        {
+            string host = ConfigurationManager.AppSettings["host"];
+            string user = ConfigurationManager.AppSettings["user"];
+            string pass = ConfigurationManager.AppSettings["pass"] ?? "";
+
+            // A CLI print without 'detail' is the summary columns, which do not include arp-timeout; the API
+            // prints every field either way. 'detail' is what the O/R mapper sends (IncludeDetails).
+            ITikReSentence Row(ITikConnection conn)
+            {
+                var cmd = conn.CreateCommandAndParameters("/interface/ethernet/print", "name", TestConstants.Interface);
+                cmd.AddParameter("detail", "", TikCommandParameterFormat.NameValue);
+                return cmd.ExecuteSingleRow();
+            }
+
+            using (var apiConnection = ConnectionFactory.CreateConnection(TikConnectionType.Api))
+            {
+                apiConnection.Open(host, user, pass);
+                string apiValue = Row(apiConnection).GetResponseField("arp-timeout");
+
+                var mine = Row(Connection);
+                Assert.AreEqual(apiValue, mine.GetResponseField("arp-timeout"),
+                    "arp-timeout on " + TestConstants.Interface + ": the transport under test spells it differently");
+
+                Connection.CreateCommandAndParameters("/interface/ethernet/set",
+                    TikSpecialProperties.Id, mine.GetId(), "arp-timeout", apiValue).ExecuteNonQuery();
+
+                string after = apiConnection.CreateCommandAndParameters("/interface/ethernet/print",
+                    "name", TestConstants.Interface).ExecuteSingleRow().GetResponseField("arp-timeout");
+                Assert.AreEqual(apiValue, after, "writing the value the row already has must leave the router unchanged");
+            }
+        }
+
         [TestMethod]
         public void EthernetMonitorForEth1WillNotFail()
         {

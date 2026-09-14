@@ -206,7 +206,13 @@ only the **stable text** (apiPath↔menu-label aliases, apiName↔label) is ship
   falls through to the scalar-enum branch unless handled: a value of 0 then reads as the member at index 0
   instead of as the empty set.
 - **`postfix` is a unit the API puts in the value.** webfig paints it beside the input box and leaves `tostr`
-  bare; RouterOS prints `8s`. Only `'s'` is acted on.
+  bare; RouterOS prints `8s`. Only the TIME postfixes `'s'`/`'ms'` are acted on — a `number` (or an enum map
+  miss) with one is a duration (`ping-timeout` 60 → `1m`); `'min'`, `'PPM'` are printed bare by the API too.
+- **`clocktime` is seconds since midnight, printed `HH:MM:SS`** (`types.clocktime.tostr` = `val % 86400`).
+  It can be an `enm`'s element too (scheduler `start-time`: map `{4294967295:'startup'}`, else a time of day).
+- **A `pair` dropdown draws from several tables.** `enm.pair.toString` tries each source in order; queue-tree
+  `parent` is an interface OR a queue. `WinboxJgField.RefHandlers` holds them all (`RefHandler` = the first) —
+  resolve, prefetch and encode over the whole list, or a second-table id reads back as a raw `*10002C1`.
 - **One handler, several windows, each numbering its fields from 1.** `[28,0]` is the UPnP settings
   singleton (`b1` 'Enabled') AND the UPnP interface list (`u1` 'Interface'). Fields are filed per WINDOW as
   well as per handler, and the resolver reads action → window → handler; a key→name inversion of the

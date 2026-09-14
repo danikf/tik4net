@@ -1081,7 +1081,7 @@ namespace tik4net.Winbox
                             nonPublic: dict.TryGetValue("nonpublic", out var npv) && npv is int npi && npi != 0,
                             min: dict.TryGetValue("min", out var mnv) && mnv is int mni ? mni : 0,
                             radix: RadixOf(dict), elementScale: ElementScaleOf(dict),
-                            relative: RelativeOf(dict));
+                            relative: RelativeOf(dict), refHandlers: ExtractRefHandlers(dict));
                     }
                 }
 
@@ -1214,7 +1214,7 @@ namespace tik4net.Winbox
             string? tab = null, string? title = null,
             IReadOnlyList<WinboxJgField>? extraRegistrations = null, bool nonPublic = false,
             long min = 0, int radix = 0, string? prefix = null, int elementScale = 1,
-            bool relative = false)
+            bool relative = false, IReadOnlyList<int[]>? refHandlers = null)
         {
             string apiName = WinboxFieldResolver.NormalizeLabel(label);
             if (string.IsNullOrEmpty(apiName)) return;
@@ -1242,7 +1242,7 @@ namespace tik4net.Winbox
                 elementParts, postfix, elementSeparator, elementNotKey: elementNotKey,
                 elementIsRange: elementIsRange, titleApiName: titleName,
                 extraRegistrations: extraRegistrations, nonPublic: nonPublic, min: min, radix: radix,
-                prefix: prefix, elementScale: elementScale, relative: relative);
+                prefix: prefix, elementScale: elementScale, relative: relative, refHandlers: refHandlers);
             // Two fields of one window may carry the same label - the packet sniffer's streaming 'Port' (a
             // number) and its filter 'Port' (a list of port matches) - and first-wins kept only the first,
             // leaving the second reachable under no name at all. The TAB it sits under is what tells them
@@ -1788,6 +1788,39 @@ namespace tik4net.Winbox
             if (node.TryGetValue("c", out var cv))
                 return FindDynamicPath(cv, 0);
             return null;
+        }
+
+        // Every dynamic path under a dropdown's own `values`, in declaration order and without duplicates —
+        // the tables webfig's enm.pair tries one after another (see WinboxJgField.RefHandlers). Only
+        // `values` is searched: a list field's element child is ExtractRefHandler's business, and a single
+        // source needs no list.
+        private static IReadOnlyList<int[]>? ExtractRefHandlers(Dictionary<string, object> node)
+        {
+            if (!node.TryGetValue("values", out var vv)) return null;
+            var found = new List<int[]>();
+            CollectDynamicPaths(vv, found, 0);
+            return found.Count > 1 ? found : null;
+        }
+
+        private static void CollectDynamicPaths(object node, List<int[]> found, int depth)
+        {
+            if (depth > 10) return;
+            if (node is Dictionary<string, object> d)
+            {
+                if (d.TryGetValue("type", out var t) && t is string ts && ts == "dynamic"
+                    && d.TryGetValue("path", out var pv) && pv is List<object> pl)
+                {
+                    var ints = new List<int>();
+                    foreach (var p in pl) { if (p is int pi) ints.Add(pi); else return; }
+                    if (ints.Count > 0 && !found.Any(f => f.SequenceEqual(ints))) found.Add(ints.ToArray());
+                    return;
+                }
+                foreach (var kv in d) CollectDynamicPaths(kv.Value, found, depth + 1);
+            }
+            else if (node is List<object> list)
+            {
+                foreach (var it in list) CollectDynamicPaths(it, found, depth + 1);
+            }
         }
 
         private static int[]? FindDynamicPath(object node, int depth)

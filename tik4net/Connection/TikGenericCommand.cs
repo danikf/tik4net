@@ -339,13 +339,31 @@ namespace tik4net.Connection
             _isRunning = true;
             try
             {
-                // proplist is ignored for CLI (as-value always returns all fields)
-                return _connection.InvokeRunPrint(BuildReadDescriptor());
+                return _connection.InvokeRunPrint(BuildReadDescriptor(proplist));
             }
             finally
             {
                 _isRunning = false;
             }
+        }
+
+        /// <summary>
+        /// The read descriptor, carrying <paramref name="proplist"/> as a <c>.proplist</c> parameter when the
+        /// caller named fields — the same word the binary API sends, which each transport honours its own way
+        /// (REST as <c>?.proplist=</c>, the CLI and WinBox native by trimming the rows).
+        /// </summary>
+        private TikCommandDescriptor BuildReadDescriptor(string[]? proplist)
+        {
+            var descriptor = BuildReadDescriptor();
+            if (proplist == null || proplist.Length == 0 || descriptor.IsRaw
+                || descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.Proplist))
+                return descriptor;
+            var parameters = new List<ITikCommandParameter>(descriptor.Parameters)
+            {
+                new TikCommandParameter(TikSpecialProperties.Proplist, string.Join(",", proplist),
+                    TikCommandParameterFormat.NameValue),
+            };
+            return new TikCommandDescriptor(descriptor.CommandText, parameters);
         }
 
         /// <summary>
@@ -414,10 +432,8 @@ namespace tik4net.Connection
         Task<IList<ITikReSentence>> ITikCommandAsync.ExecuteListAsync(CancellationToken cancellationToken)
             => ExecuteListInternalAsync(cancellationToken);
 
-        // proplist is ignored here for the same reason as in the synchronous ExecuteList: the CLI's as-value form
-        // always returns every field, and REST answers with the whole object.
         Task<IList<ITikReSentence>> ITikCommandAsync.ExecuteListAsync(string[] proplistFields, CancellationToken cancellationToken)
-            => ExecuteListInternalAsync(cancellationToken);
+            => ExecuteListInternalAsync(cancellationToken, proplistFields);
 
         private async Task ExecuteNonQueryInternalAsync(CancellationToken cancellationToken)
         {
@@ -510,7 +526,8 @@ namespace tik4net.Connection
             }
         }
 
-        private async Task<IList<ITikReSentence>> ExecuteListInternalAsync(CancellationToken cancellationToken)
+        private async Task<IList<ITikReSentence>> ExecuteListInternalAsync(CancellationToken cancellationToken,
+            string[]? proplist = null)
         {
             EnsureConnectionSet();
             EnsureCommandTextSet();
@@ -518,7 +535,7 @@ namespace tik4net.Connection
             _isRunning = true;
             try
             {
-                var rows = await _connection.InvokeRunPrintAsync(BuildReadDescriptor(), cancellationToken).ConfigureAwait(false);
+                var rows = await _connection.InvokeRunPrintAsync(BuildReadDescriptor(proplist), cancellationToken).ConfigureAwait(false);
                 return rows.Cast<ITikReSentence>().ToList();
             }
             finally

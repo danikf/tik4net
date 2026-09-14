@@ -1607,6 +1607,16 @@ namespace tik4net.Winbox
 
             string? uiType = jg?.UiType;
 
+            // The word RouterOS prints for a zero (arp-timeout=auto, mtu=auto, max-sessions=unlimited) is the
+            // zero on the way back in. Without it every typed numeric encoder below refused the one value the
+            // read side hands out — a field read over native could not be written back unchanged.
+            if (jg != null && WinboxRecordCodec.IsZeroWord(jg, value))
+            {
+                if (jg.OptKey != 0) result.Add(M2Message.BoolSys(jg.OptKey, true));
+                result.Add(EncodeU32(key, 0));
+                return result;
+            }
+
             // ── opt/not container flags ──
             //
             // An opt-wrapped field is IGNORED BY THE ROUTER unless its opt bool says the option is present, and
@@ -1684,6 +1694,18 @@ namespace tik4net.Winbox
                             + $"'{_apiPath}'. Expected a decimal with at most "
                             + $"{fpScale.ToString(CultureInfo.InvariantCulture).Length - 1} fraction digit(s).");
                     result.Add(EncodeU32(key, unchecked((uint)scaled)));
+                    return result;
+                }
+                case "clocktime":
+                {
+                    // A time of day, as seconds since midnight: webfig types.clocktime.fromstr is
+                    // string2interval(str), and the API prints and accepts it as 23:20:32. Without this the
+                    // text reached the generic u32 branch and went out as a string the router ignores.
+                    if (value.Length == 0) return result;
+                    if (!TryParseDuration(value, 1, out long secondsOfDay))
+                        throw new WinboxFieldValueException(
+                            $"input does not match any value of {apiName} (expected a time of day, e.g. 23:20:32)");
+                    result.Add(EncodeU32(key, unchecked((uint)(secondsOfDay % 86400))));
                     return result;
                 }
                 case "interval":
@@ -1860,8 +1882,13 @@ namespace tik4net.Winbox
                     if (jg!.RefHandler != null && resolveRef != null && value.Length > 0
                         && !long.TryParse(value, out _))
                     {
-                        int? id = resolveRef(jg.RefHandler, value);
-                        if (id.HasValue) { result.Add(EncodeU32(key, (uint)id.Value)); return result; }
+                        // Every table the dropdown draws from, in the order webfig's enm.pair tries them — a
+                        // queue tree's parent is an interface OR another queue, and only the first was searched.
+                        foreach (int[] table in jg.RefHandlers ?? new[] { jg.RefHandler })
+                        {
+                            int? id = resolveRef(table, value);
+                            if (id.HasValue) { result.Add(EncodeU32(key, (uint)id.Value)); return result; }
+                        }
 
                         // The name is not a record in the referenced table. It may still be a static enum
                         // member ("none", "all", …), so try those below — but if nothing matches, the value
@@ -2139,6 +2166,17 @@ namespace tik4net.Winbox
                             : EncodeU32(key, (uint)kv.Key));
                         return result;
                     }
+            }
+
+            // An enm whose element is a clocktime: the map names the word ('startup' on /system/scheduler
+            // start-time) and anything else is a time of day, carried as seconds since midnight — the
+            // inverse of the decode, which renders a map miss through the element type.
+            if (jg != null && value.Length > 0
+                && string.Equals(jg.ElementUiType, "clocktime", StringComparison.OrdinalIgnoreCase)
+                && TryParseDuration(value, 1, out long elementSeconds))
+            {
+                result.Add(EncodeU32(key, unchecked((uint)(elementSeconds % 86400))));
+                return result;
             }
 
             // A dropdown reference (ftype 'enm' with a RefHandler) whose value named neither an existing

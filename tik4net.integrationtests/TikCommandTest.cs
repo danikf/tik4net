@@ -389,6 +389,30 @@ namespace tik4net.integrationtests
             Assert.IsTrue(result.Count() > 0);
         }
 
+        /// <summary>
+        /// A <c>.proplist</c> read returns exactly the listed fields, on every transport, and ignores a name the
+        /// menu does not have — the binary API's contract.
+        /// </summary>
+        /// <remarks>
+        /// <c>disable-running-check</c> is outside the CLI's summary columns, so a CLI read that dropped
+        /// <c>.proplist</c> and printed without <c>detail</c> lost it; RouterOS's own CLI <c>proplist=</c> refuses
+        /// the whole read over the unknown name.
+        /// </remarks>
+        [TestMethod]
+        public void ExecuteListWithProplist_ReturnsExactlyTheListedFields()
+        {
+            var rows = Connection.CreateCommand("/interface/ethernet/print")
+                .ExecuteList("name", "disable-running-check", "t4n-no-such-field").ToList();
+
+            Assert.IsTrue(rows.Count > 0, "the router reported no ethernet interfaces");
+            foreach (var row in rows)
+            {
+                CollectionAssert.AreEquivalent(new[] { "name", "disable-running-check" },
+                    row.Words.Keys.Where(k => k != TikSpecialProperties.Tag).ToList(),
+                    "fields returned for " + row.GetResponseFieldOrDefault("name", "?"));
+            }
+        }
+
         [TestMethod]
         public void ExecuteScalarOrDefault_WillReturnDefault_WhenNotFound()
         {

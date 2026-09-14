@@ -186,7 +186,10 @@ Examples:
 - For `add`: `name=value name2=value2 ...`
 - For `set`: extract `.id` → `numbers=*N` (a NAME → `[find where .id=X or name=X]`), the rest as `name=value`
 - For everything else (nonquery): `name=value ...`
-- Special case: `.proplist` is ignored (`as-value` always returns every field)
+- Special case: `.proplist` never reaches the wire. The read adds `detail` (retried without it when a
+  singleton answers `bad parameter detail`) and the rows are trimmed client-side to the listed fields.
+  RouterOS's own `print as-value proplist=a,b` does restrict the output, but refuses the whole read when
+  one name is unknown (`input does not match any value of value-name`, 7.24), where the API ignores it.
 
 ### 2b. Durations come back in a different notation than the API's
 
@@ -625,8 +628,9 @@ from `CliReSentence`.
   `ITikCommand.ExecuteListWithDuration` is complex.
 - **Async cancel** — `Cancel()` has no equivalent for a synchronous SSH `RunCommand`.
 - **Batch commands** — no pipelining.
-- **Proplist optimization** — `print as-value` always returns every field (can't be restricted the
-  way the API does via `.proplist`).
+- **Proplist on the wire** — `.proplist` is honoured by trimming the rows client-side, so the router still
+  sends every field. RouterOS's own CLI `proplist=` would cut the transfer, but it refuses the whole read
+  over a single unknown name, which the API's `.proplist` ignores.
 
 ---
 

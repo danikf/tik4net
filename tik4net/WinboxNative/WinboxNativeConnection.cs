@@ -458,7 +458,13 @@ namespace tik4net.WinboxNative
                 // MAC path, where a concurrent CRUD call or monitor poll would otherwise interleave with ours.
                 // Background workers enter the gate themselves and call RunPrintCore directly (not reentrant).
                 using (await EnterCommandAsync(cancellationToken).ConfigureAwait(false))
-                    return await RunPrintCoreAsync(descriptor, cancellationToken).ConfigureAwait(false);
+                {
+                    var rows = await RunPrintCoreAsync(descriptor, cancellationToken).ConfigureAwait(false);
+                    // M2 has no field projection: a getall returns every key. .proplist is the binary API's
+                    // contract all the same, so the decoded rows are trimmed to it (see TikProplist).
+                    var proplist = TikProplist.Find(descriptor.Parameters);
+                    return proplist == null ? rows : TikProplist.Trim(rows, proplist.Value);
+                }
             }
             catch (TikConnectionSessionClosedException) when (ReconnectAllowed)
             {

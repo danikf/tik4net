@@ -427,6 +427,10 @@ declares its element type as an unnamed child instead of carrying `values` itsel
 when `values` is absent, so a list like `/log`'s `topics` decodes as `"script,error"` instead of the raw
 handle `"[9,3]"`.
 
+A `values:{type:'pair'}` can carry more than one `dynamic` source — `/queue/tree`'s `parent` names an
+interface ([20,0]) or another queue ([20,12]). `ExtractRefHandlers` keeps them all, in declaration order, as
+`WinboxJgField.RefHandlers`; see `winbox-native-m2-protocol.md`, "A dropdown can draw from several tables".
+
 ---
 
 ## 15. `DataAvailable` over the MAC layer means "a datagram arrived", not "a frame is ready"
