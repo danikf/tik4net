@@ -1229,6 +1229,20 @@ an interface or another queue — so an id absent from the interface table is lo
 `WinboxJgField.RefHandlers` keeps every dynamic source in order (`RefHandler` is the first); the decode, the
 reference prefetch and the name→id write lookup all walk the list.
 
+A referenced table's row name is the field named `name` — or, where the table has none, the field its window
+declares as `nameval`. `/queue/type` labels it 'Type Name', and `/queue/simple`'s `queue` resolves its queue-type
+ids through it.
+
+### Labels, members and units
+
+* An enum MEMBER is normalized like a label but without the field-label override map: that map renames the
+  interface counter labels 'Tx'/'Rx' to `tx-byte`/`rx-byte`, and a member called `tx` (`/interface/vxlan`
+  `rem-csum`) keeps its own name.
+* A contraction's apostrophe is dropped with the abbreviation dot: 'Don't Fragment' is `dont-fragment`.
+* A `separate:1` tuple's parts are fields of their own and inherit the tuple's `postfix` when they declare
+  none: `/queue/simple` 'Burst Time' `{tuple,postfix:'s'}` makes its upload/download halves durations, printed
+  `burst-time=7s/9s`.
+
 ### Two boxes, one API field: `address:port`
 
 `/ip/hotspot/profile` has 'HTTP Proxy' (`u83`) beside 'HTTP Proxy Port' (`u84`) exactly as it has 'SMTP Server'

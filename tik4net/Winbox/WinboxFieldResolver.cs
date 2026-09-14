@@ -602,6 +602,49 @@ namespace tik4net.Winbox
                     jgToApi: Ci(("packet-sampling-interval", "sampling-interval"),
                                ("packet-sampling-space", "sampling-space"))),
 
+                // Each pairing below was confirmed by MOVING the value on a seeded row over the API and naming
+                // the one native field that changed (7.24.2) — never by the two names looking alike.
+                //
+                // /ip/dhcp-relay: 'Local Address As Source IP' is the API's local-address-as-src-ip (yes → true).
+                ["/ip/dhcp-relay"] = new FieldAliasSet(
+                    apiToJg: Ci(("local-address-as-src-ip", "local-address-as-source-ip")),
+                    jgToApi: Ci(("local-address-as-source-ip", "local-address-as-src-ip"))),
+
+                // /ip/traffic-flow/target: webfig's 'v9/IPFIX Template …' boxes. Refresh is a packet count (33
+                // moved 33). Timeout is declared a plain {number,def:1800} and the API prints it as a duration —
+                // 44m moved the key to 2640 — so it is typed here as an interval rather than aliased.
+                ["/ip/traffic-flow/target"] = new FieldAliasSet(
+                    apiToJg: Ci(("v9-template-refresh", "v9/ipfix-template-refresh")),
+                    jgToApi: Ci(("v9/ipfix-template-refresh", "v9-template-refresh")),
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["v9-template-timeout"] = new WinboxJgField("v9-template-timeout", 0x5, "u32", false,
+                                                                    uiType: "interval"),
+                    }),
+
+                // /queue/tree: the window says 'Packet Marks' where the API says packet-mark (t4n-probe-mark moved).
+                ["/queue/tree"] = new FieldAliasSet(
+                    apiToJg: Ci(("packet-mark", "packet-marks")),
+                    jgToApi: Ci(("packet-marks", "packet-mark"))),
+
+                // /interface/vxlan: 'Remote Checksum Offload' is rem-csum (tx moved it).
+                ["/interface/vxlan"] = new FieldAliasSet(
+                    apiToJg: Ci(("rem-csum", "remote-checksum-offload")),
+                    jgToApi: Ci(("remote-checksum-offload", "rem-csum"))),
+
+                // /ip/dhcp-server: 'DNS Entry Suffix' and 'Support The Broadband Forum TR-101'.
+                ["/ip/dhcp-server"] = new FieldAliasSet(
+                    apiToJg: Ci(("add-dns-entries-suffix", "dns-entry-suffix"),
+                                ("support-broadband-tr101", "support-the-broadband-forum-tr-101")),
+                    jgToApi: Ci(("dns-entry-suffix", "add-dns-entries-suffix"),
+                                ("support-the-broadband-forum-tr-101", "support-broadband-tr101"))),
+
+                // /ip/dhcp-server/lease: WinBox's 'Address List' is the API's plural address-lists. Its own set,
+                // so it does not inherit /ip/dhcp-server's above.
+                ["/ip/dhcp-server/lease"] = new FieldAliasSet(
+                    apiToJg: Ci(("address-lists", "address-list")),
+                    jgToApi: Ci(("address-list", "address-lists"))),
+
                 // /ip/settings: confirmed by writing 393216 and 27 and reading both back. `icmp-rate-mask`
                 // is NOT here — no window in the catalog declares it at all, under any name.
                 ["/ip/settings"] = new FieldAliasSet(
@@ -677,9 +720,10 @@ namespace tik4net.Winbox
                 // WinBox is not wrong about its own box; the API is simply a different contract, and ours.
                 // Typed here per path rather than by preferring `interval` wherever two windows disagree:
                 // that rule would reach every such pair in the catalog on the strength of one example.
+                // Its 'Network Type' is the API's type — confirmed by setting type=ptp and watching it arrive.
                 ["/routing/ospf/interface-template"] = new FieldAliasSet(
-                    apiToJg: Ci(),
-                    jgToApi: Ci(),
+                    apiToJg: Ci(("type", "network-type")),
+                    jgToApi: Ci(("network-type", "type")),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["transmit-delay"] = new WinboxJgField("transmit-delay", 0x2C700B, "u32", false,
@@ -980,6 +1024,10 @@ namespace tik4net.Winbox
                         ("burst-threshold", "upload-burst-threshold", "download-burst-threshold"),
                         ("priority", "upload-priority", "download-priority"),
                         ("bucket-size", "upload-bucket-size", "download-bucket-size"),
+                        // Both moved on a seeded row (7.24.2): queue=pcq-upload-default/pcq-download-default
+                        // arrived as the two queue-type references, burst-time=7s/9s as the two burst times.
+                        ("queue", "upload-queue-type", "download-queue-type"),
+                        ("burst-time", "upload-burst-time", "download-burst-time"),
                         // Statistics tab — read-only, one tuple per API field.
                         ("bytes", "total-uploaded-bytes", "total-downloaded-bytes"),
                         ("packets", "total-uploaded-packets", "total-downloaded-packets"),
@@ -3236,19 +3284,25 @@ namespace tik4net.Winbox
         /// Normalizes a WinBox UI label to a RouterOS API field name: trims, lower-cases, collapses
         /// whitespace to single '-', and applies a small irregular-label override map.
         /// </summary>
-        internal static string NormalizeLabel(string label)
+        /// <param name="label">The WinBox label.</param>
+        /// <param name="applyOverrides">
+        /// <c>false</c> for an enum MEMBER: the override map renames FIELD labels ('Tx' is the interface's
+        /// tx-byte counter), and applied to a member it turned /interface/vxlan rem-csum's 'tx' into 'tx-byte'.
+        /// </param>
+        internal static string NormalizeLabel(string label, bool applyOverrides = true)
         {
             if (string.IsNullOrWhiteSpace(label)) return "";
             string trimmed = label.Trim();
-            if (LabelOverride.TryGetValue(trimmed, out var ovr)) return ovr;
+            if (applyOverrides && LabelOverride.TryGetValue(trimmed, out var ovr)) return ovr;
 
             var sb = new StringBuilder(trimmed.Length);
             bool lastDash = false;
             foreach (char c in trimmed)
             {
-                if (c == '.')
+                if (c == '.' || c == '\'')
                 {
-                    // Abbreviation dot in a UI label ("Dst. Address" → "dst-address"); API names carry no dots.
+                    // Abbreviation dot in a UI label ("Dst. Address" → "dst-address"), and the apostrophe of a
+                    // contraction ("Don't Fragment" → "dont-fragment", 7.24.2): API names carry neither.
                     continue;
                 }
                 if (char.IsWhiteSpace(c) || c == '_')

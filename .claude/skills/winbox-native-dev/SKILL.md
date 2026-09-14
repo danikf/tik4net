@@ -210,6 +210,13 @@ only the **stable text** (apiPath↔menu-label aliases, apiName↔label) is ship
   miss) with one is a duration (`ping-timeout` 60 → `1m`); `'min'`, `'PPM'` are printed bare by the API too.
 - **`clocktime` is seconds since midnight, printed `HH:MM:SS`** (`types.clocktime.tostr` = `val % 86400`).
   It can be an `enm`'s element too (scheduler `start-time`: map `{4294967295:'startup'}`, else a time of day).
+- **A referenced table's row name is `name`, or its window's `nameval`** when it has no `name` field —
+  `/queue/type` names rows by 'Type Name', and without the fallback queue-simple `queue` read as `*FFFFFFFA`.
+- **Enum MEMBERS skip the field-label override map.** `LabelOverride` renames the interface 'Tx'/'Rx' counter
+  labels; applied to a member it turned vxlan `rem-csum=tx` into `tx-byte`. A contraction's apostrophe is
+  dropped like the abbreviation dot (`Don't Fragment` → `dont-fragment`).
+- **A `separate:1` tuple's `postfix` belongs to its parts** — Burst Time `{tuple,postfix:'s'}` makes the
+  upload/download halves durations (`7s/9s`).
 - **A `pair` dropdown draws from several tables.** `enm.pair.toString` tries each source in order; queue-tree
   `parent` is an interface OR a queue. `WinboxJgField.RefHandlers` holds them all (`RefHandler` = the first) —
   resolve, prefetch and encode over the whole list, or a second-table id reads back as a raw `*10002C1`.

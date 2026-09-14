@@ -275,6 +275,32 @@ namespace tik4net.integrationtests
 
         private Result RunAddRemove(TransportAuditFixtures.Recipe recipe)
         {
+            // An add can create its row and still fail to hand back the .id — a CLI transport's reply can land
+            // outside the read window (TikAddIdNotReadException), and then Cleanup has nothing to remove by. The
+            // rows that do not come back by id are found by what the table held BEFORE, and removed over the
+            // API whatever the outcome: two unnamed bridge rules, a bridge nat rule and a wireguard peer whose
+            // interface was long gone were sitting on the lab router for exactly this reason.
+            var before = new HashSet<string>(Ids(recipe.Path));
+            try
+            {
+                return RunAddRemoveCore(recipe);
+            }
+            finally
+            {
+                foreach (string stray in Ids(recipe.Path).Where(id => !before.Contains(id)))
+                    TryRemoveOverApi(recipe.Path, stray);
+            }
+        }
+
+        // The table's .ids over the API; empty when it cannot be read, which then sweeps nothing.
+        private List<string> Ids(string path)
+        {
+            try { return _api.CreateCommand(path + "/print").ExecuteList().Select(x => x.GetId()).ToList(); }
+            catch (Exception) { return new List<string>(); }
+        }
+
+        private Result RunAddRemoveCore(TransportAuditFixtures.Recipe recipe)
+        {
             var r = new Result { Path = recipe.Path, Field = "(add)" };
             string[] probeArgs = Rename(recipe.NameValues, "ax");
             string[] apiArgs = Rename(recipe.NameValues, "bx");

@@ -1664,14 +1664,41 @@ namespace tik4net.Winbox
         private Dictionary<int, string> BuildRefNameMap(
             int[] refHandler, IEnumerable<Dictionary<int, Tuple<string, object>>> rows)
         {
-            var refResolver = new WinboxFieldResolver(null, refHandler, _catalog, EmptyOverrides);
             var map = new Dictionary<int, string>();
-            int nameKey = NameKeyOf(refResolver.BuildKeyToApiName());
+            var (nameKey, nameValKey) = RefNameKeys(_catalog, refHandler);
             foreach (var r in rows)
                 // TryReadIdAndName only returns true after successfully assigning a non-null name.
-                if (TryReadIdAndName(r, nameKey, out int rowId, out string? rowName))
+                if (TryReadIdAndName(r, nameKey, out int rowId, out string? rowName)
+                    || TryReadIdAndName(r, nameValKey, out rowId, out rowName))
                     map[rowId] = rowName!;
             return map;
+        }
+
+        /// <summary>
+        /// The two keys a referenced row's name can sit at: the table's <c>name</c> field, and the field its
+        /// window declares as <c>nameval</c> (<c>-1</c> for either it has none).
+        /// </summary>
+        /// <remarks>
+        /// <c>name</c> is tried first, so every reference that resolved before resolves the same way. The
+        /// <c>nameval</c> key is the fallback for a row that does not carry it — and it cannot be decided from
+        /// the catalog alone, because the resolver seeds <c>name</c> at <c>0x10006</c> for a table whose window
+        /// has no Name box. <c>/queue/type</c> is one: its rows are named by 'Type Name' at <c>0x16</c>, the
+        /// seeded key was never in them, and <c>/queue/simple</c>'s queue read back as <c>*FFFFFFFA</c> where the
+        /// API says pcq-upload-default (7.24.2). The bit-set member map (<see cref="BuildMemberMap"/>) already
+        /// read <c>nameval</c>.
+        /// </remarks>
+        internal static (int nameKey, int nameValKey) RefNameKeys(WinboxJgCatalog catalog, int[] refHandler)
+        {
+            var keyToApiName = new WinboxFieldResolver(null, refHandler, catalog, EmptyOverrides).BuildKeyToApiName();
+            int nameKey = NameKeyOf(keyToApiName);
+            int nameValKey = -1;
+            string? nameVal = catalog.GetNameValField(refHandler);
+            if (nameVal != null)
+                foreach (var kv in keyToApiName)
+                    if (string.Equals(kv.Value, nameVal, StringComparison.OrdinalIgnoreCase)
+                        && !WinboxM2Protocol.TypedKey.IsQualified(kv.Key))
+                    { nameValKey = kv.Key; break; }
+            return (nameKey, nameValKey);
         }
 
         /// <summary>

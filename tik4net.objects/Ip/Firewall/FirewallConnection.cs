@@ -13,7 +13,7 @@ namespace tik4net.Objects.Ip.Firewall
     /// read-only.
     /// </para>
     /// </summary>
-    [TikEntity("/ip/firewall/connection", SupportedOperations = TikEntityOperations.Remove)]
+    [TikEntity("/ip/firewall/connection", SupportedOperations = TikEntityOperations.Remove, IncludeDetails = true)]
     public class FirewallConnection
     {
         /// <summary>

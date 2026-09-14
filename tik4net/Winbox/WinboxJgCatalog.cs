@@ -1122,6 +1122,16 @@ namespace tik4net.Winbox
                     return;
                 }
 
+                // A `separate:1` tuple's parts are fields of their own, walked below — and the unit is declared
+                // once, on the tuple: /queue/simple 'Burst Time' is {tuple,postfix:'s',c:[{Upload Burst Time,
+                // number},{Download Burst Time,number}]}, so without it the halves read 7 and 9 where the API
+                // prints burst-time=7s/9s (7.24.2). A part that declares its own postfix keeps it.
+                if (ty == "tuple" && dict.TryGetValue("postfix", out var tpf) && tpf is string tupPostfix
+                    && dict.TryGetValue("c", out var tcv) && tcv is List<object> tupParts)
+                    foreach (var part in tupParts)
+                        if (part is Dictionary<string, object> pd && !pd.ContainsKey("postfix"))
+                            pd["postfix"] = tupPostfix;
+
                 foreach (var kv in dict)
                 {
                     if (kv.Key == "id") continue;
@@ -1921,7 +1931,8 @@ namespace tik4net.Winbox
             var byNormalized = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var kv in raw)
             {
-                string n = WinboxFieldResolver.NormalizeLabel(kv.Value);
+                // A member, not a field label: the field-name overrides do not apply (see NormalizeLabel).
+                string n = WinboxFieldResolver.NormalizeLabel(kv.Value, applyOverrides: false);
                 // Two DIFFERENT raw labels landing on one normalized form is the collision. The same raw
                 // label appearing at two keys is not — a defenum names an id the wrapped list also names.
                 if (byNormalized.TryGetValue(n, out string? other) && !string.Equals(other, kv.Value, StringComparison.Ordinal))
@@ -1929,7 +1940,7 @@ namespace tik4net.Winbox
                 byNormalized[n] = kv.Value;
             }
             var normalized = new Dictionary<int, string>(raw.Count);
-            foreach (var kv in raw) normalized[kv.Key] = WinboxFieldResolver.NormalizeLabel(kv.Value);
+            foreach (var kv in raw) normalized[kv.Key] = WinboxFieldResolver.NormalizeLabel(kv.Value, applyOverrides: false);
             return normalized;
         }
 

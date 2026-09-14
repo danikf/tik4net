@@ -58,6 +58,85 @@ namespace tik4net.unittests.Winbox
             return Convert.ToInt64(M2Message.ParseAllFields(msg).Single().Value.Item2);
         }
 
+        private static Dictionary<string, string> DecodeWith(string window, int[] handler, string apiPath,
+            params (int key, string wire, object value)[] fields)
+        {
+            var catalog = new WinboxJgCatalog();
+            Assert.IsTrue(catalog.TryParseInto(window), "the trimmed window must parse");
+            var resolver = new WinboxFieldResolver(apiPath, handler, catalog, new Dictionary<string, int>());
+            var rec = fields.ToDictionary(f => f.key, f => Tuple.Create(f.wire, f.value));
+            return new WinboxRecordCodec(null, catalog).DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField());
+        }
+
+        [TestMethod]
+        public void AReferencedTableWithoutANameBoxIsNamedByItsNameval()
+        {
+            // /queue/type's window: nameval:'Type Name' at s16, and no field labelled 'Name'. The resolver seeds
+            // name at 0x10006 for such a table — a key its rows never carry — so the nameval key has to be
+            // offered as well, or every /queue/simple queue reference reads as a raw id.
+            var catalog = new WinboxJgCatalog();
+            Assert.IsTrue(catalog.TryParseInto(
+                "[{name:'X',c:[{title:'Queue Types',type:'map',path:[ 20,10 ],nameval:'Type Name',c:[" +
+                "{name:'Type Name',type:'string',id:'s16',min:1}]}]}]"));
+
+            var (nameKey, nameValKey) = WinboxRecordCodec.RefNameKeys(catalog, new[] { 20, 10 });
+
+            Assert.AreEqual(0x16, nameValKey, "the Type Name box");
+            Assert.AreNotEqual(0x16, nameKey, "the seeded name key is not where these rows keep their name");
+        }
+
+        [TestMethod]
+        public void AnEnumMemberIsNotRenamedByTheFieldLabelOverrides()
+        {
+            // /interface/vxlan rem-csum's members are none/rx/tx/both; 'tx' went through the FIELD override
+            // that maps the interface counter label 'Tx' to tx-byte, and read back as tx-byte (7.24.2).
+            var decoded = DecodeWith(
+                "[{name:'X',c:[{title:'X',type:'map',path:[ 90,3 ],c:[" +
+                "{name:'Remote Checksum Offload',type:'enm',id:'u16',def:0,values:{type:'static',map:{0:'none',1:'rx',2:'tx',3:'both'}}}]}]}]",
+                new[] { 90, 3 }, "/interface/vxlan", (0x16, "u32", (object)2u));
+
+            Assert.AreEqual("tx", decoded["rem-csum"], "and the field reads under the API's name");
+        }
+
+        [TestMethod]
+        public void ATuplesUnitReachesItsSeparateParts()
+        {
+            // /queue/simple 'Burst Time' {tuple,postfix:'s',separate:1}: the halves are numbers with no unit of
+            // their own, and the API prints burst-time=7s/9s.
+            var decoded = DecodeWith(
+                "[{name:'X',c:[{title:'X',type:'map',path:[ 90,4 ],c:[" +
+                "{name:'Burst Time',type:'tuple',postfix:'s',sep:' ',separate:1,c:[" +
+                "{name:'Upload Burst Time',type:'number',id:'u43'},{name:'Download Burst Time',type:'number',id:'u4a'}]}]}]}]",
+                new[] { 90, 4 }, "/x", (0x43, "u32", (object)7u), (0x4A, "u32", (object)9u));
+
+            Assert.AreEqual("7s", decoded["upload-burst-time"]);
+            Assert.AreEqual("9s", decoded["download-burst-time"]);
+        }
+
+        [TestMethod]
+        public void TrafficFlowTargetTemplateTimeoutIsADuration()
+        {
+            // {number,def:1800} with no postfix, and the API prints 44m where the wire carries 2640 (7.24.2).
+            var decoded = DecodeWith(
+                "[{name:'X',c:[{title:'X',type:'map',path:[ 90,5 ],c:[" +
+                "{name:'v9/IPFIX Template Refresh',type:'number',id:'u4',def:20,min:1}," +
+                "{name:'v9/IPFIX Template Timeout',type:'number',id:'u5',def:1800}]}]}]",
+                new[] { 90, 5 }, "/ip/traffic-flow/target", (0x4, "u32", (object)33u), (0x5, "u32", (object)2640u));
+
+            Assert.AreEqual("33", decoded["v9-template-refresh"], "refresh is a packet count");
+            Assert.AreEqual("44m", decoded["v9-template-timeout"]);
+        }
+
+        [TestMethod]
+        public void AContractionsApostropheIsNotPartOfTheApiName()
+        {
+            // /interface/vxlan "Don't Fragment" and /system/script "Don't Require Permissions" (7.24.2): the API
+            // says dont-fragment and dont-require-permissions, and native reported don't-….
+            Assert.AreEqual("dont-fragment", WinboxFieldResolver.NormalizeLabel("Don't Fragment"));
+            Assert.AreEqual("dont-require-permissions", WinboxFieldResolver.NormalizeLabel("Don't Require Permissions"));
+            Assert.AreEqual("dst-address", WinboxFieldResolver.NormalizeLabel("Dst. Address"), "the dot rule is unchanged");
+        }
+
         [TestMethod]
         public void ANumberWithASecondsPostfixIsADuration()
         {
