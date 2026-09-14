@@ -147,5 +147,48 @@ namespace tik4net.unittests.Winbox
         {
             Assert.AreEqual(0x9, Resolver().ResolveKey("state-after-reboot"));
         }
+
+        // /interface/ethernet's disable-running-check rides at 0x1000D, which no .jg window names. A trimmed
+        // Ethernet window: one catalogued field, so the test also shows the synthetic one sits beside it.
+        private const string EthernetWindow =
+            "[{name:'Interfaces',title:'Interfaces',c:[{title:'Ethernet',type:'map',path:[ 20,0 ]," +
+            "c:[{name:'autoneg',title:'Auto Negotiation',type:'bool',id:'b3f3'}]}]}]";
+
+        private static WinboxFieldResolver EthernetResolver()
+        {
+            var catalog = new WinboxJgCatalog();
+            Assert.IsTrue(catalog.TryParseInto(EthernetWindow), "the trimmed window must parse");
+            return new WinboxFieldResolver("/interface/ethernet", new[] { 20, 0 }, catalog,
+                new Dictionary<string, int>());
+        }
+
+        /// <summary>
+        /// Without the synthetic field a set threw WinboxFieldResolutionException over WinboxNative, and a
+        /// read dropped the field the API, REST and Telnet all report.
+        /// </summary>
+        [TestMethod]
+        public void EthernetDisableRunningCheckResolvesDecodesAndEncodes()
+        {
+            var resolver = EthernetResolver();
+            Assert.AreEqual(0x1000D, resolver.ResolveKey("disable-running-check"));
+
+            var decoded = new WinboxRecordCodec(null, null).DecodeRecord(
+                new Dictionary<int, Tuple<string, object>>
+                {
+                    [0x1000D] = Tuple.Create("bool", (object)true),
+                    [0x3F3] = Tuple.Create("bool", (object)true),
+                },
+                resolver.BuildKeyToApiName(), resolver.BuildKeyToField());
+            Assert.AreEqual("true", decoded["disable-running-check"], "0x1000D=True alongside the API's true");
+            Assert.AreEqual("true", decoded["auto-negotiation"], "the catalogued field beside it is unaffected");
+
+            // Both spellings the API accepts go out as a bool, never as a u32 the router would ignore.
+            foreach (var (value, expected) in new[] { ("yes", true), ("no", false), ("true", true), ("false", false) })
+            {
+                var field = Encoded(resolver.EncodeField("disable-running-check", value));
+                Assert.AreEqual(0x1000D, field.Key);
+                Assert.AreEqual(expected, field.Value, "disable-running-check=" + value);
+            }
+        }
     }
 }

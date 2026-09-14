@@ -133,6 +133,48 @@ namespace tik4net.integrationtests
             }
         }
 
+        /// <summary>
+        /// <c>disable-running-check</c> reads the same as the API and resolves for a write on every transport.
+        /// </summary>
+        /// <remarks>
+        /// No WinBox window names the field; WinboxNative carries it as a synthetic field on key 0x1000D.
+        /// The write sends the value the row ALREADY has, so the router is not changed: flipping the flag on
+        /// the lab's only uplink is not something a routine run should do. The pairing itself was proven once
+        /// by hand, by moving the value (see WinboxFieldResolver). What this test holds is the read and that
+        /// the name resolves — before the fix a native set threw WinboxFieldResolutionException.
+        /// </remarks>
+        [TestMethod]
+        public void EthernetDisableRunningCheckReadsAndWritesLikeTheApi()
+        {
+            var viaTransport = Connection.LoadAll<InterfaceEthernet>().ToList();
+            var eth = viaTransport.FirstOrDefault(e => e.Name == TestConstants.Interface);
+            if (eth == null) Assert.Inconclusive("the router has no " + TestConstants.Interface);
+
+            string host = ConfigurationManager.AppSettings["host"];
+            string user = ConfigurationManager.AppSettings["user"];
+            string pass = ConfigurationManager.AppSettings["pass"] ?? "";
+
+            using (var apiConnection = ConnectionFactory.CreateConnection(TikConnectionType.Api))
+            {
+                apiConnection.Open(host, user, pass);
+                var apiBefore = apiConnection.LoadAll<InterfaceEthernet>().Single(e => e.Name == TestConstants.Interface);
+                Assert.AreEqual(apiBefore.DisableRunningCheck, eth.DisableRunningCheck,
+                    "disable-running-check on " + eth.Name + ": the transport under test reads a different value");
+
+                if (apiBefore.DisableRunningCheck == null)
+                    Assert.Inconclusive("the API reports no disable-running-check on " + eth.Name);
+                string same = apiBefore.DisableRunningCheck == true ? "yes" : "no";
+                var cmd = Connection.CreateCommandAndParameters("/interface/ethernet/set",
+                    TikSpecialProperties.Id, eth.Id,
+                    "disable-running-check", same);
+                cmd.ExecuteNonQuery();
+
+                var apiAfter = apiConnection.LoadAll<InterfaceEthernet>().Single(e => e.Name == TestConstants.Interface);
+                Assert.AreEqual(apiBefore.DisableRunningCheck, apiAfter.DisableRunningCheck,
+                    "writing the value the row already has must leave the router unchanged");
+            }
+        }
+
         [TestMethod]
         public void EthernetMonitorForEth1WillNotFail()
         {

@@ -490,6 +490,12 @@ namespace tik4net.Winbox
                 // and then Loop Protect / Send Interval / Disable Time / Status under it. RouterOS prefixes
                 // the tab's name onto all but the field that IS the tab's name. Confirmed by setting
                 // send-interval=7s and disable-time=9m on one interface and not its neighbour.
+                //
+                // disable-running-check has no box in any window: no .jg names key 0x1000D, and webfig's
+                // master.js has no running-check field either. The router still sends it on every ether row.
+                // Two unnamed bools were candidates (0x1000D=False, 0x3F4=True — polarity alone could not
+                // choose); setting disable-running-check=yes on ether2 over the API moved 0x1000D False → True
+                // and left 0x3F4 and ether1 alone (7.24.2). Same polarity as the API's field, writable.
                 ["/interface/ethernet"] = new FieldAliasSet(
                     apiToJg: Ci(("auto-negotiation", "autoneg"),
                                ("loop-protect-status", "status"),
@@ -499,7 +505,11 @@ namespace tik4net.Winbox
                                ("auto-negotiation", "auto-negotiation-status"),
                                ("status", "loop-protect-status"),
                                ("send-interval", "loop-protect-send-interval"),
-                               ("disable-time", "loop-protect-disable-time"))),
+                               ("disable-time", "loop-protect-disable-time")),
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["disable-running-check"] = new WinboxJgField("disable-running-check", 0x1000D, "bool", false),
+                    }),
 
                 // /ip/arp and /ip/neighbor: WinBox's 'IP Address' is the API's `address`. On /ip/neighbor
                 // the router ALSO prints `address4` for the same value and `address6` for the v6 one, so
@@ -1038,9 +1048,10 @@ namespace tik4net.Winbox
                     // and no key was left holding the old value. Of the four keys a bridge row carries that
                     // value under, 0x3E9 is the only one present on an ether or on lo.
                     //
-                    // Writable, as the subtype window declares it: /interface/ethernet inherits this set (see
-                    // Aliases) and a read-only synthetic would shadow its own MAC Address field and take the
-                    // write away.
+                    // Writable, as the subtype window declares it: a subtype path without a set of its own
+                    // inherits this one (see Aliases), and a read-only synthetic would shadow its own MAC
+                    // Address field and take the write away. /interface/ethernet has its own set, so it does
+                    // NOT see these — a synthetic an ethernet row needs goes in that set.
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["type"] = new WinboxJgField("type", 0x1001E, "string", true),
