@@ -828,6 +828,41 @@ namespace tik4net.Winbox
                         ["available"] = Tuple.Create("installed", "false"),
                     }),
 
+                // /ip/firewall/connection: 'helper used' is the API's uses-helper, and the GRE key is a key the
+                // Connections window does not declare — the one GRE row (to 10.99.0.8) carried the API's
+                // gre-key=26642 at 0x15, which no other row sent (7.24.2). Read-only, as the table is.
+                ["/ip/firewall/connection"] = new FieldAliasSet(
+                    apiToJg: Ci(("uses-helper", "helper-used")),
+                    jgToApi: Ci(("helper-used", "uses-helper")),
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["gre-key"] = new WinboxJgField("gre-key", 0x15, "u32", true),
+                    }),
+
+                // /interface/bridge/port: the status tab's 'External FDB' (bce) is external-fdb-status. Its 'Hw.
+                // Offload' (bd7) is NOT the API's hw: on the seeded ether2 port the API printed hw=true where bd7 read
+                // false, and a port whose record carries no bd7 has no hw either (7.24.2).
+                ["/interface/bridge/port"] = new FieldAliasSet(
+                    apiToJg: Ci(("external-fdb-status", "external-fdb")),
+                    jgToApi: Ci(("external-fdb", "external-fdb-status"))),
+
+                // /ip/ipsec/active-peers: the window declares 'Side' {enm b5: initiator, responder} and a 'Responder'
+                // flag on the same b5, so the key carries `side` and the flag is derived from it. The two SPIs are
+                // keys no window declares: an initiating peer printed spii=ef035cfdda65233b and
+                // spir=0000000000000000, the strings the record carried at 0x15 and 0x16 (7.24.2).
+                ["/ip/ipsec/active-peers"] = new FieldAliasSet(
+                    apiToJg: Ci(),
+                    jgToApi: Ci(),
+                    derivedBools: new Dictionary<string, Tuple<string, string>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["responder"] = Tuple.Create("side", "responder"),
+                    },
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["spii"] = new WinboxJgField("spii", 0x15, "string", true),
+                        ["spir"] = new WinboxJgField("spir", 0x16, "string", true),
+                    }),
+
                 // /ip/hotspot/user and /ip/hotspot/user/profile: `default` marks the row the router ships, and
                 // webfig declares it as a flag ON THE RECORD ID (ufe0001) — no key of its own. The API prints
                 // default=true on exactly the *0 row of each table (7.24.2), so it is derived from the id.
@@ -1549,23 +1584,23 @@ namespace tik4net.Winbox
         /// </remarks>
         private HashSet<int> ContestedKeys()
         {
-            var arrayness = new Dictionary<int, bool>();
+            var kinds = new Dictionary<int, int>();
             var contested = new HashSet<int>();
             foreach (var kv in JgFieldsSpecificFirst())
             {
-                bool isArray = WinboxM2Protocol.TypedKey.IsArrayType(kv.Value.WireType);
-                if (arrayness.TryGetValue(kv.Value.Key, out bool seen))
+                int kind = WinboxM2Protocol.TypedKey.KindOf(kv.Value.WireType);
+                if (kinds.TryGetValue(kv.Value.Key, out int seen))
                 {
-                    if (seen != isArray) contested.Add(kv.Value.Key);
+                    if (seen != kind) contested.Add(kv.Value.Key);
                 }
-                else arrayness[kv.Value.Key] = isArray;
+                else kinds[kv.Value.Key] = kind;
             }
             return contested;
         }
 
-        // A field's key qualified by the arrayness of its .jg wire type ('U12' → array, 'u12' → scalar).
+        // A field's key qualified by the kind of its .jg wire type ('U12' → array, 'u12' → scalar, 'b1f' → bool).
         private static int TypedKeyOf(WinboxJgField f)
-            => WinboxM2Protocol.TypedKey.Qualify(f.Key, WinboxM2Protocol.TypedKey.IsArrayType(f.WireType));
+            => WinboxM2Protocol.TypedKey.Qualify(f.Key, f.WireType);
 
         /// <summary>
         /// Builds the <c>key → apiName</c> map for this handler by inverting the seed table, the

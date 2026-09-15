@@ -103,6 +103,26 @@ namespace tik4net.unittests.Winbox
         }
 
         [TestMethod]
+        public void AnActivePeerNamesItsSpisAndSaysWhetherItResponds()
+        {
+            // 7.24.2, an initiating peer: the API printed side=initiator responder=false spii=ef035cfdda65233b
+            // spir=0000000000000000, and the record carried b5=false with the two SPIs as strings at 0x15/0x16.
+            const string peers =
+                "[{name:'IPsec',c:[{name:'IPsec Remote Peer',title:'Active Peers',type:'map',path:[ 85,9 ],ro:1,c:[" +
+                "{name:'Side',type:'enm',id:'b5',opt:1,ro:1,values:{type:'static',map:[ 'initiator','responder' ]}}," +
+                "{name:'Responder',type:'flag',id:'b5',hint:'R'}]}]}]";
+
+            var initiator = Decode(peers, "/ip/ipsec/active-peers", new[] { 85, 9 },
+                (0x5, "bool", (object)false), (0x15, "string", (object)"ef035cfdda65233b"), (0x16, "string", (object)"0000000000000000"));
+            Assert.AreEqual("false", initiator["responder"]);
+            Assert.AreEqual("ef035cfdda65233b", initiator["spii"]);
+            Assert.AreEqual("0000000000000000", initiator["spir"]);
+
+            var responder = Decode(peers, "/ip/ipsec/active-peers", new[] { 85, 9 }, (0x5, "bool", (object)true));
+            Assert.AreEqual("true", responder["responder"]);
+        }
+
+        [TestMethod]
         public void APackageIsAvailableExactlyWhenItIsNotInstalled()
         {
             const string package =

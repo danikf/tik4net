@@ -133,8 +133,7 @@ namespace tik4net.Winbox
                 // is the normal path: a window with no such collision registers no qualified key, and a router
                 // that sends a field with the arrayness the .jg did NOT predict still decodes as it always did.
                 int wireKey = WinboxM2Protocol.TypedKey.WireKeyOf(kv.Key);
-                int typedKey = WinboxM2Protocol.TypedKey.Qualify(
-                    wireKey, WinboxM2Protocol.TypedKey.IsArrayType(kv.Value.Item1));
+                int typedKey = WinboxM2Protocol.TypedKey.Qualify(wireKey, kv.Value.Item1);
                 if (consumedKeys.Contains(wireKey)) continue;
                 if (!keyToName.TryGetValue(typedKey, out var apiName)
                     && !keyToName.TryGetValue(wireKey, out apiName)) continue;

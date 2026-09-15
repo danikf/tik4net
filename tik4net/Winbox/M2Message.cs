@@ -358,7 +358,8 @@ namespace tik4net.Winbox
         private static string RenderTraceKey(int key)
             => WinboxM2Protocol.TypedKey.IsQualified(key)
                 ? "0x" + WinboxM2Protocol.TypedKey.WireKeyOf(key).ToString("X")
-                    + ((key & WinboxM2Protocol.TypedKey.Array) != 0 ? "~arr" : "~sca")
+                    + ((key & WinboxM2Protocol.TypedKey.Array) != 0 ? "~arr"
+                       : (key & WinboxM2Protocol.TypedKey.Bool) != 0 ? "~bool" : "~sca")
                 : "0x" + key.ToString("X");
 
         // Compact renderer for a decoded M2 value: nested record dicts → {0xKEY=…,…}, record arrays →
@@ -624,8 +625,8 @@ namespace tik4net.Winbox
                 {
                     result[fullKey] = Tuple.Create(typeName, val);
                 }
-                else if (WinboxM2Protocol.TypedKey.IsArrayType(result[fullKey].Item1)
-                         != WinboxM2Protocol.TypedKey.IsArrayType(typeName))
+                else if (WinboxM2Protocol.TypedKey.KindOf(result[fullKey].Item1)
+                         != WinboxM2Protocol.TypedKey.KindOf(typeName))
                 {
                     // ONE record, ONE key, TWO fields. The .jg declares both — /ip/dhcp-client's window has
                     // 'Add Default Route' as u12 (a scalar enum) and 'DHCP Options' as U12 (a u32[]) — and the
@@ -633,9 +634,11 @@ namespace tik4net.Winbox
                     // add-default-route the API prints was never in the record the decoder saw. The array and
                     // the scalar are told apart by nothing but the TLV type, so the loser is filed under its
                     // arrayness-qualified key and the resolver looks it up there (WinboxFieldResolver's typed
-                    // registrations). A duplicate of the SAME arrayness is still first-wins — that is the .jg's
+                    // registrations). A bool beside a number is the same case: the IPv4 Connections window has the
+                    // 'Hw. Offload' flag on b1f and the original packet count on q1f, and one record carries both
+                    // (7.24.2). A duplicate of the SAME kind is still first-wins — that is the .jg's
                     // own 'freq'/'CPU Frequency' kind of alias, two names for one value.
-                    result[WinboxM2Protocol.TypedKey.Qualify(fullKey, WinboxM2Protocol.TypedKey.IsArrayType(typeName))]
+                    result[WinboxM2Protocol.TypedKey.Qualify(fullKey, typeName)]
                         = Tuple.Create(typeName, val);
                 }
             }

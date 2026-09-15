@@ -1702,6 +1702,26 @@ namespace tik4net.Winbox
             }
             if (parts.Count == 0 || keys.Count == 0) return;
 
+            // Two unnamed parts under an 'X/Y rest' label are two API fields, not one joined value. The IPv4
+            // Connections window's 'Orig./Repl. Bytes' {tuple,c:[{bigbytes q20},{bigbytes q24}]} is the API's
+            // orig-bytes and repl-bytes, and a bridge port's 'Tx/Rx BPDU's' is tx-bpdu and rx-bpdu (7.24.2). No
+            // API name contains a '/', so the joined spelling is never one RouterOS uses.
+            string[]? halves = underOption || keys.Count != 2 ? null : SplitPairLabel(label);
+            if (halves != null)
+            {
+                bool tupleRo = tuple.TryGetValue("ro", out var trv) && trv is int tri && tri != 0;
+                var partNodes = children.OfType<Dictionary<string, object>>().Where(c => c.ContainsKey("id")).ToList();
+                for (int i = 0; i < 2 && i < partNodes.Count; i++)
+                {
+                    var node = partNodes[i];
+                    string? ui = node.TryGetValue("type", out var ptv) ? ptv as string : null;
+                    bool partRo = tupleRo || (node.TryGetValue("ro", out var prv) && prv is int pri && pri != 0);
+                    AddField(handlerKey, halves[i], keys[i].Item1, keys[i].Item2, partRo, ExtractEnumMap(node), ui, 0,
+                        null, pane: pane, postfix: PostfixOf(node), scale: ScaleOf(node));
+                }
+                return;
+            }
+
             string apiName = WinboxFieldResolver.NormalizeLabel(label);
             if (string.IsNullOrEmpty(apiName)) return;
             bool ro = tuple.TryGetValue("ro", out var rov) && rov is int rin && rin != 0;
@@ -1724,6 +1744,20 @@ namespace tik4net.Winbox
                 TupleUiType, 0, null, optKey: optKey, pane: pane, isOptional: IsOptionalAttr(tuple),
                 elementParts: parts, elementSeparator: sep,
                 extraRegistrations: extra.Count > 0 ? extra : null, prefix: prefix);
+        }
+
+        private static readonly Regex PairLabel =
+            new Regex(@"^\s*([A-Za-z]+)\.?\s*/\s*([A-Za-z]+)\.?\s+(.+?)\s*$", RegexOptions.CultureInvariant);
+
+        // 'Orig./Repl. Fasttrack Bytes' → 'Orig Fasttrack Bytes' and 'Repl Fasttrack Bytes'; a trailing 's of a
+        // plural abbreviation is dropped ('Tx/Rx BPDU's' → 'Tx BPDU'). Null for any other label.
+        private static string[]? SplitPairLabel(string label)
+        {
+            var m = PairLabel.Match(label ?? "");
+            if (!m.Success) return null;
+            string rest = m.Groups[3].Value;
+            if (rest.EndsWith("'s", StringComparison.Ordinal)) rest = rest.Substring(0, rest.Length - 2);
+            return new[] { m.Groups[1].Value + " " + rest, m.Groups[2].Value + " " + rest };
         }
 
         /// <summary>The UI type of a scalar <c>tuple</c> field. webfig's <c>types.tuple.tostr</c> default

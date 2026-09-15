@@ -1303,6 +1303,19 @@ lease's 'DHCP Options' is `dhcp-option`, CAPsMAN provisioning's 'Slave Configura
 and the Queue Tree's 'Avg. Rate' / 'Avg. Packet Rate' are `rate` / `packet-rate`. A package's `available` is webfig's
 inverted flag on the Installed key.
 
+A tuple of two unnamed parts under an `X/Y rest` label is two API fields. The IPv4 Connections window's
+'Orig./Repl. Bytes' `{tuple, c:[{bigbytes q20},{bigbytes q24}]}` is `orig-bytes` and `repl-bytes`, the same holds for
+its rate, packet and fasttrack pairs, and a bridge port's 'Tx/Rx BPDU's' is `tx-bpdu` and `rx-bpdu` (a trailing `'s`
+is dropped). No API name contains a `/`. The same window has the 'Hw. Offload' flag on `b1f` and the original packet
+count on `q1f`, and one record carries both: two fields on one key are told apart by their KIND — array, bool or
+other scalar — not only by arrayness, and the parser files the second under its kind-qualified key. A connection's
+`gre-key` rides the undeclared `0x15`, its 'helper used' flag is `uses-helper`, and a bridge port's status 'External
+FDB' is `external-fdb-status`. That tab's 'Hw. Offload' (`bd7`) is not the API's `hw`: on a seeded ether port the API
+printed `hw=true` where `bd7` read false.
+
+An IPsec active peer's window declares 'Side' `{enm b5: initiator, responder}` and a 'Responder' flag on the same
+`b5`, so `responder` is derived from `side`; its `spii` and `spir` are the undeclared strings `0x15` and `0x16`.
+
 Two record-level spellings:
 
 - **`.about`** is the string list `0xFE001C`, present on every row and empty unless the router has a note — a DHCP

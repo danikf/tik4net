@@ -211,6 +211,22 @@
             /// </summary>
             internal static bool IsArrayType(string wireTypeName)
                 => wireTypeName != null && wireTypeName.EndsWith("[]", System.StringComparison.Ordinal);
+
+            /// <summary>Marks a key qualified as carrying a scalar BOOL, beside a number on the same key.</summary>
+            internal const int Bool = 0x04000000;
+
+            /// <summary>
+            /// The qualifier for a wire type: an array, a scalar bool, or any other scalar. Two fields on one key
+            /// are told apart when their kinds differ — <c>U12</c> beside <c>u12</c>, and <c>b1f</c> beside
+            /// <c>q1f</c> (a flag and a counter).
+            /// </summary>
+            internal static int KindOf(string wireTypeName)
+                => IsArrayType(wireTypeName) ? Array
+                   : string.Equals(wireTypeName, "bool", System.StringComparison.Ordinal) ? Bool : Scalar;
+
+            /// <summary><paramref name="wireKey"/> qualified by the kind of <paramref name="wireTypeName"/>.</summary>
+            internal static int Qualify(int wireKey, string wireTypeName)
+                => (wireKey & WireMask) | KindOf(wireTypeName);
         }
 
         /// <summary>
