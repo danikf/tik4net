@@ -1243,6 +1243,35 @@ ids through it.
   none: `/queue/simple` 'Burst Time' `{tuple,postfix:'s'}` makes its upload/download halves durations, printed
   `burst-time=7s/9s`.
 
+### Fields on a handler several windows share
+
+Measured on 7.24.2, each on a seeded row:
+
+* **A flag key is consumed only when no other field owns it.** The decoder drops an opt/not field's flag key
+  so it does not surface on its own. Two windows of one handler can disagree about that key: `/ip/upnp`'s
+  interface list declares 'Forced External IP' `{opt b3, ipaddr u4}`, and the settings singleton declares
+  'Show Dummy Rule' at `b3`. A flag key that another field decodes under a name of its own stays that field.
+* **An interface subtype reads the base `/interface` set too.** Every subtype is a row of the generic `[20,0]`
+  table, so a subtype with an alias set of its own is merged over the base set (its own entries win) and keeps
+  the counter names and the `type`/`mac-address` synthetics.
+* **A synthetic field shipped for an ancestor path ranks below the path's window.** `/interface/ipip`'s 'IP
+  Tunnel' window declares 'Local Address' at `u3e9`, the key the base set's synthetic calls `mac-address`. A
+  synthetic shipped for the path itself still outranks the catalog.
+* **A bond prints every pane.** `/interface/bonding`'s 'Link Monitoring' deck puts ARP Interval / ARP IP Targets
+  on the arp pane, and the API prints them on a mii bond too — unlike a logging action or a queue type, whose
+  API prints only the row's own kind.
+* **The state flag `0xFE0008` has two API names.** `inactive` on the routing tables (BGP connection and
+  instance, filter rule, OSPF instance/area/template, routing rule), `invalid` on a VRRP interface.
+* **Flags with no key of their own are derived.** `/ip/hotspot/profile`, `/user` and `/user/profile` `default` is
+  the `*0` row (webfig declares the flag on the record id); `/ip/hotspot/ip-binding` `bypassed` is
+  `type=bypassed`; `/ip/dhcp-server/lease` `blocked` is `block-access`, which shares its key.
+* **A tuple under an option is one field named by the option.** The EoIP/GRE/IPIP 'Keepalive' is
+  `{opt b7d4, c:[{tuple, sep:',', separate:1, c:[{interval u7d5},{number u7d9}]}]}`; the API prints
+  `keepalive=10s,10`, and nothing while the flag is down. `separate:1` does not split it — its parts carry no
+  names. A tuple whose parts are all `number`/`interval` is written by splitting on the separator (one u32 per
+  part, plus the option flag); any other tuple is refused, because a part such as an IPv6 address can contain the
+  separator itself.
+
 ### Two boxes, one API field: `address:port`
 
 `/ip/hotspot/profile` has 'HTTP Proxy' (`u83`) beside 'HTTP Proxy Port' (`u84`) exactly as it has 'SMTP Server'

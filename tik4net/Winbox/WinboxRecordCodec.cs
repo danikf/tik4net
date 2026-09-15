@@ -113,8 +113,12 @@ namespace tik4net.Winbox
                     // half of every element of the ONE list the API prints.
                     if (f.MaskKey != 0 && IsMultiNetworkList(f.UiType))
                         consumedKeys.Add(f.MaskKey);
-                    if (f.OptKey != 0) consumedKeys.Add(f.OptKey);
-                    if (f.NotKey != 0) consumedKeys.Add(f.NotKey);
+                    // An opt/not flag is consumed only when no OTHER field owns its key. Two windows share a
+                    // handler, and a field of the one this path does not address can still sit in the map for
+                    // its own key: /ip/upnp's interface list declares 'Forced External IP' {opt b3, ipaddr u4},
+                    // and its flag key swallowed the settings singleton's 'Show Dummy Rule' b3 (7.24.2).
+                    if (f.OptKey != 0 && !OwnedByAnotherField(keyToField, keyToName, f, f.OptKey)) consumedKeys.Add(f.OptKey);
+                    if (f.NotKey != 0 && !OwnedByAnotherField(keyToField, keyToName, f, f.NotKey)) consumedKeys.Add(f.NotKey);
                 }
 
             var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -193,6 +197,16 @@ namespace tik4net.Winbox
         /// rule, read off <c>types.enm.tostr</c>, and it is why the <c>opt</c> ATTRIBUTE has to be carried
         /// separately from the <c>opt</c> WRAPPER's flag key.</para>
         /// </remarks>
+        /// <summary>
+        /// Whether <paramref name="key"/> — a flag key of <paramref name="consumer"/> — is the value key of a
+        /// different field this path decodes under a name of its own.
+        /// </summary>
+        private static bool OwnedByAnotherField(IReadOnlyDictionary<int, WinboxJgField> keyToField,
+            IReadOnlyDictionary<int, string> keyToName, WinboxJgField consumer, int key)
+            => keyToName != null && keyToName.ContainsKey(key)
+               && keyToField.TryGetValue(key, out var owner) && owner != null
+               && !ReferenceEquals(owner, consumer) && owner.Key == key;
+
         private static bool IsUnsetField(WinboxJgField? jf, object value,
             Dictionary<int, Tuple<string, object>> rec)
         {

@@ -67,23 +67,30 @@ namespace tik4net.Winbox
                 if (_fields != null) return _fields;
                 var handlerFields = _catalog?.GetHandlerFields(_handler);
                 var windowFields = _catalog?.GetWindowFields(_windowKey);
-                var synthetic = Aliases?.SyntheticFields;
+                var synthetic = OwnSyntheticFields;
+                var inherited = InheritedSyntheticFields;
                 bool hasWindow = windowFields != null && windowFields.Count > 0;
                 bool hasAction = _actionFields != null && _actionFields.Count > 0;
                 bool hasSynthetic = synthetic != null && synthetic.Count > 0;
-                if (!hasWindow && !hasAction && !hasSynthetic) return _fields = handlerFields;
+                bool hasInherited = inherited != null && inherited.Count > 0;
+                if (!hasWindow && !hasAction && !hasSynthetic && !hasInherited) return _fields = handlerFields;
 
                 var merged = new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase);
                 if (handlerFields != null)
                     foreach (var kv in handlerFields) merged[kv.Key] = kv.Value;
+                // A synthetic field shipped for an ANCESTOR path (the /interface set, for an interface subtype)
+                // ranks below the path's own window: that window may declare the key itself — /interface/ipip's
+                // 'Local Address' is u3e9, where the base set's synthetic calls the same key mac-address.
+                if (hasInherited && inherited != null)
+                    foreach (var kv in inherited) merged[kv.Key] = kv.Value;
                 // hasWindow/hasAction already established windowFields/_actionFields non-null; the extra
                 // null check just gives the compiler the same fact it cannot carry through the bool.
                 if (hasWindow && windowFields != null)
                     foreach (var kv in windowFields) merged[kv.Key] = kv.Value;   // the window wins
                 if (hasAction && _actionFields != null)
                     foreach (var kv in _actionFields) merged[kv.Key] = kv.Value;  // the action wins over both
-                // A shipped synthetic field wins over all of them: it exists precisely because the catalog
-                // does not describe the key, so there is nothing here it can be overriding by accident.
+                // A synthetic field shipped for THIS path wins over all of them: it exists precisely because the
+                // catalog does not describe the key (or describes it wrongly for this path).
                 if (hasSynthetic && synthetic != null)
                     foreach (var kv in synthetic) merged[kv.Key] = kv.Value;
                 return _fields = merged;
@@ -105,19 +112,44 @@ namespace tik4net.Winbox
         /// </remarks>
         private IEnumerable<KeyValuePair<string, WinboxJgField>> JgFieldsSpecificFirst()
         {
-            // Most specific of all: the catalog does not name these keys at all, so nothing else can.
-            var synthetic = Aliases?.SyntheticFields;
+            bool everyPane = PrintsEveryPane.Contains(WinboxHandlerMap.Normalize(_apiPath ?? ""));
+            IEnumerable<KeyValuePair<string, WinboxJgField>> Scoped(IEnumerable<KeyValuePair<string, WinboxJgField>> source)
+                => everyPane
+                    ? source.Select(kv => new KeyValuePair<string, WinboxJgField>(kv.Key, kv.Value.WithoutPaneSelector()))
+                    : source;
+
+            // Most specific of all: shipped for this path, because the catalog does not name the key (or names it
+            // wrongly here), so nothing else can.
+            var synthetic = OwnSyntheticFields;
             if (synthetic != null)
                 foreach (var kv in synthetic) yield return kv;
             if (_actionFields != null)
-                foreach (var kv in _actionFields) yield return kv;
+                foreach (var kv in Scoped(_actionFields)) yield return kv;
             var windowFields = _catalog?.GetWindowFields(_windowKey);
             if (windowFields != null)
-                foreach (var kv in windowFields) yield return kv;
+                foreach (var kv in Scoped(windowFields)) yield return kv;
+            // Shipped for an ancestor path: below the window, which may declare the key itself.
+            var inherited = InheritedSyntheticFields;
+            if (inherited != null)
+                foreach (var kv in inherited) yield return kv;
             var handlerFields = _catalog?.GetHandlerFields(_handler);
             if (handlerFields != null)
-                foreach (var kv in handlerFields) yield return kv;
+                foreach (var kv in Scoped(handlerFields)) yield return kv;
         }
+
+        /// <summary>
+        /// Paths whose API prints the fields of EVERY deck pane on every row, not just the pane of the row's
+        /// own kind.
+        /// </summary>
+        /// <remarks>
+        /// The usual rule is the opposite, and it is the codec's default (see WinboxRecordCodec
+        /// IsAnotherKindsField): a memory logging action prints memory-lines and nothing of the disk pane. A
+        /// bond does not: its 'Link Monitoring' deck puts ARP Interval / ARP IP Targets on the arp pane and MII
+        /// Interval on the mii pane, and the API prints arp-interval=100ms and arp-ip-targets= on a mii bond
+        /// (7.24.2), so native dropped two fields the API reports.
+        /// </remarks>
+        private static readonly HashSet<string> PrintsEveryPane =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "/interface/bonding" };
 
         // ── Protocol-constant seeds (stable, hardcoded) ────────────────────────
         // Universal system record keys — authoritative for every table (the .jg never lists them as
@@ -328,6 +360,19 @@ namespace tik4net.Winbox
             return result;
         }
 
+        // The routing tables' state flag, named as the API names it (see the /routing entries).
+        private static FieldAliasSet RoutingInactive()
+            => new FieldAliasSet(Ci(), Ci(),
+                keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "inactive" });
+
+        // `default` derived from the record id — the row the router ships is *0 (see the /ip/hotspot entries).
+        private static FieldAliasSet HotspotDefault()
+            => new FieldAliasSet(Ci(), Ci(),
+                derivedBools: new Dictionary<string, Tuple<string, string>>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["default"] = Tuple.Create(TikSpecialProperties.Id, "*0"),
+                });
+
         private static Dictionary<string, string> Ci(params (string, string)[] pairs)
         {
             var d = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -509,6 +554,10 @@ namespace tik4net.Winbox
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["disable-running-check"] = new WinboxJgField("disable-running-check", 0x1000D, "bool", false),
+                        // The factory MAC: unnamed 0x404 carries the API's orig-mac-address (00:15:5D:04:1F:03 on
+                        // ether1, 7.24.2) beside 0x3E9's mac-address. Read-only, as the API has it.
+                        ["orig-mac-address"] = new WinboxJgField("orig-mac-address", 0x404, "raw", true,
+                                                                 uiType: "macaddr"),
                     }),
 
                 // /ip/arp and /ip/neighbor: WinBox's 'IP Address' is the API's `address`. On /ip/neighbor
@@ -592,7 +641,13 @@ namespace tik4net.Winbox
                     jgToApi: Ci(("freq", "cpu-frequency"),
                                ("total-hdd-size", "total-hdd-space"),
                                ("total-sector-writes", "write-sect-total"),
-                               ("sector-writes-since-reboot", "write-sect-since-reboot"))),
+                               ("sector-writes-since-reboot", "write-sect-since-reboot")),
+                    // No window declares the platform; the record carries it unnamed at 0x1B, the one key holding
+                    // the API's platform=MikroTik (7.24.2). Read-only, as the API has it.
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["platform"] = new WinboxJgField("platform", 0x1B, "string", true),
+                    }),
 
                 // /ip/traffic-flow: both fields read 0 on a stock router, so the audit's value match was
                 // vacuous. Confirmed by writing 13 and 27 and watching the two arrive in that order.
@@ -623,9 +678,12 @@ namespace tik4net.Winbox
                     }),
 
                 // /queue/tree: the window says 'Packet Marks' where the API says packet-mark (t4n-probe-mark moved).
+                // …and 'Queue Type' is the API's queue: queue=pcq-upload-default moved u0xA to that type's id.
                 ["/queue/tree"] = new FieldAliasSet(
-                    apiToJg: Ci(("packet-mark", "packet-marks")),
-                    jgToApi: Ci(("packet-marks", "packet-mark"))),
+                    apiToJg: Ci(("packet-mark", "packet-marks"),
+                                ("queue", "queue-type")),
+                    jgToApi: Ci(("packet-marks", "packet-mark"),
+                                ("queue-type", "queue"))),
 
                 // /interface/vxlan: 'Remote Checksum Offload' is rem-csum (tx moved it).
                 ["/interface/vxlan"] = new FieldAliasSet(
@@ -633,17 +691,77 @@ namespace tik4net.Winbox
                     jgToApi: Ci(("remote-checksum-offload", "rem-csum"))),
 
                 // /ip/dhcp-server: 'DNS Entry Suffix' and 'Support The Broadband Forum TR-101'.
+                // …and address-lists is a key the DHCP window does not declare: address-lists=t4n-dsal moved 0x1E
+                // to the one-element string list [t4n-dsal].
                 ["/ip/dhcp-server"] = new FieldAliasSet(
                     apiToJg: Ci(("add-dns-entries-suffix", "dns-entry-suffix"),
                                 ("support-broadband-tr101", "support-the-broadband-forum-tr-101")),
                     jgToApi: Ci(("dns-entry-suffix", "add-dns-entries-suffix"),
-                                ("support-the-broadband-forum-tr-101", "support-broadband-tr101"))),
+                                ("support-the-broadband-forum-tr-101", "support-broadband-tr101")),
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["address-lists"] = new WinboxJgField("address-lists", 0x1E, "string[]", false,
+                                                              uiType: "multistring", elementUiType: "string"),
+                    }),
 
                 // /ip/dhcp-server/lease: WinBox's 'Address List' is the API's plural address-lists. Its own set,
-                // so it does not inherit /ip/dhcp-server's above.
+                // so it does not inherit /ip/dhcp-server's above. `blocked` is the lease's 'Block Access' box as
+                // a flag: the catalog declares both on b7e, one key can carry one name, and block-access=yes set
+                // the key and the API's blocked=true together.
                 ["/ip/dhcp-server/lease"] = new FieldAliasSet(
                     apiToJg: Ci(("address-lists", "address-list")),
-                    jgToApi: Ci(("address-list", "address-lists"))),
+                    jgToApi: Ci(("address-list", "address-lists")),
+                    derivedBools: new Dictionary<string, Tuple<string, string>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["blocked"] = Tuple.Create("block-access", "true"),
+                    }),
+
+                // /interface/vrrp: 'on-fail' is a key no window declares — on-fail=none moved 0x13 to "none" on a
+                // seeded row (7.24.2). And the router's state flag 0xFE0008, which the generic interface window
+                // calls 'inactive', is what the API prints for a VRRP row as `invalid` (true on an interface with
+                // no IPv4 address, both transports). Merged over the base /interface set (see ResolveAliases).
+                ["/interface/vrrp"] = new FieldAliasSet(
+                    apiToJg: Ci(),
+                    jgToApi: Ci(),
+                    keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "invalid" },
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["on-fail"] = new WinboxJgField("on-fail", 0x13, "string", false),
+                    }),
+
+                // The routing tables' state flag 0xFE0008 is `inactive` to the API (seeded rows, 7.24.2: true on a
+                // BGP connection with no local address, on a disabled routing rule and filter rule; false on the
+                // OSPF instance, area and template — native's `invalid` agreed row for row). The seed's name is
+                // `invalid`; the key is named here per path. The two BGP tables and the OSPF template carry the
+                // same entry in their own sets.
+                ["/routing/filter/rule"] = RoutingInactive(),
+                ["/routing/ospf/area"] = RoutingInactive(),
+                ["/routing/ospf/instance"] = RoutingInactive(),
+                ["/routing/rule"] = RoutingInactive(),
+
+                // /ip/ipsec/peer: the PPK secret is a key no Peers window declares — moved to 0x36.
+                ["/ip/ipsec/peer"] = new FieldAliasSet(
+                    apiToJg: Ci(),
+                    jgToApi: Ci(),
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["ppk-secret"] = new WinboxJgField("ppk-secret", 0x36, "string", false),
+                    }),
+
+                // /ip/hotspot/user and /ip/hotspot/user/profile: `default` marks the row the router ships, and
+                // webfig declares it as a flag ON THE RECORD ID (ufe0001) — no key of its own. The API prints
+                // default=true on exactly the *0 row of each table (7.24.2), so it is derived from the id.
+                ["/ip/hotspot/user"] = HotspotDefault(),
+                ["/ip/hotspot/user/profile"] = HotspotDefault(),
+
+                // /ip/hotspot/ip-binding: `bypassed` is the binding's type, as a flag (type=bypassed, bypassed=true).
+                ["/ip/hotspot/ip-binding"] = new FieldAliasSet(
+                    apiToJg: Ci(),
+                    jgToApi: Ci(),
+                    derivedBools: new Dictionary<string, Tuple<string, string>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["bypassed"] = Tuple.Create("type", "bypassed"),
+                    }),
 
                 // /ip/settings: confirmed by writing 393216 and 27 and reading both back. `icmp-rate-mask`
                 // is NOT here — no window in the catalog declares it at all, under any name.
@@ -724,6 +842,8 @@ namespace tik4net.Winbox
                 ["/routing/ospf/interface-template"] = new FieldAliasSet(
                     apiToJg: Ci(("type", "network-type")),
                     jgToApi: Ci(("network-type", "type")),
+                    // The state flag, as the routing tables name it (see RoutingInactive).
+                    keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "inactive" },
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["transmit-delay"] = new WinboxJgField("transmit-delay", 0x2C700B, "u32", false,
@@ -777,17 +897,18 @@ namespace tik4net.Winbox
                     apiToJg: Ci(("remote.address", "remote-address"),
                                 ("local.role", "local-role")),
                     jgToApi: Ci(("remote-address", "remote.address"),
-                                ("local-role", "local.role"))),
+                                ("local-role", "local.role")),
+                    // The state flag, as the routing tables name it (see RoutingInactive): a connection with no
+                    // local address reads inactive=true over the API and 0xFE0008=true natively (7.24.2).
+                    keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "inactive" }),
 
                 // The BGP instance window calls the router id 'IP'. Confirmed by value: with the API's
-                // router-id set to 10.99.0.13, native reports ip=10.99.0.13.
-                //
-                // NOT aliased here: the window's 'Invalid' beside the API's 'inactive'. They are false on
-                // every row this lab can make, so nothing has told the two apart — and a pairing on
-                // resemblance is what this table exists to avoid.
+                // router-id set to 10.99.0.13, native reports ip=10.99.0.13. The state flag 0xFE0008 is the API's
+                // `inactive` here too — told apart on the BGP connection, where a row reads true on both sides.
                 ["/routing/bgp/instance"] = new FieldAliasSet(
                     apiToJg: Ci(("router-id", "ip")),
-                    jgToApi: Ci(("ip", "router-id"))),
+                    jgToApi: Ci(("ip", "router-id")),
+                    keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "inactive" }),
 
                 // /system/health: the router sends both of the API's fields and the catalog names neither.
                 //
@@ -918,7 +1039,9 @@ namespace tik4net.Winbox
                                ("location-id", "radius-location-id"),
                                ("location-name", "radius-location-name"),
                                ("mac-format", "radius-mac-format"),
-                               ("rate-limit-(rx/tx)", "rate-limit"))),
+                               ("rate-limit-(rx/tx)", "rate-limit")),
+                    // `default` is the shipped *0 profile, as on the user tables (see HotspotDefault).
+                    derivedBools: HotspotDefault().DerivedBools),
 
                 // /tool/sniffer: every field of the window's FILTER tab is spelled with a 'filter-' prefix
                 // by the API and without one by WinBox, and the streaming half is spelled the other way
@@ -1207,18 +1330,94 @@ namespace tik4net.Winbox
         /// </remarks>
         private FieldAliasSet? Aliases
         {
-            get
+            get { ResolveAliases(); return _aliases; }
+        }
+
+        /// <summary>Synthetic fields shipped for THIS path — they outrank the catalog (see JgFields).</summary>
+        private IReadOnlyDictionary<string, WinboxJgField>? OwnSyntheticFields
+        {
+            get { ResolveAliases(); return _ownSynthetic; }
+        }
+
+        /// <summary>
+        /// Synthetic fields shipped for an ANCESTOR path — the base <c>/interface</c> set, for an interface
+        /// subtype — which rank below the path's own window.
+        /// </summary>
+        private IReadOnlyDictionary<string, WinboxJgField>? InheritedSyntheticFields
+        {
+            get { ResolveAliases(); return _inheritedSynthetic; }
+        }
+
+        private static readonly int[] GenericInterfaceHandler = { 20, 0 };
+        private bool _aliasesResolved;
+        private FieldAliasSet? _aliases;
+        private IReadOnlyDictionary<string, WinboxJgField>? _ownSynthetic;
+        private IReadOnlyDictionary<string, WinboxJgField>? _inheritedSynthetic;
+
+        // The nearest shipped set (the path's own, or its nearest ancestor's), and — for an interface subtype
+        // read on the generic [20,0] handler that has a set of its OWN — the base /interface set merged beneath
+        // it. Every subtype row is an /interface row: without the merge a subtype that needed one alias of its
+        // own lost /interface's counter names and its type/mac-address synthetics, which is what happened to
+        // /interface/ethernet.
+        private void ResolveAliases()
+        {
+            if (_aliasesResolved) return;
+            _aliasesResolved = true;
+
+            string norm = WinboxHandlerMap.Normalize(_apiPath ?? "");
+            string path = norm;
+            FieldAliasSet? found = null;
+            string? foundPath = null;
+            while (!string.IsNullOrEmpty(path))
             {
-                string path = WinboxHandlerMap.Normalize(_apiPath ?? "");
-                while (!string.IsNullOrEmpty(path))
-                {
-                    if (ShippedFieldAliases.TryGetValue(path, out var s)) return s;
-                    int cut = path.LastIndexOf('/');
-                    if (cut <= 0) break;
-                    path = path.Substring(0, cut);
-                }
-                return null;
+                if (ShippedFieldAliases.TryGetValue(path, out var s)) { found = s; foundPath = path; break; }
+                int cut = path.LastIndexOf('/');
+                if (cut <= 0) break;
+                path = path.Substring(0, cut);
             }
+            if (found == null) return;
+
+            bool exact = string.Equals(foundPath, norm, StringComparison.OrdinalIgnoreCase);
+            FieldAliasSet? baseSet = null;
+            if (exact && !string.Equals(norm, "/interface", StringComparison.OrdinalIgnoreCase)
+                && norm.StartsWith("/interface/", StringComparison.OrdinalIgnoreCase)
+                && _handler != null && _handler.SequenceEqual(GenericInterfaceHandler))
+                ShippedFieldAliases.TryGetValue("/interface", out baseSet);
+
+            _aliases = baseSet == null ? found : MergeAliases(found, baseSet);
+            _ownSynthetic = exact ? found.SyntheticFields : null;
+            var inherited = exact ? baseSet?.SyntheticFields : found.SyntheticFields;
+            if (inherited != null && _ownSynthetic != null)
+            {
+                // A synthetic of the path's own replaces the base's on the same name or the same key.
+                var own = _ownSynthetic;
+                inherited = inherited.Where(kv => !own.ContainsKey(kv.Key) && !own.Values.Any(o => o.Key == kv.Value.Key))
+                                     .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase);
+            }
+            _inheritedSynthetic = inherited;
+        }
+
+        // Child entries win; synthetic fields are kept apart (see ResolveAliases), so the merged set carries none.
+        private static FieldAliasSet MergeAliases(FieldAliasSet child, FieldAliasSet parent)
+        {
+            Dictionary<TKey, TValue>? Merge<TKey, TValue>(IReadOnlyDictionary<TKey, TValue>? c,
+                IReadOnlyDictionary<TKey, TValue>? p, IEqualityComparer<TKey>? comparer) where TKey : notnull
+            {
+                if (c == null && p == null) return null;
+                var m = comparer == null ? new Dictionary<TKey, TValue>() : new Dictionary<TKey, TValue>(comparer);
+                if (p != null) foreach (var kv in p) m[kv.Key] = kv.Value;
+                if (c != null) foreach (var kv in c) m[kv.Key] = kv.Value;
+                return m;
+            }
+            var ci = StringComparer.OrdinalIgnoreCase;
+            return new FieldAliasSet(
+                Merge(child.ApiToJg, parent.ApiToJg, ci)!, Merge(child.JgToApi, parent.JgToApi, ci)!,
+                keyToApi: Merge(child.KeyToApi, parent.KeyToApi, null),
+                keyUiType: Merge(child.KeyUiType, parent.KeyUiType, null),
+                addrPortPairs: Merge(child.AddrPortPairs, parent.AddrPortPairs, ci),
+                derivedBools: Merge(child.DerivedBools, parent.DerivedBools, ci),
+                syntheticFields: null,
+                pairedFields: Merge(child.PairedFields, parent.PairedFields, ci));
         }
 
         /// <summary>
@@ -2252,8 +2451,12 @@ namespace tik4net.Winbox
             // onto the parts is not the inverse of joining it: an IPv6 'Remote' would put its own colons in
             // the way of the tuple's. Refusing beats writing the first part and dropping the rest, which is
             // a request the router accepts and half-obeys.
-            // Every tuple the 7.24 catalog puts on a MAPPED path is read-only and is dropped above before
-            // reaching here; oflow's 'Datapath ID' is one that is not, and is why this is not dead.
+            // A tuple of plain numbers and durations is the exception: neither part can contain the separator,
+            // so the split is exact. The tunnels' keepalive=7s,3 is one — u7d5=7 and u7d9=3 (7.24.2).
+            if (value.Length > 0 && jg?.ElementParts != null
+                && string.Equals(uiType, WinboxJgCatalog.TupleUiType, StringComparison.OrdinalIgnoreCase)
+                && TryEncodeNumericTuple(jg, value, result))
+                return result;
             if (value.Length > 0
                 && string.Equals(uiType, WinboxJgCatalog.TupleUiType, StringComparison.OrdinalIgnoreCase))
                 throw new WinboxFieldResolutionException(
@@ -2359,6 +2562,40 @@ namespace tik4net.Winbox
         {
             int scale = jg.Scale < 1 ? 1 : jg.Scale;
             return string.Equals(jg.Postfix, "ms", StringComparison.Ordinal) ? scale * 1000 : scale;
+        }
+
+        /// <summary>
+        /// Encodes a scalar tuple whose every part is a <c>number</c> or an <c>interval</c> — one u32 per part,
+        /// the value split on the tuple's separator. Returns <c>false</c>, adding nothing, for any other part
+        /// type or when the value does not have one token per part.
+        /// </summary>
+        private static bool TryEncodeNumericTuple(WinboxJgField jg, string value, List<byte[]> result)
+        {
+            var parts = jg.ElementParts!;
+            string sep = string.IsNullOrEmpty(jg.ElementSeparator) ? "/" : jg.ElementSeparator!;
+            string[] tokens = value.Split(new[] { sep }, StringSplitOptions.None);
+            if (tokens.Length != parts.Count) return false;
+
+            var encoded = new List<byte[]>();
+            for (int i = 0; i < parts.Count; i++)
+            {
+                var part = parts[i];
+                if (part.Alternatives != null || part.Key == 0) return false;
+                long n;
+                if (string.Equals(part.UiType, "interval", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!TryParseDuration(tokens[i], 1, out n)) return false;
+                }
+                else if (string.Equals(part.UiType, "number", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!long.TryParse(tokens[i].Trim(), out n)) return false;
+                }
+                else return false;
+                if (n < 0 || n > uint.MaxValue) return false;
+                encoded.Add(EncodeU32(part.Key, (uint)n));
+            }
+            result.AddRange(encoded);
+            return true;
         }
 
         /// <summary>

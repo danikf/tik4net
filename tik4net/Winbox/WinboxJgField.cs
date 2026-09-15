@@ -543,6 +543,18 @@ namespace tik4net.Winbox
         /// The same field under a different API name — for a field a window gives a label another field of
         /// that window already claimed, and which is therefore reachable only under a qualified name.
         /// </summary>
+        /// <summary>
+        /// The same field without its pane SELECTOR, for a path whose API prints every pane's fields whatever
+        /// the row's kind. The pane KIND stays, so a kind-prefixed name does not change.
+        /// </summary>
+        internal WinboxJgField WithoutPaneSelector()
+            => PaneSelectorKey == 0 ? this
+             : new WinboxJgField(ApiName, Key, WireType, ReadOnly, EnumMap, UiType, MaskKey, RefHandler,
+                OptKey, NotKey, IsRange, Allow, Def, PaneKind, 0, null, OffKey,
+                IsOptional, ElementUiType, Scale, ElementParts, Postfix, ElementSeparator, PairHalves,
+                ElementNotKey, ElementIsRange, TitleApiName, ExtraRegistrations, NonPublic, Min, Radix,
+                Prefix, ElementScale, Relative, RefHandlers);
+
         internal WinboxJgField WithApiName(string apiName)
             => new WinboxJgField(apiName, Key, WireType, ReadOnly, EnumMap, UiType, MaskKey, RefHandler,
                 OptKey, NotKey, IsRange, Allow, Def, PaneKind, PaneSelectorKey, PaneValues, OffKey,

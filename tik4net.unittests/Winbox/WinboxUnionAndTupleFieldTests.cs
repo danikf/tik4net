@@ -47,7 +47,10 @@ namespace tik4net.unittests.Winbox
               // A tuple that is NOT read-only — oflow.jg's 'Datapath ID' is one, so the write side has to
               // have an answer of its own rather than leaning on the read-only rule.
               "{name:'Datapath ID',type:'tuple',sep:'/',c:[" +
-                 "{type:'number',id:'u40'},{type:'number',id:'u41'}]}" +
+                 "{type:'number',id:'u40'},{type:'number',id:'u41'}]}," +
+              // A writable tuple whose first part can hold the separator itself — the shape splitting cannot invert.
+              "{name:'Peer',type:'tuple',sep:':',c:[" +
+                 "{type:'ip6addr',id:'a50',allowipv4:1},{type:'number',id:'u51'}]}" +
             "]}]}]";
 
         private static WinboxFieldResolver Resolver()
@@ -148,16 +151,35 @@ namespace tik4net.unittests.Winbox
         public void AWritableTupleIsRefusedRatherThanHalfWritten()
         {
             // Splitting the joined text back onto the parts is not the inverse of joining it — an IPv6
-            // 'Remote' puts its own colons in the way of the tuple's — so writing the first part and
-            // dropping the rest would be a request the router accepts and half-obeys.
+            // part puts its own colons in the way of the tuple's — so writing the first part and dropping
+            // the rest would be a request the router accepts and half-obeys.
             //
             // A read-only tuple never reaches this: EncodeField drops a ro field before any typed encoder
-            // runs. Every tuple the 7.24 catalog puts on a mapped path IS read-only, which is exactly why
-            // this test declares one that is not — otherwise the rule would be untested and would read as
-            // covered.
+            // runs, which is why this test declares a writable one.
             var ex = Assert.ThrowsException<WinboxFieldResolutionException>(
-                () => Resolver().EncodeField("datapath-id", "7/9"));
-            StringAssert.Contains(ex.Message, "datapath-id");
+                () => Resolver().EncodeField("peer", "2001:db8::1:80"));
+            StringAssert.Contains(ex.Message, "peer");
+        }
+
+        [TestMethod]
+        public void ATupleOfNumbersIsWrittenPartByPart()
+        {
+            // Numbers cannot hold the separator, so the split is exact — the tunnels' keepalive=10s,10 is this shape.
+            var back = new Dictionary<int, Tuple<string, object>>();
+            foreach (var piece in Resolver().EncodeField("datapath-id", "7/9"))
+                foreach (var kv in M2Message.ParseAllFields(M2Message.BuildM2(M2Message.SysFrom(), piece)))
+                    back[kv.Key] = kv.Value;
+
+            Assert.AreEqual("7", back[0x40].Item2.ToString());
+            Assert.AreEqual("9", back[0x41].Item2.ToString());
+        }
+
+        [TestMethod]
+        public void ATupleOfNumbersMissingAPartIsRefused()
+        {
+            // One token for two parts would write the first and leave the second as it was.
+            Assert.ThrowsException<WinboxFieldResolutionException>(
+                () => Resolver().EncodeField("datapath-id", "7"));
         }
 
         [TestMethod]

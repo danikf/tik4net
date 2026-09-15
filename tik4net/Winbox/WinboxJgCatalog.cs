@@ -1533,6 +1533,16 @@ namespace tik4net.Winbox
                     continue;
                 }
 
+                // A tuple under the option: the option's label names the joined value, and its flag says
+                // whether the API prints it at all. The EoIP/GRE/IPIP 'Keepalive' is
+                // {opt b7d4,c:[{tuple,sep:',',separate:1,c:[{interval u7d5},{number u7d9}]}]} and reads
+                // keepalive=10s,10 (7.24.2); the tuple has no id, so the leaf below registered nothing.
+                if (ty == "tuple" && dec == null)
+                {
+                    AddTupleField(handlerKey, label, cur, pane, optKey, underOption: true);
+                    return;
+                }
+
                 // value leaf
                 if (dec != null)
                 {
@@ -1664,7 +1674,7 @@ namespace tik4net.Winbox
         /// not surface as fields the API never reports.</para>
         /// </remarks>
         private void AddTupleField(string handlerKey, string label, Dictionary<string, object> tuple,
-            PaneContext? pane = null)
+            PaneContext? pane = null, int optKey = 0, bool underOption = false)
         {
             if (!(tuple.TryGetValue("c", out var cv) && cv is List<object> children)) return;
             // `separate:1` is webfig saying the parts are shown as boxes of their OWN, and such a tuple's
@@ -1673,7 +1683,9 @@ namespace tik4net.Winbox
             // the parent there would claim the children's keys first and take two named fields away to put
             // one joined value under a label RouterOS does not use. A child with a name of its own is a
             // field in its own right whatever the tuple says, so both tests are applied.
-            if (tuple.TryGetValue("separate", out var sepv) && sepv is int sepi && sepi != 0) return;
+            // Under an option the label is the option's, and the tunnels' 'Keepalive' is a separate:1 tuple
+            // of two unnamed parts the API prints joined — so there only the name test applies.
+            if (!underOption && tuple.TryGetValue("separate", out var sepv) && sepv is int sepi && sepi != 0) return;
             foreach (var c0 in children)
                 if (c0 is Dictionary<string, object> cd0 && cd0.TryGetValue("name", out var cn)
                     && cn is string cns && cns.Length > 0)
@@ -1703,13 +1715,13 @@ namespace tik4net.Winbox
             var extra = new List<WinboxJgField>();
             for (int i = 1; i < keys.Count; i++)
                 extra.Add(new WinboxJgField(apiName, keys[i].Item1, keys[i].Item2, ro,
-                    uiType: TupleUiType, elementParts: parts, elementSeparator: sep,
+                    uiType: TupleUiType, optKey: optKey, elementParts: parts, elementSeparator: sep,
                     isOptional: IsOptionalAttr(tuple),
                     paneKind: pane?.Kind, paneSelectorKey: pane?.SelectorKey ?? 0, paneValues: pane?.Values,
                     prefix: prefix));
 
             AddField(handlerKey, label, keys[0].Item1, keys[0].Item2, ro, null,
-                TupleUiType, 0, null, pane: pane, isOptional: IsOptionalAttr(tuple),
+                TupleUiType, 0, null, optKey: optKey, pane: pane, isOptional: IsOptionalAttr(tuple),
                 elementParts: parts, elementSeparator: sep,
                 extraRegistrations: extra.Count > 0 ? extra : null, prefix: prefix);
         }

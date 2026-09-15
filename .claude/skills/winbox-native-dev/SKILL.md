@@ -217,6 +217,16 @@ only the **stable text** (apiPath↔menu-label aliases, apiName↔label) is ship
   dropped like the abbreviation dot (`Don't Fragment` → `dont-fragment`).
 - **A `separate:1` tuple's `postfix` belongs to its parts** — Burst Time `{tuple,postfix:'s'}` makes the
   upload/download halves durations (`7s/9s`).
+- **A declared field can still vanish on a shared handler — check the decode, not just the name.** Dump the
+  resolver (`BuildKeyToApiName`/`BuildKeyToField`) for the path first. Three causes seen on 7.24.2: another
+  window's opt/not flag consuming the key (UPnP `show-dummy-rule` — consumed only when no other field owns it);
+  an ancestor path's synthetic taking a window's key (ipip `local-address` vs base `mac-address` — inherited
+  synthetics rank below the window); a deck pane filter the API does not apply (bonding — `PrintsEveryPane`).
+- **An interface subtype's own alias set is merged over `/interface`'s** (counter names, `type`, `mac-address`).
+- **`0xFE0008` is `inactive` on routing tables, `invalid` on VRRP**; hotspot `default` = `*0` row, ip-binding
+  `bypassed` = `type=bypassed`, lease `blocked` = `block-access` — derived bools, no key of their own.
+- **A tuple under an `opt` is one field named by the opt** (tunnels' `keepalive=10s,10`); `separate:1` splits a
+  tuple only when its parts carry names. Numeric/interval tuples are written by splitting on `sep`; others refused.
 - **A `pair` dropdown draws from several tables.** `enm.pair.toString` tries each source in order; queue-tree
   `parent` is an interface OR a queue. `WinboxJgField.RefHandlers` holds them all (`RefHandler` = the first) —
   resolve, prefetch and encode over the whole list, or a second-table id reads back as a raw `*10002C1`.
