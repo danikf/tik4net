@@ -227,6 +227,12 @@ only the **stable text** (apiPath↔menu-label aliases, apiName↔label) is ship
   `bypassed` = `type=bypassed`, lease `blocked` = `block-access` — derived bools, no key of their own.
 - **A tuple under an `opt` is one field named by the opt** (tunnels' `keepalive=10s,10`); `separate:1` splits a
   tuple only when its parts carry names. Numeric/interval tuples are written by splitting on `sep`; others refused.
+- **Find an unnamed key by moving it.** Dump the raw record with the resolver's `BuildKeyToApiName` beside it (a
+  temporary probe reaching `MakeResolver` by reflection), set the value over the API, dump again, diff; read with
+  getall flags `0x10000007` or stats keys are missing. `0xFE001C` (string list) is the row's `.about`; the all-ones
+  marker on a `def:4294967295` field can be a printed word (`certificate=none`, `trust-store=all`).
+- **Not every API field is on the wire.** vrrp `connection-tracking-mode` moves no key in getall or get, and a
+  constant read-only flag (tracking `active-ipv4`, `managed`) cannot be paired until a row shows the other value.
 - **A `pair` dropdown draws from several tables.** `enm.pair.toString` tries each source in order; queue-tree
   `parent` is an interface OR a queue. `WinboxJgField.RefHandlers` holds them all (`RefHandler` = the first) —
   resolve, prefetch and encode over the whole list, or a second-table id reads back as a raw `*10002C1`.

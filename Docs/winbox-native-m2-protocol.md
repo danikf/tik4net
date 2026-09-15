@@ -1281,6 +1281,38 @@ the `.jg` says the two boxes are one field, so the pairing is shipped per path
 "my value needs a sibling" slot a `network`'s netmask uses — and is consumed, so it does not also surface as a
 field the API never reports.
 
+### Keys and words no window gives
+
+Each pairing below was made by setting the value over the API and naming the one key that moved (7.24.2), read
+with getall flags `0x10000007`:
+
+| path | API field | key | wire |
+|---|---|---|---|
+| `/interface/ethernet` | `cable-settings` | `0x3F5` | short/standard/default = 0/1/2 |
+| `/interface/bridge` | `auto-mac` | `0x65` | bool |
+| `/interface/l2tp-server/server` | `accept-proto-version` | `0xDF` | all/l2tpv2/l2tpv3 = 0/2/3 |
+| `/interface/l2tp-server/server` | `accept-pseudowire-type` | `0xDE` | all/ether/ppp = 0/5/7 |
+| `/ip/settings` | `icmp-rate-mask` | `0x1C` | number, printed `0x1818` |
+| `/ip/firewall/connection/tracking` | `active-ipv6` | `0x2F` | bool, read-only |
+| `/ip/ipsec/peer` | `responder` | `0xE` | bool, read-only |
+| `/interface/wireguard/peers` | `rx`, `tx` | `0x3F3`, `0x3F4` | u64, read-only |
+| `/ip/address` | `actual-interface` | `0x5` | interface id, read-only |
+
+Some labels the window does declare are spelled differently: wireguard peers' 'Endpoint' is `endpoint-address`, a
+lease's 'DHCP Options' is `dhcp-option`, CAPsMAN provisioning's 'Slave Configuration' is `slave-configurations`,
+and the Queue Tree's 'Avg. Rate' / 'Avg. Packet Rate' are `rate` / `packet-rate`. A package's `available` is webfig's
+inverted flag on the Installed key.
+
+Two record-level spellings:
+
+- **`.about`** is the string list `0xFE001C`, present on every row and empty unless the router has a note — a DHCP
+  server on an interface with no address carries `[No IP address on interface]`.
+- **The all-ones marker can be a value.** A field declaring `def:4294967295` normally reads that number as not set,
+  but `/caps-man/manager`'s `certificate`/`ca-certificate` print it as `none` and `/certificate`'s `trust-store`
+  prints it as `all`, and the same word writes it back.
+
+`.nextid` is the API's cursor for an ordered list, not a property of a row, and no other transport prints it.
+
 ### What is left, and why it is not decode work
 
 Three paths still disagree on a value, and on two of them the API is the side that knows less:

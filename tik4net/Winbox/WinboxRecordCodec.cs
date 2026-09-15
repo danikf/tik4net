@@ -65,6 +65,10 @@ namespace tik4net.Winbox
 
         private static readonly Dictionary<string, int> EmptyOverrides = new Dictionary<string, int>();
 
+        // The per-row note RouterOS prints as .about; see DecodeRecord.
+        internal const int AboutKey = 0xFE001C;
+        internal const string AboutField = ".about";
+
         internal WinboxRecordCodec(WinboxNativeM2Operations ops, WinboxJgCatalog catalog)
         {
             _ops = ops;
@@ -161,6 +165,17 @@ namespace tik4net.Winbox
                 fields[apiName] = FormatTyped(jf, kv.Value.Item1, kv.Value.Item2, rec, collectRefTables);
             }
 
+            // The router's note on the row — the API's .about ("No IP address on interface" on a DHCP server
+            // whose interface has none, 7.24.2). It rides every record as the string list 0xFE001C, empty on a
+            // row with nothing to say, and no window names it.
+            if (!fields.ContainsKey(AboutField) && rec.TryGetValue(AboutKey, out var about)
+                && about.Item2 is string aboutText)
+            {
+                string note = aboutText.StartsWith("[", StringComparison.Ordinal) && aboutText.EndsWith("]", StringComparison.Ordinal)
+                    ? aboutText.Substring(1, aboutText.Length - 2) : aboutText;
+                if (note.Length > 0) fields[AboutField] = note;
+            }
+
             // A bool the API reports and WinBox renders as a wider enum on the same wire field (see
             // FieldAliasSet.DerivedBools). Added AFTER the loop because it reads a decoded field, not a key,
             // and only when the source is actually present: a row that did not carry it gets no bool rather
@@ -217,7 +232,7 @@ namespace tik4net.Winbox
             if (IsAnotherKindsField(jf, rec)) return true;
             if (WinboxFieldResolver.TryToInt64(value, out long n))
             {
-                if (jf.Def.HasValue && jf.IsUnsetValue(n)) return true;
+                if (jf.Def.HasValue && jf.IsUnsetValue(n) && !TrySentinelWord(jf, value, out _)) return true;
                 if (jf.IsUnmappedOptionalEnum(n)) return true;
             }
             return false;
@@ -256,6 +271,7 @@ namespace tik4net.Winbox
             {
                 // TryZeroWord only returns true when it found a word (non-null by construction).
                 if (TryZeroWord(jf, value, out string? zeroWord)) return zeroWord!;
+                if (TrySentinelWord(jf, value, out string? sentinelWord)) return sentinelWord!;
                 switch (jf.UiType)
                 {
                     case "ipaddr":
@@ -812,6 +828,43 @@ namespace tik4net.Winbox
             word = null;
             return false;
         }
+
+        /// <summary>
+        /// Fields where the all-ones unset marker is a VALUE RouterOS prints as a word, and the <c>.jg</c> names
+        /// it nowhere — so <see cref="WinboxJgField.IsUnsetValue"/> would drop a field the API reports.
+        /// </summary>
+        /// <remarks>
+        /// Measured on 7.24.2. <c>/caps-man/manager</c>'s Certificate and CA Certificate declare
+        /// <c>def:4294967295</c> with a <c>defenum</c> naming only 0 (<c>auto</c>): the stock singleton carries
+        /// 4294967295 on both and the API prints <c>none</c>; certificate=auto moved each key to 0.
+        /// <c>/certificate</c>'s Trust Store is a <c>set</c> with the same default, and both stock certificates
+        /// carry it while the API prints <c>trust-store=all</c>. Keyed by field name, gated on the field
+        /// declaring the marker as its default.
+        /// </remarks>
+        private static readonly Dictionary<string, string> SentinelSpelledAsWord =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["certificate"]    = "none",
+                ["ca-certificate"] = "none",
+                ["trust-store"]    = "all",
+            };
+
+        private static bool TrySentinelWord(WinboxJgField? jf, object value, out string? word)
+        {
+            word = null;
+            if (jf?.ApiName == null || jf.Def != WinboxJgField.UnsetSentinel) return false;
+            if (!WinboxFieldResolver.TryToInt64(value, out long n) || n != WinboxJgField.UnsetSentinel) return false;
+            return SentinelSpelledAsWord.TryGetValue(jf.ApiName, out word);
+        }
+
+        /// <summary>
+        /// The write side of <see cref="SentinelSpelledAsWord"/>: whether <paramref name="value"/> is the word this
+        /// field's unset marker is printed as, so an encoder sends 4294967295 for it.
+        /// </summary>
+        internal static bool IsSentinelWord(WinboxJgField jf, string value)
+            => jf.ApiName != null && jf.Def == WinboxJgField.UnsetSentinel
+               && SentinelSpelledAsWord.TryGetValue(jf.ApiName, out string? word)
+               && string.Equals(word, value, StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
         /// Members RouterOS ACCEPTS under the catalog's word but PRINTS as something else — here, as

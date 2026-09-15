@@ -615,6 +615,10 @@ namespace tik4net.integrationtests
                     // the 61 field-bearing paths look one name short of the API.
                     a.FieldNames.Remove(TikSpecialProperties.Tag);
                     n.FieldNames.Remove(TikSpecialProperties.Tag);
+                    // .nextid is the API's cursor for an ordered list (the first bridge port answers
+                    // .nextid=*FFFFFFFF), not a property of the row; no other transport prints it.
+                    a.FieldNames.Remove(".nextid");
+                    n.FieldNames.Remove(".nextid");
                     var onlyApi = a.FieldNames.Where(f => !n.FieldNames.Contains(f)).OrderBy(f => f).ToList();
                     var shared = a.FieldNames.Count(f => n.FieldNames.Contains(f));
                     apiFieldSlots += a.FieldNames.Count;

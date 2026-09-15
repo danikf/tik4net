@@ -28,6 +28,9 @@ namespace tik4net.integrationtests
     {
         internal const string NamePrefix = "tik4net-fx-";
 
+        // The mark on a fixture row that has no name of its own, so a killed run's orphan can still be found.
+        internal const string RowMark = NamePrefix + "row";
+
         private readonly ITikConnection _api;
         private readonly List<KeyValuePair<string, string>> _created = new List<KeyValuePair<string, string>>();
         private readonly List<string> _skipped = new List<string>();
@@ -86,10 +89,10 @@ namespace tik4net.integrationtests
         {
             new Recipe("/ip/pool", "name", NamePrefix + "pool", "ranges", "10.99.0.10-10.99.0.20"),
             new Recipe("/interface/bridge", "name", NamePrefix + "br"),
-            new Recipe("/interface/bridge/port", "bridge", NamePrefix + "br", "interface", TestConstants.SecondInterface),
-            new Recipe("/interface/bridge/vlan", "bridge", NamePrefix + "br", "vlan-ids", "999"),
-            new Recipe("/interface/bridge/filter", "chain", "forward", "action", "accept", "disabled", "yes"),
-            new Recipe("/interface/bridge/nat", "chain", "srcnat", "action", "accept", "disabled", "yes"),
+            new Recipe("/interface/bridge/port", "bridge", NamePrefix + "br", "interface", TestConstants.SecondInterface, "comment", RowMark),
+            new Recipe("/interface/bridge/vlan", "bridge", NamePrefix + "br", "vlan-ids", "999", "comment", RowMark),
+            new Recipe("/interface/bridge/filter", "chain", "forward", "action", "accept", "disabled", "yes", "comment", RowMark),
+            new Recipe("/interface/bridge/nat", "chain", "srcnat", "action", "accept", "disabled", "yes", "comment", RowMark),
             new Recipe("/interface/vlan", "name", NamePrefix + "vlan", "vlan-id", "999", "interface", TestConstants.SecondInterface),
             new Recipe("/interface/eoip", "name", NamePrefix + "eoip", "remote-address", "10.99.0.2", "tunnel-id", "999"),
             // Over the EoIP tunnel, not over the second ether: a bonding slave cannot already be a bridge port,
@@ -100,60 +103,60 @@ namespace tik4net.integrationtests
             new Recipe("/interface/vrrp", "name", NamePrefix + "vrrp", "interface", TestConstants.SecondInterface, "vrid", "99"),
             new Recipe("/interface/vxlan", "name", NamePrefix + "vxlan", "vni", "999"),
             new Recipe("/interface/wireguard", "name", NamePrefix + "wg"),
-            new Recipe("/interface/wireguard/peers", "interface", NamePrefix + "wg", "public-key", "wGVEbHiKQhLBTQxWZqQmQvzFrPMPJVDgIiDzHEQNPmM=", "allowed-address", "10.99.1.0/24"),
+            new Recipe("/interface/wireguard/peers", "interface", NamePrefix + "wg", "public-key", "wGVEbHiKQhLBTQxWZqQmQvzFrPMPJVDgIiDzHEQNPmM=", "allowed-address", "10.99.1.0/24", "comment", RowMark),
             // Its own list: RouterOS refuses a member of a builtin one ("cannot add to builtin list").
             new Recipe("/interface/list", "name", NamePrefix + "list"),
-            new Recipe("/interface/list/member", "list", NamePrefix + "list", "interface", TestConstants.SecondInterface),
+            new Recipe("/interface/list/member", "list", NamePrefix + "list", "interface", TestConstants.SecondInterface, "comment", RowMark),
             new Recipe("/ip/dns/static", "name", NamePrefix + "host.invalid", "address", "10.99.0.5"),
-            new Recipe("/ip/firewall/address-list", "list", NamePrefix + "list", "address", "10.99.0.6"),
-            new Recipe("/ip/firewall/filter", "chain", "forward", "action", "accept", "disabled", "yes"),
-            new Recipe("/ip/firewall/nat", "chain", "srcnat", "action", "accept", "disabled", "yes"),
+            new Recipe("/ip/firewall/address-list", "list", NamePrefix + "list", "address", "10.99.0.6", "comment", RowMark),
+            new Recipe("/ip/firewall/filter", "chain", "forward", "action", "accept", "disabled", "yes", "comment", RowMark),
+            new Recipe("/ip/firewall/nat", "chain", "srcnat", "action", "accept", "disabled", "yes", "comment", RowMark),
             // protocol=tcp so the write audit's tcp-flags probe has something to bite on: RouterOS refuses
             // `tcp-flags` on a rule that does not match TCP, and the refusal would read as a transport
             // finding.
-            new Recipe("/ip/firewall/mangle", "chain", "forward", "action", "accept", "protocol", "tcp", "disabled", "yes"),
-            new Recipe("/ip/firewall/raw", "chain", "prerouting", "action", "accept", "disabled", "yes"),
+            new Recipe("/ip/firewall/mangle", "chain", "forward", "action", "accept", "protocol", "tcp", "disabled", "yes", "comment", RowMark),
+            new Recipe("/ip/firewall/raw", "chain", "prerouting", "action", "accept", "disabled", "yes", "comment", RowMark),
             new Recipe("/ip/firewall/layer7-protocol", "name", NamePrefix + "l7", "regexp", "^tik4net$"),
             new Recipe("/ip/dhcp-server", "name", NamePrefix + "dhcp", "interface", TestConstants.SecondInterface, "address-pool", NamePrefix + "pool"),
-            new Recipe("/ip/dhcp-server/network", "address", "10.99.0.0/24", "gateway", "10.99.0.1"),
-            new Recipe("/ip/dhcp-server/lease", "address", "10.99.0.30", "mac-address", "02:00:00:99:00:01"),
+            new Recipe("/ip/dhcp-server/network", "address", "10.99.0.0/24", "gateway", "10.99.0.1", "comment", RowMark),
+            new Recipe("/ip/dhcp-server/lease", "address", "10.99.0.30", "mac-address", "02:00:00:99:00:01", "comment", RowMark),
             new Recipe("/ip/dhcp-relay", "name", NamePrefix + "relay", "interface", TestConstants.SecondInterface, "dhcp-server", "10.99.0.1"),
-            new Recipe("/ip/hotspot/ip-binding", "address", "10.99.0.7", "type", "bypassed"),
-            new Recipe("/ip/hotspot/walled-garden", "dst-host", "tik4net.invalid", "action", "allow", "disabled", "yes"),
-            new Recipe("/ip/hotspot/walled-garden/ip", "dst-address", "10.99.0.8", "action", "accept", "disabled", "yes"),
+            new Recipe("/ip/hotspot/ip-binding", "address", "10.99.0.7", "type", "bypassed", "comment", RowMark),
+            new Recipe("/ip/hotspot/walled-garden", "dst-host", "tik4net.invalid", "action", "allow", "disabled", "yes", "comment", RowMark),
+            new Recipe("/ip/hotspot/walled-garden/ip", "dst-address", "10.99.0.8", "action", "accept", "disabled", "yes", "comment", RowMark),
             new Recipe("/ip/ipsec/peer", "name", NamePrefix + "peer", "address", "10.99.0.9"),
-            new Recipe("/ip/ipsec/identity", "peer", NamePrefix + "peer", "secret", "tik4net-fixture"),
-            new Recipe("/ip/proxy/access", "dst-host", "tik4net.invalid", "action", "deny", "disabled", "yes"),
+            new Recipe("/ip/ipsec/identity", "peer", NamePrefix + "peer", "secret", "tik4net-fixture", "comment", RowMark),
+            new Recipe("/ip/proxy/access", "dst-host", "tik4net.invalid", "action", "deny", "disabled", "yes", "comment", RowMark),
             new Recipe("/ip/traffic-flow/target", "dst-address", "10.99.0.11", "port", "2055"),
             new Recipe("/ip/upnp/interfaces", "interface", TestConstants.SecondInterface, "type", "internal"),
             new Recipe("/ppp/secret", "name", NamePrefix + "user", "password", "tik4net-fixture"),
             new Recipe("/queue/simple", "name", NamePrefix + "queue", "target", "10.99.0.0/24"),
             new Recipe("/queue/tree", "name", NamePrefix + "tree", "parent", "global"),
-            new Recipe("/radius", "service", "login", "address", "10.99.0.12", "secret", "tik4net-fixture"),
+            new Recipe("/radius", "service", "login", "address", "10.99.0.12", "secret", "tik4net-fixture", "comment", RowMark),
             new Recipe("/routing/filter/rule", "chain", NamePrefix + "chain", "rule", "accept", "disabled", "yes"),
-            new Recipe("/routing/rule", "action", "lookup", "table", "main", "disabled", "yes"),
+            new Recipe("/routing/rule", "action", "lookup", "table", "main", "disabled", "yes", "comment", RowMark),
             new Recipe("/routing/ospf/instance", "name", NamePrefix + "ospf", "router-id", "10.99.0.13"),
             new Recipe("/routing/ospf/area", "name", NamePrefix + "area", "instance", NamePrefix + "ospf", "area-id", "0.0.0.99"),
-            new Recipe("/routing/ospf/interface-template", "interfaces", TestConstants.SecondInterface, "area", NamePrefix + "area"),
+            new Recipe("/routing/ospf/interface-template", "interfaces", TestConstants.SecondInterface, "area", NamePrefix + "area", "comment", RowMark),
             // A connection needs an instance that exists and a local role; RouterOS names both in the
             // trap when they are missing, one at a time.
             new Recipe("/routing/bgp/instance", "name", NamePrefix + "bgpi", "as", "65099", "router-id", "10.99.0.13"),
             new Recipe("/routing/bgp/connection", "name", NamePrefix + "bgp", "remote.address", "10.99.0.14", "as", "65099", "instance", NamePrefix + "bgpi", "local.role", "ebgp"),
             new Recipe("/system/scheduler", "name", NamePrefix + "sched", "on-event", ":nothing"),
             new Recipe("/system/script", "name", NamePrefix + "script", "source", ":nothing"),
-            new Recipe("/tool/netwatch", "host", "10.99.0.15"),
+            new Recipe("/tool/netwatch", "host", "10.99.0.15", "comment", RowMark),
             new Recipe("/caps-man/channel", "name", NamePrefix + "chan"),
             new Recipe("/caps-man/datapath", "name", NamePrefix + "dpath"),
             new Recipe("/caps-man/security", "name", NamePrefix + "sec"),
             new Recipe("/caps-man/configuration", "name", NamePrefix + "cfg"),
-            new Recipe("/caps-man/provisioning", "action", "none", "disabled", "yes"),
-            new Recipe("/caps-man/access-list", "action", "accept", "disabled", "yes"),
+            new Recipe("/caps-man/provisioning", "action", "none", "disabled", "yes", "comment", RowMark),
+            new Recipe("/caps-man/access-list", "action", "accept", "disabled", "yes", "comment", RowMark),
             new Recipe("/interface/wifi/channel", "name", NamePrefix + "wchan"),
             new Recipe("/interface/wifi/datapath", "name", NamePrefix + "wdpath"),
             new Recipe("/interface/wifi/security", "name", NamePrefix + "wsec"),
             new Recipe("/interface/wifi/configuration", "name", NamePrefix + "wcfg"),
-            new Recipe("/interface/wifi/provisioning", "action", "none", "disabled", "yes"),
-            new Recipe("/interface/wifi/access-list", "action", "accept", "disabled", "yes"),
+            new Recipe("/interface/wifi/provisioning", "action", "none", "disabled", "yes", "comment", RowMark),
+            new Recipe("/interface/wifi/access-list", "action", "accept", "disabled", "yes", "comment", RowMark),
         };
 
         // ── mechanics ─────────────────────────────────────────────────────────
@@ -195,28 +198,18 @@ namespace tik4net.integrationtests
         {
             SweepInterfaceListMembers();
 
-            foreach (string path in new[]
-                     {
-                         "/interface/bridge/port", "/interface/bridge/vlan", "/ip/dhcp-server",
-                         "/interface/wireguard/peers", "/routing/ospf/interface-template",
-                         "/routing/ospf/area", "/routing/ospf/instance", "/ip/ipsec/identity",
-                         "/ip/pool", "/interface/bridge", "/interface/vlan", "/interface/bonding",
-                         "/interface/eoip", "/interface/gre", "/interface/ipip", "/interface/vrrp",
-                         "/interface/vxlan", "/interface/wireguard", "/ip/firewall/layer7-protocol",
-                         "/ip/ipsec/peer", "/ppp/secret", "/queue/simple", "/queue/tree",
-                         "/system/scheduler", "/system/script", "/ip/dhcp-relay",
-                         "/routing/bgp/connection", "/routing/bgp/instance", "/interface/list",
-                         "/caps-man/channel", "/caps-man/datapath",
-                         "/caps-man/security", "/caps-man/configuration", "/interface/wifi/channel",
-                         "/interface/wifi/datapath", "/interface/wifi/security",
-                         "/interface/wifi/configuration",
-                     })
+            // Children before the rows they hang off, which is the recipe order reversed.
+            foreach (var recipe in Recipes.Reverse())
             {
                 try
                 {
+                    string path = recipe.Path;
                     var orphans = _api.CreateCommand(path + "/print").ExecuteList()
                         .Where(r => (r.GetResponseFieldOrDefault("name", "") ?? "")
-                                    .StartsWith(NamePrefix, StringComparison.OrdinalIgnoreCase))
+                                        .StartsWith(NamePrefix, StringComparison.OrdinalIgnoreCase)
+                                    || string.Equals(r.GetResponseFieldOrDefault("comment", "") ?? "", RowMark,
+                                                     StringComparison.Ordinal)
+                                    || IsRecipeRow(recipe, r))
                         .ToList();
                     foreach (var row in orphans)
                         _api.CreateCommandAndParameters(path + "/remove", ".id", row.GetId()).ExecuteNonQuery();
@@ -226,6 +219,32 @@ namespace tik4net.integrationtests
                     // A table this router does not have cannot be holding an orphan.
                 }
             }
+        }
+
+        /// <summary>
+        /// Whether a row is one this recipe made, on the tables where neither a name nor the comment mark says
+        /// so: every value the recipe writes reads back the same, except a reference to one of our rows that
+        /// has since gone and now prints as a bare <c>*id</c>. <c>disabled</c> is not compared, because the
+        /// write audit toggles it, and a recipe with no value of ours in it matches nothing.
+        /// </summary>
+        /// <remarks>
+        /// A bridge VLAN seeded before the comment mark existed outlived its bridge on a killed run and read
+        /// <c>bridge=*6D vlan-ids=999</c>: no name, no comment, and a reference the name sweep could not see.
+        /// </remarks>
+        private static bool IsRecipeRow(Recipe recipe, ITikReSentence row)
+        {
+            bool ours = false;
+            for (int i = 0; i + 1 < recipe.NameValues.Length; i += 2)
+            {
+                string field = recipe.NameValues[i], want = recipe.NameValues[i + 1];
+                if (field == "disabled" || field == "comment") continue;
+                string have = row.GetResponseFieldOrDefault(field, "") ?? "";
+                bool mine = want.StartsWith(NamePrefix, StringComparison.OrdinalIgnoreCase);
+                if (string.Equals(have, want, StringComparison.OrdinalIgnoreCase)) { ours |= mine; continue; }
+                if (mine && have.StartsWith("*", StringComparison.Ordinal)) { ours = true; continue; }
+                return false;
+            }
+            return ours;
         }
 
         /// <summary>

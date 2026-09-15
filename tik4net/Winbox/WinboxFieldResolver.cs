@@ -558,6 +558,9 @@ namespace tik4net.Winbox
                         // ether1, 7.24.2) beside 0x3E9's mac-address. Read-only, as the API has it.
                         ["orig-mac-address"] = new WinboxJgField("orig-mac-address", 0x404, "raw", true,
                                                                  uiType: "macaddr"),
+                        // cable-settings: unnamed 0x3F5. default/standard/short moved it to 2/1/0 on ether2 (7.24.2).
+                        ["cable-settings"] = new WinboxJgField("cable-settings", 0x3F5, "u32", false,
+                            enumMap: new Dictionary<int, string> { [0] = "short", [1] = "standard", [2] = "default" }),
                     }),
 
                 // /ip/arp and /ip/neighbor: WinBox's 'IP Address' is the API's `address`. On /ip/neighbor
@@ -679,11 +682,17 @@ namespace tik4net.Winbox
 
                 // /queue/tree: the window says 'Packet Marks' where the API says packet-mark (t4n-probe-mark moved).
                 // …and 'Queue Type' is the API's queue: queue=pcq-upload-default moved u0xA to that type's id.
+                // …and the window's statistics 'Avg. Rate' (ucc) and 'Avg. Packet Rate' (ucd) are the API's rate and
+                // packet-rate: the only rate fields the Queue Tree window declares.
                 ["/queue/tree"] = new FieldAliasSet(
                     apiToJg: Ci(("packet-mark", "packet-marks"),
-                                ("queue", "queue-type")),
+                                ("queue", "queue-type"),
+                                ("rate", "avg-rate"),
+                                ("packet-rate", "avg-packet-rate")),
                     jgToApi: Ci(("packet-marks", "packet-mark"),
-                                ("queue-type", "queue"))),
+                                ("queue-type", "queue"),
+                                ("avg-rate", "rate"),
+                                ("avg-packet-rate", "packet-rate"))),
 
                 // /interface/vxlan: 'Remote Checksum Offload' is rem-csum (tx moved it).
                 ["/interface/vxlan"] = new FieldAliasSet(
@@ -708,9 +717,11 @@ namespace tik4net.Winbox
                 // so it does not inherit /ip/dhcp-server's above. `blocked` is the lease's 'Block Access' box as
                 // a flag: the catalog declares both on b7e, one key can carry one name, and block-access=yes set
                 // the key and the API's blocked=true together.
+                // …and the window's plural 'DHCP Options' (U11) is the API's singular dhcp-option: clearing it moved
+                // the list [1] → [].
                 ["/ip/dhcp-server/lease"] = new FieldAliasSet(
-                    apiToJg: Ci(("address-lists", "address-list")),
-                    jgToApi: Ci(("address-list", "address-lists")),
+                    apiToJg: Ci(("address-lists", "address-list"), ("dhcp-option", "dhcp-options")),
+                    jgToApi: Ci(("address-list", "address-lists"), ("dhcp-options", "dhcp-option")),
                     derivedBools: new Dictionary<string, Tuple<string, string>>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["blocked"] = Tuple.Create("block-access", "true"),
@@ -740,12 +751,81 @@ namespace tik4net.Winbox
                 ["/routing/rule"] = RoutingInactive(),
 
                 // /ip/ipsec/peer: the PPK secret is a key no Peers window declares — moved to 0x36.
+                // …and `responder`: passive=yes moved the unnamed bool 0xE False → True together with the API's
+                // responder (0x23, the Passive box, moved beside it). Read-only, as the API has it.
                 ["/ip/ipsec/peer"] = new FieldAliasSet(
                     apiToJg: Ci(),
                     jgToApi: Ci(),
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["ppk-secret"] = new WinboxJgField("ppk-secret", 0x36, "string", false),
+                        ["responder"] = new WinboxJgField("responder", 0xE, "bool", true),
+                    }),
+
+                // /interface/bridge: auto-mac is a key no Bridge window declares. auto-mac=no with
+                // admin-mac=02:00:00:00:00:01 moved the unnamed bool 0x65 True → False (0x66 took the admin MAC)
+                // on a probe bridge (7.24.2). Merged over the base /interface set.
+                ["/interface/bridge"] = new FieldAliasSet(
+                    apiToJg: Ci(),
+                    jgToApi: Ci(),
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["auto-mac"] = new WinboxJgField("auto-mac", 0x65, "bool", false),
+                    }),
+
+                // /interface/l2tp-server/server: the two accept filters are keys no window declares. Each value the
+                // router completes was set and read back: accept-proto-version all/l2tpv2/l2tpv3 moved 0xDF to
+                // 0/2/3, accept-pseudowire-type all/ether/ppp moved 0xDE to 0/5/7 (7.24.2).
+                ["/interface/l2tp-server/server"] = new FieldAliasSet(
+                    apiToJg: Ci(),
+                    jgToApi: Ci(),
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["accept-proto-version"] = new WinboxJgField("accept-proto-version", 0xDF, "u32", false,
+                            enumMap: new Dictionary<int, string> { [0] = "all", [2] = "l2tpv2", [3] = "l2tpv3" }),
+                        ["accept-pseudowire-type"] = new WinboxJgField("accept-pseudowire-type", 0xDE, "u32", false,
+                            enumMap: new Dictionary<int, string> { [0] = "all", [5] = "ether", [7] = "ppp" }),
+                    }),
+
+                // /interface/wireguard/peers: the Peers window's 'Endpoint' is the API's endpoint-address (the
+                // probe peer's 10.99.0.20 rides m3ee). Its 'Rx'/'Tx' (q3f3/q3f4) lose their names to the interface
+                // counters' label overrides, so they are supplied by key; the API prints the byte counts bare.
+                ["/interface/wireguard/peers"] = new FieldAliasSet(
+                    apiToJg: Ci(("endpoint-address", "endpoint")),
+                    jgToApi: Ci(("endpoint", "endpoint-address")),
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["rx"] = new WinboxJgField("rx", 0x3F3, "u64", true),
+                        ["tx"] = new WinboxJgField("tx", 0x3F4, "u64", true),
+                    }),
+
+                // /ip/address: actual-interface is a key no window declares. The unnamed 0x5 carries the interface
+                // id on both stock rows (3 on the ether2 address, 2 on ether1's), matching the API's
+                // actual-interface=ether2/ether1. Read-only; a reference into the interface table.
+                ["/ip/address"] = new FieldAliasSet(
+                    apiToJg: Ci(),
+                    jgToApi: Ci(),
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["actual-interface"] = new WinboxJgField("actual-interface", 0x5, "u32", true,
+                                                                 uiType: "enm", refHandler: new[] { 20, 0 }),
+                    }),
+
+                // /caps-man/provisioning: the window's singular 'Slave Configuration' (U500c) is the API's plural
+                // slave-configurations — clearing it moved the list [77] → [].
+                ["/caps-man/provisioning"] = new FieldAliasSet(
+                    apiToJg: Ci(("slave-configurations", "slave-configuration")),
+                    jgToApi: Ci(("slave-configuration", "slave-configurations"))),
+
+                // /system/package: webfig declares `available` as an inverted flag on the Installed key
+                // ({name:'available',type:'flag',id:'bb',hint:'A',inv:1}); the key already carries `installed`, so
+                // the flag is derived from it. Every row a router lists is installed=true, available=false.
+                ["/system/package"] = new FieldAliasSet(
+                    apiToJg: Ci(),
+                    jgToApi: Ci(),
+                    derivedBools: new Dictionary<string, Tuple<string, string>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["available"] = Tuple.Create("installed", "false"),
                     }),
 
                 // /ip/hotspot/user and /ip/hotspot/user/profile: `default` marks the row the router ships, and
@@ -763,13 +843,19 @@ namespace tik4net.Winbox
                         ["bypassed"] = Tuple.Create("type", "bypassed"),
                     }),
 
-                // /ip/settings: confirmed by writing 393216 and 27 and reading both back. `icmp-rate-mask`
-                // is NOT here — no window in the catalog declares it at all, under any name.
+                // /ip/settings: confirmed by writing 393216 and 27 and reading both back. `icmp-rate-mask` is a key
+                // no window declares: icmp-rate-mask=0x1819 moved the unnamed 0x1C from 6168 to 6169, and the API
+                // prints it in hex with the prefix.
                 ["/ip/settings"] = new FieldAliasSet(
                     apiToJg: Ci(("ipv4-high-fragment-thresh", "ipv4-fragment-threshold-bytes"),
                                ("ipv4-fragment-time", "ipv4-fragment-timeout")),
                     jgToApi: Ci(("ipv4-fragment-threshold-bytes", "ipv4-high-fragment-thresh"),
-                               ("ipv4-fragment-timeout", "ipv4-fragment-time"))),
+                               ("ipv4-fragment-timeout", "ipv4-fragment-time")),
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["icmp-rate-mask"] = new WinboxJgField("icmp-rate-mask", 0x1C, "u32", false,
+                                                               postfix: "hex", radix: 16),
+                    }),
 
                 // The two IPsec algorithm sets: singular where the window says plural, and vice versa.
                 ["/ip/ipsec/profile"] = new FieldAliasSet(
@@ -795,7 +881,13 @@ namespace tik4net.Winbox
                                ("tcp-close", "tcp-close-timeout"),
                                ("tcp-time-wait", "tcp-time-wait-timeout"),
                                ("total-ipv4-entries", "total-ip4-entries"),
-                               ("total-ipv6-entries", "total-ip6-entries"))),
+                               ("total-ipv6-entries", "total-ip6-entries")),
+                    // active-ipv6: enabled=yes moved the unnamed bool 0x2F False → True with the API's
+                    // active-ipv6, and enabled=auto put both back. Read-only.
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["active-ipv6"] = new WinboxJgField("active-ipv6", 0x2F, "bool", true),
+                    }),
 
                 // /ip/route: the API's `active` bool is the route window's 'Contribution' enum — one wire
                 // field (u22), two vocabularies. The base 'All Routes' window's numflag on that key
@@ -1864,6 +1956,14 @@ namespace tik4net.Winbox
                 return result;
             }
 
+            // …and the word RouterOS prints for the all-ones unset marker (trust-store=all, certificate=none).
+            if (jg != null && WinboxRecordCodec.IsSentinelWord(jg, value))
+            {
+                if (jg.OptKey != 0) result.Add(M2Message.BoolSys(jg.OptKey, true));
+                result.Add(EncodeU32(key, unchecked((uint)WinboxJgField.UnsetSentinel)));
+                return result;
+            }
+
             // ── opt/not container flags ──
             //
             // An opt-wrapped field is IGNORED BY THE ROUTER unless its opt bool says the option is present, and
@@ -2463,6 +2563,18 @@ namespace tik4net.Winbox
                     $"WinBox native: field '{apiName}' on '{_apiPath}' is a tuple of several WinBox fields " +
                     "joined for display and is not encodable over native WinBox M2 writes. " +
                     "Use an Api/REST/CLI connection for this field.");
+
+            // A base-16 number is read back in the API's own spelling (icmp-rate-mask=0x1818, priority=0x8000), so
+            // that spelling is what a caller hands in; the plain decimal is still accepted.
+            if (jg != null && jg.Radix == 16 && value.Length > 2
+                && value.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+                && (wireType == "u32" || wireType == "u8" || wireType == "u16")
+                && uint.TryParse(value.Substring(2), System.Globalization.NumberStyles.HexNumber,
+                                 System.Globalization.CultureInfo.InvariantCulture, out uint hex))
+            {
+                result.Add(EncodeU32(key, hex));
+                return result;
+            }
 
             // 'addr' (webfig types.addr) is a compound: the value is a nested message, and each address FORM
             // rides at its own sub-key. Encoding it needs the whole set, not just IPv4 — see EncodeAddr.
