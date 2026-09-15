@@ -57,10 +57,25 @@ queueing or a rate limiter on the management path would fit the same shape.
 
 **For the single-large-read stall it was established, and it was the hypervisor**: the lab VM had 16
 vCPUs on a laptop host, and two removed the stall outright — see
-[It was the lab VM's vCPU count](#it-was-the-lab-vms-vcpu-count) below. The sustained-load clamp
-measured here has **not** been re-measured since that change, so whether it is the same cause is open;
-the shape fits. Whether a non-virtualized router behaves the same is likewise untested; there
-is one router in the lab.
+[It was the lab VM's vCPU count](#it-was-the-lab-vms-vcpu-count) below.
+
+**The sustained-load clamp is not that cause: two vCPUs do not remove it.** The numbers above were
+taken at sixteen. On the two-vCPU copy (RouterOS 7.24.2), the same `getall /interface` workload
+clamps almost at once. The knee comes after at most 28 requests, and aggregate throughput sits flat
+at **24, 25 and 29 req/s** over 1, 2 and 4 connections. Per-request medians are 15 ms on one
+connection, about 50 ms on two and 100–125 ms on four. The ceiling is still aggregate: connections
+share it, they do not add to it.
+
+**It is the router's ceiling, not the client's.** A raw Python API client with no tik4net code, one
+connection, 400 × `/interface/print`, gets **36 req/s** at a median of 18.9 ms. Medians over blocks of
+50 requests jump between about 3, 15, 55 and 60 ms, the same quantized pattern tik4net shows. The
+router reports `cpu-load` 0–5 and the client uses 0–19 % of a core, so both sides are waiting.
+
+Latencies landing on multiples of roughly 15–20 ms fit guest scheduling on a hypervisor timer tick,
+but that is a hypothesis; nothing here measures the hypervisor. The single-connection difference
+between tik4net (22 req/s) and the raw client (36 req/s) is smaller than the block-to-block swing
+within each run, and one run of each cannot attribute it. A bare-metal router is untested; there is
+one router in the lab.
 
 ## Why it surfaced as a WinBox-native-over-TCP stall
 
