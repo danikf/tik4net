@@ -1297,6 +1297,7 @@ with getall flags `0x10000007`:
 | `/ip/ipsec/peer` | `responder` | `0xE` | bool, read-only |
 | `/interface/wireguard/peers` | `rx`, `tx` | `0x3F3`, `0x3F4` | u64, read-only |
 | `/ip/address` | `actual-interface` | `0x5` | interface id, read-only |
+| `/interface/vrrp` | `connection-tracking-mode` | `0x17` (u32, beside a bool) | passive-active/active-active = 0/1 |
 
 Some labels the window does declare are spelled differently: wireguard peers' 'Endpoint' is `endpoint-address`, a
 lease's 'DHCP Options' is `dhcp-option`, CAPsMAN provisioning's 'Slave Configuration' is `slave-configurations`,
@@ -1338,6 +1339,18 @@ Three paths still disagree on a value, and on two of them the API is the side th
   `fixedpoint`, agrees exactly.
 - **`/interface/ethernet` `auto-negotiation`** — WinBox's field is the LINK's live state
   (`not-available` on a CHR's virtual NIC), the API's is the SETTING (`true`). Two fields, one label.
+
+API fields native does not report, and what stands in the way (7.24.2, CHR):
+
+- **`managed`** (bridge, bridge port, bridge VLAN, logging rule and action) — WinBox has no such field: the Log
+  Actions window offers no Managed column or filter while it does offer Default, and no record carries a key that
+  could be it. Every row on the lab reads `managed=false`.
+- **Tracking `active-ipv4`** — true with conntrack set to `no` as well as `auto`, so no key moves with it.
+- **`/interface` `fp-rx-byte`, `fp-tx-byte`, `fp-rx-packet`, `fp-tx-packet`, `fp-rps-drop`** — five unnamed
+  `u64` keys (`0x10100`–`0x10103`, `0x10105`) all read 0 without fast-path traffic, so their order is not measurable.
+- **Bridge port `rx-tc`/`tx-tc`** (probably `0xE2`/`0xE3`, both 0), **`hw`** (not the status 'Hw. Offload';
+  needs `hardware-offload` toggled on an active ether port) and **`debug-info`** (no key in the record).
+- **`/file` `contents`** — not carried by a list read.
 
 ### A normalized label is right until it merges two members
 

@@ -731,13 +731,19 @@ namespace tik4net.Winbox
                 // seeded row (7.24.2). And the router's state flag 0xFE0008, which the generic interface window
                 // calls 'inactive', is what the API prints for a VRRP row as `invalid` (true on an interface with
                 // no IPv4 address, both transports). Merged over the base /interface set (see ResolveAliases).
+                // …and the Conn. Tracking tab, whose labels abbreviate what the API spells out (its tab completion
+                // lists connection-tracking-mode and connection-tracking-port). The mode rides u17 beside a bool on
+                // the same key: connection-tracking-mode=active-active moved the number to 1 and WinBox showed
+                // active/active, while the catalog's members are spelled with a slash where the API uses a dash.
                 ["/interface/vrrp"] = new FieldAliasSet(
-                    apiToJg: Ci(),
-                    jgToApi: Ci(),
+                    apiToJg: Ci(("connection-tracking-port", "conn-tracking-port")),
+                    jgToApi: Ci(("conn-tracking-port", "connection-tracking-port")),
                     keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "invalid" },
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["on-fail"] = new WinboxJgField("on-fail", 0x13, "string", false),
+                        ["connection-tracking-mode"] = new WinboxJgField("connection-tracking-mode", 0x17, "u32", false,
+                            enumMap: new Dictionary<int, string> { [0] = "passive-active", [1] = "active-active" }),
                     }),
 
                 // The routing tables' state flag 0xFE0008 is `inactive` to the API (seeded rows, 7.24.2: true on a

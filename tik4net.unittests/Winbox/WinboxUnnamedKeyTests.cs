@@ -123,6 +123,29 @@ namespace tik4net.unittests.Winbox
         }
 
         [TestMethod]
+        public void AVrrpConnectionTrackingModeIsTheApisWordOnTheNumberBesideTheFlag()
+        {
+            // 7.24.2: the record carries a bool AND a u32 on 0x17; connection-tracking-mode=active-active moved the
+            // u32 to 1 (WinBox shows active/active), and the API spells the members with a dash.
+            const string vrrp =
+                "[{name:'Interfaces',c:[{name:'Interface',title:'VRRP',type:'map',path:[ 20,0 ],c:[" +
+                "{name:'Conn. Tracking Mode',type:'enm',id:'u17',def:0,values:{type:'static',map:[ 'passive/active','active/active' ]}}]}]}]";
+            var catalog = new WinboxJgCatalog();
+            Assert.IsTrue(catalog.TryParseInto(vrrp));
+            var resolver = new WinboxFieldResolver("/interface/vrrp", new[] { 20, 0 }, catalog, new Dictionary<string, int>());
+            var rec = M2Message.ParseAllFields(M2Message.BuildM2(M2Message.SysFrom(),
+                M2Message.BoolSys(0x17, false), M2Message.U32Sys(0x17, 1)));
+            var row = new WinboxRecordCodec(null, catalog).DecodeRecord(rec, resolver.BuildKeyToApiName(),
+                resolver.BuildKeyToField(), resolver.DerivedBoolFields);
+
+            Assert.AreEqual("active-active", row["connection-tracking-mode"]);
+            Assert.IsFalse(row.ContainsKey("conn-tracking-mode"), "the window's own spelling is not an API field");
+
+            var written = Written(resolver, "connection-tracking-mode", "passive-active");
+            Assert.AreEqual("0", written[0x17].Item2.ToString());
+        }
+
+        [TestMethod]
         public void APackageIsAvailableExactlyWhenItIsNotInstalled()
         {
             const string package =

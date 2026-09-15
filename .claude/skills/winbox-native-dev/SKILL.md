@@ -234,8 +234,9 @@ only the **stable text** (apiPath↔menu-label aliases, apiName↔label) is ship
 - **An `X/Y rest` tuple of two unnamed parts is two API fields** ('Orig./Repl. Bytes' → `orig-bytes`/`repl-bytes`,
   'Tx/Rx BPDU's' → `tx-bpdu`/`rx-bpdu`). **One key can carry a bool and a number** (`b1f` flag + `q1f` counter on
   `/ip/firewall/connection`): duplicates are qualified by kind — array, bool, other scalar (`TypedKey.KindOf`).
-- **Not every API field is on the wire.** vrrp `connection-tracking-mode` moves no key in getall or get, and a
-  constant read-only flag (tracking `active-ipv4`, `managed`) cannot be paired until a row shows the other value.
+- **A key that "does not move" may be hidden, not absent.** vrrp `connection-tracking-mode` looked unsent until the
+  parser kept a u32 beside the bool on `0x17`; a raw dump from an older parser cannot show it. A constant read-only
+  flag (tracking `active-ipv4`, `managed`) still cannot be paired until a row shows the other value.
 - **A `pair` dropdown draws from several tables.** `enm.pair.toString` tries each source in order; queue-tree
   `parent` is an interface OR a queue. `WinboxJgField.RefHandlers` holds them all (`RefHandler` = the first) —
   resolve, prefetch and encode over the whole list, or a second-table id reads back as a raw `*10002C1`.
