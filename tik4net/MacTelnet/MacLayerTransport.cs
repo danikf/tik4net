@@ -225,6 +225,29 @@ namespace tik4net.MacTelnet
         private LocalNic[] _candidates = new LocalNic[0];
         private string? _bindHost;
 
+        // The interface the session's socket is bound to, as DescribeNic spelled it; null when no NIC sat in
+        // the router's subnet and the socket was left unbound.
+        private string? _nicName;
+
+        /// <summary>
+        /// Which local interface the frames left by and where the data was addressed — the first thing a
+        /// no-answer failure on a multi-homed client needs, and not otherwise in the message.
+        /// </summary>
+        /// <remarks>
+        /// Names the interface, never its address: exception messages mask endpoints, and the masked form
+        /// would delete exactly the part that identifies the adapter.
+        /// </remarks>
+        private string DescribeRoute()
+        {
+            string nic = _nicName != null
+                ? "local interface " + _nicName
+                : "no local interface in the router's subnet, socket unbound";
+            if (IsMacOnly && _candidates.Length > 1)
+                nic += " of " + _candidates.Length + " candidates";
+            return nic + "; data sent to "
+                 + (_routerUnicastEp != null ? "the router's address" : "the subnet broadcast");
+        }
+
         /// <summary>
         /// Whether the session is addressed by MAC alone, with no router IP anywhere in the picture — the
         /// case these transports exist for. It is the only mode in which the local NIC is not already
@@ -307,6 +330,7 @@ namespace tik4net.MacTelnet
             _udp        = winner.Udp;
             _localMac   = winner.LocalMac;
             _routerEp   = winner.Broadcast;
+            _nicName    = winner.NicName;
             _sessionKey = winner.SessionKey;
             _outCounter = 0;
             _inCounter  = 0;
@@ -326,6 +350,7 @@ namespace tik4net.MacTelnet
             internal UdpClient Udp = null!;
             internal byte[] LocalMac = null!;
             internal IPEndPoint Broadcast = null!;
+            internal string? NicName;
             internal ushort SessionKey;
             internal Action<string>? Trace;
 
@@ -421,6 +446,7 @@ namespace tik4net.MacTelnet
                     Udp        = udp,
                     LocalMac   = nic.Mac ?? GetLocalMac(null),
                     Broadcast  = new IPEndPoint(nic.Broadcast ?? IPAddress.Broadcast, 20561),
+                    NicName    = nic.Name,
                     SessionKey = BitConverter.ToUInt16(kb, 0),
                     Trace      = Diagnostics.TikWireTrace.Enabled
                         ? new Action<string>(line => Diagnostics.TikWireTrace.Emit(
@@ -471,7 +497,7 @@ namespace tik4net.MacTelnet
                         bcast = new IPAddress(b);
                     }
 
-                    var nic = new LocalNic { Mac = mac, LocalIp = ua.Address, Broadcast = bcast };
+                    var nic = new LocalNic { Mac = mac, LocalIp = ua.Address, Broadcast = bcast, Name = DescribeNic(ni) };
                     (IsProbablyVirtual(ni) ? virt : physical).Add(nic);
                     break;   // one address per NIC is enough to bind and broadcast from
                 }
@@ -504,6 +530,7 @@ namespace tik4net.MacTelnet
             // Source MAC, local IPv4 and subnet broadcast must all come from the SAME NIC — see below for
             // why picking them independently is not enough.
             _localMac = nic.Mac ?? GetLocalMac(host);
+            _nicName  = nic.Name;
 
             // Bind to the local address of the NIC whose MAC and broadcast address are in the packet,
             // NOT to IPAddress.Any. An unbound socket lets the HOST's broadcast route decide which
@@ -809,7 +836,16 @@ namespace tik4net.MacTelnet
             public byte[]? Mac;
             public IPAddress? LocalIp;
             public IPAddress? Broadcast;
+            // The OS's name for the interface, for messages. Not an address: on a multi-homed client it
+            // is the one thing that says which adapter the frames left by, and it survives the masking
+            // exception messages apply to endpoints.
+            public string? Name;
         }
+
+        private static string DescribeNic(NetworkInterface ni)
+            => string.IsNullOrEmpty(ni.Description) || ni.Description == ni.Name
+                ? "'" + ni.Name + "'"
+                : "'" + ni.Name + "' (" + ni.Description + ")";
 
         private static LocalNic SelectLocalNic(string host)
         {
@@ -847,6 +883,7 @@ namespace tik4net.MacTelnet
                     result.Mac       = mac;
                     result.LocalIp   = ua.Address;
                     result.Broadcast = new IPAddress(bcast);
+                    result.Name      = DescribeNic(ni);
                     return result;
                 }
             }
@@ -1268,9 +1305,12 @@ namespace tik4net.MacTelnet
                           + (_haveAck ? "acknowledged up to " + _highestAck : "never acknowledged")
                           + "; " + _unacked.Count + " packet(s) still unacknowledged after "
                           + _retransmits + " resend(s); packet types seen: "
-                          + (seen.Count == 0 ? "none" : string.Join(",", seen.Select(t => "0x" + t.ToString("X2"))));
+                          + (seen.Count == 0 ? "none" : string.Join(",", seen.Select(t => "0x" + t.ToString("X2"))))
+                          + "; " + DescribeRoute();
                 }
-                if (!sessionOpen) throw;
+                // Still a TimeoutException before the router acknowledged the session: callers
+                // (WinboxMacM2Session) decide on the type. Only the message gains the route.
+                if (!sessionOpen) throw new TimeoutException(ex.Message + " (" + state + ")", ex);
                 throw new TikConnectionLoginNoAnswerException("MAC-Telnet", state, ex);
             }
         }

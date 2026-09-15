@@ -117,6 +117,12 @@ That is the same pause, now landing inside the 30 s budget instead of past it. A
 the hypervisor to place, and while it waits, nothing inside it runs — including the timers that would
 retransmit.
 
+**The vCPU count alone, not the VM image.** The two-vCPU lab is a copy of the original VM, so the first
+result changed both at once. Setting that same copy back to sixteen vCPUs and running 20 WinBox M2 reads
+of the 1672-row table (`Probe_MangleRead_TcpSocketLevel`) brings the stall back. The first nine reads
+after boot are clean (1.5–3.6 s). From the tenth on, socket-level silences of 27 s, 47 s and 52 s appear,
+and one read times out at 120 s with no byte arriving. Back at two vCPUs, the same image is clean.
+
 Ruled out along the way, each by measurement rather than argument:
 
 - **Not the network path.** Moving the whole conversation onto an internal vSwitch — host to VM, no
@@ -127,9 +133,12 @@ Ruled out along the way, each by measurement rather than argument:
 - **The lost segment was a symptom.** The capture below is real, but a stack that is not being run for
   tens of seconds drops packets; the loss does not explain the pause, the pause explains the loss.
 
-What is left unexplained is the **~2000 ms median**, which did not move. Healthy reads of the same
-table take 55-90 ms, so the usual read is still 30x slower than the table can be served, with no third
-speed in between.
+The slow read speed is the router's per-field formatting, not client work. A raw Python API client,
+with no tik4net involved, reads the 1672-row mangle table in 4.1–5.1 s (2.5–3.0 ms per row). That is the
+same slope tik4net shows. Restricted with `.proplist=.id`, the same read takes 0.4 s, and with
+`.proplist=chain,action` 0.8–1.5 s. Rows arrive in batches: gaps are ~10 µs at the median, with pauses of
+20–80 ms at p99. Cost grows with the number of fields per row, so `.proplist`, which the O/R mapper
+already sends, is the lever a caller has.
 
 ### What the router's own byte counters do and do not say
 
