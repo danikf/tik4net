@@ -248,6 +248,8 @@ True when measured, not maintained. Re-measure rather than citing them.
 
 | Measured | What | Value |
 |---|---|---|
+| 2026-09-15/16 | 4.0.0-beta3 gating matrix on RouterOS 7.24.3 — see the table below | 10 of 11 transports green; `RestSsl` failed `ConcurrentCommandsTest` (and plain `Rest` in 2 of 3 reruns): .NET Framework pipelined requests onto a busy HTTP connection, which RouterOS never answers. Green on both REST legs after the fix |
+| 2026-09-15 | RouterOS 7.24.3 web server, raw sockets: 3 GETs pipelined on one keep-alive connection / 6 parallel connections × 20 sequential GETs | 1 of 3 answered, 10 of 10 rounds, on `www` and `www-ssl` alike / 240 of 240 answered with their own body |
 | 2026-09-11 | 4.0.0-beta3 gating matrix — see the table below | 0 failures on all eleven transports, on the 2-vCPU lab **with** the 1672 mangle rules in place |
 | 2026-09-11 | Sliced CLI read of `/ip firewall connection` under churn (~5000 rows turning over every 30 s; `ConntrackChurnPagedReadProbe`, Telnet, 100-row slices) | Without retry 6 of 20 reads complete — 1.4–2.4 % of slices answered only `interrupted`; with a slice retried, 20 of 20 (30 retries). Whole-table prints under the same churn: 12 of 12, every `#n=` exact |
 | 2026-09-11 | Large reads at 2 vCPUs (`MacLayerLargeReadProbe`): `/queue/tree` 681 rows (detail + stats) / `/ip firewall mangle` 1672 rows | Telnet 2.6 s / 3.6–3.7 s; SSH 2.6 s / 3.7 s; WinboxCli 2.7 s / 3.8 s, except 2 of 40 commands with 77 and 94 unanswered mepty pulls (10.3 s, 12.5 s); MacTelnet, sliced, 2.8–3.0 s / 7.2–7.4 s; WinboxCliMac, sliced, 3.8–3.9 s / 8.7–8.8 s |
@@ -259,6 +261,30 @@ True when measured, not maintained. Re-measure rather than citing them.
 | 2026-08-29 | `TransportPathMapAuditTest` against the binary API, transport `WinboxNative` | `OK=154 KNOWN-GAP=1 MISMATCH=0 VALUE-DIFF=0 VALUES-UNCOMPARED=1 UNMAPPED=0 ROUTER-N/A=7`; field-name shortfall 96/1342 (7%), and 105/1345 measured on the same fixtures one commit earlier |
 | 2026-07-26 | Full integration run, RouterOS 7.23.2, 390 tests | Api/ApiSsl ~5 min; Rest/RestSsl ~3 min; Telnet/Ssh ~7 min; MacTelnet ~13 min; WinboxNative ~5–8 min; WinboxCli ~7 min; WinboxCliMac ~1 h 20 min |
 | 2026-07-26 | Same-version reinstall of the MCP global tool | Verified to deliver new code: a marker in `Program.cs` changed the installed assembly hash |
+
+## Gating run for 4.0.0-beta3, 2026-09-15/16 — RouterOS 7.24.3, 563 tests
+
+The same lab as the 7.24.2 run below: 2 vCPUs, 1672 rules in `/ip firewall mangle`. The full matrix failed one
+test, `ConcurrentCommandsTest` on `RestSsl`; the REST rows are the rerun on the fix (`RestConnection` caps its
+in-flight requests and raises .NET Framework's per-host connection limit), the other nine the full run.
+Unit tests on the fix: 1133 on net8.0, 1129 on net48 (3 skipped).
+
+| Transport | Passed | Skipped | Failed | Wall clock |
+|---|---:|---:|---:|---:|
+| `Api` | 461 | 102 | 0 | 5.9 min |
+| `ApiSsl` | 461 | 102 | 0 | 4.8 min |
+| `Rest` | 447 | 116 | 0 | 4.8 min |
+| `RestSsl` | 447 | 116 | 0 | 5.0 min |
+| `WinboxNative` | 444 | 119 | 0 | 7.4 min |
+| `WinboxNativeMac` | 444 | 119 | 0 | 19.0 min |
+| `MacTelnet` | 458 | 105 | 0 | 11.4 min |
+| `Telnet` | 458 | 105 | 0 | 10.7 min |
+| `Ssh` | 457 | 106 | 0 | 9.7 min |
+| `WinboxCliMac` | 458 | 105 | 0 | 12.4 min |
+| `WinboxCli` | 458 | 105 | 0 | 11.5 min |
+
+Before the fix, `ConcurrentCommandsTest` failed on `RestSsl` in 5 of 5 runs and on `Rest` in 2 of 3, always after
+the 30 s receive timeout; with the per-host limit raised in the test process alone it passed 6 of 6.
 
 ## Gating run for 4.0.0-beta3, 2026-09-11 — RouterOS 7.24.2, 559 tests
 

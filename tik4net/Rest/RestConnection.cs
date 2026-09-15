@@ -67,9 +67,15 @@ namespace tik4net.Rest
     /// <para>
     /// <b>Thread safety.</b> One open connection may be used from several threads, and commands overlap
     /// with nothing to configure: each one is an independent HTTP request on the shared
-    /// <c>HttpClient</c>, so there is no channel to serialize and no reply that can reach the wrong
-    /// caller. This is the one transport that holds no command gate at all — it never takes
-    /// <see cref="TikCommandConnectionBase"/>'s command semaphore.
+    /// <c>HttpClient</c>, so there is no channel to serialize. It never takes
+    /// <see cref="TikCommandConnectionBase"/>'s command semaphore; up to eight requests are on the wire at once,
+    /// and a ninth waits for a slot within its own timeout.
+    /// </para>
+    /// <para>
+    /// That cap exists because <b>RouterOS answers only the first of several requests queued on one HTTP
+    /// connection</b> (<c>Docs/findings-rest-api.md</c> §1). On .NET Framework, where <c>HttpClientHandler</c>
+    /// runs on <c>HttpWebRequest</c>, a request beyond the per-host connection limit is pipelined onto a busy
+    /// connection, so this transport raises that limit for the router's address above the cap when it opens.
     /// </para>
     /// <para>
     /// <b>The limit here is the router, not the client.</b> RouterOS keeps a REST session busy for as
@@ -95,6 +101,14 @@ namespace tik4net.Rest
         private HttpClient? _httpClient;
         private string _baseUrl = null!;
         private string _authHeader = null!;
+
+        // At most this many requests are on the wire at once. RouterOS answers only the first of several requests
+        // queued on one HTTP connection (Docs/findings-rest-api.md §1), so a request must never wait on a busy
+        // connection: on .NET Framework HttpWebRequest allows two connections per host and pipelines everything
+        // beyond that. OpenInternalAsync raises that limit above this cap, and this gate keeps the requests below
+        // it. It also stays under the www service's default max-sessions (20).
+        private const int MaxConcurrentRequests = 8;
+        private readonly SemaphoreSlim _requestGate = new SemaphoreSlim(MaxConcurrentRequests, MaxConcurrentRequests);
 
         /// <inheritdoc/>
         protected override string DiagnosticPrefix => "REST";
@@ -164,6 +178,23 @@ namespace tik4net.Rest
             string scheme = _useSsl ? "https" : "http";
             _baseUrl = $"{scheme}://{host}:{port}/rest";
             _authHeader = "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes($"{user}:{password}"));
+
+#if NETSTANDARD2_0
+            // On .NET Framework HttpClientHandler runs on HttpWebRequest, whose per-host limit (2 by default) is what
+            // decides when a request is pipelined onto a busy connection. Twice the request cap leaves a spare
+            // connection for a request whose predecessor has not yet handed its connection back. Nothing reads the
+            // limit on .NET Core, and net8.0 builds SocketsHttpHandler, which never pipelines.
+            try
+            {
+                var servicePoint = System.Net.ServicePointManager.FindServicePoint(new Uri(_baseUrl));
+                if (servicePoint.ConnectionLimit < 2 * MaxConcurrentRequests)
+                    servicePoint.ConnectionLimit = 2 * MaxConcurrentRequests;
+            }
+            catch (PlatformNotSupportedException)
+            {
+                // A runtime without ServicePointManager has no HttpWebRequest underneath either.
+            }
+#endif
 
             var handler = new HttpClientHandler();
             if (_useSsl)
@@ -493,8 +524,13 @@ namespace tik4net.Rest
             using (var timeoutCts = new CancellationTokenSource(timeoutMs > 0 ? timeoutMs : System.Threading.Timeout.Infinite))
             using (var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token))
             {
+                bool gateEntered = false;
                 try
                 {
+                    // Inside the try, so a request that times out or is cancelled while waiting for a slot reports
+                    // exactly as one that ran out of time on the wire.
+                    await _requestGate.WaitAsync(linked.Token).ConfigureAwait(false);
+                    gateEntered = true;
                     // HttpCompletionOption.ResponseContentRead (the default) — the body is read inside this
                     // call, so it is covered by the timeout and the token, and the ReadAsStringAsync the caller
                     // does afterwards only reads the buffer these token sources are no longer needed for.
@@ -520,6 +556,12 @@ namespace tik4net.Rest
                     // time is a configuration problem the caller has to be able to see (see ITikCommandAsync's
                     // remarks). The token tells them apart.
                     throw new TikConnectionReceiveTimeoutException(timeoutMs, ex);
+                }
+                finally
+                {
+                    // ResponseContentRead: the body is already buffered, so the connection is free again here.
+                    if (gateEntered)
+                        _requestGate.Release();
                 }
             }
 

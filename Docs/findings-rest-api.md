@@ -28,6 +28,14 @@ only, not independently verified) — a statement about evidence quality, not ab
 - 📄 **Content-Type must be exactly `application/json`** (without `; charset=utf-8`) on some ROS
   versions — a strict string match there returns **HTTP 415**. `RestConnection` sends
   `application/json` without a charset to stay on the safe side.
+- ✅ **The router answers only the first of several requests queued on one HTTP connection** (7.24.3,
+  `www` and `www-ssl` alike). Three GETs written back-to-back on one keep-alive connection get one
+  response — to whichever was first — and the other two are never answered; the connection stays open
+  and nothing on the wire says so. Separate connections overlap correctly: six in parallel, 20 sequential
+  requests each, 240 of 240 answered with their own body. So a client must never pipeline. `.NET
+  Framework`'s `HttpWebRequest` does, as soon as a host's connection limit (2 by default) is reached;
+  `RestConnection` raises that limit and caps its in-flight requests below it. The probe is raw sockets,
+  independent of the library.
 
 ---
 
