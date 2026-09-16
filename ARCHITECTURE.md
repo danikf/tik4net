@@ -273,8 +273,9 @@ next.
 
 `ConnectionFactory.RegisterConnectionFactory` is **not** how a new transport plugs in, though it reads that
 way. It is keyed by `TikConnectionType`, a closed enum whose every value but `Ssh` is built into
-`TikConnectionRegistry` and answered before the registered factories are consulted — so the one slot a
-registration can fill is `Ssh`, which is exactly what `tik4net.ssh` does. That satellite is a friend
+`TikConnectionRegistry` — so the one slot a registration can fill is `Ssh`, which is exactly what
+`tik4net.ssh` does, and registering a built-in or undeclared value throws `ArgumentException`. Both
+`Create` and `Register` read the same built-in list, so the refusal cannot drift from what `Create` answers. That satellite is a friend
 assembly for *other* reasons (it reuses the internal CLI/PTY helpers), not because the hooks require it.
 
 `TikGenericCommand` cannot call a `protected` member from another class, so the base carries one internal

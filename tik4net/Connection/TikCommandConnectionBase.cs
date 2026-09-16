@@ -32,8 +32,8 @@ namespace tik4net.Connection
     /// declare what it can do in <see cref="Capabilities"/>, create it with <c>new</c> and configure it with
     /// <see cref="TikConnectionSetup.ApplyTo"/> before opening it. (Not through
     /// <see cref="ConnectionFactory.RegisterConnectionFactory"/>: that is keyed by the closed
-    /// <see cref="TikConnectionType"/> enum and can only fill the <c>Ssh</c> slot, which is what the
-    /// <c>tik4net.ssh</c> package does.) The <c>Run*Async</c> siblings are optional: their defaults throw rather
+    /// <see cref="TikConnectionType"/> enum and refuses every value but <c>Ssh</c>, the slot the
+    /// <c>tik4net.ssh</c> package fills.) The <c>Run*Async</c> siblings are optional: their defaults throw rather
     /// than wrapping the synchronous hook in a <c>Task.Run</c> façade, so a transport that cannot genuinely
     /// await its I/O simply does not declare
     /// <see cref="TikConnectionCapability.AsyncCommands"/>. Only <see cref="ITikRawSentenceConnection"/> is
