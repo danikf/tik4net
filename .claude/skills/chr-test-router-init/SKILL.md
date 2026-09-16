@@ -290,7 +290,7 @@ Api  ApiSsl  Rest  RestSsl  Telnet  Ssh  MacTelnet  WinboxCli  WinboxCliMac  Win
 
 The claim lives in **two** places, and they must agree with the live router:
 
-- [`README.md`](../../../README.md) — "Tested and debugged against **RouterOS x.y.z** (latest stable)."
+- [`README.md`](../../../README.md) — "Tested and debugged against **RouterOS x.y.z**." (no "latest stable": MikroTik ships point releases faster than we re-run the matrix)
 - The wiki's `Home.md` intro paragraph — the same sentence.
 
 The wiki is a **separate git clone kept outside this repository**; ask the user for its local path if

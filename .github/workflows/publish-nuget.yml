@@ -120,13 +120,13 @@ jobs:
             **9 new connection types** — all implement the same `ITikConnection` / `LoadAll<T>()` / `Save<T>()` interface:
             | Type | Transport | Port | Notes |
             |---|---|---|---|
-            | `Rest` / `RestSsl` | HTTP/HTTPS | 80/443 | RouterOS 7.1+, CRUD only |
+            | `Rest` / `RestSsl` | HTTP/HTTPS | 80/443 | RouterOS 7.1+; no streaming, no Safe Mode |
             | `Telnet` | TCP | 23 | plain-text terminal |
             | `MacTelnet` | UDP broadcast | 20561 | Layer-2, no IP needed |
             | `WinboxCli` | TCP | 8291 | WinBox terminal over TCP |
             | `WinboxCliMac` | UDP | 20561 | WinBox terminal over MAC |
-            | `WinboxNative` | TCP | 8291 | native M2 binary protocol, full CRUD + streaming |
-            | `WinboxNativeMac` | UDP | 20561 | native M2 over MAC |
+            | `WinboxNative` | TCP | 8291 | native M2 binary protocol, CRUD — **experimental** |
+            | `WinboxNativeMac` | UDP | 20561 | native M2 over MAC — **experimental** |
             | `Ssh` *(satellite)* | TCP | 22 | requires `tik4net.ssh` NuGet |
 
             **Other additions:**
@@ -134,7 +134,7 @@ jobs:
             - **Async everywhere** — async CRUD on the O/R mapper, an async surface on every transport, and a cancel that actually cancels
             - **Streaming reads as `IAsyncEnumerable<ITikReSentence>`** (net8.0) — `await foreach` over a live monitor
             - **Change tracking** — the O/R mapper tracks which properties changed; `Save<T>()` sends only the diff
-            - **Safe Mode** — `SafeModeTake()` / `SafeModeRelease()` / `SafeModeUnroll()` across all transports; auto-rollback on disconnect
+            - **Safe Mode** — `SafeModeTake()` / `SafeModeRelease()` / `SafeModeUnroll()` on every transport except REST; auto-rollback on disconnect
             - **`TikConnectionSetup`** — the single entry point; every option is applied in one place, and a transport declares what it can honour by implementing `ITikTlsConnection` / `ITikMacLayerConnection` / `ITikCancellationModeConnection`
             - **Connection capability model** — `connection.Supports(TikConnectionCapability.Listen)` etc.
             - **Raw command pass-through** — `connection.CreateRawCommand(raw)` for commands outside the O/R mapper
@@ -161,6 +161,7 @@ jobs:
             - **SSH is a satellite package** — add `tik4net.ssh` and call `Tik4NetSsh.Register()` at startup
             - **`TikConnectionType.Api_v2` / `ApiSsl_v2` are gone** — they were `[Obsolete(error)]` in 3.6
             - **Three `Interface` properties are read-only** (`Type`, `MacAddress`, `FastPath`) — `/interface set` does not accept them; `L2Mtu` was added, which it does
+            - **`InterfaceBridge` no longer seeds router defaults in its constructor**, and `TransmitHoldCount` is `int?` — the entity now maps the whole RouterOS 7 bridge
 
             ### NuGet packages
             | Package | Install |
