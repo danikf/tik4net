@@ -148,6 +148,23 @@ namespace tik4net.unittests.Cli
             Assert.AreEqual("5000", N("burst-limit", "5000"));
         }
 
+        /// <summary>
+        /// as-value prints <c>icmp-rate-mask</c> in decimal where the API prints <c>0x</c> and upper-case
+        /// digits with no padding. Bridge <c>priority</c> comes out of as-value in hex already.
+        /// </summary>
+        [TestMethod]
+        public void SpellsTheHexFieldsInBaseSixteen()
+        {
+            Assert.AreEqual("0x1818", N("icmp-rate-mask", "6168"));
+            Assert.AreEqual("0x19", N("icmp-rate-mask", "25"));
+            Assert.AreEqual("0x1AB", N("icmp-rate-mask", "427"));
+            Assert.AreEqual("0x0", N("icmp-rate-mask", "0"));
+            // Already in the API's spelling, and on a field not in the table, the value is left alone.
+            Assert.AreEqual("0x1818", N("icmp-rate-mask", "0x1818"));
+            Assert.AreEqual("0x7000", N("priority", "0x7000"));
+            Assert.AreEqual("6168", N("icmp-rate-limit", "6168"));
+        }
+
         /// <summary>Seconds east of UTC, which the API prints as a signed clock offset.</summary>
         [TestMethod]
         public void RendersGmtOffsetAsASignedClock()
@@ -202,6 +219,8 @@ namespace tik4net.unittests.Cli
             Assert.AreEqual("15s", J("timeout", "1970-01-01 00:00:15"));
             Assert.AreEqual("0s", J("interval", "1970-01-01 00:00:00"));
             Assert.AreEqual("1w2d3h4m5s", J("ttl", "1970-01-10 03:04:05"));
+            // /ip/hotspot/user/profile is read as JSON for its on-login script
+            Assert.AreEqual("3d", J("mac-cookie-timeout", "1970-01-04 00:00:00"));
         }
 
         /// <summary>
