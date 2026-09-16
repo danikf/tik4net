@@ -2,7 +2,8 @@ name: Build
 
 on:
   push:
-    branches: [ master ]
+    # master and the release-train branches (3.6, 4.0, …): a fix on a servicing branch is built and tested too.
+    branches: [ master, '[0-9]+.[0-9]+' ]
   pull_request:
   workflow_dispatch:
 

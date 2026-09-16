@@ -137,6 +137,12 @@ companion test fails when such a marker is no longer needed. The `wiki-cleanup` 
 This project commits straight to `master` — no feature branches. When incorporating a PR, preserve
 the original author (prefer `gh pr merge`; otherwise add a `Co-Authored-By` trailer).
 
+Released versions are serviced on **release-train branches** named `<major>.<minor>` (`3.6`, `4.0`), cut
+from `master` at the release. `master` carries the next version. A fix for a shipped version lands on
+`master` first and is cherry-picked onto the train (`git cherry-pick -x`); a patch release is a
+`v<major>.<minor>.<patch>` tag on the train, which the publish workflow picks up like any other tag.
+Bump `VersionPrefix` on the train for a patch, and on `master` when it starts the next minor.
+
 ### High-risk areas — do not refactor opportunistically
 
 `Crypto/` (EC-SRP5, WinBox stream cipher), `WinboxNative*/`, `MacTelnet/`, and `ApiConnection`'s
