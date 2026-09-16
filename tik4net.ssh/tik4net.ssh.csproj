@@ -15,6 +15,7 @@
     <RepositoryType>git</RepositoryType>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>tik4net-icon.png</PackageIcon>
     <PackageOutputPath>../Build</PackageOutputPath>
   </PropertyGroup>
 
@@ -26,6 +27,7 @@
   <ItemGroup>
     <None Include="../LICENSE" Pack="true" PackagePath="\" />
     <None Include="../README.md" Pack="true" PackagePath="\" />
+    <None Include="../Assets/tik4net-icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>
