@@ -77,8 +77,8 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("no")] No,
             /// <summary>yes — IPSec is offered but not required.</summary>
             [TikEnum("yes")] Yes,
-            /// <summary>require — only IPSec-wrapped connections are accepted.</summary>
-            [TikEnum("require")] Require,
+            /// <summary>required — only IPSec-wrapped connections are accepted.</summary>
+            [TikEnum("required")] Require,
         }
 
         // ---- Writable properties ----

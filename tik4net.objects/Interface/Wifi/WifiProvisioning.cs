@@ -42,6 +42,9 @@ namespace tik4net.Objects.Interface.Wifi
             /// CAP disconnects.
             /// </summary>
             [TikEnum("create-dynamic-enabled")] CreateDynamicEnabled,
+            /// <summary>use-network-config — Take the configuration from the matching
+            /// <c>/interface/wifi/configuration</c> network entry instead of creating one.</summary>
+            [TikEnum("use-network-config")] UseNetworkConfig,
 
             /// <summary>
             /// create-enabled — create a static enabled interface using the master

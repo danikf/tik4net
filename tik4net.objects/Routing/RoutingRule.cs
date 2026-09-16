@@ -23,6 +23,8 @@ namespace tik4net.Objects.Routing
             [TikEnum("drop")] Drop,
             /// <summary>unreachable — reply with ICMP unreachable and drop the packet.</summary>
             [TikEnum("unreachable")] Unreachable,
+            /// <summary>mangle — Rewrite the packet's routing mark / table and continue.</summary>
+            [TikEnum("mangle")] Mangle,
         }
 
         /// <summary>.id — primary key of row</summary>

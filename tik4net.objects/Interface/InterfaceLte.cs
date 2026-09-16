@@ -88,6 +88,10 @@ namespace tik4net.Objects.Interface
             [TikEnum("3gpp")] ThreeGpp,
             /// <summary>3gpp2 — 3GPP2 (CDMA) SMS protocol.</summary>
             [TikEnum("3gpp2")] ThreeGpp2,
+            /// <summary>at — SMS over the modem's AT command set.</summary>
+            [TikEnum("at")] At,
+            /// <summary>mbim — SMS over MBIM.</summary>
+            [TikEnum("mbim")] Mbim,
         }
 
         /// <summary>sms-protocol — SMS signaling protocol. Default: auto.</summary>

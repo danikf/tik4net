@@ -73,5 +73,7 @@ namespace tik4net.Objects.Ip.Hotspot
 
         /// <summary>drop — silently discard the matched traffic.</summary>
         [TikEnum("drop")] Drop,
+        /// <summary>reject — Deny access and answer with an ICMP reject, rather than silently dropping.</summary>
+        [TikEnum("reject")] Reject,
     }
 }

@@ -81,6 +81,10 @@ namespace tik4net.Objects.Ip.Proxy
 
         /// <summary>deny — block the matched request (optionally redirect via <see cref="IpProxyAccess.ActionData"/>).</summary>
         [TikEnum("deny")] Deny,
+        /// <summary>redirect — Redirect the request to the URL in <c>redirect-to</c>.</summary>
+        [TikEnum("redirect")] Redirect,
+        /// <summary>url-append — Append <c>redirect-to</c> to the requested URL.</summary>
+        [TikEnum("url-append")] UrlAppend,
     }
 
     /// <summary>HTTP method filter for <see cref="IpProxyAccess.Method"/>.</summary>

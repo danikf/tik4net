@@ -21,6 +21,8 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("sha256")] Sha256,
             /// <summary>sha512 — SHA-512 (strongest, highest CPU cost).</summary>
             [TikEnum("sha512")] Sha512,
+            /// <summary>sha384 — SHA-384.</summary>
+            [TikEnum("sha384")] Sha384,
         }
 
         /// <summary>Proposal-check modes controlling how Phase 2 lifetime proposals are validated.</summary>

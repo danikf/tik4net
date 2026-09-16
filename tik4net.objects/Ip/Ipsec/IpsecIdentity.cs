@@ -65,6 +65,8 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("user-fqdn")] UserFqdn,
             /// <summary>key-id — send an opaque key identifier as the identity.</summary>
             [TikEnum("key-id")] KeyId,
+            /// <summary>dn — The distinguished name of the local certificate.</summary>
+            [TikEnum("dn")] Dn,
         }
 
         /// <summary>The expected identity type received from the remote peer during IKE negotiation.</summary>

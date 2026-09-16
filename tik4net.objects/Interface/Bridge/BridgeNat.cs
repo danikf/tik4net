@@ -70,9 +70,9 @@ namespace tik4net.Objects.Interface.Bridge
             Log,
 
             /// <summary>
-            /// mark - mark the packet to use the mark later
+            /// mark-packet - mark the packet to use the mark later
             /// </summary>
-            [TikEnum("mark")]
+            [TikEnum("mark-packet")]
             Mark,
 
             /// <summary>

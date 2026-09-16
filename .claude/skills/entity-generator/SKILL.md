@@ -235,6 +235,19 @@ public enum ArpMode
 public ArpMode Arp { get; set; }
 ```
 
+**Take the member list from the router, not from the wiki, and add it to the vocabulary table.** A value the
+enum does not know is not a missing property: the parse throws and the mapper fails the read of the **whole**
+menu, so one unknown value makes the entity unusable for everyone whose router uses it. Ask
+`mikrotik_cli_complete("<menu> add <field>=")` — completion lists what the menu ACCEPTS, while reading rows
+only ever shows what the lab happens to use — then add a row to `EntityEnumVocabularyTests` in
+`tik4net.unittests`, which fails when a new enum property has no measured list. `EnumVocabularySweepProbe`
+(integration, `[Ignore]`d) re-measures every enum at once on a new RouterOS and prints the table.
+
+Three answers completion gives that are not vocabulary: where every value shares a prefix it completes
+inline and lists nothing (re-ask with the prefix, and skip that prefix in the echo rather than prepending
+it); a long list is elided as `stem-...` (ask for the stem); and what a menu **accepts** is not what it
+**sends** — `/interface/pppoe-client` takes `yes`/`no` and reads back `true`/`false`.
+
 ### The add-path `DefaultValue` rule (critical — get this right or `Add` tests fail)
 
 On **create** (`/add`), the mapper sends a field only when its current **wire value ≠ the property's

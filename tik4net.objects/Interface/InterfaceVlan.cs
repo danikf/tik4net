@@ -69,7 +69,14 @@ namespace tik4net.Objects.Interface
             /// reply-only - the interface will only reply to requests originated from matching IP address/MAC address combinations which are entered as static entries in the "/ip arp" table. No dynamic entries will be automatically stored in the "/ip arp" table. Therefore for communications to be successful, a valid static entry must already exist.
             /// </summary>
             [TikEnum("reply-only")]
-            ReplyOnly
+            ReplyOnly,
+            /// <summary>
+            /// local-proxy-arp - the interface performs proxy ARP and answers back out of the same
+            /// interface, so hosts on one segment that cannot reach each other directly (client
+            /// isolation) still resolve each other through the router.
+            /// </summary>
+            [TikEnum("local-proxy-arp")]
+            LocalProxyArp,
         }
 
         /// <summary>

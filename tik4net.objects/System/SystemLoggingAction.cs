@@ -27,6 +27,8 @@ namespace tik4net.Objects.System
             [TikEnum("remote")] Remote,
             /// <summary>Send log entries via e-mail.</summary>
             [TikEnum("email")] Email,
+            /// <summary>script — Run the script named by the action for each matching message.</summary>
+            [TikEnum("script")] Script,
         }
 
         /// <summary>Transport protocol used when target is <see cref="LoggingTarget.Remote"/>.</summary>

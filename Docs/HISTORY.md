@@ -248,6 +248,7 @@ True when measured, not maintained. Re-measure rather than citing them.
 
 | Measured | What | Value |
 |---|---|---|
+| 2026-09-16 | Enum vocabulary sweep: all 161 enum-typed `[TikProperty]` fields over 69 menus, Tab-completed on RouterOS 7.24.3 | 14 menus accepted a value no entity could read (4x `arp=local-proxy-arp`, `bridge/nat action=mark-packet`, `l2tp-server use-ipsec=required`, `my-id=dn`, `hash-algorithm=sha384`, proxy `redirect`/`url-append`, walled-garden `reject`, `routing/rule action=mangle`, logging `target=script`, `leds interface-speed-2.5G`, wifi provisioning `use-network-config`, lte `sms-protocol at`/`mbim`); 8 fields not measurable by completion |
 | 2026-09-15/16 | 4.0.0-beta3 gating matrix on RouterOS 7.24.3 — see the table below | 10 of 11 transports green; `RestSsl` failed `ConcurrentCommandsTest` (and plain `Rest` in 2 of 3 reruns): .NET Framework pipelined requests onto a busy HTTP connection, which RouterOS never answers. Green on both REST legs after the fix |
 | 2026-09-15 | RouterOS 7.24.3 web server, raw sockets: 3 GETs pipelined on one keep-alive connection / 6 parallel connections × 20 sequential GETs | 1 of 3 answered, 10 of 10 rounds, on `www` and `www-ssl` alike / 240 of 240 answered with their own body |
 | 2026-09-11 | 4.0.0-beta3 gating matrix — see the table below | 0 failures on all eleven transports, on the 2-vCPU lab **with** the 1672 mangle rules in place |

@@ -51,6 +51,8 @@ namespace tik4net.Objects.System
             [TikEnum("interface-speed")] InterfaceSpeed,
             /// <summary>interface-speed-1G — LED lights when the interface is running at 1 Gbps.</summary>
             [TikEnum("interface-speed-1G")] InterfaceSpeed1G,
+            /// <summary>interface-speed-2.5G — LED lights when the interface is running at 2.5 Gbps.</summary>
+            [TikEnum("interface-speed-2.5G")] InterfaceSpeed2_5G,
             /// <summary>interface-speed-25G — LED lights when the interface is running at 25 Gbps.</summary>
             [TikEnum("interface-speed-25G")] InterfaceSpeed25G,
             /// <summary>interface-speed-100G — LED lights when the interface is running at 100 Gbps.</summary>

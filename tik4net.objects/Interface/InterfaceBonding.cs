@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -101,6 +101,9 @@ namespace tik4net.Objects.Interface
             [TikEnum("proxy-arp")] ProxyArp,
             /// <summary>reply-only — Interface will only reply to requests matching static ARP entries.</summary>
             [TikEnum("reply-only")] ReplyOnly,
+            /// <summary>local-proxy-arp — Interface performs proxy ARP and answers back out of
+            /// the same interface, so hosts that cannot reach each other directly still resolve.</summary>
+            [TikEnum("local-proxy-arp")] LocalProxyArp,
         }
 
         /// <summary>arp — Address Resolution Protocol setting. Default: enabled.</summary>

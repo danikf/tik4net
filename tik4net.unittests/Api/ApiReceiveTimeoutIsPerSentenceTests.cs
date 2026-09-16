@@ -35,9 +35,13 @@ namespace tik4net.unittests.Api
         [TestMethod]
         public void ASlowStreamOutlastingTheTimeoutManyTimesOverStillSucceeds()
         {
-            const int receiveTimeoutMs = 400;
-            const int rows = 12;
-            const int gapMs = 150;      // comfortably inside the budget, but 12 x 150 ms is 4.5x the budget
+            // The margins are what make this test honest AND stable. Each gap must sit far enough
+            // inside the budget that a loaded machine cannot push Thread.Sleep past it (7.5x here),
+            // while the rows together must outlast the budget several times over (2.8x). At 400 ms /
+            // 150 ms the first margin was only 2.7x, and the test failed on a busy build agent.
+            const int receiveTimeoutMs = 1500;
+            const int rows = 20;
+            const int gapMs = 200;      // 20 x 200 ms = 4.0 s, 2.8x the budget
 
             using (var server = new FakeRouterServer())
             {
