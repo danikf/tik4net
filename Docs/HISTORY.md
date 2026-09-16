@@ -249,6 +249,7 @@ True when measured, not maintained. Re-measure rather than citing them.
 | Measured | What | Value |
 |---|---|---|
 | 2026-09-16 | Enum vocabulary sweep: all 161 enum-typed `[TikProperty]` fields over 69 menus, Tab-completed on RouterOS 7.24.3 | 14 menus accepted a value no entity could read (4x `arp=local-proxy-arp`, `bridge/nat action=mark-packet`, `l2tp-server use-ipsec=required`, `my-id=dn`, `hash-algorithm=sha384`, proxy `redirect`/`url-append`, walled-garden `reject`, `routing/rule action=mangle`, logging `target=script`, `leds interface-speed-2.5G`, wifi provisioning `use-network-config`, lte `sms-protocol at`/`mbim`); 8 fields not measurable by completion |
+| 2026-09-16 | 4.0.0-beta4 full matrix on RouterOS 7.24.3 — see the table below | 0 failures on all eleven transports, 1672 mangle rules in place |
 | 2026-09-15/16 | 4.0.0-beta3 gating matrix on RouterOS 7.24.3 — see the table below | 10 of 11 transports green; `RestSsl` failed `ConcurrentCommandsTest` (and plain `Rest` in 2 of 3 reruns): .NET Framework pipelined requests onto a busy HTTP connection, which RouterOS never answers. Green on both REST legs after the fix |
 | 2026-09-15 | RouterOS 7.24.3 web server, raw sockets: 3 GETs pipelined on one keep-alive connection / 6 parallel connections × 20 sequential GETs | 1 of 3 answered, 10 of 10 rounds, on `www` and `www-ssl` alike / 240 of 240 answered with their own body |
 | 2026-09-11 | 4.0.0-beta3 gating matrix — see the table below | 0 failures on all eleven transports, on the 2-vCPU lab **with** the 1672 mangle rules in place |
@@ -262,6 +263,29 @@ True when measured, not maintained. Re-measure rather than citing them.
 | 2026-08-29 | `TransportPathMapAuditTest` against the binary API, transport `WinboxNative` | `OK=154 KNOWN-GAP=1 MISMATCH=0 VALUE-DIFF=0 VALUES-UNCOMPARED=1 UNMAPPED=0 ROUTER-N/A=7`; field-name shortfall 96/1342 (7%), and 105/1345 measured on the same fixtures one commit earlier |
 | 2026-07-26 | Full integration run, RouterOS 7.23.2, 390 tests | Api/ApiSsl ~5 min; Rest/RestSsl ~3 min; Telnet/Ssh ~7 min; MacTelnet ~13 min; WinboxNative ~5–8 min; WinboxCli ~7 min; WinboxCliMac ~1 h 20 min |
 | 2026-07-26 | Same-version reinstall of the MCP global tool | Verified to deliver new code: a marker in `Program.cs` changed the installed assembly hash |
+
+## Full matrix for 4.0.0-beta4, 2026-09-16 — RouterOS 7.24.3, 565 tests
+
+Run after the beta4 tag, on the same 2-vCPU lab with 1672 rules in `/ip firewall mangle`. Against beta3 every
+transport has one more pass (`TheRouterOs7BridgeFieldsCanBeWrittenAndReadBack`) and one more skip
+(`EnumVocabularySweepProbe`, `[Ignore]`d). Unit tests: 1145 on net8.0, 1141 on net48 (3 skipped). No residue
+on the router afterwards.
+
+| Transport | Passed | Skipped | Failed | Wall clock |
+|---|---:|---:|---:|---:|
+| `Api` | 462 | 103 | 0 | 3.7 min |
+| `ApiSsl` | 462 | 103 | 0 | 3.5 min |
+| `Rest` | 448 | 117 | 0 | 3.7 min |
+| `RestSsl` | 448 | 117 | 0 | 3.8 min |
+| `WinboxNative` | 445 | 120 | 0 | 4.8 min |
+| `WinboxNativeMac` | 445 | 120 | 0 | 7.7 min |
+| `MacTelnet` | 459 | 106 | 0 | 8.1 min |
+| `Telnet` | 459 | 106 | 0 | 8.4 min |
+| `Ssh` | 458 | 107 | 0 | 7.9 min |
+| `WinboxCliMac` | 459 | 106 | 0 | 9.0 min |
+| `WinboxCli` | 459 | 106 | 0 | 9.4 min |
+
+The wall clocks are 20–60 % shorter than beta3's with the same rule count; not investigated.
 
 ## Gating run for 4.0.0-beta3, 2026-09-15/16 — RouterOS 7.24.3, 563 tests
 
