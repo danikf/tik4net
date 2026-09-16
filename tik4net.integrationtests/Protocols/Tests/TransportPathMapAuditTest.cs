@@ -343,6 +343,25 @@ namespace tik4net.integrationtests
         }
 
         /// <summary>
+        /// Whether two values are both a clock TIME (<c>HH:MM:SS</c>) and at most a few seconds apart — the
+        /// gap between the audit's two reads of a running clock, not a decode difference.
+        /// </summary>
+        /// <remarks>
+        /// <c>/system/clock</c> <c>time</c> is writable, so <see cref="IsVolatile"/> compares it, and it still
+        /// ticks: over a MAC transport the two reads land a second apart. A tolerance rather than an excuse,
+        /// so a CLI read that spells the time as a duration (<c>1h54s</c>) still fails.
+        /// </remarks>
+        private static bool AreTheSameTickingClock(string apiValue, string probeValue)
+        {
+            const string clock = @"hh\:mm\:ss";
+            if (!TimeSpan.TryParseExact(apiValue ?? "", clock, System.Globalization.CultureInfo.InvariantCulture, out var a)
+                || !TimeSpan.TryParseExact(probeValue ?? "", clock, System.Globalization.CultureInfo.InvariantCulture, out var p))
+                return false;
+            double gap = Math.Abs((p - a).TotalSeconds);
+            return Math.Min(gap, 86400 - gap) <= 5;   // across midnight too
+        }
+
+        /// <summary>
         /// The individual FIELDS whose values the two transports are not required to agree on, with the
         /// reason for each. Everything else is compared.
         /// </summary>
@@ -463,7 +482,8 @@ namespace tik4net.integrationtests
                     // comparing itself.
                     if (f.Key == ".id" || f.Key == ".tag" || IsVolatile(path, f.Key)) continue;
                     if (!probeRow.TryGetValue(f.Key, out string probeValue)) continue;
-                    bool agrees = string.Equals(f.Value ?? "", probeValue ?? "", StringComparison.OrdinalIgnoreCase);
+                    bool agrees = string.Equals(f.Value ?? "", probeValue ?? "", StringComparison.OrdinalIgnoreCase)
+                               || AreTheSameTickingClock(f.Value, probeValue);
                     if (excused != null && excused.ContainsKey(f.Key))
                     {
                         (agrees ? agreeing : disagreeing).Add(f.Key);

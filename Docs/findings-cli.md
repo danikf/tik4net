@@ -186,16 +186,17 @@ translates it into the `detail` modifier.
 ### `as-value` spells values the router's way, not the API's
 
 `print` and the binary API render a field for a reader; `as-value` renders it for a script, and the two
-disagree on four kinds of value. Measured across the 154 audited paths on 7.24:
+disagree on five kinds of value. Measured across the audited paths on 7.24.4:
 
 | | `print` / API | `as-value` |
 |---|---|---|
 | durations | `15s`, `1w`, `5m`, `100ms` | `00:00:15`, `1w00:00:00`, `00:05:00`, `00:00:00.100` |
 | a zero spelled as a word | `mtu=auto`, `mrru=disabled`, `max-sessions=unlimited`, `dscp=inherit` | `0`, `0`, `0`, `256` |
 | scaled fixed-point | `bucket-size=0.1`, `freq-drift=-40.955`, `gmt-offset=+02:00` | `100`, `-40955`, `7200` |
+| a number the API prints in base 16 | `icmp-rate-mask=0x1818`, `0x1AB` | `6168`, `427` |
 | an IPv4 address in an IPv6 slot | `local=192.168.88.236` | `::ffff:192.168.88.236` |
 
-`CliValueNormalizer` re-spells the durations, which is the only one of the four identifiable from the
+`CliValueNormalizer` re-spells all five. The durations are the only one of them identifiable from the
 value: the others depend on which field the value belongs to. Two fields' `HH:MM:SS` is a clock TIME and
 not a duration — `/system/clock` `time` and `/system/scheduler` `start-time`, and that is the whole list.
 
@@ -277,6 +278,12 @@ cannot be *set* to 0 at all (range 1500..16384), which is what makes 0 unambiguo
 `freq-drift` the same way — a scale on every value, not a sentinel. `/system/clock`'s `gmt-offset` is
 seconds east of UTC where the API prints a signed clock offset: `7200` → `+02:00`.
 
+### One field as-value gives in decimal
+
+`/ip/settings` `icmp-rate-mask` reads `0x1AB` over the API and REST — `0x`, upper-case digits, no padding —
+and `427` from as-value. It is a property of the field, not of hex values in general: bridge
+`priority=0x7000` comes out of as-value already in hex.
+
 ### `:serialize to=json` fixes the framing and changes the values
 
 The JSON read is what a free-text field needs (see the section below), and it is not a drop-in
@@ -286,6 +293,7 @@ replacement for `as-value` — the same record comes back spelled differently. M
 |---|---|---|
 | `ttl=1d` | `1d00:00:00` | `"1970-01-02 00:00:00"` |
 | `ttl=52w1d` | `52w1d00:00:00` | `"1971-01-01 00:00:00"` |
+| `mac-cookie-timeout=3d` | `3d00:00:00` | `"1970-01-04 00:00:00"` |
 | `arp-interval=100ms` | `00:00:00.100` | `"00:00:00"` |
 | `mtu`, `gmt-offset` | `1500`, `7200` | `1500`, `7200` (JSON numbers) |
 

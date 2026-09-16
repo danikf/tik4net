@@ -78,6 +78,17 @@ namespace tik4net.Cli
         private static readonly string[] ThousandthsFields = { "bucket-size", "freq-drift" };
 
         /// <summary>
+        /// Fields as-value renders in decimal where the API prints them in base 16.
+        /// </summary>
+        /// <remarks>
+        /// <c>icmp-rate-mask=0x1AB</c> reads <c>427</c> from as-value and <c>0x1AB</c> over the API and REST:
+        /// <c>0x</c>, upper-case digits, no padding (<c>0x19</c>, <c>0x1818</c>). Not every hex field does
+        /// this — bridge <c>priority=0x7000</c> comes out of as-value already in hex — so the table holds only
+        /// the fields measured to.
+        /// </remarks>
+        private static readonly string[] HexFields = { "icmp-rate-mask" };
+
+        /// <summary>
         /// Duration fields whose ZERO the API spells <c>0ms</c> rather than <c>0s</c>.
         /// </summary>
         /// <remarks>
@@ -100,7 +111,7 @@ namespace tik4net.Cli
         /// field shows up in the transport audit as a difference; an unlisted TIMESTAMP silently becomes a
         /// nonsense duration, so the list only ever grows on evidence.
         /// </remarks>
-        private static readonly string[] JsonEpochDurationFields = { "ttl", "interval", "timeout" };
+        private static readonly string[] JsonEpochDurationFields = { "ttl", "interval", "timeout", "mac-cookie-timeout" };
 
         /// <summary>
         /// The value <paramref name="field"/> should carry, given what the CLI read put in it.
@@ -126,6 +137,10 @@ namespace tik4net.Cli
 
             if (Contains(ThousandthsFields, field) && TryScaleDownByThousand(value, out string? scaled))
                 return scaled!;
+
+            if (Contains(HexFields, field)
+                && ulong.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out ulong hex))
+                return "0x" + hex.ToString("X", CultureInfo.InvariantCulture);
 
             // Seconds east of UTC, which the API prints as a signed clock offset. Not shaped like anything
             // else here: "7200" is just a number until you know which field it came from.

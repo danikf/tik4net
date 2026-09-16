@@ -473,13 +473,14 @@ gives the documented one:
 | durations | `15s`, `1w`, `1d`, `5m` | `00:00:15`, `1w00:00:00`, `1d00:00:00`, `00:05:00` | **closed** |
 | a number the API prints as a word | `mtu=auto`, `ttl=auto`, `horizon=none`, `mrru=disabled`, `max-sessions=unlimited`, `dscp=inherit` | `0`, `0`, `0`, `0`, `0`, `256` | **closed** |
 | scaled fixed-point | `bucket-size=5`, `freq-drift=-47.516`, `gmt-offset=+02:00` | `5000`, `-47516`, `7200` | **closed** |
+| base 16 | `icmp-rate-mask=0x1818` | `6168` | **closed** |
 | IPv4 in an IPv6 slot | `local=192.168.88.236` | `::ffff:192.168.88.236` | **closed** |
 
-All four are handled by `CliValueNormalizer`, in two different ways. A **duration** and an **IPv4-mapped
-IPv6 address** say what they are, so they are recognised by shape. The other two cannot be: `mtu=0` is
-`auto` and `mrru=0` is `disabled` while a `0` elsewhere is a zero, and `bucket-size=5000` is `5` only
-because that field is scaled by a thousand. Those are keyed by FIELD NAME — which is exactly what the
-parser is handed, so the gap was never the missing metadata it was first written up as.
+All five are handled by `CliValueNormalizer`, in two different ways. A **duration** and an **IPv4-mapped
+IPv6 address** say what they are, so they are recognised by shape. The other three cannot be: `mtu=0` is
+`auto` and `mrru=0` is `disabled` while a `0` elsewhere is a zero, `bucket-size=5000` is `5` only
+because that field is scaled by a thousand, and `6168` is `0x1818` only on `icmp-rate-mask`. Those are
+keyed by FIELD NAME — which is exactly what the parser is handed.
 
 Every entry in those tables was pinned by setting a NON-sentinel value on the router and reading it back
 both ways, which is what keeps the rule from being a guess that happens to fit. It also caught one that
