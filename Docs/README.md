@@ -6,7 +6,7 @@ files from XML docs and comments; when the code and a document disagree, re-veri
 rather than assuming either is right.
 
 This is **not** end-user documentation — that lives in the
-[wiki](https://github.com/tik4net/tik4net/wiki). Roadmaps, phase plans and work logs are not kept
+[wiki](https://github.com/danikf/tik4net/wiki). Roadmaps, phase plans and work logs are not kept
 here either; they are the author's local working notes.
 
 These documents are written in the **present tense**: they describe what the router does now.

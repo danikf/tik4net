@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -25,7 +25,7 @@ namespace tik4net.Cli
     /// carries only SEQ, HOST and STATUS:
     /// <code>
     ///   SEQ HOST                                     SIZE TTL TIME       STATUS
-    ///     0 192.168.4.99                                                 timeout
+    ///     0 192.168.88.99                                                timeout
     ///     0 127.0.0.1                                  56  64 107us
     /// </code>
     /// Whitespace-splitting the timeout row yields three tokens and maps <c>timeout</c> onto <c>size</c>.
@@ -36,7 +36,7 @@ namespace tik4net.Cli
     /// 56[49..50], 64[53..54], 107us[56..60], timeout[67..73]. Note that a value may start ONE character
     /// left of its own header token (<c>107us</c> at 56 under <c>TIME</c> at 57) — RouterOS reserves a
     /// single pad character in front of each column — while a left-aligned value may run far past its
-    /// header (<c>192.168.4.99</c> under <c>HOST</c>). Hence a column spans from one character before its
+    /// header (<c>192.168.88.99</c> under <c>HOST</c>). Hence a column spans from one character before its
     /// header token up to one character before the next column's, which is the only rule that places every
     /// measured value in the right column in both row shapes above.
     /// </para>

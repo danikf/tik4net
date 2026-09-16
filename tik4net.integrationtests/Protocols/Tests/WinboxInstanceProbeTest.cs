@@ -91,7 +91,7 @@ namespace tik4net.integrationtests
             }
         }
 
-        // Cross-check on a KNOWN instance: IP address handler [20,1]. Router IP=192.168.4.236.
+        // Cross-check on a KNOWN instance: IP address handler [20,1]. Router IP=192.168.88.236.
         // Find the command that returns IP instances → same command lists interfaces on [20,0].
         [TestMethod]
         public void Probe_ScanForIpAddressInstance()

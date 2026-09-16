@@ -554,7 +554,7 @@ namespace tik4net.Winbox
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["disable-running-check"] = new WinboxJgField("disable-running-check", 0x1000D, "bool", false),
-                        // The factory MAC: unnamed 0x404 carries the API's orig-mac-address (00:15:5D:04:1F:03 on
+                        // The factory MAC: unnamed 0x404 carries the API's orig-mac-address (AA:BB:CC:DD:EE:FF on
                         // ether1, 7.24.2) beside 0x3E9's mac-address. Read-only, as the API has it.
                         ["orig-mac-address"] = new WinboxJgField("orig-mac-address", 0x404, "raw", true,
                                                                  uiType: "macaddr"),

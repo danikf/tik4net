@@ -473,7 +473,7 @@ gives the documented one:
 | durations | `15s`, `1w`, `1d`, `5m` | `00:00:15`, `1w00:00:00`, `1d00:00:00`, `00:05:00` | **closed** |
 | a number the API prints as a word | `mtu=auto`, `ttl=auto`, `horizon=none`, `mrru=disabled`, `max-sessions=unlimited`, `dscp=inherit` | `0`, `0`, `0`, `0`, `0`, `256` | **closed** |
 | scaled fixed-point | `bucket-size=5`, `freq-drift=-47.516`, `gmt-offset=+02:00` | `5000`, `-47516`, `7200` | **closed** |
-| IPv4 in an IPv6 slot | `local=192.168.4.236` | `::ffff:192.168.4.236` | **closed** |
+| IPv4 in an IPv6 slot | `local=192.168.88.236` | `::ffff:192.168.88.236` | **closed** |
 
 All four are handled by `CliValueNormalizer`, in two different ways. A **duration** and an **IPv4-mapped
 IPv6 address** say what they are, so they are recognised by shape. The other two cannot be: `mtu=0` is

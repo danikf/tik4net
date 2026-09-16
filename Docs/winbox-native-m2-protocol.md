@@ -342,7 +342,7 @@ route's gateway came back as the literal `9`.
 The `%iface` qualifier is not only a suffix. A field whose value is `{0xFEFF22=2, 0xFEFF1F=9}` has no
 address at all — it IS the interface, which is what RouterOS prints for a connected route
 (`gateway=ether1`). Where an address is also present the qualifier is a suffix as expected:
-`{0xFEFF22=2, 0xFEFF1F=1, 0xFEFF20=…}` is `192.168.4.236%ether1`. Either way the id names a row of the
+`{0xFEFF22=2, 0xFEFF1F=1, 0xFEFF20=…}` is `192.168.88.236%ether1`. Either way the id names a row of the
 generic interface table `[20,0]` and resolves through the same reference cache a dynamic `enm` uses.
 
 ### 23.2 The IPv6 field is `FT_ADDR6` (type byte `0x18`), not `raw`
@@ -559,7 +559,7 @@ Three consequences, each measured against the API on 7.23.2:
 | `/ppp/profile`, `/ip/hotspot/user/profile` | `address-list` | `[]` | *(empty)* |
 | `/tool/romon`, `/tool/romon/port` | `secrets` | `[]` | *(empty)* |
 | `/system/ntp/server` | `broadcast-addresses` | `[]` | *(empty)* |
-| `/ip/dns` | `dynamic-servers` | `17082560,3445500682,…` | `192.168.4.1,10.43.94.205,…` |
+| `/ip/dns` | `dynamic-servers` | `22587584,3445500682,…` | `192.168.88.1,10.43.94.205,…` |
 
 The last one is a plain `multi` whose child is `addr`, so each element is a compound submessage and
 renders through `types.addr.tostr` — the generic "first member of the submessage" fallback gave the raw
@@ -1176,10 +1176,10 @@ compounds whose parts live under keys of their own:
 | Path | Field | `.jg` element | API |
 |---|---|---|---|
 | `/snmp/community` | `addresses` | `union{network u8/u9, network6 a16/u17}` | `::/0` |
-| `/certificate` | `subject-alt-name` | `tuple sep:':' {enm u7f, union{ip6addr a7e, ipaddr u7d, string}}` | `IP:192.168.4.236` |
+| `/certificate` | `subject-alt-name` | `tuple sep:':' {enm u7f, union{ip6addr a7e, ipaddr u7d, string}}` | `IP:192.168.88.236` |
 
 Both were falling through to the generic nested-message dump, which returns the first member and drops
-everything else — `::` for the first, the bare `3959728320` for the second. `WinboxJgField.ElementParts` now
+everything else — `::` for the first, the bare `3965233344` for the second. `WinboxJgField.ElementParts` now
 carries the parts, and the codec renders them webfig's way: `types.union.get` with `single:1` takes the first
 member the element actually carries, `types.tuple.tostr` joins the parts with the declared `sep` and
 contributes no separator for a part that renders empty.
@@ -1732,7 +1732,7 @@ Five of the remaining names were exactly this, verified against both the window 
 `0x15`/`0x17` with their lengths at `0x16`/`0x18`, and the API prints `::/0`), `/snmp` `src-address` and
 `/ip/proxy` `parent-proxy` (unions of `ipaddr`+`ip6addr`, both carried in the v6 member), and
 `/ip/service` `remote` (tuple; the record carries `0xD` and `0xE`, and the API prints
-`192.168.4.31:65504`). 35 of 669 → 30, with VALUE-DIFF still 0.
+`192.168.88.31:65504`). 35 of 669 → 30, with VALUE-DIFF still 0.
 
 A scalar `network6` had no decode case of its own until then — only the list-element formatter had one —
 so the v6 member of a union read `::` where the API says `::/0`. Nothing had reached it before, the v6

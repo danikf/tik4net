@@ -193,7 +193,7 @@ disagree on four kinds of value. Measured across the 154 audited paths on 7.24:
 | durations | `15s`, `1w`, `5m`, `100ms` | `00:00:15`, `1w00:00:00`, `00:05:00`, `00:00:00.100` |
 | a zero spelled as a word | `mtu=auto`, `mrru=disabled`, `max-sessions=unlimited`, `dscp=inherit` | `0`, `0`, `0`, `256` |
 | scaled fixed-point | `bucket-size=0.1`, `freq-drift=-40.955`, `gmt-offset=+02:00` | `100`, `-40955`, `7200` |
-| an IPv4 address in an IPv6 slot | `local=192.168.4.236` | `::ffff:192.168.4.236` |
+| an IPv4 address in an IPv6 slot | `local=192.168.88.236` | `::ffff:192.168.88.236` |
 
 `CliValueNormalizer` re-spells the durations, which is the only one of the four identifiable from the
 value: the others depend on which field the value belongs to. Two fields' `HH:MM:SS` is a clock TIME and
@@ -323,7 +323,7 @@ correctly over a CLI transport unless its entity is on the JSON path for another
 
 ### An IPv4 in an IPv6-shaped slot
 
-`/ip/service` `local` reads `::ffff:192.168.4.236` over the CLI and `192.168.4.236` over the API. Unlike
+`/ip/service` `local` reads `::ffff:192.168.88.236` over the CLI and `192.168.88.236` over the API. Unlike
 the two above this needs no field knowledge — `::ffff:` followed by a dotted quad cannot be anything else,
 so it is recognised by shape, like a duration.
 
