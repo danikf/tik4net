@@ -45,6 +45,57 @@ namespace tik4net.integrationtests
         }
 
         [TestMethod]
+        public void TheRouterOs7BridgeFieldsCanBeWrittenAndReadBack()
+        {
+            // The fields the 4.0 upgrade added, across the three groups the router only prints while their
+            // feature is on (VLAN filtering, IGMP snooping, DHCP snooping), each set to a non-default value so
+            // a field that is silently dropped on the way out reads back as the router's default instead.
+            var bridge = new InterfaceBridge
+            {
+                Name = "t4n" + Guid.NewGuid().ToString("N").Substring(0, 12),
+                Comment = "t4n bridge fields",
+                VlanFiltering = true,
+                Pvid = 7,
+                FrameTypes = InterfaceBridge.FrameTypesMode.AdmitOnlyVlanTagged,
+                IngressFiltering = false,
+                IgmpSnooping = true,
+                IgmpVersion = 3,
+                MulticastRouter = InterfaceBridge.MulticastRouterMode.Permanent,
+                LastMemberQueryCount = 3,
+                QueryInterval = "1m",
+                DhcpSnooping = true,
+                PortCostMode = InterfaceBridge.PortCostModeType.Short,
+                TransmitHoldCount = 4,
+                FastForward = false,
+            };
+            SaveTracked(bridge);
+
+            var loaded = Connection.LoadById<InterfaceBridge>(bridge.Id);
+            Assert.AreEqual(bridge.Comment, loaded.Comment);
+            Assert.AreEqual(true, loaded.VlanFiltering);
+            Assert.AreEqual(7, loaded.Pvid);
+            Assert.AreEqual(InterfaceBridge.FrameTypesMode.AdmitOnlyVlanTagged, loaded.FrameTypes);
+            Assert.AreEqual(false, loaded.IngressFiltering);
+            Assert.AreEqual(true, loaded.IgmpSnooping);
+            Assert.AreEqual(3, loaded.IgmpVersion);
+            Assert.AreEqual(InterfaceBridge.MulticastRouterMode.Permanent, loaded.MulticastRouter);
+            Assert.AreEqual(3, loaded.LastMemberQueryCount);
+            Assert.AreEqual(TimeSpan.FromMinutes(1), loaded.QueryInterval?.Value);
+            Assert.AreEqual(true, loaded.DhcpSnooping);
+            Assert.AreEqual(InterfaceBridge.PortCostModeType.Short, loaded.PortCostMode);
+            Assert.AreEqual(4, loaded.TransmitHoldCount);
+            Assert.AreEqual(false, loaded.FastForward);
+            Assert.AreEqual(false, loaded.Disabled);
+
+            loaded.Pvid = 8;
+            loaded.IgmpSnooping = false;
+            Connection.Save(loaded);
+            var updated = Connection.LoadById<InterfaceBridge>(bridge.Id);
+            Assert.AreEqual(8, updated.Pvid);
+            Assert.AreEqual(false, updated.IgmpSnooping);
+        }
+
+        [TestMethod]
         public void ListAllBridgeFiltersWillNotFail()
         {
             var list = Connection.LoadAll<BridgeFilter>();
