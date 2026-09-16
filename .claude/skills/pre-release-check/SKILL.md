@@ -282,6 +282,12 @@ complete, only that they are consistent. So when a release added a mapper entry 
 the attribute — the propagation makes the build say so, but a new *public* method that reaches reflection
 by a path the analyzer cannot see (a delegate, a `dynamic`) would not.
 
+`TrimmingAnnotationTests` (unit) covers that gap by shape rather than by call graph: `tik4net.dll` declares
+`IsTrimmable`, `tik4net.objects.dll` does not, and every public member of `tik4net.objects` that returns a
+`[TikEntity]` type (or is generic over one) carries both attributes on itself or its type. A member that
+takes a `TikEntityMetadata` is exempt, because obtaining one has already warned. What it cannot see is a
+public member that reflects **without** returning entities — that part is still a read.
+
 ---
 
 # Part 3 — Traps

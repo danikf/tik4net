@@ -21,7 +21,7 @@ Tested and debugged against **RouterOS 7.24.3** (latest stable) — every transp
 |---|---|---|
 | **tik4net** | [![NuGet](https://img.shields.io/nuget/v/tik4net.svg)](https://www.nuget.org/packages/tik4net) | Everything you normally need: the [low-level ADO.NET-like API](https://github.com/danikf/tik4net/wiki/ADO.NET-like-API) (sync and async R/W access) **and** the [high-level O/R mapper](https://github.com/danikf/tik4net/wiki/High-level-API-with-O-R-mapper) (strongly typed entities, full CRUD) |
 | **tik4net.testing** | [![NuGet](https://img.shields.io/nuget/v/tik4net.testing.svg)](https://www.nuget.org/packages/tik4net.testing) | Unit-testing support — `TikFakeConnection` lets you write tests without a live router |
-| **tik4net.ssh** | [![NuGet](https://img.shields.io/nuget/v/tik4net.ssh.svg)](https://www.nuget.org/packages/tik4net.ssh) | The SSH transport (TCP 22) — a separate package because of its `Renci.SshNet` dependency |
+| **tik4net.ssh** | [![NuGet](https://img.shields.io/nuget/v/tik4net.ssh.svg)](https://www.nuget.org/packages/tik4net.ssh) | The SSH transport (TCP 22) — a separate package because of its SSH.NET (`Renci.SshNet`) dependency |
 
 > **⚠️ Upgrading from 3.x?** The O/R mapper is now part of `tik4net` itself — **remove any
 > `PackageReference` to `tik4net.objects`** or you will get an assembly conflict. Your source code does
@@ -56,7 +56,7 @@ for what each capability means in practice, and for the per-transport detail beh
 | **Ssh** | TCP 22 | RouterOS CLI over an SSH shell (separate `tik4net.ssh` package) | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands` |
 | **MacTelnet** | UDP 20561 | CLI over MAC-Telnet — reaches a router with **no IP route, or no IP address at all** | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands` |
 | **WinboxCli** / **WinboxCliMac** | TCP 8291 / UDP 20561 | CLI over the encrypted WinBox channel (EC-SRP5 + AES, no certificates) | `Crud`, `Listen`, `SafeMode`, `RawCommand`, `AsyncCommands` |
-| **WinboxNative** / **WinboxNativeMac** | TCP 8291 / UDP 20561 | structured WinBox M2 CRUD, no terminal | `Crud`, `Listen`, `SafeMode`, `AsyncCommands`, `CancelInFlight` |
+| **WinboxNative** / **WinboxNativeMac** | TCP 8291 / UDP 20561 | structured WinBox M2 CRUD, no terminal — **experimental**: fields are addressed by number, and the API-name ↔ M2 mapping is reconstructed rather than published | `Crud`, `Listen`, `SafeMode`, `AsyncCommands`, `CancelInFlight` |
 
 What the table does not say, in one line each — the
 [capabilities page](https://github.com/danikf/tik4net/wiki/Connection-types-and-capabilities) has the rest:
