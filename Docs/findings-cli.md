@@ -103,12 +103,13 @@ Three consequences for the command shape:
   is deliberately not done: a wording that ever covered anything else would turn a real failure into a
   silently short table.
 - **The window states its own size**, `:put ("#w=" . [:len $w])`, and that number does two jobs. It ends
-  the loop, and it is the router's own count of the rows the answer must carry: a window is never filtered
-  (see below), so every id in it names one row, and the records parsed from the answer are checked against
-  it — a mismatch is refused as `TikConnectionResponseIncompleteException`. That is an exact completeness
-  check, like the whole-table count below. It holds only because windows are unfiltered: a
-  `where` applied inside a window legitimately prints fewer rows than ids (a 3-id window answered 2 records
-  under a filter).
+  the loop, and it is the router's own count of the rows the answer must carry: the window's print never
+  carries a filter of its own (see below), so every id in it names one row, and the records parsed from the
+  answer are checked against it — a mismatch is refused as `TikConnectionResponseIncompleteException`. That
+  is an exact completeness check, like the whole-table count below. It holds only because the print is
+  unfiltered: a `where` applied inside a window legitimately prints fewer rows than ids (a 3-id window
+  answered 2 records under a filter), which is why a filtered read puts its clause in the window's `find`
+  instead.
 - **Order is preserved.** `find` returns ids in the same order `print` does — verified on `/ip firewall
   mangle` (ordered: `*B0B;*1192;*1191;…`, matching rows 0,1,2) and on `/ip service` (unordered, ids not
   sequential, same sequence both ways). Since `from=` replies in the order listed, a windowed read has the
@@ -126,13 +127,30 @@ time). Before, an interrupted *first* window was indistinguishable from a menu w
 paging off for the connection. A **whole-table** `print` is not affected at all — 12 of 12 complete under the
 same churn, plain and counted, every `#n=` matching its rows — because RouterOS evaluates it in one go.
 
-**A filtered read is not windowed.** The window is taken over the unfiltered table and the caller's `where`
-is applied inside it, so filtering multiplies the work instead of shrinking it — measured over MAC-Telnet,
-49 matching rows of 1672 cost 9.6 s windowed and one queue tree found by name among 681 cost 4.1 s, against
-well under a second as a single command. `CanPage` therefore refuses a read that carries a `where`, and those
-reads are counted as whole-table reads instead (below). Pushing the filter into `find` is what would fix it properly and is deferred:
-`find !(x)` is a syntax error and `BuildWhereClause` emits that form, so it needs a narrower rule than
-"always" — see the roadmap note.
+**A filtered read is windowed with its filter in the `find`.** The caller's clause goes into the window's own
+`find (…)`, so the windows cover **matching rows only** and the print inside them carries no `where` of its
+own. Applying the filter inside an *unfiltered* window is the thing that does not work: it is correct but
+multiplies the work instead of shrinking it — 49 matching rows of 1672 cost 1190 ms that way against 72 ms
+with the filter in the `find` (router-side, page size 20; over MAC-Telnet the same read cost 9.6 s against
+well under a second unpaged) — and it breaks what `#w=` means, since a filter legitimately prints fewer rows
+than the window held. The filter therefore lives in exactly one of the two places, and in the `find`.
+
+What a filtered window costs against reading the same thing in one command is the `find` being re-evaluated
+per window: 1623 rows of 1672 take 736 ms in 17 windows against 44 ms unpaged, where a selective filter is
+free (one row of 681: 9.7 ms windowed, 15.8 ms unpaged). What it buys is a **bounded answer** — the unpaged
+read of those 1623 rows is one huge reply, the shape that stalls mid-print and floods the MAC layer.
+
+**`find` takes a clause two ways, and only one of them is the `where` grammar.** Bare
+`find chain=prerouting` is parsed as the verb's **arguments**: a leading `!` is a `syntax error`
+(`find !(chain=prerouting)`) and an unknown field is refused by name (`find bogus=1` → `bad parameter
+bogus`), where `print … where bogus=1` simply matches nothing. Wrapped in **one pair of parentheses** the
+clause is an **expression** instead, parsed by the same grammar `where` uses, and every form
+`CliCommandBuilder.BuildWhereClause` can emit is accepted: equality, `!=`, `>`, `<`, `~`, a bare name, an
+explicit `=""`, `(a || b)`, `(a && b)`, `!(a)`, a top-level `&&` join, and a quoted value. Verified on 7.24
+against `print … where` for each form, by row count **and** by id sequence — same rows, same order, 0 to
+1623 of them. `find` also sees fields the print in hand does not emit: `default-name` (detail-only),
+`rx-byte`, and `bytes` (only in `print stats`) all filter correctly, because the expression is evaluated
+against the row rather than against the print's output.
 
 ### Counting a whole-table answer
 

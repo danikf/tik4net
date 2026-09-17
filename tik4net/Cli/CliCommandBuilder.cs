@@ -194,14 +194,28 @@ namespace tik4net.Cli
         /// page would otherwise hit on its last window. Guarding it is better than reading that error as
         /// end-of-data, because a wording that ever covered something else would turn a real failure into a
         /// silently short table.</para>
-        /// <para>The window is taken over the <b>unfiltered</b> table, so a read that carries a <c>where</c>
-        /// is never windowed at all (<see cref="CliConnectionBase"/> decides): applying the filter inside
-        /// each window keeps the answer correct but multiplies the work instead of shrinking it.</para>
+        /// <para>A filtered read passes its clause in <paramref name="findClause"/>, so the window covers
+        /// MATCHING rows only and the print inside it carries no <c>where</c> of its own. Applying the filter
+        /// inside an unfiltered window is correct too, but it multiplies the work instead of shrinking it —
+        /// 49 of 1672 mangle rows cost 1190 ms that way against 72 ms with the filter in the <c>find</c>
+        /// (7.24, router-side, page size 20), and it would break what <see cref="WindowMarker"/> means.</para>
+        /// <para><b>The parentheses around the clause are load-bearing, and silently so.</b> A bare
+        /// <c>find name=value</c> is parsed as the verb's ARGUMENTS: a leading <c>!</c> is a syntax error
+        /// (<c>find !(x)</c>) and an unknown field is refused by name (<c>bad parameter</c>) where
+        /// <c>where</c> simply matches nothing. Wrapped in one pair of parentheses the clause is an
+        /// EXPRESSION, parsed by the same grammar <c>where</c> uses, and every form
+        /// <see cref="BuildWhereClause"/> emits then selects the same rows in the same order as <c>where</c>
+        /// — verified on 7.24 by id sequence for equality, <c>!=</c>, <c>&gt;</c>, <c>&lt;</c>, <c>~</c>, a
+        /// bare name, <c>=""</c>, <c>(a || b)</c>, <c>(a &amp;&amp; b)</c>, <c>!(a)</c>, a top-level
+        /// <c>&amp;&amp;</c> join, a quoted value, an unknown field and no match. See
+        /// Docs/findings-cli.md §1.</para>
         /// </remarks>
-        internal static string BuildPagedWindow(string apiPath, string printCommand, int offset, int pageSize)
+        internal static string BuildPagedWindow(string apiPath, string printCommand, int offset, int pageSize,
+                                                string? findClause = null)
         {
             string menu = MenuPathToCli(apiPath);
-            return ":local w [:pick [" + menu + " find] "
+            string find = string.IsNullOrEmpty(findClause) ? " find" : " find (" + findClause + ")";
+            return ":local w [:pick [" + menu + find + "] "
                  + offset.ToString(CultureInfo.InvariantCulture) + " "
                  + (offset + pageSize).ToString(CultureInfo.InvariantCulture) + "]; "
                  + ":if ([:len $w] > 0) do={ " + printCommand + " }; "
@@ -215,10 +229,10 @@ namespace tik4net.Cli
         /// Prefix of the trailing line a paged window emits, carrying how many <b>ids the window held</b>.
         /// </summary>
         /// <remarks>
-        /// It is the router's own statement of how many rows the answer must carry — a window is never
-        /// filtered, so every id in it names one row — and it ends the loop. The records parsed from the
-        /// answer are checked against it rather than trusted in its place: a count that disagrees means rows
-        /// were lost on the way, or split by the parser, and the read is refused.
+        /// It is the router's own statement of how many rows the answer must carry — the window's print
+        /// never carries a filter of its own, so every id in it names one row — and it ends the loop. The
+        /// records parsed from the answer are checked against it rather than trusted in its place: a count
+        /// that disagrees means rows were lost on the way, or split by the parser, and the read is refused.
         /// </remarks>
         internal const string WindowMarker = "#w=";
 
@@ -576,13 +590,9 @@ namespace tik4net.Cli
         /// Builds a <c>where name=value &amp;&amp; …</c> clause from Filter-format parameters.
         /// Supports negation (<c>!value</c>), comparison (<c>&gt;value</c>, <c>&lt;value</c>),
         /// and regex (<c>~pattern</c>) prefixes.
+        /// <para>The same text serves as a window's <c>find</c> clause, where it is parenthesised rather
+        /// than introduced by <c>where</c> — see <see cref="BuildPagedWindow"/>.</para>
         /// </summary>
-        /// <summary>
-        /// True when these parameters produce a <c>where</c> clause — i.e. the read is filtered.
-        /// </summary>
-        internal static bool HasWhereClause(IList<ITikCommandParameter> parameters)
-            => !string.IsNullOrEmpty(BuildWhereClause(parameters));
-
         internal static string BuildWhereClause(IList<ITikCommandParameter> parameters)
         {
             // The filters are a postfix STACK, not a list of things to AND: the API's query words

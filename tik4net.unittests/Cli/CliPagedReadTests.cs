@@ -149,11 +149,29 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
-        public void AFilteredReadIsNotPagedAtAll()
+        public void AFilteredReadIsWindowedWithItsFilterInTheFind()
         {
-            // Windows are taken over the unfiltered table, so filtering does not shrink the work — measured
-            // over MAC-Telnet at 9.6 s for 49 of 1672 rows. Until the filter can be pushed into 'find', the
-            // single command is the faster answer, and the router's own record count covers it.
+            // The window covers MATCHING rows only, so one row out of 50 costs one request — where an
+            // unfiltered window with the filter in its print would have walked all 25 of them.
+            using (var conn = new PagingCliConnection(rowCount: 50))
+            {
+                conn.OpenScripted();
+                conn.CliReadPageSize = 2;
+
+                var rows = conn.LoadList<PagedProbe>(new FakeParam("name", "r3")).ToList();
+
+                Assert.AreEqual(1, conn.Sent.Count, string.Join(" | ", conn.Sent));
+                StringAssert.Contains(conn.Sent[0], ":pick [/probe find (name=r3)] 0 2");
+                CollectionAssert.AreEqual(new[] { "r3" }, rows.Select(r => r.Name).ToList());
+            }
+        }
+
+        [TestMethod]
+        public void AWindowsPrintDoesNotCarryTheFilterAsWell()
+        {
+            // The filter belongs in the find alone. Left in the print too, a row that stopped matching
+            // between the two would make the answer shorter than the window's own '#w=' count — refused as
+            // an incomplete response, with no retry path.
             using (var conn = new PagingCliConnection(rowCount: 50))
             {
                 conn.OpenScripted();
@@ -161,9 +179,78 @@ namespace tik4net.unittests.Cli
 
                 conn.LoadList<PagedProbe>(new FakeParam("name", "r3")).ToList();
 
-                Assert.AreEqual(1, conn.Sent.Count, string.Join(" | ", conn.Sent));
-                StringAssert.Contains(conn.Sent[0], "where name=r3");
-                Assert.IsFalse(conn.Sent[0].Contains("find]"), "no window over the table: " + conn.Sent[0]);
+                Assert.IsFalse(conn.Sent[0].Contains(" where "),
+                    "the filter is in the find, not in the print: " + conn.Sent[0]);
+            }
+        }
+
+        [TestMethod]
+        public void AFilteredReadThatSpansPagesWalksOnlyTheMatchingRows()
+        {
+            // Two matching rows of 50 at a page size of 1: two windows plus the short one that ends the
+            // loop, and every offset is an offset into the MATCHES, not into the table.
+            using (var conn = new PagingCliConnection(rowCount: 50))
+            {
+                conn.OpenScripted();
+                conn.CliReadPageSize = 1;
+
+                var rows = conn.LoadList<PagedProbe>(
+                    new FakeParam("name", "r3"), new FakeParam("name", "r7"), new FakeParam("#|", "")).ToList();
+
+                Assert.AreEqual(3, conn.Sent.Count, string.Join(" | ", conn.Sent));
+                StringAssert.Contains(conn.Sent[0], ":pick [/probe find ((name=r3 || name=r7))] 0 1");
+                StringAssert.Contains(conn.Sent[2], ":pick [/probe find ((name=r3 || name=r7))] 2 3");
+                CollectionAssert.AreEqual(new[] { "r3", "r7" }, rows.Select(r => r.Name).ToList());
+            }
+        }
+
+        [TestMethod]
+        public void TheFindClauseIsParenthesisedForEveryShapeTheBuilderEmits()
+        {
+            // The parentheses are what put the clause in EXPRESSION context, the same grammar 'where' uses.
+            // Unparenthesised, RouterOS parses it as the verb's arguments instead: '!(…)' is a syntax error
+            // and an unknown field is refused by name. So the shape is pinned, not just the presence.
+            foreach (string clause in new[]
+                     {
+                         "name=ether1", "name!=ether1", "mtu>1000", "name~\"ether\"", "comment",
+                         "comment=\"\"", "(chain=prerouting || chain=forward)", "!(chain=prerouting)",
+                     })
+            {
+                string cli = CliCommandBuilder.BuildPagedWindow("/probe/print", ":put [x]", 0, 10, clause);
+
+                StringAssert.Contains(cli, "[/probe find (" + clause + ")]", clause);
+            }
+        }
+
+        [TestMethod]
+        public void AnUnfilteredWindowStillSpellsAPlainFind()
+        {
+            string cli = CliCommandBuilder.BuildPagedWindow("/probe/print", ":put [x]", 0, 10, null);
+
+            StringAssert.Contains(cli, "[/probe find]");
+            Assert.IsFalse(cli.Contains("find ("), "no empty parentheses for an unfiltered read: " + cli);
+        }
+
+        [TestMethod]
+        public void TheStatsHalfOfATwoQueryReadIsFilteredInItsFindToo()
+        {
+            // Both halves are windowed by the same code, so an IncludeCliStats entity must get the clause in
+            // each find and in neither print — otherwise the two halves window different row sets and the
+            // merge lines up by .id against the wrong table.
+            using (var conn = new PagingCliConnection(rowCount: 50))
+            {
+                conn.OpenScripted();
+                conn.CliReadPageSize = 2;
+
+                conn.LoadList<StatsProbe>(new FakeParam("name", "r3")).ToList();
+
+                Assert.AreEqual(2, conn.Sent.Count, string.Join(" | ", conn.Sent));
+                Assert.IsTrue(conn.Sent[1].Contains("stats"), "the second query is the stats half: " + conn.Sent[1]);
+                foreach (string sent in conn.Sent)
+                {
+                    StringAssert.Contains(sent, "find (name=r3)");
+                    Assert.IsFalse(sent.Contains(" where "), sent);
+                }
             }
         }
 
@@ -375,6 +462,17 @@ namespace tik4net.unittests.Cli
             public string? Name { get; set; }
         }
 
+        /// <summary>The same probe menu read through the two-query stats path.</summary>
+        [TikEntity("/probe", IncludeCliStats = true)]
+        private sealed class StatsProbe
+        {
+            [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+            public string? Id { get; set; }
+
+            [TikProperty("name")]
+            public string? Name { get; set; }
+        }
+
         /// <summary>
         /// Answers <c>:len</c> with a row count and every <c>print</c> with the rows its <c>from=</c> names,
         /// so the test can assert on what was asked for as well as on what came back.
@@ -403,31 +501,60 @@ namespace tik4net.unittests.Cli
             {
                 Sent.Add(cliText);
 
-                var pick = Regex.Match(cliText, @":pick \[[^\]]*find\] (\d+) (\d+)\]");
+                // The clause is optional and lives INSIDE the find's parentheses, exactly as a filtered
+                // window spells it — 'find (name=r3)'. The double honours it, so a filtered read's window
+                // holds the ids that match and nothing else, like the router's own find.
+                // The clause itself contains parentheses, so the trailing '] <from> <to>]' is what anchors
+                // this — a non-greedy clause would stop at the first ')' and answer a WINDOW request with
+                // the unpaged shape, which reads as a menu that cannot be paged.
+                var pick = Regex.Match(cliText,
+                    @":pick \[[^\[\]]*? find(?: \((?<clause>.*)\))?\] (?<from>\d+) (?<to>\d+)\]");
                 if (!pick.Success)   // unpaged read: the whole table, counted as the router counts it
                     return Task.FromResult(Rows(0, _rowCount) + ((char)10) + "#n=" + _rowCount + "/num");
 
-                int from = int.Parse(pick.Groups[1].Value);
-                int to = int.Parse(pick.Groups[2].Value);
+                int from = int.Parse(pick.Groups["from"].Value);
+                int to = int.Parse(pick.Groups["to"].Value);
 
                 if (InterruptOffsets.TryGetValue(from, out int left) && left > 0)
                 {
                     InterruptOffsets[from] = left == int.MaxValue ? left : left - 1;
                     return Task.FromResult("interrupted");   // the whole answer: no rows, no marker
                 }
-                int window = Math.Max(0, Math.Min(to, _rowCount) - Math.Min(from, _rowCount));
+
+                // What 'find (clause)' resolves to, then the slice :pick takes of it.
+                var matching = Enumerable.Range(0, _rowCount)
+                    .Where(r => Matches(r, pick.Groups["clause"].Value))
+                    .ToList();
+                var ids = matching.Skip(from).Take(Math.Max(0, to - from)).ToList();
+                int window = ids.Count;
 
                 string body = from == DropRecordsForOffset ? string.Empty
-                    : from == DropOneRecordForOffset ? Rows(from + 1, from + window)
-                    : from == ExtraRecordForOffset ? Rows(from, from + window) + ";.id=*99;name=split"
-                    : Rows(from, from + window);
+                    : from == DropOneRecordForOffset ? Rows(ids.Skip(1))
+                    : from == ExtraRecordForOffset ? Rows(ids) + ";.id=*99;name=split"
+                    : Rows(ids);
                 string marker = OmitMarker ? string.Empty : ((char)10) + "#w=" + window;
                 return Task.FromResult(body + marker);
             }
 
+            /// <summary>
+            /// The clause shapes these tests use: none, <c>name=rN</c>, and <c>(a || b)</c> of those.
+            /// </summary>
+            private static bool Matches(int row, string clause)
+            {
+                if (string.IsNullOrEmpty(clause))
+                    return true;
+                string bare = clause.StartsWith("(") && clause.EndsWith(")")
+                    ? clause.Substring(1, clause.Length - 2)
+                    : clause;
+                return bare.Split(new[] { "||" }, StringSplitOptions.None)
+                    .Any(alt => alt.Trim() == "name=r" + row);
+            }
+
             private static string Rows(int first, int lastExclusive)
-                => string.Join(";", Enumerable.Range(first, Math.Max(0, lastExclusive - first))
-                    .Select(r => ".id=*" + r + ";name=r" + r));
+                => Rows(Enumerable.Range(first, Math.Max(0, lastExclusive - first)));
+
+            private static string Rows(IEnumerable<int> rows)
+                => string.Join(";", rows.Select(r => ".id=*" + r + ";name=r" + r));
 
             public override void Open(string host, string user, string password) => OpenScripted();
             public override void Open(string host, int port, string user, string password) => OpenScripted();

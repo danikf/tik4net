@@ -758,17 +758,17 @@ namespace tik4net.Cli
             {
                 // Normal single-query path.
                 return await RunPrintQueryAsync(descriptor, wantJson,
-                    from => CliCommandBuilder.BuildPrintExpression(descriptor.CommandText, descriptor.Parameters, from),
+                    (pars, from) => CliCommandBuilder.BuildPrintExpression(descriptor.CommandText, pars, from),
                     cancellationToken).ConfigureAwait(false);
             }
 
             // Two-query path: detail (config) + stats (counters), merged by .id.
             IList<TikRecordSentence> configRecords = await RunPrintQueryAsync(descriptor, wantJson,
-                from => CliCommandBuilder.BuildPrintExpression(descriptor.CommandText, descriptor.Parameters, from),
+                (pars, from) => CliCommandBuilder.BuildPrintExpression(descriptor.CommandText, pars, from),
                 cancellationToken).ConfigureAwait(false);
 
             IList<TikRecordSentence> statsRecords = await RunPrintQueryAsync(descriptor, wantJson,
-                from => CliCommandBuilder.BuildPrintStatsExpression(descriptor.CommandText, descriptor.Parameters, from),
+                (pars, from) => CliCommandBuilder.BuildPrintStatsExpression(descriptor.CommandText, pars, from),
                 cancellationToken).ConfigureAwait(false);
 
             // Build index of stats records by .id for O(1) lookup.
@@ -945,12 +945,16 @@ namespace tik4net.Cli
         /// <param name="descriptor">The read being run.</param>
         /// <param name="wantJson">Whether the caller asked for the JSON form.</param>
         /// <param name="buildExpression">
-        /// The bare print expression (no <c>:put</c>) for a given <c>from=</c> selector, or <c>null</c> for
-        /// the whole table — wrapped here, differently for a window and for a counted whole-table read.
+        /// The bare print expression (no <c>:put</c>) for a given parameter list and <c>from=</c> selector
+        /// (<c>null</c> for the whole table) — wrapped here, differently for a window and for a counted
+        /// whole-table read. The parameters are passed in rather than closed over because a window's print
+        /// is built without the caller's filters: they go into the window's own <c>find</c> instead
+        /// (<see cref="RunOneWindowAsync"/>).
         /// </param>
         /// <param name="cancellationToken">Cancels the read.</param>
         private async Task<IList<TikRecordSentence>> RunPrintQueryAsync(
-            TikCommandDescriptor descriptor, bool wantJson, Func<string?, string> buildExpression,
+            TikCommandDescriptor descriptor, bool wantJson,
+            Func<IList<ITikCommandParameter>, string?, string> buildExpression,
             CancellationToken cancellationToken)
         {
             if (CanPage(descriptor, wantJson))
@@ -964,7 +968,8 @@ namespace tik4net.Cli
             _countedReadDepth++;
             try
             {
-                return await RunOnePrintQueryAsync(descriptor, wantJson, buildExpression(null), cancellationToken)
+                return await RunOnePrintQueryAsync(descriptor, wantJson,
+                        buildExpression(descriptor.Parameters, null), cancellationToken)
                     .ConfigureAwait(false);
             }
             finally
@@ -988,6 +993,9 @@ namespace tik4net.Cli
         /// Nothing has been returned at that point, so the loop simply restarts as as-value.</para>
         /// <para>A menu with no <c>find</c> verb cannot be windowed at all; that one is not predictable from
         /// the descriptor, so it is handled by falling back when the router says so.</para>
+        /// <para>A <b>filtered</b> read is windowed: the clause goes into the window's <c>find</c>, which
+        /// selects the same rows in the same order as the <c>where</c> it replaces (see
+        /// <see cref="CliCommandBuilder.BuildPagedWindow"/>), so the windows cover matching rows only.</para>
         /// </remarks>
         private bool CanPage(TikCommandDescriptor descriptor, bool wantJson)
         {
@@ -996,16 +1004,12 @@ namespace tik4net.Cli
 
             if (TikGetResult.FindInput(descriptor.Parameters, TikSpecialProperties.Id) != null)
                 return false;
-            // A filtered read is deliberately left unpaged for now. A window is taken over the UNFILTERED
-            // table and the filter applied inside it, so filtering does not shrink the work: measured over
-            // MAC-Telnet, 49 of 1672 mangle rows cost 9.6 s and finding one queue tree by name cost 4.1 s,
-            // both against well under a second unpaged. Pushing the filter into 'find' would fix it and is
-            // not done here — 'find !(x)' is a syntax error and this builder emits that form, so it needs a
-            // narrower rule than "always". Until then the single command is both faster and, for the row
-            // counts a filter usually leaves, small enough not to give the router a backlog — and it is
-            // counted like any whole-table read, so a short answer is refused rather than returned.
-            if (CliCommandBuilder.HasWhereClause(descriptor.Parameters))
-                return false;
+            // A FILTERED read is windowed like any other: its clause goes into the window's own 'find', so
+            // the windows cover matching rows only (RunOneWindowAsync). What is refused is applying the
+            // filter INSIDE an unfiltered window — correct, but it multiplies the work instead of shrinking
+            // it (49 of 1672 mangle rows: 1190 ms that way, 72 ms with the filter in the 'find', router-side
+            // at page size 20) and it breaks what '#w=' means, since a filter legitimately prints fewer rows
+            // than the window held.
             return !_pagingUnavailable.Contains(descriptor.CommandText);
         }
 
@@ -1038,7 +1042,8 @@ namespace tik4net.Cli
         /// a caller asks for it.</para>
         /// </remarks>
         private async Task<IList<TikRecordSentence>?> RunPagedPrintQueryAsync(
-            TikCommandDescriptor descriptor, bool wantJson, Func<string?, string> buildExpression,
+            TikCommandDescriptor descriptor, bool wantJson,
+            Func<IList<ITikCommandParameter>, string?, string> buildExpression,
             int pageSize, CancellationToken cancellationToken)
         {
             var all = new List<TikRecordSentence>();
@@ -1179,13 +1184,29 @@ namespace tik4net.Cli
             => (output ?? string.Empty).Split((char)10)
                 .Any(line => string.Equals(line.Trim(), "interrupted", StringComparison.Ordinal));
 
+        /// <summary>
+        /// Takes one window: the caller's filters become the window's <c>find</c> clause, and the print
+        /// inside it is built WITHOUT them.
+        /// </summary>
+        /// <remarks>
+        /// The filter belongs in exactly one of the two places. In the <c>find</c> it shrinks the window to
+        /// matching rows, which is the point; left in the print as well it would be redundant on every row
+        /// the window already holds, and a row that stopped matching between the <c>find</c> and the
+        /// <c>print</c> would make the answer shorter than the window's own <c>#w=</c> count — refused as an
+        /// incomplete response, with no retry path. So it is dropped from the print, and a windowed read
+        /// stays what it already was: not a snapshot, the rows as the router had them when each window ran.
+        /// </remarks>
         private async Task<PagedWindow> RunOneWindowAsync(
-            TikCommandDescriptor descriptor, bool wantJson, Func<string?, string> buildExpression,
+            TikCommandDescriptor descriptor, bool wantJson,
+            Func<IList<ITikCommandParameter>, string?, string> buildExpression,
             int offset, int pageSize, CancellationToken cancellationToken)
         {
             bool asJson = wantJson && _serializeSupported != false;
-            string inner = CliCommandBuilder.WrapPut(buildExpression(CliCommandBuilder.WindowVariable), asJson);
-            string cliText = CliCommandBuilder.BuildPagedWindow(descriptor.CommandText, inner, offset, pageSize);
+            string findClause = CliCommandBuilder.BuildWhereClause(descriptor.Parameters);
+            string inner = CliCommandBuilder.WrapPut(
+                buildExpression(WithoutFilters(descriptor.Parameters), CliCommandBuilder.WindowVariable), asJson);
+            string cliText = CliCommandBuilder.BuildPagedWindow(descriptor.CommandText, inner, offset, pageSize,
+                findClause);
 
             string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false);
             CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
@@ -1200,6 +1221,22 @@ namespace tik4net.Cli
             if (asJson)
                 _serializeSupported = true;
             return new PagedWindow(parsed, windowSize, body);
+        }
+
+        /// <summary>
+        /// The parameters a window's print is built from: everything except the Filter-format ones, which
+        /// the window's <c>find</c> has taken over. The rest are print modifiers and inputs
+        /// (<c>detail</c>, <c>numbers</c>, <c>once</c>) and must stay.
+        /// </summary>
+        private static IList<ITikCommandParameter> WithoutFilters(IList<ITikCommandParameter> parameters)
+        {
+            var kept = new List<ITikCommandParameter>(parameters.Count);
+            foreach (var p in parameters)
+            {
+                if (p.ParameterFormat != TikCommandParameterFormat.Filter)
+                    kept.Add(p);
+            }
+            return kept;
         }
 
         /// <summary>

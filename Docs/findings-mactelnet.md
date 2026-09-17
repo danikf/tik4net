@@ -342,13 +342,15 @@ Three layers deal with it, each covering what the one before cannot.
 **Paging prevents it, and it is on by default here.** Reading the table in windows
 (`ITikCliPagedReadConnection`, `:pick` + `from=` — see [findings-cli.md](findings-cli.md) §1) never gives the
 router a backlog, so there is nothing for it to discard, and a table smaller than one page still costs a
-single request. Measured on the same lab: `/ip firewall mangle` (1672 rows)
+single request. **A filtered read is windowed too** — its clause goes into the window's own `find`, so
+prevention covers the large filtered read as well, which is the one case that used to reach the router as a
+single command however big its answer was. Measured on the same lab: `/ip firewall mangle` (1672 rows)
 and `/queue/tree` (681) both read complete over MAC-Telnet, repeatedly, where neither had ever succeeded in
 a single command.
 
 **The router's own count detects it, on every print.** The stream cannot show the loss, but the router can
 say how many records it meant to send: every window ends with the number of ids it held, and every
-whole-table read — a filtered one, a menu with no `find`, or any read with paging off — with `#n=`, its
+single-command read — a menu with no `find`, or any read with paging off — with `#n=`, its
 record count ([findings-cli.md](findings-cli.md) §1). The records read back must match, or the answer is
 refused with `TikConnectionResponseIncompleteException`. This is exact, and it is not specific to the MAC
 layer: it runs on all five CLI transports.
