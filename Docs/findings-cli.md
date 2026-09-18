@@ -428,6 +428,17 @@ character set is `[A-Za-z0-9._-]` (`CliCommandBuilder.QuoteForWhere`); anything 
 double-quoted. `*N` (an `.id`) works unquoted inside a `find` — `where .id=*1` — and also works quoted, so the builder
 quotes it like anything else.
 
+### A boolean in `where`/`find` is `yes` or `no`, never `true`
+
+In an expression a boolean field accepts only `yes`/`no` (7.24, `/ip/firewall/filter`, `/interface`):
+`where dynamic=true` and `where disabled=false` are refused with `expected yes or no (line 1 column N)`,
+`where dynamic="true"` is accepted and **silently matches nothing**, and `where dynamic=yes` /
+`where dynamic` / `find (dynamic=yes)` work. A string field is unaffected (`where comment=true` is a plain
+string comparison). The binary API takes `?disabled=true` and the mapper writes a `bool` as `true`, so
+`BuildWhereClause` spells a bare `true`/`false` as `yes`/`no` in an equality or negation. The builder does
+not know the field's type, so a string field compared with the literal text `true` is compared with `yes` —
+the one case the translation gets wrong.
+
 ### A `name=value` argument is parsed by the PARAMETER's type, so it needs the same quoting
 
 An unquoted value is not read as text: RouterOS parses it according to the type of the parameter it is
@@ -886,6 +897,7 @@ error classification is necessarily by pattern, shared with the API and REST tra
 | `no such command`, `bad command name`, `expected end of command`, `no such directory`, `syntax error` | `TikNoSuchCommandException` |
 | `already have … such …`, `item with such name already …` | `TikAlreadyHaveSuchItemException` |
 | `failure:` / `error:` prefix, or any unrecognised non-empty text on a verb classified below | `TikCommandTrapException` |
+| a read whose whole answer is one line ending `(line N column M)` — a parse error such as `expected yes or no (line 1 column 62)` or `bad parameter detail (line 1 column 27)` | `TikCommandTrapException` |
 
 Verbs RouterOS answers with **no output at all** on success (`set`, `remove`, `enable`, `disable`,
 `move`, `unset`, `comment` — `CliErrorParser.IsSilentOnSuccessVerb`) get an extra, purely positional
@@ -893,6 +905,13 @@ rule: any surviving text after echo/prompt trimming is an error, regardless of h
 there is nothing else it could be. This runs last, after the classified kinds above, and is why
 `remove`/`set` against a nonexistent `.id` produces `expected item id` → `TikNoSuchItemException` rather
 than a generic trap.
+
+A counted or windowed read has a positional rule of its own. Its answer always ends with the count marker,
+so an answer without one that consists of a single `(line N column M)` line is the router refusing the
+command, not an answer that lost its end: it is raised as the router's error rather than
+`TikConnectionResponseIncompleteException`, and a window at offset 0 does not take it for a menu without
+`find` (which would switch paging off for the path). Because the check only runs when the marker is
+missing, a record whose text happens to end the same way cannot trigger it.
 
 ---
 

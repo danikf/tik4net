@@ -671,7 +671,7 @@ namespace tik4net.Cli
 
             // Negation: ?name=!value → name!=value
             if (val.StartsWith("!"))
-                return name + "!=" + QuoteForWhere(val.Substring(1));
+                return name + "!=" + QuoteForWhere(BooleanForWhere(val.Substring(1)));
 
             // Greater-than: ?>count=5 encoded as value starting with ">"
             if (val.StartsWith(">"))
@@ -686,7 +686,25 @@ namespace tik4net.Cli
                 return name + "~" + QuoteForWhere(val.Substring(1));
 
             // Plain equality
-            return name + "=" + QuoteForWhere(val);
+            return name + "=" + QuoteForWhere(BooleanForWhere(val));
+        }
+
+        /// <summary>
+        /// Spells a boolean the way a CLI expression accepts it. The API takes <c>?disabled=true</c> and the
+        /// mapper writes a <c>bool</c> as <c>true</c>, but in a <c>where</c>/<c>find</c> expression a boolean
+        /// field accepts only <c>yes</c>/<c>no</c>: <c>dynamic=true</c> is a syntax error ("expected yes or no"),
+        /// and the quoted <c>dynamic="true"</c> silently matches nothing (7.24, filter, interface).
+        /// </summary>
+        /// <remarks>
+        /// The builder does not know the field's type, so a STRING field compared with the literal text
+        /// <c>true</c> is compared with <c>yes</c> instead. That is the price of the translation, and the only
+        /// case it gets wrong; untranslated, every boolean filter over the CLI fails.
+        /// </remarks>
+        private static string BooleanForWhere(string value)
+        {
+            if (string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)) return "yes";
+            if (string.Equals(value, "false", StringComparison.OrdinalIgnoreCase)) return "no";
+            return value;
         }
 
         /// <summary>

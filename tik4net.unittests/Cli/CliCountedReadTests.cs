@@ -113,6 +113,21 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
+        public void ARouterParseErrorIsTheRoutersErrorNotAnIncompleteAnswer()
+        {
+            // What RouterOS prints for 'where dynamic=true' (7.24) — the whole answer, no marker. It is the
+            // router refusing the command, and reporting it as a lost count sent callers to retry a read that
+            // can never succeed.
+            using (var conn = Open("expected yes or no (line 1 column 62)"))
+            {
+                var ex = Assert.ThrowsException<TikCommandTrapException>(
+                    () => conn.CreateCommand("/probe/print").ExecuteList().ToList());
+
+                StringAssert.Contains(ex.Message, "expected yes or no");
+            }
+        }
+
+        [TestMethod]
         public void TheMarkerTextInsideAFieldIsNotTakenForTheCount()
         {
             // A comment that happens to read like the marker, and the real marker lost: the look-alike does

@@ -747,6 +747,12 @@ namespace tik4net.Cli
                     {
                         rows = await RunPrintAsync(plain, cancellationToken).ConfigureAwait(false);
                     }
+                    catch (TikCommandTrapException ex) when (IsDetailRefusal(ex.Message))
+                    {
+                        // The refusal is a parse error ("… (line 1 column 27)"), which a counted read now reports
+                        // as the router's error rather than as a lost count — see ThrowIfSyntaxError.
+                        rows = await RunPrintAsync(plain, cancellationToken).ConfigureAwait(false);
+                    }
                 }
                 return TrimToProplist(rows, proplist.Value);
             }
@@ -1123,8 +1129,8 @@ namespace tik4net.Cli
                     return null;
                 }
 
-                // A window is never filtered (CanPage refuses a 'where'), so every id it held names a row and
-                // the router has just said how many records this answer must carry. Anything else is an answer
+                // A window's print carries no filter (the filter is in its 'find'), so every id it held names a
+                // row and the router has just said how many records this answer must carry. Anything else is an answer
                 // that lost rows on the way — or a parser that split or merged them — and either way it is not
                 // the table. This is exact, which the MAC layer's datagram heuristic is not, and it is the only
                 // check a window gets: a vanished id is not a way to get here, since 'print from=' answers
@@ -1180,6 +1186,30 @@ namespace tik4net.Cli
         /// 7.24 under conntrack churn; Docs/findings-cli.md §1). The word alone on a line, so a field value
         /// cannot be mistaken for it.
         /// </summary>
+        /// <summary>
+        /// Throws the router's own complaint when a read's whole answer is one parse error — a line ending in
+        /// <c>(line N column M)</c>, such as <c>expected yes or no (line 1 column 62)</c> for a boolean compared
+        /// with <c>true</c>. None of the phrases <see cref="CliErrorParser"/> knows covers it, so without this the
+        /// read reported "the answer is incomplete", and a window at offset 0 switched paging off for the path.
+        /// </summary>
+        /// <remarks>
+        /// Called only where the answer is already known to lack its closing marker, so a record whose text
+        /// happens to end the same way cannot be taken for an error: a real answer always ends with the marker.
+        /// </remarks>
+        private void ThrowIfSyntaxError(string? output, TikCommandDescriptor descriptor)
+        {
+            var lines = (output ?? string.Empty).Split((char)10)
+                .Select(line => line.Trim())
+                .Where(line => line.Length > 0)
+                .ToList();
+            if (lines.Count == 1 && SyntaxErrorLine.IsMatch(lines[0]))
+                throw new TikCommandTrapException(CreateDummyCommand(descriptor), new TikTrapSentenceResult(lines[0]));
+        }
+
+        private static readonly System.Text.RegularExpressions.Regex SyntaxErrorLine =
+            new System.Text.RegularExpressions.Regex(@"\(line \d+ column \d+\)$",
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
         private static bool IsInterruptedAnswer(string? output)
             => (output ?? string.Empty).Split((char)10)
                 .Any(line => string.Equals(line.Trim(), "interrupted", StringComparison.Ordinal));
@@ -1212,6 +1242,8 @@ namespace tik4net.Cli
             CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
 
             string body = SplitOffWindowMarker(output, out int windowSize);
+            if (windowSize < 0)
+                ThrowIfSyntaxError(output, descriptor);   // a bad filter is the caller's error, not a menu without 'find'
             if (windowSize < 0)   // caller decides: take it again if interrupted, otherwise fall back
                 return new PagedWindow(new List<TikRecordSentence>(), -1, output, IsInterruptedAnswer(output));
 
@@ -1327,6 +1359,8 @@ namespace tik4net.Cli
             if (at >= 0 && (at == 0 || text[at - 1] == (char)10 || text[at - 1] == (char)13))
                 expected = CliCommandBuilder.ExpectedRecordCount(text.Substring(at + CliCommandBuilder.CountMarker.Length));
 
+            if (expected < 0)
+                ThrowIfSyntaxError(text, descriptor);
             if (expected < 0)
                 throw new TikConnectionResponseIncompleteException(
                     TransportName + ": the read of '" + descriptor.CommandText + "' ended without the router's "
