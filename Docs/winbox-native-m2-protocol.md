@@ -87,7 +87,7 @@ webfig script, and it implements the M2 protocol in JS over HTTP `/jsproxy`. Fun
 | `0xfe0004` | getallcmd | **list all** | `ufe000c`=flags, `ufe0018`=maxobjs (a cap, §29), paging `ufe0003` **and/or** `mfe0015` (echoed back as received) | `Mfe0002` records, `ufe0019` count, `ufe0003` and/or `mfe0015` cont. token |
 | `0xfe0002` | — | **get one** | `ufe0001`=.id | record (in `Mfe0002` or top-level) |
 | `0xfe0003` | setcmd(map) | **set/change** | `ufe0001`=.id + changed fields | status |
-| `0xfe0005` | — | **add** | fields (no .id) | `ufe0001`=new .id |
+| `0xfe0005` | — | **add** | fields (no .id); optional `ufe0005`=next-id places the row before that record (API `place-before`) | `ufe0001`=new .id |
 | `0xfe0006` | — | **remove** | `ufe0001`=.id | status |
 | `0xfe0007` | — | **move** (ordered) | `ufe0001`=.id, `ufe0005`=next-id | |
 | `0xfe000d` | getcmd | get singleton | `ufe000c`=flags | record |
@@ -95,6 +95,14 @@ webfig script, and it implements the M2 protocol in JS over HTTP `/jsproxy`. Fun
 | `0xfe0008` | — | setup/wizard step | `mfe000f`=obj, `ufe000e`=page | |
 | `0xfe0012` | — | **subscribe** (push) | path in `Uff0001` | async push key `Uff0002`=path |
 | `0xfe0013` | — | unsubscribe | | |
+
+**`add` in place.** Webfig's add never carries a position (`ObjectMap.setObject` sends the fields only). The
+router nonetheless honours the next-id key on an add: `ufe0005`=*N creates the row immediately before *N, exactly as the API's
+`add place-before=*N` does (7.24, `/ip/firewall/mangle` and `/filter`). That is how the native transport
+maps `place-before`; an anchor that does not resolve is refused as `no such item` rather than appended. A
+dynamic row as the anchor is accepted by the add but refused by a move (`0xFE0006 'cannot move builtin'`),
+the same inconsistency the API shows. The transport's `move` resolves one record; an `.id` list
+(`numbers=*a,*b`, which the API and CLI accept) is refused as `no such item`.
 
 `.jg` doesn't list these commands for a `type:'map'` window because they are the **generic
 defaults** — the numbers only show up in `.jg` when a window overrides one of them.

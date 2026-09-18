@@ -21,6 +21,8 @@ consumers upgrading from 3.x must **remove** any `PackageReference` to `tik4net.
   once and cached; value conversion lives in the accessor.
 - `TikConnectionExtensions` — `LoadAll`/`LoadList`/`LoadSingle`/`LoadById`/`Save`/`Delete`/`Move`, the
   async and monitor variants, and the bulk `SaveListDifferences`/`CreateMerge` pair.
+- `TikListSyncPlanner` / `TikListSync` — the ordering pass both list writers share: minimal `/move`s, new
+  rows created in place with `place-before`, dynamic rows left alone.
 - `Tracking/` — `TikChangeTracker` and `TikSnapshot` attach proplist-aware snapshots to loaded entities
   through a `ConditionalWeakTable`, so `Save` sends only the fields that changed.
 

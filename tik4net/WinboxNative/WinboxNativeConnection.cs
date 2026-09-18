@@ -894,6 +894,7 @@ namespace tik4net.WinboxNative
                     // /interface/<kind>/add over native, eleven paths, refused outright.
                     if (_handlerMap.TryResolveSubtypeFilter(apiPath, out int addTypeKey, out int addTypeValue))
                         fields.Add(M2Message.U32Sys(addTypeKey, addTypeValue));
+                    await AddPlaceBeforeAsync(handler, resolver, descriptor, fields, cancellationToken).ConfigureAwait(false);
                     int newId = await _ops.AddAsync(handler, fields, cancellationToken).ConfigureAwait(false);
                     // A new row is a name the reference cache has never seen (see ForgetReferenceNames).
                     _codec.ForgetReferenceNames();
@@ -952,6 +953,7 @@ namespace tik4net.WinboxNative
                     // /path/add invoked via ExecuteNonQuery (the new id, if any, is discarded here).
                     var fields = await EncodeNameValueFieldsAsync(handler, descriptor, resolver, skipId: true,
                         cancellationToken).ConfigureAwait(false);
+                    await AddPlaceBeforeAsync(handler, resolver, descriptor, fields, cancellationToken).ConfigureAwait(false);
                     await _ops.AddAsync(handler, fields, cancellationToken).ConfigureAwait(false);
                     _codec.ForgetReferenceNames();
                     break;
@@ -1552,6 +1554,7 @@ namespace tik4net.WinboxNative
                 if (p.Name.StartsWith(".") && p.Name != TikSpecialProperties.Id) continue; // .proplist/.tag/…
                 if (p.Name == TikSpecialProperties.Id) { if (skipId) continue; }
                 if (p.Name == "move-before" || p.Name == "destination") continue; // handled by move dest
+                if (p.Name == PlaceBeforeParam) continue;                            // handled by AddPlaceBeforeAsync
                 if (skipSnapshotModifier && IsMonitorSnapshotModifier(p.Name)) continue;
 
                 // A bad field VALUE is what the router itself would trap on over the API, so surface it as a
@@ -1746,6 +1749,25 @@ namespace tik4net.WinboxNative
                     $"no such item: could not resolve record .id '{idParam}' on '{descriptor.CommandText}'."));
             }
             return -1;
+        }
+
+        // The API's add argument that creates a row in place on an ordered menu, instead of appended.
+        private const string PlaceBeforeParam = "place-before";
+
+        // place-before=<row> on an add. M2 has no add argument for it: the anchor goes on the new record as its
+        // next-id (RecordKey.NextId, the key move already uses), and the router creates the row immediately
+        // before that record. Webfig never positions an add, so this is the router honouring the key rather than
+        // a path the GUI exercises — measured on 7.24 (Docs/winbox-native-m2-protocol.md, command catalog).
+        // An anchor that does not resolve is refused as "no such item", as over the API: silently appending
+        // would put the row somewhere the caller did not ask for, on a menu where position is behaviour.
+        private async Task AddPlaceBeforeAsync(int[] handler, WinboxFieldResolver resolver,
+            TikCommandDescriptor descriptor, List<byte[]> fields, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrEmpty(FindParam(descriptor, PlaceBeforeParam)))
+                return;
+            int anchor = await ResolveRecordIdAsync(handler, resolver, descriptor, required: true,
+                cancellationToken, alternateIdParam: PlaceBeforeParam).ConfigureAwait(false);
+            fields.Add(M2Message.U32Sys(WinboxM2Protocol.RecordKey.NextId, anchor));
         }
 
         // Resolve the move destination (next-id) from a NameValue "destination"/"move-before" parameter.

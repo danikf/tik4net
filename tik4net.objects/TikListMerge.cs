@@ -5,6 +5,8 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace tik4net.Objects
 {
@@ -206,12 +208,109 @@ namespace tik4net.Objects
         /// </summary>
         /// <returns>List of final entities on mikrotik router after save operation (with ids).</returns>
         /// <exception cref="InvalidOperationException"><see cref="WithKey"/> has not been called.</exception>
+        /// <remarks>
+        /// <para>
+        /// <b>Order.</b> On an ordered entity (<c>IsOrdered</c> — firewall filter, mangle, NAT, simple queues…) the
+        /// rows end up in the order of 'expected'. Each row moves at most once, the longest run already in order
+        /// stays put, and a new row is created in place (<c>place-before</c>) rather than appended and moved. Rows
+        /// of the table that are not in the merge keep their positions; the merged rows are placed among them, and
+        /// nothing is placed after the section's current last row, because what follows it is not read — when
+        /// the last row changes, that can cost one move more than an unrestricted reorder.
+        /// </para>
+        /// <para>
+        /// <b>Dynamic rows</b> (<c>dynamic=true</c>, e.g. the fasttrack counter rule) are never deleted or moved:
+        /// RouterOS refuses both. A field change to one is still sent, and the router's refusal surfaces.
+        /// </para>
+        /// <para>
+        /// <b>Merging part of a table.</b> Only rows in 'original' are ever deleted, so load 'original' with the
+        /// same filter that describes what 'expected' covers — one chain, one comment tag. When 'expected' is
+        /// deliberately partial ("add and update these, delete nothing"), veto the deletes with
+        /// <see cref="WithOperationFilter"/>:
+        /// <code>
+        /// connection.CreateMerge(expected, original)
+        ///     .WithKey(r => r.Comment)
+        ///     .Field(r => r.Action)
+        ///     .WithOperationFilter((operation, oldEntity, newEntity) => operation != MergeOperation.Delete)
+        ///     .Save();
+        /// </code>
+        /// </para>
+        /// <para>
+        /// <b>A failure part-way</b> leaves the commands already sent in place — RouterOS has no transaction. The
+        /// first error propagates; reload 'original' and run the merge again, and it continues from wherever the
+        /// router is.
+        /// </para>
+        /// </remarks>
         /// <seealso cref="Simulate(out int, out int, out int, out int)"/>
+        /// <seealso cref="SaveAsync"/>
         public IEnumerable<TEntity> Save()
         {
-            int insertCnt, updateCnt, deleteCnt, moveCnt;
+            var plan = Plan();
 
-            return SaveInternal(false, out insertCnt, out updateCnt, out deleteCnt, out moveCnt);
+            foreach (var entity in plan.Deletes)
+            {
+                LogDml(MergeOperation.Delete, entity, default(TEntity));
+                _connection.Delete(entity);
+            }
+
+            foreach (var update in plan.Updates)
+            {
+                LogDml(MergeOperation.Update, update.Key, update.Value);
+                UpdateEntityFields(update.Key, update.Value);
+                _connection.Save(update.Key, plan.MergedFieldNames);
+            }
+
+            if (plan.OrderSteps != null)
+                TikListSync.ApplyOrder(_connection, _metadata, plan.Desired, plan.OrderSteps, plan.CreateFieldNames, LogStep);
+            else
+                foreach (var entity in plan.Inserts)
+                {
+                    LogDml(MergeOperation.Insert, default(TEntity), entity);
+                    _connection.Save(entity, plan.CreateFieldNames);
+                }
+
+            return plan.Result;
+        }
+
+        /// <summary>
+        /// Async <see cref="Save"/>: the same commands in the same order, sent through the connection's async
+        /// surface. Cancellation is checked before each command; the commands already sent stay applied (see the
+        /// remarks on <see cref="Save"/>).
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>List of final entities on mikrotik router after save operation (with ids).</returns>
+        /// <exception cref="InvalidOperationException"><see cref="WithKey"/> has not been called.</exception>
+        /// <exception cref="OperationCanceledException">Cancelled between two commands.</exception>
+        public async Task<IEnumerable<TEntity>> SaveAsync(CancellationToken cancellationToken = default(CancellationToken))
+        {
+            var plan = Plan();
+
+            foreach (var entity in plan.Deletes)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                LogDml(MergeOperation.Delete, entity, default(TEntity));
+                await _connection.DeleteAsync(entity, cancellationToken).ConfigureAwait(false);
+            }
+
+            foreach (var update in plan.Updates)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                LogDml(MergeOperation.Update, update.Key, update.Value);
+                UpdateEntityFields(update.Key, update.Value);
+                await _connection.SaveAsync(update.Key, plan.MergedFieldNames, cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
+
+            if (plan.OrderSteps != null)
+                await TikListSync.ApplyOrderAsync(_connection, _metadata, plan.Desired, plan.OrderSteps, plan.CreateFieldNames,
+                    LogStep, cancellationToken).ConfigureAwait(false);
+            else
+                foreach (var entity in plan.Inserts)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    LogDml(MergeOperation.Insert, default(TEntity), entity);
+                    await _connection.SaveAsync(entity, plan.CreateFieldNames, cancellationToken: cancellationToken).ConfigureAwait(false);
+                }
+
+            return plan.Result;
         }
 
         /// <summary>
@@ -223,13 +322,21 @@ namespace tik4net.Objects
         /// <param name="insertCnt">Number of items to be created.</param>
         /// <param name="updateCnt">Number of items to be updated.</param>
         /// <param name="deleteCnt">Number of items to be deleted.</param>
-        /// <param name="moveCnt">Number of items to be moved (note: inserted items are always inserted at the end of list and moved to the right place by move operation).</param>
+        /// <param name="moveCnt">Number of <c>/move</c> commands <see cref="Save"/> will send (see the remarks on
+        /// <see cref="Save"/> for how few). A created item is placed by its create (<c>place-before</c>) and is not
+        /// counted here.</param>
         /// <returns>Expected list of final entities on mikrotik router after save operation.</returns>
         /// <exception cref="InvalidOperationException"><see cref="WithKey"/> has not been called.</exception>
+        /// <remarks>Sends nothing, and calls neither log callback; the operation filter is consulted as by <see cref="Save"/>.</remarks>
         /// <seealso cref="Save"/>
         public IEnumerable<TEntity> Simulate(out int insertCnt, out int updateCnt, out int deleteCnt, out int moveCnt)
         {
-            return SaveInternal(true, out insertCnt, out updateCnt, out deleteCnt, out moveCnt);
+            var plan = Plan();
+            insertCnt = plan.Inserts.Count;
+            updateCnt = plan.Updates.Count;
+            deleteCnt = plan.Deletes.Count;
+            moveCnt = plan.OrderSteps?.Count(s => s.Kind == TikListSyncStepKind.Move) ?? 0;
+            return plan.Result;
         }
 
         /// <summary>
@@ -253,19 +360,34 @@ namespace tik4net.Objects
         public IEnumerable<TEntity> Simulate(out int insertCnt, out int updateCnt, out int deleteCnt)
         {
             int tmp;
-            return SaveInternal(true, out insertCnt, out updateCnt, out deleteCnt, out tmp);
+            return Simulate(out insertCnt, out updateCnt, out deleteCnt, out tmp);
         }
 
-
-
-
-        private IEnumerable<TEntity> SaveInternal(bool simulateOnly, out int insertCnt, out int updateCnt, out int deleteCnt, out int moveCnt)
+        private void LogStep(TikListSyncStep step, TEntity entity)
         {
-            insertCnt = 0;
-            updateCnt = 0;
-            deleteCnt = 0;
-            moveCnt = 0;
+            if (step.Kind == TikListSyncStepKind.Create)
+                LogDml(MergeOperation.Insert, default(TEntity), entity);
+            else
+                LogMove(entity, step.OldIndex, step.NewIndex);
+        }
 
+        /// <summary>What <see cref="Save"/> sends, decided before anything is — shared by Save, SaveAsync and Simulate.</summary>
+        private sealed class MergePlan
+        {
+            public List<TEntity> Deletes { get; } = new List<TEntity>();
+            /// <summary>original → expected.</summary>
+            public List<KeyValuePair<TEntity, TEntity>> Updates { get; } = new List<KeyValuePair<TEntity, TEntity>>();
+            public List<TEntity> Inserts { get; } = new List<TEntity>();
+            /// <summary>Ordered entity: the rows the ordering pass places, in expected order (inserts included).</summary>
+            public List<TEntity> Desired { get; } = new List<TEntity>();
+            public IReadOnlyList<TikListSyncStep>? OrderSteps { get; set; }
+            public List<TEntity> Result { get; } = new List<TEntity>();
+            public string[] MergedFieldNames { get; set; } = new string[0];
+            public string[] CreateFieldNames { get; set; } = new string[0];
+        }
+
+        private MergePlan Plan()
+        {
             // The key is the only setup the merge cannot work without: it decides insert vs. update. No Field is a
             // legitimate merge (inserts and deletes only), so that is not refused.
             var keyExtractor = _keyExtractor
@@ -273,100 +395,56 @@ namespace tik4net.Objects
                     "TikListMerge<" + typeof(TEntity).Name + ">: call WithKey(...) before Save or Simulate — "
                     + "the key decides which router row and which expected row are the same row.");
 
-            List<TEntity> result = new List<TEntity>();
+            var plan = new MergePlan();
+            plan.MergedFieldNames = ResolveFieldsFieldNames().ToArray();
+            plan.CreateFieldNames = plan.MergedFieldNames.Concat(ResolveJustForInsertFieldNames()).ToArray();
+
             Dictionary<string, TEntity> expectedDict = _expected.ToDictionaryEx(keyExtractor);
             Dictionary<string, TEntity> originalDict = _original.ToDictionaryEx(keyExtractor);
 
-            // Keys in the order the router currently holds them, kept up to date as this merge deletes, inserts
-            // and moves. Shared with SaveListDifferences, which reorders the same way — see TikOrderTracker for
-            // why the check has to be against the current order rather than the starting one.
-            var currentOrder = new TikOrderTracker(_original.Select(keyExtractor));
-
-            //Delete
-            foreach (var originalEntityPair in originalDict.Reverse()) //delete from end to begining of the list (just for better show in WinBox)
+            //Delete — from the end of the list to the beginning (just for a better show in WinBox). A dynamic row is
+            // not the merge's to delete: RouterOS refuses it ("cannot remove builtin").
+            foreach (var originalEntityPair in originalDict.Reverse())
             {
-                if (!expectedDict.ContainsKey(originalEntityPair.Key)) //present in original + not present in expected => delete
-                {
-                    if (_filterCallback(MergeOperation.Delete, originalEntityPair.Value, default(TEntity)))
-                    {
-                        if (!simulateOnly)
-                        {
-                            LogDml(MergeOperation.Delete, originalEntityPair.Value, default(TEntity));
-                            _connection.Delete(originalEntityPair.Value);
-                        }
-                        currentOrder.Remove(originalEntityPair.Key);
-                        deleteCnt++;
-                    }
-                }
+                if (!expectedDict.ContainsKey(originalEntityPair.Key)
+                    && !TikListSync.IsDynamic(_metadata, originalEntityPair.Value)
+                    && _filterCallback(MergeOperation.Delete, originalEntityPair.Value, default(TEntity)))
+                    plan.Deletes.Add(originalEntityPair.Value);
             }
 
-            //Insert+Update
-            var mergedFieldNames = ResolveFieldsFieldNames().ToArray();
-            var insertedFieldNames = ResolveJustForInsertFieldNames().ToArray();
-            foreach (var expectedEntityPair in expectedDict.Reverse()) //from last to first ( <= move is indexed as moveBeforeEntity)
+            //Insert + Update, in expected order
+            var desiredKeys = new List<string?>();
+            foreach (var expectedEntityPair in expectedDict)
             {
-                TEntity resultEntity;
                 if (originalDict.TryGetValue(expectedEntityPair.Key, out var originalEntity))
-                { //Update //present in both expected and original => update or NOOP
-                  //copy .id from original to expected & save
-                    if (!EntityFieldEquals(originalEntity, expectedEntityPair.Value)) //modified
+                {
+                    if (!EntityFieldEquals(originalEntity, expectedEntityPair.Value)
+                        && _filterCallback(MergeOperation.Update, originalEntity, expectedEntityPair.Value))
+                        plan.Updates.Add(new KeyValuePair<TEntity, TEntity>(originalEntity, expectedEntityPair.Value));
+
+                    plan.Result.Add(originalEntity);
+                    if (!TikListSync.IsDynamic(_metadata, originalEntity)) // the router refuses to move it, or anything in front of it
                     {
-                        if (_filterCallback(MergeOperation.Update, originalEntity, expectedEntityPair.Value))
-                        {
-                            if (!simulateOnly)
-                            {
-                                LogDml(MergeOperation.Update, originalEntity, expectedEntityPair.Value);
-                                UpdateEntityFields(originalEntity, expectedEntityPair.Value);
-                                _connection.Save(originalEntity, mergedFieldNames);
-                            }
-                            updateCnt++;
-                        }
+                        plan.Desired.Add(originalEntity);
+                        desiredKeys.Add(expectedEntityPair.Key);
                     }
-                    resultEntity = originalEntity;
                 }
                 else
-                { //Insert //present in expected and not present in original => insert
+                {
                     if (_filterCallback(MergeOperation.Insert, default(TEntity), expectedEntityPair.Value))
                     {
-                        if (!simulateOnly)
-                        {
-                            LogDml(MergeOperation.Insert, default(TEntity), expectedEntityPair.Value);
-                            _connection.Save(expectedEntityPair.Value, mergedFieldNames.Concat(insertedFieldNames));
-                        }
-                        currentOrder.Append(expectedEntityPair.Key); //the router appends new items - the move below puts it in place
-                        insertCnt++;
+                        plan.Inserts.Add(expectedEntityPair.Value);
+                        plan.Desired.Add(expectedEntityPair.Value);
+                        desiredKeys.Add(null);
                     }
-                    resultEntity = expectedEntityPair.Value;
+                    plan.Result.Add(expectedEntityPair.Value);
                 }
-
-                //Move entity to the right position
-                if (_metadata.IsOrdered)
-                {
-                    if (result.Count > 0) // last one in the list (first taken) should be just added/leavedOnPosition and the next should be moved before the one which was added immediatelly before <=> result[0]
-                    {
-                        string movedKey = keyExtractor(resultEntity);
-                        string anchorKey = keyExtractor(result[0]);
-                        int movedIdx, anchorIdx;
-
-                        // only if is in different position (is not immediately before result[0] right now)
-                        if (currentOrder.NeedsMove(movedKey, anchorKey, out movedIdx, out anchorIdx))
-                        {
-                            if (!simulateOnly)
-                            {
-                                LogMove(resultEntity, movedIdx, anchorIdx);
-                                _connection.Move(resultEntity, result[0]); //before lastly added entity (foreach in reversed order)
-                            }
-                            moveCnt++;
-
-                            currentOrder.ApplyMove(movedKey, anchorKey);
-                        }
-                    }
-                }
-
-                result.Insert(0, resultEntity); //foreach in reversed order => put as first in result list
             }
 
-            return result;
+            if (_metadata.IsOrdered)
+                plan.OrderSteps = TikListSyncPlanner.PlanOrder(desiredKeys, _original.Select(keyExtractor));
+
+            return plan;
         }
     }
 }

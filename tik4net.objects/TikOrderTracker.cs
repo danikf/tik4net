@@ -4,21 +4,15 @@ using System.Collections.Generic;
 namespace tik4net.Objects
 {
     /// <summary>
-    /// Tracks the order the router currently holds while a merge rewrites it, and decides whether a given
-    /// row still needs a <c>/move</c>.
+    /// A model of an ordered menu's row order that a planned command sequence is replayed on — the check that
+    /// <see cref="TikListSyncPlanner"/> runs on every plan before a command is sent.
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// Both list-shaped writers reorder an <c>IsOrdered</c> menu the same way — walk the desired list from
-    /// last to first and move each row before the one already placed — and the decision "does this row need
-    /// moving" is the part that is easy to get subtly wrong, so it lives here once rather than in each.
-    /// </para>
-    /// <para>
-    /// <b>The check must be against the CURRENT order, not the original one.</b> Every move already applied
-    /// changes who sits next to whom, so comparing against the starting indexes skips moves that are still
-    /// needed: a three-way reorder of a mangle section once applied 3 of the 7 moves it needed and produced
-    /// an order matching neither input. That is what this class exists to prevent recurring in two places.
-    /// </para>
+    /// <b>A plan has to be checked against the order as each step leaves it, not the starting one.</b> Every
+    /// move changes who sits next to whom, so reasoning from the starting indexes skips moves that are still
+    /// needed: a three-way reorder of a mangle section once applied 3 of the 7 moves it needed and produced an
+    /// order matching neither input. Replaying the steps here and comparing the result with the desired order
+    /// is what stops that recurring.
     /// </remarks>
     internal sealed class TikOrderTracker
     {
@@ -37,51 +31,37 @@ namespace tik4net.Objects
             get { return _order; }
         }
 
-        /// <summary>Records that a row was deleted from the router.</summary>
-        public void Remove(string key)
+        /// <summary>Number of tracked rows.</summary>
+        public int Count
+        {
+            get { return _order.Count; }
+        }
+
+        /// <summary>Current index of a row, or -1 when it is not tracked.</summary>
+        public int IndexOf(string key)
+        {
+            return _order.IndexOf(key);
+        }
+
+        /// <summary>
+        /// Puts <paramref name="key"/> immediately before <paramref name="anchorKey"/> — a <c>/move</c> of a
+        /// tracked row, or a create with <c>place-before</c> of an untracked one.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The anchor is not tracked.</exception>
+        public void MoveBefore(string key, string anchorKey)
         {
             _order.Remove(key);
-        }
-
-        /// <summary>Records that a row was created — the router appends, so a move is what places it.</summary>
-        public void Append(string key)
-        {
-            _order.Add(key);
-        }
-
-        /// <summary>
-        /// Returns whether <paramref name="movedKey"/> has to be moved to sit immediately before
-        /// <paramref name="anchorKey"/>.
-        /// </summary>
-        /// <param name="movedKey">The row being placed.</param>
-        /// <param name="anchorKey">The row it must end up in front of.</param>
-        /// <param name="movedIndex">Current index of the moved row, or -1 when it is not tracked.</param>
-        /// <param name="anchorIndex">Current index of the anchor row, or -1 when it is not tracked.</param>
-        /// <returns>False only when the row already sits immediately before the anchor.</returns>
-        public bool NeedsMove(string movedKey, string anchorKey, out int movedIndex, out int anchorIndex)
-        {
-            movedIndex = _order.IndexOf(movedKey);
-            anchorIndex = _order.IndexOf(anchorKey);
-
-            // An untracked row (index -1) is moved on purpose: not knowing where it is means not being able
-            // to prove it is already in place, and a redundant move is harmless where a skipped one is not.
-            return movedIndex < 0 || anchorIndex < 0 || movedIndex != anchorIndex - 1;
-        }
-
-        /// <summary>
-        /// Records the move reported by <see cref="NeedsMove"/> — the row now sits immediately before the anchor.
-        /// </summary>
-        /// <param name="movedKey">The row that was moved.</param>
-        /// <param name="anchorKey">The row it was moved in front of.</param>
-        public void ApplyMove(string movedKey, string anchorKey)
-        {
-            int movedIndex = _order.IndexOf(movedKey);
-            if (movedIndex >= 0)
-                _order.RemoveAt(movedIndex);
-
             int anchorIndex = _order.IndexOf(anchorKey);
-            if (anchorIndex >= 0)
-                _order.Insert(anchorIndex, movedKey);
+            if (anchorIndex < 0)
+                throw new InvalidOperationException("TikOrderTracker: anchor '" + anchorKey + "' is not tracked.");
+            _order.Insert(anchorIndex, key);
+        }
+
+        /// <summary>Puts <paramref name="key"/> after every tracked row.</summary>
+        public void MoveToEnd(string key)
+        {
+            _order.Remove(key);
+            _order.Add(key);
         }
     }
 }

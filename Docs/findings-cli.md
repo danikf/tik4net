@@ -750,6 +750,19 @@ as a duplicated row.
 - **`add`**: `:put [/ip/address/add address=10.0.0.1/24 interface=ether1]` returns the new record's
   **`.id`** (e.g. `*3`), the CLI equivalent of the API's `=ret=*3`. Without the `:put [...]` wrapper,
   `add` returns nothing useful, not `*N`.
+- **Ordered menus: `add place-before=`, `move`, and rows the router made itself.** Measured on 7.24 over the
+  API, REST and Telnet (WinBox native in `winbox-native-m2-protocol.md`):
+  - `add place-before=*N` creates the row immediately before `*N` — one command instead of add (appended)
+    plus move. Every `IsOrdered` menu offers it (completion, all 19). It is a generic console `add` argument
+    documented since long before v7, and used on v6 firewall rules.
+  - `move numbers=*a,*b destination=*x` keeps the order the ids are **listed** in, not table order; with no
+    `destination` the rows go to the end. A row of another chain is a legal `destination` and `place-before`.
+  - A `dynamic=true` row (the fasttrack "special dummy rule to show fasttrack counters") refuses `move`,
+    `remove` and `set` — `failure: cannot move builtin` / `cannot remove builtin` / `cannot change builtin`
+    — and `move X destination=<dynamic row>` is refused the same way. `add place-before=<dynamic row>` is
+    accepted, which is inconsistent with `move`, so the list writers never anchor on a dynamic row.
+  - The fasttrack dummy outlives the fasttrack rule that created it and cannot be removed; it stays until
+    reboot.
 - **`get` selects a row with `number=`, never with `.id=`.** Measured on 7.24: `get .id=*2
   value-name=name` answers "bad parameter .id" and so does `get [find .id=*2] name`, while
   `get number=*2 value-name=name` and the positional `get *2 name` both return the value — an `.id` is

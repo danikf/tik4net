@@ -741,144 +741,134 @@ namespace tik4net.Objects
         /// </para>
         /// <para>
         /// This matters because a rule in the wrong position is a rule that does the wrong thing while every
-        /// field on it reads correct — and because the router <b>appends</b> a created row, so a new entity
-        /// placed in the middle of <paramref name="modifiedList"/> owes its position entirely to the follow-up
-        /// move.
+        /// field on it reads correct. The pass moves each row at most once, leaves in place the longest run of rows
+        /// already in order, and creates a new entity in place (<c>place-before</c>) instead of appending it and
+        /// moving it. Rows of the table that are not in the lists keep their positions, so the lists may be a
+        /// filtered part of the table (one chain, one comment tag) — and because what follows the list is not
+        /// read, nothing is placed after its current last row: when the last row changes, that can cost one
+        /// move more than an unrestricted reorder (sending one of four rules to the end is two moves).
         /// </para>
         /// <para>
-        /// Both lists are enumerated more than once and are materialized internally; the entities in
-        /// <paramref name="modifiedList"/> are the same instances throughout, which is what lets a newly
-        /// created row be moved by the <c>.id</c> that <see cref="Save"/> just wrote onto it.
+        /// <b>Dynamic rows</b> (<c>dynamic=true</c>, e.g. the fasttrack counter rule) are never deleted or moved —
+        /// RouterOS refuses both — so leaving one out of <paramref name="modifiedList"/> is harmless. A field change
+        /// to one is still sent, and the router's refusal surfaces.
+        /// </para>
+        /// <para>
+        /// Commands go out as deletes, updates, then the ordering pass (moves and creates). There is no
+        /// transaction: a failure part-way leaves what was sent applied, and the first error propagates. Reload
+        /// and save again to continue from where the router is.
+        /// </para>
+        /// <para>
+        /// Both lists are materialized internally; the entities in <paramref name="modifiedList"/> are the same
+        /// instances throughout, which is what lets a later create be placed in front of a row created a step
+        /// earlier, by the <c>.id</c> that create wrote onto it.
         /// </para>
         /// </remarks>
         /// <seealso cref="TikEntityObjectsExtensions.CloneEntity"/>
         /// <seealso cref="TikEntityObjectsExtensions.CloneEntityList"/>
         /// <seealso cref="Save"/>
         /// <seealso cref="Move"/>
+        /// <seealso cref="TikConnectionAsyncExtensions.SaveListDifferencesAsync"/>
         public static void SaveListDifferences<TEntity>(this ITikConnection connection, IEnumerable<TEntity> modifiedList, IEnumerable<TEntity> unmodifiedList)
+            where TEntity : new()
+        {
+            var plan = PlanListDifferences(modifiedList, unmodifiedList);
+
+            foreach (var entity in plan.Deletes)
+                Delete(connection, entity);
+            foreach (var entity in plan.Updates)
+                Save(connection, entity);
+            if (plan.OrderSteps != null)
+                TikListSync.ApplyOrder(connection, plan.Metadata, plan.Desired, plan.OrderSteps, null, null);
+            else
+                foreach (var entity in plan.Creates)
+                    Save(connection, entity);
+        }
+
+        /// <summary>
+        /// What a <see cref="SaveListDifferences"/> pass does, decided before anything is sent — shared by the sync
+        /// and async halves, which only differ in how they send it.
+        /// </summary>
+        internal sealed class ListDifferencesPlan<TEntity>
+        {
+            public ListDifferencesPlan(TikEntityMetadata metadata) { Metadata = metadata; }
+            public TikEntityMetadata Metadata { get; }
+            public List<TEntity> Deletes { get; } = new List<TEntity>();
+            public List<TEntity> Updates { get; } = new List<TEntity>();
+            /// <summary>Unordered menu: the rows to create, in list order.</summary>
+            public List<TEntity> Creates { get; } = new List<TEntity>();
+            /// <summary>Ordered menu: the rows the ordering pass places, in desired order.</summary>
+            public List<TEntity> Desired { get; } = new List<TEntity>();
+            /// <summary>Ordered menu: the ordering pass (moves, and the creates in place); null when unordered.</summary>
+            public IReadOnlyList<TikListSyncStep>? OrderSteps { get; set; }
+        }
+
+        internal static ListDifferencesPlan<TEntity> PlanListDifferences<TEntity>(IEnumerable<TEntity> modifiedList, IEnumerable<TEntity> unmodifiedList)
             where TEntity : new()
         {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             EnsureHasIdProperty(metadata);
             var idProperty = metadata.IdProperty!; // non-null: EnsureHasIdProperty just verified it
+            var plan = new ListDifferencesPlan<TEntity>(metadata);
 
-            // Materialized once: the ordering pass below walks the modified list a second time, and it has to
-            // be the same instances in the same order — Save assigns the new .id to the entity it was given,
-            // and a re-enumerated lazy sequence would hand back fresh instances without one.
+            // Materialized once: the ordering pass walks the modified list a second time, and it has to be the
+            // same instances — a create writes the new .id onto the entity it was given, and a later step
+            // anchors on it; a re-enumerated lazy sequence would hand back fresh instances without one.
             var modifiedItems = modifiedList.ToList();
             var unmodifiedItems = unmodifiedList.ToList();
-            modifiedList = modifiedItems;
-            unmodifiedList = unmodifiedItems;
 
             // entity: TEntity is only constrained to new(), so the compiler treats it as possibly null;
             // every entity here is an actual instance from modifiedList/unmodifiedList. The .id read itself
             // (GetEntityValue's result) is non-null by construction of the Where/dictionary-key filters below.
-            var entitiesToCreate = modifiedList.Where(entity => string.IsNullOrEmpty(idProperty.GetEntityValue(entity!))).ToList(); // new items in modifiedList
+            var entitiesToCreate = modifiedItems.Where(entity => string.IsNullOrEmpty(idProperty.GetEntityValue(entity!))).ToList(); // new items in modifiedList
 
-            Dictionary<string, TEntity> modifiedEntities = modifiedList
+            Dictionary<string, TEntity> modifiedEntities = modifiedItems
                 .Where(entity => !string.IsNullOrEmpty(idProperty.GetEntityValue(entity!)))
                 .ToDictionary(entity => idProperty.GetEntityValue(entity!)!); //all entities from modified list with ids
-            Dictionary<string, TEntity> unmodifiedEntities = unmodifiedList
+            Dictionary<string, TEntity> unmodifiedEntities = unmodifiedItems
                 //.Where(entity => !string.IsNullOrEmpty(idProperty.GetEntityValue(entity))) - entity in unmodified list has id (is loaded from miktrotik)
                 .ToDictionary(entity => idProperty.GetEntityValue(entity!)!); //all entities from unmodified list with ids
 
-            // The router's order as it stands, kept current through the delete/create below so the ordering
-            // pass can tell what still has to move. Only tracked for an ordered menu — on an unordered one
-            // there is no order to keep and /move is not a legal command.
-            var currentOrder = metadata.IsOrdered
-                ? new TikOrderTracker(unmodifiedItems.Select(entity => idProperty.GetEntityValue(entity!)!))
-                : null;
+            //DELETE — a row the router made itself (dynamic) is not the caller's to delete: RouterOS refuses it
+            // ("cannot remove builtin"), and leaving it out of the list is the normal way to not care about it.
+            plan.Deletes.AddRange(unmodifiedEntities
+                .Where(pair => !modifiedEntities.ContainsKey(pair.Key) && !TikListSync.IsDynamic(metadata, pair.Value))
+                .Select(pair => pair.Value));
+
+            //UPDATE — a change to a dynamic row is still sent: the router's refusal is the honest answer to it.
+            plan.Updates.AddRange(unmodifiedEntities
+                .Where(pair => modifiedEntities.ContainsKey(pair.Key) && !modifiedEntities[pair.Key].EntityEquals(pair.Value))
+                .Select(pair => modifiedEntities[pair.Key]));
 
             // This is the one method that reaches for all four verbs, so it is the one that could get
             // halfway through a partially-supported menu — rows deleted, then a create refused. Check what
             // THIS diff will actually ask for, before the first command goes out: demanding all four would
             // refuse a pure-delete pass on /ppp/active, which is precisely what the menu does allow.
-            // Move is deliberately not in that set: it is the LAST pass, so a refusal there leaves every
-            // field correct and only the order wrong, and Move guards itself. Demanding it up front would
-            // refuse a field-only update on any ordered menu that happens not to offer /move.
-            foreach (var required in RequiredOperations(modifiedEntities, unmodifiedEntities, entitiesToCreate.Count))
-                EnsureSupported(metadata, required);
+            // Move is checked by the ordering pass itself, and only when the plan contains a move — demanding
+            // it up front would refuse a field-only update on an ordered menu that does not offer /move.
+            if (entitiesToCreate.Count > 0)
+                EnsureSupported(metadata, TikEntityOperations.Add);
+            if (plan.Deletes.Count > 0)
+                EnsureSupported(metadata, TikEntityOperations.Remove);
+            if (plan.Updates.Count > 0)
+                EnsureSupported(metadata, TikEntityOperations.Set);
 
-            //DELETE
-            foreach (string entityId in unmodifiedEntities.Keys.Where(id => !modifiedEntities.ContainsKey(id))) //missing in modified -> deleted
+            //CREATE + ORDER
+            if (metadata.IsOrdered)
             {
-                Delete(connection, unmodifiedEntities[entityId]);
-                if (currentOrder != null)
-                    currentOrder.Remove(entityId);
+                // A dynamic row keeps its position whatever the list says: the router refuses to move it, or
+                // anything in front of it.
+                plan.Desired.AddRange(modifiedItems.Where(entity => !TikListSync.IsDynamic(metadata, entity)));
+                plan.OrderSteps = TikListSyncPlanner.PlanOrder(
+                    plan.Desired.Select(entity => idProperty.GetEntityValue(entity!)).Select(id => string.IsNullOrEmpty(id) ? null : id).ToList(),
+                    unmodifiedItems.Select(entity => idProperty.GetEntityValue(entity!)!));
             }
+            else
+                plan.Creates.AddRange(entitiesToCreate);
 
-            //CREATE
-            foreach (TEntity entity in entitiesToCreate)
-            {
-                Save(connection, entity);
-                if (currentOrder != null)
-                    currentOrder.Append(idProperty.GetEntityValue(entity!)!); //Save wrote the new .id back onto the entity; the router appended it
-            }
-
-            //UPDATE
-            foreach (string entityId in unmodifiedEntities.Keys.Where(id => modifiedEntities.ContainsKey(id))) // are in both modified and unmodified -> compare values (update/skip)
-            {
-                TEntity modifiedEntity = modifiedEntities[entityId];
-                TEntity unmodifiedEntity = unmodifiedEntities[entityId];
-
-                if (!modifiedEntity.EntityEquals(unmodifiedEntity))
-                {
-                    Save(connection, modifiedEntity);
-                }
-            }
-
-            //ORDER
-            if (currentOrder != null)
-            {
-                // Last to first, each row moved in front of the one already placed — the same walk
-                // TikListMerge does, over the same TikOrderTracker. Taken in this direction the anchor is
-                // always a row whose final position is settled, so one pass is enough.
-                TEntity? anchor = default(TEntity);
-                bool hasAnchor = false;   //not "anchor != null": TEntity is only constrained to new(), so a struct would read as non-null
-                for (int i = modifiedItems.Count - 1; i >= 0; i--)
-                {
-                    TEntity entity = modifiedItems[i];
-                    string movedKey = idProperty.GetEntityValue(entity!)!;
-
-                    if (hasAnchor)
-                    {
-                        string anchorKey = idProperty.GetEntityValue(anchor!)!; // hasAnchor guards anchor being a real, loaded entity
-                        int movedIdx, anchorIdx;
-                        if (currentOrder.NeedsMove(movedKey, anchorKey, out movedIdx, out anchorIdx))
-                        {
-                            Move(connection, entity, anchor);
-                            currentOrder.ApplyMove(movedKey, anchorKey);
-                        }
-                    }
-
-                    anchor = entity;
-                    hasAnchor = true;
-                }
-            }
+            return plan;
         }
 
-        /// <summary>
-        /// The verbs a <see cref="SaveListDifferences"/> pass over this diff will actually use — so the
-        /// check happens once, before anything is written, instead of per command.
-        /// </summary>
-        /// <remarks>
-        /// The three tests mirror the DELETE/CREATE/UPDATE passes above exactly, including the
-        /// <see cref="TikEntityObjectsExtensions.EntityEquals"/> comparison the UPDATE pass makes: a diff
-        /// that changes nothing asks for nothing, and an unchanged row on a set-less menu is not an error.
-        /// </remarks>
-        private static IEnumerable<TikEntityOperations> RequiredOperations<TEntity>(
-            Dictionary<string, TEntity> modifiedEntities, Dictionary<string, TEntity> unmodifiedEntities, int createCount)
-        {
-            if (createCount > 0)
-                yield return TikEntityOperations.Add;
-
-            if (unmodifiedEntities.Keys.Any(id => !modifiedEntities.ContainsKey(id)))
-                yield return TikEntityOperations.Remove;
-
-            if (unmodifiedEntities.Any(pair => modifiedEntities.ContainsKey(pair.Key)
-                                            && !modifiedEntities[pair.Key].EntityEquals(pair.Value)))
-                yield return TikEntityOperations.Set;
-        }
         #endregion
 
         #region -- DELETE --
@@ -956,6 +946,12 @@ namespace tik4net.Objects
         /// <exception cref="TikNoSuchItemException">Invalid item (bad id/name etc.). Mikrotik API message: 'no such item'.</exception>
         public static void Move<TEntity>(this ITikConnection connection, TEntity entityToMove, TEntity entityToMoveBefore)
         {
+            BuildMoveCommand(connection, entityToMove, entityToMoveBefore).ExecuteNonQuery();
+        }
+
+        /// <summary>The checks and the command of <see cref="Move"/>, shared with <c>MoveAsync</c>.</summary>
+        internal static ITikCommand BuildMoveCommand<TEntity>(ITikConnection connection, TEntity entityToMove, TEntity? entityToMoveBefore)
+        {
             var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
             EnsureSupportsOrdering(metadata);   // first: "this menu has no order" is the more informative answer
             EnsureSupported(metadata, TikEntityOperations.Move);
@@ -966,14 +962,7 @@ namespace tik4net.Objects
             // `!` types the existing behaviour rather than adding a new check.
             string idToMove = metadata.IdProperty!.GetEntityValue(entityToMove!)!;
             string? idToMoveBefore = entityToMoveBefore != null ? metadata.IdProperty!.GetEntityValue(entityToMoveBefore) : null;
-
-            ITikCommand cmd = connection.CreateCommandAndParameters(metadata.EntityPath + "/move", TikCommandParameterFormat.NameValue,
-                "numbers", idToMove);
-
-            if (entityToMoveBefore != null)
-                cmd.AddParameter("destination", idToMoveBefore!);
-
-            cmd.ExecuteNonQuery();
+            return TikListSync.BuildMoveCommand(connection, metadata, idToMove, idToMoveBefore);
         }
 
         /// <summary>

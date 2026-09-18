@@ -32,6 +32,13 @@ namespace tik4net.unittests
         /// <summary>Commands the table applied, in order — for asserting <em>how</em> a merge got there.</summary>
         public List<string> AppliedCommands { get; } = new List<string>();
 
+        /// <summary>
+        /// Called with each write command (its words joined by spaces) before the table applies it. Returning a
+        /// message refuses the command with that <c>!trap</c> and leaves the table untouched — a router that fails
+        /// part-way through a merge. Also the place to cancel a token after the n-th command.
+        /// </summary>
+        public Func<string, string> BeforeWrite { get; set; }
+
         /// <summary>Router path of the emulated menu (e.g. <c>/ip/firewall/mangle</c>).</summary>
         public string Path => _metadata.EntityPath;
 
@@ -43,6 +50,18 @@ namespace tik4net.unittests
         {
             foreach (var entity in entities)
                 _rows.Add(ToRow(entity, "*" + _nextId++));
+            return this;
+        }
+
+        /// <summary>
+        /// Adds a row the router made itself (<c>dynamic=true</c>, like the fasttrack counter rule): the table
+        /// refuses to move, remove or change it, and to move anything in front of it — as RouterOS does.
+        /// </summary>
+        public FakeRouterTable<TEntity> SeedDynamic(TEntity entity)
+        {
+            var row = ToRow(entity, "*" + _nextId++);
+            row["dynamic"] = "true";
+            _rows.Add(row);
             return this;
         }
 
@@ -62,11 +81,20 @@ namespace tik4net.unittests
 
             connection.WithResponse(rows => rows.First() == Path + "/add", rows =>
             {
+                var refused = Refuse(rows);
+                if (refused != null)
+                    return refused;
                 Record(rows);
                 var row = ParseParameters(rows);
                 string id = "*" + _nextId++;
                 row[TikSpecialProperties.Id] = id;
-                _rows.Add(row);   // the router appends — the merge is responsible for moving it into place
+                if (row.TryGetValue("place-before", out string placeBefore))
+                {
+                    row.Remove("place-before");
+                    _rows.Insert(_rows.IndexOf(RowById(placeBefore)), row);
+                }
+                else
+                    _rows.Add(row);   // the router appends
                 return new ITikSentence[]
                 {
                     new TikFakeDoneSentence(new Dictionary<string, string> { { TikSpecialProperties.Ret, id } })
@@ -75,9 +103,12 @@ namespace tik4net.unittests
 
             connection.WithResponse(rows => rows.First() == Path + "/set", rows =>
             {
-                Record(rows);
                 var values = ParseParameters(rows);
                 var row = RowById(values[TikSpecialProperties.Id]);
+                var refused = Refuse(rows) ?? RefuseBuiltin(row, "change");
+                if (refused != null)
+                    return refused;
+                Record(rows);
                 foreach (var pair in values.Where(p => p.Key != TikSpecialProperties.Id))
                     row[pair.Key] = pair.Value;
                 return Done();
@@ -85,30 +116,41 @@ namespace tik4net.unittests
 
             connection.WithResponse(rows => rows.First() == Path + "/unset", rows =>
             {
-                Record(rows);
                 var values = ParseParameters(rows);
                 var row = RowById(values[TikSpecialProperties.Id]);
+                var refused = Refuse(rows) ?? RefuseBuiltin(row, "change");
+                if (refused != null)
+                    return refused;
+                Record(rows);
                 row[values[TikSpecialProperties.UnsetValueName]] = "";
                 return Done();
             });
 
             connection.WithResponse(rows => rows.First() == Path + "/remove", rows =>
             {
-                Record(rows);
                 var values = ParseParameters(rows);
-                _rows.Remove(RowById(values[TikSpecialProperties.Id]));
+                var row = RowById(values[TikSpecialProperties.Id]);
+                var refused = Refuse(rows) ?? RefuseBuiltin(row, "remove");
+                if (refused != null)
+                    return refused;
+                Record(rows);
+                _rows.Remove(row);
                 return Done();
             });
 
             connection.WithResponse(rows => rows.First() == Path + "/move", rows =>
             {
-                Record(rows);
                 var values = ParseParameters(rows);
                 var moved = RowById(values["numbers"]);
+                values.TryGetValue("destination", out string destination);
+                var refused = Refuse(rows) ?? RefuseBuiltin(moved, "move")
+                    ?? (destination != null ? RefuseBuiltin(RowById(destination), "move") : null);
+                if (refused != null)
+                    return refused;
+                Record(rows);
                 _rows.Remove(moved);
 
-                string destination;
-                if (values.TryGetValue("destination", out destination))
+                if (destination != null)
                     _rows.Insert(_rows.IndexOf(RowById(destination)), moved);
                 else
                     _rows.Add(moved);   // no destination → move to end
@@ -134,6 +176,18 @@ namespace tik4net.unittests
         }
 
         private void Record(IEnumerable<string> rows) => AppliedCommands.Add(string.Join(" ", rows));
+
+        private ITikSentence[] Refuse(IEnumerable<string> rows)
+        {
+            string message = BeforeWrite?.Invoke(string.Join(" ", rows));
+            return message != null ? new ITikSentence[] { new TikFakeTrapSentence(message) } : null;
+        }
+
+        // RouterOS: "failure: cannot move builtin" / "cannot remove builtin" / "cannot change builtin".
+        private static ITikSentence[] RefuseBuiltin(Dictionary<string, string> row, string verb)
+            => row.TryGetValue("dynamic", out string dynamic) && dynamic == "true"
+                ? new ITikSentence[] { new TikFakeTrapSentence("failure: cannot " + verb + " builtin") }
+                : null;
 
         private static ITikSentence[] Done() => new ITikSentence[] { new TikFakeDoneSentence() };
 

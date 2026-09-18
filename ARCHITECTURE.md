@@ -405,8 +405,8 @@ CRUD via `TikConnectionExtensions`:
   match this list", and which one fits is decided by **whether you are holding the router's own rows**:
   - `SaveListDifferences(modified, unmodified)` is the **round trip**. You loaded a list, cloned it
     (`CloneEntityList`), edited the clone, and hand back both. Rows pair by `.id`, every mapped field is
-    compared, and on an `IsOrdered` entity the list order is applied by issuing the `/move` commands the
-    difference needs — so reordering a firewall chain is a change like any other.
+    compared, and on an `IsOrdered` entity the list order is applied — so reordering a firewall chain is a
+    change like any other.
   - `CreateMerge(expected, original)` is **declarative reconciliation**. The expected rows were built in
     code and carry no `.id`, so the pairing key is yours (`WithKey`) and the compared fields are an
     explicit subset (`Field`, plus `JustForInsertField`). It adds what the round trip has no place for:
@@ -415,15 +415,26 @@ CRUD via `TikConnectionExtensions`:
 
   Neither subsumes the other: `SaveListDifferences` cannot pair rows that have no `.id` yet, and
   `CreateMerge` cannot diff a field you did not name. Both are kept.
+
+  Both order through one pure planner, `TikListSyncPlanner`, and one executor, `TikListSync`: the rows whose
+  current positions form the longest increasing subsequence stay put, every other row is moved once, and a
+  new row is created in place with `add place-before=` (on WinBox native: the M2 add carrying the anchor as
+  its next-id). RouterOS only places a row in FRONT of another, and the list may be a filtered part of the
+  table, so nothing is ever placed after the list's current last row — finding what follows it would mean
+  reading the whole table. That makes the plan the fewest moves that never append: at most one more than an
+  unrestricted reorder, only when the list's last row changes, and nothing is read. Dynamic rows
+  (`dynamic=true`) are never deleted, moved or used as an anchor; RouterOS refuses all three. Every plan is
+  replayed on `TikOrderTracker` and must reproduce the desired order before a command is sent.
 - Raw: `ExecuteNonQuery`, `ExecuteScalar`
 
 Task-based CRUD is a separate class, `TikConnectionAsyncExtensions` — `LoadAllAsync`, `LoadListAsync`,
 `LoadSingleAsync`, `LoadSingleOrDefaultAsync`, `LoadByIdAsync`, `LoadByNameAsync`, `SaveAsync`,
-`DeleteAsync`, each taking a `CancellationToken` and gated on `AsyncCommands`. The rules that are not
-"wait for the router" live once in `TikConnectionExtensions` and are called from both halves. The
-compound operations (`SaveListDifferences`, `DeleteAll`, `Move`) have no async form on purpose: each is a
-sequence of the primitives, so an async one is a design question about partial failure rather than a
-mechanical translation. Its own XML doc states that.
+`DeleteAsync`, `MoveAsync`, `MoveToEndAsync`, and the list writers `SaveListDifferencesAsync`,
+`DeleteAllAsync` and `TikListMerge.SaveAsync` — each taking a `CancellationToken` and gated on
+`AsyncCommands`. The rules that are not "wait for the router" live once in `TikConnectionExtensions` (and,
+for the list writers, in their shared plan) and are called from both halves. A list write has no
+transaction: the token is checked between commands, a failure part-way leaves what was sent applied, and
+the documented recovery is to reload and run it again, which continues from wherever the router is.
 
 `Tracking/` (`TikChangeTracker`, `TikSnapshot`) attaches proplist-aware snapshots to loaded
 entities via `ConditionalWeakTable`, so `Save` can send only changed fields. Lifetime semantics
