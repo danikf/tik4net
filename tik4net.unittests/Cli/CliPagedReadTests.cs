@@ -274,6 +274,37 @@ namespace tik4net.unittests.Cli
         }
 
         [TestMethod]
+        public void AMenuWhosePrintTakesNoFromIsReadInOneCommandInstead()
+        {
+            // '/log print' has no 'from=' argument (7.24), so the window line is refused as a parse error. That
+            // is the menu saying it cannot be windowed, not the caller's mistake: the read must still happen.
+            using (var conn = new PagingCliConnection(rowCount: 5) { WindowRefusal = "bad parameter from (line 1 column 137)" })
+            {
+                conn.OpenScripted();
+                conn.CliReadPageSize = 2;
+
+                var rows = conn.LoadList<PagedProbe>().ToList();
+
+                Assert.AreEqual(5, rows.Count, "the fallback must return the whole table");
+                Assert.AreEqual(2, conn.Sent.Count, string.Join(" | ", conn.Sent));
+                Assert.AreEqual(CountedProbeRead, conn.Sent[1], "plain single-command read");
+            }
+        }
+
+        [TestMethod]
+        public void AParseErrorInTheFilterIsStillTheCallersError()
+        {
+            using (var conn = new PagingCliConnection(rowCount: 5) { WindowRefusal = "expected yes or no (line 1 column 62)" })
+            {
+                conn.OpenScripted();
+                conn.CliReadPageSize = 2;
+
+                var ex = Assert.ThrowsException<TikCommandTrapException>(() => conn.LoadList<PagedProbe>().ToList());
+                StringAssert.Contains(ex.Message, "expected yes or no");
+            }
+        }
+
+        [TestMethod]
         public void AMenuFoundUnpageableIsNotProbedAgainOnTheSameConnection()
         {
             using (var conn = new PagingCliConnection(rowCount: 5) { OmitMarker = true })
@@ -482,6 +513,9 @@ namespace tik4net.unittests.Cli
             private readonly int _rowCount;
             public readonly List<string> Sent = new List<string>();
             public bool OmitMarker;
+
+            /// <summary>When set, the whole answer to every window request, as the router refuses one.</summary>
+            public string WindowRefusal;
             public int DropRecordsForOffset = -1;
             public int DropOneRecordForOffset = -1;
             public int ExtraRecordForOffset = -1;
@@ -511,6 +545,9 @@ namespace tik4net.unittests.Cli
                     @":pick \[[^\[\]]*? find(?: \((?<clause>.*)\))?\] (?<from>\d+) (?<to>\d+)\]");
                 if (!pick.Success)   // unpaged read: the whole table, counted as the router counts it
                     return Task.FromResult(Rows(0, _rowCount) + ((char)10) + "#n=" + _rowCount + "/num");
+
+                if (WindowRefusal != null)
+                    return Task.FromResult(WindowRefusal);
 
                 int from = int.Parse(pick.Groups["from"].Value);
                 int to = int.Parse(pick.Groups["to"].Value);

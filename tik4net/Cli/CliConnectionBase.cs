@@ -1181,12 +1181,6 @@ namespace tik4net.Cli
         }
 
         /// <summary>
-        /// True when RouterOS aborted the command line — what it answers, with no rows, no marker and no error
-        /// text, when a window's <c>print from=</c> names an id that vanished after its <c>find</c> (measured on
-        /// 7.24 under conntrack churn; Docs/findings-cli.md §1). The word alone on a line, so a field value
-        /// cannot be mistaken for it.
-        /// </summary>
-        /// <summary>
         /// Throws the router's own complaint when a read's whole answer is one parse error — a line ending in
         /// <c>(line N column M)</c>, such as <c>expected yes or no (line 1 column 62)</c> for a boolean compared
         /// with <c>true</c>. None of the phrases <see cref="CliErrorParser"/> knows covers it, so without this the
@@ -1210,6 +1204,20 @@ namespace tik4net.Cli
             new System.Text.RegularExpressions.Regex(@"\(line \d+ column \d+\)$",
                 System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
+        /// <summary>
+        /// True when the router refused a window because the menu's <c>print</c> takes no <c>from=</c> —
+        /// <c>bad parameter from (line 1 column N)</c>, which is what <c>/log print</c> answers (7.24). Such a
+        /// menu cannot be windowed and is read in one command, like one without <c>find</c>.
+        /// </summary>
+        private static bool IsPrintWithoutFrom(string? output)
+            => (output ?? string.Empty).Trim().StartsWith("bad parameter from (line ", StringComparison.Ordinal);
+
+        /// <summary>
+        /// True when RouterOS aborted the command line — what it answers, with no rows, no marker and no error
+        /// text, when a window's <c>print from=</c> names an id that vanished after its <c>find</c> (measured on
+        /// 7.24 under conntrack churn; Docs/findings-cli.md §1). The word alone on a line, so a field value
+        /// cannot be mistaken for it.
+        /// </summary>
         private static bool IsInterruptedAnswer(string? output)
             => (output ?? string.Empty).Split((char)10)
                 .Any(line => string.Equals(line.Trim(), "interrupted", StringComparison.Ordinal));
@@ -1242,8 +1250,10 @@ namespace tik4net.Cli
             CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
 
             string body = SplitOffWindowMarker(output, out int windowSize);
-            if (windowSize < 0)
-                ThrowIfSyntaxError(output, descriptor);   // a bad filter is the caller's error, not a menu without 'find'
+            // A bad filter is the caller's error, not a menu that cannot be windowed — unless what the router
+            // refused is the window's own 'from=', which a print such as '/log print' does not take.
+            if (windowSize < 0 && !IsPrintWithoutFrom(output))
+                ThrowIfSyntaxError(output, descriptor);
             if (windowSize < 0)   // caller decides: take it again if interrupted, otherwise fall back
                 return new PagedWindow(new List<TikRecordSentence>(), -1, output, IsInterruptedAnswer(output));
 

@@ -926,6 +926,10 @@ command, not an answer that lost its end: it is raised as the router's error rat
 `find` (which would switch paging off for the path). Because the check only runs when the marker is
 missing, a record whose text happens to end the same way cannot trigger it.
 
+One parse error is the menu rather than the caller: `bad parameter from (line 1 column N)` is what a window
+gets from a menu whose `print` takes no `from=` — `/log print` on 7.24. That menu cannot be windowed, and
+like one without `find` it is read in a single command, and remembered for the connection.
+
 ---
 
 ## 11. The router can write into a live session on its own
