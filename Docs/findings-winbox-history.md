@@ -138,6 +138,28 @@ packet the whole time. This wrong conclusion was marked resolved in the notes fo
 before the idle-gap correlation (two gaps ≥3 s in an entire 340-test run, two wedges) surfaced and
 reopened it.
 
+### A 3570-byte frame — read as a last-window hang in one table (§21)
+
+**Symptom (2026-09-18, 7.24):** a whole-table `/ip firewall mangle` read over `WinboxCliMac` with the default
+page of 100 hung in its last, partial window (79 rows) every time: 4470 characters, then nothing until the
+receive timeout. Pages of 50 and 30 read the whole table; MAC-Telnet, `WinboxCli` and Telnet read the same
+windows without trouble, and the same window read alone on a fresh session passed.
+
+**What it looked like:** a size- or content-dependent problem in that window on that carrier — the obvious
+suspects were the mepty byte acknowledgement, datagram loss, and a byte split across datagrams. The trace
+showed none of them: the client's acks were exact, the router acknowledged every pull and simply sent no data.
+
+**What it was:** the last DATA frame before the silence was 3598 bytes on the wire — 14 full chunks, no
+short one — and the reader was still waiting for the chunk that would end it (§21). The row count was only
+the trigger: four test-residue rows at the end of the table put the frame there. With them removed the read
+passed; with four rows of the same shape put back it hung again, and a `:put` sweep then produced the frame
+on demand over TCP too, where the same defect ends the session at once instead of stalling it. It predated
+the list-writer work it was first seen in, and was fixed in `WinboxTcpTransport.ReadChunkedFrame` /
+`TryTakeChunkedFrame`.
+
+**Lesson:** a failure that follows a table's size, a page size and one carrier is a framing boundary until
+the frame sizes say otherwise — read them off the trace before theorising about the content.
+
 ---
 
 ## Measurement traps

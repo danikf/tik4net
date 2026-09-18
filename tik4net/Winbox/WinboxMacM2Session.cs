@@ -463,24 +463,12 @@ namespace tik4net.Winbox
         }
 
         // Tries to pull one complete frame out of _rxBuf. Returns null (and leaves the buffer intact) if
-        // the buffer does not yet hold a full frame.
+        // the buffer does not yet hold a full frame. Once the stream keys exist every frame is encrypted and
+        // ends at its declared length — the router sends no short final chunk after a 3570-byte frame, and
+        // waiting for one merged it with the next frame and stalled the terminal (see
+        // WinboxTcpTransport.ReadChunkedFrame). The handshake frames before that declare no length.
         private byte[]? TryExtractFrame()
-        {
-            int pos = 0;
-            var frame = new List<byte>();
-            while (true)
-            {
-                if (_rxBuf.Count - pos < 2) return null;            // need chunk header
-                int chunkLen = _rxBuf[pos];
-                int payloadLen = (chunkLen == 0xFF) ? 0xFF : chunkLen;
-                if (_rxBuf.Count - pos - 2 < payloadLen) return null;  // incomplete chunk
-                for (int i = 0; i < payloadLen; i++) frame.Add(_rxBuf[pos + 2 + i]);
-                pos += 2 + payloadLen;
-                if (chunkLen < 0xFF) break;                          // final chunk
-            }
-            _rxBuf.RemoveRange(0, pos);
-            return frame.ToArray();
-        }
+            => WinboxTcpTransport.TryTakeChunkedFrame(_rxBuf, encrypted: _receiveAesKey != null);
 
         private static byte[] ChunkWrap(byte[] data, byte firstTag)
         {

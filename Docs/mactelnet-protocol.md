@@ -424,6 +424,10 @@ First chunk: tag = 0x06 (enc) or 0x01 (plain), chunk_len = payload length
 Continuation:  tag = 0xFF, chunk_len = 0xFF (255B, continues) or < 0xFF (last)
 ```
 
+An encrypted frame also ends once its declared length (`enc_length + 18`, below) has arrived: the router
+sends no zero-length last chunk after a frame that is an exact multiple of 255 bytes
+([findings-winbox.md](findings-winbox.md) §21).
+
 **Assembled payload (encrypted, tag 0x06):**
 ```
 [enc_length 2B big-endian][IV 16B][ciphertext]
