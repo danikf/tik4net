@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Renci.SshNet.Common;
 using tik4net.Cli;
 using tik4net.Connection;
 
@@ -101,7 +102,12 @@ namespace tik4net.Ssh
                     client.Connect(host, port, user, password, ConnectTimeout);
                     await client.SettleAfterConnectAsync(ct).ConfigureAwait(false);
                 }
-                catch (Exception ex) when (!(ex is OperationCanceledException)) { throw AgentLoginFailed(host, ex); }
+                // Only the agent answering and saying no is its login failing; a port that refuses or never
+                // answers is a SocketException and leaves as one, exactly as on a direct connection.
+                catch (Exception ex) when (ex is SshAuthenticationException || ex is TikConnectionLoginException)
+                {
+                    throw AgentLoginFailed(host, ex);
+                }
                 string agentRomonId = await client.EnterRomonAsync(romonTarget, ct).ConfigureAwait(false);
                 RomonEntered(TikConnectionType.Ssh, host, user, agentRomonId);
             };

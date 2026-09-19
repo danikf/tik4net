@@ -254,6 +254,13 @@ namespace tik4net.WinboxNative
                     session.Dispose();
                     throw;
                 }
+                catch (System.Net.Sockets.SocketException)
+                {
+                    // Nothing answered — refused, unreachable, or the connect timed out. Not a login failure,
+                    // and the same SocketException the binary API throws for it.
+                    session.Dispose();
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     session.Dispose();

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using System.Linq;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using tik4net.Connection;
@@ -252,7 +253,9 @@ namespace tik4net.Cli
 
         /// <summary>
         /// A failed login to the RoMON agent, said to be the agent's: otherwise the message reads as if the
-        /// target had refused, and the target's credentials are the first thing a reader would doubt.
+        /// target had refused, and the target's credentials are the first thing a reader would doubt. Only for
+        /// an agent that answered and refused — an agent port that refuses the connection is a
+        /// <see cref="SocketException"/>, as on a direct connection.
         /// </summary>
         internal static TikConnectionLoginException AgentLoginFailed(string host, Exception ex)
             => new TikConnectionLoginException(new Exception(
@@ -261,9 +264,10 @@ namespace tik4net.Cli
 
         /// <summary>
         /// Shared open: runs <paramref name="login"/> under the standard guard (a
-        /// <see cref="TikConnectionLoginException"/> is rethrown as-is; any other exception is wrapped in one
-        /// and the half-open client closed), then registers the driver delegates and marks the connection
-        /// opened. Leaf transports build their concrete client and call this with delegates bound to it.
+        /// <see cref="TikConnectionLoginException"/>, a <see cref="SocketException"/> and a cancellation are
+        /// rethrown as-is; any other exception is wrapped in a login exception; the half-open client is closed
+        /// either way), then registers the driver delegates and marks the connection opened. Leaf transports
+        /// build their concrete client and call this with delegates bound to it.
         /// </summary>
         protected void OpenWith(Func<CancellationToken, Task> login,
             Func<string, CancellationToken, Task<string>> send,
@@ -300,6 +304,14 @@ namespace tik4net.Cli
             }
             catch (TikConnectionLoginException)
             {
+                close();
+                throw;
+            }
+            catch (SocketException)
+            {
+                // Not a login failure: nothing answered (refused, unreachable, the connect timed out). It
+                // leaves as itself, which is what the binary API throws for the same port — a caller told to
+                // check credentials when the service is simply off is sent the wrong way.
                 close();
                 throw;
             }

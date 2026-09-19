@@ -48,19 +48,22 @@ namespace tik4net.Ssh
         /// terminal modifiers appended to the login name (<c>+c</c> = no ANSI colour) for cleaner output;
         /// if the router rejects the suffixed name we retry once with the plain user name.
         /// </summary>
+        /// <exception cref="System.Net.Sockets.SocketException">Nothing answered: the port refused the connection,
+        /// the host was unreachable, or the connection was not established within the timeout.</exception>
+        /// <exception cref="SshAuthenticationException">The router answered and refused the credentials.</exception>
         internal void Connect(string host, int port, string user, string password, int connectTimeoutMs)
         {
             try
             {
                 _ssh = CreateClient(host, port, user + RouterOsCliLogin.TerminalLoginFlags, password, connectTimeoutMs);
-                _ssh.Connect();
+                ConnectOrTimeOut(_ssh);
             }
             catch (SshAuthenticationException)
             {
                 // Router rejected the '+c' terminal-flag suffix on the user name — retry plain.
                 SafeDispose(_ssh);
                 _ssh = CreateClient(host, port, user, password, connectTimeoutMs);
-                _ssh.Connect();
+                ConnectOrTimeOut(_ssh);
             }
 
             // cols/rows 0 → RouterOS uses the cursor-probe negotiation (Vt100State) to size the terminal.
@@ -86,6 +89,23 @@ namespace tik4net.Ssh
             { TerminalModes.INLCR,  0 }, // do not translate NL→CR on input
             { TerminalModes.OPOST,  0 }, // no output post-processing
         };
+
+        // SSH.NET reports a refused port as the SocketException itself, but a connection that is not
+        // established in time as its own SshOperationTimeoutException. That one is turned into the
+        // SocketException the binary API and Telnet throw for the same case, so a timeout is a network failure
+        // on every transport rather than — wrapped by the connection's open — a login failure on this one.
+        private static void ConnectOrTimeOut(SshClient client)
+        {
+            try
+            {
+                client.Connect();
+            }
+            catch (SshOperationTimeoutException)
+            {
+                SafeDispose(client);
+                throw new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.TimedOut);
+            }
+        }
 
         private SshClient CreateClient(string host, int port, string user, string password, int connectTimeoutMs)
         {
