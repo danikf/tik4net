@@ -181,6 +181,45 @@ namespace tik4net
         /// </summary>
         public RemoteCertificateValidationCallback? CertificateValidationCallback { get; set; }
 
+        /// <summary>
+        /// The RoMON agent to reach this router through, or <c>null</c> to connect directly. When set,
+        /// <see cref="Address"/> must be the router's RoMON id (<see cref="TikRouterAddress.FromRomonId"/>), and
+        /// <see cref="User"/>/<see cref="Password"/> are the router's own; the connection logs in to the agent
+        /// first and continues into the router from the agent's shell.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Which transports relay: <b>Telnet and SSH</b>, through <c>/tool romon ssh</c> on the agent
+        /// (<see cref="SupportsRomon"/>). Every other transport is refused at <see cref="CreateUnopened"/>, before
+        /// anything connects. The session options (timeouts, encoding, paging, cancellation) come from this setup;
+        /// the agent contributes only where it is and who logs in to it. <see cref="Port"/> must stay unset here —
+        /// the port that is dialled is the agent's, <see cref="TikRomonAgentSetup.Port"/>.
+        /// </para>
+        /// <para>
+        /// What the target needs: RoMON reachable from the agent, and a user whose group has the <c>ssh</c>
+        /// policy — the target's IP ssh service itself is not used. Security: the agent runs the SSH client, so it
+        /// sees the session in clear, and the leg to the agent is as private as the transport chosen for it —
+        /// over Telnet the target's password crosses the network in cleartext. A user's IP <c>address</c>
+        /// restriction on the target does not limit RoMON logins: the target sees the agent's RoMON id, not an IP.
+        /// </para>
+        /// <para>Once open, <see cref="TikRomonConnectionExtensions.GetRomonConnectionInfo"/> describes the route;
+        /// a relay that cannot reach the target raises <see cref="TikRomonRelayException"/>.</para>
+        /// </remarks>
+        public TikRomonAgentSetup? RomonAgentSetup { get; set; }
+
+        /// <summary>
+        /// Whether <paramref name="connectionType"/> can reach a router through a RoMON agent — see
+        /// <see cref="RomonAgentSetup"/>.
+        /// </summary>
+        /// <param name="connectionType">The transport to ask about.</param>
+        /// <exception cref="NotImplementedException">The type lives in a satellite package that has not been
+        /// registered (as for <see cref="Create(TikConnectionType)"/>).</exception>
+        public static bool SupportsRomon(TikConnectionType connectionType)
+        {
+            using (var probe = TikConnectionRegistry.Create(connectionType))
+                return probe is ITikRomonConnection;
+        }
+
         /// <summary>Creates a connection setup for the given router address and credentials.</summary>
         /// <param name="address">
         /// Where the router is. A bare string converts implicitly and is read for what it looks like —
@@ -191,15 +230,21 @@ namespace tik4net
         /// <param name="user">RouterOS user name.</param>
         /// <param name="password">Password for <paramref name="user"/> (may be empty).</param>
         /// <remarks>
+        /// A router behind a RoMON agent is addressed by <see cref="TikRouterAddress.FromRomonId"/>, with
+        /// <paramref name="user"/> and <paramref name="password"/> its own, and the agent set as
+        /// <see cref="RomonAgentSetup"/>.
+        /// <para>
         /// A MAC-only address is accepted here and rejected later, by the transports that cannot use it —
         /// see <see cref="CreateUnopened"/>. It has to be that way round: which coordinate is required is a
         /// property of the transport, and the transport is not named until <c>Create</c>.
+        /// </para>
         /// </remarks>
         public TikConnectionSetup(TikRouterAddress address, string user, string password)
         {
             if (address.IsEmpty)
                 throw new ArgumentException(
-                    "The router address must carry a host name / IP address, a MAC address, or both.", nameof(address));
+                    "The router address must carry a host name / IP address, a MAC address, or both — or a RoMON id.",
+                    nameof(address));
             Guard.ArgumentNotNull(user, nameof(user));
             Guard.ArgumentNotNull(password, nameof(password));
             Address = address;
@@ -308,6 +353,12 @@ namespace tik4net
             // their constructors. Writing an unasked-for value here would flatten that.
             if (CliReadPageSize.HasValue && connection is ITikCliPagedReadConnection paged)
                 paged.CliReadPageSize = CliReadPageSize.Value;
+
+            // RequireUsableAddress has already established that a RoMON setup is going to a transport that relays.
+            if (connection is ITikRomonConnection romon)
+                romon.RomonTarget = RomonAgentSetup == null
+                    ? null
+                    : new Cli.RomonSshTarget(Address.RomonId!, User, Password, RomonAgentSetup);
         }
 
         /// <summary>
@@ -323,6 +374,32 @@ namespace tik4net
         /// </remarks>
         private void RequireUsableAddress(ITikConnection connection)
         {
+            if (RomonAgentSetup != null)
+            {
+                if (!Address.HasRomonId)
+                    throw new InvalidOperationException(
+                        "RomonAgentSetup is set, so Address must be the target's RoMON id: create the setup with "
+                        + $"TikRouterAddress.FromRomonId(\"AA:BB:CC:DD:EE:FF\"), not {Address}.");
+                if (!(connection is ITikRomonConnection))
+                    throw new NotSupportedException(
+                        $"{connection.GetType().Name} cannot reach a router through a RoMON agent. Telnet and SSH can "
+                        + "(TikConnectionSetup.SupportsRomon tells which transports do).");
+                if (Port.HasValue)
+                    throw new InvalidOperationException(
+                        "Port is not used when connecting through a RoMON agent — the port dialled is the agent's. "
+                        + "Set RomonAgentSetup.Port instead.");
+                if (!RomonAgentSetup.Address.HasHost)
+                    throw new InvalidOperationException(
+                        $"{connection.GetType().Name} reaches the RoMON agent over IP and needs its host name or IP "
+                        + $"address, but the agent setup was created from {RomonAgentSetup.Address}.");
+                return;
+            }
+
+            if (Address.HasRomonId)
+                throw new InvalidOperationException(
+                    $"{Address} is a RoMON id: a router is reached by its RoMON id only through an agent. Set "
+                    + "RomonAgentSetup to the router that relays to it.");
+
             if (connection is ITikMacLayerConnection)
             {
                 if (Address.HasHost || !string.IsNullOrEmpty(EffectiveRouterMac))
@@ -401,7 +478,15 @@ namespace tik4net
         // The MAC-layer transports accept an empty host — it is the "no IP anywhere" case they exist for,
         // and ITikConnection.Open has nowhere else to say it. RequireUsableAddress has already established
         // that the connection about to be opened is one of them.
-        private string HostArgument => Address.Host ?? string.Empty;
+        private string HostArgument => RomonAgentSetup != null
+            ? RomonAgentSetup.Address.Host ?? string.Empty
+            : Address.Host ?? string.Empty;
+
+        // Through a RoMON agent the connection dials and logs in to the AGENT; the target's credentials travel
+        // separately (ApplyTo → ITikRomonConnection) and are used from the agent's shell.
+        private int? PortArgument => RomonAgentSetup != null ? RomonAgentSetup.Port : Port;
+        private string UserArgument => RomonAgentSetup?.User ?? User;
+        private string PasswordArgument => RomonAgentSetup?.Password ?? Password;
 
         /// <summary>
         /// Opens a connection this setup has already configured, using its address, port and credentials.
@@ -435,19 +520,21 @@ namespace tik4net
 
         private void OpenSync(ITikConnection conn)
         {
-            if (Port.HasValue)
-                conn.Open(HostArgument, Port.Value, User, Password);
+            int? port = PortArgument;
+            if (port.HasValue)
+                conn.Open(HostArgument, port.Value, UserArgument, PasswordArgument);
             else
-                conn.Open(HostArgument, User, Password);
+                conn.Open(HostArgument, UserArgument, PasswordArgument);
         }
 
         private async Task<ITikConnection> OpenCoreAsync(ITikConnection conn, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
-            if (Port.HasValue)
-                await conn.OpenAsync(HostArgument, Port.Value, User, Password, ct).ConfigureAwait(false);
+            int? port = PortArgument;
+            if (port.HasValue)
+                await conn.OpenAsync(HostArgument, port.Value, UserArgument, PasswordArgument, ct).ConfigureAwait(false);
             else
-                await conn.OpenAsync(HostArgument, User, Password, ct).ConfigureAwait(false);
+                await conn.OpenAsync(HostArgument, UserArgument, PasswordArgument, ct).ConfigureAwait(false);
             return conn;
         }
     }

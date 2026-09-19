@@ -277,10 +277,12 @@ namespace tik4net.Cli
         /// <para>The target's IP <c>ssh</c> service is not involved (disabled on the measured target, login
         /// worked); the user's <c>ssh</c> policy is. The <c>+c</c> terminal flag passes through the relay.</para>
         /// </remarks>
+        /// <returns>The AGENT's own RoMON id, read before the relay — for <see cref="TikRomonConnectionInfo"/>.</returns>
         /// <exception cref="ArgumentException"><paramref name="targetRomonId"/> is not a MAC-shaped id.</exception>
-        /// <exception cref="TikConnectionLoginException">The relay did not start, the target refused the login,
-        /// or the prompt reached is not the target's.</exception>
-        public static async Task RomonSshLoginAsync(
+        /// <exception cref="TikRomonRelayException">The relay did not start, the target refused the login, the
+        /// prompt reached is not the target's, or the connection failed mid-relay — see its
+        /// <see cref="TikRomonRelayException.Reason"/>.</exception>
+        public static async Task<string> RomonSshLoginAsync(
             string targetRomonId,
             string user,
             string password,
@@ -291,7 +293,36 @@ namespace tik4net.Cli
             CancellationToken ct)
         {
             string id = NormalizeRomonId(targetRomonId);
+            try
+            {
+                return await RomonSshLoginCoreAsync(id, user, password, useTerminalFlags, readUntil, sendLine, sendBytes, ct)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (!(ex is TikRomonRelayException) && !(ex is OperationCanceledException))
+            {
+                throw new TikRomonRelayException(TikRomonRelayFailure.TransportFailed,
+                    "RoMON SSH relay to " + id + ": the connection to the agent failed while relaying — " + ex.Message, ex);
+            }
+        }
+
+        private static async Task<string> RomonSshLoginCoreAsync(
+            string id,
+            string user,
+            string password,
+            bool useTerminalFlags,
+            Func<Func<string, bool>, CancellationToken, Task<string>> readUntil,
+            Func<string, CancellationToken, Task> sendLine,
+            Func<byte[], CancellationToken, Task> sendBytes,
+            CancellationToken ct)
+        {
             string loginName = useTerminalFlags ? user + TerminalLoginFlags : user;
+
+            // 0. The agent's own id, while its shell is still the one answering. It is what the target records
+            //    as 'by-romon' for this session, and it tells a fallen-back relay apart in step 4's message.
+            const string idQuery = ":put [/tool romon get current-id]";
+            await sendLine(idQuery, ct).ConfigureAwait(false);
+            string agentAnswer = await readUntil(s => AnswerAfterEcho(s, idQuery) != null, ct).ConfigureAwait(false);
+            string agentId = AnswerAfterEcho(agentAnswer, idQuery) ?? string.Empty;
 
             await sendLine("/tool romon ssh address=" + id + " user=" + CliCommandBuilder.QuoteIfNeeded(loginName), ct)
                 .ConfigureAwait(false);
@@ -301,15 +332,18 @@ namespace tik4net.Cli
             if (!IsPasswordPrompt(opened))
             {
                 if (!IsShellPrompt(opened))
-                    throw RomonException("the agent did not answer /tool romon ssh with a password prompt", opened);
+                    throw Relay(TikRomonRelayFailure.TargetDidNotRespond, id,
+                        "the agent did not answer /tool romon ssh with a password prompt", opened);
 
                 const string enabledQuery = ":put [/tool romon get enabled]";
                 await sendLine(enabledQuery, ct).ConfigureAwait(false);
                 string enabled = await readUntil(s => AnswerAfterEcho(s, enabledQuery) != null, ct).ConfigureAwait(false);
                 if (string.Equals(AnswerAfterEcho(enabled, enabledQuery), "false", StringComparison.OrdinalIgnoreCase))
-                    throw RomonException("RoMON is not enabled on the agent (/tool romon set enabled=yes)", null);
-                throw RomonException("the agent could not reach RoMON id " + id +
-                    " (not in its RoMON overlay — see /tool romon discover on the agent)", null);
+                    throw Relay(TikRomonRelayFailure.RomonNotEnabledOnAgent, id,
+                        "RoMON is not enabled on the agent (/tool romon set enabled=yes)", null);
+                throw Relay(TikRomonRelayFailure.TargetUnreachable, id,
+                    "the agent could not reach RoMON id " + id + " (not in its RoMON overlay — see /tool romon discover on the agent)",
+                    null);
             }
 
             // 2. The target's password. Traced as a secret, like the ordinary login's.
@@ -336,20 +370,27 @@ namespace tik4net.Cli
                 if (IsPasswordPrompt(result))
                 {
                     await sendBytes(new[] { CtrlC }, ct).ConfigureAwait(false);   // leave the prompt, type nothing
-                    throw RomonException("the target " + id + " refused the login for user '" + user +
+                    throw Relay(TikRomonRelayFailure.TargetRefusedLogin, id,
+                        "the target refused the login for user '" + user +
                         "': wrong password, or the user's group lacks the 'ssh' policy (RoMON SSH needs it)", null);
                 }
-                throw RomonException("the target " + id + " did not reach its shell prompt", result);
+                throw Relay(TikRomonRelayFailure.TargetDidNotRespond, id, "the target did not reach its shell prompt", result);
             }
 
             // 4. Confirm it is the target: a relay that fell back to the agent shows the agent's own id.
-            const string idQuery = ":put [/tool romon get current-id]";
             await sendLine(idQuery, ct).ConfigureAwait(false);
             string confirmed = await readUntil(s => AnswerAfterEcho(s, idQuery) != null, ct).ConfigureAwait(false);
             string? answeredId = AnswerAfterEcho(confirmed, idQuery);
             if (!string.Equals(answeredId, id, StringComparison.OrdinalIgnoreCase))
-                throw RomonException("the prompt reached is not the target's: its RoMON id is '" + answeredId +
-                    "', not " + id, answeredId == null ? confirmed : null);
+            {
+                bool fellBack = !string.IsNullOrEmpty(agentId)
+                                && string.Equals(answeredId, agentId, StringComparison.OrdinalIgnoreCase);
+                throw Relay(TikRomonRelayFailure.NotTheTarget, id,
+                    "the prompt reached is not the target's: its RoMON id is '" + answeredId + "'" +
+                    (fellBack ? " — the agent's own; the relay fell back to the agent" : ""),
+                    answeredId == null ? confirmed : null);
+            }
+            return agentId;
         }
 
         /// <summary>
@@ -391,10 +432,10 @@ namespace tik4net.Cli
             return s.ToUpperInvariant();
         }
 
-        private static TikConnectionLoginException RomonException(string what, string? serverText)
-            => new TikConnectionLoginException(new Exception(
-                "RoMON SSH relay: " + what + "." +
-                (string.IsNullOrWhiteSpace(serverText) ? "" : " Server response: " + serverText!.Trim())));
+        private static TikRomonRelayException Relay(TikRomonRelayFailure reason, string id, string what, string? serverText)
+            => new TikRomonRelayException(reason,
+                "RoMON SSH relay to " + id + ": " + what + "." +
+                (string.IsNullOrWhiteSpace(serverText) ? "" : " Server response: " + serverText!.Trim()));
 
         private static TikConnectionLoginException LoginException(string serverText)
             => new TikConnectionLoginException(new Exception(

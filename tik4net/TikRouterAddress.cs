@@ -4,9 +4,10 @@ using System.Globalization;
 namespace tik4net
 {
     /// <summary>
-    /// Where the router is: an IP address / host name, a MAC address, or both. One argument instead of two,
-    /// because the two are alternatives rather than a pair — an IP transport needs the host, a MAC-layer
-    /// transport needs the MAC, and neither has any use for the other one's coordinate.
+    /// Where the router is: an IP address / host name, a MAC address, or both — or a RoMON id, for a router
+    /// reached through a RoMON agent (<see cref="FromRomonId"/>). One argument instead of several, because the
+    /// coordinates are alternatives rather than a pair — an IP transport needs the host, a MAC-layer transport
+    /// needs the MAC, and neither has any use for the other one's coordinate.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -40,10 +41,17 @@ namespace tik4net
         /// </summary>
         public string? Mac { get; }
 
-        private TikRouterAddress(string? host, string? mac)
+        /// <summary>
+        /// The router's RoMON id in the normalized <c>"AA:BB:CC:DD:EE:FF"</c> form, or <c>null</c> when the
+        /// router is not addressed over RoMON. See <see cref="FromRomonId"/>.
+        /// </summary>
+        public string? RomonId { get; }
+
+        private TikRouterAddress(string? host, string? mac, string? romonId = null)
         {
             Host = host;
             Mac = mac;
+            RomonId = romonId;
         }
 
         /// <summary>Whether a host name or IP address is present.</summary>
@@ -52,8 +60,11 @@ namespace tik4net
         /// <summary>Whether a MAC address is present.</summary>
         public bool HasMac => !string.IsNullOrEmpty(Mac);
 
-        /// <summary>Whether neither coordinate is present — the state of a <c>default(TikRouterAddress)</c>.</summary>
-        public bool IsEmpty => !HasHost && !HasMac;
+        /// <summary>Whether a RoMON id is present — see <see cref="FromRomonId"/>.</summary>
+        public bool HasRomonId => !string.IsNullOrEmpty(RomonId);
+
+        /// <summary>Whether no coordinate is present — the state of a <c>default(TikRouterAddress)</c>.</summary>
+        public bool IsEmpty => !HasHost && !HasMac && !HasRomonId;
 
         /// <summary>The router at a host name or IP address.</summary>
         /// <param name="host">Host name or IP address.</param>
@@ -89,6 +100,25 @@ namespace tik4net
             Guard.ArgumentNotNullOrEmptyString(host, nameof(host));
             Guard.ArgumentNotNullOrEmptyString(mac, nameof(mac));
             return new TikRouterAddress(host, NormalizeMacOrThrow(mac, nameof(mac)));
+        }
+
+        /// <summary>
+        /// The router with this RoMON id, reached through an agent — set
+        /// <see cref="TikConnectionSetup.RomonAgentSetup"/> as well. Usable only that way: no transport reaches a
+        /// RoMON id directly.
+        /// </summary>
+        /// <remarks>
+        /// A RoMON id looks like a MAC address but is not necessarily any interface's MAC: it is the router's
+        /// <c>/tool romon</c> <c>current-id</c> — the <c>id</c> setting, or a MAC the router picked when that is
+        /// left at zero. <c>/tool/romon/discover</c> on the agent lists the ids it can reach. Because the two
+        /// share a shape, a bare string is never read as a RoMON id; this factory is the only way to say it.
+        /// </remarks>
+        /// <param name="romonId">RoMON id as <c>"AA:BB:CC:DD:EE:FF"</c> or <c>"AA-BB-CC-DD-EE-FF"</c>.</param>
+        /// <exception cref="ArgumentException"><paramref name="romonId"/> is not six hex octets.</exception>
+        public static TikRouterAddress FromRomonId(string romonId)
+        {
+            Guard.ArgumentNotNullOrEmptyString(romonId, nameof(romonId));
+            return new TikRouterAddress(null, null, NormalizeMacOrThrow(romonId, nameof(romonId)));
         }
 
         /// <summary>
@@ -171,6 +201,7 @@ namespace tik4net
         /// <summary>The coordinates this address carries, for diagnostics and error messages.</summary>
         public override string ToString()
         {
+            if (HasRomonId) return "RoMON " + RomonId;
             if (HasHost && HasMac) return Host + " (" + Mac + ")";
             if (HasMac) return Mac!;
             return Host ?? "<empty>";
@@ -179,7 +210,8 @@ namespace tik4net
         /// <inheritdoc/>
         public bool Equals(TikRouterAddress other)
             => string.Equals(Host, other.Host, StringComparison.OrdinalIgnoreCase)
-            && string.Equals(Mac, other.Mac, StringComparison.OrdinalIgnoreCase);
+            && string.Equals(Mac, other.Mac, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(RomonId, other.RomonId, StringComparison.OrdinalIgnoreCase);
 
         /// <inheritdoc/>
         public override bool Equals(object? obj) => obj is TikRouterAddress other && Equals(other);
@@ -190,7 +222,8 @@ namespace tik4net
             unchecked
             {
                 int h = Host == null ? 0 : StringComparer.OrdinalIgnoreCase.GetHashCode(Host);
-                return (h * 397) ^ (Mac == null ? 0 : StringComparer.OrdinalIgnoreCase.GetHashCode(Mac));
+                h = (h * 397) ^ (Mac == null ? 0 : StringComparer.OrdinalIgnoreCase.GetHashCode(Mac));
+                return (h * 397) ^ (RomonId == null ? 0 : StringComparer.OrdinalIgnoreCase.GetHashCode(RomonId));
             }
         }
 

@@ -24,7 +24,7 @@ namespace tik4net.Telnet
     /// monitor running on this connection may miss a change made over the same one — see
     /// <see cref="CliConnectionBase"/>.</para>
     /// </remarks>
-    public sealed class TelnetConnection : CliConnectionBase
+    public sealed class TelnetConnection : CliConnectionBase, ITikRomonConnection
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
         internal TelnetConnection() { }
@@ -35,7 +35,11 @@ namespace tik4net.Telnet
         /// <inheritdoc/>
         protected override string TransportName => "Telnet";
 
-        internal override bool HonoursRomonTarget => true;
+        RomonSshTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
+
+        TikConnectionType ITikRomonConnection.RomonAgentConnectionType => TikConnectionType.Telnet;
+
+        TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
 
         // ── Open (Close + driver plumbing live in CliConnectionBase) ───────────
 
@@ -79,9 +83,17 @@ namespace tik4net.Telnet
             Func<CancellationToken, Task> login = async ct =>
             {
                 client.Connect(host, port, ConnectTimeout);
-                await client.LoginAsync(user, password, ct).ConfigureAwait(false);
-                if (romonTarget != null)
-                    await client.EnterRomonAsync(romonTarget, ct).ConfigureAwait(false);
+                if (romonTarget == null)
+                {
+                    await client.LoginAsync(user, password, ct).ConfigureAwait(false);
+                    return;
+                }
+
+                // Through a RoMON agent: host/user/password are the agent's, the target comes after.
+                try { await client.LoginAsync(user, password, ct).ConfigureAwait(false); }
+                catch (TikConnectionLoginException ex) { throw AgentLoginFailed(host, ex); }
+                string agentRomonId = await client.EnterRomonAsync(romonTarget, ct).ConfigureAwait(false);
+                RomonEntered(TikConnectionType.Telnet, host, user, agentRomonId);
             };
             return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,
                 client.SendRawAndReadUntilQuietAsync, client.SendCommandAndReadAsync, client.Close);

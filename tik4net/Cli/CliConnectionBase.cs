@@ -228,15 +228,36 @@ namespace tik4net.Cli
         /// <summary>
         /// When set before <c>Open</c>, the host/user/password given to <c>Open</c> are the AGENT's, and the
         /// transport continues from the agent's shell into this target over RoMON SSH before the connection
-        /// counts as open. Internal until the public RoMON surface exists.
+        /// counts as open. Set by <see cref="TikConnectionSetup.ApplyTo"/> through <see cref="ITikRomonConnection"/>,
+        /// which only the transports that relay implement (Telnet, SSH); every other CLI transport refuses a
+        /// target at open — ignoring one would open the AGENT and run every command there.
         /// </summary>
         internal RomonSshTarget? RomonTarget { get; set; }
 
+        /// <summary>Set once the relay has reached the target — see <see cref="ITikRomonConnection"/>.</summary>
+        internal TikRomonConnectionInfo? RomonConnectionInfo { get; private set; }
+
         /// <summary>
-        /// True for a transport whose login continues into <see cref="RomonTarget"/> (Telnet, SSH). The rest
-        /// refuse a target before connecting — ignoring one would open the AGENT and run every command there.
+        /// Records that the relay reached <see cref="RomonTarget"/>. Called by a relaying transport's login, after
+        /// <see cref="RouterOsCliLogin.RomonSshLoginAsync"/> returned the agent's own RoMON id.
         /// </summary>
-        internal virtual bool HonoursRomonTarget => false;
+        internal void RomonEntered(TikConnectionType agentConnectionType, string host, string user, string agentRomonId)
+        {
+            var target = RomonTarget!;
+            TikRouterAddress agentAddress = target.Agent?.Address ?? TikRouterAddress.FromHost(host);
+            RomonConnectionInfo = new TikRomonConnectionInfo(TikRomonRelay.Ssh,
+                new TikRomonAgentInfo(agentAddress, agentConnectionType, user, agentRomonId),
+                new TikRomonTargetInfo(target.RomonId, target.User));
+        }
+
+        /// <summary>
+        /// A failed login to the RoMON agent, said to be the agent's: otherwise the message reads as if the
+        /// target had refused, and the target's credentials are the first thing a reader would doubt.
+        /// </summary>
+        internal static TikConnectionLoginException AgentLoginFailed(string host, Exception ex)
+            => new TikConnectionLoginException(new Exception(
+                "RoMON agent " + host + " refused the login — " +
+                (ex is TikConnectionLoginException ? ex.InnerException?.Message ?? ex.Message : ex.Message), ex));
 
         /// <summary>
         /// Shared open: runs <paramref name="login"/> under the standard guard (a
@@ -258,9 +279,10 @@ namespace tik4net.Cli
             // Before the delegate, not inside it: the delegate opens the socket synchronously and only then
             // awaits the login, so an already-cancelled token would otherwise still cost a TCP connect.
             cancellationToken.ThrowIfCancellationRequested();
-            if (RomonTarget != null && !HonoursRomonTarget)
+            if (RomonTarget != null && !(this is ITikRomonConnection))
                 throw new NotSupportedException(TransportName + " cannot relay to a RoMON target (" + RomonTarget +
                     "); use Telnet or SSH to the agent.");
+            RomonConnectionInfo = null;
             try
             {
                 // The login delegate has always taken a token; it used to be handed CancellationToken.None,

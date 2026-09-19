@@ -1,5 +1,7 @@
 using System;
+using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Cli;
@@ -21,6 +23,9 @@ namespace tik4net.unittests.Cli
         private const string Target = "AA:BB:CC:DD:EE:FF";
         private const string AgentId = "AA:BB:CC:00:00:01";
         private const string Password = "pw";
+
+        private const string IdQuery = ":put [/tool romon get current-id]";
+        private const string IdQueryLine = "line:" + IdQuery;
 
         // The login name carries the +c flag, and '+' is quoted like any unsafe character.
         private const string SshLine = "line:/tool romon ssh address=" + Target + " user=\"test+c\"";
@@ -45,10 +50,14 @@ namespace tik4net.unittests.Cli
         private const string StalePrompt = "\r\r\r\u001b[9999B[test@Target] > ";
 
         private static string IdAnswer(string id, string prompt = "[test@Target] > ")
-            => ":put [/tool romon get current-id]\r\n\r" + id + "\r\n\r\r\r\u001b[9999B" + prompt;
+            => IdQuery + "\r\n\r" + id + "\r\n\r\r\r\u001b[9999B" + prompt;
 
         private static string EnabledAnswer(string value)
             => ":put [/tool romon get enabled]\r\n\r" + value + "\r\n\r\r\r\u001b[9999B[admin@Agent] > ";
+
+        // Every relay starts by asking the agent for its own RoMON id, on the agent's shell.
+        private static FakeRouterTerminal AgentTerminal()
+            => new FakeRouterTerminal().Emits(IdAnswer(AgentId, "[admin@Agent] > "));
 
         private static string[] Lines(FakeRouterTerminal term)
             => term.Sent.Select(s => s.ToString()).ToArray();
@@ -56,20 +65,18 @@ namespace tik4net.unittests.Cli
         // ── the happy path ────────────────────────────────────────────────────
 
         [TestMethod]
-        public async Task Relay_SendsCommandPasswordAndConfirmation_AndSettlesOnTheTarget()
+        public async Task Relay_AsksTheAgentForItsId_ThenRelays_ConfirmsTheTarget_AndReturnsTheAgentsId()
         {
-            var term = new FakeRouterTerminal()
+            var term = AgentTerminal()
                 .Emits(PasswordPrompt)
                 .Emits(TargetBannerAndPrompt)
                 .Emits(StalePrompt)
                 .Emits(IdAnswer(Target));
 
-            await term.RomonSshLoginAsync(Target);
+            string agentId = await term.RomonSshLoginAsync(Target);
 
-            CollectionAssert.AreEqual(
-                new[] { SshLine, "line:" + Password,
-                        "line::put [/tool romon get current-id]" },
-                Lines(term));
+            Assert.AreEqual(AgentId, agentId);
+            CollectionAssert.AreEqual(new[] { IdQueryLine, SshLine, "line:" + Password, IdQueryLine }, Lines(term));
             Assert.AreEqual(0, term.DeadlineHits, "every phase must be recognised, none may wait for the deadline");
         }
 
@@ -78,8 +85,7 @@ namespace tik4net.unittests.Cli
         {
             // The positional rule: only a second password prompt is a refusal. The banner above contains the
             // literal text 'login failure', which the ordinary login's phrase table would stop on.
-            var term = new FakeRouterTerminal()
-                .Emits(PasswordPrompt).Emits(TargetBannerAndPrompt).Emits(IdAnswer(Target));
+            var term = AgentTerminal().Emits(PasswordPrompt).Emits(TargetBannerAndPrompt).Emits(IdAnswer(Target));
 
             await term.RomonSshLoginAsync(Target);
         }
@@ -87,18 +93,17 @@ namespace tik4net.unittests.Cli
         [TestMethod]
         public async Task Relay_AcceptsTheIdInAnyCaseAndWithDashes()
         {
-            var term = new FakeRouterTerminal()
-                .Emits(PasswordPrompt).Emits(TargetBannerAndPrompt).Emits(IdAnswer(Target));
+            var term = AgentTerminal().Emits(PasswordPrompt).Emits(TargetBannerAndPrompt).Emits(IdAnswer(Target));
 
             await term.RomonSshLoginAsync("aa-bb-cc-dd-ee-ff");
 
-            Assert.AreEqual(SshLine, Lines(term)[0]);
+            Assert.AreEqual(SshLine, Lines(term)[1]);
         }
 
         [TestMethod]
         public async Task Relay_DeclinesTheTargetsChangePasswordNagWithCtrlC()
         {
-            var term = new FakeRouterTerminal()
+            var term = AgentTerminal()
                 .Emits(PasswordPrompt)
                 .Emits("\r\nPress F1 for help\r\n\r\nChange your password\r\n\r\nnew password> ")
                 .Emits("\r\n\r\r\r\u001b[9999B[test@Target] > ")
@@ -114,10 +119,11 @@ namespace tik4net.unittests.Cli
         [TestMethod]
         public async Task Relay_AgentPromptBeforePassword_WithRomonEnabled_ReportsTheTargetUnreachable()
         {
-            var term = new FakeRouterTerminal().Emits(WelcomeBack).Emits(EnabledAnswer("true"));
+            var term = AgentTerminal().Emits(WelcomeBack).Emits(EnabledAnswer("true"));
 
-            var ex = await Assert.ThrowsExceptionAsync<TikConnectionLoginException>(() => term.RomonSshLoginAsync(Target));
+            var ex = await Assert.ThrowsExceptionAsync<TikRomonRelayException>(() => term.RomonSshLoginAsync(Target));
 
+            Assert.AreEqual(TikRomonRelayFailure.TargetUnreachable, ex.Reason);
             StringAssert.Contains(ex.Message, "could not reach RoMON id " + Target);
             Assert.IsFalse(Lines(term).Contains("line:" + Password), "the password must never reach the agent's shell");
         }
@@ -125,25 +131,31 @@ namespace tik4net.unittests.Cli
         [TestMethod]
         public async Task Relay_AgentPromptBeforePassword_WithRomonDisabled_SaysSo()
         {
-            var term = new FakeRouterTerminal().Emits(WelcomeBack).Emits(EnabledAnswer("false"));
+            var term = AgentTerminal().Emits(WelcomeBack).Emits(EnabledAnswer("false"));
 
-            var ex = await Assert.ThrowsExceptionAsync<TikConnectionLoginException>(() => term.RomonSshLoginAsync(Target));
+            var ex = await Assert.ThrowsExceptionAsync<TikRomonRelayException>(() => term.RomonSshLoginAsync(Target));
 
-            StringAssert.Contains(ex.Message, "RoMON is not enabled on the agent");
+            Assert.AreEqual(TikRomonRelayFailure.RomonNotEnabledOnAgent, ex.Reason);
         }
+
+        [TestMethod]
+        public void TheRelayExceptionIsALoginException_SoExistingCatchBlocksStillCatchIt()
+            => Assert.IsInstanceOfType(
+                new TikRomonRelayException(TikRomonRelayFailure.TargetUnreachable, "x"), typeof(TikConnectionLoginException));
 
         // ── the target refuses ────────────────────────────────────────────────
 
         [TestMethod]
         public async Task Relay_SecondPasswordPrompt_IsARefusal_LeftWithCtrlC_AndNothingElseIsTyped()
         {
-            var term = new FakeRouterTerminal().Emits(PasswordPrompt).Emits("\r\npassword: ");
+            var term = AgentTerminal().Emits(PasswordPrompt).Emits("\r\npassword: ");
 
-            var ex = await Assert.ThrowsExceptionAsync<TikConnectionLoginException>(() => term.RomonSshLoginAsync(Target));
+            var ex = await Assert.ThrowsExceptionAsync<TikRomonRelayException>(() => term.RomonSshLoginAsync(Target));
 
+            Assert.AreEqual(TikRomonRelayFailure.TargetRefusedLogin, ex.Reason);
             StringAssert.Contains(ex.Message, "'ssh' policy");
             CollectionAssert.AreEqual(
-                new[] { SshLine, "line:" + Password, "bytes:03" },
+                new[] { IdQueryLine, SshLine, "line:" + Password, "bytes:03" },
                 Lines(term),
                 "one password, then Ctrl-C: every further line typed into that prompt is another failed login on the target");
         }
@@ -151,15 +163,42 @@ namespace tik4net.unittests.Cli
         // ── the prompt reached is not the target ──────────────────────────────
 
         [TestMethod]
-        public async Task Relay_ThePromptAnswersTheAgentsId_IsNotAcceptedAsTheTarget()
+        public async Task Relay_ThePromptAnswersTheAgentsId_IsNotAcceptedAsTheTarget_AndSaysItFellBack()
         {
-            var term = new FakeRouterTerminal()
+            var term = AgentTerminal()
                 .Emits(PasswordPrompt).Emits(TargetBannerAndPrompt).Emits(IdAnswer(AgentId, "[admin@Agent] > "));
 
-            var ex = await Assert.ThrowsExceptionAsync<TikConnectionLoginException>(() => term.RomonSshLoginAsync(Target));
+            var ex = await Assert.ThrowsExceptionAsync<TikRomonRelayException>(() => term.RomonSshLoginAsync(Target));
 
-            StringAssert.Contains(ex.Message, AgentId);
+            Assert.AreEqual(TikRomonRelayFailure.NotTheTarget, ex.Reason);
+            StringAssert.Contains(ex.Message, "fell back to the agent");
         }
+
+        // ── the connection breaks mid-relay ───────────────────────────────────
+
+        [TestMethod]
+        public async Task Relay_ATransportFailureIsReportedAsSuch_WithTheConnectionsExceptionInside()
+        {
+            var broken = new IOException("socket closed");
+            var ex = await Assert.ThrowsExceptionAsync<TikRomonRelayException>(() =>
+                RouterOsCliLogin.RomonSshLoginAsync(Target, "test", Password, true,
+                    (predicate, ct) => Task.FromException<string>(broken),
+                    (line, ct) => Task.FromResult(0),
+                    (bytes, ct) => Task.FromResult(0),
+                    CancellationToken.None));
+
+            Assert.AreEqual(TikRomonRelayFailure.TransportFailed, ex.Reason);
+            Assert.AreSame(broken, ex.InnerException);
+        }
+
+        [TestMethod]
+        public async Task Relay_CancellationIsNotDisguisedAsARelayFailure()
+            => await Assert.ThrowsExceptionAsync<OperationCanceledException>(() =>
+                RouterOsCliLogin.RomonSshLoginAsync(Target, "test", Password, true,
+                    (predicate, ct) => Task.FromException<string>(new OperationCanceledException()),
+                    (line, ct) => Task.FromResult(0),
+                    (bytes, ct) => Task.FromResult(0),
+                    CancellationToken.None));
 
         // ── the id is spliced into a command line ─────────────────────────────
 
@@ -174,11 +213,10 @@ namespace tik4net.unittests.Cli
         [TestMethod]
         public void AnswerAfterEcho_IgnoresAStalePromptThatArrivesBeforeTheEcho()
         {
-            string query = ":put [/tool romon get current-id]";
-            Assert.IsNull(RouterOsCliLogin.AnswerAfterEcho("[test@Target] > ", query));
-            Assert.IsNull(RouterOsCliLogin.AnswerAfterEcho("[test@Target] > " + query + "\r\n" + Target, query));
+            Assert.IsNull(RouterOsCliLogin.AnswerAfterEcho("[test@Target] > ", IdQuery));
+            Assert.IsNull(RouterOsCliLogin.AnswerAfterEcho("[test@Target] > " + IdQuery + "\r\n" + Target, IdQuery));
             Assert.AreEqual(Target, RouterOsCliLogin.AnswerAfterEcho(
-                "[test@Target] > " + query + "\r\n" + Target + "\r\n[test@Target] > ", query));
+                "[test@Target] > " + IdQuery + "\r\n" + Target + "\r\n[test@Target] > ", IdQuery));
         }
     }
 }

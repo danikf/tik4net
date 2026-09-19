@@ -34,6 +34,7 @@ code was actually wrong.
 | [`findings-mepty-byte-ack.md`](findings-mepty-byte-ack.md) | WinBox `mepty` counter is a cumulative **byte** ACK, not a message counter — a wrong value caps a session at ~8 KB ([history](findings-mepty-byte-ack-history.md)) |
 | [`findings-winbox.md`](findings-winbox.md) | WinBox transport/session layer: EC-SRP5 login, stream cipher, M2 framing, error codes — incl. §13, the router refusing ~1 % of *valid* logins |
 | [`findings-winbox-terminal.md`](findings-winbox-terminal.md) | WinBox CLI (terminal-over-M2) behaviour |
+| [`findings-romon.md`](findings-romon.md) | RoMON: the agent model, discover/ping per transport, the agent's `[127,x]` M2 handlers and `SYS_ROMON`, and the `/tool romon ssh` relay — its failure screens, what the target requires, and the security shape |
 
 ## WinBox native (structured M2)
 

@@ -26,7 +26,7 @@ namespace tik4net.Ssh
     /// monitor running on this connection may miss a change made over the same one — see
     /// <see cref="CliConnectionBase"/>.</para>
     /// </remarks>
-    public sealed class SshConnection : CliConnectionBase
+    public sealed class SshConnection : CliConnectionBase, ITikRomonConnection
     {
         // Only constructible via TikConnectionSetup (SshConnectionSetupExtensions)/ConnectionFactory (same assembly).
         internal SshConnection() { }
@@ -37,7 +37,11 @@ namespace tik4net.Ssh
         /// <inheritdoc/>
         protected override string TransportName => "SSH";
 
-        internal override bool HonoursRomonTarget => true;
+        RomonSshTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
+
+        TikConnectionType ITikRomonConnection.RomonAgentConnectionType => TikConnectionType.Ssh;
+
+        TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
 
         // ── Open (Close + driver plumbing live in CliConnectionBase) ───────────
 
@@ -84,10 +88,22 @@ namespace tik4net.Ssh
             {
                 // ConnectTimeout, not SendTimeout: getting connected is what is being bounded here, and
                 // reusing the send budget for it was how this transport ignored the option entirely (D1).
-                client.Connect(host, port, user, password, ConnectTimeout);
-                await client.SettleAfterConnectAsync(ct).ConfigureAwait(false);
-                if (romonTarget != null)
-                    await client.EnterRomonAsync(romonTarget, ct).ConfigureAwait(false);
+                if (romonTarget == null)
+                {
+                    client.Connect(host, port, user, password, ConnectTimeout);
+                    await client.SettleAfterConnectAsync(ct).ConfigureAwait(false);
+                    return;
+                }
+
+                // Through a RoMON agent: host/user/password are the agent's, the target comes after.
+                try
+                {
+                    client.Connect(host, port, user, password, ConnectTimeout);
+                    await client.SettleAfterConnectAsync(ct).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (!(ex is OperationCanceledException)) { throw AgentLoginFailed(host, ex); }
+                string agentRomonId = await client.EnterRomonAsync(romonTarget, ct).ConfigureAwait(false);
+                RomonEntered(TikConnectionType.Ssh, host, user, agentRomonId);
             };
             return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,
                 client.SendRawAndReadUntilQuietAsync, client.SendCommandAndReadAsync, client.Close);

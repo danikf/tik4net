@@ -238,16 +238,21 @@ namespace tik4net.integrationtests
 
         // ── SSH relay (Telnet to the agent → /tool romon ssh → target) ────────
 
-        // TIK4NET_ROMON_AGENT_TRANSPORT = telnet (default) | ssh — how the probe reaches the agent.
-        private static tik4net.Cli.CliConnectionBase OpenRelay(string targetId, string user, string password)
-        {
-            var type = string.Equals(Environment.GetEnvironmentVariable("TIK4NET_ROMON_AGENT_TRANSPORT"), "ssh",
+        // TIK4NET_ROMON_AGENT_TRANSPORT = telnet (default) | ssh — how the probe reaches the agent. Built through the
+        // public surface exactly as a caller writes it: the agent is the lab router from App.config.
+        private static TikConnectionType AgentTransport()
+            => string.Equals(Environment.GetEnvironmentVariable("TIK4NET_ROMON_AGENT_TRANSPORT"), "ssh",
                 StringComparison.OrdinalIgnoreCase) ? TikConnectionType.Ssh : TikConnectionType.Telnet;
-            var conn = (tik4net.Cli.CliConnectionBase)ConnectionFactory.CreateConnection(type);
-            conn.RomonTarget = new tik4net.Cli.RomonSshTarget(targetId, user, password);
-            conn.Open(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"],
-                ConfigurationManager.AppSettings["pass"] ?? "");
-            return conn;
+
+        private static ITikConnection OpenRelay(string targetId, string user, string password, string agentUser = null)
+        {
+            var agentSetup = new TikRomonAgentSetup(ConfigurationManager.AppSettings["host"],
+                agentUser ?? ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"] ?? "");
+            var targetSetup = new TikConnectionSetup(TikRouterAddress.FromRomonId(targetId), user, password)
+            {
+                RomonAgentSetup = agentSetup,
+            };
+            return targetSetup.Create(AgentTransport());
         }
 
         /// <summary>A transport that does not carry the relay must refuse the target before it connects.</summary>
@@ -256,13 +261,11 @@ namespace tik4net.integrationtests
         {
             if (Environment.GetEnvironmentVariable("TIK4NET_ROMON_PROBE") != "1")
                 Assert.Inconclusive("Set TIK4NET_ROMON_PROBE=1.");
-            var conn = new tik4net.MacTelnet.MacTelnetConnection
+            var targetSetup = new TikConnectionSetup(TikRouterAddress.FromRomonId("AA:BB:CC:DD:EE:FF"), "nobody", "x")
             {
-                RomonTarget = new tik4net.Cli.RomonSshTarget("AA:BB:CC:DD:EE:FF", "nobody", "x"),
+                RomonAgentSetup = new TikRomonAgentSetup(ConfigurationManager.AppSettings["host"], "u", "p"),
             };
-            var ex = Assert.ThrowsException<NotSupportedException>(() =>
-                conn.Open(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"],
-                    ConfigurationManager.AppSettings["pass"] ?? ""));
+            var ex = Assert.ThrowsException<NotSupportedException>(() => targetSetup.CreateUnopened(TikConnectionType.MacTelnet));
             Log("refused: " + ex.Message);
         }
 
@@ -285,6 +288,11 @@ namespace tik4net.integrationtests
             using (var conn = OpenRelay(target, user, pass))
             {
                 Log($"open: {sw.ElapsedMilliseconds} ms");
+                var info = conn.GetRomonConnectionInfo();
+                Log($"info: {info}");
+                Log($"info agent: user={info?.Agent.User} type={info?.Agent.ConnectionType} romon-id-set={!string.IsNullOrEmpty(info?.Agent.RomonId)}");
+                Assert.IsNotNull(info);
+                Assert.AreEqual(target, info.Target.RomonId, true);
                 var identity = conn.LoadSingle<tik4net.Objects.System.SystemIdentity>();
                 Log($"identity: {identity.Name}");
                 var resource = conn.LoadSingle<tik4net.Objects.System.SystemResource>();
@@ -320,7 +328,7 @@ namespace tik4net.integrationtests
 
             using (var conn = OpenRelay(target, user, pass))
             {
-                foreach (var s in conn.CallCommandSync(":put [/interface print as-value where name=\"" + iface + "\"]"))
+                foreach (var s in ((tik4net.Cli.CliConnectionBase)conn).CallCommandSync(":put [/interface print as-value where name=\"" + iface + "\"]"))
                     Log("raw: " + s);
                 var cmd = conn.CreateCommandAndParameters("/interface/print", "name", iface);
                 foreach (var row in cmd.ExecuteList())
@@ -335,8 +343,24 @@ namespace tik4net.integrationtests
             if (Environment.GetEnvironmentVariable("TIK4NET_ROMON_PROBE") != "1")
                 Assert.Inconclusive("Set TIK4NET_ROMON_PROBE=1.");
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            var ex = Assert.ThrowsException<TikConnectionLoginException>(() => OpenRelay("AA:BB:CC:DD:EE:FF", "nobody", "x"));
-            Log($"unknown id: {sw.ElapsedMilliseconds} ms — {ex.Message}");
+            var ex = Assert.ThrowsException<TikRomonRelayException>(() => OpenRelay("AA:BB:CC:DD:EE:FF", "nobody", "x"));
+            Assert.AreEqual(TikRomonRelayFailure.TargetUnreachable, ex.Reason);
+            Log($"unknown id: {sw.ElapsedMilliseconds} ms — {ex.Reason}: {ex.Message}");
+        }
+
+        /// <summary>
+        /// A login the AGENT refuses: a plain login exception that says it was the agent. A nonexistent user, not a
+        /// wrong password — over SSH RouterOS admits an empty-password account whatever password is offered.
+        /// </summary>
+        [TestMethod]
+        public void Probe_Romon_SshRelay_RefusedAgentLoginNamesTheAgent()
+        {
+            if (Environment.GetEnvironmentVariable("TIK4NET_ROMON_PROBE") != "1")
+                Assert.Inconclusive("Set TIK4NET_ROMON_PROBE=1.");
+            var ex = Assert.ThrowsException<TikConnectionLoginException>(() =>
+                OpenRelay("AA:BB:CC:DD:EE:FF", "nobody", "x", agentUser: "tik4net-no-such-user"));
+            StringAssert.Contains(ex.Message, "RoMON agent");
+            Log($"refused agent login: {ex.Message}");
         }
 
         private static byte[][] Concat(byte[][] a, params byte[][] b)

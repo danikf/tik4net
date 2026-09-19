@@ -112,7 +112,7 @@ namespace tik4net.unittests.Cli
                 ReadUntilAsync, SendLineAsync, SendBytesAsync, CancellationToken.None);
 
         /// <summary>Runs the RoMON SSH relay from an agent's prompt into a target.</summary>
-        internal Task RomonSshLoginAsync(string targetId, string user = "test", string password = "pw",
+        internal Task<string> RomonSshLoginAsync(string targetId, string user = "test", string password = "pw",
             bool useTerminalFlags = true)
             => RouterOsCliLogin.RomonSshLoginAsync(targetId, user, password, useTerminalFlags,
                 ReadUntilAsync, SendLineAsync, SendBytesAsync, CancellationToken.None);
