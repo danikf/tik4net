@@ -259,14 +259,21 @@ namespace tik4net.Cli
         /// </summary>
         /// <remarks>
         /// <para>
-        /// Every failure before the password prompt looks the same on the wire: no text, a pause, then
-        /// <c>Welcome back!</c> and the AGENT's own prompt (7.24.4 agent: an unknown RoMON id and RoMON disabled
-        /// on the agent both read exactly so). A prompt shape cannot tell the two routers apart — on factory
-        /// defaults both are <c>[admin@MikroTik] &gt;</c> — so the rules are positional, and one read confirms:
+        /// <b>The relay is typed as <c>/tool romon ssh …; /quit</c>.</b> When the relay ends — for any reason: the
+        /// target logs the session out, reboots, or was never reached — RouterOS prints <c>Welcome back!</c> and
+        /// hands the terminal back to the AGENT's shell. A prompt shape cannot tell the two routers apart (on
+        /// factory defaults both are <c>[admin@MikroTik] &gt;</c>), so every command after that would run on the
+        /// agent, silently. The trailing <c>/quit</c> ends the agent's session there instead, and the connection
+        /// fails rather than changes router.
+        /// </para>
+        /// <para>
+        /// Every failure before the password prompt looks the same on the wire: a pause, then <c>Welcome back!</c>
+        /// (an unknown RoMON id and RoMON disabled on the agent both read exactly so), so RoMON being enabled is
+        /// asked first, while the agent's shell can still answer. The rest is positional, and one read confirms:
         /// </para>
         /// <list type="bullet">
-        ///   <item>a shell prompt before any <c>password:</c> means the relay never started (the agent is then
-        ///         asked whether RoMON is enabled, so the message can say which of the two it was);</item>
+        ///   <item><c>Welcome back!</c> or a shell prompt before any <c>password:</c> means the relay never
+        ///         started;</item>
         ///   <item>a second <c>password:</c> after the password means refused — a wrong password and a user
         ///         without the <c>ssh</c> policy read identically (7.17rc3 target). Ctrl-C leaves the prompt and
         ///         nothing else is ever typed into it: each further line would be one more failed login in the
@@ -324,23 +331,25 @@ namespace tik4net.Cli
             string agentAnswer = await readUntil(s => AnswerAfterEcho(s, idQuery) != null, ct).ConfigureAwait(false);
             string agentId = AnswerAfterEcho(agentAnswer, idQuery) ?? string.Empty;
 
-            await sendLine("/tool romon ssh address=" + id + " user=" + CliCommandBuilder.QuoteIfNeeded(loginName), ct)
-                .ConfigureAwait(false);
+            // Asked before the relay, because afterwards there is no agent shell left to ask (see the remarks).
+            const string enabledQuery = ":put [/tool romon get enabled]";
+            await sendLine(enabledQuery, ct).ConfigureAwait(false);
+            string enabled = await readUntil(s => AnswerAfterEcho(s, enabledQuery) != null, ct).ConfigureAwait(false);
+            if (string.Equals(AnswerAfterEcho(enabled, enabledQuery), "false", StringComparison.OrdinalIgnoreCase))
+                throw Relay(TikRomonRelayFailure.RomonNotEnabledOnAgent, id,
+                    "RoMON is not enabled on the agent (/tool romon set enabled=yes)", null);
 
-            // 1. The relay starts with the target's password prompt. The agent's prompt first = it never started.
-            string opened = await readUntil(s => IsPasswordPrompt(s) || IsShellPrompt(s), ct).ConfigureAwait(false);
+            await sendLine("/tool romon ssh address=" + id + " user=" + CliCommandBuilder.QuoteIfNeeded(loginName)
+                           + "; /quit", ct).ConfigureAwait(false);
+
+            // 1. The relay starts with the target's password prompt. Anything else first = it never started.
+            string opened = await readUntil(s => IsPasswordPrompt(s) || IsShellPrompt(s) || IsRomonRelayEnd(s), ct)
+                .ConfigureAwait(false);
             if (!IsPasswordPrompt(opened))
             {
-                if (!IsShellPrompt(opened))
+                if (!IsShellPrompt(opened) && !IsRomonRelayEnd(opened))
                     throw Relay(TikRomonRelayFailure.TargetDidNotRespond, id,
                         "the agent did not answer /tool romon ssh with a password prompt", opened);
-
-                const string enabledQuery = ":put [/tool romon get enabled]";
-                await sendLine(enabledQuery, ct).ConfigureAwait(false);
-                string enabled = await readUntil(s => AnswerAfterEcho(s, enabledQuery) != null, ct).ConfigureAwait(false);
-                if (string.Equals(AnswerAfterEcho(enabled, enabledQuery), "false", StringComparison.OrdinalIgnoreCase))
-                    throw Relay(TikRomonRelayFailure.RomonNotEnabledOnAgent, id,
-                        "RoMON is not enabled on the agent (/tool romon set enabled=yes)", null);
                 throw Relay(TikRomonRelayFailure.TargetUnreachable, id,
                     "the agent could not reach RoMON id " + id + " (not in its RoMON overlay — see /tool romon discover on the agent)",
                     null);
@@ -354,7 +363,7 @@ namespace tik4net.Cli
             //    IsLoginFailure: the target prints its recent critical log lines at login, and those read
             //    "login failure for user … by romon …" on a login that SUCCEEDED (7.17rc3). Position decides.
             Func<string, bool> settled = s =>
-                IsShellPrompt(s) || IsPasswordPrompt(s) || IsChangePasswordNag(s);
+                IsShellPrompt(s) || IsPasswordPrompt(s) || IsChangePasswordNag(s) || IsRomonRelayEnd(s);
             string result = await readUntil(settled, ct).ConfigureAwait(false);
 
             int nagRounds = 0;
@@ -365,16 +374,20 @@ namespace tik4net.Cli
                 result = await readUntil(settled, ct).ConfigureAwait(false);
             }
 
-            if (!IsShellPrompt(result))
+            if (!IsShellPrompt(result) || IsRomonRelayEnd(result))
             {
-                if (IsPasswordPrompt(result))
+                if (IsPasswordPrompt(result) && !IsRomonRelayEnd(result))
                 {
                     await sendBytes(new[] { CtrlC }, ct).ConfigureAwait(false);   // leave the prompt, type nothing
                     throw Relay(TikRomonRelayFailure.TargetRefusedLogin, id,
                         "the target refused the login for user '" + user +
                         "': wrong password, or the user's group lacks the 'ssh' policy (RoMON SSH needs it)", null);
                 }
-                throw Relay(TikRomonRelayFailure.TargetDidNotRespond, id, "the target did not reach its shell prompt", result);
+                throw Relay(TikRomonRelayFailure.TargetDidNotRespond, id,
+                    IsRomonRelayEnd(result)
+                        ? "the relay ended before the target's shell prompt"
+                        : "the target did not reach its shell prompt",
+                    result);
             }
 
             // 4. Confirm it is the target: a relay that fell back to the agent shows the agent's own id.
@@ -391,6 +404,56 @@ namespace tik4net.Cli
                     answeredId == null ? confirmed : null);
             }
             return agentId;
+        }
+
+        /// <summary>
+        /// What the agent prints when a <c>/tool romon ssh</c> session ends and the terminal is its own again —
+        /// whether the target logged out or was never reached.
+        /// </summary>
+        internal const string RomonRelayEndText = "Welcome back!";
+
+        /// <summary>
+        /// True once the RoMON relay has handed the terminal back to the agent — <see cref="RomonRelayEndText"/> on a
+        /// line of its own, so a command's output that merely quotes it (a comment, a log line) does not count.
+        /// </summary>
+        internal static bool IsRomonRelayEnd(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return false;
+            for (int at = s.IndexOf(RomonRelayEndText, StringComparison.Ordinal); at >= 0;
+                 at = s.IndexOf(RomonRelayEndText, at + 1, StringComparison.Ordinal))
+            {
+                int end = at + RomonRelayEndText.Length;
+                bool lineStart = at == 0 || s[at - 1] == '\n' || s[at - 1] == '\r';
+                bool lineEnd = end == s.Length || s[end] == '\r' || s[end] == '\n';
+                if (lineStart && lineEnd) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// For a terminal relayed to <paramref name="relayedTo"/> (<c>null</c> when it is not relayed): throws
+        /// <see cref="TikRomonRelayEndedException"/> when <paramref name="received"/> shows the relay ended.
+        /// </summary>
+        /// <param name="transport">Short transport name for the message.</param>
+        /// <param name="relayedTo">The target's RoMON id, or <c>null</c> for a direct session (never throws).</param>
+        /// <param name="command">The command concerned, if any.</param>
+        /// <param name="received">Terminal text, ANSI-stripped.</param>
+        /// <param name="commandSent">Whether <paramref name="command"/> had been sent — see
+        /// <see cref="TikRomonRelayEndedException.CommandMayHaveRun"/>.</param>
+        internal static void ThrowIfRomonRelayEnded(string transport, string? relayedTo, string? command, string received,
+            bool commandSent)
+        {
+            if (relayedTo == null || !IsRomonRelayEnd(received))
+                return;
+            string what = string.IsNullOrEmpty(command) ? "the last request" : "'" + command!.Trim() + "'";
+            throw new TikRomonRelayEndedException(
+                transport + ": the RoMON relay to " + relayedTo + " ended — the target logged the session out, rebooted, "
+                + "or dropped out of the agent's RoMON overlay — and the agent's session ended with it. "
+                + (commandSent
+                    ? what + " was running, and may have taken effect on the target."
+                    : "It ended before " + what + " was sent; the command did not run.")
+                + " Nothing ran on the agent. Open a new connection to continue.",
+                commandSent, received.Length == 0 ? null : received);
         }
 
         /// <summary>

@@ -55,6 +55,9 @@ namespace tik4net.MacTelnet
         private volatile bool     _pumpStop;
         private volatile Exception? _pumpFault;
 
+        // The target's RoMON id once EnterRomonAsync has relayed this terminal; null for a direct session.
+        private string? _romonTarget;
+
         // ── Why there is no keepalive here ────────────────────────────────────
         //
         // RouterOS logs a MAC-Telnet console out after roughly 30 s of idle - the router says so itself
@@ -114,6 +117,63 @@ namespace tik4net.MacTelnet
             }, ct);
         }
 
+        /// <summary>
+        /// From the agent's shell, continues this terminal into a RoMON target through <c>/tool romon ssh</c>
+        /// (<see cref="RouterOsCliLogin.RomonSshLoginAsync"/>). Every command after it runs on the target.
+        /// </summary>
+        /// <remarks>
+        /// Runs after <see cref="LoginAsync"/>, so the pump already owns the socket: the dialogue is driven over
+        /// what it accumulates, and each line sent first discards what came before it, as a command does.
+        /// </remarks>
+        /// <returns>The agent's own RoMON id.</returns>
+        internal async Task<string> EnterRomonAsync(RomonSshTarget target, CancellationToken ct)
+        {
+            string agentRomonId = await RouterOsCliLogin.RomonSshLoginAsync(
+                target.RomonId, target.User, target.Password,
+                useTerminalFlags: true,
+                readUntil: RelayReadUntilAsync,
+                sendLine: (line, c) => RelaySendAsync(_encoding.GetBytes(line + "\r"), c),
+                sendBytes: RelaySendAsync,
+                ct: ct).ConfigureAwait(false);
+
+            // The target repaints its prompt after the login just as a direct login does; let it land before
+            // the first command resets the buffer.
+            await ReadUntilQuietAsync(250, requireData: false).ConfigureAwait(false);
+            _romonTarget = target.RomonId;
+            return agentRomonId;
+        }
+
+        private Task RelaySendAsync(byte[] data, CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            ResetReadBuffer();
+            SendTerminalBytes(data);
+            return Task.CompletedTask;
+        }
+
+        // The relay's read primitive: until the predicate holds on the ANSI-stripped text, or the receive
+        // deadline — then the text so far, which the relay reads as "never answered". A session the router has
+        // stopped acknowledging is reported as such rather than waited out.
+        private async Task<string> RelayReadUntilAsync(Func<string, bool> predicate, CancellationToken ct)
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            while (sw.ElapsedMilliseconds < _receiveTimeoutMs)
+            {
+                ct.ThrowIfCancellationRequested();
+                ThrowIfPumpFaulted();
+                _rxSignal.Reset();
+
+                string stripped = Snapshot(out int length);
+                if (predicate(stripped))
+                    return stripped;
+                if (length == 0 && LastSendAbandoned)
+                    throw SessionClosed(null);
+
+                await _rxSignal.WaitAsync(ReadWaitMs).ConfigureAwait(false);
+            }
+            return Snapshot(out _);
+        }
+
         // ── Command execution ─────────────────────────────────────────────────
 
         internal Task<string> SendCommandAndReadAsync(string command, CancellationToken ct)
@@ -131,6 +191,9 @@ namespace tik4net.MacTelnet
             // report progress — awaiting that holds no thread, which is the whole of A6 on this transport.
             ct.ThrowIfCancellationRequested();
             string cmd = CliOutputHelper.InjectWithoutPaging(command);
+            // What the pump collected while the connection was idle is discarded below — but a relay that ended
+            // in that time means the agent's session is gone, and this command must not be sent into it.
+            RouterOsCliLogin.ThrowIfRomonRelayEnded("MAC-Telnet", _romonTarget, cmd, Snapshot(out _), commandSent: false);
             ResetReadBuffer();
             ResetDataHoles();
             SendTerminalBytes(_encoding.GetBytes(cmd + "\r"));
@@ -387,6 +450,9 @@ namespace tik4net.MacTelnet
                 if (length == 0 && LastSendAbandoned)
                     throw SessionClosed(sentCommand);
 
+                // The relay ended mid-command: no prompt will follow, the agent's session is over.
+                RouterOsCliLogin.ThrowIfRomonRelayEnded("MAC-Telnet", _romonTarget, sentCommand, stripped, commandSent: true);
+
                 if (!echoSeen)
                     echoSeen = CliOutputHelper.ContainsEcho(stripped, sentCommand);
 
@@ -412,7 +478,10 @@ namespace tik4net.MacTelnet
         /// least some data (or the receive deadline expires). Returns the ANSI-stripped text.
         /// Used for Tab-completion (see <see cref="SendRawAndReadUntilQuietAsync"/>).
         /// </summary>
-        private async Task<string> ReadUntilQuietAsync(int quietMs)
+        /// <param name="quietMs">How long nothing new must arrive.</param>
+        /// <param name="requireData">When <c>true</c> (Tab-completion) the quiet only counts once something has
+        /// arrived; when <c>false</c> a silent terminal is quiet too — for draining a repaint that may not come.</param>
+        private async Task<string> ReadUntilQuietAsync(int quietMs, bool requireData = true)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
             DateTime lastData = DateTime.UtcNow;
@@ -429,7 +498,7 @@ namespace tik4net.MacTelnet
                     lastLength = length;
                     lastData   = DateTime.UtcNow;
                 }
-                else if (lastLength > 0 && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs)
+                else if ((lastLength > 0 || !requireData) && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs)
                     break;
 
                 await _rxSignal.WaitAsync(ReadWaitMs).ConfigureAwait(false);

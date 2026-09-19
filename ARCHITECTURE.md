@@ -338,11 +338,14 @@ Options split into two kinds:
   - `ITikCancellationModeConnection` (`CancellationMode`) — the CLI family (Telnet, SSH, MAC-Telnet,
     WinBox CLI, WinBox CLI MAC).
   - `ITikTaggedConnection` (`SendTagWithSyncCommand`) — binary API (`Api`/`ApiSsl`) only.
-  - `ITikRomonConnection` (internal; `RomonAgentSetup`) — Telnet and SSH, which continue from the agent's shell
-    into the target through `/tool romon ssh` (`RouterOsCliLogin.RomonSshLoginAsync`). Here the check is not
-    "skip it": a RoMON setup on any other transport is **refused** at `CreateUnopened`, because ignoring it
-    would open the agent and run every command there. With an agent set, `Open` dials the agent's
-    coordinates and the target's credentials travel through the marker. `Docs/findings-romon.md`.
+  - `ITikRomonConnection` (internal; `RomonAgentSetup`) — Telnet, SSH and MAC-Telnet, which continue from the
+    agent's shell into the target through `/tool romon ssh …; /quit` (`RouterOsCliLogin.RomonSshLoginAsync`).
+    Here the check is not "skip it": a RoMON setup on any other transport is **refused** at `CreateUnopened`,
+    because ignoring it would open the agent and run every command there. With an agent set, `Open` dials the
+    agent's coordinates (a MAC-layer connection gets the agent's MAC) and the target's credentials travel
+    through the marker. The same hazard exists after open — when the relay ends the agent hands its own prompt
+    back — so the trailing `/quit` ends the agent's session with it, and each relayed transport's read raises
+    `TikRomonRelayEndedException` on the agent's `Welcome back!`. `Docs/findings-romon.md`.
 
 A unit-test matrix (`tik4net.unittests/Connection/TikConnectionSetupOptionMatrixTests.cs`) enforces that
 every option reaches every transport that can honour it.

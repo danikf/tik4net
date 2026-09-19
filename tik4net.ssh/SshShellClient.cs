@@ -26,6 +26,9 @@ namespace tik4net.Ssh
         private readonly Encoding _encoding;
         private readonly int _receiveTimeoutMs;
 
+        // The target's RoMON id once EnterRomonAsync has relayed this terminal; null for a direct session.
+        private string? _romonTarget;
+
         // Answers RouterOS VT100 cursor-probe negotiation (shared PTY logic). Without truthful
         // cursor replies RouterOS assumes a 1x1 terminal and emits no command output; the width the
         // shared state advertises is what keeps RouterOS from wrapping long ':put' as-value records
@@ -125,6 +128,7 @@ namespace tik4net.Ssh
 
             // The target repaints its prompt after the login, as the agent's shell did (see SettleAfterConnectAsync).
             await DrainAsync(250, ct).ConfigureAwait(false);
+            _romonTarget = target.RomonId;
             return agentRomonId;
         }
 
@@ -151,7 +155,12 @@ namespace tik4net.Ssh
             string cmd = CliOutputHelper.InjectWithoutPaging(command);
 
             if (_shell.DataAvailable)
-                await DrainAsync(SettleMs, ct).ConfigureAwait(false);
+            {
+                string residue = await DrainAsync(SettleMs, ct).ConfigureAwait(false);
+                // A relay that ended while the connection was idle: the agent's session is gone, and this
+                // command must not be sent into what is left of it.
+                RouterOsCliLogin.ThrowIfRomonRelayEnded("SSH", _romonTarget, cmd, residue, commandSent: false);
+            }
 
             await SendLineAsync(cmd, ct).ConfigureAwait(false);
             string raw = await ReadCommandResponseAsync(ct, cmd, onLine).ConfigureAwait(false);
@@ -335,6 +344,9 @@ namespace tik4net.Ssh
                 string stripped = VtStripper.StripAnsi(accumulated.ToString());
                 streamer.Feed(stripped);
 
+                // The relay ended mid-command: no prompt will follow, the agent's session is over.
+                RouterOsCliLogin.ThrowIfRomonRelayEnded("SSH", _romonTarget, sentCommand, stripped, commandSent: true);
+
                 if (!echoSeen)
                     echoSeen = CliOutputHelper.ContainsEcho(stripped, sentCommand);
 
@@ -370,9 +382,10 @@ namespace tik4net.Ssh
         /// Consumes and discards residual bytes (post-login VT100 redraw, a second prompt) until the
         /// stream stays silent for <paramref name="quietMs"/>. VT100 probes are still answered.
         /// </summary>
-        private async Task DrainAsync(int quietMs, CancellationToken ct)
+        private async Task<string> DrainAsync(int quietMs, CancellationToken ct)
         {
             var buffer = new byte[4096];
+            var drained = new StringBuilder();
             var quietDeadline = DateTime.UtcNow.AddMilliseconds(quietMs);
 
             while (DateTime.UtcNow < quietDeadline)
@@ -383,7 +396,7 @@ namespace tik4net.Ssh
                 {
                     int n = _shell.Read(buffer, 0, buffer.Length);
                     if (n <= 0) break; // connection closed
-                    await ProcessChunkAsync(buffer, n, ct).ConfigureAwait(false);
+                    drained.Append(await ProcessChunkAsync(buffer, n, ct).ConfigureAwait(false));
                     quietDeadline = DateTime.UtcNow.AddMilliseconds(quietMs); // keep draining while data arrives
                 }
                 else
@@ -391,6 +404,8 @@ namespace tik4net.Ssh
                     await Task.Delay(15, ct).ConfigureAwait(false);
                 }
             }
+
+            return VtStripper.StripAnsi(drained.ToString());
         }
 
         /// <summary>

@@ -238,15 +238,29 @@ namespace tik4net.integrationtests
 
         // ── SSH relay (Telnet to the agent → /tool romon ssh → target) ────────
 
-        // TIK4NET_ROMON_AGENT_TRANSPORT = telnet (default) | ssh — how the probe reaches the agent. Built through the
-        // public surface exactly as a caller writes it: the agent is the lab router from App.config.
+        // TIK4NET_ROMON_AGENT_TRANSPORT = telnet (default) | ssh | mactelnet — how the probe reaches the agent. Built
+        // through the public surface exactly as a caller writes it: the agent is the lab router from App.config.
         private static TikConnectionType AgentTransport()
-            => string.Equals(Environment.GetEnvironmentVariable("TIK4NET_ROMON_AGENT_TRANSPORT"), "ssh",
-                StringComparison.OrdinalIgnoreCase) ? TikConnectionType.Ssh : TikConnectionType.Telnet;
+        {
+            string t = Environment.GetEnvironmentVariable("TIK4NET_ROMON_AGENT_TRANSPORT") ?? "";
+            if (string.Equals(t, "ssh", StringComparison.OrdinalIgnoreCase)) return TikConnectionType.Ssh;
+            if (string.Equals(t, "mactelnet", StringComparison.OrdinalIgnoreCase)) return TikConnectionType.MacTelnet;
+            return TikConnectionType.Telnet;
+        }
+
+        // Over the MAC layer the agent is named by its MAC as well, so no MNDP lookup is needed.
+        private static TikRouterAddress AgentAddress()
+        {
+            string host = ConfigurationManager.AppSettings["host"];
+            string mac = ConfigurationManager.AppSettings["routerMac"];
+            return AgentTransport() == TikConnectionType.MacTelnet && !string.IsNullOrEmpty(mac)
+                ? TikRouterAddress.FromHostAndMac(host, mac)
+                : TikRouterAddress.FromHost(host);
+        }
 
         private static ITikConnection OpenRelay(string targetId, string user, string password, string agentUser = null)
         {
-            var agentSetup = new TikRomonAgentSetup(ConfigurationManager.AppSettings["host"],
+            var agentSetup = new TikRomonAgentSetup(AgentAddress(),
                 agentUser ?? ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"] ?? "");
             var targetSetup = new TikConnectionSetup(TikRouterAddress.FromRomonId(targetId), user, password)
             {
@@ -265,7 +279,7 @@ namespace tik4net.integrationtests
             {
                 RomonAgentSetup = new TikRomonAgentSetup(ConfigurationManager.AppSettings["host"], "u", "p"),
             };
-            var ex = Assert.ThrowsException<NotSupportedException>(() => targetSetup.CreateUnopened(TikConnectionType.MacTelnet));
+            var ex = Assert.ThrowsException<NotSupportedException>(() => targetSetup.CreateUnopened(TikConnectionType.WinboxCli));
             Log("refused: " + ex.Message);
         }
 
@@ -333,6 +347,57 @@ namespace tik4net.integrationtests
                 var cmd = conn.CreateCommandAndParameters("/interface/print", "name", iface);
                 foreach (var row in cmd.ExecuteList())
                     Log("words: " + string.Join(" ", row.Words.Select(w => w.Key + "=" + w.Value)));
+            }
+        }
+
+        /// <summary>
+        /// The relay ends while the connection is open (here: /quit typed on the target). The agent's session must end
+        /// with it — the next command either fails (Telnet, SSH) or is relayed to the target again (MAC-Telnet, which
+        /// reconnects a logged-out session). It must never answer from the agent. Then an idle past the MAC-Telnet
+        /// console logout (~30 s) and one more read.
+        /// </summary>
+        [TestMethod]
+        public void Probe_Romon_SshRelay_WhenTheRelayEnds_TheAgentNeverAnswers()
+        {
+            string target = Environment.GetEnvironmentVariable("TIK4NET_ROMON_TARGET");
+            string user = Environment.GetEnvironmentVariable("TIK4NET_ROMON_TARGET_USER");
+            string pass = Environment.GetEnvironmentVariable("TIK4NET_ROMON_TARGET_PASS");
+            if (Environment.GetEnvironmentVariable("TIK4NET_ROMON_PROBE") != "1" || string.IsNullOrEmpty(target)
+                || string.IsNullOrEmpty(user) || pass == null)
+                Assert.Inconclusive("Set TIK4NET_ROMON_PROBE=1, TIK4NET_ROMON_TARGET and the target's USER/PASS.");
+
+            using (var conn = OpenRelay(target, user, pass))
+            {
+                var cli = (tik4net.Cli.CliConnectionBase)conn;
+                Func<string> currentId = () => conn.LoadSingle<tik4net.Objects.Tool.Romon.ToolRomon>().CurrentId;
+                Assert.AreEqual(target, currentId(), true);
+
+                try { cli.CallCommandSync("/quit"); Log("/quit on the target: returned"); }
+                catch (Exception ex) { Log("/quit on the target: " + ex.GetType().Name + " — " + ex.Message); }
+
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                try
+                {
+                    string after = currentId();
+                    Log($"after /quit ({sw.ElapsedMilliseconds} ms): answered by {(string.Equals(after, target, StringComparison.OrdinalIgnoreCase) ? "the TARGET" : "'" + after + "' — NOT the target")}");
+                    Assert.AreEqual(target, after, true, "a command after the relay ended must never answer from the agent");
+                }
+                catch (AssertFailedException) { throw; }
+                catch (Exception ex) { Log($"after /quit ({sw.ElapsedMilliseconds} ms): failed — {ex.GetType().Name}: {ex.Message}"); }
+
+            }
+
+            if (AgentTransport() != TikConnectionType.MacTelnet)
+                return;
+
+            // RouterOS logs an idle MAC-Telnet console out; the reconnect must relay again before it resends.
+            using (var conn = OpenRelay(target, user, pass))
+            {
+                System.Threading.Thread.Sleep(35000);
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                string afterIdle = conn.LoadSingle<tik4net.Objects.Tool.Romon.ToolRomon>().CurrentId;
+                Log($"after a 35 s idle ({sw.ElapsedMilliseconds} ms): {(string.Equals(afterIdle, target, StringComparison.OrdinalIgnoreCase) ? "the TARGET" : "NOT the target")}");
+                Assert.AreEqual(target, afterIdle, true);
             }
         }
 

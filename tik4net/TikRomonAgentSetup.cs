@@ -33,7 +33,7 @@ namespace tik4net
     /// </example>
     public sealed class TikRomonAgentSetup
     {
-        /// <summary>Where the agent is. The transports that relay today (Telnet, SSH) reach it by host.</summary>
+        /// <summary>Where the agent is: a host for Telnet and SSH; a MAC, a host, or both for MAC-Telnet.</summary>
         public TikRouterAddress Address { get; }
 
         /// <summary>RouterOS user name on the agent.</summary>
@@ -46,7 +46,8 @@ namespace tik4net
         public int? Port { get; set; }
 
         /// <summary>Creates the agent's coordinates and credentials.</summary>
-        /// <param name="address">Where the agent is — a host name or IP address for Telnet and SSH.</param>
+        /// <param name="address">Where the agent is — a host name or IP address for Telnet and SSH; a MAC
+        /// (<see cref="TikRouterAddress.FromMac"/>) or a host for MAC-Telnet.</param>
         /// <param name="user">RouterOS user name on the agent.</param>
         /// <param name="password">Password for <paramref name="user"/> (may be empty).</param>
         /// <exception cref="ArgumentException"><paramref name="address"/> is empty or is itself a RoMON id —

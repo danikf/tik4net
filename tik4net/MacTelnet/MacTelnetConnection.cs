@@ -38,8 +38,11 @@ namespace tik4net.MacTelnet
     /// <para><b>Thread safety.</b> Safe from several threads; commands queue rather than overlap, and a
     /// monitor running on this connection may miss a change made over the same one — see
     /// <see cref="CliConnectionBase"/>.</para>
+    /// <para><b>RoMON.</b> Can be the leg to a RoMON agent (<see cref="TikConnectionSetup.RomonAgentSetup"/>), so a
+    /// router with no IP route from here is still reachable: MAC layer to the agent, RoMON beyond it. A reconnect
+    /// after an idle logout relays to the target again before the command is resent.</para>
     /// </remarks>
-    public sealed class MacTelnetConnection : CliConnectionBase, ITikMacCliConnection
+    public sealed class MacTelnetConnection : CliConnectionBase, ITikMacCliConnection, ITikRomonConnection
     {
         // Only constructible via TikConnectionSetup/ConnectionFactory (same assembly).
         // The MAC layer pages by default, and that is a correctness setting rather than a tuning one: a
@@ -57,6 +60,15 @@ namespace tik4net.MacTelnet
 
         /// <inheritdoc/>
         protected override string TransportName => "MAC-Telnet";
+
+        RomonSshTarget? ITikRomonConnection.RomonTarget { get => RomonTarget; set => RomonTarget = value; }
+
+        TikConnectionType ITikRomonConnection.RomonAgentConnectionType => TikConnectionType.MacTelnet;
+
+        TikRomonConnectionInfo? ITikRomonConnection.RomonConnectionInfo => RomonConnectionInfo;
+
+        // The agent as a message names it: a MAC-layer agent may have been given by MAC alone.
+        private string AgentName(string host) => !string.IsNullOrEmpty(host) ? host : RouterMac ?? "(unnamed)";
 
         /// <summary>
         /// Whether a command may be re-issued on a fresh session after RouterOS logged the idle console
@@ -131,15 +143,31 @@ namespace tik4net.MacTelnet
             // has logged out cannot be revived — reconnecting means a whole new client, socket and
             // EC-SRP5 login, and every delegate below must then be talking to the new one.
             var client = new MacTelnetUdpClient(Encoding, ReceiveTimeout, ConnectTimeout, RouterMac);
+            var romonTarget = RomonTarget;
 
-            Func<CancellationToken, Task> login = ct => client.LoginAsync(host, user, password, ct);
+            // Through a RoMON agent: host/user/password are the agent's, and the session continues into the
+            // target. The reconnect below goes through here too — a fresh session is the agent's until it has
+            // been relayed again, and a command sent before that would run on the agent.
+            Func<CancellationToken, Task> login = async ct =>
+            {
+                if (romonTarget == null)
+                {
+                    await client.LoginAsync(host, user, password, ct).ConfigureAwait(false);
+                    return;
+                }
+
+                try { await client.LoginAsync(host, user, password, ct).ConfigureAwait(false); }
+                catch (TikConnectionLoginException ex) { throw AgentLoginFailed(AgentName(host), ex); }
+                string agentRomonId = await client.EnterRomonAsync(romonTarget, ct).ConfigureAwait(false);
+                RomonEntered(TikConnectionType.MacTelnet, host, user, agentRomonId);
+            };
             Action close = () => { client.TryCloseSession(); client.Dispose(); };
 
             Func<CancellationToken, Task> reopen = async ct =>
             {
                 try { client.Dispose(); } catch { /* the old session is gone anyway */ }
                 client = new MacTelnetUdpClient(Encoding, ReceiveTimeout, ConnectTimeout, RouterMac);
-                await client.LoginAsync(host, user, password, ct).ConfigureAwait(false);
+                await login(ct).ConfigureAwait(false);
             };
 
             Func<string, CancellationToken, Task<string>> send = async (cmd, ct) =>

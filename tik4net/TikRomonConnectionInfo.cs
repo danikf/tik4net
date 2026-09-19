@@ -159,6 +159,36 @@ namespace tik4net
     }
 
     /// <summary>
+    /// The RoMON relay ended while the connection was open — the target logged the session out, rebooted, or
+    /// dropped out of the agent's RoMON overlay. The agent's session ends with it, so nothing ever runs on the
+    /// agent; the connection is closed. Open a new one to continue.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="CommandMayHaveRun"/> says whether the command being executed had been sent. When it had, the
+    /// relay ended while it was running, and it may have taken effect on the target — a reboot command ends the
+    /// relay exactly so. When it had not, the end had already arrived and the command was never sent.
+    /// </remarks>
+    public class TikRomonRelayEndedException : TikConnectionException
+    {
+        /// <summary>Whether the command had been sent to the target before the relay ended.</summary>
+        public bool CommandMayHaveRun { get; }
+
+        /// <summary>What was received before the relay ended, or <c>null</c> when nothing was.</summary>
+        public string? PartialResponse { get; }
+
+        /// <summary>Creates the exception.</summary>
+        /// <param name="message">The complete message.</param>
+        /// <param name="commandMayHaveRun">Whether the command had been sent before the relay ended.</param>
+        /// <param name="partialResponse">What was received before the end, if anything.</param>
+        public TikRomonRelayEndedException(string message, bool commandMayHaveRun, string? partialResponse)
+            : base(message)
+        {
+            CommandMayHaveRun = commandMayHaveRun;
+            PartialResponse = partialResponse;
+        }
+    }
+
+    /// <summary>
     /// A connection that can continue from a RoMON agent into a target. Internal while the RoMON surface
     /// settles; <see cref="TikConnectionSetup.ApplyTo"/> refuses <see cref="TikConnectionSetup.RomonAgentSetup"/>
     /// on any connection that does not implement it.

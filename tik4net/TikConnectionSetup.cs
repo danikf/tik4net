@@ -189,11 +189,17 @@ namespace tik4net
         /// </summary>
         /// <remarks>
         /// <para>
-        /// Which transports relay: <b>Telnet and SSH</b>, through <c>/tool romon ssh</c> on the agent
+        /// Which transports relay: <b>Telnet, SSH and MAC-Telnet</b>, through <c>/tool romon ssh</c> on the agent
         /// (<see cref="SupportsRomon"/>). Every other transport is refused at <see cref="CreateUnopened"/>, before
         /// anything connects. The session options (timeouts, encoding, paging, cancellation) come from this setup;
-        /// the agent contributes only where it is and who logs in to it. <see cref="Port"/> must stay unset here —
-        /// the port that is dialled is the agent's, <see cref="TikRomonAgentSetup.Port"/>.
+        /// the agent contributes only where it is and who logs in to it. <see cref="Port"/> and
+        /// <see cref="RouterMac"/> must stay unset here — the port dialled and the MAC reached are the agent's, from
+        /// <see cref="TikRomonAgentSetup"/>. Over MAC-Telnet the agent needs no IP address at all.
+        /// </para>
+        /// <para>
+        /// If the relay ends while the connection is open (the target logs the session out or reboots), the
+        /// agent's session ends with it and the connection fails — it never carries on against the agent. MAC-Telnet,
+        /// which reconnects a session RouterOS has logged out, relays to the target again before it resends.
         /// </para>
         /// <para>
         /// What the target needs: RoMON reachable from the agent, and a user whose group has the <c>ssh</c>
@@ -339,8 +345,9 @@ namespace tik4net
                 tls.CertificateValidationCallback = CertificateValidationCallback;
             }
 
+            // Through a RoMON agent the MAC layer carries the session to the AGENT, so its MAC is the agent's.
             if (connection is ITikMacLayerConnection mac)
-                mac.RouterMac = EffectiveRouterMac;
+                mac.RouterMac = RomonAgentSetup != null ? RomonAgentSetup.Address.Mac : EffectiveRouterMac;
 
             if (connection is ITikCancellationModeConnection cancellable)
                 cancellable.CancellationMode = CancellationMode;
@@ -382,12 +389,18 @@ namespace tik4net
                         + $"TikRouterAddress.FromRomonId(\"AA:BB:CC:DD:EE:FF\"), not {Address}.");
                 if (!(connection is ITikRomonConnection))
                     throw new NotSupportedException(
-                        $"{connection.GetType().Name} cannot reach a router through a RoMON agent. Telnet and SSH can "
-                        + "(TikConnectionSetup.SupportsRomon tells which transports do).");
+                        $"{connection.GetType().Name} cannot reach a router through a RoMON agent. Telnet, SSH and "
+                        + "MAC-Telnet can (TikConnectionSetup.SupportsRomon tells which transports do).");
                 if (Port.HasValue)
                     throw new InvalidOperationException(
                         "Port is not used when connecting through a RoMON agent — the port dialled is the agent's. "
                         + "Set RomonAgentSetup.Port instead.");
+                if (RouterMac != null)
+                    throw new InvalidOperationException(
+                        "RouterMac is not used when connecting through a RoMON agent — the MAC-layer session goes to "
+                        + "the agent. Give the agent's MAC in the TikRomonAgentSetup address instead.");
+                if (connection is ITikMacLayerConnection)
+                    return;   // the agent by MAC, or by host for MNDP to look the MAC up — its address holds one
                 if (!RomonAgentSetup.Address.HasHost)
                     throw new InvalidOperationException(
                         $"{connection.GetType().Name} reaches the RoMON agent over IP and needs its host name or IP "

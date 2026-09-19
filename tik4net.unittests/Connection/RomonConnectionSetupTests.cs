@@ -25,7 +25,13 @@ namespace tik4net.unittests.Connection
         private const string TargetId = "AA:BB:CC:DD:EE:FF";
         private const string AgentRomonId = "AA:BB:CC:00:00:01";
 
-        private static readonly TikConnectionType[] RelayingTransports = { TikConnectionType.Telnet, TikConnectionType.Ssh };
+        private static readonly TikConnectionType[] RelayingTransports =
+            { TikConnectionType.Telnet, TikConnectionType.Ssh, TikConnectionType.MacTelnet };
+
+        // The relaying transports that reach the agent over IP.
+        private static readonly TikConnectionType[] IpRelayingTransports = { TikConnectionType.Telnet, TikConnectionType.Ssh };
+
+        private const string AgentMac = "AA:BB:CC:00:00:02";
 
         [ClassInitialize]
         public static void RegisterSatelliteTransports(TestContext context) => Tik4NetSsh.Register();
@@ -78,7 +84,7 @@ namespace tik4net.unittests.Connection
         // ── what is refused, before anything connects ─────────────────────────
 
         [TestMethod]
-        public void OnlyTelnetAndSshRelay_AndSupportsRomonSaysExactlyThat()
+        public void OnlyTelnetSshAndMacTelnetRelay_AndSupportsRomonSaysExactlyThat()
         {
             foreach (TikConnectionType type in Enum.GetValues(typeof(TikConnectionType)))
             {
@@ -122,9 +128,34 @@ namespace tik4net.unittests.Connection
         [TestMethod]
         public void AnAgentAddressedByMacOnly_IsRefusedByTheIpTransports()
         {
-            var setup = RomonSetup(new TikRomonAgentSetup(TikRouterAddress.FromMac("AA:BB:CC:00:00:02"), "a", "b"));
-            foreach (var type in RelayingTransports)
+            var setup = RomonSetup(new TikRomonAgentSetup(TikRouterAddress.FromMac(AgentMac), "a", "b"));
+            foreach (var type in IpRelayingTransports)
                 Assert.ThrowsException<InvalidOperationException>(() => setup.CreateUnopened(type), type.ToString());
+        }
+
+        [TestMethod]
+        public void MacTelnet_ReachesAnAgentByMacAlone_AndTheMacIsTheAgents()
+        {
+            var setup = RomonSetup(new TikRomonAgentSetup(TikRouterAddress.FromMac(AgentMac), "a", "b"));
+            using (var conn = setup.CreateUnopened(TikConnectionType.MacTelnet))
+                Assert.AreEqual(AgentMac, ((ITikMacLayerConnection)conn).RouterMac);
+        }
+
+        [TestMethod]
+        public void MacTelnet_ToAnAgentGivenByHost_LeavesTheMacToMndp()
+        {
+            using (var conn = RomonSetup().CreateUnopened(TikConnectionType.MacTelnet))
+                Assert.IsNull(((ITikMacLayerConnection)conn).RouterMac,
+                    "no MAC was given for the agent; one taken from anywhere else would reach the wrong router");
+        }
+
+        [TestMethod]
+        public void RouterMacOnTheTargetSetup_IsRefused_BecauseTheMacReachedIsTheAgents()
+        {
+            var setup = RomonSetup();
+            setup.RouterMac = AgentMac;
+            var ex = Assert.ThrowsException<InvalidOperationException>(() => setup.CreateUnopened(TikConnectionType.MacTelnet));
+            StringAssert.Contains(ex.Message, "TikRomonAgentSetup");
         }
 
         [TestMethod]

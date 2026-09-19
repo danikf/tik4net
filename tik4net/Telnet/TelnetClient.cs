@@ -23,6 +23,9 @@ namespace tik4net.Telnet
         private readonly Encoding _encoding;
         private readonly int _receiveTimeoutMs;
 
+        // The target's RoMON id once EnterRomonAsync has relayed this terminal; null for a direct session.
+        private string? _romonTarget;
+
         // Answers RouterOS VT100 cursor-probe negotiation (shared PTY logic). Without truthful
         // cursor replies RouterOS assumes a 1x1 terminal and emits no command output; the width the
         // shared state advertises is what keeps RouterOS from wrapping long ':put' as-value records
@@ -114,6 +117,7 @@ namespace tik4net.Telnet
 
             // The target repaints its prompt after the login just as a direct login does (see LoginAsync).
             await DrainAsync(250, ct).ConfigureAwait(false);
+            _romonTarget = target.RomonId;
             return agentRomonId;
         }
 
@@ -148,7 +152,12 @@ namespace tik4net.Telnet
             string cmd = CliOutputHelper.InjectWithoutPaging(command);
 
             if (_stream.DataAvailable)
-                await DrainAsync(SettleMs, ct).ConfigureAwait(false);
+            {
+                string residue = await DrainAsync(SettleMs, ct).ConfigureAwait(false);
+                // A relay that ended while the connection was idle: the agent's session is gone, and this
+                // command must not be sent into what is left of it.
+                RouterOsCliLogin.ThrowIfRomonRelayEnded("Telnet", _romonTarget, cmd, residue, commandSent: false);
+            }
 
             await SendLineAsync(cmd, ct).ConfigureAwait(false);
 
@@ -344,6 +353,9 @@ namespace tik4net.Telnet
                 string stripped = VtStripper.StripAnsi(accumulated.ToString());
                 streamer.Feed(stripped);
 
+                // The relay ended mid-command: no prompt will follow, the agent's session is over.
+                RouterOsCliLogin.ThrowIfRomonRelayEnded("Telnet", _romonTarget, sentCommand, stripped, commandSent: true);
+
                 if (!echoSeen)
                     echoSeen = CliOutputHelper.ContainsEcho(stripped, sentCommand);
 
@@ -371,9 +383,10 @@ namespace tik4net.Telnet
         /// prompt, stray push frames) until the stream stays silent for <paramref name="quietMs"/>.
         /// IAC negotiation is still answered so the link stays in a sane state.
         /// </summary>
-        private async Task DrainAsync(int quietMs, CancellationToken ct)
+        private async Task<string> DrainAsync(int quietMs, CancellationToken ct)
         {
             var buffer = new byte[4096];
+            var drained = new StringBuilder();
             var quietDeadline = DateTime.UtcNow.AddMilliseconds(quietMs);
 
             while (DateTime.UtcNow < quietDeadline)
@@ -387,7 +400,7 @@ namespace tik4net.Telnet
                         break; // connection closed
 
                     // Discard the text but still answer IAC + VT100 probes so the link stays sane.
-                    await ProcessChunkAsync(buffer, n, ct).ConfigureAwait(false);
+                    drained.Append(await ProcessChunkAsync(buffer, n, ct).ConfigureAwait(false));
 
                     // Reset the quiet window — keep draining as long as data keeps arriving.
                     quietDeadline = DateTime.UtcNow.AddMilliseconds(quietMs);
@@ -397,6 +410,8 @@ namespace tik4net.Telnet
                     await Task.Delay(15, ct).ConfigureAwait(false);
                 }
             }
+
+            return VtStripper.StripAnsi(drained.ToString());
         }
 
         /// <summary>

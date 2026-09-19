@@ -229,7 +229,7 @@ namespace tik4net.Cli
         /// When set before <c>Open</c>, the host/user/password given to <c>Open</c> are the AGENT's, and the
         /// transport continues from the agent's shell into this target over RoMON SSH before the connection
         /// counts as open. Set by <see cref="TikConnectionSetup.ApplyTo"/> through <see cref="ITikRomonConnection"/>,
-        /// which only the transports that relay implement (Telnet, SSH); every other CLI transport refuses a
+        /// which only the transports that relay implement (Telnet, SSH, MAC-Telnet); every other CLI transport refuses a
         /// target at open — ignoring one would open the AGENT and run every command there.
         /// </summary>
         internal RomonSshTarget? RomonTarget { get; set; }
@@ -281,7 +281,7 @@ namespace tik4net.Cli
             cancellationToken.ThrowIfCancellationRequested();
             if (RomonTarget != null && !(this is ITikRomonConnection))
                 throw new NotSupportedException(TransportName + " cannot relay to a RoMON target (" + RomonTarget +
-                    "); use Telnet or SSH to the agent.");
+                    "); use Telnet, SSH or MAC-Telnet to the agent.");
             RomonConnectionInfo = null;
             try
             {
@@ -372,6 +372,12 @@ namespace tik4net.Cli
                     CloseAfterAbandonedRead();
                     throw;
                 }
+                catch (TikRomonRelayEndedException)
+                {
+                    // The agent's session ended with the relay; there is nothing left to send commands into.
+                    CloseAfterAbandonedRead();
+                    throw;
+                }
                 catch (Exception ex) when (!IsOpened && !(ex is TikConnectionException))
                 {
                     // Close() ran on another thread while this command held the socket. IsOpened is already
@@ -408,8 +414,8 @@ namespace tik4net.Cli
         {
             TikWireTrace.Emit("cli.cancel", TikWireDir.Note,
                 "read abandoned mid-response (in-flight cancel with TikCancellationMode.AbandonAndClose, "
-                    + "or a receive timeout) — closing the connection, the unread response cannot be "
-                    + "resynchronized");
+                    + "a receive timeout, or the end of a RoMON relay) — closing the connection, the unread "
+                    + "response cannot be resynchronized");
             try { Close(); }
             catch (Exception ex)
             {
@@ -467,6 +473,11 @@ namespace tik4net.Cli
                 catch (TikConnectionReceiveTimeoutException)
                 {
                     CloseAfterAbandonedRead();   // see ExecuteCliCommandAsync — the tail is still coming
+                    throw;
+                }
+                catch (TikRomonRelayEndedException)
+                {
+                    CloseAfterAbandonedRead();   // see ExecuteCliCommandAsync — the agent's session is gone
                     throw;
                 }
                 FireReadRow(result);

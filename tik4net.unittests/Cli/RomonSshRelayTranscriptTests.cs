@@ -14,8 +14,9 @@ namespace tik4net.unittests.Cli
     /// </summary>
     /// <remarks>
     /// The failure modes here are silent on the wire: an unreachable target and RoMON switched off on the
-    /// agent both answer with nothing but the AGENT's prompt, which a prompt-shape check cannot tell from the
-    /// target's. Each test pins which screen means what, and what the client must never send.
+    /// agent both answer with nothing but <c>Welcome back!</c> — followed, without the trailing <c>/quit</c>, by
+    /// the AGENT's prompt, which a prompt-shape check cannot tell from the target's. Each test pins which screen
+    /// means what, and what the client must never send.
     /// </remarks>
     [TestClass]
     public class RomonSshRelayTranscriptTests
@@ -27,16 +28,24 @@ namespace tik4net.unittests.Cli
         private const string IdQuery = ":put [/tool romon get current-id]";
         private const string IdQueryLine = "line:" + IdQuery;
 
-        // The login name carries the +c flag, and '+' is quoted like any unsafe character.
-        private const string SshLine = "line:/tool romon ssh address=" + Target + " user=\"test+c\"";
+        private const string EnabledQueryLine = "line::put [/tool romon get enabled]";
+
+        // The login name carries the +c flag, and '+' is quoted like any unsafe character. The trailing /quit
+        // ends the agent's session when the relay ends, so no later command can run on the agent.
+        private const string SshCommand = "/tool romon ssh address=" + Target + " user=\"test+c\"; /quit";
+        private const string SshLine = "line:" + SshCommand;
 
         // The agent echoes the command, saves the cursor, and the target's ssh server asks for the password.
-        private const string PasswordPrompt =
-            "/tool romon ssh address=" + Target + " user=test+c\r\n\r\u001b7\u001b8password: ";
+        private const string PasswordPrompt = SshCommand + "\r\n\r\u001b7\u001b8password: ";
 
-        // Nothing but the agent's own prompt: an unknown RoMON id and RoMON disabled on the agent look the same.
+        // An unknown RoMON id: a pause, then 'Welcome back!' — and the /quit ends the agent's session, so no
+        // prompt follows.
         private const string WelcomeBack =
-            "/tool romon ssh address=" + Target + " user=test+c\r\n\r\u001b7\u001b8\r\u001b[9999B\r\u001b[9999B" +
+            SshCommand + "\r\n\r\u001b7\u001b8\r\u001b[9999B\r\u001b[9999B\r\nWelcome back!\r\ninterrupted\r\n\u001b7\u001b8";
+
+        // The same screen had the /quit not run: the agent's own prompt returns.
+        private const string WelcomeBackToTheAgentsPrompt =
+            SshCommand + "\r\n\r\u001b7\u001b8\r\u001b[9999B\r\u001b[9999B" +
             "\r\nWelcome back!\r\n\r\r\r\u001b[9999B[admin@Agent] > ";
 
         // The target's banner carries its recent critical log lines — here a login FAILURE, on a login that
@@ -55,9 +64,9 @@ namespace tik4net.unittests.Cli
         private static string EnabledAnswer(string value)
             => ":put [/tool romon get enabled]\r\n\r" + value + "\r\n\r\r\r\u001b[9999B[admin@Agent] > ";
 
-        // Every relay starts by asking the agent for its own RoMON id, on the agent's shell.
-        private static FakeRouterTerminal AgentTerminal()
-            => new FakeRouterTerminal().Emits(IdAnswer(AgentId, "[admin@Agent] > "));
+        // Every relay starts by asking the agent, on its own shell, for its RoMON id and whether RoMON is on.
+        private static FakeRouterTerminal AgentTerminal(string romonEnabled = "true")
+            => new FakeRouterTerminal().Emits(IdAnswer(AgentId, "[admin@Agent] > ")).Emits(EnabledAnswer(romonEnabled));
 
         private static string[] Lines(FakeRouterTerminal term)
             => term.Sent.Select(s => s.ToString()).ToArray();
@@ -76,7 +85,8 @@ namespace tik4net.unittests.Cli
             string agentId = await term.RomonSshLoginAsync(Target);
 
             Assert.AreEqual(AgentId, agentId);
-            CollectionAssert.AreEqual(new[] { IdQueryLine, SshLine, "line:" + Password, IdQueryLine }, Lines(term));
+            CollectionAssert.AreEqual(
+                new[] { IdQueryLine, EnabledQueryLine, SshLine, "line:" + Password, IdQueryLine }, Lines(term));
             Assert.AreEqual(0, term.DeadlineHits, "every phase must be recognised, none may wait for the deadline");
         }
 
@@ -97,7 +107,7 @@ namespace tik4net.unittests.Cli
 
             await term.RomonSshLoginAsync("aa-bb-cc-dd-ee-ff");
 
-            Assert.AreEqual(SshLine, Lines(term)[1]);
+            Assert.AreEqual(SshLine, Lines(term)[2]);
         }
 
         [TestMethod]
@@ -117,25 +127,50 @@ namespace tik4net.unittests.Cli
         // ── the relay never starts ────────────────────────────────────────────
 
         [TestMethod]
-        public async Task Relay_AgentPromptBeforePassword_WithRomonEnabled_ReportsTheTargetUnreachable()
+        public async Task Relay_WelcomeBackBeforePassword_ReportsTheTargetUnreachable_WithoutWaitingForAPrompt()
         {
-            var term = AgentTerminal().Emits(WelcomeBack).Emits(EnabledAnswer("true"));
+            var term = AgentTerminal().Emits(WelcomeBack);
 
             var ex = await Assert.ThrowsExceptionAsync<TikRomonRelayException>(() => term.RomonSshLoginAsync(Target));
 
             Assert.AreEqual(TikRomonRelayFailure.TargetUnreachable, ex.Reason);
             StringAssert.Contains(ex.Message, "could not reach RoMON id " + Target);
             Assert.IsFalse(Lines(term).Contains("line:" + Password), "the password must never reach the agent's shell");
+            Assert.AreEqual(0, term.DeadlineHits, "after the /quit the agent's session is gone; no prompt will come");
         }
 
         [TestMethod]
-        public async Task Relay_AgentPromptBeforePassword_WithRomonDisabled_SaysSo()
+        public async Task Relay_TheAgentsPromptBeforePassword_ReportsTheTargetUnreachable()
         {
-            var term = AgentTerminal().Emits(WelcomeBack).Emits(EnabledAnswer("false"));
+            var term = AgentTerminal().Emits(WelcomeBackToTheAgentsPrompt);
+
+            var ex = await Assert.ThrowsExceptionAsync<TikRomonRelayException>(() => term.RomonSshLoginAsync(Target));
+
+            Assert.AreEqual(TikRomonRelayFailure.TargetUnreachable, ex.Reason);
+        }
+
+        [TestMethod]
+        public async Task Relay_RomonDisabledOnTheAgent_SaysSo_AndNeverStartsTheRelay()
+        {
+            var term = AgentTerminal(romonEnabled: "false");
 
             var ex = await Assert.ThrowsExceptionAsync<TikRomonRelayException>(() => term.RomonSshLoginAsync(Target));
 
             Assert.AreEqual(TikRomonRelayFailure.RomonNotEnabledOnAgent, ex.Reason);
+            CollectionAssert.AreEqual(new[] { IdQueryLine, EnabledQueryLine }, Lines(term));
+        }
+
+        [TestMethod]
+        public async Task Relay_EndingAfterThePassword_IsNotMistakenForTheTarget()
+        {
+            // Had the /quit not run, the agent's prompt would follow 'Welcome back!' — a prompt, not the target's.
+            var term = AgentTerminal().Emits(PasswordPrompt)
+                .Emits("\r\n\r\u001b[9999B\r\nWelcome back!\r\n\r\r\r\u001b[9999B[admin@Agent] > ");
+
+            var ex = await Assert.ThrowsExceptionAsync<TikRomonRelayException>(() => term.RomonSshLoginAsync(Target));
+
+            Assert.AreEqual(TikRomonRelayFailure.TargetDidNotRespond, ex.Reason);
+            StringAssert.Contains(ex.Message, "relay ended");
         }
 
         [TestMethod]
@@ -155,7 +190,7 @@ namespace tik4net.unittests.Cli
             Assert.AreEqual(TikRomonRelayFailure.TargetRefusedLogin, ex.Reason);
             StringAssert.Contains(ex.Message, "'ssh' policy");
             CollectionAssert.AreEqual(
-                new[] { IdQueryLine, SshLine, "line:" + Password, "bytes:03" },
+                new[] { IdQueryLine, EnabledQueryLine, SshLine, "line:" + Password, "bytes:03" },
                 Lines(term),
                 "one password, then Ctrl-C: every further line typed into that prompt is another failed login on the target");
         }
@@ -209,6 +244,42 @@ namespace tik4net.unittests.Cli
         [DataRow("")]
         public void NormalizeRomonId_RefusesAnythingButSixHexOctets(string id)
             => Assert.ThrowsException<ArgumentException>(() => RouterOsCliLogin.NormalizeRomonId(id));
+
+        // ── the relay ends while the connection is open ───────────────────────
+
+        [TestMethod]
+        public void RelayEnd_IsWelcomeBackOnALineOfItsOwn_NotTheWordsQuotedInOutput()
+        {
+            Assert.IsTrue(RouterOsCliLogin.IsRomonRelayEnd("/quit\r\n\rinterrupted\r\n\r\r\r\nWelcome back!\r\ninterrupted\r\n"));
+            Assert.IsTrue(RouterOsCliLogin.IsRomonRelayEnd("Welcome back!"));
+            Assert.IsFalse(RouterOsCliLogin.IsRomonRelayEnd(".id=*1;comment=Welcome back!;name=x"));
+            Assert.IsFalse(RouterOsCliLogin.IsRomonRelayEnd("say \"Welcome back!\" to the user"));
+        }
+
+        [TestMethod]
+        public void RelayEnded_MidCommand_SaysTheCommandMayHaveRun_AndNeverThrowsForADirectSession()
+        {
+            const string screen = "/system reboot\r\n\r\nWelcome back!\r\ninterrupted\r\n";
+
+            RouterOsCliLogin.ThrowIfRomonRelayEnded("Telnet", null, "/system reboot", screen, commandSent: true);
+
+            var ex = Assert.ThrowsException<TikRomonRelayEndedException>(() =>
+                RouterOsCliLogin.ThrowIfRomonRelayEnded("Telnet", Target, "/system reboot", screen, commandSent: true));
+            Assert.IsTrue(ex.CommandMayHaveRun);
+            Assert.AreEqual(screen, ex.PartialResponse);
+            StringAssert.Contains(ex.Message, "may have taken effect on the target");
+            StringAssert.Contains(ex.Message, "Nothing ran on the agent");
+        }
+
+        [TestMethod]
+        public void RelayEnded_WhileIdle_SaysTheCommandWasNotSent()
+        {
+            var ex = Assert.ThrowsException<TikRomonRelayEndedException>(() =>
+                RouterOsCliLogin.ThrowIfRomonRelayEnded("SSH", Target, "/ip address print",
+                    "\r\nWelcome back!\r\ninterrupted\r\n", commandSent: false));
+            Assert.IsFalse(ex.CommandMayHaveRun);
+            StringAssert.Contains(ex.Message, "did not run");
+        }
 
         [TestMethod]
         public void AnswerAfterEcho_IgnoresAStalePromptThatArrivesBeforeTheEcho()

@@ -64,9 +64,17 @@ On the agent's CLI, `/tool romon ssh address=<target id> user=<user>`:
 - the session behaves like a direct one; `:put [/tool romon get current-id]` answers the **target's** id;
 - `/quit` prints `interrupted`, `Welcome back!` and the agent's prompt; the agent's session is intact.
 
+**The end of the relay hands the terminal back to the agent.** Whatever ends the relay — `/quit` on the target,
+the target logging the session out or rebooting, an unreachable id — the agent prints `Welcome back!` and its own
+prompt, and the session carries on **on the agent**. A prompt cannot tell the two routers apart (on factory
+defaults both are `[admin@MikroTik] >`), so a client that kept typing would run its commands on the agent. Typed
+as one line, `/tool romon ssh address=<id> user=<user>; /quit`, the `/quit` runs as soon as the relay ends and
+the agent's session ends with it: the screen stops at `Welcome back!` / `interrupted`, no prompt follows.
+Measured on Telnet, SSH and MAC-Telnet to the agent, for a `/quit` on the target and for an unknown id.
+
 **Failures.** An unknown RoMON id and RoMON disabled on the agent look identical: a pause (~6 s), then
 `Welcome back!` and the agent's prompt, **no text**. `:put [/tool romon get enabled]` on the agent tells them
-apart. A refused login — wrong password, or a user whose group lacks the **`ssh` policy** — is answered with
+apart — asked before the relay, since with the trailing `/quit` there is no agent shell left afterwards. A refused login — wrong password, or a user whose group lacks the **`ssh` policy** — is answered with
 another `password:` and nothing else; every further line typed into it is one more failed login in the target's
 log.
 
@@ -79,8 +87,15 @@ by-romon, `address=` and `by-romon=` the agent's id, `via=ssh`).
 SSH-encrypted; the leg from the client to the agent is only as private as the transport used for it — over
 Telnet or MAC-Telnet the target's password crosses the network in cleartext.
 
-tik4net's implementation: `RouterOsCliLogin.RomonSshLoginAsync`, used by Telnet and SSH through
-`TikConnectionSetup.RomonAgentSetup`.
+**MAC-Telnet to the agent.** The relay runs the same over a MAC-Telnet session, so a PC with no IP route to
+either router reaches the target: MAC layer to the agent, RoMON beyond it. Being inside `/tool romon ssh` does
+not keep an idle MAC-Telnet console alive: a read after 35 s of idle took 4.8 s — a new MAC-Telnet session and
+a fresh relay (about 3 s of it), not an answer on the old one.
+
+tik4net's implementation: `RouterOsCliLogin.RomonSshLoginAsync`, used by Telnet, SSH and MAC-Telnet through
+`TikConnectionSetup.RomonAgentSetup`. A `Welcome back!` line in what a relayed session reads raises
+`TikRomonRelayEndedException` and closes the connection; MAC-Telnet's reconnect after an idle logout relays to the
+target again before it resends.
 
 ## 5. Capture notes
 
