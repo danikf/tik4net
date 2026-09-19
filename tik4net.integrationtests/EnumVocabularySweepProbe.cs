@@ -168,8 +168,9 @@ namespace tik4net.integrationtests
                 tokens = completion.CompleteCli($"{menu} set 0 {assignment}");
             }
 
-            // RouterOS echoes the line it completed, so the tokens carry the menu, the verb and the
-            // field=<firstValue> it filled in, followed by the remaining values.
+            // RouterOS 7.24 prints the listing glued to the echo of the typed line; CliCompletionParser drops
+            // exactly that echo, so the values arrive as plain tokens. The filters below are defensive: a
+            // menu/verb word or a field=<value> token only appears if the echo was not recognised.
             var values = new List<string>();
             foreach (string token in tokens)
             {

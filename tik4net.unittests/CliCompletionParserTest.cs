@@ -77,5 +77,60 @@ namespace tik4net.unittests
             Assert.AreEqual(0, CliCompletionParser.Tokens("", "/ip ").Count);
             Assert.AreEqual(0, CliCompletionParser.Tokens(null, "/ip ").Count);
         }
+
+        /// <summary>
+        /// RouterOS 7.24.4 (wire trace, Telnet, <c>/</c> + Tab) prints the listing on the SAME line as the echo of
+        /// what was typed, with no break between them: <c>/lora     ping     app …</c>. The echo is ours, not part of
+        /// the first completion — <c>lora</c> is.
+        /// </summary>
+        [TestMethod]
+        public void Tokens_ListingGluedToTheEcho_DropsTheEchoNotTheFirstToken()
+        {
+            string reaction = "/lora     ping     app     caps-man     system     undo   \r\n\r[admin@CHR] > /";
+
+            var tokens = System.Linq.Enumerable.ToArray(CliCompletionParser.Tokens(reaction, "/"));
+
+            CollectionAssert.AreEqual(new[] { "lora", "ping", "app", "caps-man", "system", "undo" }, tokens);
+            Assert.AreEqual("lora     ping     app     caps-man     system     undo",
+                CliCompletionParser.Clean(reaction, "/"));
+        }
+
+        /// <summary>
+        /// The same glue after a longer input: the echo is the whole typed line, and only it is dropped.
+        /// </summary>
+        [TestMethod]
+        public void Tokens_ListingGluedToALongerEcho_DropsExactlyTheEcho()
+        {
+            string reaction = "/ip firewall filter add action     chain     comment\r\n[admin@CHR] > /ip firewall filter add ";
+
+            var tokens = System.Linq.Enumerable.ToArray(CliCompletionParser.Tokens(reaction, "/ip firewall filter add "));
+
+            CollectionAssert.AreEqual(new[] { "action", "chain", "comment" }, tokens);
+        }
+
+        /// <summary>
+        /// The same with the 7.24.4 menu listing, whose typed line ends in a space: <c>/interface 6to4 …</c>.
+        /// </summary>
+        [TestMethod]
+        public void Tokens_MenuListingGluedToTheEcho_DropsTheEcho()
+        {
+            string reaction = "/interface 6to4     bonding     bridge     print     set   \r\n\r[admin@CHR] > /interface ";
+
+            var tokens = System.Linq.Enumerable.ToArray(CliCompletionParser.Tokens(reaction, "/interface "));
+
+            CollectionAssert.AreEqual(new[] { "6to4", "bonding", "bridge", "print", "set" }, tokens);
+        }
+
+        /// <summary>
+        /// An inline completion also starts with the echo, but 7.24.4 rewrites the word in place with cursor moves
+        /// (<c>/interface/vl ESC[2D␠␠ESC[2Dvlan/</c>), which the ANSI strip leaves as the echo followed by
+        /// WHITESPACE. That is not a glued listing, and the echo is not removed from it.
+        /// </summary>
+        [TestMethod]
+        public void Clean_InlineRewriteAfterTheEcho_IsNotTakenForAGluedListing()
+        {
+            Assert.AreEqual("/interface/vl  vlan/",
+                CliCompletionParser.Clean("/interface/vl  vlan/\r\n\r[admin@CHR] > ", "/interface/vl"));
+        }
     }
 }

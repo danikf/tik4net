@@ -1038,6 +1038,27 @@ in [findings-mepty-byte-ack.md](findings-mepty-byte-ack.md).
 - `tik4net.integrationtests/TikCommandTest.cs` (`RunScript_Issue53_WillNotFail`) covers the
   action-command split in §8.
 
+## 14. Tab-completion
+
+`ITikCliCompletion` types `<partial line><Tab>`, reads until the output has been quiet for 300 ms (the listing
+ends at a redrawn prompt with the typed stem, never a bare prompt), then sends Ctrl-C to clear the line.
+Measured over Telnet, bytes before the ANSI strip:
+
+| Input | 7.19.6 | 7.24.4 |
+|---|---|---|
+| `/` | `/` CR LF, then the listing | `/lora     ping     app …` — the listing **glued to the echo**, no break |
+| `/interface ` | `/interface ` CR LF, then the listing | `/interface 6to4     bonding …` — glued |
+| `/interface/vl` (unique) | `/interface/vl ESC[2D␠␠ESC[2Dvlan/` | the same **inline rewrite**: cursor back, blank, back, the completed word |
+
+`CliCompletionParser.Clean` drops the prompt redraw and the echo. When the first line starts with exactly the
+typed text and a token follows at once, that text is the echo and is cut off; the rest is the listing. After the
+ANSI strip an inline rewrite reads as the echo followed by whitespace (`/interface/vl  vlan/`) and is left alone:
+the cursor moves that made it one word are gone by then. The order of the listing is the router's — 7.24.4 puts
+`lora` and `ping` before the other menus.
+
+Through a RoMON relay the Tab and the Ctrl-C reach the target's line editor; the relay stays up
+(`RomonRelayTest.Relay_TabCompletion_ListsTheTarget_AndKeepsTheRelay`).
+
 ---
 
 ## Settled questions — do not re-investigate
