@@ -233,9 +233,9 @@ namespace tik4net.integrationtests
                             relay.CreateParameter("list", TestList, TikCommandParameterFormat.Filter));
                         try
                         {
-                            // A listen reports changes against its first snapshot; a row added before that snapshot is
-                            // part of it and is never reported. Let the first polls go through the relay first.
-                            System.Threading.Thread.Sleep(3000);
+                            // No wait: the polled listen reads its baseline before LoadListenWithCallback returns, so a
+                            // row added the moment it returns is a change against it and must be reported — through the
+                            // relay that first read takes a second or more, the window this test once had to sleep out.
                             agent.Save(new FirewallAddressList { List = TestList, Address = agentAddress, Comment = comment });
                             direct.Save(new FirewallAddressList { List = TestList, Address = targetAddress, Comment = comment });
 
