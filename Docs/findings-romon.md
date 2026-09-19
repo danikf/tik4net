@@ -103,6 +103,12 @@ does show there). Release (a second Ctrl+X) and `/safe-mode unroll` act on the t
 the target afterwards. Ending the relayed session with Safe Mode held rolls the change back on the target.
 Measured with a 7.24.4 agent and a 7.19.6 target over Telnet, SSH and MAC-Telnet (`RomonRelayTest`).
 
+**Listen and monitors.** On a CLI transport both are polled — one-shot commands reissued through the same
+terminal — so the relay carries them unchanged: a listen reports rows changed on the target and never on the
+agent, a callback ping and a bounded synchronous ping return their rows, and the relay is still on the target
+when they stop. None of them sends Ctrl-C. The first listen poll through the relay takes a second or more, and
+rows present at that poll form the listen's baseline.
+
 tik4net's implementation: `RouterOsCliLogin.RomonSshLoginAsync`, used by Telnet, SSH and MAC-Telnet through
 `TikConnectionSetup.RomonAgentSetup`. A `Welcome back!` line in what a relayed session reads raises
 `TikRomonRelayEndedException` and closes the connection; MAC-Telnet's reconnect after an idle logout relays to the

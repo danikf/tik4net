@@ -17,6 +17,7 @@ using System.Linq;
 using tik4net.Objects;
 using tik4net.Objects.Ip.Firewall;
 using tik4net.Objects.System;
+using tik4net.Objects.Tool;
 using tik4net.Objects.Tool.Romon;
 
 namespace tik4net.integrationtests
@@ -190,6 +191,136 @@ namespace tik4net.integrationtests
                 try { after = relay.LoadSingle<ToolRomon>().CurrentId; }
                 catch (Exception ex) when (!(ex is AssertFailedException)) { return; }   // failing is right
                 Assert.AreEqual(TargetId, after, true, "a command after the relay ended answered from the agent");
+            }
+        }
+
+        // ── Listen and monitors ───────────────────────────────────────────────
+        //
+        // Both are polled on a CLI transport: ordinary one-shot commands reissued through the same terminal, so the
+        // relay carries them like any other. What is checked is that they see the target, keep the relay on it,
+        // and leave it usable when they stop.
+
+        /// <summary>
+        /// A listen through the relay reports a row added on the target, and never one added on the agent.
+        /// </summary>
+        [DataTestMethod]
+        [DataRow(TikConnectionType.Telnet, "192.0.2.73", "192.0.2.74")]
+        [DataRow(TikConnectionType.Ssh, "192.0.2.75", "192.0.2.76")]
+        [DataRow(TikConnectionType.MacTelnet, "192.0.2.77", "192.0.2.78")]
+        [Timeout(120000)]
+        public void Relay_Listen_SeesTheTarget_NotTheAgent(TikConnectionType agentTransport,
+            string targetAddress, string agentAddress)
+        {
+            RequireTargetHost();
+            string comment = "tik4net-romon-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+            var seen = new System.Collections.Concurrent.ConcurrentQueue<FirewallAddressList>();
+            Exception listenError = null;
+
+            using (var direct = OpenTargetDirect())
+            using (var agent = OpenAgentDirect())
+            {
+                Sweep(direct);
+                Sweep(agent);
+                try
+                {
+                    using (var relay = OpenRelay(agentTransport))
+                    {
+                        var listen = relay.LoadListenWithCallback<FirewallAddressList>(
+                            row => { if (row.Comment == comment) seen.Enqueue(row); },
+                            deletedId => { },
+                            ex => listenError = ex,
+                            relay.CreateParameter("list", TestList, TikCommandParameterFormat.Filter));
+                        try
+                        {
+                            // A listen reports changes against its first snapshot; a row added before that snapshot is
+                            // part of it and is never reported. Let the first polls go through the relay first.
+                            System.Threading.Thread.Sleep(3000);
+                            agent.Save(new FirewallAddressList { List = TestList, Address = agentAddress, Comment = comment });
+                            direct.Save(new FirewallAddressList { List = TestList, Address = targetAddress, Comment = comment });
+
+                            var deadline = DateTime.UtcNow.AddSeconds(15);
+                            while (!seen.Any(r => r.Address == targetAddress) && listenError == null && DateTime.UtcNow < deadline)
+                                System.Threading.Thread.Sleep(250);
+                            System.Threading.Thread.Sleep(2000);   // a poll or two more, for a row that should not come
+                        }
+                        finally
+                        {
+                            listen.CancelAndJoin();
+                        }
+
+                        Assert.IsNull(listenError, listenError?.ToString());
+                        Assert.IsTrue(seen.Any(r => r.Address == targetAddress), "the listen did not report the row added on the target");
+                        Assert.IsFalse(seen.Any(r => r.Address == agentAddress), "the listen reported a row added on the AGENT");
+                        Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,
+                            "after the listen stopped the relay answered from the agent");
+                    }
+                }
+                finally
+                {
+                    Sweep(direct);
+                    Sweep(agent);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A callback monitor (ping) through the relay delivers rows, and the relay stays on the target after it.
+        /// </summary>
+        [DataTestMethod]
+        [DataRow(TikConnectionType.Telnet)]
+        [DataRow(TikConnectionType.Ssh)]
+        [DataRow(TikConnectionType.MacTelnet)]
+        [Timeout(60000)]
+        public void Relay_CallbackMonitor_DeliversRows_AndKeepsTheRelay(TikConnectionType agentTransport)
+        {
+            RequireTargetHost();
+            var rows = new System.Collections.Concurrent.ConcurrentQueue<ToolPing>();
+            Exception monitorError = null;
+
+            using (var relay = OpenRelay(agentTransport))
+            {
+                var ping = relay.LoadWithCallback<ToolPing>(
+                    row => rows.Enqueue(row),
+                    ex => monitorError = ex,
+                    relay.CreateParameter("address", TargetHost),
+                    relay.CreateParameter("count", "3"));
+                try
+                {
+                    var deadline = DateTime.UtcNow.AddSeconds(15);
+                    while (rows.Count < 3 && monitorError == null && DateTime.UtcNow < deadline)
+                        System.Threading.Thread.Sleep(250);
+                }
+                finally
+                {
+                    ping.CancelAndJoin();
+                }
+
+                Assert.IsNull(monitorError, monitorError?.ToString());
+                Assert.IsTrue(rows.Count >= 3, "expected three ping rows through the relay, got " + rows.Count);
+                Assert.IsTrue(rows.All(r => r.Host == TargetHost));
+                Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,
+                    "after the monitor stopped the relay answered from the agent");
+            }
+        }
+
+        /// <summary>A bounded monitor read synchronously (ping count=2) through the relay returns its rows.</summary>
+        [DataTestMethod]
+        [DataRow(TikConnectionType.Telnet)]
+        [DataRow(TikConnectionType.Ssh)]
+        [DataRow(TikConnectionType.MacTelnet)]
+        public void Relay_SyncMonitor_ReturnsRows_AndKeepsTheRelay(TikConnectionType agentTransport)
+        {
+            RequireTargetHost();
+
+            using (var relay = OpenRelay(agentTransport))
+            {
+                var rows = relay.LoadList<ToolPing>(
+                    relay.CreateParameter("address", TargetHost),
+                    relay.CreateParameter("count", "2")).ToList();
+
+                Assert.AreEqual(2, rows.Count(r => r.Host == TargetHost), "expected two ping rows through the relay");
+                Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,
+                    "after the monitor the relay answered from the agent");
             }
         }
 
