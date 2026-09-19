@@ -192,5 +192,156 @@ namespace tik4net.integrationtests
                 Assert.AreEqual(TargetId, after, true, "a command after the relay ended answered from the agent");
             }
         }
+
+        // ── Safe Mode ─────────────────────────────────────────────────────────
+        //
+        // Take and release are a Ctrl+X in the live terminal, and the terminal is the AGENT's, running
+        // /tool romon ssh. Whether the key reaches the target or is taken by the agent's own console is exactly
+        // what cannot be seen from the relay, so each test reads /safe-mode on both routers over their own API.
+
+        private static bool SafeModeHeldOn(ITikConnection direct)
+            => direct.CreateCommand("/safe-mode/print").ExecuteList().Single()
+                .GetResponseField("enabled") == "true";
+
+        // A hold left by an interrupted run blocks the next take; a release from any session clears it.
+        private static void ReleaseStaleSafeMode(ITikConnection direct)
+        {
+            if (SafeModeHeldOn(direct))
+                direct.CreateCommand("/safe-mode/release").ExecuteNonQuery();
+        }
+
+        /// <summary>
+        /// Safe Mode taken through the relay is held on the target, never on the agent; a change made under it and
+        /// released stays on the target.
+        /// </summary>
+        [DataTestMethod]
+        [DataRow(TikConnectionType.Telnet, "192.0.2.64")]
+        [DataRow(TikConnectionType.Ssh, "192.0.2.65")]
+        [DataRow(TikConnectionType.MacTelnet, "192.0.2.66")]
+        public void Relay_SafeMode_IsTakenAndReleasedOnTheTarget(TikConnectionType agentTransport, string address)
+        {
+            RequireTargetHost();
+            string comment = "tik4net-romon-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+
+            using (var direct = OpenTargetDirect())
+            using (var agent = OpenAgentDirect())
+            {
+                Sweep(direct);
+                ReleaseStaleSafeMode(direct);
+                ReleaseStaleSafeMode(agent);
+                try
+                {
+                    using (var relay = OpenRelay(agentTransport))
+                    {
+                        var safeMode = (ITikSafeModeConnection)relay;
+                        safeMode.SafeModeTake();
+                        Assert.IsTrue(safeMode.SafeModeGet());
+                        Assert.IsTrue(SafeModeHeldOn(direct), "Safe Mode taken through the relay is not held on the target");
+                        Assert.IsFalse(SafeModeHeldOn(agent), "Safe Mode taken through the relay is held on the AGENT");
+
+                        relay.Save(new FirewallAddressList { List = TestList, Address = address, Comment = comment });
+                        safeMode.SafeModeRelease();
+                        Assert.IsFalse(SafeModeHeldOn(direct), "the release through the relay did not reach the target");
+                        Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,
+                            "after the release the relay answered from the agent");
+                    }
+                    Assert.AreEqual(1, OurRows(direct, comment).Length, "a released change must stay on the target");
+                }
+                finally
+                {
+                    Sweep(direct);
+                    ReleaseStaleSafeMode(direct);
+                    ReleaseStaleSafeMode(agent);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Unroll through the relay discards the change on the target and leaves the relay open on the target.
+        /// </summary>
+        [DataTestMethod]
+        [DataRow(TikConnectionType.Telnet, "192.0.2.67")]
+        [DataRow(TikConnectionType.Ssh, "192.0.2.68")]
+        [DataRow(TikConnectionType.MacTelnet, "192.0.2.69")]
+        public void Relay_SafeMode_UnrollDiscardsOnTheTarget(TikConnectionType agentTransport, string address)
+        {
+            RequireTargetHost();
+            string comment = "tik4net-romon-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+
+            using (var direct = OpenTargetDirect())
+            using (var agent = OpenAgentDirect())
+            {
+                Sweep(direct);
+                ReleaseStaleSafeMode(direct);
+                ReleaseStaleSafeMode(agent);
+                try
+                {
+                    using (var relay = OpenRelay(agentTransport))
+                    {
+                        var safeMode = (ITikSafeModeConnection)relay;
+                        safeMode.SafeModeTake();
+                        relay.Save(new FirewallAddressList { List = TestList, Address = address, Comment = comment });
+                        Assert.AreEqual(1, OurRows(direct, comment).Length, "the change must be on the target before the unroll");
+
+                        safeMode.SafeModeUnroll();
+                        Assert.IsFalse(safeMode.SafeModeGet());
+                        Assert.AreEqual(0, OurRows(direct, comment).Length, "the unroll did not discard the change on the target");
+                        Assert.IsFalse(SafeModeHeldOn(direct), "Safe Mode is still held on the target after the unroll");
+                        Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,
+                            "after the unroll the relay answered from the agent");
+                    }
+                }
+                finally
+                {
+                    Sweep(direct);
+                    ReleaseStaleSafeMode(direct);
+                    ReleaseStaleSafeMode(agent);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Closing the relay while Safe Mode is held rolls the change back on the target — the session that held
+        /// it is the relayed one, and it ends with the connection.
+        /// </summary>
+        [DataTestMethod]
+        [DataRow(TikConnectionType.Telnet, "192.0.2.70")]
+        [DataRow(TikConnectionType.Ssh, "192.0.2.71")]
+        [DataRow(TikConnectionType.MacTelnet, "192.0.2.72")]
+        [Timeout(120000)]
+        public void Relay_SafeMode_CloseWithoutReleaseRollsBackOnTheTarget(TikConnectionType agentTransport, string address)
+        {
+            RequireTargetHost();
+            string comment = "tik4net-romon-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+
+            using (var direct = OpenTargetDirect())
+            using (var agent = OpenAgentDirect())
+            {
+                Sweep(direct);
+                ReleaseStaleSafeMode(direct);
+                ReleaseStaleSafeMode(agent);
+                try
+                {
+                    using (var relay = OpenRelay(agentTransport))
+                    {
+                        ((ITikSafeModeConnection)relay).SafeModeTake();
+                        relay.Save(new FirewallAddressList { List = TestList, Address = address, Comment = comment });
+                        Assert.AreEqual(1, OurRows(direct, comment).Length, "the change must be on the target before the close");
+                    }
+
+                    int remaining = 1;
+                    var deadline = DateTime.UtcNow.AddSeconds(30);
+                    while ((remaining = OurRows(direct, comment).Length) > 0 && DateTime.UtcNow < deadline)
+                        System.Threading.Thread.Sleep(1000);
+                    Assert.AreEqual(0, remaining, "closing the relay with Safe Mode held did not roll back the change on the target");
+                }
+                finally
+                {
+                    Sweep(direct);
+                    ReleaseStaleSafeMode(direct);
+                    ReleaseStaleSafeMode(agent);
+                }
+            }
+        }
     }
 }

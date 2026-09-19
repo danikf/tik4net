@@ -97,6 +97,12 @@ either router reaches the target: MAC layer to the agent, RoMON beyond it. Being
 not keep an idle MAC-Telnet console alive: a read after 35 s of idle took 4.8 s — a new MAC-Telnet session and
 a fresh relay (about 3 s of it), not an answer on the old one.
 
+**Safe Mode.** Ctrl+X typed into the agent's terminal while it runs `/tool romon ssh` reaches the target: the
+target's `/safe-mode print` shows `enabled=true`, the agent's stays `false` (a Ctrl+X on the agent's own console
+does show there). Release (a second Ctrl+X) and `/safe-mode unroll` act on the target too, and the relay stays on
+the target afterwards. Ending the relayed session with Safe Mode held rolls the change back on the target.
+Measured with a 7.24.4 agent and a 7.19.6 target over Telnet, SSH and MAC-Telnet (`RomonRelayTest`).
+
 tik4net's implementation: `RouterOsCliLogin.RomonSshLoginAsync`, used by Telnet, SSH and MAC-Telnet through
 `TikConnectionSetup.RomonAgentSetup`. A `Welcome back!` line in what a relayed session reads raises
 `TikRomonRelayEndedException` and closes the connection; MAC-Telnet's reconnect after an idle logout relays to the
