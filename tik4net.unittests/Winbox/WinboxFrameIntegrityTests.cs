@@ -102,9 +102,10 @@ namespace tik4net.unittests.Winbox
         }
 
         /// <summary>
-        /// A body whose length is an exact multiple of 255 ends with an explicit empty final chunk: a full
-        /// 0xFF chunk always means "and there is more", so without it the reader blocks on a chunk header
-        /// the sender never intends to write.
+        /// A body whose length is an exact multiple of 255 ends with an explicit empty final chunk. A raw
+        /// frame's reader waits for a short chunk, so without it that reader blocks on a chunk header the
+        /// sender never intends to write. RouterOS itself omits the terminator after an encrypted frame and
+        /// is read by its declared length instead (<c>WinboxChunkReassemblyTests</c>), but accepts one from us.
         /// </summary>
         [TestMethod]
         public void Chunk_EndsAnExactMultipleOf255_WithAnEmptyFinalChunk()

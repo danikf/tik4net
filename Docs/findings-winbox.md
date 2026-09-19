@@ -168,7 +168,8 @@ uses, rather than reusing MAC-Telnet's own auth or framing:
 2. **Encrypted M2 uses the same chunk framing as TCP** — `[chunkLen 1B][tag][data]…` (`0xFF` =
    continuation) — carried inside DATA packets, not a bare `Encrypt(m2)` payload. `Send` chunk-wraps
    (`ChunkWrap`); `Receive` reassembles via an `_rxBuf` buffer (a chunk can cross a DATA packet
-   boundary) before `WinboxStreamCrypto.Decrypt` runs.
+   boundary) before `WinboxStreamCrypto.Decrypt` runs. An encrypted frame ends at the length it
+   declares, not only at a short chunk (§21).
 
 Because the carrier is the only thing that differs, the mepty engine (`WinboxCliClient`) is shared
 unchanged between `WinboxCli` and `WinboxCliMac` — only `IWinboxM2Channel`'s implementation changes.
@@ -618,6 +619,37 @@ reported as `TikConnectionReceiveTimeoutException` naming the elapsed time and c
 exception, and the connection is closed, because a stream left mid-frame cannot be read in step again. With
 that, the pause costs time rather than correctness, and the record count (`#n=`,
 [findings-cli.md](findings-cli.md) §1) confirms each read is complete.
+
+## 21. An encrypted frame ends at its declared length — the router sends no empty final chunk
+
+A chunk of `0xFF` bytes means "more follows" and a shorter one ends the frame. That rule is not the whole
+story: when an encrypted frame's size is an exact multiple of 255, **RouterOS ends it on the full chunk and
+writes no zero-length chunk behind it**. The frame is still delimited, by the length its first two bytes
+declare (`[enc_len 2B BE][IV 16B][ciphertext]`, §12.3): it is complete at `enc_len + 18` bytes.
+
+An encrypted frame is 18 bytes plus whole AES blocks, so the sizes that end on a full chunk are 255·k with
+255·k ≡ 18 (mod 16): **3570 bytes (14 chunks)**, then every 4080 bytes after it. A terminal pull carrying
+~3.4 KB of output lands on 3570. Measured on 7.24, sweeping `:put` of 3436–3464 characters: over both TCP
+and MAC, every run that produced a 3570-byte frame failed, and every other frame size passed.
+
+A reader that waits for a short chunk takes the next frame's first chunk as its own last one:
+
+| Carrier | What happens |
+|---|---|
+| TCP (`WinboxCli`, `WinboxNative`) | the 3570-byte frame and the next one come out as one 3732-byte blob that does not decrypt; the session is finished at once |
+| MAC (`WinboxCliMac`, `WinboxNativeMac`) | the merged blob is dropped as undecryptable, the mepty acknowledgement ([findings-mepty-byte-ack.md](findings-mepty-byte-ack.md)) stops advancing, and the router answers every further pull with an ACK and no data, until the receive timeout |
+
+Which read meets it depends only on where the output falls into frames, so it looks tied to one table size
+or one window and is not ([history](findings-winbox-history.md#a-3570-byte-frame--read-as-a-last-window-hang-in-one-table-21)).
+
+`WinboxTcpTransport.ReadChunkedFrame` (TCP) and `TryTakeChunkedFrame` (the MAC datagram buffer) end an
+encrypted frame at its declared length, and skip a zero-length continuation chunk where a frame should
+start. The router **accepts** such a terminator from us — `Chunk` still writes one after an exact multiple
+of 255, and 3570-byte frames of terminal input go through with it — so the send side is unchanged. The
+EC-SRP5 handshake frames are tagged `0x06` too but declare no length; over TCP they are read through
+`ReadExact` and never reach the chunk reader, over MAC they are read before the stream keys exist and keep
+the short-chunk rule. `WinboxChunkReassemblyTests` pins the reader and `TerminalFrameBoundaryTest` the
+router's framing.
 
 ---
 
