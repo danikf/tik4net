@@ -357,10 +357,8 @@ namespace tik4net.Rest
             {
                 string listPath = TikPath.Parent(descriptor.CommandText);
                 var printDescriptor = new TikCommandDescriptor(listPath + "/print", descriptor.Parameters);
-                return PollingMonitorEngine.StartWorker("rest-listen",
-                    // volatileFields is documented as nullable ("null compares all fields") but its parameter
-                    // type isn't annotated — ListenLoop lives in Connection/, out of scope here.
-                    h => PollingMonitorEngine.ListenLoop(this, printDescriptor, null!, ListenPollIntervalMs, h, onRow, onError, onDone));
+                return PollingMonitorEngine.StartListen("rest-listen", this, printDescriptor, null, ListenPollIntervalMs,
+                    onRow, onError, onDone);
             }
 
             if (verb == "print" || verb == "getall")
