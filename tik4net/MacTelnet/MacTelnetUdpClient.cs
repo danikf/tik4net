@@ -138,7 +138,7 @@ namespace tik4net.MacTelnet
 
             // The target repaints its prompt after the login just as a direct login does; let it land before
             // the first command resets the buffer.
-            await ReadUntilQuietAsync(250, requireData: false).ConfigureAwait(false);
+            await ReadUntilQuietAsync(250, requireData: false, ct).ConfigureAwait(false);
             _romonTarget = target.RomonId;
             return agentRomonId;
         }
@@ -258,7 +258,7 @@ namespace tik4net.MacTelnet
             ct.ThrowIfCancellationRequested();
             ResetReadBuffer();
             SendTerminalBytes(raw);
-            await ReadUntilQuietAsync(quietMs).ConfigureAwait(false);
+            await ReadUntilQuietAsync(quietMs, ct: ct).ConfigureAwait(false);
             lock (_rxLock)
                 return _rx.ToString();
         }
@@ -484,7 +484,9 @@ namespace tik4net.MacTelnet
         /// <param name="quietMs">How long nothing new must arrive.</param>
         /// <param name="requireData">When <c>true</c> (Tab-completion) the quiet only counts once something has
         /// arrived; when <c>false</c> a silent terminal is quiet too — for draining a repaint that may not come.</param>
-        private async Task<string> ReadUntilQuietAsync(int quietMs, bool requireData = true)
+        /// <param name="ct">Checked on every wait, so a caller's cancel is not held up by the quiet window.</param>
+        private async Task<string> ReadUntilQuietAsync(int quietMs, bool requireData = true,
+            CancellationToken ct = default)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
             DateTime lastData = DateTime.UtcNow;
@@ -492,6 +494,7 @@ namespace tik4net.MacTelnet
 
             while (sw.ElapsedMilliseconds < _receiveTimeoutMs)
             {
+                ct.ThrowIfCancellationRequested();
                 ThrowIfPumpFaulted();
                 _rxSignal.Reset();
 

@@ -35,6 +35,12 @@ namespace tik4net.MacTelnet
     /// one — a fixed 5 s, whatever <see cref="ITikConnection.ConnectTimeout"/> says. Set
     /// <see cref="RouterMac"/> to skip discovery entirely when the open has to be bounded exactly.
     /// </para>
+    /// <para>
+    /// <see cref="OpenAsync(string, string, string, CancellationToken)"/> takes its token into every wait after
+    /// the shell prompt — the relay to a RoMON target included. The EC-SRP5 login before it is synchronous and
+    /// runs to the end first, so a cancel landing there takes effect as it finishes (under a second on a LAN).
+    /// A cancelled open closes the session it started.
+    /// </para>
     /// <para><b>Thread safety.</b> Safe from several threads; commands queue rather than overlap, and a
     /// monitor running on this connection may miss a change made over the same one — see
     /// <see cref="CliConnectionBase"/>.</para>

@@ -97,6 +97,10 @@ either router reaches the target: MAC layer to the agent, RoMON beyond it. Being
 not keep an idle MAC-Telnet console alive: a read after 35 s of idle took 4.8 s — a new MAC-Telnet session and
 a fresh relay (about 3 s of it), not an answer on the old one.
 
+**Idle.** Over Telnet and SSH to the agent the relayed session survives idle: after 35 s, 2, 5 and 10 minutes the
+first read answered from the target in 150–200 ms, on the same session. Over MAC-Telnet every one of those idle
+periods ended in a reconnect and a fresh relay (~4.5 s), and the read still answered from the target.
+
 **Safe Mode.** Ctrl+X typed into the agent's terminal while it runs `/tool romon ssh` reaches the target: the
 target's `/safe-mode print` shows `enabled=true`, the agent's stays `false` (a Ctrl+X on the agent's own console
 does show there). Release (a second Ctrl+X) and `/safe-mode unroll` act on the target too, and the relay stays on
@@ -106,8 +110,21 @@ Measured with a 7.24.4 agent and a 7.19.6 target over Telnet, SSH and MAC-Telnet
 **Listen and monitors.** On a CLI transport both are polled — one-shot commands reissued through the same
 terminal — so the relay carries them unchanged: a listen reports rows changed on the target and never on the
 agent, a callback ping and a bounded synchronous ping return their rows, and the relay is still on the target
-when they stop. None of them sends Ctrl-C. The first listen poll through the relay takes a second or more, and
-rows present at that poll form the listen's baseline.
+when they stop. None of them sends Ctrl-C. A listen reads its baseline before the call returns, which through the
+relay takes a second or more.
+
+**Opening, and cancelling part-way.** An open through the relay is the agent's login, two queries on its console,
+`/tool romon ssh` and the target's login: about 1.2 s over MAC-Telnet, 1.5 s over SSH, 1.9 s over Telnet on the
+lab pair (a first open to a cold agent takes twice that). A cancel anywhere in it ends the open with
+`OperationCanceledException` within about 0.1 s — except inside the MAC-layer login to the agent, which is synchronous
+and finishes first (~0.7 s) — and leaves nothing behind: `/user active` on both routers is back to what it was
+within seconds, and the next open works. An open relay is one row on each: the agent's by its transport, the
+target's `via=ssh` by RoMON.
+
+**Large reads.** 450 rows, each wider than the target's 80-column terminal, read through the relay filtered and
+unfiltered, windowed at 100 rows and in one command: every read returns exactly what the target's own API does,
+over Telnet, SSH and MAC-Telnet — including the single command over MAC-Telnet (0.7 s filtered, 1.7 s for the
+whole table; windowed, 2 s).
 
 **Tab-completion.** The Tab and the Ctrl-C that clears the line afterwards reach the target's line editor, not
 the agent's `/tool romon ssh` client: the listing is the target's menus, and the relay is still on the target

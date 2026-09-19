@@ -12,8 +12,12 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
+using System.Collections.Generic;
 using System.Configuration;
+using System.Diagnostics;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using tik4net.Cli;
 using tik4net.Objects;
 using tik4net.Objects.Ip.Firewall;
@@ -53,17 +57,19 @@ namespace tik4net.integrationtests
         }
 
         // The agent over the MAC layer is named by its MAC as well, so no MNDP lookup is needed.
-        private static ITikConnection OpenRelay(TikConnectionType agentTransport)
+        private static TikConnectionSetup RelaySetup(TikConnectionType agentTransport)
         {
             var agentAddress = agentTransport == TikConnectionType.MacTelnet && !string.IsNullOrEmpty(AgentMac)
                 ? TikRouterAddress.FromHostAndMac(AgentHost, AgentMac)
                 : TikRouterAddress.FromHost(AgentHost);
-            var setup = new TikConnectionSetup(TikRouterAddress.FromRomonId(TargetId), TargetUser, TargetPass)
+            return new TikConnectionSetup(TikRouterAddress.FromRomonId(TargetId), TargetUser, TargetPass)
             {
                 RomonAgentSetup = new TikRomonAgentSetup(agentAddress, AgentUser, AgentPass),
             };
-            return setup.Create(agentTransport);
         }
+
+        private static ITikConnection OpenRelay(TikConnectionType agentTransport)
+            => RelaySetup(agentTransport).Create(agentTransport);
 
         private static ITikConnection OpenTargetDirect()
             => new TikConnectionSetup(TargetHost, TargetUser, TargetPass).Create(TikConnectionType.Api);
@@ -194,6 +200,273 @@ namespace tik4net.integrationtests
                 Assert.AreEqual(TargetId, after, true, "a command after the relay ended answered from the agent");
             }
         }
+
+        // ── Opening, and cancelling part-way ──────────────────────────────────
+        //
+        // An open through the relay is a login to the agent, two queries on its console, /tool romon ssh and a login
+        // to the target — several seconds, all of it waits on a prompt. A cancel can land in any of them, and what
+        // it must leave behind is nothing: no terminal on the agent still running /tool romon ssh, no session on the
+        // target, and a next open that works.
+
+        // How long after its token fired an open may still succeed: the steps after the last wait on the router.
+        private const int IgnoredCancelMs = 200;
+
+        // Terminal sessions of this user on a router, over its own API connection (whose row is left out).
+        private static string[] TerminalSessions(ITikConnection direct, string user)
+            => direct.CreateCommand("/user/active/print").ExecuteList()
+                .Where(r => r.GetResponseFieldOrDefault("name", "") == user
+                            && r.GetResponseFieldOrDefault("via", "") != "api")
+                .Select(r => r.GetResponseFieldOrDefault("via", "") + "@" + r.GetResponseFieldOrDefault("address", ""))
+                .OrderBy(v => v, StringComparer.Ordinal)
+                .ToArray();
+
+        // Sessions end when the router notices the socket went, which is not instant; waits up to 20 s for the
+        // count to come back down to the baseline.
+        private static string[] WaitForSessions(ITikConnection direct, string user, int baseline)
+        {
+            var watch = Stopwatch.StartNew();
+            string[] now;
+            while ((now = TerminalSessions(direct, user)).Length > baseline && watch.ElapsedMilliseconds < 20000)
+                Thread.Sleep(500);
+            return now;
+        }
+
+        /// <summary>
+        /// OpenAsync through the relay, cancelled at points spread across a full open. Each attempt either opens
+        /// or throws <see cref="OperationCanceledException"/> — never a login or relay failure — and does so
+        /// promptly; afterwards neither router keeps a session the attempts started, and a new open reaches the
+        /// target.
+        /// </summary>
+        [DataTestMethod]
+        [DataRow(TikConnectionType.Telnet)]
+        [DataRow(TikConnectionType.Ssh)]
+        [DataRow(TikConnectionType.MacTelnet)]
+        public async Task Relay_OpenAsync_CancelledPartWay_LeavesNothingBehind(TikConnectionType agentTransport)
+        {
+            RequireTargetHost();
+
+            using (var agent = OpenAgentDirect())
+            using (var target = OpenTargetDirect())
+            {
+                int agentBefore = TerminalSessions(agent, AgentUser).Length;
+                int targetBefore = TerminalSessions(target, TargetUser).Length;
+                var setup = RelaySetup(agentTransport);
+
+                // An open relay shows as one terminal session on each router — otherwise the leak check at the end
+                // could not see what it looks for.
+                using (var relay = await setup.CreateAsync(agentTransport))
+                {
+                    Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true);
+                    Assert.AreEqual(agentBefore + 1, TerminalSessions(agent, AgentUser).Length,
+                        "an open relay is not visible as a session on the agent: "
+                        + string.Join(", ", TerminalSessions(agent, AgentUser)));
+                    Assert.AreEqual(targetBefore + 1, TerminalSessions(target, TargetUser).Length,
+                        "an open relay is not visible as a session on the target: "
+                        + string.Join(", ", TerminalSessions(target, TargetUser)));
+                }
+                WaitForSessions(agent, AgentUser, agentBefore);
+                WaitForSessions(target, TargetUser, targetBefore);
+
+                // A second open, timed: the cancel points are fractions of it. The first is slower (a cold agent),
+                // and cancel points taken from it land after most of the warm opens are done.
+                var watch = Stopwatch.StartNew();
+                using (var relay = await setup.CreateAsync(agentTransport))
+                    Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true);
+                long full = watch.ElapsedMilliseconds;
+
+                var log = new List<string> { $"full open {full} ms" };
+                int cancelled = 0;
+                foreach (double fraction in new[] { 0.05, 0.2, 0.35, 0.5, 0.65, 0.8, 0.95 })
+                {
+                    int delay = (int)(full * fraction);
+                    using (var cts = new CancellationTokenSource(delay))
+                    {
+                        watch.Restart();
+                        try
+                        {
+                            using (var relay = await setup.CreateAsync(agentTransport, cts.Token))
+                            {
+                                long opened = watch.ElapsedMilliseconds;
+                                log.Add($"cancel at {delay} ms: opened in {opened} ms");
+                                // An open may outrun a cancel that lands as it finishes; one that goes on to
+                                // succeed long after the token fired did not look at it.
+                                Assert.IsTrue(opened < delay + IgnoredCancelMs,
+                                    $"cancel at {delay} ms was ignored: the open went on and succeeded at {opened} ms"
+                                    + Environment.NewLine + string.Join(Environment.NewLine, log));
+                                Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,
+                                    $"an open that outran its cancel at {delay} ms answered from the agent");
+                            }
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            cancelled++;
+                            log.Add($"cancel at {delay} ms: cancelled after {watch.ElapsedMilliseconds} ms");
+                        }
+                        catch (Exception ex) when (!(ex is AssertFailedException))
+                        {
+                            Assert.Fail($"cancel at {delay} ms: {ex.GetType().Name} instead of a cancellation: "
+                                        + ex.Message + Environment.NewLine + string.Join(Environment.NewLine, log));
+                        }
+
+                        Assert.IsTrue(watch.ElapsedMilliseconds < delay + 5000,
+                            $"cancel at {delay} ms took {watch.ElapsedMilliseconds} ms to come back"
+                            + Environment.NewLine + string.Join(Environment.NewLine, log));
+                    }
+                }
+
+                Console.WriteLine(string.Join(Environment.NewLine, log));
+                Assert.IsTrue(cancelled > 0, "no attempt was cancelled, so nothing here was tested"
+                                             + Environment.NewLine + string.Join(Environment.NewLine, log));
+
+                var agentAfter = WaitForSessions(agent, AgentUser, agentBefore);
+                var targetAfter = WaitForSessions(target, TargetUser, targetBefore);
+                Assert.AreEqual(agentBefore, agentAfter.Length,
+                    "sessions left on the agent: " + string.Join(", ", agentAfter));
+                Assert.AreEqual(targetBefore, targetAfter.Length,
+                    "sessions left on the target: " + string.Join(", ", targetAfter));
+
+                using (var relay = await setup.CreateAsync(agentTransport))
+                    Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,
+                        "the open after the cancelled ones did not reach the target");
+            }
+        }
+
+        // ── Idle ──────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// After 40 s of idle the relay still answers from the target on every agent transport. Telnet and SSH keep
+        /// their session; an idle MAC-Telnet console is logged out by the agent, and the reconnect has to relay
+        /// again before the command is resent — were it to skip that, the command would run on the agent and
+        /// answer as if nothing had happened. The three idle at once, so the test costs one idle period.
+        /// </summary>
+        [TestMethod]
+        public void Relay_AfterIdle_StillAnswersFromTheTarget()
+        {
+            RequireTarget();
+
+            var transports = new[] { TikConnectionType.Telnet, TikConnectionType.Ssh, TikConnectionType.MacTelnet };
+            var relays = transports.Select(OpenRelay).ToArray();
+            try
+            {
+                foreach (var relay in relays)
+                    Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true);
+
+                Thread.Sleep(40000);
+
+                var results = relays.Select((relay, i) => Task.Run(() =>
+                {
+                    var watch = Stopwatch.StartNew();
+                    string id = relay.LoadSingle<ToolRomon>().CurrentId;
+                    return (Transport: transports[i], Id: id, Ms: watch.ElapsedMilliseconds);
+                })).Select(t => t.Result).ToArray();
+
+                Console.WriteLine(string.Join(Environment.NewLine,
+                    results.Select(r => $"{r.Transport}: first read after idle {r.Ms} ms")));
+                foreach (var r in results)
+                    Assert.AreEqual(TargetId, r.Id, true, $"{r.Transport}: after idle the relay answered from the agent");
+            }
+            finally
+            {
+                foreach (var relay in relays)
+                    relay.Dispose();
+            }
+        }
+
+        // ── Large reads ───────────────────────────────────────────────────────
+        //
+        // A read through the relay crosses two terminals: the agent's, then the target's under /tool romon ssh, which
+        // is 80 columns wide whatever the outer one is. What is checked is that a table far larger than a page, with
+        // rows far wider than the terminal, comes back exactly as the target's own API has it — windowed, and in one
+        // command.
+
+        private const int LargeRowCount = 450;
+
+        /// <summary>
+        /// 450 rows on the target, each wider than 80 columns, read through the relay filtered and unfiltered, with
+        /// the page size at 100 and at 0: every read returns exactly the rows and values the target's own API does.
+        /// </summary>
+        /// <remarks>
+        /// A single-command read on the MAC layer may be refused as incomplete — the router drops its own output
+        /// under a large backlog, which is why paging is that transport's default. Refused is accepted there; a
+        /// short answer is not, anywhere.
+        /// </remarks>
+        [DataTestMethod]
+        [DataRow(TikConnectionType.Telnet)]
+        [DataRow(TikConnectionType.Ssh)]
+        [DataRow(TikConnectionType.MacTelnet)]
+        public void Relay_LargeRead_PagedAndWhole_MatchesTheTargetsOwnApi(TikConnectionType agentTransport)
+        {
+            RequireTargetHost();
+
+            string comment = "tik4net-romon-" + Guid.NewGuid().ToString("N").Substring(0, 8)
+                             + " a comment long enough that no row fits on one 80-column line of the target's terminal";
+
+            using (var direct = OpenTargetDirect())
+            {
+                Sweep(direct);
+                try
+                {
+                    for (int i = 0; i < LargeRowCount; i++)
+                        direct.Save(new FirewallAddressList
+                        {
+                            List = TestList,
+                            Address = $"198.18.{i / 250}.{i % 250 + 1}",
+                            Comment = comment + " #" + i,
+                        });
+
+                    string[] expected = Describe(direct.LoadList<FirewallAddressList>(
+                        direct.CreateParameter("list", TestList, TikCommandParameterFormat.Filter)));
+                    Assert.AreEqual(LargeRowCount, expected.Length, "the seeding did not create every row");
+
+                    var log = new List<string>();
+                    foreach (int pageSize in new[] { 100, 0 })
+                    {
+                        var setup = RelaySetup(agentTransport);
+                        setup.CliReadPageSize = pageSize;
+                        using (var relay = setup.Create(agentTransport))
+                        {
+                            foreach (bool filtered in new[] { true, false })
+                            {
+                                string what = $"page size {pageSize}, {(filtered ? "filtered" : "whole table")}";
+                                var watch = Stopwatch.StartNew();
+                                string[] got;
+                                try
+                                {
+                                    got = Describe(filtered
+                                        ? relay.LoadList<FirewallAddressList>(
+                                            relay.CreateParameter("list", TestList, TikCommandParameterFormat.Filter))
+                                        : relay.LoadAll<FirewallAddressList>().Where(r => r.List == TestList));
+                                }
+                                catch (TikConnectionResponseIncompleteException ex)
+                                    when (pageSize == 0 && agentTransport == TikConnectionType.MacTelnet)
+                                {
+                                    log.Add($"{what}: refused as incomplete after {watch.ElapsedMilliseconds} ms — "
+                                            + ex.Message);
+                                    continue;
+                                }
+
+                                log.Add($"{what}: {got.Length} rows in {watch.ElapsedMilliseconds} ms");
+                                CollectionAssert.AreEqual(expected, got, what + " differs from the target's own API: "
+                                    + string.Join(" | ", got.Except(expected).Take(3)));
+                            }
+
+                            Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,
+                                $"after the page-size-{pageSize} reads the relay answered from the agent");
+                        }
+                    }
+                    Console.WriteLine(string.Join(Environment.NewLine, log));
+                }
+                finally
+                {
+                    Sweep(direct);
+                }
+            }
+        }
+
+        private static string[] Describe(IEnumerable<FirewallAddressList> rows)
+            => rows.Select(r => r.Id + " " + r.Address + " " + r.Comment + " " + r.Disabled)
+                .OrderBy(s => s, StringComparer.Ordinal)
+                .ToArray();
 
         // ── Listen and monitors ───────────────────────────────────────────────
         //

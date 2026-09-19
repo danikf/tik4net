@@ -301,6 +301,18 @@ same rows — same filter, same windows — merged by `.id`. The names are check
 name the menu refuses is left out (the binary API does not send it either). On 7.20+ the probe is the
 only extra command. A read without the marker — a low-level `print` — gets what the router prints.
 
+### A row id is lowercase hex before 7.20
+
+RouterOS **7.19.6** prints the hex of a row id in lowercase on the CLI — `.id=*59b` in `print as-value`, in
+the `:serialize to=json` read, and `*5a0` as the answer to `:put [… add …]` — where its binary API prints
+`*59B` and `*5A0` for the same rows. **7.24.4** prints uppercase on both. Measured against the same address-list
+rows over Telnet and the binary API on each version. The CLI accepts either spelling back (`set`/`remove
+numbers=*5A0` on 7.19.6).
+
+An id is a key, so tik4net spells it the API's way: `CliValueNormalizer.NormalizeId` uppercases a value shaped
+`*<hex>` in the `.id` field of every CLI read, and the id an `add` returns. A value of any other shape, or in any
+other field, is left alone.
+
 ### A number as-value prints, and the word the API prints for it
 
 Some fields store a number whose extreme value the API renders as a word. as-value always gives the

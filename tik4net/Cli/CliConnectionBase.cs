@@ -1660,24 +1660,10 @@ namespace tik4net.Cli
             for (int i = lines.Length - 1; i >= 0; i--)
             {
                 string t = lines[i].Trim();
-                if (t.Length != 0 && IsRecordId(t))
-                    return t;
+                if (CliValueNormalizer.IsRecordId(t))
+                    return CliValueNormalizer.NormalizeId(t);   // pre-7.20 answers in lowercase hex
             }
             return null;
-        }
-
-        // True when <paramref name="s"/> is a RouterOS record id: '*' followed by one or more hex digits.
-        private static bool IsRecordId(string s)
-        {
-            if (string.IsNullOrEmpty(s) || s[0] != '*' || s.Length < 2)
-                return false;
-            for (int i = 1; i < s.Length; i++)
-            {
-                char c = s[i];
-                bool hex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
-                if (!hex) return false;
-            }
-            return true;
         }
 
         /// <summary>
