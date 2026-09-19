@@ -124,6 +124,26 @@ namespace tik4net.unittests.Cli
             CollectionAssert.Contains(Lines(term), "bytes:03");
         }
 
+        [TestMethod]
+        public async Task Relay_ATargetUserWithAnEmptyPassword_GetsNoPasswordPrompt_OnlyTheNag_WhichIsDeclined()
+        {
+            // 7.24.4 target, user with an empty password: the ssh client logs straight in, and the first thing on
+            // screen after the echo is the banner and the change-password nag — never a 'password:'. Typing the
+            // password there would be typing a NEW password for the target's account.
+            var term = AgentTerminal()
+                .Emits(SshCommand + "\r\n\r78\r[9999B[6n\r\n  MikroTik RouterOS 7.24.4 (c) 1999-2026" +
+                       "       https://www.mikrotik.com/\r\n\r\n\r\nPress F1 for help\r\n\r\n\r\n\r\n" +
+                       "Change your password (Ctrl-C to skip)\r\n\r\r\r[9999Bnew password> ")
+                .Emits("\r\n\r\r\r[9999B[test@Target] > ")
+                .Emits(IdAnswer(Target));
+
+            await term.RomonSshLoginAsync(Target, password: "");
+
+            CollectionAssert.AreEqual(new[] { IdQueryLine, EnabledQueryLine, SshLine, "bytes:03", IdQueryLine }, Lines(term),
+                "only Ctrl-C may reach the nag; no line may be typed into it");
+            Assert.AreEqual(0, term.DeadlineHits, "the nag must be recognised, not waited out");
+        }
+
         // ── the relay never starts ────────────────────────────────────────────
 
         [TestMethod]

@@ -57,6 +57,11 @@ selector.
 On the agent's CLI, `/tool romon ssh address=<target id> user=<user>`:
 
 - asks `password:` straight away — no host-key prompt;
+- **unless the target user's password is empty:** then there is no `password:` at all. The login succeeds at
+  once and the first thing on screen is the target's banner and its change-password nag,
+  `Change your password (Ctrl-C to skip)` / `new password>` (7.24.4 target). Ctrl-C declines it and the prompt
+  follows. A line typed there is taken as the account's **new password** (`repeat new password>` follows), so a
+  client waiting for `password:` must recognise the nag instead, never answer it;
 - after the password, the target sets up its terminal **through** the agent (`ESC Z`, cursor-position queries,
   scroll region), prints its banner, then its **recent critical log lines** — which include entries like
   `login failure for user test from AA:BB:CC:00:00:01 by romon AA:BB:CC:00:00:01 via ssh` on a login that

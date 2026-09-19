@@ -21,7 +21,9 @@ dotnet test tik4net.unittests/tik4net.unittests.csproj
 
 Router coordinates come from `tik4net.integrationtests/App.config` (`host`, `user`, `pass`,
 `routerMac`, plus the topology keys consumed by `TestConstants.cs`). That file is the single source of
-truth — read it, never restate its values.
+truth — read it, never restate its values. The `romonTarget*` keys name a **second** lab router that
+`RomonRelayTest` reaches through the first over RoMON (and writes to); empty `romonTargetId` = those tests are
+Inconclusive.
 
 `TestBase.LabAddress` picks which of them a run uses, and the choice is not cosmetic: the **MAC-layer
 transports run with no host at all**, addressed by `routerMac` alone. That is the case those transports

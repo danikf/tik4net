@@ -236,13 +236,12 @@ was really signed, not just created). Self-signed is fine — `App.config` sets
 
 ## Step 5 — Second full-privilege account (recovery escape hatch)
 
-Create a second `full`-group account so the account in `App.config` is not the only way in.
-
-**Ask the user for the username and password to use — do not invent one, and do not write the chosen
-credentials into any file in this repository.** This repository is public.
+Create a second `full`-group account so the account in `App.config` is not the only way in. The lab
+convention is the user `recovery` with an **empty password** — the same as the lab account in `App.config`,
+so there is no second secret to keep anywhere:
 
 ```
-mikrotik_call /user/add  =name=<user> =password=<password> =group=full =comment=tik4net-recovery
+mikrotik_call /user/add  =name=recovery =password= =group=full =comment=tik4net-recovery
 ```
 
 Verify it exists **and actually authenticates** — an account that was created but cannot log in is
@@ -250,15 +249,16 @@ worse than none, because it will be trusted in an emergency:
 
 ```
 mikrotik_call /user/print =.proplist=name,group,disabled
-mikrotik_call /system/identity/print   username=<user>  password=<password>    ← must succeed
+mikrotik_call /system/identity/print   username=recovery  password=""    ← must succeed
 ```
 
 > **Why this matters.** A desynchronised terminal once fed RouterOS's `new password>` nag and silently
 > changed the primary account's password. With no second account, recovery needed an out-of-band
 > configuration reset and the investigation stalled. See [`Docs/HISTORY.md`](../../../Docs/HISTORY.md).
 
-Give this account a **non-empty** password: an empty one triggers the change-password nag, so a
-non-empty password makes it the safer identity to use when probing the CLI/mepty layer.
+An empty password makes RouterOS offer its change-password nag on a CLI login; the library answers it, so
+every transport logs in, but a hand-driven terminal (the `mikrotik-cli-probe` skill) sees the prompt and
+must decline it rather than type into it.
 
 ⚠️ **Lab router only.** A full-privilege recovery account must never exist on a device routable from
 anywhere untrusted. The suite itself keeps using the credentials in `App.config` — leave those alone;
@@ -275,6 +275,8 @@ Api  ApiSsl  Rest  RestSsl  Telnet  Ssh  MacTelnet  WinboxCli  WinboxCliMac  Win
 ```
 
 - MAC transports need `routerMac=<mac>`.
+- `ApiSsl` and `RestSsl` need `allowInvalidCertificate=true` — the certificate from step 4 is self-signed,
+  and without it the handshake is refused however well the service is configured.
 - **`WinboxNative` does not map `/system/clock`** — it answers "no M2 handler mapping for path". Use
   `/ip/address/print` instead. Reaching that error still proves auth + M2 worked.
 - A `WinboxNative` success also confirms the **`.jg` catalog re-fetch** succeeded on the new RouterOS
@@ -341,6 +343,24 @@ findings doc is in flight:
 
 ---
 
+## Second router — the RoMON target
+
+The suite can use a **second** CHR that it reaches through the first one over RoMON (`RomonRelayTest` writes to
+it). Provision it with steps 0–6 like the first, with these differences:
+
+- **Do not touch `host` / `routerMac` / `routerIdentity`** — they stay on the first router, which is the RoMON
+  agent. The second one goes into the `romonTarget*` keys of `App.config`: `romonTargetId` (its
+  `/tool/romon` `current-id`, i.e. its MAC once RoMON is on), `romonTargetHost` (its IP), `romonTargetUser`,
+  `romonTargetPass`.
+- **Give it a different identity** (the lab uses `CHR2`) — `RomonRelayTest` tells the routers apart by it and
+  fails when both answer the same name.
+- **Enable RoMON on both routers** (`/tool/romon/set =enabled=yes`, default empty secrets), then confirm from the
+  agent: `/tool/romon/discover =duration=5` must list the target's id.
+- Verify with `dotnet test tik4net.integrationtests/tik4net.integrationtests.csproj --filter RomonRelayTest` —
+  9 tests, three agent transports each, about 15 s.
+
+---
+
 ## Final checklist
 
 | # | Item | Verified by |
@@ -350,7 +370,7 @@ findings doc is in flight:
 | 2 | NTP `synchronized`; timezone matches the dev box | `/system/ntp/client/print`, `/system/clock/print` |
 | 3 | All services enabled, none `invalid` | `/ip/service/print` |
 | 4 | CA + server cert signed (`akid`==CA `skid`), bound to api-ssl & www-ssl | `/certificate/print` |
-| 5 | `test`/`test` admin account exists **and logs in** | `/user/print` + a call authenticated as `test` |
+| 5 | `recovery` (empty password, group `full`) exists **and logs in** | `/user/print` + a call authenticated as `recovery` |
 | 6 | 11-transport smoke passes | `mikrotik_call` per transport |
 | 7 | README **and** wiki version match live (or user decided to defer) | `grep` + asked |
 | 8 | Version-bump fallout reported | — |

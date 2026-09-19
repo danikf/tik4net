@@ -274,6 +274,9 @@ namespace tik4net.Cli
         /// <list type="bullet">
         ///   <item><c>Welcome back!</c> or a shell prompt before any <c>password:</c> means the relay never
         ///         started;</item>
+        ///   <item>a target user with an empty password gets no <c>password:</c> at all — the change-password nag
+        ///         comes first, and is declined with Ctrl-C like every other nag. Nothing is typed into it: it reads
+        ///         a new password for the target's account;</item>
         ///   <item>a second <c>password:</c> after the password means refused — a wrong password and a user
         ///         without the <c>ssh</c> policy read identically (7.17rc3 target). Ctrl-C leaves the prompt and
         ///         nothing else is ever typed into it: each further line would be one more failed login in the
@@ -342,10 +345,14 @@ namespace tik4net.Cli
             await sendLine("/tool romon ssh address=" + id + " user=" + CliCommandBuilder.QuoteIfNeeded(loginName)
                            + "; /quit", ct).ConfigureAwait(false);
 
-            // 1. The relay starts with the target's password prompt. Anything else first = it never started.
-            string opened = await readUntil(s => IsPasswordPrompt(s) || IsShellPrompt(s) || IsRomonRelayEnd(s), ct)
+            // 1. The relay starts with the target's password prompt — or, for a target user with an empty password,
+            //    with no prompt at all: the ssh client is logged straight in and the target's change-password nag
+            //    is the first thing on screen (7.24.4). Anything else first = it never started.
+            string opened = await readUntil(
+                    s => IsPasswordPrompt(s) || IsChangePasswordNag(s) || IsShellPrompt(s) || IsRomonRelayEnd(s), ct)
                 .ConfigureAwait(false);
-            if (!IsPasswordPrompt(opened))
+            bool loggedInWithoutPassword = !IsPasswordPrompt(opened) && IsChangePasswordNag(opened) && !IsRomonRelayEnd(opened);
+            if (!IsPasswordPrompt(opened) && !loggedInWithoutPassword)
             {
                 if (!IsShellPrompt(opened) && !IsRomonRelayEnd(opened))
                     throw Relay(TikRomonRelayFailure.TargetDidNotRespond, id,
@@ -355,16 +362,24 @@ namespace tik4net.Cli
                     null);
             }
 
-            // 2. The target's password. Traced as a secret, like the ordinary login's.
-            using (Diagnostics.TikWireTrace.Secret())
-                await sendLine(password, ct).ConfigureAwait(false);
-
             // 3. The target's prompt — or the password prompt again, which is the refusal. Deliberately NOT
             //    IsLoginFailure: the target prints its recent critical log lines at login, and those read
             //    "login failure for user … by romon …" on a login that SUCCEEDED (7.17rc3). Position decides.
             Func<string, bool> settled = s =>
                 IsShellPrompt(s) || IsPasswordPrompt(s) || IsChangePasswordNag(s) || IsRomonRelayEnd(s);
-            string result = await readUntil(settled, ct).ConfigureAwait(false);
+            string result;
+            if (loggedInWithoutPassword)
+            {
+                // Nothing is typed here: the nag reads a NEW password for the target's account.
+                result = opened;
+            }
+            else
+            {
+                // 2. The target's password. Traced as a secret, like the ordinary login's.
+                using (Diagnostics.TikWireTrace.Secret())
+                    await sendLine(password, ct).ConfigureAwait(false);
+                result = await readUntil(settled, ct).ConfigureAwait(false);
+            }
 
             int nagRounds = 0;
             while (!IsShellPrompt(result) && !IsPasswordPrompt(result) && IsChangePasswordNag(result)

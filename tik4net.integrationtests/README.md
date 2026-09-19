@@ -18,6 +18,11 @@ transport limitations — is the **`mikrotik-tests` skill**. This file covers on
 assumptions consumed by `TestConstants.cs` (`testInterface`, `testAddress`, `testWirelessInterface`).
 Point it at your router before running anything; do not restate its values elsewhere.
 
+`RomonRelayTest` needs a **second** router, reached through the first one over RoMON: its keys are
+`romonTargetId` (its RoMON id), `romonTargetHost` (its own IP, used only to check what the relay wrote),
+`romonTargetUser` and `romonTargetPass`. RoMON must be enabled on both. With `romonTargetId` empty those tests
+are Inconclusive.
+
 To provision a router from scratch, use the **`chr-test-router-init` skill**.
 
 ## The lab VM, if the router is virtual
