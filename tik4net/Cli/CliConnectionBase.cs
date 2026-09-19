@@ -1796,8 +1796,8 @@ namespace tik4net.Cli
             {
                 string listPath = TikPath.Parent(descriptor.CommandText);
                 var printDescriptor = new TikCommandDescriptor(listPath + "/print", descriptor.Parameters);
-                return PollingMonitorEngine.StartWorker("cli-listen",
-                    h => PollingMonitorEngine.ListenLoop(this, printDescriptor, null!, ListenPollIntervalMs, h, onRow, onError, onDone)); // volatileFields: none for CLI listen (out-of-scope signature is non-nullable)
+                return PollingMonitorEngine.StartListen("cli-listen", this, printDescriptor, null, ListenPollIntervalMs,
+                    onRow, onError, onDone);
             }
 
             if (verb == "print" || verb == "getall")

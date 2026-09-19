@@ -123,49 +123,62 @@ namespace tik4net.Connection
         }
 
         /// <summary>
-        /// <c>/listen</c> emulation: poll the table and diff snapshots by <c>.id</c>. The first pass seeds silently
-        /// (RouterOS listen only pushes future deltas, never replays the table); afterwards an added/changed row is
-        /// emitted as itself, and a vanished <c>.id</c> as a synthetic <c>.dead=true</c> record. <paramref name="onDone"/>
-        /// fires once when cancelled. <paramref name="volatileFields"/> (e.g. native <c>ro:1</c> runtime counters)
-        /// are excluded from the change signature so a counter tick is not mistaken for a config change;
-        /// <c>null</c> compares all fields.
+        /// <c>/listen</c> emulation: poll the table and diff snapshots by <c>.id</c>. The baseline snapshot is read
+        /// HERE, on the caller's thread, before the handle is returned — so a change made after the listen call
+        /// returns is diffed against a table that predates it and reported, as the binary API's <c>=listen</c>
+        /// reports it. The baseline itself is silent (RouterOS listen only pushes future deltas, never replays the
+        /// table). A background worker then polls every <paramref name="pollIntervalMs"/>: an added/changed row is
+        /// emitted as itself, and a vanished <c>.id</c> as a synthetic <c>.dead=true</c> record.
+        /// <paramref name="onDone"/> fires once when cancelled. <paramref name="volatileFields"/> (e.g. native
+        /// <c>ro:1</c> runtime counters) are excluded from the change signature so a counter tick is not mistaken
+        /// for a config change; <c>null</c> compares all fields.
         /// </summary>
-        public static void ListenLoop(IPollingMonitorHost host, TikCommandDescriptor printDescriptor,
-            ICollection<string> volatileFields, int pollIntervalMs, TikMonitorHandle handle,
+        /// <remarks>
+        /// The baseline read costs the caller one table read (a second or more through a RoMON relay or over
+        /// MAC-Telnet). A failure of it is not thrown: like every later poll failure it arrives as
+        /// <paramref name="onError"/> followed by <paramref name="onDone"/>, from the worker thread, so the
+        /// callbacks keep one shape whichever read failed.
+        /// </remarks>
+        public static TikMonitorHandle StartListen(string name, IPollingMonitorHost host, TikCommandDescriptor printDescriptor,
+            ICollection<string>? volatileFields, int pollIntervalMs,
             Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
+        {
+            Dictionary<string, string>? baseline = null;
+            Exception? baselineError = null;
+            try
+            {
+                baseline = new Dictionary<string, string>(StringComparer.Ordinal);
+                Diff(host.PollSnapshot(printDescriptor), volatileFields, baseline, null);
+            }
+            catch (Exception ex)
+            {
+                baselineError = ex;
+            }
+
+            return StartWorker(name, handle =>
+            {
+                if (baselineError != null)
+                {
+                    try { if (!Stopping(host, handle)) onError?.Invoke(host.ToTrap(baselineError)); }
+                    finally { onDone?.Invoke(); }
+                    return;
+                }
+                ListenLoop(host, printDescriptor, volatileFields, pollIntervalMs, baseline!, handle, onRow, onError, onDone);
+            });
+        }
+
+        // The polls after the baseline: sleep, read, diff against the previous read, report what differs.
+        private static void ListenLoop(IPollingMonitorHost host, TikCommandDescriptor printDescriptor,
+            ICollection<string>? volatileFields, int pollIntervalMs, Dictionary<string, string> lastSig,
+            TikMonitorHandle handle, Action<TikRecordSentence> onRow, Action<TikTrapSentenceResult> onError, Action onDone)
         {
             try
             {
-                var lastSig = new Dictionary<string, string>(StringComparer.Ordinal); // .id → row signature
-                bool seeded = false;
-                while (!handle.CancelRequested)
+                while (true)
                 {
-                    IList<TikRecordSentence> rows = host.PollSnapshot(printDescriptor);
-                    var seen = new HashSet<string>(StringComparer.Ordinal);
-                    foreach (var row in rows)
-                    {
-                        string? rid = row.GetResponseFieldOrDefault(TikSpecialProperties.Id, null);
-                        if (rid == null) continue;
-                        seen.Add(rid);
-                        string sig = RowSignature(row, volatileFields);
-                        bool changed = !lastSig.TryGetValue(rid, out var prev) || prev != sig;
-                        lastSig[rid] = sig;
-                        if (seeded && changed) onRow?.Invoke(row);
-                    }
-
-                    if (seeded)
-                        foreach (var goneId in lastSig.Keys.Where(k => !seen.Contains(k)).ToList())
-                        {
-                            lastSig.Remove(goneId);
-                            onRow?.Invoke(new TikRecordSentence(new Dictionary<string, string>
-                            {
-                                { TikSpecialProperties.Id, goneId },
-                                { ".dead", "true" },
-                            }));
-                        }
-                    seeded = true;
-
                     SleepInterruptible(pollIntervalMs, handle);
+                    if (handle.CancelRequested) break;
+                    Diff(host.PollSnapshot(printDescriptor), volatileFields, lastSig, onRow);
                 }
             }
             catch (Exception ex)
@@ -175,9 +188,37 @@ namespace tik4net.Connection
             finally { onDone?.Invoke(); }
         }
 
+        // Updates lastSig (.id → row signature) to the rows read, reporting each added/changed row and each
+        // vanished .id to onRow. With onRow null it only records the baseline.
+        private static void Diff(IList<TikRecordSentence> rows, ICollection<string>? volatileFields,
+            Dictionary<string, string> lastSig, Action<TikRecordSentence>? onRow)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var row in rows)
+            {
+                string? rid = row.GetResponseFieldOrDefault(TikSpecialProperties.Id, null);
+                if (rid == null) continue;
+                seen.Add(rid);
+                string sig = RowSignature(row, volatileFields);
+                bool changed = !lastSig.TryGetValue(rid, out var prev) || prev != sig;
+                lastSig[rid] = sig;
+                if (changed) onRow?.Invoke(row);
+            }
+
+            foreach (var goneId in lastSig.Keys.Where(k => !seen.Contains(k)).ToList())
+            {
+                lastSig.Remove(goneId);
+                onRow?.Invoke(new TikRecordSentence(new Dictionary<string, string>
+                {
+                    { TikSpecialProperties.Id, goneId },
+                    { ".dead", "true" },
+                }));
+            }
+        }
+
         // Canonical signature of a record (sorted key=value), used to detect changes between listen polls.
         // Volatile fields (per-field runtime counters/status) are excluded when supplied.
-        private static string RowSignature(TikRecordSentence row, ICollection<string> volatileFields)
+        private static string RowSignature(TikRecordSentence row, ICollection<string>? volatileFields)
         {
             return string.Join("|", row.Words
                 .Where(kv => volatileFields == null || !volatileFields.Contains(kv.Key))

@@ -1116,8 +1116,8 @@ namespace tik4net.WinboxNative
                 // Diff config fields only — runtime counters (ro:1: rx-byte, link-downs, …) tick every poll and
                 // would otherwise make every row look "changed", whereas RouterOS listen emits on real changes.
                 var volatileFields = ReadOnlyFieldNames(listPath);
-                return PollingMonitorEngine.StartWorker("winbox-native-listen",
-                    handle => PollingMonitorEngine.ListenLoop(this, printDescriptor, volatileFields, 1000, handle, onRow, onError, onDone));
+                return PollingMonitorEngine.StartListen("winbox-native-listen", this, printDescriptor, volatileFields, 1000,
+                    onRow, onError, onDone);
             }
 
             // /path/print (LoadAsync) — a one-shot async list, not a streaming window: run the print off the
