@@ -14,6 +14,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Configuration;
 using System.Linq;
+using tik4net.Cli;
 using tik4net.Objects;
 using tik4net.Objects.Ip.Firewall;
 using tik4net.Objects.System;
@@ -321,6 +322,51 @@ namespace tik4net.integrationtests
                 Assert.AreEqual(2, rows.Count(r => r.Host == TargetHost), "expected two ping rows through the relay");
                 Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,
                     "after the monitor the relay answered from the agent");
+            }
+        }
+
+        // ── Tab-completion ────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Tab-completion through the relay lists the TARGET's menus, and the Ctrl-C that clears the line afterwards
+        /// leaves the relay on the target. That Ctrl-C is typed into the agent's terminal while it runs
+        /// /tool romon ssh; were it to end the relay, its answer is read and dropped by the completion, so nothing
+        /// would say so — only the next command answering from the agent. Hence the id check after each call.
+        /// </summary>
+        /// <remarks>
+        /// Tells the routers apart by a top-level menu the agent has and the target lacks (<c>app</c> and
+        /// <c>openflow</c> on the lab's agent, neither on its older target); Inconclusive when the two lab routers
+        /// list the same menus.
+        /// </remarks>
+        [DataTestMethod]
+        [DataRow(TikConnectionType.Telnet)]
+        [DataRow(TikConnectionType.Ssh)]
+        [DataRow(TikConnectionType.MacTelnet)]
+        public void Relay_TabCompletion_ListsTheTarget_AndKeepsTheRelay(TikConnectionType agentTransport)
+        {
+            RequireTarget();
+
+            string[] agentOnly;
+            using (var agent = new TikConnectionSetup(AgentHost, AgentUser, AgentPass).Create(TikConnectionType.Telnet))
+            using (var relay = OpenRelay(agentTransport))
+            {
+                var agentMenus = ((ITikCliCompletion)agent).CompleteCli("/");
+                var completion = (ITikCliCompletion)relay;
+
+                for (int call = 1; call <= 2; call++)
+                {
+                    var targetMenus = completion.CompleteCli("/");
+                    Assert.IsTrue(targetMenus.Contains("system"), $"call {call}: no completion listing came back: "
+                        + string.Join(" ", targetMenus));
+                    agentOnly = agentMenus.Except(targetMenus).ToArray();
+                    if (call == 1 && agentOnly.Length == 0)
+                        Assert.Inconclusive("The two lab routers list the same top-level menus, so a completion cannot "
+                            + "tell which of them answered.");
+                    Assert.IsTrue(agentOnly.Length > 0, $"call {call}: the completion listed the AGENT's menus");
+
+                    Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,
+                        $"after completion {call} the relay answered from the agent");
+                }
             }
         }
 

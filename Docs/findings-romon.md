@@ -109,6 +109,10 @@ agent, a callback ping and a bounded synchronous ping return their rows, and the
 when they stop. None of them sends Ctrl-C. The first listen poll through the relay takes a second or more, and
 rows present at that poll form the listen's baseline.
 
+**Tab-completion.** The Tab and the Ctrl-C that clears the line afterwards reach the target's line editor, not
+the agent's `/tool romon ssh` client: the listing is the target's menus, and the relay is still on the target
+after each call (findings-cli §14).
+
 tik4net's implementation: `RouterOsCliLogin.RomonSshLoginAsync`, used by Telnet, SSH and MAC-Telnet through
 `TikConnectionSetup.RomonAgentSetup`. A `Welcome back!` line in what a relayed session reads raises
 `TikRomonRelayEndedException` and closes the connection; MAC-Telnet's reconnect after an idle logout relays to the
