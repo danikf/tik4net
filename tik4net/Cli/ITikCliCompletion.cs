@@ -53,12 +53,22 @@ namespace tik4net.Cli
                 return string.Empty;
 
             string stem = (partialInput ?? string.Empty).Trim();
+            string typed = (partialInput ?? string.Empty).TrimStart();
             var kept = new List<string>();
+            bool first = true;
             foreach (var rawLine in ansiStripped.Split('\r', '\n'))
             {
                 string line = rawLine.Trim();
                 if (line.Length == 0)
                     continue;
+                // RouterOS 7.24 prints the listing on the echo's own line, with no break: "/interface 6to4  bonding …".
+                // The echo is the typed text exactly, and a listing glued to it starts with a token at once; an
+                // inline completion rewrites the word in place with cursor moves, which the ANSI strip leaves as
+                // the echo followed by whitespace — not a listing, so left alone here.
+                if (first && typed.Length > 0 && line.Length > typed.Length
+                    && line.StartsWith(typed, StringComparison.Ordinal) && !char.IsWhiteSpace(line[typed.Length]))
+                    line = line.Substring(typed.Length).Trim();
+                first = false;
                 // Prompt / redraw line (e.g. "[admin@MikroTik] > /interface vlan add "), including the
                 // Safe Mode form — completion works inside safe mode too.
                 if (RouterOsCliLogin.ContainsPromptSuffix(line))
