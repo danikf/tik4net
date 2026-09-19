@@ -110,6 +110,10 @@ confusable.
 | `includeRouterLog`| bool     | Also append the router's own `/log` lines emitted **during** the command, as a `--- ROUTER LOG ---` section — captured over a **separate** API connection (TCP 8728) so it never perturbs the transport under test |
 | `routerLogTail`   | int      | Max router-log lines to keep (`includeRouterLog` only), default `200` |
 | `executeMode`     | string   | `auto` (default) or `nonquery` (force `ExecuteNonQuery()` for action verbs like `/system/script/run`) |
+| `romonAgentHost`  | string   | RoMON: the agent to go through — IP/hostname, or on `MacTelnet` its MAC. When set, `host` is the **target's RoMON id** and `username`/`password` are the **target's**. `Telnet`, `Ssh`, `MacTelnet` only |
+| `romonAgentUsername` | string | RoMON: user on the agent (required with `romonAgentHost`) |
+| `romonAgentPassword` | string | RoMON: password on the agent (may be empty) |
+| `romonAgentPort`  | int      | RoMON: the agent's port; `0` = transport default (`port` and `routerMac` are refused through RoMON) |
 | `parameters`      | string[] | Extra API words — filter `?name=value`, name-value `=name=value` |
 
 All transports accept the same `command` / `parameters` format. Only `Api` / `ApiSsl` support
@@ -162,7 +166,18 @@ directory to be behind, so it never carries the note.
 { "host": "192.168.88.1", "username": "admin", "password": "",
   "command": "/tool/wol", "parameters": ["=mac=00:11:22:33:44:55", "=interface=badiface"],
   "transport": "Telnet", "traceLevel": "bytes", "includeRouterLog": true }
+
+// a router behind a RoMON agent: host is its RoMON id, username/password its own
+{ "host": "AA:BB:CC:DD:EE:FF", "username": "admin", "password": "target-pw",
+  "command": "/system/identity/print", "transport": "Ssh",
+  "romonAgentHost": "192.168.88.1", "romonAgentUsername": "admin", "romonAgentPassword": "agent-pw" }
 ```
+
+**Through RoMON.** The connection logs in to the agent and continues with `/tool romon ssh`; see the wiki's
+*RoMON connection* page for what the routers need. A relay failure answers `ERROR (romon: <Reason>)` —
+`TargetUnreachable`, `TargetRefusedLogin`, `RomonNotEnabledOnAgent`, … — and a relay that ends mid-command
+`ERROR (romon: relay ended, commandMayHaveRun=…)`. `includeRouterLog` is refused: its side API connection
+cannot reach the target.
 
 ## The `mikrotik_cli_complete` tool
 
@@ -178,6 +193,7 @@ menu tree or resolve an object's writable fields from a live router.
 | `transport` | string | CLI terminal transport (default `Telnet`): `Telnet`, `Ssh`, `WinboxCli`, `MacTelnet`, `WinboxCliMac`. `Api`/`Rest`/`WinboxNative*` are rejected |
 | `port`      | int    | TCP/UDP port; `0` = transport default |
 | `routerMac` | string | Router MAC — only `MacTelnet` / `WinboxCliMac` |
+| `romonAgentHost` / `romonAgentUsername` / `romonAgentPassword` / `romonAgentPort` | | As for `mikrotik_call`: complete on a router behind a RoMON agent (`Telnet`, `Ssh`, `MacTelnet`) |
 
 Returns `{ input, transport, tokens[], raw }`. After a **menu path** (`/interface `) `tokens` are child
 menus + verbs; after **`add `/`set `** (`/interface/vlan add `) they are the **settable parameter names** —

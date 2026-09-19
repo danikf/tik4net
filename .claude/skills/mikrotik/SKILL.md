@@ -45,6 +45,7 @@ rather than guessing.
 | `routerLogTail`  | int      | `includeRouterLog` only: cap on kept log lines, default 200 |
 | `executeMode`    | string   | `auto` (default) = verb dispatch over `ITikCommand`; `nonquery` = `ExecuteNonQuery()` — needed for action verbs (see below) |
 | `parameters`     | string[] | Extra API words (see below) |
+| `romonAgentHost` / `romonAgentUsername` / `romonAgentPassword` / `romonAgentPort` | | Reach a router **through a RoMON agent** (`Telnet`, `Ssh`, `MacTelnet`; on `MacTelnet` the agent host may be its MAC). Then `host` is the target's RoMON id and `username`/`password` are the target's; `port`, `routerMac` and `includeRouterLog` are refused. Relay failures read `ERROR (romon: <Reason>)` |
 
 ## Transports
 
@@ -324,6 +325,7 @@ a router or resolve an entity's writable fields. CLI terminal transports only (d
 | `input`     | partial CLI line, **exactly as typed before Tab** — include the trailing space to list the next word |
 | `transport` | `Telnet` (default), `Ssh`, `WinboxCli`, `MacTelnet`, `WinboxCliMac` (not `Api`/`Rest`/`WinboxNative*`) |
 | `port` / `routerMac` | as above (MAC only for MacTelnet/WinboxCliMac) |
+| `romonAgent*` | as above — complete on a router behind a RoMON agent |
 
 Returns `{ input, transport, tokens[], raw }`:
 - after a **menu path** (`input: "/interface "`) — child menus + command verbs;
