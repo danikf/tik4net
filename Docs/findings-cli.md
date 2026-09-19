@@ -1040,21 +1040,38 @@ in [findings-mepty-byte-ack.md](findings-mepty-byte-ack.md).
 
 ## 14. Tab-completion
 
-`ITikCliCompletion` types `<partial line><Tab>`, reads until the output has been quiet for 300 ms (the listing
-ends at a redrawn prompt with the typed stem, never a bare prompt), then sends Ctrl-C to clear the line.
-Measured over Telnet, bytes before the ANSI strip:
+`ITikCliCompletion` types `<partial line><Tab>`, reads until the output has been quiet for 300 ms (a listing
+ends at a redrawn prompt with the typed stem, never a bare prompt), then sends Ctrl-C to clear the line. The
+settle drivers hand the reaction over **with its escape sequences**, because an inline completion is written in
+cursor moves. Measured over Telnet, SSH, MAC-Telnet and WinBox CLI:
 
 | Input | 7.19.6 | 7.24.4 |
 |---|---|---|
 | `/` | `/` CR LF, then the listing | `/lora     ping     app …` — the listing **glued to the echo**, no break |
 | `/interface ` | `/interface ` CR LF, then the listing | `/interface 6to4     bonding …` — glued |
-| `/interface/vl` (unique) | `/interface/vl ESC[2D␠␠ESC[2Dvlan/` | the same **inline rewrite**: cursor back, blank, back, the completed word |
+| `/interface/vl` (unique) | `/interface/vl ESC[2D␠␠ESC[2Dvlan/` | the same **inline rewrite**: back n, n blanks, back n, the completed word |
+| `… mode=d` (unique, one letter) | `… mode=d BS␠BS dynamic-keys␠` | the same — backspaces instead of `ESC[1D` |
+| `/interface/vlan add loop-p` | `… ESC[6D␠…ESC[6Dloop-protect` — completed to the **common prefix**, no listing | the same |
+| `… frame-types=` (every value starts `admit-`) | `… frame-types=admit-` — the prefix **appended** to the echo | the same |
+| `/interface/vlan add nosuchfield` | the echo, nothing else | the echo and a blank |
 
-`CliCompletionParser.Clean` drops the prompt redraw and the echo. When the first line starts with exactly the
-typed text and a token follows at once, that text is the echo and is cut off; the rest is the listing. After the
-ANSI strip an inline rewrite reads as the echo followed by whitespace (`/interface/vl  vlan/`) and is left alone:
-the cursor moves that made it one word are gone by then. The order of the listing is the router's — 7.24.4 puts
-`lora` and `ping` before the other menus.
+A listing always moves to new rows: the columns, then CR LF CR `ESC[9999B` and the prompt redrawn with the typed
+line. An inline completion stays on the input line. The colour terminals (WinBox CLI, MAC-Telnet — Telnet and SSH
+log in with `+c`) follow **every** Tab with a syntax-highlighting repaint of the line: either CR, the prompt and
+the coloured line, or `ESC[nD` back over the word and the word again. Stripped of its escapes, an inline
+completion there reads as the echo, the word and a second copy of the line run together
+(`/ip/fire    firewall//ip/firewall/`); no rule on stripped text separates them.
+
+`CliCompletionParser` therefore replays the reaction onto a screen first — CR, LF, backspace, `ESC[nD`/`ESC[nC`,
+`ESC[K`; colour and `ESC[9999B` change nothing on a row — and reads the screen:
+
+* **More than one row: a listing.** The prompt redraw and the echo are dropped. When the first row starts with
+  exactly the typed text and a token follows at once, that text is the echo and is cut off; the rest is the
+  listing. The order of the listing is the router's — 7.24.4 puts `lora` and `ping` before the other menus.
+* **One row: an inline completion.** `CompleteCli` returns no tokens. `CompleteCliRaw` returns the row less any
+  prompt a repaint drew on it — the input line as completed (`/interface/vlan/`, `… frame-types=admit-`) — or an
+  empty string when it is still what was typed. A caller that needs the candidates behind a common prefix
+  re-asks with the completed line.
 
 Through a RoMON relay the Tab and the Ctrl-C reach the target's line editor; the relay stays up
 (`RomonRelayTest.Relay_TabCompletion_ListsTheTarget_AndKeepsTheRelay`).

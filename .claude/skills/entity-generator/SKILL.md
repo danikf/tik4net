@@ -244,8 +244,8 @@ only ever shows what the lab happens to use — then add a row to `EntityEnumVoc
 (integration, `[Ignore]`d) re-measures every enum at once on a new RouterOS and prints the table.
 
 Three answers completion gives that are not vocabulary: where every value shares a prefix it completes
-inline and lists nothing (re-ask with the prefix, and skip that prefix in the echo rather than prepending
-it); a long list is elided as `stem-...` (ask for the stem); and what a menu **accepts** is not what it
+inline and lists nothing (`tokens` is empty and `raw` is the completed line, e.g. `frame-types=admit-`;
+re-ask with that prefix, and never prepend it to the values the listing then gives, which already carry it); a long list is elided as `stem-...` (ask for the stem); and what a menu **accepts** is not what it
 **sends** — `/interface/pppoe-client` takes `yes`/`no` and reads back `true`/`false`.
 
 ### The add-path `DefaultValue` rule (critical — get this right or `Add` tests fail)

@@ -121,16 +121,138 @@ namespace tik4net.unittests
             CollectionAssert.AreEqual(new[] { "6to4", "bonding", "bridge", "print", "set" }, tokens);
         }
 
+        // ── Inline completion: RouterOS rewrites the word in place and lists nothing ──────────────────
+        //
+        // The reactions below are the bytes measured 2026-09-19 on RouterOS 7.19.6 and 7.24.4 (identical on both
+        // apart from where a listing starts), escapes included, exactly as the settle drivers hand them over. An
+        // inline completion stays on the input line; a listing moves to new rows and redraws the prompt.
+
+        private const string Esc = "\x1b";
+
+        // The colour prompt WinBox CLI and MAC-Telnet draw ("[admin@CHR] > " with SGR codes around the parts).
+        private const string ColourPrompt = "[" + Esc + "[m" + Esc + "[36madmin" + Esc + "[m@" + Esc + "[m" + Esc + "[32mCHR" + Esc + "[m] > ";
+
+        /// <summary><c>/interface/vl</c> Tab: echo, cursor-left 2, two blanks, cursor-left 2, <c>vlan/</c>.</summary>
+        [TestMethod]
+        public void InlineCompletion_OfAMenu_YieldsNoTokens_AndTheCompletedLine()
+        {
+            string reaction = ("/interface/vl\x1b[2D  \x1b[2Dvlan/");
+
+            Assert.AreEqual(0, CliCompletionParser.Tokens(reaction, "/interface/vl").Count);
+            Assert.AreEqual("/interface/vlan/", CliCompletionParser.Clean(reaction, "/interface/vl"));
+        }
+
+        /// <summary>A verb after a menu: the rewrite ends in a blank, the word is complete.</summary>
+        [TestMethod]
+        public void InlineCompletion_OfAVerb_YieldsNoTokens_AndTheCompletedLine()
+        {
+            string reaction = ("/interface/vlan pri\x1b[3D   \x1b[3Dprint ");
+
+            Assert.AreEqual(0, CliCompletionParser.Tokens(reaction, "/interface/vlan pri").Count);
+            Assert.AreEqual("/interface/vlan print", CliCompletionParser.Clean(reaction, "/interface/vlan pri"));
+        }
+
+        /// <summary>A one-letter word is rewritten with backspace-blank-backspace, which the ANSI strip keeps.</summary>
+        [TestMethod]
+        public void InlineCompletion_OfAOneLetterWord_UsesBackspaces_AndIsRecognised()
+        {
+            const string typed = "/interface/wireless/security-profiles add mode=d";
+            string reaction = (typed + "\b \bdynamic-keys ");
+
+            Assert.AreEqual(0, CliCompletionParser.Tokens(reaction, typed).Count);
+            Assert.AreEqual("/interface/wireless/security-profiles add mode=dynamic-keys",
+                CliCompletionParser.Clean(reaction, typed));
+        }
+
         /// <summary>
-        /// An inline completion also starts with the echo, but 7.24.4 rewrites the word in place with cursor moves
-        /// (<c>/interface/vl ESC[2D␠␠ESC[2Dvlan/</c>), which the ANSI strip leaves as the echo followed by
-        /// WHITESPACE. That is not a glued listing, and the echo is not removed from it.
+        /// Every value shares a prefix and nothing of the word was typed: RouterOS appends the prefix straight after
+        /// the echo. That looks like the first row of a 7.24.4 glued listing of one token — what tells them apart is
+        /// that a listing goes on to new rows and this stays on the input line.
         /// </summary>
         [TestMethod]
-        public void Clean_InlineRewriteAfterTheEcho_IsNotTakenForAGluedListing()
+        public void InlineCompletion_OfASharedPrefix_AfterAnEmptyWord_IsNotAGluedListing()
         {
-            Assert.AreEqual("/interface/vl  vlan/",
-                CliCompletionParser.Clean("/interface/vl  vlan/\r\n\r[admin@CHR] > ", "/interface/vl"));
+            const string typed = "/interface/bridge add frame-types=";
+            string reaction = (typed + "admit-");
+
+            Assert.AreEqual(0, CliCompletionParser.Tokens(reaction, typed).Count);
+            Assert.AreEqual("/interface/bridge add frame-types=admit-", CliCompletionParser.Clean(reaction, typed));
+        }
+
+        /// <summary>Nothing to complete: 7.24.4 echoes a trailing blank, 7.19.6 nothing. Either way, no answer.</summary>
+        [TestMethod]
+        public void NoCompletion_YieldsNoTokens_AndAnEmptyAnswer()
+        {
+            const string typed = "/interface/vlan add nosuchfield";
+            foreach (string reaction in new[] { (typed + " "), (typed) })
+            {
+                Assert.AreEqual(0, CliCompletionParser.Tokens(reaction, typed).Count);
+                Assert.AreEqual("", CliCompletionParser.Clean(reaction, typed));
+            }
+        }
+
+        /// <summary>
+        /// WinBox CLI / MAC-Telnet: the same rewrite, then a colour repaint of the whole line from the prompt after
+        /// a carriage return. Stripped, the two ran together into <c>/interface/vl  vlan/</c>.
+        /// </summary>
+        [TestMethod]
+        public void InlineCompletion_RepaintedFromThePrompt_IsTheCompletedLine()
+        {
+            string reaction = "/interface/vl" + Esc + "[2D  " + Esc + "[2Dvlan/"
+                              + "\r" + ColourPrompt + Esc + "[m" + Esc + "[36m/interface/vlan/";
+
+            Assert.AreEqual(0, CliCompletionParser.Tokens(reaction, "/interface/vl").Count);
+            Assert.AreEqual("/interface/vlan/", CliCompletionParser.Clean(reaction, "/interface/vl"));
+        }
+
+        /// <summary>
+        /// The other repaint: back over the whole word and write it again, coloured. Stripped, that appended a
+        /// second copy — <c>/ip/firewall//ip/firewall/</c>.
+        /// </summary>
+        [TestMethod]
+        public void InlineCompletion_RepaintedOverTheWord_IsTheCompletedLine()
+        {
+            string reaction = "/ip/fire" + Esc + "[4D    " + Esc + "[4Dfirewall/" + Esc + "[13D" + Esc + "[m" + Esc + "[36m/ip/firewall/";
+
+            Assert.AreEqual(0, CliCompletionParser.Tokens(reaction, "/ip/fire").Count);
+            Assert.AreEqual("/ip/firewall/", CliCompletionParser.Clean(reaction, "/ip/fire"));
+        }
+
+        /// <summary>A shared prefix after an empty word, with the colour repaint that highlights the value.</summary>
+        [TestMethod]
+        public void InlineCompletion_OfASharedPrefix_RepaintedInColour()
+        {
+            const string typed = "/interface/bridge add frame-types=";
+            string reaction = typed + "admit-" + "\r" + ColourPrompt
+                              + Esc + "[m" + Esc + "[36m/interface/bridge" + Esc + "[m " + Esc + "[m" + Esc + "[35madd" + Esc + "[m "
+                              + Esc + "[m" + Esc + "[32mframe-types" + Esc + "[m" + Esc + "[33m=" + Esc + "[37;41;1ma" + Esc + "[mdmit-";
+
+            Assert.AreEqual(0, CliCompletionParser.Tokens(reaction, typed).Count);
+            Assert.AreEqual("/interface/bridge add frame-types=admit-", CliCompletionParser.Clean(reaction, typed));
+        }
+
+        /// <summary>A colour listing: coloured tokens, the prompt redraw, then the repaint of the typed word.</summary>
+        [TestMethod]
+        public void ColourListing_IsStillAListing()
+        {
+            const string typed = "/interface/v";
+            string reaction = typed + "\r\n" + Esc + "[m" + Esc + "[36mveth" + Esc + "[m     " + Esc + "[m" + Esc + "[36mvlan" + Esc + "[m   \r\n\r"
+                              + Esc + "[9999B" + ColourPrompt + typed + Esc + "[K"
+                              + Esc + "[12D" + Esc + "[m" + Esc + "[36m/interface/" + Esc + "[m" + Esc + "[31mv";
+
+            CollectionAssert.AreEqual(new[] { "veth", "vlan" }, System.Linq.Enumerable.ToArray(CliCompletionParser.Tokens(reaction, typed)));
+        }
+
+        /// <summary>A listing after a partial word, in both versions' shapes, still lists.</summary>
+        [TestMethod]
+        public void ListingAfterAPartialWord_IsStillAListing_OnBothVersions()
+        {
+            const string typed = "/interface/vlan add m";
+            string glued = (typed + "mtu     mvrp   \r\n\r\x1b[9999B[admin@CHR] > " + typed);
+            string broken = (typed + "\r\nmtu     mvrp   \r\n\r\x1b[9999B[admin@CHR2] > " + typed);
+
+            CollectionAssert.AreEqual(new[] { "mtu", "mvrp" }, System.Linq.Enumerable.ToArray(CliCompletionParser.Tokens(glued, typed)));
+            CollectionAssert.AreEqual(new[] { "mtu", "mvrp" }, System.Linq.Enumerable.ToArray(CliCompletionParser.Tokens(broken, typed)));
         }
     }
 }

@@ -250,14 +250,17 @@ namespace tik4net.MacTelnet
         /// Sends raw bytes (e.g. <c>&lt;stem&gt;&lt;Tab&gt;</c> for Tab-completion) and reads the reaction until
         /// the socket goes quiet for <paramref name="quietMs"/> — the completion listing does not end in a
         /// shell prompt (RouterOS redraws the prompt with the echoed stem), so it must be read on a settle
-        /// window rather than a prompt match. ANSI-stripped.
+        /// window rather than a prompt match. Returned with its escape sequences: an inline completion is
+        /// written in cursor moves, which the completion parser replays.
         /// </summary>
         internal async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
             ResetReadBuffer();
             SendTerminalBytes(raw);
-            return await ReadUntilQuietAsync(quietMs).ConfigureAwait(false);
+            await ReadUntilQuietAsync(quietMs).ConfigureAwait(false);
+            lock (_rxLock)
+                return _rx.ToString();
         }
 
         // ── Close ─────────────────────────────────────────────────────────────

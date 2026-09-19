@@ -11,8 +11,9 @@
 // for a singleton) lists the vocabulary whether or not any row uses it.
 //
 // THREE THINGS THE LISTING WILL NOT TELL YOU, each of which has already produced a wrong answer:
-//   * Where every value shares a prefix, RouterOS completes it inline and lists nothing. The probe
-//     re-asks with the prefix; a row that still yields one value proves nothing and is reported as such.
+//   * Where every value shares a prefix, RouterOS completes it inline and lists nothing: CompleteCli is
+//     empty and CompleteCliRaw is the completed line. The probe takes the prefix from that line and
+//     re-asks with it; a row that still yields one value proves nothing and is reported as such.
 //   * Accepted is not sent. /interface/pppoe-client accepts add-default-route=yes|no and reads back
 //     true|false on Api and Telnet alike, so its completion list is input spelling, not a read defect.
 //   * A menu with no rows cannot answer a `set 0 …` probe (there is no row 0), and a read-only menu has
@@ -86,9 +87,10 @@ namespace tik4net.integrationtests
 
                     var values = Complete(completion, property.Menu, property.Field, "", out string via);
 
-                    // One value can be a genuine single-value enum, or every value sharing a prefix that
-                    // the router completed inline instead of listing. Re-ask with the prefix; a retry
-                    // whose values do not start with it walked into the NEXT parameter and is discarded.
+                    // One value can be a genuine single-value enum, or the prefix every value shares, which
+                    // the router completed inline instead of listing (Complete returns the completed value).
+                    // Re-ask with it as the prefix; a retry whose values do not start with it walked into the
+                    // NEXT parameter and is discarded.
                     if (values.Count == 1)
                     {
                         var retry = Complete(completion, property.Menu, property.Field, values[0], out via);
@@ -145,36 +147,42 @@ namespace tik4net.integrationtests
         }
 
         /// <param name="prefix">
-        /// What was typed after the '=' (empty on the first ask). RouterOS echoes the line it completed, so
-        /// the assignment token comes back as <c>field=&lt;prefix&gt;&lt;firstValue&gt;</c> with no separator —
-        /// the prefix has to be SKIPPED, not re-prepended: doing that is how an earlier version of this
-        /// probe invented values like
-        /// <c>l2tpvl2tpv2</c> and then reported them as defects.
+        /// What was typed after the '=' (empty on the first ask). A token of the form
+        /// <c>field=&lt;prefix&gt;&lt;value&gt;</c> only appears if the echo was not recognised, and then the prefix
+        /// has to be SKIPPED, not re-prepended: doing that is how an earlier version of this probe invented
+        /// values like <c>l2tpvl2tpv2</c> and then reported them as defects.
         /// </param>
         private static List<string> Complete(ITikCliCompletion completion, string menu, string field,
                                              string prefix, out string via)
         {
             string assignment = field + "=" + prefix;
-            via = "add";
-            var tokens = completion.CompleteCli($"{menu} add {assignment}");
-            if (tokens.Count == 0)
+            IReadOnlyList<string> tokens = Array.Empty<string>();
+            via = null;
+            foreach (string verb in new[] { "add", "set", "set 0" })
             {
-                via = "set";
-                tokens = completion.CompleteCli($"{menu} set {assignment}");
-            }
-            if (tokens.Count == 0)
-            {
-                via = "set 0";
-                tokens = completion.CompleteCli($"{menu} set 0 {assignment}");
+                via = verb;
+                string line = $"{menu} {verb} {assignment}";
+                tokens = completion.CompleteCli(line);
+                if (tokens.Count > 0)
+                    break;
+
+                // No listing: RouterOS may have completed the value inline instead — a unique value, or the
+                // prefix every value shares. CompleteCliRaw returns that completed line; the value is what now
+                // follows "field=", and the caller re-asks with it as the prefix.
+                string completed = completion.CompleteCliRaw(line);
+                string head = $"{menu} {verb} {field}=";
+                if (completed.StartsWith(head, StringComparison.Ordinal) && completed.Length > head.Length)
+                    return new List<string> { completed.Substring(head.Length) };
             }
 
             // RouterOS 7.24 prints the listing glued to the echo of the typed line; CliCompletionParser drops
             // exactly that echo, so the values arrive as plain tokens. The filters below are defensive: a
-            // menu/verb word or a field=<value> token only appears if the echo was not recognised.
+            // menu/verb word or a field=<value> token only appears if the echo was not recognised. A bare "0" is
+            // NOT filtered, although the "set 0" line types one: it is a value (l2tpv3-cookie-length=0).
             var values = new List<string>();
             foreach (string token in tokens)
             {
-                if (token == menu || token == "add" || token == "set" || token == "0" || Artifacts.Contains(token))
+                if (token == menu || token == "add" || token == "set" || Artifacts.Contains(token))
                     continue;
 
                 int eq = token.IndexOf('=');

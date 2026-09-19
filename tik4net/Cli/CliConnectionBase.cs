@@ -615,7 +615,8 @@ namespace tik4net.Cli
         private const int CompletionSettleQuietMs = 300;
 
         // Optional driver for the completion probe: "send raw bytes, then read until the output goes quiet
-        // for N ms" (settle), returning the ANSI-stripped reaction. Unlike the command/control-key drivers
+        // for N ms" (settle), returning the reaction with its escape sequences — an inline completion is written
+        // in cursor moves, which CliCompletionParser replays. Unlike the command/control-key drivers
         // (which read up to the next shell prompt), the Tab listing does NOT end in a bare prompt — RouterOS
         // redraws the prompt with the echoed stem — so it must be read on a settle window, not a prompt match.
         // A leaf transport registers this in Open only if it supports completion (all CLI transports do);
@@ -639,7 +640,7 @@ namespace tik4net.Cli
             => CliCompletionParser.Clean(CompleteCliReaction(partialInput), partialInput);
 
         /// <summary>
-        /// Drives one Tab-completion probe and returns the ANSI-stripped terminal reaction.
+        /// Drives one Tab-completion probe and returns the terminal reaction, escape sequences included.
         /// Sequence (verified live): send <c>&lt;partialInput&gt;&lt;Tab&gt;</c> and read until the listing
         /// settles (RouterOS prints the completions then redraws <c>] &gt; &lt;stem&gt;</c> — never a bare
         /// prompt, so a prompt-based read would hang); then send <c>Ctrl-C</c> to abort the half-typed line
@@ -666,7 +667,7 @@ namespace tik4net.Cli
             {
                 FireWriteRow("<tab-complete> " + partialInput);
                 string reaction = settle(tab, CompletionSettleQuietMs, CancellationToken.None).GetAwaiter().GetResult();
-                FireReadRow(reaction);
+                FireReadRow(VtStripper.StripAnsi(reaction));
 
                 // Abort the half-typed line (Ctrl-C → fresh prompt). Prompt-based read returns promptly here.
                 try { SendRawAndReadAsync(new[] { CtrlC }, CancellationToken.None).GetAwaiter().GetResult(); }

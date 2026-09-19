@@ -173,7 +173,8 @@ namespace tik4net.WinboxCli
         /// Sends raw bytes (e.g. <c>&lt;stem&gt;&lt;Tab&gt;</c> for Tab-completion) and reads the reaction until
         /// the terminal goes quiet for <paramref name="quietMs"/> — the completion listing does not end in a
         /// shell prompt (RouterOS redraws the prompt with the echoed stem), so it must be read on a settle
-        /// window rather than a prompt match. ANSI-stripped.
+        /// window rather than a prompt match. Returned with its escape sequences: an inline completion is
+        /// written in cursor moves, which the completion parser replays.
         /// </summary>
         internal async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
         {
@@ -528,7 +529,7 @@ namespace tik4net.WinboxCli
         /// <summary>
         /// Accumulates the terminal reaction until the channel stays quiet for <paramref name="quietMs"/>
         /// after at least some data (or the receive deadline expires), answering VT100 probes. Returns the
-        /// ANSI-stripped text. Used for Tab-completion (see <see cref="SendRawAndReadUntilQuietAsync"/>).
+        /// text, escape sequences included. Used for Tab-completion (see <see cref="SendRawAndReadUntilQuietAsync"/>).
         /// </summary>
         private async Task<string> ReadUntilQuietAsync(int quietMs)
         {
@@ -566,7 +567,7 @@ namespace tik4net.WinboxCli
                     break;
             }
 
-            return VtStripper.StripAnsi(sb.ToString());
+            return sb.ToString();
         }
 
         /// <summary>Consumes residual frames until the channel stays quiet for <paramref name="quietMs"/>.</summary>

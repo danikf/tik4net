@@ -73,6 +73,26 @@ namespace tik4net.Cli
             return false;
         }
 
+        /// <summary>
+        /// The index just past the LAST accepted prompt suffix in <paramref name="text"/> and the blank that
+        /// follows it, or -1 when there is none: where the input line starts on a row the prompt was drawn on.
+        /// </summary>
+        internal static int IndexAfterPromptSuffix(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return -1;
+            int best = -1;
+            foreach (string suffix in PromptSuffixes)
+            {
+                int at = text.LastIndexOf(suffix, StringComparison.Ordinal);
+                if (at >= 0)
+                    best = Math.Max(best, at + suffix.Length);
+            }
+            if (best >= 0 && best < text.Length && text[best] == ' ')
+                best++;
+            return best;
+        }
+
         /// <summary>True when <paramref name="text"/> contains any accepted prompt suffix anywhere.</summary>
         internal static bool ContainsPromptSuffix(string text)
         {

@@ -202,8 +202,9 @@ namespace tik4net.Ssh
         /// Sends raw bytes (e.g. <c>&lt;stem&gt;&lt;Tab&gt;</c> for completion) and reads the reaction until the
         /// stream goes <b>quiet</b> for <paramref name="quietMs"/> — used for Tab-completion, whose listing
         /// does not end in a shell prompt (RouterOS redraws the prompt with the echoed stem), so a
-        /// prompt-terminated read would block until the receive deadline. ANSI-stripped; not echo/prompt
-        /// trimmed (the completion parser removes those). Bounded by the receive deadline.
+        /// prompt-terminated read would block until the receive deadline. Returned with its escape sequences:
+        /// an inline completion is written in cursor moves, which the completion parser replays
+        /// (<see cref="tik4net.Cli.CliCompletionParser"/>). Bounded by the receive deadline.
         /// </summary>
         internal async Task<string> SendRawAndReadUntilQuietAsync(byte[] raw, int quietMs, CancellationToken ct)
         {
@@ -213,8 +214,8 @@ namespace tik4net.Ssh
 
         /// <summary>
         /// Reads (answering VT100 probes) until no new bytes arrive for <paramref name="quietMs"/> after at
-        /// least some data, the shell closes, or the receive deadline expires. Returns the ANSI-stripped
-        /// accumulated text. Unlike <see cref="DrainAsync"/> the text is kept, not discarded.
+        /// least some data, the shell closes, or the receive deadline expires. Returns the accumulated text,
+        /// escape sequences included. Unlike <see cref="DrainAsync"/> the text is kept, not discarded.
         /// </summary>
         private async Task<string> ReadUntilQuietAsync(int quietMs, CancellationToken ct)
         {
@@ -240,15 +241,13 @@ namespace tik4net.Ssh
                 if (gotData)
                     lastData = DateTime.UtcNow;
 
-                string stripped = VtStripper.StripAnsi(accumulated.ToString());
-
                 // Settled: some data arrived and the shell has been silent for the quiet window.
                 if (!gotData && accumulated.Length > 0
                     && (DateTime.UtcNow - lastData).TotalMilliseconds >= quietMs)
-                    return stripped;
+                    return accumulated.ToString();
 
                 if (closed || DateTime.UtcNow >= deadline)
-                    return stripped;
+                    return accumulated.ToString();
 
                 await Task.Delay(15, ct).ConfigureAwait(false);
             }

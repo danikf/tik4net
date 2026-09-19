@@ -420,8 +420,10 @@ public sealed class MikroTikTools
         "(print only shows fields that have a value on some current row; completion shows them all). " +
         "Returns a JSON object { serverBuild, input, transport, tokens[], raw } — serverBuild names the version, " +
         "build timestamp and path of the assembly that answered, so a stale server is visible rather than assumed. " +
-        "tokens is empty when the input completes to a " +
-        "single unique token (RouterOS completes it inline). Only CLI terminal transports support this " +
+        "When RouterOS lists, tokens are the candidates and raw is the listing. When it completes the word inline " +
+        "instead (a unique completion, or the prefix every candidate shares), tokens is empty and raw is the " +
+        "completed line, e.g. '/interface/vl' -> '/interface/vlan/'; re-ask with that line to list what follows. " +
+        "Both are empty when there is nothing to complete. Only CLI terminal transports support this " +
         "(Telnet, Ssh, WinboxCli, MacTelnet, WinboxCliMac) — not Api/Rest/WinboxNative*.")]
     public string MikrotikCliComplete(
         [Description("IP address or hostname of the MikroTik router. On the MAC-layer transports a MAC address (AA:BB:CC:DD:EE:FF) may be given instead, to reach a router that has no IP address. " +
