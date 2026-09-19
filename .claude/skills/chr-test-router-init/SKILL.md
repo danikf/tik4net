@@ -343,11 +343,15 @@ findings doc is in flight:
 
 ---
 
-## Second router — the RoMON target
+## Second router — CHR2: the RoMON target and the older RouterOS
 
-The suite can use a **second** CHR that it reaches through the first one over RoMON (`RomonRelayTest` writes to
-it). Provision it with steps 0–6 like the first, with these differences:
+The lab's second CHR, identity `CHR2`, has two roles: the RoMON target the suite reaches through the first router
+(`RomonRelayTest` writes to it), and the router kept on an **older RouterOS** (7.19.6) for tests that must also
+hold before 7.20. Its role in the suite is described in `tik4net.integrationtests/README.md`, *The lab routers*.
+Provision it with steps 0–6 like the first, with these differences:
 
+- **Skip steps 7 and 8.** The version README promises is the first router's; CHR2 is on an older release on
+  purpose, and its version is not a promise to reconcile.
 - **Do not touch `host` / `routerMac` / `routerIdentity`** — they stay on the first router, which is the RoMON
   agent. The second one goes into the `romonTarget*` keys of `App.config`: `romonTargetId` (its
   `/tool/romon` `current-id`, i.e. its MAC once RoMON is on), `romonTargetHost` (its IP), `romonTargetUser`,
@@ -358,6 +362,14 @@ it). Provision it with steps 0–6 like the first, with these differences:
   agent: `/tool/romon/discover =duration=5` must list the target's id.
 - Verify with `dotnet test tik4net.integrationtests/tik4net.integrationtests.csproj --filter RomonRelayTest` —
   9 tests, three agent transports each, about 15 s.
+- **The lab keeps it on RouterOS 7.19.6**, the last release before 7.20 changed `print as-value` (flag fields
+  are printed only from 7.20 on — `Docs/findings-cli.md`). It is the only router here where the CLI's
+  by-name flag read runs, so do not upgrade it with the first one. To downgrade: upload `routeros-<ver>.npk`
+  and the `all_packages-x86-<ver>.zip` contents, then `/system/package/downgrade`. A package the older
+  version does not have (7.19.6 has no `openflow`) aborts it with `missing package <name>` in the log —
+  `/system/package/uninstall` it first, and re-upload the `.npk` files, which the aborted attempt consumed.
+- To run a test against it, point `host` / `routerMac` in `App.config` at it for that run only, e.g.
+  `CliFlagFieldsTest` (flags over every transport against the binary API), and put them back afterwards.
 
 ---
 

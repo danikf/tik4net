@@ -145,12 +145,14 @@ namespace tik4net.Api
         /// (Mirror of <see cref="tik4net.Rest.RestRequestBuilder"/>.IsSpecialParam / CliCommandBuilder.IsSpecialParam;
         /// the membership differs per transport on purpose.) Unlike REST/CLI, the binary API understands
         /// <c>.proplist</c> and <c>.tag</c> natively (they ARE valid wire words), so the only thing stripped
-        /// here is the CLI-only pair: the <c>.cli-stats</c> stats marker and the <c>.cli-json</c>
-        /// <c>:serialize</c> marker (the binary API frames values, so it never needs either).
+        /// here is the CLI-only set: the <c>.cli-stats</c> stats marker, the <c>.cli-json</c>
+        /// <c>:serialize</c> marker and the <c>.cli-flags</c> flag list (the binary API frames values and
+        /// always sends the flags, so it never needs any of them).
         /// </summary>
         private static bool IsSpecialParam(string name)
             => name == TikSpecialProperties.CliStats
-            || name == TikSpecialProperties.CliJson;
+            || name == TikSpecialProperties.CliJson
+            || name == TikSpecialProperties.CliFlags;
 
         private string[] ConstructCommandText(TikCommandParameterFormat defaultParameterFormat, params ITikCommandParameter[] additionalParamemeters)
         {

@@ -61,8 +61,16 @@ namespace tik4net.Cli
         /// The bare print expression <see cref="BuildPrint"/> wraps — <c>/path print … as-value …</c>, with no
         /// <c>:put</c> around it — so a caller can bind it to a variable instead (<see cref="BuildCountedRead"/>).
         /// </summary>
+        /// <param name="apiPath">API-style path of the printed menu.</param>
+        /// <param name="parameters">Command parameters (filters, flags, markers).</param>
+        /// <param name="fromIndices">The <c>from=</c> row selector of a window, or <c>null</c>.</param>
+        /// <param name="proplist">
+        /// Field names for the CLI's own <c>proplist=</c>, or <c>null</c> for every field. Only for names known to
+        /// the menu: one unknown name refuses the whole read ("input does not match any value of value-name") —
+        /// see <see cref="BuildProplistCheck"/> and <see cref="TikSpecialProperties.CliFlags"/>.
+        /// </param>
         internal static string BuildPrintExpression(string apiPath, IList<ITikCommandParameter> parameters,
-                                                    string? fromIndices = null)
+                                                    string? fromIndices = null, string? proplist = null)
         {
             string cliBase = ApiPathToCli(apiPath);
             var sb = new StringBuilder();
@@ -89,6 +97,8 @@ namespace tik4net.Cli
                 sb.Append(" once");
 
             sb.Append(" as-value");
+            if (!string.IsNullOrEmpty(proplist))
+                sb.Append(" proplist=").Append(proplist);
             AppendFrom(sb, fromIndices);
 
             string whereClause = BuildWhereClause(parameters);
@@ -100,6 +110,29 @@ namespace tik4net.Cli
 
             return sb.ToString();
         }
+
+        /// <summary>
+        /// Asks whether the menu knows every field in <paramref name="proplist"/>, without reading a row:
+        /// <c>:put [/path print as-value proplist=… where false]</c>. The router answers nothing when it does,
+        /// and <c>input does not match any value of value-name</c> when one name is unknown — the refusal does
+        /// not depend on the rows, so <c>where false</c> costs no data (7.17, 7.19.6).
+        /// </summary>
+        /// <param name="apiPath">The print command's path, verb included (<c>/interface/print</c>).</param>
+        /// <param name="proplist">The names to check, comma-separated.</param>
+        internal static string BuildProplistCheck(string apiPath, string proplist)
+            => ":put [" + BuildPrintExpression(apiPath, new List<ITikCommandParameter>(), null, proplist) + " where false]";
+
+        /// <summary>
+        /// The router's answer when a <c>proplist=</c> names a field the menu does not have (7.17, 7.19.6, 7.24.4).
+        /// </summary>
+        internal const string ProplistRefusal = "input does not match any value of value-name";
+
+        /// <summary>
+        /// One row of <c>/ip service</c> — whose <c>disabled</c> flag exists on every RouterOS version and which
+        /// every user group may read — to learn whether this router's <c>as-value</c> prints flag fields: 7.20+
+        /// does, earlier versions do not.
+        /// </summary>
+        internal const string FlagsProbe = ":put [/ip service print as-value from=0]";
 
         /// <summary>
         /// <c>:put [expression]</c>, or <c>:put [:serialize to=json [expression]]</c> — how a print is made
@@ -766,6 +799,7 @@ namespace tik4net.Cli
         ///   <c>.tag</c>      — no tag protocol over a terminal.
         ///   <c>.cli-stats</c> — CLI-layer signal that triggers the two-query stats merge (<see cref="CliConnectionBase"/>).
         ///   <c>.cli-json</c>  — CLI-layer signal that switches the read to <c>:serialize to=json</c> (same class).
+        ///   <c>.cli-flags</c> — the entity's flag fields, read separately on a pre-7.20 router (same class).
         /// NOTE: this is the "dropped" set. <c>detail</c> / <c>once</c> / <c>numbers</c> are a DIFFERENT
         /// category — "consumed flags" that <see cref="BuildPrint"/> translates into print modifiers
         /// (via <see cref="HasNameValueFlag"/> / <see cref="FindNameValueParam"/>), not dropped.
@@ -774,7 +808,8 @@ namespace tik4net.Cli
             => name == TikSpecialProperties.Proplist
             || name == TikSpecialProperties.Tag
             || name == TikSpecialProperties.CliStats
-            || name == TikSpecialProperties.CliJson;
+            || name == TikSpecialProperties.CliJson
+            || name == TikSpecialProperties.CliFlags;
 
         /// <summary>
         /// Returns true when a non-Filter "consumed flag" parameter with the given name is present

@@ -267,6 +267,40 @@ back to config-only rather than dropping the record. The binary API and REST tra
 marker (`IsSpecialParam` in `ApiCommand`/`RestRequestBuilder`) — they already get counters from
 `detail`, and the marker never reaches the wire.
 
+### Flag fields are not in `as-value` before RouterOS 7.20
+
+RouterOS **before 7.20** prints no flag field in `print as-value` — no `disabled`, `dynamic`, `running`,
+`invalid`, `active` — with or without `detail`, on every menu measured (`/interface`, `/ip address`,
+`/ip route`, `/ip firewall filter`, `/ip service`; 7.17rc3 and 7.19.6). The binary API sends them, and
+`get` answers them:
+
+```
+:put [/interface print as-value where name=ether1]                              (7.19.6)
+.id=*2;actual-mtu=1500;comment=;mac-address=AA:BB:CC:DD:EE:FF;name=ether1;type=ether
+
+:put [/interface print as-value proplist=running,disabled where name=ether1]     (7.19.6)
+.id=*2;comment=;disabled=false;running=true
+```
+
+Named in `proplist=` they come back, explicitly `true` or `false`. 7.20 made that the default — its
+changelog: *"console - include flags by default when printing to value"* — and from then on every row
+of a menu that has a `disabled` flag carries `disabled=`. A flag that applies to only some rows is
+printed on those rows only, on every version and on the binary API alike (`inactive` on a VRRP
+interface, `dynamic` on an `/interface` row).
+
+`proplist=` refuses the **whole** read when one name is unknown to the menu —
+`input does not match any value of value-name` — whether or not any row matches, so
+`print as-value proplist=<names> where false` checks names without reading a row: empty answer = all
+known.
+
+tik4net's read path: the O/R mapper sends the entity's flag fields (`disabled` and the read-only `bool`
+properties) as the CLI-only marker `.cli-flags` (`TikSpecialProperties.CliFlags`). Once per connection
+`CliConnectionBase` reads one `/ip service` row (`CliCommandBuilder.FlagsProbe`); when it carries no
+`disabled`, every mapped read with the marker gets a second `print … as-value proplist=<flags>` of the
+same rows — same filter, same windows — merged by `.id`. The names are checked once per menu first; a
+name the menu refuses is left out (the binary API does not send it either). On 7.20+ the probe is the
+only extra command. A read without the marker — a low-level `print` — gets what the router prints.
+
 ### A number as-value prints, and the word the API prints for it
 
 Some fields store a number whose extreme value the API renders as a word. as-value always gives the

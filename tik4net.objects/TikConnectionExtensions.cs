@@ -391,6 +391,11 @@ namespace tik4net.Objects
             // text, which the unescaped as-value format cannot represent unambiguously (P2.17).
             if (metadata.HasFreeTextProperties)
                 command.AddParameter(TikSpecialProperties.CliJson, "", TikCommandParameterFormat.NameValue);
+            // CLI-only marker: the flag fields, which RouterOS before 7.20 leaves out of 'print as-value'. The CLI
+            // transports then ask for them by name; every other transport drops the marker.
+            string cliFlags = string.Join(",", metadata.CliFlagFields.ToArray());
+            if (cliFlags.Length > 0)
+                command.AddParameter(TikSpecialProperties.CliFlags, cliFlags, TikCommandParameterFormat.NameValue);
             //.proplist
             if (metadata.IncludeProplist)
                 command.AddParameter(TikSpecialProperties.Proplist, string.Join(",", metadata.Properties.Select(prop => prop.FieldName).ToArray()), TikCommandParameterFormat.NameValue);

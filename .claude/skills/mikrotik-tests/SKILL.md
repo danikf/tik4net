@@ -21,9 +21,12 @@ dotnet test tik4net.unittests/tik4net.unittests.csproj
 
 Router coordinates come from `tik4net.integrationtests/App.config` (`host`, `user`, `pass`,
 `routerMac`, plus the topology keys consumed by `TestConstants.cs`). That file is the single source of
-truth — read it, never restate its values. The `romonTarget*` keys name a **second** lab router that
-`RomonRelayTest` reaches through the first over RoMON (and writes to); empty `romonTargetId` = those tests are
-Inconclusive.
+truth — read it, never restate its values. The `romonTarget*` keys name the **second** lab router, CHR2: the
+RoMON target `RomonRelayTest` reaches through the first (and writes to), kept on **RouterOS 7.19.6** as the
+pre-7.20 router — the one where the CLI's by-name flag read runs. Run `CliFlagFieldsTest` against it (point
+`host` / `routerMac` at it for that run only) after any change to the CLI read path; not the full suite, which
+assumes the first router's topology. Empty `romonTargetId` = the RoMON tests are Inconclusive. The table is in
+`tik4net.integrationtests/README.md`, *The lab routers*.
 
 `TestBase.LabAddress` picks which of them a run uses, and the choice is not cosmetic: the **MAC-layer
 transports run with no host at all**, addressed by `routerMac` alone. That is the case those transports

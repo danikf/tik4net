@@ -43,6 +43,20 @@ namespace tik4net
         public const string CliStats = ".cli-stats";
 
         /// <summary>
+        /// CLI-only marker — the entity's flag fields (<c>disabled</c>, <c>dynamic</c>, <c>running</c>, …) as a
+        /// comma-separated list. RouterOS before 7.20 leaves every flag out of <c>print as-value</c> (7.20
+        /// changelog: "include flags by default when printing to value"), so on such a router the CLI layer reads
+        /// the named fields with a second <c>print … as-value proplist=…</c> of the same rows and merges it by
+        /// <c>.id</c>. Only names the menu knows are asked for — one unknown name refuses the whole read.
+        /// <para>
+        /// Added by the O/R mapper for every entity with flag properties. A read without it gets what the router
+        /// prints, so a low-level print on a pre-7.20 router has no flag fields. API, REST and WinBox-native
+        /// transports silently ignore this parameter.
+        /// </para>
+        /// </summary>
+        public const string CliFlags = ".cli-flags";
+
+        /// <summary>
         /// CLI-only marker — when present on a command, the CLI layer reads the result through
         /// <c>:serialize to=json</c> instead of the default <c>as-value</c> form.
         /// <para>

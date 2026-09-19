@@ -809,66 +809,203 @@ namespace tik4net.Cli
             bool needStats = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliStats);
             bool wantJson = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliJson);
 
-            if (!needStats)
-            {
-                // Normal single-query path.
-                return await RunPrintQueryAsync(descriptor, wantJson,
-                    (pars, from) => CliCommandBuilder.BuildPrintExpression(descriptor.CommandText, pars, from),
-                    cancellationToken).ConfigureAwait(false);
-            }
-
-            // Two-query path: detail (config) + stats (counters), merged by .id.
-            IList<TikRecordSentence> configRecords = await RunPrintQueryAsync(descriptor, wantJson,
+            IList<TikRecordSentence> records = await RunPrintQueryAsync(descriptor, wantJson,
                 (pars, from) => CliCommandBuilder.BuildPrintExpression(descriptor.CommandText, pars, from),
                 cancellationToken).ConfigureAwait(false);
 
-            IList<TikRecordSentence> statsRecords = await RunPrintQueryAsync(descriptor, wantJson,
-                (pars, from) => CliCommandBuilder.BuildPrintStatsExpression(descriptor.CommandText, pars, from),
-                cancellationToken).ConfigureAwait(false);
-
-            // Build index of stats records by .id for O(1) lookup.
-            var statsById = new Dictionary<string, TikRecordSentence>(StringComparer.OrdinalIgnoreCase);
-            foreach (var sr in statsRecords)
+            if (needStats)
             {
-                string? id = sr.GetResponseFieldOrDefault(TikSpecialProperties.Id, null);
+                // Two-query path: detail (config) + stats (counters), merged by .id.
+                IList<TikRecordSentence> statsRecords = await RunPrintQueryAsync(descriptor, wantJson,
+                    (pars, from) => CliCommandBuilder.BuildPrintStatsExpression(descriptor.CommandText, pars, from),
+                    cancellationToken).ConfigureAwait(false);
+                records = MergeById(records, statsRecords);
+            }
+
+            return await SupplyFlagsAsync(descriptor, records, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Adds to each record of <paramref name="primary"/> the fields it lacks from the record of
+        /// <paramref name="extra"/> with the same <c>.id</c>. A field <paramref name="primary"/> already has is
+        /// kept; a record with no counterpart is kept as it is.
+        /// </summary>
+        internal static IList<TikRecordSentence> MergeById(IList<TikRecordSentence> primary,
+            IList<TikRecordSentence> extra)
+        {
+            var extraById = new Dictionary<string, TikRecordSentence>(StringComparer.OrdinalIgnoreCase);
+            foreach (var er in extra)
+            {
+                string? id = er.GetResponseFieldOrDefault(TikSpecialProperties.Id, null);
                 if (id != null)
-                    statsById[id] = sr;
+                    extraById[id] = er;
             }
+            if (extraById.Count == 0)
+                return primary;
 
-            if (statsById.Count == 0)
+            var merged = new List<TikRecordSentence>(primary.Count);
+            foreach (var row in primary)
             {
-                // Stats returned nothing or no .id — fall back gracefully to config-only.
-                return configRecords;
-            }
-
-            // Merge: overlay stats fields onto each config record.
-            var merged = new List<TikRecordSentence>(configRecords.Count);
-            foreach (var cfg in configRecords)
-            {
-                string? id = cfg.GetResponseFieldOrDefault(TikSpecialProperties.Id, null);
-                if (id == null || !statsById.TryGetValue(id, out TikRecordSentence? sr))
+                string? id = row.GetResponseFieldOrDefault(TikSpecialProperties.Id, null);
+                if (id == null || !extraById.TryGetValue(id, out TikRecordSentence? er))
                 {
-                    // No matching stats record — keep config as-is.
-                    merged.Add(cfg);
+                    merged.Add(row);
                     continue;
                 }
 
-                // Clone config fields and add missing stats fields.
-                var mergedFields = new Dictionary<string, string>(
-                    StringComparer.OrdinalIgnoreCase);
-                // Start with config (includes all config fields + .id).
-                foreach (var kv in cfg.Words)
-                    mergedFields[kv.Key] = kv.Value;
-                // Overlay stats: add fields not already present in config.
-                foreach (var kv in sr.Words)
+                var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var kv in row.Words)
+                    fields[kv.Key] = kv.Value;
+                foreach (var kv in er.Words)
+                    if (!fields.ContainsKey(kv.Key))
+                        fields[kv.Key] = kv.Value;
+                merged.Add(new TikRecordSentence(fields));
+            }
+            return merged;
+        }
+
+        // ── Flag fields on RouterOS before 7.20 ────────────────────────────────
+
+        /// <summary>
+        /// Whether this router's <c>print as-value</c> leaves the flag fields out (RouterOS before 7.20);
+        /// <c>null</c> = not established yet. See <see cref="AsValueOmitsFlagsAsync"/>.
+        /// </summary>
+        private bool? _asValueOmitsFlags;
+
+        /// <summary>The flag names each menu knows, per requested list — see <see cref="KnownFlagFieldsAsync"/>.</summary>
+        private readonly Dictionary<string, string[]> _knownFlagFields =
+            new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// On a router whose <c>print as-value</c> leaves the flag fields out, reads the ones the command names in
+        /// <see cref="TikSpecialProperties.CliFlags"/> with a second print of the same rows and merges them in.
+        /// </summary>
+        /// <remarks>
+        /// <para>RouterOS before 7.20 prints no flag in <c>as-value</c> — no <c>disabled</c>, <c>dynamic</c>,
+        /// <c>running</c> — with or without <c>detail</c>, and a read then maps each of them to its CLR default:
+        /// an interface that is up reads <c>Running = false</c>, and nothing says so. Asked for by name, the same
+        /// router answers them explicitly <c>true</c> or <c>false</c> (<c>print as-value proplist=running,disabled</c>,
+        /// 7.17 and 7.19.6); 7.20 made that the default ("include flags by default when printing to value").</para>
+        /// <para>The second print is built like the first — same filter, same windows — so it costs one command per
+        /// page, and only on such a router. The CLI's <c>proplist=</c> refuses the whole read when one name is
+        /// unknown to the menu, so the names are checked first (<see cref="KnownFlagFieldsAsync"/>); a name the
+        /// menu does not have is one the binary API does not send either.</para>
+        /// </remarks>
+        private async Task<IList<TikRecordSentence>> SupplyFlagsAsync(
+            TikCommandDescriptor descriptor, IList<TikRecordSentence> records, CancellationToken cancellationToken)
+        {
+            var hint = descriptor.Parameters.FirstOrDefault(p => p.Name == TikSpecialProperties.CliFlags);
+            if (hint == null || records.Count == 0)
+                return records;
+
+            string[] wanted = (hint.Value ?? string.Empty)
+                .Split(',').Select(n => n.Trim()).Where(n => n.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            if (wanted.Length == 0)
+                return records;
+
+            if (!await AsValueOmitsFlagsAsync(records, wanted, cancellationToken).ConfigureAwait(false))
+                return records;
+
+            string[] known = await KnownFlagFieldsAsync(descriptor, wanted, cancellationToken).ConfigureAwait(false);
+            if (known.Length == 0)
+                return records;
+
+            string proplist = string.Join(",", known);
+            IList<TikRecordSentence> flagRecords = await RunPrintQueryAsync(descriptor, false,
+                (pars, from) => CliCommandBuilder.BuildPrintExpression(descriptor.CommandText, pars, from, proplist),
+                cancellationToken).ConfigureAwait(false);
+            return MergeById(records, flagRecords);
+        }
+
+        /// <summary>
+        /// Whether this router's <c>print as-value</c> leaves the flag fields out, asked once per connection with
+        /// <see cref="CliCommandBuilder.FlagsProbe"/>.
+        /// </summary>
+        /// <remarks>
+        /// When the probe cannot answer (no row, or a refusal) the read itself decides, uncached: no row carrying
+        /// any of the requested flags is how a pre-7.20 answer looks, since 7.20+ prints <c>disabled</c> on every
+        /// row of a menu that has it.
+        /// </remarks>
+        private async Task<bool> AsValueOmitsFlagsAsync(IList<TikRecordSentence> records, string[] wanted,
+            CancellationToken cancellationToken)
+        {
+            if (_asValueOmitsFlags == null)
+            {
+                IList<TikRecordSentence> probe;
+                try
                 {
-                    if (!mergedFields.ContainsKey(kv.Key))
-                        mergedFields[kv.Key] = kv.Value;
+                    string output = await ExecuteCliCommandAsync(CliCommandBuilder.FlagsProbe, cancellationToken)
+                        .ConfigureAwait(false);
+                    probe = CliOutputParser.ParseAsValue(output);
                 }
-                merged.Add(new TikRecordSentence(mergedFields));
+                catch (TikCommandException)
+                {
+                    probe = new List<TikRecordSentence>();
+                }
+
+                if (probe.Count > 0)
+                {
+                    _asValueOmitsFlags = !probe[0].Words.ContainsKey("disabled");
+                    if (_asValueOmitsFlags == true)
+                        TikWireTrace.Emit("cli.flags", TikWireDir.Note,
+                            "this router's 'print as-value' carries no flag fields (RouterOS before 7.20) — the flags "
+                                + "an entity maps are read by name with a second print for the rest of this connection");
+                }
             }
 
-            return merged;
+            if (_asValueOmitsFlags != null)
+                return _asValueOmitsFlags.Value;
+            return !records.Any(r => wanted.Any(w => r.Words.ContainsKey(w)));
+        }
+
+        /// <summary>
+        /// The names in <paramref name="wanted"/> that the menu knows, checked once per menu and list on this
+        /// connection with <see cref="CliCommandBuilder.BuildProplistCheck"/>: the whole list first, and each
+        /// name alone only when the router refuses the list.
+        /// </summary>
+        private async Task<string[]> KnownFlagFieldsAsync(TikCommandDescriptor descriptor, string[] wanted,
+            CancellationToken cancellationToken)
+        {
+            string key = descriptor.CommandText + "|" + string.Join(",", wanted);
+            if (_knownFlagFields.TryGetValue(key, out string[]? cached))
+                return cached;
+
+            string[] known;
+            if (await ProplistKnownAsync(descriptor, string.Join(",", wanted), cancellationToken).ConfigureAwait(false))
+            {
+                known = wanted;
+            }
+            else
+            {
+                var list = new List<string>();
+                foreach (string name in wanted)
+                    if (await ProplistKnownAsync(descriptor, name, cancellationToken).ConfigureAwait(false))
+                        list.Add(name);
+                known = list.ToArray();
+            }
+
+            _knownFlagFields[key] = known;
+            return known;
+        }
+
+        /// <summary>
+        /// Whether the menu knows every name in <paramref name="proplist"/>: an empty answer means yes,
+        /// <see cref="CliCommandBuilder.ProplistRefusal"/> means no. Anything else is the router refusing the
+        /// command itself, and is thrown — read as "unknown name", it would drop every flag without a word.
+        /// </summary>
+        private async Task<bool> ProplistKnownAsync(TikCommandDescriptor descriptor, string proplist,
+            CancellationToken cancellationToken)
+        {
+            string output = await ExecuteCliCommandAsync(
+                CliCommandBuilder.BuildProplistCheck(descriptor.CommandText, proplist), cancellationToken)
+                .ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(output))
+                return true;
+            if (output.IndexOf(CliCommandBuilder.ProplistRefusal, StringComparison.OrdinalIgnoreCase) >= 0)
+                return false;
+            throw new TikCommandTrapException(CreateDummyCommand(descriptor),
+                new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(output)));
         }
 
         /// <summary>
