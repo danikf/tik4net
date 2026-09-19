@@ -36,6 +36,7 @@ namespace tik4net.Connection
                 "monitor-traffic",
                 "torch",
                 "profile",           // /tool/profile — see the note below about the table menus of that name
+                "discover",          // /tool/romon/discover — a neighbour scan that runs until its duration ends
             };
 
         // NOTE on 'profile': several TABLES are also called that (/ppp/profile, /ip/hotspot/profile,
@@ -83,6 +84,11 @@ namespace tik4net.Connection
                 // 7.23.2 over REST, duration=1 answers "[]" in 1.5 s and duration=2 answers rows. The CLI's
                 // freeze-frame driver hit the same floor from the other side (a frame needs two intervals).
                 { "torch",      new KeyValuePair<string, string>("duration", "2") },
+                // discover refuses 'once' ("bad parameter once", 7.24.4) and has the same two-second floor as
+                // torch over the CLI: ':put [/tool romon discover duration=1 as-value]' prints nothing, and
+                // duration=2 prints the neighbours. The API answers duration=1 with a row, but the bound is
+                // shared, so it is the one every transport can use.
+                { "discover",   new KeyValuePair<string, string>("duration", "2") },
             };
 
         /// <summary>

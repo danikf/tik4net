@@ -378,6 +378,8 @@ namespace tik4net.Winbox
             ["/tool/mac-server/sessions"]    = "/tools/mac-server/mac-session",
             ["/tool/romon"]                  = "/tools/romon/romon-settings",               // singleton
             ["/tool/romon/port"]             = "/tools/romon/romon-port",
+            ["/tool/romon/discover"]         = "/tools/romon/romon-discovery",              // query [127,4]
+            ["/tool/romon/ping"]             = "/tools/romon/romon-ping",                   // query [127,2], shared with the settings item
             ["/tool/sniffer"]                = "/tools/packet-sniffer/packet-sniffer-settings", // singleton
             ["/tool/sniffer/host"]           = "/tools/packet-sniffer/sniffer-host",
             ["/tool/sniffer/packet"]         = "/tools/packet-sniffer/sniffer-packet",

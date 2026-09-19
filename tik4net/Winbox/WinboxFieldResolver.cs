@@ -417,6 +417,30 @@ namespace tik4net.Winbox
                     keyToApi: new Dictionary<int, string> { [0x1] = "host" },
                     keyUiType: new Dictionary<int, string> { [0x1] = "ipaddr" }),
 
+                // /tool/romon/ping (ToolRomonPing). The 'RoMON Ping' window labels the request size 'Packet Size'
+                // and the reply's 'Reply Size' (both key 0x2, both the API's 'size'); the statusbar names
+                // min/avg/max bare and leaves the loss percentage (key 0x6b) unnamed. The reply record, dumped
+                // whole (RomonAgentProbeTest, 7.24.4), carries four keys this path has to supply itself:
+                //  - 0x1 is the request's 'ID' and the row's 'Host', and on [127,2] ALSO the settings' 'Enabled'
+                //    (bool) — a contested key whose type-qualified registration named every reply's host 'id'.
+                //    A synthetic of this path is the most specific claim, so it names the key 'host'.
+                //  - 0x64 'Time' is a fixedpoint of scale 1000 with no postfix, so it read 0.001 where the API
+                //    prints 1ms; its wire unit is milliseconds, as the statusbar's min/avg/max (postfix ms) are.
+                //  - 0x69 / 0x6A are the running sent / received counts; the .jg does not name them.
+                ["/tool/romon/ping"] = new FieldAliasSet(
+                    apiToJg: Ci(("size", "packet-size"), ("seq", "seq-#"),
+                               ("min-rtt", "min"), ("avg-rtt", "avg"), ("max-rtt", "max")),
+                    jgToApi: Ci(("packet-size", "size"), ("reply-size", "size"), ("seq-#", "seq"),
+                               ("min", "min-rtt"), ("avg", "avg-rtt"), ("max", "max-rtt")),
+                    keyToApi: new Dictionary<int, string> { [0x6b] = "packet-loss" },
+                    syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["host"] = new WinboxJgField("host", 0x1, "raw", true, uiType: "macaddr"),
+                        ["time"] = new WinboxJgField("time", 0x64, "u32", true, uiType: "number", postfix: "ms"),
+                        ["sent"] = new WinboxJgField("sent", 0x69, "u32", true, uiType: "number"),
+                        ["received"] = new WinboxJgField("received", 0x6A, "u32", true, uiType: "number"),
+                    }),
+
                 // /tool/traceroute (ToolTraceroute). The .jg window (type:'query', path:[26]) labels the target
                 // 'Traceroute To' and the per-hop responder 'Host'; the API calls both 'address'.
                 // 'count'/'max-hops' need no alias — the window labels them exactly that.

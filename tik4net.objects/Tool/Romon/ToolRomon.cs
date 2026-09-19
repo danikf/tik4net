@@ -28,6 +28,11 @@ namespace tik4net.Objects.Tool.Romon
         [TikProperty("secrets", DefaultValue = "")]
         public string? Secrets { get; set; }
 
+        /// <summary>current-id — the RoMON id in effect: <see cref="Id"/> when set, otherwise the MAC the router
+        /// picked. This is what a RoMON neighbour's discover reports as its address. WinBox: "Current ID".</summary>
+        [TikProperty("current-id", IsReadOnly = true)]
+        public string?/*MAC*/ CurrentId { get; private set; }
+
         /// <summary>Returns a human-readable summary of RoMON settings.</summary>
         public override string ToString() => string.Format("romon: enabled={0}, id={1}", Enabled, Id);
     }

@@ -1238,6 +1238,14 @@ namespace tik4net.WinboxNative
                 bool waitForDone = TikMonitorVerbs.SelfTerminating(TikPath.Verb(descriptor.CommandText));
                 var deadline = DateTime.UtcNow.AddMilliseconds(ReceiveTimeout);
 
+                // A caller's duration= keeps a continuous window open for that long and returns every pass, the
+                // way the API streams a report per refresh until the duration ends (/tool/romon/discover
+                // duration=3 → three reports). The window has no input for it — see IsMonitorSnapshotModifier.
+                TimeSpan? duration = waitForDone ? null : MonitorDuration(descriptor);
+                DateTime? runUntil = duration.HasValue ? DateTime.UtcNow + duration.Value : (DateTime?)null;
+                if (runUntil.HasValue && runUntil.Value.AddMilliseconds(ReceiveTimeout) > deadline)
+                    deadline = runUntil.Value.AddMilliseconds(ReceiveTimeout);
+
                 WinboxM2Continuation? continuation = null;
                 while (true)
                 {
@@ -1254,7 +1262,11 @@ namespace tik4net.WinboxNative
 
                     if (done) break;                    // router set Finished: the command is over
                     if (continuation != null) continue; // mid-pass: keep reading this one
-                    if (!waitForDone) break;            // continuous window: one pass is the snapshot
+                    if (runUntil.HasValue)
+                    {
+                        if (DateTime.UtcNow >= runUntil.Value) break;   // the caller's duration is over
+                    }
+                    else if (!waitForDone) break;       // continuous window: one pass is the snapshot
 
                     // Bounded so a command that never finishes fails like any other unfinished read instead of
                     // hanging on this thread forever.
@@ -1612,8 +1624,34 @@ namespace tik4net.WinboxNative
         /// resolution on the field the caller never meant as data. Same idea as <c>.proplist</c>/<c>detail</c>
         /// being dropped per transport — what is a wire word on one is a client-side instruction on another.
         /// </remarks>
+        /// <remarks>
+        /// <c>duration</c> is the same kind of instruction: no <c>.jg</c> monitor window has an input of that name
+        /// (checked across the 7.24 catalog), because WinBox runs a window until the user closes it. It is
+        /// honoured by <c>RunMonitorWindowSync</c> keeping the window open for that long.
+        /// </remarks>
         private static bool IsMonitorSnapshotModifier(string name)
-            => string.Equals(name, "once", StringComparison.OrdinalIgnoreCase);
+            => string.Equals(name, "once", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(name, MonitorDurationParam, StringComparison.OrdinalIgnoreCase);
+
+        private const string MonitorDurationParam = "duration";
+
+        // The caller's 'duration=' on a monitor, or null. A value the router would refuse is refused here too,
+        // rather than silently turning a bounded scan into a single pass.
+        private TimeSpan? MonitorDuration(TikCommandDescriptor descriptor)
+        {
+            foreach (var p in descriptor.Parameters)
+            {
+                if (!string.Equals(p.Name.TrimStart('?', '='), MonitorDurationParam, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (TikDuration.TryParseTimeSpan(p.Value, out TimeSpan span)) return span;
+                if (int.TryParse(p.Value, System.Globalization.NumberStyles.Integer,
+                        System.Globalization.CultureInfo.InvariantCulture, out int seconds))
+                    return TimeSpan.FromSeconds(seconds);
+                throw new TikCommandTrapException(CreateDummyCommand(descriptor),
+                    new TikTrapSentenceResult($"invalid value for argument duration: {p.Value}"));
+            }
+            return null;
+        }
 
         // Encode an 'unset' into M2 fields: every 'value-name=<field>' pseudo-parameter names a field to be
         // written back as empty. The parameter's own name is NOT a router field, so it must never reach the

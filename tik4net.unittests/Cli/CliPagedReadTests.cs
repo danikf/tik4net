@@ -515,7 +515,7 @@ namespace tik4net.unittests.Cli
             public bool OmitMarker;
 
             /// <summary>When set, the whole answer to every window request, as the router refuses one.</summary>
-            public string WindowRefusal;
+            public string? WindowRefusal;
             public int DropRecordsForOffset = -1;
             public int DropOneRecordForOffset = -1;
             public int ExtraRecordForOffset = -1;
