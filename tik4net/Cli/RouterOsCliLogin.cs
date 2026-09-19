@@ -250,6 +250,152 @@ namespace tik4net.Cli
                 throw LoginException(result);
         }
 
+        // ── RoMON: continue an agent session into a target (SSH relay) ─────────
+
+        /// <summary>
+        /// On an agent's shell prompt, opens <c>/tool romon ssh</c> to <paramref name="targetRomonId"/>, logs in
+        /// as <paramref name="user"/>, and returns once the TARGET's shell prompt is on screen and the target has
+        /// confirmed its RoMON id. From then on the terminal is the target's.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Every failure before the password prompt looks the same on the wire: no text, a pause, then
+        /// <c>Welcome back!</c> and the AGENT's own prompt (7.24.4 agent: an unknown RoMON id and RoMON disabled
+        /// on the agent both read exactly so). A prompt shape cannot tell the two routers apart — on factory
+        /// defaults both are <c>[admin@MikroTik] &gt;</c> — so the rules are positional, and one read confirms:
+        /// </para>
+        /// <list type="bullet">
+        ///   <item>a shell prompt before any <c>password:</c> means the relay never started (the agent is then
+        ///         asked whether RoMON is enabled, so the message can say which of the two it was);</item>
+        ///   <item>a second <c>password:</c> after the password means refused — a wrong password and a user
+        ///         without the <c>ssh</c> policy read identically (7.17rc3 target). Ctrl-C leaves the prompt and
+        ///         nothing else is ever typed into it: each further line would be one more failed login in the
+        ///         target's log;</item>
+        ///   <item>at the prompt, <c>:put [/tool romon get current-id]</c> must answer the target's id, so a
+        ///         relay that silently fell back to the agent can never pass as the target.</item>
+        /// </list>
+        /// <para>The target's IP <c>ssh</c> service is not involved (disabled on the measured target, login
+        /// worked); the user's <c>ssh</c> policy is. The <c>+c</c> terminal flag passes through the relay.</para>
+        /// </remarks>
+        /// <exception cref="ArgumentException"><paramref name="targetRomonId"/> is not a MAC-shaped id.</exception>
+        /// <exception cref="TikConnectionLoginException">The relay did not start, the target refused the login,
+        /// or the prompt reached is not the target's.</exception>
+        public static async Task RomonSshLoginAsync(
+            string targetRomonId,
+            string user,
+            string password,
+            bool useTerminalFlags,
+            Func<Func<string, bool>, CancellationToken, Task<string>> readUntil,
+            Func<string, CancellationToken, Task> sendLine,
+            Func<byte[], CancellationToken, Task> sendBytes,
+            CancellationToken ct)
+        {
+            string id = NormalizeRomonId(targetRomonId);
+            string loginName = useTerminalFlags ? user + TerminalLoginFlags : user;
+
+            await sendLine("/tool romon ssh address=" + id + " user=" + CliCommandBuilder.QuoteIfNeeded(loginName), ct)
+                .ConfigureAwait(false);
+
+            // 1. The relay starts with the target's password prompt. The agent's prompt first = it never started.
+            string opened = await readUntil(s => IsPasswordPrompt(s) || IsShellPrompt(s), ct).ConfigureAwait(false);
+            if (!IsPasswordPrompt(opened))
+            {
+                if (!IsShellPrompt(opened))
+                    throw RomonException("the agent did not answer /tool romon ssh with a password prompt", opened);
+
+                const string enabledQuery = ":put [/tool romon get enabled]";
+                await sendLine(enabledQuery, ct).ConfigureAwait(false);
+                string enabled = await readUntil(s => AnswerAfterEcho(s, enabledQuery) != null, ct).ConfigureAwait(false);
+                if (string.Equals(AnswerAfterEcho(enabled, enabledQuery), "false", StringComparison.OrdinalIgnoreCase))
+                    throw RomonException("RoMON is not enabled on the agent (/tool romon set enabled=yes)", null);
+                throw RomonException("the agent could not reach RoMON id " + id +
+                    " (not in its RoMON overlay — see /tool romon discover on the agent)", null);
+            }
+
+            // 2. The target's password. Traced as a secret, like the ordinary login's.
+            using (Diagnostics.TikWireTrace.Secret())
+                await sendLine(password, ct).ConfigureAwait(false);
+
+            // 3. The target's prompt — or the password prompt again, which is the refusal. Deliberately NOT
+            //    IsLoginFailure: the target prints its recent critical log lines at login, and those read
+            //    "login failure for user … by romon …" on a login that SUCCEEDED (7.17rc3). Position decides.
+            Func<string, bool> settled = s =>
+                IsShellPrompt(s) || IsPasswordPrompt(s) || IsChangePasswordNag(s);
+            string result = await readUntil(settled, ct).ConfigureAwait(false);
+
+            int nagRounds = 0;
+            while (!IsShellPrompt(result) && !IsPasswordPrompt(result) && IsChangePasswordNag(result)
+                   && nagRounds++ < MaxNagRounds)
+            {
+                await sendBytes(new[] { CtrlC }, ct).ConfigureAwait(false);
+                result = await readUntil(settled, ct).ConfigureAwait(false);
+            }
+
+            if (!IsShellPrompt(result))
+            {
+                if (IsPasswordPrompt(result))
+                {
+                    await sendBytes(new[] { CtrlC }, ct).ConfigureAwait(false);   // leave the prompt, type nothing
+                    throw RomonException("the target " + id + " refused the login for user '" + user +
+                        "': wrong password, or the user's group lacks the 'ssh' policy (RoMON SSH needs it)", null);
+                }
+                throw RomonException("the target " + id + " did not reach its shell prompt", result);
+            }
+
+            // 4. Confirm it is the target: a relay that fell back to the agent shows the agent's own id.
+            const string idQuery = ":put [/tool romon get current-id]";
+            await sendLine(idQuery, ct).ConfigureAwait(false);
+            string confirmed = await readUntil(s => AnswerAfterEcho(s, idQuery) != null, ct).ConfigureAwait(false);
+            string? answeredId = AnswerAfterEcho(confirmed, idQuery);
+            if (!string.Equals(answeredId, id, StringComparison.OrdinalIgnoreCase))
+                throw RomonException("the prompt reached is not the target's: its RoMON id is '" + answeredId +
+                    "', not " + id, answeredId == null ? confirmed : null);
+        }
+
+        /// <summary>
+        /// The one-line answer to <paramref name="echoedCommand"/>, once the prompt that follows it is on screen;
+        /// <c>null</c> until then. Keyed on the echo rather than on "a prompt": RouterOS repaints the prompt once
+        /// more right after a login, and that stale prompt would otherwise end the read before the answer.
+        /// </summary>
+        internal static string? AnswerAfterEcho(string text, string echoedCommand)
+        {
+            if (string.IsNullOrEmpty(text)) return null;
+            int echo = text.LastIndexOf(echoedCommand, StringComparison.Ordinal);
+            if (echo < 0) return null;
+            string after = text.Substring(echo + echoedCommand.Length);
+            if (!IsShellPrompt(after)) return null;
+            foreach (string raw in after.Split('\r', '\n'))
+            {
+                string line = raw.Trim();
+                if (line.Length == 0 || ContainsPromptSuffix(line)) continue;
+                return line;
+            }
+            return string.Empty;
+        }
+
+        /// <summary>
+        /// A RoMON id as the CLI accepts it: six hex octets separated by ':' (or '-'), upper-cased. Anything else
+        /// is refused before it reaches the terminal — the id is spliced into a command line.
+        /// </summary>
+        internal static string NormalizeRomonId(string romonId)
+        {
+            string s = (romonId ?? string.Empty).Trim().Replace('-', ':');
+            string[] parts = s.Split(':');
+            bool ok = parts.Length == 6;
+            if (ok)
+                foreach (string p in parts)
+                    if (p.Length != 2 || !Uri.IsHexDigit(p[0]) || !Uri.IsHexDigit(p[1])) { ok = false; break; }
+            if (!ok)
+                throw new ArgumentException(
+                    "A RoMON id is six hex octets, e.g. AA:BB:CC:DD:EE:FF; got '" + romonId + "'.", nameof(romonId));
+            return s.ToUpperInvariant();
+        }
+
+        private static TikConnectionLoginException RomonException(string what, string? serverText)
+            => new TikConnectionLoginException(new Exception(
+                "RoMON SSH relay: " + what + "." +
+                (string.IsNullOrWhiteSpace(serverText) ? "" : " Server response: " + serverText!.Trim())));
+
         private static TikConnectionLoginException LoginException(string serverText)
             => new TikConnectionLoginException(new Exception(
                 "RouterOS CLI login failed. Server response: " + (serverText ?? string.Empty).Trim()));

@@ -35,6 +35,8 @@ namespace tik4net.Telnet
         /// <inheritdoc/>
         protected override string TransportName => "Telnet";
 
+        internal override bool HonoursRomonTarget => true;
+
         // ── Open (Close + driver plumbing live in CliConnectionBase) ───────────
 
         /// <inheritdoc/>
@@ -73,10 +75,13 @@ namespace tik4net.Telnet
             BuildTransport(string host, int port, string user, string password)
         {
             var client = new TelnetClient(Encoding, ReceiveTimeout, SendTimeout);
+            var romonTarget = RomonTarget;
             Func<CancellationToken, Task> login = async ct =>
             {
                 client.Connect(host, port, ConnectTimeout);
                 await client.LoginAsync(user, password, ct).ConfigureAwait(false);
+                if (romonTarget != null)
+                    await client.EnterRomonAsync(romonTarget, ct).ConfigureAwait(false);
             };
             return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,
                 client.SendRawAndReadUntilQuietAsync, client.SendCommandAndReadAsync, client.Close);

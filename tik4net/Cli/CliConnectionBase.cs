@@ -226,6 +226,19 @@ namespace tik4net.Cli
         protected abstract string TransportName { get; }
 
         /// <summary>
+        /// When set before <c>Open</c>, the host/user/password given to <c>Open</c> are the AGENT's, and the
+        /// transport continues from the agent's shell into this target over RoMON SSH before the connection
+        /// counts as open. Internal until the public RoMON surface exists.
+        /// </summary>
+        internal RomonSshTarget? RomonTarget { get; set; }
+
+        /// <summary>
+        /// True for a transport whose login continues into <see cref="RomonTarget"/> (Telnet, SSH). The rest
+        /// refuse a target before connecting — ignoring one would open the AGENT and run every command there.
+        /// </summary>
+        internal virtual bool HonoursRomonTarget => false;
+
+        /// <summary>
         /// Shared open: runs <paramref name="login"/> under the standard guard (a
         /// <see cref="TikConnectionLoginException"/> is rethrown as-is; any other exception is wrapped in one
         /// and the half-open client closed), then registers the driver delegates and marks the connection
@@ -245,6 +258,9 @@ namespace tik4net.Cli
             // Before the delegate, not inside it: the delegate opens the socket synchronously and only then
             // awaits the login, so an already-cancelled token would otherwise still cost a TCP connect.
             cancellationToken.ThrowIfCancellationRequested();
+            if (RomonTarget != null && !HonoursRomonTarget)
+                throw new NotSupportedException(TransportName + " cannot relay to a RoMON target (" + RomonTarget +
+                    "); use Telnet or SSH to the agent.");
             try
             {
                 // The login delegate has always taken a token; it used to be handed CancellationToken.None,

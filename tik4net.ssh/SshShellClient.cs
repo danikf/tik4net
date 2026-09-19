@@ -108,6 +108,24 @@ namespace tik4net.Ssh
             await DrainAsync(250, ct).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// From the agent's shell, continues this terminal into a RoMON target through <c>/tool romon ssh</c>
+        /// (<see cref="RouterOsCliLogin.RomonSshLoginAsync"/>). Every command after it runs on the target.
+        /// </summary>
+        internal async Task EnterRomonAsync(RomonSshTarget target, CancellationToken ct)
+        {
+            await RouterOsCliLogin.RomonSshLoginAsync(
+                target.RomonId, target.User, target.Password,
+                useTerminalFlags: true,
+                readUntil: ReadUntilAsync,
+                sendLine: SendLineAsync,
+                sendBytes: SendBytesAsync,
+                ct: ct).ConfigureAwait(false);
+
+            // The target repaints its prompt after the login, as the agent's shell did (see SettleAfterConnectAsync).
+            await DrainAsync(250, ct).ConfigureAwait(false);
+        }
+
         // ── SendCommandAndReadAsync ───────────────────────────────────────────
 
         /// <summary>

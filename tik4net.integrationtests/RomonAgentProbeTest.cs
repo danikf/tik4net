@@ -9,11 +9,16 @@
 //
 // Read-only: getall, get-singleton and a command-less message. Nothing is written to the agent.
 // Opt-in: set TIK4NET_ROMON_PROBE=1 (and TIK4NET_PROBE_LOG=<file> to keep the output).
+//
+// The Probe_Romon_SshRelay_* methods drive the SSH relay instead (/tool romon ssh from a Telnet or SSH session to
+// the agent — TIK4NET_ROMON_AGENT_TRANSPORT). They log in to the TARGET, so they need its user and password in
+// TIK4NET_ROMON_TARGET_USER / TIK4NET_ROMON_TARGET_PASS (never stored), and they only read.
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Configuration;
 using System.Linq;
+using tik4net.Objects;
 using tik4net.Winbox;
 using M2 = tik4net.Winbox.M2Message;
 
@@ -229,6 +234,109 @@ namespace tik4net.integrationtests
                     }
                 Log($"interval {(withInterval ? "u4=1000" : "omitted")}: answered={answered} timeout={timeouts}");
             }
+        }
+
+        // ── SSH relay (Telnet to the agent → /tool romon ssh → target) ────────
+
+        // TIK4NET_ROMON_AGENT_TRANSPORT = telnet (default) | ssh — how the probe reaches the agent.
+        private static tik4net.Cli.CliConnectionBase OpenRelay(string targetId, string user, string password)
+        {
+            var type = string.Equals(Environment.GetEnvironmentVariable("TIK4NET_ROMON_AGENT_TRANSPORT"), "ssh",
+                StringComparison.OrdinalIgnoreCase) ? TikConnectionType.Ssh : TikConnectionType.Telnet;
+            var conn = (tik4net.Cli.CliConnectionBase)ConnectionFactory.CreateConnection(type);
+            conn.RomonTarget = new tik4net.Cli.RomonSshTarget(targetId, user, password);
+            conn.Open(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"],
+                ConfigurationManager.AppSettings["pass"] ?? "");
+            return conn;
+        }
+
+        /// <summary>A transport that does not carry the relay must refuse the target before it connects.</summary>
+        [TestMethod]
+        public void Probe_Romon_SshRelay_RefusedOnATransportWithoutIt()
+        {
+            if (Environment.GetEnvironmentVariable("TIK4NET_ROMON_PROBE") != "1")
+                Assert.Inconclusive("Set TIK4NET_ROMON_PROBE=1.");
+            var conn = new tik4net.MacTelnet.MacTelnetConnection
+            {
+                RomonTarget = new tik4net.Cli.RomonSshTarget("AA:BB:CC:DD:EE:FF", "nobody", "x"),
+            };
+            var ex = Assert.ThrowsException<NotSupportedException>(() =>
+                conn.Open(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"],
+                    ConfigurationManager.AppSettings["pass"] ?? ""));
+            Log("refused: " + ex.Message);
+        }
+
+        /// <summary>
+        /// Read-only tour of the target through the relay: identity, resource, a wide table, a filtered read.
+        /// Target credentials come from TIK4NET_ROMON_TARGET_USER / TIK4NET_ROMON_TARGET_PASS and are never
+        /// stored. Run only against a target you may read.
+        /// </summary>
+        [TestMethod]
+        public void Probe_Romon_SshRelay_ReadsTheTarget()
+        {
+            string target = Environment.GetEnvironmentVariable("TIK4NET_ROMON_TARGET");
+            string user = Environment.GetEnvironmentVariable("TIK4NET_ROMON_TARGET_USER");
+            string pass = Environment.GetEnvironmentVariable("TIK4NET_ROMON_TARGET_PASS");
+            if (Environment.GetEnvironmentVariable("TIK4NET_ROMON_PROBE") != "1" || string.IsNullOrEmpty(target)
+                || string.IsNullOrEmpty(user) || pass == null)
+                Assert.Inconclusive("Set TIK4NET_ROMON_PROBE=1, TIK4NET_ROMON_TARGET and the target's USER/PASS.");
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            using (var conn = OpenRelay(target, user, pass))
+            {
+                Log($"open: {sw.ElapsedMilliseconds} ms");
+                var identity = conn.LoadSingle<tik4net.Objects.System.SystemIdentity>();
+                Log($"identity: {identity.Name}");
+                var resource = conn.LoadSingle<tik4net.Objects.System.SystemResource>();
+                Log($"version: {resource.Version}  board: {resource.BoardName}");
+                var interfaces = conn.LoadAll<tik4net.Objects.Interface.Interface>().ToList();
+                Log($"interfaces: {interfaces.Count}, longest name '{interfaces.Select(i => i.Name).OrderByDescending(n => n?.Length).FirstOrDefault()}'");
+                foreach (var i in interfaces.Take(3)) Log($"    {i.Name} type={i.Type} mac={(string.IsNullOrEmpty(i.MacAddress) ? "" : "set")} running={i.Running}");
+                var addresses = conn.LoadAll<tik4net.Objects.Ip.IpAddress>().ToList();
+                Log($"ip addresses: {addresses.Count}");
+                var ethers = conn.LoadList<tik4net.Objects.Interface.Interface>(
+                    conn.CreateParameter("type", "ether", TikCommandParameterFormat.Filter)).ToList();
+                Log($"filtered type=ether: {ethers.Count} (all ether: {ethers.All(e => e.Type == "ether")})");
+                var romon = conn.LoadSingle<tik4net.Objects.Tool.Romon.ToolRomon>();
+                Log($"target current-id matches: {string.Equals(romon.CurrentId, target, StringComparison.OrdinalIgnoreCase)}");
+                Log($"total: {sw.ElapsedMilliseconds} ms");
+            }
+        }
+
+        /// <summary>
+        /// The raw CLI answer for one interface through the relay, next to what the mapper made of it — for
+        /// fields that disagree with the binary API. TIK4NET_ROMON_IFACE names the interface.
+        /// </summary>
+        [TestMethod]
+        public void Probe_Romon_SshRelay_RawInterfaceRow()
+        {
+            string target = Environment.GetEnvironmentVariable("TIK4NET_ROMON_TARGET");
+            string user = Environment.GetEnvironmentVariable("TIK4NET_ROMON_TARGET_USER");
+            string pass = Environment.GetEnvironmentVariable("TIK4NET_ROMON_TARGET_PASS");
+            string iface = Environment.GetEnvironmentVariable("TIK4NET_ROMON_IFACE");
+            if (Environment.GetEnvironmentVariable("TIK4NET_ROMON_PROBE") != "1" || string.IsNullOrEmpty(target)
+                || string.IsNullOrEmpty(user) || pass == null || string.IsNullOrEmpty(iface))
+                Assert.Inconclusive("Set TIK4NET_ROMON_PROBE=1, TIK4NET_ROMON_TARGET, USER/PASS and TIK4NET_ROMON_IFACE.");
+
+            using (var conn = OpenRelay(target, user, pass))
+            {
+                foreach (var s in conn.CallCommandSync(":put [/interface print as-value where name=\"" + iface + "\"]"))
+                    Log("raw: " + s);
+                var cmd = conn.CreateCommandAndParameters("/interface/print", "name", iface);
+                foreach (var row in cmd.ExecuteList())
+                    Log("words: " + string.Join(" ", row.Words.Select(w => w.Key + "=" + w.Value)));
+            }
+        }
+
+        /// <summary>An id nobody answers to: the relay must fail fast, name the cause, and send no password.</summary>
+        [TestMethod]
+        public void Probe_Romon_SshRelay_UnknownIdFailsCleanly()
+        {
+            if (Environment.GetEnvironmentVariable("TIK4NET_ROMON_PROBE") != "1")
+                Assert.Inconclusive("Set TIK4NET_ROMON_PROBE=1.");
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var ex = Assert.ThrowsException<TikConnectionLoginException>(() => OpenRelay("AA:BB:CC:DD:EE:FF", "nobody", "x"));
+            Log($"unknown id: {sw.ElapsedMilliseconds} ms — {ex.Message}");
         }
 
         private static byte[][] Concat(byte[][] a, params byte[][] b)

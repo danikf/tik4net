@@ -37,6 +37,8 @@ namespace tik4net.Ssh
         /// <inheritdoc/>
         protected override string TransportName => "SSH";
 
+        internal override bool HonoursRomonTarget => true;
+
         // ── Open (Close + driver plumbing live in CliConnectionBase) ───────────
 
         /// <inheritdoc/>
@@ -77,12 +79,15 @@ namespace tik4net.Ssh
             BuildTransport(string host, int port, string user, string password)
         {
             var client = new SshShellClient(Encoding, ReceiveTimeout);
+            var romonTarget = RomonTarget;
             Func<CancellationToken, Task> login = async ct =>
             {
                 // ConnectTimeout, not SendTimeout: getting connected is what is being bounded here, and
                 // reusing the send budget for it was how this transport ignored the option entirely (D1).
                 client.Connect(host, port, user, password, ConnectTimeout);
                 await client.SettleAfterConnectAsync(ct).ConfigureAwait(false);
+                if (romonTarget != null)
+                    await client.EnterRomonAsync(romonTarget, ct).ConfigureAwait(false);
             };
             return (login, client.SendCommandAndReadAsync, client.SendRawAndReadAsync,
                 client.SendRawAndReadUntilQuietAsync, client.SendCommandAndReadAsync, client.Close);
