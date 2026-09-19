@@ -260,6 +260,13 @@ namespace tik4net.Objects
         /// It never sends <c>!done</c> — stop listening by calling <see cref="ITikCommand.Cancel"/> or <see cref="ITikCommand.CancelAndJoin()"/>
         /// on the returned command.
         /// </summary>
+        /// <remarks>
+        /// Rows that exist when the listen starts are not reported. The transports without server push (REST, the
+        /// CLI family, WinBox native) emulate <c>/listen</c> by re-reading the table; they read it once before this
+        /// call returns, so a change made after it returns is reported there too, and the call takes as long as
+        /// one read of the table. A failure of that read arrives through <paramref name="onExceptionCallback"/>;
+        /// the call does not throw it.
+        /// </remarks>
         /// <typeparam name="TEntity">Entity type to listen to (must have a <c>[TikEntity]</c> attribute).</typeparam>
         /// <param name="connection">Active connection.</param>
         /// <param name="onChangeCallback">Called for each changed or added item.</param>

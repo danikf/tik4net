@@ -157,6 +157,13 @@ namespace tik4net.Objects
         /// When an item is deleted the router sends <c>=.dead=yes</c>; the optional <paramref name="onDeletedCallback"/>
         /// receives the <c>.id</c> of the deleted item instead of a deserialized entity.
         /// </summary>
+        /// <remarks>
+        /// Rows that exist when the listen starts are not reported. The transports without server push (REST, the
+        /// CLI family, WinBox native) emulate <c>/listen</c> by re-reading the table; they read it once before this
+        /// call returns, so a change made after it returns is reported there too, and the call takes as long as
+        /// one read of the table. A failure of that read arrives through <paramref name="onExceptionCallback"/>;
+        /// the call does not throw it.
+        /// </remarks>
         /// <typeparam name="TEntity">Entity type whose path was used to build the <c>/listen</c> command.</typeparam>
         /// <param name="command">Command with path ending in <c>/listen</c>.</param>
         /// <param name="onChangeCallback">Called for each changed item.</param>
