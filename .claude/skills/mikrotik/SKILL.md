@@ -38,6 +38,7 @@ rather than guessing.
 | `transport`      | string   | Transport name, default `Api` (see table below) |
 | `port`           | int      | Port, 0 = transport default |
 | `routerMac`      | string   | Router MAC `AA:BB:CC:DD:EE:FF` — only MacTelnet / WinboxCliMac (else MNDP discovery, ~5 s) |
+| `allowInvalidCertificate` | bool | `ApiSsl` / `RestSsl`: accept the router's self-signed certificate (default `false` — a lab router's certificate is refused without it) |
 | `traceLevel`     | string   | `off` (default), `words` (raw words/CLI lines), or `bytes` (words **plus** a byte/frame wire trace) — see [Wire tracing & router-log](#wire-tracing--router-log-debugging) |
 | `traceChannels`  | string[] | `bytes` only: keep just these emit-site channels (`wbxcli.mepty`, `wbxtcp.frame`, `wbxtcp.sock`, `telnet.sock`, `mactelnet.udp`, `api.word`, `value.token`); omit = all |
 | `includeRawTrace`| bool     | Back-compat alias for `traceLevel='words'`, default false |

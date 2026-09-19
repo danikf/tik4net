@@ -173,6 +173,11 @@ public sealed class MikroTikTools
                      "(MacTelnet / WinboxCliMac / WinboxNativeMac). " +
                      "When omitted the router MAC is discovered via MNDP (up to 5 s).")]
         string? routerMac = null,
+        [Description("ApiSsl / RestSsl only: when true, accept a self-signed or otherwise invalid router certificate " +
+                     "(a RouterOS device usually presents a self-signed one). Default false — the certificate is " +
+                     "validated against the OS trust store. The connection stays encrypted either way, but the " +
+                     "router's identity is not checked, so use it for a lab or a network you trust.")]
+        bool allowInvalidCertificate = false,
         [Description("Back-compat alias for traceLevel='words': when true, also return the raw words exchanged " +
                      "with the router for the command. Default: false. Prefer traceLevel.")]
         bool includeRawTrace = false,
@@ -258,6 +263,7 @@ public sealed class MikroTikTools
         {
             return Stamp($"ERROR (argument): {ex.Message}");
         }
+        setup.AllowInvalidCertificate = allowInvalidCertificate;
 
         // The side channel dials host over the API; through RoMON host is a RoMON id, and the agent's log is
         // not the target's.

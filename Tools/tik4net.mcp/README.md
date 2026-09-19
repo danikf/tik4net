@@ -104,6 +104,7 @@ confusable.
 | `transport`       | string   | Transport (default `Api`): `Api`, `ApiSsl`, `Rest`, `RestSsl`, `Telnet`, `Ssh`, `MacTelnet`, `WinboxCli`, `WinboxCliMac`, `WinboxNative`, `WinboxNativeMac` |
 | `port`            | int      | TCP/UDP port; `0` = transport default |
 | `routerMac`       | string   | Router MAC — only the MAC-layer transports `MacTelnet` / `WinboxCliMac` / `WinboxNativeMac` (else MNDP discovery) |
+| `allowInvalidCertificate` | bool | `ApiSsl` / `RestSsl`: accept a self-signed or invalid router certificate (default `false` — validated against the OS trust store) |
 | `traceLevel`      | string   | `off` (default), `words` (raw words/CLI lines), or `bytes` (words **plus** a byte/frame-level wire trace: pre-ANSI terminal bytes, mepty `PULL`/prompt/settle notes, M2 frame chunks, socket I/O) |
 | `traceChannels`   | string[] | `bytes` only: keep just these channels (`wbxcli.mepty`, `wbxtcp.frame`, `wbxtcp.sock`, `telnet.sock`, `mactelnet.udp`, `api.word`); omit = all |
 | `includeRawTrace` | bool     | Back-compat alias for `traceLevel='words'` |
