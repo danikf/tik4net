@@ -97,7 +97,10 @@ namespace tik4net.unittests.Cli
             return conn;
         }
 
-        /// <summary>Answers each command with whatever <c>answer</c> makes of its text.</summary>
+        /// <summary>
+        /// Answers each command with whatever <c>answer</c> makes of its text — except the once-per-connection flags
+        /// probe, answered as 7.24 does (flags in as-value), since that is the version these tests were measured on.
+        /// </summary>
         private sealed class AnsweringCliConnection : CliConnectionBase
         {
             private readonly Func<string, string> _answer;
@@ -109,7 +112,13 @@ namespace tik4net.unittests.Cli
 
             public void OpenScripted()
                 => OpenWith(_ => Task.FromResult(0),
-                    (cliText, ct) => { Sent.Add(cliText); return Task.FromResult(_answer(cliText)); },
+                    (cliText, ct) =>
+                    {
+                        Sent.Add(cliText);
+                        return Task.FromResult(cliText == CliCommandBuilder.FlagsProbe
+                            ? ".id=*1;address=;disabled=false;invalid=false;name=ftp;port=21"
+                            : _answer(cliText));
+                    },
                     (raw, ct) => Task.FromResult(string.Empty), () => { });
 
             public override void Open(string host, string user, string password) => OpenScripted();

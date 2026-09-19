@@ -745,6 +745,8 @@ namespace tik4net.Cli
         /// expression context where characters like <c>/</c> (e.g. in <c>192.168.1.1/24</c>) and
         /// <c>:</c> (e.g. MAC/IPv6) are interpreted as operators, so <c>where address=192.168.1.1/24</c>
         /// matches NOTHING. Anything outside a conservative safe set is wrapped in double-quotes.
+        /// <para>A value containing a <c>.</c> is quoted as well, although every character is in the safe set: RouterOS
+        /// before 7.20 parses a bare operand by the field's type, and an address:port field refuses a bare IPv4.</para>
         /// <para>The safe set is <see cref="IsSafeUnquoted"/>, shared with <see cref="QuoteIfNeeded"/>:
         /// a name=value argument turned out to need exactly the same treatment, for a different reason —
         /// there the router parses the value by the PARAMETER'S type, and a script-typed one reads
@@ -769,7 +771,11 @@ namespace tik4net.Cli
                 if (!IsSafeUnquoted(c)) { safe = false; break; }
             }
 
-            if (safe)
+            // A dotted value is quoted although every character of it is safe: RouterOS before 7.20 parses a bare
+            // operand by the field's type, and /ip firewall connection types src-address as address:port, so
+            // 'where src-address=192.168.3.103' is refused with "expected value of port". Quoted, it is accepted,
+            // and a quoted IPv4 matches the same rows as a bare one on 7.19.6 and 7.24.4 (findings-cli §2).
+            if (safe && value.IndexOf('.') < 0)
                 return value;
 
             return "\"" + EscapeInsideQuotes(value) + "\"";

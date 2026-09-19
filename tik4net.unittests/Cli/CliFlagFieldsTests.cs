@@ -53,6 +53,19 @@ namespace tik4net.unittests.Cli
             public bool? Log { get; set; }
         }
 
+        // A singleton with a flag. RouterOS takes no proplist= on a singleton at all — 7.19.6 answers "expected end of
+        // command", 7.24.4 "bad parameter proplist" — and its plain print as-value carries the flag on both
+        // (/system clock dst-active, /ip settings ipv4-fast-path-active; measured).
+        [TikEntity("/clock", IsSingleton = true)]
+        private sealed class SingletonFlagProbe
+        {
+            [TikProperty("dst-active", IsReadOnly = true)]
+            public bool DstActive { get; set; }
+
+            [TikProperty("time-zone-name")]
+            public string? TimeZoneName { get; set; }
+        }
+
         [TikEntity("/iface")]
         private sealed class NoFlagProbe
         {
@@ -170,6 +183,81 @@ namespace tik4net.unittests.Cli
                 Assert.AreEqual(true, row.Disabled);
                 string flagsRead = conn.Sent.Single(s => s.Contains(" proplist=") && !s.Contains("where false"));
                 StringAssert.Contains(flagsRead, "where name=e1");
+            }
+        }
+
+        /// <summary>
+        /// A singleton's flags are in its plain read, and it refuses proplist= outright — so no flags read is asked
+        /// for, which would otherwise fail the whole load (every singleton with a read-only bool, on 7.19.6).
+        /// </summary>
+        [TestMethod]
+        public void BeforeRouterOs720_ASingletonIsReadInOneCommand_WithItsFlags()
+        {
+            using (var conn = new FlagRouter(printsFlags: false))
+            {
+                conn.OpenScripted();
+
+                var clock = conn.LoadSingle<SingletonFlagProbe>();
+
+                Assert.IsTrue(clock.DstActive);
+                Assert.AreEqual("Europe/Prague", clock.TimeZoneName);
+                Assert.IsFalse(conn.Sent.Any(s => s.Contains("proplist=")), string.Join(" | ", conn.Sent));
+            }
+        }
+
+        /// <summary>
+        /// A low-level print that names a flag in <c>.proplist</c> gets it, as it does from the binary API. RouterOS
+        /// before 7.20 leaves the flag out of the plain read, so the named ones are read by name like the mapper's.
+        /// </summary>
+        [TestMethod]
+        public void BeforeRouterOs720_AFlagNamedInProplist_IsReadByName()
+        {
+            using (var conn = new FlagRouter(printsFlags: false))
+            {
+                conn.OpenScripted();
+
+                var rows = conn.CreateCommand("/iface/print",
+                        conn.CreateParameter(TikSpecialProperties.Proplist, ".id,name,running", TikCommandParameterFormat.NameValue))
+                    .ExecuteList().ToList();
+
+                CollectionAssert.AreEqual(new[] { "true", "false", "true" },
+                    rows.Select(r => r.GetResponseFieldOrDefault("running", "(missing)")).ToList());
+                CollectionAssert.AreEqual(new[] { "*1", "*2", "*3" }, rows.Select(r => r.GetId()).ToList());
+            }
+        }
+
+        /// <summary>
+        /// A name in <c>.proplist</c> the menu does not have is ignored, as the API ignores it — the router's refusal
+        /// of that one name must not sink the read or the flags beside it.
+        /// </summary>
+        [TestMethod]
+        public void BeforeRouterOs720_AnUnknownNameInProplist_IsIgnored_AndTheFlagStillArrives()
+        {
+            using (var conn = new FlagRouter(printsFlags: false))
+            {
+                conn.OpenScripted();
+
+                var rows = conn.CreateCommand("/iface/print",
+                        conn.CreateParameter(TikSpecialProperties.Proplist, ".id,name,running,no-such-field", TikCommandParameterFormat.NameValue))
+                    .ExecuteList().ToList();
+
+                CollectionAssert.AreEqual(new[] { "true", "false", "true" },
+                    rows.Select(r => r.GetResponseFieldOrDefault("running", "(missing)")).ToList());
+                Assert.IsFalse(rows.Any(r => r.Words.ContainsKey("no-such-field")));
+            }
+        }
+
+        /// <summary>A low-level print without a <c>.proplist</c> gets what the router prints, and asks nothing more.</summary>
+        [TestMethod]
+        public void BeforeRouterOs720_APlainLowLevelPrint_AsksNothingMore()
+        {
+            using (var conn = new FlagRouter(printsFlags: false))
+            {
+                conn.OpenScripted();
+
+                conn.CreateCommand("/iface/print").ExecuteList().ToList();
+
+                Assert.AreEqual(1, conn.Sent.Count, string.Join(" | ", conn.Sent));
             }
         }
 
@@ -292,6 +380,12 @@ namespace tik4net.unittests.Cli
             private Task<string> SendAsync(string cliText, CancellationToken ct)
             {
                 Sent.Add(cliText);
+
+                // The singleton: its plain read carries every field, and it takes no proplist= at all.
+                if (cliText.Contains("/clock print"))
+                    return Task.FromResult(cliText.Contains("proplist=")
+                        ? "expected end of command (line 1 column 36)"
+                        : CountedReadFake.Answer(cliText, "date=2026-09-19;dst-active=true;gmt-offset=7200;time-zone-name=Europe/Prague"));
 
                 // Only the shapes this menu really answers; anything else gets the router's syntax error, as
                 // '/interface print print …' did on 7.19.6.

@@ -190,7 +190,11 @@ namespace tik4net.integrationtests
         /// </summary>
         [TestMethod]
         public void TheMdnsRepeaterInterfaceListIsReportedUnderTheApiName()
-            => AssertAgreesWithApiWhileSet("/ip/dns", "mdns-repeat-ifaces", TestConstants.SecondInterface);
+        {
+            using (var api = OpenSideApi())
+                EnsureInterfaceExists(api, TestConstants.SecondInterface);
+            AssertAgreesWithApiWhileSet("/ip/dns", "mdns-repeat-ifaces", TestConstants.SecondInterface);
+        }
 
         /// <summary>
         /// A dropdown whose members come from a REFERENCED table, behind a <c>defenum</c> sentinel:
@@ -380,7 +384,11 @@ namespace tik4net.integrationtests
             if (expected.Count == 0)
                 Assert.Inconclusive("no route on this router carries an origin flag the API prints");
 
-            var rows = AllDetailed("/ip/route").ToDictionary(r => r.GetId(), r => r);
+            // Named in .proplist: flags are not in a plain CLI print before RouterOS 7.20, asked for by name they are.
+            var rows = Connection.CreateCommand("/ip/route/print",
+                    Connection.CreateParameter(TikSpecialProperties.Proplist, ".id,connect,dhcp,static",
+                        TikCommandParameterFormat.NameValue))
+                .ExecuteList().ToDictionary(r => r.GetId(), r => r);
 
             int compared = 0;
             foreach (var e in expected)

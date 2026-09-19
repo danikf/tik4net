@@ -496,6 +496,7 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void CreateDuplicitEntity_WillThrowCorrectException()
         {
+            EnsureInterfaceExists(Connection, TestConstants.SecondInterface);
             var ipAddr = SaveTracked(new IpAddress
             {
                 Address = "10.255.255.1/30",

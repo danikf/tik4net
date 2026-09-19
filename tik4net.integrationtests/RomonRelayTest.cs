@@ -211,6 +211,28 @@ namespace tik4net.integrationtests
         // How long after its token fired an open may still succeed: the steps after the last wait on the router.
         private const int IgnoredCancelMs = 200;
 
+        // The target's sessions that arrived over a RoMON relay, by .id. The router marks each with by-romon (the
+        // agent's RoMON id), which is what makes this test independent of whatever else is logged in at the time:
+        // it looks for the row the relay itself created rather than counting rows.
+        private static Dictionary<string, string> RelayedSessions(ITikConnection target)
+            => target.CreateCommand("/user/active/print").ExecuteList()
+                .Where(r => !string.IsNullOrEmpty(r.GetResponseFieldOrDefault("by-romon", "")))
+                .ToDictionary(r => r.GetId(),
+                              r => r.GetResponseFieldOrDefault("via", "") + " by-romon "
+                                   + r.GetResponseFieldOrDefault("by-romon", ""));
+
+        // Waits up to 20 s for every relayed session this test did not start with to end.
+        private static string[] WaitForRelayedSessions(ITikConnection target, ICollection<string> baselineIds)
+        {
+            var watch = Stopwatch.StartNew();
+            string[] extra;
+            while ((extra = RelayedSessions(target).Where(kv => !baselineIds.Contains(kv.Key))
+                        .Select(kv => kv.Value).ToArray()).Length > 0
+                   && watch.ElapsedMilliseconds < 20000)
+                Thread.Sleep(500);
+            return extra;
+        }
+
         // Terminal sessions of this user on a router, over its own API connection (whose row is left out).
         private static string[] TerminalSessions(ITikConnection direct, string user)
             => direct.CreateCommand("/user/active/print").ExecuteList()
@@ -249,23 +271,20 @@ namespace tik4net.integrationtests
             using (var target = OpenTargetDirect())
             {
                 int agentBefore = TerminalSessions(agent, AgentUser).Length;
-                int targetBefore = TerminalSessions(target, TargetUser).Length;
+                var relayedBefore = new HashSet<string>(RelayedSessions(target).Keys, StringComparer.OrdinalIgnoreCase);
                 var setup = RelaySetup(agentTransport);
 
-                // An open relay shows as one terminal session on each router — otherwise the leak check at the end
+                // An open relay shows as a by-romon session on the target - otherwise the leak check at the end
                 // could not see what it looks for.
                 using (var relay = await setup.CreateAsync(agentTransport))
                 {
                     Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true);
-                    Assert.AreEqual(agentBefore + 1, TerminalSessions(agent, AgentUser).Length,
-                        "an open relay is not visible as a session on the agent: "
-                        + string.Join(", ", TerminalSessions(agent, AgentUser)));
-                    Assert.AreEqual(targetBefore + 1, TerminalSessions(target, TargetUser).Length,
-                        "an open relay is not visible as a session on the target: "
-                        + string.Join(", ", TerminalSessions(target, TargetUser)));
+                    var open = RelayedSessions(target).Where(kv => !relayedBefore.Contains(kv.Key)).ToArray();
+                    Assert.AreEqual(1, open.Length, "an open relay must be one new by-romon session on the target: "
+                        + string.Join(", ", open.Select(kv => kv.Value)));
                 }
                 WaitForSessions(agent, AgentUser, agentBefore);
-                WaitForSessions(target, TargetUser, targetBefore);
+                WaitForRelayedSessions(target, relayedBefore);
 
                 // A second open, timed: the cancel points are fractions of it. The first is slower (a cold agent),
                 // and cancel points taken from it land after most of the warm opens are done.
@@ -319,11 +338,11 @@ namespace tik4net.integrationtests
                                              + Environment.NewLine + string.Join(Environment.NewLine, log));
 
                 var agentAfter = WaitForSessions(agent, AgentUser, agentBefore);
-                var targetAfter = WaitForSessions(target, TargetUser, targetBefore);
-                Assert.AreEqual(agentBefore, agentAfter.Length,
+                var relayedAfter = WaitForRelayedSessions(target, relayedBefore);
+                Assert.IsTrue(agentAfter.Length <= agentBefore,
                     "sessions left on the agent: " + string.Join(", ", agentAfter));
-                Assert.AreEqual(targetBefore, targetAfter.Length,
-                    "sessions left on the target: " + string.Join(", ", targetAfter));
+                Assert.AreEqual(0, relayedAfter.Length,
+                    "relayed sessions left on the target: " + string.Join(", ", relayedAfter));
 
                 using (var relay = await setup.CreateAsync(agentTransport))
                     Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,

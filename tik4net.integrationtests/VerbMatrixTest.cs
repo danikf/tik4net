@@ -102,7 +102,10 @@ namespace tik4net.integrationtests
 
             string whole = cmd.ExecuteScalar();
             StringAssert.Contains(whole, "comment=" + comment);
-            StringAssert.Contains(whole, ".id=" + id);
+            // Case-insensitive on the id: the whole row is one opaque value, printed the way the router spells it
+            // - lowercase hex before RouterOS 7.20 - where an id read as a FIELD comes back in the API's spelling.
+            Assert.IsTrue(whole.IndexOf(".id=" + id, StringComparison.OrdinalIgnoreCase) >= 0,
+                "the row must carry its own .id: " + whole);
         }
 
         [TestMethod]
@@ -516,7 +519,11 @@ namespace tik4net.integrationtests
 
         private string ReadField(string id, string fieldName)
         {
-            var row = Connection.CreateCommand(Path + "/print").ExecuteList()
+            // Named in .proplist: a flag such as disabled is not in a plain CLI print before RouterOS 7.20.
+            var row = Connection.CreateCommand(Path + "/print",
+                    Connection.CreateParameter(TikSpecialProperties.Proplist, ".id," + fieldName,
+                        TikCommandParameterFormat.NameValue))
+                .ExecuteList()
                 .FirstOrDefault(r => r.GetId() == id);
             Assert.IsNotNull(row, "the rule " + id + " is no longer on the router");
             return row.GetResponseFieldOrDefault(fieldName, string.Empty);

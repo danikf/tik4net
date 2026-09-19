@@ -8,6 +8,7 @@
 // The test asserts the two transports AGREE, rather than asserting a fixed value: which rows a lab router
 // has learned is not ours to decide, and a test that pinned it would measure the lab.
 
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net;
@@ -52,9 +53,15 @@ namespace tik4net.integrationtests.Ip
                     TikSpecialProperties.Id, row.GetResponseField(TikSpecialProperties.Id)).ExecuteNonQuery();
         }
 
+        // The flag is named in .proplist: a plain CLI print carries no flags before RouterOS 7.20, a named one does.
+        private static IEnumerable<ITikReSentence> ArpRows(ITikConnection conn)
+            => conn.CreateCommand("/ip/arp/print",
+                    conn.CreateParameter(TikSpecialProperties.Proplist, ".id,address,comment,dynamic",
+                        TikCommandParameterFormat.NameValue))
+                .ExecuteList();
+
         private static ITikReSentence ProbeRow(ITikConnection conn)
-            => conn.CreateCommand("/ip/arp/print").ExecuteList()
-                   .Single(r => r.GetResponseFieldOrDefault("comment", "") == ProbeComment);
+            => ArpRows(conn).Single(r => r.GetResponseFieldOrDefault("comment", "") == ProbeComment);
 
         [TestMethod]
         public void AConfiguredRowIsReportedAsNotDynamic()
@@ -69,11 +76,11 @@ namespace tik4net.integrationtests.Ip
             // same thing the API says about the same row.
             using (var api = OpenSideApi())
             {
-                var apiRows = api.CreateCommand("/ip/arp/print").ExecuteList()
+                var apiRows = ArpRows(api)
                     .ToDictionary(r => r.GetResponseField(TikSpecialProperties.Id),
                                   r => r.GetResponseFieldOrDefault("dynamic", ""));
 
-                foreach (var row in Connection.CreateCommand("/ip/arp/print").ExecuteList())
+                foreach (var row in ArpRows(Connection))
                 {
                     string id = row.GetResponseField(TikSpecialProperties.Id);
                     if (!apiRows.TryGetValue(id, out string expected)) continue;   // learned/aged between reads

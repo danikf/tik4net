@@ -34,6 +34,7 @@ namespace tik4net.integrationtests
         {
             using (var api = OpenSideApi())
             {
+                EnsureInterfaceExists(api, TestConstants.SecondInterface);
                 RemoveFixtures(api);
                 api.CreateCommandAndParameters("/interface/bridge/add",
                     TikCommandParameterFormat.NameValue, "name", BridgeName).ExecuteScalar();

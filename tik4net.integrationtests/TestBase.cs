@@ -720,6 +720,18 @@ namespace tik4net.integrationtests
         /// </summary>
         internal const string TransportGapMarker = "TRANSPORT GAP";
 
+        /// <summary>
+        /// Skips when the interface <paramref name="name"/> is not on this router. The topology keys in
+        /// App.config describe one lab router; pointed at another (the RoMON target has one ethernet port, not
+        /// two) a test that needs <c>testSecondInterface</c> measures nothing rather than failing.
+        /// </summary>
+        protected static void EnsureInterfaceExists(ITikConnection connection, string name)
+        {
+            if (!connection.CreateCommandAndParameters("/interface/print", "name", name).ExecuteList().Any())
+                Assert.Inconclusive($"This router has no interface '{name}' — the topology keys in App.config "
+                                    + "(testInterface / testSecondInterface) name another router's ports.");
+        }
+
         protected void EnsureCommandAvailable(string commandPath)
         {
             try

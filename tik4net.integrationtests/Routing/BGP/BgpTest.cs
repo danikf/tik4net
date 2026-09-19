@@ -59,6 +59,9 @@ namespace tik4net.integrationtests
         [TestMethod]
         public void ListAllInstancesWillNotFail()
         {
+            // /routing/bgp/instance is not on every RouterOS 7: 7.19.6 answers "bad command name instance",
+            // 7.24.4 has the menu.
+            EnsureCommandAvailable("/routing/bgp/instance");
             var list = Connection.LoadAll<BgpInstance>();
             Assert.IsNotNull(list);
         }

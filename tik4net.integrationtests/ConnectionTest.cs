@@ -146,14 +146,24 @@ namespace tik4net.integrationtests
             }
         }
 
+        /// <summary>
+        /// A receive that cannot finish inside <see cref="ITikConnection.ReceiveTimeout"/> raises
+        /// <see cref="TikConnectionReceiveTimeoutException"/>.
+        /// </summary>
+        /// <remarks>
+        /// Measured on a read the router cannot answer quickly — a ping of two echoes takes seconds by
+        /// construction — rather than on the open: a login, and a small print, can finish inside 1 ms on a quiet
+        /// router (7.19.6 does, consistently), so asserting it there was asserting that the router is slow.
+        /// </remarks>
         [TestMethod]
         [ExpectedException(typeof(TikConnectionReceiveTimeoutException))]
-        public void OpenConnectionReceiveTimeoutWillThrowExceptionWhenShortTimeout()
+        public void ReceiveTimeoutWillThrowExceptionWhenShortTimeout()
         {
             using (var connection = ConnectionFactory.CreateConnection(DEFAULT_CONNECTION_TYPE))
             {
-                connection.ReceiveTimeout = 1; //very short timeout
                 connection.Open(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
+                connection.ReceiveTimeout = 1; //very short timeout
+                connection.CreateCommandAndParameters("/ping", TikCommandParameterFormat.NameValue, "address", "192.0.2.1", "count", "2").ExecuteList();
                 connection.Close();
             }
         }
@@ -195,14 +205,17 @@ namespace tik4net.integrationtests
 
         [TestMethod]
         [ExpectedException(typeof(TikConnectionReceiveTimeoutException))]
-        public void OpenConnectionAsyncReceiveTimeoutWillThrowExceptionWhenShortTimeout()
+        public void ReceiveTimeoutAsyncWillThrowExceptionWhenShortTimeout()
         {
             Task.Run(async () =>
             {
                 using (var connection = ConnectionFactory.CreateConnection(DEFAULT_CONNECTION_TYPE))
                 {
-                    connection.ReceiveTimeout = 1; //very short timeout + using async version 
                     await connection.OpenAsync(ConfigurationManager.AppSettings["host"], ConfigurationManager.AppSettings["user"], ConfigurationManager.AppSettings["pass"]);
+                    connection.ReceiveTimeout = 1; //very short timeout + using async version
+                    // A read the router cannot answer inside the timeout whatever its speed — see the sync test.
+                    await connection.CreateCommandAndParameters("/ping", TikCommandParameterFormat.NameValue, "address", "192.0.2.1", "count", "2")
+                        .ExecuteListAsync();
                     connection.Close();
                 }
             }).GetAwaiter().GetResult();

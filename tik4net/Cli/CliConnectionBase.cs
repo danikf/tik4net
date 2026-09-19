@@ -787,6 +787,12 @@ namespace tik4net.Cli
             if (proplist != null)
             {
                 var rest = descriptor.Parameters.Where(p => p.Name != TikSpecialProperties.Proplist).ToList();
+                // A field the caller named that the plain read leaves out — a flag, on RouterOS before 7.20 — is
+                // read by name, as the API returns it (SupplyFlagsAsync; it asks only for names no row carries).
+                string named = string.Join(",", (proplist.Value ?? string.Empty).Split(',')
+                    .Select(n => n.Trim()).Where(n => n.Length > 0 && n[0] != '.'));
+                if (named.Length > 0 && !rest.Any(p => p.Name == TikSpecialProperties.CliFlags))
+                    rest.Add(new TikCommandParameter(TikSpecialProperties.CliFlags, named, TikCommandParameterFormat.NameValue));
                 var plain = new TikCommandDescriptor(descriptor.CommandText, rest);
                 IList<TikRecordSentence> rows;
                 if (rest.Any(p => p.ParameterFormat != TikCommandParameterFormat.Filter
@@ -891,7 +897,8 @@ namespace tik4net.Cli
 
         /// <summary>
         /// On a router whose <c>print as-value</c> leaves the flag fields out, reads the ones the command names in
-        /// <see cref="TikSpecialProperties.CliFlags"/> with a second print of the same rows and merges them in.
+        /// <see cref="TikSpecialProperties.CliFlags"/> — the mapper's flag fields, or the fields a caller named in
+        /// <c>.proplist</c> — with a second print of the same rows and merges them in.
         /// </summary>
         /// <remarks>
         /// <para>RouterOS before 7.20 prints no flag in <c>as-value</c> — no <c>disabled</c>, <c>dynamic</c>,
@@ -911,10 +918,15 @@ namespace tik4net.Cli
             if (hint == null || records.Count == 0)
                 return records;
 
+            // Only names no row carries: on 7.20 and later, or for a field the plain read already has, that is none,
+            // and nothing more is sent. The flags read is merged by .id, so a menu without one (a singleton, whose
+            // plain read carries its flags anyway) is left as it is.
             string[] wanted = (hint.Value ?? string.Empty)
                 .Split(',').Select(n => n.Trim()).Where(n => n.Length > 0)
-                .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-            if (wanted.Length == 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(n => !records.Any(r => r.Words.ContainsKey(n)))
+                .ToArray();
+            if (wanted.Length == 0 || records.Any(r => !r.Words.ContainsKey(TikSpecialProperties.Id)))
                 return records;
 
             if (!await AsValueOmitsFlagsAsync(records, wanted, cancellationToken).ConfigureAwait(false))

@@ -399,9 +399,16 @@ namespace tik4net.integrationtests
         /// make <see cref="TikEntityMetadata.AreFieldsReadOnly"/> false and turn every status field on the
         /// row into something <c>Save</c> would send, for two verbs that cannot accept them.
         /// </para>
+        /// <para>
+        /// <c>/ip/hotspot/active</c> is the same shape on RouterOS <b>before 7.20</b>, which still lists the two:
+        /// on 7.19.6 <c>add</c> answers the supout-file error and <c>set 0</c> parses and answers <i>no such
+        /// item</i>, while 7.24.4 does not list either (<c>bad command name add</c> / <c>set</c>). The entity
+        /// declares what works on both.
+        /// </para>
         /// </remarks>
         private static bool IsListedButBroken(string path, string verb)
-            => path == "/ip/ipsec/active-peers" && (verb == "add" || verb == "set");
+            => (path == "/ip/ipsec/active-peers" || path == "/ip/hotspot/active")
+               && (verb == "add" || verb == "set");
 
         /// <summary>The tracked connection to <paramref name="address"/>, or null. Addressed by destination, not by .id — see the test.</summary>
         private FirewallConnection TrackedConnectionTo(string address)

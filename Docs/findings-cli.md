@@ -301,6 +301,18 @@ same rows — same filter, same windows — merged by `.id`. The names are check
 name the menu refuses is left out (the binary API does not send it either). On 7.20+ the probe is the
 only extra command. A read without the marker — a low-level `print` — gets what the router prints.
 
+**A singleton takes no `proplist=` at all**, on either version: `/system clock print as-value
+proplist=dst-active` answers `expected end of command` on 7.19.6 and `bad parameter proplist` on 7.24.4.
+It needs none — a singleton's plain `print as-value` carries its flags on both (`dst-active`,
+`/ip settings ipv4-fast-path-active`) — so the mapper sends no flags marker for an `IsSingleton` entity.
+A flags read would have nothing to merge by either, the menu having no `.id`.
+
+**A low-level read gets the flags it NAMES.** A field listed in `.proplist` that no row of the plain read
+carries is fetched by name through the same path, so `print` with `.proplist=.id,dynamic` reports
+`dynamic` on 7.19.6 exactly as the binary API does. A `.proplist` name the menu does not have is dropped
+by the name check, as the API ignores it. A plain low-level `print` — no `.proplist` — still gets only
+what the router prints, which before 7.20 is no flags.
+
 ### A row id is lowercase hex before 7.20
 
 RouterOS **7.19.6** prints the hex of a row id in lowercase on the CLI — `.id=*59b` in `print as-value`, in
@@ -473,6 +485,18 @@ and `:` are interpreted as operators. It must be `where address="192.168.1.1/24"
 character set is `[A-Za-z0-9._-]` (`CliCommandBuilder.QuoteForWhere`); anything outside it is
 double-quoted. `*N` (an `.id`) works unquoted inside a `find` — `where .id=*1` — and also works quoted, so the builder
 quotes it like anything else.
+
+### A dotted value is quoted too — the operand is parsed by the FIELD's type
+
+Before 7.20 a bare operand is parsed according to the type of the field it is compared with, and an
+address:port field then refuses a bare IPv4: on 7.19.6 `/ip firewall connection print as-value where
+src-address=192.168.3.103` answers `expected value of port (line 1 column 77)`, while
+`src-address="192.168.3.103"` is accepted. 7.24.4 accepts both. Quoted and bare match the *same* rows on
+both versions — measured on `/ip arp address`, `/ip route gateway`, `/ip address network`,
+`/ip firewall connection src-address` and, as a number, `/interface mtu="1500"` — so `QuoteForWhere`
+quotes any value containing a `.` although every character of it is in the safe set. Quoting is not
+free everywhere: a **boolean** compared as a string silently matches nothing (below), and a bool never
+contains a dot.
 
 ### A boolean in `where`/`find` is `yes` or `no`, never `true`
 

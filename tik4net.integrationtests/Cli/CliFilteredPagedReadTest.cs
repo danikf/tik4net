@@ -88,9 +88,9 @@ namespace tik4net.integrationtests.Cli
                       .Select(r => r.Id),
                 out var paged, out var unpaged);
 
-            Assert.IsTrue(unpaged.Count > 1,
-                "the negated filter must span more than one window for this to measure anything, and it "
-                + $"matched {unpaged.Count} row(s)");
+            if (unpaged.Count <= 1)
+                Assert.Inconclusive("the negated filter must span more than one window for this to measure "
+                    + $"anything, and it matched {unpaged.Count} row(s) — this router has too few interfaces.");
             CollectionAssert.AreEqual(unpaged.ToList(), paged.ToList(),
                 $"negated filter: {paged.Count} row(s) windowed, {unpaged.Count} unpaged");
         }
@@ -122,8 +122,9 @@ namespace tik4net.integrationtests.Cli
 
                 Assert.AreEqual(all, matching + negated,
                     $"a filter and its negation must partition the table: {matching} + {negated} against {all}");
-                Assert.IsTrue(negated > 100,
-                    $"the negated half must span several windows for this to measure anything ({negated} rows)");
+                if (negated <= 100)
+                    Assert.Inconclusive("the negated half must span several windows for this to measure anything "
+                        + $"({negated} rows) — this router's mangle table is too small.");
             }
             finally
             {
