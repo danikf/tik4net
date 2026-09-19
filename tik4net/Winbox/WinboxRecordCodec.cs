@@ -1034,9 +1034,9 @@ namespace tik4net.Winbox
         /// <remarks>
         /// Verified against the API on 7.23.2: a <c>/ppp/profile</c> with no address list prints
         /// <c>address-list=</c> (we sent the literal <c>[]</c>), <c>/tool/romon</c> the same for
-        /// <c>secrets</c>, and <c>/ip/dns</c> prints <c>dynamic-servers=192.168.4.1,10.43.94.205,…</c> where
+        /// <c>secrets</c>, and <c>/ip/dns</c> prints <c>dynamic-servers=192.0.2.1,198.51.100.7,…</c> where
         /// the elements are <c>addr</c> compounds we were rendering as their raw u32
-        /// (<c>17082560,3445500682,…</c>).
+        /// (<c>16908480,124007366,…</c>).
         /// </remarks>
         private string FormatMultiList(WinboxJgField jf, object value,
             Dictionary<string, int[]>? collectRefTables)
