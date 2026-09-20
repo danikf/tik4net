@@ -620,6 +620,16 @@ namespace tik4net.Rest
             var fakeCmd = new TikGenericCommand(this, commandText, parameters.ToArray());
             var trapSentence = new TikTrapSentenceResult(fullMessage);
 
+            // A 404 whose body is an HTML error page, not JSON, is the web server answering — not the REST API
+            // refusing a row. RouterOS gained /rest in 7.1; before that the www service serves webfig only, and
+            // every REST call lands on the 404 page (measured on 6.49.13). Read as "no such item" it said the
+            // table was empty, which is the one answer that is certainly wrong.
+            if (statusCode == 404 && body != null && body.TrimStart().StartsWith("<", StringComparison.Ordinal))
+                throw new TikNoSuchCommandException(fakeCmd, new TikTrapSentenceResult(
+                    "the router answered the REST request with an HTML 404 page rather than JSON, so this RouterOS "
+                    + "has no REST API: it was added in 7.1, and before that the www service serves webfig only. "
+                    + "Use the binary API or a CLI transport on this router. Request: " + commandText));
+
             var kind = TikTrapClassifier.Classify(checkText);
             if (kind == TikTrapKind.Generic && statusCode == 404)
                 kind = TikTrapKind.NoSuchItem;
