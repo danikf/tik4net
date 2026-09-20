@@ -135,6 +135,44 @@ namespace tik4net.Cli
         internal const string FlagsProbe = ":put [/ip service print as-value from=0]";
 
         /// <summary>
+        /// Whether this router's <c>print</c> takes a <c>proplist=</c> at all:
+        /// <c>:put [/ip service print as-value proplist=name where false]</c>. RouterOS 7 answers nothing;
+        /// RouterOS 6 has no such argument and answers <c>expected end of command</c> at the column
+        /// <c>proplist</c> starts on (measured on 6.49.13: column 34 for this command).
+        /// </summary>
+        /// <remarks>
+        /// <c>/ip service</c> has a <c>name</c> on every version and every group may read it, and the same
+        /// command without the <c>proplist=</c> is accepted on 6.49.13 — so the argument is the only thing
+        /// the refusal can be about. Asked once per connection: it is a property of the RouterOS version,
+        /// not of the menu.
+        /// </remarks>
+        internal const string ProplistSupportProbe =
+            ":put [/ip service print as-value proplist=name where false]";
+
+        /// <summary>
+        /// The router's answer to an argument its parser does not know — how RouterOS 6 refuses
+        /// <c>proplist=</c> (<see cref="ProplistSupportProbe"/>).
+        /// </summary>
+        internal const string ArgumentRefusal = "expected end of command";
+
+        /// <summary>
+        /// The ids of the rows a flag is set on: <c>:put [/ip route find (active=yes)]</c>, answering
+        /// <c>*30000001;*4206a543</c>.
+        /// </summary>
+        /// <remarks>
+        /// What reads flag fields on a router with no <c>proplist=</c>. The answer is ids and nothing else,
+        /// so it costs a fraction of the rows it describes, and every row the query does not name has the flag
+        /// off. The clause is parenthesised, which is what makes it the <c>where</c> grammar rather than the
+        /// verb's arguments — and in that grammar a boolean is <c>yes</c>/<c>no</c>, never <c>true</c>/<c>false</c>
+        /// (Docs/findings-cli.md). Verified on 6.49.13 for <c>/ip route active</c>, <c>/interface running</c>,
+        /// <c>disabled</c> and <c>dynamic</c>.
+        /// </remarks>
+        /// <param name="apiPath">The print command's path, verb included (<c>/ip/route/print</c>).</param>
+        /// <param name="flagName">One flag field's name.</param>
+        internal static string BuildFlagIdQuery(string apiPath, string flagName)
+            => ":put [" + MenuPathToCli(apiPath) + " find (" + flagName + "=yes)]";
+
+        /// <summary>
         /// <c>:put [expression]</c>, or <c>:put [:serialize to=json [expression]]</c> — how a print is made
         /// to write its value to the terminal (see <see cref="BuildPrint"/>).
         /// </summary>

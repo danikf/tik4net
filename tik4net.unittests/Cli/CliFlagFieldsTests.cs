@@ -120,8 +120,10 @@ namespace tik4net.unittests.Cli
 
                 conn.LoadAll<FlagProbe>().ToList();
 
+                // The menu's own name check, not the once-per-connection question of whether proplist= exists,
+                // which is the same shape on another menu.
                 Assert.AreEqual(":put [/iface print as-value proplist=disabled,running,slave where false]",
-                    conn.Sent.First(s => s.Contains("where false")));
+                    conn.Sent.First(s => s.Contains("where false") && s.Contains("/iface")));
             }
         }
 
@@ -279,6 +281,104 @@ namespace tik4net.unittests.Cli
             }
         }
 
+        // ── RouterOS 6: no proplist= at all ──────────────────────────────────
+        //
+        // The flags are missing from as-value exactly as on 7.19.6, but the argument that reads them by name does
+        // not exist yet: 6.49.13 answers "expected end of command" at the column proplist= starts on. The flags
+        // are then read as one id list per flag, which that version does answer (Docs/findings-cli.md).
+
+        [TestMethod]
+        public void OnRouterOs6_TheFlagsAreReadAsIdLists_AndLandOnTheEntity()
+        {
+            using (var conn = new FlagRouter(printsFlags: false, hasProplist: false))
+            {
+                conn.OpenScripted();
+
+                var rows = conn.LoadAll<FlagProbe>().ToList();
+
+                Assert.AreEqual(3, rows.Count);
+                CollectionAssert.AreEqual(new[] { true, false, true }, rows.Select(r => r.Running).ToList(),
+                    "running must come from the flag id list, not default to false");
+                CollectionAssert.AreEqual(new bool?[] { false, true, false }, rows.Select(r => r.Disabled).ToList());
+                Assert.IsTrue(rows.All(r => r.Log == false), "the ordinary field still comes from the first read");
+            }
+        }
+
+        [TestMethod]
+        public void OnRouterOs6_NoCommandEverCarriesAProplist()
+        {
+            using (var conn = new FlagRouter(printsFlags: false, hasProplist: false))
+            {
+                conn.OpenScripted();
+
+                conn.LoadAll<FlagProbe>().ToList();
+
+                var carrying = conn.Sent
+                    .Where(s => s.Contains("proplist=") && s != CliCommandBuilder.ProplistSupportProbe)
+                    .ToList();
+                Assert.AreEqual(0, carrying.Count, string.Join(" | ", carrying));
+            }
+        }
+
+        [TestMethod]
+        public void OnRouterOs6_TheSupportProbeIsAskedOncePerConnection()
+        {
+            using (var conn = new FlagRouter(printsFlags: false, hasProplist: false))
+            {
+                conn.OpenScripted();
+
+                conn.LoadAll<FlagProbe>().ToList();
+                conn.LoadAll<FlagProbe>().ToList();
+
+                Assert.AreEqual(1, conn.Sent.Count(s => s == CliCommandBuilder.ProplistSupportProbe),
+                    string.Join(" | ", conn.Sent));
+            }
+        }
+
+        [TestMethod]
+        public void OnRouterOs6_AFlagTheMenuDoesNotHave_IsLeftOut_AndTheOthersStillArrive()
+        {
+            using (var conn = new FlagRouter(printsFlags: false, hasProplist: false))
+            {
+                conn.OpenScripted();
+
+                var rows = conn.LoadAll<FlagProbe>().ToList();
+
+                Assert.IsTrue(rows.All(r => !r.Slave), "the refused flag has no value to report");
+                CollectionAssert.AreEqual(new[] { true, false, true }, rows.Select(r => r.Running).ToList(),
+                    "one refused flag must not cost the others");
+            }
+        }
+
+        [TestMethod]
+        public void OnRouterOs6_AFlagTheMenuDoesNotHave_IsAskedOnce()
+        {
+            using (var conn = new FlagRouter(printsFlags: false, hasProplist: false))
+            {
+                conn.OpenScripted();
+
+                conn.LoadAll<FlagProbe>().ToList();
+                conn.LoadAll<FlagProbe>().ToList();
+
+                Assert.AreEqual(1, conn.Sent.Count(s => s.Contains("find (slave=yes)")),
+                    string.Join(" | ", conn.Sent));
+            }
+        }
+
+        [TestMethod]
+        public void OnRouterOs720_TheSupportProbeIsNeverAsked()
+        {
+            using (var conn = new FlagRouter(printsFlags: true))
+            {
+                conn.OpenScripted();
+
+                conn.LoadAll<FlagProbe>().ToList();
+
+                Assert.IsFalse(conn.Sent.Any(s => s == CliCommandBuilder.ProplistSupportProbe),
+                    "a router that prints its flags needs neither the flags read nor this question");
+            }
+        }
+
         // ── What does not ask ────────────────────────────────────────────────
 
         [TestMethod]
@@ -365,12 +465,22 @@ namespace tik4net.unittests.Cli
             private const string SyntaxError = "expected end of command (line 1 column 24)";
 
             private readonly bool _printsFlags;
+            private readonly bool _hasProplist;
             public readonly List<string> Sent = new List<string>();
 
             /// <summary>When set, the name check is answered with a syntax error instead of its real answer.</summary>
             public bool SyntaxErrorOnCheck;
 
-            public FlagRouter(bool printsFlags) => _printsFlags = printsFlags;
+            /// <param name="printsFlags">7.20+ prints the flags in every as-value answer; earlier versions do not.</param>
+            /// <param name="hasProplist">
+            /// Whether <c>print</c> takes a <c>proplist=</c> at all. RouterOS 6 does not, and refuses any command
+            /// carrying one with its parser's "expected end of command".
+            /// </param>
+            public FlagRouter(bool printsFlags, bool hasProplist = true)
+            {
+                _printsFlags = printsFlags;
+                _hasProplist = hasProplist;
+            }
 
             protected override string TransportName => "Flags";
 
@@ -386,6 +496,27 @@ namespace tik4net.unittests.Cli
                     return Task.FromResult(cliText.Contains("proplist=")
                         ? "expected end of command (line 1 column 36)"
                         : CountedReadFake.Answer(cliText, "date=2026-09-19;dst-active=true;gmt-offset=7200;time-zone-name=Europe/Prague"));
+
+                // Does this version have proplist= at all? Asked with a command of its own, before anything
+                // about this menu, and a router without it refuses every command that carries one.
+                if (cliText == CliCommandBuilder.ProplistSupportProbe)
+                    return Task.FromResult(_hasProplist ? string.Empty : SyntaxError);
+                if (!_hasProplist && cliText.Contains("proplist="))
+                    return Task.FromResult(SyntaxError);
+
+                // The flag id list a router without proplist= is read with.
+                var flagFind = Regex.Match(cliText, @"^:put \[/iface find \((?<flag>[a-z-]+)=yes\)\]$");
+                if (flagFind.Success)
+                {
+                    string flag = flagFind.Groups["flag"].Value;
+                    if (!KnownFields.Contains(flag))
+                        return Task.FromResult("bad parameter " + flag);   // as an unknown field is refused
+                    bool[] values = flag == "disabled" ? DisabledValues
+                        : flag == "running" ? RunningValues
+                        : new bool[Names.Length];
+                    return Task.FromResult(string.Join(";", Enumerable.Range(0, Names.Length)
+                        .Where(i => values[i]).Select(i => "*" + (i + 1))));
+                }
 
                 // Only the shapes this menu really answers; anything else gets the router's syntax error, as
                 // '/interface print print …' did on 7.19.6.

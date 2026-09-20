@@ -932,6 +932,10 @@ namespace tik4net.Cli
             if (!await AsValueOmitsFlagsAsync(records, wanted, cancellationToken).ConfigureAwait(false))
                 return records;
 
+            if (!await SupportsProplistAsync(cancellationToken).ConfigureAwait(false))
+                return await SupplyFlagsByFindAsync(descriptor, records, wanted, cancellationToken)
+                    .ConfigureAwait(false);
+
             string[] known = await KnownFlagFieldsAsync(descriptor, wanted, cancellationToken).ConfigureAwait(false);
             if (known.Length == 0)
                 return records;
@@ -941,6 +945,124 @@ namespace tik4net.Cli
                 (pars, from) => CliCommandBuilder.BuildPrintExpression(descriptor.CommandText, pars, from, proplist),
                 cancellationToken).ConfigureAwait(false);
             return MergeById(records, flagRecords);
+        }
+
+        /// <summary><c>null</c> = not established yet. See <see cref="SupportsProplistAsync"/>.</summary>
+        private bool? _supportsProplist;
+
+        /// <summary>The menus whose flag read by <c>find</c> the router has already refused — asked once each.</summary>
+        private readonly HashSet<string> _noFlagFind = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Whether this router's <c>print</c> takes <c>proplist=</c>, asked once per connection with
+        /// <see cref="CliCommandBuilder.ProplistSupportProbe"/>. RouterOS 6 does not have the argument at all.
+        /// </summary>
+        /// <remarks>
+        /// Only a router that also leaves the flags out of <c>as-value</c> ever asks, so this costs one command on
+        /// a pre-7.20 connection and none on a current one. A refusal that is not the parser's
+        /// (<see cref="CliCommandBuilder.ArgumentRefusal"/>) is read as "supported": the flags read then runs as
+        /// before and reports whatever the router says about it, rather than silently taking the other path.
+        /// </remarks>
+        private async Task<bool> SupportsProplistAsync(CancellationToken cancellationToken)
+        {
+            if (_supportsProplist == null)
+            {
+                string output;
+                try
+                {
+                    output = await ExecuteCliCommandAsync(CliCommandBuilder.ProplistSupportProbe, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (TikCommandException)
+                {
+                    output = string.Empty;
+                }
+
+                _supportsProplist = output.IndexOf(CliCommandBuilder.ArgumentRefusal,
+                    StringComparison.OrdinalIgnoreCase) < 0;
+                if (_supportsProplist == false)
+                    TikWireTrace.Emit("cli.flags", TikWireDir.Note,
+                        "this router's 'print' has no 'proplist=' argument (RouterOS 6) — the flags an entity maps "
+                            + "are read as the id list of each flag for the rest of this connection");
+            }
+
+            return _supportsProplist.Value;
+        }
+
+        /// <summary>
+        /// Reads the flag fields on a router with no <c>proplist=</c>: one
+        /// <c>find (&lt;flag&gt;=yes)</c> per flag, whose answer is the ids the flag is set on
+        /// (<see cref="CliCommandBuilder.BuildFlagIdQuery"/>). Every row read is then given each flag
+        /// explicitly — <c>true</c> for an id the query named, <c>false</c> for the rest.
+        /// </summary>
+        /// <remarks>
+        /// <para>The queries are not filtered or windowed like the read they supplement, because they do not need
+        /// to be: the merge is by <c>.id</c>, so ids outside the page simply match nothing, and an id list costs a
+        /// fraction of the rows it describes.</para>
+        /// <para>A flag the menu does not have, or a menu with no <c>find</c> verb, refuses the command; that flag
+        /// is then left out for this menu rather than failing the read, exactly as an unknown name is left out of a
+        /// <c>proplist=</c>. Asked once per menu and flag.</para>
+        /// </remarks>
+        private async Task<IList<TikRecordSentence>> SupplyFlagsByFindAsync(TikCommandDescriptor descriptor,
+            IList<TikRecordSentence> records, string[] wanted, CancellationToken cancellationToken)
+        {
+            var flagIds = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (string name in wanted)
+            {
+                string key = descriptor.CommandText + "|" + name;
+                if (_noFlagFind.Contains(key))
+                    continue;
+
+                string output;
+                try
+                {
+                    output = await ExecuteCliCommandAsync(
+                        CliCommandBuilder.BuildFlagIdQuery(descriptor.CommandText, name), cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (TikCommandException)
+                {
+                    _noFlagFind.Add(key);
+                    continue;
+                }
+
+                // The answer is ids or nothing at all; anything else is the router refusing the command, which
+                // the CLI has no separate channel for. Recognised by shape rather than by phrase: every token
+                // must be an id, so no wording of a refusal can be mistaken for an empty result.
+                string[] tokens = output.Split(';').Select(s => s.Trim())
+                    .Where(s => s.Length > 0).ToArray();
+                if (tokens.Any(t => !t.StartsWith("*", StringComparison.Ordinal)))
+                {
+                    _noFlagFind.Add(key);
+                    continue;
+                }
+
+                flagIds[name] = new HashSet<string>(tokens, StringComparer.OrdinalIgnoreCase);
+            }
+
+            if (flagIds.Count == 0)
+                return records;
+
+            var supplied = new List<TikRecordSentence>(records.Count);
+            foreach (var row in records)
+            {
+                string? id = row.GetResponseFieldOrDefault(TikSpecialProperties.Id, null);
+                if (id == null)
+                {
+                    supplied.Add(row);
+                    continue;
+                }
+
+                var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var kv in row.Words)
+                    fields[kv.Key] = kv.Value;
+                foreach (var kv in flagIds)
+                    if (!fields.ContainsKey(kv.Key))
+                        fields[kv.Key] = kv.Value.Contains(id) ? "true" : "false";
+                supplied.Add(new TikRecordSentence(fields));
+            }
+
+            return supplied;
         }
 
         /// <summary>
