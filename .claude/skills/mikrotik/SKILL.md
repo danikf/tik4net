@@ -1,4 +1,4 @@
----
+﻿---
 name: mikrotik
 description: >
   Connect to a MikroTik router via the tik4net MCP server and query or modify its configuration over
@@ -7,7 +7,8 @@ description: >
   interfaces, firewall rules, etc.),
   change configuration, add/remove entries, run any MikroTik command, or debug/compare a transport
   protocol. Also covers finding routers on the local network by MNDP broadcast when their IP or MAC
-  is unknown ("which MikroTiks are on this segment", "what is the router's MAC").
+  is unknown ("which MikroTiks are on this segment", "what is the router's MAC"), and finding the RoMON
+  ids of the routers reachable through one of them ("what can this router see over RoMON").
 ---
 
 # MikroTik Router Skill
@@ -121,7 +122,7 @@ Every answer carries the version, the build timestamp of **both** assemblies, an
 
 - `mikrotik_call` — a trailing line
   `--- MCP SERVER --- tik4net.mcp 4.0.0 built 2026-08-25 09:46:25, tik4net.dll built 2026-08-25 09:46:54 (…)`
-- `mikrotik_cli_complete`, `mikrotik_discover` — a `serverBuild` property on the returned JSON object
+- `mikrotik_cli_complete`, `mikrotik_discover`, `mikrotik_romon_discover` — a `serverBuild` property on the returned JSON object
 
 This exists because the dev launcher (`Tools/tik4net.mcp/run-dev.ps1`) starts each session from a
 throw-away **copy** of the build output under `%TEMP%`, so the server can be rebuilt and replaced while
@@ -356,8 +357,30 @@ that the segment is empty — the failure is silent and looks identical. MNDP al
 so a device on another subnet never appears. Don't read an empty result as "the router is down"; confirm
 with a direct `mikrotik_call` if you have an address to try.
 
+## Reaching a router through another one — `mikrotik_romon_discover`
+
+**`mikrotik_romon_discover`** scans one router's RoMON overlay and returns each neighbour's **RoMON id** —
+the `host` a relayed `mikrotik_call` takes, with `romonAgentHost` naming the router scanned here. It is
+what MNDP is not: RoMON is layer 2 between the routers themselves, so it reaches a router with no IP
+address and one on a segment this machine cannot route to.
+
+| Parameter | Description |
+|-----------|-------------|
+| `host`, `username`, `password` | the router to scan **from** — the one that would relay |
+| `transport` | default `Api`; any transport |
+| `durationSeconds` | default `3`, clamped 2–30; below 2 the CLI transports report nothing |
+
+Returns `{ romonEnabled, currentId, count, neighbours[] }` — `currentId` is the scanned router's own id,
+and each neighbour carries `address` (its RoMON id), `identity`, `version`, `board`, `hops`, `cost`,
+`path`, `l2mtu`, `uptime`.
+
+**RoMON is off by default on both ends**, so `romonEnabled=false` with an empty list is the usual reason
+for finding nothing, and a neighbour that has not enabled it stays invisible however long the scan runs.
+The relay itself needs a user on the *target* whose group carries the `ssh` policy; only `Telnet`, `Ssh`
+and `MacTelnet` relay (`Docs/findings-romon.md`).
+
 ## Notes
 
 - Changing the tool surface (new transports/params/tools) requires the `tik4net-mcp` server to be rebuilt
-  and reloaded — if `transport` is rejected as unknown or `mikrotik_cli_complete` / `mikrotik_discover` is
-  missing, the running server is stale.
+  and reloaded — if `transport` is rejected as unknown or one of `mikrotik_cli_complete` /
+  `mikrotik_discover` / `mikrotik_romon_discover` is missing, the running server is stale.

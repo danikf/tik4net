@@ -1,7 +1,7 @@
-# tik4net.mcp
+﻿# tik4net.mcp
 
 An [MCP](https://modelcontextprotocol.io) server that exposes MikroTik routers to an MCP client
-(Claude Code, Claude Desktop, …) through [tik4net](https://github.com/danikf/tik4net). It provides three
+(Claude Code, Claude Desktop, …) through [tik4net](https://github.com/danikf/tik4net). It provides four
 tools:
 - **`mikrotik_call`** — runs any RouterOS command over **every** tik4net transport, so you can inspect and
   modify a router, or debug/compare the wire protocol across transports, from an AI assistant.
@@ -10,6 +10,9 @@ tools:
   fields). CLI terminal transports only.
 - **`mikrotik_discover`** — finds MikroTik routers on the local segment via MNDP broadcast. No host, no
   credentials — the tool to reach for when you do not yet know the router's address or MAC.
+- **`mikrotik_romon_discover`** — scans a router's **RoMON** overlay and returns the RoMON id of each
+  neighbour: the id `mikrotik_call` needs to reach a router *through* that one, including routers with no
+  IP address and routers this machine cannot route to.
 
 ## Install
 
@@ -125,7 +128,7 @@ Listen/Streaming.
 Every tool response names the assemblies that produced it — version, the **build timestamp of both**, and
 the path they ran from: `mikrotik_call` appends a trailing
 `--- MCP SERVER --- tik4net.mcp 4.0.0 built 2026-08-25 09:46:25, tik4net.dll built 2026-08-25 09:46:54 (…)`
-line, and `mikrotik_cli_complete` / `mikrotik_discover` carry the same text in a `serverBuild` property.
+line, and the other tools carry the same text in a `serverBuild` property.
 
 The dev launcher runs each session from a throw-away copy of the build output, so the server can be
 replaced while clients are connected — which also means the repository cannot tell you which build is
@@ -233,6 +236,36 @@ MAC-layer transports (`MacTelnet`, `WinboxCliMac`, `WinboxNativeMac`) need.
 
 ```jsonc
 { "timeoutSeconds": 6 }
+```
+
+## The `mikrotik_romon_discover` tool
+
+Scans one router's **RoMON** overlay — the layer-2 overlay MikroTik devices build between themselves — and
+returns the neighbours it can reach, each with the RoMON id that addresses it. That id is what
+`mikrotik_call` takes as `host` when `romonAgentHost` names this router, so this is the tool that turns a
+reachable router into a way in to the ones behind it: a router with **no IP address**, or one on a segment
+this machine cannot route to. (`mikrotik_discover` is the other half of the picture — MNDP, this machine's
+own segment, no credentials.)
+
+| Parameter         | Type | Description |
+|-------------------|------|-------------|
+| `host`            | str  | The router to scan **from** — the one that would relay. Its MAC on the MAC-layer transports |
+| `username` / `password` | str | Credentials on that router |
+| `transport`       | str  | Default `Api`; any tik4net transport |
+| `durationSeconds` | int  | How long to scan; default `3`, clamped to 2–30. Below 2 the CLI transports report nothing |
+| `port`            | int  | `0` = transport default |
+| `routerMac`       | str  | MAC-layer transports only |
+
+Returns `{ serverBuild, host, transport, durationSeconds, romonEnabled, currentId, count, neighbours[] }`.
+`currentId` is *this* router's own RoMON id; each neighbour carries `address` (its RoMON id), `identity`,
+`version`, `board`, `hops`, `cost`, `path`, `l2mtu` and `uptime`.
+
+> **RoMON is off by default, on both ends.** An empty list with `romonEnabled=false` is the usual reason;
+> a neighbour that has not enabled it does not answer either (`/tool/romon/set enabled=yes`). This is a live
+> scan, not a stored table — a router that is down is simply absent.
+
+```jsonc
+{ "host": "192.168.88.1", "username": "admin", "password": "", "durationSeconds": 3 }
 ```
 
 ## Documentation

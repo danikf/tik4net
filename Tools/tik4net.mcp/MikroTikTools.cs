@@ -574,6 +574,122 @@ public sealed class MikroTikTools
         }
     }
 
+    [McpServerTool]
+    [Description(
+        "Scan a router's RoMON overlay — the neighbours it can reach over RoMON, each with the RoMON id that " +
+        "addresses it. This is how you get the id a relayed connection needs: mikrotik_call's romonAgentHost " +
+        "names this router, and host is one of the addresses returned here. " +
+        "RoMON is a layer-2 overlay MikroTik devices build between themselves, so it reaches a router with NO " +
+        "IP address and one on a segment this machine cannot route to — which is what makes it different from " +
+        "mikrotik_discover (MNDP, this machine's own segment only, no credentials). " +
+        "Returns { serverBuild, host, transport, durationSeconds, romonEnabled, currentId, count, neighbours[] } — " +
+        "currentId is THIS router's own RoMON id, and each neighbour carries address (its RoMON id), identity, " +
+        "version, board, hops, cost, path, l2mtu and uptime. " +
+        "An empty list with romonEnabled=false is the usual cause: RoMON has to be enabled on this router " +
+        "(/tool/romon/set enabled=yes) AND on the routers to be found, and it is off by default. " +
+        "A neighbour appears only while it is running: this is a live scan, not a stored table.")]
+    public string MikrotikRomonDiscover(
+        [Description("IP address or hostname of the router to scan FROM — the one whose RoMON overlay is wanted " +
+                     "(this is the router that would relay, i.e. the agent). On the MAC-layer transports its MAC " +
+                     "address (AA:BB:CC:DD:EE:FF) may be given instead.")] string host,
+        [Description("Username for authentication on that router")] string username,
+        [Description("Password for authentication on that router")] string password,
+        [Description("Transport to use (default Api). Any tik4net transport: Api, ApiSsl, Rest, RestSsl, Telnet, " +
+                     "Ssh, MacTelnet, WinboxCli, WinboxCliMac, WinboxNative, WinboxNativeMac.")]
+        string transport = "Api",
+        [Description("How long to scan, in seconds. Clamped to 2-30; below 2 the CLI transports report nothing. " +
+                     "3 is enough on a small overlay — a neighbour is reported about once a second.")]
+        int durationSeconds = 3,
+        [Description("TCP/UDP port. 0 = use the transport default")] int port = 0,
+        [Description("Router MAC 'AA:BB:CC:DD:EE:FF' — only for the MAC-layer transports (else MNDP discovery).")]
+        string? routerMac = null)
+    {
+        if (!Enum.TryParse<TikConnectionType>(transport, ignoreCase: true, out var transportType)
+            || Array.IndexOf(SupportedTransports, transportType) < 0)
+        {
+            return Stamp($"ERROR (argument): unknown transport '{transport}'. Use one of: "
+                       + string.Join(", ", SupportedTransports));
+        }
+
+        if (durationSeconds < 2) durationSeconds = 2;
+        if (durationSeconds > 30) durationSeconds = 30;
+
+        try
+        {
+            var setup = new TikConnectionSetup(host, username, password) { RouterMac = routerMac };
+            if (port > 0)
+                setup.Port = port;
+
+            using var connection = setup.Create(transportType);
+            connection.DebugEnabled = false;
+
+            // The router's own RoMON state first: an overlay that is off answers the scan with 'RoMON not
+            // running' on some transports and with nothing at all on others, and "no neighbours" reads the
+            // same as "not enabled" unless it is asked.
+            var romon = connection.CreateCommand("/tool/romon/print").ExecuteList()
+                .Select(r => r.Words).FirstOrDefault() ?? new Dictionary<string, string>();
+
+            // A scan, not a table: the binary API and REST repeat the whole neighbour set once a second for
+            // the whole duration, the CLI transports report each one once. Keyed by RoMON id, last report wins.
+            var seen = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+            var order = new List<string>();
+            var scan = connection.CreateCommandAndParameters("/tool/romon/discover",
+                TikCommandParameterFormat.NameValue,
+                "duration", durationSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            foreach (var row in scan.ExecuteList())
+            {
+                string address = row.GetResponseFieldOrDefault("address", string.Empty);
+                if (!seen.ContainsKey(address)) order.Add(address);
+                seen[address] = new Dictionary<string, string>(row.Words);
+            }
+
+            var neighbours = order.Select(a => seen[a]).Select(n => new
+                {
+                    address = Field(n, "address"),
+                    identity = Field(n, "identity"),
+                    version = Field(n, "version"),
+                    board = Field(n, "board"),
+                    hops = Field(n, "hops"),
+                    cost = Field(n, "cost"),
+                    path = Field(n, "path"),
+                    l2mtu = Field(n, "l2mtu"),
+                    uptime = Field(n, "uptime"),
+                })
+                .ToArray();
+
+            return JsonSerializer.Serialize(
+                new
+                {
+                    serverBuild = ServerBuild,
+                    host,
+                    transport = transportType.ToString(),
+                    durationSeconds,
+                    romonEnabled = Field(romon, "enabled"),
+                    currentId = Field(romon, "current-id"),
+                    count = neighbours.Length,
+                    neighbours,
+                },
+                new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch (TikConnectionLoginException ex)
+        {
+            return Stamp($"ERROR (auth): {ex.Message}");
+        }
+        catch (System.Net.Sockets.SocketException ex)
+        {
+            return Stamp($"ERROR (network): {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return Stamp($"ERROR ({ex.GetType().Name}): {ex.Message}");
+        }
+    }
+
+    // A word the router did not send is null in the JSON rather than an empty string: a field a transport
+    // does not report and one the router reports as empty are not the same answer.
+    private static string? Field(IReadOnlyDictionary<string, string> words, string name)
+        => words.TryGetValue(name, out var value) ? value : null;
+
     // Parses MCP-format parameter rows ('=name=value' NameValue, '?name=value' Filter) into typed command
     // parameters for the ExecuteNonQuery() path. The rules live in tik4net (TikCommandRow) rather than
     // here: a second copy of them drifts, and this is the copy that would go on silently dropping a row
