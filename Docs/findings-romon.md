@@ -121,6 +121,16 @@ and finishes first (~0.7 s) — and leaves nothing behind: `/user active` on bot
 within seconds, and the next open works. An open relay is one row on each: the agent's by its transport, the
 target's `via=ssh` by RoMON.
 
+**A cancel during the target's login, through an agent before 7.20.** The terminal's `/quit` on close is what
+ends the target's session, and it only works once the target's shell is reading: a cancel that lands between the
+target's login and its first prompt leaves a session on the target that the agent has to end. A 7.24.4 agent does,
+with the console; a 7.19.6 agent does not, and the row stays on the target's `/user active` indefinitely (measured
+at 25 minutes, `by-romon` the agent's id, while the agent's own `/user active` is empty). Of seven cancel points
+spread over one open, three reach the target at all and exactly one survives. Nothing on the client side reaches
+it: a second `/quit` sent after a pause lands on the *agent's* login prompt instead, because the first one has
+already ended that session — it is submitted as a user name, and the failed logins that follow are worse than the
+orphan. Sending a password there is how a blind write once changed an account's password (`Docs/HISTORY.md`).
+
 **Large reads.** 450 rows, each wider than the target's 80-column terminal, read through the relay filtered and
 unfiltered, windowed at 100 rows and in one command: every read returns exactly what the target's own API does,
 over Telnet, SSH and MAC-Telnet — including the single command over MAC-Telnet (0.7 s filtered, 1.7 s for the
@@ -129,6 +139,14 @@ whole table; windowed, 2 s).
 **Tab-completion.** The Tab and the Ctrl-C that clears the line afterwards reach the target's line editor, not
 the agent's `/tool romon ssh` client: the listing is the target's menus, and the relay is still on the target
 after each call (findings-cli §14).
+
+**Either version can be the agent.** With the lab pair's roles swapped — the 7.19.6 router relaying to the 7.24.4
+one — the whole of `RomonRelayTest` behaves as it does the other way round: the reads, the writes that land only
+on the target, the session that ends when the target ends it, Safe Mode, listen, both monitors, large reads and
+idle. The agent's console queries (`:put [/tool romon get current-id]`, `get enabled`) and `/tool romon ssh
+address= user=` are spelled the same on both. The one difference is the cancelled open above. Tab-completion is
+not measurable in that direction: it is told apart by a menu the target has and the agent does not, and the older
+router's menus are a subset of the newer one's.
 
 tik4net's implementation: `RouterOsCliLogin.RomonSshLoginAsync`, used by Telnet, SSH and MAC-Telnet through
 `TikConnectionSetup.RomonAgentSetup`. A `Welcome back!` line in what a relayed session reads raises

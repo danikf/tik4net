@@ -233,6 +233,17 @@ namespace tik4net.integrationtests
             return extra;
         }
 
+        // The agent's RouterOS version, for the one place where the agent's own version decides what it does
+        // with a session it relayed (see the cancel test). Anything unparsable reads as current.
+        private static bool AgentIsBeforeRouterOs720(ITikConnection agent)
+        {
+            string version = agent.CreateCommand("/system/resource/print").ExecuteScalar("version") ?? "";
+            var match = System.Text.RegularExpressions.Regex.Match(version, @"^(\d+)\.(\d+)");
+            return match.Success
+                   && (int.Parse(match.Groups[1].Value) < 7
+                       || (int.Parse(match.Groups[1].Value) == 7 && int.Parse(match.Groups[2].Value) < 20));
+        }
+
         // Terminal sessions of this user on a router, over its own API connection (whose row is left out).
         private static string[] TerminalSessions(ITikConnection direct, string user)
             => direct.CreateCommand("/user/active/print").ExecuteList()
@@ -341,8 +352,17 @@ namespace tik4net.integrationtests
                 var relayedAfter = WaitForRelayedSessions(target, relayedBefore);
                 Assert.IsTrue(agentAfter.Length <= agentBefore,
                     "sessions left on the agent: " + string.Join(", ", agentAfter));
-                Assert.AreEqual(0, relayedAfter.Length,
-                    "relayed sessions left on the target: " + string.Join(", ", relayedAfter));
+                if (relayedAfter.Length > 0 && AgentIsBeforeRouterOs720(agent))
+                    // A cancel that lands between the target's login and its first prompt leaves a session the
+                    // agent has to end, and an agent before 7.20 does not: the terminal's /quit arrives while the
+                    // target's shell is not reading yet, and nothing else tells the target the relay is over.
+                    // A 7.20+ agent ends it with the console. Measured on the lab pair with the roles swapped;
+                    // Docs/findings-romon.md §4, "Opening, and cancelling part-way".
+                    Console.WriteLine("agent before 7.20: " + relayedAfter.Length
+                        + " relayed session(s) the agent did not end: " + string.Join(", ", relayedAfter));
+                else
+                    Assert.AreEqual(0, relayedAfter.Length,
+                        "relayed sessions left on the target: " + string.Join(", ", relayedAfter));
 
                 using (var relay = await setup.CreateAsync(agentTransport))
                     Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,
