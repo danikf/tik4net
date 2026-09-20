@@ -416,9 +416,8 @@ namespace tik4net.Rest
 
                 string name = NormaliseParamName(p.Name);
 
-                if (name == TikSpecialProperties.Tag
-                    || name == TikSpecialProperties.Proplist)
-                    continue;
+                if (IsSpecialParam(name))
+                    continue;   // the same list BuildPrint uses — a marker is an instruction, not a data word
 
                 if (!string.IsNullOrEmpty(exclude)
                     && string.Equals(name, exclude, StringComparison.OrdinalIgnoreCase))
