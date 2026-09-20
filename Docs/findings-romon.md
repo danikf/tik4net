@@ -136,6 +136,15 @@ unfiltered, windowed at 100 rows and in one command: every read returns exactly 
 over Telnet, SSH and MAC-Telnet — including the single command over MAC-Telnet (0.7 s filtered, 1.7 s for the
 whole table; windowed, 2 s).
 
+What is not reliable is the **unwindowed** whole table over MAC-Telnet: about one run in ten the router stops
+part way and never resumes. Measured with a byte trace — 445 of the 450 rows delivered, then nothing but its
+10 s keepalives for the whole 30 s deadline, every byte already acknowledged and no gap in the counters, so
+neither a loss nor a backlog of ours. It has the shape of the single-large-read stall in
+`findings-router-throughput-ceiling.md`, but not its cause: both lab CHRs run on two vCPUs, which is what
+removed that one. It lands either as a refusal (the router left a prompt) or as a receive timeout (it did not). Both are accepted at page size 0 in `RomonRelayTest`; paging is the MAC layer's default
+for this reason. A pre-7.20 target doubles the exposure, because the flags read repeats the same rows and
+`proplist=` does not drop their comments (`findings-cli.md`).
+
 **Tab-completion.** The Tab and the Ctrl-C that clears the line afterwards reach the target's line editor, not
 the agent's `/tool romon ssh` client: the listing is the target's menus, and the relay is still on the target
 after each call (findings-cli §14).

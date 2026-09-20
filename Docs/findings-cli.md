@@ -288,6 +288,15 @@ of a menu that has a `disabled` flag carries `disabled=`. A flag that applies to
 printed on those rows only, on every version and on the binary API alike (`inactive` on a VRRP
 interface, `dynamic` on an `/interface` row).
 
+**`proplist=` narrows the row but does not empty it.** Alongside the named fields every row still carries
+`.id`, and on a menu whose rows have a `comment` it carries the comment too — measured on 7.19.6 and 7.24.4:
+`/ip firewall address-list print as-value proplist=disabled` answers `.id=…;comment=…;disabled=false` per
+row, while the same read of `/ip service`, whose rows have no comment, answers `.id=…;disabled=false`. The
+other fields are dropped as asked, in every shape (`detail`, `without-paging`, `from=`). So a second read
+that names only the flags is not necessarily a small one: on a table of long comments it is nearly the size
+of the read it supplements, which is what puts a flags read of a large table within reach of the router's
+mid-print stall (`findings-romon.md` §4, "Large reads").
+
 `proplist=` refuses the **whole** read when one name is unknown to the menu —
 `input does not match any value of value-name` — whether or not any row matches, so
 `print as-value proplist=<names> where false` checks names without reading a row: empty answer = all

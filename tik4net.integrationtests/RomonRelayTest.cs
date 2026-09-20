@@ -425,9 +425,12 @@ namespace tik4net.integrationtests
         /// the page size at 100 and at 0: every read returns exactly the rows and values the target's own API does.
         /// </summary>
         /// <remarks>
-        /// A single-command read on the MAC layer may be refused as incomplete — the router drops its own output
-        /// under a large backlog, which is why paging is that transport's default. Refused is accepted there; a
-        /// short answer is not, anywhere.
+        /// A single-command read on the MAC layer may not finish — the router gives up on its own output under a
+        /// large backlog, which is why paging is that transport's default. It ends one of two ways, and both are
+        /// accepted at page size 0: refused as incomplete, or the router simply stopping. Measured once in ten
+        /// runs, the stop is the router's: it sent 445 of the 450 rows, then only its 10 s keepalives for the whole
+        /// 30 s deadline, with every byte it had sent already acknowledged and no gap in the counters
+        /// (Docs/findings-romon.md §4, "Large reads"). A short answer is not accepted, anywhere.
         /// </remarks>
         [DataTestMethod]
         [DataRow(TikConnectionType.Telnet)]
@@ -476,11 +479,17 @@ namespace tik4net.integrationtests
                                             relay.CreateParameter("list", TestList, TikCommandParameterFormat.Filter))
                                         : relay.LoadAll<FirewallAddressList>().Where(r => r.List == TestList));
                                 }
-                                catch (TikConnectionResponseIncompleteException ex)
-                                    when (pageSize == 0 && agentTransport == TikConnectionType.MacTelnet)
+                                catch (Exception ex) when (
+                                    (ex is TikConnectionResponseIncompleteException || ex is TikConnectionReceiveTimeoutException)
+                                    && pageSize == 0 && agentTransport == TikConnectionType.MacTelnet)
                                 {
-                                    log.Add($"{what}: refused as incomplete after {watch.ElapsedMilliseconds} ms — "
+                                    // Two shapes of the same thing: the router quitting part way through an answer
+                                    // the caller asked for in one command. Which one it is depends on whether it
+                                    // left a prompt behind — see the remarks on this method.
+                                    log.Add($"{what}: the router did not finish it, after {watch.ElapsedMilliseconds} ms — "
                                             + ex.Message);
+                                    if (!relay.IsOpened)
+                                        break;   // the abandoned read closed it; nothing further to read here
                                     continue;
                                 }
 
@@ -489,8 +498,12 @@ namespace tik4net.integrationtests
                                     + string.Join(" | ", got.Except(expected).Take(3)));
                             }
 
-                            Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,
-                                $"after the page-size-{pageSize} reads the relay answered from the agent");
+                            // A read the router abandoned takes the connection with it: the unread tail cannot be
+                            // resynchronized, so the transport closes rather than let the next command parse it.
+                            // There is then no relay left to ask, and the check belongs to the runs that got one.
+                            if (relay.IsOpened)
+                                Assert.AreEqual(TargetId, relay.LoadSingle<ToolRomon>().CurrentId, true,
+                                    $"after the page-size-{pageSize} reads the relay answered from the agent");
                         }
                     }
                     Console.WriteLine(string.Join(Environment.NewLine, log));
