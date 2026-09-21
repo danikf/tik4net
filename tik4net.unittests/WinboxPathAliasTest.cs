@@ -168,6 +168,27 @@ namespace tik4net.unittests
         }
 
         [TestMethod]
+        public void APathOnlyRouterOs6Has_ResolvesWithNoPrimaryAliasToFallBackFrom()
+        {
+            // /routing/bgp/instance is the 6.x BGP model; 7 has no such menu, so nothing is shipped for it but
+            // the older label.
+            var map = MapWithDerived(("/routing/bgp/bgp-instance", new[] { 44, 101 }));
+
+            CollectionAssert.AreEqual(new[] { 44, 101 }, map.Resolve("/routing/bgp/instance"));
+        }
+
+        [TestMethod]
+        public void WhenBothLabelsExist_ThePrimaryWins()
+        {
+            // CAPsMAN moved from a top-level menu (6.x) under Wireless (7.x). A catalog carrying both must still
+            // answer with the 7.x window, whatever the fallback table says.
+            var map = MapWithDerived(("/wireless/capsman/caps-channel", new[] { 88, 57 }),
+                                     ("/capsman/caps-channel", new[] { 88, 157 }));
+
+            CollectionAssert.AreEqual(new[] { 88, 57 }, map.Resolve("/caps-man/channel"));
+        }
+
+        [TestMethod]
         public void TheOlderLabel_IsNeverTakenForAPathWithoutOne()
         {
             // A catalog missing a path's primary window must still report the path unmapped, not borrow a

@@ -54,6 +54,13 @@ namespace tik4net.Winbox
             ["/routing/bgp/advertisements"] =
                 "WinBox exposes it as the BGP session window's 'Dump Adv.' action, which writes a file — " +
                 "there is no window listing advertisements, so there is nothing to read over M2",
+
+            // RouterOS 6 only (7 removed IP accounting). Its IP Accounting window has the settings, the
+            // web-access settings and the snapshot table, and nothing names the uncounted counters — the word
+            // is in none of the twelve 6.49.13 plugins.
+            ["/ip/accounting/uncounted"] =
+                "WinBox's IP Accounting window shows the settings and the snapshot, not the uncounted counters — " +
+                "there is no window for them, so there is nothing to read over M2",
         };
 
         // Shipped text alias: apiPath → menu-label path (a key of the live .jg-derived map). Used when the
@@ -399,13 +406,47 @@ namespace tik4net.Winbox
         // tried in order ONLY when the ShippedAlias target is not in this router's catalog. A fallback, never a
         // replacement: on 7.x '/ip/routes/route' also exists, and it is the hidden 'All Routes' window the
         // primary alias exists to avoid (both families, only the columns the list shows) — so the older label is
-        // correct precisely where the newer one is absent. Measured against the 6.49.13 catalog, which has
-        // 'Route List' → 'Route' on [44,1] (IPv4 only) and IPv6 routes on their own [44,12].
+        // correct precisely where the newer one is absent. Every entry is a key of the 6.49.13 catalog.
         private static readonly Dictionary<string, string[]> OlderCatalogAlias =
             new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
+            // 'Route List' → 'Route' on [44,1], IPv4 only; IPv6 routes have their own window on [44,12].
             ["/ip/route"]   = new[] { "/ip/routes/route" },
             ["/ipv6/route"] = new[] { "/ipv6/routes/ipv6-route" },
+
+            // CAPsMAN is a top-level menu on 6.x, not a submenu of Wireless; the window names are the same.
+            // Its interface list is not here: that window (subtype 61) gets no derived key at all.
+            ["/caps-man/aaa"]                = new[] { "/capsman/caps-aaa" },
+            ["/caps-man/access-list"]        = new[] { "/capsman/caps-access-rule" },
+            ["/caps-man/channel"]            = new[] { "/capsman/caps-channel" },
+            ["/caps-man/configuration"]      = new[] { "/capsman/caps-configuration" },
+            ["/caps-man/datapath"]           = new[] { "/capsman/caps-datapath-configuration" },
+            ["/caps-man/manager"]            = new[] { "/capsman/caps-manager" },
+            ["/caps-man/manager/interface"]  = new[] { "/capsman/caps-manager-interface" },
+            ["/caps-man/provisioning"]       = new[] { "/capsman/caps-provisioning" },
+            ["/caps-man/radio"]              = new[] { "/capsman/caps-radio" },
+            ["/caps-man/rates"]              = new[] { "/capsman/caps-rate" },
+            ["/caps-man/registration-table"] = new[] { "/capsman/caps-ap-client" },
+            ["/caps-man/remote-cap"]         = new[] { "/capsman/caps-remote-ap" },
+            ["/caps-man/security"]           = new[] { "/capsman/caps-security-configuration" },
+
+            // Wireless windows sit one level up on 6.x ('Wireless Tables' holds them directly). Its interface
+            // list is not here either: the 'WiFi Interfaces' window has no name, so it gets no derived key.
+            ["/interface/wireless/access-list"]        = new[] { "/wireless/ap-access-rule" },
+            ["/interface/wireless/channels"]           = new[] { "/wireless/wireless-channel" },
+            ["/interface/wireless/connect-list"]       = new[] { "/wireless/station-connect-rule" },
+            ["/interface/wireless/registration-table"] = new[] { "/wireless/ap-client" },
+            ["/interface/wireless/security-profiles"]  = new[] { "/wireless/security-profile" },
+            ["/interface/wireless/sniffer"]            = new[] { "/wireless/wireless-sniffer-settings" },
+
+            // Menus 7 no longer has, so there is no primary alias to fall back from.
+            ["/ip/accounting"]            = new[] { "/ip/accounting/traffic-accounting" },             // singleton
+            ["/ip/accounting/web-access"] = new[] { "/ip/accounting/traffic-accounting-web-access" },  // singleton
+            ["/routing/bgp/instance"]     = new[] { "/routing/bgp/bgp-instance" },
+            ["/routing/bgp/network"]      = new[] { "/routing/bgp/bgp-network" },
+            ["/routing/bgp/peer"]         = new[] { "/routing/bgp/bgp-peer" },
+            // Without the ntp package, 6.x has the SNTP client under the API's /system/ntp/client.
+            ["/system/ntp/client"]        = new[] { "/system/sntp-client/sntp-client" },               // singleton
         };
 
         /// <summary>
