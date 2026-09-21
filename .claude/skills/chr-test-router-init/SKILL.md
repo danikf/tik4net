@@ -346,8 +346,8 @@ findings doc is in flight:
 ## Second router — CHR2: the RoMON target and the older RouterOS
 
 The lab's second CHR, identity `CHR2`, has two roles: the RoMON target the suite reaches through the first router
-(`RomonRelayTest` writes to it), and the router kept on an **older RouterOS** (7.19.6) for tests that must also
-hold before 7.20. Its role in the suite is described in `tik4net.integrationtests/README.md`, *The lab routers*.
+(`RomonRelayTest` writes to it), and the router kept on an **older RouterOS** (6.49.13) for tests that must also
+hold on RouterOS 6. Its role in the suite is described in `tik4net.integrationtests/README.md`, *The lab routers*.
 Provision it with steps 0–6 like the first, with these differences:
 
 - **Skip steps 7 and 8.** The version README promises is the first router's; CHR2 is on an older release on
@@ -362,12 +362,26 @@ Provision it with steps 0–6 like the first, with these differences:
   agent: `/tool/romon/discover =duration=5` must list the target's id.
 - Verify with `dotnet test tik4net.integrationtests/tik4net.integrationtests.csproj --filter RomonRelayTest` —
   9 tests, three agent transports each, about 15 s.
-- **The lab keeps it on RouterOS 7.19.6**, the last release before 7.20 changed `print as-value` (flag fields
-  are printed only from 7.20 on — `Docs/findings-cli.md`). It is the only router here where the CLI's
-  by-name flag read runs, so do not upgrade it with the first one. To downgrade: upload `routeros-<ver>.npk`
-  and the `all_packages-x86-<ver>.zip` contents, then `/system/package/downgrade`. A package the older
-  version does not have (7.19.6 has no `openflow`) aborts it with `missing package <name>` in the log —
-  `/system/package/uninstall` it first, and re-upload the `.npk` files, which the aborted attempt consumed.
+- **The lab keeps it on RouterOS 6.49.13**, the oldest public CHR, so the RouterOS 6 paths run somewhere
+  (`Docs/findings-routeros-6.md`). Do not upgrade it with the first one. The version is chosen by the **disk
+  image**, not by a package: a CHR refuses any package older than its `factory-software`, so a 7.x-built VM given
+  a 6.x `.npk` logs `omitting package … min RouterOS version is 7.1` and boots its old version again. Within one
+  major version, `/system/package/downgrade` works — upload `routeros-<ver>.npk` and the
+  `all_packages-x86-<ver>.zip` contents; a package the older version does not have aborts it with
+  `missing package <name>` in the log, so `/system/package/uninstall` it first and re-upload the `.npk` files,
+  which the aborted attempt consumed.
+- **What RouterOS 6 needs differently** (measured provisioning 6.49.13):
+  - Step 1: nothing to download. The 6.x CHR image already carries the whole bundle — `system`, `wireless`,
+    `hotspot`, `mpls`, `routing`, `ppp`, `dhcp`, `security`, `advanced-tools`, `dude`, `ups` — except
+    `user-manager`, which the suite does not need there. **`ipv6` ships disabled**: `/system/package/enable
+    =numbers=ipv6`, then reboot.
+  - Step 2: the NTP client has no `servers=`; set `=server-dns-names=<pool>,<pool>`. `/system/ntp/client/print`
+    has no `status` — `last-update-from` filling in is the sign it synchronised.
+  - Step 3: there is no `discover` row in `/ip/service` (MNDP is `/ip/neighbor/discovery-settings`, on by
+    default). `www-ssl` ships disabled and `invalid`; step 4 fixes both.
+  - Step 4 works unchanged, `sign` included.
+  - Step 6: `Rest` and `RestSsl` fail — RouterOS 6 has no REST API, and the library says so. Everything else
+    should answer.
 - To run a test against it, point `host` / `routerMac` in `App.config` at it for that run only, e.g.
   `CliFlagFieldsTest` (flags over every transport against the binary API), and put them back afterwards.
 
