@@ -123,16 +123,16 @@ namespace tik4net.integrationtests
         // Static files (list, *.png) live in /home/web/webfig/ → opened via cmd=7.
         public byte[] ReadFileBytes(CatalogEntry entry)
         {
+            string openName = string.IsNullOrEmpty(entry.Unique) ? entry.Name : entry.Unique;
             if (entry.Name.EndsWith(".jg", StringComparison.OrdinalIgnoreCase))
             {
-                // Use plain entry.Name — unique hash is the Windows-client cache key only.
-                int handle = MproxyOpenVarPkgFile(entry.Name);
-                byte[] compressed = MproxyReadFileBytes(handle);
-                return compressed != null && compressed.Length > 0
-                    ? GzipDecompress(compressed)
-                    : compressed;
+                // The route the library takes (WinboxJgCatalog): the `unique` name plus ".gz" as a static file
+                // (cmd=7). The plain name under /var/pckg (cmd=3) is refused by a CHR, 6.49.13 and 7.x alike,
+                // and made this harness report "0 of 12 plugins" for a catalog the library reads whole.
+                byte[] compressed = ReadFileBytes(openName + ".gz");
+                if (compressed != null && compressed.Length > 0)
+                    return GzipDecompress(compressed);
             }
-            string openName = string.IsNullOrEmpty(entry.Unique) ? entry.Name : entry.Unique;
             return ReadFileBytes(openName);
         }
 

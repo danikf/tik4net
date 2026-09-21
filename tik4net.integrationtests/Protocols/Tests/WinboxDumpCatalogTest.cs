@@ -73,7 +73,7 @@ namespace tik4net.integrationtests
 
                     try
                     {
-                        // .jg plugins: opened from /var/pckg/ via cmd=3, content gunzipped by client.
+                        // .jg plugins: opened as the static file <unique>.gz via cmd=7, content gunzipped by the client.
                         // Static files (list, *.png): opened from /home/web/webfig/ via cmd=7.
                         // Routing is handled transparently by ReadFileBytes(CatalogEntry).
                         string openName = string.IsNullOrEmpty(entry.Unique) ? entry.Name : entry.Unique;
@@ -132,7 +132,7 @@ namespace tik4net.integrationtests
                     "The catalog 'list' file should have been written.");
                 if (jgTotal > 0)
                     Assert.IsTrue(jgOk > 0,
-                        $"At least one .jg plugin should download via /var/pckg/ cmd=3 (got 0 of {jgTotal}).");
+                        $"At least one .jg plugin should download (static <unique>.gz, cmd=7) — got 0 of {jgTotal}.");
             }
         }
     }

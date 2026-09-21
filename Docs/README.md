@@ -50,7 +50,7 @@ code was actually wrong.
 | Document | Covers |
 |---|---|
 | [`protocol-coverage.md`](protocol-coverage.md) | Which capabilities each transport actually supports, and where the gaps are |
-| [`findings-routeros-6.md`](findings-routeros-6.md) | RouterOS 6 against every transport: no `proplist=` (flags read as id lists), no REST, no WinBox field catalog — and the numbered list of problems still open there |
+| [`findings-routeros-6.md`](findings-routeros-6.md) | RouterOS 6 against every transport: no `proplist=` (flags read as id lists), no REST, WinBox windows under other labels — and the numbered list of problems still open there |
 | [`findings-router-throughput-ceiling.md`](findings-router-throughput-ceiling.md) | Sustained load hits an **aggregate** ceiling — ~1 ms round trips clamp to ~20 ms after a shared burst budget, on every transport and across all connections at once; and one large API read stalling mid-answer for 30 s+ |
 | [`entity-catalog.md`](entity-catalog.md) | **Generated** — every mapped `[TikEntity]` with its path, class and behaviour markers. Do not edit by hand: `EntityCatalogTests` fails when it drifts from the code. Regenerate with `TIK4NET_UPDATE_DOCS=1`, then paste the block into the wiki's *Entity reference* page |
 

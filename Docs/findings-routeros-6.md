@@ -13,7 +13,7 @@ The smoke subset (`ConnectionTest`, `SystemClockTest`, `InterfaceListTest`, `IpR
 | `Api`, `ApiSsl` | all pass | — |
 | `Telnet`, `Ssh`, `MacTelnet` | all pass | — |
 | `WinboxCli`, `WinboxCliMac` | 18 of 21 | the clock read and two adds — open problems 2 and 3 |
-| `WinboxNative`, `WinboxNativeMac` | 19 of 21 | `/ip/route` has no handler mapping — open problem 1 |
+| `WinboxNative`, `WinboxNativeMac` | 20 of 21 | route `scope` is not in the record — open problem 1 |
 | `Rest`, `RestSsl` | cannot work | RouterOS 6 has no REST API (§3) |
 
 The smoke subset is the only coverage so far; see open problem 6.
@@ -41,24 +41,36 @@ explicitly, merged by `.id`. A flag the menu does not have is refused, asked onc
 404 page. `RestConnection` refuses that as `TikNoSuchCommandException` naming the version floor, rather than
 reading a 404 as "no such item" — which for a print looks exactly like an empty table.
 
-## 4. WinBox native gets no field catalog
+## 4. WinBox native: the catalog, and the windows that moved
 
-The WinBox login and the `list` catalog work: `WinboxDumpCatalogTest` reads the list and parses 12 plugin
-entries from it. Every plugin download then fails — **0 of 12** through the route 7.x serves them on
-(`/var/pckg/`, command 3). Paths whose mapping does not need a plugin's window still read (19 of 21 smoke
-tests pass); `/ip/route`, whose window is WinBox's *Route List* under IP → Routes (tabs Routes, Nexthops,
-Rules, VRF), answers `no M2 handler mapping for path '/ip/route'`.
+The `.jg` catalog downloads from 6.49.13 exactly as from 7.x: the `list` names 12 plugins (`roteros`,
+`roting4`, `ipv6`, `dhcp`, `ppp`, `secure`, `mpls`, `hotspot`, `wlan6`, `ups`, `advtool`, `dude`) and all 12
+arrive as `<unique>.gz` over the static-file open (mproxy `[2,2]`, command 7). The plain name under `/var/pckg`
+(command 3) is refused — by 7.x CHRs too — so a client that takes that route sees none of them.
+
+What differs is where some windows sit. Routes are WinBox's *Route List* (IP menu; tabs Routes, Nexthops,
+Rules, VRF): the window 'Route' on `[44,1]`, IPv4 only, deriving to the menu-label path `/ip/routes/route`.
+IPv6 routes are their own window on `[44,12]` (`/ipv6/routes/ipv6-route`). 7.x has one routes table `[44,21]`
+under the 'Routes' windows instead, and its hidden 'All Routes' window derives to the same
+`/ip/routes/route` — so the 6.x label is right only where the 7.x one is absent. `WinboxHandlerMap` keeps
+such labels as a fallback (`OlderCatalogAlias`), tried only when the router's catalog lacks the primary
+alias target.
+
+**A route record leaves Scope and Target Scope out.** The window declares both (`uf` `def:30`, `u10` `def:10`),
+but neither key arrives in any row, with or without the statistics flag. It is not the default standing in
+for itself: the API prints `scope=30` for the default route and `scope=10` for the connected one, while the
+record lacks the key on both — so filling in `def` would make the second row wrong.
 
 ## Open problems
 
 Each is a statement of what is measured and what is not, to be settled one at a time.
 
-1. **Download the `.jg` catalog from RouterOS 6.** The plugin route that works on 7.x returns nothing on
-   6.49.13 (§4). Unknown: whether 6.x serves the plugins on another path or command, or under other names
-   (the `list` entries' `unique` field is what resolves a name on 7.x — `findings-winbox-catalog.md`), and whether the 6.x
-   `.jg` format matches `jg-catalog-format.md`. WinBox 6.x itself loads these windows, so a capture of WinBox
-   connecting to 6.49.13 is the ground truth to compare against. Until this works, how much of WinBox native
-   covers 6.x cannot be measured; `/ip/route` is only the first symptom.
+1. **WinBox native: a 6.x route record carries no Scope or Target Scope** (§4), so `IpRoutesAgreeWithTheApi`
+   fails on `scope`. Unknown: whether any request makes 6.49.13 send them — another getall flag, a `get` of the
+   single row, or a window WinBox 6 opens differently; WinBox 6 itself shows a Scope for these routes, so a
+   capture of it reading them is the ground truth. If nothing does, the field is one native cannot report on
+   6.x, and the test should say so for that version rather than fail. More 6.x windows may have moved the way
+   routes did; the path-map audit (`TransportPathMapAuditTest` against CHR2) is what would find them all.
 
 2. **WinBox CLI: the `/system/clock` read never finishes on 6.x.** `WinboxCli` and `WinboxCliMac` both refuse
    it as incomplete — the counted read's closing `#n=` line never arrives. Telnet, SSH and MAC-Telnet read the
