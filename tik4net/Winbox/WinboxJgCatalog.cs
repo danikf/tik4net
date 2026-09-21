@@ -61,6 +61,14 @@ namespace tik4net.Winbox
         private readonly Dictionary<string, bool> _singletonPaths =
             new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
+        // A singleton window that names its own read or write command: derived path → (getcmd, setcmd), each
+        // null when the window leaves it to the default. webfig's ObjectHolder sends `uff0007 = getcmd ||
+        // 0xfe000d` to read and `setcmd || 0xfe000e` to write, the message otherwise unchanged; the default
+        // on a window with its own command is refused (0xFE0003). Per window, since [46] is RouterOS 6's
+        // 'Traffic Accounting' settings (getcmd:2, setcmd:1) AND its snapshot list.
+        private readonly Dictionary<string, Tuple<int?, int?>> _singletonCommands =
+            new Dictionary<string, Tuple<int?, int?>>(StringComparer.OrdinalIgnoreCase);
+
         // Window field maps are keyed by WindowKey(derivedPath); these two remember what a window key MEANS.
         //
         // _windowHandlerKey: window key → the handler key that window reads. An action declared inside a window
@@ -274,6 +282,20 @@ namespace tik4net.Winbox
         {
             isSingleton = false;
             return derivedKey != null && _singletonPaths.TryGetValue(derivedKey, out isSingleton);
+        }
+
+        /// <summary>
+        /// The read and write commands of the singleton window behind <paramref name="derivedKey"/>, when the
+        /// window names its own (<c>getcmd</c>/<c>setcmd</c>); each is <c>null</c> where the default
+        /// get-singleton / set-singleton applies, and both are when the path is unknown or names neither.
+        /// </summary>
+        internal void GetSingletonCommands(string? derivedKey, out int? getCommand, out int? setCommand)
+        {
+            getCommand = null; setCommand = null;
+            if (derivedKey != null && _singletonCommands.TryGetValue(derivedKey, out var c))
+            {
+                getCommand = c.Item1; setCommand = c.Item2;
+            }
         }
 
         /// <summary>True when <paramref name="handler"/> is backed by a singleton (<c>type:'item'</c>)
@@ -872,6 +894,13 @@ namespace tik4net.Winbox
                         // Record what THIS window is, not what its handler is — see _singletonPaths.
                         if (ty == "item" || ty == "map" || ty == "query")
                             _singletonPaths[apiPath] = ty == "item";
+                        if (ty == "item")
+                        {
+                            int? getCmd = dict.TryGetValue("getcmd", out var gcv) && gcv is int gc ? gc : (int?)null;
+                            int? setCmd = dict.TryGetValue("setcmd", out var scv) && scv is int sc ? sc : (int?)null;
+                            if (getCmd != null || setCmd != null)
+                                _singletonCommands[apiPath] = Tuple.Create(getCmd, setCmd);
+                        }
                     }
                     // Attribute this window's fields to the window as well as to its handler, so a caller
                     // addressing the window is answered by the window's own vocabulary. Windows sharing a

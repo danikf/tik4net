@@ -610,7 +610,9 @@ namespace tik4net.WinboxNative
             {
                 if (IsSingletonWindow(apiPath, handler))
                 {
-                    var one = await _ops.GetSingletonAsync(handler, cancellationToken).ConfigureAwait(false);
+                    _catalog.GetSingletonCommands(_handlerMap.ResolveDerivedKey(apiPath), out int? getCommand, out _);
+                    var one = await _ops.GetSingletonAsync(handler, cancellationToken, command: getCommand)
+                        .ConfigureAwait(false);
                     records = (one != null && one.Count > 0)
                         ? new List<Dictionary<int, Tuple<string, object>>> { one }
                         : new List<Dictionary<int, Tuple<string, object>>>();
@@ -1728,8 +1730,10 @@ namespace tik4net.WinboxNative
         {
             if (IsSingletonWindow(ApiPathOf(descriptor.CommandText), handler))
             {
+                _catalog.GetSingletonCommands(_handlerMap.ResolveDerivedKey(ApiPathOf(descriptor.CommandText)),
+                    out _, out int? setCommand);
                 await _ops.SetSingletonAsync(handler, await encodeFields().ConfigureAwait(false),
-                    SingletonIdOf(descriptor), cancellationToken).ConfigureAwait(false);
+                    SingletonIdOf(descriptor), cancellationToken, setCommand).ConfigureAwait(false);
                 _codec.ForgetReferenceNames();
                 return;
             }

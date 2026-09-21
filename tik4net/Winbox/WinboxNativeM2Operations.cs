@@ -422,22 +422,29 @@ namespace tik4net.Winbox
         /// as <c>/system/resource</c> or <c>/ip/dns</c>, and returns its single decoded record. Records may
         /// arrive under <see cref="WinboxM2Protocol.RecordKey.Records"/> or inline at the top level.
         /// </summary>
+        /// <param name="handler">The singleton window's handler.</param>
+        /// <param name="flags">The getall-style flags word.</param>
+        /// <param name="command">
+        /// The window's own read command (<c>.jg</c> <c>getcmd</c>), or <c>null</c> for get-singleton — webfig's
+        /// <c>ObjectHolder.fetch</c> sends <c>getcmd || 0xfe000d</c> and nothing else differs.
+        /// </param>
         internal Dictionary<int, Tuple<string, object>> GetSingleton(
-            int[] handler, int flags = WinboxM2Protocol.GetAllFlags)
-            => InterpretSingleton(SendReceive(BuildGetSingleton(handler, flags)), handler);
+            int[] handler, int flags = WinboxM2Protocol.GetAllFlags, int? command = null)
+            => InterpretSingleton(SendReceive(BuildGetSingleton(handler, flags, command)), handler);
 
         /// <inheritdoc cref="GetSingleton"/>
         internal async Task<Dictionary<int, Tuple<string, object>>> GetSingletonAsync(
-            int[] handler, CancellationToken cancellationToken, int flags = WinboxM2Protocol.GetAllFlags)
+            int[] handler, CancellationToken cancellationToken, int flags = WinboxM2Protocol.GetAllFlags,
+            int? command = null)
             => InterpretSingleton(
-                await SendReceiveAsync(BuildGetSingleton(handler, flags), cancellationToken).ConfigureAwait(false),
+                await SendReceiveAsync(BuildGetSingleton(handler, flags, command), cancellationToken).ConfigureAwait(false),
                 handler);
 
-        private byte[] BuildGetSingleton(int[] handler, int flags)
+        internal byte[] BuildGetSingleton(int[] handler, int flags, int? command = null)
             => M2Message.BuildM2(
                 M2Message.SysToArr(handler), M2Message.SysFrom(),
                 M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
-                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.GetSingleton),
+                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, command ?? WinboxM2Protocol.Command.GetSingleton),
                 M2Message.U32Sys(WinboxM2Protocol.RecordKey.Flags, flags));
 
         private static Dictionary<int, Tuple<string, object>> InterpretSingleton(byte[] resp, int[] handler)
@@ -492,23 +499,29 @@ namespace tik4net.Winbox
         /// <c>ObjectHolder.setObject</c> (<c>uff0007 = setcmd || 0xfe000e</c>, and <c>ufe0001</c> forwarded
         /// only <c>if ("ufe0001" in obj)</c>, which is how the hidden 'Change Password' holder targets a user).
         /// </summary>
-        internal void SetSingleton(int[] handler, IList<byte[]> fields, int id = -1)
-            => ThrowOnStatus(SendReceive(BuildSetSingleton(handler, fields, id)), "set-singleton", handler);
+        /// <param name="handler">The singleton window's handler.</param>
+        /// <param name="fields">The changed fields.</param>
+        /// <param name="id">The record to address, or <c>-1</c> for none.</param>
+        /// <param name="command">
+        /// The window's own write command (<c>.jg</c> <c>setcmd</c>), or <c>null</c> for set-singleton.
+        /// </param>
+        internal void SetSingleton(int[] handler, IList<byte[]> fields, int id = -1, int? command = null)
+            => ThrowOnStatus(SendReceive(BuildSetSingleton(handler, fields, id, command)), "set-singleton", handler);
 
         /// <inheritdoc cref="SetSingleton"/>
         internal async Task SetSingletonAsync(int[] handler, IList<byte[]> fields, int id,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken, int? command = null)
             => ThrowOnStatus(
-                await SendReceiveAsync(BuildSetSingleton(handler, fields, id), cancellationToken).ConfigureAwait(false),
+                await SendReceiveAsync(BuildSetSingleton(handler, fields, id, command), cancellationToken).ConfigureAwait(false),
                 "set-singleton", handler);
 
-        private byte[] BuildSetSingleton(int[] handler, IList<byte[]> fields, int id)
+        internal byte[] BuildSetSingleton(int[] handler, IList<byte[]> fields, int id, int? command = null)
         {
             var head = new List<byte[]>
             {
                 M2Message.SysToArr(handler), M2Message.SysFrom(),
                 M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
-                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.Command.SetSingleton),
+                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, command ?? WinboxM2Protocol.Command.SetSingleton),
             };
             if (id >= 0) head.Add(M2Message.SessionIdField(id));
             if (fields != null) head.AddRange(fields);
