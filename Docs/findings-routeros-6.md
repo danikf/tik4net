@@ -13,10 +13,11 @@ The smoke subset (`ConnectionTest`, `SystemClockTest`, `InterfaceListTest`, `IpR
 | `Api`, `ApiSsl` | all pass | — |
 | `Telnet`, `Ssh`, `MacTelnet` | all pass | — |
 | `WinboxCli`, `WinboxCliMac` | 18 of 21 | the clock read and two adds — open problems 2 and 3 |
-| `WinboxNative`, `WinboxNativeMac` | 20 of 21 | route `scope` is not in the record — open problem 1 |
+| `WinboxNative`, `WinboxNativeMac` | 20 of 21 | route `scope` is not in the record; the path-map audit finds more — open problem 1 |
 | `Rest`, `RestSsl` | cannot work | RouterOS 6 has no REST API (§3) |
 
-The smoke subset is the only coverage so far; see open problem 6.
+Beyond the smoke subset, only WinBox native has been measured, by the path-map audit (open problem 1); the
+rest is open problem 6.
 
 ## 2. `print` has no `proplist=`
 
@@ -65,12 +66,41 @@ record lacks the key on both — so filling in `def` would make the second row w
 
 Each is a statement of what is measured and what is not, to be settled one at a time.
 
-1. **WinBox native: a 6.x route record carries no Scope or Target Scope** (§4), so `IpRoutesAgreeWithTheApi`
-   fails on `scope`. Unknown: whether any request makes 6.49.13 send them — another getall flag, a `get` of the
-   single row, or a window WinBox 6 opens differently; WinBox 6 itself shows a Scope for these routes, so a
-   capture of it reading them is the ground truth. If nothing does, the field is one native cannot report on
-   6.x, and the test should say so for that version rather than fail. More 6.x windows may have moved the way
-   routes did; the path-map audit (`TransportPathMapAuditTest` against CHR2) is what would find them all.
+1. **WinBox native against the API on 6.x.** Measured with the path-map audit (`TransportPathMapAuditTest`,
+   WinboxNative, against CHR2): OK 111, unmapped 22, value differences 8, field-name mismatches 2, not on this
+   RouterOS 20; writes OK 158 with no value differing, refused 27, not probeable 53 (the router refused the row
+   on both transports). 48 of 1064 API field names are never reported over native (4 %). Each part below is
+   separate work:
+
+   - **1a. 22 paths have no mapping** — windows under other labels, like routes were (§4): CAPsMAN (9 paths),
+     `/interface/wireless` and five of its sub-menus, `/ip/accounting` and its two sub-menus (gone in 7),
+     `/routing/bgp/instance`, `/network`, `/peer` (the 6.x BGP model), and `/system/ntp/client`. 26 of the
+     27 refused writes are these same paths.
+   - **1b. Fields native does not report, on paths that otherwise agree.** `/ip/route` misses seven: `scope`
+     and `target-scope` (the router does not send them, §4), `connect` and `static` (7.x derives them from a
+     field 6.x does not have), `pref-src` (arrives as `pref-source` — the 6.x label), `gateway-status`,
+     `vrf-interface`. Elsewhere: `/ip/firewall/address-list` `list` — the row's own key field —
+     `/interface` `default-name` and the `fp-*` counters, `/interface/bridge/port` `debug-info` and `hw`,
+     `/ip/firewall/connection/tracking` `total-entries`, `/ip/ipsec/active-peers` `natt-peer`, `/ip/neighbor`
+     `system-caps` and `system-caps-enabled`, `/ip/service` `address`, `/routing/ospf/area` `invalid` and
+     `name`, `/system/logging/action` `syslog-severity` and `syslog-time-format`, `/tool/e-mail` `address`.
+   - **1c. Field names that differ.** `/routing/ospf/instance`: the 6.x API says `redistribute-connected`,
+     `metric-static`, `distribute-default`; native derives `redistribute-connected-routes`,
+     `static-routes-metric`, `redistribute-default-route` from the 6.x labels. `/ip/dhcp-server/config`:
+     `accounting` and `interim-update` are not reported.
+   - **1d. Values rendered the 7.x way.** Dates: the 6.x API prints `sep/21/2026`, native `2026-09-21`
+     (`/system/clock` `date`, `/system/scheduler` `start-date`). Timestamps left as epoch seconds:
+     `/certificate` `invalid-before`/`invalid-after`, `/tool/netwatch` `since`. Enum spelling:
+     `/interface/ethernet` `advertise` `10M-half` against `10m-half`, `/interface/ovpn-server/server` `cipher`
+     `blowfish128` against `blowfish-128`. `/queue/simple` limits: `0/0` against `unlimited/unlimited`.
+     `/system/package` `bundle`: `routeros-x86` against `1`, a reference not resolved.
+   - **1e. One write refused over native only.** Enabling an `/ip/dhcp-server` row: `can not run on slave
+     interface` (M2 error `0xFE0006`). Not yet compared against the same step over the API.
+
+   Unknown for 1b's route fields: whether any request makes 6.49.13 send Scope and Target Scope — another
+   getall flag, a `get` of the single row — since WinBox 6 itself shows a Scope for these routes; a capture of
+   it reading them is the ground truth. The audit report is written per transport, not per router, so a run
+   against CHR2 replaces the 7.x report of the same transport.
 
 2. **WinBox CLI: the `/system/clock` read never finishes on 6.x.** `WinboxCli` and `WinboxCliMac` both refuse
    it as incomplete — the counted read's closing `#n=` line never arrives. Telnet, SSH and MAC-Telnet read the
@@ -92,10 +122,11 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    by-name path now has unit coverage only (`CliFlagFieldsTests`). To decide: a third CHR on a 7.x before 7.20,
    or accept unit coverage for it.
 
-6. **Coverage beyond the smoke subset is unmeasured.** Not yet run against 6.49.13: `CliFlagFieldsTest` (the
-   flags on every transport against the binary API), `RomonRelayTest` (whose target CHR2 now is), and the
-   full suite — where CHR2's single port and missing topology will fail tests for reasons that are not defects,
-   so its failures need sorting before any counts as a 6.x gap.
+6. **Coverage beyond the smoke subset is unmeasured on the other transports.** Not yet run against 6.49.13:
+   the path-map audit over each CLI transport (`TIK4NET_AUDIT_TRANSPORT`), which does for them what problem 1
+   did for WinBox native; `CliFlagFieldsTest` (the flags on every transport against the binary API);
+   `RomonRelayTest` (whose target CHR2 now is); and the full suite — where CHR2's missing topology will fail
+   tests for reasons that are not defects, so its failures need sorting before any counts as a 6.x gap.
 
 7. **Two MCP-side gaps seen while measuring.** `mikrotik_call` over `MacTelnet` failed against both routers,
    6.x and 7.x alike, while the suite's own MAC-Telnet legs passed — so the server, not the router; it was a
