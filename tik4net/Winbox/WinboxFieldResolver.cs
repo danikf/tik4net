@@ -776,7 +776,12 @@ namespace tik4net.Winbox
                 // `invalid`; the key is named here per path. The two BGP tables and the OSPF template carry the
                 // same entry in their own sets.
                 ["/routing/filter/rule"] = RoutingInactive(),
-                ["/routing/ospf/area"] = RoutingInactive(),
+                // RouterOS 6 labels the area's name 'Area Name' (0x2 = backbone); 7 labels it 'Name', and the
+                // alias yields to that (AliasToJg).
+                ["/routing/ospf/area"] = new FieldAliasSet(
+                    apiToJg: Ci(("name", "area-name")),
+                    jgToApi: Ci(("area-name", "name")),
+                    keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "inactive" }),
                 ["/routing/ospf/instance"] = RoutingInactive(),
                 ["/routing/rule"] = RoutingInactive(),
 
@@ -949,10 +954,23 @@ namespace tik4net.Winbox
                                ("total-ipv6-entries", "total-ip6-entries")),
                     // active-ipv6: enabled=yes moved the unnamed bool 0x2F False → True with the API's
                     // active-ipv6, and enabled=auto put both back. Read-only.
+                    // total-entries: 7.x declares it ('Total Entries', uf); the 6.49.13 window does not, but
+                    // the router sends the key — enabled=yes moved 0xF from 0 to 9 with total-entries=9.
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["active-ipv6"] = new WinboxJgField("active-ipv6", 0x2F, "bool", true),
+                        ["total-entries"] = new WinboxJgField("total-entries", 0xF, "u32", true, uiType: "number"),
                     }),
+
+                // The address list's own key (0xFE0010) is labelled 'Name' by RouterOS 6 and 'List' by 7; the
+                // API says `list` on both. On 7.x the alias yields to the catalog's own label (AliasToJg). The
+                // IPv6 window is labelled the same way.
+                ["/ip/firewall/address-list"] = new FieldAliasSet(
+                    apiToJg: Ci(("list", "name")),
+                    jgToApi: Ci(("name", "list"))),
+                ["/ipv6/firewall/address-list"] = new FieldAliasSet(
+                    apiToJg: Ci(("list", "name")),
+                    jgToApi: Ci(("name", "list"))),
 
                 // /ip/route: the API's `active` bool is the route window's 'Contribution' enum — one wire
                 // field (u22), two vocabularies. The base 'All Routes' window's numflag on that key
@@ -973,9 +991,12 @@ namespace tik4net.Winbox
                 //
                 // Unlike the API, native answers `false` rather than nothing on a row of another origin —
                 // that is how DerivedBools works, and it is what `active` already does.
+                //
+                // 'Pref. Source' is the API's pref-src, on both versions: a 6.49.13 connected route printed
+                // pref-src=<its own address> and carried that address at 0x3 under the opt flag 0x3EB.
                 ["/ip/route"] = new FieldAliasSet(
-                    apiToJg: Ci(),
-                    jgToApi: Ci(),
+                    apiToJg: Ci(("pref-src", "pref-source")),
+                    jgToApi: Ci(("pref-source", "pref-src")),
                     derivedBools: new Dictionary<string, Tuple<string, string>>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["active"]  = Tuple.Create("contribution", "active"),
@@ -1385,6 +1406,9 @@ namespace tik4net.Winbox
                         ["type"] = new WinboxJgField("type", 0x1001E, "string", true),
                         ["mac-address"] = new WinboxJgField("mac-address", 0x3E9, "raw", false,
                                                             uiType: "macaddr"),
+                        // 7.x declares it ('Default Name', s10031); the 6.49.13 window does not, but the router
+                        // sends the key — ether1 and ether2 carried their own default-name at 0x10031.
+                        ["default-name"] = new WinboxJgField("default-name", 0x10031, "string", true),
                     }),
             };
 
@@ -1584,10 +1608,16 @@ namespace tik4net.Winbox
         internal IReadOnlyDictionary<string, Tuple<string, string>>? DerivedBoolFields => Aliases?.DerivedBools;
 
         // Rewrite an API field name to its .jg label (encode/resolve direction); identity when no alias.
+        // An alias whose label this catalog lacks yields to the API name when the catalog has THAT: a label
+        // can differ by RouterOS version (address-list 'Name' on 6.x, 'List' on 7.x), and falling through to
+        // a seed key instead would address a different field.
         private string AliasToJg(string apiName)
         {
             var a = Aliases;
-            return (a != null && a.ApiToJg.TryGetValue(apiName, out var jg)) ? jg : apiName;
+            if (a == null || !a.ApiToJg.TryGetValue(apiName, out var jg)) return apiName;
+            var fields = JgFields;
+            if (fields != null && !fields.ContainsKey(jg) && fields.ContainsKey(apiName)) return apiName;
+            return jg;
         }
 
         // Rewrite a .jg label to its API field name (decode direction); identity when no alias.
