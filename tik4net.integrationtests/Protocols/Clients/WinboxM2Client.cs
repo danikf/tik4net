@@ -479,6 +479,8 @@ namespace tik4net.integrationtests
             var f = GetM2Fields(new[] { 13, 4 }, 7);
             return new SystemInfo
             {
+                // The WinBox protocol's version ("3.30" on RouterOS 6.49.13), not RouterOS's — that is s16 of
+                // the board-info singleton [24,2] (WinboxNativeM2Operations.GetRouterVersion).
                 Version      = GetStringField(f, 0x000016),
                 Board        = GetStringField(f, 0x000015),
                 Architecture = GetStringField(f, 0x000017),

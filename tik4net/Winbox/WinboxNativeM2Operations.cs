@@ -372,20 +372,22 @@ namespace tik4net.Winbox
         }
 
         /// <summary>
-        /// Reads the RouterOS version string from the system-info singleton
-        /// (<see cref="WinboxM2Protocol.SysInfo.Handler"/> cmd=<see cref="WinboxM2Protocol.SysInfo.Command"/>),
-        /// e.g. "7.21.4". Returns <c>null</c> when the field is absent.
+        /// Reads the RouterOS version string, e.g. "7.24.4", from the board-info singleton — webfig's own source
+        /// (<c>fetchBoardInfo</c>: get-singleton on <c>[24,2]</c>, <c>sysres.version=rep.s16</c>). Returns
+        /// <c>null</c> when the field is absent.
         /// </summary>
+        /// <remarks>
+        /// Not the system-info singleton <see cref="WinboxM2Protocol.SysInfo.Handler"/>: its key <c>0x16</c> is
+        /// the WinBox protocol's version — <c>3.30</c> on RouterOS 6.49.13, <c>3.42rc1</c> on 7.24.4.
+        /// </remarks>
         internal string? GetRouterVersion()
         {
-            byte[] msg = M2Message.BuildM2(
-                M2Message.SysToArr(WinboxM2Protocol.SysInfo.Handler), M2Message.SysFrom(),
-                M2Message.BoolSys(WinboxM2Protocol.SysKey.ReplyExpected, true), NextReqIdField(),
-                M2Message.U32Sys(WinboxM2Protocol.SysKey.Command, WinboxM2Protocol.SysInfo.Command));
-            byte[] resp = SendReceive(msg);
-            var fields = M2Message.ParseAllFields(resp);
-            return fields.TryGetValue(WinboxM2Protocol.RecordKey.SysInfoVersion, out var t) ? t.Item2?.ToString() : null;
+            var fields = GetSingleton(BoardInfoHandler);
+            return fields != null && fields.TryGetValue(BoardInfoVersionKey, out var t) ? t.Item2?.ToString() : null;
         }
+
+        private static readonly int[] BoardInfoHandler = { 24, 2 };
+        private const int BoardInfoVersionKey = 0x16;
 
         /// <summary>
         /// Sends <c>get-one</c> (<see cref="WinboxM2Protocol.Command.GetOne"/> +

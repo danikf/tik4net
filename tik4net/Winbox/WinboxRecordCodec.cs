@@ -21,6 +21,12 @@ namespace tik4net.Winbox
         private readonly WinboxNativeM2Operations _ops;
         private readonly WinboxJgCatalog _catalog;
 
+        /// <summary>
+        /// The RouterOS major version the connection read at open, or <c>null</c> when unknown — which a few
+        /// values are printed differently by (see <c>RouterOs6SentinelSpelledAsWord</c>).
+        /// </summary>
+        internal int? RouterMajorVersion { get; set; }
+
         // id → name cache per referenced table, built lazily from one getall — this avoids a getall per
         // referenced field per row. Names are stable between WRITES, not for a whole session: a row added or
         // renamed through this same connection is a row the cache has never seen, and the reference decoded
@@ -227,7 +233,7 @@ namespace tik4net.Winbox
                && keyToField.TryGetValue(key, out var owner) && owner != null
                && !ReferenceEquals(owner, consumer) && owner.Key == key;
 
-        private static bool IsUnsetField(WinboxJgField? jf, object value,
+        private bool IsUnsetField(WinboxJgField? jf, object value,
             Dictionary<int, Tuple<string, object>> rec)
         {
             if (jf == null) return false;
@@ -237,7 +243,9 @@ namespace tik4net.Winbox
             if (IsAnotherKindsField(jf, rec)) return true;
             if (WinboxFieldResolver.TryToInt64(value, out long n))
             {
-                if (jf.Def.HasValue && jf.IsUnsetValue(n) && !TrySentinelWord(jf, value, out _)) return true;
+                // A marker RouterOS prints as a word is a value, whichever of the two rules below would drop it.
+                if (TrySentinelWord(jf, value, RouterMajorVersion, out _)) return false;
+                if (jf.Def.HasValue && jf.IsUnsetValue(n)) return true;
                 if (jf.IsUnmappedOptionalEnum(n)) return true;
             }
             return false;
@@ -276,7 +284,7 @@ namespace tik4net.Winbox
             {
                 // TryZeroWord only returns true when it found a word (non-null by construction).
                 if (TryZeroWord(jf, value, out string? zeroWord)) return zeroWord!;
-                if (TrySentinelWord(jf, value, out string? sentinelWord)) return sentinelWord!;
+                if (TrySentinelWord(jf, value, RouterMajorVersion, out string? sentinelWord)) return sentinelWord!;
                 switch (jf.UiType)
                 {
                     case "ipaddr":
@@ -854,21 +862,41 @@ namespace tik4net.Winbox
                 ["trust-store"]    = "all",
             };
 
-        private static bool TrySentinelWord(WinboxJgField? jf, object value, out string? word)
+        /// <summary>
+        /// The same, for RouterOS 6 only: a logging action's Syslog Severity carries 4294967295 on every row
+        /// on both versions, and 6.49.13 prints the remote action's as <c>syslog-severity=auto</c> where 7.24
+        /// prints nothing.
+        /// </summary>
+        private static readonly Dictionary<string, string> RouterOs6SentinelSpelledAsWord =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["syslog-severity"] = "auto",
+            };
+
+        private static bool TrySentinelWordFor(string apiName, int? routerMajorVersion, out string? word)
+        {
+            if (SentinelSpelledAsWord.TryGetValue(apiName, out word)) return true;
+            if (routerMajorVersion.HasValue && routerMajorVersion.Value <= 6
+                && RouterOs6SentinelSpelledAsWord.TryGetValue(apiName, out word)) return true;
+            word = null;
+            return false;
+        }
+
+        private static bool TrySentinelWord(WinboxJgField? jf, object value, int? routerMajorVersion, out string? word)
         {
             word = null;
             if (jf?.ApiName == null || jf.Def != WinboxJgField.UnsetSentinel) return false;
             if (!WinboxFieldResolver.TryToInt64(value, out long n) || n != WinboxJgField.UnsetSentinel) return false;
-            return SentinelSpelledAsWord.TryGetValue(jf.ApiName, out word);
+            return TrySentinelWordFor(jf.ApiName, routerMajorVersion, out word);
         }
 
         /// <summary>
         /// The write side of <see cref="SentinelSpelledAsWord"/>: whether <paramref name="value"/> is the word this
         /// field's unset marker is printed as, so an encoder sends 4294967295 for it.
         /// </summary>
-        internal static bool IsSentinelWord(WinboxJgField jf, string value)
+        internal static bool IsSentinelWord(WinboxJgField jf, string value, int? routerMajorVersion = null)
             => jf.ApiName != null && jf.Def == WinboxJgField.UnsetSentinel
-               && SentinelSpelledAsWord.TryGetValue(jf.ApiName, out string? word)
+               && TrySentinelWordFor(jf.ApiName, routerMajorVersion, out string? word)
                && string.Equals(word, value, StringComparison.OrdinalIgnoreCase);
 
         /// <summary>

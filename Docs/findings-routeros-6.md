@@ -90,6 +90,17 @@ sends them under the numbers 7.x declares: `default-name` at `0x10031` on `/inte
 `total-entries` at `0xF` (enabling tracking moved it from 0 to 9 with the API). Both are shipped as
 synthetic fields identical to the 7.x declaration.
 
+**The API renamed some fields in 7, over the same key and label.** `/ip/service` prints `address` where 7
+prints `available-from` (`0x6`), `/tool/e-mail` `address` where 7 prints `server` (`0x1`), and the OSPF area's
+state flag `0xFE0008` is `invalid` where 7 says `inactive`. One value is printed differently too: a logging
+action's Syslog Severity carries `4294967295` on both versions; 6.49.13 prints the remote action's as
+`syslog-severity=auto` and 7.24 leaves it out. A label cannot tell the versions apart, so the connection reads
+the RouterOS version at open and the resolver lays `RouterOs6FieldAliases` (and the codec
+`RouterOs6SentinelSpelledAsWord`) over the shared tables when the major version is 6 or less; an unknown
+version reads as the current one. The version comes from the board-info singleton — get-singleton on
+`[24,2]`, key `s16`, as webfig's `fetchBoardInfo` reads it. Key `0x16` of the system-info singleton `[13,4]`
+is the WinBox protocol's version instead: `3.30` on 6.49.13, `3.42rc1` on 7.24.4.
+
 ## Open problems
 
 Each is a statement of what is measured and what is not, to be settled one at a time.
@@ -97,7 +108,7 @@ Each is a statement of what is measured and what is not, to be settled one at a 
 1. **WinBox native against the API on 6.x.** Measured with the path-map audit (`TransportPathMapAuditTest`,
    WinboxNative, against CHR2): OK 132, unmapped 0, value differences 8, field-name mismatches 2, not on this
    RouterOS 20, no WinBox window 2; writes OK 184 with no value differing, refused 1, not probeable 53 (the
-   router refused the row on both transports). 47 of 1174 API field names are never reported over native
+   router refused the row on both transports). 43 of 1174 API field names are never reported over native
    (4 %). Before the fallback labels and the windows' own commands (§4) it was OK 111, unmapped 22, writes
    refused 27. Each part below is separate work:
 
@@ -110,8 +121,10 @@ Each is a statement of what is measured and what is not, to be settled one at a 
      `/routing/bgp/instance` `ignore-as-path-len`.
    - **1b. Fields native does not report, on paths that otherwise agree.** Reported now: the address list's
      `list`, the route's `pref-src` and the OSPF area's `name` (6.x labels them 'Name', 'Pref. Source' and
-     'Area Name'), and `default-name` and conntrack `total-entries`, keys the 6.x windows do not declare but
-     the router sends (§4). Still missing, each for a reason of its own:
+     'Area Name'), `default-name` and conntrack `total-entries`, keys the 6.x windows do not declare but
+     the router sends, and the fields the API itself renamed in 7 — `/ip/service` `address`, `/tool/e-mail`
+     `address`, the OSPF area's `invalid`, and `syslog-severity=auto` (§4). Still missing, each for a reason
+     of its own:
      - `/ip/route` `scope`, `target-scope`: the router does not send them (§4).
      - `/ip/route` `connect`, `static`: the origin rides at `0x7`, the window's unnamed `numflag`
        (`2` connected, `3` static — both seen against the API), where 7.x has 'Belongs To' at `0x128`. Naming
@@ -119,14 +132,8 @@ Each is a statement of what is measured and what is not, to be settled one at a 
      - `/ip/route` `gateway-status`: the API's `<gateway> reachable via  ether1` is composed from the
        gateway tuple's read-only parts (status enum, `via` interface), which the decode drops.
      - `/ip/route` `vrf-interface`: no key in the record identified.
-     - The API renamed the field between versions, over the same key and the same WinBox label:
-       `/ip/service` `address` (7.x `available-from`), `/tool/e-mail` `address` (7.x `server`),
-       `/routing/ospf/area` `invalid` (7.x `inactive`). A label alias cannot tell the versions apart; this
-       needs the resolver to know the RouterOS version (`WinboxNativeM2Operations.GetRouterVersion` reads it,
-       nothing uses it yet).
-     - `/system/logging/action` `syslog-severity`: `0xE` is `4294967295` on every row, which 7.x prints as
-       nothing and 6.x prints as `auto` — the same version question. `syslog-time-format` is left unmapped on
-       purpose (see the resolver's `/system/logging/action` entry).
+     - `/system/logging/action` `syslog-time-format`: left unmapped on purpose (see the resolver's
+       `/system/logging/action` entry).
      - `/ip/neighbor` `system-caps`, `system-caps-enabled`: 6.x sends `0x11`/`0x12`, the 7.x keys, but only
        as 0, which proves no pairing (an empty set matches anything); needs an LLDP neighbour.
      - `/ip/ipsec/active-peers` `natt-peer`: the 6.x window has no 'NATT Peer' (7.x: `be`); needs a peer.

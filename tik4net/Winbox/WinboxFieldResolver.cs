@@ -41,7 +41,7 @@ namespace tik4net.Winbox
 
         internal WinboxFieldResolver(string? apiPath, int[] handler, WinboxJgCatalog catalog,
             IReadOnlyDictionary<string, int> overrides, bool useGuiNames = false, string? windowKey = null,
-            IReadOnlyDictionary<string, WinboxJgField>? actionFields = null)
+            IReadOnlyDictionary<string, WinboxJgField>? actionFields = null, int? routerMajorVersion = null)
         {
             _apiPath = apiPath;
             _handler = handler;
@@ -50,7 +50,16 @@ namespace tik4net.Winbox
             _useGuiNames = useGuiNames;
             _windowKey = windowKey;
             _actionFields = actionFields;
+            _routerMajorVersion = routerMajorVersion;
         }
+
+        private readonly int? _routerMajorVersion;
+
+        /// <summary>
+        /// The RouterOS major version the connection read at open, or <c>null</c> when it could not. Selects
+        /// <see cref="RouterOs6FieldAliases"/>; an unknown version reads as the current one.
+        /// </summary>
+        internal int? RouterMajorVersion => _routerMajorVersion;
 
         /// <summary>
         /// The <c>.jg</c> fields in force for this path: the handler's map, with the window's own fields laid
@@ -1413,6 +1422,30 @@ namespace tik4net.Winbox
             };
 
         /// <summary>
+        /// Field names the RouterOS 6 API spells differently from 7 over the same key and the same WinBox
+        /// label, laid over <see cref="ShippedFieldAliases"/> when the router's major version is 6 or less.
+        /// </summary>
+        /// <remarks>
+        /// A label alias cannot express these: the label is one, and the API name depends on the version.
+        /// Each was read on 6.49.13 beside the 7.24 API: <c>/ip/service</c> prints <c>address</c> where 7
+        /// prints <c>available-from</c> (ftp address=10.99.0.0/24,10.98.0.1/32 arrived at <c>0x6</c>);
+        /// <c>/tool/e-mail</c> prints <c>address</c> where 7 prints <c>server</c> (<c>0x1</c>, 0.0.0.0 on
+        /// both); the OSPF area's state flag <c>0xFE0008</c> is <c>invalid</c> where 7 says <c>inactive</c>.
+        /// </remarks>
+        private static readonly Dictionary<string, FieldAliasSet> RouterOs6FieldAliases =
+            new Dictionary<string, FieldAliasSet>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["/ip/service"] = new FieldAliasSet(
+                    apiToJg: Ci(("address", "available-from")),
+                    jgToApi: Ci(("available-from", "address"))),
+                ["/tool/e-mail"] = new FieldAliasSet(
+                    apiToJg: Ci(("address", "server")),
+                    jgToApi: Ci(("server", "address"))),
+                ["/routing/ospf/area"] = new FieldAliasSet(Ci(), Ci(),
+                    keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "invalid" }),
+            };
+
+        /// <summary>
         /// Enum MEMBERS whose <c>.jg</c> label is not the word RouterOS uses, keyed by the field's API name
         /// and then by the member's normalized label.
         /// </summary>
@@ -1556,7 +1589,16 @@ namespace tik4net.Winbox
                 if (cut <= 0) break;
                 path = path.Substring(0, cut);
             }
-            if (found == null) return;
+
+            // RouterOS 6's own spellings, for this exact path, over whatever the version-neutral table says.
+            FieldAliasSet? older = null;
+            if (_routerMajorVersion.HasValue && _routerMajorVersion.Value <= 6)
+                RouterOs6FieldAliases.TryGetValue(norm, out older);
+            if (found == null)
+            {
+                _aliases = older;
+                return;
+            }
 
             bool exact = string.Equals(foundPath, norm, StringComparison.OrdinalIgnoreCase);
             FieldAliasSet? baseSet = null;
@@ -1566,6 +1608,7 @@ namespace tik4net.Winbox
                 ShippedFieldAliases.TryGetValue("/interface", out baseSet);
 
             _aliases = baseSet == null ? found : MergeAliases(found, baseSet);
+            if (older != null) _aliases = MergeAliases(older, _aliases);
             _ownSynthetic = exact ? found.SyntheticFields : null;
             var inherited = exact ? baseSet?.SyntheticFields : found.SyntheticFields;
             if (inherited != null && _ownSynthetic != null)
@@ -2052,7 +2095,7 @@ namespace tik4net.Winbox
             }
 
             // …and the word RouterOS prints for the all-ones unset marker (trust-store=all, certificate=none).
-            if (jg != null && WinboxRecordCodec.IsSentinelWord(jg, value))
+            if (jg != null && WinboxRecordCodec.IsSentinelWord(jg, value, _routerMajorVersion))
             {
                 if (jg.OptKey != 0) result.Add(M2Message.BoolSys(jg.OptKey, true));
                 result.Add(EncodeU32(key, unchecked((uint)WinboxJgField.UnsetSentinel)));

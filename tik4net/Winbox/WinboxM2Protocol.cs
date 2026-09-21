@@ -175,7 +175,7 @@
             internal const int Name = 0x10006;
 
             // System-info singleton ([13,4] cmd=7) string fields, USER namespace (0x0000xx).
-            /// <summary>System-info: RouterOS version string, e.g. "7.21.4". webfig <c>s16</c>.</summary>
+            /// <summary>System-info: the WinBox protocol version string ("3.30" on RouterOS 6.49.13, "3.42rc1" on 7.24.4) — NOT the RouterOS version, which is <c>s16</c> of the board-info singleton [24,2].</summary>
             internal const int SysInfoVersion = 0x000016;
         }
 

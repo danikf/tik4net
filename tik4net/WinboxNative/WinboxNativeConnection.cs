@@ -121,6 +121,17 @@ namespace tik4net.WinboxNative
         // (see WinboxJgCatalog.Load); the empty default keeps pre-open access harmless.
         private WinboxJgCatalog _catalog = new WinboxJgCatalog();
 
+        // The RouterOS major version read at open ("6.49.13" → 6); null when the router did not say.
+        private int? _routerMajorVersion;
+
+        internal static int? ParseMajorVersion(string? version)
+        {
+            if (string.IsNullOrEmpty(version)) return null;
+            int i = 0;
+            while (i < version!.Length && char.IsDigit(version[i])) i++;
+            return i > 0 && int.TryParse(version.Substring(0, i), out int major) ? major : (int?)null;
+        }
+
         // What Open was given, kept so a session the router dropped can be rebuilt without the caller
         // (see ReopenAsync). The password lives no longer than the connection does and no more exposed
         // than the MAC-Telnet transport's, which captures the same four values in its reopen closure.
@@ -326,9 +337,13 @@ namespace tik4net.WinboxNative
                     + "reads will be wrong (see WinboxNativeConnection.CatalogHandlerCount)");
             // Feed the .jg-derived apiPath→handler map into the handler resolver (after session overrides,
             // before the shipped override tail).
+            // A handful of API names and printed values differ between RouterOS 6 and 7 over the same key and
+            // label (WinboxFieldResolver.RouterOs6FieldAliases). Best-effort: unknown reads as the current one.
+            try { _routerMajorVersion = ParseMajorVersion(_ops.GetRouterVersion()); }
+            catch { _routerMajorVersion = null; }
             _handlerMap.SetDerivedPaths(_catalog.GetDerivedPaths());
             _handlerMap.SetSubtypeFilters(_catalog.GetSubtypeFilters());
-            _codec = new WinboxRecordCodec(_ops, _catalog);
+            _codec = new WinboxRecordCodec(_ops, _catalog) { RouterMajorVersion = _routerMajorVersion };
             _idResolver = new WinboxIdResolver(_ops, _catalog);
             StartMultiplexer(session);
             SetOpened();
@@ -717,7 +732,8 @@ namespace tik4net.WinboxNative
             // interface list and 'rx-bits-per-second' by /interface/monitor-traffic, and a caller asking for
             // the monitor must get the monitor's names.
             var resolver = new WinboxFieldResolver(ApiPathOf(descriptor.CommandText), handler, _catalog,
-                OverridesFor(parentPath), _useGuiNames, _handlerMap.ResolveDerivedKey(parentPath));
+                OverridesFor(parentPath), _useGuiNames, _handlerMap.ResolveDerivedKey(parentPath),
+                routerMajorVersion: _routerMajorVersion);
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
             int flags = WinboxM2Protocol.GetAllFlags
@@ -1878,7 +1894,8 @@ namespace tik4net.WinboxNative
         /// </summary>
         private WinboxFieldResolver MakeResolver(string apiPath, int[] handler)
             => new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames,
-                                       _handlerMap.ResolveDerivedKey(apiPath));
+                                       _handlerMap.ResolveDerivedKey(apiPath),
+                                       routerMajorVersion: _routerMajorVersion);
 
         /// <summary>
         /// The resolver for an ACTION invocation: the path's ordinary resolver with the action window's own
@@ -1889,7 +1906,7 @@ namespace tik4net.WinboxNative
         private WinboxFieldResolver MakeActionResolver(string apiPath, int[] handler, string actionLabel)
             => new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames,
                                        _handlerMap.ResolveDerivedKey(apiPath),
-                                       _catalog.GetActionFields(handler, actionLabel));
+                                       _catalog.GetActionFields(handler, actionLabel), _routerMajorVersion);
 
         private bool IsSingletonWindow(string apiPath, int[] handler)
         {
