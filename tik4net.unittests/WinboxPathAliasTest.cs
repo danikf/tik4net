@@ -133,5 +133,48 @@ namespace tik4net.unittests
             Assert.IsNotInstanceOfType(routerRefusal, typeof(TikPathNotMappedException),
                 "a router refusal must not be reported as our own mapping gap");
         }
+
+        // ── A window with another label on an older RouterOS ─────────────────
+        //
+        // The derived keys below are what the real catalogs produce: RouterOS 6.49.13 has 'Route List' → 'Route'
+        // on [44,1] and IPv6 routes on [44,12]; 7.x has the 'Routes' window over [44,21] and, beside it, the
+        // hidden 'All Routes' window — which ALSO derives to /ip/routes/route and is the wrong table there.
+
+        [TestMethod]
+        public void OnARouterOs6Catalog_IpRoute_ResolvesToTheRouteListWindow()
+        {
+            var map = MapWithDerived(("/ip/routes/route", new[] { 44, 1 }));
+
+            CollectionAssert.AreEqual(new[] { 44, 1 }, map.Resolve("/ip/route"));
+            Assert.AreEqual("/ip/routes/route", map.ResolveDerivedKey("/ip/route"));
+        }
+
+        [TestMethod]
+        public void OnARouterOs6Catalog_Ipv6Route_ResolvesToItsOwnWindow()
+        {
+            var map = MapWithDerived(("/ipv6/routes/ipv6-route", new[] { 44, 12 }));
+
+            CollectionAssert.AreEqual(new[] { 44, 12 }, map.Resolve("/ipv6/route"));
+        }
+
+        [TestMethod]
+        public void OnARouterOs7Catalog_IpRoute_KeepsTheRoutesWindow_NotAllRoutes()
+        {
+            // Same handler, different window — so the window it resolves through is what is checked. Taking the
+            // older label here would read IPv4 and IPv6 at once, with half the columns.
+            var map = MapWithDerived(("/ip/routes/routes", new[] { 44, 21 }), ("/ip/routes/route", new[] { 44, 21 }));
+
+            Assert.AreEqual("/ip/routes/routes", map.ResolveDerivedKey("/ip/route"));
+        }
+
+        [TestMethod]
+        public void TheOlderLabel_IsNeverTakenForAPathWithoutOne()
+        {
+            // A catalog missing a path's primary window must still report the path unmapped, not borrow a
+            // neighbour's window.
+            var map = MapWithDerived(("/ip/routes/route", new[] { 44, 1 }));
+
+            Assert.IsNull(map.Resolve("/ip/address"));
+        }
     }
 }

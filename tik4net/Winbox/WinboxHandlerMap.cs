@@ -395,6 +395,36 @@ namespace tik4net.Winbox
             ["/tool/wol"]                    = "/tools/wol/wake-on-lan",
         };
 
+        // Where an older RouterOS keeps the same window under another menu label: apiPath → menu-label paths,
+        // tried in order ONLY when the ShippedAlias target is not in this router's catalog. A fallback, never a
+        // replacement: on 7.x '/ip/routes/route' also exists, and it is the hidden 'All Routes' window the
+        // primary alias exists to avoid (both families, only the columns the list shows) — so the older label is
+        // correct precisely where the newer one is absent. Measured against the 6.49.13 catalog, which has
+        // 'Route List' → 'Route' on [44,1] (IPv4 only) and IPv6 routes on their own [44,12].
+        private static readonly Dictionary<string, string[]> OlderCatalogAlias =
+            new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["/ip/route"]   = new[] { "/ip/routes/route" },
+            ["/ipv6/route"] = new[] { "/ipv6/routes/ipv6-route" },
+        };
+
+        /// <summary>
+        /// The shipped menu-label path for <paramref name="key"/> that THIS router's catalog has: the
+        /// <see cref="ShippedAlias"/> target when present, otherwise the first <see cref="OlderCatalogAlias"/>
+        /// candidate that is. With no catalog yet, the primary target (or <c>null</c>).
+        /// </summary>
+        private string? ShippedMenuPath(string key)
+        {
+            ShippedAlias.TryGetValue(key, out string? primary);
+            if (_derivedPaths == null || (primary != null && _derivedPaths.ContainsKey(primary)))
+                return primary;
+            if (OlderCatalogAlias.TryGetValue(key, out string[]? older))
+                foreach (string candidate in older)
+                    if (_derivedPaths.ContainsKey(candidate))
+                        return candidate;
+            return primary;
+        }
+
         private IReadOnlyDictionary<string, int[]>? _derivedPaths;
         private IReadOnlyDictionary<string, Tuple<int, int>>? _subtypeFilters;
         private readonly Dictionary<string, int[]> _overrides = new Dictionary<string, int[]>(StringComparer.OrdinalIgnoreCase);
@@ -442,7 +472,7 @@ namespace tik4net.Winbox
 
             string? derivedKey = (_derivedPaths != null && _derivedPaths.ContainsKey(key)) ? key
                 : _aliases.TryGetValue(key, out var sessionMenuPath) ? sessionMenuPath
-                : (ShippedAlias.TryGetValue(key, out var menuPath) ? menuPath : null);
+                : ShippedMenuPath(key);
             if (derivedKey != null && _subtypeFilters.TryGetValue(derivedKey, out var f))
             {
                 typeKey = f.Item1; typeValue = f.Item2; return true;
@@ -464,7 +494,8 @@ namespace tik4net.Winbox
             if (_derivedPaths.ContainsKey(key)) return key;
             if (_aliases.TryGetValue(key, out var sessionMenuPath) && _derivedPaths.ContainsKey(sessionMenuPath))
                 return sessionMenuPath;
-            if (ShippedAlias.TryGetValue(key, out var menuPath) && _derivedPaths.ContainsKey(menuPath))
+            string? menuPath = ShippedMenuPath(key);
+            if (menuPath != null && _derivedPaths.ContainsKey(menuPath))
                 return menuPath;
             if (UseGuiNames)
             {
@@ -525,9 +556,10 @@ namespace tik4net.Winbox
                 // session text alias (PathAlias): apiPath → menu-label path, handler still live from the .jg.
                 if (_aliases.TryGetValue(key, out var sessionMenuPath)
                     && _derivedPaths.TryGetValue(sessionMenuPath, out handler)) return true;
-                // irregular case: bridge apiPath → menu-label path, handler still live from the .jg.
-                if (ShippedAlias.TryGetValue(key, out var menuPath)
-                    && _derivedPaths.TryGetValue(menuPath, out handler)) return true;
+                // irregular case: bridge apiPath → menu-label path, handler still live from the .jg — the
+                // older-catalog label when this router's catalog has only that one.
+                string? menuPath = ShippedMenuPath(key);
+                if (menuPath != null && _derivedPaths.TryGetValue(menuPath, out handler)) return true;
             }
             handler = null;
             return false;
