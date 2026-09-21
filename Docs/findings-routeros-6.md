@@ -57,6 +57,22 @@ under the 'Routes' windows instead, and its hidden 'All Routes' window derives t
 such labels as a fallback (`OlderCatalogAlias`), tried only when the router's catalog lacks the primary
 alias target.
 
+The other windows that moved: **CAPsMAN** is a top-level menu (`/capsman/caps-*`, where 7.x has
+`/wireless/capsman/caps-*`), the **wireless** tables sit one level up (`/wireless/<leaf>`, 7.x
+`/wireless/wireless/<leaf>`), BGP is the 6.x model (`/routing/bgp/bgp-instance`, `-peer`, `-network`), IP
+accounting is `/ip/accounting/traffic-accounting` and `-web-access` (7 removed the menu), and the NTP client is
+the SNTP client (`/system/sntp-client/sntp-client`). Two list windows get **no derived key** at all: *WiFi
+Interfaces* has a title and no `name`, and *CAP Interface* (subtype 61) is not harvested — so
+`/interface/wireless` and `/caps-man/interface` cannot be reached by an alias. WinBox has no window for
+`/ip/accounting/uncounted`: the word is in none of the twelve plugins.
+
+**A singleton window can name its own commands.** *Traffic Accounting* on `[46]` declares `getcmd:2,
+setcmd:1`, *Web Access* on `[50]` `getcmd:1, setcmd:2`; get-singleton on either is refused with `0xFE0003`.
+webfig reads with `getcmd || 0xfe000d` and writes with `setcmd || 0xfe000e`, the message otherwise the
+standard one (`ObjectHolder`, 6.49.13 `master-min.js`), and `WinboxJgCatalog` records both per window —
+per window, because `[46]` also hosts the snapshot list. On 7.x only windows the library does not map name a
+`getcmd` of their own.
+
 **A route record leaves Scope and Target Scope out.** The window declares both (`uf` `def:30`, `u10` `def:10`),
 but neither key arrives in any row, with or without the statistics flag. It is not the default standing in
 for itself: the API prints `scope=30` for the default route and `scope=10` for the connected one, while the
@@ -67,15 +83,19 @@ record lacks the key on both — so filling in `def` would make the second row w
 Each is a statement of what is measured and what is not, to be settled one at a time.
 
 1. **WinBox native against the API on 6.x.** Measured with the path-map audit (`TransportPathMapAuditTest`,
-   WinboxNative, against CHR2): OK 111, unmapped 22, value differences 8, field-name mismatches 2, not on this
-   RouterOS 20; writes OK 158 with no value differing, refused 27, not probeable 53 (the router refused the row
-   on both transports). 48 of 1064 API field names are never reported over native (4 %). Each part below is
-   separate work:
+   WinboxNative, against CHR2): OK 130, unmapped 2, value differences 8, field-name mismatches 2, not on this
+   RouterOS 20, no WinBox window 2; writes OK 183 with no value differing, refused 2, not probeable 53 (the
+   router refused the row on both transports). 53 of 1174 API field names are never reported over native
+   (4 %). Before the fallback labels and the windows' own commands (§4) it was OK 111, unmapped 22, writes
+   refused 27. Each part below is separate work:
 
-   - **1a. 22 paths have no mapping** — windows under other labels, like routes were (§4): CAPsMAN (9 paths),
-     `/interface/wireless` and five of its sub-menus, `/ip/accounting` and its two sub-menus (gone in 7),
-     `/routing/bgp/instance`, `/network`, `/peer` (the 6.x BGP model), and `/system/ntp/client`. 26 of the
-     27 refused writes are these same paths.
+   - **1a. Two interface lists have no mapping:** `/interface/wireless` and `/caps-man/interface`, because
+     their 6.x windows get no derived key (§4) — a harvest change, not an alias. Every other path the audit
+     found unmapped now reads.
+   - **Newly reached paths that still disagree** (same kinds as 1b–1c): `/ip/accounting` `enabled` (6.x labels
+     it *Enable Accounting*), `/system/ntp/client` `primary-ntp`, `secondary-ntp`, `last-update-before`,
+     `/routing/bgp/instance` `ignore-as-path-len` — and a write to `/routing/bgp/instance` is refused because
+     `router-id` resolves to no M2 key.
    - **1b. Fields native does not report, on paths that otherwise agree.** `/ip/route` misses seven: `scope`
      and `target-scope` (the router does not send them, §4), `connect` and `static` (7.x derives them from a
      field 6.x does not have), `pref-src` (arrives as `pref-source` — the 6.x label), `gateway-status`,
@@ -124,9 +144,19 @@ Each is a statement of what is measured and what is not, to be settled one at a 
 
 6. **Coverage beyond the smoke subset is unmeasured on the other transports.** Not yet run against 6.49.13:
    the path-map audit over each CLI transport (`TIK4NET_AUDIT_TRANSPORT`), which does for them what problem 1
-   did for WinBox native; `CliFlagFieldsTest` (the flags on every transport against the binary API);
-   `RomonRelayTest` (whose target CHR2 now is); and the full suite — where CHR2's missing topology will fail
-   tests for reasons that are not defects, so its failures need sorting before any counts as a 6.x gap.
+   did for WinBox native; `CliFlagFieldsTest` (the flags on every transport against the binary API); and the
+   full suite — where CHR2's missing topology will fail tests for reasons that are not defects, so its failures
+   need sorting before any counts as a 6.x gap.
+
+   **`RomonRelayTest` with the 6.49.13 target: 24 of 37 pass.** The relay itself works over all three agent
+   transports. The rest:
+   - 9 Safe Mode tests: they check the target's state over its own API with `/safe-mode`, which is `no such
+     command` on 6.x. Unknown: whether Safe Mode through the relay works there and only the check does not.
+   - 3 synchronous-monitor tests (one per agent transport): the monitor command is refused on the target with
+     `expected end of command (line 1 column 43)` — a 7.x-only argument, not yet identified.
+   - 1 large read over MAC-Telnet: the id-list flag query on the 450-row table,
+     `:put [/ip firewall address-list find (dynamic=yes)]`, was refused as incomplete after four MAC backlogs.
+     The same read passed over Telnet and SSH.
 
 7. **Two MCP-side gaps seen while measuring.** `mikrotik_call` over `MacTelnet` failed against both routers,
    6.x and 7.x alike, while the suite's own MAC-Telnet legs passed — so the server, not the router; it was a

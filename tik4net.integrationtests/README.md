@@ -29,7 +29,7 @@ The lab runs two CHRs. Only the first is needed for the suite; the second covers
 | `App.config` keys | `host`, `user`, `pass`, `routerMac`, `routerIdentity` | `romonTargetId`, `romonTargetHost`, `romonTargetUser`, `romonTargetPass` |
 | RouterOS | the version README promises (current stable) | **6.49.13**, kept there on purpose |
 | Identity | `CHR` | `CHR2` — must differ from the first |
-| Ports | two (`testInterface`, `testSecondInterface`) | one |
+| Ports | two (`testInterface`, `testSecondInterface`) | two, the same names — aligned with CHR on purpose |
 | Role | every test runs against it; the RoMON agent | reached through CHR over RoMON; the RouterOS 6 router |
 
 **RoMON.** `RomonRelayTest` opens CHR2 *through* CHR (Telnet, SSH and MAC-Telnet to CHR, `/tool romon ssh`
@@ -42,8 +42,8 @@ lists what is still open on 6.x). It is not upgraded along with CHR. Going the o
 image: a CHR refuses any package older than its `factory-software` version (a 7.x-built VM logs `min RouterOS
 version is 7.1` and boots the old version again). A test that should also hold on the older version is run against it by pointing `host` / `routerMac` at
 CHR2 for that run and putting them back afterwards — `CliFlagFieldsTest` (flags over every transport against
-the binary API) is the one that matters. The full suite is not run there: CHR2 has one port and none of CHR's
-provisioned topology, so topology tests fail for reasons that are not defects.
+the binary API) is the one that matters. The full suite is not run there: CHR2 has CHR's two ports but none of
+its provisioned topology, so topology tests fail for reasons that are not defects.
 
 ## The lab VM, if the router is virtual
 
