@@ -414,8 +414,9 @@ namespace tik4net.Winbox
             ["/ip/route"]   = new[] { "/ip/routes/route" },
             ["/ipv6/route"] = new[] { "/ipv6/routes/ipv6-route" },
 
-            // CAPsMAN is a top-level menu on 6.x, not a submenu of Wireless; the window names are the same.
-            // Its interface list is not here: that window (subtype 61) gets no derived key at all.
+            // CAPsMAN is a top-level menu on 6.x, not a submenu of Wireless; the window names are the same, the
+            // interface list included (subtype 61 of the generic interface table on both).
+            ["/caps-man/interface"]          = new[] { "/capsman/cap-interface" },
             ["/caps-man/aaa"]                = new[] { "/capsman/caps-aaa" },
             ["/caps-man/access-list"]        = new[] { "/capsman/caps-access-rule" },
             ["/caps-man/channel"]            = new[] { "/capsman/caps-channel" },
@@ -430,8 +431,9 @@ namespace tik4net.Winbox
             ["/caps-man/remote-cap"]         = new[] { "/capsman/caps-remote-ap" },
             ["/caps-man/security"]           = new[] { "/capsman/caps-security-configuration" },
 
-            // Wireless windows sit one level up on 6.x ('Wireless Tables' holds them directly). Its interface
-            // list is not here either: the 'WiFi Interfaces' window has no name, so it gets no derived key.
+            // Wireless windows sit one level up on 6.x ('Wireless Tables' holds them directly). The interface
+            // list is the 'Wireless' subtype (35) of the generic interface table on both versions.
+            ["/interface/wireless"]                    = new[] { "/wireless/wireless" },
             ["/interface/wireless/access-list"]        = new[] { "/wireless/ap-access-rule" },
             ["/interface/wireless/channels"]           = new[] { "/wireless/wireless-channel" },
             ["/interface/wireless/connect-list"]       = new[] { "/wireless/station-connect-rule" },

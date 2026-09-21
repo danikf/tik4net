@@ -189,6 +189,24 @@ namespace tik4net.unittests
         }
 
         [TestMethod]
+        public void ASubtypeWindowUnderItsOlderLabel_KeepsItsRowFilter()
+        {
+            // 6.49.13 derives the wireless interface list as /wireless/wireless (7.x: /wireless/wireless/wireless)
+            // — subtype 35 of the generic interface table. Resolving the handler alone would read every
+            // interface; the filter has to come through the fallback as well.
+            var map = MapWithDerived(("/wireless/wireless", new[] { 20, 0 }));
+            map.SetSubtypeFilters(new Dictionary<string, Tuple<int, int>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["/wireless/wireless"] = Tuple.Create(0x10001, 35),
+            });
+
+            CollectionAssert.AreEqual(new[] { 20, 0 }, map.Resolve("/interface/wireless"));
+            Assert.IsTrue(map.TryResolveSubtypeFilter("/interface/wireless", out int typeKey, out int typeValue));
+            Assert.AreEqual(0x10001, typeKey);
+            Assert.AreEqual(35, typeValue);
+        }
+
+        [TestMethod]
         public void TheOlderLabel_IsNeverTakenForAPathWithoutOne()
         {
             // A catalog missing a path's primary window must still report the path unmapped, not borrow a

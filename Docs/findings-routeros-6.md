@@ -61,10 +61,13 @@ The other windows that moved: **CAPsMAN** is a top-level menu (`/capsman/caps-*`
 `/wireless/capsman/caps-*`), the **wireless** tables sit one level up (`/wireless/<leaf>`, 7.x
 `/wireless/wireless/<leaf>`), BGP is the 6.x model (`/routing/bgp/bgp-instance`, `-peer`, `-network`), IP
 accounting is `/ip/accounting/traffic-accounting` and `-web-access` (7 removed the menu), and the NTP client is
-the SNTP client (`/system/sntp-client/sntp-client`). Two list windows get **no derived key** at all: *WiFi
-Interfaces* has a title and no `name`, and *CAP Interface* (subtype 61) is not harvested — so
-`/interface/wireless` and `/caps-man/interface` cannot be reached by an alias. WinBox has no window for
-`/ip/accounting/uncounted`: the word is in none of the twelve plugins.
+the SNTP client (`/system/sntp-client/sntp-client`). The two interface lists are subtypes of the generic
+interface table on both versions, with the same discriminator: *Wireless* is subtype 35
+(`/wireless/wireless`, 7.x `/wireless/wireless/wireless`) and *CAP Interface* subtype 61
+(`/capsman/cap-interface`). They derive only once `roteros.jg`, which declares the generic interface window, has
+been parsed — `WinboxJgCatalog` parses it first for that reason; a catalog built from the plugins in `list`
+order has no key for either. WinBox has no window for `/ip/accounting/uncounted`: the word is in none of the
+twelve plugins.
 
 **A singleton window can name its own commands.** *Traffic Accounting* on `[46]` declares `getcmd:2,
 setcmd:1`, *Web Access* on `[50]` `getcmd:1, setcmd:2`; get-singleton on either is refused with `0xFE0003`.
@@ -83,15 +86,16 @@ record lacks the key on both — so filling in `def` would make the second row w
 Each is a statement of what is measured and what is not, to be settled one at a time.
 
 1. **WinBox native against the API on 6.x.** Measured with the path-map audit (`TransportPathMapAuditTest`,
-   WinboxNative, against CHR2): OK 130, unmapped 2, value differences 8, field-name mismatches 2, not on this
+   WinboxNative, against CHR2): OK 132, unmapped 0, value differences 8, field-name mismatches 2, not on this
    RouterOS 20, no WinBox window 2; writes OK 183 with no value differing, refused 2, not probeable 53 (the
    router refused the row on both transports). 53 of 1174 API field names are never reported over native
    (4 %). Before the fallback labels and the windows' own commands (§4) it was OK 111, unmapped 22, writes
    refused 27. Each part below is separate work:
 
-   - **1a. Two interface lists have no mapping:** `/interface/wireless` and `/caps-man/interface`, because
-     their 6.x windows get no derived key (§4) — a harvest change, not an alias. Every other path the audit
-     found unmapped now reads.
+   - **1a. Mapping is complete; two lists are unproven beyond it.** Every path the audit covers now reaches
+     its window. CHR2 has no wireless and no CAP interface, so for `/interface/wireless` and
+     `/caps-man/interface` what is shown is only that the subtype filter applies (no rows, where the
+     unfiltered interface table has two) — not that their fields decode.
    - **Newly reached paths that still disagree** (same kinds as 1b–1c): `/ip/accounting` `enabled` (6.x labels
      it *Enable Accounting*), `/system/ntp/client` `primary-ntp`, `secondary-ntp`, `last-update-before`,
      `/routing/bgp/instance` `ignore-as-path-len` — and a write to `/routing/bgp/instance` is refused because
