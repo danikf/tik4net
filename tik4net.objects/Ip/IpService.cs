@@ -36,8 +36,26 @@ namespace tik4net.Objects.Ip
         /// An empty value means the service is accessible from any address.
         /// WinBox: "Available From"
         /// </summary>
+        /// <remarks>
+        /// The RouterOS 6 name of <see cref="AvailableFrom"/>. RouterOS 7 prints the field as
+        /// <c>available-from</c> only, so this reads <c>null</c> there, but it still accepts <c>address</c>
+        /// on a write — which makes this the property that sets the field on both versions.
+        /// </remarks>
         [TikProperty("address", DefaultValue = "")]
         public string? Address { get; set; }
+
+        /// <summary>
+        /// available-from — list of IP/IPv6 prefixes from which the service is accessible (RouterOS 7).
+        /// An empty value means the service is accessible from any address.
+        /// WinBox: "Available From"
+        /// </summary>
+        /// <remarks>
+        /// The RouterOS 7 name of <see cref="Address"/>: the same setting, printed under this name only.
+        /// RouterOS 6 neither prints nor accepts it (<c>unknown parameter</c>), so it reads <c>null</c>
+        /// there; read whichever of the two is not <c>null</c>.
+        /// </remarks>
+        [TikProperty("available-from", DefaultValue = "")]
+        public string? AvailableFrom { get; set; }
 
         /// <summary>
         /// certificate — name of the certificate used by this service (relevant for www-ssl and api-ssl).
