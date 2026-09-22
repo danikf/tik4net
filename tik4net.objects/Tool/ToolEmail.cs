@@ -18,23 +18,13 @@ namespace tik4net.Objects.Tool
         /// WinBox: "Server"
         /// </summary>
         /// <remarks>
-        /// The RouterOS 7 name of <see cref="Address"/>. RouterOS 6 neither prints nor accepts it
-        /// (<c>unknown parameter</c>), so it reads <c>null</c> there.
+        /// RouterOS 6 calls this field <c>address</c> (an IP address only) and each version refuses the other's
+        /// name. It is read under whichever the router prints, and saved under the name it was read under — so
+        /// load the settings before saving them to a RouterOS 6 router; saved without loading, it is sent as
+        /// <c>server</c>.
         /// </remarks>
-        [TikProperty("server", DefaultValue = "0.0.0.0")]
+        [TikProperty("server", AlternateNames = new[] { "address" }, DefaultValue = "0.0.0.0")]
         public string? Server { get; set; }
-
-        /// <summary>
-        /// address — SMTP server IP address (RouterOS 6).
-        /// WinBox: "Server"
-        /// </summary>
-        /// <remarks>
-        /// The RouterOS 6 name of <see cref="Server"/>: the same setting. RouterOS 7 neither prints nor
-        /// accepts it (<c>unknown parameter address</c>), so it reads <c>null</c> there. Read and set the
-        /// one that is not <c>null</c> on the router in hand.
-        /// </remarks>
-        [TikProperty("address", DefaultValue = "0.0.0.0")]
-        public string? Address { get; set; }
 
         /// <summary>
         /// port — SMTP server's TCP port number [0..65535].

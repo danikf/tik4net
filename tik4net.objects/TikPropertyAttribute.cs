@@ -18,6 +18,22 @@ namespace tik4net.Objects
         public string FieldName { get; private set; }
 
         /// <summary>
+        /// Other names RouterOS prints the same field under — a field another RouterOS version renamed.
+        /// </summary>
+        /// <remarks>
+        /// <para>RouterOS 7 prints <c>/ip/service</c>'s access list as <c>available-from</c>, RouterOS 6 as
+        /// <c>address</c>; one property declared <c>[TikProperty("address", AlternateNames = new[] { "available-from" })]</c>
+        /// reads it on both. A second property per name cannot do this: the name the router does not print
+        /// reads as the property's default (<c>""</c> for a string), not as <c>null</c>.</para>
+        /// <para><b>Read:</b> the first of <see cref="FieldName"/>, then these in order, that the row carries; the
+        /// default applies only when it carries none of them. <b>Write:</b> the name the entity was read under,
+        /// so a loaded entity saves under the name its router uses; an entity that was never read (a create, a
+        /// singleton saved without loading) sends <see cref="FieldName"/> — so make that the name both versions
+        /// accept where there is one. A <c>.proplist</c> requests every name.</para>
+        /// </remarks>
+        public string[]? AlternateNames { get; set; }
+
+        /// <summary>
         /// Gets a value indicating whether this property is mandatory - should be present in loading resultset.
         /// </summary>
         /// <value><c>true</c> if mandatory; otherwise, <c>false</c>.</value>

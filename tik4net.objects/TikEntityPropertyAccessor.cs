@@ -54,6 +54,33 @@ namespace tik4net.Objects
         public string FieldName { get; private set; }
 
         /// <summary>
+        /// Other names the router prints this field under (empty when there are none).
+        /// </summary>
+        /// <seealso cref="TikPropertyAttribute.AlternateNames"/>
+        public IReadOnlyList<string> AlternateNames { get; private set; } = Array.Empty<string>();
+
+        /// <summary>
+        /// The name <paramref name="sentence"/> carries this field under — <see cref="FieldName"/> or, failing that,
+        /// the first of <see cref="AlternateNames"/> it carries — or <c>null</c> when it carries none of them.
+        /// </summary>
+        internal string? NameInSentence(ITikReSentence sentence)
+        {
+            if (sentence.TryGetResponseField(FieldName, out _))
+                return FieldName;
+            foreach (string name in AlternateNames)
+                if (sentence.TryGetResponseField(name, out _))
+                    return name;
+            return null;
+        }
+
+        /// <summary>
+        /// The name to WRITE this field under for <paramref name="entity"/>: the name it was read under
+        /// (see <see cref="TikPropertyAttribute.AlternateNames"/>), else <see cref="FieldName"/>.
+        /// </summary>
+        internal string WriteName(object entity)
+            => AlternateNames.Count == 0 ? FieldName : TikFieldNamesRead.NameRead(entity, FieldName) ?? FieldName;
+
+        /// <summary>
         /// If property (and mikrotik field) is R/O — either because the property says so, or because the
         /// menu offers neither <c>add</c> nor <c>set</c> and so has nothing to write with.
         /// </summary>
@@ -172,6 +199,8 @@ namespace tik4net.Objects
             if (propertyAttribute == null)
                 throw new ArgumentException("Property must be decorated by TikPropertyAttribute.", "propertyInfo");
             FieldName = propertyAttribute.FieldName;
+            if (propertyAttribute.AlternateNames != null && propertyAttribute.AlternateNames.Length > 0)
+                AlternateNames = propertyAttribute.AlternateNames.ToArray();
             _isReadOnly =
                 (propertyInfo.SetMethod == null)
                 || (!propertyInfo.CanWrite) || (propertyAttribute.IsReadOnly);

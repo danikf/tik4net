@@ -36,6 +36,11 @@ The lab runs two CHRs. Only the first is needed for the suite; the second covers
 beyond it) and writes to it, checking each write over CHR2's own API connection (`romonTargetHost`). RoMON is
 enabled on both. With `romonTargetId` empty those tests are Inconclusive.
 
+**Pin CHR2's RoMON id** to `romonTargetId` (`/tool romon set id=<romonTargetId>`). Left at its default
+(`id=00:00:00:00:00:00`), RouterOS picks an interface MAC, and on this two-port CHR the pick has moved twice —
+each time every relay test reported the target unreachable. Symptom: *the agent could not reach RoMON id …*;
+check `/tool romon discover` on CHR.
+
 **Older RouterOS.** CHR2 runs RouterOS 6, which has no REST API, no `proplist=` argument and no flag fields in
 `print as-value` — so the CLI transports read its flags as id lists (`Docs/findings-routeros-6.md`, which also
 lists what is still open on 6.x). It is not upgraded along with CHR. Going the other way takes a new disk

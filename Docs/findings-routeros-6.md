@@ -125,6 +125,21 @@ parsing it as RouterOS's sees major 3 on every router. The RouterOS version is `
 singleton `[24,2]`, which is where webfig's `fetchBoardInfo` reads it
 (`WinboxNativeM2Operations.GetRouterVersion`, which nothing calls).
 
+## 5. Entities: renamed fields, fields 6.x does not have
+
+**A renamed field is one property with several names.** `IpService.Address` reads `address` (6.x) or
+`available-from` (7.x), `ToolEmail.Server` reads `server` (7.x) or `address` (6.x)
+(`TikPropertyAttribute.AlternateNames`), and saves under the name it was read under. Each version refuses the
+other's name on a write — 6.49.13 with a bare `unknown parameter` that names no field — except that 7.24 still
+accepts `/ip/service address`, which is why that entity declares `address` first. A filter spelled with the 7.x
+name silently matches nothing on 6.x, over the API and the CLI alike; 7.24 accepts the old name in a filter.
+
+**A field 6.x does not have reads as the entity's default.** The mapper fills a field the row lacks with the
+property's default, so `ToolEmail` loaded from 6.49.13 reads `tls=no`, `certificate-verification=no`,
+`vrf=main` — none of which that router has. A loaded entity saves only what changed, singletons included, so
+those values are never written back; an entity saved without being loaded sends everything it holds, and on 6.x
+that is refused as soon as it holds a 7.x-only field.
+
 ## Open problems
 
 Each is a statement of what is measured and what is not, to be settled one at a time.
@@ -219,3 +234,12 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    staged copy older than the library, so re-check after a reconnect first. And `mikrotik_call` over `ApiSsl`
    rejects the lab's self-signed certificate on both routers, with no option to accept it the way the suite's
    `restAllowInvalidCert` does.
+
+8. **The CLI transports' `ping` is refused on 6.x.** A one-shot monitor is sent as
+   `:put [/ping address=<a> count=2 as-value]`, and RouterOS 6.49.13 answers
+   `expected end of command (line 1 column 43)` — column 43 is `as-value`, which its `/ping` does not take. Measured
+   over Telnet directly and through the RoMON relay (`RomonRelayTest.Relay_SyncMonitor_ReturnsRows_AndKeepsTheRelay`,
+   red on Telnet, SSH and MAC-Telnet). Unmeasured: which other monitors 6.x refuses the same way
+   (`monitor-traffic once`, `/tool traceroute`, …), and what 6.x offers instead — the plain print of a `count=`-bounded
+   ping is the first thing to try, since the probes that already handle a refused `proplist=` show 6.x answering
+   the non-`as-value` form.

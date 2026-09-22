@@ -701,9 +701,23 @@ namespace tik4net.integrationtests
         // /tool romon ssh. Whether the key reaches the target or is taken by the agent's own console is exactly
         // what cannot be seen from the relay, so each test reads /safe-mode on both routers over their own API.
 
+        // The /safe-mode menu is RouterOS 7.18+; CHR2 runs RouterOS 6 on purpose. Its refusal of the menu means the
+        // one thing these tests measure — which router holds the hold — has no reader on that target, so the test
+        // is Inconclusive on the router's own "no such command", not on a version number.
         private static bool SafeModeHeldOn(ITikConnection direct)
-            => direct.CreateCommand("/safe-mode/print").ExecuteList().Single()
-                .GetResponseField("enabled") == "true";
+        {
+            try
+            {
+                return direct.CreateCommand("/safe-mode/print").ExecuteList().Single()
+                    .GetResponseField("enabled") == "true";
+            }
+            catch (TikNoSuchCommandException ex)
+            {
+                Assert.Inconclusive("This router has no /safe-mode menu to read the hold from (RouterOS 7.18+): "
+                                    + ex.Message);
+                throw; // unreachable: Inconclusive throws
+            }
+        }
 
         // A hold left by an interrupted run blocks the next take; a release from any session clears it.
         private static void ReleaseStaleSafeMode(ITikConnection direct)

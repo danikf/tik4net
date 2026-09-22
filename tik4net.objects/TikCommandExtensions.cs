@@ -217,14 +217,29 @@ namespace tik4net.Objects
             TEntity result = new TEntity();
             foreach (var property in metadata.Properties)
             {
-                property.SetEntityValue(result, GetValueFromSentence(sentence, property));
+                property.SetEntityValue(result, GetValueFromSentence(sentence, property, result));
             }
 
             return result;
         }
 
-        private static string? GetValueFromSentence(ITikReSentence sentence, TikEntityPropertyAccessor property)
+        private static string? GetValueFromSentence(ITikReSentence sentence, TikEntityPropertyAccessor property, object entity)
         {
+            // A field RouterOS prints under another name on another version: the first name the row carries,
+            // remembered so a save goes out under it (TikPropertyAttribute.AlternateNames).
+            if (property.AlternateNames.Count > 0)
+            {
+                string? nameRead = property.NameInSentence(sentence);
+                if (nameRead != null)
+                {
+                    if (nameRead != property.FieldName)
+                        TikFieldNamesRead.Record(entity, property.FieldName, nameRead);
+                    return sentence.GetResponseField(nameRead);
+                }
+                // None of the names: the same outcome as a missing FieldName below (throw when mandatory,
+                // the default otherwise).
+            }
+
             //Read field value (or get default value)
             if (property.IsMandatory)
                 return sentence.GetResponseField(property.FieldName);

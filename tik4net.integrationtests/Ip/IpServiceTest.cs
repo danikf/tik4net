@@ -1,3 +1,4 @@
+using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using tik4net.Objects;
 using tik4net.Objects.Ip;
@@ -15,15 +16,28 @@ namespace tik4net.integrationtests
             Assert.IsNotNull(list);
         }
 
-        // RouterOS 6 prints the access list as `address`, RouterOS 7 as `available-from`; every row carries it
-        // (an empty list prints empty), so one of the two must arrive, whichever version the lab runs.
+        // RouterOS 6 prints the access list as `address`, RouterOS 7 as `available-from`. A value that is not the
+        // default has to survive the round trip on either: an empty list would read back as the default whatever
+        // name the router used, and prove nothing. 0.0.0.0/0 allows everyone, so ftp stays reachable meanwhile.
         [TestMethod]
-        public void TheAccessListReadsUnderOneOfItsTwoNames()
+        public void TheAccessListRoundTripsUnderTheRoutersOwnName()
         {
             EnsureCommandAvailable("/ip/service");
-            foreach (var service in Connection.LoadAll<IpService>())
-                Assert.IsTrue(service.Address != null || service.AvailableFrom != null,
-                    $"{service.Name}: neither address nor available-from was read");
+            var ftp = Connection.LoadAll<IpService>().Single(s => s.Name == "ftp");
+            string original = ftp.Address;
+            try
+            {
+                ftp.Address = "0.0.0.0/0";
+                Connection.Save(ftp);
+
+                Assert.AreEqual("0.0.0.0/0", Connection.LoadAll<IpService>().Single(s => s.Name == "ftp").Address);
+            }
+            finally
+            {
+                var restore = Connection.LoadAll<IpService>().Single(s => s.Name == "ftp");
+                restore.Address = original;
+                Connection.Save(restore);
+            }
         }
     }
 }

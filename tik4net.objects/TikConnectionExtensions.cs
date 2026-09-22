@@ -407,7 +407,8 @@ namespace tik4net.Objects
                 command.AddParameter(TikSpecialProperties.CliFlags, cliFlags, TikCommandParameterFormat.NameValue);
             //.proplist
             if (metadata.IncludeProplist)
-                command.AddParameter(TikSpecialProperties.Proplist, string.Join(",", metadata.Properties.Select(prop => prop.FieldName).ToArray()), TikCommandParameterFormat.NameValue);
+                command.AddParameter(TikSpecialProperties.Proplist, string.Join(",", metadata.Properties
+                    .SelectMany(prop => new[] { prop.FieldName }.Concat(prop.AlternateNames)).ToArray()), TikCommandParameterFormat.NameValue);
             //filter
             //parameters
             if (parameters != null)
@@ -530,10 +531,12 @@ namespace tik4net.Objects
                 var resolution = ResolveUpdateFilter(connection, entity, metadata, saveMode);
                 if (resolution.Kind == UpdateFilterKind.NothingChanged)
                     return; // nothing changed — skip the API call
-                // id: non-null here. This branch is unreachable for a singleton (NeedsFilterResolution is
-                // false for those), and IsCreate above already ruled out the non-singleton "empty id" case.
+                // id: non-null for a non-singleton here — IsCreate above already ruled out the "empty id" case.
+                // A singleton has no id and is read back as the one row it is.
                 usedFieldsFilter = resolution.Kind == UpdateFilterKind.NeedsUnmodifiedEntity
-                    ? entity.GetDifferentFields(connection.LoadById<TEntity>(id!))
+                    ? entity.GetDifferentFields(metadata.IsSingleton
+                        ? connection.LoadSingle<TEntity>()
+                        : connection.LoadById<TEntity>(id!))
                     : resolution.Filter;
             }
 
@@ -602,8 +605,11 @@ namespace tik4net.Objects
         internal static bool IsCreate(TikEntityMetadata metadata, string? id)
             => !metadata.IsSingleton && string.IsNullOrEmpty(id);
 
+        // A singleton too: saving a loaded one with every writable field would write back the values the load
+        // filled in for fields this router does not have (RouterOS 6's /tool/e-mail has no tls, vrf, …), and
+        // the router refuses the whole set with "unknown parameter".
         internal static bool NeedsFilterResolution(TikEntityMetadata metadata, IEnumerable<string>? usedFieldsFilter)
-            => !metadata.IsSingleton && usedFieldsFilter == null;
+            => usedFieldsFilter == null;
 
         internal static ITikCommand BuildCreateCommand<TEntity>(ITikConnection connection, TEntity entity,
             TikEntityMetadata metadata, IEnumerable<string>? usedFieldsFilter)
@@ -624,7 +630,7 @@ namespace tik4net.Objects
                     // disagree: there is nothing to send, and sending the word without a value would be
                     // worse than letting the router say what it requires.
                     if (value != null)
-                        createCmd.AddParameter(property.FieldName, value);
+                        createCmd.AddParameter(property.WriteName(entity!), value);
                 }
             }
 
@@ -692,9 +698,9 @@ namespace tik4net.Objects
                 .Where(pm => usedFieldsFilter == null || usedFieldsFilter.Contains(pm.FieldName, StringComparer.OrdinalIgnoreCase)))
             {
                 if (property.HasDefaultValue(entity!) && property.UnsetOnDefault)
-                    fieldsToUnset.Add(property.FieldName);
+                    fieldsToUnset.Add(property.WriteName(entity!));
                 else if (clearedFields.Contains(property.FieldName))
-                    fieldsToUnset.Add(property.FieldName);   // loaded with a value, set to null → unset
+                    fieldsToUnset.Add(property.WriteName(entity!));   // loaded with a value, set to null → unset
                 else
                 {
                     string? value = property.GetEntityValue(entity!);
@@ -702,7 +708,7 @@ namespace tik4net.Objects
                     // nullable property can say that). Sending it would put the word on the wire with no
                     // value, and unsetting it would destroy what the router holds on the strength of silence.
                     if (value != null)
-                        setCmd.AddParameter(property.FieldName, value); //full update (all values)
+                        setCmd.AddParameter(property.WriteName(entity!), value); //full update (all values)
                 }
             }
 

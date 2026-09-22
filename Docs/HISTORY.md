@@ -113,6 +113,24 @@ tabular lines — tolerates retransmission. Only the longer, time-sensitive term
 it. A latent defect inherited from a PoC, not a porting regression.
 → [`findings-mactelnet.md`](findings-mactelnet.md)
 
+## Two properties for one renamed field, and a test the default fill passed (2026-09-23)
+
+RouterOS 7 renamed `/ip/service address` to `available-from` and `/tool/e-mail address` to `server`. The
+first fix mapped both names as separate properties and told callers to read "whichever is not null". None
+ever is: the mapper fills a field the row does not carry with the property's default, and for a `string?`
+that default is `""` — so `AvailableFrom ?? Address` stopped at an invented `""`. Its integration tests
+asserted "one of the two is not null", which the fill satisfies on every router. Replaced the same day by one
+property with `TikPropertyAttribute.AlternateNames`, tested with a value that is not the default.
+
+Writing that value back on RouterOS 6.49.13 then failed on every transport, and exposed an older defect: a
+**singleton** `Save` never used the change tracker and sent every writable field — including the defaults the
+load had filled in for fields 6.x does not have (`/tool/e-mail` `tls`, `certificate-verification`, `vrf`), which
+the router refuses as `unknown parameter`. The exclusion dated from 2015, when the diff needed `LoadById` and a
+singleton has no id; the wiki had since described singletons as diffed. They are now.
+The transferable lesson: **an assertion the default could satisfy measures nothing** — test a version-specific
+read with a value that is not the default.
+→ [`findings-routeros-6.md`](findings-routeros-6.md)
+
 ## A version comparison where the catalog already knew the answer (2026-09-22)
 
 Three fields RouterOS renamed between 6 and 7 (`/ip/service` `address`/`available-from`, `/tool/e-mail`

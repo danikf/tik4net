@@ -232,8 +232,10 @@ namespace tik4net.Objects
                     return; // nothing changed — skip the API call
                 if (resolution.Kind == TikConnectionExtensions.UpdateFilterKind.NeedsUnmodifiedEntity)
                 {
-                    // id: non-null here, same reasoning as the sync Save (see its note).
-                    var unmodifiedEntity = await connection.LoadByIdAsync<TEntity>(id!, cancellationToken).ConfigureAwait(false);
+                    // id: non-null for a non-singleton here, same reasoning as the sync Save (see its note).
+                    var unmodifiedEntity = metadata.IsSingleton
+                        ? await connection.LoadSingleAsync<TEntity>(cancellationToken).ConfigureAwait(false)
+                        : await connection.LoadByIdAsync<TEntity>(id!, cancellationToken).ConfigureAwait(false);
                     usedFieldsFilter = entity.GetDifferentFields(unmodifiedEntity);
                 }
                 else

@@ -16,13 +16,28 @@ namespace tik4net.integrationtests
             Assert.IsNotNull(email);
         }
 
-        // RouterOS 6 prints the SMTP server as `address`, RouterOS 7 as `server`; one of them must arrive.
+        // RouterOS 6 calls the SMTP server `address`, RouterOS 7 `server`, and each refuses the other's name — so
+        // the save must go out under the name the settings were read under. A TEST-NET address, not the default,
+        // so the read-back cannot be satisfied by the default fill.
         [TestMethod]
-        public void TheServerReadsUnderOneOfItsTwoNames()
+        public void TheServerRoundTripsUnderTheRoutersOwnName()
         {
             EnsureCommandAvailable("/tool/e-mail");
             var email = Connection.LoadSingle<ToolEmail>();
-            Assert.IsTrue(email.Server != null || email.Address != null, "neither server nor address was read");
+            string original = email.Server;
+            try
+            {
+                email.Server = "192.0.2.25";
+                Connection.Save(email);
+
+                Assert.AreEqual("192.0.2.25", Connection.LoadSingle<ToolEmail>().Server);
+            }
+            finally
+            {
+                var restore = Connection.LoadSingle<ToolEmail>();
+                restore.Server = original;
+                Connection.Save(restore);
+            }
         }
     }
 }
