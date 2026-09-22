@@ -173,6 +173,64 @@ namespace tik4net.Winbox
             return _byHandler.TryGetValue(HandlerKey(handler), out var map) ? map : null;
         }
 
+        /// <summary>
+        /// The <c>numflag</c> fields of a window or handler: <c>key → (value → the flag's own name)</c>.
+        /// A <c>numflag</c> is one numeric key carrying a SET of named row flags, one of which the row is —
+        /// <c>{type:'numflag',id:'u7',c:{2:['connected','C'],3:['static','S'],…}}</c> — and the names are the
+        /// router's own, which is why the flags a version has need no version test: each catalog declares the
+        /// members that version knows (RouterOS 6 has no <c>DHCP</c> member, and RouterOS 7 does).
+        /// </summary>
+        /// <remarks>
+        /// The node carries no <c>name</c> of its own, so it is not a field and does not go into the field
+        /// maps. Window members overlay the handler's, as <see cref="GetWindowFields"/> does.
+        /// </remarks>
+        internal IReadOnlyDictionary<int, IReadOnlyDictionary<int, string>>? GetNumFlags(
+            int[] handler, string? derivedPath)
+        {
+            _numFlags.TryGetValue(HandlerKey(handler), out var byHandler);
+            IReadOnlyDictionary<int, IReadOnlyDictionary<int, string>>? byWindow = null;
+            if (derivedPath != null && _numFlags.TryGetValue(WindowKey(derivedPath), out var w)) byWindow = w;
+            if (byHandler == null) return byWindow;
+            if (byWindow == null) return byHandler;
+            var merged = new Dictionary<int, IReadOnlyDictionary<int, string>>(byHandler);
+            foreach (var kv in byWindow) merged[kv.Key] = kv.Value;
+            return merged;
+        }
+
+        // owner (handler or window key) → key → value → flag name.
+        private readonly Dictionary<string, Dictionary<int, IReadOnlyDictionary<int, string>>> _numFlags =
+            new Dictionary<string, Dictionary<int, IReadOnlyDictionary<int, string>>>(StringComparer.Ordinal);
+
+        // {type:'numflag',id:'u7',c:{2:[ 'connected','C' ],…}} — the member list is a map from the key's value
+        // to [name, one-letter flag]; only the name is kept.
+        private void AddNumFlag(string owner, string idStr, Dictionary<string, object> dict)
+        {
+            var dec = DecodeId(idStr);
+            if (dec == null || !dict.TryGetValue("c", out var cv) || !(cv is Dictionary<string, object> members))
+                return;
+            var byValue = new Dictionary<int, string>();
+            foreach (var m in members)
+            {
+                if (!int.TryParse(m.Key, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value)) continue;
+                string? name = m.Value is List<object> pair && pair.Count > 0 ? pair[0] as string : m.Value as string;
+                if (!string.IsNullOrEmpty(name)) byValue[value] = name!;
+            }
+            if (byValue.Count == 0) return;
+            Register(owner);
+            // Also under the owning HANDLER, the way AddField registers a handler-backed window's fields: a
+            // caller addressing the handler rather than this window still reads the flags. First wins, so a
+            // second window on the same handler does not rename another's flags at handler level.
+            string? handlerOfWindow = IsWindowKey(owner) ? HandlerOfOwner(owner) : null;
+            if (handlerOfWindow != null) Register(handlerOfWindow);
+
+            void Register(string key)
+            {
+                if (!_numFlags.TryGetValue(key, out var forOwner))
+                    _numFlags[key] = forOwner = new Dictionary<int, IReadOnlyDictionary<int, string>>();
+                if (!forOwner.ContainsKey(dec.Value.key)) forOwner[dec.Value.key] = byValue;
+            }
+        }
+
         // Field maps of a WINDOW rather than of a handler live in the same dictionary under a key that
         // cannot collide with a handler key ("20,0").
         private static string WindowKey(string derivedPath) => "win:" + derivedPath;
@@ -1074,6 +1132,13 @@ namespace tik4net.Winbox
                          && !string.IsNullOrEmpty(nodeName))
                 {
                     AddTupleField(owner, nodeName, dict, pane);
+                }
+                // A numflag names a SET of row flags on one numeric key and carries no name itself, so it is
+                // not a field — kept apart, and decoded into the flag the row's value names (see GetNumFlags).
+                else if (owner != null && ty == "numflag"
+                         && dict.TryGetValue("id", out var nfIdv) && nfIdv is string nfId)
+                {
+                    AddNumFlag(owner, nfId, dict);
                 }
                 else if (owner != null && dict.TryGetValue("id", out var idv) && idv is string idStr)
                 {

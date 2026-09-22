@@ -190,8 +190,11 @@ namespace tik4net.unittests.Winbox
             var decoded = Decode(Parse(SentinelWindow), new[] { 3, 1 },
                 Rec((0xE, "u32", 4294967295u), (0x1, "str", "remote")));
 
-            Assert.IsFalse(decoded.ContainsKey("syslog-severity"),
-                "the API prints no syslog-severity for this row; 4294967295 is the 'not set' marker");
+            // Never the raw number, which is the point of the marker rule. This field is one of the few the
+            // marker is a WORD for: RouterOS 6.49.13 prints the remote action's as `auto` and 7.24 prints
+            // nothing, and the word is reported on both rather than asking the router for its version
+            // (WinboxRecordCodec.SentinelSpelledAsWord).
+            Assert.AreEqual("auto", decoded["syslog-severity"]);
             Assert.AreEqual("remote", decoded["name"]);
         }
 

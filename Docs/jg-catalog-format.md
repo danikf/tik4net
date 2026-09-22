@@ -83,6 +83,7 @@ WinBox UI windows/dialogs. Example:
 | `cmd`/`startcmd`/`pollcmd`/`cancelcmd`/`setcmd` | **SYS_CMD** (`0xFF0007`) | see "Commands" below |
 | `id:'<type><hexKey>'` | field key + type in the message | `s10006` → key `0x10006`, type string |
 | `nameval:'Name'` | which field is the record's "primary name" | |
+| `{type:'numflag',id:'u7',c:{2:['connected','C'],…}}` | one numeric key carrying a SET of named row flags | the row IS the member its value names, and the API prints that one (`connect=true`); the node has no `name` of its own, so it is not a field — see below |
 | `generic:'iface'` | applies a generic command template | that's why `map` has no explicit cmd |
 
 ### Type prefixes (1 letter; rest = hex key)
@@ -157,6 +158,16 @@ label alone keeps whichever comes first and the other is addressable by no name 
 
     Each pairing was established by MOVING it — one table, one variable, both values in one read — not
     by matching names. See [winbox-native-m2-protocol.md §33](winbox-native-m2-protocol.md).
+
+  - **A `numflag` is a row-state field the window DOES declare**: one numeric key whose value names which
+    of a set of flags the row is. A route's origin is `{numflag,id:'u7',c:{2:['connected','C'],
+    3:['static','S'],4:['RIP','r'],…}}` on RouterOS 6.49.13 and `{numflag,id:'u112',c:{2:['connect','C'],
+    …,10:['DHCP','d'],…}}` on 7.24; the API prints the one the row is and nothing for the others. The
+    member names are the router's own words for the flags, so each version's catalog declares the flags
+    that version knows — which is why reading them needs no version test. The node carries no `name`, so
+    it is not a field and is kept apart from the field maps
+    (`WinboxJgCatalog.GetNumFlags`). RouterOS 6 spells one member 'connected' where the API and the 7.x
+    catalog say `connect`.
 
 ### Window inheritance: `generic` / `inherit` / `typeon` / `typevalue`
 

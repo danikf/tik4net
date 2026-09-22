@@ -41,7 +41,7 @@ namespace tik4net.Winbox
 
         internal WinboxFieldResolver(string? apiPath, int[] handler, WinboxJgCatalog catalog,
             IReadOnlyDictionary<string, int> overrides, bool useGuiNames = false, string? windowKey = null,
-            IReadOnlyDictionary<string, WinboxJgField>? actionFields = null, int? routerMajorVersion = null)
+            IReadOnlyDictionary<string, WinboxJgField>? actionFields = null)
         {
             _apiPath = apiPath;
             _handler = handler;
@@ -50,16 +50,7 @@ namespace tik4net.Winbox
             _useGuiNames = useGuiNames;
             _windowKey = windowKey;
             _actionFields = actionFields;
-            _routerMajorVersion = routerMajorVersion;
         }
-
-        private readonly int? _routerMajorVersion;
-
-        /// <summary>
-        /// The RouterOS major version the connection read at open, or <c>null</c> when it could not. Selects
-        /// <see cref="RouterOs6FieldAliases"/>; an unknown version reads as the current one.
-        /// </summary>
-        internal int? RouterMajorVersion => _routerMajorVersion;
 
         /// <summary>
         /// The <c>.jg</c> fields in force for this path: the handler's map, with the window's own fields laid
@@ -299,6 +290,20 @@ namespace tik4net.Winbox
             public readonly IReadOnlyDictionary<int, string> KeyUiType;  // M2 key → UI type (e.g. ipaddr), for decode formatting
 
             /// <summary>
+            /// Further names the SAME field is reported under, as <c>reported name → other spellings</c>.
+            /// </summary>
+            /// <remarks>
+            /// For a field RouterOS itself renamed between versions over one key and one WinBox label:
+            /// <c>/ip/service</c> prints <c>address</c> on 6.49.13 and <c>available-from</c> on 7.24, and
+            /// nothing in the catalog distinguishes them. Reporting both spellings answers whichever name
+            /// the router in hand uses, without asking it for its version — the read is a superset of that
+            /// router's API by exactly the other version's word, and the O/R mapper takes the one its entity
+            /// declares. The WRITE side needs no such thing: <see cref="ApiToJg"/> maps the other spelling
+            /// onto the label, which both catalogs have.
+            /// </remarks>
+            public readonly IReadOnlyDictionary<string, string[]>? AlsoKnownAs;
+
+            /// <summary>
             /// Address field label → PORT field label, for the fields RouterOS prints as one
             /// <c>address:port</c> where WinBox has two boxes. See <see cref="AddrPortUiType"/>.
             /// </summary>
@@ -341,12 +346,14 @@ namespace tik4net.Winbox
 
             public FieldAliasSet(IReadOnlyDictionary<string, string> apiToJg, IReadOnlyDictionary<string, string> jgToApi,
                 IReadOnlyDictionary<int, string>? keyToApi = null, IReadOnlyDictionary<int, string>? keyUiType = null,
+                IReadOnlyDictionary<string, string[]>? alsoKnownAs = null,
                 IReadOnlyDictionary<string, string>? addrPortPairs = null,
                 IReadOnlyDictionary<string, Tuple<string, string>>? derivedBools = null,
                 IReadOnlyDictionary<string, WinboxJgField>? syntheticFields = null,
                 IReadOnlyDictionary<string, Tuple<string, string>>? pairedFields = null)
             {
                 ApiToJg = apiToJg; JgToApi = jgToApi;
+                AlsoKnownAs = alsoKnownAs;
                 KeyToApi = keyToApi ?? new Dictionary<int, string>();
                 KeyUiType = keyUiType ?? new Dictionary<int, string>();
                 AddrPortPairs = addrPortPairs;
@@ -646,9 +653,24 @@ namespace tik4net.Winbox
                     apiToJg: Ci(("contact", "contact-info")),
                     jgToApi: Ci(("contact-info", "contact"))),
 
+                // 'Available From' is the API's available-from on 7.24 and its address on 6.49.13 — one key
+                // (0x6), one label, two API words (ftp address=10.99.0.0/24,10.98.0.1/32 arrived there on 6.x).
                 ["/ip/service"] = new FieldAliasSet(
-                    apiToJg: Ci(("proto", "protocol")),
-                    jgToApi: Ci(("protocol", "proto"))),
+                    apiToJg: Ci(("proto", "protocol"), ("address", "available-from")),
+                    jgToApi: Ci(("protocol", "proto")),
+                    alsoKnownAs: new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["available-from"] = new[] { "address" },
+                    }),
+
+                // The same shape: 'Server' (0x1) is the API's server on 7.24 and its address on 6.49.13.
+                ["/tool/e-mail"] = new FieldAliasSet(
+                    apiToJg: Ci(("address", "server")),
+                    jgToApi: Ci(),
+                    alsoKnownAs: new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["server"] = new[] { "address" },
+                    }),
 
                 ["/ip/socks"] = new FieldAliasSet(
                     apiToJg: Ci(("auth-method", "authentication-method")),
@@ -787,10 +809,16 @@ namespace tik4net.Winbox
                 ["/routing/filter/rule"] = RoutingInactive(),
                 // RouterOS 6 labels the area's name 'Area Name' (0x2 = backbone); 7 labels it 'Name', and the
                 // alias yields to that (AliasToJg).
+                // The state flag is the API's `inactive` on 7.24 and its `invalid` on 6.49.13 — the same
+                // 0xFE0008 the other routing tables carry, so both words are reported.
                 ["/routing/ospf/area"] = new FieldAliasSet(
                     apiToJg: Ci(("name", "area-name")),
                     jgToApi: Ci(("area-name", "name")),
-                    keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "inactive" }),
+                    keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "inactive" },
+                    alsoKnownAs: new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["inactive"] = new[] { "invalid" },
+                    }),
                 ["/routing/ospf/instance"] = RoutingInactive(),
                 ["/routing/rule"] = RoutingInactive(),
 
@@ -1422,30 +1450,6 @@ namespace tik4net.Winbox
             };
 
         /// <summary>
-        /// Field names the RouterOS 6 API spells differently from 7 over the same key and the same WinBox
-        /// label, laid over <see cref="ShippedFieldAliases"/> when the router's major version is 6 or less.
-        /// </summary>
-        /// <remarks>
-        /// A label alias cannot express these: the label is one, and the API name depends on the version.
-        /// Each was read on 6.49.13 beside the 7.24 API: <c>/ip/service</c> prints <c>address</c> where 7
-        /// prints <c>available-from</c> (ftp address=10.99.0.0/24,10.98.0.1/32 arrived at <c>0x6</c>);
-        /// <c>/tool/e-mail</c> prints <c>address</c> where 7 prints <c>server</c> (<c>0x1</c>, 0.0.0.0 on
-        /// both); the OSPF area's state flag <c>0xFE0008</c> is <c>invalid</c> where 7 says <c>inactive</c>.
-        /// </remarks>
-        private static readonly Dictionary<string, FieldAliasSet> RouterOs6FieldAliases =
-            new Dictionary<string, FieldAliasSet>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["/ip/service"] = new FieldAliasSet(
-                    apiToJg: Ci(("address", "available-from")),
-                    jgToApi: Ci(("available-from", "address"))),
-                ["/tool/e-mail"] = new FieldAliasSet(
-                    apiToJg: Ci(("address", "server")),
-                    jgToApi: Ci(("server", "address"))),
-                ["/routing/ospf/area"] = new FieldAliasSet(Ci(), Ci(),
-                    keyToApi: new Dictionary<int, string> { [WinboxM2Protocol.RecordKey.Invalid] = "invalid" }),
-            };
-
-        /// <summary>
         /// Enum MEMBERS whose <c>.jg</c> label is not the word RouterOS uses, keyed by the field's API name
         /// and then by the member's normalized label.
         /// </summary>
@@ -1590,15 +1594,7 @@ namespace tik4net.Winbox
                 path = path.Substring(0, cut);
             }
 
-            // RouterOS 6's own spellings, for this exact path, over whatever the version-neutral table says.
-            FieldAliasSet? older = null;
-            if (_routerMajorVersion.HasValue && _routerMajorVersion.Value <= 6)
-                RouterOs6FieldAliases.TryGetValue(norm, out older);
-            if (found == null)
-            {
-                _aliases = older;
-                return;
-            }
+            if (found == null) return;
 
             bool exact = string.Equals(foundPath, norm, StringComparison.OrdinalIgnoreCase);
             FieldAliasSet? baseSet = null;
@@ -1608,7 +1604,6 @@ namespace tik4net.Winbox
                 ShippedFieldAliases.TryGetValue("/interface", out baseSet);
 
             _aliases = baseSet == null ? found : MergeAliases(found, baseSet);
-            if (older != null) _aliases = MergeAliases(older, _aliases);
             _ownSynthetic = exact ? found.SyntheticFields : null;
             var inherited = exact ? baseSet?.SyntheticFields : found.SyntheticFields;
             if (inherited != null && _ownSynthetic != null)
@@ -1637,6 +1632,7 @@ namespace tik4net.Winbox
             return new FieldAliasSet(
                 Merge(child.ApiToJg, parent.ApiToJg, ci)!, Merge(child.JgToApi, parent.JgToApi, ci)!,
                 keyToApi: Merge(child.KeyToApi, parent.KeyToApi, null),
+                alsoKnownAs: Merge(child.AlsoKnownAs, parent.AlsoKnownAs, ci),
                 keyUiType: Merge(child.KeyUiType, parent.KeyUiType, null),
                 addrPortPairs: Merge(child.AddrPortPairs, parent.AddrPortPairs, ci),
                 derivedBools: Merge(child.DerivedBools, parent.DerivedBools, ci),
@@ -1649,6 +1645,10 @@ namespace tik4net.Winbox
         /// <see cref="FieldAliasSet.DerivedBools"/>. Empty for all but a handful of paths.
         /// </summary>
         internal IReadOnlyDictionary<string, Tuple<string, string>>? DerivedBoolFields => Aliases?.DerivedBools;
+
+        /// <summary>The other spellings this path's fields are also reported under (see
+        /// <see cref="FieldAliasSet.AlsoKnownAs"/>).</summary>
+        internal IReadOnlyDictionary<string, string[]>? ExtraSpellings => Aliases?.AlsoKnownAs;
 
         // Rewrite an API field name to its .jg label (encode/resolve direction); identity when no alias.
         // An alias whose label this catalog lacks yields to the API name when the catalog has THAT: a label
@@ -1704,6 +1704,49 @@ namespace tik4net.Winbox
         // A field's key qualified by the kind of its .jg wire type ('U12' → array, 'u12' → scalar, 'b1f' → bool).
         private static int TypedKeyOf(WinboxJgField f)
             => WinboxM2Protocol.TypedKey.Qualify(f.Key, f.WireType);
+
+        /// <summary>
+        /// A <c>numflag</c> member whose label is not the word RouterOS prints for that flag. RouterOS 6's
+        /// route window says 'connected' where the API — and RouterOS 7's own catalog — say <c>connect</c>.
+        /// </summary>
+        private static readonly Dictionary<string, string> NumFlagMemberAliases =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["connected"] = "connect",
+            };
+
+        /// <summary>
+        /// The row flags this path's <c>numflag</c> fields carry, as <c>key → (value → API flag name)</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para>One numeric key, a set of named flags, one of which the row is: the route's origin is
+        /// <c>{numflag,id:'u7',c:{2:['connected','C'],3:['static','S'],…}}</c> on RouterOS 6 and
+        /// <c>{numflag,id:'u112',c:{2:['connect','C'],…,10:['DHCP','d'],…}}</c> on 7. The API prints the one
+        /// the row is (<c>connect=true</c>), which is what the decode emits.</para>
+        /// <para>Because each catalog declares the members ITS version knows, no version test is involved:
+        /// a RouterOS 6 route can never read <c>dhcp</c>, because that catalog has no such member and the
+        /// router does not print it either.</para>
+        /// </remarks>
+        internal IReadOnlyDictionary<int, IReadOnlyDictionary<int, string>>? BuildNumFlags()
+        {
+            var raw = _handler == null ? null : _catalog?.GetNumFlags(_handler, _windowKey);
+            if (raw == null || raw.Count == 0) return null;
+            var result = new Dictionary<int, IReadOnlyDictionary<int, string>>();
+            foreach (var byKey in raw)
+            {
+                var named = new Dictionary<int, string>();
+                foreach (var m in byKey.Value)
+                {
+                    // A member's label is the router's own flag name; normalized like any other label, and
+                    // through the same member-alias table an enum member uses ('connected' → `connect`).
+                    string name = NormalizeLabel(m.Value, applyOverrides: false);
+                    if (name.Length == 0) continue;
+                    named[m.Key] = NumFlagMemberAliases.TryGetValue(name, out var api) ? api : name;
+                }
+                if (named.Count > 0) result[byKey.Key] = named;
+            }
+            return result.Count > 0 ? result : null;
+        }
 
         /// <summary>
         /// Builds the <c>key → apiName</c> map for this handler by inverting the seed table, the
@@ -2095,7 +2138,7 @@ namespace tik4net.Winbox
             }
 
             // …and the word RouterOS prints for the all-ones unset marker (trust-store=all, certificate=none).
-            if (jg != null && WinboxRecordCodec.IsSentinelWord(jg, value, _routerMajorVersion))
+            if (jg != null && WinboxRecordCodec.IsSentinelWord(jg, value))
             {
                 if (jg.OptKey != 0) result.Add(M2Message.BoolSys(jg.OptKey, true));
                 result.Add(EncodeU32(key, unchecked((uint)WinboxJgField.UnsetSentinel)));

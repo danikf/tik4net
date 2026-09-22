@@ -43,7 +43,8 @@ namespace tik4net.unittests.Winbox
                 [0x8] = Tuple.Create("str", (object)"example.com"),
             };
             return new WinboxRecordCodec(null, catalog)
-                .DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField());
+                .DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField(),
+                    resolver.DerivedBoolFields);
         }
 
         [TestMethod]
@@ -86,7 +87,8 @@ namespace tik4net.unittests.Winbox
             var rec = new Dictionary<int, Tuple<string, object>> { [0xFE0001] = Tuple.Create("u32", (object)1u) };
             foreach (var f in fields) rec[f.key] = Tuple.Create(f.type, f.val);
             return new WinboxRecordCodec(null, catalog)
-                .DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField());
+                .DecodeRecord(rec, resolver.BuildKeyToApiName(), resolver.BuildKeyToField(),
+                    resolver.DerivedBoolFields);
         }
 
         [TestMethod]

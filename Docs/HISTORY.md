@@ -113,6 +113,19 @@ tabular lines — tolerates retransmission. Only the longer, time-sensitive term
 it. A latent defect inherited from a PoC, not a porting regression.
 → [`findings-mactelnet.md`](findings-mactelnet.md)
 
+## A version comparison where the catalog already knew the answer (2026-09-22)
+
+Four fields RouterOS renamed between 6 and 7 (`/ip/service` `address`/`available-from`, `/tool/e-mail`
+`address`/`server`, the OSPF area's `invalid`/`inactive`, and `syslog-severity=auto`) were briefly
+answered by reading the router's version at open and switching tables on it — the one thing the
+version-support rule says not to do. It also read the version from the wrong key: `0x16` of the
+system-info singleton `[13,4]` is the WinBox PROTOCOL version (`3.30` on 6.49.13, `3.42rc1` on 7.24.4),
+so every router parsed as major 3 and the 6.x names were applied to 7.24 until the audit caught it.
+Replaced the same day by two mechanisms that ask the version-matched `.jg` instead: reporting both of
+RouterOS's words for such a field, and decoding a `numflag`'s members — which also closed the route's
+`connect`/`static`, since each catalog declares the origins its version has.
+→ [`findings-routeros-6.md`](findings-routeros-6.md), [`jg-catalog-format.md`](jg-catalog-format.md)
+
 ## A staleness indicator that named the wrong file (2026-08-25)
 
 Every MCP answer carried the build timestamp of the assembly that produced it, so that a rebuild could

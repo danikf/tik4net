@@ -121,17 +121,6 @@ namespace tik4net.WinboxNative
         // (see WinboxJgCatalog.Load); the empty default keeps pre-open access harmless.
         private WinboxJgCatalog _catalog = new WinboxJgCatalog();
 
-        // The RouterOS major version read at open ("6.49.13" → 6); null when the router did not say.
-        private int? _routerMajorVersion;
-
-        internal static int? ParseMajorVersion(string? version)
-        {
-            if (string.IsNullOrEmpty(version)) return null;
-            int i = 0;
-            while (i < version!.Length && char.IsDigit(version[i])) i++;
-            return i > 0 && int.TryParse(version.Substring(0, i), out int major) ? major : (int?)null;
-        }
-
         // What Open was given, kept so a session the router dropped can be rebuilt without the caller
         // (see ReopenAsync). The password lives no longer than the connection does and no more exposed
         // than the MAC-Telnet transport's, which captures the same four values in its reopen closure.
@@ -337,13 +326,9 @@ namespace tik4net.WinboxNative
                     + "reads will be wrong (see WinboxNativeConnection.CatalogHandlerCount)");
             // Feed the .jg-derived apiPath→handler map into the handler resolver (after session overrides,
             // before the shipped override tail).
-            // A handful of API names and printed values differ between RouterOS 6 and 7 over the same key and
-            // label (WinboxFieldResolver.RouterOs6FieldAliases). Best-effort: unknown reads as the current one.
-            try { _routerMajorVersion = ParseMajorVersion(_ops.GetRouterVersion()); }
-            catch { _routerMajorVersion = null; }
             _handlerMap.SetDerivedPaths(_catalog.GetDerivedPaths());
             _handlerMap.SetSubtypeFilters(_catalog.GetSubtypeFilters());
-            _codec = new WinboxRecordCodec(_ops, _catalog) { RouterMajorVersion = _routerMajorVersion };
+            _codec = new WinboxRecordCodec(_ops, _catalog);
             _idResolver = new WinboxIdResolver(_ops, _catalog);
             StartMultiplexer(session);
             SetOpened();
@@ -617,6 +602,7 @@ namespace tik4net.WinboxNative
             var resolver = MakeResolver(apiPath, handler);
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
+            var numFlags = resolver.BuildNumFlags();
 
             // Singleton tables (type:'item' window, e.g. /system/resource, /ip/dns) expose a single record
             // read via get-singleton; everything else lists via getall.
@@ -668,7 +654,8 @@ namespace tik4net.WinboxNative
 
             var rows = new List<TikRecordSentence>(records.Count);
             foreach (var rec in records)
-                rows.Add(new TikRecordSentence(_codec.DecodeRecord(rec, keyToName, keyToField, resolver.DerivedBoolFields)));
+                rows.Add(new TikRecordSentence(_codec.DecodeRecord(rec, keyToName, keyToField, resolver.DerivedBoolFields, numFlags,
+                            resolver.ExtraSpellings)));
 
             // Apply Filter parameters (?name=value) in-memory — RouterOS-side filtering is not used here.
             // The filters form a postfix query stack (?#| OR, ?#& AND, ?#! NOT), so they are evaluated as such
@@ -732,10 +719,10 @@ namespace tik4net.WinboxNative
             // interface list and 'rx-bits-per-second' by /interface/monitor-traffic, and a caller asking for
             // the monitor must get the monitor's names.
             var resolver = new WinboxFieldResolver(ApiPathOf(descriptor.CommandText), handler, _catalog,
-                OverridesFor(parentPath), _useGuiNames, _handlerMap.ResolveDerivedKey(parentPath),
-                routerMajorVersion: _routerMajorVersion);
+                OverridesFor(parentPath), _useGuiNames, _handlerMap.ResolveDerivedKey(parentPath));
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
+            var numFlags = resolver.BuildNumFlags();
             int flags = WinboxM2Protocol.GetAllFlags
                 | (_catalog.HasDynamicFields(handler) ? WinboxM2Protocol.GetAllStatsFlag : 0);
 
@@ -748,7 +735,8 @@ namespace tik4net.WinboxNative
             var result = new List<TikRecordSentence>();
             foreach (var rec in records)
             {
-                var decoded = _codec.DecodeRecord(rec, keyToName, keyToField, resolver.DerivedBoolFields);
+                var decoded = _codec.DecodeRecord(rec, keyToName, keyToField, resolver.DerivedBoolFields, numFlags,
+                            resolver.ExtraSpellings);
                 if (decoded.TryGetValue("name", out var nm) && string.Equals(nm, target, StringComparison.Ordinal))
                 {
                     result.Add(new TikRecordSentence(decoded));
@@ -1172,6 +1160,7 @@ namespace tik4net.WinboxNative
             var resolver = MakeResolver(apiPath, handler!);
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
+            var numFlags = resolver.BuildNumFlags();
             return PollingMonitorEngine.StartWorker("winbox-native-monitor",
                 handle => MonitorLoop(spec, descriptor, resolver, keyToName, keyToField, handle, onRow, onError, onDone));
         }
@@ -1239,6 +1228,7 @@ namespace tik4net.WinboxNative
             var resolver = MakeResolver(apiPath, handler);
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
+            var numFlags = resolver.BuildNumFlags();
 
             var rows = new List<TikRecordSentence>();
             uint? id = null;
@@ -1283,7 +1273,8 @@ namespace tik4net.WinboxNative
 
                     await _codec.PrimeReferencesAsync(records, keyToName, keyToField, cancellationToken).ConfigureAwait(false);
                     foreach (var rec in records)
-                        rows.Add(new TikRecordSentence(_codec.DecodeRecord(rec, keyToName, keyToField, resolver.DerivedBoolFields)));
+                        rows.Add(new TikRecordSentence(_codec.DecodeRecord(rec, keyToName, keyToField, resolver.DerivedBoolFields, numFlags,
+                            resolver.ExtraSpellings)));
 
                     if (done) break;                    // router set Finished: the command is over
                     if (continuation != null) continue; // mid-pass: keep reading this one
@@ -1346,6 +1337,7 @@ namespace tik4net.WinboxNative
         {
             uint? id = null;
             bool started = false;
+            var numFlags = resolver.BuildNumFlags();
             try
             {
                 using (EnterCommand())
@@ -1380,7 +1372,8 @@ namespace tik4net.WinboxNative
                     // Emitted per round, so a streaming window (ping, traceroute, torch) reaches the caller
                     // as the router produces it instead of in a lump when the pass ends.
                     foreach (var rec in records)
-                        onRow?.Invoke(new TikRecordSentence(_codec.DecodeRecord(rec, keyToName, keyToField, resolver.DerivedBoolFields)));
+                        onRow?.Invoke(new TikRecordSentence(_codec.DecodeRecord(rec, keyToName, keyToField, resolver.DerivedBoolFields, numFlags,
+                            resolver.ExtraSpellings)));
 
                     if (done) break;              // router set Finished: the operation is over for good
                     if (continuation != null) continue;   // same pass, next record — no sleep
@@ -1427,6 +1420,7 @@ namespace tik4net.WinboxNative
             var resolver = MakeResolver(apiPath, handler);
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
+            var numFlags = resolver.BuildNumFlags();
             foreach (var kv in keyToField)
                 if (kv.Value != null && kv.Value.ReadOnly && keyToName.TryGetValue(kv.Key, out var n))
                     set.Add(n);
@@ -1894,8 +1888,7 @@ namespace tik4net.WinboxNative
         /// </summary>
         private WinboxFieldResolver MakeResolver(string apiPath, int[] handler)
             => new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames,
-                                       _handlerMap.ResolveDerivedKey(apiPath),
-                                       routerMajorVersion: _routerMajorVersion);
+                                       _handlerMap.ResolveDerivedKey(apiPath));
 
         /// <summary>
         /// The resolver for an ACTION invocation: the path's ordinary resolver with the action window's own
@@ -1906,7 +1899,7 @@ namespace tik4net.WinboxNative
         private WinboxFieldResolver MakeActionResolver(string apiPath, int[] handler, string actionLabel)
             => new WinboxFieldResolver(apiPath, handler, _catalog, OverridesFor(apiPath), _useGuiNames,
                                        _handlerMap.ResolveDerivedKey(apiPath),
-                                       _catalog.GetActionFields(handler, actionLabel), _routerMajorVersion);
+                                       _catalog.GetActionFields(handler, actionLabel));
 
         private bool IsSingletonWindow(string apiPath, int[] handler)
         {

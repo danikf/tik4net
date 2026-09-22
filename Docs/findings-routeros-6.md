@@ -94,12 +94,28 @@ synthetic fields identical to the 7.x declaration.
 prints `available-from` (`0x6`), `/tool/e-mail` `address` where 7 prints `server` (`0x1`), and the OSPF area's
 state flag `0xFE0008` is `invalid` where 7 says `inactive`. One value is printed differently too: a logging
 action's Syslog Severity carries `4294967295` on both versions; 6.49.13 prints the remote action's as
-`syslog-severity=auto` and 7.24 leaves it out. A label cannot tell the versions apart, so the connection reads
-the RouterOS version at open and the resolver lays `RouterOs6FieldAliases` (and the codec
-`RouterOs6SentinelSpelledAsWord`) over the shared tables when the major version is 6 or less; an unknown
-version reads as the current one. The version comes from the board-info singleton — get-singleton on
-`[24,2]`, key `s16`, as webfig's `fetchBoardInfo` reads it. Key `0x16` of the system-info singleton `[13,4]`
-is the WinBox protocol's version instead: `3.30` on 6.49.13, `3.42rc1` on 7.24.4.
+`syslog-severity=auto` and 7.24 leaves it out. Nothing in either catalog distinguishes these, so native
+reports **both words** for the field (`FieldAliasSet.AlsoKnownAs`) and the word for the marker on both
+versions (`WinboxRecordCodec.SentinelSpelledAsWord`): the read is a superset of that router's API by exactly
+the other version's spelling, and the mapper takes the name its entity declares. The write side needs no
+second word — the alias maps it onto the label, which both catalogs have. No version is asked for or
+compared, per the version-support rule.
+
+**The route's origin is a `numflag`, and each catalog names the flags its version has.** RouterOS 6 declares
+`{numflag,id:'u7',c:{2:['connected','C'],3:['static','S'],4:['RIP','r'],6:['OSPF','o'],7:['MME','m'],
+8:['BGP','b']}}`; 7.24 declares the same shape at `u112`, spelling the first member 'connect' and adding
+`DHCP`, `VPN`, `SLAAC`, `ISIS` and more. The row is the member its value names and the API prints that one,
+so the decode emits it and nothing for the others — measured on 6.49.13 beside the API: the connected route
+carried `0x7=2` with `connect=true`, the DHCP-installed default route `0x7=3` with `static=true` (RouterOS 6
+calls the DHCP client's route static and has no `dhcp` origin at all — and cannot read one, because its
+catalog declares no such member). `numflag` is documented in
+[jg-catalog-format.md](jg-catalog-format.md#key-namespace).
+
+**The RouterOS version is not read, but the key that looks like it is a trap.** Key `0x16` of the system-info
+singleton `[13,4]` is the **WinBox protocol's** version — `3.30` on 6.49.13, `3.42rc1` on 7.24.4 — so anything
+parsing it as RouterOS's sees major 3 on every router. The RouterOS version is `s16` of the board-info
+singleton `[24,2]`, which is where webfig's `fetchBoardInfo` reads it
+(`WinboxNativeM2Operations.GetRouterVersion`, which nothing calls).
 
 ## Open problems
 
@@ -108,7 +124,7 @@ Each is a statement of what is measured and what is not, to be settled one at a 
 1. **WinBox native against the API on 6.x.** Measured with the path-map audit (`TransportPathMapAuditTest`,
    WinboxNative, against CHR2): OK 132, unmapped 0, value differences 8, field-name mismatches 2, not on this
    RouterOS 20, no WinBox window 2; writes OK 184 with no value differing, refused 1, not probeable 53 (the
-   router refused the row on both transports). 43 of 1174 API field names are never reported over native
+   router refused the row on both transports). 41 of 1174 API field names are never reported over native
    (4 %). Before the fallback labels and the windows' own commands (§4) it was OK 111, unmapped 22, writes
    refused 27. Each part below is separate work:
 
@@ -122,13 +138,10 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    - **1b. Fields native does not report, on paths that otherwise agree.** Reported now: the address list's
      `list`, the route's `pref-src` and the OSPF area's `name` (6.x labels them 'Name', 'Pref. Source' and
      'Area Name'), `default-name` and conntrack `total-entries`, keys the 6.x windows do not declare but
-     the router sends, and the fields the API itself renamed in 7 — `/ip/service` `address`, `/tool/e-mail`
-     `address`, the OSPF area's `invalid`, and `syslog-severity=auto` (§4). Still missing, each for a reason
-     of its own:
+     the router sends, the route's `connect` and `static` (its origin `numflag`), and the fields the API
+     itself renamed in 7 — `/ip/service` `address`, `/tool/e-mail` `address`, the OSPF area's `invalid`, and
+     `syslog-severity=auto` (§4). Still missing, each for a reason of its own:
      - `/ip/route` `scope`, `target-scope`: the router does not send them (§4).
-     - `/ip/route` `connect`, `static`: the origin rides at `0x7`, the window's unnamed `numflag`
-       (`2` connected, `3` static — both seen against the API), where 7.x has 'Belongs To' at `0x128`. Naming
-       `0x7` per path would reach 7.x routes too, where nothing says what `0x7` is.
      - `/ip/route` `gateway-status`: the API's `<gateway> reachable via  ether1` is composed from the
        gateway tuple's read-only parts (status enum, `via` interface), which the decode drops.
      - `/ip/route` `vrf-interface`: no key in the record identified.
