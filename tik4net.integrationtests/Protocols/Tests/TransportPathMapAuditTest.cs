@@ -58,6 +58,15 @@ namespace tik4net.integrationtests
         {
         };
 
+        // Field names a non-native transport reports that the API does not print, each with why. Anything else
+        // such a transport adds fails the audit. (WinBox native is not held to this: its GUI windows carry
+        // hundreds of fields the API's print leaves out, so there the added names are reported and tallied.)
+        private static readonly Dictionary<string, string> KnownAddedFields = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["about"] = "the CLI prints the API's `.about` without its dot (7.24.4, /interface/vrrp and four more) — "
+                        + "a CLI normalisation gap, not a field of its own",
+        };
+
         // Paths WinBox genuinely does not expose as a readable window. The list is NOT kept here: it lives
         // in the library (WinboxHandlerMap.NoWinboxWindow), because the transport needs it too — a path with
         // no window raises an error saying so, instead of the "add a PathAlias" advice that fits a genuine
@@ -574,7 +583,8 @@ namespace tik4net.integrationtests
             int unmapped = 0, mismatched = 0, agreed = 0, apiRefused = 0, known = 0, valueMismatched = 0, uncompared = 0;
             // The field-NAME shortfall across the paths that pass: the API's vocabulary against ours. Counted
             // separately because the pass/fail check is a half-threshold and cannot see it (see the OK line).
-            int apiFieldSlots = 0, notReported = 0;
+            int apiFieldSlots = 0, notReported = 0, probeOnlySlots = 0;
+            var unexpectedAdded = new List<string>();
             // Fields whose API value is a bare HH:MM:SS. The API spells a DURATION in units ("15s", "1w"),
             // so a value in this shape is a clock TIME — and that is the one thing a CLI reader cannot tell
             // apart by looking, because as-value spells durations as HH:MM:SS too. Anything converting the
@@ -640,9 +650,22 @@ namespace tik4net.integrationtests
                     a.FieldNames.Remove(".nextid");
                     n.FieldNames.Remove(".nextid");
                     var onlyApi = a.FieldNames.Where(f => !n.FieldNames.Contains(f)).OrderBy(f => f).ToList();
+                    // The other direction matters as much: a field the transport under test ADDS is one the API
+                    // never prints, and a caller reads it as if the router had said it. Two native regressions
+                    // hid here — `unreachable=true` on routes, `api-login=true` on script jobs — because this
+                    // audit counted only what the transport lacked. Listed per path and tallied, so a run
+                    // compared with the previous one shows a new extra the way it shows a lost field.
+                    var onlyProbeNames = n.FieldNames.Where(f => !a.FieldNames.Contains(f)).OrderBy(f => f).ToList();
                     var shared = a.FieldNames.Count(f => n.FieldNames.Contains(f));
                     apiFieldSlots += a.FieldNames.Count;
                     notReported += onlyApi.Count;
+                    if (a.RowCount > 0) probeOnlySlots += onlyProbeNames.Count;
+                    // WinBox native adds hundreds by design (the GUI window's own fields — interface counters,
+                    // Contribution, Belongs To …), so there the list is a number to compare between runs. Every
+                    // other transport prints the API's own table and should add nothing: a name it adds fails.
+                    if (!IsNative(probeType) && a.RowCount > 0)
+                        foreach (string f in onlyProbeNames)
+                            if (!KnownAddedFields.ContainsKey(f)) unexpectedAdded.Add(path + " " + f);
                     bool rowsAgree = a.RowCount == n.RowCount || VolatileRowCounts.ContainsKey(path);
                     bool fieldsAgree = a.FieldNames.Count == 0 || shared * 2 >= a.FieldNames.Count;
 
@@ -709,9 +732,9 @@ namespace tik4net.integrationtests
                                        ? "	VALUES UNCOMPARED (no row paired by .id)" : "")
                                    + $"	shared fields={shared}/{a.FieldNames.Count}"
                                    + (onlyApi.Count > 0 ? "\tapi-only: " + string.Join(",", onlyApi) : "")
-                                   + FormatPairings(ProposePairings(a, n, onlyApi,
-                                       n.FieldNames.Where(f => !a.FieldNames.Contains(f))
-                                        .OrderBy(f => f).ToList()))
+                                   + (onlyProbeNames.Count > 0 && a.RowCount > 0
+                                       ? $"\t{probeName}-only: " + string.Join(",", onlyProbeNames) : "")
+                                   + FormatPairings(ProposePairings(a, n, onlyApi, onlyProbeNames))
                                    + (excused != null ? "\tnot compared: " + string.Join(", ", excused.Keys) : ""));
                     }
                     else
@@ -769,6 +792,7 @@ namespace tik4net.integrationtests
                        + $"  UNMAPPED={unmapped}  ROUTER-N/A={apiRefused}");
             report.Add($"FIELD-NAMES not reported by {probeName}: {notReported}/{apiFieldSlots}"
                        + (apiFieldSlots > 0 ? $" ({notReported * 100 / apiFieldSlots}%)" : ""));
+            report.Add($"FIELD-NAMES reported ONLY by {probeName} (paths with rows): {probeOnlySlots}");
             report.Add($"CLOCK-SHAPED api values ({clockShaped.Count}): " + string.Join(", ", clockShaped));
             File.WriteAllLines(reportPath, report);
             foreach (string line in report) Console.WriteLine(line);
@@ -779,6 +803,7 @@ namespace tik4net.integrationtests
             // this line the report reads green while a fifth of the API's field names go unreported.
             Console.WriteLine($"FIELD-NAMES not reported by {probeName}: {notReported}/{apiFieldSlots}"
                               + (apiFieldSlots > 0 ? $" ({notReported * 100 / apiFieldSlots}%)" : ""));
+            Console.WriteLine($"FIELD-NAMES reported ONLY by {probeName} (paths with rows): {probeOnlySlots}");
             Console.WriteLine($"report: {reportPath}");
 
             Assert.AreEqual(0, unmapped, "paths the transport under test cannot address but the API can — see the report");
@@ -795,6 +820,9 @@ namespace tik4net.integrationtests
             Assert.AreEqual(0, fixtures.Leaked.Count,
                 "fixture rows this run could not remove — the router is holding residue: "
                 + string.Join("; ", fixtures.Leaked));
+            Assert.AreEqual(0, unexpectedAdded.Count,
+                "fields the transport under test reports and the API does not print — a caller reads them as if the "
+                + "router had said so: " + string.Join(", ", unexpectedAdded));
             Assert.AreEqual(0, staleGaps.Count,
                 "these now agree with the API and must be removed from the table naming them: "
                 + string.Join(", ", staleGaps));
