@@ -1160,7 +1160,6 @@ namespace tik4net.WinboxNative
             var resolver = MakeResolver(apiPath, handler!);
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
-            var numFlags = resolver.BuildNumFlags();
             return PollingMonitorEngine.StartWorker("winbox-native-monitor",
                 handle => MonitorLoop(spec, descriptor, resolver, keyToName, keyToField, handle, onRow, onError, onDone));
         }
@@ -1420,7 +1419,6 @@ namespace tik4net.WinboxNative
             var resolver = MakeResolver(apiPath, handler);
             var keyToName = resolver.BuildKeyToApiName();
             var keyToField = resolver.BuildKeyToField();
-            var numFlags = resolver.BuildNumFlags();
             foreach (var kv in keyToField)
                 if (kv.Value != null && kv.Value.ReadOnly && keyToName.TryGetValue(kv.Key, out var n))
                     set.Add(n);

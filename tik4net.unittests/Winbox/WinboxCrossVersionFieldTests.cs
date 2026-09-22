@@ -6,6 +6,7 @@
 //   * numflag — one numeric key carrying a SET of named row flags, one of which the row is. RouterOS 6's
 //     route window declares {2:'connected',3:'static',…} at 0x7, RouterOS 7's {2:'connect',…,10:'DHCP',…}
 //     at 0x112. Each catalog names the flags its version knows, so `dhcp` appears on 7 and cannot on 6.
+//     Which member names the API prints as flags is the path's own list: not every numflag is API flags.
 //   * AlsoKnownAs — the same field under both of the words RouterOS has used for it, where the catalog says
 //     the same thing on both versions and only the API's vocabulary changed.
 
@@ -39,9 +40,15 @@ namespace tik4net.unittests.Winbox
             "{name:'active',type:'flag',id:'be'}," +
             "{type:'numflag',id:'u7',c:{2:[ 'connected','C' ],3:[ 'static','S' ],8:[ 'BGP','b' ]}}]}";
 
+        // The 7.24 shape: the origin numflag beside 'Belongs To', and the Contribution enum on u22 with its
+        // own numflag, of which only `active` is a flag the API prints.
         private const string RouteWindow7 =
             "{name:'Route',title:'Routes',type:'map',path:[ 44,21 ],c:[{name:'Dst. Address',type:'addr',id:'m105'}," +
-            "{type:'numflag',id:'u112',c:{2:[ 'connect','C' ],3:[ 'static','S' ],8:[ 'BGP','b' ],10:[ 'DHCP','d' ]}}]}";
+            "{type:'numflag',id:'u22',def:4294967295,c:{0:[ 'filtered','F' ],1:[ 'unreachable','U' ],4:[ 'active','A' ]}}," +
+            "{type:'numflag',id:'u112',c:{2:[ 'connect','C' ],3:[ 'static','S' ],8:[ 'BGP','b' ],10:[ 'DHCP','d' ]}}," +
+            "{name:'Belongs To',type:'string',id:'s128',ro:1}," +
+            "{name:'Contribution',type:'enm',id:'u22',opt:1,ro:1,values:{type:'static'," +
+              "map:['filtered','unreachable','candidate','best candidate','active']}}]}";
 
         [TestMethod]
         public void OnTheRouterOs6Catalog_AConnectedRouteReadsConnect()
@@ -84,6 +91,67 @@ namespace tik4net.unittests.Winbox
                 (0x112, "u32", 10u));
 
             Assert.AreEqual("true", row["dhcp"]);
+        }
+
+        [TestMethod]
+        public void OnTheRouterOs7Catalog_AConnectedRouteReadsConnectAndNoOtherOrigin()
+        {
+            // The API prints the origin the row is and nothing for the others — not `static=false`.
+            var row = Decode("/ip/route", new[] { 44, 21 }, RouteWindow7,
+                (0x112, "u32", 2u), (0x128, "str", "connected"), (0x22, "u32", 4u));
+
+            Assert.AreEqual("true", row["connect"]);
+            Assert.IsFalse(row.ContainsKey("static"));
+            Assert.IsFalse(row.ContainsKey("dhcp"));
+            Assert.AreEqual("true", row["active"]);
+            Assert.AreEqual("active", row["contribution"], "the enum keeps its own, finer answer");
+        }
+
+        [TestMethod]
+        public void AnUnreachableRouteReadsNeitherActiveNorUnreachable()
+        {
+            // 7.24: u22=1 printed `inactive=true` and no `active`, `unreachable` or `filtered` over the API.
+            var row = Decode("/ip/route", new[] { 44, 21 }, RouteWindow7,
+                (0x112, "u32", 3u), (0x22, "u32", 1u));
+
+            Assert.AreEqual("true", row["static"]);
+            Assert.IsFalse(row.ContainsKey("active"));
+            Assert.IsFalse(row.ContainsKey("unreachable"), "a numflag member the API does not print as a flag");
+            Assert.IsFalse(row.ContainsKey("filtered"));
+        }
+
+        [TestMethod]
+        public void AnOriginNobodyHasSeenPrinted_IsNotGuessedAt()
+        {
+            // 'BGP' is a member of both catalogs, but no API row has shown which word it is printed under.
+            var row = Decode("/ip/route", new[] { 44, 21 }, RouteWindow7, (0x112, "u32", 8u));
+
+            Assert.IsFalse(row.ContainsKey("bgp"));
+        }
+
+        [TestMethod]
+        public void AHistoryRowReadsUndoable()
+        {
+            var row = Decode("/system/history", new[] { 17 },
+                "{title:'History',type:'map',path:[ 17 ],ro:1,c:[{name:'Action',type:'string',id:'s3'}," +
+                "{type:'numflag',id:'u4',c:{0:[ 'undoable','U' ],1:[ 'redoable','R' ],2:[ 'floating undo','F' ]}}]}",
+                (0x3, "str", "route added"), (0x4, "u32", 0u));
+
+            Assert.AreEqual("true", row["undoable"]);
+        }
+
+        [TestMethod]
+        public void AScriptJobsTypeIsNotReadAsFlags()
+        {
+            // The API prints a job's kind as type=api-login|login|command, not as a flag, so this path names
+            // no numflag member and the numflag is not decoded at all.
+            var row = Decode("/system/script/job", new[] { 48, 102 },
+                "{name:'Job',title:'Jobs',type:'map',path:[ 48,102 ],c:[{name:'Owner',type:'string',id:'s2'}," +
+                "{type:'numflag',id:'u74',c:{1:[ 'command','C' ],3:[ 'login','L' ],4:[ 'api-login','A' ]}}]}",
+                (0x2, "str", "admin"), (0x74, "u32", 4u));
+
+            Assert.IsFalse(row.ContainsKey("api-login"));
+            Assert.IsFalse(row.ContainsKey("command"));
         }
 
         [TestMethod]
@@ -148,7 +216,7 @@ namespace tik4net.unittests.Winbox
             Assert.AreEqual("backbone", row["name"]);
         }
 
-        // ── A marker RouterOS 6 prints as a word ─────────────────────────────
+        // ── A marker RouterOS prints as a word ───────────────────────────────
 
         private const string LogActionWindow =
             "{name:'Log Action',title:'Actions',type:'map',path:[ 3,1 ],c:[{name:'Name',type:'string',id:'s1'}," +
@@ -158,8 +226,8 @@ namespace tik4net.unittests.Winbox
         [TestMethod]
         public void AnUnsetSyslogSeverityReadsAuto()
         {
-            // 6.49.13 prints the remote action's as `auto`; 7.24 prints nothing. Reported on both, rather
-            // than asking the router which version it is.
+            // The stock remote action carries the marker and the API prints `auto` for it — 6.49.13 always,
+            // 7.24 once remote-log-format=syslog (before that, 7.24 hides the whole syslog group).
             var row = Decode("/system/logging/action", new[] { 3, 1 }, LogActionWindow,
                 (0x1, "str", "remote"), (0xE, "u32", 4294967295u));
 

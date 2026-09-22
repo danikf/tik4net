@@ -115,8 +115,8 @@ it. A latent defect inherited from a PoC, not a porting regression.
 
 ## A version comparison where the catalog already knew the answer (2026-09-22)
 
-Four fields RouterOS renamed between 6 and 7 (`/ip/service` `address`/`available-from`, `/tool/e-mail`
-`address`/`server`, the OSPF area's `invalid`/`inactive`, and `syslog-severity=auto`) were briefly
+Three fields RouterOS renamed between 6 and 7 (`/ip/service` `address`/`available-from`, `/tool/e-mail`
+`address`/`server`, the OSPF area's `invalid`/`inactive`), plus `syslog-severity=auto`, were briefly
 answered by reading the router's version at open and switching tables on it — the one thing the
 version-support rule says not to do. It also read the version from the wrong key: `0x16` of the
 system-info singleton `[13,4]` is the WinBox PROTOCOL version (`3.30` on 6.49.13, `3.42rc1` on 7.24.4),
@@ -124,6 +124,16 @@ so every router parsed as major 3 and the 6.x names were applied to 7.24 until t
 Replaced the same day by two mechanisms that ask the version-matched `.jg` instead: reporting both of
 RouterOS's words for such a field, and decoding a `numflag`'s members — which also closed the route's
 `connect`/`static`, since each catalog declares the origins its version has.
+
+A review the next day corrected two parts of that replacement. `syslog-severity` was never a version
+difference: 7.24 prints `auto` too, once the action's log format is syslog — it hides the field under a
+WinBox condition that 6.49.13's API ignores. And the `numflag` decode ran on every path, where not every
+`numflag` is API flags: it would have reported 7.24's route Contribution members (`unreachable`,
+`filtered`, which the API never prints), a script job's kind as `api-login=true` (the API prints
+`type=api-login`), and route origins no API row had shown. None of these was visible to the path-map
+audit, which reports only the names native lacks, never the ones it adds; a side-by-side dump caught them.
+Decoding is now opt-in per path by the member names measured on the API, and the route's origin and
+`active` flags lost their hand-written enum table (which answered `false` where the API prints nothing).
 → [`findings-routeros-6.md`](findings-routeros-6.md), [`jg-catalog-format.md`](jg-catalog-format.md)
 
 ## A staleness indicator that named the wrong file (2026-08-25)

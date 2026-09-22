@@ -83,7 +83,7 @@ WinBox UI windows/dialogs. Example:
 | `cmd`/`startcmd`/`pollcmd`/`cancelcmd`/`setcmd` | **SYS_CMD** (`0xFF0007`) | see "Commands" below |
 | `id:'<type><hexKey>'` | field key + type in the message | `s10006` → key `0x10006`, type string |
 | `nameval:'Name'` | which field is the record's "primary name" | |
-| `{type:'numflag',id:'u7',c:{2:['connected','C'],…}}` | one numeric key carrying a SET of named row flags | the row IS the member its value names, and the API prints that one (`connect=true`); the node has no `name` of its own, so it is not a field — see below |
+| `{type:'numflag',id:'u7',c:{2:['connected','C'],…}}` | one numeric key carrying a SET of named row flags | the row IS the member its value names (webfig `types.numflag.tostr`: `c[val]`, not a bitmask); where the API prints the members as flags it prints that one (`connect=true`) — but not every `numflag` is API flags; the node has no `name` of its own, so it is not a field — see below |
 | `generic:'iface'` | applies a generic command template | that's why `map` has no explicit cmd |
 
 ### Type prefixes (1 letter; rest = hex key)
@@ -168,6 +168,13 @@ label alone keeps whichever comes first and the other is addressable by no name 
     it is not a field and is kept apart from the field maps
     (`WinboxJgCatalog.GetNumFlags`). RouterOS 6 spells one member 'connected' where the API and the 7.x
     catalog say `connect`.
+
+    Not every `numflag` is a set of API flags. 7.24's route window has a second one on the Contribution
+    key, `u22` `{0:['filtered','F'],1:['unreachable','U'],4:['active','A']}`, and an unreachable route
+    prints only `inactive=true` over the API — no `unreachable`, no `filtered`. A script job's `u74`
+    (`command`/`login`/`api-login`) is printed as `type=api-login`. So a path names the members its API
+    prints (`FieldAliasSet.NumFlagMembers`: the route's `active`, `connect`, `static`, `dhcp`; history's
+    `undoable`), and only those are decoded; which key and value each is still comes from the catalog.
 
 ### Window inheritance: `generic` / `inherit` / `typeon` / `typevalue`
 

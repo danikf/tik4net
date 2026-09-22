@@ -192,7 +192,8 @@ namespace tik4net.Winbox
             // A numflag's key carries a SET of row flags, and the row IS the member its value names — the
             // API prints that one (`connect=true`) and nothing for the others, so neither does this. The
             // members come from the version-matched catalog, so a flag a RouterOS version does not have is
-            // one this decode cannot invent (see WinboxFieldResolver.BuildNumFlags).
+            // one this decode cannot invent; which member names are API flags at all is the path's own list
+            // (see WinboxFieldResolver.BuildNumFlags).
             if (numFlags != null)
                 foreach (var nf in numFlags)
                 {
@@ -237,8 +238,9 @@ namespace tik4net.Winbox
         /// Decoding those produced <c>method=''</c>, which the O/R mapper then failed to convert to an enum —
         /// the failure was real, but the field should never have been there.</para>
         /// <para>The second is the u32 unset marker on a field that declares it as its default
-        /// (<see cref="WinboxJgField.IsUnsetValue"/>): a logging action's <c>Syslog Severity</c> arrives as
-        /// 4294967295 on a row where the API prints no <c>syslog-severity</c>.</para>
+        /// (<see cref="WinboxJgField.IsUnsetValue"/>) — unless the field is one RouterOS prints that marker for
+        /// as a word (<see cref="SentinelSpelledAsWord"/>: a logging action's unset Syslog Severity is
+        /// <c>auto</c>).</para>
         /// <para>The third is a static enum with <c>opt:1</c> carrying a value its map has no member for
         /// (<see cref="WinboxJgField.IsUnmappedOptionalEnum"/>) — an unsigned certificate's
         /// <c>digest-algorithm</c> arrives as <c>0</c> where the API prints nothing. This one is webfig's own
@@ -255,7 +257,7 @@ namespace tik4net.Winbox
                && keyToField.TryGetValue(key, out var owner) && owner != null
                && !ReferenceEquals(owner, consumer) && owner.Key == key;
 
-        private bool IsUnsetField(WinboxJgField? jf, object value,
+        private static bool IsUnsetField(WinboxJgField? jf, object value,
             Dictionary<int, Tuple<string, object>> rec)
         {
             if (jf == null) return false;
@@ -882,9 +884,10 @@ namespace tik4net.Winbox
                 ["certificate"]    = "none",
                 ["ca-certificate"] = "none",
                 ["trust-store"]    = "all",
-                // A logging action's Syslog Severity carries the marker on every row on both versions, and
-                // RouterOS 6 prints the remote action's as `auto` where 7.24 prints nothing — reported on
-                // both rather than asking the router which version it is.
+                // A logging action's Syslog Severity: the stock remote action carries the marker and the API
+                // prints `auto` for it — on 6.49.13 always, on 7.24 once remote-log-format=syslog (the
+                // window's on:'bsd' condition, which 7.24's API applies to the field and 6.49.13's does not;
+                // native applies it to none of the remote pane's fields, syslog-facility included).
                 ["syslog-severity"] = "auto",
             };
 

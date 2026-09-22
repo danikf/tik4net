@@ -315,12 +315,11 @@ namespace tik4net.Winbox
             /// enum with more members than the API distinguishes.
             /// </summary>
             /// <remarks>
-            /// <c>/ip/route</c>'s <c>active</c> is the live one: the API prints <c>active=true|false</c>,
-            /// while the route window renders u22 as 'Contribution'
-            /// (filtered/unreachable/candidate/best candidate/active) — and the base window's own
-            /// <c>numflag</c> on that key says which member the flag stands for (<c>4:['active','A']</c>).
-            /// The derived field is ADDED, not substituted: the enum keeps its own name, so native still
-            /// reports the finer answer to anyone who wants it.
+            /// <c>/ip/hotspot/ip-binding</c>'s <c>bypassed</c> is one: the API prints a bool where WinBox
+            /// reports the binding's <c>type</c> enum, and <c>bypassed</c> is that enum's member. The derived
+            /// field is ADDED, not substituted: the enum keeps its own name, so native still reports the finer
+            /// answer to anyone who wants it. Where the catalog itself names the flags as a <c>numflag</c>
+            /// (the route's <c>active</c> and origin), <see cref="NumFlagMembers"/> is used instead.
             /// </remarks>
             public readonly IReadOnlyDictionary<string, Tuple<string, string>>? DerivedBools;
 
@@ -344,16 +343,33 @@ namespace tik4net.Winbox
             /// </remarks>
             public readonly IReadOnlyDictionary<string, WinboxJgField>? SyntheticFields;
 
+            /// <summary>
+            /// The API flags this path's <c>numflag</c> members are reported as — each a name the API has been
+            /// seen printing as <c>name=true</c> on a row whose key carried that member.
+            /// </summary>
+            /// <remarks>
+            /// <para>The catalog says WHICH key and WHICH value a flag is, per version (<c>/ip/route</c>'s origin
+            /// is <c>u7</c> on RouterOS 6 and <c>u112</c> on 7); this set only says which member names the API
+            /// prints as flags at all. That is not every <c>numflag</c>: the route's Contribution flags
+            /// (<c>filtered</c>, <c>unreachable</c>) are not printed, and a script job's
+            /// (<c>login</c>, <c>command</c>) are printed as <c>type=</c> instead. A member not named here is
+            /// not reported, so a flag nobody has seen the router print is not a guess on the wire.</para>
+            /// </remarks>
+            public readonly ISet<string>? NumFlagMembers;
+
             public FieldAliasSet(IReadOnlyDictionary<string, string> apiToJg, IReadOnlyDictionary<string, string> jgToApi,
                 IReadOnlyDictionary<int, string>? keyToApi = null, IReadOnlyDictionary<int, string>? keyUiType = null,
                 IReadOnlyDictionary<string, string[]>? alsoKnownAs = null,
                 IReadOnlyDictionary<string, string>? addrPortPairs = null,
                 IReadOnlyDictionary<string, Tuple<string, string>>? derivedBools = null,
                 IReadOnlyDictionary<string, WinboxJgField>? syntheticFields = null,
-                IReadOnlyDictionary<string, Tuple<string, string>>? pairedFields = null)
+                IReadOnlyDictionary<string, Tuple<string, string>>? pairedFields = null,
+                IEnumerable<string>? numFlagMembers = null)
             {
                 ApiToJg = apiToJg; JgToApi = jgToApi;
                 AlsoKnownAs = alsoKnownAs;
+                NumFlagMembers = numFlagMembers == null
+                    ? null : new HashSet<string>(numFlagMembers, StringComparer.OrdinalIgnoreCase);
                 KeyToApi = keyToApi ?? new Dictionary<int, string>();
                 KeyUiType = keyUiType ?? new Dictionary<int, string>();
                 AddrPortPairs = addrPortPairs;
@@ -1012,40 +1028,34 @@ namespace tik4net.Winbox
                 // /ip/route: the API's `active` bool is the route window's 'Contribution' enum — one wire
                 // field (u22), two vocabularies. The base 'All Routes' window's numflag on that key
                 // (4:['active','A']) is what says which member the API's true stands for. Derived rather
-                // than renamed, so `contribution` survives alongside it.
+                // than renamed, so `contribution` survives alongside it. That numflag's other members are
+                // NOT flags the API prints: an unreachable route (u22=1) printed neither `unreachable` nor
+                // `filtered` on 7.24, only `inactive=true`.
                 //
-                // The route's ORIGIN is the same shape again, and a bigger one: WinBox has ONE enum for it,
-                // 'Belongs To' at 0x128, while the API splits it into a family of bools and prints only the
-                // member that is true — `connect=true` on a connected route, `dhcp=true` on the one the DHCP
-                // client installed, `static=true` on a hand-written one, and no key at all for the rest. So
-                // three names the audit called API-only are one field we already read.
-                //
-                // All three were watched on the wire on 7.24: the connected and DHCP routes of a stock CHR
-                // carry 0x128=connected and 0x128=dhcp, and adding a static route to a scratch prefix made a
-                // third row appear carrying 0x128=static, which vanished with it again. RouterOS names more
-                // origins than that (bgp, ospf, rip, …); they are deliberately absent, since a name mapped
-                // onto an enum member nobody has ever seen the router send is a guess.
-                //
-                // Unlike the API, native answers `false` rather than nothing on a row of another origin —
-                // that is how DerivedBools works, and it is what `active` already does.
+                // The route's ORIGIN is a numflag of its own — u7 on RouterOS 6, u112 on 7 — and the API
+                // prints the member the row is (`connect=true`, `dhcp=true`, `static=true`) and nothing for
+                // the rest; the catalog supplies the key and the values per version (BuildNumFlags). Measured
+                // beside the API: 7.24's connected route carried 0x112=2, its DHCP route 0x112=10, a static
+                // route to a scratch prefix 0x112=3; 6.49.13's connected route 0x7=2 and its DHCP client's
+                // route 0x7=3 (RouterOS 6 calls that route static). RouterOS names more origins (bgp, ospf,
+                // rip, …); they are deliberately absent, since a flag nobody has seen the API print under a
+                // name is a guess at that name.
                 //
                 // 'Pref. Source' is the API's pref-src, on both versions: a 6.49.13 connected route printed
                 // pref-src=<its own address> and carried that address at 0x3 under the opt flag 0x3EB.
                 ["/ip/route"] = new FieldAliasSet(
                     apiToJg: Ci(("pref-src", "pref-source")),
                     jgToApi: Ci(("pref-source", "pref-src")),
-                    derivedBools: new Dictionary<string, Tuple<string, string>>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        ["active"]  = Tuple.Create("contribution", "active"),
-                        ["connect"] = Tuple.Create("belongs-to", "connected"),
-                        ["dhcp"]    = Tuple.Create("belongs-to", "dhcp"),
-                        ["static"]  = Tuple.Create("belongs-to", "static"),
-                    },
                     syntheticFields: new Dictionary<string, WinboxJgField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["immediate-gw"] = new WinboxJgField("immediate-gw", 0x108, "addr[]", true,
                                                              uiType: "multi", elementUiType: "addr"),
-                    }),
+                    },
+                    numFlagMembers: new[] { "active", "connect", "static", "dhcp" }),
+
+                // /system/history: 'undoable' is a numflag member (u4=0), and the API prints undoable=true on
+                // every such row (7.24). Its redoable and floating-undo members have not been seen printed.
+                ["/system/history"] = new FieldAliasSet(Ci(), Ci(), numFlagMembers: new[] { "undoable" }),
 
                 // /routing/ospf/interface-template: the template window types Transmit Delay as a plain
                 // `number` (u2c700b, max:65535 min:1) while the live 'OSPF Interface' window on [44,111]
@@ -1637,7 +1647,10 @@ namespace tik4net.Winbox
                 addrPortPairs: Merge(child.AddrPortPairs, parent.AddrPortPairs, ci),
                 derivedBools: Merge(child.DerivedBools, parent.DerivedBools, ci),
                 syntheticFields: null,
-                pairedFields: Merge(child.PairedFields, parent.PairedFields, ci));
+                pairedFields: Merge(child.PairedFields, parent.PairedFields, ci),
+                numFlagMembers: child.NumFlagMembers == null ? parent.NumFlagMembers
+                    : parent.NumFlagMembers == null ? child.NumFlagMembers
+                    : child.NumFlagMembers.Union(parent.NumFlagMembers));
         }
 
         /// <summary>
@@ -1726,9 +1739,13 @@ namespace tik4net.Winbox
         /// <para>Because each catalog declares the members ITS version knows, no version test is involved:
         /// a RouterOS 6 route can never read <c>dhcp</c>, because that catalog has no such member and the
         /// router does not print it either.</para>
+        /// <para>Only the members the path names in <see cref="FieldAliasSet.NumFlagMembers"/> are kept: not
+        /// every <c>numflag</c> is a set of API flags, and a path that names none reports none.</para>
         /// </remarks>
         internal IReadOnlyDictionary<int, IReadOnlyDictionary<int, string>>? BuildNumFlags()
         {
+            var printed = Aliases?.NumFlagMembers;
+            if (printed == null || printed.Count == 0) return null;
             var raw = _handler == null ? null : _catalog?.GetNumFlags(_handler, _windowKey);
             if (raw == null || raw.Count == 0) return null;
             var result = new Dictionary<int, IReadOnlyDictionary<int, string>>();
@@ -1740,8 +1757,8 @@ namespace tik4net.Winbox
                     // A member's label is the router's own flag name; normalized like any other label, and
                     // through the same member-alias table an enum member uses ('connected' → `connect`).
                     string name = NormalizeLabel(m.Value, applyOverrides: false);
-                    if (name.Length == 0) continue;
-                    named[m.Key] = NumFlagMemberAliases.TryGetValue(name, out var api) ? api : name;
+                    if (NumFlagMemberAliases.TryGetValue(name, out var api)) name = api;
+                    if (printed.Contains(name)) named[m.Key] = name;
                 }
                 if (named.Count > 0) result[byKey.Key] = named;
             }

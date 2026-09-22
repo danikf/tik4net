@@ -92,14 +92,19 @@ synthetic fields identical to the 7.x declaration.
 
 **The API renamed some fields in 7, over the same key and label.** `/ip/service` prints `address` where 7
 prints `available-from` (`0x6`), `/tool/e-mail` `address` where 7 prints `server` (`0x1`), and the OSPF area's
-state flag `0xFE0008` is `invalid` where 7 says `inactive`. One value is printed differently too: a logging
-action's Syslog Severity carries `4294967295` on both versions; 6.49.13 prints the remote action's as
-`syslog-severity=auto` and 7.24 leaves it out. Nothing in either catalog distinguishes these, so native
-reports **both words** for the field (`FieldAliasSet.AlsoKnownAs`) and the word for the marker on both
-versions (`WinboxRecordCodec.SentinelSpelledAsWord`): the read is a superset of that router's API by exactly
-the other version's spelling, and the mapper takes the name its entity declares. The write side needs no
-second word — the alias maps it onto the label, which both catalogs have. No version is asked for or
-compared, per the version-support rule.
+state flag `0xFE0008` is `invalid` where 7 says `inactive`. Nothing in either catalog distinguishes these, so
+native reports **both words** for the field (`FieldAliasSet.AlsoKnownAs`): the read is a superset of that
+router's API by exactly the other version's spelling, and the mapper takes the name its entity declares. The
+write side needs no second word — the alias maps it onto the label, which both catalogs have. No version is
+asked for or compared, per the version-support rule.
+
+**A logging action's Syslog Severity is `auto` when unset, on both versions.** The stock remote action carries
+`4294967295` and the API prints `syslog-severity=auto` for it — 6.49.13 always, 7.24 once
+`remote-log-format=syslog`. Before that, 7.24's API hides the whole syslog group (facility, severity, time
+format): the window marks them `on:'bsd'`, a condition 7.24's API applies and 6.49.13's does not
+(`bsd-syslog=false` there, and the fields still print). Native applies it to none of the remote pane's fields,
+so it reports `syslog-facility` and `syslog-severity=auto` on a 7.24 remote action whose API row has neither
+(`WinboxRecordCodec.SentinelSpelledAsWord`).
 
 **The route's origin is a `numflag`, and each catalog names the flags its version has.** RouterOS 6 declares
 `{numflag,id:'u7',c:{2:['connected','C'],3:['static','S'],4:['RIP','r'],6:['OSPF','o'],7:['MME','m'],
@@ -108,7 +113,10 @@ compared, per the version-support rule.
 so the decode emits it and nothing for the others — measured on 6.49.13 beside the API: the connected route
 carried `0x7=2` with `connect=true`, the DHCP-installed default route `0x7=3` with `static=true` (RouterOS 6
 calls the DHCP client's route static and has no `dhcp` origin at all — and cannot read one, because its
-catalog declares no such member). `numflag` is documented in
+catalog declares no such member). Only the members a path names as API flags are decoded
+(`FieldAliasSet.NumFlagMembers`): the route's `connect`, `static`, `dhcp` and `active`, and history's
+`undoable` — measured on both versions; the unmeasured origins (`bgp`, `ospf`, …) and 7.24's Contribution
+members `filtered`/`unreachable`, which its API does not print, are not. `numflag` is documented in
 [jg-catalog-format.md](jg-catalog-format.md#key-namespace).
 
 **The RouterOS version is not read, but the key that looks like it is a trap.** Key `0x16` of the system-info
@@ -139,8 +147,8 @@ Each is a statement of what is measured and what is not, to be settled one at a 
      `list`, the route's `pref-src` and the OSPF area's `name` (6.x labels them 'Name', 'Pref. Source' and
      'Area Name'), `default-name` and conntrack `total-entries`, keys the 6.x windows do not declare but
      the router sends, the route's `connect` and `static` (its origin `numflag`), and the fields the API
-     itself renamed in 7 — `/ip/service` `address`, `/tool/e-mail` `address`, the OSPF area's `invalid`, and
-     `syslog-severity=auto` (§4). Still missing, each for a reason of its own:
+     itself renamed in 7 — `/ip/service` `address`, `/tool/e-mail` `address`, the OSPF area's `invalid` —
+     and the remote action's `syslog-severity=auto` (§4). Still missing, each for a reason of its own:
      - `/ip/route` `scope`, `target-scope`: the router does not send them (§4).
      - `/ip/route` `gateway-status`: the API's `<gateway> reachable via  ether1` is composed from the
        gateway tuple's read-only parts (status enum, `via` interface), which the decode drops.
