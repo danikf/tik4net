@@ -158,10 +158,14 @@ namespace tik4net.integrationtests
             string assignment = field + "=" + prefix;
             IReadOnlyList<string> tokens = Array.Empty<string>();
             via = null;
+            // The menu in its SPACE form (/ip firewall filter): RouterOS 6 completes nothing after the slash form
+            // (/ip/firewall/filter add action= answers empty on 6.49.13 and lists eleven actions with spaces), and
+            // RouterOS 7 accepts both.
+            string menuWords = "/" + menu.TrimStart('/').Replace('/', ' ');
             foreach (string verb in new[] { "add", "set", "set 0" })
             {
                 via = verb;
-                string line = $"{menu} {verb} {assignment}";
+                string line = $"{menuWords} {verb} {assignment}";
                 tokens = completion.CompleteCli(line);
                 if (tokens.Count > 0)
                     break;
@@ -170,7 +174,7 @@ namespace tik4net.integrationtests
                 // prefix every value shares. CompleteCliRaw returns that completed line; the value is what now
                 // follows "field=", and the caller re-asks with it as the prefix.
                 string completed = completion.CompleteCliRaw(line);
-                string head = $"{menu} {verb} {field}=";
+                string head = $"{menuWords} {verb} {field}=";
                 if (completed.StartsWith(head, StringComparison.Ordinal) && completed.Length > head.Length)
                     return new List<string> { completed.Substring(head.Length) };
             }

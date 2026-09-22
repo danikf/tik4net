@@ -38,6 +38,10 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("ecp384")] Ecp384,
             /// <summary>ecp521 — 521-bit Elliptic Curve group (RFC 5903).</summary>
             [TikEnum("ecp521")] Ecp521,
+            /// <summary>ec2n155 — 155-bit EC2N group (Group 3). RouterOS 6 only; 7 dropped it.</summary>
+            [TikEnum("ec2n155")] Ec2n155,
+            /// <summary>ec2n185 — 185-bit EC2N group (Group 4). RouterOS 6 only; 7 dropped it.</summary>
+            [TikEnum("ec2n185")] Ec2n185,
         }
 
         /// <summary>.id — primary key of row</summary>

@@ -243,3 +243,12 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    (`monitor-traffic once`, `/tool traceroute`, …), and what 6.x offers instead — the plain print of a `count=`-bounded
    ping is the first thing to try, since the probes that already handle a refused `proplist=` show 6.x answering
    the non-`as-value` form.
+
+9. **CLI completion cannot list values that share a prefix on 6.x.** `ITikCliCompletion.CompleteCli` on
+   `/interface bridge add frame-types=` completes inline to `admit-` (as on 7.x), but asked again with that prefix,
+   6.49.13 returns nothing at all where 7.x lists `admit-all`, `admit-only-untagged-and-priority-tagged`,
+   `admit-only-vlan-tagged`. Not yet told apart: RouterOS 6 needing a second Tab to list, or our echo parsing dropping
+   a listing 6.x lays out differently — a byte trace of the second ask decides. It leaves four enum vocabularies
+   unmeasured on 6.x (`frame-types`, bonding `transmit-hash-policy`, vrrp `v3-protocol`, security-profile
+   `static-transmit-key`). Also measured with it: completion answers only for the SPACE form of a menu path on 6.x
+   (`/ip firewall filter add action=`); after the slash form it lists nothing, so a caller must use spaces.
