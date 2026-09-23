@@ -52,6 +52,8 @@ namespace tik4net.Objects.Interface.Tunnel
             /// <summary>local-proxy-arp — Interface performs proxy ARP and answers back out of
             /// the same interface, so hosts that cannot reach each other directly still resolve.</summary>
             [TikEnum("local-proxy-arp")] LocalProxyArp,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>arp — Address Resolution Protocol setting. Default: enabled.</summary>
@@ -72,6 +74,8 @@ namespace tik4net.Objects.Interface.Tunnel
             [TikEnum("off")] Off,
             /// <summary>on — Enable loop protection.</summary>
             [TikEnum("on")] On,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>loop-protect — Loop protection mode. Default: default.</summary>

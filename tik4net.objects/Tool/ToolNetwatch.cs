@@ -50,6 +50,8 @@ namespace tik4net.Objects.Tool
             [TikEnum("https-get")] HttpsGet,
             /// <summary>dns — DNS query probe (RouterOS 7).</summary>
             [TikEnum("dns")] Dns,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Timing ──────────────────────────────────────────────────────────────
@@ -206,6 +208,8 @@ namespace tik4net.Objects.Tool
             [TikEnum("MX")] Mx,
             /// <summary>NS — name server record.</summary>
             [TikEnum("NS")] Ns,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>dns-server — IP address of the DNS server to use for queries (type=dns). Defaults to the system DNS server.</summary>

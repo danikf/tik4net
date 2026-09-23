@@ -46,6 +46,15 @@ namespace tik4net.Objects
         public bool IsFlags { get; private set; }
 
         /// <summary>
+        /// The member marked <see cref="TikEnumUnknownAttribute"/>, which an unknown word reads as; <c>null</c> when
+        /// the enum has none, and an unknown word then throws as it always has.
+        /// </summary>
+        public object? UnknownMember { get; private set; }
+
+        /// <summary>The numeric value of <see cref="UnknownMember"/> (its bit, on a <c>[Flags]</c> enum).</summary>
+        public long UnknownNumeric { get; private set; }
+
+        /// <summary>
         /// Gets (or builds) the mapping for <paramref name="enumType"/>. Thread-safe, and built at most once
         /// per enum type per process.
         /// </summary>
@@ -82,9 +91,18 @@ namespace tik4net.Objects
 
             foreach (string name in Enum.GetNames(enumType))
             {
-                string? wire = enumType.GetRuntimeField(name)!.GetCustomAttribute<TikEnumAttribute>(false)?.Value; // name comes from Enum.GetNames(enumType), so the field always exists
+                var field = enumType.GetRuntimeField(name)!; // name comes from Enum.GetNames(enumType), so the field always exists
+                string? wire = field.GetCustomAttribute<TikEnumAttribute>(false)?.Value;
                 object value = Enum.Parse(enumType, name, true);
                 long numeric = Convert.ToInt64(value);
+
+                if (field.GetCustomAttribute<TikEnumUnknownAttribute>(false) != null)
+                {
+                    // Not a word, so none of the tables below: it is what an unknown word reads AS.
+                    UnknownMember = value;
+                    UnknownNumeric = numeric;
+                    continue;
+                }
 
                 if (wire != null)
                 {
@@ -126,6 +144,33 @@ namespace tik4net.Objects
                 return result;
 
             throw new FormatException(string.Format("Unknown value '{0}' for enum type {1}.", wireValue, _enumType.Name));
+        }
+
+        /// <summary>
+        /// Resolves one wire value to its member, or to <see cref="UnknownMember"/> when the enum has one and the word
+        /// is not a member's — <paramref name="unknownWord"/> is then the word, for the caller to keep.
+        /// </summary>
+        public object ParseTolerant(string wireValue, out string? unknownWord)
+        {
+            unknownWord = null;
+            if (wireValue != null && !_ambiguousWire.Contains(wireValue) && _valueByWire.TryGetValue(wireValue, out var result))
+                return result;
+            if (UnknownMember != null && wireValue != null)
+            {
+                unknownWord = wireValue;
+                return UnknownMember;
+            }
+            return Parse(wireValue!); // throws, naming the value
+        }
+
+        /// <summary>
+        /// Whether <paramref name="wireValue"/> is a member's word — for the <c>[Flags]</c> parse, which keeps the
+        /// parts it does not know.
+        /// </summary>
+        public bool TryParseNumeric(string wireValue, out long numeric)
+        {
+            numeric = 0;
+            return wireValue != null && !_ambiguousWire.Contains(wireValue) && _numericByWire.TryGetValue(wireValue, out numeric);
         }
 
         /// <summary>Resolves one wire value to its numeric member value, for the <c>[Flags]</c> parse.</summary>

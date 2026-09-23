@@ -21,6 +21,8 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("base")] Base,
             /// <summary>ike2 — IKEv2 (RFC 7296), the modern IKE version.</summary>
             [TikEnum("ike2")] Ike2,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>.id — primary key of row</summary>

@@ -25,6 +25,8 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("on-capsman")] OnCapsman,
             /// <summary>on-capsman-secure — forward traffic to CAPsMAN over an encrypted tunnel.</summary>
             [TikEnum("on-capsman-secure")] OnCapsmanSecure,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Primary key ───────────────────────────────────────────────────────

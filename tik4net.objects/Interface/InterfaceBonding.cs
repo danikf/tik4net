@@ -51,6 +51,8 @@ namespace tik4net.Objects.Interface
             [TikEnum("balance-tlb")] BalanceTlb,
             /// <summary>balance-alb — Adaptive Load Balancing.</summary>
             [TikEnum("balance-alb")] BalanceAlb,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>mode — Bonding policy. Default: balance-rr.</summary>
@@ -71,6 +73,8 @@ namespace tik4net.Objects.Interface
             [TikEnum("arp")] Arp,
             /// <summary>none — No link monitoring.</summary>
             [TikEnum("none")] None,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>link-monitoring — Method used for monitoring link status. Default: mii.</summary>
@@ -104,6 +108,8 @@ namespace tik4net.Objects.Interface
             /// <summary>local-proxy-arp — Interface performs proxy ARP and answers back out of
             /// the same interface, so hosts that cannot reach each other directly still resolve.</summary>
             [TikEnum("local-proxy-arp")] LocalProxyArp,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>arp — Address Resolution Protocol setting. Default: enabled.</summary>
@@ -138,6 +144,8 @@ namespace tik4net.Objects.Interface
             [TikEnum("30secs")] ThirtySecs,
             /// <summary>1sec — Fast LACPDU exchange (every 1 second).</summary>
             [TikEnum("1sec")] OneSec,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>lacp-rate — Frequency of LACPDU exchange with bonding peers in 802.3ad mode. Default: 30secs.</summary>
@@ -152,6 +160,8 @@ namespace tik4net.Objects.Interface
             [TikEnum("active")] Active,
             /// <summary>passive — Only responds to LACP negotiation initiated by peer.</summary>
             [TikEnum("passive")] Passive,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>lacp-mode — LACP participation mode for ports in 802.3ad mode. Default: active.</summary>
@@ -184,6 +194,8 @@ namespace tik4net.Objects.Interface
             [TikEnum("encap-2-and-3")] Encap2And3,
             /// <summary>encap-3-and-4 — For encapsulated traffic, uses inner IP and port.</summary>
             [TikEnum("encap-3-and-4")] Encap3And4,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>transmit-hash-policy — Hash policy for slave selection in balance-xor and 802.3ad modes. Default: layer-2.</summary>

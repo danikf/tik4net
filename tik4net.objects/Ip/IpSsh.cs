@@ -65,6 +65,8 @@ namespace tik4net.Objects.Ip
         [TikEnum("3des-cbc")] TripleDesCbc,
         /// <summary>null — no encryption (testing only).</summary>
         [TikEnum("null")] Null,
+        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+        [TikEnumUnknown] Unknown = -1,
     }
 
     /// <summary>SSH forwarding mode for <see cref="IpSsh.ForwardingEnabled"/>.</summary>
@@ -78,6 +80,8 @@ namespace tik4net.Objects.Ip
         [TikEnum("remote")] Remote,
         /// <summary>both — local and remote forwarding permitted.</summary>
         [TikEnum("both")] Both,
+        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+        [TikEnumUnknown] Unknown = -1,
     }
 
     /// <summary>SSH host key algorithm for <see cref="IpSsh.HostKeyType"/>.</summary>
@@ -87,6 +91,8 @@ namespace tik4net.Objects.Ip
         [TikEnum("rsa")] Rsa,
         /// <summary>ed25519 — Ed25519 host key (smaller, faster).</summary>
         [TikEnum("ed25519")] Ed25519,
+        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+        [TikEnumUnknown] Unknown = -1,
     }
 
     /// <summary>Password authentication mode for <see cref="IpSsh.PasswordAuthentication"/>.</summary>
@@ -98,6 +104,8 @@ namespace tik4net.Objects.Ip
         [TikEnum("yes")] Yes,
         /// <summary>no — password login disabled; public-key only.</summary>
         [TikEnum("no")] No,
+        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+        [TikEnumUnknown] Unknown = -1,
     }
 
     /// <summary>Public-key authentication options for <see cref="IpSsh.PublickeyAuthenticationOptions"/>.</summary>
@@ -109,5 +117,7 @@ namespace tik4net.Objects.Ip
         [TikEnum("touch-required")] TouchRequired,
         /// <summary>verify-required — hardware security key must verify user presence/PIN.</summary>
         [TikEnum("verify-required")] VerifyRequired,
+        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+        [TikEnumUnknown] Unknown = -1,
     }
 }

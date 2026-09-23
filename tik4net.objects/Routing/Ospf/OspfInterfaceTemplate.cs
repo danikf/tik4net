@@ -28,6 +28,8 @@ namespace tik4net.Objects.Routing.Ospf
             [TikEnum("ptp-unnumbered")] PtpUnnumbered,
             /// <summary>virtual-link — OSPF virtual link through a transit area.</summary>
             [TikEnum("virtual-link")] VirtualLink,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>OSPF authentication method.</summary>

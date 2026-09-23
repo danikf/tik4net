@@ -40,6 +40,8 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("l2tpv3-ip")] L2tpv3Ip,
             /// <summary>l2tpv3-udp — L2TPv3 over UDP.</summary>
             [TikEnum("l2tpv3-udp")] L2tpv3Udp,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Cookie length for L2TPv3 pseudowire sessions; see <see cref="L2tpv3CookieLength"/>.</summary>
@@ -51,6 +53,8 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("4-bytes")] FourBytes,
             /// <summary>8-bytes — 8-byte cookie.</summary>
             [TikEnum("8-bytes")] EightBytes,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Digest hash algorithm for L2TPv3; see <see cref="L2tpv3DigestHash"/>.</summary>
@@ -62,6 +66,8 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("sha1")] Sha1,
             /// <summary>none — no digest hash.</summary>
             [TikEnum("none")] None,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ---- Primary key ----

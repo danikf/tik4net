@@ -26,6 +26,8 @@ namespace tik4net.Objects.Ip.TrafficFlow
             [TikEnum("9")] V9,
             /// <summary>IETF standardised protocol with extended capabilities including multicast support.</summary>
             [TikEnum("ipfix")] Ipfix,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>.id — primary key of row.</summary>

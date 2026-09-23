@@ -24,6 +24,8 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("ip")] Ip,
             /// <summary>ethernet — Layer 2 (tap) Ethernet tunneling mode.</summary>
             [TikEnum("ethernet")] Ethernet,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Transport protocol for <see cref="Protocol"/>.</summary>
@@ -33,6 +35,8 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("tcp")] Tcp,
             /// <summary>udp — use UDP transport.</summary>
             [TikEnum("udp")] Udp,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Gateway redirect mode for <see cref="RedirectGateway"/>.</summary>
@@ -44,6 +48,8 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("def1")] Def1,
             /// <summary>ipv6 — push IPv6 default route via OpenVPN tunnel.</summary>
             [TikEnum("ipv6")] Ipv6,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Permitted TLS protocol versions for <see cref="TlsVersion"/>.</summary>
@@ -53,6 +59,8 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("any")] Any,
             /// <summary>only-1.2 — restrict to TLS 1.2 only.</summary>
             [TikEnum("only-1.2")] Only12,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Challenge authentication method for <see cref="UserAuthMethod"/>.</summary>
@@ -62,6 +70,8 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("pap")] Pap,
             /// <summary>mschap2 — Microsoft Challenge-Handshake Authentication Protocol v2.</summary>
             [TikEnum("mschap2")] Mschap2,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ---- Writable properties ----

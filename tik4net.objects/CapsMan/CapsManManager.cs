@@ -27,6 +27,8 @@ namespace tik4net.Objects.CapsMan
             [TikEnum("require-same-version")] RequireSameVersion,
             /// <summary>suggest-same-version — recommend that CAPs upgrade to the same RouterOS version, but allow provisioning even if upgrade fails.</summary>
             [TikEnum("suggest-same-version")] SuggestSameVersion,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Writable properties ───────────────────────────────────────────────

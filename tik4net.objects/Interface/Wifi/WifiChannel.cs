@@ -27,6 +27,8 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("10min-cac")] TenMinCac,
             /// <summary>all — avoid all DFS/radar-detection-required channels.</summary>
             [TikEnum("all")] All,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Primary key ───────────────────────────────────────────────────────

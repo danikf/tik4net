@@ -25,6 +25,8 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("initiator")] Initiator,
             /// <summary>responder — the remote peer initiated Phase 1.</summary>
             [TikEnum("responder")] Responder,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>.id — primary key of row</summary>

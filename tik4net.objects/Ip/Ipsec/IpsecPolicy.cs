@@ -25,6 +25,8 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("discard")] Discard,
             /// <summary>encrypt — apply IPsec SA(s) to the packet.</summary>
             [TikEnum("encrypt")] Encrypt,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Specifies what to do when an SA required by the policy cannot be found.</summary>
@@ -36,6 +38,8 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("use")] Use,
             /// <summary>unique — require a unique SA per policy (forces a new SA for each connection).</summary>
             [TikEnum("unique")] Unique,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>IPsec protocol(s) to apply when encrypting matched packets.</summary>
@@ -45,6 +49,8 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("esp")] Esp,
             /// <summary>ah — Authentication Header (integrity only, no encryption).</summary>
             [TikEnum("ah")] Ah,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Primary key ──────────────────────────────────────────────────────────

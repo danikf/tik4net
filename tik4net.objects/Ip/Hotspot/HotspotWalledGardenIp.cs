@@ -75,5 +75,7 @@ namespace tik4net.Objects.Ip.Hotspot
         [TikEnum("drop")] Drop,
         /// <summary>reject — Deny access and answer with an ICMP reject, rather than silently dropping.</summary>
         [TikEnum("reject")] Reject,
+        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+        [TikEnumUnknown] Unknown = -1,
     }
 }

@@ -31,6 +31,8 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("reply-only")] ReplyOnly,
             /// <summary>local-proxy-arp — proxy ARP only between clients on the same interface.</summary>
             [TikEnum("local-proxy-arp")] LocalProxyArp,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Primary key ───────────────────────────────────────────────────────

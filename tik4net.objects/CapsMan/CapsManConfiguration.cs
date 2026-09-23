@@ -27,6 +27,8 @@ namespace tik4net.Objects.CapsMan
         {
             /// <summary>ap — access-point mode (only mode supported by legacy CAPsMAN).</summary>
             [TikEnum("ap")] Ap,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Installation environment ──────────────────────────────────────────
@@ -41,6 +43,8 @@ namespace tik4net.Objects.CapsMan
             [TikEnum("indoor")] Indoor,
             /// <summary>outdoor — outdoor installation; applies outdoor regulatory limits.</summary>
             [TikEnum("outdoor")] Outdoor,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Guard interval ────────────────────────────────────────────────────
@@ -53,6 +57,8 @@ namespace tik4net.Objects.CapsMan
             [TikEnum("any")] Any,
             /// <summary>long — force long guard interval only.</summary>
             [TikEnum("long")] Long,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Multicast helper ──────────────────────────────────────────────────
@@ -69,6 +75,8 @@ namespace tik4net.Objects.CapsMan
             [TikEnum("disabled")] Disabled,
             /// <summary>full — convert all multicast to unicast for all clients.</summary>
             [TikEnum("full")] Full,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Keepalive frames ──────────────────────────────────────────────────
@@ -81,6 +89,8 @@ namespace tik4net.Objects.CapsMan
             [TikEnum("enabled")] Enabled,
             /// <summary>disabled — disable keepalive frame transmission.</summary>
             [TikEnum("disabled")] Disabled,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── HW protection mode ────────────────────────────────────────────────
@@ -95,6 +105,8 @@ namespace tik4net.Objects.CapsMan
             [TikEnum("cts-to-self")] CtsToSelf,
             /// <summary>rts-cts — use RTS/CTS handshake before transmitting.</summary>
             [TikEnum("rts-cts")] RtsCts,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Primary key ───────────────────────────────────────────────────────

@@ -60,6 +60,8 @@ namespace tik4net.Objects.Interface
             [TikEnum("lte")] Lte,
             /// <summary>5g — Force 5G NR only.</summary>
             [TikEnum("5g")] FiveG,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>network-mode — Preferred cellular network technology. Default: auto.</summary>
@@ -92,6 +94,8 @@ namespace tik4net.Objects.Interface
             [TikEnum("at")] At,
             /// <summary>mbim — SMS over MBIM.</summary>
             [TikEnum("mbim")] Mbim,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>sms-protocol — SMS signaling protocol. Default: auto.</summary>

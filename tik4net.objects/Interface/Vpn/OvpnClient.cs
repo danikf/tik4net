@@ -25,6 +25,8 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("ip")] Ip,
             /// <summary>ethernet — Layer 2 (tap) Ethernet tunneling mode.</summary>
             [TikEnum("ethernet")] Ethernet,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Transport protocol for <see cref="Protocol"/>.</summary>
@@ -34,6 +36,8 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("tcp")] Tcp,
             /// <summary>udp — use UDP transport.</summary>
             [TikEnum("udp")] Udp,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Permitted TLS protocol versions for <see cref="TlsVersion"/>.</summary>
@@ -43,6 +47,8 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("any")] Any,
             /// <summary>only-1.2 — restrict to TLS 1.2 only.</summary>
             [TikEnum("only-1.2")] Only12,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ---- Primary key ----

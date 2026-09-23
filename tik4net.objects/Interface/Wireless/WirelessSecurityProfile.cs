@@ -51,7 +51,9 @@ namespace tik4net.Objects.Interface.Wireless
             /// static-keys-required - WEP mode. Do not accept and do not send unencrypted frames. 
             /// </summary>
             [TikEnum("static-keys-required")]
-            StaticKeysRequiered
+            StaticKeysRequiered,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
@@ -216,6 +218,8 @@ namespace tik4net.Objects.Interface.Wireless
             /// <summary>as-username-and-password - the MAC is sent as both the user name and the password.</summary>
             [TikEnum("as-username-and-password")]
             AsUsernameAndPassword,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
@@ -243,6 +247,8 @@ namespace tik4net.Objects.Interface.Wireless
             /// <summary>ssid - the SSID only.</summary>
             [TikEnum("ssid")]
             Ssid,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
@@ -299,6 +305,8 @@ namespace tik4net.Objects.Interface.Wireless
             /// <summary>tkip</summary>
             [TikEnum("tkip")]
             Tkip,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
@@ -322,6 +330,8 @@ namespace tik4net.Objects.Interface.Wireless
             /// <summary>key-3</summary>
             [TikEnum("key-3")]
             Key3,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>

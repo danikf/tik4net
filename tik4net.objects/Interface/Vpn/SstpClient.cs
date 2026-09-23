@@ -25,6 +25,8 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("any")] Any,
             /// <summary>only-1.2 — restrict to TLS 1.2 only.</summary>
             [TikEnum("only-1.2")] Only12,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ---- Primary key ----

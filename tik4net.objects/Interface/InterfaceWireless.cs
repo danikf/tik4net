@@ -447,7 +447,9 @@ namespace tik4net.Objects.Interface
             /// station-bridge - Same as station, but the interface can be bridged. MikroTik-proprietary: works only with a RouterOS access point.
             /// </summary>
             [TikEnum("station-bridge")]
-            StationBridge
+            StationBridge,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
@@ -595,6 +597,8 @@ namespace tik4net.Objects.Interface
             /// </summary>
             [TikEnum("short")]
             Short,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
@@ -774,7 +778,9 @@ namespace tik4net.Objects.Interface
             /// manual-table - define transmit power for each rate separately. Can damage the card if transmit power is set above rated value of the card for used rate.
             /// </summary>
             [TikEnum("manual-table")]
-            ManualTable,                     
+            ManualTable,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
@@ -909,7 +915,9 @@ namespace tik4net.Objects.Interface
             /// 802.11 - on AP - uses the regular 802.11 protocol; on station - connects only to regular 802.11 Access Points.
             /// </summary>
             [TikEnum("802.11")]
-            Plain80211,            
+            Plain80211,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>

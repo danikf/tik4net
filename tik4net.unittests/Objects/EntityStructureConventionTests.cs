@@ -192,6 +192,10 @@ namespace tik4net.unittests.Objects
 
                 foreach (string name in Enum.GetNames(enumType))
                 {
+                    // The [TikEnumUnknown] member is deliberately no word: it is what an unknown word READS as, and
+                    // TolerantEnumReadTests holds it to its own rule (exactly one, no [TikEnum]).
+                    if (enumType.GetRuntimeField(name).GetCustomAttribute<TikEnumUnknownAttribute>(false) != null)
+                        continue;
                     var attribute = enumType.GetRuntimeField(name).GetCustomAttribute<TikEnumAttribute>(false);
                     if (attribute == null)
                     {

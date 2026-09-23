@@ -90,6 +90,8 @@ namespace tik4net.Objects.Interface
             /// </summary>
             [TikEnum("local-proxy-arp")]
             LocalProxyArp,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
@@ -191,6 +193,8 @@ namespace tik4net.Objects.Interface
             /// </summary>
             [TikEnum("mstp")]
             Mstp,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
@@ -212,6 +216,8 @@ namespace tik4net.Objects.Interface
             /// <summary>short - 16-bit path costs (IEEE 802.1D-1998).</summary>
             [TikEnum("short")]
             Short,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
@@ -278,6 +284,8 @@ namespace tik4net.Objects.Interface
             /// <summary>admit-only-vlan-tagged - VLAN-tagged frames only.</summary>
             [TikEnum("admit-only-vlan-tagged")]
             AdmitOnlyVlanTagged,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
@@ -348,6 +356,8 @@ namespace tik4net.Objects.Interface
             /// <summary>temporary-query - a multicast router port while IGMP/MLD queries are seen on it.</summary>
             [TikEnum("temporary-query")]
             TemporaryQuery,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>

@@ -30,6 +30,8 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("station-bridge")] StationBridge,
             /// <summary>station-pseudobridge — client mode with pseudobridge (address substitution).</summary>
             [TikEnum("station-pseudobridge")] StationPseudobridge,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Installation type ─────────────────────────────────────────────────
@@ -42,6 +44,8 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("indoor")] Indoor,
             /// <summary>outdoor — outdoor installation; applies outdoor power/channel limits.</summary>
             [TikEnum("outdoor")] Outdoor,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Manager ───────────────────────────────────────────────────────────
@@ -56,6 +60,8 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("capsman")] Capsman,
             /// <summary>capsman-or-local — use CAPsMAN when available, fall back to local.</summary>
             [TikEnum("capsman-or-local")] CapsmanOrLocal,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Multicast enhance ─────────────────────────────────────────────────
@@ -68,6 +74,8 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("disabled")] Disabled,
             /// <summary>enabled — convert multicast frames to unicast transmissions per-client.</summary>
             [TikEnum("enabled")] Enabled,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── QoS classifier ────────────────────────────────────────────────────
@@ -80,6 +88,8 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("priority")] Priority,
             /// <summary>dscp-high-3-bits — classify by the three highest DSCP bits.</summary>
             [TikEnum("dscp-high-3-bits")] DscpHigh3Bits,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── HW protection mode ────────────────────────────────────────────────
@@ -94,6 +104,8 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("cts-to-self")] CtsToSelf,
             /// <summary>none — no hardware protection (disables RTS/CTS and CTS-to-self).</summary>
             [TikEnum("none")] None,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Primary key ───────────────────────────────────────────────────────

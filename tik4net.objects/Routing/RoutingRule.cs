@@ -25,6 +25,8 @@ namespace tik4net.Objects.Routing
             [TikEnum("unreachable")] Unreachable,
             /// <summary>mangle — Rewrite the packet's routing mark / table and continue.</summary>
             [TikEnum("mangle")] Mangle,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>.id — primary key of row</summary>

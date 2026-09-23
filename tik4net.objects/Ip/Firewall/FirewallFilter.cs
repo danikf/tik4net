@@ -82,6 +82,8 @@ namespace tik4net.Objects.Ip.Firewall
             /// </summary>
             [TikEnum("tarpit")]
             Tarpit,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
@@ -108,6 +110,8 @@ namespace tik4net.Objects.Ip.Firewall
             /// <summary>Untracked connection (RouterOS 7+, CT notrack rule).</summary>
             [TikEnum("untracked")]
             Untracked   = 16,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = 1 << 30,
         }
 
         /// <summary>

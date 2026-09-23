@@ -18,6 +18,8 @@ namespace tik4net.Objects.Routing.Ospf
             [TikEnum("2")] V2,
             /// <summary>version 3 — OSPFv3 (IPv6).</summary>
             [TikEnum("3")] V3,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Controls whether a default route is originated into the OSPF domain.</summary>
@@ -29,6 +31,8 @@ namespace tik4net.Objects.Routing.Ospf
             [TikEnum("always")] Always,
             /// <summary>if-installed — originate a default route only when one is present in the routing table.</summary>
             [TikEnum("if-installed")] IfInstalled,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>.id — primary key of row</summary>

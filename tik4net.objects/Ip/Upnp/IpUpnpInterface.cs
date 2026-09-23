@@ -46,5 +46,7 @@ namespace tik4net.Objects.Ip.Upnp
 
         /// <summary>external — WAN-facing interface with the public IP address.</summary>
         [TikEnum("external")] External,
+        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+        [TikEnumUnknown] Unknown = -1,
     }
 }

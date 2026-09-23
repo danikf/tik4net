@@ -233,7 +233,7 @@ namespace tik4net.Objects
                 if (nameRead != null)
                 {
                     if (nameRead != property.FieldName)
-                        TikFieldNamesRead.Record(entity, property.FieldName, nameRead);
+                        TikEntityNotes.NamesRead.Record(entity, property.FieldName, nameRead);
                     return sentence.GetResponseField(nameRead);
                 }
                 // None of the names: the same outcome as a missing FieldName below (throw when mandatory,

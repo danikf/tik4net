@@ -51,6 +51,8 @@ namespace tik4net.Objects.Interface.Wifi
             /// configuration profile.
             /// </summary>
             [TikEnum("create-enabled")] CreateEnabled,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Primary key ───────────────────────────────────────────────────────

@@ -90,5 +90,7 @@ namespace tik4net.Objects.Snmp
         [TikEnum("2")] V2,
         /// <summary>SNMPv3 traps (requires SNMPv3 community configuration).</summary>
         [TikEnum("3")] V3,
+        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+        [TikEnumUnknown] Unknown = -1,
     }
 }

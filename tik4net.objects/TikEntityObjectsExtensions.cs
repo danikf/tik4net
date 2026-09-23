@@ -50,15 +50,38 @@ namespace tik4net.Objects
                 property.SetEntityValue(result, property.GetEntityValue(entity!));
                 // The name the original was read under, so the clone saves to the same router the same way.
                 if (property.AlternateNames.Count > 0
-                    && TikFieldNamesRead.NameRead(entity!, property.FieldName) is string nameRead)
-                    TikFieldNamesRead.Record(result!, property.FieldName, nameRead);
+                    && TikEntityNotes.NamesRead.Get(entity!, property.FieldName) is string nameRead)
+                    TikEntityNotes.NamesRead.Record(result!, property.FieldName, nameRead);
             }
 
             return result;
         }
 
         /// <summary>
-        /// Compares two instances of entity by their fields. 
+        /// The word the router printed for an enum property that read as its <see cref="TikEnumUnknownAttribute"/>
+        /// member because the enum does not know it; <c>null</c> when the property read a known member.
+        /// </summary>
+        /// <typeparam name="TEntity">Type of entity.</typeparam>
+        /// <param name="entity">An entity read from the router.</param>
+        /// <param name="propertyName">The CLR property's name — <c>nameof(FirewallFilter.Action)</c>.</param>
+        /// <returns>The router's word (for a <c>[Flags]</c> property, the unknown parts, comma-separated), or <c>null</c>.</returns>
+        /// <remarks>
+        /// RouterOS adds words to a field's vocabulary between versions, and an old router uses words a newer one
+        /// dropped. A word the enum does not know used to fail the read of the whole menu; the property now reads
+        /// as <c>Unknown</c> and the word is kept here, and a save writes it back unchanged.
+        /// </remarks>
+        /// <exception cref="ArgumentException">The entity has no mapped property of that name.</exception>
+        public static string? GetUnknownWord<TEntity>(this TEntity entity, string propertyName)
+        {
+            var metadata = TikEntityMetadataCache.GetMetadata<TEntity>();
+            var property = metadata.Properties.FirstOrDefault(p => p.PropertyName == propertyName)
+                ?? throw new ArgumentException(string.Format("{0} has no mapped property '{1}'.",
+                    typeof(TEntity).Name, propertyName), nameof(propertyName));
+            return TikEntityNotes.UnknownWords.Get(entity!, property.FieldName);
+        }
+
+        /// <summary>
+        /// Compares two instances of entity by their fields.
         /// </summary>
         /// <typeparam name="TEntity"></typeparam>
         /// <param name="entity1">First entity.</param>

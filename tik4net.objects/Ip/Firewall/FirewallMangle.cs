@@ -143,6 +143,8 @@ namespace tik4net.Objects.Ip.Firewall
             /// </summary>
             [TikEnum("strip-ipv4-options")]
             StripIpv4Options,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>

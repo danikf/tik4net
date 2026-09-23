@@ -38,6 +38,8 @@ namespace tik4net.Objects.Interface.Wifi
             /// query-radius — forward the authorisation decision to a RADIUS server.
             /// </summary>
             [TikEnum("query-radius")] QueryRadius,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Primary key ───────────────────────────────────────────────────────

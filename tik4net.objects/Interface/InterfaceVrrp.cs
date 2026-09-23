@@ -60,6 +60,8 @@ namespace tik4net.Objects.Interface
             [TikEnum("simple")] Simple,
             /// <summary>ah — HMAC-MD5 authentication.</summary>
             [TikEnum("ah")] Ah,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>authentication — Method used to authenticate VRRP packets. Default: none.</summary>
@@ -85,6 +87,8 @@ namespace tik4net.Objects.Interface
             /// <summary>local-proxy-arp — Interface performs proxy ARP and answers back out of
             /// the same interface, so hosts that cannot reach each other directly still resolve.</summary>
             [TikEnum("local-proxy-arp")] LocalProxyArp,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>arp — Address Resolution Protocol setting. Default: enabled.</summary>
@@ -107,6 +111,8 @@ namespace tik4net.Objects.Interface
             [TikEnum("ipv4")] Ipv4,
             /// <summary>ipv6 — Use IPv6 for VRRPv3.</summary>
             [TikEnum("ipv6")] Ipv6,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>v3-protocol — IP protocol used when version=3. Default: ipv4.</summary>
@@ -141,6 +147,8 @@ namespace tik4net.Objects.Interface
             [TikEnum("passive-active")] PassiveActive,
             /// <summary>active-active — Connection tracking active on all nodes.</summary>
             [TikEnum("active-active")] ActiveActive,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>connection-tracking-mode — How connection tracking synchronizes across VRRP nodes. Default: passive-active.</summary>

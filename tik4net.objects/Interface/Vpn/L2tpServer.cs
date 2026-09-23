@@ -26,6 +26,8 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("l2tpv2")] L2tpv2,
             /// <summary>l2tpv3 — accept only L2TPv3 connections.</summary>
             [TikEnum("l2tpv3")] L2tpv3,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Accepted pseudowire types for <see cref="AcceptPseudowireType"/>.</summary>
@@ -37,6 +39,8 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("ether")] Ether,
             /// <summary>ppp — accept PPP pseudowires only.</summary>
             [TikEnum("ppp")] Ppp,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Caller ID identification method for <see cref="CallerIdType"/>.</summary>
@@ -46,6 +50,8 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("ip-address")] IpAddress,
             /// <summary>number — identify caller by tunnel ID number.</summary>
             [TikEnum("number")] Number,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>L2TPv3 cookie length for <see cref="L2tpv3CookieLength"/>.</summary>
@@ -57,6 +63,8 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("4-bytes")] FourBytes,
             /// <summary>8-bytes — 8-byte cookie.</summary>
             [TikEnum("8-bytes")] EightBytes,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>L2TPv3 digest hash algorithm for <see cref="L2tpv3DigestHash"/>.</summary>
@@ -68,6 +76,8 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("none")] None,
             /// <summary>sha1 — use SHA1 hash for L2TPv3 control channel.</summary>
             [TikEnum("sha1")] Sha1,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>IPSec usage mode for <see cref="UseIpsec"/>.</summary>
@@ -79,6 +89,8 @@ namespace tik4net.Objects.Interface.Vpn
             [TikEnum("yes")] Yes,
             /// <summary>required — only IPSec-wrapped connections are accepted.</summary>
             [TikEnum("required")] Require,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ---- Writable properties ----

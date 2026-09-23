@@ -65,5 +65,7 @@ namespace tik4net.Objects.Ip.Hotspot
 
         /// <summary>deny — block the matched unauthenticated request.</summary>
         [TikEnum("deny")] Deny,
+        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+        [TikEnumUnknown] Unknown = -1,
     }
 }

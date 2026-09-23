@@ -42,6 +42,8 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("ec2n155")] Ec2n155,
             /// <summary>ec2n185 — 185-bit EC2N group (Group 4). RouterOS 6 only; 7 dropped it.</summary>
             [TikEnum("ec2n185")] Ec2n185,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>.id — primary key of row</summary>

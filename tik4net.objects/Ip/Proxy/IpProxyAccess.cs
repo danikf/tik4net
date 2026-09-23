@@ -85,6 +85,8 @@ namespace tik4net.Objects.Ip.Proxy
         [TikEnum("redirect")] Redirect,
         /// <summary>url-append — Append <c>redirect-to</c> to the requested URL.</summary>
         [TikEnum("url-append")] UrlAppend,
+        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+        [TikEnumUnknown] Unknown = -1,
     }
 
     /// <summary>HTTP method filter for <see cref="IpProxyAccess.Method"/>.</summary>
@@ -116,5 +118,7 @@ namespace tik4net.Objects.Ip.Proxy
 
         /// <summary>trace — HTTP TRACE.</summary>
         [TikEnum("trace")] Trace,
+        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+        [TikEnumUnknown] Unknown = -1,
     }
 }

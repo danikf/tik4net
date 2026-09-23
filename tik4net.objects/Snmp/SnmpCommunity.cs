@@ -28,6 +28,8 @@ namespace tik4net.Objects.Snmp
 
             /// <summary>authPriv — both authentication and encryption required</summary>
             [TikEnum("private")] Private,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>SNMPv3 authentication hash algorithm.</summary>
@@ -38,6 +40,8 @@ namespace tik4net.Objects.Snmp
 
             /// <summary>HMAC-SHA1 authentication</summary>
             [TikEnum("SHA1")] SHA1,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>SNMPv3 encryption cipher.</summary>
@@ -48,6 +52,8 @@ namespace tik4net.Objects.Snmp
 
             /// <summary>AES (128-bit) encryption (available since RouterOS v6.16)</summary>
             [TikEnum("AES")] AES,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ------------------------------------------------------------------ properties

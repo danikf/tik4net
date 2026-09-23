@@ -63,5 +63,7 @@ namespace tik4net.Objects.Ip
 
         /// <summary>auto — DDNS activates only when Back To Home is enabled.</summary>
         [TikEnum("auto")] Auto,
+        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+        [TikEnumUnknown] Unknown = -1,
     }
 }

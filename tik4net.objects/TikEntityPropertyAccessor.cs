@@ -78,7 +78,7 @@ namespace tik4net.Objects
         /// (see <see cref="TikPropertyAttribute.AlternateNames"/>), else <see cref="FieldName"/>.
         /// </summary>
         internal string WriteName(object entity)
-            => AlternateNames.Count == 0 ? FieldName : TikFieldNamesRead.NameRead(entity, FieldName) ?? FieldName;
+            => AlternateNames.Count == 0 ? FieldName : TikEntityNotes.NamesRead.Get(entity, FieldName) ?? FieldName;
 
         /// <summary>
         /// If property (and mikrotik field) is R/O — either because the property says so, or because the
@@ -335,8 +335,12 @@ namespace tik4net.Objects
             return (entity, value) => typed((TEntity)entity, (TValue)value);
         }
 
-        private object? ConvertFromString(string? strValue)
+        private object? ConvertFromString(string? strValue) => ConvertFromString(strValue, out _);
+
+        // unknownWord: the router's word(s) an enum property read as its TikEnumUnknown member for, else null.
+        private object? ConvertFromString(string? strValue, out string? unknownWord)
         {
+            unknownWord = null;
             try
             {
                 // A nullable property is the only one that can carry "the router did not report this field"
@@ -407,13 +411,29 @@ namespace tik4net.Objects
                     if (_enumMetadata!.IsFlags && value.Contains(','))
                     {
                         long result = 0;
-                        foreach (string part in value.Split(','))
-                            result |= _enumMetadata.ParseNumeric(part.Trim());
+                        var unknownParts = new List<string>();
+                        foreach (string raw in value.Split(','))
+                        {
+                            string part = raw.Trim();
+                            if (_enumMetadata.TryParseNumeric(part, out long numeric))
+                                result |= numeric;
+                            else if (_enumMetadata.UnknownMember != null)
+                                unknownParts.Add(part);   // kept, and the Unknown bit set below
+                            else
+                                result |= _enumMetadata.ParseNumeric(part);   // throws, naming the word
+                        }
+                        if (unknownParts.Count > 0)
+                        {
+                            result |= _enumMetadata.UnknownNumeric;
+                            unknownWord = string.Join(",", unknownParts);
+                        }
                         return Enum.ToObject(ValueType, result);
                     }
                     else
                     {
-                        return _enumMetadata.Parse(value);
+                        // A word the enum does not know reads as its TikEnumUnknown member when it has one — the
+                        // word is kept (SetEntityValue) — instead of failing the read of the whole menu.
+                        return _enumMetadata.ParseTolerant(value, out unknownWord);
                     }
                 }
                 else
@@ -546,7 +566,14 @@ namespace tik4net.Objects
         /// <param name="propValue">New property value.</param>
         public void SetEntityValue(object entity, string? propValue)
         {
-            object? value = ConvertFromString(propValue);
+            object? value = ConvertFromString(propValue, out string? unknownWord);
+            if (_enumMetadata?.UnknownMember != null)
+            {
+                if (unknownWord != null)
+                    TikEntityNotes.UnknownWords.Record(entity, FieldName, unknownWord);
+                else
+                    TikEntityNotes.UnknownWords.Forget(entity, FieldName);
+            }
 
             if (_setter != null)
                 _setter(entity, value!); //NOTE: works even if setter is private. `!`: the delegate's boxed
@@ -572,7 +599,34 @@ namespace tik4net.Objects
             if (propValue == null && !IsNullable)
                 propValue = DefaultValue;
 
+            if (propValue != null && _enumMetadata?.UnknownMember != null)
+            {
+                long numeric = Convert.ToInt64(propValue);
+                bool unknown = _enumMetadata.IsFlags
+                    ? (numeric & _enumMetadata.UnknownNumeric) == _enumMetadata.UnknownNumeric
+                    : numeric == _enumMetadata.UnknownNumeric;
+                if (unknown)
+                    return UnknownToString(entity, numeric);
+            }
+
             return ConvertToString(propValue);
+        }
+
+        // An Unknown member stands for a word the router printed and this enum does not know. Writing is strict:
+        // the word read is written back unchanged, and an Unknown the caller assigned — with no word behind it —
+        // has nothing RouterOS could be sent, so it throws rather than inventing one.
+        private string UnknownToString(object entity, long numeric)
+        {
+            string? word = TikEntityNotes.UnknownWords.Get(entity, FieldName);
+            if (word == null)
+                throw new FormatException(string.Format(
+                    "Property '{0}({1})' holds {2}.{3}, which stands for a word read from the router — and this entity "
+                    + "was not read with one. Assign a member RouterOS accepts.",
+                    PropertyName, FieldName, ValueType.Name, Enum.ToObject(ValueType, _enumMetadata!.UnknownNumeric)));
+            if (!_enumMetadata!.IsFlags)
+                return word;
+            string known = _enumMetadata.FormatFlags(Enum.ToObject(ValueType, numeric & ~_enumMetadata.UnknownNumeric));
+            return known.Length == 0 ? word : known + "," + word;
         }
     }
 }

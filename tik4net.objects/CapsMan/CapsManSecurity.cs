@@ -45,6 +45,8 @@ namespace tik4net.Objects.CapsMan
             [TikEnum("aes-ccm")] AesCcm,
             /// <summary>tkip — TKIP cipher for group keys (legacy; required for WPA-only clients).</summary>
             [TikEnum("tkip")] Tkip,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Primary key ───────────────────────────────────────────────────────

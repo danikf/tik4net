@@ -24,6 +24,8 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("disabled")] Disabled,
             /// <summary>enabled — beacon integrity protection is enabled (mandatory for 802.11be).</summary>
             [TikEnum("enabled")] Enabled,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── EAP certificate mode ──────────────────────────────────────────────
@@ -40,6 +42,8 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("verify-certificate")] VerifyCertificate,
             /// <summary>verify-certificate-with-crl — verify the server certificate and check CRL.</summary>
             [TikEnum("verify-certificate-with-crl")] VerifyCertificateWithCrl,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Group encryption ──────────────────────────────────────────────────
@@ -58,6 +62,8 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("gcmp-256")] Gcmp256,
             /// <summary>tkip — TKIP (legacy; WPA only).</summary>
             [TikEnum("tkip")] Tkip,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Management frame protection ───────────────────────────────────────
@@ -72,6 +78,8 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("disabled")] Disabled,
             /// <summary>required — only peers supporting management frame protection are accepted.</summary>
             [TikEnum("required")] Required,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Management frame encryption ───────────────────────────────────────
@@ -88,6 +96,8 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("gmac")] Gmac,
             /// <summary>gmac-256 — AES-GMAC 256-bit.</summary>
             [TikEnum("gmac-256")] Gmac256,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── SAE password element derivation ───────────────────────────────────
@@ -102,6 +112,8 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("hash-to-element")] HashToElement,
             /// <summary>hunting-and-pecking — use the original hunting-and-pecking method only.</summary>
             [TikEnum("hunting-and-pecking")] HuntingAndPecking,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── WPS mode ──────────────────────────────────────────────────────────
@@ -114,6 +126,8 @@ namespace tik4net.Objects.Interface.Wifi
             [TikEnum("disable")] Disable,
             /// <summary>push-button — accept WPS push-button requests for 2 minutes after a wps-push-button command.</summary>
             [TikEnum("push-button")] PushButton,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Primary key ───────────────────────────────────────────────────────

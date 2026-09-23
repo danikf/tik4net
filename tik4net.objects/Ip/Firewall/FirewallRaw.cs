@@ -72,6 +72,8 @@ namespace tik4net.Objects.Ip.Firewall
             /// </summary>
             [TikEnum("return")]
             Return,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>

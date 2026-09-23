@@ -88,6 +88,8 @@ namespace tik4net.Objects.Tool
             [TikEnum("yes")] Yes,
             /// <summary>starttls — upgrade to TLS via STARTTLS if offered; continue in plain text otherwise.</summary>
             [TikEnum("starttls")] Starttls,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Certificate trust chain verification mode for <see cref="ToolEmail"/>.</summary>
@@ -99,6 +101,8 @@ namespace tik4net.Objects.Tool
             [TikEnum("yes")] Yes,
             /// <summary>yes-without-crl — verify trust chain but skip CRL checks.</summary>
             [TikEnum("yes-without-crl")] YesWithoutCrl,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
     }
 }

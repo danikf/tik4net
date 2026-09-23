@@ -29,6 +29,8 @@ namespace tik4net.Objects.System
             [TikEnum("email")] Email,
             /// <summary>script — Run the script named by the action for each matching message.</summary>
             [TikEnum("script")] Script,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Transport protocol used when target is <see cref="LoggingTarget.Remote"/>.</summary>
@@ -40,6 +42,8 @@ namespace tik4net.Objects.System
             [TikEnum("tcp")] Tcp,
             /// <summary>TLS (encrypted TCP).</summary>
             [TikEnum("tls")] Tls,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Wire format when target is <see cref="LoggingTarget.Remote"/>.</summary>
@@ -51,6 +55,8 @@ namespace tik4net.Objects.System
             [TikEnum("syslog")] Syslog,
             /// <summary>Common Event Format (CEF).</summary>
             [TikEnum("cef")] Cef,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>RFC 3164 syslog facility code.</summary>
@@ -98,6 +104,8 @@ namespace tik4net.Objects.System
             [TikEnum("local6")] Local6,
             /// <summary>locally defined</summary>
             [TikEnum("local7")] Local7,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>RFC 3164 syslog severity level.</summary>
@@ -121,6 +129,8 @@ namespace tik4net.Objects.System
             [TikEnum("info")] Info,
             /// <summary>Debug-level messages.</summary>
             [TikEnum("debug")] Debug,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Timestamp format in syslog messages.</summary>
@@ -130,6 +140,8 @@ namespace tik4net.Objects.System
             [TikEnum("bsd-syslog")] BsdSyslog,
             /// <summary>ISO 8601 timestamp with milliseconds.</summary>
             [TikEnum("iso8601")] Iso8601,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── identity ──────────────────────────────────────────────────────────

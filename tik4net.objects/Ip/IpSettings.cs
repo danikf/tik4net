@@ -117,6 +117,8 @@ namespace tik4net.Objects.Ip
         [TikEnum("loose")] Loose,
         /// <summary>strict — strict RFC 3704 mode: packet must arrive on the same interface that would be used to reach the source.</summary>
         [TikEnum("strict")] Strict,
+        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+        [TikEnumUnknown] Unknown = -1,
     }
 
     /// <summary>TCP timestamp behaviour for <see cref="IpSettings.TcpTimestamps"/>.</summary>
@@ -128,6 +130,8 @@ namespace tik4net.Objects.Ip
         [TikEnum("enabled")] Enabled,
         /// <summary>disabled — TCP timestamps disabled.</summary>
         [TikEnum("disabled")] Disabled,
+        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+        [TikEnumUnknown] Unknown = -1,
     }
 
     /// <summary>ECMP multipath hash policy for <see cref="IpSettings.Ipv4MultipathHashPolicy"/>.</summary>
@@ -139,5 +143,7 @@ namespace tik4net.Objects.Ip
         [TikEnum("l4")] L4,
         /// <summary>l3-inner — hash on inner L3 headers (for tunnelled traffic).</summary>
         [TikEnum("l3-inner")] L3Inner,
+        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+        [TikEnumUnknown] Unknown = -1,
     }
 }

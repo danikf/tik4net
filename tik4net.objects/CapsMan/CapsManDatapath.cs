@@ -36,6 +36,8 @@ namespace tik4net.Objects.CapsMan
             [TikEnum("proxy-arp")] ProxyArp,
             /// <summary>reply-only — the interface replies only to ARP requests that match static entries in /ip arp; no dynamic entries are created.</summary>
             [TikEnum("reply-only")] ReplyOnly,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── VLAN mode ─────────────────────────────────────────────────────────
@@ -50,6 +52,8 @@ namespace tik4net.Objects.CapsMan
             [TikEnum("use-service-tag")] UseServiceTag,
             /// <summary>use-tag — tag frames with 802.1q VLAN tags.</summary>
             [TikEnum("use-tag")] UseTag,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Primary key ───────────────────────────────────────────────────────

@@ -68,6 +68,8 @@ namespace tik4net.Objects.Interface.Tunnel
             [TikEnum("proxy-arp")] ProxyArp,
             /// <summary>reply-only — Interface only replies to requests matching static ARP entries.</summary>
             [TikEnum("reply-only")] ReplyOnly,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>arp — Address Resolution Protocol setting. Default: enabled.</summary>
@@ -88,6 +90,8 @@ namespace tik4net.Objects.Interface.Tunnel
             [TikEnum("off")] Off,
             /// <summary>on — Enable loop protection.</summary>
             [TikEnum("on")] On,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>loop-protect — Loop protection mode. Default: default.</summary>
@@ -118,6 +122,8 @@ namespace tik4net.Objects.Interface.Tunnel
             [TikEnum("ipv4")] Ipv4,
             /// <summary>ipv6 — Use IPv6 for static VTEP connections.</summary>
             [TikEnum("ipv6")] Ipv6,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>vteps-ip-version — IP version for static VTEP connections. Default: ipv4.</summary>
@@ -156,6 +162,8 @@ namespace tik4net.Objects.Interface.Tunnel
             [TikEnum("tx")] Tx,
             /// <summary>both — Remote checksum offload on both directions.</summary>
             [TikEnum("both")] Both,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>rem-csum — Remote Checksum Offload setting. Default: none.</summary>

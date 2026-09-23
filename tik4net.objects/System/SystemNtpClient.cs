@@ -101,5 +101,7 @@ namespace tik4net.Objects.System
         /// <summary>multicast — client listens for NTP multicast packets.</summary>
         [TikEnum("multicast")]
         Multicast,
+        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+        [TikEnumUnknown] Unknown = -1,
     }
 }

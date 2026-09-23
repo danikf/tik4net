@@ -257,6 +257,8 @@ namespace tik4net.Objects.Certificate
             [TikEnum("secp384r1")] Secp384r1,
             /// <summary>NIST P-521 elliptic curve (secp521r1).</summary>
             [TikEnum("secp521r1")] Secp521r1,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Digest (hash) algorithm used when signing the certificate.</summary>
@@ -272,6 +274,8 @@ namespace tik4net.Objects.Certificate
             [TikEnum("sha384")] Sha384,
             /// <summary>SHA-512.</summary>
             [TikEnum("sha512")] Sha512,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Returns the certificate name, suitable for display and logging.</summary>

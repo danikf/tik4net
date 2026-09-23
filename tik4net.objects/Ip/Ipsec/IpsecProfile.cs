@@ -23,6 +23,8 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("sha512")] Sha512,
             /// <summary>sha384 — SHA-384.</summary>
             [TikEnum("sha384")] Sha384,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Proposal-check modes controlling how Phase 2 lifetime proposals are validated.</summary>
@@ -36,6 +38,8 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("exact")] Exact,
             /// <summary>strict — reject proposals with lifetimes longer than the configured value.</summary>
             [TikEnum("strict")] Strict,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>PRF (Pseudo-Random Function) algorithms for IKEv2 key derivation.</summary>
@@ -51,6 +55,8 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("sha384")] Sha384,
             /// <summary>sha512 — HMAC-SHA-512.</summary>
             [TikEnum("sha512")] Sha512,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>.id — primary key of row</summary>

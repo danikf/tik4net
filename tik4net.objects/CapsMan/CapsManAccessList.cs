@@ -44,6 +44,8 @@ namespace tik4net.Objects.CapsMan
             /// query-radius — forward the authorisation decision to a RADIUS server.
             /// </summary>
             [TikEnum("query-radius")] QueryRadius,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── VLAN mode ─────────────────────────────────────────────────────────
@@ -67,6 +69,8 @@ namespace tik4net.Objects.CapsMan
             /// use-tag — add an 802.1Q VLAN tag using the <see cref="VlanId"/> value.
             /// </summary>
             [TikEnum("use-tag")] UseTag,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Primary key ───────────────────────────────────────────────────────

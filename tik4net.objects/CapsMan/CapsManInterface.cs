@@ -31,6 +31,8 @@ namespace tik4net.Objects.CapsMan
             [TikEnum("proxy-arp")] ProxyArp,
             /// <summary>reply-only — interface only sends ARP replies, never sends requests.</summary>
             [TikEnum("reply-only")] ReplyOnly,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Primary key ───────────────────────────────────────────────────────

@@ -59,6 +59,8 @@ namespace tik4net.Objects.CapsMan
             [TikEnum("eeeeeeCe")] EeeeeeeCe,
             /// <summary>eeeeeeeC — 160 MHz, primary channel in top slot.</summary>
             [TikEnum("eeeeeeeC")] EeeeeeeeC,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Primary key ───────────────────────────────────────────────────────

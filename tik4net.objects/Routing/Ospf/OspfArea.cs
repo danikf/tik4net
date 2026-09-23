@@ -20,6 +20,8 @@ namespace tik4net.Objects.Routing.Ospf
             [TikEnum("nssa")] Nssa,
             /// <summary>stub — stub area; external LSAs are blocked; a default route is injected by the ABR.</summary>
             [TikEnum("stub")] Stub,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>NSSA translator role for this ABR.</summary>
@@ -31,6 +33,8 @@ namespace tik4net.Objects.Routing.Ospf
             [TikEnum("no")] No,
             /// <summary>yes — this ABR always acts as the NSSA translator.</summary>
             [TikEnum("yes")] Yes,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>.id — primary key of row</summary>

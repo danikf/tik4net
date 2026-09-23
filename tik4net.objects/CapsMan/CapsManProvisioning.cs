@@ -52,6 +52,8 @@ namespace tik4net.Objects.CapsMan
             /// master-configuration profile.
             /// </summary>
             [TikEnum("create-enabled")] CreateEnabled,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Name format ───────────────────────────────────────────────────────
@@ -79,6 +81,8 @@ namespace tik4net.Objects.CapsMan
             /// prefix-identity — combine name-prefix with the CAP router identity.
             /// </summary>
             [TikEnum("prefix-identity")] PrefixIdentity,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         // ── Primary key ───────────────────────────────────────────────────────

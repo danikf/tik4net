@@ -20,6 +20,8 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("no")] No,
             /// <summary>yes — accept DNS servers from the responder and add them alongside locally configured ones.</summary>
             [TikEnum("yes")] Yes,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>.id — primary key of row</summary>

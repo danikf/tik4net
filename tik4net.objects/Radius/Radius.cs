@@ -27,6 +27,8 @@ namespace tik4net.Objects.Radius
             /// <summary>radsec — RADIUS over TLS (RadSec)</summary>
             [TikEnum("radsec")]
             Radsec,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>
@@ -41,6 +43,8 @@ namespace tik4net.Objects.Radius
             /// <summary>yes-for-request-resp — require Message-Authenticator on requests and responses</summary>
             [TikEnum("yes-for-request-resp")]
             YesForRequestResp,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>.id — primary key of row</summary>

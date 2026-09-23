@@ -30,6 +30,8 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("eap")] Eap,
             /// <summary>eap-radius — EAP backed by a RADIUS server (IKEv2 only).</summary>
             [TikEnum("eap-radius")] EapRadius,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Controls whether dynamic security policies (SAs) are generated for unmatched traffic.</summary>
@@ -41,6 +43,8 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("port-override")] PortOverride,
             /// <summary>port-strict — generate policies and keep the original port selectors from the IKE proposal.</summary>
             [TikEnum("port-strict")] PortStrict,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>Logic used to match an incoming IKE identity against this entry.</summary>
@@ -50,6 +54,8 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("remote-id")] RemoteId,
             /// <summary>certificate — match by the subject of the peer's certificate.</summary>
             [TikEnum("certificate")] Certificate,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>The local identity type sent to the remote peer during IKE negotiation.</summary>
@@ -67,6 +73,8 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("key-id")] KeyId,
             /// <summary>dn — The distinguished name of the local certificate.</summary>
             [TikEnum("dn")] Dn,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>The expected identity type received from the remote peer during IKE negotiation.</summary>
@@ -86,6 +94,8 @@ namespace tik4net.Objects.Ip.Ipsec
             [TikEnum("key-id")] KeyId,
             /// <summary>ignore — do not validate the remote identity.</summary>
             [TikEnum("ignore")] Ignore,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>.id — primary key of row</summary>

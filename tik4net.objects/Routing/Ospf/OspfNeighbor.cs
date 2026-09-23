@@ -36,6 +36,8 @@ namespace tik4net.Objects.Routing.Ospf
             [TikEnum("loading")] Loading,
             /// <summary>full — fully adjacent; link-state databases are synchronized.</summary>
             [TikEnum("full")] Full,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>.id — primary key of row</summary>

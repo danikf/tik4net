@@ -36,6 +36,8 @@ namespace tik4net.Objects.Ip
             /// </summary>
             [TikEnum("special-classless")]
             SpecialClassless,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
         #endregion
 

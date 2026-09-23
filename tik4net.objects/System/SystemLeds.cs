@@ -69,6 +69,8 @@ namespace tik4net.Objects.System
             [TikEnum("wireless-signal-strength")] WirelessSignalStrength,
             /// <summary>wireless-status — LED reflects wireless association status.</summary>
             [TikEnum("wireless-status")] WirelessStatus,
+            /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
+            [TikEnumUnknown] Unknown = -1,
         }
 
         /// <summary>leds — hardware LED identifier(s) controlled by this entry (hardware-specific names, e.g. "user-led").</summary>
