@@ -112,7 +112,11 @@ namespace tik4net.Testing
                         // entity comes from the caller's factory for TEntity : new() — always a real
                         // instance here, but the unconstrained generic parameter reads as possibly-null.
                         var words = metadata.Properties
-                            .ToDictionary(p => p.FieldName, p => p.GetEntityValue(entity!) ?? "");
+                            // A null value is a field the router does not print, so the fake leaves the word out
+                            // rather than printing it empty — that is what an entity reading it back must see.
+                            .Select(p => new { p.FieldName, Value = p.GetEntityValue(entity!) })
+                            .Where(p => p.Value != null)
+                            .ToDictionary(p => p.FieldName, p => p.Value!);
                         sentences.Add(new TikFakeReSentence(words));
                     }
                     sentences.Add(new TikFakeDoneSentence());

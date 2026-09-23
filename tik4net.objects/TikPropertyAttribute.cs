@@ -23,8 +23,8 @@ namespace tik4net.Objects
         /// <remarks>
         /// <para>RouterOS 7 prints <c>/ip/service</c>'s access list as <c>available-from</c>, RouterOS 6 as
         /// <c>address</c>; one property declared <c>[TikProperty("address", AlternateNames = new[] { "available-from" })]</c>
-        /// reads it on both. A second property per name cannot do this: the name the router does not print
-        /// reads as the property's default (<c>""</c> for a string), not as <c>null</c>.</para>
+        /// reads it on both. A second property per name cannot do this: with a declared default, the name the
+        /// router does not print reads as that default, and a write has to use the name this router accepts.</para>
         /// <para><b>Read:</b> the first of <see cref="FieldName"/>, then these in order, that the row carries; the
         /// default applies only when it carries none of them. <b>Write:</b> the name the entity was read under,
         /// so a loaded entity saves under the name its router uses; an entity that was never read (a create, a
@@ -65,6 +65,14 @@ namespace tik4net.Objects
         /// (see <c>EntityDefaultValueConventionTests</c>); the fix is <c>bool?</c>, not a different string,
         /// because declaring <c>"no"</c> instead would silently drop an <i>explicitly assigned</i>
         /// <c>false</c>, which is worse: a two-state type cannot carry the protocol's three states.
+        /// </para>
+        /// <para>
+        /// <b>It is also what a field the row does not carry reads as</b> — a field this RouterOS version does not
+        /// have, or one a CLI print leaves out. With no default declared, a nullable property (<c>string?</c>,
+        /// <c>int?</c>, an enum <c>?</c>) reads <c>null</c> and a non-nullable one its type's default. A
+        /// property that must be able to say "the router did not print this" is therefore nullable and declares
+        /// none. (A reference type counts as nullable when it is annotated so; one compiled without nullable
+        /// annotations reads <c>""</c>.)
         /// </para>
         /// </remarks>
         public string? DefaultValue { get; set; }

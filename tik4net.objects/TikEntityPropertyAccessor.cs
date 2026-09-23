@@ -207,10 +207,13 @@ namespace tik4net.Objects
             IsMandatory = propertyAttribute.IsMandatory;
             if (propertyAttribute.DefaultValue != null)
                 DefaultValue = NormalizeDefaultValue(propertyAttribute.DefaultValue);
-            else if (IsNullable)
+            else if (IsNullable || IsNullableReference(propertyInfo))
                 // A nullable property that declares no default HAS no default: its unset state is null, and
                 // null is already "do not send". Computing one from the underlying type (which would give a
                 // bool? the value "no") would put back exactly the conflation nullability removes.
+                // The same for a `string?` (or any reference type annotated nullable): without this it read as
+                // "" when the router printed no such field — a field another RouterOS version lacks, or one a
+                // CLI print leaves out — and nothing could tell that apart from an empty value.
                 DefaultValue = null;
             else if (PropertyType.GetTypeInfo().IsValueType)
                 DefaultValue = ConvertToString(Activator.CreateInstance(PropertyType)); //default value of value type. for example: (default)int
@@ -219,6 +222,43 @@ namespace tik4net.Objects
             UnsetOnDefault = propertyAttribute.UnsetOnDefault;
             IsFreeText = propertyAttribute.IsFreeText;
             IsPresenceFlag = propertyAttribute.IsPresenceFlag;
+        }
+
+        /// <summary>
+        /// Whether a reference-typed property is declared nullable (<c>string?</c>) under nullable reference types.
+        /// </summary>
+        /// <remarks>
+        /// Read from the compiler's own metadata, since <c>NullabilityInfoContext</c> is not available on
+        /// netstandard2.0: the property's <c>NullableAttribute</c> (first byte = the top-level annotation), else the
+        /// <c>NullableContextAttribute</c> of the declaring type or an enclosing one. 2 means nullable. A property
+        /// compiled without nullable annotations carries neither and is not nullable here — it keeps reading
+        /// <c>""</c> for a field the row lacks, as before.
+        /// </remarks>
+        private static bool IsNullableReference(PropertyInfo property)
+        {
+            if (property.PropertyType.GetTypeInfo().IsValueType)
+                return false;
+
+            byte? flag = NullableFlag(property.CustomAttributes, "System.Runtime.CompilerServices.NullableAttribute");
+            for (Type? t = property.DeclaringType; flag == null && t != null; t = t.DeclaringType)
+                flag = NullableFlag(t.GetTypeInfo().CustomAttributes, "System.Runtime.CompilerServices.NullableContextAttribute");
+            return flag == 2;
+        }
+
+        private static byte? NullableFlag(IEnumerable<CustomAttributeData> attributes, string attributeName)
+        {
+            foreach (var a in attributes)
+            {
+                if (a.AttributeType.FullName != attributeName || a.ConstructorArguments.Count != 1)
+                    continue;
+                object? arg = a.ConstructorArguments[0].Value;
+                if (arg is byte b)
+                    return b;
+                if (arg is IReadOnlyCollection<CustomAttributeTypedArgument> list && list.Count > 0
+                    && list.First().Value is byte first)
+                    return first;
+            }
+            return null;
         }
 
         /// <summary>

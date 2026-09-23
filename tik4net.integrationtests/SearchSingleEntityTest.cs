@@ -72,7 +72,8 @@ namespace tik4net.integrationtests
         public void SearchByNameInLoadAll_Interface_Will()
         {
             var ether1 = Connection.LoadAll<Objects.Interface.Interface>()
-                .Single(iface => iface.DefaultName.StartsWith("eth") && iface.DefaultName.EndsWith("1"));
+                .Single(iface => iface.DefaultName != null   // a bridge or VRRP interface has none, and reads null
+                    && iface.DefaultName.StartsWith("eth") && iface.DefaultName.EndsWith("1"));
 
             Assert.IsNotNull(ether1);
         }
