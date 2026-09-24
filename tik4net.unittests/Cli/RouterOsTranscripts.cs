@@ -56,6 +56,42 @@ namespace tik4net.unittests.Cli
         internal const string V7232_LoginRefused =
             "\r\nLogin failed, incorrect username or password\r\n\r\nLogin: ";
 
+        // ── RouterOS 6.49.13, Telnet, admin with an EMPTY password, a critical log line pending ──
+
+        /// <summary>After the user name on 6.49.13 (no <c>t</c> in the terminal flags echo).</summary>
+        internal const string V64913_Password = "admin+c\r\nPassword: ";
+
+        /// <summary>
+        /// After the password on 6.49.13, with one critical log entry the account has not seen yet: RouterOS 6
+        /// prints it under the banner — here a <b>failed</b> API login's <c>login failure for user admin …</c> —
+        /// on a login that succeeds. The burst ends with the VT100 probes; the nag follows in its own burst,
+        /// <see cref="V64913_Nag"/>. Captured 2026-09-24 on CHR2.
+        /// </summary>
+        /// <remarks>
+        /// Two liberties, both marked: the logo and most help lines are elided as in the 7.23.2 banner, and the
+        /// client address in the log line is replaced by a documentation address (192.0.2.10) — this repository
+        /// is public.
+        /// </remarks>
+        internal const string V64913_BannerWithCriticalLog =
+            "\r\n\r\r\n\r\r\n\r\r\n\r\r\n\r\r\n\r\r\n\r\r\n\r\n"
+            + "\r  MMM      MMM       KKK                          TTTTTTTTTTT      KKK\r\n"
+            /* logo lines elided — decorative only */
+            + "\r  MikroTik RouterOS 6.49.13 (c) 1999-2024       http://www.mikrotik.com/\r\n\r\r\n"
+            + "[?]             Gives the list of available commands\r\n\r\r\n"
+            /* help lines elided */
+            + "\r/command        Use command at the base level\r\n\r" + Esc + "[9999B\r" + Esc + "[9999B"
+            + "sep/24/2026 19:26:05 system,error,critical login failure for user admin from 192.\r\n"
+            + "0.2.10 via api\r\n\r\nChange your password\r\n" + Esc + "Z  " + Esc + "[6n";
+
+        /// <summary>
+        /// The change-password field on 6.49.13. It arrives only after the transport has answered the VT100 probes
+        /// that end the banner burst — so the read that sees the banner does not see the nag.
+        /// </summary>
+        internal const string V64913_Nag = "\r\r\r" + Esc + "[9999Bnew password> \rnew password> " + Esc + "[K";
+
+        /// <summary>After Ctrl-C on 6.49.13: the shell prompt.</summary>
+        internal const string V64913_PromptAfterNag = "\r\n\r\r\r\r" + Esc + "[9999B[admin@CHR2] > ";
+
         /// <summary>The shell prompt on its own, as a transport that authenticated below the terminal sees it.</summary>
         internal const string V7232_PromptOnly = "\r\n\r\r\r\r" + Esc + "[9999B[admin@CHR] > ";
 

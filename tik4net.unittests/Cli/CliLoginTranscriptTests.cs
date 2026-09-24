@@ -134,7 +134,44 @@ namespace tik4net.unittests.Cli
             Assert.IsTrue(ctrlCs <= 3, $"Ctrl-C rounds must stay bounded (MaxNagRounds); sent {ctrlCs}.");
         }
 
+        /// <summary>
+        /// RouterOS 6 prints pending critical log lines under the banner of a login that SUCCEEDED, and a failed
+        /// login elsewhere is one of them: <c>login failure for user admin … via api</c>. Once the password is
+        /// sent, a refusal is the re-offered <c>Login:</c> — the words on screen are the router's log, not its
+        /// answer.
+        /// </summary>
+        [TestMethod]
+        public async Task Login_64913_CriticalLogLineUnderTheBanner_IsNotARefusal()
+        {
+            var term = new FakeRouterTerminal()
+                .Emits(RouterOsTranscripts.V7232_Login)
+                .Emits(RouterOsTranscripts.V64913_Password)
+                .Emits(RouterOsTranscripts.V64913_BannerWithCriticalLog)
+                .Emits(RouterOsTranscripts.V64913_Nag)
+                .Emits(RouterOsTranscripts.V64913_PromptAfterNag);
+
+            await term.LoginAsync();
+
+            CollectionAssert.AreEqual(new[] { "line:admin+c", "line:", "bytes:03" },
+                term.Sent.Select(s => s.ToString()).ToArray());
+            Assert.AreEqual(0, term.DeadlineHits);
+        }
+
         // ── the transport-authenticated path (SSH, WinBox mepty) ──────────────
+
+        /// <summary>The same banner reaches a shell that authenticated below the terminal (SSH).</summary>
+        [TestMethod]
+        public async Task ResolveToPrompt_64913_CriticalLogLineUnderTheBanner_IsNotARefusal()
+        {
+            var term = new FakeRouterTerminal()
+                .Emits(RouterOsTranscripts.V64913_BannerWithCriticalLog)
+                .Emits(RouterOsTranscripts.V64913_Nag)
+                .Emits(RouterOsTranscripts.V64913_PromptAfterNag);
+
+            await term.ResolveToPromptAsync();   // must not throw
+
+            Assert.AreEqual(1, term.Sent.Count(s => s.Bytes != null && s.Bytes[0] == CtrlC));
+        }
 
         [TestMethod]
         public async Task ResolveToPrompt_SettlesAnAlreadyAuthenticatedShell()

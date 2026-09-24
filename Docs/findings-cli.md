@@ -534,8 +534,11 @@ login path (`LoginAsync`) — a transport that authenticates below the terminal 
 never sends credentials over the terminal itself, so a `Login:` string reaching it there is not evidence
 of a refusal. `IsLoginFailure`'s phrase list (`"login failed"`, `"incorrect username"`,
 `"login failure"`, `"incorrect login"`, `"invalid user name"`, `"bad password"`, `"access denied"`) is
-kept as a fast path and a better exception message; it is not load-bearing — with the list emptied the
-transcript tests still pass on the positional signal alone.
+kept as a fast path and a better exception message, and only **before** the password is sent; it is not
+load-bearing — with the list emptied the transcript tests still pass on the positional signal alone. After
+the password it would be wrong: the screen is then the banner, and RouterOS 6 prints the account's unseen
+critical log lines under it — `login failure for user admin … via api` on a login that succeeded (measured
+on 6.49.13; each entry is shown once).
 
 ### What each assumption costs when it is wrong
 
@@ -549,7 +552,7 @@ it runs to the receive deadline and returns something plausible, late.
 | Password prompt contains `assword:` | `IsPasswordPrompt` | Same |
 | Nag contains `password>` | `IsChangePasswordNag` | Ctrl-C never sent → login stalls to the deadline; worse, bytes meant for the shell can land in the new-password field |
 | Prompt ends `] >` / `] <SAFE>` | `EndsWithPromptSuffix` | Every command runs to the full receive deadline, though results are still correct |
-| Refusal wording | `IsLoginFailure` | Superseded by the positional signal above — a full receive deadline per rejected login was the cost before it existed |
+| Refusal wording | `IsLoginFailure` | Before the password only; after it the positional signal decides, since the banner can quote a failed login from the log |
 | `+c` login flag accepted | `TerminalLoginFlags` | SSH falls back to the bare user name on `SshAuthenticationException`; Telnet has no such fallback |
 
 ### Prompt redraw and settling
