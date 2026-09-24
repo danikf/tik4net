@@ -104,6 +104,13 @@ namespace tik4net.unittests.Objects
             // convenience: a SINGLETON menu returns one record with no .id word at all, so demanding the
             // field would make every load of it throw. WirelessSniffer is the case — it declares a .id
             // property it can never be sent (harmless at IsMandatory = false, where it reads as "").
+            // A menu that is a singleton on one RouterOS and a list on another is the same case: its older
+            // shape sends no .id either.
+            var singletonOnOlderRouterOs = new HashSet<string>
+            {
+                // A list of named servers on current RouterOS 7; one unnamed server, no .id, on RouterOS 6.49.13.
+                "/interface/ovpn-server/server",
+            };
             var offenders = new List<string>();
 
             foreach (var x in Properties().Where(x => x.Attribute.FieldName == TikSpecialProperties.Id))
@@ -112,7 +119,9 @@ namespace tik4net.unittests.Objects
                     offenders.Add($"{x.Entity.Name}.{x.Property.Name} is {x.Property.PropertyType.Name}, not string");
                 if (!x.Attribute.IsReadOnly)
                     offenders.Add($"{x.Entity.Name}.{x.Property.Name} is not IsReadOnly");
-                if (!x.Attribute.IsMandatory && !x.Entity.GetCustomAttribute<TikEntityAttribute>().IsSingleton)
+                var entityAttribute = x.Entity.GetCustomAttribute<TikEntityAttribute>();
+                if (!x.Attribute.IsMandatory && !entityAttribute.IsSingleton
+                    && !singletonOnOlderRouterOs.Contains(entityAttribute.EntityPath))
                     offenders.Add($"{x.Entity.Name}.{x.Property.Name} is not IsMandatory");
             }
 

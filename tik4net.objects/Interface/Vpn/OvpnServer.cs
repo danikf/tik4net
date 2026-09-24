@@ -81,8 +81,11 @@ namespace tik4net.Objects.Interface.Vpn
 
         // ---- Read-only properties ----
 
-        /// <summary>.id — the row's identifier.</summary>
-        [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+        /// <summary>
+        /// .id — the row's identifier. Not mandatory: the single server of an older RouterOS has none, and reads
+        /// as a row with a <c>null</c> id.
+        /// </summary>
+        [TikProperty(".id", IsReadOnly = true)]
         public string? Id { get; private set; }
 
         /// <summary>inactive — the server is configured but not running.</summary>
