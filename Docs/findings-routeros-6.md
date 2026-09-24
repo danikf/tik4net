@@ -12,12 +12,12 @@ The smoke subset (`ConnectionTest`, `SystemClockTest`, `InterfaceListTest`, `IpR
 |---|---|---|
 | `Api`, `ApiSsl` | all pass | — |
 | `Telnet`, `Ssh`, `MacTelnet` | all pass | — |
-| `WinboxCli`, `WinboxCliMac` | 18 of 21 | the clock read and two adds — open problems 2 and 3 |
+| `WinboxCli`, `WinboxCliMac` | all pass | — |
 | `WinboxNative`, `WinboxNativeMac` | 20 of 21 | route `scope` is not in the record; the path-map audit finds more — open problem 1 |
 | `Rest`, `RestSsl` | cannot work | RouterOS 6 has no REST API (§3) |
 
-Beyond the smoke subset, the path-map audit has been run over every transport 6.x has (open problems 1 and 6),
-and `CliFlagFieldsTest` over every CLI transport (open problem 6).
+Beyond the smoke subset, the path-map audit has been run over every transport 6.x has (open problems 1 and 4),
+and `CliFlagFieldsTest` over every CLI transport (open problem 4).
 
 ## 2. `print` has no `proplist=`
 
@@ -140,6 +140,10 @@ property's default, so `ToolEmail` loaded from 6.49.13 reads `tls=no`, `certific
 those values are never written back; an entity saved without being loaded sends everything it holds, and on 6.x
 that is refused as soon as it holds a 7.x-only field.
 
+**A menu can change shape.** `/interface/ovpn-server/server` is one unnamed server on 6.49.13 (no `.id`, no
+`add`) and a list of named servers on RouterOS 7. `OvpnServer` maps the list; on 6.x `LoadAll` reads the one
+server as a row with a `null` `Id`, which cannot be saved through the entity.
+
 ## 6. Login: the banner quotes the router's critical log
 
 After the password, RouterOS 6 prints the account's critical log entries it has not shown yet under the banner,
@@ -204,6 +208,13 @@ Each is a statement of what is measured and what is not, to be settled one at a 
      `/interface/ethernet` `advertise` `10M-half` against `10m-half`, `/interface/ovpn-server/server` `cipher`
      `blowfish128` against `blowfish-128`. `/queue/simple` limits: `0/0` against `unlimited/unlimited`.
      `/system/package` `bundle`: `routeros-x86` against `1`, a reference not resolved.
+
+     **Dates and timestamps are postponed to the typed values of 5.0, deliberately.** The difference is not
+     native's: the binary API itself prints a date `sep/21/2026` on 6.x and `2026-09-21` on 7.x, so "the API's
+     spelling" is a per-version target, and the library does not read the router's version. What is
+     version-neutral is a typed date property that reads either spelling — the value-type work of the 5.0
+     entity model. Until then a date or timestamp is a string, spelled as the transport delivered it. The enum
+     spellings, `unlimited` and `bundle` are 6.x catalog mapping and stay open here.
    - **1e. One write refused over native only.** Enabling an `/ip/dhcp-server` row: `can not run on slave
      interface` (M2 error `0xFE0006`). Not yet compared against the same step over the API.
 
@@ -212,27 +223,16 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    it reading them is the ground truth. The audit report is written per transport, not per router, so a run
    against CHR2 replaces the 7.x report of the same transport.
 
-2. **WinBox CLI: the `/system/clock` read never finishes on 6.x.** `WinboxCli` and `WinboxCliMac` both refuse
-   it as incomplete — the counted read's closing `#n=` line never arrives. Telnet, SSH and MAC-Telnet read the
-   same singleton on the same router, so the command is sound; something in the WinBox terminal on 6.x is not.
-   Next step: a wire trace of that one read (`-WireTrace auto`) against the Telnet one.
-
-3. **WinBox CLI: an add answers without its `.id` on 6.x.** `AddInterfaceListWillNotFail` and
-   `AddInterfaceListMemberWillNotFail` raise `TikAddIdNotReadException` over `WinboxCli` and `WinboxCliMac`,
-   every run; the same tests pass there on 7.24.4. The row is created — one was on the router after a failed
-   run. It may share
-   a cause with problem 2. Next step: the same trace comparison.
-
-4. **What a suite run should say about REST on a 6.x router.** REST now refuses clearly (§3), but a leg run
+2. **What a suite run should say about REST on a 6.x router.** REST now refuses clearly (§3), but a leg run
    against 6.x still counts every REST test as a failure. To decide: gate REST on the router's version so those
    tests are Inconclusive, or keep them failing as the honest answer and not run the REST legs there.
 
-5. **The pre-7.20 flag path of RouterOS 7 has no lab router.** CHR2 on 7.19.6 was the one router where flags
+3. **The pre-7.20 flag path of RouterOS 7 has no lab router.** CHR2 on 7.19.6 was the one router where flags
    are read by name through `proplist=`; on 6.49.13 the id-list path runs instead, and CHR runs neither. The
    by-name path now has unit coverage only (`CliFlagFieldsTests`). To decide: a third CHR on a 7.x before 7.20,
    or accept unit coverage for it.
 
-6. **Coverage beyond the smoke subset.** Measured 2026-09-23/24 against 6.49.13 (the same audit against
+4. **Coverage beyond the smoke subset.** Measured 2026-09-23/24 against 6.49.13 (the same audit against
    7.24.4 is clean on all ten transports):
 
    | Audit transport | OK | MISMATCH | VALUE-DIFF |
@@ -241,22 +241,28 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    | Telnet, Ssh | 132 | 9 | 3 |
    | WinboxCli | 92 | 50 | 2 |
    | WinboxCliMac | 114 | 27 | 3 |
-   | MacTelnet | 7 | 137 | 0 (the session was lost after 7 paths — problem 10) |
+   | MacTelnet | 7 | 137 | 0 (the session was lost after 7 paths — problem 8) |
    | WinboxNative, WinboxNativeMac | 132 | 2 | 8 (problem 1) |
 
    - **Flags: the audit's raw rows lack them, entities do not.** Over every CLI transport the audit's print has
      no `disabled`/`dynamic`/`invalid`/`running`/`slave`; the entity read gets them through the id-list path
      (§2), and `CliFlagFieldsTest` agrees with the binary API over Ssh, MacTelnet, WinboxCli, WinboxCliMac and
      WinboxNative (Telnet failed at login until §6; REST cannot work, §3).
-   - **Unmeasured: counters.** The audit's CLI rows also lack `bytes`, `packets`, `rx-byte`…; whether the
-     entity's `IncludeCliStats` read fills them on 6.x is not yet compared against the API.
+   - **Counters: the same.** The audit's CLI rows also lack `bytes`, `packets`, `rx-byte`…; the entity's
+     `IncludeCliStats` read fills them — `Interface` counters over Telnet, Ssh and WinboxCli track the binary API's
+     on 6.49.13 as on 7.24.4.
    - **Telnet/Ssh value forms:** bridge `priority` `0x8000` (API) against `32768` (CLI), port `0x80` against `128`;
      `/routing/ospf/instance` `metric-bgp`/`metric-other-ospf` `auto` against `4294967295`. And an empty
      `comment` the CLI prints where the API omits it.
-   - **WinboxCli/WinboxCliMac** add to that: incomplete reads (the closing `#n=` never read — problem 2) on
-     `/caps-man/manager`, `/file`, `/interface/bonding`, `/ip/accounting`, …; `print without-paging detail` refused
-     on `/interface/bridge/settings` and the l2tp/pptp/sstp/ovpn server singletons, with the prompt text
-     (`2mCHR2] >`) inside the refusal; and the count and the rows disagreeing on `/interface/gre`, `/interface/lte`.
+   - **WinboxCli/WinboxCliMac** added incomplete reads and refusals with the prompt text inside them: 6.x repaints
+     the typed line after every character, and the read stopped on a prompt inside that echo
+     ([findings-cli.md](findings-cli.md) §4). Every entity now reads over WinboxCli as over Telnet — the audit's
+     raw reads were not re-run.
+   - **Every entity, one session, 2026-09-24** (`LoadAll`/`LoadSingle` of all 163 readable entities): Telnet and
+     WinboxCli read all but `/routing/bgp/advertisements` (the read ends without its count, on both) and the
+     menus 6.x does not have. WinboxCliMac and MacTelnet add `/ip/ipsec/policy` (`Missing field '.id'`) and
+     `/system/package` (13 rows counted, 1 read) — MAC carriers only, the same on the code before these fixes —
+     and MacTelnet a run of 30 s timeouts (problem 8).
    - Not a finding: the audit's "refusing to CLEAR the field" lines appear against 7.24.4 too.
    - Still not run: the full suite — CHR2's missing topology will fail tests for reasons that are not defects, so
      its failures need sorting before any counts as a 6.x gap.
@@ -271,13 +277,13 @@ Each is a statement of what is measured and what is not, to be settled one at a 
      `:put [/ip firewall address-list find (dynamic=yes)]`, was refused as incomplete after four MAC backlogs.
      The same read passed over Telnet and SSH.
 
-7. **Two MCP-side gaps seen while measuring.** `mikrotik_call` over `MacTelnet` failed against both routers,
+5. **Two MCP-side gaps seen while measuring.** `mikrotik_call` over `MacTelnet` failed against both routers,
    6.x and 7.x alike, while the suite's own MAC-Telnet legs passed — so the server, not the router; it was a
    staged copy older than the library, so re-check after a reconnect first. And `mikrotik_call` over `ApiSsl`
    rejects the lab's self-signed certificate on both routers, with no option to accept it the way the suite's
    `restAllowInvalidCert` does.
 
-8. **The CLI transports' `ping` is refused on 6.x.** A one-shot monitor is sent as
+6. **The CLI transports' `ping` is refused on 6.x.** A one-shot monitor is sent as
    `:put [/ping address=<a> count=2 as-value]`, and RouterOS 6.49.13 answers
    `expected end of command (line 1 column 43)` — column 43 is `as-value`, which its `/ping` does not take. Measured
    over Telnet directly and through the RoMON relay (`RomonRelayTest.Relay_SyncMonitor_ReturnsRows_AndKeepsTheRelay`,
@@ -286,7 +292,7 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    ping is the first thing to try, since the probes that already handle a refused `proplist=` show 6.x answering
    the non-`as-value` form.
 
-9. **CLI completion cannot list values that share a prefix on 6.x.** `ITikCliCompletion.CompleteCli` on
+7. **CLI completion cannot list values that share a prefix on 6.x.** `ITikCliCompletion.CompleteCli` on
    `/interface bridge add frame-types=` completes inline to `admit-` (as on 7.x), but asked again with that prefix,
    6.49.13 returns nothing at all where 7.x lists `admit-all`, `admit-only-untagged-and-priority-tagged`,
    `admit-only-vlan-tagged`. Not yet told apart: RouterOS 6 needing a second Tab to list, or our echo parsing dropping
@@ -295,6 +301,14 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    `static-transmit-key`). Also measured with it: completion answers only for the SPACE form of a menu path on 6.x
    (`/ip firewall filter add action=`); after the slash form it lists nothing, so a caller must use spaces.
 
-10. **MAC-Telnet lost its session during the path-map audit.** Seven paths read, then every call answered
-    `Connection is not open` and nothing reopened it (2026-09-23). The suite's own MAC-Telnet legs pass against
-    6.49.13, so the question is what the audit does that they do not — a long session, or a large read.
+8. **MAC-Telnet on one long session.** The path-map audit lost its session after seven paths (every call then
+    `Connection is not open`); the entity sweep over one session hit 23 reads that time out after 30 s with
+    17–24 KB received and no prompt, each costing the session — the same list on the code before the echo fix.
+    ~18 KB is what 6.x's per-character echo of a windowed read's command amounts to, so the suspicion is the MAC
+    carrier and that echo volume (the MAC backlog-replay drop, [findings-mactelnet.md](findings-mactelnet.md)),
+    not the reads themselves. The suite's own MAC-Telnet legs pass against 6.49.13. Next step: a byte trace of
+    one of them (`/ip/firewall/filter`) against the same read over Telnet.
+
+9. **MAC carriers: `/ip/ipsec/policy` and `/system/package` on 6.x.** Over WinboxCliMac and MacTelnet the policy
+    read fails with `Missing field '.id'` and the package read counts 13 rows and parses 1; Telnet and WinboxCli
+    read both. Not yet traced.

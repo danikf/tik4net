@@ -113,6 +113,24 @@ tabular lines — tolerates retransmission. Only the longer, time-sensitive term
 it. A latent defect inherited from a PoC, not a porting regression.
 → [`findings-mactelnet.md`](findings-mactelnet.md)
 
+## A prompt inside the echo, and an empty window taken for evidence (2026-09-24)
+
+On RouterOS 6.49.13 the WinBox terminal read about a quarter of all entities without their `#n=` count — logged
+as open problems "the `/system/clock` read never finishes" and "an add answers without its `.id`", both WinBox
+CLI only, with a trace comparison against Telnet as the planned next step. The trace answered it: 6.x repaints
+the whole command line, prompt included, after every typed character, so the echo is full of prompts. A frame
+could end on one of them after the echo key was on screen; the read took it for the completion prompt, stopped
+pulling mepty, the terminal went quiet, and the read settled with nothing. Telnet hid the same flaw because TCP
+keeps delivering without being asked. The completion prompt now has to start a line of its own.
+
+A sweep of every entity over one long-lived connection then found a second, older defect: `:serialize` support
+was concluded from any JSON window that returned — including an empty one, which never runs its print. One
+free-text menu with no rows marked 6.49.13 as supporting `:serialize`, and the next one with rows failed with
+`bad command name serialize`. Per-entity connections never showed it, which is why earlier 6.x runs were clean.
+The transferable lesson: **a probe that cannot fail is not evidence** — and a sweep over one shared session
+finds state leaking between reads that a fresh connection per read hides.
+→ [`findings-cli.md`](findings-cli.md) §4, [`findings-routeros-6.md`](findings-routeros-6.md)
+
 ## Two properties for one renamed field, and a test the default fill passed (2026-09-23)
 
 RouterOS 7 renamed `/ip/service address` to `available-from` and `/tool/e-mail address` to `server`. The
