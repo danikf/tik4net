@@ -6,13 +6,18 @@ using System.Text;
 namespace tik4net.Objects.Interface.Vpn
 {
     /// <summary>
-    /// /interface/ovpn-server/server: OpenVPN server configuration singleton.
+    /// /interface/ovpn-server/server: OpenVPN servers.
     /// OpenVPN implements OSI layer 2 or 3 secure network extensions using the SSL/TLS protocol,
-    /// supporting IPv4 and IPv6. The server listens on a single TCP or UDP port and establishes
+    /// supporting IPv4 and IPv6. Each server listens on its own TCP or UDP port and establishes
     /// SSL/TLS tunnels with authenticated OpenVPN clients.
-    /// This is a singleton menu — use <see cref="TikConnectionExtensions.LoadSingle{T}"/> to load it.
+    /// A list of named servers, one row each, added and removed like any other list.
     /// </summary>
-    [TikEntity("/interface/ovpn-server/server", IsSingleton = true)] // no =detail= — print returns !empty on this RouterOS, see OvpnServerTest
+    /// <remarks>
+    /// Older RouterOS (RouterOS 6, and 7 before the menu became a list) has a single unnamed server here instead.
+    /// <see cref="TikConnectionExtensions.LoadAll{TEntity}(ITikConnection)"/> reads it as one row without an
+    /// <see cref="Id"/>; such a row cannot be saved through this entity.
+    /// </remarks>
+    [TikEntity("/interface/ovpn-server/server")]
     public class OvpnServer
     {
         // ---- Enums ----
@@ -73,6 +78,16 @@ namespace tik4net.Objects.Interface.Vpn
             /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
             [TikEnumUnknown] Unknown = -1,
         }
+
+        // ---- Read-only properties ----
+
+        /// <summary>.id — the row's identifier.</summary>
+        [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+        public string? Id { get; private set; }
+
+        /// <summary>inactive — the server is configured but not running.</summary>
+        [TikProperty("inactive", IsReadOnly = true)]
+        public bool Inactive { get; private set; }
 
         // ---- Writable properties ----
 
@@ -259,6 +274,6 @@ namespace tik4net.Objects.Interface.Vpn
         public string? Comment { get; set; }
 
         /// <summary>Human-readable summary of the OpenVPN server configuration.</summary>
-        public override string ToString() => string.Format("ovpn-server port={0} protocol={1} mode={2} disabled={3}", Port, Protocol, Mode, Disabled);
+        public override string ToString() => string.Format("ovpn-server {0} port={1} protocol={2} mode={3} disabled={4}", Name, Port, Protocol, Mode, Disabled);
     }
 }

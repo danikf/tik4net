@@ -60,7 +60,7 @@ Namespace `tik4net.Objects`.
 | `/interface/lte` | `InterfaceLte` |  |
 | `/interface/monitor-traffic` | `InterfaceMonitorTraffic` | ² ⁶ |
 | `/interface/ovpn-client` | `OvpnClient` |  |
-| `/interface/ovpn-server/server` | `OvpnServer` | ¹ |
+| `/interface/ovpn-server/server` | `OvpnServer` |  |
 | `/interface/pppoe-client` | `InterfacePppoeClient` |  |
 | `/interface/pppoe-client/monitor` | `InterfacePppoeClientMonitor` | ² ⁶ |
 | `/interface/pppoe-server/server` | `InterfacePppoeserverServer` |  |
