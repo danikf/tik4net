@@ -158,6 +158,28 @@ namespace tik4net.Cli
         }
 
         /// <summary>
+        /// True when <paramref name="strippedSoFar"/> ends with the shell prompt that ends a command's response.
+        /// </summary>
+        /// <remarks>
+        /// For a typed command the prompt has to start a line of its own. RouterOS 6 echoes typed input by
+        /// repainting the whole line — prompt included — after every character (<c>c&#13;[admin@X] &gt; &lt;line
+        /// so far&gt;</c>), so a read can stop on a repainted prompt in the middle of the echo; measured on 6.49.13
+        /// over the WinBox terminal, where the read then stopped pulling and returned nothing. The prompt that
+        /// ends the response follows the output's line break (only carriage returns between). A control key
+        /// (<paramref name="sentCommand"/> null) is not ended by a line break, so it keeps the plain prompt test.
+        /// </remarks>
+        internal static bool EndsWithCompletionPrompt(string strippedSoFar, string? sentCommand)
+        {
+            if (!RouterOsCliLogin.IsShellPrompt(strippedSoFar))
+                return false;
+            if (sentCommand == null)
+                return true;
+            string t = strippedSoFar.TrimEnd('\r', '\n', ' ');
+            string lastLine = t.Substring(t.LastIndexOf('\n') + 1).TrimStart('\r');
+            return lastLine.IndexOf('\r') < 0;
+        }
+
+        /// <summary>
         /// True once <paramref name="strippedSoFar"/> carries the echo of <paramref name="sentCommand"/> —
         /// i.e. the router has started answering the command we actually sent. Every PTY read loop requires
         /// this before it lets a settled prompt terminate the read.

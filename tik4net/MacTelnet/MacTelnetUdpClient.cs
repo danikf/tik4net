@@ -390,7 +390,7 @@ namespace tik4net.MacTelnet
                 if (!echoSeen)
                     echoSeen = CliOutputHelper.ContainsEcho(stripped, sentCommand);
 
-                if (echoSeen && RouterOsCliLogin.IsShellPrompt(stripped))
+                if (echoSeen && CliOutputHelper.EndsWithCompletionPrompt(stripped, sentCommand))
                 {
                     if (settleUntil == null)
                         settleUntil = DateTime.UtcNow.AddMilliseconds(SettleMs);

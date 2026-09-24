@@ -355,7 +355,11 @@ object, an array of arrays) — a wrong value that parses is worse than a loud f
 actually answers, not from a parsed version string: `CliConnectionBase` tries the JSON form once, and
 only a router that *refuses* it while support is still unknown falls back to plain `as-value` for the
 rest of that connection (and the fallback is only trusted once the plain form actually succeeds — an
-unrelated failure of both forms concludes nothing). A pre-7.13 router therefore degrades silently to
+unrelated failure of both forms concludes nothing). Support is concluded only from a read that ran the
+serialisation: a paged window prints only when it holds ids (`:if ([:len $w] > 0) do={ … }`), so an empty
+window is no evidence either way — on 6.49.13 an empty free-text menu used to mark the connection as
+supporting `:serialize`, and the next free-text menu with rows failed with `bad command name serialize`.
+A pre-7.13 router therefore degrades silently to
 the same `;`-splitting behaviour as any other field; there is no error raised for it, so a free-text
 field on such a router should be assumed to parse incorrectly.
 
@@ -562,6 +566,15 @@ RouterOS repaints the prompt (`\r\r\r\r] > `) even **before** a command's own ou
 **and** the stream has been silent for a settle window afterwards (`SettleMs` — 120 ms on Telnet, 150 ms
 on MAC-Telnet and the WinBox terminal); any further output resets the window. See §7 for the additional
 requirement that the settled prompt also follow this command's own echo.
+
+For a typed command the prompt must also **start a line of its own** (`CliOutputHelper.EndsWithCompletionPrompt`):
+only carriage returns between the output's last line break and the prompt. RouterOS 6 echoes typed input by
+repainting the whole line after every character — `c\r[admin@X] > <line so far>` — so the echo is full of
+prompts, each followed on the same line by typed text (~40 KB of echo for a 150-character command over the
+WinBox terminal on 6.49.13, where 7.24.4 repaints once). A read that stopped on one of them returned before the
+output: over the WinBox terminal it also stopped pulling, and mepty does not push the rest unasked, so on 6.49.13
+about a quarter of all entity reads came back without their `#n=` count. A control key is not ended by a line
+break, so a read with no command keeps the plain prompt test.
 
 ---
 

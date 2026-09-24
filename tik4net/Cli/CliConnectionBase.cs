@@ -1197,7 +1197,11 @@ namespace tik4net.Cli
             IList<TikRecordSentence> parsed = asJson
                 ? CliJsonParser.ParseJson(body)
                 : ParseRecords(body, descriptor);
-            if (asJson)
+            // Only a window that held ids ran its print — the print sits inside ':if ([:len $w] > 0) do={ … }' —
+            // so an empty one says nothing about ':serialize'. Concluding from it let a free-text menu with no
+            // rows mark RouterOS 6.49.13 as supporting it, and the next such menu with rows failed with
+            // 'bad command name serialize' and no fallback.
+            if (asJson && windowSize > 0)
                 _serializeSupported = true;
             return new PagedWindow(parsed, windowSize, body);
         }
