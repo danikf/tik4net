@@ -477,7 +477,7 @@ namespace tik4net.WinboxCli
                 if (!echoSeen)
                     echoSeen = Cli.CliOutputHelper.ContainsEcho(stripped, sentCommand);
 
-                if (!prompted && echoSeen && RouterOsCliLogin.IsShellPrompt(stripped))
+                if (!prompted && echoSeen && Cli.CliOutputHelper.EndsWithCompletionPrompt(stripped, sentCommand))
                 {
                     if (TikWireTrace.Enabled)
                         TikWireTrace.Emit("wbxcli.mepty", TikWireDir.Note,
