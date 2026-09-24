@@ -143,7 +143,8 @@ namespace tik4net.Cli
             => !string.IsNullOrEmpty(s) && s.IndexOf("password>", StringComparison.OrdinalIgnoreCase) >= 0;
 
         /// <summary>
-        /// Refusal phrases. <b>Lexical detection is the fast path, not the contract</b> — the authority is
+        /// Refusal phrases, checked only BEFORE the password is sent (after it the screen is the banner, which
+        /// can quote a failed login from the router's log). <b>Lexical detection is the fast path, not the contract</b> — the authority is
         /// the positional signal in <see cref="ResolveToPromptAsync"/>: RouterOS restarts the login dialogue
         /// after a refusal, so a <c>Login:</c> prompt arriving once credentials have been sent means rejected,
         /// whatever the wording.
@@ -253,8 +254,12 @@ namespace tik4net.Cli
             CancellationToken ct,
             bool loginPromptMeansFailure = false)
         {
+            // Deliberately NOT IsLoginFailure: after the password the screen carries the banner, and RouterOS 6
+            // prints the account's unseen critical log lines under it — "login failure for user admin … via api"
+            // on a login that SUCCEEDED (6.49.13). The refusal is the re-offered Login: (position), or the prompt
+            // never arriving.
             Func<string, bool> settled = s =>
-                IsShellPrompt(s) || IsChangePasswordNag(s) || IsLoginFailure(s)
+                IsShellPrompt(s) || IsChangePasswordNag(s)
                 || (loginPromptMeansFailure && IsLoginPrompt(s));
 
             string result = await readUntil(settled, ct).ConfigureAwait(false);

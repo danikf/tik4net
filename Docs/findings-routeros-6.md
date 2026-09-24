@@ -16,8 +16,8 @@ The smoke subset (`ConnectionTest`, `SystemClockTest`, `InterfaceListTest`, `IpR
 | `WinboxNative`, `WinboxNativeMac` | 20 of 21 | route `scope` is not in the record; the path-map audit finds more — open problem 1 |
 | `Rest`, `RestSsl` | cannot work | RouterOS 6 has no REST API (§3) |
 
-Beyond the smoke subset, only WinBox native has been measured, by the path-map audit (open problem 1); the
-rest is open problem 6.
+Beyond the smoke subset, the path-map audit has been run over every transport 6.x has (open problems 1 and 6),
+and `CliFlagFieldsTest` over every CLI transport (open problem 6).
 
 ## 2. `print` has no `proplist=`
 
@@ -140,6 +140,25 @@ property's default, so `ToolEmail` loaded from 6.49.13 reads `tls=no`, `certific
 those values are never written back; an entity saved without being loaded sends everything it holds, and on 6.x
 that is refused as soon as it holds a 7.x-only field.
 
+## 6. Login: the banner quotes the router's critical log
+
+After the password, RouterOS 6 prints the account's critical log entries it has not shown yet under the banner,
+on a login that succeeds — and a failed login elsewhere is such an entry:
+`sep/24/2026 19:26:05 system,error,critical login failure for user admin from … via api`. Each entry is shown
+once. The CLI login therefore decides a refusal after the password by position only — RouterOS restarts the
+dialogue with `Login:` — and never by the words on screen (`RouterOsCliLogin.ResolveToPromptAsync`); the phrase
+list is consulted only before the password is sent. A wrong password is still refused in about 1.2 s over Telnet
+(`Login failed, incorrect username or password`, then `Login:`), on 6.49.13 and 7.24.4 alike.
+
+Seen on the way, the router's and not ours: an account with an EMPTY password is let in over SSH whatever
+password the client offers (the SSH `none` method succeeds), on 6.49.13 and 7.24.4 alike.
+
+## 7. `/system/resource` with `.proplist=cpu` drops the API session
+
+`/system/resource/print =.proplist=cpu` makes 6.49.13 close the API connection (`cpu-count,cpu-frequency` alone
+are answered; a plain print is answered). `SystemResource` sends no `.proplist`, so no mapped load reaches it —
+only a raw command that names the field.
+
 ## Open problems
 
 Each is a statement of what is measured and what is not, to be settled one at a time.
@@ -213,11 +232,34 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    by-name path now has unit coverage only (`CliFlagFieldsTests`). To decide: a third CHR on a 7.x before 7.20,
    or accept unit coverage for it.
 
-6. **Coverage beyond the smoke subset is unmeasured on the other transports.** Not yet run against 6.49.13:
-   the path-map audit over each CLI transport (`TIK4NET_AUDIT_TRANSPORT`), which does for them what problem 1
-   did for WinBox native; `CliFlagFieldsTest` (the flags on every transport against the binary API); and the
-   full suite — where CHR2's missing topology will fail tests for reasons that are not defects, so its failures
-   need sorting before any counts as a 6.x gap.
+6. **Coverage beyond the smoke subset.** Measured 2026-09-23/24 against 6.49.13 (the same audit against
+   7.24.4 is clean on all ten transports):
+
+   | Audit transport | OK | MISMATCH | VALUE-DIFF |
+   |---|---|---|---|
+   | ApiSsl | 144 | 0 | 0 |
+   | Telnet, Ssh | 132 | 9 | 3 |
+   | WinboxCli | 92 | 50 | 2 |
+   | WinboxCliMac | 114 | 27 | 3 |
+   | MacTelnet | 7 | 137 | 0 (the session was lost after 7 paths — problem 10) |
+   | WinboxNative, WinboxNativeMac | 132 | 2 | 8 (problem 1) |
+
+   - **Flags: the audit's raw rows lack them, entities do not.** Over every CLI transport the audit's print has
+     no `disabled`/`dynamic`/`invalid`/`running`/`slave`; the entity read gets them through the id-list path
+     (§2), and `CliFlagFieldsTest` agrees with the binary API over Ssh, MacTelnet, WinboxCli, WinboxCliMac and
+     WinboxNative (Telnet failed at login until §6; REST cannot work, §3).
+   - **Unmeasured: counters.** The audit's CLI rows also lack `bytes`, `packets`, `rx-byte`…; whether the
+     entity's `IncludeCliStats` read fills them on 6.x is not yet compared against the API.
+   - **Telnet/Ssh value forms:** bridge `priority` `0x8000` (API) against `32768` (CLI), port `0x80` against `128`;
+     `/routing/ospf/instance` `metric-bgp`/`metric-other-ospf` `auto` against `4294967295`. And an empty
+     `comment` the CLI prints where the API omits it.
+   - **WinboxCli/WinboxCliMac** add to that: incomplete reads (the closing `#n=` never read — problem 2) on
+     `/caps-man/manager`, `/file`, `/interface/bonding`, `/ip/accounting`, …; `print without-paging detail` refused
+     on `/interface/bridge/settings` and the l2tp/pptp/sstp/ovpn server singletons, with the prompt text
+     (`2mCHR2] >`) inside the refusal; and the count and the rows disagreeing on `/interface/gre`, `/interface/lte`.
+   - Not a finding: the audit's "refusing to CLEAR the field" lines appear against 7.24.4 too.
+   - Still not run: the full suite — CHR2's missing topology will fail tests for reasons that are not defects, so
+     its failures need sorting before any counts as a 6.x gap.
 
    **`RomonRelayTest` with the 6.49.13 target: 24 of 37 pass.** The relay itself works over all three agent
    transports. The rest:
@@ -252,3 +294,7 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    unmeasured on 6.x (`frame-types`, bonding `transmit-hash-policy`, vrrp `v3-protocol`, security-profile
    `static-transmit-key`). Also measured with it: completion answers only for the SPACE form of a menu path on 6.x
    (`/ip firewall filter add action=`); after the slash form it lists nothing, so a caller must use spaces.
+
+10. **MAC-Telnet lost its session during the path-map audit.** Seven paths read, then every call answered
+    `Connection is not open` and nothing reopened it (2026-09-23). The suite's own MAC-Telnet legs pass against
+    6.49.13, so the question is what the audit does that they do not — a long session, or a large read.
