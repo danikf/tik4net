@@ -272,8 +272,9 @@ Each is a statement of what is measured and what is not, to be settled one at a 
      `IncludeCliStats` read fills them — `Interface` counters over Telnet, Ssh and WinboxCli track the binary API's
      on 6.49.13 as on 7.24.4.
    - **Telnet/Ssh value forms:** bridge `priority` `0x8000` (API) against `32768` (CLI), port `0x80` against `128`;
-     `/routing/ospf/instance` `metric-bgp`/`metric-other-ospf` `auto` against `4294967295`. And an empty
-     `comment` the CLI prints where the API omits it.
+     `/routing/ospf/instance` `metric-bgp`/`metric-other-ospf` `auto` against `4294967295`. The CLI prints an
+     empty `comment=` for a row with none, where the API omits it; the CLI read drops it
+     ([findings-cli.md](findings-cli.md) §1).
    - **WinboxCli/WinboxCliMac** added incomplete reads and refusals with the prompt text inside them: 6.x repaints
      the typed line after every character, and the read stopped on a prompt inside that echo
      ([findings-cli.md](findings-cli.md) §4). Every entity now reads over WinboxCli as over Telnet — the audit's

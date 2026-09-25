@@ -55,7 +55,10 @@ namespace tik4net.Cli
                     records.Add(current);
                 }
                 // The one place every as-value field passes through, which is where the router's internal
-                // spelling is turned back into the API's (see CliValueNormalizer).
+                // spelling is turned back into the API's (see CliValueNormalizer) — and where RouterOS 6's
+                // 'comment=' for a row with none is left out, as the API leaves it out (TikEmptyComment).
+                if (TikEmptyComment.IsNoComment(kv.Key, kv.Value))
+                    continue;
                 current[kv.Key] = CliValueNormalizer.Normalize(kv.Key, kv.Value);
             }
 
@@ -74,7 +77,8 @@ namespace tik4net.Cli
         {
             var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var kv in ParseOrderedFields(line))
-                fields[kv.Key] = CliValueNormalizer.Normalize(kv.Key, kv.Value);
+                if (!TikEmptyComment.IsNoComment(kv.Key, kv.Value))
+                    fields[kv.Key] = CliValueNormalizer.Normalize(kv.Key, kv.Value);
             return fields;
         }
 

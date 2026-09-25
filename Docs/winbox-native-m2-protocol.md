@@ -1325,8 +1325,10 @@ printed `hw=true` where `bd7` read false.
 An IPsec active peer's window declares 'Side' `{enm b5: initiator, responder}` and a 'Responder' flag on the same
 `b5`, so `responder` is derived from `side`; its `spii` and `spir` are the undeclared strings `0x15` and `0x16`.
 
-Two record-level spellings:
+Three record-level spellings:
 
+- **`comment`** is the string `0xFE0009`, present on every row and empty on a row with no comment, where the API
+  prints nothing (RouterOS has no empty comment: `set comment=""` clears it). An empty one is dropped.
 - **`.about`** is the string list `0xFE001C`, present on every row and empty unless the router has a note — a DHCP
   server on an interface with no address carries `[No IP address on interface]`.
 - **The all-ones marker can be a value.** A field declaring `def:4294967295` normally reads that number as not set,

@@ -174,6 +174,10 @@ namespace tik4net.Winbox
                 fields[apiName] = FormatTyped(jf, kv.Value.Item1, kv.Value.Item2, rec, collectRefTables);
             }
 
+            // The comment key rides every record, empty on a row with no comment, where the API prints nothing.
+            if (fields.TryGetValue(TikEmptyComment.Field, out string? comment) && TikEmptyComment.IsNoComment(TikEmptyComment.Field, comment))
+                fields.Remove(TikEmptyComment.Field);
+
             // The router's note on the row — the API's .about ("No IP address on interface" on a DHCP server
             // whose interface has none, 7.24.2). It rides every record as the string list 0xFE001C, empty on a
             // row with nothing to say, and no window names it.

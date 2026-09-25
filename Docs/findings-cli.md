@@ -214,7 +214,11 @@ disagree on five kinds of value. Measured across the audited paths on 7.24.4:
 | a number the API prints in base 16 | `icmp-rate-mask=0x1818`, `0x1AB` | `6168`, `427` |
 | an IPv4 address in an IPv6 slot | `local=192.168.88.236` | `::ffff:192.168.88.236` |
 
-`CliValueNormalizer` re-spells all five. The durations are the only one of them identifiable from the
+An empty `comment` is the sixth: RouterOS 6.49.13 prints `comment=` for a row that has none, where 7.24.4 and the
+API print nothing. RouterOS has no empty comment (`set comment=""` clears it), so the parse drops the word
+(`TikEmptyComment`, shared with WinBox native, whose records carry the key empty too).
+
+`CliValueNormalizer` re-spells the five. The durations are the only one of them identifiable from the
 value: the others depend on which field the value belongs to. Two fields' `HH:MM:SS` is a clock TIME and
 not a duration — `/system/clock` `time` and `/system/scheduler` `start-time`, and that is the whole list.
 
