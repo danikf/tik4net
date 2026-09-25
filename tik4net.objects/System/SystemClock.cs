@@ -17,14 +17,14 @@ namespace tik4net.Objects.System
         /// time — current system time in HH:MM:SS format.
         /// This field is settable via /system/clock set time=...
         /// </summary>
-        [TikProperty("time")]
+        [TikProperty("time", ChangesOnItsOwn = true)]
         public string?/*time*/ Time { get; set; }
 
         /// <summary>
         /// date — current system date in mmm/DD/YYYY format (e.g. jun/18/2026).
         /// This field is settable via /system/clock set date=...
         /// </summary>
-        [TikProperty("date")]
+        [TikProperty("date", ChangesOnItsOwn = true)]
         public string?/*date*/ Date { get; set; }
 
         /// <summary>

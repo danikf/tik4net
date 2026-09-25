@@ -534,7 +534,7 @@ namespace tik4net.Objects
                 // id: non-null for a non-singleton here — IsCreate above already ruled out the "empty id" case.
                 // A singleton has no id and is read back as the one row it is.
                 usedFieldsFilter = resolution.Kind == UpdateFilterKind.NeedsUnmodifiedEntity
-                    ? entity.GetDifferentFields(metadata.IsSingleton
+                    ? FullUpdateFields(connection, entity, metadata, metadata.IsSingleton
                         ? connection.LoadSingle<TEntity>()
                         : connection.LoadById<TEntity>(id!))
                     : resolution.Filter;
@@ -679,6 +679,30 @@ namespace tik4net.Objects
             if (changes.Count == 0)
                 return (UpdateFilterKind.NothingChanged, null);
             return (UpdateFilterKind.UseFilter, changes.Keys);
+        }
+
+        /// <summary>
+        /// FullUpdate's field set: what differs from a fresh read of the row, minus the fields the router moves by
+        /// itself (<see cref="TikEntityPropertyAccessor.ChangesOnItsOwn"/>) that the caller has not touched since
+        /// the load. Those always differ from a fresh read, and sending them writes the loaded value back — the
+        /// clock set to the time it was read at. Without a snapshot nothing says what the caller touched, so every
+        /// difference is sent, as before.
+        /// </summary>
+        internal static IEnumerable<string> FullUpdateFields<TEntity>(ITikConnection connection, TEntity entity,
+            TikEntityMetadata metadata, TEntity unmodifiedEntity)
+        {
+            var different = entity.GetDifferentFields(unmodifiedEntity).ToList();
+            var snapshot = TikChangeTracker.For(connection).GetSnapshot(entity!);
+            if (snapshot == null)
+                return different;
+
+            return different.Where(field =>
+            {
+                var property = metadata.Properties.FirstOrDefault(p => p.FieldName == field);
+                if (property == null || !property.ChangesOnItsOwn || !snapshot.IsTracked(field))
+                    return true;
+                return !snapshot.TryGetValue(field, out string? loaded) || loaded != property.GetEntityValue(entity!);
+            }).ToList();
         }
 
         /// <summary>

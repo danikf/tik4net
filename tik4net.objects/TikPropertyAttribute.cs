@@ -134,6 +134,20 @@ namespace tik4net.Objects
         public bool IsPresenceFlag { get; set; }
 
         /// <summary>
+        /// Marks a writable field whose value the <b>router changes by itself</b> between two reads —
+        /// <c>/system/clock</c>'s <c>time</c> and <c>date</c>.
+        /// <para>
+        /// A <see cref="TikSaveMode.FullUpdate"/> save re-reads the entity and sends every field that differs from
+        /// that read. Such a field always differs, so without this marker the save writes back the value it was
+        /// loaded with — setting the clock back by however long the entity was held. With it, the field is sent
+        /// only when the caller changed it since the load (or when the entity was never loaded, where the value it
+        /// holds is all the intent there is). <see cref="TikSaveMode.OnlyChanges"/> already compares against the
+        /// load and is unaffected.
+        /// </para>
+        /// </summary>
+        public bool ChangesOnItsOwn { get; set; }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="TikPropertyAttribute"/> class.
         /// </summary>
         /// <param name="fieldName">Name of the property (on mikrotik).</param>

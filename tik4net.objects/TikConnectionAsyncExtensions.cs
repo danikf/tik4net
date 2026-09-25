@@ -236,7 +236,7 @@ namespace tik4net.Objects
                     var unmodifiedEntity = metadata.IsSingleton
                         ? await connection.LoadSingleAsync<TEntity>(cancellationToken).ConfigureAwait(false)
                         : await connection.LoadByIdAsync<TEntity>(id!, cancellationToken).ConfigureAwait(false);
-                    usedFieldsFilter = entity.GetDifferentFields(unmodifiedEntity);
+                    usedFieldsFilter = TikConnectionExtensions.FullUpdateFields(connection, entity, metadata, unmodifiedEntity);
                 }
                 else
                     usedFieldsFilter = resolution.Filter;
