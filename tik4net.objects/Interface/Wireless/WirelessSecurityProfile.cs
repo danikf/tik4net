@@ -75,40 +75,31 @@ namespace tik4net.Objects.Interface.Wireless
         /// <summary>
         /// management-protection-key
         /// <para>
-        /// <b>Write-only over the CLI transports.</b> RouterOS's CLI omits secret fields from
-        /// <c>print as-value</c> entirely (<c>detail</c> does not help), so over <c>Telnet</c>,
-        /// <c>Ssh</c>, <c>MacTelnet</c>, <c>WinboxCli</c> and <c>WinboxCliMac</c> this reads back
-        /// <c>null</c> — indistinguishable from a key the router holds empty. The binary API, REST and
-        /// <c>WinboxNative</c> report it. Writing works on every transport.
+        /// Sensitive: RouterOS 7 leaves it out of a terminal <c>print</c>, so the CLI transports read this entity
+        /// with <c>show-sensitive</c> (see <see cref="TikPropertyAttribute.IsSensitive"/>).
         /// </para>
         /// </summary>
-        [TikProperty("management-protection-key")]
+        [TikProperty("management-protection-key", IsSensitive = true)]
         public string? ManagementProtectionKey { get; set; }
 
         /// <summary>
         /// wpa-pre-shared-key
         /// <para>
-        /// <b>Write-only over the CLI transports.</b> RouterOS's CLI omits secret fields from
-        /// <c>print as-value</c> entirely (<c>detail</c> does not help), so over <c>Telnet</c>,
-        /// <c>Ssh</c>, <c>MacTelnet</c>, <c>WinboxCli</c> and <c>WinboxCliMac</c> this reads back
-        /// <c>null</c> — indistinguishable from a key the router holds empty. The binary API, REST and
-        /// <c>WinboxNative</c> report it. Writing works on every transport.
+        /// Sensitive: RouterOS 7 leaves it out of a terminal <c>print</c>, so the CLI transports read this entity
+        /// with <c>show-sensitive</c> (see <see cref="TikPropertyAttribute.IsSensitive"/>).
         /// </para>
         /// </summary>
-        [TikProperty("wpa-pre-shared-key")]
+        [TikProperty("wpa-pre-shared-key", IsSensitive = true)]
         public string? WpaPreSharedKey { get; set; }
 
         /// <summary>
         /// wpa2-pre-shared-key
         /// <para>
-        /// <b>Write-only over the CLI transports.</b> RouterOS's CLI omits secret fields from
-        /// <c>print as-value</c> entirely (<c>detail</c> does not help), so over <c>Telnet</c>,
-        /// <c>Ssh</c>, <c>MacTelnet</c>, <c>WinboxCli</c> and <c>WinboxCliMac</c> this reads back
-        /// <c>null</c> — indistinguishable from a key the router holds empty. The binary API, REST and
-        /// <c>WinboxNative</c> report it. Writing works on every transport.
+        /// Sensitive: RouterOS 7 leaves it out of a terminal <c>print</c>, so the CLI transports read this entity
+        /// with <c>show-sensitive</c> (see <see cref="TikPropertyAttribute.IsSensitive"/>).
         /// </para>
         /// </summary>
-        [TikProperty("wpa2-pre-shared-key")]
+        [TikProperty("wpa2-pre-shared-key", IsSensitive = true)]
         public string? Wpa2PreSharedKey { get; set; }
 
         /// <summary>
@@ -336,14 +327,11 @@ namespace tik4net.Objects.Interface.Wireless
         /// static-key-0 — static key slot 0, as hex characters (10 for 40bit-wep, 26 for 104bit-wep).
         /// <para>WinBox: the right half of "Key 0" (Static Keys tab).</para>
         /// <para>
-        /// <b>Write-only over the CLI transports.</b> RouterOS's CLI omits secret fields from
-        /// <c>print as-value</c> entirely (<c>detail</c> does not help), so over <c>Telnet</c>,
-        /// <c>Ssh</c>, <c>MacTelnet</c>, <c>WinboxCli</c> and <c>WinboxCliMac</c> this reads back
-        /// <c>null</c> — indistinguishable from a key the router holds empty. The binary API, REST and
-        /// <c>WinboxNative</c> report it. Writing works on every transport.
+        /// Sensitive: RouterOS 7 leaves it out of a terminal <c>print</c>, so the CLI transports read this entity
+        /// with <c>show-sensitive</c> (see <see cref="TikPropertyAttribute.IsSensitive"/>).
         /// </para>
         /// </summary>
-        [TikProperty("static-key-0")]
+        [TikProperty("static-key-0", IsSensitive = true)]
         public string? StaticKey0 { get; set; }
 
         /// <summary>
@@ -355,11 +343,10 @@ namespace tik4net.Objects.Interface.Wireless
         public StaticAlgoType? StaticAlgo1 { get; set; }
 
         /// <summary>
-        /// static-key-1 — static key slot 1, as hex characters. Write-only over the CLI transports; see
-        /// <see cref="StaticKey0"/>.
+        /// static-key-1 — static key slot 1, as hex characters. Sensitive; see <see cref="StaticKey0"/>.
         /// <para>WinBox: the right half of "Key 1" (Static Keys tab).</para>
         /// </summary>
-        [TikProperty("static-key-1")]
+        [TikProperty("static-key-1", IsSensitive = true)]
         public string? StaticKey1 { get; set; }
 
         /// <summary>
@@ -371,11 +358,10 @@ namespace tik4net.Objects.Interface.Wireless
         public StaticAlgoType? StaticAlgo2 { get; set; }
 
         /// <summary>
-        /// static-key-2 — static key slot 2, as hex characters. Write-only over the CLI transports; see
-        /// <see cref="StaticKey0"/>.
+        /// static-key-2 — static key slot 2, as hex characters. Sensitive; see <see cref="StaticKey0"/>.
         /// <para>WinBox: the right half of "Key 2" (Static Keys tab).</para>
         /// </summary>
-        [TikProperty("static-key-2")]
+        [TikProperty("static-key-2", IsSensitive = true)]
         public string? StaticKey2 { get; set; }
 
         /// <summary>
@@ -387,11 +373,10 @@ namespace tik4net.Objects.Interface.Wireless
         public StaticAlgoType? StaticAlgo3 { get; set; }
 
         /// <summary>
-        /// static-key-3 — static key slot 3, as hex characters. Write-only over the CLI transports; see
-        /// <see cref="StaticKey0"/>.
+        /// static-key-3 — static key slot 3, as hex characters. Sensitive; see <see cref="StaticKey0"/>.
         /// <para>WinBox: the right half of "Key 3" (Static Keys tab).</para>
         /// </summary>
-        [TikProperty("static-key-3")]
+        [TikProperty("static-key-3", IsSensitive = true)]
         public string? StaticKey3 { get; set; }
 
         /// <summary>
@@ -413,11 +398,10 @@ namespace tik4net.Objects.Interface.Wireless
         public StaticAlgoType? StaticStaPrivateAlgo { get; set; }
 
         /// <summary>
-        /// static-sta-private-key — the station's private key. Write-only over the CLI transports; see
-        /// <see cref="StaticKey0"/>.
+        /// static-sta-private-key — the station's private key. Sensitive; see <see cref="StaticKey0"/>.
         /// <para>WinBox: the right half of "St. Private Key" (Static Keys tab).</para>
         /// </summary>
-        [TikProperty("static-sta-private-key")]
+        [TikProperty("static-sta-private-key", IsSensitive = true)]
         public string? StaticStaPrivateKey { get; set; }
 
         /// <summary>Human-readable identity.</summary>

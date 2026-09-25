@@ -754,18 +754,37 @@ namespace tik4net.Cli
             bool needStats = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliStats);
             bool wantJson = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliJson);
 
-            if (!needStats)
+            // show-sensitive: RouterOS 7 hides secrets from a terminal print unless asked. RouterOS 6 has no such
+            // word ("expected end of command", 6.49.13) and prints them anyway, so a menu that refuses it is read
+            // without it — and not asked again on this connection. Remembered only once the plain read succeeds:
+            // a syntax error the word did not cause fails that read too, and is the caller's to see.
+            bool wantSensitive = descriptor.Parameters.Any(p => p.Name == TikSpecialProperties.CliSensitive);
+            if (wantSensitive && _showSensitiveRefused.Contains(descriptor.CommandText))
             {
-                // Normal single-query path.
-                return await RunPrintQueryAsync(descriptor, wantJson,
-                    from => CliCommandBuilder.BuildPrintExpression(descriptor.CommandText, descriptor.Parameters, from),
-                    cancellationToken).ConfigureAwait(false);
+                descriptor = WithoutParameter(descriptor, TikSpecialProperties.CliSensitive);
+                wantSensitive = false;
             }
 
-            // Two-query path: detail (config) + stats (counters), merged by .id.
-            IList<TikRecordSentence> configRecords = await RunPrintQueryAsync(descriptor, wantJson,
-                from => CliCommandBuilder.BuildPrintExpression(descriptor.CommandText, descriptor.Parameters, from),
-                cancellationToken).ConfigureAwait(false);
+            IList<TikRecordSentence> configRecords;
+            try
+            {
+                var asked = descriptor;
+                configRecords = await RunPrintQueryAsync(asked, wantJson,
+                    from => CliCommandBuilder.BuildPrintExpression(asked.CommandText, asked.Parameters, from),
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (wantSensitive && IsParseErrorRefusal(ex))
+            {
+                var plain = WithoutParameter(descriptor, TikSpecialProperties.CliSensitive);
+                configRecords = await RunPrintQueryAsync(plain, wantJson,
+                    from => CliCommandBuilder.BuildPrintExpression(plain.CommandText, plain.Parameters, from),
+                    cancellationToken).ConfigureAwait(false);
+                _showSensitiveRefused.Add(descriptor.CommandText);
+                descriptor = plain;
+            }
+
+            if (!needStats)
+                return configRecords;
 
             IList<TikRecordSentence> statsRecords = await RunPrintQueryAsync(descriptor, wantJson,
                 from => CliCommandBuilder.BuildPrintStatsExpression(descriptor.CommandText, descriptor.Parameters, from),
@@ -820,6 +839,25 @@ namespace tik4net.Cli
         /// Whether a counted read failed because the menu has no <c>detail</c> modifier — a singleton answers
         /// <c>bad parameter detail (line 1 column 27)</c> and no count marker.
         /// </summary>
+        /// <summary>Menus (print command texts) whose print refused <c>show-sensitive</c> on this connection.</summary>
+        private readonly HashSet<string> _showSensitiveRefused = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        private static TikCommandDescriptor WithoutParameter(TikCommandDescriptor descriptor, string name)
+            => new TikCommandDescriptor(descriptor.CommandText, descriptor.Parameters.Where(p => p.Name != name).ToList());
+
+        private static readonly System.Text.RegularExpressions.Regex ParseErrorLine =
+            new System.Text.RegularExpressions.Regex(@"\(line \d+ column \d+\)",
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+        /// <summary>
+        /// The router refused the command line as a parse error — surfaced either as the router's error or, on a counted
+        /// read, as an answer without its count marker (see <see cref="IsDetailRefusal"/>).
+        /// </summary>
+        private static bool IsParseErrorRefusal(Exception ex)
+            => (ex is TikCommandTrapException && ParseErrorLine.IsMatch(ex.Message))
+            || (ex is TikConnectionResponseIncompleteException incomplete && incomplete.PartialResponse != null
+                && ParseErrorLine.IsMatch(incomplete.PartialResponse));
+
         private static bool IsDetailRefusal(string? response)
             => response != null && response.IndexOf("bad parameter detail", StringComparison.OrdinalIgnoreCase) >= 0;
 

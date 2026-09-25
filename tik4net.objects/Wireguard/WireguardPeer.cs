@@ -44,7 +44,7 @@ namespace tik4net.Objects.Wireguard
         /// <summary>
         /// shared secret cryptographic key that is preconfigured between two peers
         /// </summary>
-        [TikProperty("preshared-key", DefaultValue = "")]
+        [TikProperty("preshared-key", DefaultValue = "", IsSensitive = true)]
         public string? PresharedKey { get; set; }
 
         /// <summary>

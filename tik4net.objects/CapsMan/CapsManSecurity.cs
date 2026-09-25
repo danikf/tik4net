@@ -106,7 +106,7 @@ namespace tik4net.Objects.CapsMan
         /// passphrase — WPA/WPA2 pre-shared key (PSK) used with wpa-psk / wpa2-psk authentication.
         /// 8–63 ASCII characters, or 64 hex digits for a raw PMK.
         /// </summary>
-        [TikProperty("passphrase")]
+        [TikProperty("passphrase", IsSensitive = true)]
         public string? Passphrase { get; set; }
 
         // ── EAP ───────────────────────────────────────────────────────────────

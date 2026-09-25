@@ -63,7 +63,7 @@ namespace tik4net.Objects.Tool
         /// password — Password for SMTP server authentication (sensitive).
         /// WinBox: "Password"
         /// </summary>
-        [TikProperty("password", DefaultValue = "")]
+        [TikProperty("password", DefaultValue = "", IsSensitive = true)]
         public string? Password { get; set; }
 
         /// <summary>

@@ -111,7 +111,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// secret — pre-shared key string used when auth-method is pre-shared-key or
         /// pre-shared-key-xauth. Leave empty for certificate-based methods.
         /// </summary>
-        [TikProperty("secret")]
+        [TikProperty("secret", IsSensitive = true)]
         public string? Secret { get; set; }
 
         /// <summary>
@@ -211,7 +211,7 @@ namespace tik4net.Objects.Ip.Ipsec
         /// password — XAuth or EAP credential sent to the remote peer when auth-method is
         /// pre-shared-key-xauth, rsa-signature-hybrid, eap, or eap-radius.
         /// </summary>
-        [TikProperty("password")]
+        [TikProperty("password", IsSensitive = true)]
         public string? Password { get; set; }
 
         /// <summary>

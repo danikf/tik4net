@@ -134,7 +134,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// <summary>
         /// password — password used for user authentication. Maximum 1000 characters.
         /// </summary>
-        [TikProperty("password")]
+        [TikProperty("password", IsSensitive = true)]
         public string? Password { get; set; }
 
         /// <summary>

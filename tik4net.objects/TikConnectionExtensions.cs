@@ -391,6 +391,9 @@ namespace tik4net.Objects
             // text, which the unescaped as-value format cannot represent unambiguously (P2.17).
             if (metadata.HasFreeTextProperties)
                 command.AddParameter(TikSpecialProperties.CliJson, "", TikCommandParameterFormat.NameValue);
+            // CLI-only marker: 'print show-sensitive', because RouterOS 7 leaves secrets out of a terminal print.
+            if (metadata.HasSensitiveProperties)
+                command.AddParameter(TikSpecialProperties.CliSensitive, "", TikCommandParameterFormat.NameValue);
             //.proplist
             if (metadata.IncludeProplist)
                 command.AddParameter(TikSpecialProperties.Proplist, string.Join(",", metadata.Properties.Select(prop => prop.FieldName).ToArray()), TikCommandParameterFormat.NameValue);

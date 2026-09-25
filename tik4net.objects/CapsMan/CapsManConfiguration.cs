@@ -325,7 +325,7 @@ namespace tik4net.Objects.CapsMan
         /// <summary>
         /// security.passphrase — WPA/WPA2 pre-shared key (PSK).
         /// </summary>
-        [TikProperty("security.passphrase")]
+        [TikProperty("security.passphrase", IsSensitive = true)]
         public string? SecurityPassphrase { get; set; }
 
         /// <summary>

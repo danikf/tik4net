@@ -206,29 +206,28 @@ menu has no `detail` modifier. Since as-value output is `key=value;…` or nothi
 to no record is not output: it is the router saying why there is none. `CliConnectionBase.ParseRecords`
 throws on it, the same positional rule monitors have always used, and with no phrase list.
 
-### Secret fields are WRITE-ONLY over the CLI — `detail` does not help
+### Secret fields need `show-sensitive` on RouterOS 7
 
-A field the `.jg` types as `secret` — a pre-shared key, a WEP key, a RADIUS or MSCHAPv2 password — is
-**absent from `print as-value` entirely**, not empty. Adding `detail` changes nothing. The catalog types 166
-fields this way, so this is a general rule rather than a quirk of one menu.
+A sensitive field — a pre-shared key, a WEP key, a RADIUS or MSCHAPv2 password, an IPsec secret — is
+**absent from `print as-value`** on RouterOS 7, not empty, and `detail` does not bring it back. The menu's
+`print` takes a `show-sensitive` modifier that does:
 
-Measured on 7.24, one profile carrying `wpa2-pre-shared-key=SuperSecret123`, read four ways:
-
-| transport | result |
+| 7.24.4, one profile with `wpa2-pre-shared-key` set | result |
 |---|---|
-| binary API / REST | `wpa2-pre-shared-key=SuperSecret123` |
-| WinBox native (M2) | `wpa2-pre-shared-key=SuperSecret123` |
-| Telnet / SSH / MAC-Telnet / WinBox CLI | field **not present in the record at all** |
+| binary API / REST / WinBox native | the key |
+| CLI `print detail as-value` | field **not present in the record** |
+| CLI `print detail show-sensitive as-value` | the key |
 
-This is the router's decision, not a gap in this client, and it is not something a `.proplist` or a
-different verb recovers. The consequences for a caller:
+Tab completion answers which menus have it: `/radius`, `/ppp/secret`, the tunnel and VPN-client menus, the
+wireless and wifi security menus, `/snmp/community`, `/tool/e-mail`, `/tool/romon` and others offer it;
+`/interface/bonding`, `/ip/ipsec/key/rsa` and `/system/ntp/server` do not. RouterOS 6.49.13 has no such word
+(`expected end of command`) and prints secrets without it.
 
-* a secret property read over a CLI transport is `null`, and *cannot* be distinguished from one the router
-  genuinely holds empty;
-* WRITING one works normally on every transport — these fields are write-only, not unsupported;
-* a read-modify-write cycle over a CLI transport therefore must not send the secret back. The O/R mapper's
-  diff-based `Save` already handles this: an unread field is unchanged, so it is not in the diff. A
-  `FullUpdate` save, or any code that copies an entity field by field, will blank it.
+The O/R mapper marks each sensitive property (`[TikProperty(…, IsSensitive = true)]`), sends the
+`.cli-sensitive` marker for an entity that has one, and the CLI read adds `show-sensitive`. A menu that refuses
+the word is read without it and not asked again on that connection. What any transport returns still depends
+on the user's `sensitive` policy. A low-level print is sent as written, so it gets `show-sensitive` only if the
+caller writes it.
 
 ### `print stats` — counters need a second query
 

@@ -52,7 +52,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// <summary>
         /// password — password sent during authentication.
         /// </summary>
-        [TikProperty("password")]
+        [TikProperty("password", IsSensitive = true)]
         public string? Password { get; set; }
 
         /// <summary>

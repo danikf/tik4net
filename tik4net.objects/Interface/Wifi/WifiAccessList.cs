@@ -159,7 +159,7 @@ namespace tik4net.Objects.Interface.Wifi
         /// Leave empty to use the interface passphrase (default).
         /// WinBox: "Passphrase"
         /// </summary>
-        [TikProperty("passphrase", DefaultValue = "")]
+        [TikProperty("passphrase", DefaultValue = "", IsSensitive = true)]
         public string? Passphrase { get; set; }
 
         /// <summary>

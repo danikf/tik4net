@@ -140,7 +140,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// ipsec-secret — pre-shared key used for IPSec encryption when <see cref="UseIpsec"/> is enabled.
         /// Leave empty to disable PSK-based IPSec.
         /// </summary>
-        [TikProperty("ipsec-secret")]
+        [TikProperty("ipsec-secret", IsSensitive = true)]
         public string? IpsecSecret { get; set; }
 
         /// <summary>

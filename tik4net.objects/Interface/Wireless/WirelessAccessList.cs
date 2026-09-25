@@ -85,7 +85,7 @@ namespace tik4net.Objects.Interface.Wireless
         /// <summary>
         /// management-protection-key: 
         /// </summary>
-        [TikProperty("management-protection-key", DefaultValue = "")]
+        [TikProperty("management-protection-key", DefaultValue = "", IsSensitive = true)]
         public string? ManagementProtectionKey { get; set; }
 
         /// <summary>
@@ -97,13 +97,13 @@ namespace tik4net.Objects.Interface.Wireless
         /// <summary>
         /// private-key: Only for WEP modes.
         /// </summary>
-        [TikProperty("private-key", DefaultValue = "")]
+        [TikProperty("private-key", DefaultValue = "", IsSensitive = true)]
         public string? PrivateKey { get; set; }
 
         /// <summary>
         /// private-pre-shared-key: Used in WPA PSK mode.
         /// </summary>
-        [TikProperty("private-pre-shared-key", DefaultValue = "")]
+        [TikProperty("private-pre-shared-key", DefaultValue = "", IsSensitive = true)]
         public string? PrivatePreSharedKey { get; set; }
 
         /// <summary>

@@ -71,7 +71,7 @@
         /// <summary>
         /// password: User password
         /// </summary>
-        [TikProperty("password")]
+        [TikProperty("password", IsSensitive = true)]
         public string? Password { get; set; }
 
         /// <summary>

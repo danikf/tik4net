@@ -129,6 +129,16 @@ namespace tik4net.Objects
         }
 
         /// <summary>
+        /// True when at least one property is a secret (<see cref="TikPropertyAttribute.IsSensitive"/>), so the entity
+        /// is read with <c>show-sensitive</c> on CLI transports, which otherwise leave secrets out.
+        /// </summary>
+        /// <seealso cref="TikPropertyAttribute.IsSensitive"/>
+        public bool HasSensitiveProperties
+        {
+            get { return Properties.Any(p => p.IsSensitive); }
+        }
+
+        /// <summary>
         /// If entity exists in single instance.
         /// </summary>
         public bool IsSingleton { get; private set; }

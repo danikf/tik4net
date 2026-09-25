@@ -34,7 +34,7 @@ namespace tik4net.Objects.Tool.Romon
         public int Cost { get; set; }
 
         /// <summary>secrets — per-interface shared secrets (overrides global RoMON secrets when set).</summary>
-        [TikProperty("secrets", DefaultValue = "")]
+        [TikProperty("secrets", DefaultValue = "", IsSensitive = true)]
         public string? Secrets { get; set; }
 
         /// <summary>disabled — when true this port entry is disabled. Default: no.</summary>

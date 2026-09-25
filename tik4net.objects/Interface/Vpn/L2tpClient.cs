@@ -100,7 +100,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// <summary>
         /// password — password sent during authentication.
         /// </summary>
-        [TikProperty("password")]
+        [TikProperty("password", IsSensitive = true)]
         public string? Password { get; set; }
 
         /// <summary>
@@ -182,7 +182,7 @@ namespace tik4net.Objects.Interface.Vpn
         /// <summary>
         /// ipsec-secret — pre-shared key used when <see cref="UseIpsec"/> is enabled.
         /// </summary>
-        [TikProperty("ipsec-secret")]
+        [TikProperty("ipsec-secret", IsSensitive = true)]
         public string? IpsecSecret { get; set; }
 
         /// <summary>

@@ -115,7 +115,7 @@ namespace tik4net.Objects.Ip.Hotspot
         public string? MacAuthMode { get; set; }
 
         /// <summary>mac-auth-password — password used when mac-auth-mode is mac-as-username-and-password.</summary>
-        [TikProperty("mac-auth-password", DefaultValue = "")]
+        [TikProperty("mac-auth-password", DefaultValue = "", IsSensitive = true)]
         public string? MacAuthPassword { get; set; }
 
         // --- Trial ---
