@@ -101,6 +101,13 @@ namespace tik4net.Objects
         /// <seealso cref="TikPropertyAttribute.IsPresenceFlag"/>
         public bool IsPresenceFlag { get; private set; }
 
+        /// <summary>
+        /// If the router changes the field's value by itself between two reads (a clock), so a full-update save
+        /// compares it against what was loaded rather than against a fresh read.
+        /// </summary>
+        /// <seealso cref="TikPropertyAttribute.ChangesOnItsOwn"/>
+        public bool ChangesOnItsOwn { get; private set; }
+
         private PropertyInfo PropertyInfo { get; set; }
 
         private readonly Func<object, object?>? _getter;
@@ -190,6 +197,7 @@ namespace tik4net.Objects
             UnsetOnDefault = propertyAttribute.UnsetOnDefault;
             IsFreeText = propertyAttribute.IsFreeText;
             IsPresenceFlag = propertyAttribute.IsPresenceFlag;
+            ChangesOnItsOwn = propertyAttribute.ChangesOnItsOwn;
         }
 
         /// <summary>
