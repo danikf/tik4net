@@ -18,14 +18,14 @@ namespace tik4net.Objects.System
         /// This field is settable via /system/clock set time=...
         /// </summary>
         [TikProperty("time", ChangesOnItsOwn = true)]
-        public string?/*time*/ Time { get; set; }
+        public TikValue<string?> Time { get; set; }
 
         /// <summary>
         /// date — current system date in mmm/DD/YYYY format (e.g. jun/18/2026).
         /// This field is settable via /system/clock set date=...
         /// </summary>
         [TikProperty("date", ChangesOnItsOwn = true)]
-        public string?/*date*/ Date { get; set; }
+        public TikValue<string?> Date { get; set; }
 
         /// <summary>
         /// time-zone-name — timezone name (IANA identifier, e.g. "Europe/Prague") or "manual"
@@ -33,7 +33,7 @@ namespace tik4net.Objects.System
         /// WinBox: "Time Zone Name"
         /// </summary>
         [TikProperty("time-zone-name", DefaultValue = "manual")]
-        public string? TimeZoneName { get; set; }
+        public TikValue<string?> TimeZoneName { get; set; }
 
         /// <summary>
         /// time-zone-autodetect — when yes, the timezone is automatically detected via the public IP address.
@@ -41,7 +41,7 @@ namespace tik4net.Objects.System
         /// WinBox: "Time Zone Autodetect"
         /// </summary>
         [TikProperty("time-zone-autodetect", DefaultValue = "yes")]
-        public bool? TimeZoneAutodetect { get; set; }
+        public TikValue<bool?> TimeZoneAutodetect { get; set; }
 
         /// <summary>
         /// gmt-offset — current value of the GMT offset used by the system, after applying the base
@@ -49,7 +49,7 @@ namespace tik4net.Objects.System
         /// WinBox: "GMT Offset"
         /// </summary>
         [TikProperty("gmt-offset", IsReadOnly = true)]
-        public string?/*time*/ GmtOffset { get; private set; }
+        public TikValue<string?> GmtOffset { get; private set; }
 
         /// <summary>
         /// dst-active — has the value yes (true) while daylight saving time of the current timezone is active.
@@ -57,7 +57,7 @@ namespace tik4net.Objects.System
         /// WinBox: "DST Active"
         /// </summary>
         [TikProperty("dst-active", IsReadOnly = true)]
-        public bool DstActive { get; private set; }
+        public TikValue<bool?> DstActive { get; private set; }
 
         /// <summary>Returns a human-readable summary of the current clock state.</summary>
         public override string ToString()

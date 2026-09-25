@@ -16,37 +16,37 @@ namespace tik4net.Objects.Ip
         /// <summary>ddns-enabled — enables DDNS; if <c>auto</c>, activates only when Back To Home is enabled.</summary>
         /// <seealso cref="DdnsEnabledMode"/>
         [TikProperty("ddns-enabled", DefaultValue = "auto")]
-        public DdnsEnabledMode? DdnsEnabled { get; set; }
+        public TikValue<DdnsEnabledMode?> DdnsEnabled { get; set; }
 
         /// <summary>ddns-update-interval — sets the interval for DDNS connection attempts; <c>none</c> lets the router check the IP internally.</summary>
         [TikProperty("ddns-update-interval", DefaultValue = "none")]
-        public TikDuration? DdnsUpdateInterval { get; set; }
+        public TikValue<TikDuration?> DdnsUpdateInterval { get; set; }
 
         /// <summary>update-time — synchronises the device clock with the cloud server when no NTP/SNTP client is enabled.</summary>
         [TikProperty("update-time", DefaultValue = "yes")]
-        public bool? UpdateTime { get; set; }
+        public TikValue<bool?> UpdateTime { get; set; }
 
         // --- Read-only properties ---
 
         /// <summary>public-address — IPv4 address sent to the cloud server (visible after a successful request).</summary>
         [TikProperty("public-address", IsReadOnly = true)]
-        public string?/*IPv4 address*/ PublicAddress { get; private set; }
+        public TikValue<string?> PublicAddress { get; private set; }
 
         /// <summary>public-address-ipv6 — IPv6 address sent to the cloud server (visible after a successful request).</summary>
         [TikProperty("public-address-ipv6", IsReadOnly = true)]
-        public string?/*IPv6 address*/ PublicAddressIpv6 { get; private set; }
+        public TikValue<string?> PublicAddressIpv6 { get; private set; }
 
         /// <summary>dns-name — assigned DNS name in the form <c>&lt;12-char-serial&gt;.sn.mynetname.net</c>.</summary>
         [TikProperty("dns-name", IsReadOnly = true)]
-        public string? DnsName { get; private set; }
+        public TikValue<string?> DnsName { get; private set; }
 
         /// <summary>status — current cloud service state (e.g. updating, updated, error).</summary>
         [TikProperty("status", IsReadOnly = true)]
-        public string? Status { get; private set; }
+        public TikValue<string?> Status { get; private set; }
 
         /// <summary>warning — alert raised when the device IP differs from the UDP-header IP (e.g. when behind NAT).</summary>
         [TikProperty("warning", IsReadOnly = true)]
-        public string? Warning { get; private set; }
+        public TikValue<string?> Warning { get; private set; }
 
         /// <summary>Human-readable summary of the cloud state.</summary>
         public override string ToString() => string.Format("ddns-enabled={0} dns-name={1} status={2}", DdnsEnabled, DnsName, Status);
@@ -63,7 +63,5 @@ namespace tik4net.Objects.Ip
 
         /// <summary>auto — DDNS activates only when Back To Home is enabled.</summary>
         [TikEnum("auto")] Auto,
-        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-        [TikEnumUnknown] Unknown = -1,
     }
 }

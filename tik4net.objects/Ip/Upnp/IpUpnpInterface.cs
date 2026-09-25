@@ -19,20 +19,20 @@ namespace tik4net.Objects.Ip.Upnp
 
         /// <summary>interface — name of the interface to assign. Must be an existing interface.</summary>
         [TikProperty("interface", IsMandatory = true)]
-        public string? Interface { get; set; }
+        public TikValue<string?> Interface { get; set; }
 
         /// <summary>type — role of this interface in the UPnP topology.
         /// <seealso cref="UpnpInterfaceType"/></summary>
         [TikProperty("type", IsMandatory = true)]
-        public UpnpInterfaceType Type { get; set; }
+        public TikValue<UpnpInterfaceType?> Type { get; set; }
 
         /// <summary>forced-ip — specific public IP to advertise when the external interface has multiple addresses. Leave empty to use the primary address.</summary>
         [TikProperty("forced-ip", DefaultValue = "")]
-        public string?/*IP*/ ForcedIp { get; set; }
+        public TikValue<string?> ForcedIp { get; set; }
 
         /// <summary>disabled — when yes, the entry is inactive.</summary>
         [TikProperty("disabled", DefaultValue = "no")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>Human-readable entry summary.</summary>
         public override string ToString() => string.Format("{0} ({1})", Interface, Type);
@@ -46,7 +46,5 @@ namespace tik4net.Objects.Ip.Upnp
 
         /// <summary>external — WAN-facing interface with the public IP address.</summary>
         [TikEnum("external")] External,
-        /// <summary>A word this version of tik4net does not know; the router's word is kept (see <see cref="TikEnumUnknownAttribute"/>).</summary>
-        [TikEnumUnknown] Unknown = -1,
     }
 }

@@ -43,7 +43,9 @@ namespace tik4net.integrationtests
 
             var loaded = Connection.LoadById<IpUpnpInterface>(entry.Id);
             Assert.IsNotNull(loaded);
-            Assert.AreEqual(UpnpInterfaceType.External, loaded.Type);
+            // loaded.Type is a TikValue<UpnpInterfaceType?>: compare its value, not the wrapper — Assert.AreEqual(object, object)
+            // would compile and never be equal.
+            Assert.AreEqual(UpnpInterfaceType.External, loaded.Type.Value);
 
             Connection.Delete(loaded);
         }
