@@ -69,10 +69,9 @@ namespace tik4net.integrationtests
         /// reload by id, delete.
         /// </summary>
         /// <remarks>
-        /// <c>static-key-*</c> is deliberately NOT asserted on reload: RouterOS's CLI omits secret fields
-        /// from <c>print as-value</c>, so on the five CLI transports it reads back null. It is written
-        /// here — the router refuses an algorithm whose key is the wrong length, so the write landing is
-        /// proven by the algorithm surviving at all.
+        /// <c>static-key-0</c> is a secret: RouterOS 7 leaves it out of a terminal print unless asked, and the
+        /// entity marks it <c>IsSensitive</c> so the five CLI transports read it with <c>show-sensitive</c>. It is
+        /// asserted on reload on every transport.
         /// </remarks>
         [TestMethod]
         public void AddWirelessSecurityProfileWillNotFail()
@@ -108,6 +107,7 @@ namespace tik4net.integrationtests
                     "the case is part of the value on this field");
                 Assert.AreEqual(WirelessSecurityProfile.StaticAlgoType.Wep40Bit, loaded.StaticAlgo0);
                 Assert.AreEqual(WirelessSecurityProfile.TransmitKeyType.Key0, loaded.StaticTransmitKey);
+                Assert.AreEqual("1234567890", loaded.StaticKey0, "a secret reads back on every transport (show-sensitive on CLI)");
             }
             finally
             {
@@ -216,11 +216,9 @@ namespace tik4net.integrationtests
                     Assert.AreEqual("key-2", ReadBack(api, id, "static-transmit-key"));
 
                     // The read direction, over the transport under test. Only the ALGORITHM half is
-                    // asserted here: RouterOS's own CLI omits every secret-typed field from
-                    // `print as-value` — static-key-*, the pre-shared keys, mschapv2-password — with or
-                    // without `detail`, so the five CLI transports never see a key value. That is the
-                    // router's decision, not a gap in this client, and the write landing correctly is
-                    // already proven by the API read-backs above.
+                    // asserted here: this is a low-level print, sent as written, and RouterOS 7's CLI leaves
+                    // every secret out of a print that does not ask for show-sensitive. The entity read in
+                    // AddWirelessSecurityProfileWillNotFail asks, and asserts the key.
                     var mine = Connection.CreateCommandAndParameters(ProfilePath + "/print", TikCommandParameterFormat.Filter, ".id", id)
                         .ExecuteList().Single();
                     Assert.AreEqual("40bit-wep", mine.GetResponseFieldOrDefault("static-algo-0", null));
