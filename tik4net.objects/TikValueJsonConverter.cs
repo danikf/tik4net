@@ -1,5 +1,6 @@
 #if NET8_0_OR_GREATER
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -113,14 +114,25 @@ namespace tik4net.Objects
         private static TikValue<T> ReadEnum(string word)
         {
             var metadata = TikEnumMetadata.Get(ValueType);
-            long result = 0;
-            foreach (string part in metadata.IsFlags ? word.Split(',') : new[] { word })
+            if (!metadata.IsFlags)
+                return metadata.TryParseNumeric(word, out long single)
+                    ? (T)Enum.ToObject(ValueType, single)
+                    : TikValue<T>.FromWire(word);
+
+            // As the mapper reads it: the known words OR together, the others are kept beside the value.
+            long known = 0;
+            var unknown = new List<string>();
+            foreach (string raw in word.Split(','))
             {
-                if (!metadata.TryParseNumeric(part.Trim(), out long numeric))
-                    return TikValue<T>.FromWire(word);
-                result |= numeric;
+                string part = raw.Trim();
+                if (part.Length == 0)
+                    continue;
+                if (metadata.TryParseNumeric(part, out long numeric) && (metadata.UnknownMember == null || numeric != metadata.UnknownNumeric))
+                    known |= numeric;
+                else
+                    unknown.Add(part);
             }
-            return (T)Enum.ToObject(ValueType, result);
+            return TikValue<T>.FromPresentWithUnknownFlags((T)Enum.ToObject(ValueType, known), string.Join(",", unknown));
         }
     }
 }

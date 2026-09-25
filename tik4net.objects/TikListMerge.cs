@@ -163,11 +163,25 @@ namespace tik4net.Objects
                 object? val1 = propInfo.GetValue(entity1);
                 object? val2 = propInfo.GetValue(entity2);
 
+                // A TikValue<T> compares by state and by the form the router is sent: its ToString renders Absent,
+                // Present("") and Present(null) alike, and a merge that sees them as equal never updates the target.
+                if (val1 is ITikValue wrapped1 && val2 is ITikValue wrapped2)
+                {
+                    var accessor = WrappedAccessor(propInfo);
+                    if (wrapped1.State != wrapped2.State
+                        || accessor.GetEntityValue(entity1!) != accessor.GetEntityValue(entity2!))
+                        return false;
+                    continue;
+                }
+
                 if (Convert.ToString(val1) != Convert.ToString(val2))
                     return false;
             }
             return true;
         }
+
+        private static TikEntityPropertyAccessor WrappedAccessor(PropertyInfo property)
+            => TikEntityMetadataCache.GetMetadata<TEntity>().Properties.Single(p => p.PropertyName == property.Name);
 
         private IEnumerable<string> ResolveFieldsFieldNames()
         {
