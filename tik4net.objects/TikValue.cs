@@ -97,7 +97,41 @@ namespace tik4net.Objects
         public T Value => _state == TikValueState.Unparsed ? throw new TikUnparsedValueException(typeof(T), _rawValue) : _value;
 
         /// <summary>The router's word when <see cref="State"/> is <see cref="TikValueState.Unparsed"/>; otherwise <c>null</c>.</summary>
-        public string? RawValue => _rawValue;
+        public string? RawValue => _state == TikValueState.Unparsed ? _rawValue : null;
+
+        /// <summary>
+        /// On a present <c>[Flags]</c> value: the words the router printed that the enum has no member for (comma-separated),
+        /// else <c>null</c>. They are not part of <see cref="Value"/>, take no part in <c>==</c> against a value, and are
+        /// written back by a save. <see cref="With"/> and <see cref="Without"/> keep them; assigning a new value replaces the
+        /// whole set, them included.
+        /// </summary>
+        public string? UnknownFlagWords => _state == TikValueState.Present ? _rawValue : null;
+
+        /// <summary>
+        /// This <c>[Flags]</c> value with <paramref name="flags"/> added, keeping the router's words the enum does not know
+        /// (<see cref="UnknownFlagWords"/>). An absent or unparsed value becomes <paramref name="flags"/>.
+        /// </summary>
+        public TikValue<T> With(T flags) => Combine(flags, add: true);
+
+        /// <summary>
+        /// This <c>[Flags]</c> value with <paramref name="flags"/> removed, keeping the router's words the enum does not know.
+        /// </summary>
+        public TikValue<T> Without(T flags) => Combine(flags, add: false);
+
+        private TikValue<T> Combine(T flags, bool add)
+        {
+            Type enumType = Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T);
+            if (!enumType.IsEnum || flags == null)
+                throw new InvalidOperationException("With/Without apply to a [Flags] enum value and a non-null argument.");
+            long current = _state == TikValueState.Present && _value != null ? Convert.ToInt64(_value, CultureInfo.InvariantCulture) : 0;
+            long change = Convert.ToInt64(flags, CultureInfo.InvariantCulture);
+            long result = add ? current | change : current & ~change;
+            return new TikValue<T>(TikValueState.Present, (T)Enum.ToObject(enumType, result),
+                _state == TikValueState.Present ? _rawValue : null);
+        }
+
+        internal static TikValue<T> FromPresentWithUnknownFlags(T value, string? unknownWords)
+            => new TikValue<T>(TikValueState.Present, value, string.IsNullOrEmpty(unknownWords) ? null : unknownWords);
 
         /// <summary>True when the router printed the field (or the caller assigned it) and the value was read.</summary>
         public bool IsPresent => _state == TikValueState.Present;
@@ -216,7 +250,7 @@ namespace tik4net.Objects
         /// when unparsed; an empty string when absent.
         /// </summary>
         public override string ToString()
-            => _state == TikValueState.Present ? WireText(_value)
+            => _state == TikValueState.Present ? JoinWords(WireText(_value), _rawValue)
              : _state == TikValueState.Unparsed ? _rawValue ?? string.Empty
              : string.Empty;
 
@@ -240,14 +274,20 @@ namespace tik4net.Objects
             return boxed.ToString() ?? string.Empty;
         }
 
+        private static string JoinWords(string known, string? unknown)
+            => string.IsNullOrEmpty(unknown) ? known : known.Length == 0 ? unknown! : known + "," + unknown;
+
         private string DebuggerText
             => _state == TikValueState.Absent ? "Absent"
              : _state == TikValueState.Unparsed ? "Unparsed \"" + _rawValue + "\""
-             : _value == null ? "null" : WireText(_value);
+             : _value == null ? "null"
+             : _rawValue != null ? WireText(_value) + " +" + _rawValue
+             : WireText(_value);
 
         TikValueState ITikValue.State => _state;
         object? ITikValue.BoxedValue => _value;
-        string? ITikValue.RawValue => _rawValue;
+        string? ITikValue.RawValue => RawValue;
+        string? ITikValue.UnknownFlagWords => UnknownFlagWords;
     }
 
     /// <summary>
@@ -279,5 +319,6 @@ namespace tik4net.Objects
         TikValueState State { get; }
         object? BoxedValue { get; }
         string? RawValue { get; }
+        string? UnknownFlagWords { get; }
     }
 }

@@ -215,9 +215,10 @@ namespace tik4net.Objects
                 IsNullable = true;
                 var factories = typeof(TikEntityPropertyAccessor).GetTypeInfo().GetDeclaredMethod(nameof(MakeWrappers))!
                     .MakeGenericMethod(inner);
-                var pair = ((Func<object?, object>, Func<string, object>))factories.Invoke(null, null)!;
-                _wrapPresent = pair.Item1;
-                _wrapUnparsed = pair.Item2;
+                var wrappers = ((Func<object?, object>, Func<string, object>, Func<object, string, object>))factories.Invoke(null, null)!;
+                _wrapPresent = wrappers.Item1;
+                _wrapUnparsed = wrappers.Item2;
+                _wrapPresentWithUnknownFlags = wrappers.Item3;
                 _absent = Activator.CreateInstance(PropertyType)!;
             }
             else
@@ -382,8 +383,11 @@ namespace tik4net.Objects
         private readonly Func<string, object>? _wrapUnparsed;
         private readonly object? _absent;
 
-        private static (Func<object?, object>, Func<string, object>) MakeWrappers<T>()
-            => (value => (TikValue<T>)(T)value!, raw => TikValue<T>.FromUnparsed(raw));
+        private static (Func<object?, object>, Func<string, object>, Func<object, string, object>) MakeWrappers<T>()
+            => (value => (TikValue<T>)(T)value!, raw => TikValue<T>.FromUnparsed(raw),
+                (value, unknown) => TikValue<T>.FromPresentWithUnknownFlags((T)value, unknown));
+
+        private readonly Func<object, string, object>? _wrapPresentWithUnknownFlags;
 
         /// <summary>
         /// Copies this property from <paramref name="source"/> to <paramref name="target"/> as it is - for a
@@ -690,6 +694,26 @@ namespace tik4net.Objects
             if (ValueType == typeof(bool) && !(IsPresenceFlag && propValue.Length == 0) && !IsBoolWord(propValue))
                 return _wrapUnparsed!(propValue);
 
+            // A [Flags] value: the known words OR together, the others are kept in the value itself — not as an Unknown bit
+            // inside Value, and not in a side store a copy of the entity would lose.
+            if (_enumMetadata != null && _enumMetadata.IsFlags)
+            {
+                long known = 0;
+                var unknownParts = new List<string>();
+                foreach (string raw in propValue.Split(','))
+                {
+                    string part = raw.Trim();
+                    if (part.Length == 0)
+                        continue;
+                    if (_enumMetadata.TryParseNumeric(part, out long numeric)
+                        && (_enumMetadata.UnknownMember == null || numeric != _enumMetadata.UnknownNumeric))
+                        known |= numeric;
+                    else
+                        unknownParts.Add(part);
+                }
+                return _wrapPresentWithUnknownFlags!(Enum.ToObject(ValueType, known), string.Join(",", unknownParts));
+            }
+
             object? value;
             string? unknownWord;
             try
@@ -701,18 +725,8 @@ namespace tik4net.Objects
                 return _wrapUnparsed!(propValue);
             }
 
-            if (_enumMetadata != null)
-            {
-                if (unknownWord != null && !_enumMetadata.IsFlags)
-                    return _wrapUnparsed!(propValue);
-                if (_enumMetadata.UnknownMember != null)
-                {
-                    if (unknownWord != null)
-                        TikEntityNotes.UnknownWords.Record(entity, FieldName, unknownWord);
-                    else
-                        TikEntityNotes.UnknownWords.Forget(entity, FieldName);
-                }
-            }
+            if (_enumMetadata != null && unknownWord != null)
+                return _wrapUnparsed!(propValue);
             return _wrapPresent!(value);
         }
 
@@ -734,6 +748,12 @@ namespace tik4net.Objects
                     return null;
                 if (wrapped.State == TikValueState.Unparsed)
                     return wrapped.RawValue;
+                if (wrapped.UnknownFlagWords != null && wrapped.BoxedValue != null)
+                {
+                    // The router's words the enum does not know go back with the known ones, as it printed them.
+                    string known = ConvertToString(wrapped.BoxedValue) ?? string.Empty;
+                    return known.Length == 0 ? wrapped.UnknownFlagWords : known + "," + wrapped.UnknownFlagWords;
+                }
                 propValue = wrapped.BoxedValue;
             }
 

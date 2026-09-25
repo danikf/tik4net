@@ -121,21 +121,55 @@ namespace tik4net.unittests.Objects
         }
 
         [TestMethod]
-        public void AFlagsValueWithAnUnknownWord_KeepsTheKnownParts_AndWritesTheWordBack()
+        public void AFlagsValueWithAnUnknownWord_KeepsTheKnownParts_OutsideValue()
+        {
+            var box = Router(Row(("state", "new,untracked"))).LoadAll<Box>().Single();
+
+            Assert.AreEqual(TikValueState.Present, box.State.State);
+            Assert.IsTrue(box.State == States.New, "the unknown word is not a bit inside Value, so the known set compares");
+            Assert.AreEqual("untracked", box.State.UnknownFlagWords);
+            Assert.AreEqual("new,untracked", box.State.ToString());
+        }
+
+        [TestMethod]
+        public void AFlagsValue_With_KeepsTheRouterWord_OnSave()
         {
             var connection = Router(Row(("state", "new,untracked")));
             var box = connection.LoadAll<Box>().Single();
 
-            Assert.AreEqual(TikValueState.Present, box.State.State);
-            Assert.IsTrue(box.State.Value!.Value.HasFlag(States.New));
-
-            box.State = box.State.Value | States.Established;
+            box.State = box.State.With(States.Established);
             connection.Save(box);
 
-            var set = Sent(connection, "set");
-            var state = set.Single(w => w.StartsWith("=state="));
-            StringAssert.Contains(state, "untracked", "the router's unknown word must survive a save: " + state);
+            var state = Sent(connection, "set").Single(w => w.StartsWith("=state="));
+            StringAssert.Contains(state, "untracked", "With keeps the router's unknown word: " + state);
             StringAssert.Contains(state, "established");
+        }
+
+        [TestMethod]
+        public void AFlagsValue_AssignedAfresh_IsExactlyThatSet()
+        {
+            var connection = Router(Row(("state", "new,untracked")));
+            var box = connection.LoadAll<Box>().Single();
+
+            box.State = States.Established;
+            connection.Save(box);
+
+            CollectionAssert.Contains(Sent(connection, "set"), "=state=established");
+        }
+
+        [TestMethod]
+        public void AFlagsValue_UnchangedWithAnUnknownWord_SendsNothing()
+        {
+            var connection = Router(Row(("state", "new,untracked")));
+            connection.Save(connection.LoadAll<Box>().Single());
+            Assert.AreEqual(0, connection.SentCommands.Count(c => c.First() == "/box/set"));
+        }
+
+        [TestMethod]
+        public void AFlagsValue_SurvivesCloneEntity_WithItsUnknownWord()
+        {
+            var box = Router(Row(("state", "new,untracked"))).LoadAll<Box>().Single();
+            Assert.AreEqual("untracked", box.CloneEntity().State.UnknownFlagWords);
         }
 
         // ── Write ────────────────────────────────────────────────────────────
@@ -222,6 +256,30 @@ namespace tik4net.unittests.Objects
 
             Assert.AreEqual(TikValueState.Present, clone.Comment.State, "an assigned null is an intent to unset, not Absent");
             Assert.IsTrue(clone.Name == "n");
+        }
+
+        [TikEntity("/box")]
+        public class PlainFlagsBox
+        {
+            [TikProperty(".id", IsReadOnly = true, IsMandatory = true)]
+            public string? Id { get; private set; }
+
+            [TikProperty("state")]
+            public States? State { get; set; }
+        }
+
+        [TestMethod]
+        public void CloneEntity_OfAPlainFlagsProperty_KeepsItsUnknownWord()
+        {
+            // Review C5 claimed a clone loses the word its Unknown bit stood for. It does not: a plain clone goes through the
+            // string form, which carries the word, and the clone records it again. Kept as the guard for that.
+            var connection = new TikFakeConnection()
+                .WithResponse(cmd => cmd.FirstOrDefault() == "/box/print",
+                    _ => new ITikSentence[] { new TikFakeReSentence(Row(("state", "new,untracked"))), new TikFakeDoneSentence() });
+            var clone = connection.LoadAll<PlainFlagsBox>().Single().CloneEntity();
+
+            var state = TikEntityMetadataCache.GetMetadata<PlainFlagsBox>().Properties.Single(p => p.FieldName == "state");
+            StringAssert.Contains(state.GetEntityValue(clone), "untracked");
         }
 
         [TestMethod]
