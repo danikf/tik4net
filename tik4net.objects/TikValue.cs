@@ -321,6 +321,23 @@ namespace tik4net.Objects
     }
 
     /// <summary>The mapper's non-generic view of a <see cref="TikValue{T}"/>.</summary>
+    /// <summary>
+    /// <c>GetValueOrDefault()</c> for a <see cref="TikValue{T}"/>, as <see cref="Nullable{T}.GetValueOrDefault()"/>: the value
+    /// when present, <c>default</c> when absent or unparsed — <c>false</c>, <c>0</c> or an enum's zero member for a value
+    /// type, <c>null</c> for a reference type. It never throws, so an unparsed value reads as "none"; where that must not
+    /// happen, read <see cref="TikValue{T}.Value"/>.
+    /// </summary>
+    public static class TikValueExtensions
+    {
+        /// <summary>The value when present, <c>default(T)</c> otherwise (<c>bool d = addr.Disabled.GetValueOrDefault();</c>).</summary>
+        public static T GetValueOrDefault<T>(this TikValue<T?> value) where T : struct
+            => value.State == TikValueState.Present ? value.Value.GetValueOrDefault() : default;
+
+        /// <summary>The value when present, <c>null</c> otherwise.</summary>
+        public static T? GetValueOrDefault<T>(this TikValue<T?> value) where T : class
+            => value.State == TikValueState.Present ? value.Value : null;
+    }
+
     internal interface ITikValue
     {
         TikValueState State { get; }

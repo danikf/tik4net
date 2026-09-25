@@ -61,6 +61,24 @@ namespace tik4net.unittests.Objects
             Assert.AreEqual(3, TikValue<int?>.FromWire("x").ValueOrDefault(3));
         }
 
+        [TestMethod]
+        public void GetValueOrDefault_IsTheTypesDefaultWithoutAReadableValue_AsNullable()
+        {
+            // A reference type reads null, a value type its default — the 4.x `bool d = addr.Disabled.GetValueOrDefault();`
+            // compiles and behaves as it did.
+            Assert.IsNull(Absent.GetValueOrDefault());
+            Assert.IsNull(Unparsed.GetValueOrDefault());
+            Assert.AreEqual("x", ((TikValue<string?>)"x").GetValueOrDefault());
+
+            bool absent = default(TikValue<bool?>).GetValueOrDefault();
+            bool unparsed = TikValue<bool?>.FromWire("maybe").GetValueOrDefault();
+            Assert.IsFalse(absent);
+            Assert.IsFalse(unparsed);
+            Assert.IsTrue(((TikValue<bool?>)true).GetValueOrDefault());
+            Assert.AreEqual(0, ((TikValue<int?>)null).GetValueOrDefault());
+            Assert.AreEqual(7, ((TikValue<int?>)7).GetValueOrDefault());
+        }
+
         // ── FromWire writes a word the enum lacks (H4) ───────────────────────
 
         [TestMethod]
