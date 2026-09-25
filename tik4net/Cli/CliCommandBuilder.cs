@@ -404,10 +404,11 @@ namespace tik4net.Cli
         /// arithmetic and is the safer parse.
         /// </para>
         /// </remarks>
-        internal static string BuildInteractiveMonitor(string apiPath, IList<ITikCommandParameter> parameters, string snapshotModifier)
+        internal static string BuildInteractiveMonitor(string apiPath, IList<ITikCommandParameter> parameters, string snapshotModifier,
+            bool includeFilters = false)
         {
             var sb = new StringBuilder(ApiPathToCli(apiPath));
-            AppendMonitorInputs(sb, parameters, snapshotModifier);
+            AppendMonitorInputs(sb, parameters, snapshotModifier, includeFilters);
             return sb.ToString();
         }
 

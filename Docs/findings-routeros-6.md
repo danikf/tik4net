@@ -163,6 +163,26 @@ password the client offers (the SSH `none` method succeeds), on 6.49.13 and 7.24
 are answered; a plain print is answered). `SystemResource` sends no `.proplist`, so no mapped load reaches it —
 only a raw command that names the field.
 
+## 8. Monitors have no `as-value`
+
+`:put [/ping address=<a> count=2 as-value]` is refused on 6.49.13 with `expected end of command (line 1 column 43)`
+— column 43 is `as-value` — and `/tool traceroute … count=1 as-value` the same. The plain command prints its
+table and ends:
+
+```
+  SEQ HOST                                     SIZE TTL TIME  STATUS
+    0 192.0.2.1                                  56  64 0ms
+    1 192.0.2.1                                  56  64 0ms
+    sent=2 received=2 packet-loss=0% min-rtt=0ms avg-rtt=0ms max-rtt=0ms
+```
+
+A one-shot monitor read over a CLI transport sends the `as-value` form; when the whole answer is one parse
+error, it sends the plain form and reads the table by column (`CliTableParser`, the streaming monitors' parser),
+and asks that command in the plain form for the rest of the connection. The rows carry what the table prints
+(`seq`, `host`, `size`, `ttl`, `time`, `status`); the summary line is not a row, as on 7.x.
+`RomonRelayTest.Relay_SyncMonitor_ReturnsRows_AndKeepsTheRelay` covers it through the relay on Telnet, SSH and
+MAC-Telnet.
+
 ## Open problems
 
 Each is a statement of what is measured and what is not, to be settled one at a time.
@@ -241,7 +261,7 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    | Telnet, Ssh | 132 | 9 | 3 |
    | WinboxCli | 92 | 50 | 2 |
    | WinboxCliMac | 114 | 27 | 3 |
-   | MacTelnet | 7 | 137 | 0 (the session was lost after 7 paths — problem 8) |
+   | MacTelnet | 7 | 137 | 0 (the session was lost after 7 paths — problem 7) |
    | WinboxNative, WinboxNativeMac | 132 | 2 | 8 (problem 1) |
 
    - **Flags: the audit's raw rows lack them, entities do not.** Over every CLI transport the audit's print has
@@ -262,20 +282,18 @@ Each is a statement of what is measured and what is not, to be settled one at a 
      WinboxCli read all but `/routing/bgp/advertisements` (the read ends without its count, on both) and the
      menus 6.x does not have. WinboxCliMac and MacTelnet add `/ip/ipsec/policy` (`Missing field '.id'`) and
      `/system/package` (13 rows counted, 1 read) — MAC carriers only, the same on the code before these fixes —
-     and MacTelnet a run of 30 s timeouts (problem 8).
+     and MacTelnet a run of 30 s timeouts (problem 7).
    - Not a finding: the audit's "refusing to CLEAR the field" lines appear against 7.24.4 too.
    - Still not run: the full suite — CHR2's missing topology will fail tests for reasons that are not defects, so
      its failures need sorting before any counts as a 6.x gap.
 
-   **`RomonRelayTest` with the 6.49.13 target: 24 of 37 pass.** The relay itself works over all three agent
+   **`RomonRelayTest` with the 6.49.13 target: 28 of 37 pass (2026-09-25).** The relay itself works over all three agent
    transports. The rest:
    - 9 Safe Mode tests: they check the target's state over its own API with `/safe-mode`, which is `no such
      command` on 6.x. Unknown: whether Safe Mode through the relay works there and only the check does not.
-   - 3 synchronous-monitor tests (one per agent transport): the monitor command is refused on the target with
-     `expected end of command (line 1 column 43)` — a 7.x-only argument, not yet identified.
    - 1 large read over MAC-Telnet: the id-list flag query on the 450-row table,
-     `:put [/ip firewall address-list find (dynamic=yes)]`, was refused as incomplete after four MAC backlogs.
-     The same read passed over Telnet and SSH.
+     `:put [/ip firewall address-list find (dynamic=yes)]`, was refused as incomplete after four MAC backlogs
+     on 2026-09-24 and passed on 2026-09-25; the same read passes over Telnet and SSH.
 
 5. **Two MCP-side gaps seen while measuring.** `mikrotik_call` over `MacTelnet` failed against both routers,
    6.x and 7.x alike, while the suite's own MAC-Telnet legs passed — so the server, not the router; it was a
@@ -283,16 +301,7 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    rejects the lab's self-signed certificate on both routers, with no option to accept it the way the suite's
    `restAllowInvalidCert` does.
 
-6. **The CLI transports' `ping` is refused on 6.x.** A one-shot monitor is sent as
-   `:put [/ping address=<a> count=2 as-value]`, and RouterOS 6.49.13 answers
-   `expected end of command (line 1 column 43)` — column 43 is `as-value`, which its `/ping` does not take. Measured
-   over Telnet directly and through the RoMON relay (`RomonRelayTest.Relay_SyncMonitor_ReturnsRows_AndKeepsTheRelay`,
-   red on Telnet, SSH and MAC-Telnet). Unmeasured: which other monitors 6.x refuses the same way
-   (`monitor-traffic once`, `/tool traceroute`, …), and what 6.x offers instead — the plain print of a `count=`-bounded
-   ping is the first thing to try, since the probes that already handle a refused `proplist=` show 6.x answering
-   the non-`as-value` form.
-
-7. **CLI completion cannot list values that share a prefix on 6.x.** `ITikCliCompletion.CompleteCli` on
+6. **CLI completion cannot list values that share a prefix on 6.x.** `ITikCliCompletion.CompleteCli` on
    `/interface bridge add frame-types=` completes inline to `admit-` (as on 7.x), but asked again with that prefix,
    6.49.13 returns nothing at all where 7.x lists `admit-all`, `admit-only-untagged-and-priority-tagged`,
    `admit-only-vlan-tagged`. Not yet told apart: RouterOS 6 needing a second Tab to list, or our echo parsing dropping
@@ -301,7 +310,7 @@ Each is a statement of what is measured and what is not, to be settled one at a 
    `static-transmit-key`). Also measured with it: completion answers only for the SPACE form of a menu path on 6.x
    (`/ip firewall filter add action=`); after the slash form it lists nothing, so a caller must use spaces.
 
-8. **MAC-Telnet on one long session.** The path-map audit lost its session after seven paths (every call then
+7. **MAC-Telnet on one long session.** The path-map audit lost its session after seven paths (every call then
     `Connection is not open`); the entity sweep over one session hit 23 reads that time out after 30 s with
     17–24 KB received and no prompt, each costing the session — the same list on the code before the echo fix.
     ~18 KB is what 6.x's per-character echo of a windowed read's command amounts to, so the suspicion is the MAC
@@ -309,6 +318,6 @@ Each is a statement of what is measured and what is not, to be settled one at a 
     not the reads themselves. The suite's own MAC-Telnet legs pass against 6.49.13. Next step: a byte trace of
     one of them (`/ip/firewall/filter`) against the same read over Telnet.
 
-9. **MAC carriers: `/ip/ipsec/policy` and `/system/package` on 6.x.** Over WinboxCliMac and MacTelnet the policy
+8. **MAC carriers: `/ip/ipsec/policy` and `/system/package` on 6.x.** Over WinboxCliMac and MacTelnet the policy
     read fails with `Missing field '.id'` and the package read counts 13 rows and parses 1; Telnet and WinboxCli
     read both. Not yet traced.

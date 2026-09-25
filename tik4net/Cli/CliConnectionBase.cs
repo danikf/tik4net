@@ -1208,13 +1208,57 @@ namespace tik4net.Cli
         private async Task<IList<TikRecordSentence>> RunMonitorSnapshotAsync(
             TikCommandDescriptor descriptor, string verb, CancellationToken cancellationToken)
         {
-            string cliText = CliCommandBuilder.BuildMonitorSnapshot(
-                descriptor.CommandText, descriptor.Parameters,
-                CliMonitorVerbs.SnapshotModifier(verb), includeFilters: true);
+            string modifier = CliMonitorVerbs.SnapshotModifier(verb);
+            if (!_monitorWithoutAsValue.Contains(descriptor.CommandText))
+            {
+                string cliText = CliCommandBuilder.BuildMonitorSnapshot(
+                    descriptor.CommandText, descriptor.Parameters, modifier, includeFilters: true);
 
-            string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false);
-            CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
-            return ParseRecords(output, descriptor);
+                string output = await ExecuteCliCommandAsync(cliText, cancellationToken).ConfigureAwait(false);
+                if (!IsSyntaxErrorOnly(output))
+                {
+                    CliErrorParser.ThrowIfError(output, CreateDummyCommand(descriptor));
+                    return ParseRecords(output, descriptor);
+                }
+            }
+
+            // RouterOS 6 has no as-value on its monitors: 6.49.13 answers ':put [/ping address=… count=2 as-value]'
+            // with "expected end of command (line 1 column 43)" — column 43 is as-value — and traceroute the same.
+            // The plain command prints its table, read by column like a streaming monitor. Remembered per command
+            // once the plain form has answered with its table, so a syntax error the inputs caused is not.
+            string plainText = CliCommandBuilder.BuildInteractiveMonitor(
+                descriptor.CommandText, descriptor.Parameters, modifier, includeFilters: true);
+            string plain = await ExecuteCliCommandAsync(plainText, cancellationToken).ConfigureAwait(false) ?? string.Empty;
+            CliErrorParser.ThrowIfError(plain, CreateDummyCommand(descriptor));
+
+            var table = new CliTableParser();
+            var rows = new List<TikRecordSentence>();
+            foreach (string line in plain.Split((char)10))
+            {
+                TikRecordSentence? row = table.Feed(line.TrimEnd((char)13));
+                if (row != null)
+                    rows.Add(row);
+            }
+            // The header is the acceptance signal, as on the streaming path: text that never produced one is the
+            // router's refusal.
+            if (!table.HasHeader && !string.IsNullOrWhiteSpace(plain))
+                throw new TikCommandTrapException(CreateDummyCommand(descriptor),
+                    new TikTrapSentenceResult(CliErrorParser.ExtractErrorLine(plain)));
+            _monitorWithoutAsValue.Add(descriptor.CommandText);
+            return rows;
+        }
+
+        /// <summary>Monitor commands whose as-value form this router refused (RouterOS 6), read as a table instead.</summary>
+        private readonly HashSet<string> _monitorWithoutAsValue = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>True when the whole answer is one parse error: <c>… (line N column M)</c>.</summary>
+        private static bool IsSyntaxErrorOnly(string? output)
+        {
+            var lines = (output ?? string.Empty).Split((char)10)
+                .Select(line => line.Trim())
+                .Where(line => line.Length > 0)
+                .ToList();
+            return lines.Count == 1 && SyntaxErrorLine.IsMatch(lines[0]);
         }
 
         /// <summary>
