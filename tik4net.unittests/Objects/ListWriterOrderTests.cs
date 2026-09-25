@@ -31,7 +31,7 @@ namespace tik4net.unittests.Objects
             Passthrough = true,
         };
 
-        private static string[] Comments(IEnumerable<FirewallMangle> rules) => rules.Select(r => r.Comment).ToArray();
+        private static string[] Comments(IEnumerable<FirewallMangle> rules) => rules.Select(r => r.Comment.Value!).ToArray();
 
         private static (TikFakeConnection Connection, FakeRouterTable<FirewallMangle> Table) Table(params string[] comments)
         {
@@ -231,7 +231,7 @@ namespace tik4net.unittests.Objects
 
         private static TikListMerge<FirewallMangle> Merge(ITikConnection connection, IEnumerable<FirewallMangle> expected,
             IEnumerable<FirewallMangle> original)
-            => connection.CreateMerge(expected, original).WithKey(r => r.Comment).Field(r => r.Chain)
+            => connection.CreateMerge(expected, original).WithKey(r => r.Comment.ToString()).Field(r => r.Chain)
                 .JustForInsertField(r => r.Comment).JustForInsertField(r => r.Action);
 
         [TestMethod]

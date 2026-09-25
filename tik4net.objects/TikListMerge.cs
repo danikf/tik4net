@@ -199,12 +199,15 @@ namespace tik4net.Objects
                 object? val1 = propInfo.GetValue(entity1);
                 object? val2 = MergedValue(propInfo, entity1, entity2);
 
-                // A TikValue<T> compares by state and by the form the router is sent: its ToString renders Absent,
-                // Present("") and Present(null) alike, and a merge that sees them as equal never updates the target.
+                // A TikValue<T> compares by the form the router is sent, not by ToString, which renders Present("") like
+                // "no value". "No value" — Absent, or an assigned null — is one state here, as it is for == null: an expected
+                // row built in code with Foo = null and a router row without the field agree.
                 if (val1 is ITikValue wrapped1 && val2 is ITikValue wrapped2)
                 {
                     var accessor = WrappedAccessor(propInfo);
-                    if (wrapped1.State != wrapped2.State || accessor.FormatWrapped(val1) != accessor.FormatWrapped(val2))
+                    string? wire1 = accessor.FormatWrapped(val1), wire2 = accessor.FormatWrapped(val2);
+                    bool unparsed1 = wrapped1.State == TikValueState.Unparsed, unparsed2 = wrapped2.State == TikValueState.Unparsed;
+                    if (wire1 != wire2 || (unparsed1 != unparsed2 && wire1 != null))
                         return false;
                     continue;
                 }

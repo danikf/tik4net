@@ -20,37 +20,37 @@ namespace tik4net.Objects.Ip.Firewall
         /// <summary>
         /// address
         /// </summary>
-        [TikProperty("address", IsMandatory = true)]
-        public string? Address { get; set; }
+        [TikProperty("address")]
+        public TikValue<string?> Address { get; set; }
 
         /// <summary>
         /// comment
         /// </summary>
         [TikProperty("comment")]
-        public string? Comment { get; set; }
+        public TikValue<string?> Comment { get; set; }
 
         /// <summary>
         /// disabled
         /// </summary>
         [TikProperty("disabled")]
-        public bool? Disabled { get; set; }
+        public TikValue<bool?> Disabled { get; set; }
 
         /// <summary>
         /// dynamic
         /// </summary>
         [TikProperty("dynamic", IsReadOnly = true)]
-        public bool Dynamic { get; private set; }
+        public TikValue<bool?> Dynamic { get; private set; }
 
         /// <summary>
         /// timeout  (00:00:00)
         /// </summary>
         [TikProperty("timeout", DefaultValue = "00:00:00")]
-        public TikDuration? Timeout { get; set; }
+        public TikValue<TikDuration?> Timeout { get; set; }
 
         /// <summary>
         /// list
         /// </summary>
-        [TikProperty("list", IsMandatory = true)]
-        public string? List { get; set; }
+        [TikProperty("list")]
+        public TikValue<string?> List { get; set; }
     }
 }

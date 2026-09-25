@@ -58,7 +58,7 @@ namespace tik4net.integrationtests
         private List<FirewallMangle> LoadOwnRules()
             => Connection.LoadList<FirewallMangle>(
                     Connection.CreateParameter("chain", _chain, TikCommandParameterFormat.Filter))
-                .Where(m => string.Equals(m.Chain, _chain, StringComparison.Ordinal))
+                .Where(m => string.Equals(m.Chain.Value, _chain, StringComparison.Ordinal))
                 .ToList();
 
         private FirewallMangle Rule(string mark) => new FirewallMangle
@@ -70,7 +70,7 @@ namespace tik4net.integrationtests
         };
 
         private string[] Marks(IEnumerable<FirewallMangle> rules)
-            => rules.Select(r => r.NewPacketMark).ToArray();
+            => rules.Select(r => r.NewPacketMark.Value).ToArray();
 
         [TestMethod]
         public void SaveListDifferencesWillApplyTheListOrder()

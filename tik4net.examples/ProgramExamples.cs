@@ -160,7 +160,7 @@ namespace tik4net.examples
             {
                 // A writable flag is bool? — it reads back null when the router did not report it, which is
                 // a third state the display has to have an answer for.
-                Console.WriteLine("{0}{1}: {2} {3} ({4})", addressList.Disabled == true ? "X" : " ", addressList.Dynamic ? "D" : " ", addressList.Address, addressList.List, addressList.Comment);
+                Console.WriteLine("{0}{1}: {2} {3} ({4})", addressList.Disabled == true ? "X" : " ", addressList.Dynamic == true ? "D" : " ", addressList.Address, addressList.List, addressList.Comment);
             }
         }
 
@@ -262,7 +262,7 @@ namespace tik4net.examples
 
         private static void QueueTreeMerge(ITikConnection connection)
         {
-            var original = connection.LoadAll<QueueTree>().Where(q=> q.Name == "Q1" || q.Name == "Q2" || q.Name.StartsWith("Q3"));
+            var original = connection.LoadAll<QueueTree>().Where(q=> q.Name == "Q1" || q.Name == "Q2" || q.Name.ValueOrDefault("").StartsWith("Q3"));
 
             string unique = Guid.NewGuid().ToString();
             List<QueueTree> expected = new List<QueueTree>()
@@ -274,7 +274,7 @@ namespace tik4net.examples
 
             //Merge with Name as key - can not save via SaveListDifferences because all items in 'expected' are new (.id=null) => insert will be done, not CUD
             connection.CreateMerge(expected, original)            
-                .WithKey(queue => queue.Name)
+                .WithKey(queue => queue.Name.ToString())
                 .Field(q => q.Parent)
                 .Field(q => q.PacketMark)
                 .Field(q => q.Comment)

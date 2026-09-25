@@ -82,7 +82,7 @@ namespace tik4net.unittests
             Disabled = false,
             BurstLimit = 0,
             BurstThreshold = 0,
-            BurstTime = TimeSpan.Zero,
+            BurstTime = (TikDuration)TimeSpan.Zero,
         };
 
         // ── Merge builders — the exact fluent setup the shaper uses ───────────
@@ -92,7 +92,7 @@ namespace tik4net.unittests
             => connection.CreateMerge(expected, actual)
                 .WithKey(m =>
                 {
-                    switch (m.Action)
+                    switch (m.Action.Value)
                     {
                         case FirewallMangle.ActionType.Jump:
                         case FirewallMangle.ActionType.MarkPacket:
@@ -115,7 +115,7 @@ namespace tik4net.unittests
         private static TikListMerge<QueueTree> QueueMerge(
             ITikConnection connection, IEnumerable<QueueTree> expected, IEnumerable<QueueTree> actual)
             => connection.CreateMerge(expected, actual)
-                .WithKey(q => q.Name)
+                .WithKey(q => q.Name.ToString())
                 .JustForInsertField(q => q.Name)
                 .Field(q => q.PacketMark)
                 .Field(q => q.LimitAt)
@@ -141,8 +141,8 @@ namespace tik4net.unittests
 
         private static string Describe(FirewallMangle m)
             => string.Format("{0}|{1}|src={2}|dst={3}|jump={4}|mark={5}|{6}",
-                m.Chain, m.Action, m.SrcAddress ?? "", m.DstAddress ?? "",
-                m.JumpTarget ?? "", m.NewPacketMark ?? "", m.Comment ?? "");
+                m.Chain, m.Action, m.SrcAddress.ValueOrDefault(""), m.DstAddress.ValueOrDefault(""),
+                m.JumpTarget.ValueOrDefault(""), m.NewPacketMark.ValueOrDefault(""), m.Comment.ValueOrDefault(""));
 
         // ══ Mangle merge ══════════════════════════════════════════════════════
 
@@ -274,8 +274,8 @@ namespace tik4net.unittests
             MangleMerge(conn, after, table.Load(conn)).Save();
 
             var reloaded = table.Load(conn).Single(m => m.Action == FirewallMangle.ActionType.MarkPacket);
-            Assert.AreEqual("PM-NEW", reloaded.NewPacketMark, "the merged field was not updated");
-            Assert.IsTrue(reloaded.Disabled,
+            Assert.AreEqual("PM-NEW", reloaded.NewPacketMark.Value, "the merged field was not updated");
+            Assert.IsTrue(reloaded.Disabled == true,
                 "'disabled' is not a merged field, so the merge must not have re-enabled the rule");
         }
 

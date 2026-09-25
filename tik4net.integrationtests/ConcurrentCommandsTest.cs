@@ -174,7 +174,7 @@ namespace tik4net.integrationtests
                 default:
                     // A third path with its own handler, so the mix in flight is not two commands alternating.
                     var addresses = Connection.LoadAll<Objects.Ip.IpAddress>().ToList();
-                    if (addresses.Any(a => string.IsNullOrEmpty(a.Address)))
+                    if (addresses.Any(a => string.IsNullOrEmpty(a.Address.Value)))
                         problems.Enqueue("an IP address row arrived without an address");
                     break;
             }

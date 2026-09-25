@@ -38,7 +38,7 @@ namespace tik4net.unittests
         };
 
         private static string[] Comments(IEnumerable<FirewallMangle> rules)
-            => rules.Select(r => r.Comment).ToArray();
+            => rules.Select(r => r.Comment.Value!).ToArray();
 
         /// <summary>Seeds a table with rules commented A, B, C… and returns the connection plus the loaded list.</summary>
         private static (TikFakeConnection Connection, FakeRouterTable<FirewallMangle> Table, List<FirewallMangle> Loaded)

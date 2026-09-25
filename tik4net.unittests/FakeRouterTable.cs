@@ -122,7 +122,7 @@ namespace tik4net.unittests
                 if (refused != null)
                     return refused;
                 Record(rows);
-                row[values[TikSpecialProperties.UnsetValueName]] = "";
+                row.Remove(values[TikSpecialProperties.UnsetValueName]);   // an unset field is no longer printed
                 return Done();
             });
 
@@ -162,7 +162,11 @@ namespace tik4net.unittests
 
         private Dictionary<string, string> ToRow(TEntity entity, string id)
         {
-            var row = _metadata.Properties.ToDictionary(p => p.FieldName, p => p.GetEntityValue(entity) ?? "");
+            // A field with no value is left out of the row, as the router leaves it out (V4: an unset comment is absent).
+            var row = _metadata.Properties
+                .Select(p => new { p.FieldName, Value = p.GetEntityValue(entity) })
+                .Where(x => x.Value != null)
+                .ToDictionary(x => x.FieldName, x => x.Value!);
             row[TikSpecialProperties.Id] = id;
             return row;
         }

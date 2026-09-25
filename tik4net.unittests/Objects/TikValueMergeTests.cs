@@ -82,6 +82,22 @@ namespace tik4net.unittests.Objects
         }
 
         [TestMethod]
+        public void AnAssignedNull_AndAFieldTheRouterDoesNotPrint_AreTheSame()
+        {
+            // An expected row built in code (SrcAddress = upload ? ip : null) against a router row without the field:
+            // both have no value, as for == null. Found by the shaper scenario, where every row read as changed.
+            var connection = Router(new Dictionary<string, string> { [".id"] = "*1", ["name"] = "x" });
+            var original = connection.LoadAll<TikValueMapperTests.Box>().ToList();
+
+            connection.CreateMerge(new[] { new TikValueMapperTests.Box { Name = "x", Comment = null } }, original)
+                .WithKey(b => b.Name.ToString())
+                .Field(b => b.Comment)
+                .Simulate(out _, out int updates, out _, out _);
+
+            Assert.AreEqual(0, updates);
+        }
+
+        [TestMethod]
         public void EqualValues_SendNothing()
         {
             var connection = Router(new Dictionary<string, string> { [".id"] = "*1", ["name"] = "x", ["mode"] = "false" });

@@ -81,7 +81,7 @@ namespace tik4net.integrationtests
         private List<FirewallMangle> LoadOwnRules()
             => Connection.LoadList<FirewallMangle>(
                     Connection.CreateParameter("comment", _prefix, TikCommandParameterFormat.Filter))
-                .Where(m => !string.IsNullOrEmpty(m.Chain) && m.Chain.StartsWith(_prefix, StringComparison.Ordinal))
+                .Where(m => m.Chain.Value?.StartsWith(_prefix, StringComparison.Ordinal) == true)
                 .ToList();
 
         private FirewallMangle Jump(bool upload) => new FirewallMangle
@@ -91,7 +91,7 @@ namespace tik4net.integrationtests
             DstAddress = upload ? null : Subnet,
             Action = FirewallMangle.ActionType.Jump,
             JumpTarget = upload ? _upChain : _downChain,
-            Passthrough = true,
+            // No Passthrough: the router does not print it for jump/return, so an expected value would never match.
             Comment = _prefix,
         };
 
@@ -110,7 +110,6 @@ namespace tik4net.integrationtests
         {
             Chain = upload ? _upChain : _downChain,
             Action = FirewallMangle.ActionType.Return,
-            Passthrough = true,
             Comment = _prefix,
         };
 
@@ -119,7 +118,7 @@ namespace tik4net.integrationtests
             => Connection.CreateMerge(expected, actual)
                 .WithKey(m =>
                 {
-                    switch (m.Action)
+                    switch (m.Action.Value)
                     {
                         case FirewallMangle.ActionType.Jump:
                         case FirewallMangle.ActionType.MarkPacket:
@@ -143,7 +142,7 @@ namespace tik4net.integrationtests
         private static string Describe(FirewallMangle m)
             => string.Format("{0}|{1}|src={2}|dst={3}|jump={4}|mark={5}",
                 m.Chain, m.Action, Address(m.SrcAddress), Address(m.DstAddress),
-                m.JumpTarget ?? "", m.NewPacketMark ?? "");
+                m.JumpTarget.ValueOrDefault(""), m.NewPacketMark.ValueOrDefault(""));
 
         /// <summary>
         /// A single host address, in whichever of the two equivalent spellings the transport reports.
@@ -156,8 +155,9 @@ namespace tik4net.integrationtests
         /// exactly the failure being looked for.
         /// </para>
         /// </summary>
-        private static string Address(string value)
+        private static string Address(TikValue<string> address)
         {
+            string value = address.Value;
             if (string.IsNullOrEmpty(value)) return "";
             return value.EndsWith("/32", StringComparison.Ordinal)
                 ? value.Substring(0, value.Length - 3)

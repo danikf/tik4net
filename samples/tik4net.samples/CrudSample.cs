@@ -32,13 +32,12 @@ public static class CrudSample
         var existing = (await connection.LoadAllAsync<IpAddress>()).ToList();
         foreach (var address in existing)
         {
-            // Spelled the router's way, not C#'s: Disabled is a bool? and its ToString() would print
-            // "False"/"" — neither of which is a word RouterOS uses.
-            string disabled = address.Disabled switch { true => "yes", false => "no", null => "(unset)" };
+            // Disabled is a TikValue<bool?>: switch on its Value, which is null when the router did not print the field.
+            string disabled = address.Disabled.Value switch { true => "yes", false => "no", null => "(unset)" };
             Console.WriteLine($"   {address.Address,-20} {address.Interface,-12} disabled={disabled}");
         }
 
-        string @interface = existing.FirstOrDefault()?.Interface
+        string @interface = existing.FirstOrDefault()?.Interface.Value
             ?? throw new InvalidOperationException("The router has no addresses, so there is no interface to borrow.");
 
         var created = new IpAddress

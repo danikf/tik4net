@@ -79,14 +79,14 @@ namespace tik4net.integrationtests
             return LoadChain(_chain);
         }
 
-        private static string[] Comments(IEnumerable<FirewallMangle> rules) => rules.Select(r => r.Comment).ToArray();
+        private static string[] Comments(IEnumerable<FirewallMangle> rules) => rules.Select(r => r.Comment.Value).ToArray();
 
         private static List<FirewallMangle> InOrder(IList<FirewallMangle> loaded, Func<string, FirewallMangle> create, params string[] comments)
             => comments.Select(c => loaded.FirstOrDefault(r => r.Comment == c) ?? create(c)).ToList();
 
         private TikListMerge<FirewallMangle> Merge(IEnumerable<FirewallMangle> expected, IEnumerable<FirewallMangle> original)
             => Connection.CreateMerge(expected, original)
-                .WithKey(r => r.Comment)
+                .WithKey(r => r.Comment.ToString())
                 .Field(r => r.Chain)
                 .JustForInsertField(r => r.Action)
                 .JustForInsertField(r => r.Comment);

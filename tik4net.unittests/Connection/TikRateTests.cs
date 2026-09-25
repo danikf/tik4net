@@ -93,8 +93,8 @@ namespace tik4net.unittests.Connection
             Assert.AreEqual(TimeSpan.FromMilliseconds(500), sniffer.ChannelTime!.Value.Value);
 
             // And so does a word, which is why the property is not a TimeSpan.
-            var entry = new tik4net.Objects.Ip.Firewall.FirewallAddressList { Timeout = "none" };
-            Assert.AreEqual("none", entry.Timeout!.Value.Token);
+            var entry = new tik4net.Objects.Ip.Firewall.FirewallAddressList { Timeout = (TikDuration)"none" };
+            Assert.AreEqual("none", entry.Timeout.Value!.Value.Token);
         }
 
         [TestMethod]
