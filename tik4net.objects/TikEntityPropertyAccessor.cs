@@ -402,6 +402,10 @@ namespace tik4net.Objects
                 SetEntityValue(target, GetEntityValue(source));
         }
 
+        /// <summary>The <see cref="TikValue{T}"/> itself, boxed — only for a wrapped property.</summary>
+        internal object GetWrapped(object entity)
+            => (_getter != null ? _getter(entity) : PropertyInfo.GetValue(entity))!;
+
         private void SetRaw(object entity, object? value)
         {
             if (_setter != null)
