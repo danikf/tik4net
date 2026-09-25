@@ -41,6 +41,20 @@ namespace tik4net.unittests.Objects
             => connection.SentCommands.Single(c => c.First() == "/system/clock/set");
 
         [TestMethod]
+        public void DefaultSave_OfALoadedClock_SendsOnlyWhatChanged()
+        {
+            // The default (OnlyChanges) diffs against the load. A singleton used to be exempt and sent every writable
+            // field — the loaded time and date included.
+            var connection = TickingClock();
+            var clock = connection.LoadSingle<SystemClock>();
+
+            clock.TimeZoneName = "Europe/Prague";
+            connection.Save(clock);
+
+            CollectionAssert.AreEquivalent(new[] { "/system/clock/set", "=time-zone-name=Europe/Prague" }, TheSet(connection));
+        }
+
+        [TestMethod]
         public void FullUpdate_DoesNotWriteBackTheTimeItLoaded()
         {
             var connection = TickingClock();
