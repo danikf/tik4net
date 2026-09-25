@@ -39,8 +39,11 @@ namespace tik4net.unittests.Rest
                 System.Net.ServicePointManager.FindServicePoint(new Uri($"http://127.0.0.1:{server.Port}/rest"))
                     .ConnectionLimit = 2;
 #endif
-                conn.SendTimeout = 5000;     // a request is bounded by the larger of the two
-                conn.ReceiveTimeout = 5000;
+                // The library's default, not a tight value: the gate wait counts against a request's timeout, and
+                // a CI runner that stalls for a few seconds timed out the last commands behind the gate with 5 s.
+                // A pipelined request is never answered at all, so a generous bound still catches it.
+                conn.SendTimeout = 30000;    // a request is bounded by the larger of the two
+                conn.ReceiveTimeout = 30000;
                 conn.Open("127.0.0.1", server.Port, "admin", "");
 
                 var tasks = Enumerable.Range(0, Commands).Select(async i =>
@@ -63,7 +66,8 @@ namespace tik4net.unittests.Rest
                 string[] problems = (await Task.WhenAll(tasks).ConfigureAwait(false)).Where(p => p != null).ToArray();
 
                 Assert.AreEqual(0, problems.Length,
-                    $"{server.RequestsDiscarded} request(s) were queued behind another on one HTTP connection:"
+                    $"{problems.Length} command(s) failed; {server.RequestsDiscarded} request(s) were queued behind "
+                    + "another on one HTTP connection:"
                     + Environment.NewLine + string.Join(Environment.NewLine, problems));
                 Assert.AreEqual(0, server.RequestsDiscarded, "a request was pipelined even though every command succeeded");
             }
